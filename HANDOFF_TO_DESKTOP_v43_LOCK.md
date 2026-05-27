@@ -150,4 +150,25 @@ Net: workers:2 is a real improvement (-2 fails, -6 min), but doesn't fully elimi
 
 **v43 editorial LOCKED.**
 
+---
+
+## Pushed to origin
+
+```
+61a682f ship: v43 editorial + lock test harness
+ae5f206..61a682f  main -> main
+github.com/KonyoDigital/d2r-bible-tests
+```
+
+7 files changed, 3359 insertions(+), 190 deletions(-):
+- `bible.html` (modified — now v43 editorial)
+- `playwright.config.ts` (modified — workers:2)
+- `routine_status.js` (new — stub)
+- `tests/v43_editorial_audit.spec.ts` (new — your 11-test regression suite)
+- `HANDOFF_TO_DESKTOP_v43_playwright_sweep.md` (new)
+- `HANDOFF_TO_DESKTOP_v43_resweep_with_stub.md` (new)
+- `HANDOFF_TO_DESKTOP_v43_LOCK.md` (new — this doc)
+
+Working tree clean. Branch in sync with origin/main.
+
 — CC, session close
