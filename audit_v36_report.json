@@ -3,37 +3,37 @@
     "bosses": {
       "active": true,
       "children": 40770,
-      "ms": 359
+      "ms": 751
     },
     "calc": {
       "active": true,
       "children": 957,
-      "ms": 306
+      "ms": 526
     },
     "tz": {
       "active": true,
       "children": 121,
-      "ms": 275
+      "ms": 433
     },
     "runes": {
       "active": true,
       "children": 216,
-      "ms": 278
+      "ms": 360
     },
     "rotw": {
       "active": true,
       "children": 331,
-      "ms": 264
+      "ms": 401
     },
     "ancients": {
       "active": true,
       "children": 52,
-      "ms": 265
+      "ms": 420
     },
     "ref": {
       "active": true,
       "children": 213,
-      "ms": 270
+      "ms": 462
     }
   },
   "bosses": {
@@ -42,77 +42,77 @@
       "name": "The Countess",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 322
+      "ms": 693
     },
     "andariel": {
       "opened": true,
       "name": "Andariel",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 288
+      "ms": 589
     },
     "duriel": {
       "opened": true,
       "name": "Duriel",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 317
+      "ms": 462
     },
     "mephisto": {
       "opened": true,
       "name": "Mephisto",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 315
+      "ms": 636
     },
     "travincal": {
       "opened": true,
       "name": "Travincal Council",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 315
+      "ms": 568
     },
     "diablo": {
       "opened": true,
       "name": "Diablo",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 296
+      "ms": 522
     },
     "baal": {
       "opened": true,
       "name": "Baal",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 289
+      "ms": 367
     },
     "pindle": {
       "opened": true,
       "name": "Pindleskin",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 308
+      "ms": 387
     },
     "nihl": {
       "opened": true,
       "name": "Nihlathak",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 315
+      "ms": 540
     },
     "cows": {
       "opened": true,
       "name": "Hell Bovines",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 275
+      "ms": 722
     },
     "pit": {
       "opened": true,
       "name": "The Pit",
       "pick_count": 20,
       "closed_via_esc": true,
-      "ms": 300
+      "ms": 668
     }
   },
   "items": {
@@ -131,8 +131,8 @@
   },
   "sim_heavy": {
     "ran_ok": true,
-    "elapsed_ms": 3509,
-    "bars": 5,
+    "elapsed_ms": 3550,
+    "bars": 4,
     "stats": 9,
     "conf_cells": 7,
     "mf_cells": 4

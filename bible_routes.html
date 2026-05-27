@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Konyo's D2R Farming Bible v42 — command palette + verified anchors</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konyo's D2R Farming Bible v42 — command palette + verified anchors</title>
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa}
 *{box-sizing:border-box}
@@ -1397,6 +1399,77 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   #routine-refresh-btn:hover { color: var(--gold-bright); border-color: var(--gold-bright); }
   #routine-refresh-btn.spinning { animation: spin .8s linear; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+
+  /* === v42 mobile polish — touch-friendly tap targets without breaking desktop === */
+  @media (max-width: 600px) {
+    .tab {
+      padding: 10px 12px !important;
+      font-size: 13px !important;
+      min-height: 44px;
+    }
+    .boss-chip {
+      min-height: 36px;
+      padding: 6px 10px;
+    }
+    /* MF slider thumb tap-friendly */
+    input[type="range"]#mf {
+      height: 24px;
+    }
+    input[type="range"]#mf::-webkit-slider-thumb {
+      width: 24px;
+      height: 24px;
+    }
+    /* TZ countdown — smaller bottom margin so it doesn't cover content */
+    #v42-tz-countdown {
+      bottom: 8px;
+      left: 8px;
+      padding: 6px 10px;
+      font-size: 10.5px;
+    }
+    #v42-tz-countdown .v42-tz-time {
+      font-size: 13px;
+    }
+    /* Palette — full width on small screens, less top padding */
+    #v42-palette-overlay {
+      padding-top: 6vh;
+    }
+    #v42-palette {
+      width: 96vw;
+      max-width: none;
+    }
+    #v42-palette-input {
+      font-size: 16px !important; /* iOS doesn't auto-zoom on inputs >= 16px */
+    }
+    /* Header — tighter on mobile so it doesn't eat all vertical space */
+    .header {
+      padding: 8px 12px 6px;
+    }
+    .h-title {
+      font-size: 15px;
+    }
+  }
+
+
+  /* === v42 theme polish — focus rings + improved warn state contrast === */
+  #v42-palette-input:focus {
+    box-shadow: inset 0 -2px 0 0 var(--gold-bright, #f0c060);
+  }
+  .v42-pal-item:focus,
+  .v42-pal-item.v42-pal-active {
+    outline: none;
+    background: rgba(240,192,96,.14);
+    border-left-color: var(--gold-bright, #f0c060);
+  }
+  /* Improve warn-state contrast for routine letter widget */
+  .routine-letter[data-status="warn"] {
+    /* Slightly brighter warn — easier to spot at a glance */
+    background: linear-gradient(180deg, rgba(255,204,68,.28), rgba(255,204,68,.10));
+  }
+  /* Wishlist star focus visual */
+  .item-tile.item-tile-starred {
+    box-shadow: inset 0 0 0 1px var(--star, #ffd040);
+  }
 
 </style>
 </head>
@@ -6136,6 +6209,41 @@ _v41_whenReady(() => {
         }
       });
     }
+    // v42 polish: "star <query>" or "unstar <query>" -> add wishlist toggle commands
+    const starMatch = q.match(/^(un)?star\s+(.+)$/i);
+    if (starMatch) {
+      const unstarMode = !!starMatch[1];
+      const subQuery = starMatch[2].toLowerCase().trim();
+      // ITEMS + wishlist are module-scoped in main bible script — access via eval (same global script scope)
+      let items = [], wishlistSet = null;
+      try {
+        items = eval('typeof ITEMS !== "undefined" ? ITEMS : []') || [];
+        wishlistSet = eval('typeof wishlist !== "undefined" ? wishlist : null');
+      } catch(e) {}
+      const seen = new Set();
+      const matches = [];
+      for (const it of items) {
+        const name = it.n || it.name;
+        if (!name || seen.has(name)) continue;
+        if (!name.toLowerCase().includes(subQuery)) continue;
+        const isStarred = (wishlistSet instanceof Set) ? wishlistSet.has(name) : false;
+        // unstar mode: only show currently-starred items
+        if (unstarMode && !isStarred) continue;
+        // star mode: show all matching items (already-starred ones will toggle off)
+        seen.add(name);
+        matches.push({
+          icon: isStarred ? '★' : '☆',
+          label: `${isStarred ? 'Unstar' : 'Star'}: ${name}`,
+          cat: 'action',
+          hint: isStarred ? 'starred' : '',
+          action: () => {
+            if (typeof window.toggleStarred === 'function') window.toggleStarred(name);
+          }
+        });
+        if (matches.length >= 12) break;
+      }
+      custom = [...custom, ...matches];
+    }
 
     if (!q && custom.length === 0) {
       // v42 polish: show recently-viewed first, then defaults
@@ -6149,8 +6257,16 @@ _v41_whenReady(() => {
       const others = cmds.filter(c => !usedLabels.has(c.label)).slice(0, 30 - recentCmds.length);
       v42Filtered = [...recentCmds, ...others];
     } else {
+      // v42: score label and keywords SEPARATELY — label match always beats keywords-only
       const scored = cmds
-        .map(c => ({ c, score: v42FuzzyScore(q, c.label + ' ' + (c.keywords||'')) }))
+        .map(c => {
+          const labelScore = v42FuzzyScore(q, c.label);
+          const keyScore = c.keywords ? v42FuzzyScore(q, c.keywords) * 0.4 : -1;
+          let s = Math.max(labelScore, keyScore);
+          // Runeword boost — when label score is positive (real match), give priority for commonly-searched RWs
+          if (labelScore > 0 && c.cat === 'runeword') s += 25;
+          return { c, score: s };
+        })
         .filter(x => x.score > 0)
         .sort((a, b) => b.score - a.score)
         .map(x => x.c);
