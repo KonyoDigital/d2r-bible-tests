@@ -2867,6 +2867,14 @@ window.clearActiveBoss = function() {
   // Route-audit contract: hide the overlay
   document.getElementById('boss-detail-overlay')?.classList.add('hidden');
   document.querySelectorAll('.boss-chip').forEach(c => c.dataset.active = 'false');
+  // v42 UX route-back: smoothly return user to the chip bar so they can pick another boss
+  setTimeout(() => {
+    const nav = document.getElementById('boss-nav');
+    if (nav) {
+      const y = nav.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
+  }, 60);
 };
 
 
@@ -4454,6 +4462,8 @@ function renderDetail() {
 let activeSourceKey = null; // format: 'bossId|diffKey'
 function setActiveItem(name, sourceBossId, sourceDiffKey) {
   activeItem = name;
+  // v42 polish: record in recently-viewed even when navigation skips the palette
+  try { if (name && typeof window._v42_pushRecent === 'function') window._v42_pushRecent({label: name, cat: 'item'}); } catch(e) {}
   if (sourceBossId !== undefined && sourceDiffKey !== undefined) activeSourceKey = `${sourceBossId}|${sourceDiffKey}`;
   else if (sourceBossId !== undefined) activeSourceKey = sourceBossId; // legacy bossId-only call — match any diff
   if (!name) activeSourceKey = null;
@@ -4464,6 +4474,14 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
     bar.classList.remove("show");
     if (detail) { detail.classList.remove("show"); detail.innerHTML = ""; }
     document.querySelectorAll(".boss-card").forEach(c => { c.classList.remove("has-item"); c.classList.remove("no-item"); });
+    // v42 UX route-back: smoothly return user to the top of bosses tab so they can pick another item
+    setTimeout(() => {
+      const target = document.getElementById('boss-nav') || document.querySelector('.tabs');
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      }
+    }, 60);
     return;
   }
   bar.classList.add("show");
@@ -5186,6 +5204,12 @@ function _v39_validTabName(name) {
 // Wrap switchTab to persist + sync URL hash
 const _v39_origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
+  // v42 UX route-back: clicking the active tab should scroll to top (iOS-style "return to top")
+  const currentActive = document.querySelector('.tab.active')?.getAttribute('data-tab');
+  if (currentActive === name) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
   _v39_origSwitchTab(name);
   _v39_persistActiveTab(name);
   // Sync URL hash without scroll-jump
@@ -5516,6 +5540,14 @@ const _v40_origOpenBossDetail = window.openBossDetail;
 if (_v40_origOpenBossDetail) {
   window.openBossDetail = function(bossId, focusDiff) {
     _v40_origOpenBossDetail.apply(this, arguments);
+    // v42 polish: record in recently-viewed
+    try {
+      if (bossId && typeof window._v42_pushRecent === 'function' && typeof BOSSES !== 'undefined') {
+        const boss = BOSSES.find(b => b.id === bossId);
+        const label = boss ? (boss.n || boss.name || bossId) : bossId;
+        window._v42_pushRecent({ label, cat: 'boss' });
+      }
+    } catch(e) {}
     // Defer to let the original render finish
     setTimeout(() => _v40_renderBossFieldManual(bossId), 50);
   };
@@ -6353,6 +6385,7 @@ _v41_whenReady(() => {
 
   // Expose for external triggers
   window._v42_openPalette = v42Open;
+  window._v42_pushRecent = v42PushRecent;  // v42 polish: exposed so setActiveItem/openBossDetail hooks can record
   window._v42_closePalette = v42Close;
 
   // --- v42: Event wiring ---
