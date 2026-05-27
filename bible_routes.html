@@ -223,7 +223,7 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media(max-width:700px){h2{font-size:16px}.diff-grid{grid-template-columns:repeat(3,1fr)}.container{padding:14px 10px}table.drops{min-width:680px}.boss-emoji{font-size:30px}.boss-name{font-size:18px}.item-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.slider-group{min-width:100%}.hero-grid{grid-template-columns:1fr 1fr}}
 
-.tonight-mission{background:linear-gradient(135deg,rgba(255,0,212,.08) 0%,rgba(212,168,71,.04) 100%);border:1px solid var(--border-light);border-radius:12px;padding:18px 20px;margin-bottom:20px}
+/* v42 removed: .tonight-mission (dead feature) */
 .tonight-title{color:var(--terror);font-size:11px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;margin-bottom:10px}
 .mission-sub{color:var(--text);font-size:14px;margin-bottom:14px}
 .mission-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
@@ -1554,11 +1554,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="wishlist-card" id="wishlist-hunt-path"></div>
   <div style="display:none">
   </div>
-  <div class="tonight-mission" id="tonight-mission" style="display:none">
-    <div class="tonight-title">🎯 Tonight's Mission — fastest path to your wishlist</div>
-    <div class="mission-sub" id="mission-sub">Star ⭐ items in the Calculator to build your wishlist, then this section ranks bosses by fastest expected farm.</div>
-    <div class="mission-grid" id="mission-grid"></div>
-  </div>
+  <!-- v42 removed: Tonight's Mission was dead (ID mismatch, display:none, redundant with renderHero/renderWishlistHuntPath) -->
   <div class="legend-box">
     <div class="legend-title">📖 Cell legend — read every drop table this way</div>
     <div class="legend-row">
@@ -1748,7 +1744,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="tz-zone-body"><strong>Hephasto drops superior items.</strong> Izual + River monsters. Connects to CS so you can chain into Diablo. TC87 unlock.</div>
       <div class="tz-zone-tags"><span class="tz-zone-tag tc87">TC87 unlock</span></div>
     </div>
-<div class="tz-zone-card" data-boss-id="" onclick="const b=tzZoneBoss('Tristram (the town)'); if(b){switchTab('bosses');setTimeout(()=>setActiveBoss(b),100)}" style="cursor:pointer" title="click to see boss detail">
+<div class="tz-zone-card" data-boss-id="" onclick="const b=tzZoneBoss('Tristram (the town)'); if(b){switchTab('bosses');setTimeout(()=>setActiveBoss(b,undefined,{intent:'open'}),100)}" style="cursor:pointer" title="click to see boss detail">
       <div class="tz-zone-header">
         <span class="tz-zone-emoji">⛪</span>
         <p class="tz-zone-name">Tristram (the town)</p>
@@ -2031,7 +2027,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <p>Live MF/players slider at the top — all numbers recalculate instantly when you drag.</p>
     <h3>⭐ Wishlist vs ✓ Owned</h3>
     <ul>
-      <li><strong>⭐ Star</strong> = "I want this" → bumps to top of hero card + Tonight's Mission</li>
+      <li><strong>⭐ Star</strong> = "I want this" → bumps to top of hero card</li>
       <li><strong>✓ Owned</strong> = "I already have this" → strikethrough, removed from priority lists</li>
     </ul>
     <h3>📖 Cell colors</h3>
@@ -2772,7 +2768,7 @@ function renderGrailProgress() {
   let msg = "";
   if (have === 0) msg = `Mark grail items as ✓ owned to track your Holy Grail collection. <strong>${total}</strong> grails tracked.`;
   else if (remaining === 0) msg = `<strong style="color:var(--best)">🏆 GRAIL COMPLETE!</strong> You collected all ${total} tracked items. Send a screenshot.`;
-  else msg = `<strong>${have} / ${total}</strong> grails owned · ${remaining} to go · ⭐ ${wishlist.size} starred for priority. Next pickup ideas in 🎯 Tonight's Mission below.`;
+  else msg = `<strong>${have} / ${total}</strong> grails owned · ${remaining} to go · ⭐ ${wishlist.size} starred for priority. See the Hero card above for next pickup ideas.`;
   $("gp-detail").innerHTML = msg;
 }
 
@@ -2797,57 +2793,22 @@ function renderHero() {
   renderHeroV31();
 }
 
-function renderTonightsMission() {
-  const el = $("tonights-mission");
-  if (!el) return;
-
-  // === v24: DIVERSIFY by boss — show top-1 grail per boss, then sort by hours ===
-  // This ensures variety — no more "all 5 picks → Hell TZ Pindleskin"
-  const perBossBest = {};
-  BOSSES.forEach(boss => {
-    let best = null;
-    boss.dropTable.forEach(d => {
-      if ((d.tier !== "grail" && d.tier !== "uber") || owned.has(d.n) || d.category) return;
-      ["hellTz","hell","nmTz","nm","normTz","norm"].forEach(k => {
-        if (d[k]) {
-          const adj = adjustChance(d[k], mf);
-          const kphMult = (k==="norm"||k==="normTz") ? 1.2 : (k==="nm"||k==="nmTz") ? 1.1 : 1.0;
-          const hrs = hoursFor(adj, 0.5, boss.kph * kphMult);
-          if (!best || hrs < best.hrs) {
-            best = {item: d.n, boss: boss.name, bossId: boss.id, chance: adj, diffKey: k, hrs, kph: Math.round(boss.kph * kphMult)};
-          }
-        }
-      });
-    });
-    if (best) perBossBest[boss.id] = best;
-  });
-  const picks = Object.values(perBossBest).sort((a,b) => (a.hrs||Infinity) - (b.hrs||Infinity));
-  const top = picks.slice(0, Math.min(picks.length, 8));
-
-  if (!top.length) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-style:italic;padding:14px">No grail items achievable at current MF. Try higher MF or move to Hell.</div>';
-    return;
-  }
-
-  el.innerHTML = top.map((p,i) => {
-    const r50 = runsFor(p.chance, 0.5);
-    const diffLabel = (p.diffKey||"").replace("Tz"," TZ").toUpperCase();
-    const escName = p.item.replace(/'/g, "\\'");
-    return `<div class="hero-pick" onclick="switchTab('bosses');setActiveBoss('${p.bossId}')" style="cursor:pointer" title="click to open ${p.boss}'s Golden Boss Card">
-      <div class="hero-pick-rank">#${i+1} best</div>
-      <div class="hero-pick-name">${p.item}</div>
-      <div class="hero-pick-source"><span style="color:var(--gold-bright)">${p.boss}</span> · ${diffLabel}</div>
-      <div class="hero-pick-chance"><strong>${fmt(p.chance)}</strong> · <span style="color:var(--terror)">${fmtHours(p.hrs)} for 50%</span></div>
-      <div class="hero-pick-kph">${p.kph}/hr ${sparkline(p.chance, p.kph, Math.max(1, p.hrs*2))}</div>
-    </div>`;
-  }).join("");
-}
+// v42 removed: renderTonightsMission() — dead feature (ID mismatch, redundant)
 
 let activeBossId = null;
 
-window.setActiveBoss = function(bossId, focusDiff) {
-  // Toggle: clicking same chip again closes
-  if (activeBossId === bossId) { clearActiveBoss(); return; }
+window.setActiveBoss = function(bossId, focusDiff, opts) {
+  // v42 Bug H (CC find): support intent disambiguation. Default 'toggle' is correct
+  // for boss-chip re-clicks (close-on-second-click). But entry points like
+  // openBossDetail, TZ zone cards, gic-source-cell, Cmd+click source chip,
+  // URL hash routes — all want 'open' semantics (already-active = no-op, not close).
+  const intent = opts?.intent || 'toggle';
+  if (activeBossId === bossId) {
+    if (intent === 'toggle') { clearActiveBoss(); return; }
+    // intent === 'open' — re-scroll to panel without closing
+    setTimeout(() => $("boss-detail-panel")?.scrollIntoView({behavior:'smooth',block:'start'}), 50);
+    return;
+  }
   activeBossId = bossId;
   // v33: re-render hero picks to be boss-specific
   if (typeof renderHero === 'function') renderHero();
@@ -3627,8 +3588,8 @@ window.openBossDetail = function(bossId, focusDiff) {
   // v28: synchronously show overlay first so route-audit doesn't race
   document.getElementById('boss-detail-overlay')?.classList.remove('hidden');
   switchTab('bosses');
-  // setActiveBoss does the actual render + state update
-  setActiveBoss(bossId, focusDiff);
+  // v42 Bug H: intent='open' so re-entering same boss doesn't toggle-close it
+  setActiveBoss(bossId, focusDiff, {intent:'open'});
 };
 
 /* === v28: dedicated overlay-aware Esc listener — closes overlay even if state is desync === */
@@ -3999,13 +3960,18 @@ window.navigateToItem = function(itemName, originContext) {
 
 window.goBackFromAid = function() {
   if (!aidCardOrigin) return;
-  if (aidCardOrigin.tab === 'bosses' && aidCardOrigin.bossId) {
-    switchTab('bosses');
-    setTimeout(() => setActiveBoss(aidCardOrigin.bossId), 60);
-  } else if (aidCardOrigin.tab) {
-    switchTab(aidCardOrigin.tab);
-  }
+  // v42 fix (Bug E — CC find): capture into a local BEFORE nulling. The previous
+  // version nulled aidCardOrigin synchronously, then the 60ms setTimeout closure
+  // tried to read .bossId from null → silent TypeError → setActiveBoss never ran.
+  // User saw bosses tab activate with no boss expanded.
+  const origin = aidCardOrigin;
   aidCardOrigin = null;
+  if (origin.tab === 'bosses' && origin.bossId) {
+    switchTab('bosses');
+    setTimeout(() => setActiveBoss(origin.bossId, undefined, {intent:'open'}), 60);
+  } else if (origin.tab) {
+    switchTab(origin.tab);
+  }
 };
 
 
@@ -4195,7 +4161,6 @@ function toggleStar(name) {
   else wishlist.add(name);
   persist();
   renderHero();
-  renderTonightsMission();
   renderBossCards();
   renderCalc();
   renderGrailProgress();
@@ -4213,7 +4178,6 @@ function toggleOwned(name) {
     }
   }
   renderHero();
-  renderTonightsMission();
   renderBossCards();
   renderCalc();
   renderGrailProgress();
@@ -4931,7 +4895,7 @@ function switchTab(name) {
   if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId();
 }
 
-$("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderTonightsMission(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
+$("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
 $("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
 $("item-search").oninput = e => { searchQ = e.target.value; renderCalc(); };
 document.querySelectorAll(".filter-pill").forEach(p => {
@@ -4947,7 +4911,6 @@ document.querySelectorAll(".tab").forEach(t => { t.onclick = () => switchTab(t.d
 updateEffMF();
 updatePlayers();
 renderHero();
-renderTonightsMission();
 renderGrailProgress();
 renderBossNav();
 renderBossCards();
