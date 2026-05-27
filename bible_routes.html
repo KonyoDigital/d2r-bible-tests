@@ -4165,10 +4165,17 @@ function renderBossCards() {
   document.querySelectorAll("tr.clickable").forEach(tr => {
     tr.onclick = e => {
       if (e.target.classList.contains('star-btn') || e.target.classList.contains('owned-btn')) return;
-      selectedItem = tr.dataset.item;
-      switchTab("calc");
-      renderCalc();
-      setTimeout(() => $("item-detail").scrollIntoView({behavior:"smooth",block:"start"}), 100);
+      // v42 UX (CC find): use canonical navigateToItem to keep selectedItem + activeItem
+      // + active-item-bar in sync (was setting only selectedItem, leaving top bar empty)
+      if (typeof navigateToItem === 'function') {
+        navigateToItem(tr.dataset.item);
+      } else {
+        selectedItem = tr.dataset.item;
+        if (typeof setActiveItem === 'function') setActiveItem(tr.dataset.item);
+        switchTab("calc");
+        renderCalc();
+        setTimeout(() => $("item-detail").scrollIntoView({behavior:"smooth",block:"start"}), 100);
+      }
     };
   });
 }
@@ -4695,7 +4702,7 @@ function renderAidCard(name, opts){
         <button class="aid-close-btn" onclick="toggleOwned('${escName}')">${isOwned?'☑ owned':'☐ mark owned'}</button>
         <button class="aid-close-btn" onclick="openGlossary()" title="what does TC and qlvl mean?">?</button>
         ${opts.context==='bosses'
-          ? `<button class="aid-close-btn" onclick="selectedItem='${escName}';switchTab('calc');renderDetail();">↗ open in calc</button>`
+          ? `<button class="aid-close-btn" onclick="navigateToItem('${escName}')">↗ open in calc</button>`
           : `<button class="aid-close-btn" onclick="setActiveItem('${escName}');switchTab('bosses');setTimeout(()=>{document.getElementById('${focus.bossId}').scrollIntoView();jumpToBossItem('${escName}')},100)">↗ jump to boss</button>`}
       </div>
     </header>
@@ -4904,90 +4911,12 @@ function toggleStatue(name) {
   else statues.add(name);
   persist();
   renderStatueTracker();
-renderTzZones();
-renderSetTracker();
-
-// keyboard shortcuts (v12 enhanced)
-document.addEventListener("keydown", (e) => {
-  const inInput = ["INPUT","TEXTAREA"].includes(document.activeElement?.tagName);
-  if (e.key === "Escape") {
-    document.getElementById("help-modal")?.classList.remove("show");
-    if (activeBossId) { clearActiveBoss(); return; }
-    if (activeItem) clearActiveItem();
-    return;
-  }
-  // Arrow nav within item-grid when focused
-  const grid = document.getElementById("item-grid");
-  const focused = document.activeElement;
-  if (grid && focused?.classList?.contains("item-tile")) {
-    const tiles = Array.from(grid.querySelectorAll(".item-tile"));
-    const curIdx = tiles.indexOf(focused);
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      const next = tiles[Math.min(tiles.length-1, curIdx+1)];
-      next?.focus();
-      next?.click();
-      return;
-    }
-    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const prev = tiles[Math.max(0, curIdx-1)];
-      prev?.focus();
-      prev?.click();
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      focused?.click();
-      $("item-detail")?.scrollIntoView({behavior:"smooth", block:"start"});
-      return;
-    }
-    if (e.key.toLowerCase() === "b" && selectedItem) {
-      e.preventDefault();
-      switchTab("bosses");
-      setActiveItem(selectedItem);
-      return;
-    }
-  }
-  if (inInput) return;
-  if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
-    e.preventDefault();
-    switchTab("calc");
-    setTimeout(() => $("item-search").focus(), 100);
-    return;
-  }
-  if (e.key === "?") {
-    document.getElementById("help-modal")?.classList.add("show");
-    return;
-  }
-  // Note: 1=bosses, 2=calc, 3=tz, 4=runes, 5=rotw, 6=ancients, 7=ref (added tz at 3)
-  const tabMap = {"1":"bosses","2":"calc","3":"tz","4":"runes","5":"rotw","6":"ancients","7":"ref"};
-  if (tabMap[e.key]) switchTab(tabMap[e.key]);
-});
-
-// show shortcut hint briefly on first visit
-if (!LS.getItem("d2r_shortcuts_seen")) {
-  const sh = $("shortcut-hint");
-  if (sh) {
-    sh.classList.add("show");
-    setTimeout(() => { sh.classList.remove("show"); LS.setItem("d2r_shortcuts_seen", "1"); }, 6000);
-  }
-}
-
-// search highlighting: when user searches in calc, find matches in boss tables on switch back
-let lastSearch = "";
-$("item-search").addEventListener("input", () => { lastSearch = $("item-search").value; });
-// also: search box can highlight match in boss table after clicking item
-window.jumpToBossItem = (itemName) => {
-  const rows = document.querySelectorAll("tr.clickable");
-  rows.forEach(tr => {
-    if (tr.dataset.item === itemName) {
-      tr.classList.add("search-match-highlight");
-      tr.scrollIntoView({behavior:"smooth", block:"center"});
-      setTimeout(() => tr.classList.remove("search-match-highlight"), 1500);
-    }
-  });
-};
+  // v42 structural fix (CC find): toggleStatue was missing its closing }, swallowing
+  // ~80 lines of code (keydown listener, shortcut-hint, search highlighting, jumpToBossItem)
+  // into its function body as dead code. Same code is duplicated at top level (lines ~5042+),
+  // which is what actually runs. Removed the buried duplicate, properly closed toggleStatue.
+  renderTzZones();
+  renderSetTracker();
 }
 window.toggleStatue = toggleStatue;
 
@@ -5097,10 +5026,13 @@ if (!LS.getItem("d2r_shortcuts_seen")) {
   }
 }
 
-// search highlighting: when user searches in calc, find matches in boss tables on switch back
+// v42 restored (was previously buried inside toggleStatue's function body due to the missing-brace
+// structural bug; that buried copy was dead code and the only top-level copy lived here originally as
+// a duplicate that I incorrectly removed; restored here as the single canonical definition):
+// search highlighting — when user searches in calc, find matches in boss tables on switch back.
 let lastSearch = "";
 $("item-search").addEventListener("input", () => { lastSearch = $("item-search").value; });
-// also: search box can highlight match in boss table after clicking item
+// search box can highlight match in boss table after clicking item
 window.jumpToBossItem = (itemName) => {
   const rows = document.querySelectorAll("tr.clickable");
   rows.forEach(tr => {
@@ -6067,17 +5999,19 @@ _v41_whenReady(() => {
         hint: it.tc ? `TC${it.tc}` : '',
         keywords: `item ${name.toLowerCase()} ${(it.tier||'')}`,
         action: () => {
-          // Switch to calc, select item, render detail
-          if (typeof window.switchTab === 'function') window.switchTab('calc');
-          setTimeout(() => {
-            try {
-              window.selectedItem = name;
-              if (typeof window.activeItem !== 'undefined') window.activeItem = name;
+          // v42 UX (CC find): navigateToItem is the canonical path that updates
+          // module-scoped selectedItem (not window.selectedItem — those are different)
+          // AND syncs the active-item-bar via setActiveItem.
+          try {
+            if (typeof window.navigateToItem === 'function') {
+              window.navigateToItem(name);
+            } else {
+              // Fallback for very-early-call edge cases
               if (typeof setActiveItem === 'function') setActiveItem(name);
-              if (typeof renderCalc === 'function') renderCalc();
+              if (typeof window.switchTab === 'function') window.switchTab('calc');
               if (typeof renderDetail === 'function') renderDetail();
-            } catch(e) { console.warn('v42 palette item select error:', e); }
-          }, 120);
+            }
+          } catch(e) { console.warn('v42 palette item select error:', e); }
         }
       });
     });
