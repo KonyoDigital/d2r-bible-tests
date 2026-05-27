@@ -1478,7 +1478,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="header-top">
     <div>
       <div class="h-title">⚔️ Konyo's D2R Farming Bible · v42</div>
-      <div class="h-sub"><span class="live-indicator"></span>🤖 ROUTINES + EXPORTS · 9 automated routines (G-O) now monitor the Bible 24/7 with Obsidian logging + Telegram alerts · press R to toggle the routine status widget (bottom-right) · wishlist now exports as markdown (copy to clipboard for Obsidian/Discord) via new \'📋 Export\' button · MF slider step refined to 1 so 699 and 553 (Konyolock presets) land exact</div>
+      <div class="h-sub"><span class="live-indicator"></span>🤖 ROUTINES + EXPORTS · 14 automated routines (G-T) now monitor the Bible 24/7 with Obsidian logging + Telegram alerts · press R to toggle the routine status widget (bottom-right) · wishlist now exports as markdown (copy to clipboard for Obsidian/Discord) via new \'📋 Export\' button · MF slider step refined to 1 so 699 and 553 (Konyolock presets) land exact</div>
     </div>
     <div class="slider-group">
       <span class="slider-label"><span class="kbd-tip" data-tip="Magic Find % — increases chance of rare/unique drops. Stacked from Topaz Shako, Goldwrap, Chance Guards, SoJs, MF charms. Diminishing returns past ~400%.">MF</span></span>
@@ -2946,6 +2946,12 @@ const KBD_SHORTCUTS = [
   {keys:['Shift+4'], desc:'MF 699% (MF swap)', action:() => setMFPreset(699)},
   {keys:['Shift+5'], desc:'MF 800%', action:() => setMFPreset(800)},
   {keys:['Shift+6'], desc:'MF 1000%', action:() => setMFPreset(1000)},
+  {keys:['r','R'], desc:'Toggle routine status widget (bottom-right)', action:() => {
+    // v42 UX fix: lookup by both IDs because the on-load advertising pulse temporarily renames it
+    const bar = document.getElementById('routine-status-bar') 
+             || document.getElementById('routine-toggle-pulse');
+    if (bar) bar.style.display = (bar.style.display === 'none' || !bar.style.display) ? 'block' : 'none';
+  }},
 ];
 
 document.addEventListener('keydown', e => {
@@ -5138,13 +5144,17 @@ const ROUTINE_INFO = {
   'M': { name: 'Auto-patch (manual)', schedule: 'on demand', desc: 'Scans HTML for known regressions (apostrophe encoding, missing data-boss-id). Dry-run by default.' },
   'N': { name: 'Daily Obsidian rollup', schedule: 'daily 23:30 IDT', desc: 'Collapses all routines into one daily note at 70-Audits/YYYY-MM-DD.md.' },
   'O': { name: 'Ship gate (manual)', schedule: 'pre-FINAL.html', desc: 'Runs G + L. Both must be green to promote vXX.html → FINAL.html.' },
+  'P': { name: 'Status aggregator', schedule: 'every 30min', desc: 'Collects status of all routines into routine_status.json + injects into bridge digest.' },
+  'Q': { name: 'Self-heal watchdog', schedule: 'every 1h', desc: 'Auto-fixes stale stderr, log bloat, missed routine fires, and plist drift. Alerts on permission/credential issues.' },
+  'R': { name: 'Chrome smoke (CDP)', schedule: 'every 2h', desc: 'Real Chrome via CDP — takes screenshots, verifies the live bible renders without JS errors.' },
+  'S': { name: 'Tracker poller', schedule: 'every 10min', desc: 'Legacy: polled GitHub Issue #1 for claude.ai routine output. Superseded by T.' },
+  'T': { name: 'Claude.ai A-F proxy', schedule: '15×/day (A: 6h · B-am: 09:00 · B-pm: 21:00 · C: 10:15 · D: 8h · E: 6h · F: 11:00)', desc: 'Runs the A-F observation prompts (System Pulse, Content Health, Daily Rollup, Drift Watch, Heal Insights, Meta-Health) via Anthropic Haiku API directly. Writes to 90-ClaudeTracker/. Telegram alerts on severity=red.' },
 };
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'R' && !e.target.matches('input, textarea, [contenteditable]') && !e.ctrlKey && !e.metaKey) {
-    const bar = document.getElementById('routine-status-bar');
-    if (bar) bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
-  }
+  // v42 UX fix: was only matching capital 'R' (Shift+R). Routed through KBD_SHORTCUTS now.
+  // Kept this listener empty as a deprecation marker — main R handler lives in KBD_SHORTCUTS.
+  if (false) { /* deprecated */ }
 });
 
 document.addEventListener('click', e => {
@@ -5791,6 +5801,11 @@ _v41_whenReady(() => {
     <span class="routine-letter" data-r="M" title="M · Auto-patch (manual)">M</span>
     <span class="routine-letter" data-r="N" title="N · Obsidian rollup (daily 23:30)">N</span>
     <span class="routine-letter" data-r="O" title="O · Ship gate (manual)">O</span>
+    <span class="routine-letter" data-r="P" title="P · Status aggregator (30min)">P</span>
+    <span class="routine-letter" data-r="Q" title="Q · Self-heal watchdog (1h)">Q</span>
+    <span class="routine-letter" data-r="R" title="R · Chrome smoke via CDP (2h)">R</span>
+    <span class="routine-letter" data-r="S" title="S · GitHub tracker poller (10min)">S</span>
+    <span class="routine-letter" data-r="T" title="T · Claude.ai A-F proxy via API (15x/day)">T</span>
   </div>
   <div style="font-size:9px;color:var(--gold-dim);margin-top:6px;font-style:italic">Press R to toggle · click letter for help</div>
 </div>
