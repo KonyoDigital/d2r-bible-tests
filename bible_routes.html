@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Konyo's D2R Farming Bible v8 — verified anchors + 251 item rows</title>
+<title>Konyo's D2R Farming Bible v42 — command palette + verified anchors</title>
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa}
 *{box-sizing:border-box}
@@ -1404,7 +1404,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="header">
   <div class="header-top">
     <div>
-      <div class="h-title">⚔️ Konyo's D2R Farming Bible · v41</div>
+      <div class="h-title">⚔️ Konyo's D2R Farming Bible · v42</div>
       <div class="h-sub"><span class="live-indicator"></span>🤖 ROUTINES + EXPORTS · 9 automated routines (G-O) now monitor the Bible 24/7 with Obsidian logging + Telegram alerts · press R to toggle the routine status widget (bottom-right) · wishlist now exports as markdown (copy to clipboard for Obsidian/Discord) via new \'📋 Export\' button · MF slider step refined to 1 so 699 and 553 (Konyolock presets) land exact</div>
     </div>
     <div class="slider-group">
@@ -5689,5 +5689,672 @@ _v41_whenReady(() => {
   </div>
   <div style="font-size:9px;color:var(--gold-dim);margin-top:6px;font-style:italic">Press R to toggle · click letter for help</div>
 </div>
+
+<!-- =============================================================
+     v42 COMMAND PALETTE (Cmd+K / Ctrl+K)
+     Self-contained: own CSS, modal HTML, and JS. No dependencies on other v41 code
+     beyond: window.openBossDetail, window.switchTab, setMFPreset, BOSSES, ITEMS,
+     selectedItem global, renderCalc(), renderDetail(), wishlist (Set).
+     ============================================================= -->
+<style>
+  /* --- v42 command palette --- */
+  #v42-palette-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.62);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 12vh;
+    animation: v42palFadeIn .15s ease-out;
+  }
+  #v42-palette-overlay.show { display: flex; }
+  @keyframes v42palFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  #v42-palette {
+    width: min(640px, 92vw);
+    max-height: 70vh;
+    background: linear-gradient(180deg, #1a1208 0%, #15100a 100%);
+    border: 1px solid var(--gold-bright, #d4a849);
+    border-radius: 10px;
+    box-shadow: 0 14px 50px rgba(0,0,0,.85), 0 0 0 1px rgba(240,192,96,.18);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    animation: v42palSlide .18s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes v42palSlide { from { transform: translateY(-12px); opacity:0; } to { transform: none; opacity:1; } }
+  #v42-palette-input {
+    background: rgba(0,0,0,.35);
+    border: none;
+    border-bottom: 1px solid rgba(240,192,96,.28);
+    color: var(--gold-bright, #f0c060);
+    font-family: var(--mono, monospace);
+    font-size: 15px;
+    padding: 16px 20px;
+    outline: none;
+    width: 100%;
+    letter-spacing: .3px;
+  }
+  #v42-palette-input::placeholder { color: rgba(240,192,96,.4); font-style: italic; }
+  #v42-palette-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  #v42-palette-list::-webkit-scrollbar { width: 8px; }
+  #v42-palette-list::-webkit-scrollbar-thumb { background: rgba(240,192,96,.25); border-radius: 4px; }
+  .v42-pal-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 9px 18px;
+    cursor: pointer;
+    font-family: var(--mono, monospace);
+    font-size: 13px;
+    color: #e8d8b8;
+    border-left: 2px solid transparent;
+    transition: background .08s ease, border-left-color .08s ease;
+  }
+  .v42-pal-item:hover, .v42-pal-item.v42-pal-active {
+    background: rgba(240,192,96,.10);
+    border-left-color: var(--gold-bright, #f0c060);
+    color: #fff5d8;
+  }
+  .v42-pal-icon {
+    font-size: 16px;
+    text-align: center;
+    opacity: .85;
+  }
+  .v42-pal-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .v42-pal-label mark {
+    background: rgba(240,192,96,.32);
+    color: #fff5d8;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .v42-pal-category {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(240,192,96,.6);
+    font-weight: 600;
+  }
+  .v42-pal-section-header {
+    padding: 10px 18px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(240,192,96,.5);
+    font-weight: 700;
+    font-family: var(--mono, monospace);
+    pointer-events: none;
+  }
+  .v42-pal-empty {
+    padding: 24px 18px;
+    color: rgba(240,192,96,.55);
+    font-family: var(--mono, monospace);
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+  }
+  #v42-palette-footer {
+    border-top: 1px solid rgba(240,192,96,.18);
+    padding: 8px 18px;
+    font-family: var(--mono, monospace);
+    font-size: 10.5px;
+    color: rgba(240,192,96,.55);
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }
+  .v42-pal-kbd {
+    display: inline-block;
+    background: rgba(0,0,0,.4);
+    border: 1px solid rgba(240,192,96,.22);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: rgba(240,192,96,.8);
+  }
+</style>
+
+<div id="v42-palette-overlay" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div id="v42-palette">
+    <input id="v42-palette-input" type="text" placeholder="jump to boss, item, MF, tab… (try 'shak' or 'meph' or 'mf 750')" autocomplete="off" spellcheck="false">
+    <div id="v42-palette-list"></div>
+    <div id="v42-palette-footer">
+      <span><span class="v42-pal-kbd">↑↓</span> navigate</span>
+      <span><span class="v42-pal-kbd">enter</span> execute</span>
+      <span><span class="v42-pal-kbd">esc</span> close</span>
+      <span style="margin-left:auto;color:rgba(240,192,96,.4)">v42 palette</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  // --- v42: Build command list from the bible's live data sources ---
+  // --- v42 polish: common D2R runewords (not in ITEMS data) ---
+  const V42_RUNEWORDS = [
+    {n:'Enigma', runes:'Jah + Ith + Ber', base:'3-sock body armor', notes:'Teleport · +2 skills · MF'},
+    {n:'Spirit (sword)', runes:'Tal + Thul + Ort + Amn', base:'4-sock sword (crystal)', notes:'+2 skills · 35 FCR · cheap'},
+    {n:'Spirit (shield)', runes:'Tal + Thul + Ort + Amn', base:'4-sock paladin shield / monarch', notes:'+2 skills · 35 FCR'},
+    {n:'Insight', runes:'Ral + Tir + Tal + Sol', base:'4-sock polearm/staff (merc)', notes:'Meditation aura · merc gear'},
+    {n:'Infinity', runes:'Ber + Mal + Ber + Ist', base:'4-sock polearm (merc)', notes:'Conviction aura · breaks immunes'},
+    {n:'Call to Arms (CTA)', runes:'Amn + Ral + Mal + Ist + Ohm', base:'5-sock weapon/wand', notes:'BO + Battle Command · swap weapon'},
+    {n:'Heart of the Oak (HotO)', runes:'Ko + Vex + Pul + Thul', base:'4-sock mace/staff', notes:'+3 skills · 40 FCR · sorc/druid'},
+    {n:'Grief', runes:'Eth + Tir + Lo + Mal + Ral', base:'5-sock sword/axe', notes:'+340-400 damage · top melee'},
+    {n:'Last Wish', runes:'Jah + Mal + Jah + Sur + Jah + Ber', base:'6-sock sword/hammer', notes:'Might aura · life tap on hit'},
+    {n:'Breath of the Dying (BotD)', runes:'Vex + Hel + El + Eld + Zod + Eth', base:'6-sock weapon', notes:'+60 to all stats · ITD · top tier'},
+    {n:'Fortitude', runes:'El + Sol + Dol + Lo', base:'4-sock armor/weapon', notes:'+200% ED · merc gear or chaos sorc'},
+    {n:'Chains of Honor', runes:'Dol + Um + Ber + Ist', base:'4-sock body armor', notes:'+2 skills · all resists +65 · MF'},
+    {n:'Treachery', runes:'Shael + Thul + Lem', base:'3-sock body armor (merc)', notes:'25% Fade · 45 IAS · cheap merc'},
+    {n:'Lawbringer', runes:'Amn + Lem + Ko', base:'3-sock weapon (Reaper merc)', notes:'Sanctuary aura · undead nuke'},
+    {n:'Phoenix', runes:'Vex + Vex + Lo + Jah', base:'4-sock weapon/shield', notes:'Redemption aura · +350-400 ED'},
+    {n:'Death\'s Web', runes:'(unique, not RW)', base:'-30 to enemy poison res · +1-2 PnB skills', notes:'Note: this is the UNIQUE Death\'s Web, not a runeword'},
+  ];
+
+  function v42BuildCommands() {
+    const cmds = [];
+
+    // Tabs (7)
+    const tabs = [
+      {id:'bosses', label:'Bosses', icon:'🗺️', key:'1'},
+      {id:'calc', label:'Calculator', icon:'🔍', key:'2'},
+      {id:'tz', label:'Terror Zones', icon:'🔥', key:'3'},
+      {id:'runes', label:'Runes', icon:'🪨', key:'4'},
+      {id:'rotw', label:'RotW Special', icon:'👑', key:'5'},
+      {id:'ancients', label:'Ancients', icon:'⚡', key:'6'},
+      {id:'ref', label:'Reference', icon:'📐', key:'7'},
+    ];
+    tabs.forEach(t => cmds.push({
+      icon: t.icon,
+      label: `Switch to ${t.label}`,
+      cat: 'tab',
+      hint: `${t.key}`,
+      keywords: `tab ${t.label.toLowerCase()} ${t.id}`,
+      action: () => { if (typeof window.switchTab === 'function') window.switchTab(t.id); }
+    }));
+
+    // Bosses (11)
+    const BOSSES_DATA = (typeof BOSSES !== 'undefined') ? BOSSES : [];
+    BOSSES_DATA.forEach(b => cmds.push({
+      icon: b.emoji || '👹',
+      label: `${b.name}`,
+      sub: b.subtitle || '',
+      cat: 'boss',
+      hint: b.tierTag || '',
+      keywords: `boss ${b.name.toLowerCase()} ${b.id} ${(b.subtitle||'').toLowerCase()} ${(b.tierTag||'').toLowerCase()}`,
+      action: () => {
+        if (typeof window.openBossDetail === 'function') window.openBossDetail(b.id);
+      }
+    }));
+
+    // Items (unique names from ITEMS - dedup; we want one entry per item name regardless of which boss list it's in)
+    const seenItems = new Set();
+    const ITEMS_DATA = (typeof ITEMS !== 'undefined') ? ITEMS : [];
+    ITEMS_DATA.forEach(it => {
+      const name = it.n || it.name;
+      if (!name || seenItems.has(name)) return;
+      seenItems.add(name);
+      const icon = it.tier === 'grail' ? '⭐' :
+                   it.tier === 'uber' ? '💎' :
+                   it.tier === 'high' ? '✨' :
+                   it.tier === 'set' ? '🟢' : '•';
+      cmds.push({
+        icon,
+        label: name,
+        sub: it.tier ? `tier: ${it.tier}` : '',
+        cat: 'item',
+        hint: it.tc ? `TC${it.tc}` : '',
+        keywords: `item ${name.toLowerCase()} ${(it.tier||'')}`,
+        action: () => {
+          // Switch to calc, select item, render detail
+          if (typeof window.switchTab === 'function') window.switchTab('calc');
+          setTimeout(() => {
+            try {
+              window.selectedItem = name;
+              if (typeof window.activeItem !== 'undefined') window.activeItem = name;
+              if (typeof setActiveItem === 'function') setActiveItem(name);
+              if (typeof renderCalc === 'function') renderCalc();
+              if (typeof renderDetail === 'function') renderDetail();
+            } catch(e) { console.warn('v42 palette item select error:', e); }
+          }, 120);
+        }
+      });
+    });
+
+    // Runewords (v42 polish — not in ITEMS data)
+    V42_RUNEWORDS.forEach(rw => cmds.push({
+      icon: '🔮',
+      label: rw.n,
+      sub: `${rw.runes} · ${rw.base}`,
+      cat: 'runeword',
+      hint: 'RW',
+      keywords: `runeword rw ${rw.n.toLowerCase()} ${rw.runes.toLowerCase()} ${rw.base.toLowerCase()} ${(rw.notes||'').toLowerCase()}`,
+      action: () => {
+        // Switch to runes tab — most relevant context for runewords
+        if (typeof window.switchTab === 'function') window.switchTab('runes');
+        // Briefly highlight a notice or scroll — for now just switch tabs
+        setTimeout(() => {
+          // Show a tiny inline note about which runeword
+          try {
+            const existing = document.getElementById('v42-rw-toast');
+            if (existing) existing.remove();
+            const t = document.createElement('div');
+            t.id = 'v42-rw-toast';
+            t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a1208;border:1px solid var(--gold-bright,#f0c060);color:#f0c060;padding:12px 18px;border-radius:6px;font-family:var(--mono,monospace);font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.7);z-index:9998;max-width:340px;line-height:1.5';
+            t.innerHTML = `<div style="font-weight:700;margin-bottom:4px">${rw.n}</div><div style="opacity:.85">${rw.runes}</div><div style="opacity:.75;margin-top:4px">${rw.base}</div><div style="opacity:.65;margin-top:4px;font-style:italic">${rw.notes||''}</div>`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 6000);
+          } catch(e) {}
+        }, 150);
+      }
+    }));
+
+    // MF Presets (6)
+    [
+      {v:250, label:'MF 250%'},
+      {v:400, label:'MF 400%'},
+      {v:553, label:'MF 553% (Shako)'},
+      {v:699, label:'MF 699% (MF swap)'},
+      {v:800, label:'MF 800%'},
+      {v:1000, label:'MF 1000%'},
+    ].forEach(p => cmds.push({
+      icon: '🎯',
+      label: `Set ${p.label}`,
+      cat: 'mf',
+      hint: `${p.v}`,
+      keywords: `mf magic find ${p.v} preset`,
+      action: () => { if (typeof setMFPreset === 'function') setMFPreset(p.v); }
+    }));
+
+    // Actions
+    cmds.push({
+      icon: '⌨️',
+      label: 'Show keyboard shortcuts',
+      cat: 'action',
+      hint: '?',
+      keywords: 'help keyboard shortcuts kbd',
+      action: () => { if (typeof toggleKbdHelp === 'function') toggleKbdHelp(); }
+    });
+    cmds.push({
+      icon: '🔄',
+      label: 'Refresh routine status',
+      cat: 'action',
+      keywords: 'refresh routine status reload',
+      action: () => {
+        const btn = document.getElementById('routine-refresh-btn');
+        if (btn) btn.click();
+        else if (typeof window.fetchRoutineStatus === 'function') window.fetchRoutineStatus();
+      }
+    });
+    cmds.push({
+      icon: '🔥',
+      label: 'Toggle TZ rotation countdown',
+      cat: 'action',
+      keywords: 'tz terror zone countdown timer toggle',
+      action: () => { if (typeof window._v42_toggleTZCountdown === 'function') window._v42_toggleTZCountdown(); }
+    });
+    cmds.push({
+      icon: '🌟',
+      label: 'Toggle routine bar visibility',
+      cat: 'action',
+      keywords: 'routine bar toggle hide show',
+      action: () => {
+        const bar = document.getElementById('routine-status-bar');
+        if (bar) {
+          const hidden = bar.style.display === 'none';
+          bar.style.display = hidden ? 'block' : 'none';
+          try { localStorage.setItem('routineBarVisible', hidden ? '1' : '0'); } catch(e){}
+        }
+      }
+    });
+
+    return cmds;
+  }
+
+  // --- v42: Fuzzy matching (subsequence + prefix bonus) ---
+  function v42FuzzyScore(query, target) {
+    // Word-boundary aware fuzzy score.
+    //   1000  exact prefix of label
+    //    800  word-boundary match (after space, paren, dash, slash)
+    //    500  anywhere-in-string match
+    //    100  subsequence-only match
+    //     -1  no match
+    // Tie-break: shorter target wins (more specific result).
+    if (!query) return 0;
+    query = query.toLowerCase().trim();
+    target = target.toLowerCase();
+    if (!query) return 0;
+    if (target.startsWith(query)) return 1000 - target.length;
+    const wbRe = new RegExp('(^|[\\s\\(\\)/\\-_])' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (wbRe.test(target)) return 800 - target.length;
+    const idx = target.indexOf(query);
+    if (idx >= 0) return 500 - idx - (target.length / 100);
+    // Subsequence
+    let qi = 0;
+    for (let i = 0; i < target.length && qi < query.length; i++) {
+      if (target[i] === query[qi]) qi++;
+    }
+    if (qi === query.length) return 100 - (target.length - query.length);
+    return -1;
+  }
+
+  function v42HighlightMatch(label, query) {
+    if (!query) return label;
+    const q = query.toLowerCase().trim();
+    const lc = label.toLowerCase();
+    const idx = lc.indexOf(q);
+    if (idx >= 0) {
+      return label.slice(0, idx) + '<mark>' + label.slice(idx, idx + q.length) + '</mark>' + label.slice(idx + q.length);
+    }
+    return label;
+  }
+
+  // --- v42: Custom MF parsing ("mf 750") ---
+  function v42TryParseCustomMF(query) {
+    const m = query.match(/^mf\s+(\d{1,4})$/i);
+    if (m) {
+      const v = parseInt(m[1], 10);
+      if (v >= 0 && v <= 9999) return v;
+    }
+    return null;
+  }
+
+  // --- v42: State ---
+  let v42Commands = null;  // lazy-built
+  let v42Filtered = [];
+  let v42ActiveIdx = 0;
+
+  function v42EnsureCommands() {
+    if (!v42Commands) v42Commands = v42BuildCommands();
+    return v42Commands;
+  }
+
+  function v42Render() {
+    const list = document.getElementById('v42-palette-list');
+    if (!list) return;
+    if (v42Filtered.length === 0) {
+      list.innerHTML = '<div class="v42-pal-empty">no results · try a different query</div>';
+      return;
+    }
+    let html = '';
+    let lastCat = null;
+    const catLabels = { recent:'Recently viewed', tab:'Tabs', boss:'Bosses', item:'Items', runeword:'Runewords', mf:'MF Presets', action:'Actions' };
+    const query = document.getElementById('v42-palette-input').value || '';
+    v42Filtered.slice(0, 100).forEach((c, i) => {
+      const effectiveCat = c._recent ? 'recent' : c.cat;
+      if (effectiveCat !== lastCat) {
+        html += `<div class="v42-pal-section-header">${catLabels[effectiveCat] || effectiveCat}</div>`;
+        lastCat = effectiveCat;
+      }
+      const labelHl = v42HighlightMatch(c.label, query);
+      const sub = c.sub ? `<div style="font-size:11px;opacity:.65;margin-top:2px">${c.sub}</div>` : '';
+      const hint = c.hint ? `<span class="v42-pal-category">${c.hint}</span>` : '';
+      html += `
+        <div class="v42-pal-item ${i === v42ActiveIdx ? 'v42-pal-active' : ''}" data-v42-idx="${i}">
+          <div class="v42-pal-icon">${c.icon}</div>
+          <div class="v42-pal-label">${labelHl}${sub}</div>
+          ${hint}
+        </div>`;
+    });
+    list.innerHTML = html;
+    // Scroll active into view
+    const activeEl = list.querySelector('.v42-pal-active');
+    if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+  }
+
+  function v42Filter() {
+    const input = document.getElementById('v42-palette-input');
+    if (!input) return;
+    const q = input.value.trim();
+    const cmds = v42EnsureCommands();
+
+    // Special: "mf <num>" -> inject custom MF command at top
+    const customMF = v42TryParseCustomMF(q);
+    let custom = [];
+    if (customMF !== null) {
+      custom.push({
+        icon: '🎯',
+        label: `Set MF to ${customMF}%`,
+        cat: 'mf',
+        hint: 'custom',
+        action: () => {
+          const slider = document.getElementById('mf');
+          if (slider) {
+            slider.value = customMF;
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      });
+    }
+
+    if (!q && custom.length === 0) {
+      // v42 polish: show recently-viewed first, then defaults
+      const recent = v42GetRecent();
+      const recentCmds = [];
+      recent.forEach(r => {
+        const match = cmds.find(c => c.label === r.label && c.cat === r.cat);
+        if (match) recentCmds.push({ ...match, _recent: true });
+      });
+      const usedLabels = new Set(recent.map(r => r.label));
+      const others = cmds.filter(c => !usedLabels.has(c.label)).slice(0, 30 - recentCmds.length);
+      v42Filtered = [...recentCmds, ...others];
+    } else {
+      const scored = cmds
+        .map(c => ({ c, score: v42FuzzyScore(q, c.label + ' ' + (c.keywords||'')) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.c);
+      v42Filtered = [...custom, ...scored];
+    }
+    v42ActiveIdx = 0;
+    v42Render();
+  }
+
+  function v42Open() {
+    v42EnsureCommands();
+    const overlay = document.getElementById('v42-palette-overlay');
+    const input = document.getElementById('v42-palette-input');
+    if (!overlay || !input) return;
+    overlay.classList.add('show');
+    input.value = '';
+    v42Filter();
+    setTimeout(() => input.focus(), 30);
+  }
+  function v42Close() {
+    const overlay = document.getElementById('v42-palette-overlay');
+    if (overlay) overlay.classList.remove('show');
+  }
+  // v42 polish: recently-viewed tracking
+  const V42_RECENT_KEY = 'd2r_v42_recent';
+  const V42_RECENT_MAX = 8;
+  function v42PushRecent(cmd) {
+    if (!cmd || !['boss','item','runeword'].includes(cmd.cat)) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(V42_RECENT_KEY) || '[]');
+      // Dedup by label
+      const filtered = stored.filter(r => r.label !== cmd.label);
+      filtered.unshift({ label: cmd.label, cat: cmd.cat, ts: Date.now() });
+      const trimmed = filtered.slice(0, V42_RECENT_MAX);
+      localStorage.setItem(V42_RECENT_KEY, JSON.stringify(trimmed));
+    } catch(e) {}
+  }
+  function v42GetRecent() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(V42_RECENT_KEY) || '[]');
+      return stored;
+    } catch(e) { return []; }
+  }
+
+  function v42Execute(idx) {
+    const c = v42Filtered[idx];
+    if (!c || typeof c.action !== 'function') return;
+    v42PushRecent(c);
+    v42Close();
+    setTimeout(() => { try { c.action(); } catch(e) { console.warn('v42 palette action error:', e); } }, 80);
+  }
+
+  // Expose for external triggers
+  window._v42_openPalette = v42Open;
+  window._v42_closePalette = v42Close;
+
+  // --- v42: Event wiring ---
+  document.addEventListener('DOMContentLoaded', () => {
+    // Cmd+K / Ctrl+K toggles palette (works inside inputs too — that's the point)
+    document.addEventListener('keydown', e => {
+      const isCmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k';
+      if (isCmdK) {
+        e.preventDefault();
+        const overlay = document.getElementById('v42-palette-overlay');
+        if (overlay && overlay.classList.contains('show')) v42Close();
+        else v42Open();
+        return;
+      }
+      // Inside the palette: handle navigation
+      const overlay = document.getElementById('v42-palette-overlay');
+      if (!overlay || !overlay.classList.contains('show')) return;
+      if (e.key === 'Escape') { e.preventDefault(); v42Close(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); v42ActiveIdx = Math.min(v42ActiveIdx + 1, v42Filtered.length - 1); v42Render(); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); v42ActiveIdx = Math.max(v42ActiveIdx - 1, 0); v42Render(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); v42Execute(v42ActiveIdx); return; }
+    });
+
+    const input = document.getElementById('v42-palette-input');
+    if (input) input.addEventListener('input', v42Filter);
+
+    // Click on list item executes
+    const list = document.getElementById('v42-palette-list');
+    if (list) list.addEventListener('click', e => {
+      const item = e.target.closest('.v42-pal-item');
+      if (!item) return;
+      const idx = parseInt(item.dataset.v42Idx, 10);
+      if (!isNaN(idx)) v42Execute(idx);
+    });
+
+    // Click overlay (outside palette) closes
+    const overlay = document.getElementById('v42-palette-overlay');
+    if (overlay) overlay.addEventListener('click', e => {
+      if (e.target === overlay) v42Close();
+    });
+  });
+})();
+</script>
+<!-- ============= end v42 command palette ============= -->
+
+<!-- ===== v42 TZ ROTATION COUNTDOWN ===== -->
+<style>
+  #v42-tz-countdown {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    background: linear-gradient(180deg, rgba(26,18,8,.95), rgba(21,16,10,.95));
+    border: 1px solid rgba(255,68,68,.45);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: var(--mono, monospace);
+    font-size: 11px;
+    color: #ffaaaa;
+    box-shadow: 0 4px 14px rgba(0,0,0,.6);
+    z-index: 100;
+    cursor: pointer;
+    transition: opacity .2s ease;
+    display: none;
+    user-select: none;
+  }
+  #v42-tz-countdown.show { display: block; }
+  #v42-tz-countdown:hover { opacity: .85; }
+  #v42-tz-countdown .v42-tz-label {
+    color: rgba(255,140,140,.7);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    display: block;
+    margin-bottom: 2px;
+  }
+  #v42-tz-countdown .v42-tz-time {
+    color: #ff8888;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  #v42-tz-countdown.imminent {
+    border-color: rgba(255,68,68,.9);
+    animation: v42tzPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes v42tzPulse {
+    0%,100% { box-shadow: 0 4px 14px rgba(0,0,0,.6), 0 0 0 1px rgba(255,68,68,.3); }
+    50% { box-shadow: 0 4px 14px rgba(0,0,0,.6), 0 0 12px rgba(255,68,68,.55); }
+  }
+</style>
+
+<div id="v42-tz-countdown" title="Click to hide · TZ rotates each hour at :00 IDT">
+  <span class="v42-tz-label">🔥 TZ rotates in</span>
+  <span class="v42-tz-time">--:--</span>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  // v42: TZ countdown — D2R Terror Zones rotate every hour on the hour (UTC-aligned in-game).
+  // We show MM:SS until next rotation (local clock approximation).
+  const W = document.getElementById('v42-tz-countdown');
+  if (!W) return;
+  const TIME_EL = W.querySelector('.v42-tz-time');
+
+  // User can toggle visibility — persist in localStorage
+  const VIS_KEY = 'd2r_v42_tz_visible';
+  function isVisible() {
+    const v = localStorage.getItem(VIS_KEY);
+    return v === null ? true : v === '1';  // default: visible
+  }
+  function setVisible(v) {
+    try { localStorage.setItem(VIS_KEY, v ? '1' : '0'); } catch(e){}
+    W.classList.toggle('show', !!v);
+  }
+
+  W.addEventListener('click', () => setVisible(false));
+
+  function update() {
+    const now = new Date();
+    const m = now.getMinutes();
+    const s = now.getSeconds();
+    const remMin = 59 - m;
+    const remSec = 60 - s;
+    const totalSecRem = remMin * 60 + remSec;
+    const mm = Math.floor(totalSecRem / 60);
+    const ss = totalSecRem % 60;
+    if (TIME_EL) TIME_EL.textContent = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    W.classList.toggle('imminent', totalSecRem <= 120);  // last 2min: pulse
+  }
+
+  // Wait for DOMReady to apply visibility
+  function init() {
+    setVisible(isVisible());
+    update();
+    setInterval(update, 1000);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Expose toggle for palette action
+  window._v42_toggleTZCountdown = function() {
+    setVisible(!isVisible());
+  };
+})();
+</script>
+<!-- ===== end v42 TZ countdown ===== -->
+
+
 </body>
 </html>
