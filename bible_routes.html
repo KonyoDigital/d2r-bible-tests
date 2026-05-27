@@ -3641,6 +3641,15 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+/* === v42 UX investigation: backdrop click was considered but boss-detail-overlay
+   uses position:static (it is NOT a modal — sits inline below the chip bar).
+   Existing close pathways already cover this:
+     1. ✕ close button in the panel header (line ~3747)
+     2. Esc key (handler above)
+     3. Re-click same boss chip (toggle, with route-back scroll)
+     4. Click a different boss chip (switches)
+   No backdrop handler needed. === */
+
 
 
 /* Document-level capture-phase Cmd/Ctrl + source-chip → boss detail (route contract) */
