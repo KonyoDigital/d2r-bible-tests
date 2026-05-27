@@ -1521,7 +1521,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="tz">🔥 TZ zones</button>
     <button class="tab" data-tab="runes">🪨 runes</button>
     <button class="tab" data-tab="rotw">👑 RotW special</button>
-    <button class="tab" data-tab="ancients">⚡ ancients</button>
+    <button class="tab" data-tab="ancients">🔥 events</button>
     <button class="tab" data-tab="ref">📐 reference</button>
   </div>
 </div>
@@ -1938,6 +1938,163 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-ancients">
+
+  <div class="events-intro" style="margin-bottom:24px;padding:14px 18px;border-left:2px solid var(--gold);background:var(--surface)">
+    <div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">The Pinnacle Events</div>
+    <div style="font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:15px;color:var(--text);line-height:1.55">Four pinnacle events that gate the deepest endgame: <strong style="color:var(--gold-bright);font-style:normal">Uber Tristram</strong> (Hellfire Torch), <strong style="color:var(--gold-bright);font-style:normal">Diablo Clone</strong> (Annihilus charm), <strong style="color:var(--gold-bright);font-style:normal">Secret Cow Level</strong> (rune farming + density), <strong style="color:var(--gold-bright);font-style:normal">Colossal Ancients</strong> (RotW pinnacle, Colossal Jewels). Plus the seasonal <strong style="color:var(--gold-bright);font-style:normal">22 Nights of Terror</strong> when Blizzard turns it on.</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       UBER TRISTRAM
+       ════════════════════════════════════════════════════════════════ -->
+  <div class="colossal" id="event-uber-tristram">
+    <h3>🌀 Uber Tristram — The Hellfire Torch Run</h3>
+    <p>The deepest endgame fight in D2R. Three Pandemonium Diablos (Uber Diablo + Uber Mephisto + Uber Baal) in one room, simultaneously. Reward: <strong style="color:var(--uber)">Standard of Heroes</strong> → <strong style="color:var(--uber)">Hellfire Torch</strong> (random class, +3 skills · +20 stats · +10 res large charm).</p>
+
+    <h3>🗝️ Step 1 — Farm the three keys (Hell only)</h3>
+    <div class="scroll-table"><table class="drops"><thead><tr><th>Key</th><th>Drops from</th><th>Where</th><th>Notes</th></tr></thead><tbody>
+      <tr><td class="item-name" style="color:var(--uber)">🔑 Key of Terror</td><td>The Countess</td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% drop · Hell only · same Countess as rune farm</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">🔑 Key of Hate</td><td>The Summoner</td><td>Act 2 · Arcane Sanctuary</td><td>~10% drop · Hell only · short walk from Canyon WP</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">🔑 Key of Destruction</td><td>Nihlathak</td><td>Act 5 · Halls of Vaught</td><td>~10% drop · Hell only · CE danger, kite him</td></tr>
+    </tbody></table></div>
+    <div class="info"><strong>Goal:</strong> 3× of EACH key (9 keys total). Don't run keys solo player count — running at p3 boosts elite pack count, more chances. Multi-key drops possible.</div>
+
+    <h3>🩸 Step 2 — Cube each set of 3 keys → 3 mini-uber portals</h3>
+    <div class="scroll-table"><table class="drops"><thead><tr><th>Cube recipe</th><th>Opens portal to</th><th>Mini-boss</th><th>Drops</th></tr></thead><tbody>
+      <tr><td><code>3× Key of Terror</code></td><td>Matron's Den (red portal in Harrogath)</td><td><strong>Lilith</strong> · fire-immune · charge attack</td><td>Diablo's Horn</td></tr>
+      <tr><td><code>3× Key of Hate</code></td><td>Forgotten Sands</td><td><strong>Duriel</strong> · cold-immune · hold-down boss</td><td>Baal's Eye</td></tr>
+      <tr><td><code>3× Key of Destruction</code></td><td>Furnace of Pain</td><td><strong>Izual</strong> · lit-immune · big AoE</td><td>Mephisto's Brain</td></tr>
+    </tbody></table></div>
+    <div class="warning"><strong>Note:</strong> All 3 portals open in <strong>Harrogath (Act 5 town)</strong>. Stay in town between fights — TP back if you die. Each mini-boss is brutal; Smiter Paladin handles all 3.</div>
+
+    <h3>🌀 Step 3 — Cube 3 organs → Uber Tristram portal</h3>
+    <div class="cube-section">
+      <div class="cube-row">
+        <div class="cube-input">Mephisto's Brain + Diablo's Horn + Baal's Eye</div>
+        <div class="cube-arrow">→</div>
+        <div class="cube-output">red portal in Harrogath · Pandemonium Run L3 → Uber Tristram</div>
+      </div>
+    </div>
+
+    <h3>⚔️ Step 4 — Inside Uber Tristram</h3>
+    <p>Three uber bosses in the same room. They DON'T fight each other — only you. Spawn-locked positions but they path together fast.</p>
+    <div class="scroll-table"><table class="drops"><thead><tr><th>Uber boss</th><th>Element</th><th>Mechanic</th><th>Priority</th></tr></thead><tbody>
+      <tr><td class="item-name" style="color:var(--hell)">Uber Mephisto</td><td>Cold + Lit immune</td><td>Skull missile + Charged Bolt</td><td>Kill FIRST — slowest, most dangerous if left alive</td></tr>
+      <tr><td class="item-name" style="color:#ff7777">Uber Diablo</td><td>Fire + Lit immune</td><td>Lightning Hose + Inferno + huge HP</td><td>Kill SECOND — high HP wall</td></tr>
+      <tr><td class="item-name" style="color:#aa7755">Uber Baal</td><td>None (only physical-immune to some skills)</td><td>Heavy melee, summons skellies</td><td>Kill LAST — easy 1v1</td></tr>
+    </tbody></table></div>
+
+    <h3>🔥 Step 5 — Hellfire Torch</h3>
+    <div class="cube-section">
+      <div class="cube-row">
+        <div class="cube-input">Standard of Heroes (drops from Uber Trist)</div>
+        <div class="cube-arrow">→</div>
+        <div class="cube-output">Talk to Anya · receive <strong style="color:var(--uber)">Hellfire Torch</strong> (random class · +3 skills tab · +20 stats · +10 all res)</div>
+      </div>
+    </div>
+    <div class="success"><strong>For Konyo:</strong> Smiter Paladin (max Smite + max Holy Shield + Fanaticism merc) is the META — Smite ignores immunities AND stuns. Cast Holy Shield, Last Wish or Grief, run in, melt all 3. Konyodin (hammerdin) struggles — hammers can miss the small uber hitboxes. Borrow/build a smiter for torch runs.</div>
+    <div class="info"><strong>Torch reroll:</strong> Got a sub-perfect roll or wrong class? Run again. Each clear = 1 Standard. Reroll until you get +3 sorc/druid/whatever main class. Sin/Pally torches are most valuable on trade.</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECRET COW LEVEL
+       ════════════════════════════════════════════════════════════════ -->
+  <div class="colossal" id="event-cow-level">
+    <h3>🐄 Secret Cow Level — Moo Moo Farm</h3>
+    <p>Always-Hell-difficulty area accessed via cube. ~400 Hell Bovines + rare elite packs + the Cow King. Excellent for rune density (chipped/low-mid runes), set/unique drops, and general MF. Fast clears with AoE builds.</p>
+
+    <h3>🦴 Step 1 — Get Wirt's Leg</h3>
+    <p>Wirt's corpse is in <strong>Tristram (the original)</strong> — not the act 1 starting town. To reach Tristram:</p>
+    <ol>
+      <li>Rescue Cain in Act 1 (the Cairn Stones quest in Stony Field — activate them in order: 5 → 2 → 3 → 1 → 4)</li>
+      <li>Red portal opens in Stony Field → Tristram</li>
+      <li>Click Wirt's corpse → picks up <strong>Wirt's Leg</strong></li>
+    </ol>
+    <div class="info"><strong>Note:</strong> You can grab Wirt's Leg on ANY difficulty as long as you rescue Cain on that difficulty. The Leg itself is the same item across all 3 difficulties — keep ONE in stash, it never breaks.</div>
+
+    <h3>🌀 Step 2 — Cube the portal</h3>
+    <div class="cube-section">
+      <div class="cube-row">
+        <div class="cube-input">Wirt's Leg + Tome of Town Portal (any)</div>
+        <div class="cube-arrow">→</div>
+        <div class="cube-output">red portal in Rogue Encampment · "Moo Moo Farm"</div>
+      </div>
+    </div>
+    <div class="warning"><strong>Cube must be in Rogue Encampment (Act 1 town).</strong> Recipe used in any other town does nothing. Town only — not in the field. Cube uses up both items.</div>
+
+    <h3>⚠️ Step 3 — THE COW KING RULE</h3>
+    <div class="warning" style="border-left:3px solid #ff4444"><strong>Critical:</strong> If you kill the <strong>Cow King</strong> on a difficulty, you can <strong>NEVER</strong> open the Cow Level on that difficulty again <strong>with that character</strong>. The recipe just fails silently.<br><br><strong>Solo workaround:</strong> have an alt char open the portal for you. <strong>Online:</strong> someone else can open the portal in their game; you join.<br><br><strong>Hardcore note:</strong> the Cow King has lightning enchant + amplify damage. Multi-shot kills him by accident easily — kite away or skip him entirely.</div>
+
+    <h3>💎 Step 4 — What to farm</h3>
+    <ul>
+      <li><strong>Runes:</strong> cows have a normal mob rune table — good for El/Eld/Tir/Nef/Ith/Tal/Ral/Ort up to ~Hel/Io. Not great for high runes (Countess + LK better) but ~400 cows = chipped runes flow steadily.</li>
+      <li><strong>Sets/Uniques:</strong> Hell Bovines have an OK TC bracket (TC 66-69 range). Can drop Hellbovine glove (cow-only specific drops), Trang's, Vidala's pieces.</li>
+      <li><strong>Density:</strong> Hammerdin / Frozen Orb sorc / Lightning Fury ama / Mosaic sin — all clear 200+ cows/min. MF stacking is meaningful here.</li>
+    </ul>
+    <div class="success"><strong>For Konyo:</strong> Konyodin (Blessed Hammer + Concentration) is the king. Stack Goldwrap/Chance Guards/MF charms, run cows for an hour, walk away with 5-10 chipped runes + 1-2 set greens + general grail noise.</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       DIABLO CLONE / ÜBER DIABLO
+       ════════════════════════════════════════════════════════════════ -->
+  <div class="colossal" id="event-diablo-clone">
+    <h3>🌑 Diablo Clone — The Annihilus Hunt</h3>
+    <p>Server-wide world event. Über Diablo (DClone) walks the earth when enough Stones of Jordan are sold to vendors on a single server. Drops the only unique small charm in the game: the <strong style="color:var(--uber)">Annihilus</strong> (+1 all skills, +10-20 stats, +10-20 all res, +5-10% experience).</p>
+
+    <h3>📡 Step 1 — Understand the spawn trigger</h3>
+    <p>Each Battle.net server has its own SoJ counter. When <strong>75-125 SoJs</strong> are sold to ANY NPC vendor on that server, the counter trips and Über Diablo spawns in EVERY Hell-difficulty game on that server. The 6 progression messages appear in the in-game chat as the counter climbs:</p>
+    <div class="scroll-table"><table class="drops"><thead><tr><th>Stage</th><th>Message</th><th>SoJ count</th></tr></thead><tbody>
+      <tr><td>1</td><td>"Diablo has forsaken his most loyal servants..."</td><td>~25%</td></tr>
+      <tr><td>2</td><td>"Diablo's minions are growing in strength..."</td><td>~50%</td></tr>
+      <tr><td>3</td><td>"The Stone of Jordan summons Diablo..."</td><td>~75%</td></tr>
+      <tr><td>4</td><td>"Terror approaches Sanctuary..."</td><td>~83%</td></tr>
+      <tr><td>5</td><td>"Terror spreads across Sanctuary..."</td><td>~92%</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">6</td><td><strong>"Diablo Walks the Earth"</strong> — DClone is up!</td><td>100%</td></tr>
+    </tbody></table></div>
+
+    <h3>🎯 Step 2 — Catch the spawn window</h3>
+    <p>Best practice: idle in the core of a high-count server when stage 4 or 5 appears. When stage 6 ("Diablo Walks the Earth") hits, DClone replaces the <strong>first super-unique monster</strong> you encounter in your Hell game (Bishibosh, Rakanishu, Pindleskin, Eldritch, Shenk, anyone). Spawn-camp a known super-unique location to fight him quickly.</p>
+    <div class="info"><strong>SoJ trackers:</strong> sites like d2jsp / d2emu / dclone-tracker track public SoJ counters across servers. Refresh them to find a server about to pop. Multiple Annis can spawn in a single ladder reset cycle on busy servers.</div>
+
+    <h3>⚔️ Step 3 — The fight</h3>
+    <p>Über Diablo's stats:</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">All resistances</div><div class="stat-value">95%</div></div>
+      <div class="stat"><div class="stat-label">Main attack</div><div class="stat-value">Lightning Hose</div></div>
+      <div class="stat"><div class="stat-label">HP</div><div class="stat-value">~150k</div></div>
+      <div class="stat"><div class="stat-label">Mlvl</div><div class="stat-value">110</div></div>
+    </div>
+    <p>Recommended counters:</p>
+    <ul>
+      <li><strong>Lower Resist</strong> wand/scepter charge or Necro curse — bypasses the 95% res wall</li>
+      <li><strong>Physical damage builds</strong> (Smiter, Zealot, Whirlwind Barb, Conviction Pally) — physical isn't resisted</li>
+      <li><strong>Crushing Blow</strong> stacks (Goblin Toe, Guillaume's, Gore Rider, Duress, Rattlecage) — % HP damage works through resistances</li>
+      <li><strong>Prevent Monster Heal</strong> on a weapon — DClone regens hard, this stops it</li>
+      <li><strong>Max lightning res / 75 absorb</strong> — his hose deletes squishy chars</li>
+    </ul>
+    <div class="warning"><strong>Critical mistake:</strong> Don't fight him in a tight area (Pindleskin map, Stony Field corners). His skellie spawns + Charged Bolt nova lock you. Pull him to open ground (Outer Cloister, Bloody Foothills, Travincal main road).</div>
+
+    <h3>🏆 Step 4 — The Annihilus</h3>
+    <div class="cube-section">
+      <div class="cube-row">
+        <div class="cube-input">Kill Über Diablo</div>
+        <div class="cube-arrow">→</div>
+        <div class="cube-output">Annihilus (unid · ALWAYS drops · 1 per kill regardless of party size)</div>
+      </div>
+    </div>
+    <p><strong>ID it.</strong> Stat ranges:</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">+1</div><div class="stat-value">All skills</div></div>
+      <div class="stat"><div class="stat-label">+10–20</div><div class="stat-value">Strength · Dex · Vit · Energy</div></div>
+      <div class="stat"><div class="stat-label">+10–20%</div><div class="stat-value">All resistances</div></div>
+      <div class="stat"><div class="stat-label">+5–10%</div><div class="stat-value">Experience gained</div></div>
+    </div>
+    <div class="success"><strong>For Konyo:</strong> Anni + Torch are the two charms every endgame character needs. Anni is harder because spawn timing is server-dependent — set a calendar alert for ladder reset week when SoJ counters fill fastest. Konyodin (hammers ignore phys res not phys immunity, so works) + a Smiter alt is the meta combo. Stock 4-5 SoJs and sell on stage 5 to push your own server over if you're patient.</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       COLOSSAL ANCIENTS (existing — preserved)
+       ════════════════════════════════════════════════════════════════ -->
   <div class="colossal">
     <h3>⚡ Colossal Ancients — The RotW Pinnacle Fight</h3>
     <p>Massively buffed <span class="ancient-icon ancient-talic"></span>Talic, <span class="ancient-icon ancient-korlic"></span>Korlic, <span class="ancient-icon ancient-madawc"></span>Madawc. Rewards: <strong style="color:var(--uber)">Colossal Jewels</strong>.</p>
@@ -1957,6 +2114,26 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div class="success"><strong>For Konyo:</strong> Konyolock + Konyodin both work. Smiter Paladin = safest meta.</div>
   </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       22 NIGHTS OF TERROR — Seasonal
+       ════════════════════════════════════════════════════════════════ -->
+  <div class="colossal" id="event-22-nights" style="opacity:0.92">
+    <h3>🎄 22 Nights of Terror — Seasonal (Dec 13 – Jan 4)</h3>
+    <p>Blizzard's holiday event. Active in all online modes (Classic excluded). The fabric of Sanctuary changes every 24 hours — a new gameplay modifier rotates daily for 22 days. Modifiers are visible via the in-game Message of the Day.</p>
+    <p><strong>Typical modifiers (recurring across years):</strong></p>
+    <ul style="line-height:1.7;font-size:13px">
+      <li>🎁 <strong>Holiday cheer</strong> — all monsters drop extra gold</li>
+      <li>⚔️ <strong>Demonic frenzy</strong> — monster movement speed +50%</li>
+      <li>💎 <strong>Greed</strong> — increased magic find for all players</li>
+      <li>🔥 <strong>Hellfire</strong> — Hell-difficulty monsters spawn random super-uniques</li>
+      <li>🌑 <strong>Endless terror</strong> — terror zones rotate every 15 min</li>
+      <li>🩸 <strong>Bloodshed</strong> — all kills drop extra runes</li>
+      <li>🎯 <strong>Champion of Sanctuary</strong> — boss kills grant a buff for the rest of the game</li>
+    </ul>
+    <div class="info"><strong>When it's on:</strong> usually runs Dec 13 → Jan 4 (D2R live servers, not RotW PTR). Free MF, free density, free XP. Sandwich an Anni hunt + a torch run into the modifier window.</div>
+  </div>
+
 </div>
 
 <div class="tab-content" id="tab-ref">
