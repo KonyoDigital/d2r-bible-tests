@@ -3963,6 +3963,9 @@ window.navigateToItem = function(itemName, originContext) {
   aidCardOrigin = originContext || null;
   clearActiveBoss();
   selectedItem = itemName;
+  // v42 UX: also set as the active item so the persistent top bar shows context
+  // (drop-row clicks in boss detail were leaving user on calc tab with no top-bar indicator)
+  if (typeof setActiveItem === 'function') setActiveItem(itemName);
   switchTab('calc');
   renderDetail();
   // Smooth scroll to top of aid-card with offset for sticky elements
