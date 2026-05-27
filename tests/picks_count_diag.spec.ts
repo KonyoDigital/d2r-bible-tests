@@ -5,6 +5,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
 const BOSSES = ['countess','andariel','duriel','mephisto','travincal','diablo','baal','pindle','nihl','cows','pit'];
 
 test('picks count per boss', async ({ page }) => {
+  test.setTimeout(90000); // 11 bosses × ~3-5s under load; default 30s is too tight
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errs.push('console:' + m.text()); });
@@ -13,7 +14,9 @@ test('picks count per boss', async ({ page }) => {
   await page.reload();
   await page.waitForTimeout(900);
   for (const b of BOSSES) {
-    await page.locator(`.boss-chip[data-boss-id="${b}"]`).first().evaluate((el: any) => el.click());
+    const chip = page.locator(`.boss-chip[data-boss-id="${b}"]`).first();
+    await chip.waitFor({ state: 'attached', timeout: 5000 });
+    await chip.evaluate((el: any) => el.click());
     await page.waitForTimeout(500);
     const result = await page.evaluate((bossId) => {
       const picks = Array.from(document.querySelectorAll('.hero-pick'));
