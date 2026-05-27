@@ -2663,6 +2663,7 @@ let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
 let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
 
+
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
 const adjustChance = (base, gMF) => {
   if (!base) return null;
@@ -2696,6 +2697,24 @@ const persist = () => {
   LS.setItem('d2r_setPieces', JSON.stringify([...setPieces]));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
+
+// v42 Finding N (CC): one-shot boot-time sanitization. Wishlist + owned Sets
+// accumulate stale entries when ITEM_REGISTRY renames/removes items between
+// bible versions. Result: count readouts say "5 starred" while only 1 valid
+// row renders. Filter against the live registry; persist if any drift detected.
+// Must run AFTER persist() is defined (const, no hoisting → TDZ if called earlier).
+(function _v42_sanitizeWishlistOwned() {
+  const beforeWish = wishlist.size;
+  const beforeOwned = owned.size;
+  wishlist = new Set([...wishlist].filter(n => typeof n === 'string' && n && ITEM_REGISTRY[n]));
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && ITEM_REGISTRY[n]));
+  if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
+    const wDrift = beforeWish - wishlist.size;
+    const oDrift = beforeOwned - owned.size;
+    console.warn('[bible] pruned ' + wDrift + ' stale wishlist + ' + oDrift + ' stale owned entries (items renamed/removed in data update)');
+    persist();
+  }
+})();
 
 function updateEffMF() {
   $("mf").value = mf;
@@ -5573,8 +5592,12 @@ function _v41_loadStatusScript(idx, cb) {
   // Use a fresh script tag so we can retry alternates if one fails
   const s = document.createElement('script');
   s.src = url + '?_=' + Date.now(); // cache-bust
-  s.onload = () => { cb(window.ROUTINE_STATUS || null); };
-  s.onerror = () => { _v41_loadStatusScript(idx + 1, cb); };
+  // v42 polish: remove the script tag after load/error to prevent <head> accumulation.
+  // _v41_refreshStatus fires every 60s; without cleanup, ~3000 dead script tags
+  // pile up per 24h of runtime.
+  const cleanup = () => { try { s.remove(); } catch(e) {} };
+  s.onload = () => { cb(window.ROUTINE_STATUS || null); cleanup(); };
+  s.onerror = () => { cleanup(); _v41_loadStatusScript(idx + 1, cb); };
   document.head.appendChild(s);
 }
 
