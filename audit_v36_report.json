@@ -1,0 +1,154 @@
+{
+  "tabs": {
+    "bosses": {
+      "active": true,
+      "children": 40770,
+      "ms": 359
+    },
+    "calc": {
+      "active": true,
+      "children": 957,
+      "ms": 306
+    },
+    "tz": {
+      "active": true,
+      "children": 121,
+      "ms": 275
+    },
+    "runes": {
+      "active": true,
+      "children": 216,
+      "ms": 278
+    },
+    "rotw": {
+      "active": true,
+      "children": 331,
+      "ms": 264
+    },
+    "ancients": {
+      "active": true,
+      "children": 52,
+      "ms": 265
+    },
+    "ref": {
+      "active": true,
+      "children": 213,
+      "ms": 270
+    }
+  },
+  "bosses": {
+    "countess": {
+      "opened": true,
+      "name": "The Countess",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 322
+    },
+    "andariel": {
+      "opened": true,
+      "name": "Andariel",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 288
+    },
+    "duriel": {
+      "opened": true,
+      "name": "Duriel",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 317
+    },
+    "mephisto": {
+      "opened": true,
+      "name": "Mephisto",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 315
+    },
+    "travincal": {
+      "opened": true,
+      "name": "Travincal Council",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 315
+    },
+    "diablo": {
+      "opened": true,
+      "name": "Diablo",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 296
+    },
+    "baal": {
+      "opened": true,
+      "name": "Baal",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 289
+    },
+    "pindle": {
+      "opened": true,
+      "name": "Pindleskin",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 308
+    },
+    "nihl": {
+      "opened": true,
+      "name": "Nihlathak",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 315
+    },
+    "cows": {
+      "opened": true,
+      "name": "Hell Bovines",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 275
+    },
+    "pit": {
+      "opened": true,
+      "name": "The Pit",
+      "pick_count": 20,
+      "closed_via_esc": true,
+      "ms": 300
+    }
+  },
+  "items": {
+    "tested": 312,
+    "opened": 312,
+    "sim_visible": 308,
+    "sources_present": 308,
+    "fail_count": 0,
+    "errors": []
+  },
+  "sliders": {
+    "mf_500": true,
+    "mf_1000": true,
+    "mf_preset_699": true,
+    "mf_preset_553": true
+  },
+  "sim_heavy": {
+    "ran_ok": true,
+    "elapsed_ms": 3509,
+    "bars": 5,
+    "stats": 9,
+    "conf_cells": 7,
+    "mf_cells": 4
+  },
+  "wishlist": {
+    "empty_state": true,
+    "populated_state": true
+  },
+  "tz_zones": {
+    "total": 10,
+    "routed": 10,
+    "unrouted": 0,
+    "routing_works": true
+  },
+  "routing_smoothness": {
+    "passes": 11,
+    "fails": 0
+  }
+}

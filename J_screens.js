@@ -1,0 +1,24 @@
+const { chromium } = require('@playwright/test');
+const path = require('path');
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+  await page.goto('file://' + path.resolve('/Users/konyo/d2r_bible_tests/bible_routes.html'));
+  await page.waitForTimeout(800);
+  const out = process.argv[2];
+  await page.screenshot({ path: out + '/01_bosses.png', fullPage: false });
+  await page.evaluate(() => window.openBossDetail('travincal'));
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: out + '/02_travincal_open.png', fullPage: false });
+  await page.keyboard.press('Escape');
+  await page.locator('.tab[data-tab="calc"]').click();
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { selectedItem = "Harlequin Crest (Shako)"; if (typeof renderDetail==='function') renderDetail(); });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: out + '/03_calc_shako.png', fullPage: false });
+  await page.locator('.tab[data-tab="tz"]').click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: out + '/04_tz.png', fullPage: false });
+  console.log('captured 4 screenshots');
+  await browser.close();
+})();
