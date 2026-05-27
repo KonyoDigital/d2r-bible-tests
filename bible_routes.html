@@ -3369,9 +3369,18 @@ window.runGicSim = function(chance) {
 };
 
 window.toggleStarred = function(name) {
-  if (wishlist.has(name)) wishlist.delete(name);
-  else wishlist.add(name);
-  saveWishlist();
+  // v42 fix: was calling undefined saveWishlist() — silent localStorage persistence failure.
+  // Delegate to the canonical toggleStar (line 4155) which uses persist().
+  if (typeof toggleStar === 'function') {
+    toggleStar(name);
+  } else {
+    // Fallback for very early-call edge cases (before toggleStar is defined)
+    if (typeof wishlist !== 'undefined') {
+      if (wishlist.has(name)) wishlist.delete(name);
+      else wishlist.add(name);
+      if (typeof persist === 'function') persist();
+    }
+  }
   if (typeof renderAll === "function") renderAll();
   if (typeof renderWishlistHuntPath === "function") renderWishlistHuntPath();
   if (typeof renderHero === "function") renderHero();
