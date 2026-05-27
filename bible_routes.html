@@ -2649,13 +2649,23 @@ let currentFilter = "all";
 let searchQ = "";
 let selectedItem = null;
 let activeItem = null; // item currently being 'farmed' - affects boss highlighting
-let wishlist = new Set(JSON.parse(LS.getItem('d2r_wishlist') || '[]'));
-let owned = new Set(JSON.parse(LS.getItem('d2r_owned') || '[]'));
-let statues = new Set(JSON.parse(LS.getItem('d2r_statues') || '[]'));
-let bossFilters = JSON.parse(LS.getItem('d2r_bossFilters') || '{}');
-let bossSorts = JSON.parse(LS.getItem('d2r_bossSorts') || '{}');
+// v42 UX fix: safe JSON parse — corrupt localStorage (browser quirks, dev tools edits,
+// failed mid-write) was crashing the bible by throwing ReferenceError on every variable
+// after the failed line. Now any bad key silently falls back to its default.
+const _safeJsonParse = (raw, fallback) => {
+  if (raw === null || raw === undefined) return fallback;
+  try { return JSON.parse(raw); } catch(e) {
+    console.warn('[bible] corrupt localStorage value, using default:', e.message);
+    return fallback;
+  }
+};
+let wishlist = new Set(_safeJsonParse(LS.getItem('d2r_wishlist'), []));
+let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
+let statues = new Set(_safeJsonParse(LS.getItem('d2r_statues'), []));
+let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
+let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
-let setPieces = new Set(JSON.parse(LS.getItem('d2r_setPieces') || '[]'));
+let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
 const adjustChance = (base, gMF) => {
