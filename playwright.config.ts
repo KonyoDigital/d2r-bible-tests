@@ -4,7 +4,7 @@ export default defineConfig({
   timeout: 30000,
   expect: { timeout: 5000 },
   fullyParallel: false,
-  workers: 1,
+  workers: 2,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'file://' + __dirname + '/bible.html',

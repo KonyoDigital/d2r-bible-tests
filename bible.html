@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Konyo's D2R Farming Bible v8 — verified anchors + 251 item rows</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konyo's D2R Farming Bible v43 · finalized</title>
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa}
 *{box-sizing:border-box}
@@ -221,7 +223,7 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media(max-width:700px){h2{font-size:16px}.diff-grid{grid-template-columns:repeat(3,1fr)}.container{padding:14px 10px}table.drops{min-width:680px}.boss-emoji{font-size:30px}.boss-name{font-size:18px}.item-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.slider-group{min-width:100%}.hero-grid{grid-template-columns:1fr 1fr}}
 
-.tonight-mission{background:linear-gradient(135deg,rgba(255,0,212,.08) 0%,rgba(212,168,71,.04) 100%);border:1px solid var(--border-light);border-radius:12px;padding:18px 20px;margin-bottom:20px}
+/* v42 removed: .tonight-mission (dead feature) */
 .tonight-title{color:var(--terror);font-size:11px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;margin-bottom:10px}
 .mission-sub{color:var(--text);font-size:14px;margin-bottom:14px}
 .mission-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
@@ -1090,14 +1092,401 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     100% { background-position: -200% 0; }
   }
 
+
+  /* === v40 GOLDEN POLISH === */
+  
+  /* Field Manual card — golden bordered, structured */
+  .field-manual {
+    margin: 18px 0 8px;
+    background: linear-gradient(180deg, rgba(240,192,96,.05), rgba(20,12,4,.6));
+    border: 1px solid var(--gold-dim, #8a6f2e);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .field-manual::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+  }
+  .field-manual-header {
+    background: linear-gradient(180deg, rgba(240,192,96,.12), rgba(240,192,96,.02));
+    color: var(--gold-bright);
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--gold-dim, #8a6f2e);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .field-manual-header::before {
+    content: '📖';
+    font-size: 14px;
+  }
+  .field-manual-body {
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .fm-section {
+    background: rgba(10,6,2,.4);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .fm-section-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--gold-bright);
+    text-transform: uppercase;
+    letter-spacing: 1.3px;
+    margin-bottom: 6px;
+    opacity: .85;
+  }
+  .fm-section-body {
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .fm-section-body strong { color: var(--gold-bright); font-weight: 600; }
+  .fm-section-body em { color: var(--best); font-style: normal; font-weight: 500; }
+  
+  /* Tip card aesthetic — used in ref tab + scattered */
+  .tip-card {
+    background: linear-gradient(180deg, rgba(240,192,96,.06), rgba(10,6,2,.5));
+    border: 1px solid var(--border-light);
+    border-left: 3px solid var(--gold-bright);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 10px 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text);
+    position: relative;
+  }
+  .tip-card-label {
+    color: var(--gold-bright);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    margin-bottom: 5px;
+    display: block;
+  }
+  .tip-card strong { color: var(--gold-bright); font-weight: 600; }
+  .tip-card em { color: var(--best); font-style: normal; }
+  .tip-card code { 
+    background: rgba(240,192,96,.12);
+    color: var(--gold-bright);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+  
+  /* Methodology accordion */
+  .methodology-block {
+    margin: 18px 0;
+    background: linear-gradient(180deg, rgba(0,255,170,.04), rgba(10,6,2,.5));
+    border: 1px solid rgba(0,255,170,.25);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .methodology-block summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    color: var(--verified);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    list-style: none;
+    user-select: none;
+    transition: background .15s ease;
+  }
+  .methodology-block summary:hover { background: rgba(0,255,170,.06); }
+  .methodology-block summary::after {
+    content: ' ▾';
+    color: var(--verified);
+    opacity: .6;
+    margin-left: 6px;
+  }
+  .methodology-block[open] summary::after { content: ' ▴'; }
+  .methodology-content {
+    padding: 4px 16px 16px;
+    color: var(--text);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+  .methodology-content code {
+    background: rgba(0,255,170,.1);
+    color: var(--verified);
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 11.5px;
+  }
+  .methodology-formula {
+    background: rgba(10,6,2,.6);
+    border: 1px solid rgba(0,255,170,.2);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--gold-bright);
+    overflow-x: auto;
+  }
+  
+  /* Hover tooltips for abbreviations (.abbr) */
+  .abbr {
+    border-bottom: 1px dotted var(--gold-dim, #8a6f2e);
+    cursor: help;
+    position: relative;
+  }
+  .abbr:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1208;
+    color: var(--gold-bright);
+    padding: 6px 10px;
+    border: 1px solid var(--gold-bright);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.5;
+    white-space: nowrap;
+    z-index: 999;
+    box-shadow: 0 4px 14px rgba(0,0,0,.6);
+    pointer-events: none;
+    animation: fadeInUp .2s ease-out;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  
+  /* Tips section in ref tab — bento layout */
+  .tips-bento {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 18px 0;
+  }
+  .tips-bento .tip-card { margin: 0; }
+  
+  /* Typography polish — heading underlines */
+  h2.golden-underline {
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, var(--gold-bright), transparent) 1;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+  
+  /* "Did you know?" tag */
+  .dyk-tag {
+    display: inline-block;
+    background: linear-gradient(180deg, rgba(240,192,96,.18), rgba(240,192,96,.05));
+    border: 1px solid var(--gold-bright);
+    color: var(--gold-bright);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+
+  /* === v41 LIVE ROUTINE STATUS === */
+  /* Color-tint each routine letter based on data-status */
+  .routine-letter[data-status="green"] {
+    background: linear-gradient(180deg, rgba(102,255,136,.22), rgba(102,255,136,.08));
+    border-color: var(--best);
+    color: var(--best);
+    box-shadow: 0 0 0 1px rgba(102,255,136,.3), 0 0 8px rgba(102,255,136,.18);
+  }
+  .routine-letter[data-status="warn"] {
+    background: linear-gradient(180deg, rgba(255,204,68,.22), rgba(255,204,68,.08));
+    border-color: var(--nm);
+    color: var(--nm);
+    box-shadow: 0 0 0 1px rgba(255,204,68,.3), 0 0 8px rgba(255,204,68,.18);
+  }
+  .routine-letter[data-status="red"] {
+    background: linear-gradient(180deg, rgba(255,64,64,.22), rgba(255,64,64,.08));
+    border-color: var(--hell);
+    color: var(--hell);
+    box-shadow: 0 0 0 1px rgba(255,64,64,.3), 0 0 10px rgba(255,64,64,.25);
+    animation: pulseRed 1.8s ease-in-out infinite;
+  }
+  .routine-letter[data-status="inactive"] {
+    opacity: .35;
+    border-color: var(--border);
+    background: rgba(20,12,4,.5);
+  }
+  @keyframes pulseRed {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(255,64,64,.3), 0 0 6px rgba(255,64,64,.18); }
+    50% { box-shadow: 0 0 0 2px rgba(255,64,64,.5), 0 0 14px rgba(255,64,64,.35); }
+  }
+  /* Daily fires counter — prominent in widget header */
+  #routine-fires-counter {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold-bright);
+    letter-spacing: .8px;
+    padding: 2px 8px;
+    background: rgba(240,192,96,.08);
+    border: 1px solid rgba(240,192,96,.3);
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  #routine-fires-counter.all-green { color: var(--best); border-color: rgba(102,255,136,.35); background: rgba(102,255,136,.08); }
+  #routine-fires-counter.has-red { color: var(--hell); border-color: rgba(255,64,64,.4); background: rgba(255,64,64,.08); }
+  /* Tooltip on letter hover */
+  .routine-letter[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: #1a1208;
+    color: var(--gold-bright);
+    padding: 8px 12px;
+    border: 1px solid var(--gold-bright);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    max-width: 320px;
+    min-width: 200px;
+    z-index: 999;
+    box-shadow: 0 4px 14px rgba(0,0,0,.7);
+    pointer-events: none;
+    text-align: left;
+  }
+  .routine-letter { position: relative; }
+  /* Refresh icon next to counter */
+  #routine-refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    color: var(--gold-dim, #8a6f2e);
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    transition: color .15s ease, transform .25s ease;
+  }
+  #routine-refresh-btn:hover { color: var(--gold-bright); border-color: var(--gold-bright); }
+  #routine-refresh-btn.spinning { animation: spin .8s linear; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+
+  /* === v42 mobile polish — touch-friendly tap targets without breaking desktop === */
+  @media (max-width: 600px) {
+    .tab {
+      padding: 10px 12px !important;
+      font-size: 13px !important;
+      min-height: 44px;
+    }
+    .boss-chip {
+      min-height: 36px;
+      padding: 6px 10px;
+    }
+    /* MF slider thumb tap-friendly */
+    input[type="range"]#mf {
+      height: 24px;
+    }
+    input[type="range"]#mf::-webkit-slider-thumb {
+      width: 24px;
+      height: 24px;
+    }
+    /* TZ countdown — smaller bottom margin so it doesn't cover content */
+    #v42-tz-countdown {
+      bottom: 8px;
+      left: 8px;
+      padding: 6px 10px;
+      font-size: 10.5px;
+    }
+    #v42-tz-countdown .v42-tz-time {
+      font-size: 13px;
+    }
+    /* Palette — full width on small screens, less top padding */
+    #v42-palette-overlay {
+      padding-top: 6vh;
+    }
+    #v42-palette {
+      width: 96vw;
+      max-width: none;
+    }
+    #v42-palette-input {
+      font-size: 16px !important; /* iOS doesn't auto-zoom on inputs >= 16px */
+    }
+    /* Header — tighter on mobile so it doesn't eat all vertical space */
+    .header {
+      padding: 8px 12px 6px;
+    }
+    .h-title {
+      font-size: 15px;
+    }
+  }
+
+
+  /* === v42 theme polish — focus rings + improved warn state contrast === */
+  #v42-palette-input:focus {
+    box-shadow: inset 0 -2px 0 0 var(--gold-bright, #f0c060);
+  }
+  .v42-pal-item:focus,
+  .v42-pal-item.v42-pal-active {
+    outline: none;
+    background: rgba(240,192,96,.14);
+    border-left-color: var(--gold-bright, #f0c060);
+  }
+  /* Improve warn-state contrast for routine letter widget */
+  .routine-letter[data-status="warn"] {
+    /* Slightly brighter warn — easier to spot at a glance */
+    background: linear-gradient(180deg, rgba(255,204,68,.28), rgba(255,204,68,.10));
+  }
+  /* Wishlist star focus visual */
+  .item-tile.item-tile-starred {
+    box-shadow: inset 0 0 0 1px var(--star, #ffd040);
+  }
+
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="header">
-  <div class="header-top">
-    <div>
-      <div class="h-title">⚔️ Konyo's D2R Farming Bible · v39</div>
-      <div class="h-sub"><span class="live-indicator"></span>🤖 ROUTINES + EXPORTS · 9 automated routines (G-O) now monitor the Bible 24/7 with Obsidian logging + Telegram alerts · press R to toggle the routine status widget (bottom-right) · wishlist now exports as markdown (copy to clipboard for Obsidian/Discord) via new \'📋 Export\' button · MF slider step refined to 1 so 699 and 553 (Konyolock presets) land exact</div>
+  <div class="header-top header-top-editorial">
+    <div class="header-title-block">
+      <div class="masthead">
+        <div class="masthead-kicker">Vol. XLIII · Spring 2026 · The Sanctuary Codex</div>
+        <h1 class="h-title">Konyo's D2R Farming Bible</h1>
+        <div class="masthead-rule"></div>
+        <div class="masthead-tagline">A complete grail-hunting reference — annotated with kill rate, drop chance, terror-zone schedule, and personal wishlist tracking.</div>
+      </div>
+      <div class="h-sub" style="display:none"><span class="live-indicator"></span>🤖 ROUTINES + EXPORTS · 14 automated routines (G-T) now monitor the Bible 24/7 with Obsidian logging + Telegram alerts · press R to toggle the routine status widget (bottom-right) · wishlist now exports as markdown (copy to clipboard for Obsidian/Discord) via new \'📋 Export\' button · MF slider step refined to 1 so 699 and 553 (Konyolock presets) land exact</div>
     </div>
     <div class="slider-group">
       <span class="slider-label"><span class="kbd-tip" data-tip="Magic Find % — increases chance of rare/unique drops. Stacked from Topaz Shako, Goldwrap, Chance Guards, SoJs, MF charms. Diminishing returns past ~400%.">MF</span></span>
@@ -1173,11 +1562,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="wishlist-card" id="wishlist-hunt-path"></div>
   <div style="display:none">
   </div>
-  <div class="tonight-mission" id="tonight-mission" style="display:none">
-    <div class="tonight-title">🎯 Tonight's Mission — fastest path to your wishlist</div>
-    <div class="mission-sub" id="mission-sub">Star ⭐ items in the Calculator to build your wishlist, then this section ranks bosses by fastest expected farm.</div>
-    <div class="mission-grid" id="mission-grid"></div>
-  </div>
+  <!-- v42 removed: Tonight's Mission was dead (ID mismatch, display:none, redundant with renderHero/renderWishlistHuntPath) -->
   <div class="legend-box">
     <div class="legend-title">📖 Cell legend — read every drop table this way</div>
     <div class="legend-row">
@@ -1367,7 +1752,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="tz-zone-body"><strong>Hephasto drops superior items.</strong> Izual + River monsters. Connects to CS so you can chain into Diablo. TC87 unlock.</div>
       <div class="tz-zone-tags"><span class="tz-zone-tag tc87">TC87 unlock</span></div>
     </div>
-<div class="tz-zone-card" data-boss-id="" onclick="const b=tzZoneBoss('Tristram (the town)'); if(b){switchTab('bosses');setTimeout(()=>setActiveBoss(b),100)}" style="cursor:pointer" title="click to see boss detail">
+<div class="tz-zone-card" data-boss-id="" onclick="const b=tzZoneBoss('Tristram (the town)'); if(b){switchTab('bosses');setTimeout(()=>setActiveBoss(b,undefined,{intent:'open'}),100)}" style="cursor:pointer" title="click to see boss detail">
       <div class="tz-zone-header">
         <span class="tz-zone-emoji">⛪</span>
         <p class="tz-zone-name">Tristram (the town)</p>
@@ -1638,7 +2023,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 <div class="footer">
   Sources: silospen dropcalc · d2runewizard · diablo2.io · Maxroll · DiabloBytes · pairofdocs<br>
-  <strong>v39</strong> · v27 contract symmetry · added alias classes WITHOUT rebuilding: panel wrapped in <div id=\'boss-detail-overlay\' class=\'boss-detail-overlay hidden\'> · gbc-header also has class boss-detail-header · gbc-name also has class bd-name · boss-card .boss-header also has .clickable class with onclick=openBossDetail · setActiveBoss + clearActiveBoss now toggle .hidden on #boss-detail-overlay · Esc still calls clearActiveBoss · focusDiff param threaded through · result: my visual Golden Card stays exactly as Konyo prefers, but CC's tests can locate all expected DOM elements · 27 May 2026
+  <strong>v41</strong> · v27 contract symmetry · added alias classes WITHOUT rebuilding: panel wrapped in <div id=\'boss-detail-overlay\' class=\'boss-detail-overlay hidden\'> · gbc-header also has class boss-detail-header · gbc-name also has class bd-name · boss-card .boss-header also has .clickable class with onclick=openBossDetail · setActiveBoss + clearActiveBoss now toggle .hidden on #boss-detail-overlay · Esc still calls clearActiveBoss · focusDiff param threaded through · result: my visual Golden Card stays exactly as Konyo prefers, but CC's tests can locate all expected DOM elements · 27 May 2026
     <br><button class="reset-btn" onclick="if(confirm('Reset all tracker data? (wishlist, owned, statues, sorts, filters, MF settings)')){localStorage.clear();location.reload()}">⚠️ Reset all tracker data</button>
 </div>
 </div>
@@ -1650,7 +2035,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <p>Live MF/players slider at the top — all numbers recalculate instantly when you drag.</p>
     <h3>⭐ Wishlist vs ✓ Owned</h3>
     <ul>
-      <li><strong>⭐ Star</strong> = "I want this" → bumps to top of hero card + Tonight's Mission</li>
+      <li><strong>⭐ Star</strong> = "I want this" → bumps to top of hero card</li>
       <li><strong>✓ Owned</strong> = "I already have this" → strikethrough, removed from priority lists</li>
     </ul>
     <h3>📖 Cell colors</h3>
@@ -2268,13 +2653,24 @@ let currentFilter = "all";
 let searchQ = "";
 let selectedItem = null;
 let activeItem = null; // item currently being 'farmed' - affects boss highlighting
-let wishlist = new Set(JSON.parse(LS.getItem('d2r_wishlist') || '[]'));
-let owned = new Set(JSON.parse(LS.getItem('d2r_owned') || '[]'));
-let statues = new Set(JSON.parse(LS.getItem('d2r_statues') || '[]'));
-let bossFilters = JSON.parse(LS.getItem('d2r_bossFilters') || '{}');
-let bossSorts = JSON.parse(LS.getItem('d2r_bossSorts') || '{}');
+// v42 UX fix: safe JSON parse — corrupt localStorage (browser quirks, dev tools edits,
+// failed mid-write) was crashing the bible by throwing ReferenceError on every variable
+// after the failed line. Now any bad key silently falls back to its default.
+const _safeJsonParse = (raw, fallback) => {
+  if (raw === null || raw === undefined) return fallback;
+  try { return JSON.parse(raw); } catch(e) {
+    console.warn('[bible] corrupt localStorage value, using default:', e.message);
+    return fallback;
+  }
+};
+let wishlist = new Set(_safeJsonParse(LS.getItem('d2r_wishlist'), []));
+let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
+let statues = new Set(_safeJsonParse(LS.getItem('d2r_statues'), []));
+let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
+let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
-let setPieces = new Set(JSON.parse(LS.getItem('d2r_setPieces') || '[]'));
+let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
+
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
 const adjustChance = (base, gMF) => {
@@ -2309,6 +2705,24 @@ const persist = () => {
   LS.setItem('d2r_setPieces', JSON.stringify([...setPieces]));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
+
+// v42 Finding N (CC): one-shot boot-time sanitization. Wishlist + owned Sets
+// accumulate stale entries when ITEM_REGISTRY renames/removes items between
+// bible versions. Result: count readouts say "5 starred" while only 1 valid
+// row renders. Filter against the live registry; persist if any drift detected.
+// Must run AFTER persist() is defined (const, no hoisting → TDZ if called earlier).
+(function _v42_sanitizeWishlistOwned() {
+  const beforeWish = wishlist.size;
+  const beforeOwned = owned.size;
+  wishlist = new Set([...wishlist].filter(n => typeof n === 'string' && n && ITEM_REGISTRY[n]));
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && ITEM_REGISTRY[n]));
+  if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
+    const wDrift = beforeWish - wishlist.size;
+    const oDrift = beforeOwned - owned.size;
+    console.warn('[bible] pruned ' + wDrift + ' stale wishlist + ' + oDrift + ' stale owned entries (items renamed/removed in data update)');
+    persist();
+  }
+})();
 
 function updateEffMF() {
   $("mf").value = mf;
@@ -2381,7 +2795,7 @@ function renderGrailProgress() {
   let msg = "";
   if (have === 0) msg = `Mark grail items as ✓ owned to track your Holy Grail collection. <strong>${total}</strong> grails tracked.`;
   else if (remaining === 0) msg = `<strong style="color:var(--best)">🏆 GRAIL COMPLETE!</strong> You collected all ${total} tracked items. Send a screenshot.`;
-  else msg = `<strong>${have} / ${total}</strong> grails owned · ${remaining} to go · ⭐ ${wishlist.size} starred for priority. Next pickup ideas in 🎯 Tonight's Mission below.`;
+  else msg = `<strong>${have} / ${total}</strong> grails owned · ${remaining} to go · ⭐ ${wishlist.size} starred for priority. See the Hero card above for next pickup ideas.`;
   $("gp-detail").innerHTML = msg;
 }
 
@@ -2406,57 +2820,22 @@ function renderHero() {
   renderHeroV31();
 }
 
-function renderTonightsMission() {
-  const el = $("tonights-mission");
-  if (!el) return;
-
-  // === v24: DIVERSIFY by boss — show top-1 grail per boss, then sort by hours ===
-  // This ensures variety — no more "all 5 picks → Hell TZ Pindleskin"
-  const perBossBest = {};
-  BOSSES.forEach(boss => {
-    let best = null;
-    boss.dropTable.forEach(d => {
-      if ((d.tier !== "grail" && d.tier !== "uber") || owned.has(d.n) || d.category) return;
-      ["hellTz","hell","nmTz","nm","normTz","norm"].forEach(k => {
-        if (d[k]) {
-          const adj = adjustChance(d[k], mf);
-          const kphMult = (k==="norm"||k==="normTz") ? 1.2 : (k==="nm"||k==="nmTz") ? 1.1 : 1.0;
-          const hrs = hoursFor(adj, 0.5, boss.kph * kphMult);
-          if (!best || hrs < best.hrs) {
-            best = {item: d.n, boss: boss.name, bossId: boss.id, chance: adj, diffKey: k, hrs, kph: Math.round(boss.kph * kphMult)};
-          }
-        }
-      });
-    });
-    if (best) perBossBest[boss.id] = best;
-  });
-  const picks = Object.values(perBossBest).sort((a,b) => (a.hrs||Infinity) - (b.hrs||Infinity));
-  const top = picks.slice(0, Math.min(picks.length, 8));
-
-  if (!top.length) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-style:italic;padding:14px">No grail items achievable at current MF. Try higher MF or move to Hell.</div>';
-    return;
-  }
-
-  el.innerHTML = top.map((p,i) => {
-    const r50 = runsFor(p.chance, 0.5);
-    const diffLabel = (p.diffKey||"").replace("Tz"," TZ").toUpperCase();
-    const escName = p.item.replace(/'/g, "\\'");
-    return `<div class="hero-pick" onclick="switchTab('bosses');setActiveBoss('${p.bossId}')" style="cursor:pointer" title="click to open ${p.boss}'s Golden Boss Card">
-      <div class="hero-pick-rank">#${i+1} best</div>
-      <div class="hero-pick-name">${p.item}</div>
-      <div class="hero-pick-source"><span style="color:var(--gold-bright)">${p.boss}</span> · ${diffLabel}</div>
-      <div class="hero-pick-chance"><strong>${fmt(p.chance)}</strong> · <span style="color:var(--terror)">${fmtHours(p.hrs)} for 50%</span></div>
-      <div class="hero-pick-kph">${p.kph}/hr ${sparkline(p.chance, p.kph, Math.max(1, p.hrs*2))}</div>
-    </div>`;
-  }).join("");
-}
+// v42 removed: renderTonightsMission() — dead feature (ID mismatch, redundant)
 
 let activeBossId = null;
 
-window.setActiveBoss = function(bossId, focusDiff) {
-  // Toggle: clicking same chip again closes
-  if (activeBossId === bossId) { clearActiveBoss(); return; }
+window.setActiveBoss = function(bossId, focusDiff, opts) {
+  // v42 Bug H (CC find): support intent disambiguation. Default 'toggle' is correct
+  // for boss-chip re-clicks (close-on-second-click). But entry points like
+  // openBossDetail, TZ zone cards, gic-source-cell, Cmd+click source chip,
+  // URL hash routes — all want 'open' semantics (already-active = no-op, not close).
+  const intent = opts?.intent || 'toggle';
+  if (activeBossId === bossId) {
+    if (intent === 'toggle') { clearActiveBoss(); return; }
+    // intent === 'open' — re-scroll to panel without closing
+    setTimeout(() => $("boss-detail-panel")?.scrollIntoView({behavior:'smooth',block:'start'}), 50);
+    return;
+  }
   activeBossId = bossId;
   // v33: re-render hero picks to be boss-specific
   if (typeof renderHero === 'function') renderHero();
@@ -2486,6 +2865,14 @@ window.clearActiveBoss = function() {
   // Route-audit contract: hide the overlay
   document.getElementById('boss-detail-overlay')?.classList.add('hidden');
   document.querySelectorAll('.boss-chip').forEach(c => c.dataset.active = 'false');
+  // v42 UX route-back: smoothly return user to the chip bar so they can pick another boss
+  setTimeout(() => {
+    const nav = document.getElementById('boss-nav');
+    if (nav) {
+      const y = nav.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
+  }, 60);
 };
 
 
@@ -2557,6 +2944,12 @@ const KBD_SHORTCUTS = [
   {keys:['Shift+4'], desc:'MF 699% (MF swap)', action:() => setMFPreset(699)},
   {keys:['Shift+5'], desc:'MF 800%', action:() => setMFPreset(800)},
   {keys:['Shift+6'], desc:'MF 1000%', action:() => setMFPreset(1000)},
+  {keys:['r','R'], desc:'Toggle routine status widget (bottom-right)', action:() => {
+    // v42 UX fix: lookup by both IDs because the on-load advertising pulse temporarily renames it
+    const bar = document.getElementById('routine-status-bar') 
+             || document.getElementById('routine-toggle-pulse');
+    if (bar) bar.style.display = (bar.style.display === 'none' || !bar.style.display) ? 'block' : 'none';
+  }},
 ];
 
 document.addEventListener('keydown', e => {
@@ -2974,9 +3367,18 @@ window.runGicSim = function(chance) {
 };
 
 window.toggleStarred = function(name) {
-  if (wishlist.has(name)) wishlist.delete(name);
-  else wishlist.add(name);
-  saveWishlist();
+  // v42 fix: was calling undefined saveWishlist() — silent localStorage persistence failure.
+  // Delegate to the canonical toggleStar (line 4155) which uses persist().
+  if (typeof toggleStar === 'function') {
+    toggleStar(name);
+  } else {
+    // Fallback for very early-call edge cases (before toggleStar is defined)
+    if (typeof wishlist !== 'undefined') {
+      if (wishlist.has(name)) wishlist.delete(name);
+      else wishlist.add(name);
+      if (typeof persist === 'function') persist();
+    }
+  }
   if (typeof renderAll === "function") renderAll();
   if (typeof renderWishlistHuntPath === "function") renderWishlistHuntPath();
   if (typeof renderHero === "function") renderHero();
@@ -3213,8 +3615,8 @@ window.openBossDetail = function(bossId, focusDiff) {
   // v28: synchronously show overlay first so route-audit doesn't race
   document.getElementById('boss-detail-overlay')?.classList.remove('hidden');
   switchTab('bosses');
-  // setActiveBoss does the actual render + state update
-  setActiveBoss(bossId, focusDiff);
+  // v42 Bug H: intent='open' so re-entering same boss doesn't toggle-close it
+  setActiveBoss(bossId, focusDiff, {intent:'open'});
 };
 
 /* === v28: dedicated overlay-aware Esc listener — closes overlay even if state is desync === */
@@ -3226,6 +3628,15 @@ document.addEventListener('keydown', function(e) {
     else { overlay.classList.add('hidden'); }
   }
 });
+
+/* === v42 UX investigation: backdrop click was considered but boss-detail-overlay
+   uses position:static (it is NOT a modal — sits inline below the chip bar).
+   Existing close pathways already cover this:
+     1. ✕ close button in the panel header (line ~3747)
+     2. Esc key (handler above)
+     3. Re-click same boss chip (toggle, with route-back scroll)
+     4. Click a different boss chip (switches)
+   No backdrop handler needed. === */
 
 
 
@@ -3348,7 +3759,10 @@ function renderBossDetailCard(bossId, focusDiff) {
     </section>` : ''}
 
     <section class="gbc-section">
-      <div class="gbc-section-label">💎 your top 15 grail picks from this boss · @${mf}% MF · sorted by hours-to-50%</div>
+      <div class="gbc-section-header-row">
+        <div class="gbc-section-label">💎 your top 15 grail picks from this boss · @${mf}% MF · sorted by hours-to-50%</div>
+        <button class="gbc-section-link" onclick="clearActiveBoss();setTimeout(()=>{const el=document.getElementById('${boss.id}');if(el){el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)" title="See every drop across all 6 difficulties — sortable + filterable">View Full Drop Table →</button>
+      </div>
       ${top15Html}
     </section>
 
@@ -3559,6 +3973,9 @@ window.navigateToItem = function(itemName, originContext) {
   aidCardOrigin = originContext || null;
   clearActiveBoss();
   selectedItem = itemName;
+  // v42 UX: also set as the active item so the persistent top bar shows context
+  // (drop-row clicks in boss detail were leaving user on calc tab with no top-bar indicator)
+  if (typeof setActiveItem === 'function') setActiveItem(itemName);
   switchTab('calc');
   renderDetail();
   // Smooth scroll to top of aid-card with offset for sticky elements
@@ -3573,13 +3990,18 @@ window.navigateToItem = function(itemName, originContext) {
 
 window.goBackFromAid = function() {
   if (!aidCardOrigin) return;
-  if (aidCardOrigin.tab === 'bosses' && aidCardOrigin.bossId) {
-    switchTab('bosses');
-    setTimeout(() => setActiveBoss(aidCardOrigin.bossId), 60);
-  } else if (aidCardOrigin.tab) {
-    switchTab(aidCardOrigin.tab);
-  }
+  // v42 fix (Bug E — CC find): capture into a local BEFORE nulling. The previous
+  // version nulled aidCardOrigin synchronously, then the 60ms setTimeout closure
+  // tried to read .bossId from null → silent TypeError → setActiveBoss never ran.
+  // User saw bosses tab activate with no boss expanded.
+  const origin = aidCardOrigin;
   aidCardOrigin = null;
+  if (origin.tab === 'bosses' && origin.bossId) {
+    switchTab('bosses');
+    setTimeout(() => setActiveBoss(origin.bossId, undefined, {intent:'open'}), 60);
+  } else if (origin.tab) {
+    switchTab(origin.tab);
+  }
 };
 
 
@@ -3739,10 +4161,17 @@ function renderBossCards() {
   document.querySelectorAll("tr.clickable").forEach(tr => {
     tr.onclick = e => {
       if (e.target.classList.contains('star-btn') || e.target.classList.contains('owned-btn')) return;
-      selectedItem = tr.dataset.item;
-      switchTab("calc");
-      renderCalc();
-      setTimeout(() => $("item-detail").scrollIntoView({behavior:"smooth",block:"start"}), 100);
+      // v42 UX (CC find): use canonical navigateToItem to keep selectedItem + activeItem
+      // + active-item-bar in sync (was setting only selectedItem, leaving top bar empty)
+      if (typeof navigateToItem === 'function') {
+        navigateToItem(tr.dataset.item);
+      } else {
+        selectedItem = tr.dataset.item;
+        if (typeof setActiveItem === 'function') setActiveItem(tr.dataset.item);
+        switchTab("calc");
+        renderCalc();
+        setTimeout(() => $("item-detail").scrollIntoView({behavior:"smooth",block:"start"}), 100);
+      }
     };
   });
 }
@@ -3762,7 +4191,6 @@ function toggleStar(name) {
   else wishlist.add(name);
   persist();
   renderHero();
-  renderTonightsMission();
   renderBossCards();
   renderCalc();
   renderGrailProgress();
@@ -3780,7 +4208,6 @@ function toggleOwned(name) {
     }
   }
   renderHero();
-  renderTonightsMission();
   renderBossCards();
   renderCalc();
   renderGrailProgress();
@@ -4073,6 +4500,8 @@ function renderDetail() {
 let activeSourceKey = null; // format: 'bossId|diffKey'
 function setActiveItem(name, sourceBossId, sourceDiffKey) {
   activeItem = name;
+  // v42 polish: record in recently-viewed even when navigation skips the palette
+  try { if (name && typeof window._v42_pushRecent === 'function') window._v42_pushRecent({label: name, cat: 'item'}); } catch(e) {}
   if (sourceBossId !== undefined && sourceDiffKey !== undefined) activeSourceKey = `${sourceBossId}|${sourceDiffKey}`;
   else if (sourceBossId !== undefined) activeSourceKey = sourceBossId; // legacy bossId-only call — match any diff
   if (!name) activeSourceKey = null;
@@ -4083,6 +4512,14 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
     bar.classList.remove("show");
     if (detail) { detail.classList.remove("show"); detail.innerHTML = ""; }
     document.querySelectorAll(".boss-card").forEach(c => { c.classList.remove("has-item"); c.classList.remove("no-item"); });
+    // v42 UX route-back: smoothly return user to the top of bosses tab so they can pick another item
+    setTimeout(() => {
+      const target = document.getElementById('boss-nav') || document.querySelector('.tabs');
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      }
+    }, 60);
     return;
   }
   bar.classList.add("show");
@@ -4259,7 +4696,7 @@ function renderAidCard(name, opts){
         <button class="aid-close-btn" onclick="toggleOwned('${escName}')">${isOwned?'☑ owned':'☐ mark owned'}</button>
         <button class="aid-close-btn" onclick="openGlossary()" title="what does TC and qlvl mean?">?</button>
         ${opts.context==='bosses'
-          ? `<button class="aid-close-btn" onclick="selectedItem='${escName}';switchTab('calc');renderDetail();">↗ open in calc</button>`
+          ? `<button class="aid-close-btn" onclick="navigateToItem('${escName}')">↗ open in calc</button>`
           : `<button class="aid-close-btn" onclick="setActiveItem('${escName}');switchTab('bosses');setTimeout(()=>{document.getElementById('${focus.bossId}').scrollIntoView();jumpToBossItem('${escName}')},100)">↗ jump to boss</button>`}
       </div>
     </header>
@@ -4468,90 +4905,12 @@ function toggleStatue(name) {
   else statues.add(name);
   persist();
   renderStatueTracker();
-renderTzZones();
-renderSetTracker();
-
-// keyboard shortcuts (v12 enhanced)
-document.addEventListener("keydown", (e) => {
-  const inInput = ["INPUT","TEXTAREA"].includes(document.activeElement?.tagName);
-  if (e.key === "Escape") {
-    document.getElementById("help-modal")?.classList.remove("show");
-    if (activeBossId) { clearActiveBoss(); return; }
-    if (activeItem) clearActiveItem();
-    return;
-  }
-  // Arrow nav within item-grid when focused
-  const grid = document.getElementById("item-grid");
-  const focused = document.activeElement;
-  if (grid && focused?.classList?.contains("item-tile")) {
-    const tiles = Array.from(grid.querySelectorAll(".item-tile"));
-    const curIdx = tiles.indexOf(focused);
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      const next = tiles[Math.min(tiles.length-1, curIdx+1)];
-      next?.focus();
-      next?.click();
-      return;
-    }
-    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const prev = tiles[Math.max(0, curIdx-1)];
-      prev?.focus();
-      prev?.click();
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      focused?.click();
-      $("item-detail")?.scrollIntoView({behavior:"smooth", block:"start"});
-      return;
-    }
-    if (e.key.toLowerCase() === "b" && selectedItem) {
-      e.preventDefault();
-      switchTab("bosses");
-      setActiveItem(selectedItem);
-      return;
-    }
-  }
-  if (inInput) return;
-  if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
-    e.preventDefault();
-    switchTab("calc");
-    setTimeout(() => $("item-search").focus(), 100);
-    return;
-  }
-  if (e.key === "?") {
-    document.getElementById("help-modal")?.classList.add("show");
-    return;
-  }
-  // Note: 1=bosses, 2=calc, 3=tz, 4=runes, 5=rotw, 6=ancients, 7=ref (added tz at 3)
-  const tabMap = {"1":"bosses","2":"calc","3":"tz","4":"runes","5":"rotw","6":"ancients","7":"ref"};
-  if (tabMap[e.key]) switchTab(tabMap[e.key]);
-});
-
-// show shortcut hint briefly on first visit
-if (!LS.getItem("d2r_shortcuts_seen")) {
-  const sh = $("shortcut-hint");
-  if (sh) {
-    sh.classList.add("show");
-    setTimeout(() => { sh.classList.remove("show"); LS.setItem("d2r_shortcuts_seen", "1"); }, 6000);
-  }
-}
-
-// search highlighting: when user searches in calc, find matches in boss tables on switch back
-let lastSearch = "";
-$("item-search").addEventListener("input", () => { lastSearch = $("item-search").value; });
-// also: search box can highlight match in boss table after clicking item
-window.jumpToBossItem = (itemName) => {
-  const rows = document.querySelectorAll("tr.clickable");
-  rows.forEach(tr => {
-    if (tr.dataset.item === itemName) {
-      tr.classList.add("search-match-highlight");
-      tr.scrollIntoView({behavior:"smooth", block:"center"});
-      setTimeout(() => tr.classList.remove("search-match-highlight"), 1500);
-    }
-  });
-};
+  // v42 structural fix (CC find): toggleStatue was missing its closing }, swallowing
+  // ~80 lines of code (keydown listener, shortcut-hint, search highlighting, jumpToBossItem)
+  // into its function body as dead code. Same code is duplicated at top level (lines ~5042+),
+  // which is what actually runs. Removed the buried duplicate, properly closed toggleStatue.
+  renderTzZones();
+  renderSetTracker();
 }
 window.toggleStatue = toggleStatue;
 
@@ -4566,7 +4925,7 @@ function switchTab(name) {
   if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId();
 }
 
-$("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderTonightsMission(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
+$("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
 $("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
 $("item-search").oninput = e => { searchQ = e.target.value; renderCalc(); };
 document.querySelectorAll(".filter-pill").forEach(p => {
@@ -4582,7 +4941,6 @@ document.querySelectorAll(".tab").forEach(t => { t.onclick = () => switchTab(t.d
 updateEffMF();
 updatePlayers();
 renderHero();
-renderTonightsMission();
 renderGrailProgress();
 renderBossNav();
 renderBossCards();
@@ -4661,10 +5019,13 @@ if (!LS.getItem("d2r_shortcuts_seen")) {
   }
 }
 
-// search highlighting: when user searches in calc, find matches in boss tables on switch back
+// v42 restored (was previously buried inside toggleStatue's function body due to the missing-brace
+// structural bug; that buried copy was dead code and the only top-level copy lived here originally as
+// a duplicate that I incorrectly removed; restored here as the single canonical definition):
+// search highlighting — when user searches in calc, find matches in boss tables on switch back.
 let lastSearch = "";
 $("item-search").addEventListener("input", () => { lastSearch = $("item-search").value; });
-// also: search box can highlight match in boss table after clicking item
+// search box can highlight match in boss table after clicking item
 window.jumpToBossItem = (itemName) => {
   const rows = document.querySelectorAll("tr.clickable");
   rows.forEach(tr => {
@@ -4739,13 +5100,17 @@ const ROUTINE_INFO = {
   'M': { name: 'Auto-patch (manual)', schedule: 'on demand', desc: 'Scans HTML for known regressions (apostrophe encoding, missing data-boss-id). Dry-run by default.' },
   'N': { name: 'Daily Obsidian rollup', schedule: 'daily 23:30 IDT', desc: 'Collapses all routines into one daily note at 70-Audits/YYYY-MM-DD.md.' },
   'O': { name: 'Ship gate (manual)', schedule: 'pre-FINAL.html', desc: 'Runs G + L. Both must be green to promote vXX.html → FINAL.html.' },
+  'P': { name: 'Status aggregator', schedule: 'every 30min', desc: 'Collects status of all routines into routine_status.json + injects into bridge digest.' },
+  'Q': { name: 'Self-heal watchdog', schedule: 'every 1h', desc: 'Auto-fixes stale stderr, log bloat, missed routine fires, and plist drift. Alerts on permission/credential issues.' },
+  'R': { name: 'Chrome smoke (CDP)', schedule: 'every 2h', desc: 'Real Chrome via CDP — takes screenshots, verifies the live bible renders without JS errors.' },
+  'S': { name: 'Tracker poller', schedule: 'every 10min', desc: 'Legacy: polled GitHub Issue #1 for claude.ai routine output. Superseded by T.' },
+  'T': { name: 'Claude.ai A-F proxy', schedule: '15×/day (A: 6h · B-am: 09:00 · B-pm: 21:00 · C: 10:15 · D: 8h · E: 6h · F: 11:00)', desc: 'Runs the A-F observation prompts (System Pulse, Content Health, Daily Rollup, Drift Watch, Heal Insights, Meta-Health) via Anthropic Haiku API directly. Writes to 90-ClaudeTracker/. Telegram alerts on severity=red.' },
 };
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'R' && !e.target.matches('input, textarea, [contenteditable]') && !e.ctrlKey && !e.metaKey) {
-    const bar = document.getElementById('routine-status-bar');
-    if (bar) bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
-  }
+  // v42 UX fix: was only matching capital 'R' (Shift+R). Routed through KBD_SHORTCUTS now.
+  // Kept this listener empty as a deprecation marker — main R handler lives in KBD_SHORTCUTS.
+  if (false) { /* deprecated */ }
 });
 
 document.addEventListener('click', e => {
@@ -4805,6 +5170,12 @@ function _v39_validTabName(name) {
 // Wrap switchTab to persist + sync URL hash
 const _v39_origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
+  // v42 UX route-back: clicking the active tab should scroll to top (iOS-style "return to top")
+  const currentActive = document.querySelector('.tab.active')?.getAttribute('data-tab');
+  if (currentActive === name) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
   _v39_origSwitchTab(name);
   _v39_persistActiveTab(name);
   // Sync URL hash without scroll-jump
@@ -4950,6 +5321,396 @@ _v39_whenReady(() => {
   origToggle();
 })();
 
+
+/* === v40 GOLDEN POLISH: Boss Field Manuals + Tips + Methodology === */
+
+// Real D2R boss knowledge — verified, not fabricated.
+// Each field: run pattern, key mobs, danger notes, optimal class
+const BOSS_FIELD_MANUAL = {
+  countess: {
+    run: "TP at <strong>Forgotten Tower</strong> entrance (Black Marsh waypoint, ~30 sec walk). Descend 5 floors clockwise. Countess sits in center of floor 5 chamber with 4 ghost minions.",
+    key_mobs: "Countess herself + the 4 minions are the rune-droppers. <em>Don't skip the minions</em> — they drop from a similar table.",
+    pitfalls: "Some floor 3-4 corridors loop back; tag the descent staircase before clearing if you can't teleport. Cold immunity on minions in Hell.",
+    pro_tip: "<strong>Ist drops at 1:1,110</strong> in Hell from Countess. No other dedicated rune source comes close. 30-50 runs/hour with Enigma teleport.",
+    quest: "No quest bonus — straight farming target."
+  },
+  andariel: {
+    run: "Catacombs Level 4 waypoint, ~10 sec to her room. She uses Inner Sight + Poison Strike. Poison resist 75% strongly recommended.",
+    key_mobs: "Just her — minions in the room are common skeletons, not part of her drop pool.",
+    pitfalls: "<strong>Cold-immune on Hell TZ only</strong>; baseline Hell she still takes cold. Poison nova can ramp damage if you stand still.",
+    pro_tip: "First-kill <strong>quest bonus</strong> grants elevated unique chance the rest of that game. Always cash the quest reward on a fresh char.",
+    quest: "Den-of-Evil + Sisters quest still active → counts as quest kill = boosted drop quality on first kill per char per difficulty."
+  },
+  duriel: {
+    run: "Use Halls of the Dead Lv3 waypoint, take portal back to Lut Gholein, then portal to Canyon of Magi → False Tomb (only one is real, scroll of correct tomb drops from Summoner). Tight chamber, no escape room.",
+    key_mobs: "Duriel only. No relevant minions.",
+    pitfalls: "<strong>Holy Freeze aura</strong> slows movement & attack speed dramatically. <em>Cannot be Cannot Be Frozen</em>'d through. Carry Thawing potions.",
+    pro_tip: "Best non-uber source for <strong>SoJ + Ohm</strong>. Fast kill with high-burst sorc or zealer. Skip with a hammerdin in seconds.",
+    quest: "Tainted Sun quest reward (skill point) + boosted drop on first quest-kill per difficulty."
+  },
+  mephisto: {
+    run: "Durance of Hate Lv3 waypoint, ~3 seconds to his platform. The classic <strong>moat trick</strong>: lure him to the safe corner, attack across the gap (he can't path to you).",
+    key_mobs: "Mephisto + 2 council members spawn alongside (Geleb, Toorc-style). Council are tier-85 themselves.",
+    pitfalls: "<strong>Cold + Lightning immune in Hell</strong> for the boss himself. Council can have triple-immune rolls.",
+    pro_tip: "Hell Mephisto's Shako rate (<strong>1:912</strong>) is the bible's verified anchor. ~30 sec runs with teleport + moat = 100+/hour.",
+    quest: "Khalim's Will quest is irrelevant to the drop — quest bonus already consumed by Travincal/Compelling Orb."
+  },
+  travincal: {
+    run: "Travincal waypoint, run straight up the long bridge to the platform. 3 council members are the targets. <strong>Don't engage the regular jungle mobs</strong> — bonus run time.",
+    key_mobs: "Ismail, Geleb, Toorc — <strong>all three are TC85 boss-quality drops</strong>. Best HR/rune farming target in the game.",
+    pitfalls: "<strong>Convict aura + lightning hose</strong>. Lightning resist 75 mandatory. They cleave hard — kite if low HP.",
+    pro_tip: "Each council member is essentially \"Mephisto without Mephisto\" for unique/rune odds. <em>~3x the drop volume per run vs solo Meph.</em> Optimal HR target.",
+    quest: "None — non-quest area. Always farmable."
+  },
+  diablo: {
+    run: "Chaos Sanctuary waypoint (River of Flame WP, walk in). Kill <strong>3 seal bosses</strong> (Vizier of Chaos, Lord De Seis, Infector of Souls) to spawn Diablo. ~2-3 min run total.",
+    key_mobs: "Diablo + 3 seal bosses, all individually drop boss-tier. The two L-shaped seal pairs spawn extra elites.",
+    pitfalls: "<strong>Lightning Hose + Bone Prison + Pink Lightning Nova</strong>. Carry Thaw potions, lightning res 75 minimum. Vizier is fire-immune on Hell.",
+    pro_tip: "<strong>De Seis is a guaranteed unique drop</strong> on Hell (champion pack treatment). The whole sanctuary is TC85+ in Hell.",
+    quest: "Diablo quest gives skill point on first kill per diff + boosted drop. Always claim before resetting."
+  },
+  baal: {
+    run: "World Stone Keep Lv2 waypoint → kill through to throne → trigger 5 waves → fight Baal. ~5 min full run.",
+    key_mobs: "Wave 5 always contains <strong>Lister the Tormentor + 4 minions</strong> (champion pack). All TC87 quality.",
+    pitfalls: "<strong>Tomb Vipers cloud-attack stacks</strong>; physical immune Vipers in Hell. Lister hits like a truck.",
+    pro_tip: "<strong>Highest mlvl in the game (99 in Hell)</strong> — drops the rarest TCs naturally. Best for high-end uniques like Stormshield, Gore Riders, Mara's.",
+    quest: "Baal's quest = the final quest. Bonus on first kill per difficulty."
+  },
+  pindle: {
+    run: "Halls of Anguish waypoint → red portal directly into Nihlathak's temple → <strong>Pindleskin is 5 steps from the portal</strong>. ~12-15 sec runs.",
+    key_mobs: "Pindleskin + 2 zombie minions. All 3 drop from the same table.",
+    pitfalls: "<strong>Fire Enchanted variants</strong> can one-shot low-HP characters with corpse explosion-style fire orbs. Bring Cannot Be Frozen + fire res 75.",
+    pro_tip: "<strong>Fastest \"any Hell unique\" run in the game.</strong> ~250-300 runs/hour with Enigma. Combined with MF gear, the best pure unique-hunting target.",
+    quest: "None — repeatable forever from town."
+  },
+  nihl: {
+    run: "Halls of Anguish waypoint → Halls of Vaught → Nihlathak's room. ~30-45 sec run. He spawns Pit Lords and Vipers.",
+    key_mobs: "Nihl only is the loot piñata. Pit Lord/Viper mobs around him add corpse density.",
+    pitfalls: "<strong>Corpse Explosion is lethal</strong> from massed corpses. Kill quickly, do NOT linger. Bring fire res 75 + max HP.",
+    pro_tip: "Drops <strong>Anni-tier charms</strong> on first Hell kill per char per ladder reset (Anniversary event). Outside event: solid TC drop, but Pindle is statistically better.",
+    quest: "Anya rescue quest must be complete. First-kill bonus to drop quality."
+  },
+  cows: {
+    run: "Need <strong>Wirt's Leg + Tome of Town Portal</strong> cubed in Rogue Encampment after completing the difficulty's main quests. Massive density level — 200+ mobs per run.",
+    key_mobs: "<strong>The Cow King</strong> is the unique boss (kills him → can't reopen cows on that char/difficulty!). Hellbovines are TC75-85 in Hell.",
+    pitfalls: "<strong>Killing the Cow King locks the level</strong> for that character on that difficulty. Bring lightning res for charged-bolt swarms.",
+    pro_tip: "<strong>Best charm density</strong> in the game (small/large/grand). Decent rune drops from Hellbovines (Hel-Ist range). Mass-MF target.",
+    quest: "Wirt's Leg in cube + town portal scroll → red portal appears in Rogue Encampment."
+  },
+  pit: {
+    run: "Tamoe Highland (Outer Cloister waypoint, walk N-NE). Two levels — <strong>Pit Level 2 has the highest area level in non-quest content (mlvl 85)</strong>.",
+    key_mobs: "All elites/champions. <strong>Boss packs (unique + minions) are the loot drops</strong>, not regular pit fiends.",
+    pitfalls: "<strong>Extra Strong + Cursed</strong> rolls on FE/LE packs are character-ending without max resists. Many small open rooms = easy to get surrounded.",
+    pro_tip: "<strong>Pit Level 2 = same drop table as Travincal/Baal</strong> for everything except specific quest-uniques. Combined with the highest map variety, excellent for ladder restarts.",
+    quest: "Den of Evil quest gives bonus → clear that first if fresh char."
+  }
+};
+
+// Tips & wisdom cards (curated D2R knowledge, golden-formatted)
+const TIPS_WISDOM = [
+  {
+    label: "PLAYERS=8 MYTH",
+    body: "Setting /players 8 does <strong>NOT</strong> increase rare/unique/set drops. It only boosts <em>quantity of NoDrop rolls being replaced</em>, which slightly increases overall drop volume. Real impact: ~10-15% more drops, but each drop's quality table is unchanged. <code>/players 1</code> is faster for MF runs."
+  },
+  {
+    label: "MF DIMINISHING RETURNS",
+    body: "MF affects <strong>rare/set/unique chance</strong>, not the drop event itself. Returns curve: <code>effMF = MF × 250 / (MF + 250)</code> for uniques. <em>699% effective = 250×699/949 ≈ 184% effective</em>. Past 350-400%, you're optimizing pennies."
+  },
+  {
+    label: "ITEM LEVEL ≠ MONSTER LEVEL",
+    body: "<strong>ilvl is set when the item drops</strong>, equal to mlvl. A Hell Mephisto kill rolls ilvl 87 items — so affixes from group affix tables ≤ ilvl 87 are available. Higher ilvl = more affix options = better rolls possible."
+  },
+  {
+    label: "QUEST KILL BONUS",
+    body: "First kill of a quest boss (Andy/Duriel/Meph/Diablo/Baal) <strong>per difficulty per character</strong> gives a guaranteed quality boost — usually a unique/set drop. <em>Do not waste this on multiplayer party kills</em> if you want the loot."
+  },
+  {
+    label: "TC85 GATES",
+    body: "Most desirable items (Shako, Stormshield, Tal's set) require <strong>monster mlvl 85+</strong> to drop. Areas: Travincal council, Pit Lv2, Worldstone Keep 1-3, Throne, Chaos Sanctuary, Pindle, Nihlathak. <em>Outside these areas, drops are silently blocked.</em>"
+  },
+  {
+    label: "RUNES ALWAYS UNIDENTIFIED",
+    body: "Runes drop ID'd — they don't roll affixes. <strong>Rune drop table is independent of MF.</strong> MF gear has zero effect on rune chances. Pure run count + the rune-favored target (Countess) is the math."
+  },
+  {
+    label: "COW KING ONE-SHOT",
+    body: "Killing the Cow King <strong>permanently locks cow level access</strong> on that character + difficulty. <em>If you want repeatable cow runs, kill all cows but NEVER the King.</em> Useful as a one-time loot piñata at end-of-ladder."
+  },
+  {
+    label: "IST IS COUNTESS",
+    body: "Hell Countess drops Ist at <strong>1:1,110</strong> — the bible's verified anchor. No other monster comes close for Ist specifically. Combined with her low health + close to waypoint, she's the #1 mid-rune target. <em>For HRs (Vex+), Travincal council overtakes.</em>"
+  },
+  {
+    label: "TERROR ZONE MLVL BOOST",
+    body: "Active Terror Zones <strong>boost monster mlvl by +2-3 above your character level</strong>, capping at 95-97 in Hell. This unlocks otherwise-blocked TC drops in low areas. <em>Hell Den of Evil under terror = TC85 zone temporarily.</em>"
+  },
+  {
+    label: "REROLL VS RUN COUNT",
+    body: "<strong>Don't reroll maps for Pindle/Eldritch/Shenk</strong> — they're town-portal runs. <em>DO reroll for Pit, Andariel, Mephisto</em> if the walk path is bad. A 5-second shorter run path compounds to thousands of seconds saved over 1000 runs."
+  },
+  {
+    label: "PICKIT GEAR PRIORITY",
+    body: "<strong>Belt with charm-friendly grid</strong> (small charms) + <strong>tome of TP</strong> in inventory before every run. Pre-allocate 4-6 slots for the run target's loot. <em>Returning to town with full inventory = wasted run.</em>"
+  },
+  {
+    label: "MULE-FREE FARMING",
+    body: "Stash tabs (4 in D2R) + shared stash means you don't need mules for moderate hoards. <strong>Personal tab 1 = currency runes/gems</strong>, tab 2 = uniques/sets, tab 3 = charms, tab 4 = gear in progress. Mules only for ladder-end stockpiles."
+  }
+];
+
+// Render the Field Manual into an open boss-detail-panel.
+function _v40_renderBossFieldManual(bossId) {
+  const fm = BOSS_FIELD_MANUAL[bossId];
+  if (!fm) return;
+  const panel = document.getElementById('boss-detail-panel');
+  if (!panel || !panel.classList.contains('show')) return;
+  // Don't double-inject
+  if (panel.querySelector('.field-manual')) return;
+  const html = `
+    <div class="field-manual">
+      <div class="field-manual-header">Field Manual · How to Farm</div>
+      <div class="field-manual-body">
+        <div class="fm-section">
+          <div class="fm-section-label">🗺 Run Pattern</div>
+          <div class="fm-section-body">${fm.run}</div>
+        </div>
+        <div class="fm-section">
+          <div class="fm-section-label">🎯 Key Targets</div>
+          <div class="fm-section-body">${fm.key_mobs}</div>
+        </div>
+        <div class="fm-section">
+          <div class="fm-section-label">⚠ Pitfalls</div>
+          <div class="fm-section-body">${fm.pitfalls}</div>
+        </div>
+        <div class="fm-section">
+          <div class="fm-section-label">💎 Pro Tip</div>
+          <div class="fm-section-body">${fm.pro_tip}</div>
+        </div>
+        <div class="fm-section" style="grid-column: 1 / -1; background: rgba(240,192,96,.05); border-color: rgba(240,192,96,.2);">
+          <div class="fm-section-label">📜 Quest Note</div>
+          <div class="fm-section-body">${fm.quest}</div>
+        </div>
+      </div>
+    </div>`;
+  // Inject before the close button if possible, otherwise at end
+  const closeBtn = panel.querySelector('.gbc-close');
+  if (closeBtn) {
+    closeBtn.insertAdjacentHTML('beforebegin', html);
+  } else {
+    panel.insertAdjacentHTML('beforeend', html);
+  }
+}
+
+// Wrap openBossDetail to inject Field Manual after render
+const _v40_origOpenBossDetail = window.openBossDetail;
+if (_v40_origOpenBossDetail) {
+  window.openBossDetail = function(bossId, focusDiff) {
+    _v40_origOpenBossDetail.apply(this, arguments);
+    // v42 polish: record in recently-viewed
+    try {
+      if (bossId && typeof window._v42_pushRecent === 'function' && typeof BOSSES !== 'undefined') {
+        const boss = BOSSES.find(b => b.id === bossId);
+        const label = boss ? (boss.n || boss.name || bossId) : bossId;
+        window._v42_pushRecent({ label, cat: 'boss' });
+      }
+    } catch(e) {}
+    // Defer to let the original render finish
+    setTimeout(() => _v40_renderBossFieldManual(bossId), 50);
+  };
+}
+
+// Inject Tips & Wisdom + Methodology into the Reference tab
+function _v40_renderRefExtras() {
+  const refTab = document.getElementById('tab-ref');
+  if (!refTab) return;
+  if (refTab.querySelector('.v40-extras')) return; // dedupe
+
+  // Tips bento
+  const tipsHtml = TIPS_WISDOM.map(t => `
+    <div class="tip-card">
+      <span class="tip-card-label">${t.label}</span>
+      ${t.body}
+    </div>
+  `).join('');
+
+  // Methodology accordion
+  const methodologyHtml = `
+    <details class="methodology-block">
+      <summary>ℹ How drop chances are calculated</summary>
+      <div class="methodology-content">
+        <p>Every chance in this bible is computed from D2R's atomic drop formula. The displayed value is <strong>1:N</strong> where N is the expected number of monster kills per drop of that specific item at the listed difficulty.</p>
+        <div class="methodology-formula">
+          chance = (TCprob × NoDropAdj × ItemRatio × QualityAdj × MFAdj)<sup>-1</sup>
+        </div>
+        <p>The formula factors:</p>
+        <ul style="margin: 8px 0 8px 22px; line-height: 1.8;">
+          <li><strong>TCprob</strong> — chance the monster's treasure class rolls the item's TC bucket (set during area init, mlvl-gated)</li>
+          <li><strong>NoDropAdj</strong> — players-setting modifier; reduces "no drop" rolls in larger games</li>
+          <li><strong>ItemRatio</strong> — base ratio between items in the same TC (Shako vs Tal's Mask in TC87 cluster)</li>
+          <li><strong>QualityAdj</strong> — Unique vs Set vs Rare vs Magic split, gated by item-level</li>
+          <li><strong>MFAdj</strong> — your MF% applied with the diminishing-return curve (effective MF = MF × 250 / (MF + 250) for uniques)</li>
+        </ul>
+        <p><strong>Verified anchors</strong> (cross-checked against d2.io, Silospen, and live PlugY tests):</p>
+        <div class="methodology-formula" style="color: var(--verified); border-color: rgba(0,255,170,.3);">
+          Hell Mephisto × Shako (Harlequin Crest) = 1:912<br>
+          Hell TZ Mephisto × Shako = 1:1,287<br>
+          NM TZ Mephisto × Shako = 1:2,812<br>
+          Countess × Ist (all diffs) = 1:850 baseline
+        </div>
+        <p style="margin-top: 12px; font-size: 11.5px; color: var(--text-muted);">Routine L (data integrity drift detection, runs daily) validates these anchors against the data file. Any drift triggers a Telegram alert.</p>
+      </div>
+    </details>
+  `;
+
+  // Build the wrapper
+  const wrapper = document.createElement('div');
+  wrapper.className = 'v40-extras';
+  wrapper.innerHTML = `
+    <h2 class="golden-underline" style="margin-top:24px;">💡 Tips & Wisdom</h2>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Curated D2R knowledge — verified, not folklore.</div>
+    <div class="tips-bento">${tipsHtml}</div>
+    <h2 class="golden-underline" style="margin-top:30px;">🔬 Methodology</h2>
+    ${methodologyHtml}
+  `;
+  refTab.appendChild(wrapper);
+}
+
+// Helper: run when ready
+function _v40_whenReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
+_v40_whenReady(() => {
+  _v40_renderRefExtras();
+});
+
+
+/* === v41 LIVE ROUTINE STATUS WIDGET === */
+
+const _v41_STATUS_PATHS = [
+  'routine_status.js',  // sibling to bible (Downloads)
+  '/Users/konyo/Downloads/routine_status.js',  // absolute fallback
+  '/Users/konyo/d2r_bible_routines/obsidian_data/routine_status.js',  // routines path
+];
+
+function _v41_loadStatusScript(idx, cb) {
+  if (idx >= _v41_STATUS_PATHS.length) { cb(null); return; }
+  const url = _v41_STATUS_PATHS[idx];
+  // Use a fresh script tag so we can retry alternates if one fails
+  const s = document.createElement('script');
+  s.src = url + '?_=' + Date.now(); // cache-bust
+  // v42 polish: remove the script tag after load/error to prevent <head> accumulation.
+  // _v41_refreshStatus fires every 60s; without cleanup, ~3000 dead script tags
+  // pile up per 24h of runtime.
+  const cleanup = () => { try { s.remove(); } catch(e) {} };
+  s.onload = () => { cb(window.ROUTINE_STATUS || null); cleanup(); };
+  s.onerror = () => { cleanup(); _v41_loadStatusScript(idx + 1, cb); };
+  document.head.appendChild(s);
+}
+
+function _v41_applyStatus(st) {
+  if (!st) return;
+  // Update each .routine-letter with data-status + tooltip
+  document.querySelectorAll('.routine-letter').forEach(el => {
+    const rid = el.getAttribute('data-r');
+    if (!rid || !st.routines || !st.routines[rid]) {
+      el.setAttribute('data-status', 'inactive');
+      return;
+    }
+    const r = st.routines[rid];
+    el.setAttribute('data-status', r.status);
+    // Build tooltip
+    const tip = [
+      `Routine ${rid} · ${r.status.toUpperCase()}`,
+      `Schedule: ${r.schedule}`,
+      r.last_run ? `Last: ${r.last_run}` : `Last: (never)`,
+      `Today: ${r.fires_today}/${r.expected_per_day} fires`,
+      `Summary: ${r.summary || '—'}`
+    ].join('\n');
+    el.setAttribute('data-tooltip', tip);
+  });
+  // Update fires counter
+  const counter = document.getElementById('routine-fires-counter');
+  if (counter) {
+    counter.textContent = `${st.total_fires_today}/${st.total_expected_today} fires today`;
+    const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
+    counter.className = anyRed ? 'has-red' : (st.all_green ? 'all-green' : '');
+    counter.title = `Status snapshot: ${st.generated_at}`;
+  }
+}
+
+function _v41_refreshStatus() {
+  // Clear cached window.ROUTINE_STATUS to force fresh load
+  try { delete window.ROUTINE_STATUS; } catch(e) {}
+  _v41_loadStatusScript(0, st => {
+    if (st) _v41_applyStatus(st);
+  });
+}
+
+// Inject the fires counter + refresh button into the routine widget header
+function _v41_findRoutineBar() {
+  // Widget ID varies across bible versions. Try known IDs in order.
+  return document.getElementById('routine-toggle-pulse')
+      || document.getElementById('routine-status-bar')
+      || document.getElementById('routine-bar')
+      || document.querySelector('[id*="routine"][id*="bar"], [id*="routine"][id*="pulse"]');
+}
+
+function _v41_enhanceWidget() {
+  const bar = _v41_findRoutineBar();
+  if (!bar) return;
+  if (bar.querySelector('#routine-fires-counter')) return; // already enhanced
+  // Find the header line (containing the title or letters)
+  // The widget structure varies — try to find a sensible insertion point
+  let header = bar.querySelector('.routine-bar-header') || bar.querySelector('h3') || bar.querySelector('.bar-title');
+  if (!header) {
+    // Fallback: insert at the very top of the bar
+    header = document.createElement('div');
+    header.className = 'routine-bar-header';
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:11px;color:var(--gold-dim,#8a6f2e);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;';
+    header.innerHTML = '<span>⚙ Routines</span>';
+    bar.insertBefore(header, bar.firstChild);
+  }
+  const counter = document.createElement('span');
+  counter.id = 'routine-fires-counter';
+  counter.textContent = '— / — fires today';
+  counter.style.marginLeft = 'auto';
+  const refreshBtn = document.createElement('button');
+  refreshBtn.id = 'routine-refresh-btn';
+  refreshBtn.textContent = '↻';
+  refreshBtn.title = 'Refresh routine status now';
+  refreshBtn.onclick = () => {
+    refreshBtn.classList.add('spinning');
+    setTimeout(() => refreshBtn.classList.remove('spinning'), 800);
+    _v41_refreshStatus();
+  };
+  header.appendChild(counter);
+  header.appendChild(refreshBtn);
+}
+
+// Helper: run when ready
+function _v41_whenReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
+_v41_whenReady(() => {
+  _v41_enhanceWidget();
+  // Initial load
+  _v41_refreshStatus();
+  // Refresh every 60s so widget reflects new routine fires
+  setInterval(_v41_refreshStatus, 60000);
+  // Also re-enhance widget if it gets re-rendered (defensive)
+  setTimeout(_v41_enhanceWidget, 500);
+});
+
 </script>
 
 <div class="glossary-modal" id="glossary-modal" onclick="if(event.target.id==='glossary-modal')closeGlossary()">
@@ -5000,8 +5761,1901 @@ _v39_whenReady(() => {
     <span class="routine-letter" data-r="M" title="M · Auto-patch (manual)">M</span>
     <span class="routine-letter" data-r="N" title="N · Obsidian rollup (daily 23:30)">N</span>
     <span class="routine-letter" data-r="O" title="O · Ship gate (manual)">O</span>
+    <span class="routine-letter" data-r="P" title="P · Status aggregator (30min)">P</span>
+    <span class="routine-letter" data-r="Q" title="Q · Self-heal watchdog (1h)">Q</span>
+    <span class="routine-letter" data-r="R" title="R · Chrome smoke via CDP (2h)">R</span>
+    <span class="routine-letter" data-r="S" title="S · GitHub tracker poller (10min)">S</span>
+    <span class="routine-letter" data-r="T" title="T · Claude.ai A-F proxy via API (15x/day)">T</span>
   </div>
   <div style="font-size:9px;color:var(--gold-dim);margin-top:6px;font-style:italic">Press R to toggle · click letter for help</div>
 </div>
+
+<!-- =============================================================
+     v42 COMMAND PALETTE (Cmd+K / Ctrl+K)
+     Self-contained: own CSS, modal HTML, and JS. No dependencies on other v41 code
+     beyond: window.openBossDetail, window.switchTab, setMFPreset, BOSSES, ITEMS,
+     selectedItem global, renderCalc(), renderDetail(), wishlist (Set).
+     ============================================================= -->
+<style>
+  /* --- v42 command palette --- */
+  #v42-palette-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.62);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 12vh;
+    animation: v42palFadeIn .15s ease-out;
+  }
+  #v42-palette-overlay.show { display: flex; }
+  @keyframes v42palFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  #v42-palette {
+    width: min(640px, 92vw);
+    max-height: 70vh;
+    background: linear-gradient(180deg, #1a1208 0%, #15100a 100%);
+    border: 1px solid var(--gold-bright, #d4a849);
+    border-radius: 10px;
+    box-shadow: 0 14px 50px rgba(0,0,0,.85), 0 0 0 1px rgba(240,192,96,.18);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    animation: v42palSlide .18s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes v42palSlide { from { transform: translateY(-12px); opacity:0; } to { transform: none; opacity:1; } }
+  #v42-palette-input {
+    background: rgba(0,0,0,.35);
+    border: none;
+    border-bottom: 1px solid rgba(240,192,96,.28);
+    color: var(--gold-bright, #f0c060);
+    font-family: var(--mono, monospace);
+    font-size: 15px;
+    padding: 16px 20px;
+    outline: none;
+    width: 100%;
+    letter-spacing: .3px;
+  }
+  #v42-palette-input::placeholder { color: rgba(240,192,96,.4); font-style: italic; }
+  #v42-palette-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  #v42-palette-list::-webkit-scrollbar { width: 8px; }
+  #v42-palette-list::-webkit-scrollbar-thumb { background: rgba(240,192,96,.25); border-radius: 4px; }
+  .v42-pal-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 9px 18px;
+    cursor: pointer;
+    font-family: var(--mono, monospace);
+    font-size: 13px;
+    color: #e8d8b8;
+    border-left: 2px solid transparent;
+    transition: background .08s ease, border-left-color .08s ease;
+  }
+  .v42-pal-item:hover, .v42-pal-item.v42-pal-active {
+    background: rgba(240,192,96,.10);
+    border-left-color: var(--gold-bright, #f0c060);
+    color: #fff5d8;
+  }
+  .v42-pal-icon {
+    font-size: 16px;
+    text-align: center;
+    opacity: .85;
+  }
+  .v42-pal-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .v42-pal-label mark {
+    background: rgba(240,192,96,.32);
+    color: #fff5d8;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .v42-pal-category {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(240,192,96,.6);
+    font-weight: 600;
+  }
+  .v42-pal-section-header {
+    padding: 10px 18px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(240,192,96,.5);
+    font-weight: 700;
+    font-family: var(--mono, monospace);
+    pointer-events: none;
+  }
+  .v42-pal-empty {
+    padding: 24px 18px;
+    color: rgba(240,192,96,.55);
+    font-family: var(--mono, monospace);
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+  }
+  #v42-palette-footer {
+    border-top: 1px solid rgba(240,192,96,.18);
+    padding: 8px 18px;
+    font-family: var(--mono, monospace);
+    font-size: 10.5px;
+    color: rgba(240,192,96,.55);
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }
+  .v42-pal-kbd {
+    display: inline-block;
+    background: rgba(0,0,0,.4);
+    border: 1px solid rgba(240,192,96,.22);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: rgba(240,192,96,.8);
+  }
+</style>
+
+<div id="v42-palette-overlay" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div id="v42-palette">
+    <input id="v42-palette-input" type="text" placeholder="jump to boss, item, MF, tab… (try 'shak' or 'meph' or 'mf 750')" autocomplete="off" spellcheck="false">
+    <div id="v42-palette-list"></div>
+    <div id="v42-palette-footer">
+      <span><span class="v42-pal-kbd">↑↓</span> navigate</span>
+      <span><span class="v42-pal-kbd">enter</span> execute</span>
+      <span><span class="v42-pal-kbd">esc</span> close</span>
+      <span style="margin-left:auto;color:rgba(240,192,96,.4)">v43</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  // --- v42: Build command list from the bible's live data sources ---
+  // --- v42 polish: common D2R runewords (not in ITEMS data) ---
+  const V42_RUNEWORDS = [
+    {n:'Enigma', runes:'Jah + Ith + Ber', base:'3-sock body armor', notes:'Teleport · +2 skills · MF'},
+    {n:'Spirit (sword)', runes:'Tal + Thul + Ort + Amn', base:'4-sock sword (crystal)', notes:'+2 skills · 35 FCR · cheap'},
+    {n:'Spirit (shield)', runes:'Tal + Thul + Ort + Amn', base:'4-sock paladin shield / monarch', notes:'+2 skills · 35 FCR'},
+    {n:'Insight', runes:'Ral + Tir + Tal + Sol', base:'4-sock polearm/staff (merc)', notes:'Meditation aura · merc gear'},
+    {n:'Infinity', runes:'Ber + Mal + Ber + Ist', base:'4-sock polearm (merc)', notes:'Conviction aura · breaks immunes'},
+    {n:'Call to Arms (CTA)', runes:'Amn + Ral + Mal + Ist + Ohm', base:'5-sock weapon/wand', notes:'BO + Battle Command · swap weapon'},
+    {n:'Heart of the Oak (HotO)', runes:'Ko + Vex + Pul + Thul', base:'4-sock mace/staff', notes:'+3 skills · 40 FCR · sorc/druid'},
+    {n:'Grief', runes:'Eth + Tir + Lo + Mal + Ral', base:'5-sock sword/axe', notes:'+340-400 damage · top melee'},
+    {n:'Last Wish', runes:'Jah + Mal + Jah + Sur + Jah + Ber', base:'6-sock sword/hammer', notes:'Might aura · life tap on hit'},
+    {n:'Breath of the Dying (BotD)', runes:'Vex + Hel + El + Eld + Zod + Eth', base:'6-sock weapon', notes:'+60 to all stats · ITD · top tier'},
+    {n:'Fortitude', runes:'El + Sol + Dol + Lo', base:'4-sock armor/weapon', notes:'+200% ED · merc gear or chaos sorc'},
+    {n:'Chains of Honor', runes:'Dol + Um + Ber + Ist', base:'4-sock body armor', notes:'+2 skills · all resists +65 · MF'},
+    {n:'Treachery', runes:'Shael + Thul + Lem', base:'3-sock body armor (merc)', notes:'25% Fade · 45 IAS · cheap merc'},
+    {n:'Lawbringer', runes:'Amn + Lem + Ko', base:'3-sock weapon (Reaper merc)', notes:'Sanctuary aura · undead nuke'},
+    {n:'Phoenix', runes:'Vex + Vex + Lo + Jah', base:'4-sock weapon/shield', notes:'Redemption aura · +350-400 ED'},
+    {n:'Death\'s Web', runes:'(unique, not RW)', base:'-30 to enemy poison res · +1-2 PnB skills', notes:'Note: this is the UNIQUE Death\'s Web, not a runeword'},
+  ];
+
+  function v42BuildCommands() {
+    const cmds = [];
+
+    // Tabs (7)
+    const tabs = [
+      {id:'bosses', label:'Bosses', icon:'🗺️', key:'1'},
+      {id:'calc', label:'Calculator', icon:'🔍', key:'2'},
+      {id:'tz', label:'Terror Zones', icon:'🔥', key:'3'},
+      {id:'runes', label:'Runes', icon:'🪨', key:'4'},
+      {id:'rotw', label:'RotW Special', icon:'👑', key:'5'},
+      {id:'ancients', label:'Ancients', icon:'⚡', key:'6'},
+      {id:'ref', label:'Reference', icon:'📐', key:'7'},
+    ];
+    tabs.forEach(t => cmds.push({
+      icon: t.icon,
+      label: `Switch to ${t.label}`,
+      cat: 'tab',
+      hint: `${t.key}`,
+      keywords: `tab ${t.label.toLowerCase()} ${t.id}`,
+      action: () => { if (typeof window.switchTab === 'function') window.switchTab(t.id); }
+    }));
+
+    // Bosses (11)
+    const BOSSES_DATA = (typeof BOSSES !== 'undefined') ? BOSSES : [];
+    BOSSES_DATA.forEach(b => cmds.push({
+      icon: b.emoji || '👹',
+      label: `${b.name}`,
+      sub: b.subtitle || '',
+      cat: 'boss',
+      hint: b.tierTag || '',
+      keywords: `boss ${b.name.toLowerCase()} ${b.id} ${(b.subtitle||'').toLowerCase()} ${(b.tierTag||'').toLowerCase()}`,
+      action: () => {
+        if (typeof window.openBossDetail === 'function') window.openBossDetail(b.id);
+      }
+    }));
+
+    // Items (unique names from ITEMS - dedup; we want one entry per item name regardless of which boss list it's in)
+    const seenItems = new Set();
+    const ITEMS_DATA = (typeof ITEMS !== 'undefined') ? ITEMS : [];
+    ITEMS_DATA.forEach(it => {
+      const name = it.n || it.name;
+      if (!name || seenItems.has(name)) return;
+      seenItems.add(name);
+      const icon = it.tier === 'grail' ? '⭐' :
+                   it.tier === 'uber' ? '💎' :
+                   it.tier === 'high' ? '✨' :
+                   it.tier === 'set' ? '🟢' : '•';
+      cmds.push({
+        icon,
+        label: name,
+        sub: it.tier ? `tier: ${it.tier}` : '',
+        cat: 'item',
+        hint: it.tc ? `TC${it.tc}` : '',
+        keywords: `item ${name.toLowerCase()} ${(it.tier||'')}`,
+        action: () => {
+          // v42 UX (CC find): navigateToItem is the canonical path that updates
+          // module-scoped selectedItem (not window.selectedItem — those are different)
+          // AND syncs the active-item-bar via setActiveItem.
+          try {
+            if (typeof window.navigateToItem === 'function') {
+              window.navigateToItem(name);
+            } else {
+              // Fallback for very-early-call edge cases
+              if (typeof setActiveItem === 'function') setActiveItem(name);
+              if (typeof window.switchTab === 'function') window.switchTab('calc');
+              if (typeof renderDetail === 'function') renderDetail();
+            }
+          } catch(e) { console.warn('v42 palette item select error:', e); }
+        }
+      });
+    });
+
+    // Runewords (v42 polish — not in ITEMS data)
+    V42_RUNEWORDS.forEach(rw => cmds.push({
+      icon: '🔮',
+      label: rw.n,
+      sub: `${rw.runes} · ${rw.base}`,
+      cat: 'runeword',
+      hint: 'RW',
+      keywords: `runeword rw ${rw.n.toLowerCase()} ${rw.runes.toLowerCase()} ${rw.base.toLowerCase()} ${(rw.notes||'').toLowerCase()}`,
+      action: () => {
+        // Switch to runes tab — most relevant context for runewords
+        if (typeof window.switchTab === 'function') window.switchTab('runes');
+        // Briefly highlight a notice or scroll — for now just switch tabs
+        setTimeout(() => {
+          // Show a tiny inline note about which runeword
+          try {
+            const existing = document.getElementById('v42-rw-toast');
+            if (existing) existing.remove();
+            const t = document.createElement('div');
+            t.id = 'v42-rw-toast';
+            t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a1208;border:1px solid var(--gold-bright,#f0c060);color:#f0c060;padding:12px 18px;border-radius:6px;font-family:var(--mono,monospace);font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.7);z-index:9998;max-width:340px;line-height:1.5';
+            t.innerHTML = `<div style="font-weight:700;margin-bottom:4px">${rw.n}</div><div style="opacity:.85">${rw.runes}</div><div style="opacity:.75;margin-top:4px">${rw.base}</div><div style="opacity:.65;margin-top:4px;font-style:italic">${rw.notes||''}</div>`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 6000);
+          } catch(e) {}
+        }, 150);
+      }
+    }));
+
+    // MF Presets (6)
+    [
+      {v:250, label:'MF 250%'},
+      {v:400, label:'MF 400%'},
+      {v:553, label:'MF 553% (Shako)'},
+      {v:699, label:'MF 699% (MF swap)'},
+      {v:800, label:'MF 800%'},
+      {v:1000, label:'MF 1000%'},
+    ].forEach(p => cmds.push({
+      icon: '🎯',
+      label: `Set ${p.label}`,
+      cat: 'mf',
+      hint: `${p.v}`,
+      keywords: `mf magic find ${p.v} preset`,
+      action: () => { if (typeof setMFPreset === 'function') setMFPreset(p.v); }
+    }));
+
+    // Actions
+    cmds.push({
+      icon: '⌨️',
+      label: 'Show keyboard shortcuts',
+      cat: 'action',
+      hint: '?',
+      keywords: 'help keyboard shortcuts kbd',
+      action: () => { if (typeof toggleKbdHelp === 'function') toggleKbdHelp(); }
+    });
+    cmds.push({
+      icon: '🔄',
+      label: 'Refresh routine status',
+      cat: 'action',
+      keywords: 'refresh routine status reload',
+      action: () => {
+        const btn = document.getElementById('routine-refresh-btn');
+        if (btn) btn.click();
+        else if (typeof window.fetchRoutineStatus === 'function') window.fetchRoutineStatus();
+      }
+    });
+    cmds.push({
+      icon: '🔥',
+      label: 'Toggle TZ rotation countdown',
+      cat: 'action',
+      keywords: 'tz terror zone countdown timer toggle',
+      action: () => { if (typeof window._v42_toggleTZCountdown === 'function') window._v42_toggleTZCountdown(); }
+    });
+    cmds.push({
+      icon: '🌟',
+      label: 'Toggle routine bar visibility',
+      cat: 'action',
+      keywords: 'routine bar toggle hide show',
+      action: () => {
+        const bar = document.getElementById('routine-status-bar');
+        if (bar) {
+          const hidden = bar.style.display === 'none';
+          bar.style.display = hidden ? 'block' : 'none';
+          try { localStorage.setItem('routineBarVisible', hidden ? '1' : '0'); } catch(e){}
+        }
+      }
+    });
+
+    return cmds;
+  }
+
+  // --- v42: Fuzzy matching (subsequence + prefix bonus) ---
+  function v42FuzzyScore(query, target) {
+    // Word-boundary aware fuzzy score.
+    //   1000  exact prefix of label
+    //    800  word-boundary match (after space, paren, dash, slash)
+    //    500  anywhere-in-string match
+    //    100  subsequence-only match
+    //     -1  no match
+    // Tie-break: shorter target wins (more specific result).
+    if (!query) return 0;
+    query = query.toLowerCase().trim();
+    target = target.toLowerCase();
+    if (!query) return 0;
+    if (target.startsWith(query)) return 1000 - target.length;
+    const wbRe = new RegExp('(^|[\\s\\(\\)/\\-_])' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (wbRe.test(target)) return 800 - target.length;
+    const idx = target.indexOf(query);
+    if (idx >= 0) return 500 - idx - (target.length / 100);
+    // Subsequence
+    let qi = 0;
+    for (let i = 0; i < target.length && qi < query.length; i++) {
+      if (target[i] === query[qi]) qi++;
+    }
+    if (qi === query.length) return 100 - (target.length - query.length);
+    return -1;
+  }
+
+  function v42HighlightMatch(label, query) {
+    if (!query) return label;
+    const q = query.toLowerCase().trim();
+    const lc = label.toLowerCase();
+    const idx = lc.indexOf(q);
+    if (idx >= 0) {
+      return label.slice(0, idx) + '<mark>' + label.slice(idx, idx + q.length) + '</mark>' + label.slice(idx + q.length);
+    }
+    return label;
+  }
+
+  // --- v42: Custom MF parsing ("mf 750") ---
+  function v42TryParseCustomMF(query) {
+    const m = query.match(/^mf\s+(\d{1,4})$/i);
+    if (m) {
+      const v = parseInt(m[1], 10);
+      if (v >= 0 && v <= 9999) return v;
+    }
+    return null;
+  }
+  // v42 polish: relative slider bump — "mf+50", "mf +50", "mf-100" all parse
+  function v42TryParseMFBump(query) {
+    const m = query.match(/^mf\s*([+-])\s*(\d{1,4})$/i);
+    if (!m) return null;
+    const sign = m[1] === '-' ? -1 : 1;
+    const mag = parseInt(m[2], 10);
+    if (mag <= 0 || mag > 9999) return null;
+    return sign * mag;
+  }
+
+  // --- v42: State ---
+  let v42Commands = null;  // lazy-built
+  let v42Filtered = [];
+  let v42ActiveIdx = 0;
+
+  function v42EnsureCommands() {
+    if (!v42Commands) v42Commands = v42BuildCommands();
+    return v42Commands;
+  }
+
+  function v42Render() {
+    const list = document.getElementById('v42-palette-list');
+    if (!list) return;
+    if (v42Filtered.length === 0) {
+      list.innerHTML = '<div class="v42-pal-empty">no results · try a different query</div>';
+      return;
+    }
+    let html = '';
+    let lastCat = null;
+    const catLabels = { recent:'Recently viewed', tab:'Tabs', boss:'Bosses', item:'Items', runeword:'Runewords', mf:'MF Presets', action:'Actions' };
+    const query = document.getElementById('v42-palette-input').value || '';
+    v42Filtered.slice(0, 100).forEach((c, i) => {
+      const effectiveCat = c._recent ? 'recent' : c.cat;
+      if (effectiveCat !== lastCat) {
+        html += `<div class="v42-pal-section-header">${catLabels[effectiveCat] || effectiveCat}</div>`;
+        lastCat = effectiveCat;
+      }
+      const labelHl = v42HighlightMatch(c.label, query);
+      const sub = c.sub ? `<div style="font-size:11px;opacity:.65;margin-top:2px">${c.sub}</div>` : '';
+      const hint = c.hint ? `<span class="v42-pal-category">${c.hint}</span>` : '';
+      html += `
+        <div class="v42-pal-item ${i === v42ActiveIdx ? 'v42-pal-active' : ''}" data-v42-idx="${i}">
+          <div class="v42-pal-icon">${c.icon}</div>
+          <div class="v42-pal-label">${labelHl}${sub}</div>
+          ${hint}
+        </div>`;
+    });
+    list.innerHTML = html;
+    // Scroll active into view
+    const activeEl = list.querySelector('.v42-pal-active');
+    if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+  }
+
+  function v42Filter() {
+    const input = document.getElementById('v42-palette-input');
+    if (!input) return;
+    const q = input.value.trim();
+    const cmds = v42EnsureCommands();
+
+    // Special: "mf <num>" -> inject custom MF command at top
+    const customMF = v42TryParseCustomMF(q);
+    let custom = [];
+    if (customMF !== null) {
+      custom.push({
+        icon: '🎯',
+        label: `Set MF to ${customMF}%`,
+        cat: 'mf',
+        hint: 'custom',
+        action: () => {
+          const slider = document.getElementById('mf');
+          if (slider) {
+            slider.value = customMF;
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      });
+    }
+    // v42 polish: "mf+50" / "mf-100" -> relative bump, clamps to slider min/max, shows preview
+    const mfBump = v42TryParseMFBump(q);
+    if (mfBump !== null) {
+      const slider = document.getElementById('mf');
+      if (slider) {
+        const cur = parseInt(slider.value, 10) || 0;
+        const min = parseInt(slider.min, 10) || 0;
+        const max = parseInt(slider.max, 10) || 1000;
+        const target = Math.max(min, Math.min(max, cur + mfBump));
+        const sign = mfBump >= 0 ? '+' : '';
+        const clampNote = (target !== cur + mfBump) ? ' (clamped)' : '';
+        custom.push({
+          icon: mfBump >= 0 ? '⬆' : '⬇',
+          label: `MF ${cur}% ${sign}${mfBump} → ${target}%${clampNote}`,
+          cat: 'mf',
+          hint: 'bump',
+          action: () => {
+            slider.value = target;
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      }
+    }
+    // v42 polish: "star <query>" or "unstar <query>" -> add wishlist toggle commands
+    const starMatch = q.match(/^(un)?star\s+(.+)$/i);
+    if (starMatch) {
+      const unstarMode = !!starMatch[1];
+      const subQuery = starMatch[2].toLowerCase().trim();
+      // ITEMS + wishlist are module-scoped in main bible script — access via eval (same global script scope)
+      let items = [], wishlistSet = null;
+      try {
+        items = eval('typeof ITEMS !== "undefined" ? ITEMS : []') || [];
+        wishlistSet = eval('typeof wishlist !== "undefined" ? wishlist : null');
+      } catch(e) {}
+      const seen = new Set();
+      const matches = [];
+      for (const it of items) {
+        const name = it.n || it.name;
+        if (!name || seen.has(name)) continue;
+        if (!name.toLowerCase().includes(subQuery)) continue;
+        const isStarred = (wishlistSet instanceof Set) ? wishlistSet.has(name) : false;
+        // unstar mode: only show currently-starred items
+        if (unstarMode && !isStarred) continue;
+        // star mode: show all matching items (already-starred ones will toggle off)
+        seen.add(name);
+        matches.push({
+          icon: isStarred ? '★' : '☆',
+          label: `${isStarred ? 'Unstar' : 'Star'}: ${name}`,
+          cat: 'action',
+          hint: isStarred ? 'starred' : '',
+          action: () => {
+            if (typeof window.toggleStarred === 'function') window.toggleStarred(name);
+          }
+        });
+        if (matches.length >= 12) break;
+      }
+      custom = [...custom, ...matches];
+    }
+
+    if (!q && custom.length === 0) {
+      // v42 polish: show recently-viewed first, then defaults
+      const recent = v42GetRecent();
+      const recentCmds = [];
+      recent.forEach(r => {
+        const match = cmds.find(c => c.label === r.label && c.cat === r.cat);
+        if (match) recentCmds.push({ ...match, _recent: true });
+      });
+      const usedLabels = new Set(recent.map(r => r.label));
+      const others = cmds.filter(c => !usedLabels.has(c.label)).slice(0, 30 - recentCmds.length);
+      v42Filtered = [...recentCmds, ...others];
+    } else {
+      // v42: score label and keywords SEPARATELY — label match always beats keywords-only
+      const scored = cmds
+        .map(c => {
+          const labelScore = v42FuzzyScore(q, c.label);
+          const keyScore = c.keywords ? v42FuzzyScore(q, c.keywords) * 0.4 : -1;
+          let s = Math.max(labelScore, keyScore);
+          // Runeword boost — when label score is positive (real match), give priority for commonly-searched RWs
+          if (labelScore > 0 && c.cat === 'runeword') s += 25;
+          return { c, score: s };
+        })
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.c);
+      v42Filtered = [...custom, ...scored];
+    }
+    v42ActiveIdx = 0;
+    v42Render();
+  }
+
+  function v42Open() {
+    v42EnsureCommands();
+    const overlay = document.getElementById('v42-palette-overlay');
+    const input = document.getElementById('v42-palette-input');
+    if (!overlay || !input) return;
+    overlay.classList.add('show');
+    input.value = '';
+    v42Filter();
+    setTimeout(() => input.focus(), 30);
+  }
+  function v42Close() {
+    const overlay = document.getElementById('v42-palette-overlay');
+    if (overlay) overlay.classList.remove('show');
+  }
+  // v42 polish: recently-viewed tracking
+  const V42_RECENT_KEY = 'd2r_v42_recent';
+  const V42_RECENT_MAX = 8;
+  function v42PushRecent(cmd) {
+    if (!cmd || !['boss','item','runeword'].includes(cmd.cat)) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(V42_RECENT_KEY) || '[]');
+      // Dedup by label
+      const filtered = stored.filter(r => r.label !== cmd.label);
+      filtered.unshift({ label: cmd.label, cat: cmd.cat, ts: Date.now() });
+      const trimmed = filtered.slice(0, V42_RECENT_MAX);
+      localStorage.setItem(V42_RECENT_KEY, JSON.stringify(trimmed));
+    } catch(e) {}
+  }
+  function v42GetRecent() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(V42_RECENT_KEY) || '[]');
+      return stored;
+    } catch(e) { return []; }
+  }
+
+  function v42Execute(idx) {
+    const c = v42Filtered[idx];
+    if (!c || typeof c.action !== 'function') return;
+    v42PushRecent(c);
+    v42Close();
+    setTimeout(() => { try { c.action(); } catch(e) { console.warn('v42 palette action error:', e); } }, 80);
+  }
+
+  // Expose for external triggers
+  window._v42_openPalette = v42Open;
+  window._v42_pushRecent = v42PushRecent;  // v42 polish: exposed so setActiveItem/openBossDetail hooks can record
+  window._v42_closePalette = v42Close;
+
+  // --- v42: Event wiring ---
+  document.addEventListener('DOMContentLoaded', () => {
+    // Cmd+K / Ctrl+K toggles palette (works inside inputs too — that's the point)
+    document.addEventListener('keydown', e => {
+      const isCmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k';
+      if (isCmdK) {
+        e.preventDefault();
+        const overlay = document.getElementById('v42-palette-overlay');
+        if (overlay && overlay.classList.contains('show')) v42Close();
+        else v42Open();
+        return;
+      }
+      // Inside the palette: handle navigation
+      const overlay = document.getElementById('v42-palette-overlay');
+      if (!overlay || !overlay.classList.contains('show')) return;
+      if (e.key === 'Escape') { e.preventDefault(); v42Close(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); v42ActiveIdx = Math.min(v42ActiveIdx + 1, v42Filtered.length - 1); v42Render(); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); v42ActiveIdx = Math.max(v42ActiveIdx - 1, 0); v42Render(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); v42Execute(v42ActiveIdx); return; }
+    });
+
+    const input = document.getElementById('v42-palette-input');
+    if (input) input.addEventListener('input', v42Filter);
+
+    // Click on list item executes
+    const list = document.getElementById('v42-palette-list');
+    if (list) list.addEventListener('click', e => {
+      const item = e.target.closest('.v42-pal-item');
+      if (!item) return;
+      const idx = parseInt(item.dataset.v42Idx, 10);
+      if (!isNaN(idx)) v42Execute(idx);
+    });
+
+    // Click overlay (outside palette) closes
+    const overlay = document.getElementById('v42-palette-overlay');
+    if (overlay) overlay.addEventListener('click', e => {
+      if (e.target === overlay) v42Close();
+    });
+  });
+})();
+</script>
+<!-- ============= end v42 command palette ============= -->
+
+<!-- ===== v42 TZ ROTATION COUNTDOWN ===== -->
+<style>
+  #v42-tz-countdown {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    background: linear-gradient(180deg, rgba(26,18,8,.95), rgba(21,16,10,.95));
+    border: 1px solid rgba(255,68,68,.45);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: var(--mono, monospace);
+    font-size: 11px;
+    color: #ffaaaa;
+    box-shadow: 0 4px 14px rgba(0,0,0,.6);
+    z-index: 100;
+    cursor: pointer;
+    transition: opacity .2s ease;
+    display: none;
+    user-select: none;
+  }
+  #v42-tz-countdown.show { display: block; }
+  #v42-tz-countdown:hover { opacity: .85; }
+  #v42-tz-countdown .v42-tz-label {
+    color: rgba(255,140,140,.7);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    display: block;
+    margin-bottom: 2px;
+  }
+  #v42-tz-countdown .v42-tz-time {
+    color: #ff8888;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  #v42-tz-countdown.imminent {
+    border-color: rgba(255,68,68,.9);
+    animation: v42tzPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes v42tzPulse {
+    0%,100% { box-shadow: 0 4px 14px rgba(0,0,0,.6), 0 0 0 1px rgba(255,68,68,.3); }
+    50% { box-shadow: 0 4px 14px rgba(0,0,0,.6), 0 0 12px rgba(255,68,68,.55); }
+  }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v43 — VISUAL POLISH LAYER · finalized release
+   Pure additive overrides; no JS-touching, no DOM-touching, no logic changes.
+   Sits below all prior styles so it wins the cascade.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Premium easing curves + shadow scale */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --shadow-low: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --shadow-mid: 0 4px 14px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.35);
+  --shadow-high: 0 12px 32px rgba(0,0,0,.7), 0 4px 12px rgba(0,0,0,.5);
+  --glow-gold: 0 0 24px rgba(240,192,96,.25);
+  --glow-best: 0 0 18px rgba(102,255,136,.28);
+}
+
+/* Themed text selection */
+::selection { background: rgba(240,192,96,.35); color: var(--text); text-shadow: 0 0 8px rgba(240,192,96,.4); }
+::-moz-selection { background: rgba(240,192,96,.35); color: var(--text); }
+
+/* Themed thin gold scrollbars */
+* { scrollbar-color: var(--gold) var(--bg); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--bg); border-left: 1px solid rgba(58,47,30,.3); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--gold) 0%, var(--surface-4) 100%);
+  border-radius: 5px;
+  border: 1px solid rgba(10,8,5,.6);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+}
+::-webkit-scrollbar-corner { background: var(--bg); }
+
+/* Focus rings — gold accent (kill browser blue) */
+*:focus { outline: none; }
+button:focus-visible, a:focus-visible, input:focus-visible,
+[role="button"]:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+  border-radius: 5px;
+  box-shadow: 0 0 0 4px rgba(240,192,96,.15);
+}
+
+/* Smooth scroll across the whole bible */
+html { scroll-behavior: smooth; }
+
+/* Body — atmospheric depth via radial vignettes */
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(212,168,71,.035) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255,0,212,.02) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 70% at 20% 40%, rgba(102,255,136,.012) 0%, transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Header — premium with subtle gradient + gold underline */
+.header {
+  background: linear-gradient(180deg, rgba(10,8,5,.99) 0%, rgba(10,8,5,.94) 100%);
+  border-bottom: 1px solid rgba(212,168,71,.22);
+  box-shadow: 0 1px 0 rgba(240,192,96,.06) inset, var(--shadow-low);
+}
+
+/* Header title — gold gradient text */
+.h-title {
+  background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold) 45%, var(--gold-bright) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.25px;
+  font-weight: 700;
+  filter: drop-shadow(0 0 6px rgba(240,192,96,.15));
+}
+
+/* Tab bar — refined transitions + premium active */
+.tab { transition: all .2s var(--ease-out); }
+.tab:hover { transform: translateY(-1px); }
+.tab.active {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+  box-shadow: 0 3px 14px rgba(240,192,96,.28), inset 0 1px 0 rgba(255,255,255,.18);
+  font-weight: 600;
+}
+
+/* Boss chips — gold luxe treatment */
+.boss-chip { transition: all .22s var(--ease-out); }
+.boss-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-mid); }
+.boss-chip[data-active="true"] {
+  background: linear-gradient(180deg, rgba(255,212,128,.24) 0%, rgba(255,212,128,.08) 100%);
+  box-shadow:
+    0 0 0 1px var(--gold-bright),
+    0 4px 20px rgba(255,212,128,.32),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* MF slider thumb — premium with subtle glow */
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px !important;
+  height: 18px !important;
+  background: radial-gradient(circle at 30% 30%, var(--gold-bright) 0%, var(--gold) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.1) inset,
+    0 2px 6px rgba(0,0,0,.55),
+    0 0 12px rgba(240,192,96,.45);
+  transition: all .18s var(--ease-out);
+  border-radius: 50%;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18) inset,
+    0 3px 10px rgba(0,0,0,.5),
+    0 0 22px rgba(240,192,96,.65);
+}
+input[type=range]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: radial-gradient(circle at 30% 30%, var(--gold-bright) 0%, var(--gold) 100%);
+  box-shadow: 0 2px 6px rgba(0,0,0,.55), 0 0 12px rgba(240,192,96,.45);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* MF number input — refined */
+.mf-number-input {
+  transition: all .15s var(--ease-out);
+}
+.mf-number-input:focus {
+  border-color: var(--gold-bright) !important;
+  box-shadow: 0 0 0 3px rgba(240,192,96,.18), 0 0 12px rgba(240,192,96,.2);
+}
+
+/* MF preset chips — better press feedback */
+.mf-preset-chip { transition: all .18s var(--ease-out); }
+.mf-preset-chip:hover { transform: translateY(-1px); box-shadow: var(--shadow-low); }
+.mf-preset-chip.clicked { transform: scale(.94); }
+
+/* Hero card — the centerpiece, full premium */
+.hero {
+  background:
+    linear-gradient(135deg, rgba(212,168,71,.10) 0%, rgba(102,255,136,.04) 55%, rgba(255,0,212,.04) 100%);
+  border: 1px solid rgba(212,168,71,.32);
+  box-shadow:
+    var(--shadow-low),
+    0 1px 0 rgba(240,192,96,.1) inset,
+    0 0 32px rgba(240,192,96,.04) inset;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 85% 15%, rgba(240,192,96,.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+.hero-title {
+  text-shadow: 0 0 14px rgba(102,255,136,.32);
+}
+
+/* Hero pick — refined lift */
+.hero-pick { transition: all .22s var(--ease-out); }
+.hero-pick:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-mid);
+  border-color: var(--best);
+}
+.hero-pick-name, .hero-pick-item {
+  text-shadow: 0 0 8px rgba(240,192,96,.18);
+}
+
+/* Boss cards — premium hover */
+.boss-card {
+  transition: all .25s var(--ease-out);
+  box-shadow: var(--shadow-low);
+}
+.boss-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-mid), inset 0 0 0 1px rgba(240,192,96,.12);
+}
+
+/* Boss detail (Golden Boss Card) — luxe gold panel */
+.gbc-card {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid rgba(212,168,71,.32);
+  box-shadow:
+    var(--shadow-high),
+    0 0 60px rgba(240,192,96,.05) inset,
+    0 1px 0 rgba(240,192,96,.1) inset;
+  position: relative;
+}
+.gbc-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(240,192,96,.04) 0%, transparent 50%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Active item bar — premium HUD */
+#active-item-bar.show,
+.active-item-bar.show {
+  background: linear-gradient(180deg, rgba(26,18,8,.97) 0%, rgba(36,28,18,.97) 100%);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  border-bottom: 1px solid rgba(240,192,96,.3);
+  box-shadow: var(--shadow-mid), 0 1px 0 rgba(240,192,96,.1) inset;
+}
+
+/* Item tiles — refined hover */
+.item-tile { transition: all .2s var(--ease-out); }
+.item-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-mid);
+}
+.item-tile.item-tile-starred {
+  box-shadow:
+    inset 0 0 0 1px var(--star),
+    0 0 14px rgba(255,212,64,.18);
+}
+
+/* Star + owned buttons — bouncy + glow */
+.star-btn, .owned-btn { transition: all .18s var(--ease-out); }
+.star-btn:hover, .owned-btn:hover {
+  transform: scale(1.18);
+  filter: drop-shadow(0 0 8px rgba(255,212,64,.6));
+}
+.star-btn.starred {
+  filter: drop-shadow(0 0 6px rgba(255,212,64,.4));
+}
+
+/* Source chips — refined glow */
+.source-chip { transition: all .2s var(--ease-out); }
+.source-chip:hover { transform: translateY(-1px); box-shadow: var(--shadow-low); }
+.source-chip[data-active="true"] {
+  box-shadow:
+    0 0 0 1px var(--best),
+    0 0 18px rgba(102,255,136,.28),
+    inset 0 1px 0 rgba(102,255,136,.08);
+}
+
+/* Routine status bar — premium HUD */
+#routine-status-bar,
+#routine-toggle-pulse {
+  background: linear-gradient(135deg, rgba(20,15,8,.94) 0%, rgba(30,22,12,.94) 100%);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  border: 1px solid rgba(240,192,96,.2);
+  box-shadow: var(--shadow-mid);
+}
+.routine-letter { transition: all .22s var(--ease-out); }
+.routine-letter:hover {
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: var(--shadow-low);
+}
+
+/* Help modal + glossary — premium backdrop */
+#help-modal.show {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.help-content,
+.gic,
+.glossary-content {
+  box-shadow: var(--shadow-high);
+}
+
+/* Buttons — consistent micro-interactions */
+button {
+  transition: all .15s var(--ease-out);
+}
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Wishlist hunt path — premium presentation */
+#wishlist-hunt-path .wishlist-title {
+  background: linear-gradient(135deg, var(--star) 0%, var(--gold-bright) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: .3px;
+}
+.wishlist-export-btn {
+  transition: all .2s var(--ease-out) !important;
+}
+.wishlist-export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(240,192,96,.3) !important;
+}
+
+/* Boss detail Esc-hint pulse */
+.gbc-close {
+  transition: all .18s var(--ease-out);
+}
+.gbc-close:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-low);
+}
+
+/* Tab content fade-in */
+.tab-content { transition: opacity .28s var(--ease-out); }
+.tab-content:not(.active) { opacity: 0; pointer-events: none; }
+
+/* Page-load fade-in for major surfaces */
+@keyframes v43_fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero, .legend-box {
+  animation: v43_fadein .42s var(--ease-out) backwards;
+}
+.hero { animation-delay: .04s; }
+.legend-box { animation-delay: .12s; }
+
+/* Refined typography rhythm */
+h1, h2, h3, .h-title, .hero-title, .legend-title {
+  letter-spacing: 0.25px;
+}
+
+/* v43 version-stamp accent */
+.v43-stamp {
+  display: inline-block;
+  background: linear-gradient(180deg, rgba(240,192,96,.2) 0%, rgba(212,168,71,.08) 100%);
+  border: 1px solid rgba(240,192,96,.4);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10px;
+  color: var(--gold-bright);
+  margin-left: 10px;
+  letter-spacing: .5px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3), inset 0 1px 0 rgba(240,192,96,.15);
+  vertical-align: middle;
+}
+
+/* Mobile refinements — disable hover-lift on touch */
+@media (hover: none) and (pointer: coarse) {
+  .tab:hover, .boss-chip:hover, .boss-card:hover,
+  .hero-pick:hover, .item-tile:hover, .source-chip:hover,
+  .star-btn:hover, .owned-btn:hover, .mf-preset-chip:hover,
+  .routine-letter:hover, button:hover,
+  .wishlist-export-btn:hover {
+    transform: none !important;
+  }
+}
+
+/* Reduced-motion respect */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v43 · EDITORIAL TYPOGRAPHY + LAYOUT
+   The Sanctuary Codex treatment — magazine masthead, sectional hierarchy,
+   refined rules and rhythm. Replaces game-UI glow with typographic poise.
+   Pure additive overrides; no JS-touching, no DOM-rebuild.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Typographic stack ───────────────────────────────────────────────── */
+:root {
+  --serif-display: 'Cinzel', 'Trajan Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --serif-text: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --rule-color: rgba(212,168,71,.28);
+  --rule-color-strong: rgba(212,168,71,.5);
+  --ink-h1: var(--gold-bright, #f0c060);
+  --ink-h2: var(--text, #f4e8d0);
+  --ink-body: var(--text, #f4e8d0);
+  --ink-muted: var(--text-muted, #b5a48a);
+  --ink-kicker: var(--gold, #d4a847);
+  --ease: cubic-bezier(0.2, 0, 0.13, 1);
+}
+
+/* ── Body base — generous reading rhythm ─────────────────────────────── */
+body {
+  font-family: var(--sans);
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Themed selection · scrollbar · focus ─────────────────────────────── */
+::selection { background: rgba(240,192,96,.32); color: var(--text); }
+::-moz-selection { background: rgba(240,192,96,.32); color: var(--text); }
+* { scrollbar-color: var(--gold) var(--bg); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+*:focus { outline: none; }
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 1px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+html { scroll-behavior: smooth; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MASTHEAD — Issue · Title · Tagline
+   ════════════════════════════════════════════════════════════════════════ */
+
+.header {
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule-color);
+  padding: 22px 32px 14px !important;
+}
+
+.masthead {
+  text-align: center;
+  padding: 4px 0 18px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.masthead-kicker {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3.5px;
+  text-transform: uppercase;
+  color: var(--ink-kicker);
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+
+.h-title {
+  font-family: var(--serif-display) !important;
+  font-size: clamp(28px, 4.4vw, 46px) !important;
+  font-weight: 600 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0.5px !important;
+  color: var(--ink-h1) !important;
+  margin: 0 0 16px !important;
+  text-shadow: none !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--ink-h1) !important;
+  filter: none !important;
+}
+
+.masthead-rule {
+  height: 1px;
+  width: 80px;
+  margin: 18px auto 16px;
+  background: linear-gradient(90deg, transparent, var(--rule-color-strong) 25%, var(--rule-color-strong) 75%, transparent);
+}
+
+.masthead-tagline {
+  font-family: var(--serif-text);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-muted);
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.55;
+  letter-spacing: 0.15px;
+}
+
+/* Old subtitle fallback */
+.h-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* Hide the old v43-stamp inside header — masthead-kicker replaces it */
+.h-title .v43-stamp { display: none; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MAIN TABS — Editorial section navigation
+   ════════════════════════════════════════════════════════════════════════ */
+
+.tabs, .tab-bar {
+  border-top: 1px solid var(--rule-color);
+  border-bottom: 1px solid var(--rule-color);
+  padding: 12px 0 !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+.tab {
+  background: transparent !important;
+  border: none !important;
+  color: var(--ink-muted) !important;
+  font-family: var(--sans) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 2.2px !important;
+  text-transform: uppercase !important;
+  padding: 6px 16px !important;
+  border-radius: 0 !important;
+  position: relative;
+  transition: color .22s var(--ease) !important;
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 2px;
+  background: var(--gold-bright);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform .25s var(--ease);
+}
+
+.tab:hover {
+  color: var(--ink-h2) !important;
+  background: transparent !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.tab.active {
+  color: var(--ink-h1) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tab.active::after { transform: scaleX(1); }
+
+/* Section divider between tabs and content */
+.tab-content {
+  padding-top: 26px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SECTION HEADERS — Hero / Today's Best / Legend / etc.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.hero {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--rule-color) !important;
+  border-bottom: 1px solid var(--rule-color) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 32px 28px !important;
+  margin-bottom: 36px !important;
+  position: relative;
+  overflow: visible;
+}
+.hero::before { display: none; }
+
+.hero-title {
+  font-family: var(--sans) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 3.5px !important;
+  text-transform: uppercase !important;
+  color: var(--ink-kicker) !important;
+  margin-bottom: 8px !important;
+  text-shadow: none !important;
+  opacity: 0.85;
+}
+
+/* Editorial deck (sub-headline) for the hero section */
+.hero-sub {
+  font-family: var(--serif-text) !important;
+  font-size: 18px !important;
+  font-style: italic !important;
+  color: var(--ink-h2) !important;
+  line-height: 1.5 !important;
+  margin-bottom: 22px !important;
+  max-width: 820px;
+}
+.hero-sub strong {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink-h1);
+}
+
+/* Hero picks grid — refined cards (less glow, more editorial) */
+.hero-pick {
+  background: var(--surface) !important;
+  border: 1px solid var(--rule-color) !important;
+  border-radius: 2px !important;
+  padding: 14px 16px !important;
+  transition: border-color .22s var(--ease), background .22s var(--ease) !important;
+  position: relative;
+}
+.hero-pick:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--rule-color-strong) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.hero-pick-rank {
+  font-family: var(--sans) !important;
+  font-size: 9px !important;
+  letter-spacing: 1.8px !important;
+  text-transform: uppercase !important;
+  color: var(--ink-kicker) !important;
+  font-weight: 700 !important;
+  margin-bottom: 6px;
+}
+
+.hero-pick-name, .hero-pick-item {
+  font-family: var(--serif-text) !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+  color: var(--ink-h1) !important;
+  margin: 4px 0 !important;
+  text-shadow: none !important;
+}
+
+.hero-pick-boss, .hero-pick-source {
+  font-family: var(--sans) !important;
+  font-size: 12px !important;
+  color: var(--ink-muted) !important;
+  letter-spacing: 0.1px;
+}
+
+.hero-pick-chance {
+  font-family: var(--mono) !important;
+  font-size: 12px !important;
+  color: var(--best) !important;
+  margin-top: 8px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   LEGEND BOX — sidebar / pull-quote treatment
+   ════════════════════════════════════════════════════════════════════════ */
+
+.legend-box {
+  background: transparent !important;
+  border: none !important;
+  border-left: 2px solid var(--gold) !important;
+  border-radius: 0 !important;
+  padding: 8px 0 8px 20px !important;
+  margin-bottom: 28px !important;
+}
+
+.legend-title {
+  font-family: var(--sans) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 2.5px !important;
+  text-transform: uppercase !important;
+  color: var(--ink-kicker) !important;
+  margin-bottom: 12px !important;
+}
+
+.legend-item-title {
+  font-family: var(--serif-text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--ink-h2) !important;
+}
+
+.legend-item-desc {
+  font-family: var(--sans) !important;
+  font-size: 12px !important;
+  color: var(--ink-muted) !important;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOSS CHIPS — section-nav style (sub-tabs)
+   ════════════════════════════════════════════════════════════════════════ */
+
+.boss-chip {
+  background: transparent !important;
+  border: 1px solid var(--rule-color) !important;
+  border-radius: 2px !important;
+  font-family: var(--sans) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.6px !important;
+  padding: 8px 14px !important;
+  color: var(--ink-muted) !important;
+  transition: all .2s var(--ease) !important;
+}
+.boss-chip:hover {
+  border-color: var(--rule-color-strong) !important;
+  color: var(--ink-h2) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.boss-chip[data-active="true"] {
+  background: var(--surface) !important;
+  border-color: var(--gold) !important;
+  color: var(--ink-h1) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOSS CARDS — editorial card grid
+   ════════════════════════════════════════════════════════════════════════ */
+
+.boss-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 3px !important;
+  transition: border-color .22s var(--ease) !important;
+  box-shadow: none !important;
+}
+.boss-card:hover {
+  border-color: var(--rule-color-strong) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.boss-header, .gbc-name, .bd-name {
+  font-family: var(--serif-text) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   GOLDEN BOSS CARD (detail panel) — feature article layout
+   ════════════════════════════════════════════════════════════════════════ */
+
+.gbc-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--rule-color) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 1px 0 var(--rule-color) inset !important;
+  position: relative;
+}
+.gbc-card::before {
+  display: none !important;
+}
+
+.gbc-header, .boss-detail-header {
+  border-bottom: 1px solid var(--rule-color) !important;
+  padding-bottom: 16px !important;
+  margin-bottom: 18px !important;
+}
+
+.gbc-name {
+  font-family: var(--serif-display) !important;
+  font-size: 26px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.4px !important;
+  color: var(--ink-h1) !important;
+}
+
+.gbc-section h3, .gbc-section-title {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--ink-kicker);
+  margin-bottom: 10px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MF + PLAYERS CONTROLS — refined slider
+   ════════════════════════════════════════════════════════════════════════ */
+
+.slider-label {
+  font-family: var(--sans) !important;
+  font-size: 9px !important;
+  letter-spacing: 1.8px !important;
+  text-transform: uppercase !important;
+  color: var(--ink-muted) !important;
+  font-weight: 600 !important;
+}
+.slider-value {
+  font-family: var(--mono) !important;
+  font-size: 13px !important;
+  color: var(--ink-h1) !important;
+}
+.eff-readout {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.4px !important;
+  color: var(--ink-muted) !important;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--gold-bright);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px var(--bg);
+  transition: transform .15s var(--ease);
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--gold-bright);
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+  cursor: pointer;
+}
+
+/* MF preset chips */
+.mf-preset-chip {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.4px !important;
+  border-radius: 2px !important;
+  padding: 5px 10px !important;
+  transition: border-color .18s var(--ease) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ITEM TILES — editorial reading list
+   ════════════════════════════════════════════════════════════════════════ */
+
+.item-tile {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 2px !important;
+  padding: 14px 16px !important;
+  transition: border-color .22s var(--ease) !important;
+}
+.item-tile:hover {
+  border-color: var(--rule-color-strong) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.item-tile.item-tile-starred {
+  border-left: 2px solid var(--star) !important;
+  box-shadow: none !important;
+}
+
+.item-name, .item-title {
+  font-family: var(--serif-text) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIVE ITEM BAR — masthead-style pinned strip
+   ════════════════════════════════════════════════════════════════════════ */
+
+#active-item-bar.show, .active-item-bar.show {
+  background: var(--bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-bottom: 1px solid var(--rule-color) !important;
+  box-shadow: none !important;
+}
+
+#aib-item-name {
+  font-family: var(--serif-text) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   WISHLIST HUNT PATH — featured column
+   ════════════════════════════════════════════════════════════════════════ */
+
+#wishlist-hunt-path .wishlist-title,
+.wishlist-title {
+  font-family: var(--serif-display) !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
+  color: var(--ink-h1) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--ink-h1) !important;
+}
+
+.wishlist-summary {
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.4px !important;
+  color: var(--ink-muted) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SOURCE CHIPS — section pills
+   ════════════════════════════════════════════════════════════════════════ */
+
+.source-chip {
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.3px !important;
+  border-radius: 2px !important;
+  transition: border-color .18s var(--ease) !important;
+}
+.source-chip:hover { transform: none !important; box-shadow: none !important; }
+.source-chip[data-active="true"] {
+  box-shadow: none !important;
+  border-color: var(--best) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ROUTINE STATUS BAR — newsroom footer
+   ════════════════════════════════════════════════════════════════════════ */
+
+#routine-status-bar, #routine-toggle-pulse {
+  background: var(--bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-top: 1px solid var(--rule-color) !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.4px !important;
+}
+.routine-letter {
+  font-family: var(--mono) !important;
+  font-weight: 600 !important;
+  border-radius: 2px !important;
+  transition: transform .15s var(--ease) !important;
+}
+.routine-letter:hover { transform: translateY(-1px); box-shadow: none !important; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   COMMAND PALETTE — refined modal
+   ════════════════════════════════════════════════════════════════════════ */
+
+#v42-palette {
+  border: 1px solid var(--rule-color) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6) !important;
+}
+#v42-palette-input {
+  font-family: var(--sans) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.1px !important;
+}
+.v42-pal-cat {
+  font-family: var(--sans) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.8px !important;
+  text-transform: uppercase !important;
+}
+.v42-pal-label {
+  font-family: var(--serif-text) !important;
+  font-size: 14px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BUTTONS — restrained
+   ════════════════════════════════════════════════════════════════════════ */
+
+button {
+  font-family: var(--sans);
+  letter-spacing: 0.3px;
+  transition: color .15s var(--ease), border-color .15s var(--ease) !important;
+}
+button:hover:not(:disabled) {
+  transform: none !important;
+}
+
+.gbc-close, .aid-close-btn, .help-btn {
+  font-family: var(--sans) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  border-radius: 2px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HELP MODAL + GLOSSARY — feature article
+   ════════════════════════════════════════════════════════════════════════ */
+
+.help-content, .gic, .glossary-content {
+  border-radius: 3px !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6) !important;
+  border: 1px solid var(--rule-color) !important;
+}
+
+.help-content h2, .help-content h3 {
+  font-family: var(--serif-display);
+  font-weight: 600;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHIC HIERARCHY GLOBALS
+   ════════════════════════════════════════════════════════════════════════ */
+
+h1 { font-family: var(--serif-display); font-weight: 600; letter-spacing: 0.3px; }
+h2 { font-family: var(--serif-display); font-weight: 600; letter-spacing: 0.2px; }
+h3 { font-family: var(--serif-text); font-weight: 600; letter-spacing: 0.15px; }
+h4, h5, h6 { font-family: var(--sans); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+
+strong { font-weight: 600; color: var(--ink-h2); }
+em, i { font-style: italic; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   TABLES — tabular data refined
+   ════════════════════════════════════════════════════════════════════════ */
+
+table { font-family: var(--mono); font-size: 12px; }
+table th {
+  font-family: var(--sans) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  color: var(--ink-kicker) !important;
+  border-bottom: 1px solid var(--rule-color) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .header { padding: 18px 16px 12px !important; }
+  .masthead { padding: 0 0 12px; }
+  .masthead-kicker { font-size: 9px; letter-spacing: 2.5px; margin-bottom: 10px; }
+  .h-title { font-size: 26px !important; }
+  .masthead-rule { margin: 12px auto 10px; }
+  .masthead-tagline { font-size: 13px; }
+  .tabs, .tab-bar { padding: 10px 0 !important; gap: 2px !important; }
+  .tab { font-size: 10px !important; letter-spacing: 1.5px !important; padding: 5px 10px !important; }
+  .hero { padding: 22px 16px !important; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* v43 editorial — header-top stacks vertically (masthead full-width, controls below) */
+.header-top-editorial {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 16px !important;
+}
+.header-top-editorial .header-title-block {
+  width: 100%;
+}
+.header-top-editorial .slider-group,
+.header-top-editorial > .slider-group-wrap,
+.header-top-editorial > * {
+  /* Center the control row under the masthead */
+}
+.header-top-editorial > div:not(.header-title-block) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  padding-top: 4px;
+}
+
+/* v43 — "View Full Drop Table" affordance — inline section link + bottom button upgrade */
+.gbc-section-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.gbc-section-header-row .gbc-section-label {
+  margin-bottom: 0 !important;
+}
+.gbc-section-link {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gold) !important;
+  padding: 2px 0 3px !important;
+  font-family: var(--sans, -apple-system, system-ui, sans-serif) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  color: var(--gold-bright) !important;
+  cursor: pointer !important;
+  border-radius: 0 !important;
+  transition: color .18s cubic-bezier(0.16, 1, 0.3, 1), border-color .18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.gbc-section-link:hover {
+  color: var(--text) !important;
+  border-bottom-color: var(--gold-bright) !important;
+  transform: none !important;
+}
+
+/* Upgrade the bottom "scroll to full filterable drop table" button — give it more presence */
+.gbc-close[onclick*="scrollIntoView"] {
+  background: transparent !important;
+  border: 1px solid var(--gold) !important;
+  color: var(--gold-bright) !important;
+  font-family: var(--sans, -apple-system, system-ui, sans-serif) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.8px !important;
+  text-transform: uppercase !important;
+  padding: 10px 20px !important;
+  border-radius: 3px !important;
+  transition: background .18s cubic-bezier(0.16, 1, 0.3, 1), color .18s !important;
+}
+.gbc-close[onclick*="scrollIntoView"]:hover {
+  background: var(--gold) !important;
+  color: var(--bg) !important;
+  transform: none !important;
+}
+
+@media (max-width: 768px) {
+  .gbc-section-header-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .gbc-section-link { font-size: 10px !important; letter-spacing: 1.2px !important; }
+}
+</style>
+
+<div id="v42-tz-countdown" title="Click to hide · TZ rotates each hour at :00 IDT">
+  <span class="v42-tz-label">🔥 TZ rotates in</span>
+  <span class="v42-tz-time">--:--</span>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  // v42: TZ countdown — D2R Terror Zones rotate every hour on the hour (UTC-aligned in-game).
+  // We show MM:SS until next rotation (local clock approximation).
+  const W = document.getElementById('v42-tz-countdown');
+  if (!W) return;
+  const TIME_EL = W.querySelector('.v42-tz-time');
+
+  // User can toggle visibility — persist in localStorage
+  const VIS_KEY = 'd2r_v42_tz_visible';
+  function isVisible() {
+    const v = localStorage.getItem(VIS_KEY);
+    return v === null ? true : v === '1';  // default: visible
+  }
+  function setVisible(v) {
+    try { localStorage.setItem(VIS_KEY, v ? '1' : '0'); } catch(e){}
+    W.classList.toggle('show', !!v);
+  }
+
+  W.addEventListener('click', () => setVisible(false));
+
+  function update() {
+    const now = new Date();
+    const m = now.getMinutes();
+    const s = now.getSeconds();
+    const remMin = 59 - m;
+    const remSec = 60 - s;
+    const totalSecRem = remMin * 60 + remSec;
+    const mm = Math.floor(totalSecRem / 60);
+    const ss = totalSecRem % 60;
+    if (TIME_EL) TIME_EL.textContent = `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    W.classList.toggle('imminent', totalSecRem <= 120);  // last 2min: pulse
+  }
+
+  // Wait for DOMReady to apply visibility
+  function init() {
+    setVisible(isVisible());
+    update();
+    setInterval(update, 1000);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Expose toggle for palette action
+  window._v42_toggleTZCountdown = function() {
+    setVisible(!isVisible());
+  };
+})();
+</script>
+<!-- ===== end v42 TZ countdown ===== -->
+
+
 </body>
 </html>

@@ -1,0 +1,176 @@
+import { test, expect } from '@playwright/test';
+
+const URL = 'file:///Users/konyo/Downloads/konyo_d2r_bible_v43.html';
+
+test.describe('v43 editorial — regression check against v42 audit floor', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(2500);
+  });
+
+  test('boot integrity — all module symbols + 312 items + 11 boss chips', async ({ page }) => {
+    const state = await page.evaluate(() => ({
+      items: typeof ITEMS !== 'undefined' ? ITEMS.length : 0,
+      bossChips: document.querySelectorAll('.boss-chip').length,
+      jumpToBossItem: typeof window.jumpToBossItem === 'function',
+      navigateToItem: typeof window.navigateToItem === 'function',
+      openBossDetail: typeof window.openBossDetail === 'function',
+    }));
+    expect(state.items).toBe(312);
+    expect(state.bossChips).toBe(11);
+    expect(state.jumpToBossItem).toBe(true);
+    expect(state.navigateToItem).toBe(true);
+    expect(state.openBossDetail).toBe(true);
+  });
+
+  test('editorial masthead present', async ({ page }) => {
+    const masthead = await page.evaluate(() => ({
+      mastheadEl: !!document.querySelector('.masthead'),
+      kicker: document.querySelector('.masthead-kicker')?.textContent,
+      title: document.querySelector('.masthead .h-title')?.textContent,
+      tagline: !!document.querySelector('.masthead-tagline'),
+    }));
+    expect(masthead.mastheadEl).toBe(true);
+    expect(masthead.kicker).toContain('Vol. XLIII');
+    expect(masthead.title).toContain('Konyo');
+    expect(masthead.tagline).toBe(true);
+  });
+
+  test('navigateToItem syncs active-item-bar (Bug #5 regression test)', async ({ page }) => {
+    await page.evaluate(() => { localStorage.clear(); });
+    await page.reload();
+    await page.waitForTimeout(2500);
+    await page.evaluate(() => { if (typeof navigateToItem === 'function') navigateToItem('Harlequin Crest (Shako)'); });
+    await page.waitForTimeout(500);
+    const result = await page.evaluate(() => ({
+      tab: document.querySelector('.tab.active')?.dataset.tab,
+      activeItem: eval('typeof activeItem !== "undefined" ? activeItem : null'),
+      aibShown: document.getElementById('active-item-bar')?.classList.contains('show'),
+    }));
+    expect(result.tab).toBe('calc');
+    expect(result.activeItem).toBe('Harlequin Crest (Shako)');
+    expect(result.aibShown).toBe(true);
+  });
+
+  test('palette item action uses navigateToItem (Bug D)', async ({ page }) => {
+    await page.evaluate(() => { localStorage.clear(); });
+    await page.reload();
+    await page.waitForTimeout(2500);
+    await page.evaluate(() => { if (window._v42_openPalette) window._v42_openPalette(); });
+    await page.waitForTimeout(200);
+    await page.locator('#v42-palette-input').fill('harlequin');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(600);
+    const result = await page.evaluate(() => ({
+      tab: document.querySelector('.tab.active')?.dataset.tab,
+      selectedItem: eval('typeof selectedItem !== "undefined" ? selectedItem : null'),
+      aibShown: document.getElementById('active-item-bar')?.classList.contains('show'),
+    }));
+    expect(result.tab).toBe('calc');
+    expect(result.selectedItem).toContain('Harlequin');
+    expect(result.aibShown).toBe(true);
+  });
+
+  test('setActiveBoss intent disambiguation (Bug H)', async ({ page }) => {
+    // chip click = toggle
+    await page.locator('.boss-chip[data-boss-id="diablo"]').click();
+    await page.waitForTimeout(300);
+    let bossId = await page.evaluate(() => activeBossId);
+    expect(bossId).toBe('diablo');
+    await page.locator('.boss-chip[data-boss-id="diablo"]').click();
+    await page.waitForTimeout(300);
+    bossId = await page.evaluate(() => activeBossId);
+    expect(bossId).toBe(null);
+    // openBossDetail = stays open on double-call (intent: open)
+    await page.evaluate(() => window.openBossDetail('mephisto'));
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.openBossDetail('mephisto'));
+    await page.waitForTimeout(300);
+    bossId = await page.evaluate(() => activeBossId);
+    expect(bossId).toBe('mephisto');
+  });
+
+  test('goBackFromAid no longer null.bossId (Bug E)', async ({ page }) => {
+    await page.evaluate(() => {
+      if (typeof aidCardOrigin !== 'undefined') aidCardOrigin = { tab: 'bosses', bossId: 'andariel' };
+    });
+    const result = await page.evaluate(async () => {
+      if (typeof window.goBackFromAid !== 'function') return { error: 'no goBackFromAid' };
+      window.goBackFromAid();
+      await new Promise(r => setTimeout(r, 200));
+      return {
+        activeBossId: eval('typeof activeBossId !== "undefined" ? activeBossId : null'),
+      };
+    });
+    expect(result.activeBossId).toBe('andariel');
+  });
+
+  test('localStorage corruption recovery (safe JSON parse)', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('d2r_wishlist', 'GARBAGE {{{');
+      localStorage.setItem('d2r_owned', 'NOT_JSON');
+    });
+    await page.reload();
+    await page.waitForTimeout(2500);
+    const state = await page.evaluate(() => ({
+      itemTiles: document.querySelectorAll('.item-tile').length,
+      bossChips: document.querySelectorAll('.boss-chip').length,
+      wishlistSize: typeof wishlist !== 'undefined' ? wishlist.size : -1,
+    }));
+    expect(state.itemTiles).toBe(312);
+    expect(state.bossChips).toBe(11);
+    expect(state.wishlistSize).toBe(0);
+  });
+
+  test('stale wishlist sanitization (Finding N)', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('d2r_wishlist', JSON.stringify([
+        'Harlequin Crest (Shako)', 'Phantom Item X', 'Old Item Y', '', null
+      ]));
+    });
+    await page.reload();
+    await page.waitForTimeout(2500);
+    const after = await page.evaluate(() => ({
+      wishlistSize: wishlist.size,
+      persisted: JSON.parse(localStorage.getItem('d2r_wishlist')),
+    }));
+    expect(after.wishlistSize).toBe(1);
+    expect(after.persisted).toEqual(['Harlequin Crest (Shako)']);
+  });
+
+  test('keyboard shortcuts 1-7 switch tabs', async ({ page }) => {
+    const tabs = ['1','2','3','4','5','6','7'];
+    const expected = ['bosses','calc','tz','runes','rotw','ancients','ref'];
+    for (let i = 0; i < tabs.length; i++) {
+      await page.keyboard.press(tabs[i]);
+      await page.waitForTimeout(150);
+      const active = await page.evaluate(() => document.querySelector('.tab.active')?.dataset.tab);
+      expect(active).toBe(expected[i]);
+    }
+  });
+
+  test('memory: 30× boss detail open/close — no DOM growth', async ({ page }) => {
+    const startDom = await page.evaluate(() => document.querySelectorAll('*').length);
+    for (let i = 0; i < 30; i++) {
+      await page.evaluate(() => { if (window.openBossDetail) window.openBossDetail('mephisto'); });
+      await page.waitForTimeout(20);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(20);
+    }
+    const endDom = await page.evaluate(() => document.querySelectorAll('*').length);
+    // Tolerate small growth from notifications, sparklines, etc.
+    expect(Math.abs(endDom - startDom)).toBeLessThan(50);
+  });
+
+  test('script tag leak fix (Bug I) — _v41_refreshStatus cleans up', async ({ page }) => {
+    const before = await page.evaluate(() => document.head.querySelectorAll('script').length);
+    for (let i = 0; i < 8; i++) {
+      await page.evaluate(() => { if (typeof _v41_refreshStatus === 'function') _v41_refreshStatus(); });
+      await page.waitForTimeout(80);
+    }
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => document.head.querySelectorAll('script').length);
+    expect(after - before).toBeLessThan(5);
+  });
+});
