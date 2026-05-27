@@ -6141,6 +6141,15 @@ _v41_whenReady(() => {
     }
     return null;
   }
+  // v42 polish: relative slider bump — "mf+50", "mf +50", "mf-100" all parse
+  function v42TryParseMFBump(query) {
+    const m = query.match(/^mf\s*([+-])\s*(\d{1,4})$/i);
+    if (!m) return null;
+    const sign = m[1] === '-' ? -1 : 1;
+    const mag = parseInt(m[2], 10);
+    if (mag <= 0 || mag > 9999) return null;
+    return sign * mag;
+  }
 
   // --- v42: State ---
   let v42Commands = null;  // lazy-built
@@ -6208,6 +6217,29 @@ _v41_whenReady(() => {
           }
         }
       });
+    }
+    // v42 polish: "mf+50" / "mf-100" -> relative bump, clamps to slider min/max, shows preview
+    const mfBump = v42TryParseMFBump(q);
+    if (mfBump !== null) {
+      const slider = document.getElementById('mf');
+      if (slider) {
+        const cur = parseInt(slider.value, 10) || 0;
+        const min = parseInt(slider.min, 10) || 0;
+        const max = parseInt(slider.max, 10) || 1000;
+        const target = Math.max(min, Math.min(max, cur + mfBump));
+        const sign = mfBump >= 0 ? '+' : '';
+        const clampNote = (target !== cur + mfBump) ? ' (clamped)' : '';
+        custom.push({
+          icon: mfBump >= 0 ? '⬆' : '⬇',
+          label: `MF ${cur}% ${sign}${mfBump} → ${target}%${clampNote}`,
+          cat: 'mf',
+          hint: 'bump',
+          action: () => {
+            slider.value = target;
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      }
     }
     // v42 polish: "star <query>" or "unstar <query>" -> add wishlist toggle commands
     const starMatch = q.match(/^(un)?star\s+(.+)$/i);
