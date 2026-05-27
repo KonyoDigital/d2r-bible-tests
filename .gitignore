@@ -5,3 +5,11 @@ test-results/
 *.bak_*
 *.bak.*
 .DS_Store
+
+# v42 polish: diagnostic screenshots (mobile audit + viewport tests)
+mobile_audit_*.png
+mobile_after_*.png
+mobile_v42_*.png
+
+# audit JSON regenerates every Routine G fire (every 6h) — noise in diffs
+audit_v36_report.json
