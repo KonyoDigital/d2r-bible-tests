@@ -80,22 +80,24 @@ test.describe('v39 polish — URL hash routing', () => {
 });
 
 test.describe('v39 polish — sync pulse on MF change', () => {
+  // The pulse function has a 600ms internal throttle. A page-init auto-fire sets
+  // _v39_pulseTimer at t=0, causing any explicit call within 600ms to be a silent
+  // no-op. Wait 1200ms (>600ms throttle + 700ms class-removal cycle) before calling.
   test('pulse function adds .syncing class to summary cells', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
-    // Call the pulse function directly via eval (hoisted in <script> scope) to bypass
-    // rAF deferral when the browser deprioritizes the page late in a serial suite run.
-    await page.evaluate(() => eval('typeof _v39_pulseAllSyncedCells !== "undefined" && _v39_pulseAllSyncedCells()'));
-    // Wait inside the pulse window (~700ms class lifetime)
-    await page.locator('.syncing').first().waitFor({ state: 'attached', timeout: 1000 });
+    await page.waitForFunction(() => eval('typeof _v39_pulseAllSyncedCells !== "undefined"'), { timeout: 3000 });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => eval('_v39_pulseAllSyncedCells()'));
+    await page.locator('.syncing').first().waitFor({ state: 'attached', timeout: 2000 });
     const syncingCount = await page.locator('.syncing').count();
     expect(syncingCount).toBeGreaterThan(0);
   });
 
   test('.syncing class is removed after pulse window (~700ms)', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
-    await page.evaluate(() => eval('typeof _v39_pulseAllSyncedCells !== "undefined" && _v39_pulseAllSyncedCells()'));
+    await page.waitForFunction(() => eval('typeof _v39_pulseAllSyncedCells !== "undefined"'), { timeout: 3000 });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => eval('_v39_pulseAllSyncedCells()'));
     await page.waitForTimeout(1100);
     const syncingAfter = await page.locator('.syncing').count();
     expect(syncingAfter).toBe(0);
@@ -103,9 +105,10 @@ test.describe('v39 polish — sync pulse on MF change', () => {
 
   test('pulse hits summary-class cells only (not every droptable td)', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
-    await page.evaluate(() => eval('typeof _v39_pulseAllSyncedCells !== "undefined" && _v39_pulseAllSyncedCells()'));
-    await page.locator('.syncing').first().waitFor({ state: 'attached', timeout: 1000 });
+    await page.waitForFunction(() => eval('typeof _v39_pulseAllSyncedCells !== "undefined"'), { timeout: 3000 });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => eval('_v39_pulseAllSyncedCells()'));
+    await page.locator('.syncing').first().waitFor({ state: 'attached', timeout: 2000 });
     // Total .syncing should be small (~50 summary cells), never the 19k droptable cell count
     const syncingCount = await page.locator('.syncing').count();
     expect(syncingCount).toBeLessThan(500);
