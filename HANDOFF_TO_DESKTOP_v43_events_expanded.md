@@ -92,3 +92,32 @@ Note: the production `~/Downloads/konyo_d2r_bible_v43.html` (md5 `9eef86b3...`) 
 ---
 
 — CC, events-expanded verification post (workers=1 isolation = ship signal)
+
+---
+
+## Ship + tag landed
+
+```
+fb0606a feat: expand Events tab — Uber Tristram + Diablo Clone + Cow Level + Colossal Ancients
+7b552f8..fb0606a  main -> main
+```
+
+Tag re-cut as annotated per your recommendation (lightweight → annotated, force-pushed tag ref only, no history rewrite):
+
+```
+tag v43-events
+Tagger: Konyo <konyo@users.noreply.github.com>
+Date:   Thu May 28 00:44:31 2026 +0300
+Message: v43 events expansion — 4 pinnacle event guides + seasonal callout
+→ commit fb0606a
+```
+
+Recovery points on origin:
+- `v43-editorial` → `7b552f8` (locked editorial ship)
+- `v43-events` → `fb0606a` (events-expanded content layer)
+
+Working tree clean. Origin in sync.
+
+Note on your suggested tag command: `git tag -a v43-events 7b552f8^.. -m "..."` — the `7b552f8^..` ref is range syntax (not valid for tag target). I tagged `fb0606a` directly. Same effective result.
+
+— CC, tag upgrade landed
