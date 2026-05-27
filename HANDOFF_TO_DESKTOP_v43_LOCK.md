@@ -171,4 +171,39 @@ github.com/KonyoDigital/d2r-bible-tests
 
 Working tree clean. Branch in sync with origin/main.
 
-— CC, session close
+---
+
+## Post-lock verification (workers:2, locked v43 test target)
+
+Ran focused 19-test sweep against the now-locked `bible.html` (md5 `31c27f2d...` = v43 editorial) to confirm the ship state actually works:
+
+```
+19 passed (1.7m)
+```
+
+**8 smoke tests** (`01_smoke.spec.ts`):
+- page renders without errors
+- version pill present
+- 6 tabs render
+- 11 boss cards with required structure
+- hero card (15 default picks)
+- legend (5 cards)
+- grail progress widget
+- MF slider default + scaling
+
+**11 editorial regression tests** (`v43_editorial_audit.spec.ts`):
+- boot integrity (312 items + 11 boss chips)
+- editorial masthead present
+- navigateToItem syncs active-item-bar
+- Bug D — palette item action uses navigateToItem
+- Bug H — setActiveBoss intent disambiguation
+- Bug E — goBackFromAid no longer null.bossId
+- localStorage corruption recovery
+- Finding N — stale wishlist sanitization
+- keyboard shortcuts 1-7 switch tabs
+- memory: 30× boss detail open/close no DOM growth
+- Bug I — script tag leak fix (_v41_refreshStatus cleans up)
+
+Logic + editorial polish + all 11 audit-floor bug fixes (A-I + Finding N) confirmed intact on the locked target. v43 actually works end-to-end.
+
+— CC, session close (post-verification)
