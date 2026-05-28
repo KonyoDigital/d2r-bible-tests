@@ -2233,6 +2233,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="warning"><strong>Aura level math:</strong> aura level = floor(monster mlvl ÷ 8). A Hell mlvl-88 demon → level 11 aura. A level-96 Terror Zone monster → <strong>level 12</strong> (matches Infinity's Conviction). Bound aura level is also capped by YOUR character level at bind time.</div>
   </div>
 
+  <style>
+    /* premium glow — Super-Unique tier only; Champion/Unique keep the clean baseline */
+    #binds-superunique{
+      border-color: var(--gold-bright) !important;
+      box-shadow: 0 0 30px rgba(240,192,96,.30), inset 0 0 44px rgba(240,192,96,.07);
+      animation: suGlow 3.2s ease-in-out infinite;
+    }
+    #binds-superunique > h3{
+      color: var(--gold-bright);
+      text-shadow: 0 0 14px rgba(240,192,96,.55);
+    }
+    @keyframes suGlow{
+      0%,100%{ box-shadow: 0 0 24px rgba(240,192,96,.22), inset 0 0 40px rgba(240,192,96,.05); }
+      50%{ box-shadow: 0 0 38px rgba(240,192,96,.40), inset 0 0 48px rgba(240,192,96,.10); }
+    }
+    @media (prefers-reduced-motion: reduce){ #binds-superunique{ animation: none; } }
+  </style>
   <div class="colossal" id="binds-superunique">
     <h3>🟠 Super-Unique tier — 20 hard points (verified full list)</h3>
     <p>Specific named bosses with <strong>fixed</strong> consume stats. All bindable in <strong>Hell</strong> (and TZ). mlvl = Hell base spawn level (scales to 96/98/99 in Terror Zones). HP threshold to bind: historically <strong>&lt;40% Hephasto/Lister, &lt;50% Council</strong> (community-derived, pre-3.2). <strong style="color:var(--hell)">Patch 3.2 introduced a per-demon max-HP cap and reduced missing-HP benefit — exact thresholds now vary per demon and aren't published.</strong></p>
