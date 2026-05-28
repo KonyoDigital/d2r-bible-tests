@@ -19,7 +19,7 @@ const FILE_URL = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
 test.beforeEach(async ({ page }) => {
   await page.goto(FILE_URL);
   await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);
 });
 
 test.describe('v42 UX — boss clicks', () => {

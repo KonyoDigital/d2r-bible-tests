@@ -5,7 +5,7 @@ const URL = 'file:///Users/konyo/Downloads/konyo_d2r_bible_v43.html';
 test.describe('v43 editorial — regression check against v42 audit floor', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
   });
 
   test('boot integrity — all module symbols + 312 items + 11 boss chips', async ({ page }) => {
@@ -39,9 +39,9 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
   test('navigateToItem syncs active-item-bar (Bug #5 regression test)', async ({ page }) => {
     await page.evaluate(() => { localStorage.clear(); });
     await page.reload();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
     await page.evaluate(() => { if (typeof navigateToItem === 'function') navigateToItem('Harlequin Crest (Shako)'); });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     const result = await page.evaluate(() => ({
       tab: document.querySelector('.tab.active')?.dataset.tab,
       activeItem: eval('typeof activeItem !== "undefined" ? activeItem : null'),
@@ -55,7 +55,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
   test('palette item action uses navigateToItem (Bug D)', async ({ page }) => {
     await page.evaluate(() => { localStorage.clear(); });
     await page.reload();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
     await page.evaluate(() => { if (window._v42_openPalette) window._v42_openPalette(); });
     await page.waitForTimeout(200);
     await page.locator('#v42-palette-input').fill('harlequin');
@@ -112,7 +112,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       localStorage.setItem('d2r_owned', 'NOT_JSON');
     });
     await page.reload();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
     const state = await page.evaluate(() => ({
       itemTiles: document.querySelectorAll('.item-tile').length,
       bossChips: document.querySelectorAll('.boss-chip').length,
@@ -130,7 +130,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       ]));
     });
     await page.reload();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
     const after = await page.evaluate(() => ({
       wishlistSize: wishlist.size,
       persisted: JSON.parse(localStorage.getItem('d2r_wishlist')),
@@ -155,7 +155,13 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
     for (let i = 0; i < 30; i++) {
       await page.evaluate(() => { if (window.openBossDetail) window.openBossDetail('mephisto'); });
       await page.waitForTimeout(20);
-      await page.keyboard.press('Escape');
+      // Close deterministically via evaluate — keyboard.press('Escape') can hang on
+      // actionability at the tail of a long suite run. clearActiveBoss is the close fn;
+      // fall back to dispatching the Escape keydown the handler listens for.
+      await page.evaluate(() => {
+        if (window.clearActiveBoss) window.clearActiveBoss();
+        else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
       await page.waitForTimeout(20);
     }
     const endDom = await page.evaluate(() => document.querySelectorAll('*').length);

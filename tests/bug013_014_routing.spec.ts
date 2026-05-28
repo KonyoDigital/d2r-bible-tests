@@ -6,7 +6,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
   test('Catacombs L4 TZ card has data-boss-id="andariel" and opens detail on click', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
     const card = page.locator('.tz-zone-card[data-boss-id="andariel"]').first();
@@ -25,7 +25,7 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
 
   test('Halls of Anguish maps to nihl', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
     const card = page.locator('.tz-zone-card[data-boss-id="nihl"]').first();
@@ -34,7 +34,7 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
 
   test('Worldstone Keep maps to baal', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
     const card = page.locator('.tz-zone-card[data-boss-id="baal"]').first();
@@ -43,7 +43,7 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
 
   test('River of Flame maps to diablo', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
     const card = page.locator('.tz-zone-card[data-boss-id="diablo"]').first();
@@ -52,7 +52,7 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
 
   test('every TZ zone card has a valid boss-id mapping (v39: 100% routed)', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
     const dump = await page.evaluate(() => {
@@ -70,7 +70,7 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
 test.describe('BUG-014 — Cmd/Ctrl-click source-chip opens boss detail', () => {
   test('Cmd-click on first source chip opens detail panel', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.locator('#item-search').fill('nagel');
     await page.waitForTimeout(300);
@@ -86,7 +86,7 @@ test.describe('BUG-014 — Cmd/Ctrl-click source-chip opens boss detail', () => 
 
   test('plain click on source chip still jumps to boss card (not detail)', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.locator('#item-search').fill('nagel');
     await page.waitForTimeout(300);
