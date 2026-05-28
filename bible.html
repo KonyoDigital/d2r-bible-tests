@@ -2170,7 +2170,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td style="color:var(--hell)">Might</td><td>Was strong for physical</td><td>❌ REMOVED 3.2</td></tr>
     </tbody></table></div>
     <div class="success"><strong>Target aura:</strong> Fanaticism. Bind, check the aura, release + rebind if it is not Fanaticism. <span style="color:var(--gold-dim)">Patch notes don't publish per-aura roll weights — just reroll until you hit it.</span></div>
-    <div class="info"><strong>Removed-aura behavior (3.2, verbatim from patch notes):</strong> "Removed Conviction Aura, Holy Fire Aura, Holy Lightning Aura, Blessed Aim Aura, and Might Aura from possible pool. When these roll they are now replaced with <strong style="color:var(--best)">Fanaticism</strong>, <strong>Vigor</strong>, <strong>Thorns</strong>, <strong>Concentration</strong>." <span style="color:var(--gold-dim)">The replacement is one of the four — not a deterministic 1:1 mapping. <strong>Holy Freeze still rolls natively</strong>. Pre-3.2 demons you bound with a now-removed aura had it replaced on patch day.</span></div>
+    <div class="info"><strong>Removed-aura remap (3.2 LIVE notes — deterministic 1:1):</strong> when a bound demon's Aura Enchanted would roll a removed aura, it maps to exactly one replacement — Conviction→<strong style="color:var(--best)">Fanaticism</strong> · Might→Concentration · Holy Fire→Vigor · Holy Shock→Vigor · Blessed Aim→Thorns · Holy Freeze→Holy Freeze (unchanged). <span style="color:var(--gold-dim)">So the 5 possible results are Fanaticism / Concentration / Vigor / Thorns / Holy Freeze — reroll until Fanaticism. Hard-coded super-unique auras (Smith's Holy Fire, Lister's Meditation) pre-exist the bind and are NOT remapped. The PTR notes worded this loosely as "one of four"; the live Season 14 notes published the explicit 1:1 table above. Pre-3.2 demons you'd bound with a removed aura were remapped on patch day.</span></div>
   </div>
 
   <div class="colossal" id="binds-howto">
@@ -2238,27 +2238,27 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <p>Specific named bosses with <strong>fixed</strong> consume stats. All bindable in <strong>Hell</strong> (and TZ). mlvl = Hell base spawn level (scales to 96/98/99 in Terror Zones). HP threshold to bind: historically <strong>&lt;40% Hephasto/Lister, &lt;50% Council</strong> (community-derived, pre-3.2). <strong style="color:var(--hell)">Patch 3.2 introduced a per-demon max-HP cap and reduced missing-HP benefit — exact thresholds now vary per demon and aren't published.</strong></p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Super-Unique</th><th>Act · Area</th><th>mlvl</th><th>Fixed aura (Consume "Equipped")</th><th>Consume stats</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--uber)">Bishibosh</td><td>A1 · Cold Plains</td><td>71</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Coldcrow</td><td>A1 · Cave L1</td><td>80</td><td>—</td><td>Cold Res + Max / -% Enemy Magic Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Rakanishu</td><td>A1 · Stony Field</td><td>71</td><td>—</td><td>Lit Res + Max / Charged Bolt proc (🐛 broken)</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">The Smith</td><td>A1 · Barracks</td><td>73</td><td><strong>Lvl 15 Holy Fire</strong></td><td>+ED / Phys Dmg Reduction</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Coldcrow</td><td>A1 · Cave L1</td><td>72</td><td>—</td><td>Cold Res + Max / -% Enemy Magic Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Rakanishu</td><td>A1 · Stony Field</td><td>72</td><td>—</td><td>Lit Res + Max / Charged Bolt proc (🐛 broken)</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">The Smith</td><td>A1 · Barracks</td><td>73</td><td><strong>Lvl 15 Holy Fire</strong> (fixed)</td><td>+180% ED / -20% Phys Dmg Taken · solo</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Pitspawn Fouldog</td><td>A1 · Jail L2</td><td>74</td><td>—</td><td>Lit Res + Max / -% Enemy Fire Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Witch Doctor Endugu</td><td>A3 · Flayer Dungeon L3</td><td>86</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Battlemaid Sarina</td><td>A3 · Ruined Temple</td><td>87</td><td>—</td><td>Cold Res + Max / -% Enemy Magic Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Witch Doctor Endugu</td><td>A3 · Flayer Dungeon L3</td><td>83</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Battlemaid Sarina</td><td>A3 · Ruined Temple</td><td>82</td><td>—</td><td>Cold Res + Max / -% Enemy Magic Res</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Ismail Vilehand</td><td>A3 · Travincal</td><td>85</td><td>—</td><td>Poison Res + Max / Hydra proc (🐛 broken)</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Geleb Flamefinger</td><td>A3 · Travincal</td><td>85</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Toorc Icefist</td><td>A3 · Travincal</td><td>85</td><td>—</td><td>Cold Res + Max / -% Enemy Cold Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Bremm Sparkfist</td><td>A3 · Durance of Hate L3</td><td>86</td><td>—</td><td>Lit Res + Max / -% Enemy Lit Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Wyand Voidbringer</td><td>A3 · Durance of Hate L3</td><td>86</td><td>—</td><td>Magic Res + Max / -% Enemy Magic Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Maffer Dragonhand</td><td>A3 · Durance of Hate L3</td><td>86</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Bremm Sparkfist</td><td>A3 · Durance of Hate L3</td><td>85</td><td>—</td><td>Lit Res + Max / -% Enemy Lit Res · always Aura Enchanted</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Wyand Voidbringer</td><td>A3 · Durance of Hate L3</td><td>85</td><td>—</td><td>Magic Res + Max / -% Enemy Magic Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Maffer Dragonhand</td><td>A3 · Durance of Hate L3</td><td>85</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Infector of Souls</td><td>A4 · Chaos Sanctuary</td><td>88</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Hephasto the Armorer</td><td>A4 · River of Flame (Hellforge)</td><td>88</td><td><strong>Lvl 19 Holy Fire</strong></td><td>+All Skills (🐛 broken) / Phys Dmg Reduction</td></tr>
+      <tr><td class="item-name" style="color:var(--best)">Hephasto the Armorer ⭐</td><td>A4 · River of Flame (Hellforge)</td><td>88</td><td><strong style="color:var(--best)">RANDOM — always Aura Enchanted</strong></td><td>reroll for Fanaticism · solo · BiS target</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Shenk the Overseer</td><td>A5 · Bloody Foothills</td><td>83</td><td>—</td><td>Cold Res + Max / -% Enemy Magic Res</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Dac Farren</td><td>A5 · Bloody Foothills</td><td>83</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
       <tr><td class="item-name" style="color:var(--uber)">Sharptooth Slayer</td><td>A5 · Frigid Highlands</td><td>84</td><td>—</td><td>Cold Res + Max / -% Enemy Magic Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Colenzo the Annihilator</td><td>A5 · Throne (Wave 1)</td><td>88</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Bartuc the Bloody ⚠️</td><td>A5 · Throne (Wave 3)</td><td>88</td><td>—</td><td>Lit Res + Max / -% Enemy Lit Res</td></tr>
-      <tr><td class="item-name" style="color:var(--uber)">Ventar the Unholy</td><td>A5 · Throne (Wave 4)</td><td>88</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
-      <tr><td class="item-name" style="color:var(--best)">Lister the Tormentor ⭐</td><td>A5 · Throne (Wave 5)</td><td>88</td><td><strong>Lvl 15 Meditation</strong></td><td>Phys Dmg Reduction / +ED</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Colenzo the Annihilator</td><td>A5 · Throne (Wave 1)</td><td>92</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Bartuc the Bloody ⚠️</td><td>A5 · Throne (Wave 3)</td><td>92</td><td>—</td><td>Lit Res + Max / -% Enemy Lit Res</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">Ventar the Unholy</td><td>A5 · Throne (Wave 4)</td><td>92</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
+      <tr><td class="item-name" style="color:var(--best)">Lister the Tormentor ⭐</td><td>A5 · Throne (Wave 5)</td><td>92</td><td><strong>Lvl 15 Meditation</strong> (fixed)</td><td>Phys Dmg Reduction / +ED · 7 minions</td></tr>
     </tbody></table></div>
     <div class="warning"><strong>NOT bindable in 3.2:</strong> <strong>Achmel the Cursed</strong> (Throne Wave 2) — he's Undead (Unraveler), explicitly de-listed in the 3.2 patch notes. Also never bindable: all Act Bosses + Uber Tristram trio + Colossal Ancients (Talic/Korlic/Madawc).</div>
     <div class="info"><strong>⚠️ Bartuc caveat:</strong> coded Demon and bindable pre-3.2, but he's absent from MrLlamaSC's list and the 3.2 notes only name Achmel as the exception. <strong>Test in-game</strong> — bring him to &lt;40% and cast; "Impossible" means he was quietly excluded with Achmel.</div>
@@ -2307,6 +2307,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name">Council Member</td><td>Travincal · Durance L3 · Throne (coded Demon)</td><td>Fire / Lightning Res +%</td></tr>
     </tbody></table></div>
     <div class="info"><strong>⚠️ Corrupt Rogues are Demons:</strong> Dark Hunter / Vile Hunter / Dark Ranger / Black Rogue etc. — despite being fallen human Sisters, they're coded <code>Demon</code>, which is why super-uniques Coldcrow (Cave L1) and Battlemaid Sarina (Ruined Temple) are bindable.</div>
+
+    <h3 style="margin-top:18px">🔎 In-game name ↔ internal family decoder</h3>
+    <p>The display name you see on hover vs the underlying monster family (useful because mlvl tracks the <em>family</em>, and some display names are just the highest variant of a shared family).</p>
+    <div class="scroll-table"><table class="drops"><thead><tr><th>You see (in-game)</th><th>Actual family / internal name</th><th>Notes</th></tr></thead><tbody>
+      <tr><td class="item-name">Pit Lord / Venom Lord</td><td><code>megademon</code> (Megademon family)</td><td>Infector of Souls &amp; Ventar are this family</td></tr>
+      <tr><td class="item-name">Urdar</td><td><code>blunderbore</code> (4th Blunderbore tier)</td><td>"Urdar" is the variant name, not a family</td></tr>
+      <tr><td class="item-name">Hell Temptress</td><td><code>succubus</code> (4th Succubus tier)</td><td>Primary spawn <strong>Halls of Vaught</strong> (aLvl 83 → champ 85); WSK3 aLvl 85 → champ 87</td></tr>
+      <tr><td class="item-name">Stygian Fury</td><td><code>succubuswitch</code> (DIFFERENT family!)</td><td>Bloodstar+curse caster — shares graphics with Succubus but separate internal family</td></tr>
+      <tr><td class="item-name">Minion of Destruction</td><td><code>minion5/7</code> + <code>suicideminion</code></td><td>Only spawns in Lister's Throne wave (mlvl 92) — not farmable as open champ/unique</td></tr>
+      <tr><td class="item-name">Frenzied Hell Spawn</td><td>transformed Hell Spawn (Lasher-whipped)</td><td>Gains Magic Resist the base form lacks; aLvl 80–82</td></tr>
+    </tbody></table></div>
+    <div class="info"><strong>Why it matters:</strong> binding a Hell Temptress champion in <strong>Halls of Vaught</strong> gives mlvl 85, but the same name in <strong>Worldstone Keep L3</strong> gives mlvl 87 — the higher-mlvl zone yields a higher aura level. Always bind in the highest-mlvl zone the family spawns in (or a Terror Zone for mlvl 96 = aura 12).</div>
   </div>
 
   <div class="colossal" id="binds-packsizes">
@@ -2352,9 +2364,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="stat-grid">
       <div class="stat"><div class="stat-label">10 hard pts</div><div class="stat-value">Champion · flat buff, NO aura</div></div>
       <div class="stat"><div class="stat-label">15 hard pts</div><div class="stat-value">Unique · Fanaticism possible ⭐</div></div>
-      <div class="stat"><div class="stat-label">20 hard pts</div><div class="stat-value">Super-unique · not worth it</div></div>
+      <div class="stat"><div class="stat-label">20 hard pts</div><div class="stat-value">Super-unique · Hephasto reroll ⭐</div></div>
     </div>
-    <p style="margin-top:14px">If you want a real damage bind: go <strong>15 hard points</strong>, farm <strong>River of Flame</strong> yellow packs for an Aura Enchanted Fanaticism roll. Fanaticism boosts your Echo hits AND your merc. That is the only bind tier that earns its skill points on this build.</p>
+    <p style="margin-top:14px">If you want a real damage bind: go <strong>15 hard points</strong>, farm <strong>River of Flame</strong> yellow packs for an Aura Enchanted Fanaticism roll. Fanaticism boosts your Echo hits AND your merc. That is the cheapest tier that earns its skill points on this build.</p>
+    <div class="success"><strong>If you can afford 20 hard points:</strong> <strong>Hephasto the Armorer</strong> (River of Flame, Hellforge) is the cleanest endgame bind — he spawns <strong>solo</strong>, is <strong>always Aura Enchanted</strong> with a <strong>random</strong> aura, and sits at mlvl 88 (aura 11). Just save+exit/rejoin and rebind until you roll <strong style="color:var(--best)">Fanaticism</strong>. No pack to clear, right next to the Hellforge WP. For aura 12, rebind him (or any demon) in a Hell Terror Zone at mlvl 96 with your Warlock at lvl 96+.</div>
     <div class="warning"><strong>Opportunity cost:</strong> 15 hard points + ~5 prereqs = 20 points pulled out of Echoing Strike / Mirrored Blades / Blade Warp synergies. At lvl 90 with ~101 points, you can afford ONE maxed synergy fewer to fund it. At lvl 99 you can have both. If you can grind to 95+, do that before committing.</div>
     <div class="info"><strong>Cheapest splash (1 point):</strong> if you just want a tanky pet, 1 hard point binds any regular (white, non-Minion) demon — Urdar or Pit Lord in River of Flame. No aura, but it soaks hits and pulls aggro. Costs almost nothing.</div>
   </div>
@@ -2362,10 +2375,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="colossal" id="binds-sources" style="opacity:0.9">
     <h3>📚 Sources &amp; verification</h3>
     <p style="font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--gold-dim)">
-      <strong style="color:var(--gold)">Verified 2026-05-28</strong> against Patch 3.2 / Reign of the Warlock (Season 14, live 2026-05-22).<br>
-      <strong>Spine:</strong> MrLlamaSC — Icy Veins "List of Demon Binds" (canonical bind table + consume stats).<br>
-      <strong>Cross-checked:</strong> Blizzard official 3.2 patch notes (hard-point gate, aura pool, bind chance 20→56%, Achmel de-list) · diablo2.io database (monster types, HP thresholds) · Arreat Summit / PureDiablo / Fextralife / Fandom (Council = Demon) · Maxroll (Echoing Strike aura recommendation) · D2RuneWizard (Travincal 11-Council count).<br>
-      <strong>Flagged community-derived (confirm in-game):</strong> exact HP thresholds (&lt;40% Heph/Lister, &lt;50% Council) · "Impossible" vs "I can't" message split · Bartuc bindability (coded Demon but absent from MrLlama's list — test at &lt;40% HP).<br>
+      <strong style="color:var(--gold)">Verified 2026-05-28</strong> against Patch 3.2 / Reign of the Warlock (Season 14, live 2026-05-22). <strong style="color:var(--gold)">Deep monster-data pass</strong> cross-referenced diablo2.io/monsters, MonStats data (via studiokdm), and the <em>live</em> Blizzard Season 14 notes.<br>
+      <strong>Spine:</strong> MrLlamaSC — Icy Veins "List of Demon Binds" + diablo2.io per-monster pages (mlvl, type, area).<br>
+      <strong>Cross-checked:</strong> Blizzard live 3.2 notes (hard-point gate 10/15/20, deterministic aura remap, Demonic Mastery 1/5/10, Achmel de-list) · Maxroll bosses table · PureDiablo / Fextralife / Fandom (Council = Demon) · D2RuneWizard (Travincal Council count).<br>
+      <strong>Corrected this pass:</strong> Throne wave bosses are mlvl <strong>92</strong> (MonStats), not 88 — rankedboost's aLvl+3 is wrong. Hephasto's aura is <strong>RANDOM</strong> (always Aura Enchanted), NOT fixed Holy Fire — the old "always Conviction/Holy Fire" line is 1.09-era data. The Smith fixed consume verified (+180% ED, -20% phys taken, Lvl 15 Holy Fire). A1/A3 mlvls corrected (Coldcrow 72, Rakanishu 72, Endugu 83, Sarina 82, Council 85).<br>
+      <strong>Flagged — confirm in-game:</strong> Bartuc bindability (diablo2.io codes him Demon; aoeah lists him excluded — <strong>test at low HP</strong>) · HP thresholds (3.2 added a per-demon max-HP cap; exact % unpublished) · "Impossible" vs "I can't" split · most super-unique Consume stats (only Smith + Lister fully sourced; rest inferred from resist family) · aura formula floor(mlvl÷8) is community-validated, not first-party.<br>
       <strong>Bugged consumes (do not rely on):</strong> Hephasto +All Skills · Rakanishu Charged Bolt · Ismail Hydra · Warped One / Guest-Monster +skill stats.<br>
       <span style="color:var(--gold-dim);font-style:italic">Re-verify if Blizzard ships a 3.2.x hotfix — watch for Cursed-affix proc restoration (currently 5%), Conviction returning to the aura pool, or Council/Bartuc re-bans.</span>
     </p>
