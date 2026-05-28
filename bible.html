@@ -2200,7 +2200,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
 
   <div class="colossal" id="binds-champion">
-    <h3>🔵 Champion tier — 10 hard points</h3>
+    <div class="tier-header" style="border-left:3px solid #6699ff;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#6699ff;margin-bottom:5px">Tier I · 10 Hard Points</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🔵 Champion Demons</h3></div>
     <p>Bind the <span style="color:#6699ff">blue-name</span> champion version of any demon family in the field guide below. <strong>Verified 3.2 mechanics:</strong> champion packs spawn as <strong>2–4 monsters of the same type</strong>, at <strong>mlvl = area level + 2</strong>, carrying one of five champion modifier sets (Champion · Berserker · Fanatic · Ghostly · Possessed).</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Demon family</th><th>Act · Area</th><th>mlvl</th><th>Consume buff</th><th>Best for</th></tr></thead><tbody>
       <tr><td class="item-name">Urdar</td><td>A4 · River of Flame</td><td>87</td><td><strong>+% Enhanced Damage</strong></td><td>⭐ Echo</td></tr>
@@ -2218,7 +2218,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
 
   <div class="colossal" id="binds-unique">
-    <h3>🟡 Unique tier — 15 hard points (the aura sweet spot)</h3>
+    <div class="tier-header" style="border-left:3px solid #ffff66;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#ffff66;margin-bottom:5px">Tier II · 15 Hard Points · Aura Sweet Spot</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🟡 Unique Packs</h3></div>
     <p>Bind the <span style="color:#ffff66">yellow unique pack-leader</span>. <strong>Verified 3.2 mechanics:</strong> unique packs spawn as <strong>1 boss + 3–6 minions</strong>, at <strong>mlvl = area level + 3</strong>, with 3 elite affixes in Hell drawn from a 13-affix pool that <strong>includes Aura Enchanted</strong>.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Demon family</th><th>Act · Area</th><th>mlvl</th><th>Consume buff</th><th>Aura on bind</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:#ffff66">Urdar</td><td>A4 · River of Flame</td><td>88</td><td><strong>+% Enhanced Damage</strong></td><td><strong style="color:var(--best)">Fanaticism</strong> ⭐ reroll</td></tr>
@@ -2240,7 +2240,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       box-shadow: 0 0 30px rgba(240,192,96,.30), inset 0 0 44px rgba(240,192,96,.07);
       animation: suGlow 3.2s ease-in-out infinite;
     }
-    #binds-superunique > h3{
+    #binds-superunique .tier-header h3{
       color: var(--gold-bright);
       text-shadow: 0 0 14px rgba(240,192,96,.55);
     }
@@ -2251,7 +2251,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     @media (prefers-reduced-motion: reduce){ #binds-superunique{ animation: none; } }
   </style>
   <div class="colossal" id="binds-superunique">
-    <h3>🟠 Super-Unique tier — 20 hard points (verified full list)</h3>
+    <div class="tier-header" style="border-left:3px solid var(--gold-bright);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold-bright);margin-bottom:5px">Tier III · 20 Hard Points · Verified</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--gold-bright);margin:0;border:none;text-shadow:0 0 14px rgba(240,192,96,.55)">🟠 Super-Unique Bosses</h3></div>
     <p>Specific named bosses with <strong>fixed</strong> consume stats. All bindable in <strong>Hell</strong> (and TZ). mlvl = Hell base spawn level (scales to 96/98/99 in Terror Zones). HP threshold to bind: historically <strong>&lt;40% Hephasto/Lister, &lt;50% Council</strong> (community-derived, pre-3.2). <strong style="color:var(--hell)">Patch 3.2 introduced a per-demon max-HP cap and reduced missing-HP benefit — exact thresholds now vary per demon and aren't published.</strong></p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Super-Unique</th><th>Act · Area</th><th>mlvl</th><th>Fixed aura (Consume "Equipped")</th><th>Consume stats</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--uber)">Bishibosh</td><td>A1 · Cold Plains</td><td>71</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
