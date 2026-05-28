@@ -139,9 +139,9 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
     expect(after.persisted).toEqual(['Harlequin Crest (Shako)']);
   });
 
-  test('keyboard shortcuts 1-7 switch tabs', async ({ page }) => {
-    const tabs = ['1','2','3','4','5','6','7'];
-    const expected = ['bosses','calc','tz','runes','rotw','ancients','ref'];
+  test('keyboard shortcuts 1-8 switch tabs', async ({ page }) => {
+    const tabs = ['1','2','3','4','5','6','7','8'];
+    const expected = ['bosses','calc','tz','runes','rotw','ancients','binds','ref'];
     for (let i = 0; i < tabs.length; i++) {
       await page.keyboard.press(tabs[i]);
       await page.waitForTimeout(150);
