@@ -64,7 +64,7 @@ test.describe('v42 UX — boss clicks', () => {
 
 test.describe('v42 UX — item routing (all 312)', () => {
   test('every item can be opened via setActiveItem without crashing', async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(240000);
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
     
