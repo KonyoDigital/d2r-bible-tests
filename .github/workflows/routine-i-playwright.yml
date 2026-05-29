@@ -3,6 +3,12 @@ name: Routine I — Playwright suite
 # Replaces laptop launchd "Routine I" (daily 09:00 IDT). Runs the full
 # tests/ suite against bible.html. Always-on: fires on schedule, on every
 # bible.html / tests change (the real ship gate), and on manual dispatch.
+#
+# Sharded 3 ways for speed: the 2-core GitHub runner ran the whole suite in
+# ~39m single-job; 3 parallel shards bring wall-clock to ~13m. Smaller shards
+# (~52 tests each) also stay well under the ~140-test tail-fatigue threshold,
+# and each shard is a fresh runner (no cross-test state pressure). Chromium is
+# cached between runs to skip the ~1-2m browser download.
 on:
   schedule:
     - cron: '0 6 * * *'   # 09:00 IDT
@@ -16,9 +22,14 @@ on:
       - 'package-lock.json'
 
 jobs:
-  playwright:
+  test:
+    name: shard ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,15 +37,51 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run Playwright suite
-        run: npx playwright test --reporter=line
-      - name: Upload report
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Chromium (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Run shard
+        run: npx playwright test --shard=${{ matrix.shard }}/3 --reporter=blob
+      - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          name: blob-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 7
+
+  merge-report:
+    name: merge reports
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Download shard blobs
+        uses: actions/download-artifact@v4
+        with:
+          path: all-blobs
+          pattern: blob-*
+          merge-multiple: true
+      - name: Merge into HTML report
+        run: npx playwright merge-reports --reporter html ./all-blobs
+      - name: Upload merged report
+        uses: actions/upload-artifact@v4
+        with:
           name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
+          path: playwright-report/
           retention-days: 14
