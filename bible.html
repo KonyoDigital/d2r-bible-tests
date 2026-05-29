@@ -57,8 +57,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .boss-header{background:linear-gradient(90deg,var(--surface-3),var(--surface-2));border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:14px}
 .boss-emoji{font-size:40px;line-height:1;filter:drop-shadow(0 0 8px rgba(212,168,71,.5))}
 .boss-title-block{flex:1;min-width:0}
-.boss-name{color:var(--gold-bright);font-size:22px;font-weight:600;margin:0;letter-spacing:.3px}
-.boss-subtitle{color:var(--text);font-size:13px;font-weight:500;font-style:italic;margin:2px 0 4px}
+.boss-name{color:var(--gold-bright);font-family:var(--serif-display);font-size:22px;font-weight:600;margin:0;letter-spacing:.3px}
+.boss-subtitle{color:var(--text-muted);font-family:var(--serif-text);font-size:13.5px;font-weight:500;font-style:italic;margin:3px 0 4px}
 .boss-loc{color:var(--text-muted);font-size:11px;margin:0}
 .boss-tier-tag{background:var(--surface-3);border-radius:6px;padding:6px 10px;text-align:center;min-width:80px}
 .boss-tier-label{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600}
@@ -239,6 +239,23 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .owned-btn.owned{color:var(--best);border-color:var(--best);background:rgba(102,255,136,.1)}
 tr.owned-row td.item-name{opacity:.45;text-decoration:line-through}
 tr.owned-row{background:rgba(102,255,136,.03)}
+.top-drops{margin:14px 0 4px}
+.top-drops-title{margin:0 0 8px;font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:.6px}
+.top-drops-sub{color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px}
+.top-drops-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.top-drop-row{display:grid;grid-template-columns:34px 1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color .15s,background .15s}
+.top-drop-row:hover{border-color:var(--gold);background:var(--surface-3)}
+.top-drop-rank{color:var(--text-dim);font-weight:700;font-size:11px;font-family:ui-monospace,monospace}
+.top-drop-name{color:var(--gold-bright);font-weight:600}
+.top-drop-uber .top-drop-name{color:var(--terror)}
+.top-drop-verified{font-size:10px}
+.top-drop-odds{font-variant-numeric:tabular-nums;font-weight:600;font-family:ui-monospace,monospace}
+.top-drop-diff{color:var(--text-muted);font-size:10px;font-weight:400}
+.top-drop-hrs{color:var(--terror);font-size:11px;font-variant-numeric:tabular-nums;font-family:ui-monospace,monospace}
+.all-drops-details{margin-top:12px}
+.all-drops-summary{cursor:pointer;color:var(--text-muted);font-size:12px;padding:6px 0;user-select:none;list-style:none}
+.all-drops-summary:hover{color:var(--gold-bright)}
+.all-drops-details[open] .all-drops-summary{color:var(--gold);margin-bottom:4px}
 .sim-box{background:var(--surface-3);border-radius:8px;padding:14px;margin-top:14px;border-left:3px solid var(--terror)}
 .sim-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .sim-btn{background:var(--terror);color:#1a0010;padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s}
@@ -4564,6 +4581,43 @@ function renderBossCards() {
       }
     }
 
+    // === Holy Grail — Top Drops: grail/uber items droppable here, ranked rarest-first ===
+    // best achievable 1:N per item at this boss, sorted descending so the rarest / most
+    // prestigious chase items lead; the full common-item tail lives in the dropdown below.
+    const _grailPool = boss.dropTable.filter(d => d.tier === "grail" || d.tier === "uber");
+    const _topDrops = [];
+    _grailPool.forEach(d => {
+      let best = null, bestKey = null;
+      ["norm","normTz","nm","nmTz","hell","hellTz"].forEach(k => {
+        const adj = adjustChance(d[k], mf);
+        if (adj !== null && (best === null || adj < best)) { best = adj; bestKey = k; }
+      });
+      if (best !== null) _topDrops.push({ d, best, bestKey });
+    });
+    _topDrops.sort((a, b) => b.best - a.best); // rarest (highest 1:N) first
+    const _topN = _topDrops.slice(0, 20);
+    const topDropsHtml = _topN.length ? `
+      <div class="top-drops">
+        <h3 class="top-drops-title">&#127942; Holy Grail &mdash; Top Drops <span class="top-drops-sub">rarest first &middot; top ${_topN.length} of ${_grailPool.length} grail/uber droppable here</span></h3>
+        <ol class="top-drops-list">
+          ${_topN.map((t, i) => {
+            const d = t.d;
+            const kphMult = (t.bestKey === "norm" || t.bestKey === "normTz") ? 1.2 : (t.bestKey === "nm" || t.bestKey === "nmTz") ? 1.1 : 1.0;
+            const hrs = hoursFor(t.best, 0.5, boss.kph * kphMult);
+            const diffLbl = t.bestKey.replace("Tz", " TZ").toUpperCase();
+            const ver = (d.v || []).includes(t.bestKey) ? ' <span class="top-drop-verified" title="silospen-verified anchor">&#128274;</span>' : '';
+            const sym = d.tier === "uber" ? "&#9889;" : "&#9733;";
+            const esc = d.n.replace(/'/g, "\\'");
+            return `<li class="top-drop-row ${d.tier === 'uber' ? 'top-drop-uber' : ''}" onclick="navigateToItem('${esc}')" title="open ${d.n} in the calculator">
+              <span class="top-drop-rank">#${i + 1}</span>
+              <span class="top-drop-name">${sym} ${d.n}${ver}</span>
+              <span class="top-drop-odds">${fmt(t.best)} <span class="top-drop-diff">${diffLbl}</span></span>
+              <span class="top-drop-hrs">${hrs !== null ? fmtHours(hrs) : "&mdash;"}</span>
+            </li>`;
+          }).join("")}
+        </ol>
+      </div>` : '';
+
     const rows = dropTable.map(d => {
       const diffKeys = ["norm","normTz","nm","nmTz","hell","hellTz"];
       const verifiedDiffs = d.v || [];
@@ -4627,6 +4681,9 @@ function renderBossCards() {
       <div class="boss-body">
         <div class="diff-grid">${diffsHtml}</div>
         ${quickTake}
+        ${topDropsHtml}
+        <details class="all-drops-details">
+        <summary class="all-drops-summary">&#9656; Show all ${dropTable.length} droppable items &mdash; full table (filter &amp; sort)</summary>
         <div class="boss-filter-bar">
           <span class="boss-filter-label">show:</span>
           <button class="boss-filter-pill ${filter==='all'?'active':''}" onclick="setBossFilter('${boss.id}','all')">all (${boss.dropTable.length})</button>
@@ -4649,6 +4706,7 @@ function renderBossCards() {
           </tr></thead>
           <tbody>${rows}</tbody>
         </table></div>
+        </details>
         <div class="success"><strong>Why farm:</strong> ${boss.why}</div>
         <div class="info"><strong>🎮 Recommended char:</strong> ${boss.char}</div>
       </div>
