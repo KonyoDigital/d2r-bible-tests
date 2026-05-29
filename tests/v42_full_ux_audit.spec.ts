@@ -64,7 +64,9 @@ test.describe('v42 UX — boss clicks', () => {
 
 test.describe('v42 UX — item routing (all 312)', () => {
   test('every item can be opened via setActiveItem without crashing', async ({ page }) => {
-    test.setTimeout(240000);
+    // 312 sequential page.evaluate round-trips — IPC-bound, ~2x slower on the
+    // 2-core CI runner than locally. Generous ceiling so it passes on CI.
+    test.setTimeout(600000);
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
     

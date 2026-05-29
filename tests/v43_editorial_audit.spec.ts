@@ -152,6 +152,9 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
   });
 
   test('memory: 30× boss detail open/close — no DOM growth', async ({ page }) => {
+    // 30 open/close cycles, each two page.evaluate round-trips — slower on the
+    // 2-core CI runner. Headroom above the 180s global ceiling.
+    test.setTimeout(360000);
     const startDom = await page.evaluate(() => document.querySelectorAll('*').length);
     for (let i = 0; i < 30; i++) {
       await page.evaluate(() => { if (window.openBossDetail) window.openBossDetail('mephisto'); });
