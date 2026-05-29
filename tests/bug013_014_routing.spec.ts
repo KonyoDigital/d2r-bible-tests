@@ -50,20 +50,40 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
     await expect(card).toBeVisible();
   });
 
-  test('every TZ zone card has a valid boss-id mapping (v39: 100% routed)', async ({ page }) => {
+  // v44 routing-accuracy correction: the old "v39: 100% routed" rule was WRONG —
+  // it forced super-unique-only zones (Crystalline Passage→Frozenstein, Tristram→
+  // Griswold, Arcane Sanctuary→Summoner, etc.) to proxy onto a same-act boss, which
+  // is exactly the mis-route Konyo reported. The correct invariant is CURATED routing:
+  // a zone is mapped ONLY when a card-backed boss genuinely spawns there, and every
+  // mapped card must open EXACTLY that boss. Whether the 6 super-unique zones are
+  // unmapped is asserted separately (routing_and_data_integrity.spec.ts acceptance gate).
+  test('every MAPPED TZ zone card routes faithfully to a valid boss (curated, not 100%)', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1500);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
-    const dump = await page.evaluate(() => {
+    const data = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('.tz-zone-card'));
       return {
         total: cards.length,
-        unmapped: cards.filter((c: any) => !c.getAttribute('data-boss-id')).length,
+        validIds: (BOSSES as any[]).map(b => b.id),
+        mapped: cards.map((c, i) => ({
+          i,
+          name: (c.querySelector('.tz-zone-name')?.textContent || '').trim(),
+          bossId: c.getAttribute('data-boss-id') || '',
+        })).filter(c => c.bossId),
       };
     });
-    expect(dump.total).toBeGreaterThan(0);
-    expect(dump.unmapped).toBe(0);
+    expect(data.total).toBeGreaterThan(0);
+    expect(data.mapped.length, 'the genuine zones (WSK, Halls, RoF, Catacombs…) must still route').toBeGreaterThan(0);
+    for (const c of data.mapped) {
+      expect(data.validIds, `zone "${c.name}" mapped to unknown boss "${c.bossId}"`).toContain(c.bossId);
+      await page.evaluate(() => { if ((window as any).clearActiveBoss) (window as any).clearActiveBoss(); });
+      await page.evaluate((idx) => { (document.querySelectorAll('.tz-zone-card')[idx] as HTMLElement)?.click(); }, c.i);
+      await page.waitForTimeout(180);
+      const active = await page.evaluate(() => eval('typeof activeBossId!=="undefined"?activeBossId:null'));
+      expect(active, `zone "${c.name}" must open boss "${c.bossId}", opened "${active}"`).toBe(c.bossId);
+    }
   });
 });
 

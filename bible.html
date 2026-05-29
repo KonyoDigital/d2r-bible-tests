@@ -4431,23 +4431,22 @@ const GUARANTEED_PER_BOSS = {
 };
 
 const TZ_BOSS_MAP = [
-  {re:/catacombs/i, boss:'andariel'},
-  {re:/halls of (anguish|pain|vaught)|nihl/i, boss:'nihl'},
-  {re:/worldstone keep|wsk/i, boss:'baal'},
-  {re:/river of flame|chaos sanctuary/i, boss:'diablo'},
-  {re:/^the pit|pit$|tamoe highland/i, boss:'pit'},
-  {re:/durance|mephisto/i, boss:'mephisto'},
-  {re:/forgotten tower|countess/i, boss:'countess'},
-  {re:/travincal|kurast/i, boss:'travincal'},
-  {re:/moo moo|cow level|hell bovines/i, boss:'cows'},
-  {re:/pindle|nihlathak.s temple|anya/i, boss:'pindle'},
-  {re:/duriel|tomb/i, boss:'duriel'},
-  {re:/burial grounds|crypt|mausoleum|andariel|catacombs/i, boss:'andariel'},
-  {re:/arcane sanctuary/i, boss:'duriel'},
-  {re:/spider forest|spider cavern/i, boss:'mephisto'},
-  {re:/tristram/i, boss:'countess'},  // closest boss anchor
-  {re:/crystalline passage|frozen river/i, boss:'baal'},
-  {re:/flayer dungeon|flayer jungle/i, boss:'travincal'},
+  // Only zones where a boss from the 11-boss roster actually spawns / is the headline farm
+  // get a click-through. Super-unique / density-only zones (Crystalline Passage, Tristram,
+  // Arcane Sanctuary, Flayer Dungeon, Spider Forest, Burial Grounds) intentionally return no
+  // match: their value is super-uniques NOT in the roster, so a boss-detail route would mislead.
+  // (Render template makes a no-match card non-clickable: cursor:default + honest title.)
+  {re:/catacombs/i, boss:'andariel'},                       // Andariel — Catacombs L4
+  {re:/halls of (anguish|pain|vaught)|nihl/i, boss:'nihl'}, // Nihlathak — Halls of Vaught
+  {re:/worldstone keep|wsk/i, boss:'baal'},                 // Baal — Throne via WSK
+  {re:/river of flame|chaos sanctuary/i, boss:'diablo'},    // Diablo — Chaos Sanctuary
+  {re:/^the pit|pit$|tamoe highland/i, boss:'pit'},         // The Pit
+  {re:/durance|mephisto/i, boss:'mephisto'},                // Mephisto — Durance of Hate
+  {re:/forgotten tower|countess/i, boss:'countess'},        // Countess — Forgotten Tower
+  {re:/travincal|kurast/i, boss:'travincal'},               // Council — Travincal
+  {re:/moo moo|cow level|hell bovines/i, boss:'cows'},      // Hell Bovines — Cow Level
+  {re:/pindle|nihlathak.s temple|anya/i, boss:'pindle'},    // Pindleskin — Nihlathak's Temple
+  {re:/duriel|tomb/i, boss:'duriel'},                       // Duriel — Tal Rasha's Tomb
 ];
 function tzZoneBoss(zoneName){
   if (!zoneName) return null;
@@ -4525,7 +4524,20 @@ function tagTzZonesWithBossId() {
     const nameEl = card.querySelector('.tz-zone-name');
     if (!nameEl) return;
     const bossId = (typeof tzZoneBoss === 'function') ? tzZoneBoss(nameEl.textContent.trim()) : null;
-    if (bossId) card.setAttribute('data-boss-id', bossId);
+    if (bossId) {
+      // a roster boss genuinely spawns here → clickable, honest affordance
+      card.setAttribute('data-boss-id', bossId);
+      const boss = (typeof BOSSES !== 'undefined') ? BOSSES.find(b => b.id === bossId) : null;
+      card.style.cursor = 'pointer';
+      card.title = 'click → open ' + (boss ? boss.name : bossId) + ' boss detail';
+    } else {
+      // v44 honest-affordance: this zone's value is its OWN super-uniques (Frozenstein,
+      // Griswold, the Summoner, etc.) which have no boss card — so it must NOT look
+      // clickable. Empty data-boss-id keeps the onclick guard a no-op.
+      card.setAttribute('data-boss-id', '');
+      card.style.cursor = 'default';
+      card.title = 'density / super-unique farm — no roster boss to route to';
+    }
   });
 }
 function renderBossNav() {
