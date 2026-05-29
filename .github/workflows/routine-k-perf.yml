@@ -1,0 +1,38 @@
+name: Routine K — perf watchdog
+
+# Replaces laptop launchd "Routine K" (every 6h). Measures load, boss-overlay
+# open, and 2000-trial sim timings (best of 3 runs). Warn-only per spec:
+# emits ::warning:: annotations over budget but never fails the build (CI
+# runner perf varies — this is a trend signal, not a gate).
+on:
+  schedule:
+    - cron: '30 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run perf watchdog
+        run: node K_perf.js "$GITHUB_WORKSPACE/bible.html" | tee k.log
+      - name: Check thresholds (warn only)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const r = JSON.parse(fs.readFileSync("k.log","utf8").trim().split("\n").pop());
+            const lim = { load_ms: 2500, boss_ms: 800, sim_2000_ms: 6000 };
+            let warn = false;
+            for (const k in lim) {
+              if (r[k] > lim[k]) { console.log(`::warning::K perf ${k}=${r[k]}ms exceeds ${lim[k]}ms budget`); warn = true; }
+              else { console.log(`${k}=${r[k]}ms (budget ${lim[k]}ms) OK`); }
+            }
+            if (!warn) console.log("All perf thresholds green");
+          '

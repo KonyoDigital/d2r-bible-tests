@@ -15,7 +15,7 @@ const fs = require('fs');
   console.log('═══════════════════════════════════════════════════════════════\n');
   
   const t0 = Date.now();
-  await page.goto('file://' + path.resolve(__dirname, 'bible_routes.html'));
+  await page.goto('file://' + (process.argv[2] || path.resolve(__dirname, 'bible_routes.html')));
   await page.waitForTimeout(1000);
   console.log(`✓ Page loaded in ${Date.now()-t0}ms\n`);
   

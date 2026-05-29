@@ -1,0 +1,39 @@
+name: Routine G — end-to-end audit
+
+# Replaces laptop launchd "Routine G" (every 6h). Sweeps 8 categories:
+# 7 tabs, 11 boss cards, all 312 item clicks, sliders, wishlist, 2000-trial
+# sim, TZ routing. Gates on 8/8 green. Targets the live bible.html.
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run end-to-end audit
+        run: node end_to_end_audit.js "$GITHUB_WORKSPACE/bible.html" | tee audit.log
+      - name: Gate on categories passed
+        run: |
+          PASSED=$(grep -oE '[0-9]+/8 categories passed' audit.log | grep -oE '^[0-9]+' | tail -1)
+          echo "Categories passed: ${PASSED:-0}/8"
+          if [ "${PASSED:-0}" -lt 8 ]; then
+            echo "::error::Routine G regression — only ${PASSED:-0}/8 categories green"
+            exit 1
+          fi
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routine-g-report
+          path: audit_v36_report.json
+          retention-days: 14

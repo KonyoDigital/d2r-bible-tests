@@ -1,0 +1,40 @@
+name: Routine I — Playwright suite
+
+# Replaces laptop launchd "Routine I" (daily 09:00 IDT). Runs the full
+# tests/ suite against bible.html. Always-on: fires on schedule, on every
+# bible.html / tests change (the real ship gate), and on manual dispatch.
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 09:00 IDT
+  workflow_dispatch:
+  push:
+    paths:
+      - 'bible.html'
+      - 'tests/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run Playwright suite
+        run: npx playwright test --reporter=line
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

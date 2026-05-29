@@ -1,0 +1,33 @@
+name: Routine J — visual screenshots
+
+# Replaces laptop launchd "Routine J" (daily 10:00 IDT). Captures 4 reference
+# screenshots (bosses, Travincal card, calc+Shako, TZ tab) and uploads them as
+# a build artifact for manual visual review. (Pixel-diff against a committed
+# baseline can be layered on later.)
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 10:00 IDT
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Capture screenshots
+        run: |
+          mkdir -p shots
+          node J_screens.js shots "$GITHUB_WORKSPACE/bible.html"
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: routine-j-screenshots
+          path: shots/
+          retention-days: 30

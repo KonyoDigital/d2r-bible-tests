@@ -1,0 +1,32 @@
+name: Routine H — item click sweep
+
+# Replaces laptop launchd "Routine H" (every 12h). Opens every ITEM via
+# window.openItemDetail() — catches apostrophe-encoding regressions and any
+# item whose detail card fails to render. Gates on fail_count == 0.
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  item-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run item sweep
+        run: node H_sweep.js "$GITHUB_WORKSPACE/bible.html" | tee h.log
+      - name: Gate on item fails
+        run: |
+          FAILS=$(node -e "const l=require('fs').readFileSync('h.log','utf8').trim().split('\n').pop(); console.log(JSON.parse(l).fail_count)")
+          echo "Item open failures: $FAILS"
+          if [ "$FAILS" -ne 0 ]; then
+            echo "::error::Routine H — $FAILS item(s) failed to open"
+            exit 1
+          fi

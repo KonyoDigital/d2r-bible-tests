@@ -1,0 +1,43 @@
+name: Routine L — data integrity drift
+
+# Replaces laptop launchd "Routine L" (daily 10:30 IDT). Probes ITEMS.length,
+# BOSSES.length and key drop-chance values, diffs against the committed
+# baseline/integrity_baseline.json. Fails on any drift — an intentional data
+# change means: re-run, eyeball the diff, then update the baseline file.
+on:
+  schedule:
+    - cron: '30 7 * * *'   # 10:30 IDT
+  workflow_dispatch:
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run integrity probe
+        run: node L_integrity.js "$GITHUB_WORKSPACE/bible.html"
+      - name: Diff against baseline
+        run: |
+          node -e '
+            const fs = require("fs");
+            const norm = o => JSON.stringify(o, (k, v) =>
+              v && typeof v === "object" && !Array.isArray(v)
+                ? Object.keys(v).sort().reduce((a, kk) => (a[kk] = v[kk], a), {})
+                : v);
+            const base = JSON.parse(fs.readFileSync("baseline/integrity_baseline.json", "utf8"));
+            const cur = JSON.parse(fs.readFileSync("/tmp/L_result.json", "utf8"));
+            if (norm(base) !== norm(cur)) {
+              console.log("::error::Routine L — data integrity drift detected");
+              console.log("baseline: " + norm(base));
+              console.log("current : " + norm(cur));
+              process.exit(1);
+            }
+            console.log("Integrity baseline matched — no drift");
+          '
