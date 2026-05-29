@@ -2137,6 +2137,42 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
 </div>
 
+<style>
+/* ═══ Binds tab · typographic rhythm pass — 2026-05-29 ═══════════════
+   Scoped to #tab-binds so the events/ancients tab keeps its magenta .colossal.
+   Targets DIRECT-child h3/p only, so .tier-header color-coded headers are untouched. */
+#tab-binds .colossal{
+  background:linear-gradient(180deg,rgba(212,168,71,.045),rgba(0,0,0,.16));
+  border:1px solid var(--border-light);
+  border-radius:10px;
+  padding:24px 26px;
+  margin:26px 0;
+}
+#tab-binds .colossal > h3{
+  font-family:var(--serif-display);
+  font-weight:600;
+  font-size:22px;
+  letter-spacing:.4px;
+  color:var(--gold-bright);
+  line-height:1.25;
+  margin:0 0 15px;
+  padding-bottom:11px;
+  border-bottom:1px solid rgba(212,168,71,.22);
+}
+#tab-binds .colossal > p{
+  font-size:13.5px;
+  line-height:1.66;
+  color:var(--text-muted);
+  max-width:74ch;
+  margin:0 0 14px;
+}
+#tab-binds .colossal > p strong{color:var(--text);font-weight:600;}
+#tab-binds .info,#tab-binds .warning,#tab-binds .success{
+  font-size:12.5px;line-height:1.6;margin:14px 0;
+}
+#tab-binds .events-intro{border-left-width:3px;padding:16px 20px;margin-bottom:28px;}
+</style>
+
 <div class="tab-content" id="tab-binds">
 
   <div class="events-intro" style="margin-bottom:24px;padding:14px 18px;border-left:2px solid var(--gold);background:var(--surface)">
