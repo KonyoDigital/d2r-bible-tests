@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
+import * as path from 'path';
 
-const URL = 'file:///Users/konyo/Downloads/konyo_d2r_bible_v43.html';
+const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.describe('v43 editorial — regression check against v42 audit floor', () => {
   test.beforeEach(async ({ page }) => {
