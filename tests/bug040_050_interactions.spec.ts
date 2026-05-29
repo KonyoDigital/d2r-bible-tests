@@ -35,8 +35,12 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
   test('BUG-042 star toggle persists localStorage', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
+    // v44: the full drop table (with its star buttons) now lives inside a collapsed
+    // <details class="all-drops-details"> behind the Top-Drops list. Expand it like a
+    // user clicking "Show all …" before exercising the per-row star control.
+    await page.evaluate(() => document.querySelectorAll('details.all-drops-details').forEach(d => (d as HTMLDetailsElement).open = true));
     // Click any star button — they're inside boss-card rows
-    const star = page.locator('.star-btn').first();
+    const star = page.locator('.star-btn:visible').first();
     await star.scrollIntoViewIfNeeded();
     await star.click();
     await page.waitForTimeout(150);
@@ -47,7 +51,9 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
   test('BUG-043 owned toggle persists localStorage', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
-    const ownBtn = page.locator('.owned-btn').first();
+    // v44: owned buttons live in the collapsed full drop table — open it first.
+    await page.evaluate(() => document.querySelectorAll('details.all-drops-details').forEach(d => (d as HTMLDetailsElement).open = true));
+    const ownBtn = page.locator('.owned-btn:visible').first();
     await ownBtn.scrollIntoViewIfNeeded();
     await ownBtn.click();
     await page.waitForTimeout(150);
@@ -113,13 +119,17 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
   test('BUG-048 sort by column toggles direction class', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
-    const hdr = page.locator('#countess th.sortable').first();
-    if (await hdr.count()) {
-      await hdr.click();
-      await page.waitForTimeout(150);
-      const cls = await hdr.getAttribute('class');
-      expect(cls).toMatch(/sort-/);
-    }
+    // v44: the sortable drop table now lives inside the collapsed full-table disclosure
+    // far down the card (y≈4600); a real .click() gets intercepted by sticky chrome, so
+    // fire the handler via evaluate-click (same pattern as BUG-013) and re-query the
+    // freshly re-rendered header for its sort-direction class.
+    const cls = await page.evaluate(() => {
+      const th = document.querySelector('#countess th.sortable') as HTMLElement | null;
+      if (!th) return null;
+      th.click();
+      return document.querySelector('#countess th.sortable')?.getAttribute('class') || '';
+    });
+    if (cls !== null) expect(cls).toMatch(/sort-/);
   });
 
   test('BUG-049 keyboard "/" focuses search', async ({ page }) => {

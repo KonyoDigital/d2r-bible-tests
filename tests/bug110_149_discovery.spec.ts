@@ -122,19 +122,23 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
   test('BUG-119 sort persists across renders', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
-    const hdr = page.locator('#countess th.sortable').first();
-    if (await hdr.count()) {
-      await hdr.click();
-      await page.waitForTimeout(150);
-      const cls1 = await hdr.getAttribute('class');
-      // Trigger re-render (toggle filter)
+    // v44: the sortable header is deep inside the collapsed full-table disclosure, so a
+    // real .click() is intercepted — fire via evaluate-click (BUG-013 pattern).
+    const cls1 = await page.evaluate(() => {
+      const th = document.querySelector('#countess th.sortable') as HTMLElement | null;
+      if (!th) return null;
+      th.click();
+      return document.querySelector('#countess th.sortable')?.getAttribute('class') || '';
+    });
+    if (cls1 !== null) {
+      // Trigger re-render (toggle filter) — the active sort must survive the re-render.
       await page.evaluate(() => {
         const fn = (window as any).setBossFilter;
         if (fn) fn('countess', 'grail');
         if (fn) fn('countess', 'all');
       });
       await page.waitForTimeout(200);
-      const cls2 = await page.locator('#countess th.sortable').first().getAttribute('class');
+      const cls2 = await page.evaluate(() => document.querySelector('#countess th.sortable')?.getAttribute('class') || '');
       expect(cls2).toContain('sort-');
     }
   });
