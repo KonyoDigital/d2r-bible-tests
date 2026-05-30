@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 import * as path from 'path';
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Verified anchor data (silospen/pairofdocs)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BIBLE);

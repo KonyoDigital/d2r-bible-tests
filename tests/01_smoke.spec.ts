@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 import * as path from 'path';
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Smoke — page loads correctly', () => {
   test('page renders without errors', async ({ page }) => {
     const errors: string[] = [];
@@ -14,22 +14,22 @@ test.describe('Smoke — page loads correctly', () => {
     expect(errors, `Console/page errors found:\n${errors.join('\n')}`).toEqual([]);
   });
 
-  test('version pill present and renders vNN', async ({ page }) => {
+  test('version present in editorial masthead', async ({ page }) => {
     await page.goto(BIBLE);
-    await expect(page.locator('.h-title')).toContainText(/v\d+/);
+    // v43 editorial redesign: version moved out of .h-title into the masthead kicker
+    // (e.g. "Vol. XLIII · Spring 2026 · The Sanctuary Codex"). Assert a volume marker is shown.
+    await expect(page.locator('.masthead-kicker')).toContainText(/Vol\.\s*[IVXLCDM]+/i);
   });
 
-  test('all 6 tabs render', async ({ page }) => {
+  test('all primary tabs render', async ({ page }) => {
     await page.goto(BIBLE);
-    const tabs = await page.locator('.tab').allTextContents();
-    expect(tabs.length).toBeGreaterThanOrEqual(6);
-    expect(tabs.some(t => /bosses/i.test(t))).toBe(true);
-    expect(tabs.some(t => /calculator/i.test(t))).toBe(true);
-    expect(tabs.some(t => /TZ/i.test(t))).toBe(true);
-    expect(tabs.some(t => /runes/i.test(t))).toBe(true);
-    expect(tabs.some(t => /RotW/i.test(t))).toBe(true);
-    expect(tabs.some(t => /ancients/i.test(t))).toBe(true);
-    expect(tabs.some(t => /reference/i.test(t))).toBe(true);
+    // Assert by data-tab (stable) rather than visible label — the "ancients" tab is now
+    // labelled "events" and a "binds" tab was added; data-tab keys are the contract.
+    const dataTabs = await page.locator('.tab').evaluateAll(els => els.map(e => e.getAttribute('data-tab')));
+    expect(dataTabs.length).toBeGreaterThanOrEqual(7);
+    for (const t of ['bosses', 'calc', 'tz', 'runes', 'rotw', 'ancients', 'ref']) {
+      expect(dataTabs, `missing tab [data-tab=${t}]`).toContain(t);
+    }
   });
 
   test('all 11 boss cards render with required structure', async ({ page }) => {
@@ -52,10 +52,16 @@ test.describe('Smoke — page loads correctly', () => {
     await expect(page.locator('.hero-pick')).toHaveCount(15);
   });
 
-  test('legend renders 5 cards', async ({ page }) => {
+  test('legend renders 8 cards (5 base states + rarity/pills/fastest)', async ({ page }) => {
     await page.goto(BIBLE);
     const legend = page.locator('.legend-box .legend-item-card');
-    await expect(legend).toHaveCount(5);
+    await expect(legend).toHaveCount(8);
+    // new self-documenting states must be present (legend ↔ render parity)
+    await expect(page.locator('.legend-box .lc-rarity')).toHaveCount(1);
+    await expect(page.locator('.legend-box .lc-pill')).toHaveCount(1);
+    await expect(page.locator('.legend-box .lc-pill .pill')).not.toHaveCount(0);
+    // stale "v8" must be gone; verified count stays honest at 3
+    await expect(page.locator('.legend-box')).not.toContainText('v8');
   });
 
   test('grail progress widget present', async ({ page }) => {

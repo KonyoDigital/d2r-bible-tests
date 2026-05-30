@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 import * as path from 'path';
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Each cell renders the correct state', () => {
   test('blocked-tc cells render with TC-overrun title', async ({ page }) => {
     await page.goto(BIBLE);
@@ -53,6 +53,13 @@ test.describe('Each cell renders the correct state', () => {
 
   test('every boss row has clickable item name with star + owned button', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.waitForTimeout(400);
+    // v43: the full drop table is collapsed behind <details class="all-drops-details"> (Top Drops
+    // feature). Expand mephisto's so the rows are visible before asserting on their controls.
+    await page.evaluate(() => {
+      document.getElementById('mephisto')
+        ?.querySelector('details.all-drops-details')?.setAttribute('open', '');
+    });
     const firstRow = page.locator('#mephisto tr.clickable').first();
     await expect(firstRow.locator('.star-btn')).toBeVisible();
     await expect(firstRow.locator('.owned-btn')).toBeVisible();

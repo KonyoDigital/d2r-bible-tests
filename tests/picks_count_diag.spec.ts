@@ -1,7 +1,7 @@
 // Count picks per boss to see what dropped
 import { test } from '@playwright/test';
 import * as path from 'path';
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 const BOSSES = ['countess','andariel','duriel','mephisto','travincal','diablo','baal','pindle','nihl','cows','pit'];
 
 test('picks count per boss', async ({ page }) => {

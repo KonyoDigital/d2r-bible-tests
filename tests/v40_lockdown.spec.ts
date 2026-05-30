@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v40 LOCKDOWN — no new features. Lock in what is built.
 // Floors are absolute minimums based on the v40 census (3,257 rows × 6 diff = 19,514 chance cells).
@@ -85,11 +85,13 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
         const tds = row.querySelectorAll('td');
         for (let i = 2; i < tds.length; i++) {
           total++;
-          const txt = (tds[i] as HTMLElement).innerText.trim();
+          // v43: drop tables live inside collapsed <details>; innerText returns "" for hidden
+          // nodes. This is a DATA-integrity probe (not a visual one) so read textContent.
+          const txt = (tds[i] as HTMLElement).textContent!.trim();
           if (txt === '') {
             empty++;
             if (samples.length < 5) {
-              const item = (tds[0] as HTMLElement).innerText.trim();
+              const item = (tds[0] as HTMLElement).textContent!.trim();
               const card = (row.closest('[id]') as HTMLElement)?.id || '?';
               samples.push(`${card}/${item} col${i}`);
             }
@@ -135,7 +137,8 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
       if (!firstRow) return { ok: false, reason: 'no row' };
       const tds = firstRow.querySelectorAll('td');
       if (tds.length < 8) return { ok: false, reason: `${tds.length} tds` };
-      return { ok: true, item: (tds[0] as HTMLElement).innerText.trim(), before: (tds[7] as HTMLElement).innerText.trim() };
+      // v43: rows are inside collapsed <details>; use textContent (innerText is "" when hidden).
+      return { ok: true, item: (tds[0] as HTMLElement).textContent!.trim(), before: (tds[7] as HTMLElement).textContent!.trim() };
     });
     expect(sample.ok, `sample read failed: ${(sample as any).reason}`).toBe(true);
 
@@ -151,7 +154,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
       const meph = document.getElementById('mephisto');
       const firstRow = meph!.querySelector('table.drops tbody tr');
       const tds = firstRow!.querySelectorAll('td');
-      return (tds[7] as HTMLElement).innerText.trim();
+      return (tds[7] as HTMLElement).textContent!.trim();
     });
 
     // If MF affects this cell, the value should differ. (We picked Hell — MF effective always.)
@@ -171,19 +174,24 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
     });
     expect(unresolvedNav, 'boss-nav chips with broken data-boss-id').toBe(0);
 
-    // TZ zones: every zone with data-boss-id must point to an existing boss
+    // TZ honest-affordance (v43+): tagTzZonesWithBossId() sets a NON-EMPTY data-boss-id only on
+    // zones where a roster boss genuinely spawns; density / super-unique zones keep data-boss-id=""
+    // and intentionally do not route. So the contract is: every NON-EMPTY data-boss-id must resolve
+    // to an existing boss card (no broken links), and at least one zone routes. Authoritative
+    // per-zone correctness lives in routing_and_data_integrity.spec.ts.
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(200);
     const unresolvedTz = await page.evaluate(() => {
-      const cards = Array.from(document.querySelectorAll('.tz-zone-card[data-boss-id]'));
-      return cards.filter(c => !document.getElementById(c.getAttribute('data-boss-id')!)).length;
+      const cards = Array.from(document.querySelectorAll('.tz-zone-card'));
+      return cards.filter(c => {
+        const id = c.getAttribute('data-boss-id');
+        return id && id.length > 0 && !document.getElementById(id);
+      }).length;
     });
-    expect(unresolvedTz, 'TZ cards with broken data-boss-id').toBe(0);
+    expect(unresolvedTz, 'TZ cards with broken (non-empty) data-boss-id').toBe(0);
 
-    // 100% TZ coverage (v40 promise: every TZ zone routed)
-    const totalTz = await page.locator('.tz-zone-card').count();
-    const mappedTz = await page.locator('.tz-zone-card[data-boss-id]').count();
-    expect(mappedTz, `${totalTz - mappedTz} TZ zones unrouted`).toBe(totalTz);
+    const routedTz = await page.locator('.tz-zone-card[data-boss-id]:not([data-boss-id=""])').count();
+    expect(routedTz, 'at least one TZ zone should route to a roster boss').toBeGreaterThan(0);
   });
 
   test('global functions stable on window: switchTab, openBossDetail, clearActiveBoss, setActiveBoss, setActiveItem, clearActiveItem', async ({ page }) => {

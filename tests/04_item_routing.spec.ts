@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v38 selector map (was v12):
 //   .detail-name      -> .aid-item-name
@@ -15,6 +15,11 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
   test('clicking item in boss table jumps to calculator detail', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(400);
+    // v43: full drop table is collapsed behind <details class="all-drops-details"> — expand
+    // before interacting with a row (otherwise the row is hidden and the click never resolves).
+    await page.evaluate(() => {
+      document.querySelectorAll('details.all-drops-details').forEach(d => d.setAttribute('open', ''));
+    });
     const row = page.locator('#mephisto tr[data-item="Harlequin Crest (Shako)"]');
     await row.locator('td.item-name').click();
     await expect(page.locator('.tab[data-tab="calc"]')).toHaveClass(/active/);

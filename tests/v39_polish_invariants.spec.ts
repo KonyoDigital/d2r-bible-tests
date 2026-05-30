@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 
-const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.describe('v39 polish — tab persistence', () => {
   test('switching tab writes d2r_activeTab to localStorage', async ({ page }) => {

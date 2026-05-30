@@ -14,7 +14,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
-const FILE_URL = 'file://' + path.resolve(__dirname, '..', 'bible_routes.html');
+const FILE_URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.beforeEach(async ({ page }) => {
   await page.goto(FILE_URL);
