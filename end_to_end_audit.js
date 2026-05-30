@@ -195,8 +195,13 @@ const fs = require('fs');
     }));
   });
   const tzRouted = tzZones.filter(z => z.bossId && z.hasOnclick).length;
-  audit.tz_zones = { total: tzZones.length, routed: tzRouted, unrouted: tzZones.length - tzRouted };
-  console.log(`  ${tzRouted}/${tzZones.length} zones routed ${audit.tz_zones.unrouted === 0 ? '✓' : '✗'}`);
+  // Honest-affordance design (TZ_BOSS_MAP): ONLY zones where an 11-roster boss spawns get a
+  // data-boss-id; density / super-unique-only zones intentionally have empty data-boss-id and
+  // are non-routing. So `unrouted > 0` is EXPECTED, not a regression. The integrity check is:
+  // no zone is half-mapped (a bossId present without a click handler).
+  const tzHalfMapped = tzZones.filter(z => z.bossId && !z.hasOnclick).length;
+  audit.tz_zones = { total: tzZones.length, routed: tzRouted, unrouted: tzZones.length - tzRouted, half_mapped: tzHalfMapped };
+  console.log(`  ${tzRouted}/${tzZones.length} zones routed (rest are by-design density/super-unique, non-routing)${tzHalfMapped ? ` · ⚠ ${tzHalfMapped} half-mapped` : ''}`);
   
   // Test one click roundtrip: TZ zone → boss overlay
   if (tzZones.length > 0) {
@@ -228,7 +233,10 @@ const fs = require('fs');
   console.log(`Sliders:        MF=500 ${audit.sliders.mf_500?'✓':'✗'} · MF=1000 ${audit.sliders.mf_1000?'✓':'✗'} · 699 ${audit.sliders.mf_preset_699?'✓':'✗'} · 553 ${audit.sliders.mf_preset_553?'✓':'✗'}`);
   console.log(`Wishlist:       empty ${audit.wishlist.empty_state?'✓':'✗'} · populated ${audit.wishlist.populated_state?'✓':'✗'}`);
   console.log(`Heavy sim:      2000 trials in ${audit.sim_heavy.elapsed_ms||'?'}ms ${audit.sim_heavy.ran_ok?'✓':'✗'}`);
-  console.log(`TZ routing:     ${audit.tz_zones?.routed}/${audit.tz_zones?.total} zones ${audit.tz_zones?.unrouted === 0 ? '✓' : '✗'} · click→boss ${audit.tz_zones?.routing_works?'✓':'✗'}`);
+  // TZ category passes when the honest-affordance contract holds: no zone is half-mapped, and
+  // when at least one zone maps the click→boss roundtrip works. Unrouted density zones are fine.
+  const tzOk = (audit.tz_zones?.half_mapped === 0) && (audit.tz_zones?.routed === 0 || audit.tz_zones?.routing_works === true);
+  console.log(`TZ routing:     ${audit.tz_zones?.routed}/${audit.tz_zones?.total} mapped ${tzOk ? '✓' : '✗'} · click→boss ${audit.tz_zones?.routing_works?'✓':'✗'} · (unrouted = by-design density zones)`);
   
   if (audit.items.fail_count > 0) {
     console.log(`\nFirst ${Math.min(10, audit.items.fail_count)} item fails:`);
@@ -242,7 +250,7 @@ const fs = require('fs');
     slidersOk,
     wishOk,
     audit.sim_heavy.ran_ok,
-    audit.tz_zones?.unrouted === 0,
+    tzOk,
     errors.length === 0
   ];
   const passed = checks.filter(Boolean).length;
