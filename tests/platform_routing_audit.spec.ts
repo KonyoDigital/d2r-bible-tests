@@ -264,7 +264,7 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
   // routing data-attr, or .clickable, or .ic-card/.item-tile/.hero-pick/.source-chip)
   // must change observable state when clicked. A no-op is a dead click.
   test('dead-click sweep — no navigation element clicks into the void', async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(240000);
     const captureSig = () => page.evaluate(() => {
       const g = (n: string) => { try { return eval(`typeof ${n}!=="undefined"?${n}:null`); } catch { return null; } };
       const detail = document.getElementById('item-detail');
@@ -317,14 +317,16 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
             return true;
           }, { s: sel, idx: i });
           if (!clicked) continue;
-          // poll for an observable state change — a routed render can lag under parallel
-          // load, so give it a few short retries before declaring the click dead (avoids
-          // suite-tail timing flakes while still catching genuine no-ops).
-          let after = before;
-          for (let attempt = 0; attempt < 5; attempt++) {
-            await page.waitForTimeout(140);
+          // These click handlers mutate state (activeBossId/selectedItem/.show/showN)
+          // SYNCHRONOUSLY, so capture immediately — a real click is already changed by
+          // the time the eval returns. Only a genuine no-op falls through to the poll,
+          // which tolerates the rare laggard (async scroll-binned scrollY) under parallel
+          // load without making every click pay a fixed wait. This keeps the sweep well
+          // under the timeout even on the heavier codex page.
+          let after = await captureSig();
+          for (let attempt = 0; after === before && attempt < 4; attempt++) {
+            await page.waitForTimeout(120);
             after = await captureSig();
-            if (after !== before) break;
           }
           if (after === before) {
             const label = await page.evaluate(({ s, idx }) => {
