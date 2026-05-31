@@ -4868,7 +4868,7 @@ function renderCalc() {
     </div>`;
   }).join("");
   grid.querySelectorAll(".item-tile").forEach(el => {
-    el.onclick = () => { selectedItem = el.dataset.name; activeItem = el.dataset.name; setActiveItem(el.dataset.name); renderCalc(); renderDetail(); };
+    el.onclick = () => { selectedItem = el.dataset.name; activeItem = el.dataset.name; setActiveItem(el.dataset.name); renderCalc(); renderDetail(); document.getElementById("item-detail")?.scrollIntoView({behavior:"smooth", block:"start"}); };
   });
   renderDetail();
 }
