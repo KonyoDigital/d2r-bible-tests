@@ -276,9 +276,11 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
         act: g('activeItem'),
         itemDetail: g('activeItemDetail'),
         detailShown: !!detail?.classList.contains('show'),
-        detailLen: (detail?.textContent || '').length,
+        // childElementCount is O(children); textContent.length is O(whole subtree)
+        // and was the per-click hot-spot on the 1062KB codex page — swap it out.
+        detailKids: detail?.childElementCount ?? 0,
         gicHidden: !!gic?.classList.contains('hidden'),
-        gicLen: (gic?.textContent || '').length,
+        gicKids: gic?.childElementCount ?? 0,
         showN: document.querySelectorAll('.show,.active,.open,.has-item').length,
         scrollY: Math.round(window.scrollY / 50),
       });
@@ -302,7 +304,7 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
       for (const sel of SELECTORS) {
         const count = await page.locator(sel).count();
         if (count === 0) continue;
-        // sample up to 2 evenly-spaced elements of this type on this tab
+        // sample first + last of this type on this tab
         const idxs = count <= 2 ? [...Array(count).keys()] : [0, count - 1];
         for (const i of idxs) {
           const before = await captureSig();
@@ -310,13 +312,18 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
             const els = document.querySelectorAll(s);
             const el = els[idx] as HTMLElement | undefined;
             if (!el) return false;
-            // need a visible target to click; if collapsed in <details>, open ancestor first
+            // Many panels (e.g. the calc #item-grid) stay in the DOM while their tab is
+            // hidden, so querySelectorAll matches tiles that are display:none on this tab.
+            // A user can't click those — sweeping them wastes a heavy render AND mis-fires
+            // "no state change" when idx 0 happens to already be the active selection.
+            // Only sweep genuinely visible targets; reveal a collapsed <details> first.
             const det = el.closest('details');
             if (det && !det.open) det.setAttribute('open', '');
+            if (!el.offsetParent && el.getClientRects().length === 0) return 'hidden';
             el.click();
             return true;
           }, { s: sel, idx: i });
-          if (!clicked) continue;
+          if (clicked === 'hidden' || !clicked) continue;
           // These click handlers mutate state (activeBossId/selectedItem/.show/showN)
           // SYNCHRONOUSLY, so capture immediately — a real click is already changed by
           // the time the eval returns. Only a genuine no-op falls through to the poll,
@@ -324,8 +331,8 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
           // load without making every click pay a fixed wait. This keeps the sweep well
           // under the timeout even on the heavier codex page.
           let after = await captureSig();
-          for (let attempt = 0; after === before && attempt < 4; attempt++) {
-            await page.waitForTimeout(120);
+          for (let attempt = 0; after === before && attempt < 3; attempt++) {
+            await page.waitForTimeout(100);
             after = await captureSig();
           }
           if (after === before) {
