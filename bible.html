@@ -1542,6 +1542,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .codex-card .cx-member-slot{ color:var(--text-dim); font-size:11px; font-style:italic; }
 .codex-card .cx-note{ font-family:var(--serif-text); font-style:italic; font-size:12.5px; color:var(--text-dim); margin-top:11px; line-height:1.55; }
 </style>
+<style id="tier-group-styles">
+.tier-intro{font-family:var(--serif-text,'Playfair Display',serif);font-style:italic;color:var(--text-muted);font-size:13px;margin:2px 2px 22px;text-align:center}
+.tier-section{margin:0 0 26px}
+.tier-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-left:3px solid var(--tier-accent,#7d6f57);padding:10px 2px 6px 13px;border-bottom:1px solid var(--border)}
+.tier-name{font-family:var(--serif-display,'Cinzel',serif);font-weight:700;font-size:16px;letter-spacing:.13em;color:var(--tier-accent,#d4a847);text-transform:uppercase}
+.tier-mult{font-family:var(--serif-text,'Playfair Display',serif);font-size:13.5px;color:var(--text-dim);margin-left:auto;font-variant-numeric:tabular-nums}
+.tier-tag{font-family:var(--serif-text,'Playfair Display',serif);font-style:italic;color:var(--text-muted);font-size:12.5px;padding:7px 0 2px 14px}
+.pt-swarm{--tier-accent:#ff4040}
+.pt-fisted{--tier-accent:#ff9d3c}
+.pt-prime{--tier-accent:#d4a847}
+.pt-vault{--tier-accent:#8a7d62}
+</style>
 </head>
 <body>
 <div class="header">
@@ -4640,7 +4652,9 @@ function renderBossNav() {
 }
 
 function renderBossCards() {
-  $("boss-cards").innerHTML = BOSSES.map(boss => {
+  var __cardOf = {};
+  BOSSES.forEach(boss => {
+    __cardOf[boss.id] = (() => {
     const tClasses = ["t-norm","t-norm-tz","t-nm","t-nm-tz","t-hell","t-hell-tz"];
     const diffsHtml = boss.diffs.map((d,i) => `<div class="diff-cell ${tClasses[i]}" title="${d.label}: mlvl ${d.mlvl}, max TC ${d.tcMax}">
       <div class="diff-label ${d.terror?'terror':''}">${d.label}</div>
@@ -4818,7 +4832,31 @@ function renderBossCards() {
         <div class="info"><strong>🎮 Recommended char:</strong> ${boss.char}</div>
       </div>
     </div>`;
-  }).join("");
+  })();
+  });
+
+  const PLAYER_TIERS = [
+    {name:'THE SWARM',       cls:'pt-swarm',  members:['pit','cows'],                   tag:'Open hordes, high NoDrop — every extra player floods the field with drops.'},
+    {name:'THE TIGHT-FISTED',cls:'pt-fisted', members:['andariel','nihl','travincal'], tag:'They clutch their loot — more players pries it loose.'},
+    {name:'PRIME EVILS',     cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers. Low NoDrop — a crowd barely swells the hoard.'},
+    {name:'THE OPEN VAULT',  cls:'pt-vault',  members:['countess','duriel','pindle'],   tag:'Always spills its full table — P# adds only HP, never loot.'}
+  ];
+  const _usedIds = {};
+  PLAYER_TIERS.forEach(g => g.members.forEach(id => { _usedIds[id] = 1; }));
+  const _tiersHtml = PLAYER_TIERS.map(g => {
+    const ms = g.members.filter(id => __cardOf[id]).map(id => playerMult(id, 'hell', players));
+    let xtxt = '×1.00';
+    if (ms.length) {
+      const lo = Math.min(...ms), hi = Math.max(...ms);
+      xtxt = (Math.abs(lo - hi) < 0.005) ? ('×' + hi.toFixed(2)) : ('×' + lo.toFixed(2) + '–' + hi.toFixed(2));
+    }
+    const cards = g.members.map(id => __cardOf[id] || '').join('');
+    return `<div class="tier-section ${g.cls}">
+      <div class="tier-head"><span class="tier-name">${g.name}</span><span class="tier-mult" title="drop-quantity multiplier at /players ${players}">/players ${players} · ${xtxt}</span></div>
+      <div class="tier-tag">${g.tag}</div>${cards}</div>`;
+  }).join('');
+  const _leftover = BOSSES.filter(b => !_usedIds[b.id]).map(b => __cardOf[b.id] || '').join('');
+  $("boss-cards").innerHTML = `<div class="tier-intro">Grouped by <strong>/players</strong> drop-scaling — drag <strong>P#</strong> above to watch each class react.</div>` + _tiersHtml + _leftover;
 
   document.querySelectorAll("tr.clickable").forEach(tr => {
     tr.onclick = e => {
@@ -5614,7 +5652,7 @@ function switchTab(name) {
 }
 
 $("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
-$("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
+$("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
 $("item-search").oninput = e => { searchQ = e.target.value; renderCalc(); };
 document.querySelectorAll(".filter-pill").forEach(p => {
   p.onclick = () => {
