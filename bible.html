@@ -5373,8 +5373,16 @@ function renderAidCard(name, opts){
   if (!item) return "";
 
   const adj = item.sources.map(s => ({...s, adj: s.chance ? effChance(s.chance, s.bossId, s.diffKey) : null}));
-  const valid = adj.filter(s => s.adj !== null && s.adj >= 100);
-  valid.sort((a,b) => (hoursFor(a.adj,0.5,a.kph)||Infinity) - (hoursFor(b.adj,0.5,b.kph)||Infinity));
+  // Convention (see fmt): raw chance < 100 is a PERCENTAGE per kill (event/uber drops like
+  // Annihilus + the Pandemonium Keys), >= 100 is a 1:N denominator. The global runsFor/hoursFor
+  // only handle 1:N, so %-sources need the binomial applied to the per-kill % directly.
+  const isPctC = c => c != null && c < 100;
+  const pctRuns = (pct, conf) => (pct > 0 && pct < 100) ? Math.ceil(Math.log(1-conf)/Math.log(1-pct/100)) : null;
+  const runsForA = (rawChance, adjVal, conf) => isPctC(rawChance) ? pctRuns(adjVal, conf) : runsFor(adjVal, conf);
+  const hoursForA = (rawChance, adjVal, kph, conf) => { const r = runsForA(rawChance, adjVal, conf); return (r != null && kph) ? r / kph : null; };
+  // %-sources are achievable — don't drop them as "no sources".
+  const valid = adj.filter(s => s.adj !== null && (s.adj >= 100 || isPctC(s.chance)));
+  valid.sort((a,b) => (hoursForA(a.chance,a.adj,a.kph,0.5)||Infinity) - (hoursForA(b.chance,b.adj,b.kph,0.5)||Infinity));
 
   let focus = null;
   if (activeSourceKey) {
@@ -5390,10 +5398,10 @@ function renderAidCard(name, opts){
     return `<div class="aid-card"><div class="aid-empty">No achievable sources for <strong>${name}</strong> at MF ${mf}% — try higher difficulty or terror zone.</div></div>`;
   }
 
-  const h50 = hoursFor(focus.adj, 0.5, focus.kph);
-  const r50 = runsFor(focus.adj, 0.5);
-  const h95 = hoursFor(focus.adj, 0.95, focus.kph);
-  const r95 = runsFor(focus.adj, 0.95);
+  const h50 = hoursForA(focus.chance, focus.adj, focus.kph, 0.5);
+  const r50 = runsForA(focus.chance, focus.adj, 0.5);
+  const h95 = hoursForA(focus.chance, focus.adj, focus.kph, 0.95);
+  const r95 = runsForA(focus.chance, focus.adj, 0.95);
   const isFastest = focus === valid[0];
   const fastest = valid[0];
 
@@ -5409,7 +5417,7 @@ function renderAidCard(name, opts){
 
   const fasterBanner = !isFastest && fastest ? `
     <div class="aid-faster-banner">
-      <span>⚠ <strong>${fastest.boss}</strong> is ${fmtHours(h50 - hoursFor(fastest.adj,0.5,fastest.kph))} faster: ${fmt(fastest.adj)} (${fmtHours(hoursFor(fastest.adj,0.5,fastest.kph))} for 50%)</span>
+      <span>⚠ <strong>${fastest.boss}</strong> is ${fmtHours(h50 - hoursForA(fastest.chance,fastest.adj,fastest.kph,0.5))} faster: ${fmt(fastest.adj)} (${fmtHours(hoursForA(fastest.chance,fastest.adj,fastest.kph,0.5))} for 50%)</span>
       <a href="javascript:void(0)" onclick="${opts.context==='calc'?'switchTab(\'bosses\');':''}setActiveItem('${escName}', '${fastest.bossId}', '${fastest.diffKey}');setTimeout(()=>{document.getElementById('${fastest.bossId}').scrollIntoView();jumpToBossItem('${escName}')},100)">jump to fastest →</a>
     </div>` : '';
 
@@ -5418,7 +5426,7 @@ function renderAidCard(name, opts){
     if (!src) return null;
     const sAdj = src.chance ? effChance(src.chance, src.bossId, src.diffKey) : null;
     const blocked = src.blocked;
-    const sH50 = sAdj ? hoursFor(sAdj, 0.5, src.kph) : null;
+    const sH50 = sAdj ? hoursForA(src.chance, sAdj, src.kph, 0.5) : null;
     const isFocused = dk === focus.diffKey;
     const diffLabel = (DIFF_MODIFIERS[dk]||{}).label || dk.toUpperCase();
     return `<div class="aid-compare-row ${isFocused?'focused':''}">
@@ -5460,7 +5468,7 @@ function renderAidCard(name, opts){
       <div class="aid-tabbar-chips">
         ${valid.slice(0,12).map(s => {
           const isF = s.bossId===focus.bossId && s.diffKey===focus.diffKey;
-          const sH50 = hoursFor(s.adj, 0.5, s.kph);
+          const sH50 = hoursForA(s.chance, s.adj, s.kph, 0.5);
           return `<button class="source-chip" onclick="setActiveItem('${escName}', '${s.bossId}', '${s.diffKey}')${opts.context==='calc'?';switchTab(\'bosses\');setTimeout(()=>{document.getElementById(\''+s.bossId+'\').scrollIntoView();jumpToBossItem(\''+escName+'\')},100)':''}" ${isF?'data-active="true"':''}>${isF?'⭐ ':''}${s.boss}<span class="chip-chance">${fmt(s.adj)}</span><span class="chip-time">${fmtHours(sH50)}</span>${s.verified?'<span class="chip-verified">🔒</span>':''}</button>`;
         }).join('')}
         ${valid.length > 12 ? `<span class="aid-tabbar-more">+${valid.length-12} more (see compare table below)</span>` : ''}
@@ -5490,12 +5498,12 @@ function renderAidCard(name, opts){
           </div>
           <div class="aid-stat">
             <div class="aid-stat-label">50% confident</div>
-            <div class="aid-stat-val">${r50.toLocaleString()}<span class="aid-stat-unit">runs</span></div>
+            <div class="aid-stat-val">${r50!=null?r50.toLocaleString():'—'}<span class="aid-stat-unit">runs</span></div>
             <div class="aid-stat-hint">≈ ${fmtHours(h50)}</div>
           </div>
           <div class="aid-stat">
             <div class="aid-stat-label">95% confident</div>
-            <div class="aid-stat-val">${r95.toLocaleString()}<span class="aid-stat-unit">runs</span></div>
+            <div class="aid-stat-val">${r95!=null?r95.toLocaleString():'—'}<span class="aid-stat-unit">runs</span></div>
             <div class="aid-stat-hint">≈ ${fmtHours(h95)}</div>
           </div>
         </div>
