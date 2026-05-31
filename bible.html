@@ -1561,7 +1561,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <span class="slider-value" id="mf-val">699%</span>
     </div>
     <div class="slider-group">
-      <span class="slider-label">P#<span class="player-explainer kbd-tip" data-tip="/players N — sets player count for offline farming. Higher N = more monster HP and slightly better drop chance, but slower kills. /players 1 = solo (fastest TTK). /players 3 = sweet spot for many builds. /players 8 = max HP+drop but slowest. For online realm play, party size determines this automatically.">?</span></span>
+      <span class="slider-label">P#<span class="player-explainer kbd-tip" data-tip="/players N — sets player count. Higher N shrinks each monster’s NoDrop, so it drops MORE items (quantity) — it never changes drop QUALITY (that’s MF’s job). Effect depends on the source: nothing for guaranteed droppers (Countess, Duriel, Pindleskin), ~1.2× for Mephisto/Diablo/Baal, up to ~2.3× for Cows & The Pit. /players 1 = fastest kills. Online, party size sets this automatically.">?</span></span>
       <input type="range" id="players" min="1" max="8" step="1" value="1">
       <span class="slider-value" id="players-val">1</span>
     </div>
@@ -1638,7 +1638,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <div class="legend-color-block lc-num"></div>
         <div class="legend-item-text">
           <div class="legend-item-title">1:X chance (estimated)</div>
-          <div class="legend-item-desc">Item CAN drop. TC-ratio estimate, MF-scaled live.</div>
+          <div class="legend-item-desc">Item CAN drop. TC-ratio estimate, MF + /players scaled live.</div>
         </div>
       </div>
       <div class="legend-item-card">
@@ -3265,7 +3265,22 @@ const adjustChance = (base, gMF) => {
   const userEff = effMF(gMF, 250);
   return Math.round(base * (1+refEff/100) / (1+userEff/100));
 };
-const fmt = c => c === null || c === undefined ? "—" : (c < 100 ? `${c}%` : `1:${c.toLocaleString()}`);
+const PLAYER_Q = {"countess":{"norm":0.0,"nm":0.0,"hell":0.0},"andariel":{"norm":0.28358,"nm":0.28358,"hell":0.27941},"duriel":{"norm":0.0,"nm":0.0,"hell":0.0},"mephisto":{"norm":0.1875,"nm":0.1875,"hell":0.18293},"travincal":{"norm":0.34545,"nm":0.34545,"hell":0.34545},"diablo":{"norm":0.1875,"nm":0.1875,"hell":0.18293},"baal":{"norm":0.1875,"nm":0.1875,"hell":0.18293},"pindle":{"norm":0.0,"nm":0.0,"hell":0.0},"nihl":{"norm":0.31667,"nm":0.31667,"hell":0.31148},"cows":{"norm":0.625,"nm":0.625,"hell":0.625},"pit":{"norm":0.625,"nm":0.625,"hell":0.625}};
+    function playerMult(bossId, diffKey, players){
+      if(!bossId || !diffKey) return 1;
+      var tier = diffKey.indexOf('hell')===0 ? 'hell' : diffKey.indexOf('nm')===0 ? 'nm' : 'norm';
+      var q = (PLAYER_Q[bossId]||{})[tier];
+      if(!q) return 1;
+      var k = Math.ceil((players||1)/2);
+      return (1 - Math.pow(q,k)) / (1 - q);
+    }
+    function effChance(base, bossId, diffKey){
+      var a = adjustChance(base, mf);
+      if (a === null || a < 100) return a;
+      var m = playerMult(bossId, diffKey, players);
+      return m > 1 ? Math.round(a / m) : a;
+    }
+    const fmt = c => c === null || c === undefined ? "—" : (c < 100 ? `${c}%` : `1:${c.toLocaleString()}`);
 const runsFor = (chance, conf) => !chance || chance < 100 ? null : Math.ceil(Math.log(1-conf)/Math.log(1-1/chance));
 // hours for X% confidence given chance + kills_per_hour
 const hoursFor = (chance, conf, kph) => {
@@ -3611,7 +3626,7 @@ function renderWishlistHuntPath() {
       let best = null;
       (item.sources || []).forEach(s => {
         if (!s.chance || s.chance < 100) return;
-        const adj = adjustChance(s.chance, mf);
+        const adj = effChance(s.chance, s.bossId, s.diffKey);
         const hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
         if (!best || hrs < best.hours) best = {hours:hrs};
@@ -3647,7 +3662,7 @@ function renderWishlistHuntPath() {
     let best = null;
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance < 100) return;
-      const adj = adjustChance(s.chance, mf);
+      const adj = effChance(s.chance, s.bossId, s.diffKey);
       const hrs = hoursFor(adj, 0.5, s.kph || 100);
       const r50 = runsFor(adj, 0.5);
       if (hrs === null) return;
@@ -3783,7 +3798,7 @@ function renderItemDetailCard(itemName) {
   const sources = [];
   (item.sources || []).forEach(s => {
     if (!s.chance || s.chance < 100) return;
-    const adj = adjustChance(s.chance, mf);
+    const adj = effChance(s.chance, s.bossId, s.diffKey);
     const hrs = hoursFor(adj, 0.5, s.kph || 100);
     const r50 = runsFor(adj, 0.5);
     if (hrs !== null && r50 !== null) {
@@ -4002,7 +4017,7 @@ function renderHeroV31() {
       itemBossHrs[item.n] = {};
       (item.sources || []).forEach(s => {
         if (!s.chance || s.chance < 100) return;
-        const adj = adjustChance(s.chance, mf);
+        const adj = effChance(s.chance, s.bossId, s.diffKey);
         const hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
         if (!itemBossHrs[item.n][s.bossId] || hrs < itemBossHrs[item.n][s.bossId]) {
@@ -4033,7 +4048,7 @@ function renderHeroV31() {
       (item.sources || []).forEach(s => {
         if (s.bossId !== bossActive) return;
         if (!s.chance || s.chance < 100) return;
-        const adj = adjustChance(s.chance, mf);
+        const adj = effChance(s.chance, s.bossId, s.diffKey);
         const hrs = hoursFor(adj, 0.5, s.kph || 100);
         if (hrs === null) return;
         if (!bestSource || hrs < bestSource.hours) {
@@ -4119,7 +4134,7 @@ function renderHeroV31() {
     const bestPerBoss = {};
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance < 100) return;
-      const adj = adjustChance(s.chance, mf);
+      const adj = effChance(s.chance, s.bossId, s.diffKey);
       const hrs = hoursFor(adj, 0.5, s.kph || 100);
       if (hrs === null) return;
       if (!bestPerBoss[s.bossId] || hrs < bestPerBoss[s.bossId].hours) {
@@ -4275,7 +4290,7 @@ function renderBossDetailCard(bossId, focusDiff) {
     let best = null;
     diffKeys.forEach(k => {
       if (d[k]) {
-        const adj = adjustChance(d[k], mf);
+        const adj = effChance(d[k], boss.id, k);
         if (!best || adj < best.adj) {
           const kphMult = (k==='norm'||k==='normTz') ? 1.2 : (k==='nm'||k==='nmTz') ? 1.1 : 1.0;
           best = {adj, diffKey:k, h50: hoursFor(adj, 0.5, boss.kph * kphMult)};
@@ -4399,14 +4414,14 @@ function renderBossDetailCard(bossId, focusDiff) {
           if (!top12.length || top12[0]._best === Infinity) return `<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:18px">no items in this boss\'s drop table</td></tr>`;
           return top12.map(d => {
             const esc = d.n.replace(/'/g,"\\'");
-            const adjusted = (v) => v == null ? '<span style="color:var(--text-muted)">—</span>' : fmt(adjustChance(v, mf));
+            const adjusted = (v, dk) => v == null ? '<span style="color:var(--text-muted)">—</span>' : fmt(effChance(v, boss.id, dk));
             return `<tr style="cursor:pointer" onclick="navigateToItem(\'${esc}\', {tab:\'bosses\', bossId:\'${boss.id}\'})">
               <td><strong>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
               <td style="font-family:var(--mono);color:var(--text-muted);font-size:11px">TC${d.tc}</td>
-              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.norm)}</td>
-              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.nm)}</td>
-              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.hell)}</td>
-              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.hellTz)}</td>
+              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.norm,'norm')}</td>
+              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.nm,'nm')}</td>
+              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.hell,'hell')}</td>
+              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.hellTz,'hellTz')}</td>
             </tr>`;
           }).join('');
         })()}</tbody>
@@ -4657,7 +4672,7 @@ function renderBossCards() {
       if ((d.tier !== "grail" && d.tier !== "uber") || owned.has(d.n)) return;
       ["hellTz","hell","nmTz","nm","normTz","norm"].forEach(k => {
         if (d[k]) {
-          const adj = adjustChance(d[k], mf);
+          const adj = effChance(d[k], boss.id, k);
           if (adj < bestChance) { bestChance = adj; bestRow = d; bestDiffKey = k; }
         }
       });
@@ -4681,7 +4696,7 @@ function renderBossCards() {
     _grailPool.forEach(d => {
       let best = null, bestKey = null;
       ["norm","normTz","nm","nmTz","hell","hellTz"].forEach(k => {
-        const adj = adjustChance(d[k], mf);
+        const adj = effChance(d[k], boss.id, k);
         if (adj !== null && (best === null || adj < best)) { best = adj; bestKey = k; }
       });
       if (best !== null) _topDrops.push({ d, best, bestKey });
@@ -4713,7 +4728,7 @@ function renderBossCards() {
     const rows = dropTable.map(d => {
       const diffKeys = ["norm","normTz","nm","nmTz","hell","hellTz"];
       const verifiedDiffs = d.v || [];
-      const adjusted = diffKeys.map(k => adjustChance(d[k], mf));
+      const adjusted = diffKeys.map(k => effChance(d[k], boss.id, k));
       const valid = adjusted.filter(v => v !== null && v >= 100);
       const minChance = valid.length ? Math.min(...valid) : null;
       const cells = diffKeys.map((k,i) => {
@@ -4973,7 +4988,7 @@ function renderDetail() {
   const item = ITEMS.find(i => i.n === selectedItem);
   if (!item) { panel.classList.remove("show"); return; }
   panel.classList.add("show");
-  const adjusted = item.sources.map(s => ({...s, adjustedChance:s.chance?adjustChance(s.chance,mf):null}));
+  const adjusted = item.sources.map(s => ({...s, adjustedChance:s.chance?effChance(s.chance,s.bossId,s.diffKey):null}));
   const valid = adjusted.filter(s => s.adjustedChance !== null && s.adjustedChance >= 100);
   const sorted = [...valid].sort((a,b) => {
     const aHrs = hoursFor(a.adjustedChance, 0.5, a.kph) || Infinity;
@@ -5200,7 +5215,7 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
   // Find best source for active item summary
   const item = ITEMS.find(i => i.n === name);
   if (item) {
-    const adj = item.sources.map(s => ({...s, adj: s.chance ? adjustChance(s.chance, mf) : null}));
+    const adj = item.sources.map(s => ({...s, adj: s.chance ? effChance(s.chance, s.bossId, s.diffKey) : null}));
     const valid = adj.filter(s => s.adj !== null && s.adj >= 100);
     valid.sort((a, b) => {
       const ah = hoursFor(a.adj, 0.5, a.kph) || Infinity;
@@ -5254,7 +5269,7 @@ function renderDiffCompareTable(item, focus, validSources){
       const idx = boss.diffs.findIndex(dx => DIFF_KEYS_ORDERED[boss.diffs.indexOf(dx)] === dk);
       return DIFF_KEYS_ORDERED[boss.diffs.indexOf(d)] === dk;
     });
-    const adj = src.chance ? adjustChance(src.chance, mf) : null;
+    const adj = src.chance ? effChance(src.chance, src.bossId, src.diffKey) : null;
     const blocked = src.blocked;
     const h50 = adj ? hoursFor(adj, 0.5, src.kph) : null;
     const isFocused = dk === focus.diffKey;
@@ -5291,7 +5306,7 @@ function renderAidCard(name, opts){
   const item = ITEMS.find(i => i.n === name);
   if (!item) return "";
 
-  const adj = item.sources.map(s => ({...s, adj: s.chance ? adjustChance(s.chance, mf) : null}));
+  const adj = item.sources.map(s => ({...s, adj: s.chance ? effChance(s.chance, s.bossId, s.diffKey) : null}));
   const valid = adj.filter(s => s.adj !== null && s.adj >= 100);
   valid.sort((a,b) => (hoursFor(a.adj,0.5,a.kph)||Infinity) - (hoursFor(b.adj,0.5,b.kph)||Infinity));
 
@@ -5335,7 +5350,7 @@ function renderAidCard(name, opts){
   const compareRows = DIFF_KEYS_ORDERED.map(dk => {
     const src = item.sources.find(s => s.bossId === focus.bossId && s.diffKey === dk);
     if (!src) return null;
-    const sAdj = src.chance ? adjustChance(src.chance, mf) : null;
+    const sAdj = src.chance ? effChance(src.chance, src.bossId, src.diffKey) : null;
     const blocked = src.blocked;
     const sH50 = sAdj ? hoursFor(sAdj, 0.5, src.kph) : null;
     const isFocused = dk === focus.diffKey;
@@ -5461,7 +5476,7 @@ window.clearActiveItem = () => setActiveItem(null);
 
 function renderSourceStrip(item) {
   if (!item) return "";
-  const adj = item.sources.map(s => ({...s, adj: s.chance ? adjustChance(s.chance, mf) : null}));
+  const adj = item.sources.map(s => ({...s, adj: s.chance ? effChance(s.chance, s.bossId, s.diffKey) : null}));
   const valid = adj.filter(s => s.adj !== null && s.adj >= 100);
   if (!valid.length) return `<div class="source-strip"><span class="source-strip-label">no achievable sources at MF ${mf}%</span></div>`;
   valid.sort((a, b) => {
@@ -5735,7 +5750,7 @@ window.exportWishlistAsMarkdown = function() {
     let bestSrc = null;
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance < 100) return;
-      const adj = adjustChance(s.chance, mf);
+      const adj = effChance(s.chance, s.bossId, s.diffKey);
       const hrs = hoursFor(adj, 0.5, s.kph || 100);
       if (hrs === null) return;
       if (!bestSrc || hrs < bestSrc.hrs) bestSrc = { boss: s.boss, chance: adj, kph: s.kph || 100, hrs };
@@ -6095,7 +6110,7 @@ const BOSS_FIELD_MANUAL = {
 const TIPS_WISDOM = [
   {
     label: "PLAYERS=8 MYTH",
-    body: "Setting /players 8 does <strong>NOT</strong> increase rare/unique/set drops. It only boosts <em>quantity of NoDrop rolls being replaced</em>, which slightly increases overall drop volume. Real impact: ~10-15% more drops, but each drop's quality table is unchanged. <code>/players 1</code> is faster for MF runs."
+    body: "Setting /players 8 does <strong>NOT</strong> change drop <em>quality</em> — your rare/set/unique odds per drop are MF’s job, untouched by player count. What it does: shrinks each monster’s NoDrop, so more items drop. Size depends on the source — <strong>nothing</strong> for guaranteed droppers (Countess, Duriel, Pindleskin), ~1.2× for the Prime Evils (Mephisto/Diablo/Baal), up to <strong>~2.3×</strong> for Cows & The Pit. The 1:X odds above already fold this in."
   },
   {
     label: "MF DIMINISHING RETURNS",
