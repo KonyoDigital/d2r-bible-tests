@@ -213,6 +213,7 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .boss-nav{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 16px;padding:8px 0;border-bottom:1px solid var(--border)}
 .boss-nav-group{display:flex;flex-direction:column;gap:5px;padding-left:8px;border-left:3px solid var(--tier-accent,#7d6f57)}
 .boss-nav-group-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tier-accent,#d4a847)}
+.boss-nav-group-mult{font-variant-numeric:tabular-nums;opacity:.85}
 .boss-nav-group-chips{display:flex;gap:6px;flex-wrap:wrap}
 .boss-chip{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;text-decoration:none;transition:all .15s;display:flex;align-items:center;gap:6px}
 .boss-chip:hover{background:var(--surface-3);border-color:var(--gold)}
@@ -4670,7 +4671,14 @@ function renderBossNav() {
   const groups = PLAYER_TIERS.map(g => {
     const chips = g.members.filter(id => __bossOf[id]).map(id => { used[id] = 1; return chip(__bossOf[id]); }).join("");
     if (!chips) return "";
-    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}</span><div class="boss-nav-group-chips">${chips}</div></div>`;
+    // live per-tier drop-quantity multiplier at current /players — mirrors the card-section headers
+    const ms = g.members.filter(id => __bossOf[id]).map(id => playerMult(id, 'hell', players));
+    let xtxt = '×1.00';
+    if (ms.length) {
+      const lo = Math.min(...ms), hi = Math.max(...ms);
+      xtxt = (Math.abs(lo - hi) < 0.005) ? ('×' + hi.toFixed(2)) : ('×' + lo.toFixed(2) + '–' + hi.toFixed(2));
+    }
+    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}<span class="boss-nav-group-mult" title="drop-quantity multiplier at /players ${players}"> · ${xtxt}</span></span><div class="boss-nav-group-chips">${chips}</div></div>`;
   }).join("");
   const leftover = BOSSES.filter(b => !used[b.id]).map(chip).join("");
   const leftoverHtml = leftover ? `<div class="boss-nav-group"><div class="boss-nav-group-chips">${leftover}</div></div>` : "";
@@ -5672,7 +5680,7 @@ function switchTab(name) {
 }
 
 $("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
-$("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
+$("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); renderBossNav(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
 $("item-search").oninput = e => { searchQ = e.target.value; renderCalc(); };
 document.querySelectorAll(".filter-pill").forEach(p => {
   p.onclick = () => {
