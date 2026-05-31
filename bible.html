@@ -210,10 +210,17 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .statue-progress-bar{flex:1;height:12px;background:var(--surface-3);border-radius:6px;overflow:hidden;position:relative}
 .statue-progress-fill{height:100%;background:linear-gradient(90deg,var(--best),var(--gold-bright));border-radius:6px;transition:width .3s ease}
 .statue-progress-text{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);font-weight:600;min-width:60px;text-align:right}
-.boss-nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;padding:8px 0;border-bottom:1px solid var(--border)}
+.boss-nav{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 16px;padding:8px 0;border-bottom:1px solid var(--border)}
+.boss-nav-group{display:flex;flex-direction:column;gap:5px;padding-left:8px;border-left:3px solid var(--tier-accent,#7d6f57)}
+.boss-nav-group-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tier-accent,#d4a847)}
+.boss-nav-group-chips{display:flex;gap:6px;flex-wrap:wrap}
 .boss-chip{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;text-decoration:none;transition:all .15s;display:flex;align-items:center;gap:6px}
 .boss-chip:hover{background:var(--surface-3);border-color:var(--gold)}
 .boss-chip .emoji{font-size:16px}
+.boss-nav-group.pt-swarm{--tier-accent:#ff4040}
+.boss-nav-group.pt-fisted{--tier-accent:#ff9d3c}
+.boss-nav-group.pt-prime{--tier-accent:#d4a847}
+.boss-nav-group.pt-vault{--tier-accent:#8a7d62}
 .colossal{background:linear-gradient(180deg,rgba(255,0,212,.06),rgba(0,0,0,.4));border:2px solid rgba(255,0,212,.4);border-radius:12px;padding:18px;margin:20px 0}
 .colossal h3{color:var(--uber);margin-top:0}
 .ancient-icon{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
@@ -4647,8 +4654,27 @@ function tagTzZonesWithBossId() {
     }
   });
 }
+// Drop-scaling classes — single source of truth, shared by renderBossNav (chips)
+// and renderBossCards (card sections) so both mirror the same grouping.
+const PLAYER_TIERS = [
+  {name:'THE SWARM',       cls:'pt-swarm',  members:['pit','cows'],                   tag:'Open hordes, high NoDrop — every extra player floods the field with drops.'},
+  {name:'THE TIGHT-FISTED',cls:'pt-fisted', members:['andariel','nihl','travincal'], tag:'They clutch their loot — more players pries it loose.'},
+  {name:'PRIME EVILS',     cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers. Low NoDrop — a crowd barely swells the hoard.'},
+  {name:'THE OPEN VAULT',  cls:'pt-vault',  members:['countess','duriel','pindle'],   tag:'Always spills its full table — P# adds only HP, never loot.'}
+];
 function renderBossNav() {
-  $("boss-nav").innerHTML = BOSSES.map(b => `<a href="javascript:void(0)" class="boss-chip" data-boss-id="${b.id}" onclick="setActiveBoss('${b.id}')"><span class="emoji">${b.emoji}</span>${b.name}</a>`).join("");
+  const __bossOf = {};
+  BOSSES.forEach(b => { __bossOf[b.id] = b; });
+  const chip = b => `<a href="javascript:void(0)" class="boss-chip" data-boss-id="${b.id}" onclick="setActiveBoss('${b.id}')"><span class="emoji">${b.emoji}</span>${b.name}</a>`;
+  const used = {};
+  const groups = PLAYER_TIERS.map(g => {
+    const chips = g.members.filter(id => __bossOf[id]).map(id => { used[id] = 1; return chip(__bossOf[id]); }).join("");
+    if (!chips) return "";
+    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}</span><div class="boss-nav-group-chips">${chips}</div></div>`;
+  }).join("");
+  const leftover = BOSSES.filter(b => !used[b.id]).map(chip).join("");
+  const leftoverHtml = leftover ? `<div class="boss-nav-group"><div class="boss-nav-group-chips">${leftover}</div></div>` : "";
+  $("boss-nav").innerHTML = groups + leftoverHtml;
 }
 
 function renderBossCards() {
@@ -4835,12 +4861,6 @@ function renderBossCards() {
   })();
   });
 
-  const PLAYER_TIERS = [
-    {name:'THE SWARM',       cls:'pt-swarm',  members:['pit','cows'],                   tag:'Open hordes, high NoDrop — every extra player floods the field with drops.'},
-    {name:'THE TIGHT-FISTED',cls:'pt-fisted', members:['andariel','nihl','travincal'], tag:'They clutch their loot — more players pries it loose.'},
-    {name:'PRIME EVILS',     cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers. Low NoDrop — a crowd barely swells the hoard.'},
-    {name:'THE OPEN VAULT',  cls:'pt-vault',  members:['countess','duriel','pindle'],   tag:'Always spills its full table — P# adds only HP, never loot.'}
-  ];
   const _usedIds = {};
   PLAYER_TIERS.forEach(g => g.members.forEach(id => { _usedIds[id] = 1; }));
   const _tiersHtml = PLAYER_TIERS.map(g => {
