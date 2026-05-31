@@ -163,11 +163,11 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('BUG-121 boss-nav has exactly 11 chips', async ({ page }) => {
+  test('BUG-121 boss-nav has exactly 13 chips', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
     const chips = await page.locator('#boss-nav .boss-chip').count();
-    expect(chips).toBe(11);
+    expect(chips).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
   });
 
   test('BUG-122 TZ tab has ≥10 zones', async ({ page }) => {

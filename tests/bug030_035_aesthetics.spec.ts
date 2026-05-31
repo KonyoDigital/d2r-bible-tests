@@ -4,12 +4,12 @@ import * as path from 'path';
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.describe('BUG-030..035 — aesthetics sweep', () => {
-  test('BUG-030 all 11 boss cards have consistent structure', async ({ page }) => {
+  test('BUG-030 all 13 boss cards have consistent structure', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
     const cards = page.locator('#boss-cards .boss-card');
     const count = await cards.count();
-    expect(count).toBe(11);
+    expect(count).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
 
     // Each must have: .boss-header.clickable, .boss-emoji, .boss-name, .boss-tier-tag, .boss-body
     for (let i = 0; i < count; i++) {

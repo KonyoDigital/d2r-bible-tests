@@ -46,9 +46,9 @@ test.describe('boss-chip routing — each chip opens its OWN boss', () => {
     await page.waitForTimeout(2500);
   });
 
-  test('all 11 chips route to the matching boss detail', async ({ page }) => {
+  test('all 13 chips route to the matching boss detail', async ({ page }) => {
     const ids: string[] = await page.evaluate(() => (BOSSES as any[]).map(b => b.id));
-    expect(ids.length).toBe(11);
+    expect(ids.length).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     for (const id of ids) {
       await page.evaluate((bid) => {
         const chip = document.querySelector(`.boss-chip[data-boss-id="${bid}"]`) as HTMLElement;

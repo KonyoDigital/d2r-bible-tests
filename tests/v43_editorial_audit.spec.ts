@@ -9,7 +9,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
     await page.waitForTimeout(3000);
   });
 
-  test('boot integrity — all module symbols + 312 items + 11 boss chips', async ({ page }) => {
+  test('boot integrity — all module symbols + 312 items + 13 boss chips', async ({ page }) => {
     const state = await page.evaluate(() => ({
       items: typeof ITEMS !== 'undefined' ? ITEMS.length : 0,
       bossChips: document.querySelectorAll('.boss-chip').length,
@@ -18,7 +18,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       openBossDetail: typeof window.openBossDetail === 'function',
     }));
     expect(state.items).toBe(312);
-    expect(state.bossChips).toBe(11);
+    expect(state.bossChips).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(state.jumpToBossItem).toBe(true);
     expect(state.navigateToItem).toBe(true);
     expect(state.openBossDetail).toBe(true);
@@ -120,7 +120,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       wishlistSize: typeof wishlist !== 'undefined' ? wishlist.size : -1,
     }));
     expect(state.itemTiles).toBe(312);
-    expect(state.bossChips).toBe(11);
+    expect(state.bossChips).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(state.wishlistSize).toBe(0);
   });
 

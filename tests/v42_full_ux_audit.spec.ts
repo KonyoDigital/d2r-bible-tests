@@ -30,8 +30,8 @@ test.describe('v42 UX — boss clicks', () => {
     const bossIds = await page.evaluate(() => 
       (typeof BOSSES !== 'undefined' ? BOSSES : []).map(b => ({ id: b.id, name: b.n || b.name }))
     );
-    expect(bossIds.length).toBe(11);
-    
+    expect(bossIds.length).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+
     for (const boss of bossIds) {
       // Click the boss chip
       await page.evaluate((id) => {

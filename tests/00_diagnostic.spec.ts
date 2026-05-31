@@ -16,11 +16,11 @@ test.describe('v21_kai diagnostic — runtime errors + missing renders', () => {
     expect(errors).toEqual([]);
   });
 
-  test('tab-bosses renders 11 boss cards', async ({ page }) => {
+  test('tab-bosses renders 13 boss cards', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
     const cards = await page.locator('#boss-cards .boss-card').count();
-    expect(cards).toBe(11);
+    expect(cards).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
   });
 
   test('boss-nav chips exist for all 11 bosses', async ({ page }) => {

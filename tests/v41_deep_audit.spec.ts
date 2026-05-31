@@ -14,7 +14,7 @@ const BIBLE_URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v41 deep audit — cross-reference engine to data model', () => {
   test.setTimeout(120000);
 
-  test('master data model intact: 11 bosses + ≥300 items + 6 difficulty keys', async ({ page }) => {
+  test('master data model intact: 13 bosses + ≥300 items + 6 difficulty keys', async ({ page }) => {
     await page.goto(BIBLE_URL);
     await page.waitForTimeout(600);
     const probe = await page.evaluate(() => {
@@ -32,7 +32,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
       };
     });
     expect(probe.ok, 'BOSSES + ITEMS not on page').toBe(true);
-    expect(probe.bosses).toBe(11);
+    expect(probe.bosses).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(probe.items).toBeGreaterThanOrEqual(300);
     expect(probe.diffKeys).toEqual(expect.arrayContaining(['norm', 'normTz', 'nm', 'nmTz', 'hell', 'hellTz']));
     expect(probe.bossIds).toEqual(expect.arrayContaining([
