@@ -3421,7 +3421,8 @@ window.setActiveBoss = function(bossId, focusDiff, opts) {
   }, 50);
 };
 
-window.clearActiveBoss = function() {
+window.clearActiveBoss = function(opts) {
+  const wasActive = activeBossId;
   activeBossId = null;
   // v33: re-render hero picks to global mode
   if (typeof renderHero === 'function') renderHero();
@@ -3430,14 +3431,20 @@ window.clearActiveBoss = function() {
   // Route-audit contract: hide the overlay
   document.getElementById('boss-detail-overlay')?.classList.add('hidden');
   document.querySelectorAll('.boss-chip').forEach(c => c.dataset.active = 'false');
-  // v42 UX route-back: smoothly return user to the chip bar so they can pick another boss
-  setTimeout(() => {
-    const nav = document.getElementById('boss-nav');
-    if (nav) {
-      const y = nav.getBoundingClientRect().top + window.scrollY - 100;
-      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-    }
-  }, 60);
+  // v42 UX route-back: smoothly return user to the chip bar so they can pick another boss.
+  // BUT only when a boss was actually open AND the caller hasn't asked us to stay put.
+  // (openItemDetail calls clearActiveBoss to dismiss any boss overlay, then scrolls to its
+  // own panel — without noScroll this scroll-to-nav fired 10ms later and clobbered it,
+  // leaving the golden item card ~3000px below the fold = a dead-feeling click.)
+  if (!opts?.noScroll && wasActive) {
+    setTimeout(() => {
+      const nav = document.getElementById('boss-nav');
+      if (nav) {
+        const y = nav.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      }
+    }, 60);
+  }
 };
 
 
@@ -3717,8 +3724,9 @@ window.openItemDetail = function(itemName) {
   if (!itemName) return;
   if (activeItemDetail === itemName) { closeItemDetail(); return; }
   activeItemDetail = itemName;
-  // close any boss overlay first
-  if (typeof clearActiveBoss === 'function') clearActiveBoss();
+  // close any boss overlay first — noScroll so its route-back scroll doesn't clobber
+  // our own scroll-to-panel below.
+  if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
   renderItemDetailCard(itemName);
   const panel = document.getElementById('item-detail-panel');
   if (panel) {
@@ -4941,7 +4949,7 @@ function renderDetail() {
     const r95 = runsFor(best.adjustedChance, 0.95);
     const h50 = hoursFor(best.adjustedChance, 0.5, best.kph);
     const h95 = hoursFor(best.adjustedChance, 0.95, best.kph);
-    bestBoxHtml = `<div class="best-source-box" style="cursor:pointer" onclick="switchTab('bosses');setTimeout(()=>{document.getElementById('${best.bossId}').scrollIntoView();jumpToBossItem('${item.n.replace(/'/g,"\\'")}')},100)" title="click to jump to ${best.boss} and highlight this item">
+    bestBoxHtml = `<div class="best-source-box" style="cursor:pointer" onclick="switchTab('bosses');setTimeout(()=>{document.getElementById('${best.bossId}').scrollIntoView();jumpToBossItem('${item.n.replace(/'/g,"\\'")}', '${best.bossId}')},100)" title="click to jump to ${best.boss} and highlight this item">
       <div class="best-source-label">⭐ fastest farm for ${item.n}${best.verified?' · 🔒 VERIFIED':''} · click to jump</div>
       <div class="best-source-name">${best.boss} · ${best.kph}/hr ${sparkline(best.adjustedChance, best.kph, Math.max(1, h50*2))}</div>
       <div class="best-source-stats">
@@ -5645,15 +5653,27 @@ if (!LS.getItem("d2r_shortcuts_seen")) {
 let lastSearch = "";
 $("item-search").addEventListener("input", () => { lastSearch = $("item-search").value; });
 // search box can highlight match in boss table after clicking item
-window.jumpToBossItem = (itemName) => {
-  const rows = document.querySelectorAll("tr.clickable");
-  rows.forEach(tr => {
-    if (tr.dataset.item === itemName) {
-      tr.classList.add("search-match-highlight");
-      tr.scrollIntoView({behavior:"smooth", block:"center"});
-      setTimeout(() => tr.classList.remove("search-match-highlight"), 1500);
-    }
-  });
+window.jumpToBossItem = (itemName, bossId) => {
+  // Scope the row search to the TARGET boss. Multi-boss items (e.g. the Shako drops
+  // from 11 bosses) previously scrolled to the LAST matching row in the whole
+  // document — so clicking pindle's source-chip landed the user on a different
+  // boss's row ~4500px away. Prefer the explicit bossId, then the active source boss
+  // (set by setActiveItem), and within that boss prefer a visible (non-collapsed) row.
+  const bid = bossId || (activeSourceKey ? (activeSourceKey.includes('|') ? activeSourceKey.split('|')[0] : activeSourceKey) : null);
+  const scope = bid ? document.getElementById(bid) : null;
+  const pick = (root) => {
+    const rows = [...root.querySelectorAll("tr.clickable")].filter(tr => tr.dataset.item === itemName);
+    if (!rows.length) return false;
+    rows.forEach(tr => tr.classList.add("search-match-highlight"));
+    setTimeout(() => rows.forEach(tr => tr.classList.remove("search-match-highlight")), 1500);
+    // Only scroll to a row that is genuinely visible. The full per-boss drop table
+    // lives inside a collapsed <details>; scrolling to a row in there is meaningless
+    // and would yank the user away from the boss card the caller just scrolled to.
+    const visible = rows.find(tr => { const d = tr.closest('details'); return !d || d.open; });
+    if (visible) visible.scrollIntoView({behavior:"smooth", block:"center"});
+    return true;
+  };
+  if (!(scope && pick(scope))) pick(document);
 };
 
 /* === v37: Wishlist Markdown Export === */
