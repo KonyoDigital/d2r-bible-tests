@@ -358,6 +358,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* inline TZ-zone drop-detail box */
 .tz-zone-detail{margin-top:12px;padding:13px 15px;background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(255,255,255,.012));border:1px solid var(--border);border-left:2px solid var(--terror);border-radius:8px}
 .tz-zone-detail[hidden]{display:none}
+.su-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border-light);border-left:3px solid var(--uber);border-radius:10px;margin:12px 0;padding:16px 20px;transition:border-color .12s,transform .12s,box-shadow .12s}
+.su-card:hover{border-color:var(--uber);transform:translateY(-1px)}
+.su-card:hover .tz-zone-name::after{content:' \25BE';color:var(--gold);font-size:11px}
+.su-card .tz-zone-tier{color:var(--uber)}
+.su-detail{margin-top:12px;padding:13px 15px;background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(255,255,255,.012));border:1px solid var(--border);border-left:2px solid var(--uber);border-radius:8px}
+.su-detail[hidden]{display:none}
+.su-tz-link{color:var(--gold-bright);cursor:pointer;border-bottom:1px dotted var(--gold-dim)}
+.su-tz-link:hover{color:var(--gold);border-bottom-color:var(--gold)}
 .zd-head{font-family:var(--serif-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid rgba(212,168,71,.18)}
 .zd-row{display:flex;gap:12px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border)}
 .zd-row:last-of-type{border-bottom:none}
@@ -1972,6 +1980,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     </div>
   <div class="info" style="margin-top:18px"><strong>💡 Flayer Dungeon answer (your question):</strong> Correct that it's not in the boss list — it's TZ-only valuable. When terror'd hits mlvl 96 + TC85 + dense monsters with Endugu super-unique. Equivalent TC ceiling to Pit Hell TZ, just only good during its window. Outside terror = skip.</div>
+  <div class="lead" style="margin-top:26px;border-top:1px solid var(--border);padding-top:20px">💀 <strong>Super-Uniques — the named bosses your TZ alert calls out</strong> — every gold-name boss (Eldritch, Shenk, Pindleskin, …) with its act/area, Hell area mlvl, fixed immunities, DClone-camp eligibility, and a live cross-link to the Terror Zone it spawns in. Click any card for the full detail box.</div>
+  <div id="superunique-container"></div>
 </div>
 
 <div class="tab-content" id="tab-runes">
@@ -3023,6 +3033,85 @@ function toggleZoneDetail(zi){
   if (willOpen) { box.innerHTML = zoneDetailHtml(z); box.removeAttribute('hidden'); }
   else { box.setAttribute('hidden',''); box.innerHTML = ''; }
 }
+// Super-unique cross-link: find the TZ_ZONES entry whose `unique` string names
+// this super-unique (no hardcoded join — the two lists stay in sync).
+function suTzZone(su){
+  if (typeof TZ_ZONES === 'undefined' || !su) return null;
+  const needle = (su.tzMatch || su.name).toLowerCase();
+  for (let i = 0; i < TZ_ZONES.length; i++){
+    if ((TZ_ZONES[i].unique || '').toLowerCase().includes(needle)) return {z: TZ_ZONES[i], zi: i};
+  }
+  return null;
+}
+// Three super-uniques are also tracked bosses (full drop tables) — cross-link them.
+const SU_BOSS = {'Pindleskin':'pindle', 'Nihlathak':'nihlathak', 'The Summoner':'summoner'};
+function superUniqueDetailHtml(su){
+  const tz = suTzZone(su);
+  const poolN = tz && typeof zoneGrailDrops === 'function' ? zoneGrailDrops(tz.z).length : 0;
+  const bossId = SU_BOSS[su.name];
+  let h = `<div class="zd-head">💀 ${su.name} — super-unique detail</div>
+    <div class="zd-stats">
+      <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${su.act}</span></div>
+      <div class="zd-stat"><span class="zd-sk">Hell mlvl</span><span class="zd-sv">${su.mlvl}</span></div>
+      <div class="zd-stat"><span class="zd-sk">immunity</span><span class="zd-sv">${su.immune === 'none' ? 'no fixed' : su.immune}</span></div>
+      <div class="zd-stat"><span class="zd-sk">DClone camp</span><span class="zd-sv">${su.dclone ? '✓ yes' : '—'}</span></div>
+    </div>
+    <div class="zd-row"><span class="zd-k">what it drops</span><span class="zd-v">${su.drops}</span></div>`;
+  if (tz){
+    const tcU = tz.z.tcMax >= 87 ? 'TC87' : tz.z.tcMax >= 85 ? 'TC85' : ('TC' + tz.z.tcMax);
+    h += `<div class="zd-row"><span class="zd-k">terror zone</span><span class="zd-v"><span class="su-tz-link" onclick="event.stopPropagation();window.jumpToTzZone(${tz.zi})" title="jump to this terror zone">🔥 ${tz.z.name} → mlvl ${tz.z.mlvl} / ${tcU}${poolN ? ` · ${poolN} grail uniques reachable` : ''}</span></span></div>`;
+  } else {
+    h += `<div class="zd-row"><span class="zd-k">terror zone</span><span class="zd-v" style="color:var(--text-dim)">not on the current TZ rotation list — run on demand (e.g. Pindle via Anya's red portal)</span></div>`;
+  }
+  if (su.dclone){
+    h += `<div class="zd-row"><span class="zd-k">DClone</span><span class="zd-v">🔱 When <strong>Diablo Walks the Earth</strong> (stage 6), spawn-camp here — DClone replaces the first super-unique you meet, and ${su.name.split(' ')[0]} is a known camp spot.</span></div>`;
+  }
+  if (bossId){
+    h += `<div class="zd-row"><span class="zd-k">full table</span><span class="zd-v"><span class="su-tz-link" onclick="event.stopPropagation();window.openBossDetail('${bossId}')" title="open boss detail">📜 open ${su.name}'s full drop table →</span></span></div>`;
+  }
+  h += `<div class="zd-note">⚠ Hell mlvl is the AREA level (it sets the TC ceiling); terror raises any TZ-eligible area to mlvl 96. Per-kill super-unique odds are a pending silospen pull — the cross-linked TZ pool is the TC-reachable set, not per-run rates.</div>`;
+  return h;
+}
+function renderSuperUniques(){
+  const el = document.getElementById('superunique-container');
+  if (!el || typeof SUPER_UNIQUES === 'undefined') return;
+  el.innerHTML = SUPER_UNIQUES.map((su, si) => {
+    const tz = suTzZone(su);
+    const tags = [];
+    if (su.dclone) tags.push('<span class="tz-zone-tag hot">🔱 DClone camp</span>');
+    if (tz) tags.push(`<span class="tz-zone-tag tc${tz.z.tcMax >= 87 ? '87' : '85'}">in TZ rotation</span>`);
+    if (su.immune && su.immune !== 'none' && su.immune !== 'random (Hell)') tags.push(`<span class="tz-zone-tag dense">${su.immune} immune</span>`);
+    return `<div class="su-card" data-su-idx="${si}" onclick="window.toggleSuperUnique(${si})" style="cursor:pointer" title="click for super-unique detail">
+      <div class="tz-zone-header">
+        <span class="tz-zone-emoji">${su.emoji}</span>
+        <p class="tz-zone-name">${su.name}</p>
+        <span class="tz-zone-tier">mlvl ${su.mlvl}</span>
+      </div>
+      <div class="tz-zone-meta">${su.act} · ${su.immune === 'none' ? 'no fixed immunity' : su.immune + ' immune'}</div>
+      <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${su.role}</div>
+      <div class="tz-zone-tags">${tags.join('')}</div>
+      <div class="su-detail" id="su-detail-${si}" hidden></div>
+    </div>`;
+  }).join('');
+}
+function toggleSuperUnique(si){
+  const su = (typeof SUPER_UNIQUES !== 'undefined') ? SUPER_UNIQUES[si] : null;
+  if (!su) return;
+  const box = document.getElementById('su-detail-' + si);
+  if (!box) return;
+  const willOpen = box.hasAttribute('hidden');
+  document.querySelectorAll('.su-detail').forEach(b => { if (b !== box) { b.setAttribute('hidden',''); b.innerHTML = ''; } });
+  if (willOpen) { box.innerHTML = superUniqueDetailHtml(su); box.removeAttribute('hidden'); }
+  else { box.setAttribute('hidden',''); box.innerHTML = ''; }
+}
+window.toggleSuperUnique = toggleSuperUnique;
+function jumpToTzZone(zi){
+  const box = document.getElementById('tz-zone-detail-' + zi);
+  if (box && box.hasAttribute('hidden') && typeof toggleZoneDetail === 'function') toggleZoneDetail(zi);
+  const card = document.querySelector('.tz-zone-card[data-zone-idx="' + zi + '"]');
+  if (card) card.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+window.jumpToTzZone = jumpToTzZone;
 function renderEventRef(){
   const el = document.getElementById('event-ref');
   if (!el || typeof SPECIAL_DROPS === 'undefined') return;
@@ -3521,6 +3610,33 @@ const TZ_ZONES = [
   {emoji:"🏚️",name:"Burial Grounds + Crypt + Mausoleum",tier:"A",mlvl:96,tcMax:85,act:"Act 1 · terrorize Burial Grounds",density:"medium",hot:false,unique:"Blood Raven + Bone Ash + Coldcrow",why:"Three zones, three super-uniques. Blood Raven quest restart can be exploited for extra drops. Coldcrow drops Cold-themed items.",tags:["dense"]},
   {emoji:"🍃",name:"Spider Forest + Cavern",tier:"B+",mlvl:96,tcMax:85,act:"Act 3 · terrorize Spider Forest",density:"low-medium",hot:false,unique:"Sszark the Burning",why:"Decent if rotation includes it. Sparse outdoor map = slower than dungeon zones. Cavern denser. Sszark drops some uniques.",tags:[]},
   {emoji:"💀",name:"Catacombs L4",tier:"B+",mlvl:75,tcMax:75,act:"Act 1 · terrorize Catacombs",density:"medium",hot:false,unique:"Andariel (same monster, no mlvl boost)",why:"Note: terror doesn't help Andy much, she's already mlvl 75 Hell. Same NM SoJ rate. Skip vs Pindle/Pit.",tags:[]},
+];
+
+// Named super-uniques (the gold-name bosses TZ alerts call out, e.g. Eldritch).
+// Cross-referenced to canonical D2R data: act/area, Hell AREA mlvl (the level that
+// sets each monster's TC ceiling — terror raises any TZ-eligible area to mlvl 96),
+// fixed/known immunities, and DClone-camp eligibility (a super-unique you can
+// spawn-camp when "Diablo Walks the Earth"). `tzMatch` is the token used to
+// cross-link each one to the TZ_ZONES entry it appears in — no hardcoded join,
+// so the two lists never drift. No per-kill odds fabricated.
+const SUPER_UNIQUES = [
+  {emoji:"🪓",name:"Shenk the Overseer",act:"Act 5 · Bloody Foothills",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Shenk",role:"end-of-zone overseer with a huge minion pack",drops:"Sits at the top of Bloody Foothills with a large enslaved pack — lots of bodies = lots of drops in one spot. Terror lifts the Foothills to mlvl 96 / TC85. A classic DClone spawn-camp."},
+  {emoji:"⚡",name:"Eldritch the Rectifier",act:"Act 5 · Frigid Highlands",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Eldritch",role:"instant kill right on the Frigid Highlands waypoint",drops:"Spawns at the Frigid Highlands WP — zero walk, the fastest super-unique tag in the game. Pairs with Shenk (Bloody Foothills) and a Pindleskin run on the same Act 5 ascent. Terror → mlvl 96 / TC85."},
+  {emoji:"❄️",name:"Frozenstein",act:"Act 5 · Frozen River",mlvl:82,immune:"Cold",dclone:false,tzMatch:"Frozenstein",role:"cold-immune boss of the Anya quest river",drops:"Guards the Frozen River (Anya quest). Cold-immune, so bring a second damage type. Terror → mlvl 96 / TC85 (the Crystalline Passage + Frozen River TZ)."},
+  {emoji:"🩸",name:"Pindleskin",act:"Act 5 · Nihlathak's Temple",mlvl:86,immune:"random (Hell)",dclone:true,tzMatch:"Pindleskin",role:"mlvl 86 — the highest easily-farmed monster in the game",drops:"The single best fast elite-unique farm: mlvl 86 reaches the TC84/TC85 unique pool every kill, and Anya's red portal drops you next to him for instant repeat runs. Not on the TZ rotation list — you run him on demand, terror or not. Prime DClone camp."},
+  {emoji:"🔮",name:"The Summoner",act:"Act 2 · Arcane Sanctuary",mlvl:83,immune:"random (Hell)",dclone:false,tzMatch:"Summoner",role:"holds the Key of Hate on Hell",drops:"On Hell /players 3+ he drops the 🔑 Key of Hate (1 of 3 for Uber Tristram). Dense ghost/lasher packs around him. Terror → mlvl 96 / TC85."},
+  {emoji:"🗝️",name:"Nihlathak",act:"Act 5 · Halls of Vaught",mlvl:85,immune:"random (Hell)",dclone:false,tzMatch:"Nihlathak",role:"~10% Key of Destruction on Hell",drops:"Drops the 🔑 Key of Destruction (~10% on Hell) plus a real unique pool — he's also a tracked boss with a full drop table. Terror → mlvl 96 / TC87 (the Halls TZ)."},
+  {emoji:"🔨",name:"Hephasto the Armorer",act:"Act 4 · River of Flame",mlvl:83,immune:"Fire",dclone:false,tzMatch:"Hephasto",role:"guards the Hellforge",drops:"The Hellforge smith — fire-immune, drops superior items, and his zone (River of Flame) terrors to mlvl 96 / TC87, the same elite ceiling as WSK. Hellforge rune-quest reward lives here too."},
+  {emoji:"😈",name:"Izual",act:"Act 4 · Plains of Despair",mlvl:81,immune:"Cold",dclone:false,tzMatch:"Izual",role:"guaranteed first-kill drop",drops:"Quest boss in the Plains of Despair — cold-immune, drops a guaranteed item the first time per character and decent uniques after."},
+  {emoji:"🪶",name:"Witch Doctor Endugu",act:"Act 3 · Flayer Dungeon L3",mlvl:83,immune:"Poison",dclone:false,tzMatch:"Endugu",role:"holds the Gidbinn",drops:"Poison-themed witch doctor guarding the Gidbinn. Flayer Dungeon L3 terrors to mlvl 96 / TC85 — same ceiling as Pit Hell TZ."},
+  {emoji:"🕷️",name:"Sszark the Burning",act:"Act 3 · Spider Cavern",mlvl:81,immune:"Fire",dclone:false,tzMatch:"Sszark",role:"fire-enchanted spider boss",drops:"Fire-enchanted boss of the Spider Cavern. Terror → mlvl 96 / TC85, but the sparse outdoor approach makes it a B-tier rotation pick."},
+  {emoji:"🏹",name:"Blood Raven",act:"Act 1 · Burial Grounds",mlvl:74,immune:"none",dclone:false,tzMatch:"Blood Raven",role:"fire-arrow quest archer",drops:"The Den-of-Evil quest archer. Her quest can be restarted for repeat kills. Burial Grounds terrors to mlvl 96 / TC85."},
+  {emoji:"🥶",name:"Coldcrow",act:"Act 1 · Cave Level 1",mlvl:74,immune:"Cold",dclone:false,tzMatch:"Coldcrow",role:"cold-themed rogue archer",drops:"Cold archer in the Cold Plains cave — leans toward cold-themed uniques. Coded a Demon, so she's also Bind-eligible (Echo Warlock)."},
+  {emoji:"⚔️",name:"The Smith",act:"Act 1 · Barracks",mlvl:78,immune:"none",dclone:false,tzMatch:"Smith",role:"holds the Horadric Malus",drops:"Barracks boss guarding the Horadric Malus (imbue quest). Appears in the Tristram TZ super-unique pack at mlvl 96 / TC85."},
+  {emoji:"👑",name:"Griswold",act:"Act 1 · Tristram",mlvl:76,immune:"none",dclone:false,tzMatch:"Griswold",role:"can drop Griswold's set pieces",drops:"Cain's old blacksmith, now undead in Tristram. One of the few in-game sources of the Griswold's Legacy (Paladin) set. Tristram terrors to mlvl 96 / TC85."},
+  {emoji:"💀",name:"Bone Ash",act:"Act 1 · Cathedral",mlvl:79,immune:"random (Hell)",dclone:false,tzMatch:"Bone Ash",role:"lightning-casting skeleton mage boss",drops:"Lightning caster outside the Catacombs. Appears in the Burial Grounds-adjacent TZ pulls; Cathedral terrors to mlvl 96 / TC85."},
+  {emoji:"🔥",name:"Rakanishu",act:"Act 1 · Stony Field",mlvl:76,immune:"Lightning",dclone:true,tzMatch:"Rakanishu",role:"lightning-enchanted fallen, classic DClone camp",drops:"Lightning-enchanted fallen on the Stony Field cairn. Fast early-game tag and a textbook DClone spawn-camp target."},
+  {emoji:"🧙",name:"Bishibosh",act:"Act 1 · Cold Plains",mlvl:74,immune:"Fire",dclone:true,tzMatch:"Bishibosh",role:"fire-enchanted shaman, classic DClone camp",drops:"Fire-enchanted fallen shaman in the Cold Plains. Low level, but the most accessible DClone spawn-camp super-unique in the game."},
 ];
 
 const ITEM_SETS = [
@@ -6068,6 +6184,7 @@ renderCalc();
 renderRuneTable();
 renderStatueTracker();
 renderTzZones();
+renderSuperUniques();
 renderSetTracker();
 renderSpecialDrops();
 renderEventRef();
