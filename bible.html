@@ -3593,8 +3593,8 @@ window.setActiveBoss = function(bossId, focusDiff, opts) {
   const intent = opts?.intent || 'toggle';
   if (activeBossId === bossId) {
     if (intent === 'toggle') { clearActiveBoss(); return; }
-    // intent === 'open' — re-scroll to panel without closing
-    setTimeout(() => $("boss-detail-panel")?.scrollIntoView({behavior:'smooth',block:'start'}), 50);
+    // intent === 'open' — re-reveal panel in place without closing (v46: block:'nearest', no teleport)
+    setTimeout(() => $("boss-detail-panel")?.scrollIntoView({behavior:'smooth',block:'nearest'}), 50);
     return;
   }
   activeBossId = bossId;
@@ -3607,13 +3607,15 @@ window.setActiveBoss = function(bossId, focusDiff, opts) {
   });
   // Route-audit contract: ensure #boss-detail-overlay is unhidden
   document.getElementById('boss-detail-overlay')?.classList.remove('hidden');
-  // Scroll into view (with sticky offset)
+  // v46 unify: expand the detail panel IN PLACE directly under the clicked boss
+  // card (like the TZ-zone dropdown) instead of teleporting to a fixed panel at the
+  // top of the grid. Same #boss-detail-overlay element + content (tests intact).
+  const _ov = document.getElementById('boss-detail-overlay');
+  const _card = document.getElementById(bossId);
+  if (_ov && _card) _card.insertAdjacentElement('afterend', _ov);
   setTimeout(() => {
     const panel = $("boss-detail-panel");
-    if (panel) {
-      const y = panel.getBoundingClientRect().top + window.scrollY - 130;
-      window.scrollTo({top: Math.max(0, y), behavior:'smooth'});
-    }
+    if (panel) panel.scrollIntoView({behavior:'smooth', block:'nearest'});
   }, 50);
 };
 
@@ -3632,15 +3634,9 @@ window.clearActiveBoss = function(opts) {
   // (openItemDetail calls clearActiveBoss to dismiss any boss overlay, then scrolls to its
   // own panel — without noScroll this scroll-to-nav fired 10ms later and clobbered it,
   // leaving the golden item card ~3000px below the fold = a dead-feeling click.)
-  if (!opts?.noScroll && wasActive) {
-    setTimeout(() => {
-      const nav = document.getElementById('boss-nav');
-      if (nav) {
-        const y = nav.getBoundingClientRect().top + window.scrollY - 100;
-        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-      }
-    }, 60);
-  }
+  // v46 unify: the detail panel now expands inline under its card, so closing simply
+  // collapses it in place — no teleport back to the nav bar.
+  void wasActive;
 };
 
 
@@ -5031,7 +5027,17 @@ function renderBossCards() {
       <div class="tier-tag">${g.tag}</div>${cards}</div>`;
   }).join('');
   const _leftover = BOSSES.filter(b => !_usedIds[b.id]).map(b => __cardOf[b.id] || '').join('');
+  // v46 unify: the boss-detail overlay gets relocated INSIDE #boss-cards (it now expands
+  // inline under the active card). Lift it out before we blow away innerHTML so the
+  // singleton survives MF/players/filter re-renders, then re-anchor it under the rebuilt card.
+  const _bdOv = document.getElementById('boss-detail-overlay');
+  const _bcEl = $("boss-cards");
+  if (_bdOv && _bcEl && _bcEl.contains(_bdOv) && _bcEl.parentElement) _bcEl.parentElement.insertBefore(_bdOv, _bcEl);
   $("boss-cards").innerHTML = `<div class="tier-intro">Grouped by <strong>/players</strong> drop-scaling — drag <strong>P#</strong> above to watch each class react.</div>` + _tiersHtml + _leftover;
+  if (_bdOv && typeof activeBossId !== 'undefined' && activeBossId) {
+    const _activeCard = document.getElementById(activeBossId);
+    if (_activeCard) _activeCard.insertAdjacentElement('afterend', _bdOv);
+  }
 
   document.querySelectorAll("tr.clickable").forEach(tr => {
     tr.onclick = e => {

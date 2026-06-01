@@ -67,11 +67,15 @@ test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette comple
   });
 
   test('event boss chips toggle on/off', async ({ page }) => {
+    // v46: opening a boss now expands its detail INLINE under the card and smooth-scrolls
+    // there, which moves the top nav chip out of view — a physical re-click then races the
+    // scroll. dispatchEvent fires the chip's onclick wiring directly (the toggle contract),
+    // not a pixel hit-test — matching the repo's floating-overlay dodge (47234b0).
     for (const id of ['summoner', 'dclone']) {
-      await page.locator(`.boss-chip[data-boss-id="${id}"]`).click();
+      await page.locator(`.boss-chip[data-boss-id="${id}"]`).dispatchEvent('click');
       await page.waitForTimeout(250);
       expect(await page.evaluate(() => eval('activeBossId'))).toBe(id);
-      await page.locator(`.boss-chip[data-boss-id="${id}"]`).click();
+      await page.locator(`.boss-chip[data-boss-id="${id}"]`).dispatchEvent('click');
       await page.waitForTimeout(250);
       expect(await page.evaluate(() => eval('activeBossId'))).toBeNull();
     }
