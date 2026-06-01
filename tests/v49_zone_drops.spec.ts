@@ -80,16 +80,21 @@ test.describe('v49 zone grail-drops — data-driven pool from ITEM_CODEX', () =>
       const ZS = (TZ_ZONES as any[]);
       const tc87 = ZS.find((z) => z.tcMax >= 87)!;
       const html = (window as any).zoneDropBlockHtml(tc87);
+      // CC 2026-06-01 unify: chips are now clickable (zd-item-click) → each opens
+      // its canonical grail card via navigateToItem, matching the boss top-drops.
+      const uberChip = (html.match(/<span class="zd-item[^"]*uber[^"]*"[^>]*>/) || [''])[0];
       return {
         hasHead: /grail-eligible uniques reachable/.test(html),
         hasTc87Lab: /TC87-only/.test(html),
-        hasUberChip: /class="zd-item uber"/.test(html),
+        hasUberChip: /class="zd-item[^"]*\buber\b/.test(html),
+        uberChipClickable: /zd-item-click/.test(uberChip) && /navigateToItem\(/.test(uberChip),
         hasUndefined: /undefined/.test(html),
       };
     });
     expect(r.hasHead).toBe(true);
     expect(r.hasTc87Lab).toBe(true);
     expect(r.hasUberChip).toBe(true);
+    expect(r.uberChipClickable).toBe(true);
     expect(r.hasUndefined).toBe(false);
   });
 });

@@ -388,6 +388,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-grp-lab{flex:0 0 80px;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);padding-top:4px}
 .zd-drops{display:flex;flex-wrap:wrap;gap:5px;flex:1}
 .zd-item{display:inline-block;border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;border:1px solid}
+.zd-item-click{cursor:pointer;transition:transform .1s ease,box-shadow .15s ease,border-color .15s ease}
+.zd-item-click:hover{transform:translateY(-1px);border-color:var(--gold-bright);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.zd-item-click:hover::after{content:' ↗';font-size:9px;opacity:.7}
 .zd-item.uber{background:rgba(255,0,212,.12);border-color:rgba(255,0,212,.45);color:#ff9ee8}
 .zd-item.grail{background:rgba(212,168,71,.1);border-color:rgba(212,168,71,.4);color:var(--gold-bright)}
 .zd-item.grail-dim{background:rgba(212,168,71,.05);border-color:rgba(212,168,71,.22);color:var(--gold)}
@@ -3099,7 +3102,13 @@ function zoneDropBlockHtml(z){
   const exclusives = pool.filter(d => d.tc >= 86);          // TC87-only trophies
   const elites     = pool.filter(d => d.tc >= 84 && d.tc < 86); // TC85 elite ceiling
   const rest       = pool.filter(d => d.tc < 84);           // broadly-droppable grails
-  const chip = (d, cls) => `<span class="zd-item ${cls}">${d.name}</span>`;
+  // CC 2026-06-01 unify: each grail chip is clickable → opens that exact item's
+  // canonical golden card (navigateToItem), the same single item card linked from
+  // boss top-drops. One item entity, reachable from every zone it drops in.
+  const chip = (d, cls) => {
+    const esc = (d.name || '').replace(/'/g, "\\'");
+    return `<span class="zd-item zd-item-click ${cls}" role="button" tabindex="0" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">${d.name}</span>`;
+  };
   let h = `<div class="zd-row"><span class="zd-k">grail drops</span><span class="zd-v">`;
   h += `<div class="zd-drops-head">🏆 ${pool.length} grail-eligible uniques reachable in this terror pool</div>`;
   if (exclusives.length) h += `<div class="zd-drops-grp"><span class="zd-grp-lab">🔱 TC87-only</span><div class="zd-drops">${exclusives.map(d => chip(d, 'uber')).join('')}</div></div>`;
