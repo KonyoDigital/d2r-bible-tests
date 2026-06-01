@@ -6886,7 +6886,14 @@ function _v41_applyStatus(st) {
   // Update fires counter
   const counter = document.getElementById('routine-fires-counter');
   if (counter) {
-    counter.textContent = `${st.total_fires_today}/${st.total_expected_today} fires today`;
+    const rs = Object.values(st.routines || {});
+    const fired = Number.isFinite(st.total_fires_today) ? st.total_fires_today
+                : rs.reduce((n, r) => n + (Number(r.fires_today) || 0), 0);
+    const expected = Number.isFinite(st.total_expected_today) ? st.total_expected_today
+                   : rs.reduce((n, r) => n + (Number(r.expected_per_day) || 0), 0);
+    counter.textContent = (rs.length && (fired || expected))
+      ? `${fired}/${expected} fires today`
+      : '— / — fires today';
     const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
     counter.className = anyRed ? 'has-red' : (st.all_green ? 'all-green' : '');
     counter.title = `Status snapshot: ${st.generated_at}`;
