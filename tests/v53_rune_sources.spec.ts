@@ -62,4 +62,14 @@ test.describe('v53 rune sources — droppable cards', () => {
     await expect(page.locator('#rune-src-detail-hellforge')).toBeVisible();
     await expect(page.locator('#rune-src-detail-travincal')).toBeHidden();
   });
+
+  test('rune-source detail has the editorial frame (parity with zone/SU)', async ({ page }) => {
+    await page.locator('.rune-src-card', { hasText: 'Travincal Council' }).click();
+    const detail = page.locator('#rune-src-detail-travincal');
+    await expect(detail).toBeVisible();
+    const f = await detail.evaluate((el) => { const cs = getComputedStyle(el as Element); return { bl: cs.borderLeftWidth, sh: cs.boxShadow }; });
+    expect(parseInt(f.bl)).toBeGreaterThanOrEqual(2);
+    expect(f.sh).not.toBe('none');
+  });
+
 });
