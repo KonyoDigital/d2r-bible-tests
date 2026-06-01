@@ -1617,6 +1617,37 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     box-shadow: inset 0 0 0 1px var(--star, #ffd040);
   }
 
+  /* === Floating navigation widget (CC 2026-06-01) =========================
+     A persistent maneuvering compass: always visible regardless of scroll
+     depth, so you can jump to any tab or back to the top WITHOUT scrolling up
+     to the sticky header. Solves the "I clicked a card, now I have to scroll
+     all the way back up to switch tabs" friction. */
+  /* bottom-LEFT: bottom-right is taken by the ? help-btn + routine-status-bar (z9999) */
+  .nav-widget{position:fixed;left:20px;bottom:20px;z-index:210;display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-family:inherit}
+  .nav-fab{width:56px;height:56px;border-radius:50%;border:1px solid var(--gold);cursor:pointer;
+    background:radial-gradient(circle at 35% 30%,var(--gold-bright),var(--gold) 55%,#8a6a2a);
+    color:#1a140d;font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 18px rgba(0,0,0,.55),0 0 0 4px rgba(212,168,71,.12),0 0 22px rgba(240,192,96,.35);
+    transition:transform .18s ease,box-shadow .18s ease}
+  .nav-fab:hover{transform:scale(1.07) rotate(-8deg);box-shadow:0 6px 24px rgba(0,0,0,.6),0 0 0 5px rgba(212,168,71,.18),0 0 30px rgba(240,192,96,.55)}
+  .nav-fab:active{transform:scale(.96)}
+  .nav-widget.open .nav-fab{transform:rotate(45deg)}
+  .nav-panel{display:flex;flex-direction:column;gap:5px;min-width:188px;max-height:0;overflow:hidden;
+    background:rgba(16,12,8,.97);backdrop-filter:blur(12px);border:1px solid var(--border-light);border-radius:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,.65);padding:0 8px;opacity:0;transform:translateY(10px) scale(.97);transform-origin:bottom right;
+    transition:max-height .26s cubic-bezier(.22,1,.36,1),opacity .2s ease,transform .22s cubic-bezier(.22,1,.36,1),padding .26s ease;pointer-events:none}
+  .nav-widget.open .nav-panel{max-height:560px;opacity:1;transform:translateY(0) scale(1);padding:8px;pointer-events:auto}
+  .nav-panel-title{font-size:9.5px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-dim);padding:4px 8px 2px}
+  .nav-chip{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:9px;cursor:pointer;border:1px solid transparent;
+    background:transparent;color:var(--text-muted);font-size:13px;text-align:left;width:100%;transition:background .14s ease,color .14s ease,border-color .14s ease}
+  .nav-chip:hover{background:rgba(212,168,71,.12);color:var(--text);border-color:rgba(212,168,71,.3)}
+  .nav-chip .nav-ic{font-size:16px;width:20px;text-align:center;flex:0 0 auto}
+  .nav-chip.active{background:linear-gradient(135deg,rgba(255,208,64,.2),rgba(212,168,71,.06));color:var(--gold-bright);border-color:var(--gold);font-weight:600}
+  .nav-chip.nav-top{color:var(--grail);border-top:1px solid var(--border);border-radius:0 0 9px 9px;margin-top:3px}
+  .nav-chip.nav-top:hover{background:rgba(0,255,255,.1);color:var(--grail);border-color:rgba(0,255,255,.3)}
+  @media(max-width:700px){.nav-widget{left:14px;bottom:14px}.nav-fab{width:50px;height:50px;font-size:23px}.nav-panel{min-width:168px}}
+  @media print{.nav-widget{display:none}}
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6528,7 +6559,56 @@ document.querySelectorAll(".filter-pill").forEach(p => {
     renderCalc();
   };
 });
-document.querySelectorAll(".tab").forEach(t => { t.onclick = () => switchTab(t.dataset.tab); });
+document.querySelectorAll(".tab").forEach(t => { t.onclick = () => { switchTab(t.dataset.tab); window.scrollTo({ top: 0, behavior: "smooth" }); }; });
+
+// === v59: floating navigation compass widget ===
+// Persistent maneuvering control (bottom-right) so any tab / back-to-top is one
+// tap away regardless of scroll depth — no scrolling back up to the sticky tab bar.
+function buildNavWidget() {
+  if (document.getElementById("nav-widget")) return;
+  const tabs = [...document.querySelectorAll(".tabs .tab")].map(t => {
+    const parts = (t.textContent || "").trim().split(/\s+/);
+    return { tab: t.dataset.tab, ic: parts[0] || "•", label: parts.slice(1).join(" ") || t.dataset.tab };
+  });
+  const w = document.createElement("div");
+  w.className = "nav-widget";
+  w.id = "nav-widget";
+  const chips = tabs.map(t =>
+    `<div class="nav-chip" role="button" tabindex="0" data-nav="${t.tab}" onclick="navTo('${t.tab}')">`
+    + `<span class="nav-ic">${t.ic}</span><span>${t.label}</span></div>`).join("");
+  w.innerHTML =
+    `<div class="nav-panel" id="nav-panel">`
+    + `<div class="nav-panel-title">Navigate</div>`
+    + chips
+    + `<div class="nav-chip nav-top" role="button" tabindex="0" onclick="navTop()">`
+    + `<span class="nav-ic">⬆️</span><span>Back to top</span></div>`
+    + `</div>`
+    + `<button class="nav-fab" id="nav-fab" aria-label="Navigation menu" title="Navigate" onclick="toggleNavPanel(event)">🧭</button>`;
+  document.body.appendChild(w);
+  // click-outside closes the panel
+  document.addEventListener("click", (e) => {
+    if (w.classList.contains("open") && !w.contains(e.target)) w.classList.remove("open");
+  });
+  const active = document.querySelector(".tab.active")?.dataset.tab;
+  if (active) syncNavWidget(active);
+}
+function toggleNavPanel(e) { if (e) e.stopPropagation(); document.getElementById("nav-widget")?.classList.toggle("open"); }
+function navTo(tab) {
+  window.switchTab(tab);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("nav-widget")?.classList.remove("open");
+}
+function navTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("nav-widget")?.classList.remove("open");
+}
+function syncNavWidget(name) {
+  document.querySelectorAll("#nav-widget .nav-chip[data-nav]").forEach(c =>
+    c.classList.toggle("active", c.getAttribute("data-nav") === name));
+}
+window.buildNavWidget = buildNavWidget;
+window.navTo = navTo; window.navTop = navTop;
+window.toggleNavPanel = toggleNavPanel; window.syncNavWidget = syncNavWidget;
 
 updateEffMF();
 updatePlayers();
@@ -6545,6 +6625,7 @@ renderSetTracker();
 renderSpecialDrops();
 renderEventRef();
 tagTzZonesWithBossId();
+buildNavWidget();
 if (typeof renderWishlistHuntPath === "function") renderWishlistHuntPath();
 
 // keyboard shortcuts (v12 enhanced)
@@ -6784,6 +6865,7 @@ window.switchTab = function(name) {
   }
   _v39_origSwitchTab(name);
   _v39_persistActiveTab(name);
+  if (typeof syncNavWidget === "function") syncNavWidget(name);
   // Sync URL hash without scroll-jump
   try {
     const newHash = '#' + name;
