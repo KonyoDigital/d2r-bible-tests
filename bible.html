@@ -2015,70 +2015,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card">
-    <div class="boss-header">
-      <span class="boss-emoji">💰</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Travincal Council</p>
-        <p class="boss-subtitle">Toorc + Geleb + Ismail · the 3-Council fight</p>
-        <p class="boss-loc">Travincal · Act 3 Hell · <strong style="color:var(--gold-bright)">Highest Hr rune source in game</strong></p>
-      </div>
-      <div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">S</div></div>
-    </div>
-    <div class="boss-body">
-      <div class="success"><strong>Why farm:</strong> Council members each roll their own drop. <strong>Each member has a chance at any rune up to Zod</strong> on Hell. Best for HIGH-runes (Mal+). Realistic ~1:6,000 for Vex, ~1:13,000 for Ohm, ~1:25,000 for Lo at base MF.</div>
-      <div class="info"><strong>📋 Action plan:</strong> Durance of Hate Level 2 → up the stairs → Travincal → kill Toorc Icefist + Geleb Flamefinger + Ismail Vilehand. ~2,800-3,000 base body count + Worldstone Shards possible. Konyolock: Enigma teleport + Echoing Strike one-shots all three.</div>
-      <div class="info" style="color:var(--terror)"><strong>⚠ Heads up:</strong> Cold immune. Bring Infinity merc or use non-cold damage. Konyolock works.</div>
-    </div>
-  </div>
-
-  <div class="boss-card">
-    <div class="boss-header">
-      <span class="boss-emoji">🔨</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Hellforge</p>
-        <p class="boss-subtitle">Quest-only · one rune per character per difficulty</p>
-        <p class="boss-loc">River of Flame · Act 4 · <strong>guaranteed rune drop (TIER-locked by difficulty)</strong></p>
-      </div>
-      <div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">A</div></div>
-    </div>
-    <div class="boss-body">
-      <div class="success"><strong>Why farm:</strong> Hammer destroys the hellforge → GUARANTEED rune from a fixed tier pool: <strong>Normal = El-Amn (low)</strong>, <strong>Nightmare = Sol-Um (mid)</strong>, <strong>Hell = Hel-Gul (high tier, max Gul)</strong>. One-shot per character per difficulty. Free Gul attempt every new char on Hell.</div>
-      <div class="info"><strong>📋 Action plan:</strong> Once Mephisto is dead → River of Flame waypoint → walk to Hellforge → use Mephisto's Soulstone on the anvil → smash with hammer. Save the soulstone before doing this. The drop pool is rolled per-character so reroll characters if rune-hunting.</div>
-    </div>
-  </div>
-
-  <div class="boss-card">
-    <div class="boss-header">
-      <span class="boss-emoji">🐄</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Hell Bovines (Cow Level)</p>
-        <p class="boss-subtitle">Secret Cow Level · always-Hell area</p>
-        <p class="boss-loc">Moo Moo Farm · accessed via Wirt's Leg + Tome of Town Portal in cube</p>
-      </div>
-      <div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">A</div></div>
-    </div>
-    <div class="boss-body">
-      <div class="success"><strong>Why farm:</strong> Massive density (~400+ cows per game) + each cow has a normal monster rune table. NOT as fast as Countess for low-mid runes, but good for general MF + occasional high rune. Cows have decent body count for sets/uniques too.</div>
-      <div class="info"><strong>📋 Action plan:</strong> Need Wirt's Leg (from Rogue Encampment Normal) + Tome of Town Portal in cube → red portal in Rogue Encampment → walk + farm. Konyodin Hammerdin is the king here (Concentration aura + Blessed Hammer one-shots cows).</div>
-    </div>
-  </div>
-
-  <div class="boss-card">
-    <div class="boss-header">
-      <span class="boss-emoji">📦</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Lower Kurast Chests</p>
-        <p class="boss-subtitle">3 superchests per game · rune-drop possible</p>
-        <p class="boss-loc">Lower Kurast · Act 3 Hell · <strong>chest-only farm, no monster kills needed</strong></p>
-      </div>
-      <div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">B+</div></div>
-    </div>
-    <div class="boss-body">
-      <div class="success"><strong>Why farm:</strong> 3 fixed superchest locations in Lower Kurast that can drop runes (including high runes). ~20-30 sec per game with teleport. NOT competitive with Countess for low runes but worth as a side activity during long sessions. Each chest has independent rune roll.</div>
-      <div class="info"><strong>📋 Action plan:</strong> LK waypoint → teleport NE/SE/NW to find each of the 3 chest huts → open all 3 → exit + reset. With Enigma this is ~15s/game.</div>
-    </div>
-  </div>
+  <div id="rune-sources-target"></div>
 
   <div class="warning"><strong>📊 Rune drop notes:</strong> Rune drop rates ARE NOT affected by MF. They're affected only by difficulty + monster level + Players count. Higher Players setting = more chances but each individual drop has lower probability. P1 = best for solo runes on Countess (max kill speed, simpler math).</div>
 
@@ -6244,6 +6181,94 @@ function toggleSetPiece(piece) {
 }
 window.toggleSetPiece = toggleSetPiece;
 
+const RUNE_SOURCES = [
+  {
+    id:'travincal', emoji:'💰', name:'Travincal Council', tier:'S',
+    subtitle:'Toorc + Geleb + Ismail · the 3-Council fight',
+    loc:'Travincal · Act 3 Hell', headline:'Highest high-rune throughput in the game',
+    grid:[
+      {n:'Lo #28', hell:'~1:25,000', use:'Fortitude, Grief'},
+      {n:'Ohm #27', hell:'~1:13,000', use:'Beast, HotO'},
+      {n:'Vex #26', hell:'~1:6,000', use:'HotO, Phoenix'}
+    ],
+    gridNote:'Approximate, base MF, per game — each of the 3 council members rolls its own drop and can drop ANY rune up to Zod. These are the realistic high-rune rates; lower runes drop far more often. Exact per-rune odds are a pending silospen pull.',
+    why:'Council members each roll their own drop. Each member has a chance at any rune up to Zod on Hell. Best for HIGH-runes (Mal+).',
+    action:'Durance of Hate Level 2 → up the stairs → Travincal → kill Toorc Icefist + Geleb Flamefinger + Ismail Vilehand. ~2,800-3,000 base body count. Konyolock: Enigma teleport + Echoing Strike one-shots all three.',
+    warn:'Cold immune. Bring Infinity merc or use non-cold damage. Konyolock works.'
+  },
+  {
+    id:'hellforge', emoji:'🔨', name:'Hellforge', tier:'A',
+    subtitle:'Quest-only · one rune per character per difficulty',
+    loc:'River of Flame · Act 4', headline:'guaranteed rune drop (TIER-locked by difficulty)',
+    tierPool:[
+      {diff:'Normal', pool:'El – Amn', note:'low tier'},
+      {diff:'Nightmare', pool:'Sol – Um', note:'mid tier'},
+      {diff:'Hell', pool:'Hel – Gul', note:'high tier (max Gul)'}
+    ],
+    why:'Hammer destroys the hellforge → GUARANTEED rune from a fixed tier pool. One-shot per character per difficulty. Free Gul attempt every new char on Hell.',
+    action:'Once Mephisto is dead → River of Flame waypoint → walk to Hellforge → use Mephisto\'s Soulstone on the anvil → smash with hammer. Save the soulstone first. The pool is rolled per-character, so reroll characters if rune-hunting.'
+  },
+  {
+    id:'cow', emoji:'🐄', name:'Hell Bovines (Cow Level)', tier:'A',
+    subtitle:'Secret Cow Level · always-Hell area',
+    loc:'Moo Moo Farm · via Wirt\'s Leg + Tome of Town Portal in cube', headline:'',
+    why:'Massive density (~400+ cows per game) + each cow has a normal monster rune table. NOT as fast as Countess for low-mid runes, but good for general MF + occasional high rune. Cows have decent body count for sets/uniques too.',
+    action:'Wirt\'s Leg (Rogue Encampment Normal) + Tome of Town Portal in cube → red portal in Rogue Encampment → walk + farm. Konyodin Hammerdin is king here (Concentration aura + Blessed Hammer one-shots cows).',
+    note:'No dedicated rune table — cows roll the normal-monster rune odds, so the value is sheer density + unique/set volume, not a high-rune rate. No per-rune grid (would be fabricated).'
+  },
+  {
+    id:'lk', emoji:'📦', name:'Lower Kurast Chests', tier:'B+',
+    subtitle:'3 superchests per game · rune-drop possible',
+    loc:'Lower Kurast · Act 3 Hell', headline:'chest-only farm, no monster kills needed',
+    why:'3 fixed superchest locations that can drop runes (including high runes). ~20-30 sec per game with teleport. NOT competitive with Countess for low runes but worth as a side activity during long sessions. Each chest has an independent rune roll.',
+    action:'LK waypoint → teleport NE/SE/NW to find each of the 3 chest huts → open all 3 → exit + reset. With Enigma this is ~15s/game.',
+    note:'Superchests roll an independent rune chance incl. high runes; exact per-chest rune odds are not cleanly published — a side activity, not a primary rune farm.'
+  }
+];
+function runeSourceDetailHtml(src){
+  var h='';
+  if(src.grid){
+    var rows=src.grid.map(function(r){
+      var hi=/Lo|Ohm|Vex|Gul|Mal/.test(r.n);
+      return '<tr><td class="item-name" style="'+(hi?'color:var(--gold-bright)':'')+'">'+r.n+'</td><td class="diff-col">'+r.hell+'</td><td><span style="color:var(--text-dim);font-size:11px">'+(r.use||'')+'</span></td></tr>';
+    }).join('');
+    h+='<div class="scroll-table"><table class="drops"><thead><tr><th>Rune</th><th class="diff-col">HELL (approx)</th><th>Used for</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+  if(src.tierPool){
+    var tr=src.tierPool.map(function(t){
+      return '<tr><td class="item-name">'+t.diff+'</td><td><strong style="color:var(--gold-bright)">'+t.pool+'</strong></td><td><span style="color:var(--text-dim);font-size:11px">'+t.note+'</span></td></tr>';
+    }).join('');
+    h+='<div class="scroll-table"><table class="drops"><thead><tr><th>Difficulty</th><th>Guaranteed rune pool</th><th>tier</th></tr></thead><tbody>'+tr+'</tbody></table></div>';
+  }
+  if(src.gridNote) h+='<div class="zd-note">'+src.gridNote+'</div>';
+  if(src.why) h+='<div class="success"><strong>Why farm:</strong> '+src.why+'</div>';
+  if(src.action) h+='<div class="info"><strong>📋 Action plan:</strong> '+src.action+'</div>';
+  if(src.warn) h+='<div class="info" style="color:var(--terror)"><strong>⚠ Heads up:</strong> '+src.warn+'</div>';
+  if(src.note) h+='<div class="zd-note">'+src.note+'</div>';
+  return h;
+}
+function toggleRuneSrc(id){
+  var box=document.getElementById('rune-src-detail-'+id);
+  if(!box) return;
+  var open=box.hasAttribute('hidden');
+  document.querySelectorAll('.rune-src-detail').forEach(function(b){ if(b!==box){ b.setAttribute('hidden',''); b.innerHTML=''; } });
+  if(open){ var src=RUNE_SOURCES.find(function(s){return s.id===id;}); if(src){ box.innerHTML=runeSourceDetailHtml(src); box.removeAttribute('hidden'); } }
+  else { box.setAttribute('hidden',''); box.innerHTML=''; }
+}
+function renderRuneSources(){
+  var el=document.getElementById('rune-sources-target');
+  if(!el || typeof RUNE_SOURCES==='undefined') return;
+  el.innerHTML=RUNE_SOURCES.map(function(src){
+    var loc=src.headline ? (src.loc+' · <strong style="color:var(--gold-bright)">'+src.headline+'</strong>') : src.loc;
+    return '<div class="boss-card rune-src-card clickable" onclick="toggleRuneSrc(\''+src.id+'\')">'+
+      '<div class="boss-header"><span class="boss-emoji">'+src.emoji+'</span>'+
+      '<div class="boss-title-block"><p class="boss-name">'+src.name+'</p>'+
+      '<p class="boss-subtitle">'+src.subtitle+'</p><p class="boss-loc">'+loc+'</p></div>'+
+      '<div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">'+src.tier+'</div></div></div>'+
+      '<div class="rune-src-detail" id="rune-src-detail-'+src.id+'" hidden></div></div>';
+  }).join('');
+}
+
 function renderRuneTable() {
   const rows = COUNTESS_RUNES.map(r => {
     const valid = [r.norm,r.nm,r.hell,r.hellTz].filter(v => v !== null);
@@ -6327,7 +6352,7 @@ renderGrailProgress();
 renderBossNav();
 renderBossCards();
 renderCalc();
-renderRuneTable();
+renderRuneTable(); renderRuneSources();
 renderStatueTracker();
 renderTzZones();
 renderSuperUniques();
