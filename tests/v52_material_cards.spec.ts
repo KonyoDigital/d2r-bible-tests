@@ -168,6 +168,41 @@ test.describe('v52 unified material ID cards', () => {
     expect(r.keyHasOnclick).toBe(true);
   });
 
+  test('each Sunder charm card has a "What it does" section describing the immunity-break mechanic', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const html = (window as any).materialDetailHtml;
+      const fm = (window as any).findMaterial;
+      const charms = ['Bone Break','Black Cleft','Crack of the Heavens','Cold Rupture','Flame Rift','Rotting Fissure'];
+      return charms.map((n) => {
+        const card = html(n);
+        const m = fm(n);
+        return {
+          n,
+          catKey: m ? m.catKey : null,
+          hasWhatItDoes: /What it does/.test(card),
+          describesSunder: /Sunders [A-Z]+ immunity/.test(card),
+          mentionsFloor: /~95% resist/.test(card),
+          noUndef: !/undefined/.test(card),
+        };
+      });
+    });
+    for (const c of r) {
+      expect(c.catKey, c.n).toBe('sunder');
+      expect(c.hasWhatItDoes, c.n).toBe(true);
+      expect(c.describesSunder, c.n).toBe(true);
+      expect(c.mentionsFloor, c.n).toBe(true);
+      expect(c.noUndef, c.n).toBe(true);
+    }
+    // and the section surfaces in the real openDrop UI flow
+    await page.evaluate(() => (window as any).openDrop('Bone Break'));
+    await page.waitForTimeout(200);
+    const card = page.locator('#item-detail .material-card');
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('What it does');
+    await expect(card).toContainText('Sunders PHYSICAL immunity');
+    await expect(card).not.toContainText('undefined');
+  });
+
   test('no console errors across the material-card flow', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
