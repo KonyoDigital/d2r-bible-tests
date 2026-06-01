@@ -1623,8 +1623,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      to the sticky header. Solves the "I clicked a card, now I have to scroll
      all the way back up to switch tabs" friction. */
   /* bottom-LEFT: bottom-right is taken by the ? help-btn + routine-status-bar (z9999) */
-  .nav-widget{position:fixed;left:20px;bottom:20px;z-index:210;display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-family:inherit}
-  .nav-fab{width:56px;height:56px;border-radius:50%;border:1px solid var(--gold);cursor:pointer;
+  /* container is click-through (its 188px-wide box must not eat content clicks underneath);
+     only the FAB + an open panel are interactive */
+  .nav-widget{position:fixed;left:20px;bottom:20px;z-index:210;display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-family:inherit;pointer-events:none}
+  .nav-fab{pointer-events:auto;width:56px;height:56px;border-radius:50%;border:1px solid var(--gold);cursor:pointer;
     background:radial-gradient(circle at 35% 30%,var(--gold-bright),var(--gold) 55%,#8a6a2a);
     color:#1a140d;font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;
     box-shadow:0 4px 18px rgba(0,0,0,.55),0 0 0 4px rgba(212,168,71,.12),0 0 22px rgba(240,192,96,.35);

@@ -125,6 +125,34 @@ test.describe('v59 nav compass widget', () => {
     await expect(page.locator('#nav-widget')).not.toHaveClass(/open/);
   });
 
+  test('container is click-through (does not eat content clicks under its box); FAB stays interactive', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w = document.getElementById('nav-widget')!;
+      const fab = document.getElementById('nav-fab')!;
+      const cs = (el: Element) => getComputedStyle(el).pointerEvents;
+      // a point inside the widget's box but to the RIGHT of the FAB (the 188px-wide
+      // dead zone that previously intercepted clicks on content underneath)
+      const wr = w.getBoundingClientRect();
+      const fr = fab.getBoundingClientRect();
+      const probeX = Math.min(wr.right - 4, fr.right + 40);
+      const probeY = fr.top + fr.height / 2;
+      const hit = document.elementFromPoint(probeX, probeY);
+      const fabHit = document.elementFromPoint(fr.left + fr.width / 2, fr.top + fr.height / 2);
+      return {
+        widgetPE: cs(w),
+        fabPE: cs(fab),
+        // the dead-zone point must fall through to page content, NOT the widget
+        hitIsNotWidget: !(hit && w.contains(hit)),
+        // the FAB center must still hit the FAB
+        fabCenterHitsFab: !!fabHit && (fabHit === fab || fab.contains(fabHit)),
+      };
+    });
+    expect(r.widgetPE).toBe('none');
+    expect(r.fabPE).toBe('auto');
+    expect(r.hitIsNotWidget).toBe(true);
+    expect(r.fabCenterHitsFab).toBe(true);
+  });
+
   test('no console errors across the widget flow', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
