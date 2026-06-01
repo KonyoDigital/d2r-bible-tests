@@ -353,15 +353,16 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
     }
   });
 
-  test('TZ tab: every ROUTED zone opens the correct boss (honest-affordance: non-routing zones allowed)', async ({ page }) => {
+  test('TZ tab: every ROUTED zone opens its OWN detail whose boss cross-link reaches the correct boss (honest-affordance)', async ({ page }) => {
     await page.goto(BIBLE_URL);
     await page.waitForTimeout(600);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
-    // Honest-affordance (tagTzZonesWithBossId): only zones where a roster boss genuinely spawns get a
-    // NON-EMPTY data-boss-id; density / super-unique zones keep data-boss-id="" and intentionally do
-    // not route. Contract: every non-empty-routed zone clicks through to the CORRECT boss; the empty
-    // ones are not mismatches. (100%-coverage was a stale promise from the bible_routes era.)
+    // CC 2026-06-01 unify: only zones where a roster boss genuinely spawns get a NON-EMPTY
+    // data-boss-id; density / super-unique zones keep data-boss-id="" and don't cross-link.
+    // New contract: clicking a routed zone opens its OWN inline detail (NOT the boss overlay);
+    // the detail carries a "full drop table →" cross-link that, when clicked, opens EXACTLY
+    // the correct boss. (100%-coverage was a stale promise from the bible_routes era.)
     const total = await page.locator('.tz-zone-card').count();
     const routed = await page.locator('.tz-zone-card[data-boss-id]:not([data-boss-id=""])').count();
     expect(total, 'TZ zones should render').toBeGreaterThan(0);
@@ -374,7 +375,16 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
       const mismatches: any[] = [];
       for (const c of cards) {
         const expBossId = c.getAttribute('data-boss-id')!;
+        document.querySelectorAll('.tz-zone-detail').forEach(b => b.setAttribute('hidden', ''));
         (c as HTMLElement).click();
+        await new Promise(r => setTimeout(r, 160));
+        const detail = c.querySelector('.tz-zone-detail') as HTMLElement;
+        const detailOpen = !!detail && !detail.hasAttribute('hidden');
+        const link = detailOpen
+          ? Array.from(detail.querySelectorAll('.su-tz-link')).find(l => /full drop table/.test(l.textContent || '')) as HTMLElement
+          : null;
+        if (!detailOpen || !link) { mismatches.push({ expBossId, detailOpen, reason: 'no inline detail / cross-link' }); continue; }
+        link.click(); // open the canonical boss card via the cross-link
         await new Promise(r => setTimeout(r, 200));
         const overlay = document.getElementById('boss-detail-overlay');
         const hidden = overlay?.classList.contains('hidden');
