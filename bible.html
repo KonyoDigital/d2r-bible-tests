@@ -2080,6 +2080,32 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name" style="color:var(--best)">Festering of Destruction</td><td>💀 Baal</td><td class="diff-col rare-4">~12%</td></tr>
     </tbody>
   </table></div>
+  <h2>🔑 Pandemonium Keys</h2>
+  <div class="lead">The 3 keys for <strong style="color:var(--uber)">Uber Tristram → Hellfire Torch</strong>. <strong>Hell only</strong>, and drops require <strong>/players 3+</strong>. Cube all 3 → red portal → Pandemonium Run → Uber Tristram.</div>
+  <div class="scroll-table"><table class="drops">
+    <thead><tr><th>Key</th><th>Drops From</th><th>Where</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="item-name" style="color:var(--uber)">🔑 Key of Terror</td><td>The Countess</td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% · Hell · /p3+ · same Countess as the rune farm</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">🔑 Key of Hate</td><td>The Summoner</td><td>Act 2 · Arcane Sanctuary</td><td>~10% · Hell · /p3+ · short walk from Lost City / Canyon WP</td></tr>
+      <tr><td class="item-name" style="color:var(--uber)">🔑 Key of Destruction</td><td>Nihlathak</td><td>Act 5 · Halls of Vaught</td><td>~10% · Hell · /p3+ · Corpse-Explosion danger, kite him</td></tr>
+    </tbody>
+  </table></div>
+  <div style="background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(212,168,71,.5);border-radius:10px;padding:14px 16px 15px;margin:12px 0 4px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:26px;line-height:1">🔮</span>
+      <div>
+        <div style="font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.02em;color:var(--text)">The Summoner</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.04em">Horazon's incarnation · the only Key dropper without its own boss card</div>
+      </div>
+    </div>
+    <table class="drops" style="margin:0"><tbody>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);width:1%;padding-right:14px">📍 Location</td><td>Act 2 · <strong>Arcane Sanctuary</strong> — Lost City WP → Palace cellar → Arcane Sanctuary, then teleport the floating platforms to the central pedestal</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--uber)">Key of Hate</strong> — ~10% on Hell, <strong>/players 3+ required</strong> for the key to roll</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⚔️ Kill</td><td>Trivial — low-HP caster (fire/cold/lightning bolts + blinks away). Burst him before he teleports; no immunities to worry about</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⭐ Best</td><td><strong style="color:var(--best)">Konyolock</strong> — Enigma teleport crosses the platforms instantly and one-shots him</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔗 Feeds</td><td>3× Key of Hate → Forgotten Sands → <strong>Duriel</strong> → Baal's Eye → Uber Tristram</td></tr>
+    </tbody></table>
+  </div>
   <h2>💎 Sunder Charms</h2>
   <div class="lead">ONLY from <strong>Hell TZ Heralds of Terror</strong>. Drops immunes to ~95% resist.</div>
   <div class="scroll-table"><table class="drops">
@@ -3429,7 +3455,7 @@ const TZ_ZONES = [
   {emoji:"❄️",name:"Crystalline Passage + Frozen River",tier:"S",mlvl:96,tcMax:85,act:"Act 5 · terrorize Crystalline Passage",density:"dense",hot:true,unique:"Frozenstein · Eldritch · Shenk (with Rogue Camp portal)",why:"<strong>2-zone clear with 3 super-uniques.</strong> Includes Anya quest mob density. Hell TZ = mlvl 96 + TC85 items. Excellent for cold-resist farmers (Konyolock fits, Konyodin slow).",tags:["hot","dense","tc85"]},
   {emoji:"🏛️",name:"Worldstone Keep L1-L3",tier:"S+",mlvl:96,tcMax:87,act:"Act 5 · terrorize WSK",density:"very dense",hot:true,unique:"Random Champion/Unique packs · multiple chests",why:"<strong>WSK L3 hits TC87 even Hell-only.</strong> Dense knight/oblivion knight packs. Terror = mlvl 96 + 3 rolls on TC87. <strong>Best non-act-boss zone for Tyrael's / Templar's / Schaefer's.</strong>",tags:["hot","dense","tc87"]},
   {emoji:"⚰️",name:"Halls of Anguish/Pain/Vaught",tier:"S",mlvl:96,tcMax:87,act:"Act 5 · terrorize Halls",density:"dense",hot:true,unique:"Nihlathak (Vaught) - Key of Destruction source",why:"<strong>Triple-zone with Nihl finisher.</strong> Each Hall = TC87 in terror. Vaught hosts Nihl + Key of Destruction (Hell only, ~10%). Halls Pain has dense corpse-explosion-vulnerable mobs.",tags:["hot","dense","tc87"]},
-  {emoji:"🔮",name:"Arcane Sanctuary",tier:"A+",mlvl:96,tcMax:85,act:"Act 2 · terrorize Arcane",density:"dense magic",hot:false,unique:"The Summoner",why:"<strong>Dense ghost/lasher packs.</strong> The Summoner super-unique drops higher TC than expected. Hard for melee (ghosts phase). Sorc/caster paradise.",tags:["dense","tc85"]},
+  {emoji:"🔮",name:"Arcane Sanctuary",tier:"A+",mlvl:96,tcMax:85,act:"Act 2 · terrorize Arcane",density:"dense magic",hot:false,unique:"The Summoner",why:"<strong>Dense ghost/lasher packs.</strong> The Summoner super-unique drops higher TC than expected — and on Hell (/p3+) he drops the <strong>🔑 Key of Hate</strong> for Uber Tristram. Hard for melee (ghosts phase). Sorc/caster paradise.",tags:["dense","tc85"]},
   {emoji:"🔥",name:"River of Flame + Chaos approach",tier:"A+",mlvl:96,tcMax:87,act:"Act 4 · terrorize RoF",density:"medium-high",hot:false,unique:"Hephasto · Izual",why:"<strong>Hephasto drops superior items.</strong> Izual + River monsters. Connects to CS so you can chain into Diablo. TC87 unlock.",tags:["tc87"]},
   {emoji:"⛪",name:"Tristram (the town)",tier:"A",mlvl:96,tcMax:85,act:"Act 1 · terrorize Tristram",density:"medium",hot:false,unique:"The Smith · Bone Ash · Rakanishu · Griswold",why:"<strong>4 super-uniques in 1 zone.</strong> Compact map, fast clear. Hell TZ unlocks TC85. Cain's old home, surprisingly efficient.",tags:["dense"]},
   {emoji:"🏚️",name:"Burial Grounds + Crypt + Mausoleum",tier:"A",mlvl:96,tcMax:85,act:"Act 1 · terrorize Burial Grounds",density:"medium",hot:false,unique:"Blood Raven + Bone Ash + Coldcrow",why:"Three zones, three super-uniques. Blood Raven quest restart can be exploited for extra drops. Coldcrow drops Cold-themed items.",tags:["dense"]},
