@@ -341,6 +341,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* feeds-into pill row on farm cards */
 .feeds-into-strip{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:12px 0 3px}
 .fi-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:11px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.14));color:var(--text-muted);font-family:var(--serif-text);font-size:11px;letter-spacing:.15px;line-height:1.35}
+.fi-clickable{cursor:pointer;transition:transform .1s ease,border-color .15s ease,box-shadow .15s ease}
+.fi-clickable:hover{transform:translateY(-1px);border-color:var(--gold);box-shadow:0 2px 9px rgba(0,0,0,.3)}
+.fi-clickable .fi-lab{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.fi-clickable:hover .fi-lab::after{content:' ↗';font-size:9px;opacity:.7}
 .fi-ic{font-size:11.5px;line-height:1}
 .fi-lab{font-weight:700}
 .fi-sep{font-size:9px;opacity:.7;margin:0 -1px}
@@ -2960,10 +2964,118 @@ function zoneFeedsInto(z){
 }
 function feedsIntoStripHtml(list){
   if (!list || !list.length) return '';
-  return '<div class="feeds-into-strip">' + list.map(f =>
-    `<span class="fi-badge fi-${f.tone}" title="${f.label} → ${f.fr}"><span class="fi-ic">${f.icon}</span><span class="fi-lab">${f.label}</span><span class="fi-sep">→</span><span class="fi-for">${f.fr}</span></span>`
-  ).join('') + '</div>';
+  return '<div class="feeds-into-strip">' + list.map(f => {
+    const has = (typeof findMaterial === 'function') && !!findMaterial(f.label);
+    const click = has ? ` onclick="event.stopPropagation();window.openDrop('${(f.label||'').replace(/'/g,"\\'")}')" role="button" tabindex="0"` : '';
+    return `<span class="fi-badge fi-${f.tone}${has?' fi-clickable':''}"${click} title="${has?'open '+f.label+' detail card':f.label+' → '+f.fr}"><span class="fi-ic">${f.icon}</span><span class="fi-lab">${f.label}</span><span class="fi-sep">→</span><span class="fi-for">${f.fr}</span></span>`;
+  }).join('') + '</div>';
 }
+
+/* === Unified material ID cards (CC 2026-06-01) ===========================
+   Faithfully surfaces the EXISTING SPECIAL_DROPS data (keys / essences /
+   organs / uber-charms / worldstone-shards) as a single droppable golden
+   detail card, reachable from any feeds-into badge anywhere on the site —
+   the same "click the drop → see its detail" contract as grail items.
+   No new drop data is fabricated; this is a wiring/unification layer.    */
+const MATERIAL_FEEDS = {
+  key: 'Uber Tristram (red portals)', essence: 'Token of Absolution',
+  organ: 'Hellfire Torch (cube)', uberCharm: 'equipped — top-tier grail charm',
+  worldstoneShard: 'Sunder Charm (breaks an immunity)'
+};
+function _materialIndex(){
+  if (typeof SPECIAL_DROPS === 'undefined') return [];
+  if (window.__MAT_IDX) return window.__MAT_IDX;
+  const out = [];
+  for (const ck in SPECIAL_DROPS){
+    const cat = SPECIAL_DROPS[ck];
+    (cat.items || []).forEach(it => out.push({ catKey: ck, cat, item: it }));
+  }
+  window.__MAT_IDX = out;
+  return out;
+}
+function _norm(s){ return (s||'').toLowerCase().replace(/[()]/g,' ').replace(/\s+/g,' ').trim(); }
+// Resolve a feeds-into label ("Northern Worldstone Shard", "Key of Destruction",
+// "Essence of Hatred", "Annihilus") to its SPECIAL_DROPS entry. Direction-tolerant
+// for shards (label "Northern Worldstone Shard" ↔ item "Worldstone Shard (Northern)").
+function findMaterial(name){
+  const idx = _materialIndex(); if (!idx.length || !name) return null;
+  const q = _norm(name);
+  let hit = idx.find(e => _norm(e.item.n) === q);
+  if (hit) return hit;
+  const dir = (q.match(/\b(western|eastern|southern|northern|deep)\b/) || [])[1];
+  if (dir && /shard/.test(q)) { hit = idx.find(e => e.catKey === 'worldstoneShard' && _norm(e.item.n).includes(dir)); if (hit) return hit; }
+  hit = idx.find(e => { const n = _norm(e.item.n); return n.includes(q) || q.includes(n); });
+  return hit || null;
+}
+function materialDetailHtml(name){
+  const m = findMaterial(name); if (!m) return '';
+  const { cat, item, catKey } = m;
+  const feeds = MATERIAL_FEEDS[catKey] || '—';
+  const fromRows = (item.from || []).map(f =>
+    `<div class="zd-row"><span class="zd-k">drops from</span><span class="zd-v">${f}</span></div>`).join('');
+  return `<div class="gic-card material-card">
+    <header class="gic-header">
+      <span class="gic-emoji">${cat.icon}</span>
+      <div class="gic-id-block">
+        <h2 class="gic-name">${item.n} <span class="gic-grail-badge" style="background:linear-gradient(135deg,#6a4,#363);color:#dfffe0">${cat.label}</span></h2>
+        <div class="gic-subtitle">${cat.blurb || ''}</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">per-kill rate: ${item.rate || '—'}</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">feeds → ${feeds}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">📍 Where it drops</div>
+      <div class="zd-stats" style="margin-bottom:8px">
+        <div class="zd-stat"><span class="zd-sk">category</span><span class="zd-sv">${cat.label}</span></div>
+        <div class="zd-stat"><span class="zd-sk">per-kill rate</span><span class="zd-sv">${item.rate || '—'}</span></div>
+        <div class="zd-stat"><span class="zd-sk">feeds into</span><span class="zd-sv">${feeds}</span></div>
+        <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">${catKey==='worldstoneShard'?'no — fixed rate':catKey==='organ'||catKey==='uberCharm'?'no — guaranteed/event':'no — fixed rate'}</span></div>
+      </div>
+      ${fromRows}
+      ${item.note ? `<div class="zd-row"><span class="zd-k">note</span><span class="zd-v">${item.note}</span></div>` : ''}
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">🧪 Recipe / use</div>
+      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">${cat.recipe || '—'}</span></div>
+      ${cat.important ? `<div class="zd-row"><span class="zd-k">⚠ important</span><span class="zd-v">${cat.important}</span></div>` : ''}
+    </section>
+    <div class="zd-note">⚠ Material drop rates are not MF-scaled and are not part of the 312-item grail count. Per-kill figures above are the canonical community estimates (silospen / d2runewizard / diablo2.io / Maxroll), not fabricated odds.</div>
+  </div>`;
+}
+// Unified router: grail item → calc golden card (navigateToItem); SPECIAL_DROPS
+// material → material golden card in the same #item-detail panel. One click target
+// for any drop, anywhere on the site.
+window.openDrop = function(name){
+  if (!name) return;
+  // Material-first: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
+  // (some, like the Pandemonium keys, ALSO live in the ITEMS grail set) — their
+  // canonical in-depth card is the material card. Only fall back to the calc
+  // golden card for genuine grail items with no material entry.
+  if (!findMaterial(name)) {
+    if (typeof ITEMS !== 'undefined' && ITEMS.find(i => i.n === name)) { window.navigateToItem(name, null); return; }
+    return;
+  }
+  if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+  window.__activeMaterial = name;
+  selectedItem = null;
+  switchTab('calc');
+  const panel = document.getElementById('item-detail');
+  if (panel){ panel.classList.add('show'); panel.innerHTML = materialDetailHtml(name); }
+  setTimeout(() => {
+    const card = document.querySelector('#item-detail .material-card') || document.getElementById('item-detail');
+    if (card){ const y = card.getBoundingClientRect().top + window.scrollY - 130; window.scrollTo({top: Math.max(0,y), behavior:'smooth'}); }
+  }, 180);
+};
+window.closeDrop = function(){
+  window.__activeMaterial = null;
+  const panel = document.getElementById('item-detail');
+  if (panel){ panel.classList.remove('show'); panel.innerHTML = ''; }
+};
 // Per-zone grail drop pool — derived from ITEM_CODEX (tc/qlvl) vs the zone's
 // terror ceiling (tcMax/mlvl). An item is reachable when its tc ≤ tcMax AND
 // qlvl ≤ mlvl. tc≤0 items (Annihilus/keys/organs) are event drops, NOT in the
@@ -4079,6 +4191,10 @@ document.addEventListener('keydown', e => {
     const modal = document.getElementById('kbd-help-modal');
     if (modal && modal.classList.contains('show')) {
       modal.classList.remove('show');
+    }
+    // CC 2026-06-01 unify: ESC also dismisses an open material ID card
+    if (window.__activeMaterial && typeof window.closeDrop === 'function') {
+      window.closeDrop();
     }
   }
 });
