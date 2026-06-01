@@ -2109,8 +2109,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <!-- ════════════════════════════════════════════════════════════════
        UBER TRISTRAM
        ════════════════════════════════════════════════════════════════ -->
-  <div class="colossal" id="event-uber-tristram">
-    <h3>🌀 Uber Tristram — The Hellfire Torch Run</h3>
+  <div class="event-card" id="event-uber-tristram">
+    <div class="event-card-head" onclick="toggleEventCard('event-uber-tristram')" role="button" tabindex="0" aria-expanded="false">
+      <div class="ec-titles"><div class="ec-title">🌀 Uber Tristram</div><div class="ec-sub">The Hellfire Torch Run · 3 Pandemonium ubers in one room → Hellfire Torch</div></div>
+      <div class="ec-chevron">▾</div>
+    </div>
+    <div class="event-card-body" hidden>
     <p>The deepest endgame fight in D2R. Three Pandemonium Diablos (Uber Diablo + Uber Mephisto + Uber Baal) in one room, simultaneously. Reward: <strong style="color:var(--uber)">Standard of Heroes</strong> → <strong style="color:var(--uber)">Hellfire Torch</strong> (random class, +3 skills · +20 stats · +10 res large charm).</p>
 
     <h3>🗝️ Step 1 — Farm the three keys (Hell only)</h3>
@@ -2156,13 +2160,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div class="success"><strong>For Konyo:</strong> Smiter Paladin (max Smite + max Holy Shield + Fanaticism merc) is the META — Smite ignores immunities AND stuns. Cast Holy Shield, Last Wish or Grief, run in, melt all 3. Konyodin (hammerdin) struggles — hammers can miss the small uber hitboxes. Borrow/build a smiter for torch runs.</div>
     <div class="info"><strong>Torch reroll:</strong> Got a sub-perfect roll or wrong class? Run again. Each clear = 1 Standard. Reroll until you get +3 sorc/druid/whatever main class. Sin/Pally torches are most valuable on trade.</div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
        SECRET COW LEVEL
        ════════════════════════════════════════════════════════════════ -->
-  <div class="colossal" id="event-cow-level">
-    <h3>🐄 Secret Cow Level — Moo Moo Farm</h3>
+  <div class="event-card" id="event-cow-level">
+    <div class="event-card-head" onclick="toggleEventCard('event-cow-level')" role="button" tabindex="0" aria-expanded="false">
+      <div class="ec-titles"><div class="ec-title">🐄 Secret Cow Level</div><div class="ec-sub">Moo Moo Farm · ~400 Hell Bovines · rune density + MF</div></div>
+      <div class="ec-chevron">▾</div>
+    </div>
+    <div class="event-card-body" hidden>
     <p>Always-Hell-difficulty area accessed via cube. ~400 Hell Bovines + rare elite packs + the Cow King. Excellent for rune density (chipped/low-mid runes), set/unique drops, and general MF. Fast clears with AoE builds.</p>
 
     <h3>🦴 Step 1 — Get Wirt's Leg</h3>
@@ -2194,13 +2203,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <li><strong>Density:</strong> Hammerdin / Frozen Orb sorc / Lightning Fury ama / Mosaic sin — all clear 200+ cows/min. MF stacking is meaningful here.</li>
     </ul>
     <div class="success"><strong>For Konyo:</strong> Konyodin (Blessed Hammer + Concentration) is the king. Stack Goldwrap/Chance Guards/MF charms, run cows for an hour, walk away with 5-10 chipped runes + 1-2 set greens + general grail noise.</div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
        DIABLO CLONE / ÜBER DIABLO
        ════════════════════════════════════════════════════════════════ -->
-  <div class="colossal" id="event-diablo-clone">
-    <h3>🌑 Diablo Clone — The Annihilus Hunt</h3>
+  <div class="event-card" id="event-diablo-clone">
+    <div class="event-card-head" onclick="toggleEventCard('event-diablo-clone')" role="button" tabindex="0" aria-expanded="false">
+      <div class="ec-titles"><div class="ec-title">🌑 Diablo Clone</div><div class="ec-sub">The Annihilus Hunt · SoJ-triggered world event · only unique small charm</div></div>
+      <div class="ec-chevron">▾</div>
+    </div>
+    <div class="event-card-body" hidden>
     <p>Server-wide world event. Über Diablo (DClone) walks the earth when enough Stones of Jordan are sold to vendors on a single server. Drops the only unique small charm in the game: the <strong style="color:var(--uber)">Annihilus</strong> (+1 all skills, +10-20 stats, +10-20 all res, +5-10% experience).</p>
 
     <h3>📡 Step 1 — Understand the spawn trigger</h3>
@@ -2252,13 +2266,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="stat"><div class="stat-label">+5–10%</div><div class="stat-value">Experience gained</div></div>
     </div>
     <div class="success"><strong>For Konyo:</strong> Anni + Torch are the two charms every endgame character needs. Anni is harder because spawn timing is server-dependent — set a calendar alert for ladder reset week when SoJ counters fill fastest. Konyodin (hammers ignore phys res not phys immunity, so works) + a Smiter alt is the meta combo. Stock 4-5 SoJs and sell on stage 5 to push your own server over if you're patient.</div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
        COLOSSAL ANCIENTS (existing — preserved)
        ════════════════════════════════════════════════════════════════ -->
-  <div class="colossal">
-    <h3>⚡ Colossal Ancients — The RotW Pinnacle Fight</h3>
+  <div class="event-card" id="event-colossal-ancients">
+    <div class="event-card-head" onclick="toggleEventCard('event-colossal-ancients')" role="button" tabindex="0" aria-expanded="false">
+      <div class="ec-titles"><div class="ec-title">⚡ Colossal Ancients</div><div class="ec-sub">The RotW Pinnacle Fight · buffed Talic/Korlic/Madawc → Colossal Jewels</div></div>
+      <div class="ec-chevron">▾</div>
+    </div>
+    <div class="event-card-body" hidden>
     <p>Massively buffed <span class="ancient-icon ancient-talic"></span>Talic, <span class="ancient-icon ancient-korlic"></span>Korlic, <span class="ancient-icon ancient-madawc"></span>Madawc. Rewards: <strong style="color:var(--uber)">Colossal Jewels</strong>.</p>
     <h3>How to summon</h3>
     <ol><li>Farm 5 statues from Hell-difficulty <strong>terrorized</strong> act bosses (tracker in RotW tab ⭐)</li><li>Cube all 5 in Act 5 → red portal</li></ol>
@@ -2275,13 +2294,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="stat"><div class="stat-label">Minion cap</div><div class="stat-value">5/ancient</div></div>
     </div>
     <div class="success"><strong>For Konyo:</strong> Konyolock + Konyodin both work. Smiter Paladin = safest meta.</div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
        22 NIGHTS OF TERROR — Seasonal
        ════════════════════════════════════════════════════════════════ -->
-  <div class="colossal" id="event-22-nights" style="opacity:0.92">
-    <h3>🎄 22 Nights of Terror — Seasonal (Dec 13 – Jan 4)</h3>
+  <div class="event-card" id="event-22-nights">
+    <div class="event-card-head" onclick="toggleEventCard('event-22-nights')" role="button" tabindex="0" aria-expanded="false">
+      <div class="ec-titles"><div class="ec-title">🎄 22 Nights of Terror</div><div class="ec-sub">Seasonal (Dec 13 – Jan 4) · daily-rotating modifiers · when Blizzard turns it on</div></div>
+      <div class="ec-chevron">▾</div>
+    </div>
+    <div class="event-card-body" hidden>
     <p>Blizzard's holiday event. Active in all online modes (Classic excluded). The fabric of Sanctuary changes every 24 hours — a new gameplay modifier rotates daily for 22 days. Modifiers are visible via the in-game Message of the Day.</p>
     <p><strong>Typical modifiers (recurring across years):</strong></p>
     <ul style="line-height:1.7;font-size:13px">
@@ -2294,6 +2318,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <li>🎯 <strong>Champion of Sanctuary</strong> — boss kills grant a buff for the rest of the game</li>
     </ul>
     <div class="info"><strong>When it's on:</strong> usually runs Dec 13 → Jan 4 (D2R live servers, not RotW PTR). Free MF, free density, free XP. Sandwich an Anni hunt + a torch run into the modifier window.</div>
+    </div>
   </div>
 
 </div>
@@ -2343,6 +2368,56 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-binds .info{background:linear-gradient(90deg,rgba(212,168,71,.07),transparent);border-left-color:var(--gold);}
 #tab-binds .info strong{color:var(--gold-bright);}
 #tab-binds .info,#tab-binds .warning,#tab-binds .success{padding:13px 17px;border-radius:0 7px 7px 0;}
+
+/* ═══ Events tab · collapsible uber/event detail cards — v47 unify ════════
+   Each pinnacle event is now a click-to-expand card (TZ-zone / boss-detail
+   pattern) instead of a flat magenta .colossal wall of text. */
+#tab-ancients .event-card{
+  background:linear-gradient(180deg,rgba(212,168,71,.05),rgba(0,0,0,.18));
+  border:1px solid var(--border-light);
+  border-radius:12px;
+  margin:16px 0;
+  overflow:hidden;
+  transition:border-color .18s,box-shadow .18s;
+}
+#tab-ancients .event-card.open{
+  border-color:rgba(212,168,71,.42);
+  box-shadow:0 10px 30px -18px rgba(212,168,71,.5);
+}
+#tab-ancients .event-card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:18px 22px;cursor:pointer;user-select:none;transition:background .15s;
+}
+#tab-ancients .event-card-head:hover{background:rgba(212,168,71,.06);}
+#tab-ancients .ec-title{
+  font-family:var(--serif-display);font-weight:600;font-size:21px;
+  letter-spacing:.4px;color:var(--gold-bright);line-height:1.22;
+}
+#tab-ancients .ec-sub{
+  font-family:var(--serif-text,Georgia,serif);font-style:italic;
+  font-size:12.5px;color:var(--text-dim);margin-top:4px;line-height:1.4;
+}
+#tab-ancients .ec-chevron{font-size:15px;color:var(--gold);transition:transform .22s;flex:none;}
+#tab-ancients .event-card.open .ec-chevron{transform:rotate(180deg);}
+#tab-ancients .event-card-body{padding:6px 22px 22px;border-top:1px solid rgba(212,168,71,.16);}
+#tab-ancients .event-card-body[hidden]{display:none;}
+#tab-ancients .event-card-body > h3{
+  font-family:var(--serif-display);font-weight:600;font-size:15px;letter-spacing:.3px;
+  color:var(--gold);margin:18px 0 9px;padding-bottom:0;border:none;
+}
+#tab-ancients .event-card-body p{font-size:13.5px;line-height:1.66;color:var(--text-muted);max-width:74ch;margin:0 0 12px;}
+#tab-ancients .event-card-body p strong{color:var(--text);font-weight:600;}
+#tab-ancients .event-card-body ol,#tab-ancients .event-card-body ul{font-size:13px;line-height:1.7;color:var(--text-muted);}
+#tab-ancients .event-card-body li strong{color:var(--text);}
+#tab-ancients .scroll-table{margin:8px 0 6px;border:1px solid var(--border);border-radius:8px;}
+#tab-ancients .drops th{font-size:9.5px;letter-spacing:.8px;padding:9px 11px;background:var(--surface-2);border-bottom:1px solid var(--border-light);}
+#tab-ancients .drops td{padding:8px 11px;border-bottom:1px solid rgba(58,47,30,.55);vertical-align:top;}
+#tab-ancients .drops tbody tr:nth-child(even){background:rgba(244,232,208,.022);}
+#tab-ancients .drops tbody tr:hover{background:rgba(212,168,71,.07);}
+#tab-ancients .drops tbody tr:last-child td{border-bottom:none;}
+#tab-ancients .info,#tab-ancients .warning,#tab-ancients .success{font-size:12.5px;line-height:1.6;margin:13px 0;padding:13px 17px;border-radius:0 7px 7px 0;}
+#tab-ancients .info{background:linear-gradient(90deg,rgba(212,168,71,.07),transparent);border-left-color:var(--gold);}
+#tab-ancients .info strong{color:var(--gold-bright);}
 </style>
 
 <div class="tab-content" id="tab-binds">
@@ -2878,9 +2953,40 @@ function renderEventRef(){
     <div class="er-sub">Cross-link reference (not counted in the grail) — your "where do I farm this material" map.</div>
     <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}</div>`;
 }
+// v47 unify: event/uber sections (Uber Tristram, Cow, DClone, Colossal Ancients,
+// 22 Nights) now expand inline like the TZ-zone dropdown / boss detail cards —
+// click the card header to reveal its detail in place; accordion (one open at a time).
+function toggleEventCard(id){
+  const card = document.getElementById(id);
+  if (!card) return;
+  const body = card.querySelector('.event-card-body');
+  if (!body) return;
+  const willOpen = body.hasAttribute('hidden');
+  document.querySelectorAll('#tab-ancients .event-card').forEach(c => {
+    if (c !== card) {
+      const b = c.querySelector('.event-card-body');
+      if (b) b.setAttribute('hidden', '');
+      c.classList.remove('open');
+      const h = c.querySelector('.event-card-head');
+      if (h) h.setAttribute('aria-expanded', 'false');
+    }
+  });
+  const head = card.querySelector('.event-card-head');
+  if (willOpen) {
+    body.removeAttribute('hidden');
+    card.classList.add('open');
+    if (head) head.setAttribute('aria-expanded', 'true');
+    setTimeout(() => card.scrollIntoView({behavior:'smooth', block:'nearest'}), 50);
+  } else {
+    body.setAttribute('hidden', '');
+    card.classList.remove('open');
+    if (head) head.setAttribute('aria-expanded', 'false');
+  }
+}
 window.feedsIntoStripHtml = feedsIntoStripHtml;
 window.zoneFeedsInto = zoneFeedsInto;
 window.toggleZoneDetail = toggleZoneDetail;
+window.toggleEventCard = toggleEventCard;
 window.renderEventRef = renderEventRef;
 /* === end event/material cross-link layer ================================== */
 
