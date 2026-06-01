@@ -371,6 +371,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-sv{font-family:var(--serif-text);font-size:12px;color:var(--gold-bright);font-weight:600}
 .zd-su-wrap{display:flex;flex-wrap:wrap;gap:5px}
 .zd-su{display:inline-block;background:rgba(255,0,212,.1);border:1px solid rgba(255,0,212,.32);border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;color:#ff9ee8}
+.zd-drops-head{font-family:var(--serif-display);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-bright);margin:2px 0 7px}
+.zd-drops-grp{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
+.zd-grp-lab{flex:0 0 80px;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);padding-top:4px}
+.zd-drops{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+.zd-item{display:inline-block;border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;border:1px solid}
+.zd-item.uber{background:rgba(255,0,212,.12);border-color:rgba(255,0,212,.45);color:#ff9ee8}
+.zd-item.grail{background:rgba(212,168,71,.1);border-color:rgba(212,168,71,.4);color:var(--gold-bright)}
+.zd-item.grail-dim{background:rgba(212,168,71,.05);border-color:rgba(212,168,71,.22);color:var(--gold)}
+.zd-more{margin-top:4px}
+.zd-more summary{cursor:pointer;font-size:10px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.03em;padding:3px 0}
+.zd-more summary:hover{color:var(--gold-bright)}
+.zd-more .zd-drops{margin-top:7px}
 /* keys/shards/essences codex reference (under the grail) */
 .event-ref{position:relative;background:linear-gradient(165deg,rgba(240,192,96,.055),rgba(0,255,255,.022) 60%,transparent);border:1px solid var(--border-light);border-radius:13px;padding:18px 22px 20px;margin-bottom:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
 .er-title{font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-bright);text-shadow:0 0 16px rgba(240,192,96,.28);display:flex;align-items:center;gap:9px}
@@ -2928,6 +2940,39 @@ function feedsIntoStripHtml(list){
     `<span class="fi-badge fi-${f.tone}" title="${f.label} → ${f.fr}"><span class="fi-ic">${f.icon}</span><span class="fi-lab">${f.label}</span><span class="fi-sep">→</span><span class="fi-for">${f.fr}</span></span>`
   ).join('') + '</div>';
 }
+// Per-zone grail drop pool — derived from ITEM_CODEX (tc/qlvl) vs the zone's
+// terror ceiling (tcMax/mlvl). An item is reachable when its tc ≤ tcMax AND
+// qlvl ≤ mlvl. tc≤0 items (Annihilus/keys/organs) are event drops, NOT in the
+// TC pool, so they're excluded. Single source of truth = ITEM_CODEX (no fabrication).
+function zoneGrailDrops(z){
+  if (typeof ITEM_CODEX === 'undefined' || !z) return [];
+  const out = [];
+  for (const name in ITEM_CODEX){
+    const it = ITEM_CODEX[name];
+    if (!it || (it.tier !== 'grail' && it.tier !== 'uber')) continue;
+    const tc = it.tc || 0, q = it.qlvl || 0;
+    if (tc <= 0) continue;
+    if (tc <= z.tcMax && q <= z.mlvl) out.push({name, tc, tier: it.tier});
+  }
+  out.sort((a, b) => b.tc - a.tc || a.name.localeCompare(b.name));
+  return out;
+}
+function zoneDropBlockHtml(z){
+  const pool = zoneGrailDrops(z);
+  if (!pool.length) return '';
+  const exclusives = pool.filter(d => d.tc >= 86);          // TC87-only trophies
+  const elites     = pool.filter(d => d.tc >= 84 && d.tc < 86); // TC85 elite ceiling
+  const rest       = pool.filter(d => d.tc < 84);           // broadly-droppable grails
+  const chip = (d, cls) => `<span class="zd-item ${cls}">${d.name}</span>`;
+  let h = `<div class="zd-row"><span class="zd-k">grail drops</span><span class="zd-v">`;
+  h += `<div class="zd-drops-head">🏆 ${pool.length} grail-eligible uniques reachable in this terror pool</div>`;
+  if (exclusives.length) h += `<div class="zd-drops-grp"><span class="zd-grp-lab">🔱 TC87-only</span><div class="zd-drops">${exclusives.map(d => chip(d, 'uber')).join('')}</div></div>`;
+  if (elites.length) h += `<div class="zd-drops-grp"><span class="zd-grp-lab">⭐ TC85 elite</span><div class="zd-drops">${elites.map(d => chip(d, 'grail')).join('')}</div></div>`;
+  else if (!exclusives.length) h += `<div class="zd-drops-grp"><span class="zd-grp-lab" style="color:var(--text-dim)">capped TC${z.tcMax}</span><div class="zd-drops"><span style="font-size:10.5px;color:var(--text-dim);font-style:italic">no TC85 elite pool — density / runeword-base farm</span></div></div>`;
+  if (rest.length) h += `<details class="zd-more"><summary>+ ${rest.length} more grail uniques in pool (lower TC — drop across many zones)</summary><div class="zd-drops">${rest.map(d => chip(d, 'grail-dim')).join('')}</div></details>`;
+  h += `</span></div>`;
+  return h;
+}
 function zoneDetailHtml(z){
   const fi = zoneFeedsInto(z);
   const tcUnlock = z.tcMax >= 87 ? 'TC87' : z.tcMax >= 85 ? 'TC85' : ('TC' + z.tcMax);
@@ -2949,6 +2994,7 @@ function zoneDetailHtml(z){
     </div>
     <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
     <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
+    ${zoneDropBlockHtml(z)}
     <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
     ${fi.length ? `<div class="zd-row"><span class="zd-k">feeds into</span><span class="zd-v">${feedsIntoStripHtml(fi)}</span></div>` : ''}
     <div class="zd-note">⚠ Per-kill terrorized odds are a pending silospen TZ pull — the items above are the TC-reachable drop POOL, not per-run rates yet.</div>`;
@@ -3456,7 +3502,7 @@ const TZ_ZONES = [
   {emoji:"🏛️",name:"Worldstone Keep L1-L3",tier:"S+",mlvl:96,tcMax:87,act:"Act 5 · terrorize WSK",density:"very dense",hot:true,unique:"Random Champion/Unique packs · multiple chests",why:"<strong>WSK L3 hits TC87 even Hell-only.</strong> Dense knight/oblivion knight packs. Terror = mlvl 96 + 3 rolls on TC87. <strong>Best non-act-boss zone for Tyrael's / Templar's / Schaefer's.</strong>",tags:["hot","dense","tc87"]},
   {emoji:"⚰️",name:"Halls of Anguish/Pain/Vaught",tier:"S",mlvl:96,tcMax:87,act:"Act 5 · terrorize Halls",density:"dense",hot:true,unique:"Nihlathak (Vaught) - Key of Destruction source",why:"<strong>Triple-zone with Nihl finisher.</strong> Each Hall = TC87 in terror. Vaught hosts Nihl + Key of Destruction (Hell only, ~10%). Halls Pain has dense corpse-explosion-vulnerable mobs.",tags:["hot","dense","tc87"]},
   {emoji:"🔮",name:"Arcane Sanctuary",tier:"A+",mlvl:96,tcMax:85,act:"Act 2 · terrorize Arcane",density:"dense magic",hot:false,unique:"The Summoner",why:"<strong>Dense ghost/lasher packs.</strong> The Summoner super-unique drops higher TC than expected — and on Hell (/p3+) he drops the <strong>🔑 Key of Hate</strong> for Uber Tristram. Hard for melee (ghosts phase). Sorc/caster paradise.",tags:["dense","tc85"]},
-  {emoji:"🔥",name:"River of Flame + Chaos approach",tier:"A+",mlvl:96,tcMax:87,act:"Act 4 · terrorize RoF",density:"medium-high",hot:false,unique:"Hephasto · Izual",why:"<strong>Hephasto drops superior items.</strong> Izual + River monsters. Connects to CS so you can chain into Diablo. TC87 unlock.",tags:["tc87"]},
+  {emoji:"🔥",name:"River of Flame",tier:"A+",mlvl:96,tcMax:87,act:"Act 4 · terrorize RoF",density:"medium-high",hot:false,unique:"Hephasto · Izual",why:"<strong>Its own TC87 zone — a Hephasto + Izual run, NOT a Diablo run.</strong> Hephasto (the Hellforge smith) + Izual are both super-uniques that drop superior items, and terror lifts the River to mlvl 96 / TC87 — the same elite ceiling as WSK. Hellforge rune drop also lives here.",tags:["tc87"]},
   {emoji:"⛪",name:"Tristram (the town)",tier:"A",mlvl:96,tcMax:85,act:"Act 1 · terrorize Tristram",density:"medium",hot:false,unique:"The Smith · Bone Ash · Rakanishu · Griswold",why:"<strong>4 super-uniques in 1 zone.</strong> Compact map, fast clear. Hell TZ unlocks TC85. Cain's old home, surprisingly efficient.",tags:["dense"]},
   {emoji:"🏚️",name:"Burial Grounds + Crypt + Mausoleum",tier:"A",mlvl:96,tcMax:85,act:"Act 1 · terrorize Burial Grounds",density:"medium",hot:false,unique:"Blood Raven + Bone Ash + Coldcrow",why:"Three zones, three super-uniques. Blood Raven quest restart can be exploited for extra drops. Coldcrow drops Cold-themed items.",tags:["dense"]},
   {emoji:"🍃",name:"Spider Forest + Cavern",tier:"B+",mlvl:96,tcMax:85,act:"Act 3 · terrorize Spider Forest",density:"low-medium",hot:false,unique:"Sszark the Burning",why:"Decent if rotation includes it. Sparse outdoor map = slower than dungeon zones. Cavern denser. Sszark drops some uniques.",tags:[]},
