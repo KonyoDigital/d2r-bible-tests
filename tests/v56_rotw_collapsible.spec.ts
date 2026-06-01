@@ -34,4 +34,11 @@ test.describe('v56 ROTW collapsible sections', () => {
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
     await expect(page.locator('#item-detail .material-card')).toContainText('Cold Rupture');
   });
+
+  test('statue tracker cross-links to the Colossal Ancient Jewels card', async ({ page }) => {
+    await page.locator('#tab-rotw .zd-item-click', { hasText: 'Colossal Ancient Jewels' }).first().evaluate((e:any) => e.click());
+    await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
+    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Ancient Jewels');
+  });
+
 });
