@@ -3195,6 +3195,9 @@ function superUniqueDetailHtml(su){
   if (tz){
     const tcU = tz.z.tcMax >= 87 ? 'TC87' : tz.z.tcMax >= 85 ? 'TC85' : ('TC' + tz.z.tcMax);
     h += `<div class="zd-row"><span class="zd-k">terror zone</span><span class="zd-v"><span class="su-tz-link" onclick="event.stopPropagation();window.jumpToTzZone(${tz.zi})" title="jump to this terror zone">🔥 ${tz.z.name} → mlvl ${tz.z.mlvl} / ${tcU}${poolN ? ` · ${poolN} grail uniques reachable` : ''}</span></span></div>`;
+    // CC 2026-06-01 unify: surface the same clickable grail-chip pool as the zone
+    // card — each chip opens that exact item's golden card (navigateToItem).
+    if (typeof zoneDropBlockHtml === 'function') h += zoneDropBlockHtml(tz.z);
   } else {
     h += `<div class="zd-row"><span class="zd-k">terror zone</span><span class="zd-v" style="color:var(--text-dim)">not on the current TZ rotation list — run on demand (e.g. Pindle via Anya's red portal)</span></div>`;
   }
