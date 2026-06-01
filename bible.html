@@ -6563,7 +6563,7 @@ document.querySelectorAll(".filter-pill").forEach(p => {
     renderCalc();
   };
 });
-document.querySelectorAll(".tab").forEach(t => { t.onclick = () => { switchTab(t.dataset.tab); window.scrollTo({ top: 0, behavior: "smooth" }); }; });
+document.querySelectorAll(".tab").forEach(t => { t.onclick = () => navClean(t.dataset.tab); });
 
 // === v59: floating navigation compass widget ===
 // Persistent maneuvering control (bottom-right) so any tab / back-to-top is one
@@ -6603,9 +6603,20 @@ function buildNavWidget() {
   if (active) syncNavWidget(active);
 }
 function toggleNavPanel(e) { if (e) e.stopPropagation(); document.getElementById("nav-widget")?.classList.toggle("open"); }
-function navTo(tab) {
-  window.switchTab(tab);
+// A user-initiated tab switch is a CLEAN switch: dismiss any open detail overlay,
+// and returning to the bosses home drops the previously-farmed item highlight so
+// you land on a fresh boss list (not the "stuck" filtered view) — then scroll to top.
+function navClean(name) {
+  if (typeof window.closeDrop === "function") window.closeDrop();
+  if (typeof window.closeItemDetail === "function") window.closeItemDetail();
+  if (typeof window.clearActiveBoss === "function") window.clearActiveBoss({ noScroll: true });
+  if (name === "bosses" && typeof activeItem !== "undefined" && activeItem && typeof window.clearActiveItem === "function") window.clearActiveItem();
+  window.switchTab(name);
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+window.navClean = navClean;
+function navTo(tab) {
+  navClean(tab);
   document.getElementById("nav-widget")?.classList.remove("open");
 }
 function navTop() {

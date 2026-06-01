@@ -153,6 +153,47 @@ test.describe('v59 nav compass widget', () => {
     expect(r.fabCenterHitsFab).toBe(true);
   });
 
+  test('clicking the bosses TAB returns to a FRESH home — no stuck farmed-item highlight', async ({ page }) => {
+    // Konyo flow: open an item (sets the "now farming" bar + boss highlight), then click
+    // the bosses tab → must land on the clean boss list, not the stuck filtered view.
+    await page.evaluate(() => (window as any).navigateToItem('Harlequin Crest (Shako)', null));
+    await page.waitForTimeout(300);
+    await expect(page.locator('#active-item-bar')).toHaveClass(/show/);
+    expect(await page.evaluate(() =>
+      document.querySelectorAll('.boss-card.has-item, .boss-card.no-item').length)).toBeGreaterThan(0);
+    // click the bosses tab (header)
+    await page.locator('.tab[data-tab="bosses"]').click();
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(() => ({
+      barShown: document.getElementById('active-item-bar')?.classList.contains('show'),
+      bossesActive: !!document.querySelector('.tab[data-tab="bosses"].active'),
+      highlightedBosses: document.querySelectorAll('.boss-card.has-item, .boss-card.no-item').length,
+    }));
+    expect(r.barShown).toBe(false);
+    expect(r.bossesActive).toBe(true);
+    expect(r.highlightedBosses).toBe(0);
+  });
+
+  test('widget navTo("bosses") returns fresh and closes any open boss detail', async ({ page }) => {
+    // open a boss detail card
+    await page.evaluate(() => (window as any).openBossDetail('countess'));
+    await page.waitForTimeout(300);
+    await expect(page.locator('#boss-detail-overlay')).not.toHaveClass(/hidden/);
+    // navigate to an item (sets the farming bar) then return home via the WIDGET chip
+    await page.evaluate(() => (window as any).navigateToItem('Harlequin Crest (Shako)', null));
+    await page.waitForTimeout(250);
+    await page.evaluate(() => (window as any).navTo('bosses'));
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(() => ({
+      barShown: document.getElementById('active-item-bar')?.classList.contains('show'),
+      bossDetailHidden: document.getElementById('boss-detail-overlay')?.classList.contains('hidden'),
+      bossesActive: !!document.querySelector('.tab[data-tab="bosses"].active'),
+    }));
+    expect(r.barShown).toBe(false);
+    expect(r.bossDetailHidden).toBe(true);
+    expect(r.bossesActive).toBe(true);
+  });
+
   test('no console errors across the widget flow', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
