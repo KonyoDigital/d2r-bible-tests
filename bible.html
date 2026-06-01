@@ -4355,6 +4355,8 @@ document.addEventListener('keydown', e => {
     if ((window.__activeMaterial || window.__activeRune) && typeof window.closeDrop === 'function') {
       window.closeDrop();
     }
+    // v59: ESC also collapses an open nav compass panel
+    document.getElementById('nav-widget')?.classList.remove('open');
   }
 });
 
@@ -6585,6 +6587,12 @@ function buildNavWidget() {
     + `</div>`
     + `<button class="nav-fab" id="nav-fab" aria-label="Navigation menu" title="Navigate" onclick="toggleNavPanel(event)">🧭</button>`;
   document.body.appendChild(w);
+  // keyboard activation: Enter / Space fire the focused chip or FAB (role=button a11y)
+  w.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    const t = e.target.closest(".nav-chip, .nav-fab");
+    if (t) { e.preventDefault(); t.click(); }
+  });
   // click-outside closes the panel
   document.addEventListener("click", (e) => {
     if (w.classList.contains("open") && !w.contains(e.target)) w.classList.remove("open");

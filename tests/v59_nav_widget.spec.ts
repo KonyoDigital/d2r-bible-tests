@@ -106,6 +106,25 @@ test.describe('v59 nav compass widget', () => {
     await expect(page.locator('#nav-widget')).not.toHaveClass(/open/);
   });
 
+  test('keyboard: Enter on a focused chip navigates (role=button a11y)', async ({ page }) => {
+    await page.locator('#nav-fab').click();
+    await page.waitForTimeout(150);
+    await page.locator('#nav-widget .nav-chip[data-nav="rotw"]').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => !!document.querySelector('.tab[data-tab="rotw"].active'))).toBe(true);
+    expect(await page.evaluate(() => document.getElementById('nav-widget')?.classList.contains('open'))).toBe(false);
+  });
+
+  test('ESC collapses an open nav panel', async ({ page }) => {
+    await page.locator('#nav-fab').click();
+    await page.waitForTimeout(150);
+    await expect(page.locator('#nav-widget')).toHaveClass(/open/);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    await expect(page.locator('#nav-widget')).not.toHaveClass(/open/);
+  });
+
   test('no console errors across the widget flow', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
