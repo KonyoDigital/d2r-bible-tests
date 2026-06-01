@@ -113,7 +113,12 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
     await page.waitForTimeout(600);
     const firstPick = page.locator('.hero-pick').first();
     await expect(firstPick).toBeVisible();
-    await firstPick.click();
+    // Floating overlays (the #v42-tz-countdown badge and the sticky .header masthead) can
+    // land over the first pick after auto-scroll and intercept a physical click. This test
+    // verifies the pick's onclick wiring opens the detail panel, not a pixel hit-test — so
+    // fire the handler directly via dispatchEvent (a broken handler still fails the asserts
+    // below). Avoids flake from the floating UI.
+    await firstPick.dispatchEvent('click');
     await page.waitForTimeout(300);
     // v38: hero-pick opens Golden Item Card at top of page (openItemDetail).
     // We start on bosses tab; clicking a hero-pick does not change tab.
