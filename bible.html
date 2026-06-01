@@ -291,6 +291,46 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .all-drops-summary:hover{color:var(--gold-bright)}
 .all-drops-details[open] .all-drops-summary{color:var(--gold-bright);margin-bottom:8px}
 @media (max-width:520px){.top-drop-row{grid-template-columns:26px 1fr auto;gap:6px 10px;padding:8px 10px}.top-drop-hrs{grid-column:2 / -1;justify-self:start;font-size:10px;opacity:.9}}
+/* ═══ Most Wanted · community/forum trade-demand board (v60) — a SEPARATE layer from the
+   Holy Grail rarity tables: grail = "how hard to find", this = "what's worth chasing/holding". ═══ */
+.mw{margin:18px 0;background:linear-gradient(180deg,rgba(255,125,60,.045),rgba(0,0,0,.14));border:1px solid var(--border-light);border-radius:12px;padding:16px 16px 18px}
+.mw-title{font-family:var(--serif-display);font-size:17px;font-weight:600;letter-spacing:.4px;color:var(--rune);text-transform:uppercase;margin:0 0 4px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.mw-sub{font-family:var(--serif-text);font-style:italic;color:var(--text-muted);font-weight:400;font-size:12px;letter-spacing:0;text-transform:none}
+.mw-note{font-size:11.5px;color:var(--text-muted);font-family:var(--mono);line-height:1.5;margin:2px 0 12px;border-left:2px solid rgba(255,125,60,.35);padding-left:9px}
+.mw-section-label{font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--gold);margin:14px 0 8px}
+.mw-top{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.mw-row{display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;padding:9px 12px;border-radius:8px;background:linear-gradient(180deg,rgba(255,125,60,.04),rgba(0,0,0,.12));border:1px solid var(--border-light);cursor:pointer;transition:border-color .12s,background .12s,transform .12s}
+.mw-row:hover,.mw-row:focus-visible{border-color:rgba(255,125,60,.55);background:linear-gradient(180deg,rgba(255,125,60,.10),rgba(0,0,0,.06));transform:translateY(-1px);outline:none}
+.mw-rank{color:var(--rune);font-weight:700;font-size:11px;font-family:var(--mono);text-align:center;background:rgba(255,125,60,.12);border-radius:5px;padding:3px 0;letter-spacing:-.3px}
+.mw-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mw-name{color:var(--gold-bright);font-weight:600;letter-spacing:.2px;display:flex;align-items:center;gap:7px}
+.mw-name .mw-caret{color:var(--text-dim);font-size:10px;transition:transform .15s}
+.mw-row.open .mw-name .mw-caret{transform:rotate(90deg)}
+.mw-why{color:var(--text-muted);font-size:11.5px;line-height:1.4}
+.mw-tier{font-family:var(--mono);font-weight:700;font-size:11px;padding:3px 8px;border-radius:5px;align-self:center}
+.mw-tier-S{color:#ffd479;background:rgba(255,125,60,.14);border:1px solid rgba(255,125,60,.4)}
+.mw-tier-A{color:var(--gold);background:rgba(212,168,71,.10);border:1px solid var(--border-light)}
+.mw-rotw-badge{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#c9a0ff;background:rgba(150,90,255,.14);border:1px solid rgba(150,90,255,.4);border-radius:4px;padding:1px 5px;text-transform:uppercase}
+.mw-rw{display:none;grid-column:1 / -1;margin-top:8px;padding:9px 11px;background:rgba(0,0,0,.22);border-radius:7px;border:1px dashed var(--border-light)}
+.mw-row.open .mw-rw{display:block}
+.mw-rw-lbl{font-size:11px;color:var(--text-muted);font-family:var(--mono);margin-bottom:6px}
+.mw-rune-chip{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--rune);background:rgba(255,125,60,.10);border:1px solid rgba(255,125,60,.4);border-radius:5px;padding:3px 8px;margin:0 5px 5px 0;cursor:pointer;transition:background .12s,border-color .12s}
+.mw-rune-chip:hover,.mw-rune-chip:focus-visible{background:rgba(255,125,60,.22);border-color:var(--rune);outline:none}
+.mw-sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px}
+.mw-sec{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
+.mw-sec-head{display:flex;align-items:center;gap:8px;cursor:pointer;border:none;background:none;color:inherit;font:inherit;text-align:left;padding:0;width:100%}
+.mw-sec-head:hover .mw-sec-target,.mw-sec-head:focus-visible .mw-sec-target{color:var(--gold-bright);outline:none}
+.mw-sec-icon{font-size:18px}
+.mw-sec-titles{display:flex;flex-direction:column;min-width:0}
+.mw-sec-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-dim)}
+.mw-sec-target{font-weight:600;color:var(--gold);font-size:13px;transition:color .12s}
+.mw-sec-note{font-size:11px;color:var(--text-muted);line-height:1.45}
+.mw-wants{display:flex;flex-wrap:wrap;gap:5px}
+.mw-want-chip{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;color:var(--gold-bright);background:rgba(212,168,71,.08);border:1px solid var(--border-light);border-radius:5px;padding:3px 8px;cursor:pointer;transition:background .12s,border-color .12s}
+.mw-want-chip:hover,.mw-want-chip:focus-visible{background:rgba(212,168,71,.18);border-color:var(--gold);outline:none}
+.mw-want-chip.mw-want-1::before{content:"★";color:var(--rune);margin-right:4px;font-size:10px}
+@media (max-width:520px){.mw-row{grid-template-columns:26px 1fr auto;gap:8px}.mw-sections{grid-template-columns:1fr}}
+@media print{.mw{display:none}}
 .sim-box{background:var(--surface-3);border-radius:8px;padding:14px;margin-top:14px;border-left:3px solid var(--terror)}
 .sim-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .sim-btn{background:var(--terror);color:#1a0010;padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s}
@@ -1770,6 +1810,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="hero-sub" id="hero-sub">Calculated live from all 251 item rows. Click any to jump to that boss card.</div>
     <div class="hero-grid" id="hero-picks"></div>
   </div>
+  <div class="mw" id="most-wanted"></div>
   <div class="event-ref" id="event-ref"></div>
   <div class="wishlist-card" id="wishlist-hunt-path"></div>
   <div style="display:none">
@@ -6631,9 +6672,133 @@ window.buildNavWidget = buildNavWidget;
 window.navTo = navTo; window.navTop = navTop;
 window.toggleNavPanel = toggleNavPanel; window.syncNavWidget = syncNavWidget;
 
+/* ═══ Most Wanted — community/forum trade-demand board (v60) ════════════════
+   A SEPARATE layer from the Holy Grail rarity tables. The grail answers
+   "how hard is this to find"; this answers "what's actually worth chasing /
+   holding" (community demand + trade value). They diverge hard — a thing can be
+   game-rare but near-zero demand (and vice-versa). Demand tiers are an editorial,
+   community-consensus ranking (diablo.io-style, ROTW-aware) — explicitly NOT a
+   drop rate. Every entry routes to its real card via the unified openDrop()
+   (rune / material / item) or, for runewords, expands to clickable rune chips. */
+const MW_TOP10 = [
+  { n:"Enigma",                  dt:"S", why:"Teleport on any class — the #1 chase, period. Gated by Ber + Jah.",                rw:["Jah","Ith","Ber"] },
+  { n:"Ber Rune",                dt:"S", why:"The bottleneck high rune: Enigma, Infinity (×2), CoH. The high-end currency unit.", drop:"Ber" },
+  { n:"Jah Rune",                dt:"S", why:"Enigma's other half + Faith. Co-top high rune.",                                    drop:"Jah" },
+  { n:"Grief",                   dt:"S", why:"Melee phys-DPS king — still unmatched. Eth base = premium.",                        rw:["Eth","Tir","Lo","Mal","Ral"] },
+  { n:"Infinity",                dt:"S", why:"Conviction aura — caster + merc BiS. Eats 2 Ber.",                                  rw:["Ber","Mal","Ber","Ist"] },
+  { n:"Colossal Ancient Jewels", dt:"S", why:"ROTW endgame BiS — strictly better than Rainbow Facets. ~1 per character.",        drop:"Colossal Ancient Jewels", rotw:true },
+  { n:"Hellfire Torch",          dt:"S", why:"+3 class skills · +20 stats · +10 res. Every character wants one.",                drop:"Hellfire Torch" },
+  { n:"Call to Arms",            dt:"A", why:"Battle Orders for literally every build — the universal swap-weapon.",             rw:["Amn","Ral","Mal","Ist","Ohm"] },
+  { n:"Sunder Charms",           dt:"S", why:"Break a monster immunity to ~95% — gate the ROTW endgame climb.",                  tab:"rotw", rotw:true },
+  { n:"Annihilus",               dt:"S", why:"+1 all skills · stats · res small charm — universal, one-per-realm hunt.",         drop:"Annihilus" },
+];
+const MW_SECTIONS = [
+  { icon:"🏰", label:"Act 1",        target:"Countess · Forgotten Tower",            boss:"countess",
+    note:"Best targeted rune farm — terrorized she pushes high runes up to Lo.",
+    wants:[ {n:"Ber",drop:"Ber"}, {n:"Jah",drop:"Jah"}, {n:"Stone of Jordan",drop:"The Stone of Jordan"} ] },
+  { icon:"🏜️", label:"Act 2",        target:"Duriel · Ancient Tunnels",              boss:"duriel",
+    note:"Ancient Tunnels = premier Hell MF — dense, fast, every unique drops.",
+    wants:[ {n:"Mara's Kaleidoscope",drop:"Mara's Kaleidoscope"}, {n:"Stormshield",drop:"Stormshield"} ] },
+  { icon:"🌀", label:"Act 3",        target:"Mephisto · Durance of Hate",            boss:"mephisto",
+    note:"THE value boss — easy, fast, huge loot table (high runes + top uniques).",
+    wants:[ {n:"Harlequin Crest (Shako)",drop:"Harlequin Crest (Shako)"}, {n:"Jah (Travincal)",drop:"Jah"} ] },
+  { icon:"🔥", label:"Act 4",        target:"Diablo · Chaos Sanctuary + Hellforge",  boss:"diablo",
+    note:"Guaranteed Hellforge rune; CS runs for uniques + runes.",
+    wants:[ {n:"Lo Rune",drop:"Lo"}, {n:"Annihilus (DClone)",drop:"Annihilus"} ] },
+  { icon:"❄️", label:"Act 5",        target:"Pindleskin + Baal · WSK",               boss:"baal",
+    note:"Pindle = fastest unique speed-farm; Baal = drops + XP. Hell-TZ Heralds = your Sunder source.",
+    wants:[ {n:"Griffon's Eye",drop:"Griffon's Eye"}, {n:"Death's Web",drop:"Death's Web"}, {n:"Tyrael's Might",drop:"Tyrael's Might"} ] },
+  { icon:"🌑", label:"Uber · Charms", target:"Uber Tristram + Diablo Clone",          tab:"ancients",
+    note:"The 3 organs → Hellfire Torch; SoJ sales → Diablo Clone → Annihilus.",
+    wants:[ {n:"Hellfire Torch",drop:"Hellfire Torch"}, {n:"Annihilus",drop:"Annihilus"} ] },
+  { icon:"👑", label:"ROTW Endgame",  target:"Colossal Ancients · Colossal Summit",   tab:"rotw",
+    note:"Cube 5 statues → Summit → the Colossal Ancients drop the Jewels. Sunders gate the climb.",
+    wants:[ {n:"Colossal Ancient Jewels",drop:"Colossal Ancient Jewels"}, {n:"Sunder Charms",tab:"rotw"} ] },
+];
+const _mwEsc = s => String(s).replace(/'/g,"\\'");
+// Unified click router for any Most-Wanted target: material/rune/item via openDrop,
+// section/concept via a clean tab switch. Keeps the board's clicks consistent with
+// the rest of the site (no dead ends).
+window.mwOpen = function(name, tab){
+  if (tab){ if (typeof navClean === "function") navClean(tab); else if (typeof switchTab === "function") switchTab(tab); return; }
+  if (name && typeof window.openDrop === "function") window.openDrop(name);
+};
+window.mwSection = function(boss, tab){
+  if (tab){ if (typeof navClean === "function") navClean(tab); else switchTab(tab); return; }
+  if (boss){
+    if (typeof navClean === "function") navClean("bosses"); else switchTab("bosses");
+    setTimeout(() => { if (typeof window.openBossDetail === "function") window.openBossDetail(boss); }, 80);
+  }
+};
+window.mwToggleRw = function(i, ev){
+  if (ev) ev.stopPropagation();
+  const row = document.querySelector('#most-wanted .mw-row[data-mw="'+i+'"]');
+  if (row) row.classList.toggle("open");
+};
+function renderMostWanted(){
+  const host = document.getElementById("most-wanted");
+  if (!host) return;
+  const tierBadge = e => `<span class="mw-tier mw-tier-${e.dt}" title="community demand tier">${e.dt}</span>`;
+  const rotwBadge = e => e.rotw ? ' <span class="mw-rotw-badge" title="Reign of the Warlock — mod-specific chase">ROTW</span>' : '';
+  const rows = MW_TOP10.map((e, i) => {
+    const isRw = Array.isArray(e.rw) && e.rw.length;
+    const caret = isRw ? '<span class="mw-caret">▶</span>' : '';
+    const onClick = isRw
+      ? `mwToggleRw(${i})`
+      : e.tab ? `mwOpen(null,'${_mwEsc(e.tab)}')` : `mwOpen('${_mwEsc(e.drop || e.n)}')`;
+    const rwPanel = isRw ? `<div class="mw-rw">
+        <div class="mw-rw-lbl">recipe — click any rune to open its card:</div>
+        ${e.rw.map(r => `<span class="mw-rune-chip" role="button" tabindex="0" onclick="event.stopPropagation();mwOpen('${_mwEsc(r)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();mwOpen('${_mwEsc(r)}');}">${r}</span>`).join("")}
+      </div>` : "";
+    const aria = isRw ? `aria-expanded="false"` : "";
+    return `<li class="mw-row" data-mw="${i}" role="button" tabindex="0" ${aria}
+        onclick="${onClick}"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${onClick};}"
+        title="${isRw ? 'show '+e.n+' recipe' : 'open '+e.n}">
+      <span class="mw-rank">#${i + 1}</span>
+      <span class="mw-main">
+        <span class="mw-name">${caret}${e.n}${rotwBadge(e)}</span>
+        <span class="mw-why">${e.why}</span>
+      </span>
+      ${tierBadge(e)}
+      ${rwPanel}
+    </li>`;
+  }).join("");
+  const sections = MW_SECTIONS.map(s => {
+    const onHead = s.tab ? `mwSection(null,'${_mwEsc(s.tab)}')` : `mwSection('${_mwEsc(s.boss)}')`;
+    const wants = s.wants.map((w, wi) => {
+      const wOnClick = w.tab ? `mwOpen(null,'${_mwEsc(w.tab)}')` : `mwOpen('${_mwEsc(w.drop || w.n)}')`;
+      return `<span class="mw-want-chip ${wi === 0 ? 'mw-want-1' : ''}" role="button" tabindex="0"
+          onclick="${wOnClick}"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${wOnClick};}"
+          title="open ${w.n}">${w.n}</span>`;
+    }).join("");
+    return `<div class="mw-sec">
+      <button class="mw-sec-head" onclick="${onHead}" title="jump to ${s.target}">
+        <span class="mw-sec-icon">${s.icon}</span>
+        <span class="mw-sec-titles">
+          <span class="mw-sec-label">${s.label} · #1 most-wanted</span>
+          <span class="mw-sec-target">${s.target} →</span>
+        </span>
+      </button>
+      <div class="mw-sec-note">${s.note}</div>
+      <div class="mw-wants">${wants}</div>
+    </div>`;
+  }).join("");
+  host.innerHTML = `
+    <h2 class="mw-title">🔥 Most Wanted <span class="mw-sub">community &amp; forum trade demand · diablo.io-style · ROTW-aware</span></h2>
+    <div class="mw-note">A separate layer from the Holy Grail: the grail tables rank by <em>game rarity</em> (how hard to find); this ranks by <em>community demand / trade value</em> (what's worth chasing &amp; holding) — they diverge. Demand tiers are an editorial community-consensus call, NOT a drop rate. Every item is clickable → opens its real card.</div>
+    <div class="mw-section-label">Top 10 · most-wanted overall</div>
+    <ol class="mw-top">${rows}</ol>
+    <div class="mw-section-label">#1 most-wanted per act / section</div>
+    <div class="mw-sections">${sections}</div>`;
+}
+window.renderMostWanted = renderMostWanted;
+
 updateEffMF();
 updatePlayers();
 renderHero();
+renderMostWanted();
 renderGrailProgress();
 renderBossNav();
 renderBossCards();

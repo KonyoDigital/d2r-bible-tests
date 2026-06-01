@@ -174,6 +174,31 @@ test.describe('v59 nav compass widget', () => {
     expect(r.highlightedBosses).toBe(0);
   });
 
+  test('Konyo flow: open item from a boss-detail overlay (origin ctx) → header bosses tab lands FRESH', async ({ page }) => {
+    // exact path Konyo hit: a boss-detail drop-row opens the item WITH origin context
+    // navigateToItem(name, {tab:'bosses', bossId}) — then clicking the bosses header tab
+    // must clear the farmed-item bar/detail and drop the highlight (no stuck Death Cleaver).
+    await page.evaluate(() => (window as any).navigateToItem('Death Cleaver', { tab: 'bosses', bossId: 'mephisto' }));
+    await page.waitForTimeout(300);
+    await expect(page.locator('#active-item-bar')).toHaveClass(/show/);
+    expect(await page.evaluate(() => (window as any) && (window as any).document.querySelector('.tab[data-tab="calc"].active') != null)).toBe(true);
+    // click the bosses header tab (a clean user switch)
+    await page.locator('.tab[data-tab="bosses"]').click();
+    await page.waitForTimeout(450);
+    const r = await page.evaluate(() => ({
+      barShown: document.getElementById('active-item-bar')?.classList.contains('show'),
+      detailShown: document.getElementById('active-item-detail')?.classList.contains('show'),
+      detailHasItem: (document.getElementById('active-item-detail')?.textContent || '').includes('Death Cleaver'),
+      bossesActive: !!document.querySelector('.tab[data-tab="bosses"].active'),
+      highlightedBosses: document.querySelectorAll('.boss-card.has-item, .boss-card.no-item').length,
+    }));
+    expect(r.barShown).toBe(false);
+    expect(r.detailShown).toBe(false);
+    expect(r.detailHasItem).toBe(false);
+    expect(r.bossesActive).toBe(true);
+    expect(r.highlightedBosses).toBe(0);
+  });
+
   test('widget navTo("bosses") returns fresh and closes any open boss detail', async ({ page }) => {
     // open a boss detail card
     await page.evaluate(() => (window as any).openBossDetail('countess'));
