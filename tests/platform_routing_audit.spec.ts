@@ -264,7 +264,10 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
   // routing data-attr, or .clickable, or .ic-card/.item-tile/.hero-pick/.source-chip)
   // must change observable state when clicked. A no-op is a dead click.
   test('dead-click sweep — no navigation element clicks into the void', async ({ page }) => {
-    test.setTimeout(240000);
+    // 360s (was 240s): the per-click captureSig + heavy renders on the 1MB codex page
+    // push this single sweep past 240s on a slow CI runner (chronic false-RED). It runs
+    // ~54s on a warm runner — the headroom only absorbs slow-runner variance.
+    test.setTimeout(360000);
     const captureSig = () => page.evaluate(() => {
       const g = (n: string) => { try { return eval(`typeof ${n}!=="undefined"?${n}:null`); } catch { return null; } };
       const detail = document.getElementById('item-detail');
@@ -282,6 +285,10 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
         gicHidden: !!gic?.classList.contains('hidden'),
         gicKids: gic?.childElementCount ?? 0,
         showN: document.querySelectorAll('.show,.active,.open,.has-item').length,
+        // CC 2026-06-01 unify: TZ zone / super-unique cards open an inline droppable
+        // detail box (toggles the [hidden] attr, no .show class) — count open boxes so
+        // that legit state change is observable and never mis-flagged as a dead click.
+        openDetails: document.querySelectorAll('.tz-zone-detail:not([hidden]),.su-detail:not([hidden])').length,
         scrollY: Math.round(window.scrollY / 50),
       });
     });
