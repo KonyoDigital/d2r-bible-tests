@@ -37,6 +37,14 @@ test.describe('v55 ROTW tab drop unification', () => {
   test('all 5 shard cards + every essence/key cell are wired (no dead text)', async ({ page }) => {
     await expect(page.locator('#tab-rotw .shard-name')).toHaveCount(5);
     await expect(page.locator('#tab-rotw .shard-name.zd-item-click')).toHaveCount(5);
-    await expect(page.locator('#tab-rotw td.item-name.zd-item-click')).toHaveCount(7); // 4 essences + 3 keys
+    await expect(page.locator('#tab-rotw td.item-name.zd-item-click')).toHaveCount(13); // 4 essences + 3 keys + 6 sunders
   });
+
+  test('a Sunder Charm routes to its card with its exact Renewed recipe', async ({ page }) => {
+    await page.locator('#tab-rotw .zd-item-click', { hasText: 'Cold Rupture' }).first().evaluate((e:any) => e.click());
+    await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
+    await expect(page.locator('#item-detail .material-card')).toContainText('Cold Rupture');
+    await expect(page.locator('#item-detail .material-card')).toContainText('Eastern Worldstone Shard');
+  });
+
 });
