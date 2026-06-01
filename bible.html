@@ -365,6 +365,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-v{flex:1;font-family:var(--serif-text);font-size:12px;color:var(--text);line-height:1.5}
 .zd-v .feeds-into-strip{margin:0}
 .zd-note{margin-top:9px;font-family:var(--serif-text);font-style:italic;font-size:10.5px;color:var(--block-mlvl);line-height:1.45}
+.zd-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin-bottom:11px}
+.zd-stat{background:rgba(0,0,0,.18);border:1px solid var(--border);border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:2px}
+.zd-sk{font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.zd-sv{font-family:var(--serif-text);font-size:12px;color:var(--gold-bright);font-weight:600}
+.zd-su-wrap{display:flex;flex-wrap:wrap;gap:5px}
+.zd-su{display:inline-block;background:rgba(255,0,212,.1);border:1px solid rgba(255,0,212,.32);border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;color:#ff9ee8}
 /* keys/shards/essences codex reference (under the grail) */
 .event-ref{position:relative;background:linear-gradient(165deg,rgba(240,192,96,.055),rgba(0,255,255,.022) 60%,transparent);border:1px solid var(--border-light);border-radius:13px;padding:18px 22px 20px;margin-bottom:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
 .er-title{font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-bright);text-shadow:0 0 16px rgba(240,192,96,.28);display:flex;align-items:center;gap:9px}
@@ -2824,13 +2830,27 @@ function feedsIntoStripHtml(list){
 function zoneDetailHtml(z){
   const fi = zoneFeedsInto(z);
   const tcUnlock = z.tcMax >= 87 ? 'TC87' : z.tcMax >= 85 ? 'TC85' : ('TC' + z.tcMax);
-  const items = z.tcMax >= 85 ? `CoA · Death's Fathom · Griffon's · Stormshield · Tomb Reaver` : '';
-  return `<div class="zd-head">📦 ${z.name} — terror drop detail</div>
-    <div class="zd-row"><span class="zd-k">super-unique</span><span class="zd-v">${z.unique}</span></div>
-    <div class="zd-row"><span class="zd-k">terror mlvl</span><span class="zd-v">${z.mlvl} · max ${tcUnlock}</span></div>
-    ${items ? `<div class="zd-row"><span class="zd-k">${tcUnlock} unlocks</span><span class="zd-v">${items}</span></div>` : ''}
+  const elite = `CoA · Death's Fathom · Griffon's · Stormshield · Tomb Reaver`;
+  const unlockTxt = z.tcMax >= 87
+    ? `Terror lifts this zone to mlvl ${z.mlvl} / TC87 — the highest ceiling in the game. Every elite unique can roll: the TC85 set (${elite}) plus the top TC87 tier.`
+    : (z.tcMax >= 85
+      ? `Terror lifts this zone to mlvl ${z.mlvl} / TC85 — unlocking the elite uniques that only drop at the terror ceiling: ${elite}.`
+      : `Terror caps this zone at mlvl ${z.mlvl} / TC${z.tcMax} — it does NOT reach the TC85 elite pool, so it's a density / quest / runeword-base farm, not an elite-unique target.`);
+  const supers = z.unique.split('·').map(s => s.trim()).filter(Boolean);
+  const superHtml = supers.map(s => `<span class="zd-su">${s}</span>`).join('');
+  const actShort = z.act.split('·')[0].trim();
+  return `<div class="zd-head">📦 ${z.name} — terrorized farm detail</div>
+    <div class="zd-stats">
+      <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${actShort}</span></div>
+      <div class="zd-stat"><span class="zd-sk">terror mlvl</span><span class="zd-sv">${z.mlvl}</span></div>
+      <div class="zd-stat"><span class="zd-sk">TC ceiling</span><span class="zd-sv">${tcUnlock}</span></div>
+      <div class="zd-stat"><span class="zd-sk">density</span><span class="zd-sv">${z.density}</span></div>
+    </div>
+    <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
+    <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
+    <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
     ${fi.length ? `<div class="zd-row"><span class="zd-k">feeds into</span><span class="zd-v">${feedsIntoStripHtml(fi)}</span></div>` : ''}
-    <div class="zd-note">⚠ Exact terrorized per-kill odds are a pending silospen TZ pull — figures here are TC reachability, not drop rates yet.</div>`;
+    <div class="zd-note">⚠ Per-kill terrorized odds are a pending silospen TZ pull — the items above are the TC-reachable drop POOL, not per-run rates yet.</div>`;
 }
 function toggleZoneDetail(zi){
   const z = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES[zi] : null;
