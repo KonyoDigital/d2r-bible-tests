@@ -80,7 +80,6 @@ test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette comple
   test('navigateToItem on event items opens calc + active-item-bar', async ({ page }) => {
     for (const item of ['Key of Hate', 'Annihilus']) {
       await page.evaluate((nm) => (window as any).navigateToItem(nm), item);
-      await page.waitForTimeout(100);
       await page.waitForTimeout(600);
       const st = await page.evaluate(() => ({
         tab: document.querySelector('.tab.active')?.getAttribute('data-tab'),
@@ -89,6 +88,32 @@ test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette comple
       expect(st.tab).toBe('calc');
       expect(st.aib).toBe(true);
     }
+  });
+
+  test('drop filter with zero matches shows a graceful empty-state (not a bare table)', async ({ page }) => {
+    // Summoner's only drop (Key of Hate) is special-tier, so "grail only" yields 0 rows.
+    await page.evaluate(() => (window as any).setBossFilter('summoner', 'grail'));
+    await page.evaluate(() => (window as any).openBossDetail('summoner'));
+    await page.waitForTimeout(400);
+    const cell = await page.evaluate(() => {
+      const c = document.getElementById('summoner');
+      const el = c?.querySelector('.drops-empty-cell');
+      return el ? { text: el.textContent!.trim(), hasResetBtn: !!el.querySelector('button') } : null;
+    });
+    expect(cell).not.toBeNull();
+    expect(cell!.text).toContain('No items match');
+    expect(cell!.text).toContain('grail');
+    expect(cell!.hasResetBtn).toBe(true);
+    // reset restores the full table
+    await page.evaluate(() => (window as any).setBossFilter('summoner', 'all'));
+    await page.evaluate(() => (window as any).openBossDetail('summoner'));
+    await page.waitForTimeout(300);
+    const restored = await page.evaluate(() => {
+      const c = document.getElementById('summoner');
+      return { empty: !!c?.querySelector('.drops-empty-cell'), rows: c?.querySelectorAll('table tbody tr').length };
+    });
+    expect(restored.empty).toBe(false);
+    expect(restored.rows).toBe(1);
   });
 
   // --- command palette completeness: all 8 tabs jumpable; event terms findable ---

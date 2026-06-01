@@ -4859,7 +4859,7 @@ function renderBossCards() {
             <th class="diff-col ${hdrCls('hell')}" onclick="setBossSort('${boss.id}','hell')">HELL</th>
             <th class="diff-col ${hdrCls('hellTz')}" onclick="setBossSort('${boss.id}','hellTz')">HELL TZ</th>
           </tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rows || `<tr><td colspan="8" class="drops-empty-cell" style="text-align:center;padding:18px;opacity:.72;color:var(--text)">No items match the <strong>${filter === 'grail' ? 'grail / uber' : filter === 'achievable' ? 'achievable' : filter === 'starred' ? '\u2b50 wishlist' : filter === 'hideowned' ? 'hide \u2713 owned' : filter}</strong> filter &mdash; <button class="boss-filter-pill" style="display:inline-block;margin-left:6px" onclick="setBossFilter('${boss.id}','all')">show all ${boss.dropTable.length}</button></td></tr>`}</tbody>
         </table></div>
         </details>
         <div class="success"><strong>Why farm:</strong> ${boss.why}</div>
