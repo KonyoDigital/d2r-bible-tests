@@ -7520,7 +7520,7 @@ function _v41_applyStatus(st) {
       : '— / — fires today';
     const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
     counter.className = anyRed ? 'has-red' : (st.all_green ? 'all-green' : '');
-    counter.title = `Status snapshot: ${st.generated_at}`;
+    counter.title = st.generated_at ? `Status snapshot: ${st.generated_at}` : 'Routine status snapshot';
   }
 }
 
