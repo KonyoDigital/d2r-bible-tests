@@ -199,6 +199,10 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .shard-act{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:600}
 .shard-name{font-size:14px;color:var(--gold-bright);font-weight:600;margin:4px 0}
 .shard-zones{font-size:11px;color:var(--text-muted)}
+.sec-h{cursor:pointer;user-select:none}
+.sec-chev{font-size:12px;color:var(--text-muted);transition:transform .18s;display:inline-block;margin-left:6px}
+.sec-h.collapsed .sec-chev{transform:rotate(-90deg)}
+.sec-body[hidden]{display:none}
 .statue-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:12px 0}
 .statue-card{background:var(--surface-2);border:2px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;position:relative}
 .statue-card:hover{background:var(--surface-3);border-color:var(--terror)}
@@ -2024,7 +2028,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
-  <h2>💎 Worldstone Shards</h2>
+  <h2 class="sec-h" onclick="toggleSec(this)">💎 Worldstone Shards <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500.</div>
   <div class="shard-grid">
     <div class="shard-card act1"><div class="shard-act">Act I</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Western Worldstone Shard')">Western Worldstone Shard →</div><div class="shard-zones">Blood Moor, Pit, Catacombs, Tristram, Black Marsh, Forgotten Tower</div></div>
@@ -2032,6 +2037,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="shard-card act3"><div class="shard-act">Act III</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Southern Worldstone Shard')">Southern Worldstone Shard →</div><div class="shard-zones">Kurast Bazaar, Travincal, Durance, Spider Forest, Flayer Jungle</div></div>
     <div class="shard-card act4"><div class="shard-act">Act IV <span class="pill pill-grail">YOURS</span></div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Deep Worldstone Shard')">Deep Worldstone Shard →</div><div class="shard-zones">Outer Steppes, City of the Damned, River of Flame, Chaos Sanctuary</div></div>
     <div class="shard-card act5"><div class="shard-act">Act V</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Northern Worldstone Shard')">Northern Worldstone Shard →</div><div class="shard-zones">Crystalline Passage, Drifter Cavern, Nihlathak's, Halls, WSK, Throne</div></div>
+  </div>
   </div>
   <h2>👑 Colossal Ancient Statues <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click to track</span></h2>
   <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → Colossal Summit.</div>
@@ -2041,7 +2047,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <span class="statue-progress-text" id="statue-text">0 / 5</span>
   </div>
   <div class="statue-tracker" id="statue-tracker"></div>
-  <h2>💧 Essences</h2>
+  <h2 class="sec-h" onclick="toggleSec(this)">💧 Essences <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="lead">From <strong>act bosses Hell</strong>. Cube all 4 → Token of Absolution. ~10-15% per kill. MF unaffected.</div>
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Essence</th><th>From</th><th class="diff-col">Rate</th></tr></thead>
@@ -2052,7 +2059,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name zd-item-click" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')">Festering of Destruction →</td><td>💀 Baal</td><td class="diff-col rare-4">~12%</td></tr>
     </tbody>
   </table></div>
-  <h2>🔑 Pandemonium Keys</h2>
+  </div>
+  <h2 class="sec-h" onclick="toggleSec(this)">🔑 Pandemonium Keys <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="lead">The 3 keys for <strong style="color:var(--uber)">Uber Tristram → Hellfire Torch</strong>. <strong>Hell only</strong>, and drops require <strong>/players 3+</strong>. Cube all 3 → red portal → Pandemonium Run → Uber Tristram.</div>
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Key</th><th>Drops From</th><th>Where</th><th>Notes</th></tr></thead>
@@ -2078,7 +2087,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔗 Feeds</td><td>3× Key of Hate → Forgotten Sands → <strong>Duriel</strong> → Baal's Eye → Uber Tristram</td></tr>
     </tbody></table>
   </div>
-  <h2>💎 Sunder Charms</h2>
+  </div>
+  <h2 class="sec-h" onclick="toggleSec(this)">💎 Sunder Charms <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="lead">ONLY from <strong>Hell TZ Heralds of Terror</strong>. Drops immunes to ~95% resist.</div>
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Charm</th><th>Breaks</th><th>Best for</th></tr></thead>
@@ -2092,6 +2103,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody>
   </table></div>
 
+  </div>
   <h2>💎 Item Set Tracker <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click pieces to check off</span></h2>
   <div class="lead">Most useful D2 sets. Click each piece you've collected — checks save to localStorage. Complete sets glow green.</div>
   <div class="set-tracker" id="set-tracker"></div>
@@ -3236,7 +3248,8 @@ function renderEventRef(){
 // v47 unify: event/uber sections (Uber Tristram, Cow, DClone, Colossal Ancients,
 // 22 Nights) now expand inline like the TZ-zone dropdown / boss detail cards —
 // click the card header to reveal its detail in place; accordion (one open at a time).
-function toggleEventCard(id){
+function toggleSec(h){var b=h.nextElementSibling;if(!b||!b.classList.contains('sec-body'))return;if(b.hasAttribute('hidden')){b.removeAttribute('hidden');h.classList.remove('collapsed');}else{b.setAttribute('hidden','');h.classList.add('collapsed');}}
+      function toggleEventCard(id){
   const card = document.getElementById(id);
   if (!card) return;
   const body = card.querySelector('.event-card-body');
