@@ -20,6 +20,7 @@ test.describe('v55 ROTW tab drop unification', () => {
     await page.locator('#tab-rotw .shard-name.zd-item-click', { hasText: 'Western Worldstone Shard' }).first().evaluate((e:any) => e.click());
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
     await expect(page.locator('#item-detail .material-card')).toContainText('Worldstone Shard');
+    await expect(page.locator('#item-detail .material-card')).toContainText('Rotting Fissure'); // Western's Renewed target
   });
 
   test('an Essence routes to its material card (display→canonical map)', async ({ page }) => {
