@@ -203,6 +203,7 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .sec-chev{font-size:12px;color:var(--text-muted);transition:transform .18s;display:inline-block;margin-left:6px}
 .sec-h.collapsed .sec-chev{transform:rotate(-90deg)}
 .sec-body[hidden]{display:none}
+h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-margin-top:70px}
 .statue-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:12px 0}
 .statue-card{background:var(--surface-2);border:2px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;position:relative}
 .statue-card:hover{background:var(--surface-3);border-color:var(--terror)}
@@ -2758,9 +2759,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 <div class="cube-section">
   <h3>Uber Tristram keys (3-to-1 organs)</h3>
-  <div class="cube-row"><div class="cube-input">3× Key of Terror + Key of Hate + Key of Destruction</div><div class="cube-arrow">→</div><div class="cube-output">red portal · Pandemonium Event L1</div></div>
-  <div class="cube-row"><div class="cube-input">Mephisto's Brain + Diablo's Horn + Baal's Eye</div><div class="cube-arrow">→</div><div class="cube-output">Pandemonium Run L3 → Uber Trist</div></div>
-  <div class="cube-row"><div class="cube-input">Uber Tristram clear</div><div class="cube-arrow">→</div><div class="cube-output">Standard of Heroes → <strong>Hellfire Torch</strong></div></div>
+  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Terror')">Key of Terror</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Hate')">Key of Hate</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Destruction')">Key of Destruction</span></div><div class="cube-arrow">→</div><div class="cube-output">red portal · Pandemonium Event L1</div></div>
+  <div class="cube-row"><div class="cube-input"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div><div class="cube-arrow">→</div><div class="cube-output">Pandemonium Run L3 → Uber Trist</div></div>
+  <div class="cube-row"><div class="cube-input">Uber Tristram clear</div><div class="cube-arrow">→</div><div class="cube-output">Standard of Heroes → <strong><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Hellfire Torch')">Hellfire Torch</span></strong></div></div>
 </div>
 <div class="cube-section">
   <h3>Useful in-game cubing</h3>
@@ -3034,35 +3035,111 @@ function materialDetailHtml(name){
     <div class="zd-note">⚠ Material drop rates are not MF-scaled and are not part of the 312-item grail count. Per-kill figures above are the canonical community estimates (silospen / d2runewizard / diablo2.io / Maxroll), not fabricated odds.</div>
   </div>`;
 }
+// Resolve a rune label ("Lo", "Lo #28", "Lo Rune") to its RUNES entry.
+// Aggregated Countess rows ("Amn-Sol", "Ral-El-Tir-…") deliberately DON'T
+// resolve — they're not a single rune, so they stay plain text.
+function findRune(name){
+  if (typeof RUNES === 'undefined' || !name) return null;
+  const q = String(name).toLowerCase().replace(/#\d+/g,'').replace(/\brunes?\b/g,'').replace(/[^a-z]/g,'').trim();
+  if (!q) return null;
+  return RUNES.find(r => r.n.toLowerCase() === q) || null;
+}
+const _RUNE_TIER_DROP = {
+  low:  "Drops Hell-wide from any rune-eligible monster. Common from the Countess (Hell), the Hellforge Normal/Nightmare guaranteed pool, and the sheer body-count of the Cow Level. The easiest tier to farm — most low runes you'll have spare.",
+  mid:  "Countess (Hell) is the throughput king for this tier; also the Hellforge NM/Hell pool, Travincal council, and Lower Kurast superchests. Cube up from spares if you're short one for a runeword.",
+  high: "Travincal council has the best high-rune throughput in the game; Countess (Hell) drops these too but rarely, plus LK superchests and Hell TZ mlvl 85+ monsters. The Hellforge Hell pool tops out at Gul (#25). Cubing up from a stack of the prior rune is often faster than hunting the drop.",
+  ultra:"The rarest tier — does NOT drop from the Countess or the Hellforge. Real sources: Travincal council, LK superchests, and Hell mlvl 85+ TZ monsters / act bosses. Most players cube these up (2× of the prior rune + a Perfect gem) rather than ever seeing one drop."
+};
+function runeDetailHtml(name){
+  const r = findRune(name); if (!r) return '';
+  const tierLabel = {low:'Low rune', mid:'Mid rune', high:'High rune', ultra:'Ultra rune'}[r.tier] || 'Rune';
+  const c = _RUNE_COUNTESS[r.n.toLowerCase()];
+  const countessRow = c ? `<div class="zd-row"><span class="zd-k">Countess (Hell)</span><span class="zd-v">~1:${c.hell.toLocaleString()} per kill${c.hellTz?` · ~1:${c.hellTz.toLocaleString()} in a Hell Terror Zone`:''}</span></div>` : '';
+  const reqTxt = r.clvl ? `clvl ${r.clvl} to use` : 'no level requirement';
+  return `<div class="gic-card rune-card">
+    <header class="gic-header">
+      <span class="gic-emoji" style="font-family:serif">ᚱ</span>
+      <div class="gic-id-block">
+        <h2 class="gic-name">${r.n} Rune <span class="gic-grail-badge" style="background:linear-gradient(135deg,#8a6a2a,#5a3d12);color:#ffe9b0">#${r.num} · ${tierLabel}</span></h2>
+        <div class="gic-subtitle">${reqTxt}</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">in weapon: ${r.w}</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">#${r.num} of 33</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">⚙️ What it grants</div>
+      <div class="zd-row"><span class="zd-k">in a weapon</span><span class="zd-v">${r.w}</span></div>
+      <div class="zd-row"><span class="zd-k">in body armor / helm</span><span class="zd-v">${r.a}</span></div>
+      <div class="zd-row"><span class="zd-k">in a shield</span><span class="zd-v">${r.s}</span></div>
+      <div class="zd-row"><span class="zd-k">level requirement</span><span class="zd-v">${r.clvl ? 'character level '+r.clvl : 'none (Hel is usable at any level)'}</span></div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">📍 Where it drops</div>
+      <div style="font-size:13.5px;line-height:1.6;margin-bottom:8px">${_RUNE_TIER_DROP[r.tier]}</div>
+      ${countessRow}
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">🧪 Cube upgrade</div>
+      <div class="zd-row"><span class="zd-k">cube up</span><span class="zd-v">${r.up || 'Zod is the top rune — nothing to cube up into.'}</span></div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">🔗 Key runewords</div>
+      <div style="font-size:13.5px;line-height:1.6">${r.rw}</div>
+    </section>
+    <div class="zd-note">⚠ Stats above are the canonical D2R rune values. Countess Hell rates come from this app's published Countess table; other tiers are sourced qualitatively (Travincal / Hellforge / LK / TZ) — runes aren't MF-scaled and exact per-source odds beyond the Countess are not cleanly published and are not fabricated here. Runes are not part of the 312-item grail count.</div>
+  </div>`;
+}
 // Unified router: grail item → calc golden card (navigateToItem); SPECIAL_DROPS
-// material → material golden card in the same #item-detail panel. One click target
-// for any drop, anywhere on the site.
+// material → material golden card; rune label → rune golden card. One click
+// target for any drop, anywhere on the site.
 window.openDrop = function(name){
   if (!name) return;
   // Material-first: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
   // (some, like the Pandemonium keys, ALSO live in the ITEMS grail set) — their
-  // canonical in-depth card is the material card. Only fall back to the calc
-  // golden card for genuine grail items with no material entry.
-  if (!findMaterial(name)) {
-    if (typeof ITEMS !== 'undefined' && ITEMS.find(i => i.n === name)) { window.navigateToItem(name, null); return; }
+  // canonical in-depth card is the material card.
+  if (findMaterial(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = materialDetailHtml(name); }
+    setTimeout(() => {
+      const card = document.querySelector('#item-detail .material-card') || document.getElementById('item-detail');
+      if (card){ const y = card.getBoundingClientRect().top + window.scrollY - 130; window.scrollTo({top: Math.max(0,y), behavior:'smooth'}); }
+    }, 180);
     return;
   }
-  if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
-  window.__activeMaterial = name;
-  selectedItem = null;
-  switchTab('calc');
-  const panel = document.getElementById('item-detail');
-  if (panel){ panel.classList.add('show'); panel.innerHTML = materialDetailHtml(name); }
-  setTimeout(() => {
-    const card = document.querySelector('#item-detail .material-card') || document.getElementById('item-detail');
-    if (card){ const y = card.getBoundingClientRect().top + window.scrollY - 130; window.scrollTo({top: Math.max(0,y), behavior:'smooth'}); }
-  }, 180);
+  // Rune label → per-rune golden card.
+  if (findRune(name)){
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeRune = name; window.__activeMaterial = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = runeDetailHtml(name); }
+    setTimeout(() => {
+      const card = document.querySelector('#item-detail .rune-card') || document.getElementById('item-detail');
+      if (card){ const y = card.getBoundingClientRect().top + window.scrollY - 130; window.scrollTo({top: Math.max(0,y), behavior:'smooth'}); }
+    }, 180);
+    return;
+  }
+  // Genuine grail item → calc golden card.
+  if (typeof ITEMS !== 'undefined' && ITEMS.find(i => i.n === name)) { window.navigateToItem(name, null); return; }
 };
 window.closeDrop = function(){
   window.__activeMaterial = null;
+  window.__activeRune = null;
   const panel = document.getElementById('item-detail');
   if (panel){ panel.classList.remove('show'); panel.innerHTML = ''; }
 };
+window.findRune = findRune;
+window.runeDetailHtml = runeDetailHtml;
 // Per-zone grail drop pool — derived from ITEM_CODEX (tc/qlvl) vs the zone's
 // terror ceiling (tcMax/mlvl). An item is reachable when its tc ≤ tcMax AND
 // qlvl ≤ mlvl. tc≤0 items (Annihilus/keys/organs) are event drops, NOT in the
@@ -3790,6 +3867,60 @@ const COUNTESS_RUNES = [
   {n:"Ral-El-Tir-Tal-Ith-Ort",norm:5,nm:3,hell:5,hellTz:3,use:"basic runewords"}
 ];
 
+/* === Per-rune ID cards (CC 2026-06-01) ===================================
+   Closes the last routing gap: individual runes (Lo/Ohm/Vex…) had no detail
+   card to route to. Each of the 33 runes becomes ONE canonical golden card —
+   in-weapon / in-armor / in-shield stats, level req, cube-up recipe, marquee
+   runewords, and HONEST drop sourcing. Per-rune Countess Hell rates are pulled
+   from the EXISTING COUNTESS_RUNES table (published data); no odds are
+   fabricated. Tier classes drive the "where it drops" sourcing text.
+   tier: low(1-11) / mid(12-20) / high(21-28) / ultra(29-33).               */
+const RUNES = [
+  {num:1, n:"El",   clvl:11, w:"+50 Attack Rating, +1 Light Radius", a:"+15 Defense, +1 Light Radius", s:"+15 Defense, +1 Light Radius", tier:"low",  up:"3 El + Chipped Amethyst → Eld",   rw:"Leaf, Ancient's Pledge, Steel, Malice"},
+  {num:2, n:"Eld",  clvl:11, w:"+75% Damage to Undead, +50 AR vs Undead", a:"15% Slower Stamina Drain", s:"+7% Block", tier:"low", up:"3 Eld + Chipped Topaz → Tir", rw:"Steel, Edge, Holy Thunder, Ancient's Pledge"},
+  {num:3, n:"Tir",  clvl:13, w:"+2 Mana per Kill", a:"+2 Mana per Kill", s:"+2 Mana per Kill", tier:"low", up:"3 Tir + Chipped Sapphire → Nef", rw:"Stealth, Spirit, Insight, Memory, Leaf"},
+  {num:4, n:"Nef",  clvl:13, w:"Knockback", a:"+30 Defense vs Missiles", s:"+30 Defense vs Missiles", tier:"low", up:"3 Nef + Chipped Emerald → Eth", rw:"Smoke, Lore, Nadir, Radiance"},
+  {num:5, n:"Eth",  clvl:15, w:"-25% Target Defense", a:"Regenerate Mana 15%", s:"Regenerate Mana 15%", tier:"low", up:"3 Eth + Chipped Ruby → Ith", rw:"Insight, Spirit, Gloom, Wealth"},
+  {num:6, n:"Ith",  clvl:15, w:"+9 Maximum Damage", a:"15% Damage Taken Goes to Mana", s:"15% Damage Taken Goes to Mana", tier:"low", up:"3 Ith + Chipped Diamond → Tal", rw:"Spirit, Call to Arms, Wealth, Bone"},
+  {num:7, n:"Tal",  clvl:17, w:"+75 Poison Damage over 5s", a:"+30% Poison Resist", s:"+35% Poison Resist", tier:"low", up:"3 Tal + Chipped Skull → Ral", rw:"Stealth, Rhyme, Enigma, Stone"},
+  {num:8, n:"Ral",  clvl:19, w:"+5-30 Fire Damage", a:"+30% Fire Resist", s:"+35% Fire Resist", tier:"low", up:"3 Ral + Flawed Amethyst → Ort", rw:"Smoke, Ancient's Pledge, Holy Thunder, Peace"},
+  {num:9, n:"Ort",  clvl:21, w:"+1-50 Lightning Damage", a:"+30% Lightning Resist", s:"+35% Lightning Resist", tier:"low", up:"3 Ort + Flawed Topaz → Thul", rw:"Lore, Zephyr, Strength, Malice"},
+  {num:10, n:"Thul", clvl:23, w:"+3-14 Cold Damage", a:"+30% Cold Resist", s:"+35% Cold Resist", tier:"low", up:"3 Thul + Flawed Sapphire → Amn", rw:"Spirit, Rhyme, Stone, Crescent Moon"},
+  {num:11, n:"Amn",  clvl:25, w:"7% Life stolen per hit", a:"Attacker Takes Damage of 14", s:"Attacker Takes Damage of 14", tier:"low", up:"3 Amn + Flawed Emerald → Sol", rw:"Insight, Stone, Crescent Moon, Honor"},
+  {num:12, n:"Sol",  clvl:27, w:"+9 Minimum Damage", a:"Damage Reduced by 7", s:"Damage Reduced by 7", tier:"mid", up:"3 Sol + Flawed Ruby → Shael", rw:"Lionheart, Treachery, Wind, Rift, Exile"},
+  {num:13, n:"Shael", clvl:29, w:"+20% Increased Attack Speed", a:"+20% Faster Hit Recovery", s:"+20% Faster Block Rate", tier:"mid", up:"3 Shael + Flawed Diamond → Dol", rw:"Spirit, Call to Arms, Memory, Phoenix, Last Wish"},
+  {num:14, n:"Dol",  clvl:31, w:"Hit Causes Monster to Flee 25%", a:"+7% Replenish Life", s:"+7% Replenish Life", tier:"mid", up:"3 Dol + Flawed Skull → Hel", rw:"Treachery, Passion, Wind, Prudence"},
+  {num:15, n:"Hel",  clvl:0,  w:"Requirements -20%", a:"Requirements -15%", s:"Requirements -15%", tier:"mid", up:"3 Hel + Amethyst → Io", rw:"Treachery, Delirium, Pride — also Hel + Scroll of Town Portal UNSOCKETS an item (loses the socketed gem/rune)"},
+  {num:16, n:"Io",   clvl:35, w:"+10 to Vitality", a:"+10 to Vitality", s:"+10 to Vitality", tier:"mid", up:"3 Io + Topaz → Lum", rw:"Wind, Bramble, Dream, Pride"},
+  {num:17, n:"Lum",  clvl:37, w:"+10 to Energy", a:"+10 to Energy", s:"+10 to Energy", tier:"mid", up:"3 Lum + Sapphire → Ko", rw:"Smoke, Dragon, Ice, Wisdom"},
+  {num:18, n:"Ko",   clvl:39, w:"+10 to Dexterity", a:"+10 to Dexterity", s:"+10 to Dexterity", tier:"mid", up:"3 Ko + Emerald → Fal", rw:"Lawbringer, Duress, Crescent Moon, Pride"},
+  {num:19, n:"Fal",  clvl:41, w:"+10 to Strength", a:"+10 to Strength", s:"+10 to Strength", tier:"mid", up:"3 Fal + Ruby → Lem", rw:"Bramble, Eternity, Famine, Voice of Reason"},
+  {num:20, n:"Lem",  clvl:43, w:"+75% Extra Gold from Monsters", a:"+50% Extra Gold from Monsters", s:"+50% Extra Gold from Monsters", tier:"mid", up:"3 Lem + Diamond → Pul", rw:"Lawbringer, Treachery, Wealth, Pride"},
+  {num:21, n:"Pul",  clvl:45, w:"+75% Damage to Demons, +100 AR vs Demons", a:"+30% Enhanced Defense", s:"+30% Enhanced Defense", tier:"high", up:"2 Pul + Flawless Amethyst → Um", rw:"Spirit, Lionheart, Chains of Honor, Bramble, Dragon, Stone"},
+  {num:22, n:"Um",   clvl:47, w:"25% Open Wounds", a:"+15% to All Resistances", s:"+22% to All Resistances", tier:"high", up:"2 Um + Flawless Topaz → Mal", rw:"Smoke, Wealth, Crescent Moon, Lionheart, Duress, Myth"},
+  {num:23, n:"Mal",  clvl:49, w:"Prevent Monster Heal", a:"Magic Damage Taken -7", s:"Magic Damage Taken -7", tier:"high", up:"2 Mal + Flawless Sapphire → Ist", rw:"Last Wish, Grief, Bramble, Chains of Honor, Heart of the Oak"},
+  {num:24, n:"Ist",  clvl:51, w:"+30% Magic Find", a:"+25% Magic Find", s:"+25% Magic Find", tier:"high", up:"2 Ist + Flawless Emerald → Gul", rw:"Call to Arms, Insight, Heart of the Oak"},
+  {num:25, n:"Gul",  clvl:53, w:"+20% Attack Rating", a:"+5% Maximum Poison Resist", s:"+5% Maximum Poison Resist", tier:"high", up:"2 Gul + Flawless Ruby → Vex", rw:"Wrath, Bramble, Chains of Honor, Death"},
+  {num:26, n:"Vex",  clvl:55, w:"7% Mana stolen per hit", a:"+5% Maximum Fire Resist", s:"+5% Maximum Fire Resist", tier:"high", up:"2 Vex + Flawless Diamond → Ohm", rw:"Heart of the Oak, Phoenix, Fortitude, Infinity, Death"},
+  {num:27, n:"Ohm",  clvl:57, w:"+50% Enhanced Damage", a:"+5% Maximum Cold Resist", s:"+5% Maximum Cold Resist", tier:"high", up:"2 Ohm + Flawless Skull → Lo", rw:"Beast, Heart of the Oak, Death, Faith"},
+  {num:28, n:"Lo",   clvl:61, w:"+20% Deadly Strike", a:"+5% Maximum Lightning Resist", s:"+5% Maximum Lightning Resist", tier:"high", up:"2 Lo + Perfect Amethyst → Sur", rw:"Fortitude, Grief, Faith, Infinity, Phoenix"},
+  {num:29, n:"Sur",  clvl:63, w:"Hit Blinds Target", a:"+5% Maximum Mana, +50 Mana", s:"+5% Maximum Mana", tier:"ultra", up:"2 Sur + Perfect Topaz → Ber", rw:"Enigma, Heart of the Oak, Faith, Phoenix, Last Wish"},
+  {num:30, n:"Ber",  clvl:65, w:"+20% Chance of Crushing Blow", a:"Damage Reduced by 8%", s:"Damage Reduced by 8%", tier:"ultra", up:"2 Ber + Perfect Sapphire → Jah", rw:"Enigma, Infinity, Call to Arms, Fortitude, Faith"},
+  {num:31, n:"Jah",  clvl:67, w:"Ignore Target's Defense", a:"+5% Maximum Life, +50 Life", s:"+5% Maximum Life", tier:"ultra", up:"2 Jah + Perfect Emerald → Cham", rw:"Enigma, Infinity, Call to Arms, Faith, Breath of the Dying"},
+  {num:32, n:"Cham", clvl:67, w:"Freezes Target +3", a:"Cannot Be Frozen", s:"Cannot Be Frozen", tier:"ultra", up:"2 Cham + Perfect Ruby → Zod", rw:"Cannot-Be-Frozen socket filler, Breath of the Dying, Crown of Ages"},
+  {num:33, n:"Zod",  clvl:69, w:"Indestructible", a:"Indestructible", s:"Indestructible", tier:"ultra", up:null, rw:"Indestructible socket filler — the top rune; not used in a major runeword"}
+];
+// Honest per-rune Countess Hell rate, harvested from the EXISTING COUNTESS_RUNES
+// table (single-rune rows only; aggregated rows like Amn-Sol stay unmapped).
+const _RUNE_COUNTESS = (function(){
+  const m = {};
+  (typeof COUNTESS_RUNES !== 'undefined' ? COUNTESS_RUNES : []).forEach(r => {
+    const base = (r.n.split('#')[0] || '').trim();
+    if (base && !/[- ]/.test(base) && r.hell != null) m[base.toLowerCase()] = {hell:r.hell, hellTz:r.hellTz};
+  });
+  return m;
+})();
+
 const ITEMS = [];
 const ITEM_REGISTRY = {};
 BOSSES.forEach(boss => {
@@ -4189,8 +4320,8 @@ document.addEventListener('keydown', e => {
     if (modal && modal.classList.contains('show')) {
       modal.classList.remove('show');
     }
-    // CC 2026-06-01 unify: ESC also dismisses an open material ID card
-    if (window.__activeMaterial && typeof window.closeDrop === 'function') {
+    // CC 2026-06-01 unify: ESC also dismisses an open material / rune ID card
+    if ((window.__activeMaterial || window.__activeRune) && typeof window.closeDrop === 'function') {
       window.closeDrop();
     }
   }
@@ -6274,7 +6405,11 @@ function runeSourceDetailHtml(src){
   if(src.grid){
     var rows=src.grid.map(function(r){
       var hi=/Lo|Ohm|Vex|Gul|Mal/.test(r.n);
-      return '<tr><td class="item-name" style="'+(hi?'color:var(--gold-bright)':'')+'">'+r.n+'</td><td class="diff-col">'+r.hell+'</td><td><span style="color:var(--text-dim);font-size:11px">'+(r.use||'')+'</span></td></tr>';
+      var rune=(typeof findRune==='function')?findRune(r.n):null;
+      var nameCell=rune
+        ? '<td class="item-name zd-item-click" style="cursor:pointer;'+(hi?'color:var(--gold-bright)':'color:var(--gold)')+'" onclick="event.stopPropagation();window.openDrop(\''+r.n.replace(/'/g,"\\'")+'\')" title="open '+rune.n+' rune card">'+r.n+' →</td>'
+        : '<td class="item-name" style="'+(hi?'color:var(--gold-bright)':'')+'">'+r.n+'</td>';
+      return '<tr>'+nameCell+'<td class="diff-col">'+r.hell+'</td><td><span style="color:var(--text-dim);font-size:11px">'+(r.use||'')+'</span></td></tr>';
     }).join('');
     h+='<div class="scroll-table"><table class="drops"><thead><tr><th>Rune</th><th class="diff-col">HELL (approx)</th><th>Used for</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
@@ -6327,7 +6462,13 @@ function renderRuneTable() {
       return `<td class="diff-col blocked-mlvl" title="rune above ${capLabel} cap">rune cap</td>`;
     };
     return `<tr>
-      <td class="item-name" style="${r.n.match(/Lo|Ohm|Vex|Gul/)?'color:var(--gold-bright)':''}">${r.n}</td>
+      ${(function(){
+        const rune = (typeof findRune === 'function') ? findRune(r.n) : null;
+        const baseClr = r.n.match(/Lo|Ohm|Vex|Gul/) ? 'color:var(--gold-bright)' : '';
+        return rune
+          ? `<td class="item-name zd-item-click" style="cursor:pointer;${baseClr||'color:var(--gold)'}" onclick="window.openDrop('${r.n.replace(/'/g,"\\'")}')" title="open ${rune.n} rune card">${r.n} →</td>`
+          : `<td class="item-name" style="${baseClr}">${r.n}</td>`;
+      })()}
       ${cell(r.norm,"Norm")}
       ${cell(r.nm,"NM")}
       ${cell(r.hell,"Hell")}
