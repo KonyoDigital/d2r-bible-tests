@@ -1,0 +1,65 @@
+import { test, expect } from '@playwright/test';
+import * as path from 'path';
+
+const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
+
+// v53 — rune sources as droppable cards. Travincal / Hellforge / Cow / LK
+// previously rendered as static (always-open) .boss-card blocks with no grid.
+// This converts them to the droppable expanding-card pattern the TZ zones use
+// (header click -> toggle a detail box), matching the Countess template.
+// HONEST-ODDS RULE: only Countess has true per-rune 1:N odds. Travincal shows
+// the bible's existing APPROXIMATE high-rune rates (Lo/Ohm/Vex), clearly caveated;
+// Hellforge shows a DETERMINISTIC guaranteed tier pool (not 1:N); Cow + LK get
+// caveated cards with NO grid. No new odds are fabricated.
+test.describe('v53 rune sources — droppable cards', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('runes'));
+  });
+
+  test('renders exactly 4 droppable rune-source cards', async ({ page }) => {
+    const target = page.locator('#rune-sources-target');
+    await expect(target).toBeVisible();
+    await expect(target.locator('.rune-src-card')).toHaveCount(4);
+    for (const name of ['Travincal Council', 'Hellforge', 'Hell Bovines', 'Lower Kurast Chests']) {
+      await expect(target.locator('.rune-src-card', { hasText: name })).toBeVisible();
+    }
+  });
+
+  test('Travincal expands to approximate high-rune grid + honest caveat', async ({ page }) => {
+    const detail = page.locator('#rune-src-detail-travincal');
+    await expect(detail).toBeHidden();
+    await page.locator('.rune-src-card', { hasText: 'Travincal Council' }).click();
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText('Lo #28');
+    await expect(detail).toContainText('Ohm #27');
+    await expect(detail).toContainText('Vex #26');
+    await expect(detail).toContainText('pending silospen pull');
+  });
+
+  test('Hellforge expands to a deterministic guaranteed tier pool', async ({ page }) => {
+    await page.locator('.rune-src-card', { hasText: 'Hellforge' }).click();
+    const detail = page.locator('#rune-src-detail-hellforge');
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText('Guaranteed rune pool');
+    await expect(detail).toContainText('Gul');
+    await expect(detail).not.toContainText('1:');
+  });
+
+  test('Cow is droppable but carries no fabricated rune grid', async ({ page }) => {
+    await page.locator('.rune-src-card', { hasText: 'Hell Bovines' }).click();
+    const cow = page.locator('#rune-src-detail-cow');
+    await expect(cow).toBeVisible();
+    await expect(cow).toContainText('No dedicated rune table');
+    await expect(cow.locator('table.drops')).toHaveCount(0);
+  });
+
+  test('only one rune-source detail open at a time', async ({ page }) => {
+    await page.locator('.rune-src-card', { hasText: 'Travincal Council' }).click();
+    await expect(page.locator('#rune-src-detail-travincal')).toBeVisible();
+    await page.locator('.rune-src-card', { hasText: 'Hellforge' }).click();
+    await expect(page.locator('#rune-src-detail-hellforge')).toBeVisible();
+    await expect(page.locator('#rune-src-detail-travincal')).toBeHidden();
+  });
+});
