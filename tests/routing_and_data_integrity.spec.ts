@@ -154,8 +154,11 @@ test.describe('TZ-zone routing — fidelity + correctness', () => {
         expect(c.cursor, `mapped zone "${c.name}" must look clickable`).toBe('pointer');
         expect(c.title.toLowerCase(), `mapped zone "${c.name}" title should promise a boss detail`).toContain('open');
       } else {
-        expect(c.cursor, `unmapped zone "${c.name}" must NOT look clickable`).toBe('default');
-        expect(c.title.toLowerCase(), `unmapped zone "${c.name}" must not promise a click`).not.toContain('click → open');
+        // v45: unmapped zones now toggle an inline drop-detail box -> honestly clickable,
+        // promising "expand drop detail" (NOT a boss route).
+        expect(c.cursor, `unmapped zone "${c.name}" should look clickable (toggles inline detail)`).toBe('pointer');
+        expect(c.title.toLowerCase(), `unmapped zone "${c.name}" must not promise a boss open`).not.toContain('open');
+        expect(c.title.toLowerCase(), `unmapped zone "${c.name}" should promise drop detail`).toContain('detail');
       }
     }
   });

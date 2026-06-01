@@ -337,39 +337,52 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 @media(max-width:700px){.shortcut-hint{display:none!important}.grail-progress{padding:12px 14px;gap:12px}.gp-circle{width:54px;height:54px}.gp-bar{min-width:100px}.hero-pick-chance{font-size:11px}}
 
 /* TZ Hot Zones */
-/* --- CC 2026-06-01: event/material cross-link UI --- */
-.feeds-into-strip{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
-.fi-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text-muted);font-family:ui-monospace,monospace;letter-spacing:.2px}
-.fi-badge .fi-ic{font-size:11px}
-.fi-badge .fi-sep{color:var(--text-dim)}
-.fi-badge .fi-for{color:var(--text-dim)}
-.fi-key{border-color:var(--gold-bright);color:var(--gold-bright)}
-.fi-key .fi-for{color:var(--gold)}
-.fi-essence{border-color:var(--hell);color:#ff8a8a}
-.fi-ancient{border-color:var(--grail);color:var(--grail)}
-.fi-shard{border-color:var(--grail);color:#79e6e6}
-.fi-uber{border-color:var(--uber);color:#ff7de6}
-.tz-zone-detail{margin-top:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--border-light);border-radius:8px}
-.zd-head{font-weight:700;color:var(--gold-bright);font-size:12px;margin-bottom:8px}
-.zd-row{display:flex;gap:10px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)}
+/* --- event/material cross-link UI - editorial polish (Desktop 2026-06-01) --- */
+/* feeds-into pill row on farm cards */
+.feeds-into-strip{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:12px 0 3px}
+.fi-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:11px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.14));color:var(--text-muted);font-family:var(--serif-text);font-size:11px;letter-spacing:.15px;line-height:1.35}
+.fi-ic{font-size:11.5px;line-height:1}
+.fi-lab{font-weight:700}
+.fi-sep{font-size:9px;opacity:.7;margin:0 -1px}
+.fi-for{font-style:italic;color:var(--text-dim)}
+.fi-key{border-color:rgba(240,192,96,.5);background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(240,192,96,.015))}
+.fi-key .fi-lab{color:var(--gold-bright)}.fi-key .fi-for{color:var(--gold)}.fi-key .fi-sep{color:var(--gold)}
+.fi-essence{border-color:rgba(255,64,64,.42);background:linear-gradient(180deg,rgba(255,64,64,.06),transparent)}
+.fi-essence .fi-lab{color:#ff8f8f}.fi-essence .fi-for{color:#c98585}
+.fi-ancient{border-color:rgba(240,192,96,.34);background:linear-gradient(180deg,rgba(240,192,96,.035),transparent)}
+.fi-ancient .fi-lab{color:#e6c97a}.fi-ancient .fi-for{color:#b9a06a}
+.fi-shard{border-color:rgba(121,230,230,.4);background:linear-gradient(180deg,rgba(121,230,230,.05),transparent)}
+.fi-shard .fi-lab{color:#8fe9e9}.fi-shard .fi-for{color:#79b3b3}
+.fi-uber{border-color:rgba(255,0,212,.4);background:linear-gradient(180deg,rgba(255,0,212,.06),transparent)}
+.fi-uber .fi-lab{color:#ff8fe8}.fi-uber .fi-for{color:#cc83bd}
+/* inline TZ-zone drop-detail box */
+.tz-zone-detail{margin-top:12px;padding:13px 15px;background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(255,255,255,.012));border:1px solid var(--border);border-left:2px solid var(--terror);border-radius:8px}
+.tz-zone-detail[hidden]{display:none}
+.zd-head{font-family:var(--serif-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid rgba(212,168,71,.18)}
+.zd-row{display:flex;gap:12px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--border)}
 .zd-row:last-of-type{border-bottom:none}
-.zd-k{flex:0 0 110px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;font-size:9px;padding-top:2px}
-.zd-v{color:var(--text);flex:1}
-.zd-note{margin-top:8px;font-size:10px;color:var(--block-mlvl);font-style:italic}
-.event-ref{background:linear-gradient(135deg,rgba(240,192,96,.05),rgba(0,255,255,.03));border:1px solid var(--border-light);border-radius:12px;padding:14px 18px;margin-bottom:16px}
-.er-title{font-weight:700;color:var(--gold-bright);font-size:14px}
-.er-sub{color:var(--text-muted);font-size:11px;margin:4px 0 12px}
-.er-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
-.er-block{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
-.er-block-head{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px}
-.er-block-head .er-arrow{color:var(--text-dim)}
-.er-table{width:100%;border-collapse:collapse;font-size:11px}
-.er-table td{padding:3px 4px;border-bottom:1px solid var(--border);vertical-align:top}
+.zd-k{flex:0 0 104px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding-top:1px}
+.zd-v{flex:1;font-family:var(--serif-text);font-size:12px;color:var(--text);line-height:1.5}
+.zd-v .feeds-into-strip{margin:0}
+.zd-note{margin-top:9px;font-family:var(--serif-text);font-style:italic;font-size:10.5px;color:var(--block-mlvl);line-height:1.45}
+/* keys/shards/essences codex reference (under the grail) */
+.event-ref{position:relative;background:linear-gradient(165deg,rgba(240,192,96,.055),rgba(0,255,255,.022) 60%,transparent);border:1px solid var(--border-light);border-radius:13px;padding:18px 22px 20px;margin-bottom:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.er-title{font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-bright);text-shadow:0 0 16px rgba(240,192,96,.28);display:flex;align-items:center;gap:9px}
+.er-sub{font-family:var(--serif-text);font-style:italic;color:var(--text-muted);font-size:11.5px;margin:5px 0 15px;padding-bottom:13px;border-bottom:1px solid rgba(212,168,71,.2)}
+.er-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:15px}
+.er-block{background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(212,168,71,.4);border-radius:9px;padding:12px 14px 13px}
+.er-block-head{font-family:var(--serif-display);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text);margin-bottom:9px;line-height:1.4}
+.er-block-head .er-arrow{color:var(--gold);font-weight:400;margin:0 3px}
+.er-table{width:100%;border-collapse:collapse}
+.er-table td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:top;font-family:var(--serif-text);font-size:11.5px}
 .er-table tr:last-child td{border-bottom:none}
-.er-item{color:var(--gold-bright);font-weight:600;white-space:nowrap}
-.er-from{color:var(--text)}
+.er-item{color:var(--gold-bright);font-weight:700;white-space:nowrap}
+.er-from{color:var(--text);font-style:italic}
 .er-note{color:var(--text-dim);font-size:10px}
-.er-recipe{margin-top:8px;font-size:10px;color:var(--text-muted);font-family:ui-monospace,monospace}
+.er-recipe{margin-top:10px;padding:7px 9px;background:rgba(0,0,0,.2);border-left:2px solid var(--gold);border-radius:0 5px 5px 0;font-family:ui-monospace,monospace;font-size:10px;color:var(--gold)}
+/* honest affordance: untracked TZ zones toggle inline detail -> clickable, subtler than routed lift */
+.tz-zone-card[data-boss-id=""]:hover{border-left-color:var(--gold-bright);background:linear-gradient(180deg,rgba(240,192,96,.04),transparent)}
+.tz-zone-card[data-boss-id=""]:hover .tz-zone-name::after{content:' \25BE';color:var(--gold);font-size:11px}
 .tz-zone-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);border-left:3px solid var(--terror);border-radius:8px;margin:10px 0;padding:14px 18px}
 .tz-zone-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
 .tz-zone-emoji{font-size:24px}
@@ -4762,10 +4775,10 @@ function tagTzZonesWithBossId() {
     } else {
       // v44 honest-affordance: this zone's value is its OWN super-uniques (Frozenstein,
       // Griswold, the Summoner, etc.) which have no boss card — so it must NOT look
-      // clickable. Empty data-boss-id keeps the onclick guard a no-op.
+      // v45: it DOES toggle an inline drop-detail box, so it is honestly clickable. Empty data-boss-id keeps the route guard a no-op.
       card.setAttribute('data-boss-id', '');
-      card.style.cursor = 'default';
-      card.title = 'density / super-unique farm — no roster boss to route to';
+      card.style.cursor = 'pointer';
+      card.title = 'click → expand drop detail';
     }
   });
 }
