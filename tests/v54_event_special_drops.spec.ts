@@ -38,8 +38,17 @@ test.describe('v54 pinnacle event special drops', () => {
 
   test('Colossal Ancients → Colossal Jewels lands on the unified card (no dead chip)', async ({ page }) => {
     await page.locator('#event-colossal-ancients .event-card-head').click();
-    await page.locator('#event-colossal-ancients .event-card-body .zd-item-click', { hasText: 'Colossal Jewels' }).click();
+    await page.locator('#event-colossal-ancients .event-card-body .zd-item-click', { hasText: 'Colossal Ancient Jewels' }).click();
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
-    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Jewels');
+    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Ancient Jewels');
   });
+
+  test('Colossal Ancients body lists the 6 jewels with real affixes', async ({ page }) => {
+    await page.locator('#event-colossal-ancients .event-card-head').click();
+    const body = page.locator('#event-colossal-ancients .event-card-body');
+    await expect(body).toContainText("Defender's Bile");
+    await expect(body).toContainText("Guardian's Thunder");
+    await expect(body).toContainText('Psychic Ward');
+  });
+
 });
