@@ -2757,6 +2757,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="stat"><div class="stat-label">699% (you)</div><div class="stat-value">73.7%</div><div class="stat-sub">effective unique</div></div>
     <div class="stat"><div class="stat-label">1500% (max)</div><div class="stat-value">85.7%</div><div class="stat-sub">effective unique</div></div>
   </div>
+  <h2>👥 What the P# slider actually does</h2>
+  <div class="lead"><code>/players N</code> shrinks each monster's <strong>NoDrop</strong>, so it drops <strong>MORE items (quantity)</strong> — it <strong>never</strong> changes drop <strong>QUALITY</strong> (that's MF's job). How much depends on the monster's base NoDrop <code>q</code>:<br><code>multiplier = (1 − qᵏ) / (1 − q)</code>, &nbsp;<code>k = ceil(N / 2)</code></div>
+  <div class="warning"><strong>Breakpoints, not a smooth ramp:</strong> /p1 and /p2 are identical (k=1, ×1.00). The boost only steps up at <strong>/p3, /p5, /p7</strong>. Higher player count = slower kills, so it's a quantity-vs-speed trade, never a quality gain.</div>
+  <div class="lead" style="margin-top:10px">It moves <strong>3 of the 4 boss tiers</strong> — only the guaranteed droppers (q=0) ignore it entirely. Multipliers shown at <strong>/players 8</strong> (Hell):</div>
+  <table class="drops" style="margin-top:8px">
+    <thead><tr><th>tier</th><th>bosses</th><th>NoDrop q</th><th>×@ /p8</th></tr></thead>
+    <tbody>
+      <tr><td class="item-name">🐝 The Swarm</td><td>Pit · Cows</td><td>0.625</td><td><strong style="color:var(--best)">×2.26</strong></td></tr>
+      <tr><td class="item-name">✊ The Hoarders</td><td>Andariel · Nihlathak · Travincal</td><td>0.28–0.35</td><td>×1.38–1.51</td></tr>
+      <tr><td class="item-name">👹 The Prime Evils</td><td>Mephisto · Diablo · Baal</td><td>0.183</td><td>×1.22</td></tr>
+      <tr><td class="item-name">🔓 The Open Vault</td><td>Countess · Duriel · Pindleskin</td><td>0.0</td><td><strong>×1.00 · P#-PROOF</strong></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--text-muted)">The Open Vault are guaranteed droppers — they always spill their full table, so extra players add only HP, never loot (these carry the <code>· P#-PROOF</code> tag on their cards).</p>
   <h2>🧊 Cube Recipes — quick reference</h2>
 <div class="cube-section">
   <h3>Rune upgrades (3-to-1)</h3>
