@@ -3,8 +3,13 @@ import * as path from 'path';
 
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
-  test('Catacombs L4 TZ card has data-boss-id="andariel" and opens detail on click', async ({ page }) => {
+// CC 2026-06-01 unify: every TZ zone is now its own droppable ID card. Clicking ANY
+// zone (including roster-boss zones like WSK→baal, Catacombs→andariel) opens its OWN
+// inline drop detail instead of jumping straight to the boss overlay; the boss card is
+// surfaced as a "full drop table →" cross-link INSIDE that detail (one canonical boss
+// card, linked everywhere). data-boss-id stays populated for the affordance/lockdown probes.
+test.describe('BUG-013 — TZ-zone droppable ID card + boss cross-link', () => {
+  test('Catacombs L4 card opens its OWN inline detail, with an andariel full-table cross-link that opens the boss', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="tz"]').click();
@@ -12,11 +17,19 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
     const card = page.locator('.tz-zone-card[data-boss-id="andariel"]').first();
     await card.scrollIntoViewIfNeeded();
     await expect(card).toBeVisible();
-    // Use evaluate-click to bypass any Playwright stability interference
+    // click the zone card → its own inline drop detail opens (NOT the boss overlay)
     await page.evaluate(() => {
       const el = document.querySelector('.tz-zone-card[data-boss-id="andariel"]') as HTMLElement;
       el?.click();
     });
+    await page.waitForTimeout(300);
+    const detail = card.locator('.tz-zone-detail');
+    await expect(detail).toBeVisible();
+    await expect(page.locator('#boss-detail-overlay')).toHaveClass(/hidden/); // not jumped yet
+    // the detail carries the canonical boss cross-link
+    const link = detail.locator('.su-tz-link', { hasText: /full drop table/ });
+    await expect(link).toBeVisible();
+    await link.click();
     await page.waitForTimeout(400);
     await expect(page.locator('#boss-detail-overlay')).not.toHaveClass(/hidden/);
     const name = await page.locator('.boss-detail-header .bd-name').innerText();
@@ -57,7 +70,7 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
   // a zone is mapped ONLY when a card-backed boss genuinely spawns there, and every
   // mapped card must open EXACTLY that boss. Whether the 6 super-unique zones are
   // unmapped is asserted separately (routing_and_data_integrity.spec.ts acceptance gate).
-  test('every MAPPED TZ zone card routes faithfully to a valid boss (curated, not 100%)', async ({ page }) => {
+  test('every MAPPED TZ zone opens its own inline detail carrying a faithful boss cross-link (curated, not 100%)', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1500);
     await page.locator('.tab[data-tab="tz"]').click();
@@ -75,14 +88,26 @@ test.describe('BUG-013 — TZ-zone → boss detail routing', () => {
       };
     });
     expect(data.total).toBeGreaterThan(0);
-    expect(data.mapped.length, 'the genuine zones (WSK, Halls, RoF, Catacombs…) must still route').toBeGreaterThan(0);
+    expect(data.mapped.length, 'the genuine zones (WSK, Halls, RoF, Catacombs…) must still cross-link a boss').toBeGreaterThan(0);
     for (const c of data.mapped) {
       expect(data.validIds, `zone "${c.name}" mapped to unknown boss "${c.bossId}"`).toContain(c.bossId);
-      await page.evaluate(() => { if ((window as any).clearActiveBoss) (window as any).clearActiveBoss(); });
-      await page.evaluate((idx) => { (document.querySelectorAll('.tz-zone-card')[idx] as HTMLElement)?.click(); }, c.i);
-      await page.waitForTimeout(180);
-      const active = await page.evaluate(() => eval('typeof activeBossId!=="undefined"?activeBossId:null'));
-      expect(active, `zone "${c.name}" must open boss "${c.bossId}", opened "${active}"`).toBe(c.bossId);
+      // click the zone card → its own inline detail opens with a boss cross-link whose
+      // onclick targets exactly that bossId (one canonical boss card, linked here).
+      const probe = await page.evaluate((idx) => {
+        document.querySelectorAll('.tz-zone-detail').forEach(b => { b.setAttribute('hidden', ''); });
+        const card = document.querySelectorAll('.tz-zone-card')[idx] as HTMLElement;
+        card?.click();
+        const detail = card?.querySelector('.tz-zone-detail') as HTMLElement;
+        const link = detail && !detail.hasAttribute('hidden')
+          ? Array.from(detail.querySelectorAll('.su-tz-link')).find(l => /full drop table/.test(l.textContent || ''))
+          : null;
+        return {
+          detailOpen: !!detail && !detail.hasAttribute('hidden'),
+          linkAttr: link ? (link.getAttribute('onclick') || '') : '',
+        };
+      }, c.i);
+      expect(probe.detailOpen, `zone "${c.name}" must open its own inline detail on click`).toBe(true);
+      expect(probe.linkAttr, `zone "${c.name}" detail must cross-link boss "${c.bossId}"`).toContain(`openBossDetail('${c.bossId}')`);
     }
   });
 });

@@ -3021,7 +3021,17 @@ function zoneDetailHtml(z){
     ${zoneDropBlockHtml(z)}
     <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
     ${fi.length ? `<div class="zd-row"><span class="zd-k">feeds into</span><span class="zd-v">${feedsIntoStripHtml(fi)}</span></div>` : ''}
+    ${zoneBossLinkHtml(z)}
     <div class="zd-note">⚠ Per-kill terrorized odds are a pending silospen TZ pull — the items above are the TC-reachable drop POOL, not per-run rates yet.</div>`;
+}
+/* When a roster boss genuinely farms a TZ zone, surface its canonical ID card as a
+   cross-link INSIDE the zone detail (event.stopPropagation so it doesn't collapse the
+   zone box). Mirrors the super-unique "full table" link — one boss card, linked everywhere. */
+function zoneBossLinkHtml(z){
+  const bid = (typeof tzZoneBoss === 'function') ? tzZoneBoss(z.name) : null;
+  if (!bid) return '';
+  const bn = (typeof BOSSES !== 'undefined' && (BOSSES.find(b => b.id === bid) || {}).name) || bid;
+  return `<div class="zd-row"><span class="zd-k">full table</span><span class="zd-v"><span class="su-tz-link" onclick="event.stopPropagation();window.openBossDetail('${bid}')" title="open ${bn}'s boss detail card">📜 a roster boss farms here — open ${bn}'s full drop table →</span></span></div>`;
 }
 function toggleZoneDetail(zi){
   const z = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES[zi] : null;
@@ -6052,8 +6062,12 @@ function renderTzZones() {
        super-unique-only zone (Flayer, Crystalline, Tristram, ...) -> inline drop detail. */
     const fi = (typeof zoneFeedsInto === 'function') ? zoneFeedsInto(z) : [];
     const fiStrip = (typeof feedsIntoStripHtml === 'function') ? feedsIntoStripHtml(fi) : '';
-    const click = bossId ? `window.openBossDetail('${bossId}')` : `window.toggleZoneDetail(${zi})`;
-    const titleTxt = bossId ? ('click to open ' + bossId + ' detail') : 'click for zone drop detail';
+    /* CC 2026-06-01 unify: every TZ zone is its own droppable ID card. Clicking ANY
+       zone opens its inline drop detail (zoneDetailHtml); when a roster boss farms the
+       zone, the detail carries a "full drop table →" cross-link to that boss. data-boss-id
+       stays populated so the cross-link + lockdown affordance probes still resolve. */
+    const click = `window.toggleZoneDetail(${zi})`;
+    const titleTxt = bossId ? ('open ' + z.name + ' drop detail (with ' + bossId + ' cross-link)') : 'open full zone drop detail';
     return `<div class="tz-zone-card" data-zone-idx="${zi}" data-boss-id="${bossId}" onclick="${click}" style="cursor:pointer" title="${titleTxt}">
       <div class="tz-zone-header">
         <span class="tz-zone-emoji">${z.emoji}</span>
