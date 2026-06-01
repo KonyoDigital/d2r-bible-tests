@@ -4055,7 +4055,7 @@ function renderItemDetailCard(itemName) {
   const isStarred = wishlist.has(itemName);
   const tierBadge = item.tier === 'uber' ? '<span class="gic-uber-badge">⚡ UBER</span>' : item.tier === 'grail' ? '<span class="gic-grail-badge">★ GRAIL</span>' : '';
   const itemInfo = (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[itemName]) ? ITEM_INFO[itemName] : null;
-  const itemDesc = itemInfo ? itemInfo.desc : null;
+  const itemDesc = (typeof renderCodexCard !== 'undefined') ? renderCodexCard(itemName) : null;
 
   // Compute all viable sources at current MF, sorted by hours
   const sources = [];
@@ -4082,14 +4082,19 @@ function renderItemDetailCard(itemName) {
   let charRec = '';
   if (typeof BOSS_CHAR_REC !== 'undefined' && BOSS_CHAR_REC[best.bossId]) {
     const rec = BOSS_CHAR_REC[best.bossId];
+    // richer char card — reuse the canonical CHARS roster (name + build + role) and
+    // the class medal, matching the calc-tab renderClassRec. BOSS_CHAR_REC only holds
+    // {top, reason}, so the name/build come from CHARS[rec.top].
+    const char = (typeof CHARS !== 'undefined' && CHARS[rec.top]) ? CHARS[rec.top] : null;
+    const medal = rec.top === 'konyolock' ? '🗡️' : rec.top === 'konyodin' ? '🔨' : rec.top === 'konyoress' ? '❄️' : rec.top === 'konyossin' ? '🥋' : '⚔️';
+    const charName = char ? char.name : (rec.top ? rec.top.charAt(0).toUpperCase() + rec.top.slice(1) : 'Any character');
     charRec = `<section class="gic-section">
       <div class="gic-section-title">⭐ Best Character for This Hunt</div>
       <div class="gic-char-card">
-        <span class="gic-char-emoji">${rec.emoji || '⚔️'}</span>
+        <span class="gic-char-emoji">${medal}</span>
         <div style="flex:1">
-          <h4 class="gic-char-name">${rec.name}</h4>
-          <div class="gic-char-build">${rec.build || ''}</div>
-          <div class="gic-char-tip">${rec.tip || ''}</div>
+          <h4 class="gic-char-name">${charName}${char ? ` <span style="color:var(--text-dim);font-size:11px;font-weight:400">· ${char.build} · ${char.role}</span>` : ''}</h4>
+          <div class="gic-char-tip">${rec.reason || ''}</div>
         </div>
       </div>
     </section>`;
@@ -4131,7 +4136,7 @@ function renderItemDetailCard(itemName) {
       </header>
 
       ${itemDesc ? `<section class="gic-section">
-        <div class="gic-section-title">📜 What It Does</div>
+        <div class="gic-section-title">📜 In-Game Stats</div>
         <div class="gic-what">${itemDesc}</div>
       </section>` : ''}
 
