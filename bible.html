@@ -6718,22 +6718,23 @@ _v41_whenReady(() => {
   function v42BuildCommands() {
     const cmds = [];
 
-    // Tabs (7)
+    // Tabs (8) — order + keys must match the DOM tab bar and the 1-8 keyboard shortcuts
     const tabs = [
       {id:'bosses', label:'Bosses', icon:'🗺️', key:'1'},
       {id:'calc', label:'Calculator', icon:'🔍', key:'2'},
       {id:'tz', label:'Terror Zones', icon:'🔥', key:'3'},
       {id:'runes', label:'Runes', icon:'🪨', key:'4'},
       {id:'rotw', label:'RotW Special', icon:'👑', key:'5'},
-      {id:'ancients', label:'Ancients', icon:'⚡', key:'6'},
-      {id:'ref', label:'Reference', icon:'📐', key:'7'},
+      {id:'ancients', label:'Events', icon:'🔥', key:'6', kw:'uber tristram diablo clone summoner cow level colossal ancients pandemonium nights of terror torch annihilus'},
+      {id:'binds', label:'Binds', icon:'🔱', key:'7'},
+      {id:'ref', label:'Reference', icon:'📐', key:'8'},
     ];
     tabs.forEach(t => cmds.push({
       icon: t.icon,
       label: `Switch to ${t.label}`,
       cat: 'tab',
       hint: `${t.key}`,
-      keywords: `tab ${t.label.toLowerCase()} ${t.id}`,
+      keywords: `tab ${t.label.toLowerCase()} ${t.id} ${t.kw || ''}`,
       action: () => { if (typeof window.switchTab === 'function') window.switchTab(t.id); }
     }));
 
