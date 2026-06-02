@@ -9122,6 +9122,21 @@ html { scroll-behavior: smooth; }
   .boss-detail-header .gbc-tier { position: static !important; margin: 0 0 8px; }
 }
 
+/* ════════ BOSS LIST — collapse to clickable title rows (TZ-style accordion) ════════ */
+#boss-cards .boss-card .boss-body { display: none !important; }
+#boss-cards .boss-card {
+  margin: 0 0 8px 0 !important;
+  border: 1px solid var(--rule-color) !important;
+  border-radius: 4px !important;
+  overflow: hidden;
+  background: var(--surface) !important;
+  transition: border-color .12s ease;
+}
+#boss-cards .boss-card:hover { border-color: var(--gold-dim) !important; }
+#boss-cards .boss-header { cursor: pointer; padding: 14px 20px !important; transition: background .12s ease; }
+#boss-cards .boss-header:hover { background: rgba(255,212,128,.06) !important; }
+#boss-cards .boss-name { font-size: 19px !important; }
+
 .gbc-section h3, .gbc-section-title {
   font-family: var(--sans);
   font-size: 10px;

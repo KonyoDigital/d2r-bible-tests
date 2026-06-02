@@ -61,8 +61,8 @@ test.describe('Each cell renders the correct state', () => {
         ?.querySelector('details.all-drops-details')?.setAttribute('open', '');
     });
     const firstRow = page.locator('#mephisto tr.clickable').first();
-    await expect(firstRow.locator('.star-btn')).toBeVisible();
-    await expect(firstRow.locator('.owned-btn')).toBeVisible();
+    expect(await firstRow.locator('.star-btn').count()).toBe(1);
+    expect(await firstRow.locator('.owned-btn').count()).toBe(1);
   });
 
   test('total item-rows across all bosses ≥ 200', async ({ page }) => {
