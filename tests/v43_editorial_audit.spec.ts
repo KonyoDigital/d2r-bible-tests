@@ -26,14 +26,14 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
   });
 
   test('editorial masthead present', async ({ page }) => {
+    // v61: the "Vol. XLIII · Spring 2026 · The Sanctuary Codex" kicker was removed at
+    // Konyo's request — masthead now leads with title + tagline. Assert those.
     const masthead = await page.evaluate(() => ({
       mastheadEl: !!document.querySelector('.masthead'),
-      kicker: document.querySelector('.masthead-kicker')?.textContent,
       title: document.querySelector('.masthead .h-title')?.textContent,
       tagline: !!document.querySelector('.masthead-tagline'),
     }));
     expect(masthead.mastheadEl).toBe(true);
-    expect(masthead.kicker).toContain('Vol. XLIII');
     expect(masthead.title).toContain('Konyo');
     expect(masthead.tagline).toBe(true);
   });

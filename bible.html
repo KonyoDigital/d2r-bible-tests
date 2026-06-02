@@ -1731,7 +1731,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="header-top header-top-editorial">
     <div class="header-title-block">
       <div class="masthead">
-        <div class="masthead-kicker">Vol. XLIII · Spring 2026 · The Sanctuary Codex</div>
         <h1 class="h-title">Konyo's D2R Farming Bible</h1>
         <div class="masthead-rule"></div>
         <div class="masthead-tagline">A complete grail-hunting reference — annotated with kill rate, drop chance, terror-zone schedule, and personal wishlist tracking.</div>
@@ -1780,6 +1779,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="container">
 
 <div class="tab-content active" id="tab-main">
+  <h2 class="sec-h" onclick="toggleSec(this)">🏆 Grail Progress <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="grail-progress">
     <div class="gp-circle">
       <svg viewBox="0 0 64 64">
@@ -1790,15 +1791,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="gp-circle-text" id="gp-circle-text">0%</div>
     </div>
     <div class="gp-body">
-      <div class="gp-title">🏆 Grail Progress</div>
       <div class="gp-detail" id="gp-detail">Mark items as ✓ owned to track your Holy Grail collection. <span class="kbd">?</span> for full guide.</div>
       <div class="gp-actions"><div class="gp-bar"><div class="gp-bar-fill" id="gp-bar-fill" style="width:0%"></div></div></div>
     </div>
   </div>
+  </div>
+  <h2 class="sec-h" onclick="toggleSec(this)">🎯 Today's Best Grail Picks <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="hero">
-    <div class="hero-title">🎯 Today's best grail picks at your MF · click any → opens item card</div>
     <div class="hero-sub" id="hero-sub">Calculated live from all 251 item rows. Click any to jump to that boss card.</div>
     <div class="hero-grid" id="hero-picks"></div>
+  </div>
   </div>
   <div class="mw" id="most-wanted"></div>
   <div class="event-ref" id="event-ref"></div>
@@ -1806,8 +1809,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div style="display:none">
   </div>
   <!-- v42 removed: Tonight's Mission was dead (ID mismatch, display:none, redundant with renderHero/renderWishlistHuntPath) -->
+  <h2 class="sec-h" onclick="toggleSec(this)">📖 Cell Legend — read every table this way <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="legend-box">
-    <div class="legend-title">📖 Cell legend — read every table this way</div>
     <div class="legend-row">
       <div class="legend-item-card">
         <div class="legend-color-block lc-num"></div>
@@ -1867,8 +1871,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </div>
     </div>
   </div>
+  </div>
+  <h2 class="sec-h" onclick="toggleSec(this)">🎯 Guaranteed Drops · the things that DROP FOR SURE <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="guaranteed-global" id="guaranteed-global-card">
-    <div class="guaranteed-global-title">🎯 D2R Guaranteed Drops · the things that DROP FOR SURE</div>
     <div class="guaranteed-global-grid">
       <div class="guaranteed-card">
         <div class="gc-head"><span class="gc-icon">⚒️</span><div class="gc-name">Hellforge rune</div><span class="gc-tier">S+</span></div>
@@ -1915,10 +1921,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--mono)">these 6 things are the only TRUE 100% drops in D2R. Everything else is RNG. Hellforge on Hell + Larzuk socket are the highest-value per-character free rewards.</div>
   </div>
+  </div>
+  <h2 class="sec-h" onclick="toggleSec(this)">⚔️ Event &amp; Uber Drops · the items OUTSIDE normal TC-ratio math <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
   <div class="special-drops-card">
-    <div class="special-drops-title">⚔️ EVENT &amp; UBER DROPS · the items OUTSIDE normal TC-ratio math</div>
     <div class="special-drops-grid" id="special-drops-grid"></div>
     <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--mono)">These categories don\'t follow standard TC-ratio rules. Each item has its own drop conditions — see card detail.</div>
+  </div>
   </div>
   </div>
 
@@ -2860,7 +2869,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="footer">
   Sources: silospen dropcalc · d2runewizard · diablo2.io · Maxroll · DiabloBytes · pairofdocs<br>
   <strong>v41</strong> · v27 contract symmetry · added alias classes WITHOUT rebuilding: panel wrapped in <div id=\'boss-detail-overlay\' class=\'boss-detail-overlay hidden\'> · gbc-header also has class boss-detail-header · gbc-name also has class bd-name · boss-card .boss-header also has .clickable class with onclick=openBossDetail · setActiveBoss + clearActiveBoss now toggle .hidden on #boss-detail-overlay · Esc still calls clearActiveBoss · focusDiff param threaded through · result: my visual Golden Card stays exactly as Konyo prefers, but CC's tests can locate all expected DOM elements · 27 May 2026
-    <br><button class="reset-btn" onclick="if(confirm('Reset all tracker data? (wishlist, owned, statues, sorts, filters, MF settings)')){localStorage.clear();location.reload()}">⚠️ Reset all tracker data</button>
+    <br><button class="reset-btn" onclick="if(confirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.')){localStorage.clear();location.reload()}">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
 </div>
 </div>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-6</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
@@ -3402,9 +3411,11 @@ function renderEventRef(){
       <table class="er-table"><tbody>${rows(cat)}</tbody></table>
       <div class="er-recipe">🧪 ${cat.recipe}</div>
     </div>`;
-  el.innerHTML = `<div class="er-title">🔑 Keys &amp; 💎 Shards &amp; 🩸 Essences — who drops what</div>
+  el.innerHTML = `<h2 class="sec-h er-title" onclick="toggleSec(this)">🔑 Keys &amp; 💎 Shards &amp; 🩸 Essences — who drops what <span class="sec-chev">▾</span></h2>
+    <div class="sec-body">
     <div class="er-sub">Cross-link reference (not counted in the grail) — your "where do I farm this material" map.</div>
-    <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}</div>`;
+    <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}</div>
+    </div>`;
 }
 // v47 unify: event/uber sections (Uber Tristram, Cow, DClone, Colossal Ancients,
 // 22 Nights) now expand inline like the TZ-zone dropdown / boss detail cards —
@@ -4439,10 +4450,12 @@ function renderWishlistHuntPath() {
 
     panel.classList.add('empty');
     panel.innerHTML = `
-      <div class="wishlist-header">
+      <div class="wishlist-header sec-h" onclick="toggleSec(this)">
         <h3 class="wishlist-title">⭐ Your Wishlist Hunt Path</h3>
         <span class="wishlist-summary">0 starred · star items to plan your route</span>
+        <span class="sec-chev">▾</span>
       </div>
+      <div class="sec-body">
       <div class="wishlist-empty-msg">
         🎯 No items starred yet. Click the ☆ on any item card to add it to your wishlist.<br>
         <span class="wishlist-empty-cta">Quick-add suggestions below: top grails by speed at ${mf}% MF</span>
@@ -4450,6 +4463,7 @@ function renderWishlistHuntPath() {
       <div class="wishlist-quick-add">
         <span class="wishlist-quick-add-label">Quick-add wishlist:</span>
         ${top.map(s => `<button class="wishlist-suggest-chip" onclick="toggleStarred('${s.name.replace(/'/g, "\\'")}'); renderWishlistHuntPath(); renderHero();">+ ${s.name}${s.tier==='uber'?' ⚡':''}</button>`).join('')}
+      </div>
       </div>
     `;
     return;
@@ -4490,10 +4504,12 @@ function renderWishlistHuntPath() {
 
   panel.classList.remove('empty');
   panel.innerHTML = `
-    <div class="wishlist-header">
+    <div class="wishlist-header sec-h" onclick="toggleSec(this)">
       <h3 class="wishlist-title">⭐ Your Wishlist Hunt Path</h3>
       <span class="wishlist-summary">${starred.length} starred · ${ownedFromWishlist} found · ${remaining.length} to chase · @ ${mf}% MF</span>
+      <span class="sec-chev">▾</span>
     </div>
+    <div class="sec-body">
 
     ${remaining.length > 0 ? `
     <div class="wishlist-summary-row">
@@ -4543,6 +4559,7 @@ function renderWishlistHuntPath() {
           <span class="wishlist-item-star" onclick="event.stopPropagation();toggleStarred('${h.name.replace(/'/g, "\\'")}');renderWishlistHuntPath();renderHero()" title="unstar">★</span>
         </div>`;
       }).join('')}
+    </div>
     </div>
   `;
 }
@@ -5107,7 +5124,7 @@ function renderBossDetailCard(bossId, focusDiff) {
   const top15Html = top15.length ? `<div class="gbc-grail-list">${top15.map((p,i) => {
     const esc = p.name.replace(/'/g,"\\'");
     const diffLabel = (p.diffKey||'').replace('Tz',' TZ').toUpperCase();
-    return `<div class="gbc-grail-item" onclick="navigateToItem(\'${esc}\', {tab:\'bosses\', bossId:\'${boss.id}\'})"">
+    return `<div class="gbc-grail-item" onclick="navigateToItem('${esc}', {tab:'bosses', bossId:'${boss.id}'})">
       <div class="gbc-grail-rank">#${i+1}</div>
       <div class="gbc-grail-name">${p.name}</div>
       <div class="gbc-grail-stats">${diffLabel} · <span class="chance">${fmt(p.adj)}</span> · <span class="time">${fmtHours(p.h50)}</span></div>
@@ -6783,12 +6800,14 @@ function renderMostWanted(){
     </div>`;
   }).join("");
   host.innerHTML = `
-    <h2 class="mw-title">🔥 Most Wanted <span class="mw-sub">community &amp; forum trade demand · diablo.io-style · ROTW-aware</span></h2>
+    <h2 class="sec-h mw-title" onclick="toggleSec(this)">🔥 Most Wanted <span class="mw-sub">community &amp; forum trade demand · diablo.io-style · ROTW-aware</span> <span class="sec-chev">▾</span></h2>
+    <div class="sec-body">
     <div class="mw-note">A separate layer from the Holy Grail: the grail tables rank by <em>game rarity</em> (how hard to find); this ranks by <em>community demand / trade value</em> (what's worth chasing &amp; holding) — they diverge. Demand tiers are an editorial community-consensus call, NOT a drop rate. Every item is clickable → opens its real card.</div>
     <div class="mw-section-label">Top 10 · most-wanted overall</div>
     <ol class="mw-top">${rows}</ol>
     <div class="mw-section-label">#1 most-wanted per act / section</div>
-    <div class="mw-sections">${sections}</div>`;
+    <div class="mw-sections">${sections}</div>
+    </div>`;
 }
 window.renderMostWanted = renderMostWanted;
 

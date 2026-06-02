@@ -14,11 +14,12 @@ test.describe('Smoke — page loads correctly', () => {
     expect(errors, `Console/page errors found:\n${errors.join('\n')}`).toEqual([]);
   });
 
-  test('version present in editorial masthead', async ({ page }) => {
+  test('editorial masthead renders title + tagline', async ({ page }) => {
     await page.goto(BIBLE);
-    // v43 editorial redesign: version moved out of .h-title into the masthead kicker
-    // (e.g. "Vol. XLIII · Spring 2026 · The Sanctuary Codex"). Assert a volume marker is shown.
-    await expect(page.locator('.masthead-kicker')).toContainText(/Vol\.\s*[IVXLCDM]+/i);
+    // v61: the "Vol. XLIII · Spring 2026 · The Sanctuary Codex" kicker was removed at
+    // Konyo's request. The masthead now leads with the title + tagline; assert those.
+    await expect(page.locator('.masthead .h-title')).toContainText(/Konyo's D2R Farming Bible/);
+    await expect(page.locator('.masthead-tagline')).toContainText(/grail-hunting reference/i);
   });
 
   test('all primary tabs render', async ({ page }) => {
