@@ -25,7 +25,11 @@ jobs:
   test:
     name: shard ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # A healthy shard finishes in ~13m. Degraded/slow runner instances can push a
+    # shard past 25m and get it cancelled (a false red — the code passes locally in
+    # ~6m/shard). 35m absorbs slow-runner days while staying under the ~39m single-job
+    # worst case; Playwright's per-test timeouts still bound any genuine hang.
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
