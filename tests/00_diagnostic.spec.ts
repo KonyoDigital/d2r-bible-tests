@@ -32,6 +32,7 @@ test.describe('v21_kai diagnostic — runtime errors + missing renders', () => {
 
   test('clicking boss-nav chip for Pit scrolls to + reveals pit card', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     const pitChip = page.locator('#boss-nav').getByText(/pit/i).first();
     await pitChip.click();
@@ -73,6 +74,7 @@ test.describe('v21_kai diagnostic — runtime errors + missing renders', () => {
 
   test('clicking a boss card emoji/header should open boss detail (universal page)', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#pit .boss-header').click();
     await page.waitForTimeout(300);

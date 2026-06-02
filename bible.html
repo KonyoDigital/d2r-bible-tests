@@ -1766,7 +1766,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="bosses">🗺️ bosses</button>
+    <button class="tab active" data-tab="main">🏠 main</button>
+    <button class="tab" data-tab="bosses">🗺️ bosses</button>
     <button class="tab" data-tab="calc">🔍 calculator</button>
     <button class="tab" data-tab="tz">🔥 TZ zones</button>
     <button class="tab" data-tab="runes">🪨 runes</button>
@@ -1778,18 +1779,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 <div class="container">
 
-<div class="tab-content active" id="tab-bosses">
-  <div class="active-item-bar" id="active-item-bar">
-    <span class="aib-label">🎯 farming for:</span>
-    <span class="aib-item" id="aib-item-name">—</span>
-    <span class="aib-stats" id="aib-stats">—</span>
-    <button class="aib-close" onclick="clearActiveItem()">clear · show all bosses</button>
-  </div>
-  <div class="active-item-detail" id="active-item-detail"></div>
-  <div class="boss-nav-sticky">
-    <div class="boss-nav-sticky-label">⚔️ pick a boss · click any chip for full detail · click again to close</div>
-    <div class="boss-nav" id="boss-nav"></div>
-  </div>
+<div class="tab-content active" id="tab-main">
   <div class="grail-progress">
     <div class="gp-circle">
       <svg viewBox="0 0 64 64">
@@ -1929,6 +1919,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="special-drops-title">⚔️ EVENT &amp; UBER DROPS · the items OUTSIDE normal TC-ratio math</div>
     <div class="special-drops-grid" id="special-drops-grid"></div>
     <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--mono)">These categories don\'t follow standard TC-ratio rules. Each item has its own drop conditions — see card detail.</div>
+  </div>
+  </div>
+
+<div class="tab-content" id="tab-bosses">
+  <div class="active-item-bar" id="active-item-bar">
+    <span class="aib-label">🎯 farming for:</span>
+    <span class="aib-item" id="aib-item-name">—</span>
+    <span class="aib-stats" id="aib-stats">—</span>
+    <button class="aib-close" onclick="clearActiveItem()">clear · show all bosses</button>
+  </div>
+  <div class="active-item-detail" id="active-item-detail"></div>
+  <div class="boss-nav-sticky">
+    <div class="boss-nav-sticky-label">⚔️ pick a boss · click any chip for full detail · click again to close</div>
+    <div class="boss-nav" id="boss-nav"></div>
   </div>
   <div id="item-detail-panel" class="hidden"></div>
   <div id="boss-detail-overlay" class="boss-detail-overlay hidden"><div class="boss-detail-panel" id="boss-detail-panel"></div></div>

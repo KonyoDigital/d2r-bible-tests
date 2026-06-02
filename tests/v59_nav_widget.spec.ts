@@ -39,7 +39,10 @@ test.describe('v59 nav compass widget', () => {
     expect(r.hasFab).toBe(true);
     expect(r.fabIsCompass).toBe(true);
     expect(r.chipsMatchTabs).toBe(true);
-    expect(r.chipNames.length).toBe(8);
+    // v61: tab count is now 9 — the overloaded bosses tab was split into a new Main
+    // (home) tab + Bosses tab. Chips are built FROM .tabs (chipsMatchTabs asserts the
+    // sync), so the compass picked up the extra tab automatically; bump the count.
+    expect(r.chipNames.length).toBe(9);
     expect(r.hasBackToTop).toBe(true);
     expect(r.firstChipKeepsIcon).toBe(true);
     expect(r.noUndef).toBe(true);

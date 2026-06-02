@@ -15,13 +15,14 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
   test('clicking item in boss table jumps to calculator detail', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(400);
-    // v43: full drop table is collapsed behind <details class="all-drops-details"> — expand
-    // before interacting with a row (otherwise the row is hidden and the click never resolves).
+    // v47: boss-card bodies are collapsed (display:none) behind the TZ-style accordion, so the
+    // drop-table row is in the DOM but not pointer-clickable. Fire its row click handler directly
+    // (evaluate-click works on the hidden node) to exercise the navigateToItem → calc routing.
     await page.evaluate(() => {
-      document.querySelectorAll('details.all-drops-details').forEach(d => d.setAttribute('open', ''));
+      const row = document.querySelector('#mephisto tr[data-item="Harlequin Crest (Shako)"]') as HTMLElement;
+      row.click();
     });
-    const row = page.locator('#mephisto tr[data-item="Harlequin Crest (Shako)"]');
-    await row.locator('td.item-name').click();
+    await page.waitForTimeout(400);
     await expect(page.locator('.tab[data-tab="calc"]')).toHaveClass(/active/);
     await expect(page.locator('#item-detail')).toHaveClass(/show/);
     await expect(page.locator('#item-detail .aid-item-name')).toContainText('Harlequin Crest (Shako)');

@@ -196,6 +196,12 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
   });
 
   test('boss-nav chip → opens its own boss, detail card visible', async ({ page }) => {
+    // v61: the bosses tab was split behind a new default-active Main tab. The boss-nav
+    // chips and #boss-detail-panel live in #tab-bosses, which is display:none on load —
+    // a panel rendered there has zero height and never enters the viewport. Activate the
+    // bosses tab first so the chip routing renders into a visible container.
+    await page.evaluate(() => (window as any).switchTab('bosses'));
+    await page.waitForTimeout(150);
     const meta: { id: string; name: string }[] = await page.evaluate(() => (BOSSES as any[]).map(b => ({ id: b.id, name: b.name })));
     // sample first, middle, last to cover the spread
     for (const idx of [0, Math.floor(meta.length / 2), meta.length - 1]) {

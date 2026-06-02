@@ -34,6 +34,7 @@ test.describe('Smoke — page loads correctly', () => {
 
   test('all 11 boss cards render with required structure', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => window.switchTab('bosses'));
     // v41: routine_status.js loader can delay first-paint of boss-card droptables under serial-suite load
     await page.waitForTimeout(600);
     const expectedBosses = ['countess','andariel','duriel','mephisto','travincal','diablo','baal','pindle','nihl','cows','pit'];

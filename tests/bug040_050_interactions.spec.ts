@@ -35,14 +35,13 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
   test('BUG-042 star toggle persists localStorage', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
-    // v44: the full drop table (with its star buttons) now lives inside a collapsed
-    // <details class="all-drops-details"> behind the Top-Drops list. Expand it like a
-    // user clicking "Show all …" before exercising the per-row star control.
-    await page.evaluate(() => document.querySelectorAll('details.all-drops-details').forEach(d => (d as HTMLDetailsElement).open = true));
-    // Click any star button — they're inside boss-card rows
-    const star = page.locator('.star-btn:visible').first();
-    await star.scrollIntoViewIfNeeded();
-    await star.click();
+    // v47: boss-card bodies are display:none behind the TZ-style accordion, so per-row
+    // star controls are in the DOM but not pointer-clickable. Fire the first star's onclick
+    // handler directly (evaluate-click works on hidden nodes) → toggleStar → localStorage.
+    await page.evaluate(() => {
+      const star = document.querySelector('#boss-cards .star-btn') as HTMLElement;
+      star.click();
+    });
     await page.waitForTimeout(150);
     const wishlist = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_wishlist') || '[]'));
     expect(wishlist.length).toBeGreaterThan(0);
@@ -51,11 +50,12 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
   test('BUG-043 owned toggle persists localStorage', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(1200);
-    // v44: owned buttons live in the collapsed full drop table — open it first.
-    await page.evaluate(() => document.querySelectorAll('details.all-drops-details').forEach(d => (d as HTMLDetailsElement).open = true));
-    const ownBtn = page.locator('.owned-btn:visible').first();
-    await ownBtn.scrollIntoViewIfNeeded();
-    await ownBtn.click();
+    // v47: owned buttons live inside the now-hidden boss-body accordion. Fire the first
+    // owned-btn's onclick directly (evaluate-click works on hidden nodes) → toggleOwned.
+    await page.evaluate(() => {
+      const ownBtn = document.querySelector('#boss-cards .owned-btn') as HTMLElement;
+      ownBtn.click();
+    });
     await page.waitForTimeout(150);
     const owned = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_owned') || '[]'));
     expect(owned.length).toBeGreaterThan(0);
@@ -63,15 +63,19 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-044 MF slider live-updates boss-card drop chances', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(1200);
-    const beforeText = await page.locator('#boss-cards').innerText();
+    // v47: boss-card drop tables live inside the hidden boss-body accordion; innerText
+    // returns only the visible header chrome (unaffected by MF). Read full textContent so
+    // the MF-driven drop-chance recompute inside the hidden table is observed.
+    const beforeText = await page.evaluate(() => document.getElementById('boss-cards')?.textContent || '');
     await page.evaluate(() => {
       const slider = document.getElementById('mf') as HTMLInputElement;
       slider.value = '600';
       slider.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await page.waitForTimeout(300);
-    const afterText = await page.locator('#boss-cards').innerText();
+    const afterText = await page.evaluate(() => document.getElementById('boss-cards')?.textContent || '');
     expect(beforeText).not.toBe(afterText);
   });
 

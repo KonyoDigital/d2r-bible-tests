@@ -21,7 +21,9 @@ test.describe('v60 Most Wanted community-demand board', () => {
       const host = document.getElementById('most-wanted');
       return {
         hasHost: !!host,
-        onBossesTab: !!document.querySelector('#tab-bosses #most-wanted'),
+        // v61: the non-boss home sections were split out of the bosses tab into a new
+        // default-active Main tab; Most Wanted now lives under #tab-main.
+        onMainTab: !!document.querySelector('#tab-main #most-wanted'),
         rows: document.querySelectorAll('#most-wanted .mw-row').length,
         sections: document.querySelectorAll('#most-wanted .mw-sec').length,
         wants: document.querySelectorAll('#most-wanted .mw-want-chip').length,
@@ -35,7 +37,7 @@ test.describe('v60 Most Wanted community-demand board', () => {
       };
     });
     expect(r.hasHost).toBe(true);
-    expect(r.onBossesTab).toBe(true);
+    expect(r.onMainTab).toBe(true);
     expect(r.rows).toBe(10);
     expect(r.sections).toBe(7);
     expect(r.wants).toBeGreaterThanOrEqual(14);

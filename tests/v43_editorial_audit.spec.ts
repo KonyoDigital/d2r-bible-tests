@@ -6,6 +6,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v43 editorial — regression check against v42 audit floor', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(3000);
   });
 
