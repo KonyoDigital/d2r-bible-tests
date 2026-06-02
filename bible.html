@@ -780,7 +780,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   /* === v23: Global guaranteed drops card (on bosses tab landing) === */
   .guaranteed-global{background:linear-gradient(135deg,rgba(102,255,136,.06),rgba(0,0,0,0));border:1px solid var(--best);border-radius:12px;padding:16px 20px;margin:14px 0}
   .guaranteed-global-title{font-size:13px;color:var(--best);text-transform:uppercase;letter-spacing:.7px;font-family:var(--mono);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-  .guaranteed-global-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:10px}
+  .guaranteed-global-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr));gap:10px}
   .guaranteed-card{background:var(--bg-elev1);border:1px solid var(--border);border-radius:8px;padding:11px 14px;transition:all .15s}
   .guaranteed-card:hover{border-color:var(--best);transform:translateY(-1px)}
   .gc-head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
@@ -796,7 +796,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   /* === v24: Special/Event drops cards === */
   .special-drops-card{background:linear-gradient(135deg,rgba(255,107,200,.06),rgba(0,0,0,0));border:1px solid var(--terror);border-radius:12px;padding:16px 20px;margin:14px 0}
   .special-drops-title{font-size:13px;color:var(--terror);text-transform:uppercase;letter-spacing:.7px;font-family:var(--mono);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-  .special-drops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+  .special-drops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:12px}
   .sd-cat{background:var(--bg-elev1);border:1px solid var(--border);border-radius:9px;padding:12px 14px;transition:all .15s}
   .sd-cat:hover{border-color:var(--terror)}
   .sd-cat-head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
@@ -933,7 +933,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .gic-card{background:linear-gradient(180deg,#1f1810 0%,#0f0a05 100%);border:2px solid var(--gold-bright);border-radius:10px;padding:24px 28px;box-shadow:0 0 40px rgba(240,192,96,.2),inset 0 1px 0 rgba(255,212,128,.08)}
   .gic-header{display:flex;align-items:center;gap:18px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,212,128,.15)}
   .gic-emoji{font-size:48px;line-height:1;filter:drop-shadow(0 0 12px rgba(240,192,96,.4))}
-  .gic-id-block{flex:1}
+  .gic-id-block{flex:1;min-width:0}
   .gic-name{margin:0;color:var(--gold-bright);font-size:28px;font-weight:700;letter-spacing:.5px;text-shadow:0 0 18px rgba(240,192,96,.3)}
   .gic-name .gic-grail-badge{font-size:11px;background:linear-gradient(135deg,#f0c060,#d4a040);color:#1a1207;padding:3px 9px;border-radius:4px;margin-left:10px;vertical-align:middle;font-weight:700;letter-spacing:1px}
   .gic-name .gic-uber-badge{font-size:11px;background:linear-gradient(135deg,#a020c0,#601060);color:#fff;padding:3px 9px;border-radius:4px;margin-left:10px;vertical-align:middle;font-weight:700;letter-spacing:1px}
@@ -1003,7 +1003,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
   @media (max-width:720px){
     .gic-card{padding:14px}
-    .gic-name{font-size:20px}
+    .gic-name{font-size:20px;overflow-wrap:anywhere}
+    .gic-name .gic-grail-badge,.gic-name .gic-uber-badge{margin-left:0;display:inline-block;margin-top:4px}
     .gic-emoji{font-size:32px}
     .gic-source-grid{grid-template-columns:1fr 1fr}
     .hero-grid{grid-template-columns:1fr 1fr}
@@ -2187,7 +2188,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.04em">Horazon's incarnation · the only Key dropper without its own boss card</div>
       </div>
     </div>
-    <table class="drops" style="margin:0"><tbody>
+    <table class="drops" style="margin:0;min-width:0"><tbody>
       <tr><td style="white-space:nowrap;color:var(--text-dim);width:1%;padding-right:14px">📍 Location</td><td>Act 2 · <strong>Arcane Sanctuary</strong> — Lost City WP → Palace cellar → Arcane Sanctuary, then teleport the floating platforms to the central pedestal</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--uber)">Key of Hate</strong> — ~10% on Hell, <strong>/players 3+ required</strong> for the key to roll</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⚔️ Kill</td><td>Trivial — low-HP caster (fire/cold/lightning bolts + blinks away). Burst him before he teleports; no immunities to worry about</td></tr>
@@ -2841,7 +2842,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="lead"><code>/players N</code> shrinks each monster's <strong>NoDrop</strong>, so it drops <strong>MORE items (quantity)</strong> — it <strong>never</strong> changes drop <strong>QUALITY</strong> (that's MF's job). How much depends on the monster's base NoDrop <code>q</code>:<br><code>multiplier = (1 − qᵏ) / (1 − q)</code>, &nbsp;<code>k = 1 + floor(N / 2)</code></div>
   <div class="warning"><strong>Breakpoints, not a smooth ramp:</strong> /p1 (solo) is the ×1.00 baseline; drops step up at <strong>/p2, /p4, /p6, /p8</strong>, with /p2=/p3, /p4=/p5, /p6=/p7 as identical pairs. Higher player count = slower kills, so it's a quantity-vs-speed trade, never a quality gain.</div>
   <div class="lead" style="margin-top:10px">It moves <strong>3 of the 4 boss tiers</strong> — only the guaranteed droppers (q=0) ignore it entirely. Multipliers shown at <strong>/players 8</strong> (Hell):</div>
-  <table class="drops" style="margin-top:8px">
+  <div class="scroll-table"><table class="drops" style="margin-top:8px">
     <thead><tr><th>tier</th><th>bosses</th><th>NoDrop q</th><th>×@ /p8</th></tr></thead>
     <tbody>
       <tr><td class="item-name">🐝 The Swarm</td><td>Pit · Cows</td><td>0.625</td><td><strong style="color:var(--best)">×2.41</strong></td></tr>
@@ -2849,7 +2850,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name">👹 The Prime Evils</td><td>Mephisto · Diablo · Baal</td><td>0.183</td><td>×1.22</td></tr>
       <tr><td class="item-name">🔓 The Open Vault</td><td>Countess · Duriel · Pindleskin</td><td>0.0</td><td><strong>×1.00 · P#-PROOF</strong></td></tr>
     </tbody>
-  </table>
+  </table></div>
   <p style="font-size:13px;color:var(--text-muted)">The Open Vault are guaranteed droppers — they always spill their full table, so extra players add only HP, never loot (these carry the <code>· P#-PROOF</code> tag on their cards).</p>
   <h2>🧊 Cube Recipes — quick reference</h2>
 <div class="cube-section">
