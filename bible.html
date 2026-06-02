@@ -4231,7 +4231,7 @@ window.setActiveBoss = function(bossId, focusDiff, opts) {
   if (activeBossId === bossId) {
     if (intent === 'toggle') { clearActiveBoss(); return; }
     // intent === 'open' — re-reveal panel in place without closing (v46: block:'nearest', no teleport)
-    setTimeout(() => $("boss-detail-panel")?.scrollIntoView({behavior:'smooth',block:'nearest'}), 50);
+    __alignCard('#boss-detail-panel');
     return;
   }
   activeBossId = bossId;
@@ -4250,10 +4250,7 @@ window.setActiveBoss = function(bossId, focusDiff, opts) {
   const _ov = document.getElementById('boss-detail-overlay');
   const _card = document.getElementById(bossId);
   if (_ov && _card) _card.insertAdjacentElement('afterend', _ov);
-  setTimeout(() => {
-    const panel = $("boss-detail-panel");
-    if (panel) panel.scrollIntoView({behavior:'smooth', block:'nearest'});
-  }, 50);
+  __alignCard('#boss-detail-panel');
 };
 
 window.clearActiveBoss = function(opts) {
