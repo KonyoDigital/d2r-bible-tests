@@ -227,6 +227,7 @@ h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-
 .boss-nav-group.pt-fisted{--tier-accent:#ff9d3c}
 .boss-nav-group.pt-prime{--tier-accent:#d4a847}
 .boss-nav-group.pt-vault{--tier-accent:#8a7d62}
+.boss-nav-group.pt-event{--tier-accent:#b56fff}
 .colossal{background:linear-gradient(180deg,rgba(255,0,212,.06),rgba(0,0,0,.4));border:2px solid rgba(255,0,212,.4);border-radius:12px;padding:18px;margin:20px 0}
 .colossal h3{color:var(--uber);margin-top:0}
 .ancient-icon{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
@@ -823,7 +824,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   /* boss-nav moves to TOP of tab-bosses and stays sticky just below main tabs */
   .boss-nav-sticky{position:sticky;top:64px;z-index:80;background:linear-gradient(180deg,var(--bg) 70%,transparent);backdrop-filter:blur(8px);padding:10px 4px 12px;margin:0 -4px 14px;border-bottom:1px solid var(--border)}
   .boss-nav-sticky-label{font-size:9px;color:var(--gold-dim);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);margin-bottom:6px;padding-left:6px;font-weight:600}
-  .boss-nav-sticky .boss-nav{margin:0;display:flex;flex-wrap:wrap;gap:6px}
+  /* v62: equal-width tier columns so the 4 groups line up straight & symmetric
+     instead of ragged flex-wrap. auto-fit collapses to fewer columns on narrow. */
+  .boss-nav-sticky .boss-nav{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));align-items:start;gap:10px}
+  .boss-nav-sticky .boss-nav-group{height:100%}
+  .boss-nav-sticky .boss-nav-group-chips{display:flex;flex-direction:column;gap:5px}
+  .boss-nav-sticky .boss-nav-group-chips .boss-chip{width:100%;box-sizing:border-box}
+
+  /* v62: promote the boss-nav into a proper titled section. The tier headers
+     ("THE SWARM", "THE PRIME EVILS"…) and the "pick a boss" caption previously
+     rendered as 9–10px micro-captions, dwarfed by the rest of the page. Scoped
+     to .boss-nav-sticky so only the home-tab nav grows; the chip size override
+     uses !important to beat the editorial .boss-chip{font-size:11px!important}. */
+  .boss-nav-sticky{padding:16px 4px 18px}
+  .boss-nav-sticky .boss-nav-sticky-label{font-family:var(--serif-display);font-size:15px;font-weight:600;color:var(--gold-bright);letter-spacing:.03em;text-transform:none;margin-bottom:14px;padding-left:2px}
+  .boss-nav-sticky .boss-nav-group{border-left-width:4px;padding-left:12px}
+  .boss-nav-sticky .boss-nav-group-label{font-family:var(--serif-display);font-size:19px;font-weight:700;letter-spacing:.03em;color:var(--tier-accent,#d4a847);margin-bottom:6px;line-height:1.2}
+  .boss-nav-sticky .boss-nav-group-mult{font-family:var(--mono);font-size:11px;font-weight:500;opacity:.55;letter-spacing:0}
+  .boss-nav-sticky .boss-nav-group-chips .boss-chip{font-size:13.5px!important;padding:9px 14px!important;letter-spacing:.3px!important}
+  .boss-nav-sticky .boss-nav-group-chips .boss-chip .emoji{font-size:17px}
 
   /* aid-card scroll target: when arriving from a boss click, scroll-margin-top accounts for sticky */
   .aid-card{scroll-margin-top:150px}
@@ -2978,6 +2997,15 @@ const SPECIAL_DROPS = {
     ],
     recipe: "Reward of the Colossal Ancient fight - not a cube ingredient"
   },
+  colossalStatue: {
+    label: "Colossal Ancient Statues",
+    icon: "👑",
+    blurb: "ROTW-only cube material. Five element-themed statues drop from TERRORIZED Hell act bosses ONLY (~1:8 to 1:15 per kill). Cube all 5 → Colossal Summit → summons the Colossal Ancients pinnacle fight.",
+    items: [
+      {n: "Colossal Ancient Statue", from: ["Talic's Anguish — terrorized Hell Andariel", "Korlic's Pain — terrorized Hell Duriel", "Madawc's Ire — terrorized Hell Mephisto", "Bul-Kathos' Nightmare — terrorized Hell Diablo", "Worusk's End — terrorized Hell Baal"], rate: "~1:8 to 1:15 per kill (terror only)", does: "One of five element-themed statues, each dropped by a specific TERRORIZED Hell act boss — track your 5/5 set with the statue tracker in the RotW tab. They carry no equip stats; they are a pure cube ingredient, but they gate the entire ROTW endgame: assemble the full set to summon the Colossal Ancients pinnacle fight.", note: "MF does NOT affect statue rate. Only drops while the boss is TERRORIZED (Hell Terror Zone). The 5 named statues are Talic's Anguish, Korlic's Pain, Madawc's Ire, Bul-Kathos' Nightmare, and Worusk's End."}
+    ],
+    recipe: "Cube all 5 statues → Colossal Summit → summon the Colossal Ancients (Pinnacle Events tab) → they drop the Colossal Ancient Jewels (ROTW endgame BiS, strictly better than Rainbow Facets)."
+  },
   sunder: {
     label: "Sunder Charms",
     icon: "💎",
@@ -3051,7 +3079,9 @@ const MATERIAL_FEEDS = {
   key: 'Uber Tristram (red portals)', essence: 'Token of Absolution',
   organ: 'Hellfire Torch (cube)', uberCharm: 'equipped — top-tier grail charm',
   sunder: 'equipped — breaks one immunity to ~95%',
-  worldstoneShard: 'Sunder Charm (breaks an immunity)'
+  worldstoneShard: 'Sunder Charm (breaks an immunity)',
+  colossalJewel: 'equipped — ROTW endgame BiS jewel',
+  colossalStatue: 'Colossal Summit → Colossal Ancients → Colossal Ancient Jewels'
 };
 function _materialIndex(){
   if (typeof SPECIAL_DROPS === 'undefined') return [];
@@ -3197,7 +3227,23 @@ window.__alignCard = function(sel){
 };
 window.openDrop = function(name){
   if (!name) return;
-  // Material-first: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
+  // Rune-first: findRune is an EXACT (normalized) match and is disjoint from every
+  // material name, so it must run BEFORE findMaterial's loose substring fallback —
+  // short rune names collide as substrings of materials (Hel→Hellfire Torch,
+  // Lo→diabLO's Horn, Ist→mephISTo's Brain, Ort→nORThern Worldstone Shard,
+  // Io→destructIOn, Sur→fisSURe, El→hellfirE) and would otherwise mis-route to the
+  // wrong card. A rune name always resolves to its rune card.
+  if (findRune(name)){
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeRune = name; window.__activeMaterial = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = runeDetailHtml(name); }
+    __alignCard('#item-detail .rune-card');
+    return;
+  }
+  // Material: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
   // (some, like the Pandemonium keys, ALSO live in the ITEMS grail set) — their
   // canonical in-depth card is the material card.
   if (findMaterial(name)) {
@@ -3208,17 +3254,6 @@ window.openDrop = function(name){
     const panel = document.getElementById('item-detail');
     if (panel){ panel.classList.add('show'); panel.innerHTML = materialDetailHtml(name); }
     __alignCard('#item-detail .material-card');
-    return;
-  }
-  // Rune label → per-rune golden card.
-  if (findRune(name)){
-    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
-    window.__activeRune = name; window.__activeMaterial = null;
-    selectedItem = null;
-    switchTab('calc');
-    const panel = document.getElementById('item-detail');
-    if (panel){ panel.classList.add('show'); panel.innerHTML = runeDetailHtml(name); }
-    __alignCard('#item-detail .rune-card');
     return;
   }
   // Genuine grail item → calc golden card.
@@ -5481,7 +5516,7 @@ function renderBossNav() {
     return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}<span class="boss-nav-group-mult" title="drop-quantity multiplier at /players ${players}"> · ${xtxt}</span></span><div class="boss-nav-group-chips">${chips}</div></div>`;
   }).join("");
   const leftover = BOSSES.filter(b => !used[b.id]).map(chip).join("");
-  const leftoverHtml = leftover ? `<div class="boss-nav-group"><div class="boss-nav-group-chips">${leftover}</div></div>` : "";
+  const leftoverHtml = leftover ? `<div class="boss-nav-group pt-event"><span class="boss-nav-group-label">EVENT BOSSES<span class="boss-nav-group-mult" title="event-only drops — not /players scaled"> · event</span></span><div class="boss-nav-group-chips">${leftover}</div></div>` : "";
   $("boss-nav").innerHTML = groups + leftoverHtml;
 }
 

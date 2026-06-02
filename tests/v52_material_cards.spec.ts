@@ -47,7 +47,7 @@ test.describe('v52 unified material ID cards', () => {
     expect(r.anni).toBe('Annihilus');
     expect(r.shardNorth).toBe('Worldstone Shard (Northern)');
     expect(r.shardWest).toBe('Worldstone Shard (Western)');
-    expect(r.ancient).toBeNull();   // not a SPECIAL_DROPS entry → stays a plain badge
+    expect(r.ancient).toBe('Colossal Ancient Statue');   // v62: now a material card
     expect(r.nonsense).toBeNull();
     expect(r.grailItem).toBeNull(); // grail items are NOT materials (routed to calc card)
   });
@@ -147,7 +147,7 @@ test.describe('v52 unified material ID cards', () => {
     await expect(card).not.toContainText('undefined');
   });
 
-  test('non-resolvable feeds-into label (Colossal Ancient Statue) stays a plain, non-clickable badge', async ({ page }) => {
+  test('feeds-into labels that resolve to a material (Colossal Ancient Statue, Key of Terror) become clickable badges', async ({ page }) => {
     const r = await page.evaluate(() => {
       const strip = (window as any).feedsIntoStripHtml([
         { icon: '👑', tone: 'ancient', label: 'Colossal Ancient Statue', fr: 'Colossal Summit' },
@@ -162,8 +162,8 @@ test.describe('v52 unified material ID cards', () => {
         keyHasOnclick: /openDrop\('Key of Terror'\)/.test(badges[1].getAttribute('onclick') || ''),
       };
     });
-    expect(r.ancientClickable).toBe(false);
-    expect(r.ancientHasOnclick).toBe(false);
+    expect(r.ancientClickable).toBe(true);
+    expect(r.ancientHasOnclick).toBe(true);
     expect(r.keyClickable).toBe(true);
     expect(r.keyHasOnclick).toBe(true);
   });

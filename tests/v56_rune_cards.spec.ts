@@ -140,6 +140,32 @@ test.describe('v56 per-rune ID cards', () => {
     expect(r.grailNotRune).toBe(true);
   });
 
+  test('openDrop on collision-prone BARE rune names routes to the rune card, not a material card (substring-collision regression)', async ({ page }) => {
+    // These short rune names are substrings of material names (Hel→Hellfire Torch,
+    // Lo→diabLO's Horn, Ist→mephISTo's Brain, Ort→nORThern Worldstone Shard,
+    // Io→destructIOn, Sur→fisSURe, El→hellfirE). findMaterial's loose substring
+    // fallback used to swallow them so openDrop showed the WRONG (material) card.
+    // Runewords on the Most Wanted board use these bare names (Spirit→Ort,
+    // CtA→Ist…), so they must resolve to the RUNE card.
+    const r = await page.evaluate(() => {
+      const od = (window as any).openDrop;
+      const names = ['El', 'Ort', 'Hel', 'Io', 'Ist', 'Lo', 'Sur'];
+      return names.map((n) => {
+        od(n);
+        const rune = document.querySelector('#item-detail .rune-card');
+        const mat = document.querySelector('#item-detail .material-card');
+        const nm = rune ? (rune.querySelector('.gic-name')?.textContent || '').trim() : '';
+        (window as any).closeDrop();
+        return { n, runeShown: !!rune, materialShown: !!mat, nameOk: nm.startsWith(n + ' Rune') };
+      });
+    });
+    for (const c of r) {
+      expect(c.runeShown, c.n).toBe(true);
+      expect(c.materialShown, c.n).toBe(false);
+      expect(c.nameOk, c.n).toBe(true);
+    }
+  });
+
   test('closeDrop + ESC dismiss the rune card', async ({ page }) => {
     const afterClose = await page.evaluate(() => {
       (window as any).openDrop('Ber');
