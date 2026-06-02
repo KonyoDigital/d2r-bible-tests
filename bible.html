@@ -3171,6 +3171,17 @@ function runeDetailHtml(name){
 // Unified router: grail item → calc golden card (navigateToItem); SPECIAL_DROPS
 // material → material golden card; rune label → rune golden card. One click
 // target for any drop, anywhere on the site.
+window.__alignCard = function(sel){
+  var go = function(){
+    var card = document.querySelector(sel) || document.getElementById("item-detail");
+    if (!card) return;
+    var hdr = document.querySelector(".header");
+    var off = (hdr ? hdr.getBoundingClientRect().height : 130) + 14;
+    var y = card.getBoundingClientRect().top + window.scrollY - off;
+    window.scrollTo({top: Math.max(0, y), behavior:"smooth"});
+  };
+  setTimeout(go, 80); setTimeout(go, 420); setTimeout(go, 900);
+};
 window.openDrop = function(name){
   if (!name) return;
   // Material-first: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
@@ -3183,10 +3194,7 @@ window.openDrop = function(name){
     switchTab('calc');
     const panel = document.getElementById('item-detail');
     if (panel){ panel.classList.add('show'); panel.innerHTML = materialDetailHtml(name); }
-    setTimeout(() => {
-      const card = document.querySelector('#item-detail .material-card') || document.getElementById('item-detail');
-      if (card){ const y = card.getBoundingClientRect().top + window.scrollY - 130; window.scrollTo({top: Math.max(0,y), behavior:'smooth'}); }
-    }, 180);
+    __alignCard('#item-detail .material-card');
     return;
   }
   // Rune label → per-rune golden card.
@@ -3197,10 +3205,7 @@ window.openDrop = function(name){
     switchTab('calc');
     const panel = document.getElementById('item-detail');
     if (panel){ panel.classList.add('show'); panel.innerHTML = runeDetailHtml(name); }
-    setTimeout(() => {
-      const card = document.querySelector('#item-detail .rune-card') || document.getElementById('item-detail');
-      if (card){ const y = card.getBoundingClientRect().top + window.scrollY - 130; window.scrollTo({top: Math.max(0,y), behavior:'smooth'}); }
-    }, 180);
+    __alignCard('#item-detail .rune-card');
     return;
   }
   // Genuine grail item → calc golden card.
@@ -4561,10 +4566,7 @@ window.openItemDetail = function(itemName) {
   const panel = document.getElementById('item-detail-panel');
   if (panel) {
     panel.classList.remove('hidden');
-    setTimeout(() => {
-      const y = panel.getBoundingClientRect().top + window.scrollY - 130;
-      window.scrollTo({top: Math.max(0, y), behavior:'smooth'});
-    }, 50);
+    __alignCard('#item-detail-panel');
   }
   // ensure we're on bosses tab so the panel is visible
   if (!document.querySelector('.tab[data-tab="bosses"].active')) switchTab('bosses');
@@ -5393,13 +5395,7 @@ window.navigateToItem = function(itemName, originContext) {
   switchTab('calc');
   renderDetail();
   // Smooth scroll to top of aid-card with offset for sticky elements
-  setTimeout(() => {
-    const card = document.querySelector('#item-detail .aid-card') || document.getElementById('item-detail');
-    if (card) {
-      const y = card.getBoundingClientRect().top + window.scrollY - 130;
-      window.scrollTo({top: Math.max(0, y), behavior:'smooth'});
-    }
-  }, 180);
+  __alignCard('#item-detail .aid-card');
 };
 
 window.goBackFromAid = function() {
