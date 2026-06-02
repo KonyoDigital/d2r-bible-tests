@@ -264,10 +264,12 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
   // routing data-attr, or .clickable, or .ic-card/.item-tile/.hero-pick/.source-chip)
   // must change observable state when clicked. A no-op is a dead click.
   test('dead-click sweep — no navigation element clicks into the void', async ({ page }) => {
-    // 360s (was 240s): the per-click captureSig + heavy renders on the 1MB codex page
-    // push this single sweep past 240s on a slow CI runner (chronic false-RED). It runs
-    // ~54s on a warm runner — the headroom only absorbs slow-runner variance.
-    test.setTimeout(360000);
+    // 600s (was 360s, was 240s): the per-click captureSig + heavy renders on the 1MB
+    // codex page make this the suite's single slowest test (~55s warm locally). On a
+    // badly degraded CI runner it has crossed even 360s (a >6x slowdown), so this gives
+    // ~10x warm-local headroom to kill the chronic slow-runner false-RED. The 35m job
+    // ceiling accommodates it; isolated it always passes (it's never a real hang).
+    test.setTimeout(600000);
     const captureSig = () => page.evaluate(() => {
       const g = (n: string) => { try { return eval(`typeof ${n}!=="undefined"?${n}:null`); } catch { return null; } };
       const detail = document.getElementById('item-detail');
