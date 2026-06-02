@@ -9094,6 +9094,34 @@ html { scroll-behavior: smooth; }
   color: var(--ink-h1) !important;
 }
 
+/* ════════ BOSS DETAIL — centered editorial masthead ════════ */
+.boss-detail-header {
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  position: relative !important;
+  gap: 5px !important;
+  padding: 32px 72px 20px !important;
+}
+.boss-detail-header .gbc-emoji { font-size: 54px !important; margin-bottom: 4px; }
+.boss-detail-header .gbc-id-block { flex: none !important; width: 100%; text-align: center !important; }
+.boss-detail-header .gbc-name,
+.boss-detail-header .bd-name {
+  font-size: 44px !important;
+  line-height: 1.04 !important;
+  letter-spacing: 0.6px !important;
+  margin: 0 auto !important;
+}
+.boss-detail-header .gbc-subtitle { font-size: 16px !important; margin: 7px auto 2px !important; }
+.boss-detail-header .gbc-loc { margin: 5px auto 0 !important; display: inline-block; }
+.boss-detail-header .gbc-tier { position: absolute !important; top: 18px; left: 22px; text-align: center; }
+.boss-detail-header .gbc-close { position: absolute !important; top: 18px; right: 22px; }
+@media (max-width: 640px) {
+  .boss-detail-header { padding: 22px 14px 16px !important; }
+  .boss-detail-header .gbc-name, .boss-detail-header .bd-name { font-size: 30px !important; }
+  .boss-detail-header .gbc-tier { position: static !important; margin: 0 0 8px; }
+}
+
 .gbc-section h3, .gbc-section-title {
   font-family: var(--sans);
   font-size: 10px;
