@@ -394,7 +394,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .kbd{display:inline-block;background:var(--surface-3);border:1px solid var(--border-light);border-radius:3px;padding:1px 5px;font-family:ui-monospace,monospace;font-size:10px;color:var(--gold-bright)}
 .celebrate{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:linear-gradient(135deg,var(--best),var(--gold-bright));color:#0a0805;padding:18px 28px;border-radius:14px;font-size:18px;font-weight:700;box-shadow:0 8px 32px rgba(0,255,170,.4);z-index:500;animation:celebrate 2.4s ease forwards;pointer-events:none}
 @keyframes celebrate{0%{opacity:0;transform:translate(-50%,-20px) scale(.8)}15%{opacity:1;transform:translate(-50%,0) scale(1.05)}30%{transform:translate(-50%,0) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px) scale(.95)}}
-.shortcut-hint{position:fixed;bottom:18px;left:18px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-muted);z-index:150;display:none;align-items:center;gap:8px}
+.shortcut-hint{position:fixed;bottom:18px;left:18px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-muted);z-index:150;display:none;align-items:center;gap:8px;pointer-events:none}
 .shortcut-hint.show{display:flex}
 @media(min-width:701px){.shortcut-hint.show{display:flex}}
 @media(max-width:700px){.shortcut-hint{display:none!important}.grail-progress{padding:12px 14px;gap:12px}.gp-circle{width:54px;height:54px}.gp-bar{min-width:100px}.hero-pick-chance{font-size:11px}}
@@ -2888,9 +2888,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="cube-row"><div class="cube-input">2× Gul + 1 perfect topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Vex (Hell only)</div></div>
 </div>
 <div class="cube-section">
-  <h3>Uber Tristram keys (3-to-1 organs)</h3>
-  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Terror')">Key of Terror</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Hate')">Key of Hate</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Destruction')">Key of Destruction</span></div><div class="cube-arrow">→</div><div class="cube-output">red portal · Pandemonium Event L1</div></div>
-  <div class="cube-row"><div class="cube-input"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div><div class="cube-arrow">→</div><div class="cube-output">Pandemonium Run L3 → Uber Trist</div></div>
+  <h3>Uber Tristram keys (3× of EACH key → 3 organs)</h3>
+  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Terror')">Key of Terror</span></div><div class="cube-arrow">→</div><div class="cube-output">Matron's Den · Lilith → <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span></div></div>
+  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Hate')">Key of Hate</span></div><div class="cube-arrow">→</div><div class="cube-output">Forgotten Sands · Duriel → <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div></div>
+  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Destruction')">Key of Destruction</span></div><div class="cube-arrow">→</div><div class="cube-output">Furnace of Pain · Izual → <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span></div></div>
+  <div class="cube-row"><div class="cube-input"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div><div class="cube-arrow">→</div><div class="cube-output">red portal → Uber Tristram</div></div>
   <div class="cube-row"><div class="cube-input">Uber Tristram clear</div><div class="cube-arrow">→</div><div class="cube-output">Standard of Heroes → <strong><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Hellfire Torch')">Hellfire Torch</span></strong></div></div>
 </div>
 <div class="cube-section">
@@ -5517,7 +5519,7 @@ function tagTzZonesWithBossId() {
 // Drop-scaling classes — single source of truth, shared by renderBossNav (chips)
 // and renderBossCards (card sections) so both mirror the same grouping.
 const PLAYER_TIERS = [
-  {name:'PANDEMONIUM KEYS', cls:'pt-keys',   members:['countess','summoner','nihl'],  tag:'The three Uber Tristram keys. Cube Terror + Hate + Destruction &rarr; red portal &rarr; slay the mini-ubers for organs &rarr; Uber Tristram &rarr; Hellfire Torch.'},
+  {name:'PANDEMONIUM KEYS', cls:'pt-keys',   members:['countess','summoner','nihl'],  tag:'The three Uber Tristram keys. Farm 3× of EACH key &rarr; cube each same-key set of 3 to open a mini-uber portal (Terror&rarr;Lilith, Hate&rarr;Duriel, Destruction&rarr;Izual) &rarr; their 3 organs &rarr; cube the organs for the Uber Tristram red portal &rarr; Hellfire Torch.'},
   {name:'THE SWARM',       cls:'pt-swarm',  members:['pit','cows'],                   tag:'Open hordes, high NoDrop — every extra player floods the field with drops.'},
   {name:'THE HOARDERS',    cls:'pt-fisted', members:['andariel','travincal'], tag:'They clutch their loot — more players pries it loose.'},
   {name:'THE PRIME EVILS', cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers. Low NoDrop — a crowd barely swells the hoard.'},
@@ -8448,10 +8450,10 @@ _v41_whenReady(() => {
     color: #ffaaaa;
     box-shadow: 0 4px 14px rgba(0,0,0,.6);
     z-index: 100;
-    cursor: pointer;
     transition: opacity .2s ease;
     display: none;
     user-select: none;
+    pointer-events: none;
   }
   #v42-tz-countdown.show { display: block; }
   #v42-tz-countdown:hover { opacity: .85; }
@@ -9664,7 +9666,7 @@ table th {
 }
 </style>
 
-<div id="v42-tz-countdown" title="Click to hide · TZ rotates each hour at :00 IDT">
+<div id="v42-tz-countdown" title="TZ rotates each hour at :00 IDT · toggle from the ⌘K command palette">
   <span class="v42-tz-label">🔥 TZ rotates in</span>
   <span class="v42-tz-time">--:--</span>
 </div>
@@ -9689,7 +9691,8 @@ table th {
     W.classList.toggle('show', !!v);
   }
 
-  W.addEventListener('click', () => setVisible(false));
+  // Visibility is toggled from the ⌘K command palette (window._v42_toggleTZCountdown);
+  // the badge itself is pointer-events:none so it never intercepts clicks on page content.
 
   function update() {
     const now = new Date();
