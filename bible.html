@@ -622,6 +622,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-import-btn:hover{filter:brightness(1.08)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
 .rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
+/* Materials Stash (keys / organs / essences → uber & token planner) */
+.material-stash-grid{display:flex;flex-direction:column;gap:14px;margin:12px 0}
+.mat-group-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
+.mat-group-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:7px}
+.mat-stash-cell{display:flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--uber);border-radius:7px;padding:6px 9px}
+.mat-stash-cell.rs-has{background:linear-gradient(180deg,rgba(170,110,200,.10),var(--surface-2))}
+.mat-stash-cell .mat-name{flex:1;font-size:12px;color:var(--text)}
+.mat-stash-cell .rs-count{margin-left:0}
 /* Cube recipes */
 .cube-section{background:var(--surface-2);border-radius:8px;padding:12px 16px;margin:10px 0}
 .cube-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -2402,6 +2410,37 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="events-intro" style="margin-bottom:24px;padding:14px 18px;border-left:2px solid var(--gold);background:var(--surface)">
     <div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">The Pinnacle Events</div>
     <div style="font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:15px;color:var(--text);line-height:1.55">Four pinnacle events that gate the deepest endgame: <strong style="color:var(--gold-bright);font-style:normal">Uber Tristram</strong> (Hellfire Torch), <strong style="color:var(--gold-bright);font-style:normal">Diablo Clone</strong> (Annihilus charm), <strong style="color:var(--gold-bright);font-style:normal">Secret Cow Level</strong> (rune farming + density), <strong style="color:var(--gold-bright);font-style:normal">Colossal Ancients</strong> (RotW pinnacle, Colossal Jewels). Plus the seasonal <strong style="color:var(--gold-bright);font-style:normal">22 Nights of Terror</strong> when Blizzard turns it on.</div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="material-stash-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('material-stash-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">🫀</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Materials Stash &amp; Uber Planner</p>
+        <p class="boss-subtitle">Tally your keys, organs, essences, Worldstone Shards &amp; Sunders → see when you can open an uber portal, run Uber Tristram, or cube a Token</p>
+        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · recipes read live from the event data</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="rune-stash-wrap">
+        <div class="rw-make" id="material-craftable"></div>
+        <details class="rs-import">
+          <summary>📥 Import a tally (paste counts)</summary>
+          <textarea id="material-import-box" placeholder="Key of Terror:3  Diablo's Horn:1  Essence of Hatred:2 …  (or paste JSON)"></textarea>
+          <div class="rs-import-row">
+            <button class="rs-import-btn" onclick="window.importMaterialTally()">Load tally</button>
+            <span class="rs-import-status" id="material-import-status"></span>
+          </div>
+          <div class="rs-import-note">Format: <code>Full material name: count</code> per line. Replaces your current tally.</div>
+        </details>
+        <div class="material-stash-grid" id="material-stash-grid"></div>
+        <div class="rune-stash-actions">
+          <button class="rs-clear-btn" onclick="window.clearMaterialStash()">clear stash</button>
+          <span class="rs-total" id="material-stash-total"></span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
@@ -4352,6 +4391,9 @@ let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
 let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
 // Rune Stash: { runeName: count } map. Pure user-owned tally; powers the cube-up planner.
 let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
+// Materials Stash: { materialName: count } map. Pandemonium keys / uber organs / Token
+// essences the user holds; powers the uber & token readiness planner.
+let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
 
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
@@ -4401,6 +4443,7 @@ const persist = () => {
   LS.setItem('d2r_bossSorts', JSON.stringify(bossSorts));
   LS.setItem('d2r_setPieces', JSON.stringify([...setPieces]));
   LS.setItem('d2r_runeStash', JSON.stringify(runeStash));
+  LS.setItem('d2r_materialStash', JSON.stringify(materialStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
 
@@ -7168,6 +7211,156 @@ function importRuneTally(){
 }
 window.importRuneTally = importRuneTally;
 
+// --- v69: Materials Stash & Uber Planner ---
+// Material names, labels and icons are read LIVE from SPECIAL_DROPS (the same
+// Pandemonium keys / uber organs / Token essences the events tab already
+// documents) — zero fabricated data, no drift. The readiness recipes below
+// transcribe the cube quantities stated in SPECIAL_DROPS + the cube-recipe
+// section (1 of each key → a random uber portal; 3 organs → Uber Tristram;
+// 4 essences → Token of Absolution).
+const MATERIAL_CATS = ['key', 'organ', 'essence', 'worldstoneShard', 'sunder'];
+const MATERIALS = (function(){
+  const out = [];
+  MATERIAL_CATS.forEach((cat) => {
+    const grp = SPECIAL_DROPS[cat];
+    if (!grp) return;
+    grp.items.forEach((it) => out.push({ n: it.n, cat: grp.label, icon: grp.icon }));
+  });
+  return out;
+})();
+window.MATERIALS = MATERIALS;
+const MATERIAL_RECIPES = [
+  { n: 'Pandemonium Portal', icon: '🌀',
+    need: { 'Key of Terror': 1, 'Key of Hate': 1, 'Key of Destruction': 1 },
+    makes: '1 random uber portal — Uber Diablo / Mephisto / Baal → its organ',
+    note: '1 of each key → 1 random mini-uber portal (repeat ~3× for all 3 organs)' },
+  { n: 'Uber Tristram', icon: '🔥',
+    need: { "Diablo's Horn": 1, "Mephisto's Brain": 1, "Baal's Eye": 1 },
+    makes: 'red portal → kill the trio → 🔥 Hellfire Torch',
+    note: 'cube the 3 organs → Uber Tristram portal' },
+  { n: 'Token of Absolution', icon: '🩸',
+    need: { 'Essence of Suffering': 1, 'Essence of Hatred': 1, 'Essence of Terror': 1, 'Essence of Destruction': 1 },
+    makes: 'reset stats OR skills (player choice)',
+    note: 'cube all 4 essences' },
+];
+window.MATERIAL_RECIPES = MATERIAL_RECIPES;
+function _materialCount(name){
+  const v = parseInt(materialStash[name], 10);
+  return isFinite(v) && v > 0 ? v : 0;
+}
+function adjustMaterialStash(name, delta){
+  const next = _materialCount(name) + delta;
+  if (next <= 0) delete materialStash[name]; else materialStash[name] = next;
+  persist();
+  renderMaterialStash();
+}
+window.adjustMaterialStash = adjustMaterialStash;
+function clearMaterialStash(){
+  if (Object.keys(materialStash).length && !confirm('Clear your entire materials tally?')) return;
+  materialStash = {};
+  persist();
+  renderMaterialStash();
+}
+window.clearMaterialStash = clearMaterialStash;
+// Have every ingredient (exact multiset) for this recipe in hand?
+function canMakeMaterial(need){
+  return Object.keys(need).every((n) => _materialCount(n) >= need[n]);
+}
+window.canMakeMaterial = canMakeMaterial;
+// What's still missing (and how many) for a recipe.
+function materialMissing(need){
+  const miss = {};
+  Object.keys(need).forEach((n) => { const d = need[n] - _materialCount(n); if (d > 0) miss[n] = d; });
+  return miss;
+}
+window.materialMissing = materialMissing;
+// Per-recipe readiness: [{recipe, ready, missing}].
+function materialCraftStatus(){
+  return MATERIAL_RECIPES.map((r) => ({ recipe: r, ready: canMakeMaterial(r.need), missing: materialMissing(r.need) }));
+}
+window.materialCraftStatus = materialCraftStatus;
+function renderMaterialCraftable(){
+  const box = document.getElementById('material-craftable');
+  if (!box) return;
+  const status = materialCraftStatus();
+  const line = (s) => {
+    const r = s.recipe;
+    const missTxt = Object.keys(s.missing).map((n) => `${s.missing[n]}× ${n}`).join(' · ');
+    return `<div class="rw-row ${s.ready ? 'rw-ready' : 'rw-cube'}" data-recipe="${r.n.replace(/"/g, '&quot;')}">
+      <span class="rw-name">${r.icon} ${r.n}</span>
+      <span class="rw-recipe">${s.ready ? '✅ ready now' : 'need ' + missTxt}</span>
+      <span class="rw-base">→ ${r.makes}</span>
+    </div>`;
+  };
+  const readyN = status.filter((s) => s.ready).length;
+  let html = `<div class="rw-make-head">🛠 What I can make · ${readyN}/${status.length}</div>`;
+  html += `<div class="rw-list">${status.map(line).join('')}</div>`;
+  box.innerHTML = html;
+}
+window.renderMaterialCraftable = renderMaterialCraftable;
+function renderMaterialStash(){
+  const grid = document.getElementById('material-stash-grid');
+  if (!grid || typeof MATERIALS === 'undefined') return;
+  const cats = [...new Set(MATERIALS.map((m) => m.cat))];
+  grid.innerHTML = cats.map((cat) => {
+    const items = MATERIALS.filter((m) => m.cat === cat);
+    const cells = items.map((m) => {
+      const c = _materialCount(m.n);
+      const esc = m.n.replace(/'/g, "\\'");
+      const attr = m.n.replace(/"/g, '&quot;');
+      return `<div class="mat-stash-cell${c > 0 ? ' rs-has' : ''}" data-material="${attr}">
+        <span class="mat-name">${m.icon} ${m.n}</span>
+        <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',-1)" title="remove one ${m.n}" aria-label="minus ${m.n}">−</button>
+        <span class="rs-count" data-material-count="${attr}">${c}</span>
+        <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',1)" title="add one ${m.n}" aria-label="plus ${m.n}">+</button>
+      </div>`;
+    }).join('');
+    return `<div class="mat-group"><div class="mat-group-label">${items[0].icon} ${cat}</div><div class="mat-group-cells">${cells}</div></div>`;
+  }).join('');
+  const total = MATERIALS.reduce((a, m) => a + _materialCount(m.n), 0);
+  const totalEl = document.getElementById('material-stash-total');
+  if (totalEl) totalEl.textContent = total === 1 ? '1 material tallied' : `${total} materials tallied`;
+  renderMaterialCraftable();
+}
+window.renderMaterialStash = renderMaterialStash;
+// Import a pasted tally. Accepts JSON ({"Key of Terror":3,…}) or "Full name: count"
+// lines. Full material names are matched case-insensitively; replaces the stash.
+function importMaterialTally(){
+  const ta = document.getElementById('material-import-box');
+  const status = document.getElementById('material-import-status');
+  const setStatus = (msg) => { if (status) status.textContent = msg; };
+  if (!ta) return;
+  const raw = (ta.value || '').trim();
+  if (!raw){ setStatus('Paste a tally first.'); return; }
+  const byLc = {}; MATERIALS.forEach((m) => { byLc[m.n.toLowerCase()] = m.n; });
+  const next = {};
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch (e) {}
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)){
+    Object.keys(parsed).forEach((k) => {
+      const canon = byLc[String(k).toLowerCase().trim()];
+      const v = parseInt(parsed[k], 10);
+      if (canon && isFinite(v) && v > 0) next[canon] = v;
+    });
+  } else {
+    MATERIALS.forEach((m) => {
+      const re = new RegExp(m.n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\D*?(\\d+)', 'i');
+      const mm = re.exec(raw);
+      if (mm){ const v = parseInt(mm[1], 10); if (isFinite(v) && v > 0) next[m.n] = v; }
+    });
+  }
+  const n = Object.keys(next).length;
+  if (!n){ setStatus('No valid materials found — check the format.'); return; }
+  if (Object.keys(materialStash).length && !confirm('Replace your current materials tally with this import?')) { setStatus('Import cancelled.'); return; }
+  materialStash = next;
+  persist();
+  renderMaterialStash();
+  const total = Object.values(next).reduce((a, b) => a + b, 0);
+  setStatus(`Loaded ${n} material types (${total} total).`);
+  ta.value = '';
+}
+window.importMaterialTally = importMaterialTally;
+
 function renderStatueTracker() {
   $("statue-tracker").innerHTML = STATUE_LIST.map(s => `<div class="statue-card ${statues.has(s.n)?'collected':''}" onclick="toggleStatue('${s.n.replace(/'/g,"\\'")}')">
     <div class="statue-card-name">${s.n}</div>
@@ -7416,6 +7609,7 @@ renderBossCards();
 renderCalc();
 renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderStatueTracker();
+renderMaterialStash();
 renderTzZones();
 renderSuperUniques();
 renderSetTracker();
