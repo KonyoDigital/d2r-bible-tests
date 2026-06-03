@@ -23,6 +23,23 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .eff-readout{background:var(--surface-2);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text-muted);font-family:ui-monospace,monospace}
 .eff-readout strong{color:var(--gold-bright);font-weight:600}
 .tabs{display:flex;gap:4px;margin:10px auto 0;max-width:1280px;flex-wrap:wrap;overflow-x:auto}
+/* === v61 sticky global search === */
+.gsearch-wrap{position:relative;max-width:1280px;margin:8px auto 2px;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.32);border:1px solid var(--border);border-radius:8px;padding:7px 12px}
+.gsearch-wrap:focus-within{border-color:var(--gold-bright,#d4a849);box-shadow:0 0 0 1px rgba(240,192,96,.25)}
+.gsearch-ic-lead{font-size:14px;opacity:.7}
+.gsearch-input{flex:1;background:transparent;border:none;outline:none;color:var(--gold-bright,#f0c060);font-family:var(--mono,monospace);font-size:13.5px;letter-spacing:.2px;min-width:0}
+.gsearch-input::placeholder{color:rgba(240,192,96,.42);font-style:italic}
+.gsearch-results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:500;max-height:62vh;overflow-y:auto;background:linear-gradient(180deg,#1a1208,#15100a);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 14px 50px rgba(0,0,0,.85);padding:6px 0}
+.gsearch-results[hidden]{display:none}
+.gsearch-item{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;padding:9px 16px;cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px;color:#e8d8b8;border-left:2px solid transparent}
+.gsearch-item:hover,.gsearch-item.gsearch-active{background:rgba(240,192,96,.10);border-left-color:var(--gold-bright,#f0c060);color:#fff5d8}
+.gsearch-ic{font-size:15px;text-align:center;opacity:.9}
+.gsearch-lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gsearch-sub{color:rgba(240,192,96,.55);font-size:11px;margin-left:6px}
+.gsearch-cat{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:rgba(240,192,96,.6);font-weight:600;white-space:nowrap}
+.gsearch-empty{padding:14px 18px;color:rgba(240,192,96,.5);font-family:var(--mono,monospace);font-size:12px;font-style:italic}
+@media(max-width:640px){.gsearch-input{font-size:12px}.gsearch-cat{display:none}.gsearch-wrap{margin:6px auto 2px}}
+
 .tab{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;transition:all .15s;white-space:nowrap}
 .tab:hover{background:var(--surface-2);color:var(--text)}
 .tab.active{background:var(--gold);color:#1a1208;border-color:var(--gold)}
@@ -1785,6 +1802,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <span style="font-size:9px;color:var(--gold-dim);font-family:var(--mono);opacity:.7;margin-left:auto">click preset · type exact · ⌨️ shift+1-6 · ? for shortcuts</span>
   </div>
 
+  <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
+    <span class="gsearch-ic-lead">🔍</span>
+    <input id="gsearch-input" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
+    <div id="gsearch-results" class="gsearch-results" hidden></div>
+  </div>
   <div class="tabs">
     <button class="tab active" data-tab="main">🏠 main</button>
     <button class="tab" data-tab="bosses">🗺️ bosses</button>
@@ -7876,6 +7898,46 @@ _v41_whenReady(() => {
     {n:'Death\'s Web', runes:'(unique, not RW)', base:'-30 to enemy poison res · +1-2 PnB skills', notes:'Note: this is the UNIQUE Death\'s Web, not a runeword'},
   ];
 
+  // === v61 sticky global search — reuses v42BuildCommands() index + its actions ===
+  (function(){
+    function gsInit(){
+      var inp = document.getElementById('gsearch-input');
+      var box = document.getElementById('gsearch-results');
+      if (!inp || !box) return;
+      var ranked = [], active = -1, index = null;
+      function getIndex(){ if (!index){ try { index = (typeof v42BuildCommands === 'function') ? v42BuildCommands() : []; } catch(e){ index = []; } } return index; }
+      function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); }
+      function score(c, q){ var l=(c.label||'').toLowerCase(), k=(c.keywords||'').toLowerCase(); if (l===q) return 100; if (l.indexOf(q)===0) return 80; if (l.indexOf(q)>0) return 60; if (k.indexOf(q)>=0) return 40; return -1; }
+      function close(){ box.hidden=true; box.innerHTML=''; ranked=[]; active=-1; }
+      function paint(){ var els=box.querySelectorAll('.gsearch-item'); for (var i=0;i<els.length;i++){ if (i===active) els[i].classList.add('gsearch-active'); else els[i].classList.remove('gsearch-active'); } var a=box.querySelector('.gsearch-active'); if (a) a.scrollIntoView({block:'nearest'}); }
+      function render(q){
+        q=(q||'').trim().toLowerCase();
+        if (!q){ close(); return; }
+        var all=getIndex(), scored=[];
+        for (var i=0;i<all.length;i++){ var sc=score(all[i],q); if (sc>=0) scored.push({c:all[i],s:sc}); }
+        scored.sort(function(a,b){ return b.s-a.s || (a.c.label||'').length-(b.c.label||'').length; });
+        ranked=scored.slice(0,10);
+        if (!ranked.length){ box.innerHTML='<div class="gsearch-empty">No boss, zone, act, or item matches "'+esc(q)+'"</div>'; box.hidden=false; active=-1; return; }
+        var html='';
+        for (var j=0;j<ranked.length;j++){ var c=ranked[j].c;
+          html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+(c.icon||'\u2022')+'</span><span class="gsearch-lab">'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
+        }
+        box.innerHTML=html; active=0; box.hidden=false; paint();
+      }
+      function run(i){ if (ranked[i]){ try { ranked[i].c.action(); } catch(e){} inp.value=''; close(); inp.blur(); } }
+      inp.addEventListener('input', function(e){ render(e.target.value); });
+      inp.addEventListener('keydown', function(e){
+        var n=ranked.length;
+        if (e.key==='ArrowDown'){ e.preventDefault(); active=Math.min(active+1, n-1); paint(); }
+        else if (e.key==='ArrowUp'){ e.preventDefault(); active=Math.max(active-1, 0); paint(); }
+        else if (e.key==='Enter'){ e.preventDefault(); run(active>=0?active:0); }
+        else if (e.key==='Escape'){ if (box.hidden){ inp.value=''; } else { close(); } inp.blur(); }
+      });
+      box.addEventListener('mousedown', function(e){ var it=e.target.closest('.gsearch-item'); if (it){ e.preventDefault(); run(parseInt(it.getAttribute('data-gi'),10)); } });
+      document.addEventListener('click', function(e){ if (!e.target.closest('.gsearch-wrap')) close(); });
+    }
+    if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', gsInit); else gsInit();
+  })();
   function v42BuildCommands() {
     const cmds = [];
 
@@ -8036,6 +8098,33 @@ _v41_whenReady(() => {
       }
     });
 
+    
+    // --- v61 search index: Terror Zones + Super-Uniques (acts/zones/gold-names jumpable) ---
+    const TZ_DATA = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES : [];
+    TZ_DATA.forEach((z, zi) => cmds.push({
+      icon: z.emoji || '🔥',
+      label: z.name,
+      sub: z.act || '',
+      cat: 'zone',
+      hint: z.tier ? z.tier + '-tier' : '',
+      keywords: 'zone area terror tz ' + (z.name||'').toLowerCase() + ' ' + (z.act||'').toLowerCase() + ' ' + (z.unique||'').toLowerCase() + ' ' + ((z.tags||[]).join(' ')),
+      action: () => { if (window.switchTab) window.switchTab('tz'); setTimeout(() => { if (window.jumpToTzZone) window.jumpToTzZone(zi); }, 90); }
+    }));
+    const SU_DATA = (typeof SUPER_UNIQUES !== 'undefined') ? SUPER_UNIQUES : [];
+    SU_DATA.forEach((su, si) => cmds.push({
+      icon: su.emoji || '⚡',
+      label: su.name,
+      sub: su.act || '',
+      cat: 'super-unique',
+      hint: su.mlvl ? 'mlvl ' + su.mlvl : '',
+      keywords: 'super unique superunique gold name boss ' + (su.name||'').toLowerCase() + ' ' + (su.act||'').toLowerCase() + ' ' + (su.role||'').toLowerCase() + ' ' + (su.tzMatch||'').toLowerCase(),
+      action: () => { if (window.switchTab) window.switchTab('tz'); setTimeout(() => {
+        const d = document.getElementById('su-detail-' + si);
+        if (d && d.hasAttribute('hidden') && window.toggleSuperUnique) window.toggleSuperUnique(si);
+        const card = document.querySelector('.su-card[data-su-idx="' + si + '"]');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 110); }
+    }));
     return cmds;
   }
 
