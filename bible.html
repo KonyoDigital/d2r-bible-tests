@@ -591,6 +591,37 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-clear-btn{background:var(--surface-3);border:1px solid var(--border-light);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;transition:border-color .12s,color .12s}
 .rs-clear-btn:hover{border-color:var(--danger,#e0556a);color:var(--text)}
 .rs-total{font-size:11px;color:var(--text-muted);font-family:ui-monospace,monospace}
+/* Collapsible tool card (title-only until clicked) */
+.boss-card.collapsible .boss-header{cursor:pointer;user-select:none}
+.boss-card.collapsible .boss-header:hover .boss-name{color:var(--gold-bright)}
+.rs-chevron{margin-left:10px;font-size:13px;color:var(--gold-bright);transition:transform .18s;flex-shrink:0}
+.boss-card.collapsible.collapsed .rs-chevron{transform:rotate(-90deg)}
+.boss-card.collapsible.collapsed .boss-body{display:none}
+/* "What can I make" runeword planner */
+.rw-make{background:linear-gradient(180deg,rgba(120,200,120,.06),var(--surface-2));border:1px solid var(--border-light);border-left:3px solid var(--best,#7bc77b);border-radius:10px;padding:14px 18px;margin:12px 0}
+.rw-make-head{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:.02em}
+.rw-make-group{margin:10px 0 4px}
+.rw-make-group-title{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:6px}
+.rw-list{display:flex;flex-direction:column;gap:5px}
+.rw-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:4px 0;border-bottom:1px dotted var(--border)}
+.rw-row:last-child{border-bottom:none}
+.rw-name{font-weight:700;color:var(--text)}
+.rw-ready .rw-name{color:var(--best,#7bc77b)}
+.rw-cube .rw-name{color:var(--gold-bright)}
+.rw-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-muted)}
+.rw-base{font-size:11px;color:var(--text-dim)}
+.rw-tag{font-size:10px;font-family:ui-monospace,monospace;color:var(--gold-bright);margin-left:auto;white-space:nowrap}
+.rw-empty{font-size:12px;color:var(--text-dim);font-style:italic}
+/* Rune tally import box */
+.rs-import{margin:12px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:12px 16px}
+.rs-import summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none}
+.rs-import summary:hover{color:var(--gold-bright)}
+.rs-import textarea{width:100%;box-sizing:border-box;min-height:54px;margin-top:8px;background:var(--surface-3);color:var(--text);border:1px solid var(--border-light);border-radius:6px;padding:8px 10px;font-family:ui-monospace,monospace;font-size:12px;resize:vertical}
+.rs-import-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.rs-import-btn{background:var(--gold-bright);border:none;color:#0a0805;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.rs-import-btn:hover{filter:brightness(1.08)}
+.rs-import-status{font-size:11px;color:var(--text-muted)}
+.rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
 /* Cube recipes */
 .cube-section{background:var(--surface-2);border-radius:8px;padding:12px 16px;margin:10px 0}
 .cube-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -2242,18 +2273,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
   <div class="warning"><strong>📊 Rune drop notes:</strong> Rune drop rates ARE NOT affected by MF. They're affected only by difficulty + monster level + Players count. Higher Players setting = more chances but each individual drop has lower probability. P1 = best for solo runes on Countess (max kill speed, simpler math).</div>
 
-  <div class="boss-card" id="rune-stash-card">
-    <div class="boss-header">
+  <div class="boss-card collapsible collapsed" id="rune-stash-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji">🧮</span>
       <div class="boss-title-block">
         <p class="boss-name">Rune Stash &amp; Cube-Up Planner</p>
-        <p class="boss-subtitle">Count your runes → see what you can cube up</p>
+        <p class="boss-subtitle">Count your runes → see what you can make &amp; cube up</p>
         <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · uses the exact in-game upgrade recipes</p>
       </div>
-      <div class="boss-tier-tag"><div class="boss-tier-label">tool</div><div class="boss-tier-val">🧮</div></div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
     </div>
     <div class="boss-body">
       <div class="rune-stash-wrap">
+        <div class="rw-make" id="rune-craftable"></div>
         <div class="cubeup-panel">
           <div class="cubeup-row">
             <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
@@ -2262,6 +2294,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           </div>
           <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
         </div>
+        <details class="rs-import">
+          <summary>📥 Import a tally (paste counts)</summary>
+          <textarea id="rune-import-box" placeholder="El:3 Eld:1 Tir:6 …  (or paste JSON)"></textarea>
+          <div class="rs-import-row">
+            <button class="rs-import-btn" onclick="window.importRuneTally()">Load tally</button>
+            <span class="rs-import-status" id="rune-import-status"></span>
+          </div>
+          <div class="rs-import-note">Format: <code>Name:count</code> pairs separated by spaces or commas. Replaces your current tally.</div>
+        </details>
         <div class="rune-stash-grid" id="rune-stash-grid"></div>
         <div class="rune-stash-actions">
           <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
@@ -4233,6 +4274,28 @@ const _RUNE_COUNTESS = (function(){
   });
   return m;
 })();
+
+// Canonical popular-runeword recipes (single source: powers the global search palette
+// AND the rune-stash "what can I make" planner). Not in ITEMS data.
+const RUNEWORDS = [
+  {n:'Enigma', runes:'Jah + Ith + Ber', base:'3-sock body armor', notes:'Teleport · +2 skills · MF'},
+  {n:'Spirit (sword)', runes:'Tal + Thul + Ort + Amn', base:'4-sock sword (crystal)', notes:'+2 skills · 35 FCR · cheap'},
+  {n:'Spirit (shield)', runes:'Tal + Thul + Ort + Amn', base:'4-sock paladin shield / monarch', notes:'+2 skills · 35 FCR'},
+  {n:'Insight', runes:'Ral + Tir + Tal + Sol', base:'4-sock polearm/staff (merc)', notes:'Meditation aura · merc gear'},
+  {n:'Infinity', runes:'Ber + Mal + Ber + Ist', base:'4-sock polearm (merc)', notes:'Conviction aura · breaks immunes'},
+  {n:'Call to Arms (CTA)', runes:'Amn + Ral + Mal + Ist + Ohm', base:'5-sock weapon/wand', notes:'BO + Battle Command · swap weapon'},
+  {n:'Heart of the Oak (HotO)', runes:'Ko + Vex + Pul + Thul', base:'4-sock mace/staff', notes:'+3 skills · 40 FCR · sorc/druid'},
+  {n:'Grief', runes:'Eth + Tir + Lo + Mal + Ral', base:'5-sock sword/axe', notes:'+340-400 damage · top melee'},
+  {n:'Last Wish', runes:'Jah + Mal + Jah + Sur + Jah + Ber', base:'6-sock sword/hammer', notes:'Might aura · life tap on hit'},
+  {n:'Breath of the Dying (BotD)', runes:'Vex + Hel + El + Eld + Zod + Eth', base:'6-sock weapon', notes:'+60 to all stats · ITD · top tier'},
+  {n:'Fortitude', runes:'El + Sol + Dol + Lo', base:'4-sock armor/weapon', notes:'+200% ED · merc gear or chaos sorc'},
+  {n:'Chains of Honor', runes:'Dol + Um + Ber + Ist', base:'4-sock body armor', notes:'+2 skills · all resists +65 · MF'},
+  {n:'Treachery', runes:'Shael + Thul + Lem', base:'3-sock body armor (merc)', notes:'25% Fade · 45 IAS · cheap merc'},
+  {n:'Lawbringer', runes:'Amn + Lem + Ko', base:'3-sock weapon (Reaper merc)', notes:'Sanctuary aura · undead nuke'},
+  {n:'Phoenix', runes:'Vex + Vex + Lo + Jah', base:'4-sock weapon/shield', notes:'Redemption aura · +350-400 ED'},
+  {n:'Death\'s Web', runes:'(unique, not RW)', base:'-30 to enemy poison res · +1-2 PnB skills', notes:'Note: this is the UNIQUE Death\'s Web, not a runeword'},
+];
+window.RUNEWORDS = RUNEWORDS;
 
 const ITEMS = [];
 const ITEM_REGISTRY = {};
@@ -6983,8 +7046,127 @@ function renderRuneStash(){
     const name = RUNES[ti] ? RUNES[ti].n : '';
     res.innerHTML = `<span class="cubeup-num">${n}×</span> ${name}`;
   }
+  renderRuneCraftable();
 }
 window.renderRuneStash = renderRuneStash;
+
+// --- v68: "what can I make" runeword planner + collapse + tally import ---
+// Rune name -> array index (canonical El..Zod order). Built once from RUNES.
+const RUNE_INDEX = (function(){ const m = {}; RUNES.forEach((r, i) => { m[r.n] = i; }); return m; })();
+window.toggleCardCollapse = function(id){
+  const card = document.getElementById(id);
+  if (!card) return;
+  const open = card.classList.toggle('collapsed');   // returns true when collapsed added
+  const hdr = card.querySelector('.boss-header');
+  if (hdr) hdr.setAttribute('aria-expanded', String(!card.classList.contains('collapsed')));
+};
+// Parse a runeword's recipe string ("Jah + Mal + Jah + …") into {rune: count}.
+// Returns null for non-runeword pseudo-entries (e.g. the unique Death's Web).
+function runewordReq(rw){
+  const req = {};
+  String(rw.runes || '').split('+').forEach((p) => {
+    const name = p.trim();
+    if (name in RUNE_INDEX) req[name] = (req[name] || 0) + 1;
+  });
+  return Object.keys(req).length ? req : null;
+}
+// Have every required rune outright (exact multiset), no cubing.
+function canMakeNow(req){
+  return Object.keys(req).every((n) => _runeCount(n) >= req[n]);
+}
+// Honest greedy: can the tally satisfy this multiset if we cube lower runes up?
+// Satisfy the highest required rune first (highers can only come FROM lowers), each
+// time draining the shared pool — so shared lowers are never double-counted.
+function canMakeWithCubing(req){
+  const pool = RUNES.map((r) => _runeCount(r.n));
+  const order = Object.keys(req).map((n) => RUNE_INDEX[n]).sort((a, b) => b - a);
+  for (const ri of order){
+    let need = req[RUNES[ri].n];
+    let j = ri;
+    while (need > 0){
+      const use = Math.min(pool[j], need);
+      pool[j] -= use; need -= use;
+      if (need <= 0) break;
+      if (j === 0) return false;                       // nothing lower to cube from
+      const ratio = runeCubeRatio(RUNES[j - 1]);
+      if (!ratio) return false;
+      need = need * ratio; j -= 1;                      // need this many of the next rune down
+    }
+  }
+  return true;
+}
+function runeCraftStatus(){
+  const list = (typeof RUNEWORDS !== 'undefined') ? RUNEWORDS : [];
+  const ready = [], cube = [];
+  list.forEach((rw) => {
+    const req = runewordReq(rw);
+    if (!req) return;
+    if (canMakeNow(req)) ready.push(rw);
+    else if (canMakeWithCubing(req)) cube.push(rw);
+  });
+  return { ready, cube };
+}
+window.runeCraftStatus = runeCraftStatus;
+window.canMakeNow = canMakeNow;
+window.canMakeWithCubing = canMakeWithCubing;
+window.runewordReq = runewordReq;
+function renderRuneCraftable(){
+  const box = document.getElementById('rune-craftable');
+  if (!box) return;
+  const { ready, cube } = runeCraftStatus();
+  const row = (rw, cls) => `<div class="rw-row ${cls}" data-rw="${rw.n.replace(/"/g, '&quot;')}">
+      <span class="rw-name">${rw.n}</span>
+      <span class="rw-recipe">${rw.runes}</span>
+      <span class="rw-base">${rw.base}</span>
+    </div>`;
+  let html = `<div class="rw-make-head">🛠 What I can make</div>`;
+  html += `<div class="rw-make-group"><div class="rw-make-group-title">✅ Ready now · ${ready.length}</div>`;
+  html += ready.length ? `<div class="rw-list">${ready.map((rw) => row(rw, 'rw-ready')).join('')}</div>`
+                       : `<div class="rw-empty">No popular runeword is fully in hand yet — tally more runes.</div>`;
+  html += `</div>`;
+  if (cube.length){
+    html += `<div class="rw-make-group"><div class="rw-make-group-title">🔨 With cube-ups · ${cube.length}</div>`;
+    html += `<div class="rw-list">${cube.map((rw) => row(rw, 'rw-cube')).join('')}</div></div>`;
+  }
+  box.innerHTML = html;
+}
+window.renderRuneCraftable = renderRuneCraftable;
+// Import a pasted tally. Accepts JSON ({"El":3,…}) or "Name:count" pairs. Replaces stash.
+function importRuneTally(){
+  const ta = document.getElementById('rune-import-box');
+  const status = document.getElementById('rune-import-status');
+  const setStatus = (msg) => { if (status) status.textContent = msg; };
+  if (!ta) return;
+  const raw = (ta.value || '').trim();
+  if (!raw){ setStatus('Paste a tally first.'); return; }
+  const next = {};
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch (e) {}
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)){
+    Object.keys(parsed).forEach((k) => {
+      const v = parseInt(parsed[k], 10);
+      if (k in RUNE_INDEX && isFinite(v) && v > 0) next[k] = v;
+    });
+  } else {
+    const re = /([A-Za-z]+)\s*[:=]\s*(\d+)/g;
+    let m;
+    while ((m = re.exec(raw)) !== null){
+      const name = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+      const v = parseInt(m[2], 10);
+      if (name in RUNE_INDEX && isFinite(v) && v > 0) next[name] = v;
+    }
+  }
+  const n = Object.keys(next).length;
+  if (!n){ setStatus('No valid runes found — check the format.'); return; }
+  if (Object.keys(runeStash).length && !confirm('Replace your current rune tally with this import?')) { setStatus('Import cancelled.'); return; }
+  runeStash = next;
+  persist();
+  renderRuneStash();
+  const total = Object.values(next).reduce((a, b) => a + b, 0);
+  setStatus(`Loaded ${n} rune types (${total} runes).`);
+  ta.value = '';
+}
+window.importRuneTally = importRuneTally;
 
 function renderStatueTracker() {
   $("statue-tracker").innerHTML = STATUE_LIST.map(s => `<div class="statue-card ${statues.has(s.n)?'collected':''}" onclick="toggleStatue('${s.n.replace(/'/g,"\\'")}')">
@@ -8232,25 +8414,8 @@ _v41_whenReady(() => {
 (function() {
   'use strict';
   // --- v42: Build command list from the bible's live data sources ---
-  // --- v42 polish: common D2R runewords (not in ITEMS data) ---
-  const V42_RUNEWORDS = [
-    {n:'Enigma', runes:'Jah + Ith + Ber', base:'3-sock body armor', notes:'Teleport · +2 skills · MF'},
-    {n:'Spirit (sword)', runes:'Tal + Thul + Ort + Amn', base:'4-sock sword (crystal)', notes:'+2 skills · 35 FCR · cheap'},
-    {n:'Spirit (shield)', runes:'Tal + Thul + Ort + Amn', base:'4-sock paladin shield / monarch', notes:'+2 skills · 35 FCR'},
-    {n:'Insight', runes:'Ral + Tir + Tal + Sol', base:'4-sock polearm/staff (merc)', notes:'Meditation aura · merc gear'},
-    {n:'Infinity', runes:'Ber + Mal + Ber + Ist', base:'4-sock polearm (merc)', notes:'Conviction aura · breaks immunes'},
-    {n:'Call to Arms (CTA)', runes:'Amn + Ral + Mal + Ist + Ohm', base:'5-sock weapon/wand', notes:'BO + Battle Command · swap weapon'},
-    {n:'Heart of the Oak (HotO)', runes:'Ko + Vex + Pul + Thul', base:'4-sock mace/staff', notes:'+3 skills · 40 FCR · sorc/druid'},
-    {n:'Grief', runes:'Eth + Tir + Lo + Mal + Ral', base:'5-sock sword/axe', notes:'+340-400 damage · top melee'},
-    {n:'Last Wish', runes:'Jah + Mal + Jah + Sur + Jah + Ber', base:'6-sock sword/hammer', notes:'Might aura · life tap on hit'},
-    {n:'Breath of the Dying (BotD)', runes:'Vex + Hel + El + Eld + Zod + Eth', base:'6-sock weapon', notes:'+60 to all stats · ITD · top tier'},
-    {n:'Fortitude', runes:'El + Sol + Dol + Lo', base:'4-sock armor/weapon', notes:'+200% ED · merc gear or chaos sorc'},
-    {n:'Chains of Honor', runes:'Dol + Um + Ber + Ist', base:'4-sock body armor', notes:'+2 skills · all resists +65 · MF'},
-    {n:'Treachery', runes:'Shael + Thul + Lem', base:'3-sock body armor (merc)', notes:'25% Fade · 45 IAS · cheap merc'},
-    {n:'Lawbringer', runes:'Amn + Lem + Ko', base:'3-sock weapon (Reaper merc)', notes:'Sanctuary aura · undead nuke'},
-    {n:'Phoenix', runes:'Vex + Vex + Lo + Jah', base:'4-sock weapon/shield', notes:'Redemption aura · +350-400 ED'},
-    {n:'Death\'s Web', runes:'(unique, not RW)', base:'-30 to enemy poison res · +1-2 PnB skills', notes:'Note: this is the UNIQUE Death\'s Web, not a runeword'},
-  ];
+  // --- v42 polish: common D2R runewords (now a shared top-level global, see RUNEWORDS) ---
+  const V42_RUNEWORDS = (typeof RUNEWORDS !== 'undefined') ? RUNEWORDS : [];
 
   // === v61 sticky global search — reuses v42BuildCommands() index + its actions ===
   (function(){
