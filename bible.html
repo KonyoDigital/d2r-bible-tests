@@ -538,6 +538,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-group-act{color:var(--terror);font-weight:700;font-size:13px;letter-spacing:.5px;text-transform:uppercase}
 .tz-group-label{color:var(--text-muted);font-size:11.5px;font-style:italic}
 .tz-group-count{margin-left:auto;color:var(--text-dim);font-size:10.5px;font-family:ui-monospace,monospace}
+/* cross-link cards: permanent lvl-85 zones (e.g. The Pit) that ALSO fire TZ alerts but
+   live in the bosses tab — a router into their canonical boss ID card, no zone data of its own.
+   They bucket into their storyline-act group right alongside the regular terror zones. */
+.tz-crosslink-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border-light);border-left:3px solid var(--gold-bright);border-radius:10px;margin:12px 0;padding:16px 20px;cursor:pointer;transition:border-color .12s,transform .12s,box-shadow .12s}
+.tz-crosslink-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.24);border-left-color:var(--star)}
+.tz-crosslink-card .tz-zone-tier{color:var(--gold-bright)}
+.tz-crosslink-go{color:var(--gold-bright);font-size:11px;letter-spacing:.3px;margin-top:8px;font-weight:600}
 /* nested super-unique ID-card roster inside a terror-zone detail box */
 .zd-su-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:4px}
 .zd-su-card{display:flex;flex-direction:column;gap:2px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--uber);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .12s,transform .12s,box-shadow .12s}
@@ -4053,6 +4060,15 @@ const TERROR_GROUPS = [
   {act:"Act 5", emoji:"⛰️", label:"Harrogath → Worldstone Keep", match:(z)=>/Act 5/.test(z.act)},
 ];
 
+// TZ_CROSSLINKS — permanent lvl-85 zones (e.g. The Pit) that DO fire TZ alerts but aren't in
+// TZ_ZONES because they're catalogued as permanent farm targets in the Bosses tab (alvl 85 by
+// default, no terror needed). Each cross-link is a pure router into an existing BOSSES card —
+// every display field is read live from that boss entry, so there's zero fabricated data here.
+// `act` slots the card into the matching TERROR_GROUPS storyline-act bucket in renderTzZones().
+const TZ_CROSSLINKS = [
+  {bossId:"pit", act:"Act 1"},   // 🕳️ The Pit · Tamoe Highland · alvl 85 · the user's S-TIER TZ alert
+];
+
 // Named super-uniques (the gold-name bosses TZ alerts call out, e.g. Eldritch).
 // Cross-referenced to canonical D2R data: act/area, Hell AREA mlvl (the level that
 // sets each monster's TC ceiling — terror raises any TZ-eligible area to mlvl 96),
@@ -6639,21 +6655,45 @@ function tzZoneCardHtml(z, zi){
       <div class="tz-zone-detail" id="tz-zone-detail-${zi}" hidden></div>
     </div>`;
 }
+/* A cross-link card is a router into a boss ID card for a permanent lvl-85 zone (The Pit)
+   that fires TZ alerts but isn't a TZ_ZONES entry. Every field is read LIVE from the boss
+   entry in BOSSES — no zone data is invented here, so it can never drift from the source card. */
+function tzCrosslinkCardHtml(cl){
+  const b = (typeof BOSSES !== 'undefined') ? BOSSES.find((x) => x.id === cl.bossId) : null;
+  if (!b) return '';
+  return `<div class="tz-crosslink-card" data-crosslink-boss-id="${b.id}" onclick="window.openBossDetail('${b.id}')" style="cursor:pointer" title="open ${b.name}'s full ID card in the Bosses tab">
+      <div class="tz-zone-header">
+        <span class="tz-zone-emoji">${b.emoji || '🗺️'}</span>
+        <p class="tz-zone-name">${b.name}</p>
+        <span class="tz-zone-tier">${b.tierTag || ''}</span>
+      </div>
+      <div class="tz-zone-meta">${b.subtitle || ''}${b.loc ? ' · ' + b.loc : ''}</div>
+      <div class="tz-zone-body">${b.why || ''}</div>
+      <div class="tz-crosslink-go">📜 permanent lvl-85 zone — it fires TZ alerts, but its full ID card lives in the Bosses tab. Click to open ${b.name}'s drop table →</div>
+    </div>`;
+}
+window.tzCrosslinkCardHtml = tzCrosslinkCardHtml;
 function renderTzZones() {
   const el = document.getElementById('tz-zones-container');
   if (!el) return;
   /* v64: render the zones grouped under TERROR_GROUPS act-region headers. Every zone is
      bucketed into exactly one group by `match`; any zone that somehow matches none falls
-     into a trailing "other" bucket so the count never drifts from TZ_ZONES.length. */
+     into a trailing "other" bucket so the count never drifts from TZ_ZONES.length.
+     v66: each group ALSO carries any TZ_CROSSLINKS whose `act` matches it, so permanent
+     lvl-85 alert zones (The Pit) land in their storyline-act bucket next to the real zones. */
+  const crosslinks = (typeof TZ_CROSSLINKS !== 'undefined') ? TZ_CROSSLINKS : [];
   const indices = TZ_ZONES.map((_, zi) => zi);
   const used = new Set();
   let html = '';
   TERROR_GROUPS.forEach((g) => {
     const members = indices.filter((zi) => !used.has(zi) && g.match(TZ_ZONES[zi]));
-    if (!members.length) return;
+    const groupLinks = crosslinks.filter((cl) => cl.act === g.act);
+    if (!members.length && !groupLinks.length) return;
     members.forEach((zi) => used.add(zi));
-    html += `<div class="tz-group-head"><span class="tz-group-emoji">${g.emoji}</span><span class="tz-group-act">${g.act}</span><span class="tz-group-label">${g.label}</span><span class="tz-group-count">${members.length} zone${members.length===1?'':'s'}</span></div>`;
+    const count = members.length + groupLinks.length;
+    html += `<div class="tz-group-head"><span class="tz-group-emoji">${g.emoji}</span><span class="tz-group-act">${g.act}</span><span class="tz-group-label">${g.label}</span><span class="tz-group-count">${count} zone${count===1?'':'s'}</span></div>`;
     html += members.map((zi) => tzZoneCardHtml(TZ_ZONES[zi], zi)).join('');
+    html += groupLinks.map((cl) => tzCrosslinkCardHtml(cl)).join('');
   });
   const leftover = indices.filter((zi) => !used.has(zi));
   if (leftover.length){
@@ -8296,6 +8336,25 @@ _v41_whenReady(() => {
       keywords: 'zone area terror tz ' + (z.name||'').toLowerCase() + ' ' + (z.act||'').toLowerCase() + ' ' + (z.unique||'').toLowerCase() + ' ' + ((z.tags||[]).join(' ')),
       action: () => { if (window.switchTab) window.switchTab('tz'); setTimeout(() => { if (window.jumpToTzZone) window.jumpToTzZone(zi); }, 90); }
     }));
+    // v66: permanent lvl-85 alert zones (The Pit) — searchable AS a zone, routing to the TZ
+    // cross-link card. Closes the gap where a TZ-alerted zone could only be found as a boss.
+    const CL_DATA = (typeof TZ_CROSSLINKS !== 'undefined') ? TZ_CROSSLINKS : [];
+    CL_DATA.forEach((cl) => {
+      const b = (typeof BOSSES !== 'undefined') ? BOSSES.find((x) => x.id === cl.bossId) : null;
+      if (!b) return;
+      cmds.push({
+        icon: b.emoji || '🔥',
+        label: b.name,
+        sub: (b.subtitle || '') + ' · terror zone',
+        cat: 'zone',
+        hint: b.tierTag || '',
+        keywords: 'zone area terror tz ' + (b.name||'').toLowerCase() + ' ' + (b.id||'').toLowerCase() + ' ' + (b.loc||'').toLowerCase() + ' ' + (cl.act||'').toLowerCase(),
+        action: () => { if (window.switchTab) window.switchTab('tz'); setTimeout(() => {
+          const card = document.querySelector('.tz-crosslink-card[data-crosslink-boss-id="' + b.id + '"]');
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 110); }
+      });
+    });
     const SU_DATA = (typeof SUPER_UNIQUES !== 'undefined') ? SUPER_UNIQUES : [];
     SU_DATA.forEach((su, si) => cmds.push({
       icon: su.emoji || '⚡',
