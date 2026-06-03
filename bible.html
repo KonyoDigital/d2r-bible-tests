@@ -568,6 +568,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .set-piece.checked .set-piece-box::after{content:"✓";font-weight:700}
 .set-piece-name{color:var(--text-muted);font-size:11px}
 .set-piece.checked .set-piece-name{color:var(--text);text-decoration:line-through;opacity:.7}
+/* Rune Stash & Cube-Up planner */
+.rune-stash-wrap{margin:14px 0}
+.rune-stash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(120px,100%),1fr));gap:7px;margin:10px 0}
+.rune-stash-cell{display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:6px 8px}
+.rune-stash-cell.rs-low{border-left:3px solid var(--text-dim)}
+.rune-stash-cell.rs-mid{border-left:3px solid #8aa0c8}
+.rune-stash-cell.rs-high{border-left:3px solid var(--gold-bright)}
+.rune-stash-cell.rs-ultra{border-left:3px solid var(--uber)}
+.rune-stash-cell.rs-has{background:linear-gradient(180deg,rgba(240,192,96,.08),var(--surface-2))}
+.rs-name{font-weight:600;font-size:12px;color:var(--text);min-width:34px}
+.rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
+.rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
+.rs-btn:hover{background:var(--surface);border-color:var(--gold-bright)}
+.cubeup-panel{background:linear-gradient(180deg,rgba(240,192,96,.06),var(--surface-2));border:1px solid var(--border-light);border-left:3px solid var(--gold-bright);border-radius:10px;padding:14px 18px;margin:12px 0}
+.cubeup-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cubeup-panel select{background:var(--surface-3);color:var(--text);border:1px solid var(--border-light);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;cursor:pointer}
+.cubeup-result{font-size:14px;color:var(--text)}
+.cubeup-num{color:var(--gold-bright);font-weight:700;font-family:ui-monospace,monospace;font-size:17px}
+.cubeup-note{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:7px}
+.rune-stash-actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+.rs-clear-btn{background:var(--surface-3);border:1px solid var(--border-light);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;transition:border-color .12s,color .12s}
+.rs-clear-btn:hover{border-color:var(--danger,#e0556a);color:var(--text)}
+.rs-total{font-size:11px;color:var(--text-muted);font-family:ui-monospace,monospace}
 /* Cube recipes */
 .cube-section{background:var(--surface-2);border-radius:8px;padding:12px 16px;margin:10px 0}
 .cube-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -2218,6 +2241,35 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div id="rune-sources-target"></div>
 
   <div class="warning"><strong>📊 Rune drop notes:</strong> Rune drop rates ARE NOT affected by MF. They're affected only by difficulty + monster level + Players count. Higher Players setting = more chances but each individual drop has lower probability. P1 = best for solo runes on Countess (max kill speed, simpler math).</div>
+
+  <div class="boss-card" id="rune-stash-card">
+    <div class="boss-header">
+      <span class="boss-emoji">🧮</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Rune Stash &amp; Cube-Up Planner</p>
+        <p class="boss-subtitle">Count your runes → see what you can cube up</p>
+        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · uses the exact in-game upgrade recipes</p>
+      </div>
+      <div class="boss-tier-tag"><div class="boss-tier-label">tool</div><div class="boss-tier-val">🧮</div></div>
+    </div>
+    <div class="boss-body">
+      <div class="rune-stash-wrap">
+        <div class="cubeup-panel">
+          <div class="cubeup-row">
+            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
+            <select id="rune-cubeup-target" onchange="window.renderRuneStash()"></select>
+            <span class="cubeup-result" id="cubeup-result">—</span>
+          </div>
+          <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
+        </div>
+        <div class="rune-stash-grid" id="rune-stash-grid"></div>
+        <div class="rune-stash-actions">
+          <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
+          <span class="rs-total" id="rune-stash-total"></span>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -4235,6 +4287,8 @@ let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
 let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
 let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
+// Rune Stash: { runeName: count } map. Pure user-owned tally; powers the cube-up planner.
+let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
@@ -4283,6 +4337,7 @@ const persist = () => {
   LS.setItem('d2r_bossFilters', JSON.stringify(bossFilters));
   LS.setItem('d2r_bossSorts', JSON.stringify(bossSorts));
   LS.setItem('d2r_setPieces', JSON.stringify([...setPieces]));
+  LS.setItem('d2r_runeStash', JSON.stringify(runeStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
 
@@ -6858,6 +6913,79 @@ function renderRuneTable() {
     </table></div>`;
 }
 
+/* === Rune Stash & Cube-Up Planner ===
+   Pure round-trip of the user's own rune tally against the upgrade ratios ALREADY encoded
+   in each RUNES[i].up recipe string ("3 El + ... → Eld" or "2 Pul + ... → Um"). Nothing is
+   fabricated: the ratio is parsed straight from that canonical recipe, and RUNES is ordered
+   ascending (num 1=El … 33=Zod) so cube-ups cascade by array index. */
+function runeCubeRatio(rune){
+  if (!rune || !rune.up) return null;                 // Zod (top of chain) has no upgrade
+  const m = String(rune.up).match(/^\s*(\d+)\s/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function _runeCount(name){
+  const v = parseInt(runeStash[name], 10);
+  return isFinite(v) && v > 0 ? v : 0;
+}
+// How many of RUNES[targetIdx] you could end up with by cubing every lower rune up the chain.
+function cubeUpPotential(targetIdx){
+  if (targetIdx < 0 || targetIdx >= RUNES.length) return 0;
+  const carry = RUNES.map(r => _runeCount(r.n));
+  for (let i = 0; i < targetIdx; i++){
+    const ratio = runeCubeRatio(RUNES[i]);
+    if (!ratio) break;                                 // chain broken (shouldn't happen below Zod)
+    const made = Math.floor(carry[i] / ratio);
+    carry[i] -= made * ratio;
+    carry[i + 1] += made;
+  }
+  return carry[targetIdx];
+}
+window.cubeUpPotential = cubeUpPotential;
+function adjustRuneStash(name, delta){
+  const next = _runeCount(name) + delta;
+  if (next <= 0) delete runeStash[name]; else runeStash[name] = next;
+  persist();
+  renderRuneStash();
+}
+window.adjustRuneStash = adjustRuneStash;
+function clearRuneStash(){
+  if (Object.keys(runeStash).length && !confirm('Clear your entire rune stash tally?')) return;
+  runeStash = {};
+  persist();
+  renderRuneStash();
+}
+window.clearRuneStash = clearRuneStash;
+function renderRuneStash(){
+  const grid = document.getElementById('rune-stash-grid');
+  if (!grid || typeof RUNES === 'undefined') return;
+  // populate the target <select> once (default to Vex — the classic "what can I make" rune)
+  const sel = document.getElementById('rune-cubeup-target');
+  if (sel && !sel.options.length){
+    sel.innerHTML = RUNES.map((r, i) => `<option value="${i}"${r.n === 'Vex' ? ' selected' : ''}>${r.n}</option>`).join('');
+  }
+  grid.innerHTML = RUNES.map((r) => {
+    const c = _runeCount(r.n);
+    const esc = r.n.replace(/'/g, "\\'");
+    return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}">
+      <span class="rs-name">${r.n}</span>
+      <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
+      <span class="rs-count" data-rune-count="${r.n}">${c}</span>
+      <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',1)" title="add one ${r.n}" aria-label="plus ${r.n}">+</button>
+    </div>`;
+  }).join('');
+  const total = RUNES.reduce((a, r) => a + _runeCount(r.n), 0);
+  const totalEl = document.getElementById('rune-stash-total');
+  if (totalEl) totalEl.textContent = total === 1 ? '1 rune tallied' : `${total} runes tallied`;
+  const res = document.getElementById('cubeup-result');
+  if (res && sel){
+    const ti = parseInt(sel.value, 10) || 0;
+    const n = cubeUpPotential(ti);
+    const name = RUNES[ti] ? RUNES[ti].n : '';
+    res.innerHTML = `<span class="cubeup-num">${n}×</span> ${name}`;
+  }
+}
+window.renderRuneStash = renderRuneStash;
+
 function renderStatueTracker() {
   $("statue-tracker").innerHTML = STATUE_LIST.map(s => `<div class="statue-card ${statues.has(s.n)?'collected':''}" onclick="toggleStatue('${s.n.replace(/'/g,"\\'")}')">
     <div class="statue-card-name">${s.n}</div>
@@ -7104,7 +7232,7 @@ renderGrailProgress();
 renderBossNav();
 renderBossCards();
 renderCalc();
-renderRuneTable(); renderRuneSources();
+renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderStatueTracker();
 renderTzZones();
 renderSuperUniques();
