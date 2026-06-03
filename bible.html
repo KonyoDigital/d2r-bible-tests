@@ -508,6 +508,21 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-tier{letter-spacing:.4px;padding:3px 9px}
 /* honest affordance: hover lift ONLY on clickable (routed) cards, not the info-only zones */
 .tz-zone-card[data-boss-id]:not([data-boss-id=""]):hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.24)}
+/* TERROR_GROUPS act-region headers — section dividers above each act's zone cards */
+.tz-group-head{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding:7px 12px;border-left:3px solid var(--terror);background:linear-gradient(90deg,rgba(255,0,212,.08),transparent);border-radius:6px}
+.tz-group-head:first-child{margin-top:8px}
+.tz-group-emoji{font-size:16px}
+.tz-group-act{color:var(--terror);font-weight:700;font-size:13px;letter-spacing:.5px;text-transform:uppercase}
+.tz-group-label{color:var(--text-muted);font-size:11.5px;font-style:italic}
+.tz-group-count{margin-left:auto;color:var(--text-dim);font-size:10.5px;font-family:ui-monospace,monospace}
+/* nested super-unique ID-card roster inside a terror-zone detail box */
+.zd-su-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:4px}
+.zd-su-card{display:flex;flex-direction:column;gap:2px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--uber);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .12s,transform .12s,box-shadow .12s}
+.zd-su-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.22);border-left-color:var(--gold-bright)}
+.zd-su-card-emoji{font-size:14px}
+.zd-su-card-name{color:var(--uber);font-weight:600;font-size:12.5px}
+.zd-su-card-meta{color:var(--text-muted);font-size:10.5px;font-family:ui-monospace,monospace}
+.zd-su-card-go{color:var(--gold-bright);font-size:10px;letter-spacing:.3px}
 /* Set tracker */
 .set-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
 .set-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:all .15s}
@@ -3333,7 +3348,24 @@ function zoneDropBlockHtml(z){
   h += `</span></div>`;
   return h;
 }
+/* v64: nested super-unique ID-card roster. For every super-unique whose suTzZone()
+   resolves to THIS zone, render a clickable mini-card that routes to the same canonical
+   super-unique detail the #superunique-container cards open — one SU entity, reachable
+   from the zone it spawns in (mirrors how grail chips route to the one item card). The
+   match is the live suTzZone() join, so it never drifts from the zone's `unique` string. */
+function zoneSuRosterHtml(zi){
+  if (typeof SUPER_UNIQUES === 'undefined' || typeof suTzZone !== 'function') return '';
+  const members = SUPER_UNIQUES.map((su, si) => ({su, si})).filter(({su}) => { const m = suTzZone(su); return m && m.zi === zi; });
+  if (!members.length) return '';
+  const cards = members.map(({su, si}) => `<div class="zd-su-card" data-su-idx="${si}" role="button" tabindex="0" onclick="event.stopPropagation();window.jumpToSuperUnique(${si})" title="open ${su.name}'s super-unique ID card">
+      <span class="zd-su-card-name"><span class="zd-su-card-emoji">${su.emoji}</span> ${su.name}</span>
+      <span class="zd-su-card-meta">mlvl ${su.mlvl} · ${su.immune === 'none' ? 'no immunity' : su.immune + ' immune'}${su.dclone ? ' · 🔱 DClone camp' : ''}</span>
+      <span class="zd-su-card-go">open ID card →</span>
+    </div>`).join('');
+  return `<div class="zd-row zd-su-roster"><span class="zd-k">named bosses</span><span class="zd-v"><div class="zd-su-cards">${cards}</div></span></div>`;
+}
 function zoneDetailHtml(z){
+  const zi = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES.indexOf(z) : -1;
   const fi = zoneFeedsInto(z);
   const tcUnlock = z.tcMax >= 87 ? 'TC87' : z.tcMax >= 85 ? 'TC85' : ('TC' + z.tcMax);
   const elite = `CoA · Death's Fathom · Griffon's · Stormshield · Tomb Reaver`;
@@ -3353,6 +3385,7 @@ function zoneDetailHtml(z){
       <div class="zd-stat"><span class="zd-sk">density</span><span class="zd-sv">${z.density}</span></div>
     </div>
     <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
+    ${zoneSuRosterHtml(zi)}
     <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
     ${zoneDropBlockHtml(z)}
     <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
@@ -3964,6 +3997,19 @@ const TZ_ZONES = [
   {emoji:"🏚️",name:"Burial Grounds + Crypt + Mausoleum",tier:"A",mlvl:96,tcMax:85,act:"Act 1 · terrorize Burial Grounds",density:"medium",hot:false,unique:"Blood Raven (Den-of-Evil quest archer)",why:"Three-zone clear (Burial Grounds + Crypt + Mausoleum) headlined by Blood Raven, whose Den-of-Evil quest can be restarted for repeat kills. Terror &rarr; mlvl 96 / TC85. (Coldcrow is in the Cold Plains cave and Bone Ash in the Cathedral — separate zones, not this TZ.)",tags:["dense"]},
   {emoji:"🍃",name:"Spider Forest + Cavern",tier:"B+",mlvl:96,tcMax:85,act:"Act 3 · terrorize Spider Forest",density:"low-medium",hot:false,unique:"Sszark the Burning",why:"Decent if rotation includes it. Sparse outdoor map = slower than dungeon zones. Cavern denser. Sszark drops some uniques.",tags:[]},
   {emoji:"💀",name:"Catacombs L4",tier:"B+",mlvl:75,tcMax:75,act:"Act 1 · terrorize Catacombs",density:"medium",hot:false,unique:"Andariel (same monster, no mlvl boost)",why:"Note: terror doesn't help Andy much, she's already mlvl 75 Hell. Same NM SoJ rate. Skip vs Pindle/Pit.",tags:[]},
+];
+
+// TERROR_GROUPS — group the farmable terror zones by the act they terrorize in, so the
+// TZ list reads as an organized act-by-act roster instead of a flat pile. Each group is a
+// labelled region header; renderTzZones() buckets every TZ_ZONES entry into exactly one
+// group via `match` (preserving each zone's original index for routing). No zone data is
+// duplicated — this is a pure presentation grouping over the single TZ_ZONES source.
+const TERROR_GROUPS = [
+  {act:"Act 1", emoji:"🏰", label:"Rogue Encampment → Tristram", match:(z)=>/Act 1/.test(z.act)},
+  {act:"Act 2", emoji:"🏜️", label:"Lut Gholein → Arcane Sanctuary", match:(z)=>/Act 2/.test(z.act)},
+  {act:"Act 3", emoji:"🌴", label:"Kurast → Flayer Jungle", match:(z)=>/Act 3/.test(z.act)},
+  {act:"Act 4", emoji:"🔥", label:"Pandemonium → River of Flame", match:(z)=>/Act 4/.test(z.act)},
+  {act:"Act 5", emoji:"⛰️", label:"Harrogath → Worldstone Keep", match:(z)=>/Act 5/.test(z.act)},
 ];
 
 // Named super-uniques (the gold-name bosses TZ alerts call out, e.g. Eldritch).
@@ -6450,24 +6496,23 @@ function renderSourceStrip(item) {
   </div>`;
 }
 
-function renderTzZones() {
-  const el = document.getElementById('tz-zones-container');
-  if (!el) return;
-  el.innerHTML = TZ_ZONES.map((z, zi) => {
-    const tags = z.tags.map(t => `<span class="tz-zone-tag ${t}">${t==='hot'?'🔥 hot':t==='dense'?'⚡ dense':t==='tc87'?'TC87 unlock':t==='tc85'?'TC85 unlock':t}</span>`).join('');
-    /* v29: bake data-boss-id + click contract INTO the template so renderTzZones() doesn't strip routing */
-    const bossId = (typeof tzZoneBoss === 'function') ? (tzZoneBoss(z.name) || '') : '';
-    /* CC 2026-06-01: every zone is clickable now. Tracked boss -> boss detail;
-       super-unique-only zone (Flayer, Crystalline, Tristram, ...) -> inline drop detail. */
-    const fi = (typeof zoneFeedsInto === 'function') ? zoneFeedsInto(z) : [];
-    const fiStrip = (typeof feedsIntoStripHtml === 'function') ? feedsIntoStripHtml(fi) : '';
-    /* CC 2026-06-01 unify: every TZ zone is its own droppable ID card. Clicking ANY
-       zone opens its inline drop detail (zoneDetailHtml); when a roster boss farms the
-       zone, the detail carries a "full drop table →" cross-link to that boss. data-boss-id
-       stays populated so the cross-link + lockdown affordance probes still resolve. */
-    const click = `window.toggleZoneDetail(${zi})`;
-    const titleTxt = bossId ? ('open ' + z.name + ' drop detail (with ' + bossId + ' cross-link)') : 'open full zone drop detail';
-    return `<div class="tz-zone-card" data-zone-idx="${zi}" data-boss-id="${bossId}" onclick="${click}" style="cursor:pointer" title="${titleTxt}">
+/* One terror-zone card. zi MUST stay the zone's index in TZ_ZONES (routing + tests key
+   off data-zone-idx), so grouping is presentation-only — the card identity is unchanged. */
+function tzZoneCardHtml(z, zi){
+  const tags = z.tags.map(t => `<span class="tz-zone-tag ${t}">${t==='hot'?'🔥 hot':t==='dense'?'⚡ dense':t==='tc87'?'TC87 unlock':t==='tc85'?'TC85 unlock':t}</span>`).join('');
+  /* v29: bake data-boss-id + click contract INTO the template so renderTzZones() doesn't strip routing */
+  const bossId = (typeof tzZoneBoss === 'function') ? (tzZoneBoss(z.name) || '') : '';
+  /* CC 2026-06-01: every zone is clickable now. Tracked boss -> boss detail;
+     super-unique-only zone (Flayer, Crystalline, Tristram, ...) -> inline drop detail. */
+  const fi = (typeof zoneFeedsInto === 'function') ? zoneFeedsInto(z) : [];
+  const fiStrip = (typeof feedsIntoStripHtml === 'function') ? feedsIntoStripHtml(fi) : '';
+  /* CC 2026-06-01 unify: every TZ zone is its own droppable ID card. Clicking ANY
+     zone opens its inline drop detail (zoneDetailHtml); when a roster boss farms the
+     zone, the detail carries a "full drop table →" cross-link to that boss. data-boss-id
+     stays populated so the cross-link + lockdown affordance probes still resolve. */
+  const click = `window.toggleZoneDetail(${zi})`;
+  const titleTxt = bossId ? ('open ' + z.name + ' drop detail (with ' + bossId + ' cross-link)') : 'open full zone drop detail';
+  return `<div class="tz-zone-card" data-zone-idx="${zi}" data-boss-id="${bossId}" onclick="${click}" style="cursor:pointer" title="${titleTxt}">
       <div class="tz-zone-header">
         <span class="tz-zone-emoji">${z.emoji}</span>
         <p class="tz-zone-name">${z.name}</p>
@@ -6480,7 +6525,29 @@ function renderTzZones() {
       <div class="tz-zone-tags">${tags}</div>
       <div class="tz-zone-detail" id="tz-zone-detail-${zi}" hidden></div>
     </div>`;
-  }).join('');
+}
+function renderTzZones() {
+  const el = document.getElementById('tz-zones-container');
+  if (!el) return;
+  /* v64: render the zones grouped under TERROR_GROUPS act-region headers. Every zone is
+     bucketed into exactly one group by `match`; any zone that somehow matches none falls
+     into a trailing "other" bucket so the count never drifts from TZ_ZONES.length. */
+  const indices = TZ_ZONES.map((_, zi) => zi);
+  const used = new Set();
+  let html = '';
+  TERROR_GROUPS.forEach((g) => {
+    const members = indices.filter((zi) => !used.has(zi) && g.match(TZ_ZONES[zi]));
+    if (!members.length) return;
+    members.forEach((zi) => used.add(zi));
+    html += `<div class="tz-group-head"><span class="tz-group-emoji">${g.emoji}</span><span class="tz-group-act">${g.act}</span><span class="tz-group-label">${g.label}</span><span class="tz-group-count">${members.length} zone${members.length===1?'':'s'}</span></div>`;
+    html += members.map((zi) => tzZoneCardHtml(TZ_ZONES[zi], zi)).join('');
+  });
+  const leftover = indices.filter((zi) => !used.has(zi));
+  if (leftover.length){
+    html += `<div class="tz-group-head"><span class="tz-group-emoji">📍</span><span class="tz-group-act">Other</span><span class="tz-group-label">uncategorised terror zones</span><span class="tz-group-count">${leftover.length} zone${leftover.length===1?'':'s'}</span></div>`;
+    html += leftover.map((zi) => tzZoneCardHtml(TZ_ZONES[zi], zi)).join('');
+  }
+  el.innerHTML = html;
 }
 
 function renderSetTracker() {
