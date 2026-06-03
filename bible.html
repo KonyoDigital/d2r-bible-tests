@@ -2888,11 +2888,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="cube-row"><div class="cube-input">2× Gul + 1 perfect topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Vex (Hell only)</div></div>
 </div>
 <div class="cube-section">
-  <h3>Uber Tristram keys (3× of EACH key → 3 organs)</h3>
-  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Terror')">Key of Terror</span></div><div class="cube-arrow">→</div><div class="cube-output">Matron's Den · Lilith → <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span></div></div>
-  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Hate')">Key of Hate</span></div><div class="cube-arrow">→</div><div class="cube-output">Forgotten Sands · Duriel → <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div></div>
-  <div class="cube-row"><div class="cube-input">3× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Destruction')">Key of Destruction</span></div><div class="cube-arrow">→</div><div class="cube-output">Furnace of Pain · Izual → <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span></div></div>
-  <div class="cube-row"><div class="cube-input"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div><div class="cube-arrow">→</div><div class="cube-output">red portal → Uber Tristram</div></div>
+  <h3>Uber Tristram keys (1 of each → 1 random portal)</h3>
+  <div class="cube-row"><div class="cube-input">1× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Terror')">Key of Terror</span> + 1× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Hate')">Key of Hate</span> + 1× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Destruction')">Key of Destruction</span></div><div class="cube-arrow">→</div><div class="cube-output">1 <strong>random</strong> mini-uber portal — repeat for all 3 organs (~3× each key)</div></div>
+  <div class="cube-row"><div class="cube-input">↳ Matron's Den · Lilith</div><div class="cube-arrow">→</div><div class="cube-output"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span></div></div>
+  <div class="cube-row"><div class="cube-input">↳ Furnace of Pain · Izual</div><div class="cube-arrow">→</div><div class="cube-output"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span></div></div>
+  <div class="cube-row"><div class="cube-input">↳ Forgotten Sands · Duriel</div><div class="cube-arrow">→</div><div class="cube-output"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div></div>
+  <div class="cube-row"><div class="cube-input"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div><div class="cube-arrow">→</div><div class="cube-output">red portal → <strong>Uber Tristram</strong></div></div>
   <div class="cube-row"><div class="cube-input">Uber Tristram clear</div><div class="cube-arrow">→</div><div class="cube-output">Standard of Heroes → <strong><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Hellfire Torch')">Hellfire Torch</span></strong></div></div>
 </div>
 <div class="cube-section">
@@ -3342,7 +3343,7 @@ function zoneDetailHtml(z){
       ? `Terror lifts this zone to mlvl ${z.mlvl} / TC85 — unlocking the elite uniques that only drop at the terror ceiling: ${elite}.`
       : `Terror caps this zone at mlvl ${z.mlvl} / TC${z.tcMax} — it does NOT reach the TC85 elite pool, so it's a density / quest / runeword-base farm, not an elite-unique target.`);
   const supers = z.unique.split('·').map(s => s.trim()).filter(Boolean);
-  const superHtml = supers.map(s => `<span class="zd-su">${s}</span>`).join('');
+  const superHtml = supers.map(s => { const _i = suIndexByName(s); return _i >= 0 ? `<span class="zd-su" data-su-idx="${_i}" onclick="event.stopPropagation(); jumpToSuperUnique(${_i})" style="cursor:pointer" title="open super-unique detail">${s}</span>` : `<span class="zd-su">${s}</span>`; }).join('');
   const actShort = z.act.split('·')[0].trim();
   return `<div class="zd-head">📦 ${z.name} — terrorized farm detail</div>
     <div class="zd-stats">
@@ -3460,6 +3461,7 @@ function jumpToTzZone(zi){
   if (card) card.scrollIntoView({behavior: 'smooth', block: 'center'});
 }
 window.jumpToTzZone = jumpToTzZone;
+function suIndexByName(name){if(typeof SUPER_UNIQUES==='undefined'||!name)return -1;const n=String(name).toLowerCase().trim();let i=SUPER_UNIQUES.findIndex(su=>(su.name||'').toLowerCase()===n);if(i>=0)return i;i=SUPER_UNIQUES.findIndex(su=>su.name&&n.indexOf(su.name.toLowerCase())!==-1);if(i>=0)return i;i=SUPER_UNIQUES.findIndex(su=>su.tzMatch&&n.indexOf(su.tzMatch.toLowerCase())!==-1);return i;}window.suIndexByName=suIndexByName;function jumpToSuperUnique(si){if(typeof si!=='number'||si<0)return;if(window.switchTab)window.switchTab('tz');setTimeout(function(){const d=document.getElementById('su-detail-'+si);if(d&&d.hasAttribute('hidden')&&window.toggleSuperUnique)window.toggleSuperUnique(si);const card=document.querySelector('.su-card[data-su-idx="'+si+'"]');if(card)card.scrollIntoView({behavior:'smooth',block:'center'});},110);}window.jumpToSuperUnique=jumpToSuperUnique;function jumpToSuperUniqueByName(name){const i=suIndexByName(name);if(i>=0)jumpToSuperUnique(i);}window.jumpToSuperUniqueByName=jumpToSuperUniqueByName;function linkifySU(str){if(!str||typeof SUPER_UNIQUES==='undefined')return str||'';let out=String(str);const order=SUPER_UNIQUES.map(function(su,i){return{i:i,name:su.name};}).filter(function(o){return o.name;}).sort(function(a,b){return b.name.length-a.name.length;});for(const o of order){if(out.indexOf(o.name)===-1)continue;if(out.indexOf('data-su-idx="'+o.i+'"')!==-1)continue;const span='<span class="su-link" data-su-idx="'+o.i+'" onclick="event.stopPropagation(); jumpToSuperUnique('+o.i+')" style="cursor:pointer;color:var(--uber)" title="open super-unique detail">'+o.name+'</span>';out=out.split(o.name).join(span);}return out;}window.linkifySU=linkifySU;
 function renderEventRef(){
   const el = document.getElementById('event-ref');
   if (!el || typeof SPECIAL_DROPS === 'undefined') return;
@@ -5520,7 +5522,7 @@ function tagTzZonesWithBossId() {
 // Drop-scaling classes — single source of truth, shared by renderBossNav (chips)
 // and renderBossCards (card sections) so both mirror the same grouping.
 const PLAYER_TIERS = [
-  {name:'PANDEMONIUM KEYS', cls:'pt-keys',   members:['countess','summoner','nihl'],  tag:'The three Uber Tristram keys. Farm 3× of EACH key &rarr; cube each same-key set of 3 to open a mini-uber portal (Terror&rarr;Lilith, Hate&rarr;Duriel, Destruction&rarr;Izual) &rarr; their 3 organs &rarr; cube the organs for the Uber Tristram red portal &rarr; Hellfire Torch.'},
+  {name:'PANDEMONIUM KEYS', cls:'pt-keys',   members:['countess','summoner','nihl'],  tag:'The three Uber Tristram keys. Cube 1 of each key &rarr; 1 random mini-uber portal (Lilith / Duriel / Izual); repeat ~3× for all 3 organs &rarr; cube them for the Uber Tristram red portal &rarr; Hellfire Torch.'},
   {name:'THE SWARM',       cls:'pt-swarm',  members:['pit','cows'],                   tag:'Open hordes, high NoDrop — every extra player floods the field with drops.'},
   {name:'THE HOARDERS',    cls:'pt-fisted', members:['andariel','travincal'], tag:'They clutch their loot — more players pries it loose.'},
   {name:'THE PRIME EVILS', cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers. Low NoDrop — a crowd barely swells the hoard.'},
@@ -6472,7 +6474,7 @@ function renderTzZones() {
         <span class="tz-zone-tier">${z.tier}</span>
       </div>
       <div class="tz-zone-meta">${z.act} · mlvl ${z.mlvl} terror · TC ${z.tcMax} max · ${z.density}</div>
-      <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${z.unique}</div>
+      <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${linkifySU(z.unique)}</div>
       <div class="tz-zone-body">${z.why}</div>
       ${fiStrip}
       <div class="tz-zone-tags">${tags}</div>
@@ -9249,15 +9251,19 @@ html { scroll-behavior: smooth; }
 
 /* ════════ BOSS DETAIL — centered editorial masthead ════════ */
 .boss-detail-header {
-  flex-direction: column !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
-  text-align: center !important;
+  text-align: left !important;
   position: relative !important;
-  gap: 5px !important;
-  padding: 32px 72px 20px !important;
+  gap: 8px 16px !important;
+  padding: 20px 22px 18px !important;
 }
+.boss-detail-header.gbc-header .gbc-tier { position: static !important; top: auto !important; left: auto !important; right: auto !important; margin: 0 !important; }
+.boss-detail-header.gbc-header .gbc-close { position: static !important; top: auto !important; right: auto !important; margin-left: 2px !important; flex-shrink: 0; }
+.boss-detail-header.gbc-header .field-manual { order: 5 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 2px; }
 .boss-detail-header .gbc-emoji { font-size: 54px !important; margin-bottom: 4px; }
-.boss-detail-header .gbc-id-block { flex: none !important; width: 100%; text-align: center !important; }
+.boss-detail-header .gbc-id-block { flex: 1 !important; min-width: 0; text-align: left !important; }
 .boss-detail-header .gbc-name,
 .boss-detail-header .bd-name {
   font-size: 44px !important;
@@ -9265,14 +9271,14 @@ html { scroll-behavior: smooth; }
   letter-spacing: 0.6px !important;
   margin: 0 auto !important;
 }
-.boss-detail-header .gbc-subtitle { font-size: 16px !important; margin: 7px auto 2px !important; }
-.boss-detail-header .gbc-loc { margin: 5px auto 0 !important; display: inline-block; }
+.boss-detail-header .gbc-subtitle { font-size: 16px !important; margin: 6px 0 2px !important; }
+.boss-detail-header .gbc-loc { margin: 5px 0 0 !important; display: block; }
 .boss-detail-header .gbc-tier { position: absolute !important; top: 18px; left: 22px; text-align: center; }
 .boss-detail-header .gbc-close { position: absolute !important; top: 18px; right: 22px; }
 @media (max-width: 640px) {
   .boss-detail-header { padding: 22px 14px 16px !important; }
   .boss-detail-header .gbc-name, .boss-detail-header .bd-name { font-size: 30px !important; }
-  .boss-detail-header .gbc-tier { position: static !important; margin: 0 0 8px; }
+  .boss-detail-header .gbc-tier { position: static !important; margin: 0 0 0 auto; }
 }
 
 /* ════════ BOSS LIST — collapse to clickable title rows (TZ-style accordion) ════════ */
