@@ -387,29 +387,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .gp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .gp-bar{flex:1;height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden;min-width:140px}
 .gp-bar-fill{height:100%;background:linear-gradient(90deg,var(--verified),var(--gold-bright));border-radius:3px;transition:width .5s ease}
-/* grail tier breakdown (uber vs grail) — pure aggregation of owned state per item.tier */
-.gp-tiers{display:flex;flex-direction:column;gap:9px;margin-top:14px}
-.gp-tier-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;margin-bottom:4px}
-.gp-tier-lab{color:var(--text-muted)}
-.gp-tier-num{color:var(--gold-bright);font-family:ui-monospace,monospace;font-weight:600}
-.gp-tier-bar{height:5px;background:var(--surface-3);border-radius:3px;overflow:hidden}
-.gp-tier-fill{height:100%;border-radius:3px;transition:width .5s ease}
-.gp-tier-fill.uber{background:linear-gradient(90deg,var(--uber),var(--gold-bright))}
-.gp-tier-fill.grail{background:linear-gradient(90deg,var(--verified),var(--gold-bright))}
-/* Backup & Share Progress — export/import the user's own saved localStorage state */
-.backup-card{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px}
-.backup-intro{font-size:12px;color:var(--text-muted);line-height:1.55;margin-bottom:10px}
-.backup-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-.backup-btn{cursor:pointer;background:var(--surface-3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;font-family:inherit;transition:border-color .12s,color .12s,transform .1s}
-.backup-btn:hover{border-color:var(--gold-bright);color:var(--gold-bright);transform:translateY(-1px)}
-.backup-btn.restore:hover{border-color:var(--verified);color:var(--verified)}
-.backup-btn.file{display:inline-flex;align-items:center}
-.backup-textarea{width:100%;min-height:88px;max-height:220px;resize:vertical;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-family:ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:8px 10px;box-sizing:border-box}
-.backup-textarea:focus{outline:none;border-color:var(--gold-bright)}
-.backup-status{font-size:11.5px;margin-top:8px;min-height:15px;font-family:ui-monospace,monospace}
-.backup-status.ok{color:var(--best)}
-.backup-status.warn{color:var(--gold-bright)}
-.backup-status.err{color:var(--terror)}
 .sparkline{display:inline-block;vertical-align:middle;margin-left:6px}
 .sparkline-label{font-size:9px;color:var(--text-dim);font-family:ui-monospace,monospace}
 .search-match-highlight{animation:flashHl 1.4s ease}
@@ -1875,24 +1852,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="gp-detail" id="gp-detail">Mark items as ✓ owned to track your Holy Grail collection. <span class="kbd">?</span> for full guide.</div>
       <div class="gp-actions"><div class="gp-bar"><div class="gp-bar-fill" id="gp-bar-fill" style="width:0%"></div></div></div>
     </div>
-  </div>
-  <div id="gp-tier-breakdown" class="gp-tiers"></div>
-  </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)">💾 Backup &amp; Share Progress <span class="sec-chev">▾</span></h2>
-  <div class="sec-body" hidden>
-  <div class="backup-card">
-    <div class="backup-intro">Your grail, wishlist, statue tracker &amp; settings are saved in <strong>this browser only</strong> — clearing site data or switching devices loses them. Export a snapshot to back it up, move it to another machine, or share it. Restoring overwrites the progress in <em>this</em> browser.</div>
-    <div class="backup-actions">
-      <button class="backup-btn" id="backup-export-btn" onclick="exportProgress()">📤 Export snapshot</button>
-      <button class="backup-btn" id="backup-copy-btn" onclick="copyProgress()">📋 Copy to clipboard</button>
-      <button class="backup-btn" id="backup-download-btn" onclick="downloadProgress()">💾 Download .json</button>
-    </div>
-    <textarea id="backup-textarea" class="backup-textarea" spellcheck="false" placeholder="Click “Export snapshot” to generate your backup code here — or paste a snapshot / load a .json file, then click “Restore”."></textarea>
-    <div class="backup-actions">
-      <button class="backup-btn restore" id="backup-import-btn" onclick="importProgress()">📥 Restore from snapshot</button>
-      <label class="backup-btn file" for="backup-file">📁 Load .json file<input type="file" id="backup-file" accept="application/json,.json" hidden onchange="loadProgressFile(event)"></label>
-    </div>
-    <div class="backup-status" id="backup-status" aria-live="polite"></div>
   </div>
   </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">🎯 Today's Best Grail Picks <span class="sec-chev">▾</span></h2>
@@ -4361,24 +4320,6 @@ function renderGrailProgress() {
   else if (remaining === 0) msg = `<strong style="color:var(--best)">🏆 GRAIL COMPLETE!</strong> You collected all ${total} tracked items. Send a screenshot.`;
   else msg = `<strong>${have} / ${total}</strong> grails owned · ${remaining} to go · ⭐ ${wishlist.size} starred for priority. See the Hero card above for next pickup ideas.`;
   $("gp-detail").innerHTML = msg;
-  renderGrailTierBreakdown(allGrails);
-}
-// Split the grail circle into its two honest sub-pools — uber/elite uniques vs the broad
-// grail-unique set — counting only the user's own ✓-owned items per item.tier. Pure
-// aggregation of existing data; no new odds or categories are invented.
-function renderGrailTierBreakdown(allGrails){
-  const el = $("gp-tier-breakdown");
-  if (!el) return;
-  const rows = [
-    {lab:"🔱 Uber / elite uniques", cls:"uber", pool:allGrails.filter(i => i.tier === "uber")},
-    {lab:"💍 Grail uniques", cls:"grail", pool:allGrails.filter(i => i.tier === "grail")},
-  ].filter(r => r.pool.length > 0);
-  el.innerHTML = rows.map(r => {
-    const total = r.pool.length;
-    const have = r.pool.filter(i => owned.has(i.n)).length;
-    const p = total ? Math.round(have / total * 100) : 0;
-    return `<div class="gp-tier"><div class="gp-tier-head"><span class="gp-tier-lab">${r.lab}</span><span class="gp-tier-num">${have} / ${total}</span></div><div class="gp-tier-bar"><div class="gp-tier-fill ${r.cls}" style="width:${p}%"></div></div></div>`;
-  }).join("");
 }
 
 function renderHero() {
@@ -5920,60 +5861,6 @@ function toggleOwned(name) {
   renderCalc();
   renderGrailProgress();
 }
-/* ── Backup & Share Progress ──────────────────────────────────────────────────
-   All grail/wishlist/statue/settings state lives in localStorage (see the footer
-   reset note). These helpers let the user snapshot that state to portable JSON —
-   to back it up, sync to another device, or share — and restore it. No grail data
-   is fabricated; this only round-trips the keys the app already writes. */
-function _collectProgress(){
-  const out = {};
-  for (let i = 0; i < LS.length; i++){ const k = LS.key(i); if (k != null) out[k] = LS.getItem(k); }
-  return out;
-}
-function _progressSnapshot(){
-  return JSON.stringify({ app:"d2r-bible", kind:"grail-progress", version:1, exported:new Date().toISOString(), data:_collectProgress() }, null, 2);
-}
-function _backupStatus(msg, kind){ const el = $("backup-status"); if (!el) return; el.textContent = msg; el.className = "backup-status " + (kind || ""); }
-function exportProgress(){
-  const ta = $("backup-textarea"); if (ta) ta.value = _progressSnapshot();
-  _backupStatus(`Snapshot built — ${owned.size} owned · ${wishlist.size} starred · ${setPieces.size} set pieces. Copy or download it to keep it safe.`, "ok");
-}
-function copyProgress(){
-  const snap = _progressSnapshot(); const ta = $("backup-textarea"); if (ta) ta.value = snap;
-  if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(snap).then(() => _backupStatus("Copied snapshot to clipboard ✓", "ok"), () => { if (ta) ta.select(); _backupStatus("Couldn't auto-copy — select the text above and copy manually.", "warn"); });
-  } else { if (ta) ta.select(); _backupStatus("Select-all + ⌘/Ctrl-C to copy the snapshot above.", "warn"); }
-}
-function downloadProgress(){
-  const snap = _progressSnapshot(); const ta = $("backup-textarea"); if (ta) ta.value = snap;
-  try {
-    const blob = new Blob([snap], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "d2r-grail-progress-" + new Date().toISOString().slice(0,10) + ".json";
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
-    _backupStatus("Downloaded snapshot file ✓", "ok");
-  } catch(e){ _backupStatus("Download isn't available here — copy the text instead.", "warn"); }
-}
-function _applyProgress(raw){
-  let parsed; try { parsed = JSON.parse(raw); } catch(e){ _backupStatus("That isn't a valid snapshot — expected the JSON from Export.", "err"); return false; }
-  const data = (parsed && parsed.data && typeof parsed.data === "object") ? parsed.data : ((parsed && typeof parsed === "object") ? parsed : null);
-  const keys = data ? Object.keys(data).filter(k => typeof data[k] === "string") : [];
-  if (!keys.length){ _backupStatus("No saved progress found in that snapshot.", "err"); return false; }
-  if (!confirm("Restore " + keys.length + " saved settings from this snapshot? This OVERWRITES the grail / wishlist / settings currently in this browser.")) { _backupStatus("Restore cancelled — nothing changed.", "warn"); return false; }
-  keys.forEach(k => { try { LS.setItem(k, data[k]); } catch(e){} });
-  _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
-  setTimeout(() => location.reload(), 600);
-  return true;
-}
-function importProgress(){ const ta = $("backup-textarea"); _applyProgress(ta ? ta.value.trim() : ""); }
-function loadProgressFile(ev){
-  const f = ev.target.files && ev.target.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = () => { const ta = $("backup-textarea"); if (ta) ta.value = r.result; _applyProgress(String(r.result)); };
-  r.readAsText(f); ev.target.value = "";
-}
-window.exportProgress = exportProgress; window.copyProgress = copyProgress; window.downloadProgress = downloadProgress;
-window.importProgress = importProgress; window.loadProgressFile = loadProgressFile;
 function showCelebrate(msg) {
   const el = document.createElement("div");
   el.className = "celebrate";
@@ -7169,6 +7056,7 @@ window.jumpToBossItem = (itemName, bossId) => {
     return true;
   };
   if (!(scope && pick(scope))) pick(document);
+  if (scope) { var __cs = function(){ scope.scrollIntoView({behavior:"auto", block:"center"}); }; __cs(); setTimeout(__cs, 400); setTimeout(__cs, 900); }
 };
 
 /* === v37: Wishlist Markdown Export === */
