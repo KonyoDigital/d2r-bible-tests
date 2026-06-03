@@ -69,7 +69,7 @@ test.describe('v51 super-uniques section + TZ cross-reference', () => {
         unmatchedButShould,
       };
     });
-    expect(r.eldZone).toMatch(/Crystalline Passage/);
+    expect(r.eldZone).toMatch(/Frigid Highlands/);   // de-bundled: Eldritch lives in Bloody Foothills + Frigid Highlands, NOT Crystalline Passage
     expect(r.enduguZone).toMatch(/Flayer Dungeon/);
     expect(r.pindleZone).toBeNull();
     expect(r.unmatchedButShould).toEqual([]);
@@ -85,7 +85,7 @@ test.describe('v51 super-uniques section + TZ cross-reference', () => {
     });
     expect(html.open).toBe(true);
     expect(html.inner).toMatch(/super-unique detail/);
-    expect(html.inner).toMatch(/Crystalline Passage/);          // live TZ cross-link
+    expect(html.inner).toMatch(/Frigid Highlands/);             // live TZ cross-link (de-bundled from Crystalline Passage)
     expect(html.inner).toMatch(/grail uniques reachable/);      // pool count from zoneGrailDrops
     expect(html.inner).toMatch(/Diablo Walks the Earth/);        // DClone note (Eldritch is a camp spot)
     expect(html.inner).not.toMatch(/undefined/);
