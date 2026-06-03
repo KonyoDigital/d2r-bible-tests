@@ -68,6 +68,8 @@ test.describe('Smoke — page loads correctly', () => {
 
   test('grail progress widget present', async ({ page }) => {
     await page.goto(BIBLE);
+    // v63: dropdown sections default-collapsed site-wide → expand Grail Progress first
+    await page.locator('.sec-h', { hasText: 'Grail Progress' }).click();
     await expect(page.locator('.grail-progress')).toBeVisible();
     await expect(page.locator('#gp-circle-text')).toBeVisible();
   });

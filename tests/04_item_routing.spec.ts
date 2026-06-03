@@ -112,6 +112,8 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
   test('hero card pick clicks open item detail', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(600);
+    // v63: dropdown sections default-collapsed → expand Today's Best Grail Picks first
+    await page.locator('.sec-h', { hasText: 'Best Grail Picks' }).click();
     const firstPick = page.locator('.hero-pick').first();
     await expect(firstPick).toBeVisible();
     // Floating overlays (the #v42-tz-countdown badge and the sticky .header masthead) can

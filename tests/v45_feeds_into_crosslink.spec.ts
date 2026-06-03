@@ -89,6 +89,8 @@ test.describe('v45 feeds-into cross-link — zones clickable + keys/shards/essen
   test('event-ref reference section renders under the grail with correct key attributions', async ({ page }) => {
     const er = page.locator('#event-ref');
     await expect(er).toBeVisible();
+    // v63: dropdown sections default-collapsed → expand the er section to read its body
+    await er.locator('.sec-h').click();
     // three reference blocks: keys, worldstone shards, essences
     const blocks = er.locator('.er-block');
     expect(await blocks.count()).toBe(3);

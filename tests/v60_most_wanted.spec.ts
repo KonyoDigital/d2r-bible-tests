@@ -14,6 +14,13 @@ test.describe('v60 Most Wanted community-demand board', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
+    // v63: dropdown sections now default to COLLAPSED site-wide. The Most Wanted
+    // board lives inside one, so expand it before any real-UI click/focus test.
+    await page.evaluate(() => {
+      const h = document.querySelector('#most-wanted .sec-h') as HTMLElement | null;
+      const b = h && (h.nextElementSibling as HTMLElement | null);
+      if (h && b && b.hasAttribute('hidden')) h.click();
+    });
   });
 
   test('board mounts on the home tab: Top 10 + 7 per-act/section cards, no undefined', async ({ page }) => {

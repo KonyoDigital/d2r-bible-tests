@@ -7,6 +7,8 @@ test.describe('BUG-100..107 — polish sweep', () => {
   test('BUG-100 hero card 5 picks render', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
+    // v63: dropdown sections default-collapsed → expand Today's Best Grail Picks first
+    await page.locator('.sec-h', { hasText: 'Best Grail Picks' }).click();
     const hero = page.locator('#hero, .hero-card, [class*="hero"]').first();
     await expect(hero).toBeVisible();
   });

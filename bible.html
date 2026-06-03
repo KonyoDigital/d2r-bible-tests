@@ -1799,8 +1799,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="container">
 
 <div class="tab-content active" id="tab-main">
-  <h2 class="sec-h" onclick="toggleSec(this)">🏆 Grail Progress <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🏆 Grail Progress <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="grail-progress">
     <div class="gp-circle">
       <svg viewBox="0 0 64 64">
@@ -1816,8 +1816,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
   </div>
-  <h2 class="sec-h" onclick="toggleSec(this)">🎯 Today's Best Grail Picks <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🎯 Today's Best Grail Picks <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="hero">
     <div class="hero-sub" id="hero-sub">Calculated live from all 251 item rows. Click any to jump to that boss card.</div>
     <div class="hero-grid" id="hero-picks"></div>
@@ -1829,8 +1829,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div style="display:none">
   </div>
   <!-- v42 removed: Tonight's Mission was dead (ID mismatch, display:none, redundant with renderHero/renderWishlistHuntPath) -->
-  <h2 class="sec-h" onclick="toggleSec(this)">📖 Cell Legend — read every table this way <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">📖 Cell Legend — read every table this way <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="legend-box">
     <div class="legend-row">
       <div class="legend-item-card">
@@ -1892,8 +1892,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
   </div>
-  <h2 class="sec-h" onclick="toggleSec(this)">🎯 Guaranteed Drops · the things that DROP FOR SURE <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🎯 Guaranteed Drops · the things that DROP FOR SURE <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="guaranteed-global" id="guaranteed-global-card">
     <div class="guaranteed-global-grid">
       <div class="guaranteed-card">
@@ -1942,8 +1942,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--mono)">these 6 things are the only TRUE 100% drops in D2R. Everything else is RNG. Hellforge on Hell + Larzuk socket are the highest-value per-character free rewards.</div>
   </div>
   </div>
-  <h2 class="sec-h" onclick="toggleSec(this)">⚔️ Event &amp; Uber Drops · the items OUTSIDE normal TC-ratio math <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">⚔️ Event &amp; Uber Drops · the items OUTSIDE normal TC-ratio math <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="special-drops-card">
     <div class="special-drops-grid" id="special-drops-grid"></div>
     <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-family:var(--mono)">These categories don\'t follow standard TC-ratio rules. Each item has its own drop conditions — see card detail.</div>
@@ -2136,8 +2136,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
-  <h2 class="sec-h" onclick="toggleSec(this)">💎 Worldstone Shards <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">💎 Worldstone Shards <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500.</div>
   <div class="shard-grid">
     <div class="shard-card act1"><div class="shard-act">Act I</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Western Worldstone Shard')">Western Worldstone Shard →</div><div class="shard-zones">Blood Moor, Pit, Catacombs, Tristram, Black Marsh, Forgotten Tower</div></div>
@@ -2156,8 +2156,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
   <div class="statue-tracker" id="statue-tracker"></div>
   <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <strong>Colossal Summit</strong> to summon the <strong>Colossal Ancients</strong> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" style="color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">💎 Colossal Ancient Jewels →</span></div>
-  <h2 class="sec-h" onclick="toggleSec(this)">💧 Essences <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">💧 Essences <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead">From <strong>act bosses Hell</strong>. Cube all 4 → Token of Absolution. ~10-15% per kill. MF unaffected.</div>
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Essence</th><th>From</th><th class="diff-col">Rate</th></tr></thead>
@@ -2169,8 +2169,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody>
   </table></div>
   </div>
-  <h2 class="sec-h" onclick="toggleSec(this)">🔑 Pandemonium Keys <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🔑 Pandemonium Keys <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead">The 3 keys for <strong style="color:var(--uber)">Uber Tristram → Hellfire Torch</strong>. <strong>Hell only</strong>, and drops require <strong>/players 3+</strong>. Cube all 3 → red portal → Pandemonium Run → Uber Tristram.</div>
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Key</th><th>Drops From</th><th>Where</th><th>Notes</th></tr></thead>
@@ -2197,8 +2197,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table>
   </div>
   </div>
-  <h2 class="sec-h" onclick="toggleSec(this)">💎 Sunder Charms <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">💎 Sunder Charms <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead">ONLY from <strong>Hell TZ Heralds of Terror</strong>. Drops immunes to ~95% resist.</div>
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Charm</th><th>Breaks</th><th>Best for</th></tr></thead>
@@ -3447,8 +3447,8 @@ function renderEventRef(){
       <table class="er-table"><tbody>${rows(cat)}</tbody></table>
       <div class="er-recipe">🧪 ${cat.recipe}</div>
     </div>`;
-  el.innerHTML = `<h2 class="sec-h er-title" onclick="toggleSec(this)">🔑 Keys &amp; 💎 Shards &amp; 🩸 Essences — who drops what <span class="sec-chev">▾</span></h2>
-    <div class="sec-body">
+  el.innerHTML = `<h2 class="sec-h er-title collapsed" onclick="toggleSec(this)">🔑 Keys &amp; 💎 Shards &amp; 🩸 Essences — who drops what <span class="sec-chev">▾</span></h2>
+    <div class="sec-body" hidden>
     <div class="er-sub">Cross-link reference (not counted in the grail) — your "where do I farm this material" map.</div>
     <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}</div>
     </div>`;
@@ -4486,12 +4486,12 @@ function renderWishlistHuntPath() {
 
     panel.classList.add('empty');
     panel.innerHTML = `
-      <div class="wishlist-header sec-h" onclick="toggleSec(this)">
+      <div class="wishlist-header sec-h collapsed" onclick="toggleSec(this)">
         <h3 class="wishlist-title">⭐ Your Wishlist Hunt Path</h3>
         <span class="wishlist-summary">0 starred · star items to plan your route</span>
         <span class="sec-chev">▾</span>
       </div>
-      <div class="sec-body">
+      <div class="sec-body" hidden>
       <div class="wishlist-empty-msg">
         🎯 No items starred yet. Click the ☆ on any item card to add it to your wishlist.<br>
         <span class="wishlist-empty-cta">Quick-add suggestions below: top grails by speed at ${mf}% MF</span>
@@ -4540,12 +4540,12 @@ function renderWishlistHuntPath() {
 
   panel.classList.remove('empty');
   panel.innerHTML = `
-    <div class="wishlist-header sec-h" onclick="toggleSec(this)">
+    <div class="wishlist-header sec-h collapsed" onclick="toggleSec(this)">
       <h3 class="wishlist-title">⭐ Your Wishlist Hunt Path</h3>
       <span class="wishlist-summary">${starred.length} starred · ${ownedFromWishlist} found · ${remaining.length} to chase · @ ${mf}% MF</span>
       <span class="sec-chev">▾</span>
     </div>
-    <div class="sec-body">
+    <div class="sec-body" hidden>
 
     ${remaining.length > 0 ? `
     <div class="wishlist-summary-row">
@@ -6836,8 +6836,8 @@ function renderMostWanted(){
     </div>`;
   }).join("");
   host.innerHTML = `
-    <h2 class="sec-h mw-title" onclick="toggleSec(this)">🔥 Most Wanted <span class="mw-sub">community &amp; forum trade demand · diablo.io-style · ROTW-aware</span> <span class="sec-chev">▾</span></h2>
-    <div class="sec-body">
+    <h2 class="sec-h mw-title collapsed" onclick="toggleSec(this)">🔥 Most Wanted <span class="mw-sub">community &amp; forum trade demand · diablo.io-style · ROTW-aware</span> <span class="sec-chev">▾</span></h2>
+    <div class="sec-body" hidden>
     <div class="mw-note">A separate layer from the Holy Grail: the grail tables rank by <em>game rarity</em> (how hard to find); this ranks by <em>community demand / trade value</em> (what's worth chasing &amp; holding) — they diverge. Demand tiers are an editorial community-consensus call, NOT a drop rate. Every item is clickable → opens its real card.</div>
     <div class="mw-section-label">Top 10 · most-wanted overall</div>
     <ol class="mw-top">${rows}</ol>
