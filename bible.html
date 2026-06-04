@@ -2344,11 +2344,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
-  <h2 class="sec-h" onclick="toggleSec(this)">👹 Herald of Terror <span class="sec-chev">▾</span></h2>
-  <div class="sec-body">
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">👹 Herald of Terror <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
     <div class="gbc-card" id="herald-card">
       <header class="gbc-header boss-detail-header">
-        <span class="gbc-emoji">👹</span>
+        <span class="gbc-emoji" id="herald-emblem">👹</span>
         <div class="gbc-id-block">
           <h2 class="gbc-name">Herald of Terror</h2>
           <div class="gbc-subtitle">Hell Terror-Zone Sunder Hunter</div>
@@ -4423,6 +4423,7 @@ const D2IO_ART = {
   "Atma's Scarab": "https://diablo2.io/styles/zulu/theme/images/items/amu2_graphic.png",
   "Atma's Wail": "https://diablo2.io/styles/zulu/theme/images/items/gothicplate_graphic.png",
   "Azurewrath": "https://diablo2.io/styles/zulu/theme/images/items/azurewrath_graphic.png",
+  "Baal": "https://diablo2.io/styles/zulu/theme/images/items/baal-opt_graphic.png",
   "Bane Ash": "https://diablo2.io/styles/zulu/theme/images/items/baneash_graphic.png",
   "Bartuc's Cut-Throat": "https://diablo2.io/styles/zulu/theme/images/items/claws_graphic.png",
   "Ber": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeBer_icon.png",
@@ -4603,6 +4604,7 @@ const D2IO_ART = {
   "Peasant Crown": "https://diablo2.io/styles/zulu/theme/images/items/cap_graphic.png",
   "Pelta Lunata": "https://diablo2.io/styles/zulu/theme/images/items/peltalunata_graphic.png",
   "Pierre Tombale Couant": "https://diablo2.io/styles/zulu/theme/images/items/poleaxe_graphic.png",
+  "Pindleskin": "https://diablo2.io/styles/zulu/theme/images/items/reanimatedhorde-opt_graphic.png",
   "Plague Bearer": "https://diablo2.io/styles/zulu/theme/images/items/plaguebearer_graphic.png",
   "Pluckeye": "https://diablo2.io/styles/zulu/theme/images/items/pluckeye_graphic.png",
   "Pompeii's Wrath": "https://diablo2.io/styles/zulu/theme/images/items/mindrend_graphic.png",
@@ -4696,6 +4698,7 @@ const D2IO_ART = {
   "The Minotaur": "https://diablo2.io/styles/zulu/theme/images/items/minotuar_graphic.png",
   "The Oculus": "https://diablo2.io/styles/zulu/theme/images/items/dragonstone_graphic.png",
   "The Patriarch": "https://diablo2.io/styles/zulu/theme/images/items/thepatriarch_graphic.png",
+  "The Pit": "https://diablo2.io/styles/zulu/theme/images/items/act1-underground_graphic.png",
   "The Reaper's Toll": "https://diablo2.io/styles/zulu/theme/images/items/scythe_graphic.png",
   "The Redeemer": "https://diablo2.io/styles/zulu/theme/images/items/scepter_graphic.png",
   "The Rising Sun": "https://diablo2.io/styles/zulu/theme/images/items/amu3_graphic.png",
@@ -4719,6 +4722,7 @@ const D2IO_ART = {
   "Treads of Cthon": "https://diablo2.io/styles/zulu/theme/images/items/treadsofcthon_graphic.png",
   "Twitchthroe": "https://diablo2.io/styles/zulu/theme/images/items/twitchthroe_graphic.png",
   "Tyrael's Might": "https://diablo2.io/styles/zulu/theme/images/items/milabregasrobe_graphic.png",
+  "Uber Diablo (Diablo Clone)": "https://diablo2.io/styles/zulu/theme/images/items/diablo_hell_graphic.png",
   "Um": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeUm_icon.png",
   "Umbral Disk": "https://diablo2.io/styles/zulu/theme/images/items/umbraldisk_graphic.png",
   "Ume's Lament": "https://diablo2.io/styles/zulu/theme/images/items/grimwand_graphic.png",
@@ -6611,7 +6615,7 @@ function renderCalc() {
       <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
         <div class="item-tile-name">${it.n}</div>
         <div class="item-tile-tc">TC${it.tc} · q${it.qlvl}${isOwned?' · ✓':''}</div>
-      </div></div>`;
+      </div></div></div>`;
   }).join("");
   grid.querySelectorAll(".item-tile").forEach(el => {
     el.onclick = () => { selectedItem = el.dataset.name; activeItem = el.dataset.name; setActiveItem(el.dataset.name); renderCalc(); renderDetail(); document.getElementById("item-detail")?.scrollIntoView({behavior:"smooth", block:"start"}); };
@@ -7765,6 +7769,15 @@ const _HERALD_SUNDERS = [
 function renderHeraldCard(){
   const tb = document.getElementById('herald-sunder-rows');
   if (!tb) return;
+  // header emblem: the verified Bone Break Latent Sunder Charm graphic (the Herald's
+  // signature drop) with the 👹 emoji as the never-broken fallback.
+  const emblem = document.getElementById('herald-emblem');
+  if (emblem && emblem.tagName === 'SPAN') {
+    const wrap = document.createElement('span');
+    wrap.innerHTML = artOr('Bone Break', '<span class="gbc-emoji">👹</span>', 'lg');
+    const node = wrap.firstElementChild;
+    if (node && node.classList.contains('d2art-wrap')) emblem.replaceWith(node);
+  }
   tb.innerHTML = _HERALD_SUNDERS.map((s) => {
     const esc = s.n.replace(/'/g, "\\'");
     const name = `${artOr(s.n, '💎', 'sm')} <span class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="window.openDrop('${esc}')" title="open the ${s.n} material card">${s.n} →</span>`;

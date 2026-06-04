@@ -176,6 +176,40 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.lazy).toBe('lazy');     // grid art is lazy-loaded, not a load-time storm
   });
 
+  test('calc grid tiles are flat siblings — no recursive nesting (regression)', async ({ page }) => {
+    // the art-thumbnail wrapper once dropped a </div>, so every .item-tile nested
+    // inside the previous one (cascading card-in-card). Each tile must be a DIRECT
+    // child of #item-grid, and no tile may contain another .item-tile.
+    await page.click('.tab[data-tab="calc"]');
+    await page.waitForTimeout(250);
+    const r = await page.evaluate(() => {
+      const grid = document.getElementById('item-grid')!;
+      const tiles = [...grid.querySelectorAll('.item-tile')];
+      const directChildren = [...grid.children].filter((c) => c.classList.contains('item-tile')).length;
+      const nested = tiles.filter((t) => t.querySelector('.item-tile')).length;
+      return { total: tiles.length, directChildren, nested };
+    });
+    expect(r.total).toBeGreaterThan(50);
+    expect(r.directChildren).toBe(r.total); // every tile is a direct grid child
+    expect(r.nested).toBe(0);               // no tile swallows another
+  });
+
+  test('the boss ID-card renders artwork for Baal and Pindleskin (newly mapped)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const out: any = {};
+      for (const nm of ['Baal', 'Pindleskin']) {
+        const b = (BOSSES as any[]).find((x) => x.name === nm);
+        (window as any).renderBossDetailCard(b.id);
+        const panel = document.getElementById('boss-detail-panel');
+        const img = panel?.querySelector('.gbc-header .d2art-img') as HTMLImageElement | null;
+        out[nm] = img?.getAttribute('src') || '';
+      }
+      return out;
+    });
+    expect(r.Baal).toMatch(/baal-opt_graphic\.png$/);
+    expect(r.Pindleskin).toMatch(/reanimatedhorde-opt_graphic\.png$/);
+  });
+
   test('no console errors when opening art-bearing cards', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

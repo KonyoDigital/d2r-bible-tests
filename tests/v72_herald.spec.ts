@@ -19,6 +19,9 @@ test.describe('v72 Herald of Terror ID card', () => {
 
   test('the card renders in the RotW tab with the boss-detail identity block', async ({ page }) => {
     const card = page.locator('#herald-card');
+    // collapsed by default (Konyo's request) — drop it open via its header first
+    await expect(card).toBeHidden();
+    await page.locator('#tab-rotw .sec-h', { hasText: 'Herald of Terror' }).evaluate((e: any) => e.click());
     await expect(card).toBeVisible();
     await expect(card.locator('.gbc-name')).toHaveText(/Herald of Terror/);
     await expect(card.locator('.gbc-subtitle')).toHaveText(/Sunder/i);
@@ -30,6 +33,21 @@ test.describe('v72 Herald of Terror ID card', () => {
     });
     expect(order[0]).toMatch(/Herald of Terror/);
     expect(order.some((h) => /Worldstone Shards/.test(h))).toBe(true);
+  });
+
+  test('the header emblem renders the verified Bone Break charm graphic (not a bare emoji)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const card = document.getElementById('herald-card')!;
+      const img = card.querySelector('.gbc-header .d2art-img') as HTMLImageElement | null;
+      return {
+        hasImg: !!img,
+        src: img?.getAttribute('src') || '',
+        hasFallback: !!card.querySelector('.gbc-header .d2art-fallback'),
+      };
+    });
+    expect(r.hasImg).toBe(true);
+    expect(r.src).toMatch(/bonebreakcharm_graphic\.png$/);
+    expect(r.hasFallback).toBe(true); // 👹 emoji still embedded for the error path
   });
 
   test('renderHeraldCard fills all 6 Sunder rows with verified D2IO_ART icons + openDrop links', async ({ page }) => {
