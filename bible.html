@@ -7908,6 +7908,14 @@ const MATERIAL_RECIPES = [
     need: { 'Essence of Suffering': 1, 'Essence of Hatred': 1, 'Essence of Terror': 1, 'Essence of Destruction': 1 },
     makes: 'reset stats OR skills (player choice)',
     note: 'cube all 4 essences' },
+  { n: 'Latent Sunder (cube 3 shards)', icon: '🔨',
+    needCat: [{ key: 'worldstoneShard', qty: 3, label: 'Worldstone Shard' }],
+    makes: '1 random Latent Sunder Charm',
+    note: 'cube any 3 Worldstone Shards — any region mix' },
+  { n: 'Renewed Sunder (upgrade a Latent)', icon: '💠',
+    needCat: [{ key: 'sunder', qty: 1, label: 'Latent Sunder' }, { key: 'worldstoneShard', qty: 1, label: 'Worldstone Shard' }],
+    makes: 'a Renewed Sunder — Latent + Perfect Gem + Rune + matching shard',
+    note: 'cube Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard' },
 ];
 window.MATERIAL_RECIPES = MATERIAL_RECIPES;
 // 🔮 Worldstone Shard outcomes — what each shard MAKES. Region→act→Renewed-Sunder
@@ -7952,9 +7960,18 @@ function materialMissing(need){
   return miss;
 }
 window.materialMissing = materialMissing;
-// Per-recipe readiness: [{recipe, ready, missing}].
+function _catCount(key){ const grp = SPECIAL_DROPS[key]; return grp ? grp.items.reduce((a, it) => a + _materialCount(it.n), 0) : 0; }
+window._catCount = _catCount;
+// Per-recipe readiness: [{recipe, ready, missing}]. Handles needCat (any-N-of-a-category).
 function materialCraftStatus(){
-  return MATERIAL_RECIPES.map((r) => ({ recipe: r, ready: canMakeMaterial(r.need), missing: materialMissing(r.need) }));
+  return MATERIAL_RECIPES.map((r) => {
+    if (r.needCat){
+      const miss = {}; let ready = true;
+      r.needCat.forEach((req) => { const have = _catCount(req.key); if (have < req.qty){ ready = false; miss[req.label + ' (any)'] = req.qty - have; } });
+      return { recipe: r, ready: ready, missing: miss };
+    }
+    return { recipe: r, ready: canMakeMaterial(r.need), missing: materialMissing(r.need) };
+  });
 }
 window.materialCraftStatus = materialCraftStatus;
 function renderMaterialCraftable(){
