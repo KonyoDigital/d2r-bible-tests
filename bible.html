@@ -2437,8 +2437,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="shard-card act4"><div class="shard-act">Act IV <span class="pill pill-grail">YOURS</span></div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Deep Worldstone Shard')">Deep Worldstone Shard →</div><div class="shard-zones">Outer Steppes, City of the Damned, River of Flame, Chaos Sanctuary</div></div>
     <div class="shard-card act5"><div class="shard-act">Act V</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Northern Worldstone Shard')">Northern Worldstone Shard →</div><div class="shard-zones">Crystalline Passage, Drifter Cavern, Nihlathak's, Halls, WSK, Throne</div></div>
   </div>
+  <div class="shard-usesave" style="background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(91,143,249,.5);border-radius:10px;padding:13px 16px 14px;margin:12px 0 4px">
+    <div style="font-family:var(--serif-display);font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--text);margin-bottom:7px">💡 Use it now, or save it for a recipe?</div>
+    <div style="font-size:12.5px;line-height:1.6;color:var(--text-dim)">
+      A shard is <strong>worthless on its own</strong> — it only matters as a recipe ingredient. The single best use is upgrading a Sunder:
+      <br>• <strong style="color:var(--best)">SAVE → Renewed Sunder.</strong> <span class="zd-item-click" style="cursor:pointer;color:var(--nm)" onclick="openDrop('Bone Break')">Sunder + matching-region shard → Renewed Sunder</span> (the +20% pierce, ~95%→strong floor version). This is the endgame goal — a Renewed Sunder is a permanent damage upgrade for that immunity type.
+      <br>• <strong style="color:var(--text)">USE NOW only if</strong> you already run a finished Renewed Sunder for that damage type and have spare shards piling up — there's no other sink, so extras are pure trade fodder.
+      <br><span class="rec" style="display:inline-block;margin-top:5px">Rule of thumb: <strong>hold your first 5 shards</strong> (one per region) until each matching Sunder is Renewed; only then treat surplus as currency. MF never helps — farm density, not magic find.</span>
+    </div>
   </div>
-  <h2>👑 Colossal Ancient Statues <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click to track</span></h2>
+  </div>
+  <h2 class="statue-head zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:9px" onclick="openDrop('Colossal Ancient Statue')"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click for ID card →</span></h2>
   <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → Colossal Summit.</div>
   <div class="statue-progress">
     <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Progress:</span>
@@ -2453,10 +2462,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Essence</th><th>From</th><th class="diff-col">Rate</th></tr></thead>
     <tbody>
-      <tr><td class="item-name zd-item-click" style="color:#6688ff;cursor:pointer" onclick="openDrop('Essence of Suffering')">Twisted of Suffering →</td><td>🕷️ Andariel + 🪲 Duriel</td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--nm);cursor:pointer" onclick="openDrop('Essence of Hatred')">Charged of Hatred →</td><td>👺 Mephisto</td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--hell);cursor:pointer" onclick="openDrop('Essence of Terror')">Burning of Terror →</td><td>😈 Diablo</td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')">Festering of Destruction →</td><td>💀 Baal</td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:#6688ff;cursor:pointer" onclick="openDrop('Essence of Suffering')">Twisted Essence of Suffering →</td><td>🕷️ Andariel + 🪲 Duriel</td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--nm);cursor:pointer" onclick="openDrop('Essence of Hatred')">Charged Essence of Hatred →</td><td>👺 Mephisto</td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--hell);cursor:pointer" onclick="openDrop('Essence of Terror')">Burning Essence of Terror →</td><td>😈 Diablo</td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')">Festering Essence of Destruction →</td><td>💀 Baal</td><td class="diff-col rare-4">~12%</td></tr>
     </tbody>
   </table></div>
   </div>
@@ -3783,9 +3792,10 @@ function renderEventRef(){
   const el = document.getElementById('event-ref');
   if (!el || typeof SPECIAL_DROPS === 'undefined') return;
   const sd = SPECIAL_DROPS;
-  const rows = (cat) => cat.items.map(it =>
-    `<tr><td class="er-item">${it.n}</td><td class="er-from">${(it.from||[]).join(' · ')}</td><td class="er-note">${it.note||''}</td></tr>`
-  ).join('');
+  const rows = (cat) => cat.items.map(it => {
+    const esc = (it.n||'').replace(/'/g,"\\'");
+    return `<tr><td class="er-item zd-item-click" style="cursor:pointer" onclick="openDrop('${esc}')">${it.n} <span class="er-arrow">→</span></td><td class="er-from">${(it.from||[]).join(' · ')}</td><td class="er-note">${it.note||''}</td></tr>`;
+  }).join('');
   const block = (cat, feeds) => `<div class="er-block">
       <div class="er-block-head">${cat.icon} ${cat.label} <span class="er-arrow">→</span> <strong>${feeds}</strong></div>
       <table class="er-table"><tbody>${rows(cat)}</tbody></table>
@@ -4472,6 +4482,9 @@ const ITEMS = [];
 // — every URL was probed live and only kept if it resolved to a real image.
 const D2IO_ART = {
   "Andariel": "https://diablo2.io/styles/zulu/theme/images/items/Andariel_graphic.png",
+  "Colossal Ancient Statue": "https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png",
+  "Colossal Ancient Statues": "https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png",
+  "Colossal Ancients": "https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png",
   "Ist rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeIst_icon.png",
   "Jah/Ber/Sur rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeSur_icon.png",
   "Alma Negra": "https://diablo2.io/styles/zulu/theme/images/items/rondache_graphic.png",
@@ -9407,6 +9420,39 @@ _v41_whenReady(() => {
           card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 110); }
+    });
+
+    // RotW & event materials — every SPECIAL_DROPS item becomes searchable and
+    // routes to its EXISTING material ID card via openDrop (sunders, essences,
+    // worldstone shards, colossal statues/jewels, pandemonium keys, uber organs/
+    // charms). No new data — pure search-wiring so each is findable like an item.
+    const SD = (typeof SPECIAL_DROPS !== 'undefined') ? SPECIAL_DROPS : {};
+    const SD_META = {
+      sunder:          {icon:'💠', sub:'Sunder Charm · breaks an immunity',      kw:'sunder charm immunity break latent renewed herald grand charm'},
+      essence:         {icon:'🩸', sub:'Essence · cube → Token of Absolution',    kw:'essence token absolution respec reset hell act boss'},
+      worldstoneShard: {icon:'💠', sub:'Worldstone Shard · upgrades a Sunder',    kw:'worldstone shard renewed sunder upgrade tz hell western eastern southern northern deep'},
+      colossalStatue:  {icon:'👑', sub:'Colossal Statue · summon ingredient',     kw:'colossal ancient statue summit pinnacle terror cube talic korlic madawc'},
+      colossalJewel:   {icon:'💎', sub:'Colossal Jewel · endgame BiS',            kw:'colossal ancient jewel facet pinnacle reward bis'},
+      key:             {icon:'🗝️', sub:'Pandemonium Key · opens an uber portal',  kw:'key pandemonium uber terror hate destruction red portal'},
+      organ:           {icon:'🫀', sub:'Uber Organ · cube → Hellfire Torch',      kw:'organ uber horn brain eye torch'},
+      uberCharm:       {icon:'🔥', sub:'Uber Charm · event grail',                kw:'torch annihilus uber charm grail'},
+    };
+    const seenMat = new Set();
+    Object.keys(SD).forEach(catKey => {
+      const cat = SD[catKey]; if (!cat) return;
+      const meta = SD_META[catKey] || {icon: cat.icon || '•', sub: cat.label || '', kw: ''};
+      (cat.items || []).forEach(it => {
+        const nm = it.n; if (!nm || seenMat.has(nm)) return; seenMat.add(nm);
+        cmds.push({
+          icon: meta.icon,
+          label: nm,
+          sub: meta.sub,
+          cat: 'material',
+          hint: it.rate || '',
+          keywords: 'material ' + nm.toLowerCase() + ' ' + (cat.label || '').toLowerCase() + ' ' + meta.kw,
+          action: () => { if (window.openDrop) window.openDrop(nm); }
+        });
+      });
     });
     return cmds;
   }

@@ -24,7 +24,7 @@ test.describe('v55 ROTW tab drop unification', () => {
   });
 
   test('an Essence routes to its material card (display→canonical map)', async ({ page }) => {
-    await page.locator('#tab-rotw .zd-item-click', { hasText: 'Charged of Hatred' }).first().evaluate((e:any) => e.click());
+    await page.locator('#tab-rotw .zd-item-click', { hasText: 'Charged Essence of Hatred' }).first().evaluate((e:any) => e.click());
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
     await expect(page.locator('#item-detail .material-card')).toContainText('Hatred');
   });

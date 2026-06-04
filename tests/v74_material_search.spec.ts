@@ -1,0 +1,137 @@
+import { test, expect } from '@playwright/test';
+import * as path from 'path';
+
+const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
+
+// v74 — every SPECIAL_DROPS material (sunders, essences, worldstone shards, colossal
+// statues/jewels, pandemonium keys, uber organs/charms) is now in the global search
+// index and routes to its EXISTING material ID card via openDrop. Pure search-wiring:
+// the cards already existed; this makes each findable from the search box like an item.
+test.describe('v74 materials are searchable + route to their ID card', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(URL);
+    await page.waitForTimeout(1200);
+  });
+
+  async function search(page: any, q: string) {
+    await page.fill('#gsearch-input', q);
+    await page.waitForTimeout(200);
+    return page.evaluate(() => [...document.querySelectorAll('#gsearch-results .gsearch-item')]
+      .map((el) => ({
+        lab: (el.querySelector('.gsearch-lab') as HTMLElement)?.textContent?.trim() || '',
+        cat: (el.querySelector('.gsearch-cat') as HTMLElement)?.textContent?.trim() || '',
+      })));
+  }
+
+  test('each Sunder charm is searchable as a material', async ({ page }) => {
+    for (const nm of ['Bone Break', 'Black Cleft', 'Crack of the Heavens', 'Cold Rupture', 'Flame Rift', 'Rotting Fissure']) {
+      const hits = await search(page, nm);
+      expect(hits.some((h) => h.lab.includes(nm) && /material/i.test(h.cat))).toBe(true);
+    }
+  });
+
+  test('each Essence is searchable', async ({ page }) => {
+    for (const nm of ['Essence of Hatred', 'Essence of Terror', 'Essence of Suffering', 'Essence of Destruction']) {
+      const hits = await search(page, nm);
+      expect(hits.some((h) => h.lab.includes(nm))).toBe(true);
+    }
+  });
+
+  test('worldstone shards + colossal statue are searchable', async ({ page }) => {
+    const shard = await search(page, 'worldstone shard');
+    expect(shard.some((h) => /Worldstone Shard/.test(h.lab))).toBe(true);
+    const statue = await search(page, 'colossal ancient statue');
+    expect(statue.some((h) => /Colossal Ancient Statue/.test(h.lab))).toBe(true);
+  });
+
+  test('searching a Sunder and picking it opens its material card', async ({ page }) => {
+    await page.fill('#gsearch-input', 'Bone Break');
+    await page.waitForTimeout(220);
+    await page.locator('#gsearch-results .gsearch-item').first().click();
+    await page.waitForTimeout(250);
+    const r = await page.evaluate(() => {
+      const panel = document.getElementById('item-detail');
+      return {
+        shown: panel?.classList.contains('show'),
+        name: panel?.querySelector('.material-card .gic-name')?.textContent?.trim() || '',
+        hasDoes: !!panel?.querySelector('.material-card .gic-section'),
+      };
+    });
+    expect(r.shown).toBe(true);
+    expect(r.name).toMatch(/Bone Break/);
+    expect(r.hasDoes).toBe(true);
+  });
+
+  test('searching an Essence and picking it opens its material card', async ({ page }) => {
+    await page.fill('#gsearch-input', 'Essence of Hatred');
+    await page.waitForTimeout(220);
+    await page.locator('#gsearch-results .gsearch-item').first().click();
+    await page.waitForTimeout(250);
+    const name = await page.evaluate(() =>
+      document.getElementById('item-detail')?.querySelector('.material-card .gic-name')?.textContent?.trim() || '');
+    expect(name).toMatch(/Essence of Hatred/);
+  });
+
+  test('the Colossal Ancient Statues header carries real Talic art + is clickable to its card', async ({ page }) => {
+    await page.click('.tab[data-tab="rotw"]');
+    await page.waitForTimeout(250);
+    const art = await page.evaluate(() => {
+      const h = document.querySelector('#tab-rotw .statue-head');
+      const img = h?.querySelector('.d2art-img') as HTMLImageElement | null;
+      return {
+        hasHead: !!h,
+        clickable: (h?.getAttribute('onclick') || '').includes("openDrop('Colossal Ancient Statue')"),
+        src: img?.getAttribute('src') || '',
+        lazy: img?.getAttribute('loading') === 'lazy',
+        onerr: (img?.getAttribute('onerror') || '').includes('d2art-failed'),
+      };
+    });
+    expect(art.hasHead).toBe(true);
+    expect(art.clickable).toBe(true);
+    expect(art.src).toMatch(/talic-opt_graphic\.png$/);
+    expect(art.lazy).toBe(true);
+    expect(art.onerr).toBe(true);
+    await page.click('#tab-rotw .statue-head');
+    await page.waitForTimeout(250);
+    const name = await page.evaluate(() =>
+      document.getElementById('item-detail')?.querySelector('.material-card .gic-name')?.textContent?.trim() || '');
+    expect(name).toMatch(/Colossal Ancient Statue/);
+  });
+
+  test('the shards section has a "use it now or save it" explainer', async ({ page }) => {
+    await page.click('.tab[data-tab="rotw"]');
+    await page.waitForTimeout(250);
+    const r = await page.evaluate(() => {
+      const box = document.querySelector('#tab-rotw .shard-usesave');
+      return { exists: !!box, text: (box as HTMLElement)?.textContent || '' };
+    });
+    expect(r.exists).toBe(true);
+    expect(r.text).toMatch(/Renewed Sunder/);
+    expect(r.text).toMatch(/save|hold|spare|surplus/i);
+  });
+
+  test('Main-tab "who drops what" rows route to the same material card', async ({ page }) => {
+    // expand the cross-link section, then click a key row and confirm it opens an ID card
+    await page.evaluate(() => {
+      const h = [...document.querySelectorAll('#event-ref .sec-h')]
+        .find((e) => /who drops what/i.test(e.textContent || '')) as HTMLElement | undefined;
+      if (h && h.classList.contains('collapsed')) h.click();
+    });
+    await page.waitForTimeout(200);
+    const wired = await page.evaluate(() => {
+      const cells = [...document.querySelectorAll('#event-ref .er-item')];
+      return {
+        count: cells.length,
+        allClickable: cells.length > 0 && cells.every((c) => (c.getAttribute('onclick') || '').includes('openDrop(')),
+      };
+    });
+    expect(wired.count).toBeGreaterThanOrEqual(10);
+    expect(wired.allClickable).toBe(true);
+    await page.locator('#event-ref .er-item').first().click();
+    await page.waitForTimeout(250);
+    const shown = await page.evaluate(() =>
+      document.getElementById('item-detail')?.classList.contains('show') &&
+      !!document.getElementById('item-detail')?.querySelector('.material-card .gic-name'));
+    expect(shown).toBe(true);
+  });
+});
