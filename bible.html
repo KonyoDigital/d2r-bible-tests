@@ -6454,7 +6454,7 @@ function renderBossCards() {
     const sortDir = sortKey ? sortKey.split(":")[1] : null;
     const hdrCls = k => sortCol !== k ? "sortable" : "sortable sort-" + sortDir;
 
-    return `<div class="boss-card" id="${boss.id}">
+    return `<div class="boss-card collapsible collapsed" id="${boss.id}">
       <div class="boss-header clickable" onclick="openBossDetail('${boss.id}')" style="cursor:pointer">
         ${artOr(boss.name, '<span class="boss-emoji">'+boss.emoji+'</span>', 'lg')}
         <div class="boss-title-block">
