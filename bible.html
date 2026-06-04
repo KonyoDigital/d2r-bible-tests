@@ -638,6 +638,51 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rw-make-head{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:.02em}
 .rw-make-group{margin:10px 0 4px}
 .rw-make-group-title{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:6px}
+/* 🔮 crystal-ball reveal — results animate in each time the tally changes */
+@keyframes crystalReveal{0%{opacity:0;transform:translateY(5px) scale(.985);filter:blur(1.2px)}55%{opacity:1;filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
+@keyframes orbPulse{0%,100%{filter:drop-shadow(0 0 2px rgba(180,140,255,.45))}50%{filter:drop-shadow(0 0 9px rgba(180,140,255,.95))}}
+.rw-list .rw-row{animation:crystalReveal .42s cubic-bezier(.2,.7,.3,1) both}
+.crystal-panel{background:radial-gradient(120% 100% at 50% 0,rgba(150,110,220,.10),var(--surface-2));border:1px solid var(--border-light);border-left:3px solid var(--uber);border-radius:10px;padding:13px 16px;margin:14px 0 4px}
+.crystal-head{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;letter-spacing:.02em;display:flex;align-items:center;gap:7px}
+.crystal-head .orb{animation:orbPulse 2.6s ease-in-out infinite;font-size:15px}
+.crystal-sub{font-size:11px;color:var(--text-dim);margin-bottom:9px;line-height:1.5}
+.shard-out{padding:8px 10px;border-radius:7px;border:1px solid var(--border);margin:5px 0;background:var(--surface-2);animation:crystalReveal .42s cubic-bezier(.2,.7,.3,1) both}
+.shard-out.has{border-color:var(--uber);box-shadow:0 0 0 1px rgba(255,0,212,.12),0 0 14px rgba(170,110,200,.10)}
+.shard-out.dim{opacity:.46}
+.shard-out-top{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12.5px;margin-bottom:3px}
+.shard-out-top .shard-out-name{cursor:pointer}
+.shard-out-cnt{margin-left:auto;font-family:ui-monospace,monospace;font-size:11px;color:var(--uber)}
+.shard-out-cnt.zero{color:var(--text-dim)}
+.shard-out-line{font-size:11.5px;line-height:1.55;color:var(--text-dim)}
+.shard-out-line .t{color:var(--gold-bright);font-weight:600}
+.shard-out-line .zd-item-click{cursor:pointer;color:var(--nm)}
+.crystal-foot{font-size:11px;color:var(--text-dim);margin-top:9px;line-height:1.55;border-top:1px dotted var(--border);padding-top:8px}
+/* v78 — Uber Boss ID cards (9): 3 mini-ubers + 3 Tristram trio + 3 Colossal Ancients */
+.uber-boss-card{border:1px solid var(--border-light);border-left:3px solid var(--uber);border-radius:10px;margin:10px 0;background:var(--surface-2);overflow:hidden}
+.uber-boss-card.open{box-shadow:0 0 0 1px rgba(255,0,212,.12),0 0 16px rgba(170,110,200,.10)}
+.ubc-head{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer}
+.ubc-head:hover{background:rgba(170,110,200,.06)}
+.ubc-emoji{font-size:22px}
+.ubc-titles{flex:1;min-width:0}
+.ubc-name{font-family:var(--serif-display,Georgia,serif);font-size:18px;font-weight:700;color:var(--gold-bright);line-height:1.1}
+.ubc-sub{font-size:11.5px;color:var(--text-dim);font-style:italic;margin-top:2px}
+.ubc-chev{color:var(--text-dim);font-size:13px;transition:transform .2s}
+.uber-boss-card.open .ubc-chev{transform:rotate(180deg)}
+.ubc-body{padding:4px 16px 15px;animation:crystalReveal .4s cubic-bezier(.2,.7,.3,1) both}
+.ubc-loc{font-size:12px;color:var(--gold);font-weight:600;margin:4px 0 2px}
+.ubc-type{font-size:12px;color:var(--text-dim);font-style:italic;margin-bottom:9px}
+.ubc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:7px;margin:8px 0}
+.ubc-stat{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 9px;display:flex;flex-direction:column;gap:2px}
+.ubc-stat span{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted)}
+.ubc-stat strong{font-size:12.5px;color:var(--text)}
+.ubc-immune strong{color:var(--hell)}
+.ubc-resists{font-size:11.5px;color:var(--text-dim);font-family:ui-monospace,monospace;margin:6px 0 10px;line-height:1.5}
+.ubc-abil-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold)}
+.ubc-abil{margin:5px 0 10px;padding-left:18px}
+.ubc-abil li{font-size:12.5px;color:var(--text);line-height:1.55;margin:2px 0}
+.ubc-drop{font-size:13px;margin:6px 0;padding:8px 10px;border:1px solid var(--uber);border-radius:7px;background:rgba(170,110,200,.07)}
+.ubc-strat{font-size:12.5px;color:var(--text-dim);line-height:1.55;margin-top:8px;border-top:1px dotted var(--border);padding-top:8px}
+.ubc-strat strong{color:var(--gold);text-transform:uppercase;letter-spacing:1px;font-size:10px}
 .rw-list{display:flex;flex-direction:column;gap:5px}
 .rw-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:4px 0;border-bottom:1px dotted var(--border)}
 .rw-row:last-child{border-bottom:none}
@@ -2429,7 +2474,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">💎 Worldstone Shards <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
-  <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500.</div>
+  <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500. <strong style="color:var(--gold-bright)">Right-click to terrorize its whole act on demand</strong> (consumed) — or save it as the matching-region <strong>Renewed Sunder</strong> ingredient.</div>
   <div class="shard-grid">
     <div class="shard-card act1"><div class="shard-act">Act I</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Western Worldstone Shard')">Western Worldstone Shard →</div><div class="shard-zones">Blood Moor, Pit, Catacombs, Tristram, Black Marsh, Forgotten Tower</div></div>
     <div class="shard-card act2"><div class="shard-act">Act II <span class="pill pill-grail">YOURS</span></div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Eastern Worldstone Shard')">Eastern Worldstone Shard →</div><div class="shard-zones">Lut Gholein, Sewers, Maggot Lair, Tal Rasha tombs, Arcane Sanctuary</div></div>
@@ -2438,12 +2483,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="shard-card act5"><div class="shard-act">Act V</div><div class="shard-name zd-item-click" style="cursor:pointer" onclick="openDrop('Northern Worldstone Shard')">Northern Worldstone Shard →</div><div class="shard-zones">Crystalline Passage, Drifter Cavern, Nihlathak's, Halls, WSK, Throne</div></div>
   </div>
   <div class="shard-usesave" style="background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(91,143,249,.5);border-radius:10px;padding:13px 16px 14px;margin:12px 0 4px">
-    <div style="font-family:var(--serif-display);font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--text);margin-bottom:7px">💡 Use it now, or save it for a recipe?</div>
+    <div style="font-family:var(--serif-display);font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--text);margin-bottom:7px">💡 Free game, or hold? — two sinks, both consume the shard</div>
     <div style="font-size:12.5px;line-height:1.6;color:var(--text-dim)">
-      A shard is <strong>worthless on its own</strong> — it only matters as a recipe ingredient. The single best use is upgrading a Sunder:
-      <br>• <strong style="color:var(--best)">SAVE → Renewed Sunder.</strong> <span class="zd-item-click" style="cursor:pointer;color:var(--nm)" onclick="openDrop('Bone Break')">Sunder + matching-region shard → Renewed Sunder</span> (the +20% pierce, ~95%→strong floor version). This is the endgame goal — a Renewed Sunder is a permanent damage upgrade for that immunity type.
-      <br>• <strong style="color:var(--text)">USE NOW only if</strong> you already run a finished Renewed Sunder for that damage type and have spare shards piling up — there's no other sink, so extras are pure trade fodder.
-      <br><span class="rec" style="display:inline-block;margin-top:5px">Rule of thumb: <strong>hold your first 5 shards</strong> (one per region) until each matching Sunder is Renewed; only then treat surplus as currency. MF never helps — farm density, not magic find.</span>
+      A Worldstone Shard is a <strong>one-use consumable with two competing uses</strong> — so it is <em>not</em> free to burn. Each shard is tied to one act (region map below):
+      <br>• <strong style="color:var(--gold-bright)">USE → terrorize the whole act.</strong> Right-click the shard and its entire act becomes a Terror Zone for the rest of your game session — <strong>no cube needed</strong>. On-demand control over where you farm: chain Herald-of-Terror hunts for Sunders, or force a specific Hell act boss to grind a <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Colossal Ancient Statue')">Colossal Ancient statue →</span>. The shard is consumed on use.
+      <br>• <strong style="color:var(--best)">SAVE → Renewed Sunder.</strong> <span class="zd-item-click" style="cursor:pointer;color:var(--nm)" onclick="openDrop('Bone Break')">Latent Sunder + Perfect Gem + Rune + matching-region shard → Renewed Sunder</span> — the permanent +pierce upgrade, the endgame goal for your build's damage type. Also consumes the shard.
+      <br><span class="rec" style="display:inline-block;margin-top:5px">Rule of thumb: <strong>not free game.</strong> Hold your early shards per region until each matching Sunder is Renewed (that's the permanent damage upgrade). Once your Sunders are done, spend surplus shards right-clicking to terrorize the act you're farming — or trade them (~1 Um–Mal each). MF never helps shard drops — farm density.</span>
     </div>
   </div>
   </div>
@@ -2493,7 +2538,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--uber)">Key of Hate</strong> — ~10% on Hell, <strong>/players 3+ required</strong> for the key to roll</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⚔️ Kill</td><td>Trivial — low-HP caster (fire/cold/lightning bolts + blinks away). Burst him before he teleports; no immunities to worry about</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⭐ Best</td><td><strong style="color:var(--best)">Konyolock</strong> — Enigma teleport crosses the platforms instantly and one-shots him</td></tr>
-      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔗 Feeds</td><td>3× Key of Hate → Forgotten Sands → <strong>Duriel</strong> → Baal's Eye → Uber Tristram</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔗 Feeds</td><td><strong>1× of each key</strong> (Terror + Hate + Destruction) → one random portal; the Forgotten Sands roll is <strong>Uber Duriel</strong> → Baal's Eye → cube 3 organs → Uber Tristram</td></tr>
     </tbody></table>
   </div>
   </div>
@@ -2575,13 +2620,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table></div>
     <div class="info"><strong>Goal:</strong> 3× of EACH key (9 keys total). Don't run keys solo player count — running at p3 boosts elite pack count, more chances. Multi-key drops possible.</div>
 
-    <h3>🩸 Step 2 — Cube each set of 3 keys → 3 mini-uber portals</h3>
-    <div class="scroll-table"><table class="drops"><thead><tr><th>Cube recipe</th><th>Opens portal to</th><th>Mini-boss</th><th>Drops</th></tr></thead><tbody>
-      <tr><td><code>3× Key of Terror</code></td><td>Matron's Den (red portal in Harrogath)</td><td><strong>Lilith</strong> · fire-immune · charge attack</td><td>Diablo's Horn</td></tr>
-      <tr><td><code>3× Key of Hate</code></td><td>Forgotten Sands</td><td><strong>Duriel</strong> · cold-immune · hold-down boss</td><td>Baal's Eye</td></tr>
-      <tr><td><code>3× Key of Destruction</code></td><td>Furnace of Pain</td><td><strong>Izual</strong> · lit-immune · big AoE</td><td>Mephisto's Brain</td></tr>
+    <h3>🩸 Step 2 — Cube 1 of each key → a random mini-uber portal</h3>
+    <div class="info"><strong>The recipe:</strong> <code>1× Key of Terror + 1× Key of Hate + 1× Key of Destruction</code> → one <strong>random</strong> portal, chosen from the three you have not yet opened this game. Run another full set of 3 keys for the next portal — a complete clear needs <strong>3 sets = 3 of each key (9 total)</strong>, all opened in the same game.</div>
+    <div class="scroll-table"><table class="drops"><thead><tr><th>Portal (random)</th><th>Mini-uber</th><th>Lore &amp; mechanic</th><th>Drops the organ</th></tr></thead><tbody>
+      <tr><td>Matron's Den</td><td><strong>Lilith</strong></td><td>Queen of the Succubi · Andariel's mother · deadly poison charge, cannot be frozen</td><td>Diablo's Horn</td></tr>
+      <tr><td>Forgotten Sands</td><td><strong>Uber Duriel</strong></td><td>The Lord of Pain's uber form · cold-immune hold-down melee</td><td>Baal's Eye</td></tr>
+      <tr><td>Furnace of Pain</td><td><strong>Uber Izual</strong></td><td>The fallen Archangel of Justice · heavy frozen AoE caster</td><td>Mephisto's Brain</td></tr>
     </tbody></table></div>
-    <div class="warning"><strong>Note:</strong> All 3 portals open in <strong>Harrogath (Act 5 town)</strong>. Stay in town between fights — TP back if you die. Each mini-boss is brutal; Smiter Paladin handles all 3.</div>
+    <div class="warning"><strong>Note:</strong> All portals open in <strong>Harrogath (Act 5 town)</strong>. Stay in town between fights — TP back if you die. Each mini-uber is brutal; a Smiter Paladin handles all three.</div>
 
     <h3>🌀 Step 3 — Cube 3 organs → Uber Tristram portal</h3>
     <div class="cube-section">
@@ -2611,6 +2657,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="success"><strong>For Konyo:</strong> Smiter Paladin (max Smite + max Holy Shield + Fanaticism merc) is the META — Smite ignores immunities AND stuns. Cast Holy Shield, Last Wish or Grief, run in, melt all 3. Konyodin (hammerdin) struggles — hammers can miss the small uber hitboxes. Borrow/build a smiter for torch runs.</div>
     <div class="info"><strong>Torch reroll:</strong> Got a sub-perfect roll or wrong class? Run again. Each clear = 1 Standard. Reroll until you get +3 sorc/druid/whatever main class. Sin/Pally torches are most valuable on trade.</div>
     </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       UBER BOSS ID CARDS (9) — 3 mini-ubers + 3 Tristram trio + 3 Colossal Ancients
+       ════════════════════════════════════════════════════════════════ -->
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">👹 Uber Boss ID Cards <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace">9 cards · 3 mini-ubers · 3 Tristram trio · 3 Colossal Ancients</span> <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
+    <div class="lead">Every pinnacle boss on the road to the <strong>Hellfire Torch</strong> and the <strong>Colossal Jewels</strong> — stat-carded from verified monster data (diablo2.io · Arreat Summit). Tap a card to expand; organ / torch / jewel drops route to their material cards.</div>
+    <div id="uber-boss-cards"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
@@ -3307,11 +3362,11 @@ const SPECIAL_DROPS = {
     icon: "🫀",
     blurb: "Guaranteed drops from Uber bosses (each red portal has 1 boss). Each Uber kill = 1 organ.",
     items: [
-      {n: "Diablo's Horn", from: ["Uber Diablo (Furnace of Pain)"], rate: "100% per kill", note: "Uber Diablo is in Pandemonium portal opened by 3 Destruction Keys + Mephisto's Soulstone"},
-      {n: "Mephisto's Brain", from: ["Uber Mephisto (Furnace of Pain)"], rate: "100% per kill", note: "Uber Mephisto via 3 Hate Keys portal"},
-      {n: "Baal's Eye", from: ["Uber Baal (Matron's Den)"], rate: "100% per kill", note: "Uber Baal via 3 Terror Keys portal"}
+      {n: "Diablo's Horn", from: ["Lilith (Matron's Den)"], rate: "100% per kill", note: "Lilith — Queen of the Succubi, Andariel's mother. Portal opened by 1× each Pandemonium key (random of the 3)"},
+      {n: "Mephisto's Brain", from: ["Uber Izual (Furnace of Pain)"], rate: "100% per kill", note: "Uber Izual — the fallen Archangel of Justice. Portal opened by 1× each Pandemonium key (random of the 3)"},
+      {n: "Baal's Eye", from: ["Uber Duriel (Forgotten Sands)"], rate: "100% per kill", note: "Uber Duriel — the Lord of Pain. Portal opened by 1× each Pandemonium key (random of the 3)"}
     ],
-    recipe: "1 Horn + 1 Brain + 1 Eye + Standard of Heroes (=Pandemonium quest reward) in cube → Hellfire Torch"
+    recipe: "1 Horn + 1 Brain + 1 Eye in cube → red portal to Uber Tristram; kill the trio (Uber Mephisto + Uber Diablo + Uber Baal) → Standard of Heroes → Hellfire Torch"
   },
   uberCharm: {
     label: "Uber Charms",
@@ -7826,7 +7881,7 @@ window.MATERIALS = MATERIALS;
 const MATERIAL_RECIPES = [
   { n: 'Pandemonium Portal', icon: '🌀',
     need: { 'Key of Terror': 1, 'Key of Hate': 1, 'Key of Destruction': 1 },
-    makes: '1 random uber portal — Uber Diablo / Mephisto / Baal → its organ',
+    makes: '1 random uber portal — Lilith → Horn / Uber Izual → Brain / Uber Duriel → Eye',
     note: '1 of each key → 1 random mini-uber portal (repeat ~3× for all 3 organs)' },
   { n: 'Uber Tristram', icon: '🔥',
     need: { "Diablo's Horn": 1, "Mephisto's Brain": 1, "Baal's Eye": 1 },
@@ -7838,6 +7893,18 @@ const MATERIAL_RECIPES = [
     note: 'cube all 4 essences' },
 ];
 window.MATERIAL_RECIPES = MATERIAL_RECIPES;
+// 🔮 Worldstone Shard outcomes — what each shard MAKES. Region→act→Renewed-Sunder
+// map is transcribed from the verified Herald card data (_HERALD_SUNDERS recipes)
+// + the shard cards' act-zone lists. Two sinks, both consume the shard:
+// right-click → terrorize that act, or cube into the matching Renewed Sunder.
+const SHARD_OUTCOMES = [
+  { n: 'Western Worldstone Shard',  act: 'Act 1', zones: 'Blood Moor → Pit / Catacombs → Tristram → Forgotten Tower', sunder: 'Rotting Fissure',      el: 'poison'    },
+  { n: 'Eastern Worldstone Shard',  act: 'Act 2', zones: 'Sewers → Maggot Lair → Tal Rasha Tombs → Arcane Sanctuary', sunder: 'Cold Rupture',         el: 'cold'      },
+  { n: 'Southern Worldstone Shard', act: 'Act 3', zones: 'Spider Forest → Flayer Jungle → Travincal → Durance',       sunder: 'Crack of the Heavens', el: 'lightning' },
+  { n: 'Deep Worldstone Shard',     act: 'Act 4', zones: 'Outer Steppes → City of the Damned → River of Flame → Chaos', sunder: 'Flame Rift',         el: 'fire'      },
+  { n: 'Northern Worldstone Shard', act: 'Act 5', zones: 'Crystalline Passage → Halls → Worldstone Keep → Throne',     sunder: 'Bone Break',          el: 'physical'  },
+];
+window.SHARD_OUTCOMES = SHARD_OUTCOMES;
 function _materialCount(name){
   const v = parseInt(materialStash[name], 10);
   return isFinite(v) && v > 0 ? v : 0;
@@ -7889,9 +7956,38 @@ function renderMaterialCraftable(){
   const readyN = status.filter((s) => s.ready).length;
   let html = `<div class="rw-make-head">🛠 What I can make · ${readyN}/${status.length}</div>`;
   html += `<div class="rw-list">${status.map(line).join('')}</div>`;
+  html += renderShardCrystal();
   box.innerHTML = html;
 }
 window.renderMaterialCraftable = renderMaterialCraftable;
+// 🔮 Crystal ball — for the Worldstone Shards you've tallied, reveal what each one
+// MAKES: right-click → terrorize its act, or cube → its matching Renewed Sunder.
+// Held shards glow; un-held shards stay dim so the full map is always legible.
+// Both the shard name and the Sunder name route to their material cards via openDrop.
+function renderShardCrystal(){
+  const held = SHARD_OUTCOMES.reduce((a, s) => a + _materialCount(s.n), 0);
+  const rows = SHARD_OUTCOMES.map((s) => {
+    const c = _materialCount(s.n);
+    const has = c > 0;
+    const esc = s.n.replace(/'/g, "\\'");
+    const sEsc = s.sunder.replace(/'/g, "\\'");
+    return `<div class="shard-out ${has ? 'has' : 'dim'}" data-shard="${s.n.replace(/"/g, '&quot;')}">
+      <div class="shard-out-top">
+        <span class="shard-out-name" onclick="openDrop('${esc}')">${artOr(s.n, '💎', 'sm')} ${s.n}</span>
+        <span class="shard-out-cnt ${has ? '' : 'zero'}">×${c}</span>
+      </div>
+      <div class="shard-out-line"><span class="t">🔥 right-click →</span> terrorize ${s.act} <span style="color:var(--text-muted)">(${s.zones})</span></div>
+      <div class="shard-out-line">🔨 cube → feeds <span class="zd-item-click" onclick="openDrop('${sEsc}')">${s.sunder}</span> Renewed <span class="${'imm-' + (s.el === 'physical' ? 'phys' : s.el === 'poison' ? 'pois' : s.el === 'lightning' ? 'light' : s.el)}">${s.el}</span> Sunder</div>
+    </div>`;
+  }).join('');
+  return `<div class="crystal-panel">
+    <div class="crystal-head"><span class="orb">🔮</span>Worldstone Shard outcomes — what each makes</div>
+    <div class="crystal-sub">${held ? `You hold <strong style="color:var(--uber)">${held}</strong> shard${held === 1 ? '' : 's'} — the glowing rows are live. ` : 'Tally shards above to light up your outcomes. '}Every shard is one-use: spend it to terrorize an act, or save it for a Renewed Sunder.</div>
+    ${rows}
+    <div class="crystal-foot">Cube <strong>any 3 shards → 1 random Latent Sunder</strong>. The <span class="zd-item-click" style="cursor:pointer;color:var(--nm)" onclick="openDrop('Black Cleft')">Black Cleft</span> (magic) Renewed needs <strong>Southern + Deep + Northern</strong> shards together. MF never helps shard drops — farm density.</div>
+  </div>`;
+}
+window.renderShardCrystal = renderShardCrystal;
 function renderMaterialStash(){
   const grid = document.getElementById('material-stash-grid');
   if (!grid || typeof MATERIALS === 'undefined') return;
@@ -7953,6 +8049,151 @@ function renderHeraldCard(){
   }).join('');
 }
 window.renderHeraldCard = renderHeraldCard;
+// ── v78 — the 9 Uber Boss ID cards ───────────────────────────────────────────
+// 3 mini-ubers (Pandemonium portals → organs), 3 Uber Tristram trio (→ Hellfire
+// Torch), 3 Colossal Ancients (RotW pinnacle → Colossal Jewels). All stats are
+// verified monster data (diablo2.io / Arreat Summit). Portraits are HEAD-checked
+// diablo2.io graphics with an emoji fallback. Drops route via openDrop.
+const UBER_BOSSES = [
+  { id:'lilith', name:'Lilith', emoji:'🕷️', art:'Andariel_graphic.png',
+    group:'Mini-Uber · Pandemonium portal', role:'drops Diablo\'s Horn',
+    loc:'Matron\'s Den · opened from Harrogath · Hell only',
+    type:'Act 1 Demon Superunique — a.k.a. Uber Andariel (shared model)',
+    mlvl:'110', hp:'650,000–660,000', def:'2,310', block:'40%', immune:'Poison',
+    resists:'Phys 30 · Magic/Fire/Cold/Light 75 · Poison 185 (immune)',
+    abil:['Poison Spray + Poison Bolt (~3,650 poison over 74s)','Cannot be chilled or slowed by cold','Regenerates life at 2× the normal rate'],
+    drop:'Diablo\'s Horn',
+    strat:'Hits like a truck and her adds are nastier than she is — clear the pack first. +poison-res / antidote and a tanky merc help. Smite ignores her immunity.' },
+  { id:'izual', name:'Uber Izual', emoji:'❄️', art:'izual_graphic.png',
+    group:'Mini-Uber · Pandemonium portal', role:'drops Mephisto\'s Brain',
+    loc:'Furnace of Pain · opened from Harrogath · Hell only',
+    type:'Act 4 Demon Superunique — the fallen Archangel of Justice',
+    mlvl:'110', hp:'650,000–660,000', def:'2,520 → 6,930 (Chilling Armor)', block:'50%', immune:'Cold',
+    resists:'Magic/Fire/Light/Poison 75 · Cold 185 (immune)',
+    abil:['Frost Nova + Cold-Enchanted melee (+85–130 cold)','Chilling Armor (+175% def for 300s)','Teleports onto you'],
+    drop:'Mephisto\'s Brain',
+    strat:'Cold-immune — cold builds do nothing here; bring physical / fire / magic. He teleports and frost-novas, so keep moving and out-pace his regen with Life Tap.' },
+  { id:'uber-duriel', name:'Uber Duriel', emoji:'🦂', art:'duriel_graphic.png',
+    group:'Mini-Uber · Pandemonium portal', role:'drops Baal\'s Eye',
+    loc:'Forgotten Sands · opened from Harrogath · Hell only',
+    type:'Act 5 Demon Superunique — the Lord of Pain, uber form',
+    mlvl:'110', hp:'650,000–660,000', def:'2,520', block:'50%', immune:'Cold',
+    resists:'Phys 50 · Magic/Fire/Cold/Light/Poison 75 (Cold immune) · Drain 100',
+    abil:['Holy Freeze aura — chills + slows you the whole fight','Knockback melee (A1 468–494 / A2 149–214)','2× life regen · very high drain effectiveness'],
+    drop:'Baal\'s Eye',
+    strat:'Low Attack Rating — Shout / Defiance gut his hit-chance. His drain is brutal: Life Tap or a life-steal weapon is near-mandatory. Cold-immune, so no cold damage.' },
+  { id:'uber-mephisto', name:'Uber Mephisto', emoji:'💀', art:'mephisto_graphic.png',
+    group:'Uber Tristram trio', role:'kill FIRST',
+    loc:'Uber Tristram · cube 3 organs → red portal · Hell only',
+    type:'Prime Uber — the Lord of Hatred',
+    mlvl:'110', hp:'650,000–660,000', def:'3,360', block:'50%', immune:'Lightning + Poison',
+    resists:'Magic/Fire/Cold 75 · Light 110 · Poison 110 (both immune)',
+    abil:['Level-20 Conviction aura: −125% resist, −90% defense (13⅓ yd)','Charged Bolt · Skull Missile · Blizzard · Frost/Poison Nova','Lightning-Enchanted (8 bolts when struck) · summons Skeleton Mages','Cannot be life- or mana-leeched'],
+    drop:null,
+    strat:'KILL FIRST — his Conviction aura amplifies the whole room\'s elemental damage onto you and supercharges his skelly mages. Drop him and the fight calms right down.' },
+  { id:'uber-diablo', name:'Uber Diablo', emoji:'🔥', art:'diablo_graphic.png',
+    group:'Uber Tristram trio', role:'kill SECOND',
+    loc:'Uber Tristram · cube 3 organs → red portal · Hell only',
+    type:'Prime Uber — Pandemonium Diablo (NOT the SoJ-summoned Diablo Clone)',
+    mlvl:'110', hp:'huge · regenerates at 2× normal', def:'high', block:'50%', immune:'Fire + Cold',
+    resists:'Magic Resistant · Immune Fire + Cold · Extra Fast',
+    abil:['Red Lightning Hose (½ physical / ½ lightning) — the big killer','Bone Prison traps you, hirelings & your Town Portals','Fire Nova · Firestorm · Charge','Summons Pit Lords (immune to all but physical)'],
+    drop:null,
+    strat:'The HP wall — kill SECOND. Max Lightning resist + Damage Reduction (or high block) survives the Lightning Hose. Don\'t get Bone-Prisoned beside all three. Distinct from the Annihilus Diablo Clone.' },
+  { id:'uber-baal', name:'Uber Baal', emoji:'👑', art:'baal-opt_graphic.png',
+    group:'Uber Tristram trio', role:'kill LAST',
+    loc:'Uber Tristram · cube 3 organs → red portal · Hell only',
+    type:'Prime Uber — the Lord of Destruction',
+    mlvl:'110', hp:'650,000–660,000', def:'3,150', block:'55%', immune:'Fire + Cold',
+    resists:'Phys 50 · Magic/Light/Poison 75 · Fire 115 · Cold 185 (both immune)',
+    abil:['Defense Curse (−95% def, 35s) · Mana Rift (−50% mana)','Chilling Armor · Hoarfrost (knockback + freeze) · Teleport','Incineration Nova · Vile Effigy (spawns a clone at equal HP%)','Summons Specters (phys/poison-immune) + Dark Lords (phys/cold-immune)'],
+    drop:null,
+    strat:'Easiest 1-on-1 once the other two are down — kill LAST. Mind the clone and his minions. Standard of Heroes drops here → take it to Anya for the Hellfire Torch.' },
+  { id:'talic', name:'Talic', emoji:'⚔️', art:'talic-opt_graphic.png',
+    group:'Colossal Ancient · RotW pinnacle', role:'sword & shield · Whirlwind',
+    loc:'Colossal Summit · cube 5 Colossal Statues → Act 5 red portal',
+    type:'Buffed Ancient Barbarian — sword & shield',
+    mlvl:'Colossal (lvl-75 jewels)', hp:'massively buffed', def:'high', block:'—', immune:'rolls a random immunity each game',
+    resists:'Re-rolls his stats + one immunity every game (like the vanilla Ancients)',
+    abil:['Whirlwinds across the platform','Fast, hard-hitting melee with knockback'],
+    drop:'Colossal Ancient Jewels',
+    strat:'Kill him LAST to claim Defender\'s Fire (fire) or Defender\'s Bile (poison). Re-roll the encounter (leave + remake) if all three share an immunity your build can\'t break.' },
+  { id:'korlic', name:'Korlic', emoji:'🪓', art:'korlic-opt_graphic.png',
+    group:'Colossal Ancient · RotW pinnacle', role:'polearm · Leap Attack',
+    loc:'Colossal Summit · cube 5 Colossal Statues → Act 5 red portal',
+    type:'Buffed Ancient Barbarian — polearm',
+    mlvl:'Colossal (lvl-75 jewels)', hp:'massively buffed', def:'high', block:'—', immune:'rolls a random immunity each game',
+    resists:'Re-rolls his stats + one immunity every game',
+    abil:['Leap Attack closes distance and stuns','Long-reach polearm strikes'],
+    drop:'Colossal Ancient Jewels',
+    strat:'Kill LAST for Protector\'s Frost (cold) or Protector\'s Stone (physical). His leap can pin you to a corner — always keep an escape lane open.' },
+  { id:'madawc', name:'Madawc', emoji:'🌩️', art:'madawc-opt_graphic.png',
+    group:'Colossal Ancient · RotW pinnacle', role:'throwing axes · caster',
+    loc:'Colossal Summit · cube 5 Colossal Statues → Act 5 red portal',
+    type:'Buffed Ancient Barbarian — dual throwing axes',
+    mlvl:'Colossal (lvl-75 jewels)', hp:'massively buffed', def:'high', block:'—', immune:'rolls a random immunity each game',
+    resists:'Re-rolls his stats + one immunity every game',
+    abil:['Ranged Double Throw axes — you can\'t just facetank','War-cry that can stun'],
+    drop:'Colossal Ancient Jewels',
+    strat:'Kill LAST for Guardian\'s Thunder (lightning) or Guardian\'s Light (magic). His ranged axes punish standing still — close the gap or use cover.' },
+];
+window.UBER_BOSSES = UBER_BOSSES;
+function renderUberBossCards(){
+  const box = document.getElementById('uber-boss-cards');
+  if (!box) return;
+  box.innerHTML = UBER_BOSSES.map((b) => {
+    const url = 'https://diablo2.io/styles/zulu/theme/images/items/' + b.art;
+    const emblem = '<span class="d2art-wrap lg"><img class="d2art-img" src="' + url + '" alt="' + b.name + '" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="ubc-emoji">' + b.emoji + '</span></span></span>';
+    const abil = b.abil.map((a) => '<li>' + a + '</li>').join('');
+    const dropRow = b.drop
+      ? '<div class="ubc-drop">🫀 Drops <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop(\'' + b.drop.replace(/'/g, "\\'") + '\')">' + b.drop + ' →</span></div>'
+      : '<div class="ubc-drop">🔥 Part of the trio → Standard of Heroes → <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop(\'Hellfire Torch\')">Hellfire Torch →</span></div>';
+    return '<div class="uber-boss-card" id="uberboss-' + b.id + '" data-boss="' + b.id + '">'
+      + '<div class="ubc-head" onclick="window.toggleUberBoss(\'' + b.id + '\')" role="button" tabindex="0" aria-expanded="false">'
+      + emblem
+      + '<div class="ubc-titles"><div class="ubc-name">' + b.name + '</div><div class="ubc-sub">' + b.group + ' · ' + b.role + '</div></div>'
+      + '<span class="ubc-chev">▾</span></div>'
+      + '<div class="ubc-body" hidden>'
+      + '<div class="ubc-loc">📍 ' + b.loc + '</div>'
+      + '<div class="ubc-type">' + b.type + '</div>'
+      + '<div class="ubc-stats">'
+      + '<div class="ubc-stat"><span>Monster level</span><strong>' + b.mlvl + '</strong></div>'
+      + '<div class="ubc-stat"><span>Hit points</span><strong>' + b.hp + '</strong></div>'
+      + '<div class="ubc-stat"><span>Defense</span><strong>' + b.def + '</strong></div>'
+      + '<div class="ubc-stat"><span>Block</span><strong>' + b.block + '</strong></div>'
+      + '<div class="ubc-stat ubc-immune"><span>Immune</span><strong>' + b.immune + '</strong></div>'
+      + '</div>'
+      + '<div class="ubc-resists">' + b.resists + '</div>'
+      + '<div class="ubc-abil-label">Abilities</div><ul class="ubc-abil">' + abil + '</ul>'
+      + dropRow
+      + '<div class="ubc-strat"><strong>Strategy</strong> ' + b.strat + '</div>'
+      + '</div></div>';
+  }).join('');
+}
+window.renderUberBossCards = renderUberBossCards;
+function toggleUberBoss(id){
+  const card = document.getElementById('uberboss-' + id);
+  if (!card) return;
+  const body = card.querySelector('.ubc-body');
+  const head = card.querySelector('.ubc-head');
+  if (!body) return;
+  if (body.hasAttribute('hidden')) { body.removeAttribute('hidden'); card.classList.add('open'); if (head) head.setAttribute('aria-expanded', 'true'); }
+  else { body.setAttribute('hidden', ''); card.classList.remove('open'); if (head) head.setAttribute('aria-expanded', 'false'); }
+}
+window.toggleUberBoss = toggleUberBoss;
+function jumpToUberBoss(id){
+  if (window.switchTab) window.switchTab('ancients');
+  setTimeout(function(){
+    const card = document.getElementById('uberboss-' + id);
+    if (!card) return;
+    const sec = card.closest('.sec-body');
+    if (sec && sec.hasAttribute('hidden')) { const h = sec.previousElementSibling; if (h && window.toggleSec) window.toggleSec(h); }
+    const body = card.querySelector('.ubc-body');
+    if (body && body.hasAttribute('hidden')) toggleUberBoss(id);
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 120);
+}
+window.jumpToUberBoss = jumpToUberBoss;
 // Import a pasted tally. Accepts JSON ({"Key of Terror":3,…}) or "Full name: count"
 // lines. Full material names are matched case-insensitively; replaces the stash.
 function importMaterialTally(){
@@ -8241,6 +8482,7 @@ renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderStatueTracker();
 renderMaterialStash();
 renderHeraldCard();
+renderUberBossCards();
 renderTzZones();
 renderSuperUniques();
 renderSetTracker();
@@ -9549,6 +9791,18 @@ _v41_whenReady(() => {
         cat: 'herald', hint: t.drops,
         keywords: 'herald tier sunder superunique terror zone ' + t.n.toLowerCase() + ' ' + t.tier,
         action: () => { if (window.openDrop) window.openDrop(t.n); }
+      });
+    });
+    // Uber Boss ID cards (9) — each searchable and routed to its own expandable
+    // stat card in the Ancients tab via jumpToUberBoss.
+    const UB = (typeof UBER_BOSSES !== 'undefined') ? UBER_BOSSES : [];
+    UB.forEach((b) => {
+      cmds.push({
+        icon: b.emoji, label: b.name,
+        sub: b.group + ' · ' + b.role,
+        cat: 'uber boss', hint: b.immune ? 'immune: ' + b.immune : '',
+        keywords: 'uber boss pandemonium tristram ancient pinnacle ' + b.name.toLowerCase() + ' ' + b.group.toLowerCase() + ' ' + b.role.toLowerCase(),
+        action: () => { if (window.jumpToUberBoss) window.jumpToUberBoss(b.id); }
       });
     });
     return cmds;
