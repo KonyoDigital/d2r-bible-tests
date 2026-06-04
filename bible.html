@@ -2414,7 +2414,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)">👹 Herald of Terror <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span id="herald-sec-emblem">👹</span> Herald of Terror <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
     <div class="gbc-card herald-grail" id="herald-card">
       <header class="gbc-header boss-detail-header">
@@ -2435,20 +2435,32 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </section>
       <section class="gbc-section">
         <div class="gbc-section-label">🩸 how to spawn it &amp; climb the ladder</div>
-        <div class="gbc-why"><strong>Hell-difficulty Terror Zones only</strong> — never Normal/Nightmare, never outside a TZ. You make one appear by <strong>killing enough monsters</strong> in the active Hell TZ; it then spawns and hunts you across the map. Every Herald you kill makes the <strong>next spawn one tier higher</strong> — climb Fright → Dread → Fear → Horror → Terror. Once you reach Terror, every Herald after is a Terror. <strong>Every tier carries an aura</strong> and can drop Latent Sunder Charms; higher tiers drop more.</div>
+        <div class="gbc-why"><strong>Hell-difficulty Terror Zones only</strong> — never Normal/Nightmare, never outside a TZ. Spawning runs on a hidden two-step token system:
+        <br>• <strong>1 · draw its ire (~2%)</strong> — every <strong>Champion, Unique, Superunique or Boss</strong> you kill inside the active Hell TZ has a ~2% chance to fire <em>"You have drawn the ire of a Herald!"</em> and bank an invisible token. <strong>Ire stacks up to 5×</strong> — chain elite kills fast and you can force several Heralds to spawn side-by-side.
+        <br>• <strong>2 · let it hunt you (~1%)</strong> — while you hold a token, every monster that spawns on a <strong>fresh, unexplored tile</strong> has a ~1% chance to turn into a Herald. Revealing new ground fires <em>"A Herald is hunting you in [Zone]!"</em>.
+        <br>• <strong>reveal, don't grind</strong> — once ire is drawn you don't need more kills; just <strong>walk into unvisited tiles</strong> so the engine has room to spawn one.
+        <br>• every kill bumps the <strong>next</strong> Herald one tier higher — climb Fright → Dread → Fear → Horror → Terror (table below), and every tier carries an aura.</div>
       </section>
       <section class="gbc-section">
         <div class="gbc-section-label">📈 the 5 Herald tiers — each kill bumps the next</div>
         <table class="sunder-tbl">
-          <thead><tr><th>#</th><th>Name</th><th>Drops</th></tr></thead>
+          <thead><tr><th>#</th><th>Tier</th><th>Difficulty</th><th>Notable drops</th></tr></thead>
           <tbody>
-            <tr><td>1</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Fright')">Herald of Fright →</td><td class="rec">normal drops</td></tr>
-            <tr><td>2</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Dread')">Herald of Dread →</td><td class="rec">normal drops</td></tr>
-            <tr><td>3</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Fear')">Herald of Fear →</td><td class="rec">normal drops + 1 extra item</td></tr>
-            <tr><td>4</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Horror')">Herald of Horror →</td><td class="rec">normal drops + 1 extra item</td></tr>
-            <tr><td>5 · apex</td><td class="zd-item-click" style="cursor:pointer" onclick="openDrop('Herald of Terror')"><strong>Herald of Terror →</strong></td><td class="rec"><strong>normal drops + 2 extra items</strong> — every spawn after is a Terror</td></tr>
+            <tr><td>1</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Fright')">Herald of Fright →</td><td>base event stats</td><td class="rec">standard elite loot</td></tr>
+            <tr><td>2</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Dread')">Herald of Dread →</td><td>↑ HP &amp; damage</td><td class="rec">standard elite loot</td></tr>
+            <tr><td>3</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Fear')">Herald of Fear →</td><td>aggressive combat auras</td><td class="rec">standard loot · low Sunder chance</td></tr>
+            <tr><td>4</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Horror')">Herald of Horror →</td><td>extreme damage output</td><td class="rec">+1 extra item · Sunder threshold opens</td></tr>
+            <tr><td>5 · apex</td><td class="zd-item-click" style="cursor:pointer" onclick="openDrop('Herald of Terror')"><strong>Herald of Terror →</strong></td><td><strong>maximum scaling</strong></td><td class="rec"><strong>+2 extra items · optimal Latent Sunder rate</strong></td></tr>
           </tbody>
         </table>
+        <div class="gbc-why" style="margin-top:8px">⚠ <strong>Tiers reset to Fright if you exit to the main menu</strong> — stay in one game session to keep climbing. Once you hit <strong>Terror</strong>, every Herald the rest of that session stays a Terror.</div>
+      </section>
+      <section class="gbc-section">
+        <div class="gbc-section-label">🛡️ optimal farming strategies</div>
+        <div class="gbc-why">A single 30–60 min TZ layout rarely has enough fresh tiles to chain all five tiers, so use one of these:
+        <br>• <strong>Worldstone-Shard method</strong> — pop a <strong>Worldstone Shard</strong> to terrorize an <strong>entire act</strong> instead of one zone. That hands you a huge, continuous spread of fresh tiles — enough to draw ire and force Tier 4 → Tier 5 back-to-back without running out of map.
+        <br>• <strong>zone-hopping overflow</strong> — if you draw ire just as a zone runs out of unexplored tiles, <strong>do not leave</strong> (leaving resets your tiers). Your ire token <strong>persists across the TZ rotation</strong> — wait for the next zone to go live, step in, and the Herald spawns on the first fresh tile you reveal.
+        <br><span class="rec">Source: TheBugWarrior — "How to Farm Heralds &amp; Sunder Charms (Terror Zones Guide)", Feb 2026.</span></div>
       </section>
       <section class="gbc-section">
         <div class="gbc-section-label">💎 what it offers — the 6 Latent Sunder Charms</div>
@@ -8047,6 +8059,8 @@ function renderHeraldCard(){
     node.innerHTML = '<img class="d2art-img" src="' + HERALD_PORTRAIT + '" alt="Herald of Terror" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="gbc-emoji">👹</span></span>';
     emblem.replaceWith(node);
   }
+  var se = document.getElementById('herald-sec-emblem');
+  if (se) { se.innerHTML = '<img src="' + HERALD_PORTRAIT + '" alt="" style="height:1.15em;width:1.15em;object-fit:cover;border-radius:4px;vertical-align:-0.22em">'; }
   tb.innerHTML = _HERALD_SUNDERS.map((s) => {
     const esc = s.n.replace(/'/g, "\\'");
     const name = `${artOr(s.n, '💎', 'sm')} <span class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="window.openDrop('${esc}')" title="open the ${s.n} material card">${s.n} →</span>`;
