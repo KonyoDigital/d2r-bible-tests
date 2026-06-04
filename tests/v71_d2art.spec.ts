@@ -156,6 +156,26 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.src).toMatch(/runeIst_icon\.png$/);
   });
 
+  test('the calc grid tiles show art thumbnails for mapped items', async ({ page }) => {
+    await page.click('.tab[data-tab="calc"]');
+    await page.waitForTimeout(200);
+    const r = await page.evaluate(() => {
+      const tile = document.querySelector('#item-grid .item-tile[data-name="Arachnid Mesh"]');
+      const img = tile?.querySelector('.item-tile-row .d2art-img') as HTMLImageElement | null;
+      // tiles still hold their name+tc text alongside the art
+      return {
+        hasImg: !!img,
+        src: img?.getAttribute('src') || '',
+        name: tile?.querySelector('.item-tile-name')?.textContent?.trim() || '',
+        lazy: img?.getAttribute('loading') || '',
+      };
+    });
+    expect(r.hasImg).toBe(true);
+    expect(r.src).toContain('diablo2.io/');
+    expect(r.name).toBe('Arachnid Mesh');
+    expect(r.lazy).toBe('lazy');     // grid art is lazy-loaded, not a load-time storm
+  });
+
   test('no console errors when opening art-bearing cards', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

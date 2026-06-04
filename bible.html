@@ -171,6 +171,10 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .item-tile.selected{border-color:var(--gold-bright);background:linear-gradient(180deg,rgba(212,168,71,.12),var(--surface-3))}
 .item-tile-name{font-size:13px;font-weight:500;color:var(--text);line-height:1.3;padding-right:14px}
 .item-tile-tc{font-size:10px;color:var(--text-muted);margin-top:4px;font-family:ui-monospace,monospace}
+.item-tile-row{display:flex;align-items:center;gap:9px}
+.item-tile-row .item-tile-text{flex:1;min-width:0}
+.item-tile-row .d2art-wrap.sm{width:26px;height:26px}
+.item-tile-row .d2art-wrap.sm .d2art-img{max-width:26px;max-height:26px}
 .item-tile.tier-tc60{border-left:3px solid var(--norm)}
 .item-tile.tier-tc78{border-left:3px solid var(--gold)}
 .item-tile.tier-tc84,.item-tile.tier-tc85{border-left:3px solid var(--rune)}
@@ -6604,9 +6608,10 @@ function renderCalc() {
   grid.innerHTML = filtered.map((it, idx) => {
     const isOwned = owned.has(it.n);
     return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
-      <div class="item-tile-name">${it.n}</div>
-      <div class="item-tile-tc">TC${it.tc} · q${it.qlvl}${isOwned?' · ✓':''}</div>
-    </div>`;
+      <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
+        <div class="item-tile-name">${it.n}</div>
+        <div class="item-tile-tc">TC${it.tc} · q${it.qlvl}${isOwned?' · ✓':''}</div>
+      </div></div>`;
   }).join("");
   grid.querySelectorAll(".item-tile").forEach(el => {
     el.onclick = () => { selectedItem = el.dataset.name; activeItem = el.dataset.name; setActiveItem(el.dataset.name); renderCalc(); renderDetail(); document.getElementById("item-detail")?.scrollIntoView({behavior:"smooth", block:"start"}); };
