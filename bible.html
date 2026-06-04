@@ -597,8 +597,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .boss-detail-header .d2art-wrap.lg{width:66px;height:66px}
 .boss-detail-header .d2art-wrap.lg .d2art-img{max-width:66px;max-height:66px}
 .boss-chip .d2art-wrap.sm{width:48px;height:48px}
-.boss-header .d2art-wrap.lg{width:50px;height:50px;flex:0 0 auto}
-.boss-header .d2art-wrap.lg .d2art-img{max-width:50px;max-height:50px}
+.boss-header .d2art-wrap.lg{width:56px;height:56px;flex:0 0 auto}
+.boss-header .d2art-wrap.lg .d2art-img{max-width:56px;max-height:56px}
 .aid-item-name .d2art-wrap{width:28px !important;height:28px !important;flex:0 0 auto;margin-right:5px;vertical-align:middle}
 .aid-item-name .d2art-wrap .d2art-img{max-width:28px;max-height:28px}
 .boss-chip .d2art-wrap.sm .d2art-img{max-width:48px;max-height:48px}
@@ -1775,7 +1775,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       min-height: 44px;
     }
     .boss-chip {
-      min-height: 36px;
+      min-height: 62px !important; align-items:center !important;
       padding: 6px 10px;
     }
     /* MF slider thumb tap-friendly */
@@ -6451,7 +6451,7 @@ function renderBossCards() {
 
     return `<div class="boss-card" id="${boss.id}">
       <div class="boss-header clickable" onclick="openBossDetail('${boss.id}')" style="cursor:pointer">
-        <span class="boss-emoji">${boss.emoji}</span>
+        ${artOr(boss.name, '<span class="boss-emoji">'+boss.emoji+'</span>', 'lg')}
         <div class="boss-title-block">
           <p class="boss-name">${boss.name}</p>
           <p class="boss-subtitle">${boss.subtitle}</p>
