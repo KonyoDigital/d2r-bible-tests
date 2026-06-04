@@ -4281,7 +4281,7 @@ const TZ_ZONES = [
 // hard onerror keeps a 404 from ever showing a broken-image box (the banner just hides).
 const TZ_ART_BASE = "https://diablo2.io/styles/zulu/theme/images/items/";
 const TZ_ZONE_ART = {
-  "Flayer Dungeon L3": "act3-flayerdungeon",
+  "Flayer Dungeon L3": "banners/act3-flayerdungeon.jpg",
   "Crystalline Passage + Frozen River": "act5-crystallinepassage",
   "Bloody Foothills + Frigid Highlands + Abaddon": "act5-bloodyfoothills",
   "Worldstone Keep L1-L3": "act5-worldstonekeep",
@@ -4296,7 +4296,7 @@ const TZ_ZONE_ART = {
 function tzZoneArtBanner(name){
   const slug = TZ_ZONE_ART[name];
   if (!slug) return '';
-  return `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${name}" src="${TZ_ART_BASE}${slug}_graphic.png" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>`;
+  return `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${name}" src="${slug.indexOf('data:')===0||slug.indexOf('http')===0||slug.charAt(0)==='/'||slug.indexOf('banners/')===0?slug:TZ_ART_BASE+slug+'_graphic.png'}" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>`;
 }
 window.TZ_ZONE_ART = TZ_ZONE_ART;
 
