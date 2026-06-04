@@ -530,9 +530,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-card{border:1px solid var(--border-light);border-left:3px solid var(--terror);border-radius:10px;margin:12px 0;padding:16px 20px;transition:border-color .12s,transform .12s,box-shadow .12s}
 /* v73: verified diablo2.io area artwork banner across the top of each TZ zone card */
 .tz-zone-art{margin:-16px -20px 12px -20px;height:132px;overflow:hidden;position:relative;background:#0a0a0a;border-radius:9px 9px 0 0}
-.tz-zone-art img{width:100%;height:100%;object-fit:cover;display:block;opacity:.82;transition:opacity .15s,transform .3s}
+.tz-zone-art img{width:100%;height:100%;object-fit:cover;display:block;opacity:.5;transition:opacity .15s,transform .3s}
 .tz-zone-card:hover .tz-zone-art img{opacity:1;transform:scale(1.03)}
-.tz-zone-art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(10,10,12,.55))}
+.tz-zone-art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,12,.45) 0%,rgba(10,10,12,.1) 38%,rgba(10,10,12,.82) 100%)}
 .tz-zone-art.d2art-failed{display:none}
 .tz-zone-header{margin-bottom:10px}
 .tz-zone-meta{margin-bottom:7px}
@@ -594,6 +594,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .d2art-wrap.d2art-failed .d2art-img{display:none}
 .d2art-wrap.d2art-failed .d2art-fallback{display:inline-flex}
 .d2art-wrap.lg{width:54px;height:54px;flex:0 0 auto}
+.boss-detail-header .d2art-wrap.lg{width:66px;height:66px}
+.boss-detail-header .d2art-wrap.lg .d2art-img{max-width:66px;max-height:66px}
+.boss-chip .d2art-wrap.sm{width:48px;height:48px}
+.boss-chip .d2art-wrap.sm .d2art-img{max-width:48px;max-height:48px}
+.herald-grail{border:1px solid rgba(201,161,74,.55);box-shadow:0 0 26px rgba(201,161,74,.13),inset 0 0 0 1px rgba(201,161,74,.18)}
 .d2art-wrap.lg .d2art-img{max-width:54px;max-height:54px;filter:drop-shadow(0 0 10px rgba(240,192,96,.35))}
 .d2art-wrap.sm{width:22px;height:22px;flex:0 0 auto}
 .d2art-wrap.sm .d2art-img{max-width:22px;max-height:22px}
@@ -2352,12 +2357,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="tab-content" id="tab-rotw">
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">👹 Herald of Terror <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
-    <div class="gbc-card" id="herald-card">
+    <div class="gbc-card herald-grail" id="herald-card">
       <header class="gbc-header boss-detail-header">
         <span class="gbc-emoji" id="herald-emblem">👹</span>
         <div class="gbc-id-block">
           <h2 class="gbc-name">Herald of Terror</h2>
-          <div class="gbc-subtitle">Hell Terror-Zone Sunder Hunter</div>
+          <div class="gbc-subtitle">Hell-TZ rare unique · apex of the 5-tier Herald ladder · the grail-of-grails Sunder source</div>
           <div class="gbc-loc">📍 Hell Terror Zones only · roams the active TZ · <strong>your only Sunder source</strong></div>
         </div>
         <div class="gbc-tier">
@@ -2370,8 +2375,21 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <div class="gbc-why">A roaming mini-boss that spawns inside <strong>Hell Terror Zones</strong> and hunts you across the map. Put it down to loot <strong>Latent Sunder Charms</strong> — the only way to break monster immunities in RotW — and, because Heralds are unique-tier, the occasional <strong>Worldstone Shard</strong> (the charm-upgrade fragment).</div>
       </section>
       <section class="gbc-section">
-        <div class="gbc-section-label">📍 where &amp; how to make it happen</div>
-        <div class="gbc-why"><strong>Hell-difficulty Terror Zones only</strong> — never Normal/Nightmare, never outside a TZ. The drop is random: shards run ~1:500–1500 and <strong>MF does NOT change the rate</strong>. You do not trigger it with an item — you run Hell TZs in the act-region whose Sunder you need and kill every Herald that hunts you.</div>
+        <div class="gbc-section-label">🩸 how to spawn it &amp; climb the ladder</div>
+        <div class="gbc-why"><strong>Hell-difficulty Terror Zones only</strong> — never Normal/Nightmare, never outside a TZ. You make one appear by <strong>killing enough monsters</strong> in the active Hell TZ; it then spawns and hunts you across the map. Every Herald you kill makes the <strong>next spawn one tier higher</strong> — climb Fright → Dread → Fear → Horror → Terror. Once you reach Terror, every Herald after is a Terror. <strong>Every tier carries an aura</strong> and can drop Latent Sunder Charms; higher tiers drop more.</div>
+      </section>
+      <section class="gbc-section">
+        <div class="gbc-section-label">📈 the 5 Herald tiers — each kill bumps the next</div>
+        <table class="sunder-tbl">
+          <thead><tr><th>#</th><th>Name</th><th>Drops</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Herald of Fright</td><td class="rec">normal drops</td></tr>
+            <tr><td>2</td><td>Herald of Dread</td><td class="rec">normal drops</td></tr>
+            <tr><td>3</td><td>Herald of Fear</td><td class="rec">normal drops + 1 extra item</td></tr>
+            <tr><td>4</td><td>Herald of Horror</td><td class="rec">normal drops + 1 extra item</td></tr>
+            <tr><td>5 · apex</td><td><strong>Herald of Terror</strong></td><td class="rec"><strong>normal drops + 2 extra items</strong> — every spawn after is a Terror</td></tr>
+          </tbody>
+        </table>
       </section>
       <section class="gbc-section">
         <div class="gbc-section-label">💎 what it offers — the 6 Latent Sunder Charms</div>
@@ -7809,7 +7827,7 @@ function renderHeraldCard(){
   const emblem = document.getElementById('herald-emblem');
   if (emblem && emblem.tagName === 'SPAN') {
     const wrap = document.createElement('span');
-    wrap.innerHTML = artOr('Bone Break', '<span class="gbc-emoji">👹</span>', 'lg');
+    wrap.innerHTML = '<span class="gbc-emoji">👹</span>';
     const node = wrap.firstElementChild;
     if (node && node.classList.contains('d2art-wrap')) emblem.replaceWith(node);
   }
@@ -10505,7 +10523,7 @@ html { scroll-behavior: smooth; }
 .boss-detail-header.gbc-header .gbc-tier { position: static !important; top: auto !important; left: auto !important; right: auto !important; margin: 0 !important; }
 .boss-detail-header.gbc-header .gbc-close { position: static !important; top: auto !important; right: auto !important; margin-left: 2px !important; flex-shrink: 0; }
 .boss-detail-header.gbc-header .field-manual { order: 5 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 2px; }
-.boss-detail-header .gbc-emoji { font-size: 54px !important; margin-bottom: 4px; }
+.boss-detail-header .gbc-emoji { font-size: 66px !important; margin-bottom: 4px; }
 .boss-detail-header .gbc-id-block { flex: 1 !important; min-width: 0; text-align: left !important; }
 .boss-detail-header .gbc-name,
 .boss-detail-header .bd-name {

@@ -35,19 +35,20 @@ test.describe('v72 Herald of Terror ID card', () => {
     expect(order.some((h) => /Worldstone Shards/.test(h))).toBe(true);
   });
 
-  test('the header emblem renders the verified Bone Break charm graphic (not a bare emoji)', async ({ page }) => {
+  test('the header emblem is the 👹 Herald monster glyph (no real monster art on diablo2.io; the charm lives in the Sunder rows)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const card = document.getElementById('herald-card')!;
-      const img = card.querySelector('.gbc-header .d2art-img') as HTMLImageElement | null;
+      const emoji = card.querySelector('.gbc-header .gbc-emoji');
+      const charmInHeader = card.querySelector('.gbc-header .d2art-img');
       return {
-        hasImg: !!img,
-        src: img?.getAttribute('src') || '',
-        hasFallback: !!card.querySelector('.gbc-header .d2art-fallback'),
+        hasEmoji: !!emoji,
+        emojiText: (emoji?.textContent || '').trim(),
+        charmInHeader: !!charmInHeader,
       };
     });
-    expect(r.hasImg).toBe(true);
-    expect(r.src).toMatch(/bonebreakcharm_graphic\.png$/);
-    expect(r.hasFallback).toBe(true); // 👹 emoji still embedded for the error path
+    expect(r.hasEmoji).toBe(true);
+    expect(r.emojiText).toContain('👹');
+    expect(r.charmInHeader).toBe(false); // monster card shows the 👹, not the Sunder charm graphic
   });
 
   test('renderHeraldCard fills all 6 Sunder rows with verified D2IO_ART icons + openDrop links', async ({ page }) => {
