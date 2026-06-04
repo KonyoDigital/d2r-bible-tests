@@ -35,20 +35,20 @@ test.describe('v72 Herald of Terror ID card', () => {
     expect(order.some((h) => /Worldstone Shards/.test(h))).toBe(true);
   });
 
-  test('the header emblem is the 👹 Herald monster glyph (no real monster art on diablo2.io; the charm lives in the Sunder rows)', async ({ page }) => {
+  test('the header emblem is the verified Herald of Terror portrait (embedded data-URI, 👹 fallback)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const card = document.getElementById('herald-card')!;
-      const emoji = card.querySelector('.gbc-header .gbc-emoji');
-      const charmInHeader = card.querySelector('.gbc-header .d2art-img');
+      const img = card.querySelector('.gbc-header .d2art-img') as HTMLImageElement | null;
+      const fallback = card.querySelector('.gbc-header .d2art-fallback .gbc-emoji');
       return {
-        hasEmoji: !!emoji,
-        emojiText: (emoji?.textContent || '').trim(),
-        charmInHeader: !!charmInHeader,
+        hasImg: !!img,
+        src: img?.getAttribute('src') || '',
+        fallbackText: (fallback?.textContent || '').trim(),
       };
     });
-    expect(r.hasEmoji).toBe(true);
-    expect(r.emojiText).toContain('👹');
-    expect(r.charmInHeader).toBe(false); // monster card shows the 👹, not the Sunder charm graphic
+    expect(r.hasImg).toBe(true);
+    expect(r.src).toMatch(/^data:image\/jpeg;base64,/); // real portrait embedded, never hotlinked
+    expect(r.fallbackText).toContain('👹'); // 👹 remains the never-broken fallback
   });
 
   test('renderHeraldCard fills all 6 Sunder rows with verified D2IO_ART icons + openDrop links', async ({ page }) => {
