@@ -175,6 +175,8 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .item-tile-row .item-tile-text{flex:1;min-width:0}
 .item-tile-row .d2art-wrap.sm{width:26px;height:26px}
 .item-tile-row .d2art-wrap.sm .d2art-img{max-width:26px;max-height:26px}
+.rune-src-card .d2art-wrap{width:40px!important;height:40px!important}
+.rune-src-card .d2art-img{max-width:40px!important;max-height:40px!important;width:40px!important;height:40px!important;object-fit:contain}
 .item-tile.tier-tc60{border-left:3px solid var(--norm)}
 .item-tile.tier-tc78{border-left:3px solid var(--gold)}
 .item-tile.tier-tc84,.item-tile.tier-tc85{border-left:3px solid var(--rune)}
@@ -4744,6 +4746,7 @@ const D2IO_ART = {
   "Heavenly Garb": "https://diablo2.io/styles/zulu/theme/images/items/heavenlygarb_graphic.png",
   "Hel": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeHel_icon.png",
   "Hell Bovines": "https://diablo2.io/styles/zulu/theme/images/items/hellbovine_graphic.png",
+  "Hell Bovines (Cow Level)": "https://diablo2.io/styles/zulu/theme/images/items/hellbovine_graphic.png",
   "Hellclap": "https://diablo2.io/styles/zulu/theme/images/items/hellclap_graphic.png",
   "Hellfire Torch": "https://diablo2.io/styles/zulu/theme/images/items/hellfiretorch_graphic.png",
   "Key of Terror": "https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png",
@@ -7624,7 +7627,7 @@ function renderRuneSources(){
   el.innerHTML=RUNE_SOURCES.map(function(src){
     var loc=src.headline ? (src.loc+' · <strong style="color:var(--gold-bright)">'+src.headline+'</strong>') : src.loc;
     return '<div class="boss-card rune-src-card clickable" onclick="toggleRuneSrc(\''+src.id+'\')">'+
-      '<div class="boss-header"><span class="boss-emoji">'+src.emoji+'</span>'+
+      '<div class="boss-header">'+artOr(src.name, '<span class="boss-emoji">'+src.emoji+'</span>', 'lg')+
       '<div class="boss-title-block"><p class="boss-name">'+src.name+'</p>'+
       '<p class="boss-subtitle">'+src.subtitle+'</p><p class="boss-loc">'+loc+'</p></div>'+
       '<div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">'+src.tier+'</div></div></div>'+
