@@ -4471,6 +4471,9 @@ const ITEMS = [];
 // item icons, 32 runes, 3 super-uniques. Names absent here keep their emoji. Zero fabrication
 // — every URL was probed live and only kept if it resolved to a real image.
 const D2IO_ART = {
+  "Andariel": "https://diablo2.io/styles/zulu/theme/images/items/Andariel_graphic.png",
+  "Ist rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeIst_icon.png",
+  "Jah/Ber/Sur rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeSur_icon.png",
   "Alma Negra": "https://diablo2.io/styles/zulu/theme/images/items/rondache_graphic.png",
   "Amn": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeAmn_icon.png",
   "Andariel's Visage": "https://diablo2.io/styles/zulu/theme/images/items/mask_graphic.png",
@@ -4822,7 +4825,7 @@ function _d2artEsc(s){ return String(s).replace(/"/g, '&quot;'); }
 // and the emoji fallback shows, so a card can never render a broken-image box.
 function artOr(name, fallbackHtml, size){
   var u = artUrl(name);
-  if (!u) return fallbackHtml || '';
+  if (!u) return `<span class="d2art-wrap ${size||'lg'} d2art-failed"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
   return `<span class="d2art-wrap ${size||'lg'}"><img class="d2art-img" src="${u}" alt="${_d2artEsc(name)}" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
 window.artOr = artOr;
