@@ -597,6 +597,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .boss-detail-header .d2art-wrap.lg{width:66px;height:66px}
 .boss-detail-header .d2art-wrap.lg .d2art-img{max-width:66px;max-height:66px}
 .boss-chip .d2art-wrap.sm{width:48px;height:48px}
+.boss-header .d2art-wrap.lg{width:50px;height:50px;flex:0 0 auto}
+.boss-header .d2art-wrap.lg .d2art-img{max-width:50px;max-height:50px}
+.aid-item-name .d2art-wrap{width:28px !important;height:28px !important;flex:0 0 auto;margin-right:5px;vertical-align:middle}
+.aid-item-name .d2art-wrap .d2art-img{max-width:28px;max-height:28px}
 .boss-chip .d2art-wrap.sm .d2art-img{max-width:48px;max-height:48px}
 .herald-grail{border:1px solid rgba(201,161,74,.55);box-shadow:0 0 26px rgba(201,161,74,.13),inset 0 0 0 1px rgba(201,161,74,.18)}
 .d2art-wrap.lg .d2art-img{max-width:54px;max-height:54px;filter:drop-shadow(0 0 10px rgba(240,192,96,.35))}
@@ -2293,16 +2297,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="lead">💎 <strong>Runes have two tiers of farming sources.</strong> The Countess has a DEDICATED rune drop table (every kill rolls runes). Other sources are bonus drops, useful when farming for items anyway.</div>
 
   <div class="boss-card" id="runes-countess">
-    <div class="boss-header">
-      <span class="boss-emoji">🗿</span>
+    <div class="boss-header collapsed" onclick="toggleSec(this)" style="cursor:pointer">
+      <span class="d2art-wrap lg"><img class="d2art-img" src="https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/The_Countess.gif" alt="The Countess" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback"><span class="boss-emoji">🗿</span></span></span>
       <div class="boss-title-block">
         <p class="boss-name">The Countess</p>
         <p class="boss-subtitle">Mistress of Runes</p>
         <p class="boss-loc">Forgotten Tower L5 · Act 1 · <strong style="color:var(--gold-bright)">ONLY rune-dedicated drop table</strong></p>
       </div>
-      <div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">S+</div></div>
+      <div class="boss-tier-tag"><div class="boss-tier-label">tier</div><div class="boss-tier-val">S+</div></div><span class="sec-chev">▾</span>
     </div>
-    <div class="boss-body">
+    <div class="boss-body sec-body" hidden>
       <div id="rune-table-target"></div>
       <div class="success"><strong>Why farm:</strong> Only monster with a dedicated rune table. Best Ist source (1:1,110 Hell). ~30-50 runs/hour with teleport. Drop ceiling: <strong>Lo rune (Hell)</strong>, <strong>Ist (Hell)</strong>. NO Mal+ from Countess.</div>
       <div class="info"><strong>📋 Action plan:</strong> Black Marsh waypoint → Tower (look for stairs into Tower Cellar) → take stairs down to Level 5 → kill Countess in the chamber → exit + reset. Each Countess kill = 3 simultaneous rune rolls.</div>
@@ -7133,6 +7137,7 @@ function renderAidCard(name, opts){
       <div class="aid-header-left">
         <div class="aid-item-name">
           <span class="aid-star ${isStarred?'starred':''}" onclick="toggleStar('${escName}')" style="cursor:pointer;margin-right:6px;font-size:18px;color:${isStarred?'var(--star)':'var(--text-muted)'}">${isStarred?'★':'☆'}</span>
+          ${artOr(name, '', 'sm')}
           ${name}
           ${isOwned?' <span style="color:var(--best);font-size:12px;font-family:var(--mono);background:rgba(102,255,136,.1);padding:2px 6px;border-radius:3px">✓ OWNED</span>':''}
         </div>
