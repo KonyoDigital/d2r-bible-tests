@@ -587,6 +587,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .d2art-wrap.lg .d2art-img{max-width:54px;max-height:54px;filter:drop-shadow(0 0 10px rgba(240,192,96,.35))}
 .d2art-wrap.sm{width:22px;height:22px;flex:0 0 auto}
 .d2art-wrap.sm .d2art-img{max-width:22px;max-height:22px}
+/* Herald of Terror — Sunder Charm table (RotW tab dedicated ID card) */
+.sunder-tbl{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px}
+.sunder-tbl th,.sunder-tbl td{border:1px solid rgba(255,255,255,.10);padding:7px 9px;text-align:left;vertical-align:top}
+.sunder-tbl th{color:var(--gold-bright,#ffd480);font-weight:600;background:rgba(255,212,128,.06)}
+.sunder-tbl td.brk{font-weight:600;white-space:nowrap}
+.sunder-tbl .rec{color:var(--text-muted,#9aa);font-size:12px}
+.imm-phys{color:#d9d2c5}.imm-magic{color:#9b8cff}.imm-fire{color:#ff7755}.imm-cold{color:#66ccff}.imm-light{color:#ffe066}.imm-pois{color:#88dd66}
 .rs-name{font-weight:600;font-size:12px;color:var(--text);min-width:34px}
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -2333,6 +2340,53 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
+  <h2 class="sec-h" onclick="toggleSec(this)">👹 Herald of Terror <span class="sec-chev">▾</span></h2>
+  <div class="sec-body">
+    <div class="gbc-card" id="herald-card">
+      <header class="gbc-header boss-detail-header">
+        <span class="gbc-emoji">👹</span>
+        <div class="gbc-id-block">
+          <h2 class="gbc-name">Herald of Terror</h2>
+          <div class="gbc-subtitle">Hell Terror-Zone Sunder Hunter</div>
+          <div class="gbc-loc">📍 Hell Terror Zones only · roams the active TZ · <strong>your only Sunder source</strong></div>
+        </div>
+        <div class="gbc-tier">
+          <div class="gbc-tier-label">sunder source</div>
+          <div class="gbc-tier-val">★</div>
+        </div>
+      </header>
+      <section class="gbc-section">
+        <div class="gbc-section-label">🎯 what it is</div>
+        <div class="gbc-why">A roaming mini-boss that spawns inside <strong>Hell Terror Zones</strong> and hunts you across the map. Put it down to loot <strong>Latent Sunder Charms</strong> — the only way to break monster immunities in RotW — and, because Heralds are unique-tier, the occasional <strong>Worldstone Shard</strong> (the charm-upgrade fragment).</div>
+      </section>
+      <section class="gbc-section">
+        <div class="gbc-section-label">📍 where &amp; how to make it happen</div>
+        <div class="gbc-why"><strong>Hell-difficulty Terror Zones only</strong> — never Normal/Nightmare, never outside a TZ. The drop is random: shards run ~1:500–1500 and <strong>MF does NOT change the rate</strong>. You do not trigger it with an item — you run Hell TZs in the act-region whose Sunder you need and kill every Herald that hunts you.</div>
+      </section>
+      <section class="gbc-section">
+        <div class="gbc-section-label">💎 what it offers — the 6 Latent Sunder Charms</div>
+        <table class="sunder-tbl">
+          <thead><tr><th>Charm</th><th>Breaks</th><th>Best for</th><th>Renewed upgrade recipe</th></tr></thead>
+          <tbody id="herald-sunder-rows"></tbody>
+        </table>
+      </section>
+      <section class="gbc-section">
+        <div class="gbc-section-label">🔗 Latent → Renewed (Worldstone-Shard economy)</div>
+        <div class="gbc-why">Two ways to get a Sunder: loot a <strong>Latent</strong> off a Herald, or cube <strong>3 Worldstone Shards</strong> to roll a random Latent. Upgrade for extra random stats via cube: <strong>Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard → Renewed</strong>. Region shard → immunity map:
+        <br>• <strong>Northern</strong> (Act 5 — Crystalline/Halls/WSK/Throne) → Bone Break <span class="imm-phys">physical</span>
+        <br>• <strong>Western</strong> (Act 1 — Pit/Catacombs/Tristram) → Rotting Fissure <span class="imm-pois">poison</span>
+        <br>• <strong>Eastern</strong> (Act 2 — Far Oasis/Maggot Lair/Tombs) → Cold Rupture <span class="imm-cold">cold</span>
+        <br>• <strong>Southern</strong> (Act 3 — Spider Forest/Flayer/Travincal) → Crack of the Heavens <span class="imm-light">lightning</span>
+        <br>• <strong>Deep</strong> (Act 4 — River of Flame/Chaos) → Flame Rift <span class="imm-fire">fire</span>
+        <br>• <strong>Black Cleft</strong> <span class="imm-magic">magic</span> needs Southern + Deep + Northern.
+        <br><span class="rec">Source: Maxroll.</span></div>
+      </section>
+      <section class="gbc-section">
+        <div class="gbc-section-label">⚔ rules of thumb</div>
+        <div class="gbc-why">Only <strong>ONE Sunder active at a time</strong>. The ~95% floor still leaves resist on the monster, so it cuts most of your damage — stack <strong>−enemy-resist</strong>, <strong>Conviction / Lower Resist</strong>, <strong>Amplify Damage</strong> and <strong>Crushing Blow</strong> to push below it. Match the Sunder to your build damage type (table above), farm that region's Heralds + shards, upgrade to Renewed once shards are spare.</div>
+      </section>
+    </div>
+  </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">💎 Worldstone Shards <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500.</div>
@@ -7691,6 +7745,28 @@ function renderMaterialStash(){
   renderMaterialCraftable();
 }
 window.renderMaterialStash = renderMaterialStash;
+// Herald of Terror ID card (RotW tab) — fills the Sunder table from the SAME
+// SPECIAL_DROPS.sunder data + D2IO_ART icons. Charm names open the full material
+// card via openDrop. Zero new data: breaks/best-for/recipe mirror the canonical
+// material notes; the art comes from the verified D2IO_ART map.
+const _HERALD_SUNDERS = [
+  { n: 'Bone Break',           imm: 'imm-phys',  breaks: 'Physical',  best: 'Konyolock (phys sin)',      rec: 'Latent + Perfect Amethyst + Pul + Northern Shard' },
+  { n: 'Black Cleft',          imm: 'imm-magic', breaks: 'Magic',     best: 'Konyodin (Hammerdin)',      rec: 'Latent + Perfect Diamond + Mal + Southern + Deep + Northern Shards' },
+  { n: 'Crack of the Heavens', imm: 'imm-light', breaks: 'Lightning', best: 'Konyoress (light sorc)',    rec: 'Latent + Perfect Topaz + Fal + Southern Shard' },
+  { n: 'Cold Rupture',         imm: 'imm-cold',  breaks: 'Cold',      best: 'Blizzard sorc',             rec: 'Latent + Perfect Sapphire + Lum + Eastern Shard' },
+  { n: 'Flame Rift',           imm: 'imm-fire',  breaks: 'Fire',      best: 'Fireball / Meteor sorc',    rec: 'Latent + Perfect Ruby + Io + Deep Shard' },
+  { n: 'Rotting Fissure',      imm: 'imm-pois',  breaks: 'Poison',    best: 'Poison nova / PNB',         rec: 'Latent + Perfect Emerald + Ko + Western Shard' },
+];
+function renderHeraldCard(){
+  const tb = document.getElementById('herald-sunder-rows');
+  if (!tb) return;
+  tb.innerHTML = _HERALD_SUNDERS.map((s) => {
+    const esc = s.n.replace(/'/g, "\\'");
+    const name = `${artOr(s.n, '💎', 'sm')} <span class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="window.openDrop('${esc}')" title="open the ${s.n} material card">${s.n} →</span>`;
+    return `<tr><td>${name}</td><td class="brk ${s.imm}">${s.breaks}</td><td>${s.best}</td><td class="rec">${s.rec}</td></tr>`;
+  }).join('');
+}
+window.renderHeraldCard = renderHeraldCard;
 // Import a pasted tally. Accepts JSON ({"Key of Terror":3,…}) or "Full name: count"
 // lines. Full material names are matched case-insensitively; replaces the stash.
 function importMaterialTally(){
@@ -7978,6 +8054,7 @@ renderCalc();
 renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderStatueTracker();
 renderMaterialStash();
+renderHeraldCard();
 renderTzZones();
 renderSuperUniques();
 renderSetTracker();
@@ -9225,6 +9302,24 @@ _v41_whenReady(() => {
         if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 110); }
     }));
+    // Herald of Terror dedicated ID card (RotW tab)
+    cmds.push({
+      icon: '👹',
+      label: 'Herald of Terror',
+      sub: 'Hell TZ Sunder hunter',
+      cat: 'rotw',
+      hint: 'sunder charms',
+      keywords: 'herald terror sunder charm immunity break latent renewed worldstone shard rotw bone break black cleft crack heavens cold rupture flame rift rotting fissure',
+      action: () => { if (window.switchTab) window.switchTab('rotw'); setTimeout(() => {
+        const card = document.getElementById('herald-card');
+        if (card) {
+          const sec = card.closest('.sec-body');
+          const h = sec && sec.previousElementSibling;
+          if (h && h.classList.contains('collapsed') && window.toggleSec) window.toggleSec(h);
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 110); }
+    });
     return cmds;
   }
 

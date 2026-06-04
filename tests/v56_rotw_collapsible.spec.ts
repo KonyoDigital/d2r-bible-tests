@@ -16,9 +16,13 @@ test.describe('v56 ROTW collapsible sections', () => {
   });
 
   test('4 data sections collapsible, collapsed by default', async ({ page }) => {
-    await expect(page.locator('#tab-rotw .sec-h')).toHaveCount(4);
-    await expect(page.locator('#tab-rotw .sec-body')).toHaveCount(4);
+    // v72: the Herald of Terror showpiece card is a 5th .sec-h/.sec-body at the
+    // top of the tab — it is expanded by default, so the 4 DATA sections
+    // (Shards/Essences/Keys/Sunders) remain collapsed/hidden.
+    await expect(page.locator('#tab-rotw .sec-h')).toHaveCount(5);
+    await expect(page.locator('#tab-rotw .sec-body')).toHaveCount(5);
     await expect(page.locator('#tab-rotw .sec-body[hidden]')).toHaveCount(4);
+    await expect(page.locator('#tab-rotw .sec-h').first()).toHaveText(/Herald of Terror/);
   });
 
   test('clicking a header expands, clicking again collapses', async ({ page }) => {
