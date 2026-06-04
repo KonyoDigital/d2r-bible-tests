@@ -528,6 +528,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-tag.tc87{background:rgba(255,0,212,.15);border-color:var(--terror);color:var(--terror)}
 /* ═══ TZ-zone cards · editorial chrome polish (Desktop 2026-05-30) — terror-magenta identity kept ═══ */
 .tz-zone-card{border:1px solid var(--border-light);border-left:3px solid var(--terror);border-radius:10px;margin:12px 0;padding:16px 20px;transition:border-color .12s,transform .12s,box-shadow .12s}
+/* v73: verified diablo2.io area artwork banner across the top of each TZ zone card */
+.tz-zone-art{margin:-16px -20px 12px -20px;height:132px;overflow:hidden;position:relative;background:#0a0a0a;border-radius:9px 9px 0 0}
+.tz-zone-art img{width:100%;height:100%;object-fit:cover;display:block;opacity:.82;transition:opacity .15s,transform .3s}
+.tz-zone-card:hover .tz-zone-art img{opacity:1;transform:scale(1.03)}
+.tz-zone-art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(10,10,12,.55))}
+.tz-zone-art.d2art-failed{display:none}
 .tz-zone-header{margin-bottom:10px}
 .tz-zone-meta{margin-bottom:7px}
 .tz-zone-body{line-height:1.6}
@@ -4247,6 +4253,31 @@ const TZ_ZONES = [
   {emoji:"💀",name:"Catacombs L4",tier:"B+",mlvl:75,tcMax:75,act:"Act 1 · terrorize Catacombs",density:"medium",hot:false,unique:"Andariel (same monster, no mlvl boost)",why:"Note: terror doesn't help Andy much, she's already mlvl 75 Hell. Same NM SoJ rate. Skip vs Pindle/Pit.",tags:[]},
 ];
 
+// v73: verified diablo2.io area artwork for each terror zone (keyed by TZ_ZONES name →
+// the primary area's scene graphic). Every slug was HEAD-probed live (HTTP 200 + image)
+// before shipping — zero guessed paths. tzZoneCardHtml renders these as a banner, and a
+// hard onerror keeps a 404 from ever showing a broken-image box (the banner just hides).
+const TZ_ART_BASE = "https://diablo2.io/styles/zulu/theme/images/items/";
+const TZ_ZONE_ART = {
+  "Flayer Dungeon L3": "act3-flayerdungeon",
+  "Crystalline Passage + Frozen River": "act5-crystallinepassage",
+  "Bloody Foothills + Frigid Highlands + Abaddon": "act5-bloodyfoothills",
+  "Worldstone Keep L1-L3": "act5-worldstonekeep",
+  "Halls of Anguish/Pain/Vaught": "act5-hallsofanguish",
+  "Arcane Sanctuary": "act2-arcanesanctuary",
+  "River of Flame": "act4-riverofflames",
+  "Tristram (the town)": "act1-tristram",
+  "Burial Grounds + Crypt + Mausoleum": "act1-burial",
+  "Spider Forest + Cavern": "act3-spiderforest",
+  "Catacombs L4": "act1-catacombs",
+};
+function tzZoneArtBanner(name){
+  const slug = TZ_ZONE_ART[name];
+  if (!slug) return '';
+  return `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${name}" src="${TZ_ART_BASE}${slug}_graphic.png" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>`;
+}
+window.TZ_ZONE_ART = TZ_ZONE_ART;
+
 // TERROR_GROUPS — group the farmable terror zones by the act they terrorize in, so the
 // TZ list reads as an organized act-by-act roster instead of a flat pile. Each group is a
 // labelled region header; renderTzZones() buckets every TZ_ZONES entry into exactly one
@@ -6242,7 +6273,7 @@ const PLAYER_TIERS = [
 function renderBossNav() {
   const __bossOf = {};
   BOSSES.forEach(b => { __bossOf[b.id] = b; });
-  const chip = b => `<a href="javascript:void(0)" class="boss-chip" data-boss-id="${b.id}" onclick="setActiveBoss('${b.id}')"><span class="emoji">${b.emoji}</span>${b.name}</a>`;
+  const chip = b => `<a href="javascript:void(0)" class="boss-chip" data-boss-id="${b.id}" onclick="setActiveBoss('${b.id}')">` + artOr(b.name, '<span class="emoji">' + b.emoji + '</span>', 'sm') + b.name + `</a>`;
   const used = {};
   const groups = PLAYER_TIERS.map(g => {
     const chips = g.members.filter(id => __bossOf[id]).map(id => { used[id] = 1; return chip(__bossOf[id]); }).join("");
@@ -7233,6 +7264,7 @@ function tzZoneCardHtml(z, zi){
   const click = `window.toggleZoneDetail(${zi})`;
   const titleTxt = bossId ? ('open ' + z.name + ' drop detail (with ' + bossId + ' cross-link)') : 'open full zone drop detail';
   return `<div class="tz-zone-card" data-zone-idx="${zi}" data-boss-id="${bossId}" onclick="${click}" style="cursor:pointer" title="${titleTxt}">
+      ${tzZoneArtBanner(z.name)}
       <div class="tz-zone-header">
         <span class="tz-zone-emoji">${z.emoji}</span>
         <p class="tz-zone-name">${z.name}</p>
@@ -7252,7 +7284,10 @@ function tzZoneCardHtml(z, zi){
 function tzCrosslinkCardHtml(cl){
   const b = (typeof BOSSES !== 'undefined') ? BOSSES.find((x) => x.id === cl.bossId) : null;
   if (!b) return '';
+  const clArt = (typeof artUrl === 'function') ? artUrl(b.name) : null;
+  const clBanner = clArt ? `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${b.name}" src="${clArt}" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>` : '';
   return `<div class="tz-crosslink-card" data-crosslink-boss-id="${b.id}" onclick="window.openBossDetail('${b.id}')" style="cursor:pointer" title="open ${b.name}'s full ID card in the Bosses tab">
+      ${clBanner}
       <div class="tz-zone-header">
         <span class="tz-zone-emoji">${b.emoji || '🗺️'}</span>
         <p class="tz-zone-name">${b.name}</p>

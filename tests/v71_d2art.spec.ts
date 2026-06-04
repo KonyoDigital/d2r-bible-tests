@@ -210,6 +210,40 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.Pindleskin).toMatch(/reanimatedhorde-opt_graphic\.png$/);
   });
 
+  test('the boss-nav chips show portrait art for mapped bosses, emoji for unmapped (Andariel)', async ({ page }) => {
+    await page.click('.tab[data-tab="bosses"]');
+    await page.waitForTimeout(200);
+    const r = await page.evaluate(() => {
+      const chipFor = (name: string) => {
+        const b = (BOSSES as any[]).find((x) => x.name === name);
+        return document.querySelector(`#boss-nav .boss-chip[data-boss-id="${b.id}"]`);
+      };
+      const meph = chipFor('Mephisto');
+      const baal = chipFor('Baal');
+      const anda = chipFor('Andariel');
+      return {
+        mephImg: !!meph?.querySelector('.d2art-img'),
+        mephSrc: (meph?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('src') || '',
+        mephLazy: (meph?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('loading') || '',
+        mephText: meph?.textContent?.trim() || '',
+        baalImg: !!baal?.querySelector('.d2art-img'),
+        baalSrc: (baal?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('src') || '',
+        andaImg: !!anda?.querySelector('.d2art-img'),   // Andariel has no diablo2.io portrait → emoji only
+        andaEmoji: !!anda?.querySelector('.emoji'),
+        andaText: anda?.textContent?.trim() || '',
+      };
+    });
+    expect(r.mephImg).toBe(true);
+    expect(r.mephSrc).toContain('diablo2.io/');
+    expect(r.mephLazy).toBe('lazy');
+    expect(r.mephText).toContain('Mephisto');   // name still rendered alongside the art
+    expect(r.baalImg).toBe(true);
+    expect(r.baalSrc).toMatch(/baal-opt_graphic\.png$/);
+    expect(r.andaImg).toBe(false);
+    expect(r.andaEmoji).toBe(true);
+    expect(r.andaText).toContain('Andariel');
+  });
+
   test('no console errors when opening art-bearing cards', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
