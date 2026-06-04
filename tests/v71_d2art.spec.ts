@@ -23,7 +23,7 @@ test.describe('v71 d2art artwork layer', () => {
       return {
         type: typeof m,
         len: names.length,
-        allDiablo2io: names.every((n) => /^https:\/\/diablo2\.io\/images\/avatars\/gallery\//.test(m[n])),
+        allDiablo2io: names.every((n) => /^https:\/\/diablo2\.io\/(images\/avatars\/gallery|styles\/zulu\/theme\/images\/items)\//.test(m[n])),
         allImageExt: names.every((n) => /\.(png|gif|jpe?g)$/i.test(m[n])),
         encoded: names.every((n) => !/ /.test(m[n])),           // spaces URL-encoded, no raw spaces
         hasItem: !!m['Arachnid Mesh'],
@@ -77,7 +77,7 @@ test.describe('v71 d2art artwork layer', () => {
       };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toContain('diablo2.io/images/avatars/gallery/');
+    expect(r.src).toMatch(/^https:\/\/diablo2\.io\/(images\/avatars\/gallery|styles\/zulu\/theme\/images\/items)\//);
     expect(r.hasFallback).toBe(true);
   });
 
@@ -131,6 +131,29 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.istSrc).toMatch(/runeIst_icon\.png$/);
     expect(r.jahImg).toBe(false);
     expect(r.jahName).toBe('Jah');
+  });
+
+  test('the material detail card renders artwork for a mapped sunder (Bone Break)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      (window as any).openDrop('Bone Break');
+      const panel = document.getElementById('item-detail');
+      const img = panel?.querySelector('.material-card .gic-header .d2art-img') as HTMLImageElement | null;
+      return { hasImg: !!img, src: img?.getAttribute('src') || '' };
+    });
+    expect(r.hasImg).toBe(true);
+    expect(r.src).toContain('diablo2.io/styles/zulu/theme/images/items/');
+    expect(r.src).toMatch(/bonebreakcharm/);
+  });
+
+  test('the rune detail card renders the rune icon for a mapped rune (Ist)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      (window as any).openDrop('Ist');
+      const panel = document.getElementById('item-detail');
+      const img = panel?.querySelector('.rune-card .gic-header .d2art-img') as HTMLImageElement | null;
+      return { hasImg: !!img, src: img?.getAttribute('src') || '' };
+    });
+    expect(r.hasImg).toBe(true);
+    expect(r.src).toMatch(/runeIst_icon\.png$/);
   });
 
   test('no console errors when opening art-bearing cards', async ({ page }) => {
