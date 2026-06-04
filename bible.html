@@ -577,6 +577,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rune-stash-cell.rs-high{border-left:3px solid var(--gold-bright)}
 .rune-stash-cell.rs-ultra{border-left:3px solid var(--uber)}
 .rune-stash-cell.rs-has{background:linear-gradient(180deg,rgba(240,192,96,.08),var(--surface-2))}
+/* d2art — real item/boss/rune artwork hotlinked from diablo2.io's avatar gallery, with emoji fallback */
+.d2art-wrap{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.d2art-wrap .d2art-img{display:block;object-fit:contain}
+.d2art-wrap .d2art-fallback{display:none;align-items:center;justify-content:center}
+.d2art-wrap.d2art-failed .d2art-img{display:none}
+.d2art-wrap.d2art-failed .d2art-fallback{display:inline-flex}
+.d2art-wrap.lg{width:54px;height:54px;flex:0 0 auto}
+.d2art-wrap.lg .d2art-img{max-width:54px;max-height:54px;filter:drop-shadow(0 0 10px rgba(240,192,96,.35))}
+.d2art-wrap.sm{width:22px;height:22px;flex:0 0 auto}
+.d2art-wrap.sm .d2art-img{max-width:22px;max-height:22px}
 .rs-name{font-weight:600;font-size:12px;color:var(--text);min-width:34px}
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -4337,6 +4347,210 @@ const RUNEWORDS = [
 window.RUNEWORDS = RUNEWORDS;
 
 const ITEMS = [];
+// === d2art: verified diablo2.io avatar-gallery artwork map (hotlinked, emoji fallback) ===
+// 184 entries auto-verified (HTTP 200 + image content-type) on 2026-06-04: ~181 unique/base
+// item icons, 32 runes, 3 super-uniques. Names absent here keep their emoji. Zero fabrication
+// — every URL was probed live and only kept if it resolved to a real image.
+const D2IO_ART = {
+  "Amn":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeAmn_icon.png",
+  "Andariel's Visage":"https://diablo2.io/images/avatars/gallery/0.%20Items/demonhead_icon.png",
+  "Arachnid Mesh":"https://diablo2.io/images/avatars/gallery/0.%20Items/arachnidmesh_icon.png",
+  "Arkaine's Valor":"https://diablo2.io/images/avatars/gallery/0.%20Items/balrogskin_icon.png",
+  "Athena's Wrath (set piece)":"https://diablo2.io/images/avatars/gallery/0.%20Items/athenaswrath_icon.png",
+  "Azurewrath":"https://diablo2.io/images/avatars/gallery/0.%20Items/azurewrath_icon.png",
+  "Bane Ash":"https://diablo2.io/images/avatars/gallery/0.%20Items/baneash_icon.png",
+  "Ber":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeBer_icon.png",
+  "Blackhand Key":"https://diablo2.io/images/avatars/gallery/0.%20Items/blackhandkey_icon.png",
+  "Blade of Ali Baba":"https://diablo2.io/images/avatars/gallery/0.%20Items/bladeofalibaba_icon.png",
+  "Bladebuckle":"https://diablo2.io/images/avatars/gallery/0.%20Items/bladebuckle_icon.png",
+  "Blastbark":"https://diablo2.io/images/avatars/gallery/0.%20Items/blastbark_icon.png",
+  "Blood Raven's Charge":"https://diablo2.io/images/avatars/gallery/0.%20Items/bloodravenscharge_icon.png",
+  "Bloodfist":"https://diablo2.io/images/avatars/gallery/0.%20Items/bloodfist_icon.png",
+  "Bloodrise":"https://diablo2.io/images/avatars/gallery/0.%20Items/bloodrise_icon.png",
+  "Boneflesh":"https://diablo2.io/images/avatars/gallery/0.%20Items/boneflesh_icon.png",
+  "Bonehew":"https://diablo2.io/images/avatars/gallery/0.%20Items/bonehew_icon.png",
+  "Bonesnap":"https://diablo2.io/images/avatars/gallery/0.%20Items/bonesnap_icon.png",
+  "Brainhew":"https://diablo2.io/images/avatars/gallery/0.%20Items/brainhew_icon.png",
+  "Butcher's Pupil":"https://diablo2.io/images/avatars/gallery/0.%20Items/butcherspupil_icon.png",
+  "Bverrit Keep":"https://diablo2.io/images/avatars/gallery/0.%20Items/bverritkeep_icon.png",
+  "Cerebus' Bite":"https://diablo2.io/images/avatars/gallery/0.%20Items/cerebusbite_icon.png",
+  "Cham":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeCham_icon.png",
+  "Chance Guards":"https://diablo2.io/images/avatars/gallery/0.%20Items/chanceguards_icon.png",
+  "Cliffkiller":"https://diablo2.io/images/avatars/gallery/0.%20Items/cliffkiller_icon.png",
+  "Coif of Glory":"https://diablo2.io/images/avatars/gallery/0.%20Items/coifofglory_icon.png",
+  "Coldkill":"https://diablo2.io/images/avatars/gallery/0.%20Items/coldkill_icon.png",
+  "Corpsemourn":"https://diablo2.io/images/avatars/gallery/0.%20Items/corpsemourn_icon.png",
+  "Crown of Ages":"https://diablo2.io/images/avatars/gallery/0.%20Items/crownofages_icon.png",
+  "Crown of Thieves":"https://diablo2.io/images/avatars/gallery/0.%20Items/crownofthieves_icon.png",
+  "Crushflange":"https://diablo2.io/images/avatars/gallery/0.%20Items/crushflange_icon.png",
+  "Darksight Helm":"https://diablo2.io/images/avatars/gallery/0.%20Items/darksighthelm_icon.png",
+  "Death's Web":"https://diablo2.io/images/avatars/gallery/0.%20Items/deathsweb_icon.png",
+  "Demon Machine":"https://diablo2.io/images/avatars/gallery/0.%20Items/demonmachine_icon.png",
+  "Demon's Arch":"https://diablo2.io/images/avatars/gallery/0.%20Items/demonsarch_icon.png",
+  "Dol":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeDol_icon.png",
+  "Doomslinger":"https://diablo2.io/images/avatars/gallery/0.%20Items/repeatingcrossbow_icon.png",
+  "Dracul's Grasp":"https://diablo2.io/images/avatars/gallery/0.%20Items/draculsgrasp_icon.png",
+  "Duriel's Shell":"https://diablo2.io/images/avatars/gallery/0.%20Items/durielsshell_icon.png",
+  "Duskdeep":"https://diablo2.io/images/avatars/gallery/0.%20Items/duskdeep_icon.png",
+  "Earth Shifter":"https://diablo2.io/images/avatars/gallery/0.%20Items/earthshifter_icon.png",
+  "El":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeEl_icon.png",
+  "Eld":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeEld_icon.png",
+  "Eth":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeEth_icon.png",
+  "Ethereal Edge":"https://diablo2.io/images/avatars/gallery/0.%20Items/etherealedge_icon.png",
+  "Executioner's Justice":"https://diablo2.io/images/avatars/gallery/0.%20Items/executionersjustice_icon.png",
+  "Fal":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeFal_icon.png",
+  "Felloak":"https://diablo2.io/images/avatars/gallery/0.%20Items/felloak_icon.png",
+  "Frostburn":"https://diablo2.io/images/avatars/gallery/0.%20Items/frostburn_icon.png",
+  "Ghostflame":"https://diablo2.io/images/avatars/gallery/0.%20Items/ghostflame_icon.png",
+  "Giant Skull":"https://diablo2.io/images/avatars/gallery/0.%20Items/giantskull_icon.png",
+  "Goblin Toe":"https://diablo2.io/images/avatars/gallery/0.%20Items/goblintoe_icon.png",
+  "Goldskin":"https://diablo2.io/images/avatars/gallery/0.%20Items/goldskin_icon.png",
+  "Goldstrike Arch":"https://diablo2.io/images/avatars/gallery/0.%20Items/goldstrikearch_icon.png",
+  "Goldwrap":"https://diablo2.io/images/avatars/gallery/0.%20Items/goldwrap_icon.png",
+  "Gorefoot":"https://diablo2.io/images/avatars/gallery/0.%20Items/gorefoot_icon.png",
+  "Gravenspine":"https://diablo2.io/images/avatars/gallery/0.%20Items/gravenspine_icon.png",
+  "Greyform":"https://diablo2.io/images/avatars/gallery/0.%20Items/greyform_icon.png",
+  "Griffon's Eye":"https://diablo2.io/images/avatars/gallery/0.%20Items/diadem_icon.png",
+  "Guardian Angel":"https://diablo2.io/images/avatars/gallery/0.%20Items/guardianangel_icon.png",
+  "Gul":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeGul_icon.png",
+  "Gull (dagger)":"https://diablo2.io/images/avatars/gallery/0.%20Items/dagger_icon.png",
+  "Harlequin Crest (Shako)":"https://diablo2.io/images/avatars/gallery/0.%20Items/harlequincrest_icon.png",
+  "Hawkmail":"https://diablo2.io/images/avatars/gallery/0.%20Items/hawkmail_icon.png",
+  "Headstriker":"https://diablo2.io/images/avatars/gallery/0.%20Items/headstriker_icon.png",
+  "Heavenly Garb":"https://diablo2.io/images/avatars/gallery/0.%20Items/heavenlygarb_icon.png",
+  "Hel":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeHel_icon.png",
+  "Hellclap":"https://diablo2.io/images/avatars/gallery/0.%20Items/hellclap_icon.png",
+  "Hellrack":"https://diablo2.io/images/avatars/gallery/0.%20Items/hellrack_icon.png",
+  "Hotspur":"https://diablo2.io/images/avatars/gallery/0.%20Items/hotspur_icon.png",
+  "Howltusk":"https://diablo2.io/images/avatars/gallery/0.%20Items/howltusk_icon.png",
+  "Iceblink":"https://diablo2.io/images/avatars/gallery/0.%20Items/iceblink_icon.png",
+  "Io":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeIo_icon.png",
+  "Iron Jang Bong":"https://diablo2.io/images/avatars/gallery/0.%20Items/warstaff_icon.png",
+  "Ironstone":"https://diablo2.io/images/avatars/gallery/0.%20Items/ironstone_icon.png",
+  "Ist":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeIst_icon.png",
+  "Ith":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeIth_icon.png",
+  "Jade Talon":"https://diablo2.io/images/avatars/gallery/0.%20Items/jadetalon_icon.png",
+  "Kira's Guardian":"https://diablo2.io/images/avatars/gallery/0.%20Items/tiara_icon.png",
+  "Ko":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeKo_icon.png",
+  "Kuko Shakaku":"https://diablo2.io/images/avatars/gallery/0.%20Items/kukoshakaku_icon.png",
+  "Lance Guard":"https://diablo2.io/images/avatars/gallery/0.%20Items/lanceguard_icon.png",
+  "Lance of Yaggai":"https://diablo2.io/images/avatars/gallery/0.%20Items/lanceofyaggai_icon.png",
+  "Lem":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeLem_icon.png",
+  "Lenymo":"https://diablo2.io/images/avatars/gallery/0.%20Items/sash_icon.png",
+  "Leviathan":"https://diablo2.io/images/avatars/gallery/0.%20Items/leviathan_icon.png",
+  "Lidless Wall":"https://diablo2.io/images/avatars/gallery/0.%20Items/lidlesswall_icon.png",
+  "Lightsabre":"https://diablo2.io/images/avatars/gallery/0.%20Items/lightsabre_icon.png",
+  "Lo":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeLo_icon.png",
+  "Lum":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeLum_icon.png",
+  "Maelstrom":"https://diablo2.io/images/avatars/gallery/0.%20Items/yewwand_icon.png",
+  "Magefist":"https://diablo2.io/images/avatars/gallery/0.%20Items/magefist_icon.png",
+  "Mal":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeMal_icon.png",
+  "Mang Song's Lesson":"https://diablo2.io/images/avatars/gallery/0.%20Items/mangsongslesson_icon.png",
+  "Nef":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeNef_icon.png",
+  "Nightsmoke":"https://diablo2.io/images/avatars/gallery/0.%20Items/nightsmoke_icon.png",
+  "Nightwing's Veil":"https://diablo2.io/images/avatars/gallery/0.%20Items/nightwingsveil_icon.png",
+  "Nihlathak":"https://diablo2.io/images/avatars/gallery/4.%20NPCs/Nihlathak.gif",
+  "Nosferatu's Coil":"https://diablo2.io/images/avatars/gallery/0.%20Items/nosferatuscoil_icon.png",
+  "Ohm":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeOhm_icon.png",
+  "Ormus' Robes":"https://diablo2.io/images/avatars/gallery/0.%20Items/ormusrobes_icon.png",
+  "Ort":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeOrt_icon.png",
+  "Pelta Lunata":"https://diablo2.io/images/avatars/gallery/0.%20Items/peltalunata_icon.png",
+  "Plague Bearer":"https://diablo2.io/images/avatars/gallery/0.%20Items/plaguebearer_icon.png",
+  "Pluckeye":"https://diablo2.io/images/avatars/gallery/0.%20Items/pluckeye_icon.png",
+  "Pul":"https://diablo2.io/images/avatars/gallery/0.%20Items/runePul_icon.png",
+  "Pus Spitter":"https://diablo2.io/images/avatars/gallery/0.%20Items/pusspitter_icon.png",
+  "Ral":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeRal_icon.png",
+  "Rattlecage":"https://diablo2.io/images/avatars/gallery/0.%20Items/rattlecage_icon.png",
+  "Raven Claw":"https://diablo2.io/images/avatars/gallery/0.%20Items/longbow_icon.png",
+  "Ribcracker":"https://diablo2.io/images/avatars/gallery/0.%20Items/ribcracker_icon.png",
+  "Riphook":"https://diablo2.io/images/avatars/gallery/0.%20Items/riphook_icon.png",
+  "Rockfleece":"https://diablo2.io/images/avatars/gallery/0.%20Items/rockfleece_icon.png",
+  "Rockstopper":"https://diablo2.io/images/avatars/gallery/0.%20Items/rockstopper_icon.png",
+  "Rogue's Bow":"https://diablo2.io/images/avatars/gallery/0.%20Items/compositebow_icon.png",
+  "Serpent Lord":"https://diablo2.io/images/avatars/gallery/0.%20Items/serpentlord_icon.png",
+  "Shadow Dancer":"https://diablo2.io/images/avatars/gallery/0.%20Items/shadowdancer_icon.png",
+  "Shadow Killer":"https://diablo2.io/images/avatars/gallery/0.%20Items/shadowkiller_icon.png",
+  "Shael":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeShae_icon.png",
+  "Silks of the Victor":"https://diablo2.io/images/avatars/gallery/0.%20Items/ancientarmor_icon.png",
+  "Snakecord":"https://diablo2.io/images/avatars/gallery/0.%20Items/snakecord_icon.png",
+  "Sol":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeSol_icon.png",
+  "Soul Drainer":"https://diablo2.io/images/avatars/gallery/0.%20Items/souldrainer_icon.png",
+  "Sparking Mail":"https://diablo2.io/images/avatars/gallery/0.%20Items/chainmail_icon.png",
+  "Steel Carapace":"https://diablo2.io/images/avatars/gallery/0.%20Items/steelcarapace_icon.png",
+  "Steel Shade":"https://diablo2.io/images/avatars/gallery/0.%20Items/steelshade_icon.png",
+  "Steelclash":"https://diablo2.io/images/avatars/gallery/0.%20Items/steelclash_icon.png",
+  "Steeldriver":"https://diablo2.io/images/avatars/gallery/0.%20Items/steeldriver_icon.png",
+  "Steelrend":"https://diablo2.io/images/avatars/gallery/0.%20Items/steelrend_icon.png",
+  "Stoneraven":"https://diablo2.io/images/avatars/gallery/0.%20Items/stoneraven_icon.png",
+  "Stormchaser":"https://diablo2.io/images/avatars/gallery/0.%20Items/stormchaser_icon.png",
+  "Stormguild":"https://diablo2.io/images/avatars/gallery/0.%20Items/stormguild_icon.png",
+  "Stormlash":"https://diablo2.io/images/avatars/gallery/0.%20Items/stormlash_icon.png",
+  "Stormrider":"https://diablo2.io/images/avatars/gallery/0.%20Items/stormrider_icon.png",
+  "Stormspike":"https://diablo2.io/images/avatars/gallery/0.%20Items/stormspike_icon.png",
+  "Stormstrike":"https://diablo2.io/images/avatars/gallery/0.%20Items/shortbattlebow_icon.png",
+  "Stoutnail":"https://diablo2.io/images/avatars/gallery/0.%20Items/stoutnail_icon.png",
+  "Sur":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeSur_icon.png",
+  "Swordguard":"https://diablo2.io/images/avatars/gallery/0.%20Items/swordguard_icon.png",
+  "Tal":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeTal_icon.png",
+  "Tarnhelm":"https://diablo2.io/images/avatars/gallery/0.%20Items/tarnhelm_icon.png",
+  "Tearhaunch":"https://diablo2.io/images/avatars/gallery/0.%20Items/tearhaunch_icon.png",
+  "Templar's Might":"https://diablo2.io/images/avatars/gallery/0.%20Items/templarsmight_icon.png",
+  "The Battlebranch":"https://diablo2.io/images/avatars/gallery/0.%20Items/poleaxe_icon.png",
+  "The Chieftain":"https://diablo2.io/images/avatars/gallery/0.%20Items/battleaxe_icon.png",
+  "The Countess":"https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/The_Countess.gif",
+  "The Diggler":"https://diablo2.io/images/avatars/gallery/0.%20Items/thediggler_icon.png",
+  "The Face of Horror":"https://diablo2.io/images/avatars/gallery/0.%20Items/mask_icon.png",
+  "The General's Tan Do Li Ga":"https://diablo2.io/images/avatars/gallery/0.%20Items/thegeneralstandoliga_icon.png",
+  "The Gnasher":"https://diablo2.io/images/avatars/gallery/0.%20Items/thegnasher_icon.png",
+  "The Grim Reaper":"https://diablo2.io/images/avatars/gallery/0.%20Items/warscythe_icon.png",
+  "The Hand of Broc":"https://diablo2.io/images/avatars/gallery/0.%20Items/thehandofbroc_icon.png",
+  "The Hand of Broc (gloves)":"https://diablo2.io/images/avatars/gallery/0.%20Items/thehandofbroc_icon.png",
+  "The Jade Tan Do":"https://diablo2.io/images/avatars/gallery/0.%20Items/thejadetando_icon.png",
+  "The Patriarch":"https://diablo2.io/images/avatars/gallery/0.%20Items/thepatriarch_icon.png",
+  "The Salamander":"https://diablo2.io/images/avatars/gallery/0.%20Items/thesalamander_icon.png",
+  "The Summoner":"https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/The_Summoner.gif",
+  "The Ward":"https://diablo2.io/images/avatars/gallery/0.%20Items/theward_icon.png",
+  "Thul":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeThul_icon.png",
+  "Thunderstroke":"https://diablo2.io/images/avatars/gallery/0.%20Items/thunderstroke_icon.png",
+  "Tir":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeTir_icon.png",
+  "Todesfaelle Flamme":"https://diablo2.io/images/avatars/gallery/0.%20Items/todesfaelleflamme_icon.png",
+  "Toothrow":"https://diablo2.io/images/avatars/gallery/0.%20Items/toothrow_icon.png",
+  "Torch of Iro":"https://diablo2.io/images/avatars/gallery/0.%20Items/wand_icon.png",
+  "Treads of Cthon":"https://diablo2.io/images/avatars/gallery/0.%20Items/treadsofcthon_icon.png",
+  "Twitchthroe":"https://diablo2.io/images/avatars/gallery/0.%20Items/twitchthroe_icon.png",
+  "Um":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeUm_icon.png",
+  "Umbral Disk":"https://diablo2.io/images/avatars/gallery/0.%20Items/umbraldisk_icon.png",
+  "Ume's Lament":"https://diablo2.io/images/avatars/gallery/0.%20Items/grimwand_icon.png",
+  "Undead Crown":"https://diablo2.io/images/avatars/gallery/0.%20Items/undeadcrown_icon.png",
+  "Vampire Gaze":"https://diablo2.io/images/avatars/gallery/0.%20Items/vampiregaze_icon.png",
+  "Veil of Steel":"https://diablo2.io/images/avatars/gallery/0.%20Items/veilofsteel_icon.png",
+  "Venom Ward":"https://diablo2.io/images/avatars/gallery/0.%20Items/breastplate_icon.png",
+  "Vex":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeVex_icon.png",
+  "Wall of the Eyeless":"https://diablo2.io/images/avatars/gallery/0.%20Items/walloftheeyeless_icon.png",
+  "Widowmaker":"https://diablo2.io/images/avatars/gallery/0.%20Items/widowmaker_icon.png",
+  "Wilhelm's Pride":"https://diablo2.io/images/avatars/gallery/0.%20Items/wilhelmspride_icon.png",
+  "Windforce":"https://diablo2.io/images/avatars/gallery/0.%20Items/windforce_icon.png",
+  "Windhammer":"https://diablo2.io/images/avatars/gallery/0.%20Items/windhammer_icon.png",
+  "Witherstring":"https://diablo2.io/images/avatars/gallery/0.%20Items/witherstring_icon.png",
+  "Wizendraw":"https://diablo2.io/images/avatars/gallery/0.%20Items/wizendraw_icon.png",
+  "Wormskull":"https://diablo2.io/images/avatars/gallery/0.%20Items/wormskull_icon.png",
+  "Wraith Flight":"https://diablo2.io/images/avatars/gallery/0.%20Items/wraithflight_icon.png",
+  "Zod":"https://diablo2.io/images/avatars/gallery/0.%20Items/runeZod_icon.png"
+};
+window.D2IO_ART = D2IO_ART;
+function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
+window.artUrl = artUrl;
+function _d2artEsc(s){ return String(s).replace(/"/g, '&quot;'); }
+// artOr(name, fallbackHtml, size) -> <img> art when we have a verified URL, else the
+// fallback markup (usually the existing emoji span). On a runtime load error the img hides
+// and the emoji fallback shows, so a card can never render a broken-image box.
+function artOr(name, fallbackHtml, size){
+  var u = artUrl(name);
+  if (!u) return fallbackHtml || '';
+  return `<span class="d2art-wrap ${size||'lg'}"><img class="d2art-img" src="${u}" alt="${_d2artEsc(name)}" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+}
+window.artOr = artOr;
+
 const ITEM_REGISTRY = {};
 BOSSES.forEach(boss => {
   boss.dropTable.forEach(d => {
@@ -5016,7 +5230,7 @@ function renderItemDetailCard(itemName) {
   panel.innerHTML = `
     <div class="gic-card">
       <header class="gic-header">
-        <span class="gic-emoji">${isStarred?'⭐':'🎯'}</span>
+        ${artOr(item.n, `<span class="gic-emoji">${isStarred?'⭐':'🎯'}</span>`, 'lg')}
         <div class="gic-id-block">
           <h2 class="gic-name">${item.n} ${tierBadge}${item.qlvl ? `<span class="gic-grail-badge" style="background:linear-gradient(135deg,#888,#555);color:#fff">qlvl ${item.qlvl}</span>`:''}${item.tc ? `<span class="gic-grail-badge" style="background:linear-gradient(135deg,#444,#222);color:#f0c060">TC${item.tc}</span>`:''}</h2>
           <div class="gic-subtitle">${itemInfo?.tagline || item.cat || ''}</div>
@@ -5488,7 +5702,7 @@ function renderBossDetailCard(bossId, focusDiff) {
 
   panel.innerHTML = `<div class="gbc-card">
     <header class="gbc-header boss-detail-header">
-      <span class="gbc-emoji">${boss.emoji}</span>
+      ${artOr(boss.name, `<span class="gbc-emoji">${boss.emoji}</span>`, 'lg')}
       <div class="gbc-id-block">
         <h2 class="gbc-name bd-name">${boss.name}</h2>
         <div class="gbc-subtitle">${boss.subtitle || ''}</div>
@@ -7073,6 +7287,7 @@ function renderRuneStash(){
     const c = _runeCount(r.n);
     const esc = r.n.replace(/'/g, "\\'");
     return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}">
+      ${artOr(r.n, '', 'sm')}
       <span class="rs-name">${r.n}</span>
       <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
       <span class="rs-count" data-rune-count="${r.n}">${c}</span>
