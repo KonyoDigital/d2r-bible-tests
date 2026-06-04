@@ -59,8 +59,12 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.mapped).toMatch(/onerror="this\.parentNode\.classList\.add\('d2art-failed'\)"/);
     expect(r.mapped).toContain('d2art-fallback');
     expect(r.mapped).toContain('FB');                    // fallback still embedded for the error path
-    // unmapped → just the fallback markup, no <img>
-    expect(r.unmapped).toBe('<span class="x">FB</span>');
+    // unmapped → a consistent d2art-failed wrapper around the fallback (no <img>), so the
+    // emoji/raw fallback renders via CSS just like a mapped name whose image fails to load
+    expect(r.unmapped).toContain('d2art-wrap');
+    expect(r.unmapped).toContain('d2art-failed');
+    expect(r.unmapped).toContain('<span class="x">FB</span>');
+    expect(r.unmapped).not.toContain('<img');
   });
 
   test('the item ID-card renders real artwork for a mapped item', async ({ page }) => {
@@ -210,7 +214,7 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.Pindleskin).toMatch(/reanimatedhorde-opt_graphic\.png$/);
   });
 
-  test('the boss-nav chips show portrait art for mapped bosses, emoji for unmapped (Andariel)', async ({ page }) => {
+  test('the boss-nav chips show verified portrait art for every boss (incl. Andariel)', async ({ page }) => {
     await page.click('.tab[data-tab="bosses"]');
     await page.waitForTimeout(200);
     const r = await page.evaluate(() => {
@@ -228,8 +232,10 @@ test.describe('v71 d2art artwork layer', () => {
         mephText: meph?.textContent?.trim() || '',
         baalImg: !!baal?.querySelector('.d2art-img'),
         baalSrc: (baal?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('src') || '',
-        andaImg: !!anda?.querySelector('.d2art-img'),   // Andariel has no diablo2.io portrait → emoji only
-        andaEmoji: !!anda?.querySelector('.emoji'),
+        // Andariel's case-sensitive portrait (Andariel_graphic.png) was verified live on
+        // diablo2.io — every boss now carries real art, so her chip has an <img> too.
+        andaImg: !!anda?.querySelector('.d2art-img'),
+        andaSrc: (anda?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('src') || '',
         andaText: anda?.textContent?.trim() || '',
       };
     });
@@ -239,8 +245,8 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.mephText).toContain('Mephisto');   // name still rendered alongside the art
     expect(r.baalImg).toBe(true);
     expect(r.baalSrc).toMatch(/baal-opt_graphic\.png$/);
-    expect(r.andaImg).toBe(false);
-    expect(r.andaEmoji).toBe(true);
+    expect(r.andaImg).toBe(true);
+    expect(r.andaSrc).toMatch(/Andariel_graphic\.png$/);
     expect(r.andaText).toContain('Andariel');
   });
 

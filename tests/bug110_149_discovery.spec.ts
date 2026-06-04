@@ -110,9 +110,12 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     const total = await page.locator('#item-grid .item-tile').count();
     const grailPill = page.locator('.filter-pill[data-filter="grail"]');
     if (await grailPill.count()) {
-      await grailPill.click();
+      // v44: the sticky page header overlaps the filter-pill row at scroll y=0, so a real
+      // pixel .click() is intercepted (layout artifact, not a wiring bug). Fire the click
+      // via evaluate (BUG-013 / BUG-119 pattern) to exercise the actual filter logic.
+      await page.evaluate(() => (document.querySelector('.filter-pill[data-filter="grail"]') as HTMLElement)?.click());
       await page.waitForTimeout(200);
-      await page.locator('.filter-pill[data-filter="all"]').click();
+      await page.evaluate(() => (document.querySelector('.filter-pill[data-filter="all"]') as HTMLElement)?.click());
       await page.waitForTimeout(200);
       const after = await page.locator('#item-grid .item-tile:visible').count();
       expect(after).toBe(total);

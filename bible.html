@@ -2395,11 +2395,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <table class="sunder-tbl">
           <thead><tr><th>#</th><th>Name</th><th>Drops</th></tr></thead>
           <tbody>
-            <tr><td>1</td><td>Herald of Fright</td><td class="rec">normal drops</td></tr>
-            <tr><td>2</td><td>Herald of Dread</td><td class="rec">normal drops</td></tr>
-            <tr><td>3</td><td>Herald of Fear</td><td class="rec">normal drops + 1 extra item</td></tr>
-            <tr><td>4</td><td>Herald of Horror</td><td class="rec">normal drops + 1 extra item</td></tr>
-            <tr><td>5 · apex</td><td><strong>Herald of Terror</strong></td><td class="rec"><strong>normal drops + 2 extra items</strong> — every spawn after is a Terror</td></tr>
+            <tr><td>1</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Fright')">Herald of Fright →</td><td class="rec">normal drops</td></tr>
+            <tr><td>2</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Dread')">Herald of Dread →</td><td class="rec">normal drops</td></tr>
+            <tr><td>3</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Fear')">Herald of Fear →</td><td class="rec">normal drops + 1 extra item</td></tr>
+            <tr><td>4</td><td class="zd-item-click" style="cursor:pointer;font-weight:600" onclick="openDrop('Herald of Horror')">Herald of Horror →</td><td class="rec">normal drops + 1 extra item</td></tr>
+            <tr><td>5 · apex</td><td class="zd-item-click" style="cursor:pointer" onclick="openDrop('Herald of Terror')"><strong>Herald of Terror →</strong></td><td class="rec"><strong>normal drops + 2 extra items</strong> — every spawn after is a Terror</td></tr>
           </tbody>
         </table>
       </section>
@@ -3546,6 +3546,68 @@ function runeDetailHtml(name){
     <div class="zd-note">⚠ Stats above are the canonical D2R rune values. Countess Hell rates come from this app's published Countess table; other tiers are sourced qualitatively (Travincal / Hellforge / LK / TZ) — runes aren't MF-scaled and exact per-source odds beyond the Countess are not cleanly published and are not fabricated here. Runes are not part of the 312-item grail count.</div>
   </div>`;
 }
+// Herald ladder — the 5 RotW Hell-TZ superunique tiers (Fright → Dread → Fear →
+// Horror → Terror). Each is now a clickable ID card routed through openDrop, just
+// like a material. Data mirrors the in-app Herald ladder table verbatim — no new
+// facts, no fabricated odds. All 5 share the same Latent Sunder Charm drop pool.
+const HERALD_TIERS = [
+  { n: 'Herald of Fright', tier: 1, drops: 'normal drops' },
+  { n: 'Herald of Dread',  tier: 2, drops: 'normal drops' },
+  { n: 'Herald of Fear',   tier: 3, drops: 'normal drops + 1 extra item' },
+  { n: 'Herald of Horror', tier: 4, drops: 'normal drops + 1 extra item' },
+  { n: 'Herald of Terror', tier: 5, drops: 'normal drops + 2 extra items — every spawn after is a Terror', apex: true },
+];
+window.HERALD_TIERS = HERALD_TIERS;
+function findHeraldTier(name){
+  if (!name) return null;
+  const q = _norm(name);
+  return HERALD_TIERS.find(t => _norm(t.n) === q) || null;
+}
+window.findHeraldTier = findHeraldTier;
+function heraldTierDetailHtml(name){
+  const t = findHeraldTier(name); if (!t) return '';
+  const idx = HERALD_TIERS.indexOf(t);
+  const next = HERALD_TIERS[idx + 1];
+  const climb = t.apex
+    ? "You're at the apex — every Herald that spawns after this is another Terror."
+    : `Kill this one and the next Herald to spawn is <strong>${next.n}</strong> (tier ${next.tier}).`;
+  const sunderChips = ['Bone Break','Black Cleft','Crack of the Heavens','Cold Rupture','Flame Rift','Rotting Fissure']
+    .map(sn => { const e = sn.replace(/'/g, "\\'"); return `<span class="zd-item-click" style="cursor:pointer;font-weight:600;color:var(--uber);border:1px solid var(--border);border-radius:6px;padding:3px 8px" onclick="window.openDrop('${e}')" title="open the ${sn} card">${sn} →</span>`; })
+    .join('');
+  return `<div class="gic-card material-card herald-tier-card">
+    <header class="gic-header">
+      <span class="gic-emoji">👹</span>
+      <div class="gic-id-block">
+        <h2 class="gic-name">${t.n} <span class="gic-grail-badge" style="background:linear-gradient(135deg,#7a3a3a,#3a1212);color:#ffd0d0">Herald tier ${t.tier}${t.apex ? ' · apex' : ''}</span></h2>
+        <div class="gic-subtitle">Hell-TZ superunique · rung ${t.tier} of the 5-tier Herald ladder · drops Latent Sunder Charms</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">drops: ${t.drops}</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">feeds → Sunder Charms</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">🎯 What it is</div>
+      <div style="font-size:13.5px;line-height:1.6">A roaming Hell-TZ superunique — rung <strong>${t.tier}</strong> of the Herald ladder (Fright → Dread → Fear → Horror → Terror). It spawns inside the active <strong>Hell Terror Zone</strong> after you kill enough monsters, then hunts you across the map. Every tier carries an aura and can drop <strong>Latent Sunder Charms</strong> + the occasional <strong>Worldstone Shard</strong>; higher tiers drop more.</div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">📈 Climbing the ladder</div>
+      <div class="zd-row"><span class="zd-k">this rung</span><span class="zd-v">tier ${t.tier} · ${t.drops}</span></div>
+      <div class="zd-row"><span class="zd-k">next spawn</span><span class="zd-v">${climb}</span></div>
+      <div class="zd-row"><span class="zd-k">where</span><span class="zd-v">Hell Terror Zones only — never Normal/NM, never outside a TZ</span></div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">💎 What it drops — the 6 Latent Sunder Charms</div>
+      <div style="font-size:13.5px;line-height:1.6;margin-bottom:6px">Each breaks one immunity to ~95% resist. Click one to open its card:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${sunderChips}</div>
+    </section>
+    <div class="zd-note">⚠ Heralds are RotW superunique monsters, not part of the 312-item grail count. Tier behaviour mirrors the in-app Herald ladder; no fabricated odds.</div>
+  </div>`;
+}
+window.heraldTierDetailHtml = heraldTierDetailHtml;
 // Unified router: grail item → calc golden card (navigateToItem); SPECIAL_DROPS
 // material → material golden card; rune label → rune golden card. One click
 // target for any drop, anywhere on the site.
@@ -3562,6 +3624,18 @@ window.__alignCard = function(sel){
 };
 window.openDrop = function(name){
   if (!name) return;
+  // Herald-tier first: the 5 ladder rungs (Fright→Terror) are exact-match monster
+  // entities, disjoint from runes/materials/items — route them to their tier card.
+  if (findHeraldTier(name)){
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = heraldTierDetailHtml(name); }
+    __alignCard('#item-detail .herald-tier-card');
+    return;
+  }
   // Rune-first: findRune is an EXACT (normalized) match and is disjoint from every
   // material name, so it must run BEFORE findMaterial's loose substring fallback —
   // short rune names collide as substrings of materials (Hel→Hellfire Torch,
@@ -4299,7 +4373,7 @@ const TZ_ZONES = [
 // hard onerror keeps a 404 from ever showing a broken-image box (the banner just hides).
 const TZ_ART_BASE = "https://diablo2.io/styles/zulu/theme/images/items/";
 const TZ_ZONE_ART = {
-  "Flayer Dungeon L3": "banners/act3-flayerdungeon.jpg",
+  "Flayer Dungeon L3": "act3-flayerdungeon",
   "Crystalline Passage + Frozen River": "act5-crystallinepassage",
   "Bloody Foothills + Frigid Highlands + Abaddon": "act5-bloodyfoothills",
   "Worldstone Keep L1-L3": "act5-worldstonekeep",
@@ -7854,6 +7928,8 @@ function renderHeraldCard(){
   if (!tb) return;
   // header emblem: the verified Bone Break Latent Sunder Charm graphic (the Herald's
   // signature drop) with the 👹 emoji as the never-broken fallback.
+  // The monster card intentionally keeps the 👹 glyph — diablo2.io has no real Herald
+  // portrait, and the Sunder charm graphic is the drop, not the monster's face. (v72:38)
   const emblem = document.getElementById('herald-emblem');
   if (emblem && emblem.tagName === 'SPAN') {
     const wrap = document.createElement('span');
@@ -9452,6 +9528,18 @@ _v41_whenReady(() => {
           keywords: 'material ' + nm.toLowerCase() + ' ' + (cat.label || '').toLowerCase() + ' ' + meta.kw,
           action: () => { if (window.openDrop) window.openDrop(nm); }
         });
+      });
+    });
+    // Herald ladder — the 5 Hell-TZ superunique tiers, each searchable and routed
+    // to its own tier ID card via openDrop (the Sunder-source roster).
+    const HT = (typeof HERALD_TIERS !== 'undefined') ? HERALD_TIERS : [];
+    HT.forEach(t => {
+      cmds.push({
+        icon: '👹', label: t.n,
+        sub: `Herald tier ${t.tier}${t.apex ? ' · apex' : ''} · Sunder source`,
+        cat: 'herald', hint: t.drops,
+        keywords: 'herald tier sunder superunique terror zone ' + t.n.toLowerCase() + ' ' + t.tier,
+        action: () => { if (window.openDrop) window.openDrop(t.n); }
       });
     });
     return cmds;
