@@ -2507,7 +2507,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
   </div>
-  <h2 class="statue-head zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:9px" onclick="openDrop('Colossal Ancient Statue')"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click for ID card →</span></h2>
+  <h2 class="statue-head zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:9px" onclick="openDrop('Colossal Ancient Statue')"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click for ID card →</span></h2>
   <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → Colossal Summit.</div>
   <div class="statue-progress">
     <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Progress:</span>
@@ -5079,7 +5079,7 @@ function _d2artEsc(s){ return String(s).replace(/"/g, '&quot;'); }
 function artOr(name, fallbackHtml, size){
   var u = artUrl(name);
   if (!u) return `<span class="d2art-wrap ${size||'lg'} d2art-failed"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
-  return `<span class="d2art-wrap ${size||'lg'}"><img class="d2art-img" src="${u}" alt="${_d2artEsc(name)}" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+  return `<span class="d2art-wrap ${size||'lg'}"><img class="d2art-img" src="${u}" alt="${_d2artEsc(name)}" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
 window.artOr = artOr;
 
