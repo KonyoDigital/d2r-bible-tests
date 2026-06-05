@@ -6199,7 +6199,7 @@ function renderBossDetailCard(bossId, focusDiff) {
     <section class="gbc-section">
       <div class="gbc-section-header-row">
         <div class="gbc-section-label">💎 your top 15 grail picks from this boss · @${mf}% MF · sorted by hours-to-50%</div>
-        <button class="gbc-section-link" onclick="clearActiveBoss();setTimeout(()=>{const el=document.getElementById('${boss.id}');if(el){el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)" title="See every drop across all 6 difficulties — sortable + filterable">View Full Drop Table →</button>
+        <button class="gbc-section-link" onclick="clearActiveBoss();setTimeout(()=>{document.querySelectorAll('#boss-cards .boss-card.bd-open').forEach(c=>{c.classList.remove('bd-open');c.classList.add('collapsed')});const el=document.getElementById('${boss.id}');if(el){el.classList.remove('collapsed');el.classList.add('bd-open');el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)" title="See every drop across all 6 difficulties — sortable + filterable">View Full Drop Table →</button>
       </div>
       ${top15Html}
     </section>
@@ -6255,7 +6255,7 @@ function renderBossDetailCard(bossId, focusDiff) {
           }).join('');
         })()}</tbody>
       </table></div>
-      <button class="gbc-close" onclick="clearActiveBoss();setTimeout(()=>{const el=document.getElementById('${boss.id}');if(el){el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)">↓ scroll to full filterable drop table</button>
+      <button class="gbc-close" onclick="clearActiveBoss();setTimeout(()=>{document.querySelectorAll('#boss-cards .boss-card.bd-open').forEach(c=>{c.classList.remove('bd-open');c.classList.add('collapsed')});const el=document.getElementById('${boss.id}');if(el){el.classList.remove('collapsed');el.classList.add('bd-open');el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)">↓ scroll to full filterable drop table</button>
     </section>
   </div>`;
   panel.classList.add('show');
@@ -10994,15 +10994,16 @@ html { scroll-behavior: smooth; }
 
 /* ════════ BOSS LIST — collapse to clickable title rows (TZ-style accordion) ════════ */
 #boss-cards .boss-card .boss-body { display: none !important; }
+#boss-cards .boss-card.bd-open .boss-body { display: block !important; }
 #boss-cards .boss-card {
   margin: 0 0 8px 0 !important;
   border: 1px solid var(--rule-color) !important;
   border-radius: 4px !important;
   overflow: hidden;
   background: var(--surface) !important;
-  transition: border-color .12s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
-#boss-cards .boss-card:hover { border-color: var(--gold-dim) !important; }
+#boss-cards .boss-card:hover { border-color: var(--gold) !important; box-shadow: 0 0 20px rgba(201,161,74,.16), inset 0 0 0 1px rgba(201,161,74,.34) !important; transform: translateY(-1px); }
 #boss-cards .boss-header { cursor: pointer; padding: 14px 20px !important; transition: background .12s ease; }
 #boss-cards .boss-header:hover { background: rgba(255,212,128,.06) !important; }
 #boss-cards .boss-name { font-size: 19px !important; }
