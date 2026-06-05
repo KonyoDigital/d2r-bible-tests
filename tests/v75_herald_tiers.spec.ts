@@ -39,8 +39,18 @@ test.describe('v75 Herald tiers are searchable + clickable ID cards', () => {
   test('each Herald tier is searchable', async ({ page }) => {
     for (const nm of TIERS) {
       const hits = await search(page, nm);
-      expect(hits.some((h) => h.lab.includes(nm) && /herald/i.test(h.cat))).toBe(true);
+      // The apex (Herald of Terror) is searched via its dedicated RotW card command
+      // (cat 'rotw'); the 4 lower rungs via the tier loop (cat 'herald').
+      expect(hits.some((h) => h.lab.includes(nm) && /herald|rotw/i.test(h.cat))).toBe(true);
     }
+  });
+
+  test('only ONE Herald of Terror search result (no leaner duplicate)', async ({ page }) => {
+    const hits = await search(page, 'Herald of Terror');
+    // lab text = label + ' ' + sub; the apex label is the only one starting with
+    // "Herald of Terror" (other rungs are Fright/Dread/Fear/Horror).
+    const apex = hits.filter((h) => h.lab.startsWith('Herald of Terror'));
+    expect(apex.length).toBe(1);
   });
 
   test('searching a tier and picking it opens its tier card', async ({ page }) => {
@@ -63,13 +73,26 @@ test.describe('v75 Herald tiers are searchable + clickable ID cards', () => {
     expect(r.sunderChips).toBeGreaterThanOrEqual(6); // the 6 Latent Sunder Charm chips
   });
 
-  test('the apex Terror card states every spawn after is a Terror', async ({ page }) => {
+  test('openDrop(apex) routes to the RICH dedicated RotW card (not the lean tier card)', async ({ page }) => {
     await page.evaluate(() => (window as any).openDrop('Herald of Terror'));
-    await page.waitForTimeout(250);
-    const txt = await page.evaluate(() =>
-      document.getElementById('item-detail')?.querySelector('.herald-tier-card')?.textContent || '');
-    expect(txt).toMatch(/apex/i);
-    expect(txt).toMatch(/every Herald that spawns after this is another Terror/i);
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(() => {
+      const rotw = document.getElementById('tab-rotw');
+      const card = document.getElementById('herald-card');
+      const sec = card?.closest('.sec-body') as HTMLElement | null;
+      // the lean tier card must NOT be what rendered for the apex anymore
+      const leanShown = !!document.getElementById('item-detail')?.querySelector('.herald-tier-card');
+      return {
+        rotwActive: !!rotw?.classList.contains('active'),
+        sectionOpen: !!sec && !sec.hasAttribute('hidden'),
+        richName: card?.querySelector('.gbc-name')?.textContent?.trim() || '',
+        leanShown,
+      };
+    });
+    expect(r.rotwActive).toBe(true);
+    expect(r.sectionOpen).toBe(true);
+    expect(r.richName).toMatch(/Herald of Terror/);
+    expect(r.leanShown).toBe(false);
   });
 
   test('a non-apex card names the next rung up', async ({ page }) => {
