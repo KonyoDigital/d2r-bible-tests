@@ -32,22 +32,22 @@ test.describe('v50 P# slider explainer + breakpoint math', () => {
     expect(t.toLowerCase()).not.toContain('undefined');
   });
 
-  test('all 4 tiers present; @ /p8 multipliers match k=5; only Open Vault is P#-proof', async ({ page }) => {
+  test('all 4 tiers present; @ /p8 multipliers match k=5; only Guaranteed droppers is P#-proof', async ({ page }) => {
     const rows = await page.evaluate(() =>
       [...document.querySelectorAll('#tab-ref table.drops tbody tr')]
         .map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent!.trim())));
     expect(rows.length).toBe(4);
     const byTier = Object.fromEntries(rows.map((r) => [r[0], r]));
-    const swarm = Object.keys(byTier).find((k) => /Swarm/.test(k))!;
-    const hoarders = Object.keys(byTier).find((k) => /Hoarders/.test(k))!;
+    const swarm = Object.keys(byTier).find((k) => /High-density/.test(k))!;
+    const hoarders = Object.keys(byTier).find((k) => /Heavy droppers/.test(k))!;
     const prime = Object.keys(byTier).find((k) => /Prime Evils/.test(k))!;
-    const vault = Object.keys(byTier).find((k) => /Open Vault/.test(k))!;
+    const vault = Object.keys(byTier).find((k) => /Guaranteed droppers/.test(k))!;
     expect(swarm && hoarders && prime && vault).toBeTruthy();
     // k=5 @ /p8 values
     expect(byTier[swarm].at(-1)).toContain('×2.41');
     expect(byTier[hoarders].at(-1)).toMatch(/×1\.39.1\.5[23]/); // 1.39–1.52 (tolerate 1.53 display rounding)
     expect(byTier[prime].at(-1)).toContain('×1.22');
-    // only the Open Vault is P#-proof
+    // only the Guaranteed droppers tier is P#-proof
     expect(byTier[vault].at(-1)).toContain('P#-PROOF');
     expect(byTier[swarm].at(-1)).not.toContain('P#-PROOF');
     expect(byTier[prime].at(-1)).not.toContain('P#-PROOF');

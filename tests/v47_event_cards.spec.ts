@@ -103,4 +103,39 @@ test.describe('v47 event cards — pinnacle events expand inline like boss/TZ de
       document.querySelectorAll('#tab-ancients .colossal').length);
     expect(stray).toBe(0);
   });
+
+  // v79 — the 5 themed event cards carry a verified diablo2.io art emblem in the
+  // header (matching the boss/rune-source cards), with the original emoji kept as
+  // the never-broken d2art-fallback. Seasonal "22 Nights" has no item art → emoji.
+  test('themed event headers carry verified diablo2.io art logos with emoji fallback', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const want: Record<string, { art: RegExp; emoji: string }> = {
+        'event-uber-tristram':    { art: /hellfiretorch_graphic\.png$/, emoji: '🌀' },
+        'event-uber-id-cards':    { art: /baal-opt_graphic\.png$/,      emoji: '👹' },
+        'event-cow-level':        { art: /hellbovine_graphic\.png$/,    emoji: '🐄' },
+        'event-diablo-clone':     { art: /diablo_graphic\.png$/,        emoji: '🌑' },
+        'event-colossal-ancients':{ art: /talic-opt_graphic\.png$/,     emoji: '⚡' },
+      };
+      return Object.entries(want).map(([id, w]) => {
+        const head = document.querySelector(`#${id} .event-card-head`)!;
+        const logo = head.querySelector('.ec-logo .d2art-img') as HTMLImageElement | null;
+        const fb = head.querySelector('.ec-logo .d2art-fallback .ec-emoji');
+        return {
+          id,
+          artOk: !!logo && w.art.test(logo.getAttribute('src') || ''),
+          itemsPath: !!logo && /diablo2\.io\/styles\/zulu\/theme\/images\/items\//.test(logo.getAttribute('src') || ''),
+          emojiOk: (fb?.textContent || '').trim() === w.emoji,
+        };
+      });
+    });
+    for (const row of r) {
+      expect(row.artOk, `${row.id} art`).toBe(true);
+      expect(row.itemsPath, `${row.id} items-path`).toBe(true);
+      expect(row.emojiOk, `${row.id} emoji fallback`).toBe(true);
+    }
+    // seasonal 22 Nights keeps its plain emoji title (no fabricated art)
+    const seasonalHasLogo = await page.evaluate(() =>
+      !!document.querySelector('#event-22-nights .ec-logo'));
+    expect(seasonalHasLogo).toBe(false);
+  });
 });
