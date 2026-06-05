@@ -6472,7 +6472,7 @@ const EXCLUSIVE_DROPS = {
   countess:{item:'Key of Terror', note:'One of the 3 Pandemonium keys — drops ONLY from the Countess (Hell). Your gateway to Uber Tristram.'},
   summoner:{item:'Key of Hate', note:'One of the 3 Pandemonium keys — drops ONLY from the Summoner (Hell). Your gateway to Uber Tristram.'},
   nihl:{item:'Key of Destruction', note:'One of the 3 Pandemonium keys — drops ONLY from Nihlathak (Hell). Your gateway to Uber Tristram.'},
-  dclone:{item:'Annihilus', note:'The ONLY source of the Annihilus charm in the game — +1 all skills, +10–20 all stats & resists. Flat drop, every kill.'}
+  dclone:{item:'Annihilus', note:'The ONLY source of the Annihilus charm — +1 all skills, +10–20 all attributes, +10–20 all resists, +5–10% experience. Flat drop, every kill.'}
 };
 // Drop-scaling classes — single source of truth, shared by renderBossNav (chips)
 // and renderBossCards (card sections) so both mirror the same grouping.
@@ -8192,6 +8192,8 @@ window.UBER_BOSSES = UBER_BOSSES;
 function renderUberBossCards(){
   const box = document.getElementById('uber-boss-cards');
   if (!box) return;
+  const GROUP_LABEL = {'Mini-Uber · Pandemonium portal':'🩸 Pandemonium Mini-Ubers — each drops one of the 3 organs','Uber Tristram trio':'🔥 Uber Tristram Trio — drop the Hellfire Torch + Standard of Heroes','Colossal Ancient · RotW pinnacle':'👑 Colossal Ancients — RotW pinnacle · drop the Colossal Jewels'};
+  let _lastG = '';
   box.innerHTML = UBER_BOSSES.map((b) => {
     const url = 'https://diablo2.io/styles/zulu/theme/images/items/' + b.art;
     const emblem = '<span class="d2art-wrap lg"><img class="d2art-img" src="' + url + '" alt="' + b.name + '" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="ubc-emoji">' + b.emoji + '</span></span></span>';
@@ -8205,7 +8207,8 @@ function renderUberBossCards(){
       + '<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:2px 7px;border-radius:4px;white-space:nowrap;margin-right:7px">🏆 ONLY DROPS HERE</span>'
       + '<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:14px" onclick="window.openDrop(\'' + _item.replace(/'/g, "\\'") + '\')">' + _item + ' →</span>'
       + '<div style="color:var(--gold-dim);font-size:11.5px;margin-top:4px">' + _note + '</div></div>';
-    return '<div class="uber-boss-card" id="uberboss-' + b.id + '" data-boss="' + b.id + '">'
+    let _hdr = ''; if (b.group !== _lastG) { _lastG = b.group; _hdr = '<div class="ubc-group-head" style="grid-column:1/-1;width:100%;box-sizing:border-box;margin:18px 0 8px;font-size:13px;font-weight:700;letter-spacing:.3px;color:var(--gold);border-bottom:1px solid rgba(201,161,74,.2);padding-bottom:6px">' + (GROUP_LABEL[b.group] || b.group) + '</div>'; }
+    return _hdr + '<div class="uber-boss-card" id="uberboss-' + b.id + '" data-boss="' + b.id + '">'
       + '<div class="ubc-head" onclick="window.toggleUberBoss(\'' + b.id + '\')" role="button" tabindex="0" aria-expanded="false">'
       + emblem
       + '<div class="ubc-titles"><div class="ubc-name">' + b.name + '</div><div class="ubc-sub">' + b.group + ' · ' + b.role + '</div></div>'
