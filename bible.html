@@ -8196,9 +8196,15 @@ function renderUberBossCards(){
     const url = 'https://diablo2.io/styles/zulu/theme/images/items/' + b.art;
     const emblem = '<span class="d2art-wrap lg"><img class="d2art-img" src="' + url + '" alt="' + b.name + '" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="ubc-emoji">' + b.emoji + '</span></span></span>';
     const abil = b.abil.map((a) => '<li>' + a + '</li>').join('');
-    const dropRow = b.drop
-      ? '<div class="ubc-drop">🫀 Drops <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop(\'' + b.drop.replace(/'/g, "\\'") + '\')">' + b.drop + ' →</span></div>'
-      : '<div class="ubc-drop">🔥 Part of the trio → Standard of Heroes → <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop(\'Hellfire Torch\')">Hellfire Torch →</span></div>';
+    const isAncient = b.group && b.group.indexOf('Colossal') !== -1;
+    const _item = b.drop ? b.drop : 'Hellfire Torch';
+    const _note = b.drop
+      ? (isAncient ? 'Dropped only at the Colossal Summit — the RotW pinnacle reward.' : 'The only source of this organ — cube all 3 organs to open the Uber Tristram portal.')
+      : 'Drops alongside the <strong>Standard of Heroes</strong> (event proof). The Uber Tristram trio is the <em>only</em> source of the Torch.';
+    const dropRow = '<div class="ubc-drop" style="border:1px solid var(--gold);border-radius:8px;padding:9px 11px;background:linear-gradient(135deg,rgba(201,161,74,.13),rgba(201,161,74,.03))">'
+      + '<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:2px 7px;border-radius:4px;white-space:nowrap;margin-right:7px">🏆 ONLY DROPS HERE</span>'
+      + '<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:14px" onclick="window.openDrop(\'' + _item.replace(/'/g, "\\'") + '\')">' + _item + ' →</span>'
+      + '<div style="color:var(--gold-dim);font-size:11.5px;margin-top:4px">' + _note + '</div></div>';
     return '<div class="uber-boss-card" id="uberboss-' + b.id + '" data-boss="' + b.id + '">'
       + '<div class="ubc-head" onclick="window.toggleUberBoss(\'' + b.id + '\')" role="button" tabindex="0" aria-expanded="false">'
       + emblem
