@@ -2013,6 +2013,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="runes">🪨 runes</button>
     <button class="tab" data-tab="rotw">👑 RotW special</button>
     <button class="tab" data-tab="ancients">🔥 events</button>
+    <button class="tab" data-tab="endgame">⛓️ endgame</button>
     <button class="tab" data-tab="binds">🔱 binds</button>
     <button class="tab" data-tab="ref">📐 reference</button>
   </div>
@@ -2851,6 +2852,79 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
 
 </div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     ENDGAME · The Road to the Hellfire Torch (storyline tab)
+     ════════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-endgame">
+  <div id="endgame-road"></div>
+</div>
+
+<style>
+/* ═══ Endgame relics + signature top-drop emphasis (2026-06-05) ═══════
+   The pinnacle event drops — Pandemonium keys, Uber organs, Sunder charms,
+   the Hellfire Torch, Annihilus, Colossal Jewels — get a shared gold aura +
+   slow pulse wherever they appear site-wide. markEndgameRelics() tags each
+   element by its openDrop() target (data-honest, central, no per-site edits).
+   Plus a definitive SIGNATURE-DROP banner on the boss/level id card it falls
+   from, and the dedicated "Road to the Hellfire Torch" storyline tab. */
+@keyframes relicTextGlow{0%{text-shadow:0 0 1px rgba(240,200,110,.20)}100%{text-shadow:0 0 8px rgba(240,200,110,.62),0 0 2px rgba(240,200,110,.5)}}
+@keyframes relicArtGlow{0%{filter:drop-shadow(0 0 1px rgba(240,200,110,.45))}100%{filter:drop-shadow(0 0 7px rgba(240,200,110,.9))}}
+.endgame-relic{animation:relicTextGlow 2.3s ease-in-out infinite alternate}
+.endgame-relic .d2art-img{animation:relicArtGlow 2.3s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.endgame-relic,.endgame-relic .d2art-img{animation:none!important;text-shadow:0 0 6px rgba(240,200,110,.5)}}
+
+@keyframes sigSheen{0%{background-position:-180% 0}100%{background-position:280% 0}}
+.sig-drop{position:relative;overflow:hidden;display:flex;flex-wrap:wrap;align-items:center;gap:9px 13px;cursor:pointer;
+  padding:13px 16px;border:1px solid var(--gold);border-radius:11px;
+  background:linear-gradient(135deg,rgba(201,161,74,.18),rgba(201,161,74,.04));
+  box-shadow:0 0 22px rgba(201,161,74,.16),inset 0 0 0 1px rgba(201,161,74,.22)}
+.sig-drop::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,235,170,.16) 50%,transparent 60%);
+  background-size:220% 100%;animation:sigSheen 4.6s ease-in-out infinite}
+.sig-drop .sig-art{width:46px;height:46px;flex:0 0 auto}
+.sig-drop .sig-art .d2art-img{max-width:46px;max-height:46px}
+.sig-drop .sig-badge{position:relative;z-index:1;font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#100c05;
+  background:linear-gradient(135deg,#f4d617,#c9a14a);padding:3px 9px;border-radius:5px;white-space:nowrap}
+.sig-drop .sig-name{position:relative;z-index:1;font-weight:800;color:var(--gold-bright);font-size:16px}
+.sig-drop .sig-note{position:relative;z-index:1;color:var(--gold-dim);font-size:12.5px;flex:1 1 220px;line-height:1.42}
+@media (prefers-reduced-motion:reduce){.sig-drop::after{animation:none}}
+
+/* ── The Road to the Hellfire Torch — endgame storyline tab ── */
+#tab-endgame .road-hero{text-align:center;padding:26px 18px 18px;border:1px solid var(--gold);border-radius:14px;
+  background:radial-gradient(120% 140% at 50% 0,rgba(201,161,74,.14),rgba(20,14,8,.2));margin-bottom:8px}
+#tab-endgame .road-hero h1{font-family:var(--serif-display);font-size:30px;color:var(--gold-bright);margin:0 0 8px;letter-spacing:.5px}
+#tab-endgame .road-hero p{font-family:var(--serif-text,Georgia,serif);font-style:italic;color:var(--text-muted);max-width:72ch;margin:0 auto;font-size:14.5px;line-height:1.6}
+#tab-endgame .road-stage{margin:22px 0}
+#tab-endgame .road-step{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold)}
+#tab-endgame .road-step .road-n{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid var(--gold);border-radius:50%;font-size:12px;color:var(--gold-bright);flex:0 0 auto}
+#tab-endgame .road-nodes{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+#tab-endgame .road-node{display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;cursor:pointer;
+  padding:15px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);transition:border-color .18s,transform .18s,box-shadow .18s}
+#tab-endgame .road-node:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.4)}
+#tab-endgame .road-node .rn-art{width:52px;height:52px}
+#tab-endgame .road-node .rn-art .d2art-img{max-width:52px;max-height:52px}
+#tab-endgame .road-node .rn-name{font-weight:700;color:var(--gold-bright);font-size:14.5px}
+#tab-endgame .road-node .rn-src{font-size:11.5px;color:var(--text-muted);line-height:1.4}
+#tab-endgame .road-node .rn-rate{font-size:10.5px;color:var(--gold);font-family:var(--mono);letter-spacing:.3px}
+#tab-endgame .road-cube{text-align:center;margin:13px 0 0;font-size:12.5px;color:var(--text-muted);line-height:1.5}
+#tab-endgame .road-cube code{background:var(--surface-2);color:var(--gold-bright);padding:3px 9px;border-radius:5px;font-size:12px}
+#tab-endgame .road-arrow{text-align:center;color:var(--gold);font-size:20px;line-height:1;margin:8px 0;opacity:.8}
+#tab-endgame .road-final{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;text-align:left;cursor:pointer;
+  padding:20px;border:1px solid var(--gold);border-radius:14px;margin:4px 0 8px;
+  background:radial-gradient(130% 170% at 50% 0,rgba(240,120,40,.16),rgba(201,161,74,.05))}
+#tab-endgame .road-final .rf-art{width:64px;height:64px;flex:0 0 auto}
+#tab-endgame .road-final .rf-art .d2art-img{max-width:64px;max-height:64px}
+#tab-endgame .road-final .rf-name{font-family:var(--serif-display);font-size:24px;color:var(--gold-bright)}
+#tab-endgame .road-final .rf-sub{font-size:12.5px;color:var(--text-muted);max-width:62ch;line-height:1.45}
+#tab-endgame .road-section-h{font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin:30px 0 12px;border-bottom:1px solid rgba(201,161,74,.2);padding-bottom:7px}
+#tab-endgame .road-branches{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+#tab-endgame .road-branch{cursor:pointer;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);transition:border-color .18s,transform .18s}
+#tab-endgame .road-branch:hover{border-color:var(--gold);transform:translateY(-2px)}
+#tab-endgame .road-branch h3{margin:0 0 6px;font-family:var(--serif-display);font-size:17px;color:var(--gold-bright)}
+#tab-endgame .road-branch p{margin:0;font-size:12.5px;color:var(--text-muted);line-height:1.5}
+@media (max-width:640px){#tab-endgame .road-nodes,#tab-endgame .road-branches{grid-template-columns:1fr}}
+</style>
 
 <style>
 /* ═══ Binds tab · typographic rhythm pass — 2026-05-29 ═══════════════
@@ -5009,6 +5083,88 @@ function artOr(name, fallbackHtml, size){
 }
 window.artOr = artOr;
 
+// ═══ Endgame relics — site-wide emphasis on the top-tier event drops ═══════
+// The Pandemonium keys, Uber organs, Sunder charms, Hellfire Torch, Annihilus and
+// Colossal Jewels are the game's pinnacle "you came here for THIS" drops. The names
+// below are the canonical in-game item names already used by openDrop()/SPECIAL_DROPS
+// (nothing invented). markEndgameRelics() tags every element that routes to one — via
+// its openDrop() target — with .endgame-relic, so the shared gold pulse lights them up
+// wherever they render (boss cards, zone tables, the events tab, search) with zero
+// per-site edits. A MutationObserver re-applies it as dynamic content mounts.
+const ENDGAME_RELICS = new Set([
+  'Key of Terror','Key of Hate','Key of Destruction',
+  "Diablo's Horn","Mephisto's Brain","Baal's Eye",
+  'Hellfire Torch','Annihilus','Colossal Ancient Jewels',
+  'Bone Break','Black Cleft','Crack of the Heavens','Cold Rupture','Flame Rift','Rotting Fissure'
+]);
+window.ENDGAME_RELICS = ENDGAME_RELICS;
+function isEndgameRelic(name){ return !!name && ENDGAME_RELICS.has(String(name).trim()); }
+window.isEndgameRelic = isEndgameRelic;
+function markEndgameRelics(root){
+  const scope = (root && root.querySelectorAll) ? root : document;
+  scope.querySelectorAll('[onclick*="openDrop"]').forEach(el => {
+    if (el.classList.contains('endgame-relic')) return;
+    const oc = (el.getAttribute('onclick') || '').replace(/\\/g, ''); // drop \' escaping
+    for (const r of ENDGAME_RELICS){
+      if (oc.indexOf("openDrop('" + r + "')") !== -1 || oc.indexOf('openDrop("' + r + '")') !== -1){ el.classList.add('endgame-relic'); break; }
+    }
+  });
+}
+window.markEndgameRelics = markEndgameRelics;
+(function relicObserver(){
+  let queued = false;
+  const run = () => { queued = false; try { markEndgameRelics(document); } catch(e){} };
+  const start = () => {
+    markEndgameRelics(document);
+    new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(run); })
+      .observe(document.body, { childList:true, subtree:true });
+  };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+
+// The Road to the Hellfire Torch — the endgame storyline tab. Every drop node is
+// clickable and routes to its full card; data is cross-referenced with the events
+// tables above (keys ~10% Hell /p3+, organs 100% per kill).
+function renderEndgameRoad(){
+  const box = document.getElementById('endgame-road');
+  if (!box) return;
+  const node = (item, emoji, src, rate) =>
+    '<div class="road-node" role="button" tabindex="0" onclick="window.openDrop(\'' + item.replace(/'/g, "\\'") + '\')">'
+    + '<div class="rn-art">' + artOr(item, emoji, 'lg') + '</div>'
+    + '<div class="rn-name">' + item + '</div>'
+    + '<div class="rn-src">' + src + '</div>'
+    + '<div class="rn-rate">' + rate + '</div></div>';
+  const keys = node('Key of Terror','🔑','Hell Countess · Forgotten Tower L5','~10% · Hell · /p3+')
+    + node('Key of Hate','🔑','Hell Summoner · Arcane Sanctuary','~10% · Hell · /p3+')
+    + node('Key of Destruction','🔑','Hell Nihlathak · Halls of Vaught','~10% · Hell · /p3+');
+  const organs = node("Diablo's Horn",'🩸',"Lilith · Matron's Den",'100% per kill')
+    + node("Mephisto's Brain",'🩸','Uber Izual · Furnace of Pain','100% per kill')
+    + node("Baal's Eye",'🩸','Uber Duriel · Forgotten Sands','100% per kill');
+  box.innerHTML =
+    '<div class="road-hero"><h1>⛓️ The Road to the Hellfire Torch</h1>'
+    + '<p>The deepest endgame chain in the game, end to end. Three Pandemonium keys open the mini-uber portals; three organs open Uber Tristram; the trio drops the Torch. Two pinnacle side-paths — the Diablo Clone and the Colossal Ancients — branch off the same journey. Every drop below is clickable and routes to its full card.</p></div>'
+    + '<div class="road-stage"><div class="road-step"><span class="road-n">1</span>Farm the three Pandemonium keys</div><div class="road-nodes">' + keys + '</div>'
+    + '<div class="road-cube">cube <code>1× Key of Terror + 1× Key of Hate + 1× Key of Destruction</code> → one <strong>random</strong> mini-uber portal (run 3 full sets for all 3 organs)</div></div>'
+    + '<div class="road-arrow">▼</div>'
+    + '<div class="road-stage"><div class="road-step"><span class="road-n">2</span>Kill the mini-ubers for the three organs</div><div class="road-nodes">' + organs + '</div>'
+    + '<div class="road-cube">cube <code>Diablo\'s Horn + Mephisto\'s Brain + Baal\'s Eye</code> → the <strong>Uber Tristram</strong> red portal</div></div>'
+    + '<div class="road-arrow">▼</div>'
+    + '<div class="road-final" role="button" tabindex="0" onclick="window.openDrop(\'Hellfire Torch\')"><div class="rf-art">' + artOr('Hellfire Torch','🔥','lg') + '</div>'
+    + '<div><div class="rf-name">🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
+    + '<div class="road-section-h">Pinnacle side-paths off the same road</div>'
+    + '<div class="road-branches">'
+    + '<div class="road-branch" role="button" tabindex="0" onclick="window.openDrop(\'Annihilus\')"><h3>🌑 Diablo Clone → Annihilus</h3><p>A world event triggered by mass Stone of Jordan sales. Über Diablo spawns; killing him drops the <strong>Annihilus</strong> — the only small charm with +1–2 all skills, all-resist and all-stats. Every kill drops one.</p></div>'
+    + '<div class="road-branch" role="button" tabindex="0" onclick="window.openDrop(\'Colossal Ancient Jewels\')"><h3>👑 Colossal Ancients → Colossal Jewels</h3><p>The RotW pinnacle. Collect 5 Colossal Statues, cube the <strong>Colossal Summit</strong>, and beat Talic / Korlic / Madawc to claim the <strong>Colossal Ancient Jewels</strong> (lvl-75).</p></div>'
+    + '</div>'
+    + '<div class="road-section-h">The other endgame relics</div>'
+    + '<div class="road-branches">'
+    + '<div class="road-branch" role="button" tabindex="0" onclick="window.openDrop(\'Herald of Terror\')"><h3>🔥 Herald of Terror</h3><p>The RotW apex super-unique. The five-rung Herald ladder (Fright → Terror) scales loot and is the gateway to the Sunder charms. Opens the Herald card.</p></div>'
+    + '<div class="road-branch" role="button" tabindex="0" onclick="window.switchTab&&window.switchTab(\'rotw\')"><h3>⚔️ Sunder Charms</h3><p>Six element-piercing grand charms (Bone Break, Black Cleft, Crack of the Heavens, Cold Rupture, Flame Rift, Rotting Fissure) — cube Worldstone Shards into a Latent Sunder, then upgrade to a Renewed Sunder. Opens the RotW tab.</p></div>'
+    + '</div>';
+  markEndgameRelics(box);
+}
+window.renderEndgameRoad = renderEndgameRoad;
+
 const ITEM_REGISTRY = {};
 BOSSES.forEach(boss => {
   boss.dropTable.forEach(d => {
@@ -6174,11 +6330,12 @@ function renderBossDetailCard(bossId, focusDiff) {
     </header>
 
     ${(typeof EXCLUSIVE_DROPS!=='undefined' && EXCLUSIVE_DROPS[boss.id]) ? `<section class="gbc-section">
-      <div class="gbc-section-label">🏆 exclusive drop</div>
-      <div onclick="event.stopPropagation();window.openDrop('${EXCLUSIVE_DROPS[boss.id].item}')" style="cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;padding:12px 15px;border:1px solid var(--gold);border-radius:10px;background:linear-gradient(135deg,rgba(201,161,74,.15),rgba(201,161,74,.04));box-shadow:0 0 18px rgba(201,161,74,.13),inset 0 0 0 1px rgba(201,161,74,.22)">
-        <span style="font-size:10.5px;font-weight:800;letter-spacing:.5px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:3px 9px;border-radius:5px;white-space:nowrap">ONLY DROPS HERE</span>
-        <span style="font-weight:700;color:var(--gold);font-size:15px">${EXCLUSIVE_DROPS[boss.id].item} →</span>
-        <span style="color:var(--gold-dim);font-size:12.5px;flex:1 1 220px;line-height:1.4">${EXCLUSIVE_DROPS[boss.id].note}</span>
+      <div class="gbc-section-label">🏆 signature drop</div>
+      <div class="sig-drop endgame-relic" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${EXCLUSIVE_DROPS[boss.id].item.replace(/'/g,"\\'")}')">
+        <span class="sig-art">${artOr(EXCLUSIVE_DROPS[boss.id].item, '🏆', 'lg')}</span>
+        <span class="sig-badge">★ ONLY DROPS HERE</span>
+        <span class="sig-name">${EXCLUSIVE_DROPS[boss.id].item} →</span>
+        <span class="sig-note">${EXCLUSIVE_DROPS[boss.id].note}</span>
       </div>
     </section>` : ''}
 
@@ -8557,6 +8714,7 @@ renderStatueTracker();
 renderMaterialStash();
 renderHeraldCard();
 renderUberBossCards();
+renderEndgameRoad();
 renderTzZones();
 renderSuperUniques();
 renderSetTracker();
