@@ -6462,11 +6462,11 @@ function tagTzZonesWithBossId() {
 // Drop-scaling classes — single source of truth, shared by renderBossNav (chips)
 // and renderBossCards (card sections) so both mirror the same grouping.
 const PLAYER_TIERS = [
-  {name:'PANDEMONIUM KEYS', cls:'pt-keys',   members:['countess','summoner','nihl'],  tag:'The three Uber Tristram keys. Cube 1 of each key &rarr; 1 random mini-uber portal (Lilith / Duriel / Izual); repeat ~3× for all 3 organs &rarr; cube them for the Uber Tristram red portal &rarr; Hellfire Torch.'},
-  {name:'THE SWARM',       cls:'pt-swarm',  members:['pit','cows'],                   tag:'Open hordes, high NoDrop — every extra player floods the field with drops.'},
-  {name:'THE HOARDERS',    cls:'pt-fisted', members:['andariel','travincal'], tag:'They clutch their loot — more players pries it loose.'},
-  {name:'THE PRIME EVILS', cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers. Low NoDrop — a crowd barely swells the hoard.'},
-  {name:'THE OPEN VAULT',  cls:'pt-vault',  members:['duriel','pindle'],   tag:'Always spills its full table — P# adds only HP, never loot.'}
+  {name:'ACT BOSSES',      cls:'pt-vault',  members:['andariel','duriel'],            tag:'The early-act bosses — Andariel (Act 1) and Duriel (Act 2). Quick, guaranteed full drops on every kill.'},
+  {name:'THE PRIME EVILS', cls:'pt-prime',  members:['mephisto','diablo','baal'],     tag:'The three brothers — Mephisto (Act 3), Diablo (Act 4), Baal (Act 5). The deepest endgame treasure pools.'},
+  {name:'SUPER-UNIQUES',   cls:'pt-fisted', members:['travincal','pindle'],           tag:'Elite farm targets — the Travincal council (high-rune king) and Pindleskin (fastest run in the game).'},
+  {name:'HIGH-DENSITY ZONES', cls:'pt-swarm', members:['pit','cows'],                 tag:'Not bosses — packed lvl-85 zones. The Pit and the Cow Level rain loot, and more players means more drops.'},
+  {name:'PANDEMONIUM KEYS', cls:'pt-keys',  members:['countess','summoner','nihl'],   tag:'The three Uber Tristram keys — Terror, Hate, Destruction. Cube one of each &rarr; a mini-uber portal; collect all three organs &rarr; the Uber Tristram red portal. (See the UBER bosses below.)'},
 ];
 function renderBossNav() {
   const __bossOf = {};
