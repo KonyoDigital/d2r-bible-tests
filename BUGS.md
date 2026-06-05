@@ -138,6 +138,10 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 # Regression log (post-ship breakages caught by CI)
 
+> **Companion docs (cross-referenced):** `GAME_RULES.md` (durable RoW game-truth +
+> drop-odds provenance) · `BUILD_LOG.md` (dated ship/decision log + key invariants).
+> Append every post-ship breakage here as `REG-NNN`.
+
 Format: what broke · how it was caught · root cause · fix · prevention.
 
 ## REG-001 — 2026-06-05 · artOr() lazy-load strip → calc-grid load storm

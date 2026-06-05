@@ -113,3 +113,49 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
 - **Every build session / decision** → dated `BUILD_LOG.md` entry.
 - **Durable game facts** → here (`GAME_RULES.md`).
 - Maintained continuously by CC's Obsidian logging loop (every ~2h).
+
+---
+
+## Drop-odds architecture & data provenance (how the numbers are derived)
+> The single most important "don't re-derive this" fact. ZERO fabrication: every
+> odds cell traces to a source below; un-sourced numbers are marked qualitative.
+
+- `BOSSES[].dropTable` (JSON, ~line 2638) holds the FULL TC-reachable grail pool
+  per boss (~300 items, NOT a curated top-N). The calc grid reads it live.
+- **RoW, not vanilla.** Konyo plays Reign of the Warlock. All unique/set rows were
+  repulled from silospen's live JSON API (`dropcalc.silospen.com/dropcalc.php`,
+  `version=D2R_ROW_3_0`, query `monsterProbabilities`, **MF=300, players=1** — that
+  combo matches the bible's stored-base reference). Commit `13f8e94` rewrote 1,975
+  rows across 8 farmable bosses.
+- **RoW anchors (verified cells — update `tests/02_verified_anchors.spec.ts` if these
+  ever change):** Meph/Hell/Shako **1:836** · NM Anda/SoJ **1:2,286** · Hell Anda/BK
+  **1:4,080**. (Old vanilla values 912 / 1,617 / 2,721 are SUPERSEDED.)
+- Per-boss act-boss/minion odds = Mephisto's rarity column × one constant scalar
+  (proven by median=min ratio); only Countess/Travincal/Cows/Pit got per-item tuning.
+- **Still vanilla-calibrated (pending separate RoW passes):** event drops (Key of
+  Hate 36% / Annihilus 12%), ALL TZ columns (normTz/nmTz/hellTz), runes (Ist etc.
+  ignore MF), travincal/cows/pit. silospen does TZ via `desecrated=true&desecratedLevel=N`.
+- **Materials are NOT MF-scaled and NOT in the 312-item grail count** (sunders,
+  shards, statues, jewels, keys, organs, essences). Their per-kill figures are
+  community estimates (silospen / d2runewizard / diablo2.io / Maxroll), never invented.
+- **Integrity gate** = `baseline/integrity_baseline.json` probes (312 items, 11 bosses,
+  drop probes) checked by `routine-l-integrity.yml` — NOT a file md5 hash. UI-only
+  edits that don't touch BOSSES data stay green. Baseline mirrors anchors (e.g.
+  `probe_meph_shako.hell` = 836).
+
+## Live deploy + CI (cost-free; no AWS/Achilles)
+- Live: `https://bull-4-u.com/d2r/` — Cloudflare **Pages** project `d2r-bible`
+  (free tier), serves `d2r-bible.pages.dev`; apex `/` → 302 → `/d2r/` via `_redirects`.
+- Deploy is **MANUAL direct-upload** (project `source: None` — a `git push` does NOT
+  build the site): `cp bible.html /tmp/d2r_dist/d2r/index.html && cd /tmp/d2r_dist &&
+  set -a && . ~/.config/cf-d2r/env && set +a && npx wrangler@latest pages deploy .
+  --project-name=d2r-bible --branch=main`. Then verify md5 parity:
+  `curl -s -A 'Mozilla/5.0' https://bull-4-u.com/d2r/ | md5 -q` == `md5 -q bible.html`.
+- Edge does NOT cache HTML (`cf-cache-status: DYNAMIC`) — a stale view is the user's
+  browser cache (⌘⇧R fixes it).
+- Repo `KonyoDigital/d2r-bible-tests` is **PUBLIC** → free/unlimited GitHub Actions
+  (all routines run free). Konyo will not pay for CI. If a billing-block annotation
+  reappears, confirm the repo is still public (it's account-level, not a code regression).
+- Pre-push hook (`core.hooksPath=hooks`) runs a smoke gate
+  (`01_smoke + v71_d2art + v74_material_search + v80_endgame_relics`) before pushes
+  touching `bible.html`/specs. CI (Routine I) is the BACKSTOP, not the gate.

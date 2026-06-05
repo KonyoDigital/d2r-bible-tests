@@ -2,8 +2,11 @@
 
 > **Purpose:** a single Obsidian-friendly log so understanding is **never lost in
 > context** between Claude Code (CC), Claude Desktop, and Konyo. Append a dated
-> entry whenever something ships or a decision is made. Pairs with `BUGS.md`
-> (the regression log). Maintained continuously by CC's logging loop.
+> entry whenever something ships or a decision is made. Maintained continuously by
+> CC's logging loop.
+>
+> **Companion docs (cross-referenced):** `GAME_RULES.md` (durable RoW game-truth +
+> drop-odds provenance + deploy/CI facts) · `BUGS.md` (regression log, `REG-NNN`).
 
 ## How the agents split work
 - **Desktop** = visuals/features; often pushes straight to `main` WITHOUT running
