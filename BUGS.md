@@ -133,3 +133,31 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
   - TZ→boss routing, calc tile→detail, source-chip plain & Cmd+click routing
   - MF/Players sliders no errors; overlay switch ≠ stack
 - Total project tests: **97 passing** (73 original + 24 route-audit), 1 skipped, 0 failing
+
+---
+
+# Regression log (post-ship breakages caught by CI)
+
+Format: what broke · how it was caught · root cause · fix · prevention.
+
+## REG-001 — 2026-06-05 · artOr() lazy-load strip → calc-grid load storm
+- **Symptom**: Routine I (Playwright) shard 3/3 failed — 3 tests red:
+  v71_d2art `calc grid tiles` + `boss-nav chips` (assert `loading="lazy"`),
+  v74_material_search `Colossal Ancient Statues header` (assert `loading="lazy"`).
+- **Caught by**: scheduled CI run (push commit `4b80ba5`, headSha) — NOT a local run.
+- **Root cause**: commit `4b80ba5` ("eager-load the 8 boss-card portraits" for a
+  Safari rendering fix) dropped `loading="lazy"` from the **central `artOr()` helper**
+  and the statue `<h2>` header — far wider scope than "8 portraits". That eager-loaded
+  the hundreds of calc-grid item images (a load-time storm) and broke the tested
+  lazy invariant in 3 places. **The commit was pushed to `main` without running the
+  full Playwright suite** (the BULLETPROOF mandate) — that is the real gap.
+- **Fix**: commit `74ae7f3` — restored `loading="lazy"` in `artOr()` + the statue
+  head. Kept the 7 *targeted* static eager-loads Desktop added (Countess card header
+  + 5 event-card logos): no test asserts `loading` on them, and those are the actual
+  in-hidden-tab portraits Safari failed to render. 391 passed / 1 skipped local, green.
+- **Prevention**: (1) ALWAYS run `npx playwright test` to green BEFORE pushing — esp.
+  any edit to a *central* helper (`artOr`, `openDrop`, `switchTab`), whose blast radius
+  is site-wide. (2) Editing a shared template means re-running the whole suite, not just
+  the spec you think you touched. (3) CI (Routine I) is the backstop, not the gate —
+  treat a red scheduled run as a real regression first, re-run the failing spec in
+  isolation to rule out suite-tail fatigue (this one reproduced in isolation = real).
