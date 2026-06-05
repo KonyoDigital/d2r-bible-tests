@@ -2676,10 +2676,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <!-- ════════════════════════════════════════════════════════════════
        UBER BOSS ID CARDS (9) — 3 mini-ubers + 3 Tristram trio + 3 Colossal Ancients
        ════════════════════════════════════════════════════════════════ -->
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)">👹 Uber Boss ID Cards <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace">9 cards · 3 mini-ubers · 3 Tristram trio · 3 Colossal Ancients</span> <span class="sec-chev">▾</span></h2>
-  <div class="sec-body" hidden>
-    <div class="lead">Every pinnacle boss on the road to the <strong>Hellfire Torch</strong> and the <strong>Colossal Jewels</strong> — stat-carded from verified monster data (diablo2.io · Arreat Summit). Tap a card to expand; organ / torch / jewel drops route to their material cards.</div>
-    <div id="uber-boss-cards"></div>
+  <div class="event-card" id="event-uber-id-cards">
+    <div class="event-card-head" onclick="toggleEventCard('event-uber-id-cards')" role="button" tabindex="0" aria-expanded="false">
+      <div class="ec-titles"><div class="ec-title">👹 Uber Boss ID Cards</div><div class="ec-sub">9 stat-carded pinnacle bosses · 3 Pandemonium mini-ubers · 3 Tristram trio · 3 Colossal Ancients</div></div>
+      <div class="ec-chevron">▾</div>
+    </div>
+    <div class="event-card-body" hidden>
+      <div class="lead">Every pinnacle boss on the road to the <strong>Hellfire Torch</strong> and the <strong>Colossal Jewels</strong> — stat-carded from verified monster data (diablo2.io · Arreat Summit). Tap a card to expand; organ / torch / jewel drops route to their material cards.</div>
+      <div id="uber-boss-cards"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════
@@ -8246,8 +8251,8 @@ function jumpToUberBoss(id){
   setTimeout(function(){
     const card = document.getElementById('uberboss-' + id);
     if (!card) return;
-    const sec = card.closest('.sec-body');
-    if (sec && sec.hasAttribute('hidden')) { const h = sec.previousElementSibling; if (h && window.toggleSec) window.toggleSec(h); }
+    const sec = card.closest('.event-card-body');
+    if (sec && sec.hasAttribute('hidden')) { const ec = sec.closest('.event-card'); if (ec && window.toggleEventCard) window.toggleEventCard(ec.id); }
     const body = card.querySelector('.ubc-body');
     if (body && body.hasAttribute('hidden')) toggleUberBoss(id);
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
