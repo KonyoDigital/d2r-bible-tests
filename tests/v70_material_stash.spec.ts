@@ -28,9 +28,12 @@ test.describe('v70 material stash + uber planner', () => {
       // every material name must come straight from a SPECIAL_DROPS item (no fabrication)
       const allSdNames = new Set<string>();
       ['key', 'organ', 'essence', 'worldstoneShard', 'sunder'].forEach((c) => (SD[c]?.items || []).forEach((i: any) => allSdNames.add(i.n)));
-      // every recipe ingredient must be a real tracked material
+      // every recipe ingredient must be a real tracked material; the category-based
+      // recipes (needCat) reference a SPECIAL_DROPS category rather than named items.
       const matNames = new Set(M.map((m) => m.n));
-      const recipeKeysValid = R.every((rc) => Object.keys(rc.need).every((n) => matNames.has(n)));
+      const recipeKeysValid = R.every((rc) => rc.need
+        ? Object.keys(rc.need).every((n) => matNames.has(n))
+        : Array.isArray(rc.needCat) && rc.needCat.every((c: any) => c.key in SD));
       return {
         len: M.length,
         allFromSd: M.every((m) => allSdNames.has(m.n)),
@@ -44,7 +47,7 @@ test.describe('v70 material stash + uber planner', () => {
     expect(r.len).toBe(21);                       // 3 keys + 3 organs + 4 essences + 5 shards + 6 sunders
     expect(r.allFromSd).toBe(true);
     expect(r.cats).toEqual(['Pandemonium Keys', 'Uber Organs', 'Essences', 'Worldstone Shards', 'Sunder Charms']);
-    expect(r.recipeNames).toEqual(['Pandemonium Portal', 'Uber Tristram', 'Token of Absolution']);
+    expect(r.recipeNames).toEqual(['Pandemonium Portal', 'Uber Tristram', 'Token of Absolution', 'Latent Sunder (cube 3 shards)', 'Renewed Sunder (upgrade a Latent)']);
     expect(r.recipeKeysValid).toBe(true);
     expect(r.fns.every((t) => t === 'function')).toBe(true);
   });
@@ -115,7 +118,7 @@ test.describe('v70 material stash + uber planner', () => {
     expect(r.readyNames).not.toContain('Token of Absolution');
   });
 
-  test('the planner DOM shows ready vs needed lines and the X/3 header count', async ({ page }) => {
+  test('the planner DOM shows ready vs needed lines and the X/5 header count', async ({ page }) => {
     await page.click('#material-stash-card .boss-header');
     const r = await page.evaluate(() => {
       ['Essence of Suffering', 'Essence of Hatred', 'Essence of Terror', 'Essence of Destruction']
@@ -130,7 +133,7 @@ test.describe('v70 material stash + uber planner', () => {
         tristText: tristRow.querySelector('.rw-recipe')!.textContent!.trim(),
       };
     });
-    expect(r.head).toMatch(/1\/3/);                     // only Token ready
+    expect(r.head).toMatch(/1\/5/);                     // only Token ready (of 5 recipes)
     expect(r.tokenReady).toBe(true);
     expect(r.tokenText).toMatch(/ready now/);
     expect(r.tristText).toMatch(/need .*Horn/);          // still missing organs

@@ -114,8 +114,8 @@ test.describe('v71 d2art artwork layer', () => {
       return { hasImg: !!img, src: img?.getAttribute('src') || '' };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toContain('diablo2.io/images/avatars/gallery/');
-    expect(r.src).toMatch(/Countess/);
+    expect(r.src).toContain('diablo2.io/styles/zulu/theme/images/items/');
+    expect(r.src).toMatch(/countess/i);
   });
 
   test('rune-stash cells show rune icons for mapped runes, name-only for unmapped (Jah)', async ({ page }) => {

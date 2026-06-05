@@ -22,11 +22,11 @@ test.describe('v77 crystal-ball shard outcomes + RotW accuracy', () => {
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(5);
     const map = Object.fromEntries(data.map((s: any) => [s.n, { act: s.act, sunder: s.sunder, el: s.el }]));
-    expect(map['Western Worldstone Shard']).toMatchObject({ act: 'Act 1', sunder: 'Rotting Fissure', el: 'poison' });
-    expect(map['Eastern Worldstone Shard']).toMatchObject({ act: 'Act 2', sunder: 'Cold Rupture', el: 'cold' });
-    expect(map['Southern Worldstone Shard']).toMatchObject({ act: 'Act 3', sunder: 'Crack of the Heavens', el: 'lightning' });
-    expect(map['Deep Worldstone Shard']).toMatchObject({ act: 'Act 4', sunder: 'Flame Rift', el: 'fire' });
-    expect(map['Northern Worldstone Shard']).toMatchObject({ act: 'Act 5', sunder: 'Bone Break', el: 'physical' });
+    expect(map['Worldstone Shard (Western)']).toMatchObject({ act: 'Act 1', sunder: 'Rotting Fissure', el: 'poison' });
+    expect(map['Worldstone Shard (Eastern)']).toMatchObject({ act: 'Act 2', sunder: 'Cold Rupture', el: 'cold' });
+    expect(map['Worldstone Shard (Southern)']).toMatchObject({ act: 'Act 3', sunder: 'Crack of the Heavens', el: 'lightning' });
+    expect(map['Worldstone Shard (Deep)']).toMatchObject({ act: 'Act 4', sunder: 'Flame Rift', el: 'fire' });
+    expect(map['Worldstone Shard (Northern)']).toMatchObject({ act: 'Act 5', sunder: 'Bone Break', el: 'physical' });
   });
 
   test('renderShardCrystal renders the crystal panel inside the material planner', async ({ page }) => {
@@ -51,10 +51,10 @@ test.describe('v77 crystal-ball shard outcomes + RotW accuracy', () => {
 
   test('tallying a shard lights its row (.has); untallied rows stay .dim', async ({ page }) => {
     const r = await page.evaluate(() => {
-      (window as any).adjustMaterialStash('Deep Worldstone Shard', 2);
+      (window as any).adjustMaterialStash('Worldstone Shard (Deep)', 2);
       const box = document.getElementById('material-craftable')!;
-      const deep = box.querySelector('.shard-out[data-shard="Deep Worldstone Shard"]')!;
-      const west = box.querySelector('.shard-out[data-shard="Western Worldstone Shard"]')!;
+      const deep = box.querySelector('.shard-out[data-shard="Worldstone Shard (Deep)"]')!;
+      const west = box.querySelector('.shard-out[data-shard="Worldstone Shard (Western)"]')!;
       return {
         deepHas: deep.classList.contains('has'),
         deepCnt: deep.querySelector('.shard-out-cnt')?.textContent?.trim(),
@@ -74,9 +74,9 @@ test.describe('v77 crystal-ball shard outcomes + RotW accuracy', () => {
   test('shard name and Sunder name both route to their material cards', async ({ page }) => {
     // shard name → shard card
     const shard = await page.evaluate(() => {
-      (window as any).adjustMaterialStash('Northern Worldstone Shard', 1);
+      (window as any).adjustMaterialStash('Worldstone Shard (Northern)', 1);
       const box = document.getElementById('material-craftable')!;
-      (box.querySelector('.shard-out[data-shard="Northern Worldstone Shard"] .shard-out-name') as HTMLElement).click();
+      (box.querySelector('.shard-out[data-shard="Worldstone Shard (Northern)"] .shard-out-name') as HTMLElement).click();
       const card = document.querySelector('#item-detail .material-card');
       return { has: !!card, text: card?.textContent || '' };
     });
@@ -86,7 +86,7 @@ test.describe('v77 crystal-ball shard outcomes + RotW accuracy', () => {
     // Sunder name → Sunder card
     const sunder = await page.evaluate(() => {
       const box = document.getElementById('material-craftable')!;
-      (box.querySelector('.shard-out[data-shard="Northern Worldstone Shard"] .shard-out-line .zd-item-click') as HTMLElement).click();
+      (box.querySelector('.shard-out[data-shard="Worldstone Shard (Northern)"] .shard-out-line .zd-item-click') as HTMLElement).click();
       const card = document.querySelector('#item-detail .material-card');
       return { has: !!card, text: card?.textContent || '' };
     });
@@ -140,8 +140,8 @@ test.describe('v77 crystal-ball shard outcomes + RotW accuracy', () => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
     await page.evaluate(() => {
-      (window as any).adjustMaterialStash('Western Worldstone Shard', 1);
-      (window as any).adjustMaterialStash('Southern Worldstone Shard', 3);
+      (window as any).adjustMaterialStash('Worldstone Shard (Western)', 1);
+      (window as any).adjustMaterialStash('Worldstone Shard (Southern)', 3);
       (window as any).renderMaterialCraftable();
     });
     await page.waitForTimeout(150);

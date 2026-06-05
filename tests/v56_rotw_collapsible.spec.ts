@@ -38,7 +38,7 @@ test.describe('v56 ROTW collapsible sections', () => {
   test('routing still works inside a wrapped section', async ({ page }) => {
     // section defaults collapsed → expand it first, then click the shard link
     await page.locator('#tab-rotw .sec-h', { hasText: 'Worldstone Shards' }).evaluate((e:any) => e.click());
-    await page.locator('#tab-rotw .shard-name.zd-item-click', { hasText: 'Eastern Worldstone Shard' }).first().evaluate((e:any) => e.click());
+    await page.locator('#tab-rotw .shard-name.zd-item-click', { hasText: 'Worldstone Shard (Eastern)' }).first().evaluate((e:any) => e.click());
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
     await expect(page.locator('#item-detail .material-card')).toContainText('Cold Rupture');
   });
