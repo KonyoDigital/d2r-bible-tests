@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Enable the version-controlled git hooks for this clone.
+# Run once after cloning:  bash hooks/install
+set -e
+REPO="$(git rev-parse --show-toplevel)"
+cd "$REPO"
+git config core.hooksPath hooks
+chmod +x hooks/pre-push hooks/install 2>/dev/null || true
+echo "git hooks enabled (core.hooksPath = hooks)."
+echo "pre-push will run a ~1-2 min Playwright smoke before pushes that touch bible.html / specs."
