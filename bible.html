@@ -6159,6 +6159,15 @@ function renderBossDetailCard(bossId, focusDiff) {
       <button class="gbc-close" onclick="clearActiveBoss()">✕ close</button>
     </header>
 
+    ${(typeof EXCLUSIVE_DROPS!=='undefined' && EXCLUSIVE_DROPS[boss.id]) ? `<section class="gbc-section">
+      <div class="gbc-section-label">🏆 exclusive drop</div>
+      <div onclick="event.stopPropagation();window.openDrop('${EXCLUSIVE_DROPS[boss.id].item}')" style="cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;padding:12px 15px;border:1px solid var(--gold);border-radius:10px;background:linear-gradient(135deg,rgba(201,161,74,.15),rgba(201,161,74,.04));box-shadow:0 0 18px rgba(201,161,74,.13),inset 0 0 0 1px rgba(201,161,74,.22)">
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:.5px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:3px 9px;border-radius:5px;white-space:nowrap">ONLY DROPS HERE</span>
+        <span style="font-weight:700;color:var(--gold);font-size:15px">${EXCLUSIVE_DROPS[boss.id].item} →</span>
+        <span style="color:var(--gold-dim);font-size:12.5px;flex:1 1 220px;line-height:1.4">${EXCLUSIVE_DROPS[boss.id].note}</span>
+      </div>
+    </section>` : ''}
+
     <section class="gbc-section">
       <div class="gbc-section-label">🎯 why farm this boss</div>
       <div class="gbc-why">${boss.why || 'No specific notes for this boss.'}</div>
@@ -6459,6 +6468,12 @@ function tagTzZonesWithBossId() {
     }
   });
 }
+const EXCLUSIVE_DROPS = {
+  countess:{item:'Key of Terror', note:'One of the 3 Pandemonium keys — drops ONLY from the Countess (Hell). Your gateway to Uber Tristram.'},
+  summoner:{item:'Key of Hate', note:'One of the 3 Pandemonium keys — drops ONLY from the Summoner (Hell). Your gateway to Uber Tristram.'},
+  nihl:{item:'Key of Destruction', note:'One of the 3 Pandemonium keys — drops ONLY from Nihlathak (Hell). Your gateway to Uber Tristram.'},
+  dclone:{item:'Annihilus', note:'The ONLY source of the Annihilus charm in the game — +1 all skills, +10–20 all stats & resists. Flat drop, every kill.'}
+};
 // Drop-scaling classes — single source of truth, shared by renderBossNav (chips)
 // and renderBossCards (card sections) so both mirror the same grouping.
 const PLAYER_TIERS = [
