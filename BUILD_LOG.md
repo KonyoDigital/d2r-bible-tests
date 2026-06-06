@@ -31,6 +31,43 @@
 
 ---
 
+## 2026-06-06 — CC: Herald ladder research + tier-card enrichment (v88)
+
+**Context:** Konyo: *"start the Herald ladder research work autonomously on them
+all."* Research the 5-tier RoW Herald ladder (Fright→Dread→Fear→Horror→Terror) from
+official sources, NO fabrication, then enrich all 5 tier ID cards.
+
+**Research (#49)** — cross-checked diablo2.io (authoritative monster page) +
+diablobytes guide + WebSearch (rpgstash 403-blocked; d2db used with caution).
+Verified facts now baked: spawn **Hell TZ only** (summoned by killing TZ monsters,
+chance rises with kills — *exact threshold not published*); each kill advances the
+next spawn one tier; tier is **per-session, resets to Fright on leave/disconnect**;
+after Terror every spawn stays Terror; **Heralds always carry an aura, can roll two
+at once** (Terror = two auras + minion pack); **drop scaling matches what the bible
+already had** (Fright/Dread normal · Fear/Horror +1 · Terror +2); **all tiers can
+drop Latent Sunder Charms**; **Patch 3.2 / S14 (live 2026-05-22):** Latents drop from
+any MF monster, increased-Herald chance starts at tier 1, player-count no longer
+heavily modifies Latent/Worldstone rates. **Flagged unverified (NOT baked):** d2db's
+life/dmg table + 2% ire / 5 stacks / 1% conversion + element weights (contradicts
+diablo2.io); Worldstone Shard ≈ 1:500 elite/boss is community-estimated only.
+
+**Enrichment (#50)** — `heraldTierDetailHtml` (lean card for the 4 lower rungs):
+added **⚙ How it spawns & climbs** (where · summoned-by · this-rung · next-spawn ·
+tier-resets · aura) and a **🩹 Patch 3.2 / S14** section; folded the always-aura /
+dual-aura fact into *what it is*; the *what it drops* line now says **every rung
+including this one** can drop the 6 Latent Sunders; the closing note explicitly flags
+the 3 unpublished gaps (kill threshold, per-tier mlvl/HP/immunity, Worldstone rate)
+instead of inventing them. The apex rich `#herald-card` (already beyond Baal-format)
+got a one-line **Patch 3.2 reconciliation** under the tier table — its pre-3.2
+"Sunder threshold opens at T4" column now reads correctly against the all-tiers /
+tier-1-start truth, without gutting the cited TheBugWarrior/Maxroll content.
+
+**Invariants preserved:** every v75 test gate (5 tiers · apex=Terror · searchable ·
+≥6 sunder chips · next-rung naming · HERALD_PORTRAIT emblem + 👹 fallback + lazy ·
+no console errors) stays green. Pure additive copy — no math/data touched.
+
+**Verify:** `v75_herald_tiers` + `v72_herald` 15/15 green; full suite green.
+
 ## 2026-06-06 — CC: hide NORM/NM site-wide — Hell-only view (v87)
 
 **Context:** Konyo plays Hell-only RoW. Direction (verbatim): *"now hide NORM/NM

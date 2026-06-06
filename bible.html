@@ -2457,6 +2457,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           </tbody>
         </table>
         <div class="gbc-why" style="margin-top:8px">⚠ <strong>Tiers reset to Fright if you exit to the main menu</strong> — stay in one game session to keep climbing. Once you hit <strong>Terror</strong>, every Herald the rest of that session stays a Terror.</div>
+        <div class="gbc-why" style="margin-top:6px"><span class="rec">🩹 <strong>Patch 3.2 / Season 14 (live 2026-05-22):</strong> every tier — including Fright — can drop Latent Sunder Charms, and the increased-Herald drop chance now <strong>starts at tier 1</strong> (the "threshold" column above is pre-3.2 framing). Latent Sunders also now drop from any MF monster, and player-count no longer heavily modifies Latent / Worldstone Shard rates.</span></div>
       </section>
       <section class="gbc-section">
         <div class="gbc-section-label">🛡️ optimal farming strategies</div>
@@ -3949,20 +3950,27 @@ function heraldTierDetailHtml(name){
     </header>
     <section class="gic-section">
       <div class="gic-section-title">🎯 What it is</div>
-      <div style="font-size:13.5px;line-height:1.6">A roaming Hell-TZ superunique — rung <strong>${t.tier}</strong> of the Herald ladder (Fright → Dread → Fear → Horror → Terror). It spawns inside the active <strong>Hell Terror Zone</strong> after you kill enough monsters, then hunts you across the map. Every tier carries an aura and can drop <strong>Latent Sunder Charms</strong> + the occasional <strong>Worldstone Shard</strong>; higher tiers drop more.</div>
+      <div style="font-size:13.5px;line-height:1.6">A roaming Hell-TZ superunique — rung <strong>${t.tier}</strong> of the Herald ladder (Fright → Dread → Fear → Horror → Terror). It spawns inside the active <strong>Hell Terror Zone</strong> after you've killed enough monsters there, then hunts you across the map. <strong>Heralds always carry an aura</strong> — and can roll <strong>two auras at once</strong>${t.apex ? '; the Terror always brings two aura effects plus a minion pack' : ''}. Every tier can drop <strong>Latent Sunder Charms</strong> + the occasional <strong>Worldstone Shard</strong>; higher tiers drop more.</div>
     </section>
     <section class="gic-section">
-      <div class="gic-section-title">📈 Climbing the ladder</div>
+      <div class="gic-section-title">⚙ How it spawns &amp; climbs</div>
+      <div class="zd-row"><span class="zd-k">where</span><span class="zd-v">Hell Terror Zones only — never Normal/NM, never outside a TZ</span></div>
+      <div class="zd-row"><span class="zd-k">summoned by</span><span class="zd-v">killing monsters in the active Hell TZ — the more you kill, the higher the spawn chance (exact kill threshold isn't published)</span></div>
       <div class="zd-row"><span class="zd-k">this rung</span><span class="zd-v">tier ${t.tier} · ${t.drops}</span></div>
       <div class="zd-row"><span class="zd-k">next spawn</span><span class="zd-v">${climb}</span></div>
-      <div class="zd-row"><span class="zd-k">where</span><span class="zd-v">Hell Terror Zones only — never Normal/NM, never outside a TZ</span></div>
+      <div class="zd-row"><span class="zd-k">tier resets</span><span class="zd-v">the ladder is per-game-session — leaving or disconnecting drops you back to tier 1 (Fright)</span></div>
+      <div class="zd-row"><span class="zd-k">aura</span><span class="zd-v">always carries an aura; can spawn with two auras at once${t.apex ? ' (Terror: two auras + a minion pack)' : ''}</span></div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">💎 What it drops — the 6 Latent Sunder Charms</div>
-      <div style="font-size:13.5px;line-height:1.6;margin-bottom:6px">Each breaks one immunity to ~95% resist. Click one to open its card:</div>
+      <div style="font-size:13.5px;line-height:1.6;margin-bottom:6px">Every rung — including this one — can drop any of the 6 Latent Sunder Charms. Each breaks one immunity to ~95% resist. Click one to open its card:</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${sunderChips}</div>
     </section>
-    <div class="zd-note">⚠ Heralds are RotW superunique monsters, not part of the 312-item grail count. Tier behaviour mirrors the in-app Herald ladder; no fabricated odds.</div>
+    <section class="gic-section">
+      <div class="gic-section-title">🩹 Patch 3.2 / Season 14 (live 2026-05-22)</div>
+      <div style="font-size:13.5px;line-height:1.6">Latent Sunder Charms now drop from <strong>any monster with MF</strong> (no longer Herald-exclusive); the increased-Herald drop chance now <strong>starts at tier 1 (Fright)</strong> instead of the top rungs; and <strong>player-count no longer heavily modifies</strong> Latent / Worldstone Shard rates.</div>
+    </section>
+    <div class="zd-note">⚠ Heralds are RotW superunique monsters, not part of the 312-item grail count. Drop scaling &amp; tier behaviour are sourced from the RotW monster data — no fabricated odds. <strong>Not published anywhere</strong> (so deliberately not invented here): the exact kill-count to summon a Herald, per-tier mlvl/HP/immunities, and the Worldstone Shard rate (community-estimated ≈ 1 in 500 elite/boss kills).</div>
   </div>`;
 }
 window.heraldTierDetailHtml = heraldTierDetailHtml;
