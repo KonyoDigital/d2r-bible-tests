@@ -47,7 +47,16 @@ exists as `.fi-clickable:hover` (bible.html L455) and `.zd-item-click:hover`
 - `.guaranteed-card`/`.su-card`/`.colossal-tile`/`.statue-card` — card-level hovers, separate treatment; decide if in scope.
 **Caution:** `.source-chip` is asserted by `bug040_050_interactions` (bug041 click); `.item-tile` + `.zd-item-click` asserted across many specs — change CSS only, not the click contract.
 
-### #51 — Audit every ID card for Baal-format parity (~30-50 entities)
+### ✅ #51 (audit) + #52 (guards) + #58 (super-uniques) — SHIPPED as v91
+- `AUDIT_id_card_parity.md` = the gap matrix. Key finding: items/runes/materials are
+  LOOT (correctly `.gic-card`); the drop-SOURCE entities are the gbc-parity targets.
+- v91 brought **super-uniques** into the golden `.gbc-card` shell (were lean `.zd-*`),
+  the last entity gap besides events. v83 "gbc-format parity" guard locks it.
+- **Remaining drop-source gap = event monsters** (DClone / Uber Tristram triune /
+  Pandemonium) + cows/travincal/pit — audit them next (do they have detail cards or
+  only rows?). That's the next batch (v92) toward the master goal.
+
+### (original) #51 — Audit every ID card for Baal-format parity (~30-50 entities)
 Catalog every drop-source ID card (bosses, super-uniques, TZ zones, Heralds,
 events, ancients, cows/pit/travincal, etc.) and score each against the Baal-card
 template (golden `.gbc-card` shell, portrait/emblem via `artOr`, enriched

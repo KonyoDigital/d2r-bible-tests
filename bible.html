@@ -477,7 +477,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-detail[hidden]{display:none}
 /* v85.1: when the detail box holds the unified golden .gbc-card, strip the wrapper's
    own border/bg/shadow so the gbc-card is the single visible card (no card-in-card). */
-.tz-zone-detail:has(> .gbc-card){background:none;border:none;box-shadow:none;border-radius:0;padding:0;overflow:visible}
+.tz-zone-detail:has(> .gbc-card),.su-detail:has(> .gbc-card){background:none;border:none;box-shadow:none;border-radius:0;padding:0;overflow:visible}
 .gbc-body{padding:4px 20px 16px}
 .tz-zone-card-rich .zd-stats{margin:12px 0 0}
 .tz-zone-card-rich .gbc-body > .zd-row{margin:0}
@@ -4335,8 +4335,13 @@ function superUniqueDetailHtml(su){
   const tz = suTzZone(su);
   const poolN = tz && typeof zoneGrailDrops === 'function' ? zoneGrailDrops(tz.z).length : 0;
   const bossId = SU_BOSS[su.name];
-  let h = `<div class="zd-head">${artOr(su.name, '💀', 'sm')} ${su.name} — super-unique detail</div>
-    <div class="zd-stats">
+  const si = (typeof SUPER_UNIQUES !== 'undefined') ? SUPER_UNIQUES.indexOf(su) : -1;
+  // v91: render the super-unique detail in the SAME golden .gbc-card shell the Baal /
+  // Herald / TZ-zone cards use — gradient header banner (emblem + name + role + mlvl
+  // tier) + sectioned body — so every drop-source ID card shares one design language.
+  // Content (stats, drops, TZ cross-link, DClone note, full-table link, pending-odds
+  // caveat) is preserved verbatim inside the body; only the shell is unified.
+  let h = `<div class="zd-stats">
       <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${su.act}</span></div>
       <div class="zd-stat"><span class="zd-sk">Hell mlvl</span><span class="zd-sv">${su.mlvl}</span></div>
       <div class="zd-stat"><span class="zd-sk">immunity</span><span class="zd-sv">${su.immune === 'none' ? 'no fixed' : su.immune}</span></div>
@@ -4359,7 +4364,24 @@ function superUniqueDetailHtml(su){
     h += `<div class="zd-row"><span class="zd-k">full table</span><span class="zd-v"><span class="su-tz-link" onclick="event.stopPropagation();window.openBossDetail('${bossId}')" title="open boss detail">📜 open ${su.name}'s full drop table →</span></span></div>`;
   }
   h += `<div class="zd-note">⚠ Hell mlvl is the AREA level (it sets the TC ceiling); terror raises any TZ-eligible area to mlvl 96. Per-kill super-unique odds are a pending silospen pull — the cross-linked TZ pool is the TC-reachable set, not per-run rates.</div>`;
-  return h;
+  return `<div class="gbc-card su-card-rich">
+    <header class="gbc-header su-rich-header">
+      ${artOr(su.name, `<span class="gbc-emoji">${su.emoji || '💀'}</span>`, 'lg')}
+      <div class="gbc-id-block">
+        <h2 class="gbc-name">${su.name}</h2>
+        <div class="gbc-subtitle">super-unique detail${su.role ? ` · ${su.role}` : ''}</div>
+        <div class="gbc-loc">📍 ${su.act} · <strong>Hell mlvl ${su.mlvl}</strong></div>
+      </div>
+      <div class="gbc-tier">
+        <div class="gbc-tier-label">mlvl</div>
+        <div class="gbc-tier-val">${su.mlvl}</div>
+      </div>
+      <button class="gbc-close" onclick="event.stopPropagation();toggleSuperUnique(${si})">✕ close</button>
+    </header>
+    <div class="gbc-body su-zone-body">
+      ${h}
+    </div>
+  </div>`;
 }
 function renderSuperUniques(){
   const el = document.getElementById('superunique-container');

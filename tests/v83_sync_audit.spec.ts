@@ -192,6 +192,46 @@ test.describe('v83 website synchronization audit', () => {
     expect(r.missing, `clickable hover selectors missing the box-shadow glow: ${JSON.stringify(r.missing)}`).toEqual([]);
   });
 
+  test('gbc-format parity: every drop-source entity card uses the golden .gbc-card shell with an artOr emblem', async ({ page }) => {
+    // #52 / v91 — the master goal is one unified "Baal boss-card" design language for
+    // every drop-SOURCE entity. Boss + TZ-zone + Herald-apex were already .gbc-card;
+    // v91 brought super-uniques into the same shell (they used the lean .zd-* idiom).
+    // This locks it: each entity detail builder must emit a .gbc-card with .gbc-header,
+    // .gbc-name, and an artOr emblem (<img> for real art OR the emoji/gbc-emoji fallback).
+    const r = await page.evaluate(() => {
+      const win = window as any;
+      const su = (SUPER_UNIQUES as any[]).find((s) => s.name === 'Eldritch the Rectifier') || (SUPER_UNIQUES as any[])[0];
+      const zone = (TZ_ZONES as any[])[0];
+      const cards: Record<string, string> = {
+        superUnique: win.superUniqueDetailHtml(su),
+        tzZone: win.zoneDetailHtml(zone),
+      };
+      const check = (html: string) => ({
+        shell: /class="gbc-card/.test(html),
+        header: /gbc-header/.test(html),
+        name: /gbc-name/.test(html),
+        emblem: /<img\b|gbc-emoji|d2art-fallback/.test(html),
+        noUndef: !/undefined/.test(html),
+      });
+      return {
+        superUnique: check(cards.superUnique),
+        tzZone: check(cards.tzZone),
+        // honesty markers must survive the re-shell
+        suCaveat: /pending silospen pull/.test(cards.superUnique),
+        suTitle: /super-unique detail/.test(cards.superUnique),
+      };
+    });
+    for (const [card, c] of Object.entries({ superUnique: r.superUnique, tzZone: r.tzZone })) {
+      expect(c.shell, `${card} missing .gbc-card shell`).toBe(true);
+      expect(c.header, `${card} missing .gbc-header`).toBe(true);
+      expect(c.name, `${card} missing .gbc-name`).toBe(true);
+      expect(c.emblem, `${card} missing artOr emblem`).toBe(true);
+      expect(c.noUndef, `${card} renders 'undefined'`).toBe(true);
+    }
+    expect(r.suCaveat, 'super-unique lost its pending-odds caveat in the re-shell').toBe(true);
+    expect(r.suTitle, 'super-unique lost its "super-unique detail" title in the re-shell').toBe(true);
+  });
+
   test('art invariant (REG-001 lock): artOr keeps loading="lazy" on real art', async ({ page }) => {
     const r = await page.evaluate(() => {
       // a name with verified art → an <img>; a name without → the emoji fallback only

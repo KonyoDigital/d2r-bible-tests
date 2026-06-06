@@ -31,6 +31,33 @@
 
 ---
 
+## 2026-06-06 — CC: super-unique cards → golden .gbc-card shell (v91, #58 / #51-#52)
+
+**Context:** The #51 ID-card parity audit (`AUDIT_id_card_parity.md`) found the
+super-unique detail cards were the one drop-SOURCE entity still on the lean `.zd-*`
+idiom while bosses / TZ zones / Herald-apex already use the rich Baal `.gbc-card`
+shell. This brings them into the same design language — master-goal progress.
+
+**Change (additive — content preserved verbatim):** `superUniqueDetailHtml`
+(L4334) now returns a `.gbc-card` with a `.gbc-header` (artOr `lg` emblem · name ·
+subtitle `super-unique detail · {role}` · `📍 {act} · Hell mlvl N` · mlvl tier
+badge · ✕ close) wrapping the existing stats / drops / TZ cross-link / DClone note /
+full-table link / pending-odds caveat inside a `.gbc-body`. Extended the
+`:has(> .gbc-card)` wrapper-strip rule to `.su-detail` (mirrors the TZ
+`.tz-zone-detail` card-in-card fix) so no double border/shadow.
+
+**Honesty:** NO odds fabricated — the "pending silospen pull" caveat is retained
+(v51 `allCaveated` still green). All v51 content assertions (super-unique detail
+title, Frigid Highlands cross-link, grail-uniques-reachable, Diablo Walks the
+Earth, `openBossDetail('…')` links, no `undefined`) preserved.
+
+**Guard (#52):** new `v83_sync_audit.spec.ts` test *"gbc-format parity"* — asserts
+each drop-source entity builder (super-unique + TZ-zone) emits `.gbc-card` +
+`.gbc-header` + `.gbc-name` + an artOr emblem, no `undefined`, and the super-unique
+keeps its caveat + title through the re-shell. Locks the unification against drift.
+
+---
+
 ## 2026-06-06 — CC: hover-glow unification (v90, Batch 3 / #53)
 
 **Context:** Batch 3 of the unify-every-card master goal — make every clickable
