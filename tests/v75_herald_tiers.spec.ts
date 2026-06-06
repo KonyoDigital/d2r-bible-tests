@@ -122,18 +122,27 @@ test.describe('v75 Herald tiers are searchable + clickable ID cards', () => {
     expect(wired.allWired).toBe(true);
   });
 
-  test('Herald tier cards keep the 👹 monster glyph (not the charm graphic)', async ({ page }) => {
+  test('Herald tier cards show the Herald monster portrait (not a charm graphic) + keep the 👹 fallback', async ({ page }) => {
+    // The tier cards now wear the verified Herald PORTRAIT (the embedded HERALD_PORTRAIT
+    // data-URI — the same monster art the apex #herald-card uses), with 👹 as the
+    // never-broken fallback. The original intent stands: the header must NEVER show a
+    // Sunder-charm item graphic — it shows the monster, or the emoji.
     await page.evaluate(() => (window as any).openDrop('Herald of Horror'));
     await page.waitForTimeout(250);
     const r = await page.evaluate(() => {
       const card = document.getElementById('item-detail')?.querySelector('.herald-tier-card');
+      const img = card?.querySelector('.gic-header .d2art-img') as HTMLImageElement | null;
       return {
         emoji: (card?.querySelector('.gic-header .gic-emoji')?.textContent || '').trim(),
-        charmInHeader: !!card?.querySelector('.gic-header .d2art-img'),
+        imgSrc: img?.getAttribute('src') || '',
+        lazy: img?.getAttribute('loading') === 'lazy',
+        portraitMatchesApex: (img?.getAttribute('src') || '') === ((window as any).HERALD_PORTRAIT || '__none__'),
       };
     });
-    expect(r.emoji).toContain('👹');
-    expect(r.charmInHeader).toBe(false);
+    expect(r.emoji).toContain('👹');                 // 👹 retained as the fallback glyph
+    expect(r.lazy, 'Herald emblem must keep loading="lazy" (REG-001)').toBe(true);
+    expect(r.portraitMatchesApex, 'tier emblem must be the Herald PORTRAIT, not a hotlinked charm graphic').toBe(true);
+    expect(r.imgSrc).not.toMatch(/diablo2\.io/);     // not a hotlinked item/charm gallery image
   });
 
   test('no console errors opening Herald tier cards', async ({ page }) => {

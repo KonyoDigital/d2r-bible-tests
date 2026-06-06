@@ -1054,7 +1054,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .boss-nav-sticky{padding:16px 4px 18px}
   .boss-nav-sticky .boss-nav-sticky-label{font-family:var(--serif-display);font-size:15px;font-weight:600;color:var(--gold-bright);letter-spacing:.03em;text-transform:none;margin-bottom:14px;padding-left:2px}
   .boss-nav-sticky .boss-nav-group{border-left-width:4px;padding-left:12px}
-  .boss-nav-sticky .boss-nav-group-label{font-family:var(--serif-display);font-size:19px;font-weight:700;letter-spacing:.03em;color:var(--tier-accent,#d4a847);margin-bottom:6px;line-height:1.2}
+  .boss-nav-sticky .boss-nav-group-label{font-family:var(--serif-display);font-size:19px;font-weight:700;letter-spacing:.03em;color:var(--tier-accent,#d4a847);margin-bottom:6px;line-height:1.2;min-height:2.4em}
   .boss-nav-sticky .boss-nav-group-mult{font-family:var(--mono);font-size:11px;font-weight:500;opacity:.55;letter-spacing:0}
   .boss-nav-sticky .boss-nav-group-chips .boss-chip{font-size:13.5px!important;padding:9px 14px!important;letter-spacing:.3px!important}
   .boss-nav-sticky .boss-nav-group-chips .boss-chip .emoji{font-size:17px}
@@ -3902,7 +3902,7 @@ function heraldTierDetailHtml(name){
     .join('');
   return `<div class="gic-card material-card herald-tier-card">
     <header class="gic-header">
-      <span class="gic-emoji">👹</span>
+      <span class="d2art-wrap lg"><img class="d2art-img" src="${window.HERALD_PORTRAIT}" alt="${t.n}" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback"><span class="gic-emoji">👹</span></span></span>
       <div class="gic-id-block">
         <h2 class="gic-name">${t.n} <span class="gic-grail-badge" style="background:linear-gradient(135deg,#7a3a3a,#3a1212);color:#ffd0d0">Herald tier ${t.tier}${t.apex ? ' · apex' : ''}</span></h2>
         <div class="gic-subtitle">Hell-TZ superunique · rung ${t.tier} of the 5-tier Herald ladder · drops Latent Sunder Charms</div>
@@ -4154,7 +4154,7 @@ function superUniqueDetailHtml(su){
   const tz = suTzZone(su);
   const poolN = tz && typeof zoneGrailDrops === 'function' ? zoneGrailDrops(tz.z).length : 0;
   const bossId = SU_BOSS[su.name];
-  let h = `<div class="zd-head">💀 ${su.name} — super-unique detail</div>
+  let h = `<div class="zd-head">${artOr(su.name, '💀', 'sm')} ${su.name} — super-unique detail</div>
     <div class="zd-stats">
       <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${su.act}</span></div>
       <div class="zd-stat"><span class="zd-sk">Hell mlvl</span><span class="zd-sv">${su.mlvl}</span></div>
@@ -8595,14 +8595,17 @@ const UBER_BOSSES = [
     strat:'Kill LAST for Guardian\'s Thunder (lightning) or Guardian\'s Light (magic). His ranged axes punish standing still — close the gap or use cover.' },
 ];
 window.UBER_BOSSES = UBER_BOSSES;
+// Register each uber's verified portrait into the central art map so artOr(name)
+// resolves it everywhere (emblem + any future route) — b.art stays the single
+// source; this just mirrors it into D2IO_ART. Identical URL → identical markup.
+UBER_BOSSES.forEach(function(b){ if (b.art && !D2IO_ART[b.name]) D2IO_ART[b.name] = 'https://diablo2.io/styles/zulu/theme/images/items/' + b.art; });
 function renderUberBossCards(){
   const box = document.getElementById('uber-boss-cards');
   if (!box) return;
   const GROUP_LABEL = {'Mini-Uber · Pandemonium portal':'🩸 Pandemonium Mini-Ubers — each drops one of the 3 organs','Uber Tristram trio':'🔥 Uber Tristram Trio — drop the Hellfire Torch + Standard of Heroes','Colossal Ancient · RotW pinnacle':'👑 Colossal Ancients — RotW pinnacle · drop the Colossal Jewels'};
   let _lastG = '';
   box.innerHTML = UBER_BOSSES.map((b) => {
-    const url = 'https://diablo2.io/styles/zulu/theme/images/items/' + b.art;
-    const emblem = '<span class="d2art-wrap lg"><img class="d2art-img" src="' + url + '" alt="' + b.name + '" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="ubc-emoji">' + b.emoji + '</span></span></span>';
+    const emblem = artOr(b.name, '<span class="ubc-emoji">' + b.emoji + '</span>', 'lg');
     const abil = b.abil.map((a) => '<li>' + a + '</li>').join('');
     const isAncient = b.group && b.group.indexOf('Colossal') !== -1;
     const _item = b.drop ? b.drop : 'Hellfire Torch';
