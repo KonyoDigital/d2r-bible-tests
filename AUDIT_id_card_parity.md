@@ -30,8 +30,15 @@ Structural checklist a fully-unified entity card should hit:
 | TZ zones | `zoneDetailHtml` L4251 | `.gbc-card` | 🟢 high (v85.1/v86: header + drop grid) | verify it has why/feeds-into where data exists; likely fine |
 | Herald apex | `#herald-card` L2422 | `.gbc-card` | 🟢 high (custom rich) | fine |
 | **Super-uniques** | `superUniqueDetailHtml` L4334 | **`.zd-*` (lean)** | 🔴 **LOW** | **primary gap** — no golden shell, no top-grail pool styling, no header/tier block. Has: stats, drops, TZ link, DClone note, full-table link, pending-odds caveat. → wrap in `.gbc-card` shell, keep ALL content. **v51 asserts CONTENT only** (`super-unique detail`, `Frigid Highlands`, `grail uniques reachable`, `Diablo Walks the Earth`, `openBossDetail('…')`, `pending silospen pull`, no `undefined`) → restyle safe if content preserved. |
-| Event monsters (DClone, Uber Tristram triune, Pandemonium) | event-card / boss-table | mixed | 🟡 medium | audit whether each has a detail card or only a row; out-of-scope until mapped |
-| Cows / Travincal / Pit | boss-table rows | n/a | 🟡 | covered by boss cards/tables already |
+| **Uber bosses** (Uber Meph/Diablo/Baal, Lilith, Izual, the 3 Ancients, …) | `renderUberBossCards` L8800 | **`.ubc-*` (rich, OWN shell)** | 🟡 rich-but-different | Already a RICH detailed card: emblem · name/role · loc · type · stat grid (mlvl/hp/def/block/immune) · resists · abilities list · "🏆 ONLY DROPS HERE" drop row · strategy. NOT `.gbc-card`. Full visual unification = a large rewrite that must remap all bespoke fields into gbc-sections AND rewrite ~15 v78 structural assertions (`.ubc-immune strong`, `.ubc-stat strong`, `.ubc-body`, `.ubc-drop`). **DECISION: defer** — high regression risk + needs visual review (do it WITH Konyo able to eyeball, not blind/autonomous). Content quality already meets the "detailed & enriched" bar; only the shell differs. Tracked as the ubc→gbc follow-up batch. |
+| Event guide cards (Uber Tristram / Cow / DClone / 22-nights walkthroughs) | static `.event-card` (tab-ancients) | n/a | ✅ correct as-is | These are read-through GUIDES (mechanics walkthroughs), not single-entity drop ID cards — gbc-conversion would be wrong. Leave. |
+| Cows / Travincal / Pit | boss-table rows + boss cards | n/a | ✅ | covered by boss cards/tables already |
+
+### Master-goal status (drop-source entities)
+- ✅ `.gbc-card`: act bosses + minions · TZ zones (v85.1) · Herald apex · **super-uniques (v91)**
+- 🟡 rich sibling shell (`.ubc-*`): Uber bosses — deferred cosmetic unification (above)
+- The substantive goal ("every dropper has a rich, detailed, enriched, honest ID card")
+  is **met**; what remains is purely the optional ubc→gbc *visual* shell merge.
 
 ## Loot-item cards (gic-card — confirm consistency, not gbc-conversion)
 | Loot | Builder | Notes |
