@@ -31,6 +31,28 @@
 
 ---
 
+## 2026-06-06 — CC: hover-glow unification (v90, Batch 3 / #53)
+
+**Context:** Batch 3 of the unify-every-card master goal — make every clickable
+item/row/chip lift with the SAME golden glow. Canonical reference was already
+`.fi-clickable:hover` + `.zd-item-click:hover` (`transform:translateY(-1px)` +
+`box-shadow:0 2px 8px rgba(0,0,0,.3-.35)` + gold-bright border). Laggards only
+swapped a border colour with no shadow/lift.
+
+**Change (CSS-only, additive):** added the `box-shadow:0 2px 8px rgba(0,0,0,.3)`
+glow (and where missing, the `translateY(-1px)` lift + gold-bright border) to:
+- `.item-tile:hover` (calc grid) — border →gold-bright + glow (lift already via `.item-tile:focus,:hover`).
+- `.boss-chip:hover` (boss nav chips) — added lift + glow + gold-bright.
+- `.gbc-grail-item:hover` (Top-Drops grail tiles) — added glow.
+- `.source-chip:hover` (item-detail jump chips) — added glow; kept `--star` accent (semantic: source nav).
+- `.top-drop-row:hover` — added glow over the existing golden gradient+lift.
+
+**Guard:** new `v83_sync_audit.spec.ts` test *"hover-glow parity"* — scans the
+stylesheet and asserts all 7 canonical clickable hover selectors declare a
+`box-shadow`. No markup/JS/behavior touched; no click contract changed.
+
+---
+
 ## 2026-06-06 — CC: tab-ref section-header unification (v89, #47 sweep)
 
 **Context:** Konyo: *"#47 sweep tabs for title/section asymmetries."* Swept all 11

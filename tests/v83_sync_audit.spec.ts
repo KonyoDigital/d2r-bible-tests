@@ -166,6 +166,32 @@ test.describe('v83 website synchronization audit', () => {
     expect(r.counts.rotw).toBeGreaterThanOrEqual(5);
   });
 
+  test('hover-glow parity: every clickable item/row/chip hover carries the golden box-shadow glow', async ({ page }) => {
+    // v90 (Batch 3) — the bible's clickable affordances (item tiles, grail tiles, boss
+    // nav chips, source jump-chips, top-drop rows) used to lift inconsistently: some had
+    // the canonical golden glow (transform + box-shadow, as on .fi-clickable/.zd-item-click),
+    // others only swapped a border colour with no shadow. This locks the unification:
+    // every one of these clickable hover selectors must declare a box-shadow glow.
+    // (Match selectors EXACTLY so ::after / .blocked / scoped variants don't satisfy it.)
+    const r = await page.evaluate(() => {
+      const targets = ['.item-tile:hover', '.boss-chip:hover', '.gbc-grail-item:hover',
+        '.source-chip:hover', '.top-drop-row:hover', '.fi-clickable:hover', '.zd-item-click:hover'];
+      const acc: Record<string, string> = Object.fromEntries(targets.map((t) => [t, '']));
+      for (const sheet of [...document.styleSheets]) {
+        let rules: CSSRule[];
+        try { rules = [...((sheet as CSSStyleSheet).cssRules || [])]; } catch { continue; }
+        for (const rule of rules) {
+          if (!(rule instanceof CSSStyleRule)) continue;
+          const parts = (rule.selectorText || '').split(',').map((s) => s.trim());
+          for (const t of targets) if (parts.includes(t)) acc[t] += ' ' + rule.style.cssText;
+        }
+      }
+      const missing = targets.filter((t) => !/box-shadow/.test(acc[t]));
+      return { missing, acc };
+    });
+    expect(r.missing, `clickable hover selectors missing the box-shadow glow: ${JSON.stringify(r.missing)}`).toEqual([]);
+  });
+
   test('art invariant (REG-001 lock): artOr keeps loading="lazy" on real art', async ({ page }) => {
     const r = await page.evaluate(() => {
       // a name with verified art → an <img>; a name without → the emoji fallback only

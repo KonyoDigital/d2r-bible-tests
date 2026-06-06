@@ -19,7 +19,7 @@ format** — detailed, enriched, unified. Hard constraints:
 
 ## REMAINING LIST (in priority order — resume here)
 
-### #53 — Batch 3: unify item/row/chip hover-glow across all sections  ← NEXT
+### #53 — Batch 3: hover-glow unify  ✅ SHIPPED (v90)
 Fresh cross-section sweep. Goal: every clickable item/row/chip uses the SAME
 hover-glow treatment (the golden Baal-card hover). Currently inconsistent across
 tabs. **Not started** — deliberately deferred from the pre-restart rush because
@@ -77,4 +77,5 @@ symmetry gaps (collapse idioms, title formats) and add guards. Roll into #52.
 ---
 
 ## v89 ship record
-(filled in by CC at ship time)
+- commit `c33d4f9`, deployed to Cloudflare, md5 parity `f4723323` (local==live),
+  pushed (pre-push smoke 36/36 green). Full suite 423 passed / 1 skipped. #47 + #48 done.
