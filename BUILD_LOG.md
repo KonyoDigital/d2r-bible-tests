@@ -65,8 +65,25 @@ act-matched shard + zone-specific Key/Hellforge/Griswold specials; the Herald ch
 actually opens the Herald card; artOr head keeps lazy; no console errors across all
 zones. **Full suite green: 416 passed / 1 skipped (18.5m).** No dead-fork strays.
 
+**v85.1 — golden shell:** Konyo flagged the zones still didn't *look* like the Baal
+card. Rewrapped `zoneDetailHtml` in the **same `.gbc-card` + `.gbc-header` golden shell**
+the Baal/Herald cards use (gradient header banner with artOr emblem `lg` + name +
+location/mlvl/TC subtitle + tier badge + ✕ close), body in `.gbc-body`. Wrapper
+`.tz-zone-detail:has(> .gbc-card)` strips its own border/bg so there's no card-in-card.
+Now the terror-zone detail reads as the unified ID-card design language. v85 head test
+updated to assert the gbc-card shell; all 28 TZ specs + full suite green.
+
+**HONESTY BOUNDARY (per Konyo's no-fabrication rule):** the boss cards' 6-difficulty
+mlvl/TC grid, "Quick take @ MF" line, and per-item **1:N odds** in TOP DROPS come from
+the SOURCED silospen RoW per-boss odds pull. **TZ zones have NO sourced per-kill odds
+yet** (the standing flagged gap — silospen `desecrated` pull pending). So those numeric
+sections CANNOT be faithfully built for zones without fabricating. Honest alternative
+(next): a rarest-first TOP-DROPS grid built from the real TC-reachable pool
+(`zoneGrailDrops`, ranked by TC tier), styled like the boss grid but labelled by
+TC/"TZ-reachable" — no invented 1:N. Difficulty grid omitted for zones (boss-only data).
+
 **Unified-template note:** convergence is achieved ADDITIVELY — the leaner cards gain
-the missing Baal modules using the SAME `zd-*` CSS idioms, so they read as one design
+the missing Baal modules + the golden `.gbc-card` shell, so they read as one design
 language without a risky rewrite of every renderer. TZ zones are the first instance.
 
 ---

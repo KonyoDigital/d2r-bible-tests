@@ -465,6 +465,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-detail > .zd-row,.tz-zone-detail > .zd-stats,.tz-zone-detail > .zd-note,.su-detail > .zd-row,.su-detail > .zd-stats,.su-detail > .zd-note{margin-left:16px;margin-right:16px}
 .tz-zone-detail > .zd-note,.su-detail > .zd-note{margin-bottom:13px}
 .tz-zone-detail[hidden]{display:none}
+/* v85.1: when the detail box holds the unified golden .gbc-card, strip the wrapper's
+   own border/bg/shadow so the gbc-card is the single visible card (no card-in-card). */
+.tz-zone-detail:has(> .gbc-card){background:none;border:none;box-shadow:none;border-radius:0;padding:0;overflow:visible}
+.gbc-body{padding:4px 20px 16px}
+.tz-zone-card-rich .zd-stats{margin:12px 0 0}
+.tz-zone-card-rich .gbc-body > .zd-row{margin:0}
 .rune-src-detail{margin-top:12px;padding:14px 16px;background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(255,255,255,.012));border:1px solid var(--gold-dim);border-left:2px solid var(--gold-bright);border-radius:10px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.34),0 0 0 1px rgba(255,212,128,.04)}
 .rune-src-detail[hidden]{display:none}
 .su-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border-light);border-left:3px solid var(--uber);border-radius:10px;margin:12px 0;padding:16px 20px;transition:border-color .12s,transform .12s,box-shadow .12s}
@@ -4172,24 +4178,43 @@ function zoneDetailHtml(z){
   const supers = z.unique.split('·').map(s => s.trim()).filter(Boolean);
   const superHtml = supers.map(s => { const _i = suIndexByName(s); return _i >= 0 ? `<span class="zd-su" data-su-idx="${_i}" onclick="event.stopPropagation(); jumpToSuperUnique(${_i})" style="cursor:pointer" title="open super-unique detail">${s}</span>` : `<span class="zd-su">${s}</span>`; }).join('');
   const actShort = z.act.split('·')[0].trim();
-  return `<div class="zd-head">${artOr(z.name, z.emoji || '📦', 'sm')} ${z.name} — terrorized farm detail</div>
-    <div class="zd-stats">
-      <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${actShort}</span></div>
-      <div class="zd-stat"><span class="zd-sk">terror mlvl</span><span class="zd-sv">${z.mlvl}</span></div>
-      <div class="zd-stat"><span class="zd-sk">TC ceiling</span><span class="zd-sv">${tcUnlock}</span></div>
-      <div class="zd-stat"><span class="zd-sk">density</span><span class="zd-sv">${z.density}</span></div>
+  // v85.1: render the zone detail in the SAME golden .gbc-card shell the Baal /
+  // Herald cards use — gradient header banner (emblem + name + tier) + sectioned
+  // body — so every terror zone reads as one unified ID-card design language.
+  return `<div class="gbc-card tz-zone-card-rich">
+    <header class="gbc-header tz-rich-header">
+      ${artOr(z.name, `<span class="gbc-emoji">${z.emoji || '📦'}</span>`, 'lg')}
+      <div class="gbc-id-block">
+        <h2 class="gbc-name">${z.name}</h2>
+        <div class="gbc-subtitle">terrorized farm zone · ${z.density} density</div>
+        <div class="gbc-loc">📍 ${actShort} · <strong>terror mlvl ${z.mlvl} / ${tcUnlock}</strong></div>
+      </div>
+      <div class="gbc-tier">
+        <div class="gbc-tier-label">tier</div>
+        <div class="gbc-tier-val">${z.tier || '—'}</div>
+      </div>
+      <button class="gbc-close" onclick="event.stopPropagation();toggleZoneDetail(${zi})">✕ close</button>
+    </header>
+    <div class="gbc-body tz-zone-body">
+      <div class="zd-stats">
+        <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${actShort}</span></div>
+        <div class="zd-stat"><span class="zd-sk">terror mlvl</span><span class="zd-sv">${z.mlvl}</span></div>
+        <div class="zd-stat"><span class="zd-sk">TC ceiling</span><span class="zd-sv">${tcUnlock}</span></div>
+        <div class="zd-stat"><span class="zd-sk">density</span><span class="zd-sv">${z.density}</span></div>
+      </div>
+      <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
+      ${zoneSuRosterHtml(zi)}
+      <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
+      ${zoneDropBlockHtml(z)}
+      ${zoneSpecialDropsHtml(z)}
+      <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
+      ${zoneBestCharHtml(z)}
+      ${zoneActionPlanHtml(z)}
+      ${fi.length ? `<div class="zd-row"><span class="zd-k">feeds into</span><span class="zd-v">${feedsIntoStripHtml(fi)}</span></div>` : ''}
+      ${zoneBossLinkHtml(z)}
+      <div class="zd-note">⚠ Per-kill terrorized odds are a pending silospen TZ pull — the items above are the TC-reachable drop POOL, not per-run rates yet.</div>
     </div>
-    <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
-    ${zoneSuRosterHtml(zi)}
-    <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
-    ${zoneDropBlockHtml(z)}
-    ${zoneSpecialDropsHtml(z)}
-    <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
-    ${zoneBestCharHtml(z)}
-    ${zoneActionPlanHtml(z)}
-    ${fi.length ? `<div class="zd-row"><span class="zd-k">feeds into</span><span class="zd-v">${feedsIntoStripHtml(fi)}</span></div>` : ''}
-    ${zoneBossLinkHtml(z)}
-    <div class="zd-note">⚠ Per-kill terrorized odds are a pending silospen TZ pull — the items above are the TC-reachable drop POOL, not per-run rates yet.</div>`;
+  </div>`;
 }
 /* When a roster boss genuinely farms a TZ zone, surface its canonical ID card as a
    cross-link INSIDE the zone detail (event.stopPropagation so it doesn't collapse the

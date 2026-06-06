@@ -75,12 +75,24 @@ test.describe('v85 TZ zones carry the unified rich ID-card modules', () => {
     expect(richName).toMatch(/Herald of Terror/);
   });
 
-  test('zone detail head uses artOr (lazy emblem, REG-001) not a bare 📦', async ({ page }) => {
+  test('zone detail renders the golden .gbc-card shell with an artOr header (REG-001 lazy)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const h = (zoneDetailHtml as any)((TZ_ZONES as any[])[0]);
-      return { head: h.split('</div>')[0] };
+      return {
+        full: h,
+        head: h.slice(0, 600),
+        hasShell: /class="gbc-card tz-zone-card-rich"/.test(h),
+        hasHeader: /class="gbc-header/.test(h),
+        hasTier: /gbc-tier-val/.test(h),
+        hasBody: /class="gbc-body/.test(h),
+      };
     });
-    expect(r.head).toMatch(/d2art-wrap|zd-head/);
+    expect(r.hasShell, 'zone must render the unified golden gbc-card shell').toBe(true);
+    expect(r.hasHeader).toBe(true);
+    expect(r.hasTier).toBe(true);
+    expect(r.hasBody).toBe(true);
+    // emblem is artOr → either a lazy <img> (real art) or the gbc-emoji fallback
+    expect(r.head).toMatch(/d2art-wrap|gbc-emoji/);
     if (/<img/.test(r.head)) expect(r.head).toMatch(/loading="lazy"/);
   });
 
