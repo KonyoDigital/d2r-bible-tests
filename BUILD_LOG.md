@@ -31,6 +31,34 @@
 
 ---
 
+## 2026-06-06 — CC: TZ-zone Hell drops GRID — boss-card parity (v86)
+
+**Context:** Konyo wanted the TZ zones to carry the boss-card "drops grid" look.
+Direction (verbatim): *"i dont want [the drop math] touched.. just hidden. or just
+leave it.. and add to the TZ zones the hell drops grid."* The Hell-only render is the
+RoW reality (Konyo plays Hell endgame).
+
+**Shipped (additive — nothing cut, math untouched):**
+- New `zoneHellGridHtml(z)` renders a **rarest-first ranked TABLE** (the boss
+  top-drops grid look) of the zone's TC-reachable grail/uber pool, ranked by **TC
+  ceiling** (the rarity proxy) with `# · item · TC · qlvl` columns. Top-20 inline +
+  a `<details>` "show all N" full table. Every row routes to the one canonical item
+  card via `navigateToItem` (same as the boss grid rows). Placed ahead of the
+  existing categorical chip block (`zoneDropBlockHtml`), which is **KEPT** alongside.
+- **HONESTY (zero fabrication):** the grid deliberately omits per-kill `1:N` columns
+  because the silospen terrorized-zone pull is still pending — TC ceiling + qlvl only,
+  with an inline note explaining why no per-run odds are shown.
+- CSS: `.zd-hell-grid` + `.zd-hg-*` (boss-card `.drops` table idiom, gold hover rows).
+- **Tests:** `tests/v86_tz_hell_grid.spec.ts` (6 tests) — exposed + rarest-first +
+  no-fake-odds + grid-in-every-pool-zone + rows route via navigateToItem + chips kept
+  alongside + live row-click opens item card + no console errors. Full suite green.
+
+> NORM/NM "wipe everywhere" stays deferred per Konyo's "or just leave it" — the math
+> is untouched; only the additive Hell-framed grid was added. If a full hide is wanted
+> later it's UI-render-only (keep dropTable data + scaling math intact).
+
+---
+
 ## 2026-06-06 — CC: TZ-zone ID cards enriched to Baal-card depth (batch 4, v85)
 
 **Context:** Konyo's unified-card-template vision — "update these 10-20 TZ zones to

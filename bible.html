@@ -509,6 +509,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-item-dim{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.12);color:var(--text-dim);cursor:default}
 .zd-plan{margin:2px 0 0 0;padding-left:18px;font-family:var(--serif-text);font-size:11.5px;line-height:1.5}
 .zd-plan li{margin:1px 0}
+/* v86: TZ-zone Hell drops GRID — boss-card-parity rarest-first ranked table */
+.zd-hell-grid{width:100%;font-size:11.5px;border-collapse:collapse;margin:2px 0 4px}
+.zd-hell-grid thead th{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);text-align:right;padding:3px 8px;border-bottom:1px solid var(--border)}
+.zd-hg-row{cursor:pointer;transition:background .12s ease}
+.zd-hg-row:hover{background:rgba(255,212,128,.07)}
+.zd-hg-row td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.05);text-align:right;font-family:var(--mono);color:var(--text-dim)}
+.zd-hg-rank{color:var(--text-muted);font-size:10px;text-align:right;width:34px}
+.zd-hg-name{text-align:left !important;font-family:var(--serif-text) !important;color:var(--text) !important}
+.zd-hg-row:hover .zd-hg-name{color:var(--gold-bright) !important}
+.zd-hg-badge{margin-left:6px;font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:1px 6px;border-radius:7px;border:1px solid;font-family:var(--mono)}
+.zd-hg-uber{background:rgba(255,0,212,.12);border-color:rgba(255,0,212,.45);color:#ff9ee8}
+.zd-hg-grail{background:rgba(212,168,71,.1);border-color:rgba(212,168,71,.4);color:var(--gold-bright)}
+.zd-hg-note{font-size:9.5px;color:var(--text-muted);font-style:italic;font-family:var(--serif-text);margin-top:3px;line-height:1.4}
 .zd-more{margin-top:4px}
 .zd-more summary{cursor:pointer;font-size:10px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.03em;padding:3px 0}
 .zd-more summary:hover{color:var(--gold-bright)}
@@ -4083,6 +4096,42 @@ function zoneDropBlockHtml(z){
   h += `</span></div>`;
   return h;
 }
+/* v86: boss-card-parity "Hell drops" GRID for the terror zones — the same
+   rarest-first ranked table the boss top-drops grid uses, Hell-framed and ranked
+   by TC ceiling (the rarity proxy). NO fabricated per-kill odds: the silospen
+   terrorized-zone pull is still pending, so numeric 1:N columns are deliberately
+   omitted rather than invented. Every row routes to the one canonical item card
+   via navigateToItem, exactly like the boss top-drops rows. */
+function zoneHellGridHtml(z){
+  const pool = zoneGrailDrops(z);
+  if (!pool.length) return '';
+  const TOP = 20;
+  const codexQ = (n) => (typeof ITEM_CODEX !== 'undefined' && ITEM_CODEX[n] && ITEM_CODEX[n].qlvl) || 0;
+  const tierBadge = (t) => t === 'uber'
+    ? '<span class="zd-hg-badge zd-hg-uber">uber</span>'
+    : '<span class="zd-hg-badge zd-hg-grail">grail</span>';
+  const tcTag = (tc) => tc >= 87 ? 'TC87' : tc >= 85 ? 'TC85' : ('TC' + tc);
+  const row = (d, i) => {
+    const esc = (d.name || '').replace(/'/g, "\\'");
+    const q = codexQ(d.name);
+    return `<tr class="zd-hg-row" role="button" tabindex="0" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">
+        <td class="zd-hg-rank">#${i + 1}</td>
+        <td class="zd-hg-name"><strong>${d.name}</strong> ${tierBadge(d.tier)}</td>
+        <td class="zd-hg-tc">${tcTag(d.tc)}</td>
+        <td class="zd-hg-q">${q ? 'qlvl ' + q : '—'}</td>
+      </tr>`;
+  };
+  const head = `<thead><tr><th class="zd-hg-rank">#</th><th style="text-align:left">item</th><th>TC ceiling</th><th>qlvl</th></tr></thead>`;
+  const top = pool.slice(0, TOP).map(row).join('');
+  const rest = pool.slice(TOP);
+  let h = `<div class="zd-row"><span class="zd-k">hell drops</span><span class="zd-v">`;
+  h += `<div class="zd-drops-head">🏆 HELL terror-pool drops — ${pool.length} grail / uber uniques reachable here · rarest first</div>`;
+  h += `<div class="scroll-table"><table class="drops zd-hell-grid">${head}<tbody>${top}</tbody></table></div>`;
+  if (rest.length) h += `<details class="zd-more"><summary>▸ show all ${pool.length} droppable uniques — full table (TC-ranked)</summary><div class="scroll-table"><table class="drops zd-hell-grid">${head}<tbody>${rest.map((d, i) => row(d, i + TOP)).join('')}</tbody></table></div></details>`;
+  h += `<div class="zd-hg-note">ranked by TC ceiling (the rarity proxy) — per-kill terror odds are a pending silospen TZ pull, deliberately not shown to avoid fabricated numbers.</div>`;
+  h += `</span></div>`;
+  return h;
+}
 /* v64: nested super-unique ID-card roster. For every super-unique whose suTzZone()
    resolves to THIS zone, render a clickable mini-card that routes to the same canonical
    super-unique detail the #superunique-container cards open — one SU entity, reachable
@@ -4205,6 +4254,7 @@ function zoneDetailHtml(z){
       <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
       ${zoneSuRosterHtml(zi)}
       <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
+      ${zoneHellGridHtml(z)}
       ${zoneDropBlockHtml(z)}
       ${zoneSpecialDropsHtml(z)}
       <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
