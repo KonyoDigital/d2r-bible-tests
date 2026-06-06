@@ -500,6 +500,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-item.uber{background:rgba(255,0,212,.12);border-color:rgba(255,0,212,.45);color:#ff9ee8}
 .zd-item.grail{background:rgba(212,168,71,.1);border-color:rgba(212,168,71,.4);color:var(--gold-bright)}
 .zd-item.grail-dim{background:rgba(212,168,71,.05);border-color:rgba(212,168,71,.22);color:var(--gold)}
+.zd-item-dim{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.12);color:var(--text-dim);cursor:default}
+.zd-plan{margin:2px 0 0 0;padding-left:18px;font-family:var(--serif-text);font-size:11.5px;line-height:1.5}
+.zd-plan li{margin:1px 0}
 .zd-more{margin-top:4px}
 .zd-more summary{cursor:pointer;font-size:10px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.03em;padding:3px 0}
 .zd-more summary:hover{color:var(--gold-bright)}
@@ -4090,6 +4093,72 @@ function zoneSuRosterHtml(zi){
     </div>`).join('');
   return `<div class="zd-row zd-su-roster"><span class="zd-k">named bosses</span><span class="zd-v"><div class="zd-su-cards">${cards}</div></span></div>`;
 }
+/* v85: dedicated SPECIAL-DROPS area for TZ zones — the Baal-card "guaranteed /
+   endgame specials" module, rebuilt for terror zones from the SINGLE-SOURCE
+   SPECIAL_DROPS data (zero fabricated odds). Every chip routes through openDrop
+   so it opens the same canonical material card linked everywhere else. Surfaces:
+   • Sunder Charm — Heralds of Terror roam every active Hell TZ → Latent Sunder
+   • Worldstone Shard — the act-matched shard → its Renewed-Sunder target
+   • zone-specific quest/event specials (Hellforge rune, Key of Hate / Destruction,
+     Griswold's Legacy) derived from the zone's own real facts. */
+const SHARD_RENEWED = {Western:'Renewed Rotting Fissure (poison)', Eastern:'Renewed Cold Rupture (cold)', Southern:'Renewed Crack of the Heavens (lightning)', Northern:'Renewed Bone Break (physical)', Deep:'Renewed Flame Rift (fire)'};
+function zoneSpecialDropsHtml(z){
+  if (!z) return '';
+  const matChip = (drop, label, title) => {
+    const esc = (drop || '').replace(/'/g, "\\'");
+    const routable = (typeof findMaterial === 'function' && findMaterial(drop)) || (typeof findHeraldTier === 'function' && findHeraldTier(drop));
+    if (!routable) return `<span class="zd-item zd-item-dim" title="${title || label}">${label}</span>`;
+    return `<span class="zd-item zd-item-click" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${esc}')" title="${title || ('open ' + drop)}">${label} →</span>`;
+  };
+  const grps = [];
+  // 1) Sunder — every Hell TZ draws a roaming Herald of Terror (the Latent source).
+  const subTier = z.mlvl >= 96 ? 'mlvl 96 / full Herald ladder' : ('mlvl ' + z.mlvl + ' — lower terror tier');
+  grps.push(`<div class="zd-drops-grp"><span class="zd-grp-lab">💠 Sunder Charm</span><div class="zd-drops">${matChip('Herald of Terror', 'Herald of Terror → Latent Sunder', 'open the Herald ladder — the prime Sunder source')}<span class="zd-item zd-item-dim" title="immunity-breaking grand charm">${subTier}</span></div></div>`);
+  // 2) Worldstone Shard — the act-matched shard, named with its Renewed-Sunder target.
+  const a = (typeof zoneActNum === 'function') ? zoneActNum(z) : null;
+  const dir = a && (typeof ACT_SHARD !== 'undefined') ? ACT_SHARD[a] : null;
+  if (dir){
+    const renewed = SHARD_RENEWED[dir] || 'a Renewed Sunder';
+    grps.push(`<div class="zd-drops-grp"><span class="zd-grp-lab">💎 Worldstone Shard</span><div class="zd-drops">${matChip('Worldstone Shard (' + dir + ')', dir + ' Worldstone Shard', 'MF does NOT affect — ~1:500-1500')}<span class="zd-item zd-item-dim" title="cube target">→ ${renewed}</span></div></div>`);
+  }
+  // 3) zone-specific quest / event specials (each gated on a real zone fact).
+  const extras = [];
+  if (/river of flame/i.test(z.name)) extras.push(`${matChip('Hellforge rune', '⚒️ Hellforge rune', 'one-time Hellforge quest — Hephasto guards the forge here')}<span class="zd-item zd-item-dim">Hephasto's forge · 1× per difficulty</span>`);
+  if (/arcane sanctuary/i.test(z.name)) extras.push(matChip('Key of Hate', '🔑 Key of Hate', 'The Summoner drops it on Hell /p3+ — 1 of 3 for Uber Tristram'));
+  if (/halls of (anguish|pain|vaught)/i.test(z.name)) extras.push(matChip('Key of Destruction', '🔑 Key of Destruction', 'Nihlathak drops it (~10% on Hell) — 1 of 3 for Uber Tristram'));
+  if (/tristram/i.test(z.name)) extras.push(`<span class="zd-item zd-item-dim" title="Griswold's undead blacksmith drops the Griswold's Legacy Paladin set">⚒️ Griswold's Legacy set (Griswold)</span>`);
+  if (extras.length) grps.push(`<div class="zd-drops-grp"><span class="zd-grp-lab">🔱 zone specials</span><div class="zd-drops">${extras.join('')}</div></div>`);
+  return `<div class="zd-row"><span class="zd-k">special drops</span><span class="zd-v"><div class="zd-drops-head">💠 endgame specials reachable in this terror pool</div>${grps.join('')}</span></div>`;
+}
+/* v85: best-character + action-plan modules — the Baal-card ⑥/⑦ sections, derived
+   from the zone's OWN real facts (density, the named super-uniques' immunities,
+   multi-area structure). Strategy guidance, not fabricated odds. */
+function zoneBestCharHtml(z){
+  if (!z) return '';
+  const bits = [];
+  if (/dense|very dense/.test(z.density)) bits.push('<strong>dense packs reward AoE</strong> — strong area clear (Nova/Blizzard/Hammers/Trapsin) banks the most loot per minute');
+  // surface the cold/fixed immunities of the named super-uniques actually here
+  const supers = (typeof SUPER_UNIQUES !== 'undefined') ? SUPER_UNIQUES.filter(su => { const m = (typeof suTzZone==='function') && suTzZone(su); return m && (typeof TZ_ZONES!=='undefined') && TZ_ZONES[m.zi] === z; }) : [];
+  const fixedImm = supers.filter(su => su.immune && su.immune !== 'none' && su.immune !== 'random (Hell)');
+  if (fixedImm.length) bits.push('bring a <strong>second damage type</strong> — ' + fixedImm.map(su => su.name.split(' ')[0] + ' is ' + su.immune + '-immune').join(', '));
+  if (/ghost|lasher|arcane/i.test(z.name + ' ' + z.why)) bits.push('melee struggles with phasing ghosts — <strong>casters shine here</strong>');
+  if (z.mlvl >= 96) bits.push('any build wanting the <strong>TC' + z.tcMax + ' elite pool</strong> should farm this only while terrorized');
+  if (!bits.length) bits.push('a balanced clear build with one Sunder for the local immunities');
+  return `<div class="zd-row"><span class="zd-k">best character</span><span class="zd-v">${bits.join(' · ')}</span></div>`;
+}
+function zoneActionPlanHtml(z){
+  if (!z) return '';
+  const steps = [];
+  // multi-area zones name their sub-areas with + or / — turn that into a clear route
+  const areas = (z.name || '').split(/\s*[+/]\s*/).map(s => s.trim()).filter(Boolean);
+  if (areas.length > 1) steps.push('clear in order: ' + areas.join(' → '));
+  else steps.push('WP in, sweep the zone, reset the game and repeat for fresh terror tiles');
+  const fin = (z.unique || '').split('·')[0].trim();
+  if (fin && !/random/i.test(fin)) steps.push('finish on <strong>' + fin.replace(/\s*\(.*$/, '') + '</strong> (the super-unique caps the run)');
+  steps.push('a roaming <strong>Herald of Terror</strong> can appear — kill it for a Latent Sunder before you leave');
+  if ((typeof zoneActNum === 'function') && zoneActNum(z) && (typeof ACT_SHARD !== 'undefined')) steps.push('save any <strong>' + ACT_SHARD[zoneActNum(z)] + ' Worldstone Shard</strong> for the Renewed-Sunder cube');
+  return `<div class="zd-row"><span class="zd-k">action plan</span><span class="zd-v"><ol class="zd-plan">${steps.map(s => '<li>' + s + '</li>').join('')}</ol></span></div>`;
+}
 function zoneDetailHtml(z){
   const zi = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES.indexOf(z) : -1;
   const fi = zoneFeedsInto(z);
@@ -4103,7 +4172,7 @@ function zoneDetailHtml(z){
   const supers = z.unique.split('·').map(s => s.trim()).filter(Boolean);
   const superHtml = supers.map(s => { const _i = suIndexByName(s); return _i >= 0 ? `<span class="zd-su" data-su-idx="${_i}" onclick="event.stopPropagation(); jumpToSuperUnique(${_i})" style="cursor:pointer" title="open super-unique detail">${s}</span>` : `<span class="zd-su">${s}</span>`; }).join('');
   const actShort = z.act.split('·')[0].trim();
-  return `<div class="zd-head">📦 ${z.name} — terrorized farm detail</div>
+  return `<div class="zd-head">${artOr(z.name, z.emoji || '📦', 'sm')} ${z.name} — terrorized farm detail</div>
     <div class="zd-stats">
       <div class="zd-stat"><span class="zd-sk">location</span><span class="zd-sv">${actShort}</span></div>
       <div class="zd-stat"><span class="zd-sk">terror mlvl</span><span class="zd-sv">${z.mlvl}</span></div>
@@ -4114,7 +4183,10 @@ function zoneDetailHtml(z){
     ${zoneSuRosterHtml(zi)}
     <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
     ${zoneDropBlockHtml(z)}
+    ${zoneSpecialDropsHtml(z)}
     <div class="zd-row"><span class="zd-k">why farm here</span><span class="zd-v">${z.why}</span></div>
+    ${zoneBestCharHtml(z)}
+    ${zoneActionPlanHtml(z)}
     ${fi.length ? `<div class="zd-row"><span class="zd-k">feeds into</span><span class="zd-v">${feedsIntoStripHtml(fi)}</span></div>` : ''}
     ${zoneBossLinkHtml(z)}
     <div class="zd-note">⚠ Per-kill terrorized odds are a pending silospen TZ pull — the items above are the TC-reachable drop POOL, not per-run rates yet.</div>`;

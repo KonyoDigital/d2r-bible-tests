@@ -31,6 +31,46 @@
 
 ---
 
+## 2026-06-06 — CC: TZ-zone ID cards enriched to Baal-card depth (batch 4, v85)
+
+**Context:** Konyo's unified-card-template vision — "update these 10-20 TZ zones to
+match that same very format enriched and indetail we already have for Baal", "add a
+dedicated area for anything special/uncommon", ADDITIVE only ("nothing gets cut out"),
+ZERO fabrication. TZ zones are areas (not bosses) that DO drop loot.
+
+**Shipped (all additive to `zoneDetailHtml`, isolated blast radius — NOT a central helper):**
+- **Dedicated SPECIAL-DROPS area** (`zoneSpecialDropsHtml`) — the Baal "guaranteed /
+  endgame specials" module, rebuilt for terror zones from the **single-source
+  `SPECIAL_DROPS` / `ACT_SHARD` data** (no fabricated odds). Surfaces, as clickable
+  chips routed through `openDrop`:
+  - 💠 **Sunder Charm** — Heralds of Terror roam every active Hell TZ → Latent Sunder
+    (chip opens the Herald ladder); notes the zone's terror tier (mlvl 96 vs lower).
+  - 💎 **Worldstone Shard** — the act-matched shard (`ACT_SHARD`) named with its
+    Renewed-Sunder cube target (`SHARD_RENEWED`).
+  - 🔱 **zone specials** gated on real per-zone facts: ⚒️ Hellforge rune (River of
+    Flame), 🔑 Key of Hate (Arcane), 🔑 Key of Destruction (Halls), Griswold's Legacy
+    set (Tristram).
+- **best-character** module (`zoneBestCharHtml`) — derived from real zone facts:
+  density → AoE; the named super-uniques' FIXED immunities → "bring a 2nd damage type";
+  ghost/Arcane → casters; mlvl 96 → terror-only elite farm. Strategy advice, not odds.
+- **action-plan** module (`zoneActionPlanHtml`) — auto-built route from the multi-area
+  zone name (`A + B + C` → "clear in order"), the super-unique finisher, the roaming
+  Herald, and the act shard to save. Rendered as an `<ol class="zd-plan">`.
+- **head emblem** now `artOr(z.name, z.emoji, 'sm')` (was a bare 📦) — graceful
+  emoji fallback, keeps `loading="lazy"` (REG-001).
+- New CSS: `.zd-item-dim` (muted non-clickable chip), `.zd-plan` (ordered list).
+
+**Test:** `tests/v85_tz_enrichment.spec.ts` (6) — every zone has all 3 modules; the
+act-matched shard + zone-specific Key/Hellforge/Griswold specials; the Herald chip
+actually opens the Herald card; artOr head keeps lazy; no console errors across all
+zones. **Full suite green: 416 passed / 1 skipped (18.5m).** No dead-fork strays.
+
+**Unified-template note:** convergence is achieved ADDITIVELY — the leaner cards gain
+the missing Baal modules using the SAME `zd-*` CSS idioms, so they read as one design
+language without a risky rewrite of every renderer. TZ zones are the first instance.
+
+---
+
 ## 2026-06-06 — CC: sync-audit framework + tools/search/super-unique sync (batch 1)
 
 **Context:** Konyo asked the loops to "look for synchronization across the website…
@@ -65,6 +105,37 @@ droppers → Baal format) is tracked separately (needs official RoW data, no fab
   coverage matrix first; real data only.
 - **artOr title sweep:** remaining bare-emoji titles (Herald emblem, static TZ "🎯" meta).
 - **boss-nav symmetry:** WORLD EVENT (Uber Diablo) chip grid alignment vs the other tiers.
+
+### Batch 2 ✅ (full suite 410 passed / 1 skipped, 17.6m · commit `3956432` · deploy `8b9ff767` · md5 parity ✓)
+- **Emblem unification through artOr** — super-unique *detail-header* emblem (was bare 💀),
+  uber-boss emblem (was a hardcoded `<img>`), and Herald tier 1-4 emblems (were bare 👹) now
+  all route through the central art helper. Uber art is mirrored into `D2IO_ART` from each
+  entry's existing `b.art` (single source, no duplicated URLs); Herald tiers wear the verified
+  `HERALD_PORTRAIT` (the same monster art the apex card uses) with 👹 fallback. All REG-001-safe
+  (`loading="lazy"` + onerror). `D2IO_ART` stays a pure diablo2.io-URL map — `HERALD_PORTRAIT`
+  (a data-URI) is built inline, NOT injected into the map (would break the v71 URL invariant).
+- **boss-nav alignment** — reserved a uniform 2-line label height
+  (`.boss-nav-sticky .boss-nav-group-label{min-height:2.4em}`) so every tier column's chips
+  start at the same Y. Root cause: single-line labels (ACT BOSSES) sat 23px higher than the
+  2-line ones; WORLD EVENT's lone chip only *looked* off next to taller stacks. Verified all 6
+  columns now share chipTop.
+- **Coverage matrix delivered** — per-entity-class audit of the 12 Baal-card sections (BOSSES
+  full ✓; ubers/super-uniques/heralds have gaps in why-farm/feeds-into/best-char/action-plan/
+  top-grail/top-table; numeric columns for ubers blocked on real RoW odds — flagged, never faked).
+- **v75 test updated** to assert the Herald *portrait* (not a charm graphic) + lazy lock.
+
+### Batch 3+ backlog (Konyo's unified-ID-card vision — additive, no cuts, no fabrication)
+- **TZ-zone enrichment:** the ~11 terror zones + the Pit cross-link get the unified rich card
+  (already have location/mlvl/TC/density/super-unique roster/grail pool/why-farm/feeds-into).
+  ADD: a dedicated **special-drops** area (Worldstone Shards → Sunder, Hellforge rune, set/quest
+  specials Konyo has actually found), best-char + action-plan, unified card shell. TZ zones are
+  areas not bosses — keep them as zone cards but visually consistent with the boss ID card.
+- **Unified card-template system:** one shared visual shell + type-specific section modules so
+  bosses / ubers / events / super-uniques / heralds / TZ zones / tips all read as one design
+  language (eye-candy, clean-cut), routed + clickable. Sections an entity lacks are simply
+  omitted, not faked.
+- **Hover-glow unification (batch 3):** unify the row/chip hover treatment site-wide (the clean
+  `translateY(-1px)`+gold-border+soft-shadow idiom) so the hovered/selected entity is obvious.
 
 ---
 
