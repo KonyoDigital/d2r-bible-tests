@@ -19,7 +19,9 @@ test.describe('v50 P# slider explainer + breakpoint math', () => {
   });
 
   test('explainer documents the canonical k = 1 + floor(N/2), not ceil', async ({ page }) => {
-    const t = await page.locator('#tab-ref').innerText();
+    // v89: ref sections are now collapsible (.sec-h/.sec-body, collapsed by default) —
+    // read textContent (sees hidden bodies) instead of innerText (visible-only).
+    const t = (await page.locator('#tab-ref').textContent()) || '';
     expect(t).toContain('What the P# slider actually does');
     expect(t).toContain('multiplier = (1 − qᵏ) / (1 − q)');
     expect(t).toContain('k = 1 + floor(N / 2)');

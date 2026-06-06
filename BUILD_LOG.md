@@ -31,6 +31,32 @@
 
 ---
 
+## 2026-06-06 — CC: tab-ref section-header unification (v89, #47 sweep)
+
+**Context:** Konyo: *"#47 sweep tabs for title/section asymmetries."* Swept all 11
+tab panels for title/section/collapsible asymmetries. Result: every tab is
+internally consistent; the lone cross-tab outlier was **tab-ref**, whose 8 section
+headers were bare `<h2>` while the other section-list tabs (tab-main, tab-rotw)
+use the collapsible `.sec-h` + `.sec-body` idiom. Konyo chose "Convert to
+collapsible."
+
+**Change:** Converted all 8 tab-ref `<h2>` headers to
+`<h2 class="sec-h collapsed" onclick="toggleSec(this)">… <span class="sec-chev">▾</span></h2>`
+immediately followed by `<div class="sec-body" hidden>…</div>`. Inner content
+preserved verbatim; only wrapped. The 8 sections: two-filters, verified anchors,
+TC ramp, MF math, P# slider, Cube recipes, Tristram Stones, Confidence formula.
+
+**Test sync:** `v50_p_slider_explainer.spec.ts` test 1 switched `#tab-ref`
+`.innerText()` → `.textContent()` (collapsed `.sec-body` is `hidden`; innerText is
+visible-only). Other tab-ref consumers use `toContainText`/evaluate-click → no change.
+
+**Guard added:** new `v83_sync_audit.spec.ts` test *"section-header parity"* —
+asserts every section-list tab (main · rotw · ref) uses ONLY collapsible `.sec-h`
+cards (scoped to `:scope > h2`, so nested `.gbc-name`/`.gic-name` detail-card h2s
+are exempt). ref ≥8, main ≥4, rotw ≥5.
+
+---
+
 ## 2026-06-06 — CC: Herald ladder research + tier-card enrichment (v88)
 
 **Context:** Konyo: *"start the Herald ladder research work autonomously on them

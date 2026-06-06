@@ -131,6 +131,41 @@ test.describe('v83 website synchronization audit', () => {
     expect(r.startCollapsed, 'tools-tab cards should default collapsed (tidy, title-only)').toBe(true);
   });
 
+  test('section-header parity: every section-list tab (main · rotw · ref) uses ONLY collapsible .sec-h cards (no bare <h2>)', async ({ page }) => {
+    // v89 unified the Reference tab: it used to be 8 bare, always-open <h2> headers —
+    // the odd-one-out vs main/rotw, which use the tidy collapsible .sec-h + .sec-body
+    // idiom (toggleSec, ▾ chevron, collapsed by default). This invariant locks the
+    // symmetry: in any of the three "list of sections" tabs, every DIRECT-CHILD <h2>
+    // must be a .sec-h with a toggleSec handler, a ▾ chevron, and an adjacent .sec-body.
+    // (Detail-card <h2.gbc-name>/<h2.gic-name> are nested, not direct children — exempt.)
+    const r = await page.evaluate(() => {
+      const tabs = ['main', 'rotw', 'ref'];
+      const bad: Record<string, string[]> = {};
+      for (const id of tabs) {
+        const panel = document.getElementById('tab-' + id);
+        if (!panel) { bad[id] = ['<missing panel>']; continue; }
+        const heads = [...panel.querySelectorAll(':scope > h2')];
+        const offenders = heads.filter(h =>
+          !h.classList.contains('sec-h') ||
+          !(h.getAttribute('onclick') || '').includes('toggleSec') ||
+          !h.querySelector('.sec-chev') ||
+          !(h.nextElementSibling && h.nextElementSibling.classList.contains('sec-body'))
+        ).map(h => (h.textContent || '').trim().slice(0, 40));
+        if (offenders.length) bad[id] = offenders;
+      }
+      const counts = Object.fromEntries(tabs.map(id => {
+        const p = document.getElementById('tab-' + id);
+        return [id, p ? p.querySelectorAll(':scope > h2.sec-h').length : 0];
+      }));
+      return { bad, counts };
+    });
+    expect(r.bad, `section-list tabs with bare/non-collapsible <h2> headers: ${JSON.stringify(r.bad)}`).toEqual({});
+    // sanity: each tab still has its sections (catches an accidental wipe)
+    expect(r.counts.ref, 'ref should have its 8 collapsible sections').toBeGreaterThanOrEqual(8);
+    expect(r.counts.main).toBeGreaterThanOrEqual(4);
+    expect(r.counts.rotw).toBeGreaterThanOrEqual(5);
+  });
+
   test('art invariant (REG-001 lock): artOr keeps loading="lazy" on real art', async ({ page }) => {
     const r = await page.evaluate(() => {
       // a name with verified art → an <img>; a name without → the emoji fallback only

@@ -3377,18 +3377,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
 
 <div class="tab-content" id="tab-ref">
-  <h2>🎯 The two filters every drop passes through</h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🎯 The two filters every drop passes through <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead"><strong>1. TC check:</strong> <code>monster TC ≥ item TC</code></div>
   <div class="lead"><strong>2. qlvl check:</strong> <code>monster mlvl ≥ item qlvl</code></div>
   <div class="warning"><strong>BOTH must pass.</strong> Meph mlvl 87 (passes Tyrael's qlvl 87) BUT TC 78 &lt; 87 → can never drop Tyrael's.</div>
-  <h2>🔒 Verified data anchors</h2>
+  </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🔒 Verified data anchors <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead">All unique &amp; set drop rates are pulled from <strong>silospen for Reign of the Warlock</strong> (300 MF, players 1). The 3 cells below are spot-validated reference points:
   <ul style="margin:8px 0 0;padding-left:20px;font-family:ui-monospace,monospace;font-size:12px;line-height:1.8">
     <li>🔒 Hell Mephisto Shako @ 300 MF = <strong>1:836</strong> (silospen RoW)</li>
     <li>🔒 NM Andariel SoJ @ 300 MF = <strong>1:2,286</strong> (silospen RoW)</li>
     <li>🔒 Hell Andariel BK @ 300 MF = <strong>1:4,080</strong> (silospen RoW)</li>
   </ul></div>
-  <h2>📐 TC tier ramp</h2>
+  </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">📐 TC tier ramp <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="tc-ramp">
     <div class="tc-ramp-seg s1">TC 3-39<span class="tc-ramp-label">starter</span></div>
     <div class="tc-ramp-seg s2">TC 42-60<span class="tc-ramp-label">mid · Shako/SoJ</span></div>
@@ -3396,7 +3401,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="tc-ramp-seg s4">TC 81-85<span class="tc-ramp-label">elite · CoA</span></div>
     <div class="tc-ramp-seg s5">TC 87+<span class="tc-ramp-label">uber · Tyrael's</span></div>
   </div>
-  <h2>📐 MF math</h2>
+  </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">📐 MF math <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead"><code>Effective MF = (Gear MF × 100) / (Gear MF + Factor)</code><br>Unique factor = 250 · Set = 500 · Rare = 600</div>
   <div class="stat-grid">
     <div class="stat"><div class="stat-label">100% MF</div><div class="stat-value">28.6%</div><div class="stat-sub">effective unique</div></div>
@@ -3404,7 +3411,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="stat"><div class="stat-label">699% (you)</div><div class="stat-value">73.7%</div><div class="stat-sub">effective unique</div></div>
     <div class="stat"><div class="stat-label">1500% (max)</div><div class="stat-value">85.7%</div><div class="stat-sub">effective unique</div></div>
   </div>
-  <h2>👥 What the P# slider actually does</h2>
+  </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">👥 What the P# slider actually does <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead"><code>/players N</code> shrinks each monster's <strong>NoDrop</strong>, so it drops <strong>MORE items (quantity)</strong> — it <strong>never</strong> changes drop <strong>QUALITY</strong> (that's MF's job). How much depends on the monster's base NoDrop <code>q</code>:<br><code>multiplier = (1 − qᵏ) / (1 − q)</code>, &nbsp;<code>k = 1 + floor(N / 2)</code></div>
   <div class="warning"><strong>Breakpoints, not a smooth ramp:</strong> /p1 (solo) is the ×1.00 baseline; drops step up at <strong>/p2, /p4, /p6, /p8</strong>, with /p2=/p3, /p4=/p5, /p6=/p7 as identical pairs. Higher player count = slower kills, so it's a quantity-vs-speed trade, never a quality gain.</div>
   <div class="lead" style="margin-top:10px">It moves <strong>3 of the 4 boss tiers</strong> — only the guaranteed droppers (q=0) ignore it entirely. Multipliers shown at <strong>/players 8</strong> (Hell):</div>
@@ -3418,7 +3427,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody>
   </table></div>
   <p style="font-size:13px;color:var(--text-muted)">Guaranteed droppers — they always spill their full table, so extra players add only HP, never loot (these carry the <code>· P#-PROOF</code> tag on their cards).</p>
-  <h2>🧊 Cube Recipes — quick reference</h2>
+  </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🧊 Cube Recipes — quick reference <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
 <div class="cube-section">
   <h3>Rune upgrades (3-to-1)</h3>
   <div class="cube-row"><div class="cube-input">3× El</div><div class="cube-arrow">→</div><div class="cube-output">1× Eld</div></div>
@@ -3447,13 +3458,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="cube-row"><div class="cube-input">Wirt's Leg + Tome of TP</div><div class="cube-arrow">→</div><div class="cube-output">portal to Secret Cow Level</div></div>
   <div class="cube-row"><div class="cube-input">Stone of Jordan + ring + amulet</div><div class="cube-arrow">→</div><div class="cube-output">unique ring (very rare RNG)</div></div>
 </div>
+  </div>
 
-<h2>📜 Tristram Stones — Cain rescue rerun</h2>
+<h2 class="sec-h collapsed" onclick="toggleSec(this)">📜 Tristram Stones — Cain rescue rerun <span class="sec-chev">▾</span></h2>
+<div class="sec-body" hidden>
 <div class="lead">After Cain is rescued in each act, you can cube 4 stones from Act bosses for a <strong>+1 socket weapon</strong> at Larzuk per act. Each Cain visit = 1 cube. Most ignore this past Act 1.</div>
+</div>
 
-<h2>🎯 Confidence formula</h2>
+<h2 class="sec-h collapsed" onclick="toggleSec(this)">🎯 Confidence formula <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
   <div class="lead"><code>runs = log(1 - confidence) / log(1 - 1/dropChance)</code></div>
   <p style="font-size:13px;color:var(--text-muted)">Practical: chance 1:X → <strong>50% conf ≈ 0.693 × X</strong>, <strong>95% ≈ 3 × X</strong>, <strong>99% ≈ 4.6 × X</strong>.</p>
+  </div>
 </div>
 <div class="footer">
   Sources: silospen dropcalc · d2runewizard · diablo2.io · Maxroll · DiabloBytes · pairofdocs<br>
