@@ -2620,9 +2620,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <h2>💎 Item Set Tracker <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click pieces to check off</span></h2>
-  <div class="lead">Most useful D2 sets. Click each piece you've collected — checks save to localStorage. Complete sets glow green.</div>
-  <div class="set-tracker" id="set-tracker"></div>
+  <div class="boss-card collapsible collapsed" id="set-tracker-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('set-tracker-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">💎</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Item Set Tracker</p>
+        <p class="boss-subtitle">Click each piece you've collected → completed sets glow green</p>
+        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · the most useful D2 sets</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="set-tracker" id="set-tracker"></div>
+    </div>
+  </div>
 
 </div>
 
@@ -4073,7 +4084,7 @@ function zoneSuRosterHtml(zi){
   const members = SUPER_UNIQUES.map((su, si) => ({su, si})).filter(({su}) => { const m = suTzZone(su); return m && m.zi === zi; });
   if (!members.length) return '';
   const cards = members.map(({su, si}) => `<div class="zd-su-card" data-su-idx="${si}" role="button" tabindex="0" onclick="event.stopPropagation();window.jumpToSuperUnique(${si})" title="open ${su.name}'s super-unique ID card">
-      <span class="zd-su-card-name"><span class="zd-su-card-emoji">${su.emoji}</span> ${su.name}</span>
+      <span class="zd-su-card-name"><span class="zd-su-card-emoji">${artOr(su.name, su.emoji, 'sm')}</span> ${su.name}</span>
       <span class="zd-su-card-meta">mlvl ${su.mlvl} · ${su.immune === 'none' ? 'no immunity' : su.immune + ' immune'}${su.dclone ? ' · 🔱 DClone camp' : ''}</span>
       <span class="zd-su-card-go">open ID card →</span>
     </div>`).join('');
@@ -4180,7 +4191,7 @@ function renderSuperUniques(){
     if (su.immune && su.immune !== 'none' && su.immune !== 'random (Hell)') tags.push(`<span class="tz-zone-tag dense">${su.immune} immune</span>`);
     return `<div class="su-card" data-su-idx="${si}" onclick="window.toggleSuperUnique(${si})" style="cursor:pointer" title="click for super-unique detail">
       <div class="tz-zone-header">
-        <span class="tz-zone-emoji">${su.emoji}</span>
+        <span class="tz-zone-emoji">${artOr(su.name, su.emoji, 'sm')}</span>
         <p class="tz-zone-name">${su.name}</p>
         <span class="tz-zone-tier">mlvl ${su.mlvl}</span>
       </div>
@@ -4909,6 +4920,15 @@ const D2IO_ART = {
   "Colossal Ancient Statue": "https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png",
   "Colossal Ancient Statues": "https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png",
   "Colossal Ancients": "https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png",
+  // super-unique boss art (auto-verified HTTP 200 + image/png on 2026-06-06; names absent keep emoji)
+  "The Summoner": "https://diablo2.io/styles/zulu/theme/images/items/summoner_graphic.png",
+  "Izual": "https://diablo2.io/styles/zulu/theme/images/items/izual_graphic.png",
+  "Hephasto the Armorer": "https://diablo2.io/styles/zulu/theme/images/items/hephasto_graphic.png",
+  "Shenk the Overseer": "https://diablo2.io/styles/zulu/theme/images/items/shenk_graphic.png",
+  "Nihlathak": "https://diablo2.io/styles/zulu/theme/images/items/nihlathak-opt_graphic.png",
+  "Frozenstein": "https://diablo2.io/styles/zulu/theme/images/items/frozenstein_graphic.png",
+  "The Smith": "https://diablo2.io/styles/zulu/theme/images/items/smith_graphic.png",
+  "Sszark the Burning": "https://diablo2.io/styles/zulu/theme/images/items/sszark_graphic.png",
   "Ist rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeIst_icon.png",
   "Jah/Ber/Sur rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeSur_icon.png",
   "Alma Negra": "https://diablo2.io/styles/zulu/theme/images/items/rondache_graphic.png",
@@ -10010,25 +10030,31 @@ _v41_whenReady(() => {
   function v42BuildCommands() {
     const cmds = [];
 
-    // Tabs (8) — order + keys must match the DOM tab bar and the 1-8 keyboard shortcuts
-    const tabs = [
-      {id:'bosses', label:'Bosses', icon:'🗺️', key:'1'},
-      {id:'calc', label:'Calculator', icon:'🔍', key:'2'},
-      {id:'tz', label:'Terror Zones', icon:'🔥', key:'3'},
-      {id:'runes', label:'Runes', icon:'🪨', key:'4'},
-      {id:'rotw', label:'RotW Special', icon:'👑', key:'5'},
-      {id:'ancients', label:'Events', icon:'🔥', key:'6', kw:'uber tristram diablo clone summoner cow level colossal ancients pandemonium nights of terror torch annihilus'},
-      {id:'binds', label:'Binds', icon:'🔱', key:'7'},
-      {id:'ref', label:'Reference', icon:'📐', key:'8'},
-    ];
-    tabs.forEach(t => cmds.push({
-      icon: t.icon,
-      label: `Switch to ${t.label}`,
-      cat: 'tab',
-      hint: `${t.key}`,
-      keywords: `tab ${t.label.toLowerCase()} ${t.id} ${t.kw || ''}`,
-      action: () => { if (typeof window.switchTab === 'function') window.switchTab(t.id); }
-    }));
+    // Tabs — derived LIVE from the DOM tab bar (skipping the 'main' home) so a newly
+    // added tab is auto-searchable; no hardcoded list to drift out of sync. The v83
+    // sync-audit enforces "every nav tab is globally searchable". Per-id extra
+    // keywords aid discoverability for the content-dense tabs.
+    const TAB_KW = {
+      ancients: 'uber tristram diablo clone summoner cow level colossal ancients pandemonium nights of terror torch annihilus',
+      endgame: 'road hellfire torch colossal ancients herald sunder pinnacle relics',
+      tools: 'rune stash cube planner material uber planner item set tracker gadgets',
+    };
+    [...document.querySelectorAll('.tabs .tab[data-tab]')]
+      .filter(btn => btn.dataset.tab !== 'main')
+      .forEach((btn, i) => {
+        const id = btn.dataset.tab;
+        const parts = (btn.textContent || '').trim().split(/\s+/);
+        const icon = parts[0] || '•';
+        const label = (parts.slice(1).join(' ') || id).replace(/\b\w/g, c => c.toUpperCase());
+        cmds.push({
+          icon,
+          label: `Switch to ${label}`,
+          cat: 'tab',
+          hint: i < 9 ? String(i + 1) : '',
+          keywords: `tab ${label.toLowerCase()} ${id} ${TAB_KW[id] || ''}`,
+          action: () => { if (typeof window.switchTab === 'function') window.switchTab(id); }
+        });
+      });
 
     // Bosses (11)
     const BOSSES_DATA = (typeof BOSSES !== 'undefined') ? BOSSES : [];

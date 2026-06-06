@@ -54,6 +54,10 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     // v82: the Item Set Tracker now lives in the dedicated 🧰 tools tab
     await page.locator('.tab[data-tab="tools"]').click();
     await page.waitForTimeout(200);
+    // v83: it is now a collapsible card (symmetric with the 2 stash planners) —
+    // expand it so its pieces are interactable
+    await page.locator('#set-tracker-card .boss-header').click();
+    await page.waitForTimeout(150);
     const piece = page.locator('.set-piece').first();
     if (await piece.count()) {
       const before = await piece.getAttribute('class');

@@ -31,6 +31,43 @@
 
 ---
 
+## 2026-06-06 — CC: sync-audit framework + tools/search/super-unique sync (batch 1)
+
+**Context:** Konyo asked the loops to "look for synchronization across the website…
+alert us or fix it automatically", then to unify everything to the rich Baal boss-card
+format and upgrade every title emoji to artOr. This batch ships the standing audit +
+the safe, fully-verified mechanical fixes. Big data-enrichment work (Heralds, all
+droppers → Baal format) is tracked separately (needs official RoW data, no fabrication).
+
+### Batch 1 ✅ (full suite 410 passed / 1 skipped, 17.4m)
+- **v83 sync audit** (`tests/v83_sync_audit.spec.ts`, 7 tests) — machine-readable
+  symmetry contract: tab↔panel↔nav-chip parity, search parity, openDrop route parity,
+  endgame-relic parity, tools-tab collapse parity, REG-001 artOr lazy lock, docs↔data
+  anchor sync. This is the "is everything still wired" standing sweep.
+- **Global search tab sync** — `v42BuildCommands` derived its "Switch to …" commands
+  from a hardcoded 8-tab list (drifted: endgame + tools missing). Now DOM-derived from
+  `.tabs .tab` → permanently sync-proof.
+- **Item Set Tracker → collapsible card** — was a bare always-open `<h2>` in the 🧰 tools
+  tab while the 2 stash planners were collapsible boss-cards. Now `.boss-card.collapsible`
+  (`#set-tracker-card`), symmetric + title-only by default. (`bug110_149` BUG-114 updated.)
+- **Super-unique artOr upgrade** — su-card + zd-su-card titles now use
+  `artOr(su.name, emoji, 'sm')` (emoji fallback, zero fabrication). Added 8 super-unique
+  art keys to `D2IO_ART`, each probed live HTTP 200 + image/png on 2026-06-06: The Summoner,
+  Izual, Hephasto the Armorer, Shenk the Overseer, Nihlathak, Frozenstein, The Smith,
+  Sszark the Burning. The other named super-uniques have no diablo2.io art → keep emoji.
+
+### Out-of-sync backlog (Konyo's "perfect what we built" list — tracked, not yet done)
+- **Heralds:** research the 5-tier ladder from official RoW sources, then enrich every
+  tier card (not just apex) to Baal format; 👹 emblem → artOr. (Sunder Charms are
+  Herald-exclusive — the RoW holy grail.)
+- **Baal-format parity sweep:** every loot-dropper (ubers, DClone, super-uniques,
+  Ancients, quest rewards/Hellforge/Anya, events) → the rich boss-detail format. Build a
+  coverage matrix first; real data only.
+- **artOr title sweep:** remaining bare-emoji titles (Herald emblem, static TZ "🎯" meta).
+- **boss-nav symmetry:** WORLD EVENT (Uber Diablo) chip grid alignment vs the other tiers.
+
+---
+
 ## 2026-06-06 — CC night session: Colossal endgame enrichment + Herald dedup
 
 **Context:** Konyo asked for a large, multi-phase enrichment of the RotW endgame
