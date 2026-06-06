@@ -121,8 +121,9 @@ test.describe('BUG-014 — Cmd/Ctrl-click source-chip opens boss detail', () => 
     await page.waitForTimeout(300);
     await page.locator('#item-grid .item-tile:visible').first().click();
     await page.waitForTimeout(300);
-    // find any source-chip in the detail
-    const chip = page.locator('#item-detail .source-chip').first();
+    // find any source-chip in the detail (v87: NORM/NM chips are render-hidden Hell-only —
+    // target the first VISIBLE chip, which is the real post-hide user experience)
+    const chip = page.locator('#item-detail .source-chip:visible').first();
     await expect(chip).toBeVisible();
     await chip.click({ modifiers: ['Meta'] });
     await page.waitForTimeout(400);
@@ -137,7 +138,7 @@ test.describe('BUG-014 — Cmd/Ctrl-click source-chip opens boss detail', () => 
     await page.waitForTimeout(300);
     await page.locator('#item-grid .item-tile:visible').first().click();
     await page.waitForTimeout(300);
-    await page.locator('#item-detail .source-chip').first().click();
+    await page.locator('#item-detail .source-chip:visible').first().click();
     await page.waitForTimeout(300);
     // Should be on bosses tab now, NOT detail overlay
     await expect(page.locator('#boss-detail-overlay')).toHaveClass(/hidden/);

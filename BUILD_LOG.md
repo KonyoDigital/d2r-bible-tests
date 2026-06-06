@@ -31,6 +31,36 @@
 
 ---
 
+## 2026-06-06 — CC: hide NORM/NM site-wide — Hell-only view (v87)
+
+**Context:** Konyo plays Hell-only RoW. Direction (verbatim): *"now hide NORM/NM
+across the boss cards, calc grid, and rune tables"* with the standing constraint
+*"i dont want [the math] touched.. just hidden."* So this is a **render-only** hide —
+the drop math/data and the DOM are entirely intact; only `display:none` is applied.
+
+**Shipped (visual hide, zero data/math change):**
+- One CSS rule (after the `.t-hell` block) hides four per-difficulty class families:
+  `dcol-*` (table columns) · `gdc-*` (boss-detail diff grid) · existing `t-*` (boss
+  list diff grid) · `csrc-*` (calc source-table rows) · `acr-*` (aid-card compare
+  rows) · `schip-*` (aid-card source chips) — each for `norm`/`normTz`/`nm`/`nmTz`.
+- Per-difficulty classes added at every render surface: boss list diff-grid (existing
+  `t-*`), boss-detail diff-grid (index-based `gdc-*`), boss-detail top-12 grid,
+  boss full drop table (header + cells via a `dcol` lookup), Countess rune table
+  (header + `cell()` gains a class arg), calc item-detail source table rows, and the
+  aid-card compare-rows + source-chips.
+- **Why CSS, not DOM removal:** positional integrity probes (`02_verified_anchors`
+  `nth(4)`=hell / `nth(2)`=nm SoJ 1:2,286; `03_cell_correctness`; `v41_deep_audit` &
+  `routing_and_data_integrity` column-index no-fabrication scans; `01_smoke` th=8 /
+  diff-grid=6) all read the DOM positionally — `display:none` keeps every cell in the
+  tree so they stay green untouched. The drop scaling/anchors are literally unchanged.
+
+**Test updates (Hell-only reality):** 2 source-chip-click specs (`bug013_014`,
+`bug040_050`) clicked `.source-chip').first()` — for Nagelring the first DOM chip is
+now a hidden NORM/NM source → not actionable. Retargeted to `.source-chip:visible`
+first (the real post-hide UX). Full suite **423 green**.
+
+---
+
 ## 2026-06-06 — CC: TZ-zone Hell drops GRID — boss-card parity (v86)
 
 **Context:** Konyo wanted the TZ zones to carry the boss-card "drops grid" look.

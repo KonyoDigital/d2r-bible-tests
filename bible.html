@@ -95,6 +95,16 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .diff-cell.t-nm-tz{border-top-color:var(--nm);background:linear-gradient(180deg,rgba(255,0,212,.08),var(--surface-3))}
 .diff-cell.t-hell{border-top-color:var(--hell)}
 .diff-cell.t-hell-tz{border-top-color:var(--hell);background:linear-gradient(180deg,rgba(255,0,212,.14),var(--surface-3));box-shadow:0 0 0 1px rgba(255,0,212,.2)}
+/* v87 — Hell-only view: NORM / NM (+ their TZ) columns, cells, rows & chips are render-hidden
+   site-wide. The underlying drop MATH/DATA is UNTOUCHED — the DOM stays intact (positional
+   integrity probes still read every diff column), this is a pure VISUAL hide per Konyo's
+   Hell-only RotW play. Re-show everything by deleting this single rule. */
+.diff-cell.t-norm,.diff-cell.t-norm-tz,.diff-cell.t-nm,.diff-cell.t-nm-tz,
+.gbc-diff-cell.gdc-norm,.gbc-diff-cell.gdc-normtz,.gbc-diff-cell.gdc-nm,.gbc-diff-cell.gdc-nmtz,
+.dcol-norm,.dcol-normtz,.dcol-nm,.dcol-nmtz,
+tr.csrc-norm,tr.csrc-normtz,tr.csrc-nm,tr.csrc-nmtz,
+.aid-compare-row.acr-norm,.aid-compare-row.acr-normtz,.aid-compare-row.acr-nm,.aid-compare-row.acr-nmtz,
+.source-chip.schip-norm,.source-chip.schip-normtz,.source-chip.schip-nm,.source-chip.schip-nmtz{display:none !important}
 .diff-label{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);font-weight:700;margin-bottom:2px}
 .diff-label.terror{color:var(--terror)}
 .diff-mlvl{font-size:13px;font-weight:600;color:var(--text);font-family:ui-monospace,monospace}
@@ -6632,7 +6642,8 @@ function renderBossDetailCard(bossId, focusDiff) {
   // === 1. Diff grid (6 cells) ===
   const diffsHtml = boss.diffs.map((d,i) => {
     const isTz = d.label.toLowerCase().includes('tz') || (d.label || '').includes('TZ');
-    return `<div class="gbc-diff-cell ${isTz?'is-tz':''}">
+    const gdc = ['gdc-norm','gdc-normtz','gdc-nm','gdc-nmtz','gdc-hell','gdc-helltz'][i] || '';
+    return `<div class="gbc-diff-cell ${isTz?'is-tz':''} ${gdc}">
       <div class="gbc-diff-label">${d.label}</div>
       <div class="gbc-diff-mlvl">mlvl ${d.mlvl}</div>
       <div class="gbc-diff-tc">max TC ${d.tcMax}</div>
@@ -6775,8 +6786,8 @@ function renderBossDetailCard(bossId, focusDiff) {
         <thead><tr>
           <th style="text-align:left">item</th>
           <th><span class="kbd-tip" data-tip="Treasure Class — internal D2 drop pool tier. Higher TC = rarer items can drop. TC85 unlocks endgame items like CoA, Fathom, Griffon's, Tomb Reaver. Hell bosses + Hell TZ uniques drop from TC81-87.">TC</span></th>
-          <th style="text-align:right">NORM</th>
-          <th style="text-align:right">NM</th>
+          <th class="dcol-norm" style="text-align:right">NORM</th>
+          <th class="dcol-nm" style="text-align:right">NM</th>
           <th style="text-align:right">HELL</th>
           <th style="text-align:right">HELL TZ</th>
         </tr></thead>
@@ -6792,8 +6803,8 @@ function renderBossDetailCard(bossId, focusDiff) {
             return `<tr style="cursor:pointer" onclick="navigateToItem(\'${esc}\', {tab:\'bosses\', bossId:\'${boss.id}\'})">
               <td><strong>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
               <td style="font-family:var(--mono);color:var(--text-muted);font-size:11px">TC${d.tc}</td>
-              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.norm,'norm')}</td>
-              <td style="text-align:right;font-family:var(--mono)">${adjusted(d.nm,'nm')}</td>
+              <td class="dcol-norm" style="text-align:right;font-family:var(--mono)">${adjusted(d.norm,'norm')}</td>
+              <td class="dcol-nm" style="text-align:right;font-family:var(--mono)">${adjusted(d.nm,'nm')}</td>
               <td style="text-align:right;font-family:var(--mono)">${adjusted(d.hell,'hell')}</td>
               <td style="text-align:right;font-family:var(--mono)">${adjusted(d.hellTz,'hellTz')}</td>
             </tr>`;
@@ -7139,21 +7150,22 @@ function renderBossCards() {
         const val = adjusted[i];
         const diff = boss.diffs[i];
         const isVerified = verifiedDiffs.includes(k);
+        const dcol = {norm:'dcol-norm',normTz:'dcol-normtz',nm:'dcol-nm',nmTz:'dcol-nmtz'}[k] || '';
         if (val !== null && val !== undefined) {
-          if (val < 100) return `<td class="diff-col rare-5">${fmt(val)}</td>`;
+          if (val < 100) return `<td class="diff-col ${dcol} rare-5">${fmt(val)}</td>`;
           const cls = getRarityClass(val);
           const bestCls = (val === minChance) ? 'best-cell' : '';
           const verCls = isVerified ? 'verified-cell' : '';
           const verTitle = isVerified ? ' title="🔒 silospen-verified anchor"' : '';
-          return `<td class="diff-col ${cls} ${bestCls} ${verCls}"${verTitle}>${fmt(val)}</td>`;
+          return `<td class="diff-col ${dcol} ${cls} ${bestCls} ${verCls}"${verTitle}>${fmt(val)}</td>`;
         }
         const blocked = deriveBlocked(d, diff);
         if (blocked) {
           const cls = blocked.type === "mlvl" ? "blocked-mlvl" : "blocked-tc";
           const short = blocked.reason.length > 22 ? blocked.reason.substring(0,22)+'…' : blocked.reason;
-          return `<td class="diff-col ${cls}" title="${blocked.reason}">${short}</td>`;
+          return `<td class="diff-col ${dcol} ${cls}" title="${blocked.reason}">${short}</td>`;
         }
-        return `<td class="diff-col cannot">—</td>`;
+        return `<td class="diff-col ${dcol} cannot">—</td>`;
       }).join("");
       const itemNameClass = d.tier === "uber" ? "tier-uber" : d.tier === "grail" ? "tier-grail" : "";
       const starred = wishlist.has(d.n);
@@ -7208,10 +7220,10 @@ function renderBossCards() {
           <thead><tr>
             <th>item</th>
             <th>TC/qlvl</th>
-            <th class="diff-col ${hdrCls('norm')}" onclick="setBossSort('${boss.id}','norm')">NORM</th>
-            <th class="diff-col ${hdrCls('normTz')}" onclick="setBossSort('${boss.id}','normTz')">NORM TZ</th>
-            <th class="diff-col ${hdrCls('nm')}" onclick="setBossSort('${boss.id}','nm')">NM</th>
-            <th class="diff-col ${hdrCls('nmTz')}" onclick="setBossSort('${boss.id}','nmTz')">NM TZ</th>
+            <th class="diff-col dcol-norm ${hdrCls('norm')}" onclick="setBossSort('${boss.id}','norm')">NORM</th>
+            <th class="diff-col dcol-normtz ${hdrCls('normTz')}" onclick="setBossSort('${boss.id}','normTz')">NORM TZ</th>
+            <th class="diff-col dcol-nm ${hdrCls('nm')}" onclick="setBossSort('${boss.id}','nm')">NM</th>
+            <th class="diff-col dcol-nmtz ${hdrCls('nmTz')}" onclick="setBossSort('${boss.id}','nmTz')">NM TZ</th>
             <th class="diff-col ${hdrCls('hell')}" onclick="setBossSort('${boss.id}','hell')">HELL</th>
             <th class="diff-col ${hdrCls('hellTz')}" onclick="setBossSort('${boss.id}','hellTz')">HELL TZ</th>
           </tr></thead>
@@ -7514,17 +7526,18 @@ function renderDetail() {
     <tbody>
       ${allSorted.map(s => {
         const isBest = best && s.boss === best.boss && s.adjustedChance === best.adjustedChance;
+        const csrc = {norm:'csrc-norm',normTz:'csrc-normtz',nm:'csrc-nm',nmTz:'csrc-nmtz'}[s.diffKey] || '';
         if (s.adjustedChance === null) {
-          return `<tr><td>${s.boss}</td><td class="diff-col blocked-mlvl" title="${s.blocked||''}">${s.blocked||'—'}</td><td class="diff-col">—</td><td class="diff-col">—</td><td class="diff-col">—</td></tr>`;
+          return `<tr class="${csrc}"><td>${s.boss}</td><td class="diff-col blocked-mlvl" title="${s.blocked||''}">${s.blocked||'—'}</td><td class="diff-col">—</td><td class="diff-col">—</td><td class="diff-col">—</td></tr>`;
         }
         if (s.adjustedChance < 100) {
-          return `<tr><td>${s.boss}</td><td class="diff-col">${fmt(s.adjustedChance)}</td><td class="diff-col">—</td><td class="diff-col">—</td><td class="diff-col">—</td></tr>`;
+          return `<tr class="${csrc}"><td>${s.boss}</td><td class="diff-col">${fmt(s.adjustedChance)}</td><td class="diff-col">—</td><td class="diff-col">—</td><td class="diff-col">—</td></tr>`;
         }
         const r50 = runsFor(s.adjustedChance, 0.5);
         const r95 = runsFor(s.adjustedChance, 0.95);
         const h50 = hoursFor(s.adjustedChance, 0.5, s.kph);
         const verBadge = s.verified ? ' <span style="color:var(--verified);font-size:10px">🔒 verified</span>' : '';
-        return `<tr><td style="${isBest?'color:var(--best);font-weight:600':''}">${s.boss}${verBadge} <span style="color:var(--text-dim);font-size:10px">${s.kph}/hr</span></td><td class="diff-col ${isBest?'best-cell':''} ${s.verified?'verified-cell':''}">${fmt(s.adjustedChance)}</td><td class="diff-col">${r50.toLocaleString()}</td><td class="diff-col" style="color:var(--terror)">${fmtHours(h50)}</td><td class="diff-col">${r95.toLocaleString()}</td></tr>`;
+        return `<tr class="${csrc}"><td style="${isBest?'color:var(--best);font-weight:600':''}">${s.boss}${verBadge} <span style="color:var(--text-dim);font-size:10px">${s.kph}/hr</span></td><td class="diff-col ${isBest?'best-cell':''} ${s.verified?'verified-cell':''}">${fmt(s.adjustedChance)}</td><td class="diff-col">${r50.toLocaleString()}</td><td class="diff-col" style="color:var(--terror)">${fmtHours(h50)}</td><td class="diff-col">${r95.toLocaleString()}</td></tr>`;
       }).join("")}
     </tbody>
   </table></div>
@@ -7850,7 +7863,8 @@ function renderAidCard(name, opts){
     const sH50 = sAdj ? hoursForA(src.chance, sAdj, src.kph, 0.5) : null;
     const isFocused = dk === focus.diffKey;
     const diffLabel = (DIFF_MODIFIERS[dk]||{}).label || dk.toUpperCase();
-    return `<div class="aid-compare-row ${isFocused?'focused':''}">
+    const acr = {norm:'acr-norm',normTz:'acr-normtz',nm:'acr-nm',nmTz:'acr-nmtz'}[dk] || '';
+    return `<div class="aid-compare-row ${isFocused?'focused':''} ${acr}">
       <div class="aid-compare-diff">${isFocused?'⭐ ':''}${diffLabel}</div>
       <div class="aid-compare-chance ${!sAdj?'blocked':''}">${sAdj ? fmt(sAdj) : (blocked || '—')}</div>
       <div class="aid-compare-time">${sH50 ? fmtHours(sH50) : '—'}</div>
@@ -7892,7 +7906,8 @@ function renderAidCard(name, opts){
         ${valid.slice(0,12).map(s => {
           const isF = s.bossId===focus.bossId && s.diffKey===focus.diffKey;
           const sH50 = hoursForA(s.chance, s.adj, s.kph, 0.5);
-          return `<button class="source-chip" onclick="setActiveItem('${escName}', '${s.bossId}', '${s.diffKey}')${opts.context==='calc'?';switchTab(\'bosses\');setTimeout(()=>{document.getElementById(\''+s.bossId+'\').scrollIntoView();jumpToBossItem(\''+escName+'\')},100)':''}" ${isF?'data-active="true"':''}>${isF?'⭐ ':''}${s.boss}<span class="chip-chance">${fmt(s.adj)}</span><span class="chip-time">${fmtHours(sH50)}</span>${s.verified?'<span class="chip-verified">🔒</span>':''}</button>`;
+          const schip = {norm:'schip-norm',normTz:'schip-normtz',nm:'schip-nm',nmTz:'schip-nmtz'}[s.diffKey] || '';
+          return `<button class="source-chip ${schip}" onclick="setActiveItem('${escName}', '${s.bossId}', '${s.diffKey}')${opts.context==='calc'?';switchTab(\'bosses\');setTimeout(()=>{document.getElementById(\''+s.bossId+'\').scrollIntoView();jumpToBossItem(\''+escName+'\')},100)':''}" ${isF?'data-active="true"':''}>${isF?'⭐ ':''}${s.boss}<span class="chip-chance">${fmt(s.adj)}</span><span class="chip-time">${fmtHours(sH50)}</span>${s.verified?'<span class="chip-verified">🔒</span>':''}</button>`;
         }).join('')}
         ${valid.length > 12 ? `<span class="aid-tabbar-more">+${valid.length-12} more (see compare table below)</span>` : ''}
       </div>
@@ -8205,13 +8220,14 @@ function renderRuneTable() {
     const valid = [r.norm,r.nm,r.hell,r.hellTz].filter(v => v !== null);
     const best = valid.length ? Math.min(...valid) : null;
     const isBest = c => c !== null && c === best;
-    const cell = (val, capLabel) => {
+    const cell = (val, capLabel, dcol) => {
+      dcol = dcol || '';
       if (val !== null) {
         const cls = getRarityClass(val);
         const bestCls = isBest(val) ? 'best-cell' : '';
-        return `<td class="diff-col ${cls} ${bestCls}">${fmt(val)}</td>`;
+        return `<td class="diff-col ${dcol} ${cls} ${bestCls}">${fmt(val)}</td>`;
       }
-      return `<td class="diff-col blocked-mlvl" title="rune above ${capLabel} cap">rune cap</td>`;
+      return `<td class="diff-col ${dcol} blocked-mlvl" title="rune above ${capLabel} cap">rune cap</td>`;
     };
     return `<tr>
       ${(function(){
@@ -8221,8 +8237,8 @@ function renderRuneTable() {
           ? `<td class="item-name zd-item-click" style="cursor:pointer;${baseClr||'color:var(--gold)'}" onclick="window.openDrop('${r.n.replace(/'/g,"\\'")}')" title="open ${rune.n} rune card">${r.n} →</td>`
           : `<td class="item-name" style="${baseClr}">${r.n}</td>`;
       })()}
-      ${cell(r.norm,"Norm")}
-      ${cell(r.nm,"NM")}
+      ${cell(r.norm,"Norm","dcol-norm")}
+      ${cell(r.nm,"NM","dcol-nm")}
       ${cell(r.hell,"Hell")}
       ${cell(r.hellTz,"Hell TZ")}
       <td><span style="color:var(--text-dim);font-size:11px">${r.use}</span></td>
@@ -8230,7 +8246,7 @@ function renderRuneTable() {
   }).join("");
   $("rune-table-target").innerHTML = `<h3>Countess rune drops per kill (players 1) · 50 kills/hr</h3>
     <div class="scroll-table"><table class="drops">
-      <thead><tr><th>Rune</th><th class="diff-col">NORM</th><th class="diff-col">NM</th><th class="diff-col">HELL</th><th class="diff-col">HELL TZ</th><th>Used for</th></tr></thead>
+      <thead><tr><th>Rune</th><th class="diff-col dcol-norm">NORM</th><th class="diff-col dcol-nm">NM</th><th class="diff-col">HELL</th><th class="diff-col">HELL TZ</th><th>Used for</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }

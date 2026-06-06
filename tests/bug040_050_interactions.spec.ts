@@ -26,7 +26,8 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
     await page.waitForTimeout(200);
     await page.locator('#item-grid .item-tile:visible').first().click();
     await page.waitForTimeout(200);
-    const chip = page.locator('#item-detail .source-chip').first();
+    // v87: NORM/NM chips are render-hidden (Hell-only) — click the first VISIBLE chip
+    const chip = page.locator('#item-detail .source-chip:visible').first();
     await chip.click();
     await page.waitForTimeout(300);
     await expect(page.locator('#tab-bosses')).toBeVisible();
