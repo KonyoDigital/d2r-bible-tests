@@ -103,8 +103,15 @@ authoritative. ZERO fabrication mandate.
   (`/openDrop\('((?:\\.|[^'])*)'\)/` then unescape) is required to extract names
   like "Defender's Bile" — naive `[^']+` truncates at the inner apostrophe.
 - `openDrop` + `materialDetailHtml` are CENTRAL (site-wide blast radius) → ran the
-  WHOLE suite: **403 passed, 1 skipped** (15.6m). Dead-fork check clean. Pending
-  commit + Cloudflare deploy + md5 parity + push.
+  WHOLE suite: **403 passed, 1 skipped** (15.6m). Dead-fork check clean.
+
+### Ship complete — committed, deployed, pushed, CI-green
+- Committed `f5e91a8` (Colossal pinnacle ID cards + Herald dedup + endgame emblem
+  sync) + `2df6373` (Obsidian docs cross-ref + drop-odds/deploy provenance).
+- Cloudflare deploy + md5 parity confirmed: local == live `47ead1c1…` at
+  `https://bull-4-u.com/d2r/`. Pushed `ccdde35..f5e91a8` then `f5e91a8..2df6373`.
+- CI backstop GREEN: scheduled Routine I run **27057755096** (headSha `2df6373`)
+  all 4 jobs success (shard 1/3, 2/3, 3/3, merge reports). Golden smoke 51/51 local.
 
 ### Data — the 6 Colossal Ancient Jewels (Konyo-provided, diablo2.io)
 All: 1% chance-to-cast its element armor when struck · +element dmg · +5-10% to
