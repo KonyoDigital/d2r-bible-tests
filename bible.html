@@ -2024,6 +2024,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="endgame">⛓️ endgame</button>
     <button class="tab" data-tab="binds">🔱 binds</button>
     <button class="tab" data-tab="ref">📐 reference</button>
+    <button class="tab" data-tab="tools">🧰 tools</button>
   </div>
 </div>
 <div class="container">
@@ -2381,45 +2382,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
   <div class="warning"><strong>📊 Rune drop notes:</strong> Rune drop rates ARE NOT affected by MF. They're affected only by difficulty + monster level + Players count. Higher Players setting = more chances but each individual drop has lower probability. P1 = best for solo runes on Countess (max kill speed, simpler math).</div>
 
-  <div class="boss-card collapsible collapsed" id="rune-stash-card">
-    <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
-      <span class="boss-emoji">🧮</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Rune Stash &amp; Cube-Up Planner</p>
-        <p class="boss-subtitle">Count your runes → see what you can make &amp; cube up</p>
-        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · uses the exact in-game upgrade recipes</p>
-      </div>
-      <span class="rs-chevron" aria-hidden="true">▾</span>
-    </div>
-    <div class="boss-body">
-      <div class="rune-stash-wrap">
-        <div class="rw-make" id="rune-craftable"></div>
-        <div class="cubeup-panel">
-          <div class="cubeup-row">
-            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
-            <select id="rune-cubeup-target" onchange="window.renderRuneStash()"></select>
-            <span class="cubeup-result" id="cubeup-result">—</span>
-          </div>
-          <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
-        </div>
-        <details class="rs-import">
-          <summary>📥 Import a tally (paste counts)</summary>
-          <textarea id="rune-import-box" placeholder="El:3 Eld:1 Tir:6 …  (or paste JSON)"></textarea>
-          <div class="rs-import-row">
-            <button class="rs-import-btn" onclick="window.importRuneTally()">Load tally</button>
-            <span class="rs-import-status" id="rune-import-status"></span>
-          </div>
-          <div class="rs-import-note">Format: <code>Name:count</code> pairs separated by spaces or commas. Replaces your current tally.</div>
-        </details>
-        <div class="rune-stash-grid" id="rune-stash-grid"></div>
-        <div class="rune-stash-actions">
-          <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
-          <span class="rs-total" id="rune-stash-total"></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
 <div class="tab-content" id="tab-rotw">
@@ -2515,8 +2477,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
   </div>
-  <h2 class="statue-head zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:9px" onclick="openDrop('Colossal Ancient Statue')"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click for ID card →</span></h2>
-  <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → Colossal Summit.</div>
+  <h2 class="sec-h statue-head collapsed" onclick="toggleSec(this)" style="display:flex;align-items:center;gap:9px"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
+  <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → Colossal Summit. <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Statue')">📋 open the Colossal Ancient Statue ID card →</span></div>
   <div class="statue-progress">
     <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Progress:</span>
     <div class="statue-progress-bar"><div class="statue-progress-fill" id="statue-fill" style="width:0%"></div></div>
@@ -2524,6 +2487,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
   <div class="statue-tracker" id="statue-tracker"></div>
   <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <strong>Colossal Summit</strong> to summon the <strong>Colossal Ancients</strong> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" style="color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">💎 Colossal Ancient Jewels →</span></div>
+  </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">💧 Essences <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">From <strong>act bosses Hell</strong>. Cube all 4 → Token of Absolution. ~10-15% per kill. MF unaffected.</div>
@@ -2581,16 +2545,48 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </table></div>
 
   </div>
-  <h2>💎 Item Set Tracker <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click pieces to check off</span></h2>
-  <div class="lead">Most useful D2 sets. Click each piece you've collected — checks save to localStorage. Complete sets glow green.</div>
-  <div class="set-tracker" id="set-tracker"></div>
 </div>
 
-<div class="tab-content" id="tab-ancients">
+<div class="tab-content" id="tab-tools">
+  <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
 
-  <div class="events-intro" style="margin-bottom:24px;padding:14px 18px;border-left:2px solid var(--gold);background:var(--surface)">
-    <div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">The Pinnacle Events</div>
-    <div style="font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:15px;color:var(--text);line-height:1.55">Four pinnacle events that gate the deepest endgame: <strong style="color:var(--gold-bright);font-style:normal">Uber Tristram</strong> (Hellfire Torch), <strong style="color:var(--gold-bright);font-style:normal">Diablo Clone</strong> (Annihilus charm), <strong style="color:var(--gold-bright);font-style:normal">Secret Cow Level</strong> (rune farming + density), <strong style="color:var(--gold-bright);font-style:normal">Colossal Ancients</strong> (RotW pinnacle, Colossal Jewels). Plus the seasonal <strong style="color:var(--gold-bright);font-style:normal">22 Nights of Terror</strong> when Blizzard turns it on.</div>
+  <div class="boss-card collapsible collapsed" id="rune-stash-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">🧮</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Rune Stash &amp; Cube-Up Planner</p>
+        <p class="boss-subtitle">Count your runes → see what you can make &amp; cube up</p>
+        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · uses the exact in-game upgrade recipes</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="rune-stash-wrap">
+        <div class="rw-make" id="rune-craftable"></div>
+        <div class="cubeup-panel">
+          <div class="cubeup-row">
+            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
+            <select id="rune-cubeup-target" onchange="window.renderRuneStash()"></select>
+            <span class="cubeup-result" id="cubeup-result">—</span>
+          </div>
+          <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
+        </div>
+        <details class="rs-import">
+          <summary>📥 Import a tally (paste counts)</summary>
+          <textarea id="rune-import-box" placeholder="El:3 Eld:1 Tir:6 …  (or paste JSON)"></textarea>
+          <div class="rs-import-row">
+            <button class="rs-import-btn" onclick="window.importRuneTally()">Load tally</button>
+            <span class="rs-import-status" id="rune-import-status"></span>
+          </div>
+          <div class="rs-import-note">Format: <code>Name:count</code> pairs separated by spaces or commas. Replaces your current tally.</div>
+        </details>
+        <div class="rune-stash-grid" id="rune-stash-grid"></div>
+        <div class="rune-stash-actions">
+          <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
+          <span class="rs-total" id="rune-stash-total"></span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="boss-card collapsible collapsed" id="material-stash-card">
@@ -2622,6 +2618,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         </div>
       </div>
     </div>
+  </div>
+
+  <h2>💎 Item Set Tracker <span style="font-size:11px;color:var(--text-dim);font-weight:normal;font-family:ui-monospace,monospace;">click pieces to check off</span></h2>
+  <div class="lead">Most useful D2 sets. Click each piece you've collected — checks save to localStorage. Complete sets glow green.</div>
+  <div class="set-tracker" id="set-tracker"></div>
+
+</div>
+
+<div class="tab-content" id="tab-ancients">
+
+  <div class="events-intro" style="margin-bottom:24px;padding:14px 18px;border-left:2px solid var(--gold);background:var(--surface)">
+    <div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">The Pinnacle Events</div>
+    <div style="font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:15px;color:var(--text);line-height:1.55">Four pinnacle events that gate the deepest endgame: <strong style="color:var(--gold-bright);font-style:normal">Uber Tristram</strong> (Hellfire Torch), <strong style="color:var(--gold-bright);font-style:normal">Diablo Clone</strong> (Annihilus charm), <strong style="color:var(--gold-bright);font-style:normal">Secret Cow Level</strong> (rune farming + density), <strong style="color:var(--gold-bright);font-style:normal">Colossal Ancients</strong> (RotW pinnacle, Colossal Jewels). Plus the seasonal <strong style="color:var(--gold-bright);font-style:normal">22 Nights of Terror</strong> when Blizzard turns it on.</div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════

@@ -19,7 +19,7 @@ test.describe('v68 rune craft planner + collapse + import', () => {
     await page.evaluate(() => { try { localStorage.removeItem('d2r_runeStash'); } catch (e) {} });
     await page.reload();
     await page.waitForTimeout(1200);
-    await page.click('.tab[data-tab="runes"]');
+    await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);
   });
 
@@ -150,7 +150,7 @@ test.describe('v68 rune craft planner + collapse + import', () => {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(URL);
     await page.waitForTimeout(1200);
-    await page.click('.tab[data-tab="runes"]');
+    await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);
     await page.click('#rune-stash-card .boss-header');
     await page.evaluate(() => {

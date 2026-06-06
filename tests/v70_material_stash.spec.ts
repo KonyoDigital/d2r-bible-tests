@@ -16,7 +16,7 @@ test.describe('v70 material stash + uber planner', () => {
     await page.evaluate(() => { try { localStorage.removeItem('d2r_materialStash'); } catch (e) {} });
     await page.reload();
     await page.waitForTimeout(1200);
-    await page.click('.tab[data-tab="ancients"]');
+    await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);
   });
 
@@ -175,7 +175,7 @@ test.describe('v70 material stash + uber planner', () => {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(URL);
     await page.waitForTimeout(1200);
-    await page.click('.tab[data-tab="ancients"]');
+    await page.click('.tab[data-tab="tools"]');
     await page.click('#material-stash-card .boss-header');
     await page.evaluate(() => {
       const ta = document.getElementById('material-import-box') as HTMLTextAreaElement;

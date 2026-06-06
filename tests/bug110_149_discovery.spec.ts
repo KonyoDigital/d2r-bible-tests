@@ -51,7 +51,8 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
   test('BUG-114 set-piece toggle adds CSS class', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
-    await page.locator('.tab[data-tab="rotw"]').click();
+    // v82: the Item Set Tracker now lives in the dedicated 🧰 tools tab
+    await page.locator('.tab[data-tab="tools"]').click();
     await page.waitForTimeout(200);
     const piece = page.locator('.set-piece').first();
     if (await piece.count()) {

@@ -15,13 +15,15 @@ test.describe('v56 ROTW collapsible sections', () => {
     await page.evaluate(() => (window as any).switchTab('rotw'));
   });
 
-  test('5 sections collapsible, all collapsed by default', async ({ page }) => {
-    // v72: the Herald of Terror showpiece card is a 5th .sec-h/.sec-body at the
-    // top of the tab. Per Konyo's request every section (incl. Herald) now
-    // defaults COLLAPSED — tidy by default, click a title to drop it open.
-    await expect(page.locator('#tab-rotw .sec-h')).toHaveCount(5);
-    await expect(page.locator('#tab-rotw .sec-body')).toHaveCount(5);
-    await expect(page.locator('#tab-rotw .sec-body[hidden]')).toHaveCount(5);
+  test('6 sections collapsible, all collapsed by default', async ({ page }) => {
+    // v72: the Herald of Terror showpiece card is the 1st .sec-h/.sec-body at the
+    // top of the tab. v82: the Colossal Ancient Statues header was converted to a
+    // standard collapsible .sec-h (title-only by default, like the rest) — making 6.
+    // Per Konyo's request every section now defaults COLLAPSED — tidy by default,
+    // click a title to drop it open. (The Item Set Tracker moved to the 🧰 tools tab.)
+    await expect(page.locator('#tab-rotw .sec-h')).toHaveCount(6);
+    await expect(page.locator('#tab-rotw .sec-body')).toHaveCount(6);
+    await expect(page.locator('#tab-rotw .sec-body[hidden]')).toHaveCount(6);
     await expect(page.locator('#tab-rotw .sec-h').first()).toHaveText(/Herald of Terror/);
   });
 

@@ -72,26 +72,44 @@ test.describe('v74 materials are searchable + route to their ID card', () => {
     expect(name).toMatch(/Essence of Hatred/);
   });
 
-  test('the Colossal Ancient Statues header carries real Talic art + is clickable to its card', async ({ page }) => {
+  test('the Colossal Ancient Statues header carries real Talic art + collapses like the rest', async ({ page }) => {
     await page.click('.tab[data-tab="rotw"]');
     await page.waitForTimeout(250);
     const art = await page.evaluate(() => {
       const h = document.querySelector('#tab-rotw .statue-head');
       const img = h?.querySelector('.d2art-img') as HTMLImageElement | null;
+      const body = h?.nextElementSibling as HTMLElement | null;
       return {
         hasHead: !!h,
-        clickable: (h?.getAttribute('onclick') || '').includes("openDrop('Colossal Ancient Statue')"),
+        // v82: the header now toggles its sec-body open/closed (like every other section title),
+        // it no longer routes straight to the ID card on click
+        collapsible: (h?.getAttribute('onclick') || '').includes('toggleSec(this)'),
+        startsCollapsed: !!h?.classList.contains('collapsed'),
+        bodyHiddenAtStart: !!body?.hasAttribute('hidden'),
         src: img?.getAttribute('src') || '',
         lazy: img?.getAttribute('loading') === 'lazy',
         onerr: (img?.getAttribute('onerror') || '').includes('d2art-failed'),
       };
     });
     expect(art.hasHead).toBe(true);
-    expect(art.clickable).toBe(true);
+    expect(art.collapsible).toBe(true);
+    expect(art.startsCollapsed).toBe(true);
+    expect(art.bodyHiddenAtStart).toBe(true);
     expect(art.src).toMatch(/talic-opt_graphic\.png$/);
     expect(art.lazy).toBe(true);
     expect(art.onerr).toBe(true);
+    // clicking the header expands its body (does NOT open a card)
     await page.click('#tab-rotw .statue-head');
+    await page.waitForTimeout(200);
+    const expanded = await page.evaluate(() => {
+      const h = document.querySelector('#tab-rotw .statue-head');
+      const body = h?.nextElementSibling as HTMLElement | null;
+      return { bodyVisible: !!body && !body.hasAttribute('hidden'), notCollapsed: !h?.classList.contains('collapsed') };
+    });
+    expect(expanded.bodyVisible).toBe(true);
+    expect(expanded.notCollapsed).toBe(true);
+    // the aggregate ID card is still reachable via the in-body link
+    await page.click('#tab-rotw .statue-head + .sec-body .zd-item-click');
     await page.waitForTimeout(250);
     const name = await page.evaluate(() =>
       document.getElementById('item-detail')?.querySelector('.material-card .gic-name')?.textContent?.trim() || '');

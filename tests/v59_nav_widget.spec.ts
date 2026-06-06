@@ -43,7 +43,9 @@ test.describe('v59 nav compass widget', () => {
     // v80: a 10th tab — "endgame" (The Road to the Hellfire Torch) — was added. Chips are
     // built FROM .tabs (chipsMatchTabs asserts the sync), so the compass picked it up
     // automatically; bump the count.
-    expect(r.chipNames.length).toBe(10);
+    // v82: an 11th tab — "tools" (personal planners: Rune Stash, Materials Stash, Item Set
+    // Tracker, relocated out of runes/ancients/rotw into their own home) — was added.
+    expect(r.chipNames.length).toBe(11);
     expect(r.hasBackToTop).toBe(true);
     expect(r.firstChipKeepsIcon).toBe(true);
     expect(r.noUndef).toBe(true);
