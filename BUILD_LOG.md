@@ -31,6 +31,32 @@
 
 ---
 
+## 2026-06-08 — CC: v113 — glowing bind-aura logo grid + The Smith as a 3rd bind card
+- **Ship**: commit `0ee7953`, live md5 `e28e21501337097a4035240310962a60` (apex parity OK).
+- **What**: Lister, Hephasto and (NEW) **The Smith** each carry an eye-candy,
+  maxroll-elite-monster-style **aura logo grid** on their super-unique ID card. Each
+  tile leads with the **actual in-game Paladin-aura icon** so Konyo knows exactly
+  "what to look for" floating over the boss's head. Unified logic: one `AURA_ART`
+  map + one `auraGridHtml()` renderer feeds all three cards (mirrors `artOr`).
+  - **Lister**: fixed Lvl-15 Meditation lead tile (violet glow) + the 7-aura reroll
+    pool; the Fanaticism ⭐ TARGET tile pulses gold.
+  - **Hephasto**: the 7-aura random reroll pool, no fixed tile.
+  - **The Smith**: was a plain super-unique → now an enriched bind card. Fixed-only
+    Holy Fire grid (no reroll lottery, per the bible's own `#binds-elite` "Smith's
+    fixed aura") + a **Baal-parity drop-pool grid** (Tristram TZ mlvl 96 / TC85),
+    matching Lister/Hephasto. He is the 3rd fully-sourced bind target.
+- **Zero-fabrication discipline**: aura divisors/caps reuse the published
+  `#binds-elite` table (no new numbers); each of the 8 aura icon URLs was
+  curl-verified live (HTTP 200, image/png, ~9 KB) — NOT guessed. Levels =
+  `floor(mlvl/div)` capped, shown at mlvl 96. `auraArt` keeps the artOr graceful
+  fallback (load error → glyph, never a broken-image box).
+- **Spec churn**: v111 + v112 "exactly TWO targets" assertions widened to THREE
+  (Hephasto/Lister/The Smith). New `tests/v113_aura_logo_grid.spec.ts` (7 tests).
+- **Tests**: v113 7/7, v111 5/5, v112 9/9, smoke+d2art+v83 48/48, push gate 38/38.
+- **New site API**: `AURA_ART`, `auraArt(name,glyph,size)`, `BIND_AURA_POOL`,
+  `auraGridHtml({mlvl,fixed,fixedOnly})`; new `su.auraGrid` descriptor on the 3
+  targets; new `.aura-grid`/`.aura-tile` CSS + `.d2art-wrap.md` (38px) size.
+
 ## 2026-06-07 — CC: Herald of Terror card — farming-grounds + pro-tips enrichment
 
 **Ask (Konyo):** more depth on the Herald spawn/ladder mechanics + optimal farming,
