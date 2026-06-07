@@ -338,7 +338,9 @@ test.describe('v83 website synchronization audit', () => {
     const windows: string[] = [];
     let from = 0, idx: number;
     while ((idx = html.indexOf('Annihilus', from)) >= 0) {
-      windows.push(html.slice(idx, idx + 230).replace(/<[^>]+>/g, ' '));
+      // 460-char window: wide enough to reach a codex entry's own `note` field, which sits
+      // PAST the long props array (the v95 230-char window blind-spotted that note → it drifted).
+      windows.push(html.slice(idx, idx + 460).replace(/<[^>]+>/g, ' '));
       from = idx + 9;
     }
     for (const w of windows) {
@@ -346,10 +348,17 @@ test.describe('v83 website synchronization audit', () => {
       expect(/\+20 all res/i.test(w), `Annihilus stated as "+20 all res" (it is +10-20): ${w.slice(0, 90)}`).toBe(false);
       expect(/all[- ]stats/i.test(w), `Annihilus bonus stated as "all stats" (it is +5-10% experience): ${w.slice(0, 90)}`).toBe(false);
     }
-    // and the canonical item card itself still carries the verified props
-    const props = await page.evaluate(() => (ITEM_CODEX as any)['Annihilus'].props.join(' | '));
+    // and the canonical item card itself still carries the verified props AND its own note agrees
+    const { props, note } = await page.evaluate(() => {
+      const a = (ITEM_CODEX as any)['Annihilus'];
+      return { props: a.props.join(' | '), note: a.note as string };
+    });
     expect(props).toContain('+1 to All Skills');
     expect(props).toContain('All Resistances +10-20');
+    // the codex note must not contradict its own props (the missed v95 drift lived here)
+    expect(/\+1[-–]2 all skills/i.test(note), `Annihilus codex note drifts "+1-2 all skills": ${note}`).toBe(false);
+    expect(/all[- ]stats/i.test(note), `Annihilus codex note drifts "all stats" (it is +5-10% experience): ${note}`).toBe(false);
+    expect(note).toContain('experience');
   });
 
   test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (area+3 rule)', async ({ page }) => {

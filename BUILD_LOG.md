@@ -636,3 +636,40 @@ Torch-scoped (window around each "Hellfire Torch" mention), not a global match.
 Hellfire Torch carries no "+20 all res"/"+10 res" in any Torch-scoped window.
 
 Suite: v83 16/16; v44 + v51 + smoke 23/23; FULL 432 pass/1 skip, 19.8min.
+
+## v97 — "check for others like this" (round 2): the Annihilus codex note self-contradicted its own props
+
+Second dup-sweep pass. Systematically cross-checked the remaining cross-surface entities:
+
+### SUPER_UNIQUES ↔ BOSSES mlvl — all 3 overlaps now agree
+Only 3 entities live in BOTH structures: Pindleskin (86=86 ✓), Nihlathak (85=85 ✓),
+The Summoner (83=83 ✓, fixed v96). The other 14 super-uniques (Shenk, Eldritch,
+Frozenstein, Hephasto, Izual, Endugu, Sszark, Blood Raven, Coldcrow, Smith, Griswold,
+Bone Ash, Rakanishu, Bishibosh) are NOT in BOSSES → no cross-structure mlvl drift. Clean.
+
+### The miss: ITEM_CODEX.Annihilus `note` drifted from its OWN `props`
+The v95 Annihilus guard used a 230-char window around each "Annihilus" mention. A codex
+entry's `note` field sits PAST its long `props` array (~330+ chars in), so the window never
+reached it — and that note still read the pre-v95 drift:
+`"+1-2 ALL skills · +10-20 all res · +5-10% all stats"` while the SAME object's props array
+(the material-card source of truth) reads `+1 to All Skills / +10-20 to All Attributes /
+All Resistances +10-20 / +5-10% to Experience Gained`. Reconciled the note to its own props:
+`"+1 all skills · +10-20 all attributes · +10-20 all res · +5-10% experience · the SC charm grail"`.
+Zero fabrication — every value already lived in the props array beside it.
+
+### Guard hardening
+Widened the Annihilus window 230 → 460 chars (reaches a codex `note`), and added an explicit
+`page.evaluate` assertion that `ITEM_CODEX.Annihilus.note` contains no "+1-2 all skills" /
+"all stats" and DOES contain "experience". The note-vs-props blind spot is now locked.
+
+### Flagged (NOT auto-fixed — deferred to Konyo)
+Two non-grail utility rings have a `note` that contradicts their own `props`, but the "right"
+value is ambiguous (possible RoW-mod paraphrase / no clean canonical) so they were NOT touched:
+- **Raven Frost** — note "+150-250 mana"; props say +40 Mana + 150-250 **Attack Rating**
+  (the note mislabels the AR roll as mana).
+- **Bul-Kathos Wedding Band** — note "+5% max life · +50 life"; props say +0.5 life/clvl +
+  +50 Maximum **Stamina** (no "+5% max life"; the +50 is stamina, not life).
+These are minor utility-ring display notes (not items Konyo is grail-hunting); listed here so
+they can be reconciled deliberately rather than guessed.
+
+Suite: v83 16/16; 01_smoke + v74_material_search 16/16 (note renders in the material card).
