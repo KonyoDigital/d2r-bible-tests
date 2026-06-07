@@ -536,4 +536,37 @@ test.describe('v83 website synchronization audit', () => {
     expect(r.constCount, 'GUARANTEED_DROPS_GLOBAL should still hold all 6 guaranteed drops').toBe(6);
     expect(r.renderedCount, 'the rendered guaranteed-drops grid should show all 6 cards').toBe(6);
   });
+
+  test('entity sync: the sunder element↔region↔sunder-name web agrees across all 4 structures', async ({ page }) => {
+    // v104: the core RotW sunder mapping (region→act→element→sunder-name) is restated FOUR times —
+    // ACT_SHARD (region→act#), SHARD_RENEWED (region→renewed sunder + element), SHARD_OUTCOMES
+    // (region→act/sunder/element), _HERALD_SUNDERS (sunder→element + region in its `rec`). Round-6
+    // verified 3 of them by eye but left it unguarded; this locks the whole web. SHARD_OUTCOMES is
+    // the canonical spine (it carries all 4 fields); the others must agree on their shared columns.
+    const drift = await page.evaluate(() => {
+      const out: string[] = [];
+      const lc = (s: any) => String(s || '').toLowerCase();
+      for (const o of (SHARD_OUTCOMES as any[])) {
+        const region = (String(o.n).match(/\(([^)]+)\)/) || [])[1] || '';   // "Worldstone Shard (Western)" → Western
+        const actNum = parseInt(String(o.act).replace(/\D/g, ''), 10);       // "Act 1" → 1
+        const el = lc(o.el);
+        const sunder = String(o.sunder);
+        // (1) ACT_SHARD: act# → region
+        if ((ACT_SHARD as any)[actNum] !== region) {
+          out.push(`${region}: ACT_SHARD[${actNum}]="${(ACT_SHARD as any)[actNum]}" ≠ "${region}"`);
+        }
+        // (2) SHARD_RENEWED[region] must name this sunder + element
+        const renewed = lc((SHARD_RENEWED as any)[region]);
+        if (!renewed.includes(lc(sunder))) out.push(`${region}: SHARD_RENEWED omits sunder "${sunder}" (got "${(SHARD_RENEWED as any)[region]}")`);
+        if (!renewed.includes(el)) out.push(`${region}: SHARD_RENEWED omits element "${el}" (got "${(SHARD_RENEWED as any)[region]}")`);
+        // (3) _HERALD_SUNDERS: the sunder of that name breaks this element AND its recipe names the region
+        const hs = (_HERALD_SUNDERS as any[]).find((s) => lc(s.n) === lc(sunder));
+        if (!hs) { out.push(`${region}: sunder "${sunder}" missing from _HERALD_SUNDERS`); continue; }
+        if (lc(hs.breaks) !== el) out.push(`${sunder}: _HERALD_SUNDERS.breaks="${hs.breaks}" ≠ element "${el}"`);
+        if (!lc(hs.rec).includes(lc(region))) out.push(`${sunder}: _HERALD_SUNDERS recipe omits region "${region}" (got "${hs.rec}")`);
+      }
+      return out;
+    });
+    expect(drift, `sunder element↔region web drifted across structures:\n${drift.join('\n')}`).toEqual([]);
+  });
 });

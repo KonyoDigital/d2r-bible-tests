@@ -847,3 +847,33 @@ rendered surface instead. Note for a future pass: `GUARANTEED_DROPS_GLOBAL` carr
 the hardcoded block, but that's a refactor, not this sync sweep.
 
 Suite: v83 21/21; v74_material_search 8/8 clean.
+
+---
+
+## v104 — sunder element↔region 4-way web lock (guard-only, 2026-06-07)
+
+Round-8 "check for others like this". The core RotW **sunder mapping** (region→act→element→
+sunder-name) is restated across FOUR structures and was entirely unguarded:
+- `ACT_SHARD` (L3678) — region→act number
+- `SHARD_RENEWED` (L4232) — region→renewed-sunder name + element
+- `SHARD_OUTCOMES` (L8600) — region→act / sunder / element (the canonical 4-field spine)
+- `_HERALD_SUNDERS` (L8730) — sunder→element (`breaks`) + region (in `rec`)
+
+All four AGREE: Western/1/poison/Rotting Fissure · Eastern/2/cold/Cold Rupture · Southern/3/
+lightning/Crack of the Heavens · Deep/4/fire/Flame Rift · Northern/5/physical/Bone Break. (The
+6th sunder, Black Cleft/Magic, is a 3-shard combo with no single region — correctly absent from
+the 5-region spine.) No fabrication, no data edit; bible.html UNCHANGED (live still `a8485e3`).
+
+### Guard added
+New v83 test iterates SHARD_OUTCOMES (the spine) and asserts, per region: ACT_SHARD[act#]===region,
+SHARD_RENEWED[region] names both the sunder + element, and _HERALD_SUNDERS (matched by sunder
+name) `breaks` the element + its recipe names the region. Locks all 4 surfaces together. This is
+the proper follow-through on round-6, where the same web was eyeballed-clean but left unguarded.
+
+### Lesson
+Round-6 verified 3 of these by eye and judged a guard "not needed" — but I'd MISSED the 4th
+structure (_HERALD_SUNDERS) entirely. "Verified clean by eye" is not the same as "locked": a
+4-way grail-relevant web with zero guards is a standing drift risk. When a sweep finds a
+consistent multi-structure mapping, LOCK it even if it looks clean — that's the whole point.
+
+Suite: v83 22/22; v74_material_search 8/8 clean.
