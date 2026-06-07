@@ -31,6 +31,35 @@
 
 ---
 
+## 2026-06-07 — CC: event-card heads → golden .gbc-header banner (v92, #52 / #51)
+
+**Context:** v92 audit (`AUDIT_v92_event_monsters.md`) scored the `#tab-ancients`
+"Pinnacle Events" drop-sources against the golden shell. Finding: they're
+**procedural how-to guides** (farm->cube->fight), not stat ID cards — so the
+unifiable surface is the **header banner**, not a forced stat-grid. The Pit was
+already gbc-parity (renders via the TZ-zone rich card); Travincal has rows but no
+card (deferred to v93 — it's new authoring, not a re-shell).
+
+**Shipped:** the 7 top-level `.event-card` heads now wear the `.gbc-header` golden
+gradient banner + a `.ec-tier` badge mirroring `.gbc-tier`. Badge values are all
+in-card facts (zero fabrication): Uber Tristram `access/Hell` · Uber Boss ID Cards
+`cards/9` · Colossal Endgame `relics/11` · Cows `bovines/~400` · Diablo Clone
+`mlvl/110` · Colossal Ancients `ancients/3` · 22 Nights `nights/22`. **22 Nights
+stays emblem-free** — seasonal modifier *window*, not a drop-source (locked by v47
+"no fabricated art"). Additive only; collapse contract + lazy-load untouched (all
+new CSS is `#tab-ancients`-scoped). New v83 invariant `event-card head parity
+(#52 / v92)` locks emblem(+exempt 22N) + titles + tier badge + chevron on every head.
+
+**Verify/ship:** full suite **426 passed / 1 skipped** (13.6m). commit `4ff0fc7` ·
+deploy `30d540d7` · md5 parity check ok (`7a85399...`, apex == pages.dev == local) ·
+pushed (pre-push smoke 36/36). Note: `/tmp/d2r_dist` scaffold was cleared by the Mac
+restart — recreated `{d2r/index.html, _redirects, index.html}` before deploy.
+
+**Next (v93):** author a Travincal Council drop-source card (high-rune throughput
+king) — the last drop-source gap. Then sweep inner `.ubc`/`.colossal-tile` sub-cards.
+
+---
+
 ## 2026-06-06 — CC: super-unique cards → golden .gbc-card shell (v91, #58 / #51-#52)
 
 **Context:** The #51 ID-card parity audit (`AUDIT_id_card_parity.md`) found the
