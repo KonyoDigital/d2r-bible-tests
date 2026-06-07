@@ -1036,3 +1036,50 @@ shows Lister/Hephasto rows · `#tab-binds` textContent still carries the Lister-
 v83 sync test depends on (textContent reaches collapsed sections, so v83 stays green).
 
 Suite: v109 4/4 · v83 25/25 · 01_smoke + bug023 static-tabs green. Div-balance verified 0.
+
+---
+
+## v110 — Lister art fix: monster portrait, not the item (commit `8f28486`, live `00f586e7`)
+
+### Bug
+v108 mapped `Lister the Tormentor → thetormentor_graphic.png` — that's the unique **item**
+"The Tormentor" (a Battle Cestus), NOT the monster. Konyo caught the wrong logo.
+
+### Fix
+diablo2.io's monster page (`lister-the-tormentor-t4331.html`) serves **`lister01_graphic.png`** —
+the real extracted portrait. One-line D2IO_ART swap. Audited the other item-path SU graphics
+(`summoner`/`hephasto`/`shenk`/`smith`/`sszark`/`nihlathak`/`reanimatedhorde`): all genuinely monster
+art (no unique item shares those names) — only "The Tormentor" collided with an item. v71_d2art
+assertions updated to `/lister01_graphic\.png$/`. **Lesson:** when a super-unique's TITLE doubles as
+a unique item name, the `_graphic.png` item-path will grab the ITEM — pull the portrait the monster
+page actually references instead.
+
+---
+
+## v111 — Warlock-bind callouts on the Lister & Hephasto cards (commit `c712bcb`, live `b7145498`)
+
+### Request (Konyo)
+In-depth Lister card: TZ Physical-immune detail + "what's the best roll?" + emphasize it's the OP
+Warlock bind. Then "same logic + emphasis for Hephasto". Cleared to research beyond the bible.
+
+### Research (diablo2.io forums · aoeah · icy-veins · the bible's own verified-3.2 binds tab)
+Two-layer model resolves the fixed-vs-rolls tension:
+- **Lister** — permanent CONSUME (fixed): **+150% ED · 25% Physical DR (rare) · Lvl 15 Meditation**
+  (mana engine, out-regens merc Insight). PROJECTED Aura Enchanted **rolls per spawn** → save&exit /
+  re-make and **reroll for Fanaticism** (Conviction for fire), bind at lvl 94+ in a **TZ (mlvl 96)**
+  to cap aura at `floor(96/8)=12`. ~31.8k HP / ~348 res + 7 Minions = aggro meat-shield; guaranteed
+  Throne Wave 5 = easiest top bind; persists between games. Hell immunity rolls per spawn (often
+  **Physical Immune**; Fire/Cold/Lit/Pois/Magic all possible) — bring a 2nd damage type / Bone Break.
+- **Hephasto** — **always Aura-Enchanted, solo** at the Hellforge → **reroll for Fanaticism** = BiS
+  damage. Fire-immune. 20 hard points.
+
+### Change (additive, data-driven)
+Added `bind` (rich HTML) + `bindTier` to the Lister & Hephasto SUPER_UNIQUES entries; `superUniqueDetailHtml`
+renders a gold/purple **⚜️ Warlock Bind** callout when `su.bind` exists (only those two show it).
+
+### Guard — `tests/v111_warlock_bind_cards.spec.ts` (5 tests)
+exactly {Hephasto, Lister} carry su.bind · Lister callout has 150% ED / 25% DR / Meditation /
+Fanaticism / Terror Zone / 20 hard points · Hephasto callout has Always Aura Enchanted / Fanaticism /
+solo / Fire Immune · a non-bind SU (Shenk) shows none · no console errors.
+
+Suite: v111 5/5 · v71 15/15 · v83 30/30 · v109 4/4 (49 green together). Smoke gate 38/38 on push.
