@@ -677,6 +677,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 @keyframes auraTargetPulse{from{box-shadow:0 0 12px rgba(240,192,96,.12)}to{box-shadow:0 0 24px rgba(240,192,96,.3)}}
 .aura-tile.aura-target .aura-logo .d2art-img{filter:drop-shadow(0 0 10px rgba(240,192,96,.7))}
 @media (prefers-reduced-motion:reduce){.aura-tile.aura-target{animation:none}}
+/* v116 — inline aura-name cells (binds-tab tables): live gif logo + name on one row */
+.aura-cell{display:flex;align-items:center;gap:7px;line-height:1.3}
+.aura-cell .aura-logo.d2art-wrap{width:26px;height:26px;flex:0 0 auto}
+.aura-cell .aura-logo.d2art-wrap .d2art-img{max-width:26px;max-height:26px;border-radius:5px;filter:drop-shadow(0 0 6px rgba(240,192,96,.4))}
 /* Herald of Terror — Sunder Charm table (RotW tab dedicated ID card) */
 .sunder-tbl{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px}
 .sunder-tbl th,.sunder-tbl td{border:1px solid rgba(255,255,255,.10);padding:7px 9px;text-align:left;vertical-align:top}
@@ -3219,13 +3223,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="sec-body" hidden>
     <p>When you bind an <strong>Aura Enchanted</strong> unique/super-unique, its aura is remapped into this pool. The old meta auras were removed.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Aura</th><th>Value for Echoing Strike</th><th>Status</th></tr></thead><tbody>
-      <tr><td class="item-name" style="color:var(--best)">Fanaticism</td><td>JACKPOT — boosts attack speed, AR, and physical damage for you + merc + demons</td><td>✅ in pool</td></tr>
-      <tr><td>Concentration</td><td>Boosts the bound demon's own damage; minor for you</td><td>✅ in pool</td></tr>
-      <tr><td>Holy Freeze</td><td>Defensive — slows + pulses cold; great survival utility</td><td>✅ in pool</td></tr>
-      <tr><td>Vigor</td><td>Run/walk speed + stamina only — wasted slot</td><td>✅ in pool</td></tr>
-      <tr><td>Thorns</td><td>Returns damage — useless for this build</td><td>✅ in pool</td></tr>
-      <tr><td style="color:var(--hell)">Conviction</td><td>Was the immunity-breaking meta</td><td>❌ REMOVED 3.2</td></tr>
-      <tr><td style="color:var(--hell)">Might</td><td>Was strong for physical</td><td>❌ REMOVED 3.2</td></tr>
+      <tr><td class="item-name" style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</td><td>JACKPOT — boosts attack speed, AR, and physical damage for you + merc + demons</td><td>✅ in pool</td></tr>
+      <tr><td data-aura-logo="Concentration" data-aura-glyph="🌀">Concentration</td><td>Boosts the bound demon's own damage; minor for you</td><td>✅ in pool</td></tr>
+      <tr><td data-aura-logo="Holy Freeze" data-aura-glyph="❄️">Holy Freeze</td><td>Defensive — slows + pulses cold; great survival utility</td><td>✅ in pool</td></tr>
+      <tr><td data-aura-logo="Vigor" data-aura-glyph="🏃">Vigor</td><td>Run/walk speed + stamina only — wasted slot</td><td>✅ in pool</td></tr>
+      <tr><td data-aura-logo="Thorns" data-aura-glyph="🌵">Thorns</td><td>Returns damage — useless for this build</td><td>✅ in pool</td></tr>
+      <tr><td style="color:var(--hell)" data-aura-logo="Conviction" data-aura-glyph="🔥">Conviction</td><td>Was the immunity-breaking meta</td><td>❌ REMOVED 3.2</td></tr>
+      <tr><td style="color:var(--hell)" data-aura-logo="Might" data-aura-glyph="💪">Might</td><td>Was strong for physical</td><td>❌ REMOVED 3.2</td></tr>
     </tbody></table></div>
     <div class="success"><strong>Target aura:</strong> Fanaticism. Bind, check the aura, release + rebind if it is not Fanaticism. <span style="color:var(--gold-dim)">Patch notes don't publish per-aura roll weights — just reroll until you hit it.</span></div>
     <div class="info"><strong>Removed-aura remap (3.2 LIVE notes — deterministic 1:1):</strong> when a bound demon's Aura Enchanted would roll a removed aura, it maps to exactly one replacement — Conviction→<strong style="color:var(--best)">Fanaticism</strong> · Might→Concentration · Holy Fire→Vigor · Holy Shock→Vigor · Blessed Aim→Thorns · Holy Freeze→Holy Freeze (unchanged). <span style="color:var(--gold-dim)">So the 5 possible results are Fanaticism / Concentration / Vigor / Thorns / Holy Freeze — reroll until Fanaticism. Hard-coded super-unique auras (Smith's Holy Fire, Lister's Meditation) pre-exist the bind and are NOT remapped. The PTR notes worded this loosely as "one of four"; the live Season 14 notes published the explicit 1:1 table above. Pre-3.2 demons you'd bound with a removed aura were remapped on patch day.</span></div>
@@ -3237,13 +3241,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="sec-body" hidden>
     <p>The deep mechanics behind a <strong style="color:var(--best)">Lister</strong> / <strong style="color:var(--best)">Hephasto</strong> bind <span style="color:var(--gold-dim)">(sources in the 📐 reference tab)</span>. A Hell unique / super-unique rolls <strong>3 elite affixes</strong> (Normal 1 · NM 2 · Hell 3), and a unique boss is capped at <strong>one Aura Enchanted</strong>. The bound aura's <strong>level scales with the monster's mlvl — by a different divisor per aura</strong>, not a flat ÷8.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Aura</th><th>Level formula</th><th>Level at mlvl 96 (TZ)</th><th>Range</th></tr></thead><tbody>
-      <tr><td class="item-name" style="color:var(--best)">Fanaticism ⭐</td><td>mlvl ÷ 8</td><td><strong style="color:var(--best)">12</strong> (cap)</td><td>1–12</td></tr>
-      <tr><td class="item-name">Conviction <span style="color:var(--gold-dim)">(→ Fanaticism in 3.2)</span></td><td>mlvl ÷ 8</td><td>12</td><td>1–12</td></tr>
-      <tr><td class="item-name">Holy Freeze</td><td>mlvl ÷ 7</td><td>13</td><td>1–14</td></tr>
-      <tr><td class="item-name">Holy Fire <span style="color:var(--gold-dim)">(Smith's fixed aura)</span></td><td>mlvl ÷ 6</td><td>16</td><td>1–17</td></tr>
-      <tr><td class="item-name">Holy Shock</td><td>mlvl ÷ 8 (mlvl ≥ 20)</td><td>12</td><td>2–12</td></tr>
-      <tr><td class="item-name" style="color:var(--hell)">Might <span style="color:var(--gold-dim)">(removed 3.2)</span></td><td>mlvl ÷ 6</td><td>16</td><td>1–17</td></tr>
-      <tr><td class="item-name">Blessed Aim <span style="color:var(--gold-dim)">(→ Thorns in 3.2)</span></td><td>mlvl ÷ 5</td><td>19</td><td>1–20</td></tr>
+      <tr><td class="item-name" style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism ⭐</td><td>mlvl ÷ 8</td><td><strong style="color:var(--best)">12</strong> (cap)</td><td>1–12</td></tr>
+      <tr><td class="item-name" data-aura-logo="Conviction" data-aura-glyph="🔥">Conviction <span style="color:var(--gold-dim)">(→ Fanaticism in 3.2)</span></td><td>mlvl ÷ 8</td><td>12</td><td>1–12</td></tr>
+      <tr><td class="item-name" data-aura-logo="Holy Freeze" data-aura-glyph="❄️">Holy Freeze</td><td>mlvl ÷ 7</td><td>13</td><td>1–14</td></tr>
+      <tr><td class="item-name" data-aura-logo="Holy Fire" data-aura-glyph="🔥">Holy Fire <span style="color:var(--gold-dim)">(Smith's fixed aura)</span></td><td>mlvl ÷ 6</td><td>16</td><td>1–17</td></tr>
+      <tr><td class="item-name" data-aura-logo="Holy Shock" data-aura-glyph="⚡">Holy Shock</td><td>mlvl ÷ 8 (mlvl ≥ 20)</td><td>12</td><td>2–12</td></tr>
+      <tr><td class="item-name" style="color:var(--hell)" data-aura-logo="Might" data-aura-glyph="💪">Might <span style="color:var(--gold-dim)">(removed 3.2)</span></td><td>mlvl ÷ 6</td><td>16</td><td>1–17</td></tr>
+      <tr><td class="item-name" data-aura-logo="Blessed Aim" data-aura-glyph="🎯">Blessed Aim <span style="color:var(--gold-dim)">(→ Thorns in 3.2)</span></td><td>mlvl ÷ 5</td><td>19</td><td>1–20</td></tr>
     </tbody></table></div>
     <div class="success"><strong>Why "the aura changes":</strong> the Aura Enchanted aura is <strong>random per spawn</strong> (maxroll: "the boss spawns with a random Paladin Aura that scales based on the mLVL"). That's exactly why you <strong>save &amp; exit and rebind until Fanaticism</strong> — and why a mlvl-96 Terror Zone matters: it's the only place Fanaticism reaches its <strong>level-12 cap</strong>. The level is ALSO capped by your own character level at bind time, so bind at lvl 96+.</div>
     <div class="info"><strong>The 3 Hell affixes — the full roll pool (maxroll):</strong> every Hell unique/super-unique carries three of these, which is why a bound Lister/Hephasto can come with extra goodies (or headaches).</div>
@@ -5737,7 +5741,8 @@ window.artOr = artOr;
 // an aura tile can never render a broken image box. Source page per aura:
 //   diablo2.io/skills/<aura>-t<id>.html  (fanaticism t4055, meditation t4119,
 //   conviction t4034, holy-freeze t4085, holy-fire t4084, holy-shock t4087,
-//   might t4121, blessed-aim t4006). Zero fabricated URLs; each verified live.
+//   might t4121, blessed-aim t4006, concentration t4031, vigor t4187,
+//   thorns t4178). Zero fabricated URLs; each verified live (200 image/gif).
 const AURA_ART = {
   "Fanaticism":  "https://i.imgur.com/geASVE4.gif",
   "Meditation":  "https://i.imgur.com/qlL3lxn.gif",
@@ -5746,7 +5751,10 @@ const AURA_ART = {
   "Holy Fire":   "https://i.imgur.com/CQCYZ9t.gif",
   "Holy Shock":  "https://i.imgur.com/9GMvWz7.gif",
   "Might":       "https://i.imgur.com/vVASShr.gif",
-  "Blessed Aim": "https://i.imgur.com/hj5K54S.gif"
+  "Blessed Aim": "https://i.imgur.com/hj5K54S.gif",
+  "Concentration":"https://i.imgur.com/4ZcEnxr.gif",
+  "Vigor":       "https://i.imgur.com/PJZ1klO.gif",
+  "Thorns":      "https://i.imgur.com/JGRXNoQ.gif"
 };
 window.AURA_ART = AURA_ART;
 function auraArt(name, glyph, size){
@@ -9894,6 +9902,26 @@ function _v39_whenReady(fn) {
     fn();
   }
 }
+
+// v116 — site-wide aura-logo rollout. Any element tagged data-aura-logo="<Aura>"
+// gets the live animated aura gif injected as a leading logo chip, reusing the auraArt
+// single-source helper (so every named aura across the bible carries the same "what to
+// look for" visual as the bind cards). Idempotent — safe to call more than once.
+function decorateAuraLogos() {
+  if (typeof auraArt !== 'function') return 0;
+  let n = 0;
+  document.querySelectorAll('[data-aura-logo]').forEach((el) => {
+    if (el.querySelector(':scope > .aura-logo')) return;
+    const name = el.getAttribute('data-aura-logo');
+    const glyph = el.getAttribute('data-aura-glyph') || '⚜️';
+    el.insertAdjacentHTML('afterbegin', auraArt(name, glyph, 'sm') + ' ');
+    el.classList.add('aura-cell');
+    n++;
+  });
+  return n;
+}
+window.decorateAuraLogos = decorateAuraLogos;
+_v39_whenReady(decorateAuraLogos);
 
 // Hook the MF slider oninput chain
 _v39_whenReady(() => {

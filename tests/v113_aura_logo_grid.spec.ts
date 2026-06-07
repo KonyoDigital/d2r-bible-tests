@@ -30,8 +30,8 @@ test.describe('v113 aura-logo grid + The Smith bind card', () => {
       };
     });
     expect(r.keys).toEqual([
-      'Blessed Aim', 'Conviction', 'Fanaticism', 'Holy Fire',
-      'Holy Freeze', 'Holy Shock', 'Meditation', 'Might',
+      'Blessed Aim', 'Concentration', 'Conviction', 'Fanaticism', 'Holy Fire',
+      'Holy Freeze', 'Holy Shock', 'Meditation', 'Might', 'Thorns', 'Vigor',
     ]);
     expect(r.allHttps).toBe(true);
     expect(r.artFn).toBe(true);
