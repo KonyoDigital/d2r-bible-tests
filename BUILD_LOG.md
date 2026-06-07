@@ -814,3 +814,36 @@ the UBER_BOSSES owner AND the Ancient's strat prose names that jewel's element. 
 restatement against future single-structure drift. bible.html UNCHANGED (live still `a8485e3`).
 
 Suite: v83 20/20; v74_material_search 8/8 clean.
+
+---
+
+## v103 — guaranteed-drops orphan + Hellforge pool lock (guard-only, 2026-06-07)
+
+Round-7 "check for others like this". Surfaced two drift surfaces around the "guaranteed drops"
+feature — both currently consistent, so guard-only (no data edit, bible.html UNCHANGED).
+
+### (A) Hellforge rune tier pools — stated 3× , all agree
+El–Amn / Sol–Um / Hel–Gul (max Gul) appears in: static HTML `#guaranteed-global-card .gc-tiers`
+(L2184, rendered), `GUARANTEED_DROPS_GLOBAL[].tiers` (L6914, const), and `RUNE_SOURCES` hellforge
+`.tierPool` (L8231-8233, rendered rune card). No fabrication.
+
+### (B) GUARANTEED_DROPS_GLOBAL is an ORPHANED duplicate
+The const at L6908 (6 guaranteed drops) is NEVER rendered — only `GUARANTEED_PER_BOSS` (L6965)
+is used (boss-card section L6848). The visible "guaranteed drops" grid is the STATIC HTML block
+at L2178-2221 hardcoding the same 6 drops. They agree today on icon→tier (⚒️S+, 🛡️A, 💎A, 🔨S,
+📖B+, 📜—) but an edit to the dead const would never show on screen → silent drift. Per
+additive-only the orphan const is NOT deleted; instead it's LOCKED to the rendered surface.
+
+### Guard added
+New v83 test: (1) all 3 surfaces contain each Hellforge pool token (el–amn/sol–um/hel–gul);
+(2) every GUARANTEED_DROPS_GLOBAL item's icon→tier equals the rendered guaranteed-card grid;
+(3) both the const and the grid still hold all 6 drops. Locks the orphan to the visible HTML.
+
+### Lesson
+An orphaned const that mirrors static HTML is a latent drift trap — nothing breaks visually if
+it drifts, so it goes undetected. When additive-only forbids deletion, LOCK the dead copy to the
+rendered surface instead. Note for a future pass: `GUARANTEED_DROPS_GLOBAL` carries richer fields
+(where/what/cadence) than the static HTML uses — a real dedup would render the const and delete
+the hardcoded block, but that's a refactor, not this sync sweep.
+
+Suite: v83 21/21; v74_material_search 8/8 clean.

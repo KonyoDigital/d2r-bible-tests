@@ -494,4 +494,46 @@ test.describe('v83 website synchronization audit', () => {
     });
     expect(drift, `Colossal jewel→Ancient binding drifted:\n${drift.join('\n')}`).toEqual([]);
   });
+
+  test('entity sync: Hellforge rune pools + the orphaned GUARANTEED_DROPS_GLOBAL stay synced with the rendered guaranteed-drops surface', async ({ page }) => {
+    // v103: TWO drift surfaces around the "guaranteed drops" feature —
+    //  (A) the Hellforge rune TIER POOLS (El–Amn / Sol–Um / Hel–Gul) are stated THREE times:
+    //      static HTML #guaranteed-global-card (rendered), GUARANTEED_DROPS_GLOBAL[].tiers (const),
+    //      and RUNE_SOURCES hellforge .tierPool (rendered rune card).
+    //  (B) GUARANTEED_DROPS_GLOBAL (L6908) is ORPHANED — nothing renders it; the static HTML block
+    //      (L2178) is the visible copy. They agree today (icon→tier), but an edit to the dead const
+    //      won't show on screen → silent drift. Lock the const to the rendered surface by icon→tier.
+    const r = await page.evaluate(() => {
+      const norm = (s: string) => String(s || '').toLowerCase().replace(/\s+/g, '');
+      // --- (A) Hellforge pools across the 3 surfaces ---
+      const htmlPools = norm(document.querySelector('#guaranteed-global-card .gc-tiers')?.textContent || '');
+      const gdg = (GUARANTEED_DROPS_GLOBAL as any[]).find((d) => /Hellforge/i.test(d.name));
+      const constPools = norm(gdg?.tiers || '');
+      const hf = (RUNE_SOURCES as any[]).find((x) => x.id === 'hellforge');
+      const runePools = norm((hf?.tierPool || []).map((t: any) => t.pool).join(''));
+      const needles = ['el–amn', 'sol–um', 'hel–gul'];
+      const poolMiss: string[] = [];
+      for (const src of [['static-html', htmlPools], ['GUARANTEED_DROPS_GLOBAL', constPools], ['RUNE_SOURCES', runePools]] as const) {
+        for (const n of needles) if (!src[1].includes(n)) poolMiss.push(`${src[0]} omits "${n}" (got "${src[1]}")`);
+      }
+      // --- (B) orphaned const icon→tier must match the rendered cards ---
+      const renderedMap: Record<string, string> = {};
+      document.querySelectorAll('#guaranteed-global-card .guaranteed-card').forEach((c) => {
+        const icon = (c.querySelector('.gc-icon')?.textContent || '').trim();
+        const tier = (c.querySelector('.gc-tier')?.textContent || '').trim();
+        if (icon) renderedMap[icon] = tier;
+      });
+      const orphanMiss: string[] = [];
+      for (const d of (GUARANTEED_DROPS_GLOBAL as any[])) {
+        const want = renderedMap[String(d.icon).trim()];
+        if (want === undefined) { orphanMiss.push(`const icon ${d.icon} (${d.name}) not on the rendered card grid`); continue; }
+        if (want !== String(d.tier).trim()) orphanMiss.push(`${d.icon} ${d.name}: const tier="${d.tier}" vs rendered="${want}"`);
+      }
+      return { poolMiss, orphanMiss, renderedCount: Object.keys(renderedMap).length, constCount: (GUARANTEED_DROPS_GLOBAL as any[]).length };
+    });
+    expect(r.poolMiss, `Hellforge tier pools drifted across surfaces:\n${r.poolMiss.join('\n')}`).toEqual([]);
+    expect(r.orphanMiss, `orphaned GUARANTEED_DROPS_GLOBAL desynced from rendered cards:\n${r.orphanMiss.join('\n')}`).toEqual([]);
+    expect(r.constCount, 'GUARANTEED_DROPS_GLOBAL should still hold all 6 guaranteed drops').toBe(6);
+    expect(r.renderedCount, 'the rendered guaranteed-drops grid should show all 6 cards').toBe(6);
+  });
 });
