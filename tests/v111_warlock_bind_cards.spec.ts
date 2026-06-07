@@ -16,13 +16,13 @@ test.describe('v111 Warlock bind callout on super-unique cards', () => {
     await page.waitForTimeout(1200);
   });
 
-  test('exactly the two fully-sourced bind targets carry a su.bind block', async ({ page }) => {
+  test('exactly the three fully-sourced bind targets carry a su.bind block', async ({ page }) => {
     const r = await page.evaluate(() => {
       const sus = (SUPER_UNIQUES as any[]);
       const withBind = sus.filter((s) => s.bind).map((s) => s.name);
       return { withBind };
     });
-    expect(r.withBind.sort()).toEqual(['Hephasto the Armorer', 'Lister the Tormentor']);
+    expect(r.withBind.sort()).toEqual(['Hephasto the Armorer', 'Lister the Tormentor', 'The Smith']);
   });
 
   test('Lister card renders the OP bind callout with its verified roll detail', async ({ page }) => {

@@ -92,12 +92,12 @@ test.describe('v112 binds tier-list + elite-affix + drop pools', () => {
     expect(visible).toBe(true);
   });
 
-  test('only Lister and Hephasto carry a su.pool drop-pool descriptor', async ({ page }) => {
+  test('the three fully-sourced bind targets carry a su.pool drop-pool descriptor', async ({ page }) => {
     const r = await page.evaluate(() => {
       const sus = (SUPER_UNIQUES as any[]);
       return sus.filter((s) => s.pool).map((s) => s.name).sort();
     });
-    expect(r).toEqual(['Hephasto the Armorer', 'Lister the Tormentor']);
+    expect(r).toEqual(['Hephasto the Armorer', 'Lister the Tormentor', 'The Smith']);
   });
 
   test('Lister card renders a clickable Baal-parity drop-pool grid (TC87)', async ({ page }) => {
