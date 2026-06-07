@@ -232,6 +232,36 @@ test.describe('v83 website synchronization audit', () => {
     expect(r.suTitle, 'super-unique lost its "super-unique detail" title in the re-shell').toBe(true);
   });
 
+  test('event-card head parity (#52 / v92): every pinnacle event-card head shares the golden banner — emblem + titles + tier badge', async ({ page }) => {
+    // v92 — the #tab-ancients drop-source events (Uber Tristram, Diablo Clone, Secret
+    // Cow Level, Colossal Ancients, the 9-card + relic indexes, 22 Nights) used the lean
+    // .ec-* head. This brings them into the .gbc-header banner design language: every head
+    // now carries an artOr-structure emblem (.d2art-wrap.ec-logo > .d2art-img|.d2art-fallback),
+    // the .ec-titles block, a chevron, AND a .ec-tier badge (label + val) mirroring .gbc-tier.
+    // Locks the unification so a future event card can't ship as a bare head again.
+    const r = await page.evaluate(() => {
+      const heads = [...document.querySelectorAll('#tab-ancients > .event-card > .event-card-head')];
+      const bad = heads.map((h) => {
+        const card = (h.parentElement as HTMLElement).id;
+        const problems: string[] = [];
+        // 22 Nights is a seasonal modifier WINDOW (not a drop-source) -> deliberately no
+        // item art / emblem (locked by v47). Every other head must carry the artOr emblem.
+        const seasonalNoArt = card.includes('22-nights');
+        if (!seasonalNoArt && !h.querySelector('.d2art-wrap.ec-logo')) problems.push('no emblem');
+        if (!seasonalNoArt && !h.querySelector('.ec-logo .d2art-img, .ec-logo .d2art-fallback')) problems.push('emblem lacks artOr img/fallback structure');
+        if (!h.querySelector('.ec-titles .ec-title')) problems.push('no .ec-title');
+        const tier = h.querySelector(':scope > .ec-tier');
+        if (!tier) problems.push('no .ec-tier badge');
+        else if (!tier.querySelector('.ec-tier-label') || !tier.querySelector('.ec-tier-val')) problems.push('tier badge missing label/val');
+        if (!h.querySelector('.ec-chevron')) problems.push('no chevron (collapse affordance)');
+        return problems.length ? { card, problems } : null;
+      }).filter(Boolean);
+      return { count: heads.length, bad };
+    });
+    expect(r.count, 'expected the 7 pinnacle event cards').toBeGreaterThanOrEqual(7);
+    expect(r.bad, `event-card heads not matching the golden banner contract: ${JSON.stringify(r.bad)}`).toEqual([]);
+  });
+
   test('art invariant (REG-001 lock): artOr keeps loading="lazy" on real art', async ({ page }) => {
     const r = await page.evaluate(() => {
       // a name with verified art → an <img>; a name without → the emoji fallback only
