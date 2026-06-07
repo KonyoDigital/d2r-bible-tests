@@ -365,9 +365,17 @@ test.describe('v83 website synchronization audit', () => {
     // v97: the structured `props` array is the canonical source of truth; a `note` must not
     // mislabel a roll that props spells out. Raven Frost & Bul-Kathos notes drifted (AR shown
     // as mana; max-stamina shown as "+50 life" + a fabricated "+5% max life"). Reconciled to props.
-    const { rf, bk } = await page.evaluate(() => {
+    // v98: Raven Frost / Bul-Kathos. v99: Bladebuckle (DEX shown as STR; +25 vs real +30 def) +
+    // Spirit Forge (fabricated +25 STR/+30 light res/CBF vs verified +15 STR / fire res +5% only,
+    // confirmed against diablo2.io/uniques/spirit-forge-t926.html).
+    const { rf, bk, bb, sf } = await page.evaluate(() => {
       const c = ITEM_CODEX as any;
-      return { rf: c['Raven Frost'].note as string, bk: c['Bul-Kathos Wedding Band'].note as string };
+      return {
+        rf: c['Raven Frost'].note as string,
+        bk: c['Bul-Kathos Wedding Band'].note as string,
+        bb: c['Bladebuckle'].note as string,
+        sf: c['Spirit Forge'].note as string,
+      };
     });
     // Raven Frost: mana is +40, the 150-250 roll is Attack Rating (not mana).
     expect(/\+150[-–]250 mana/i.test(rf), `Raven Frost note mislabels +150-250 AR as mana: ${rf}`).toBe(false);
@@ -375,6 +383,14 @@ test.describe('v83 website synchronization audit', () => {
     // Bul-Kathos: props are +0.5 life/clvl + +50 MAX STAMINA (no flat "+50 life", no "+5% max life").
     expect(/\+5% max life/i.test(bk), `Bul-Kathos note carries a fabricated "+5% max life": ${bk}`).toBe(false);
     expect(bk).toContain('stamina');
+    // Bladebuckle: STR is +5, the +10 roll is Dexterity; defense is +30 (not +25).
+    expect(/\+10 STR/i.test(bb), `Bladebuckle note mislabels +10 DEX as STR (STR is +5): ${bb}`).toBe(false);
+    expect(bb).toContain('+10 DEX');
+    // Spirit Forge: verified +15 STR + fire res +5% only — no "+25 STR", no light res, no CBF.
+    expect(/\+25 STR/i.test(sf), `Spirit Forge note drifts "+25 STR" (verified +15): ${sf}`).toBe(false);
+    expect(/light res/i.test(sf), `Spirit Forge note fabricates light res (it has fire res +5% only): ${sf}`).toBe(false);
+    expect(/\bCBF\b/i.test(sf), `Spirit Forge note fabricates Cannot Be Frozen: ${sf}`).toBe(false);
+    expect(sf).toContain('+15 STR');
   });
 
   test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (area+3 rule)', async ({ page }) => {

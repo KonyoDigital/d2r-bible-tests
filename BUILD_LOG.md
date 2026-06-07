@@ -695,3 +695,33 @@ carries no "+150-250 mana" and DOES contain "+40 mana"; Bul-Kathos note carries 
 and DOES contain "stamina". Locks the note↔props self-consistency for these two.
 
 Suite: v83 17/17; v74_material_search clean (note renders in the material card).
+
+## v99 — note↔props sweep round 3: Bladebuckle relabel + Spirit Forge de-fabrication
+
+Swept all 312 ITEM_CODEX notes with a PRECISE mislabel detector (same number, props tie it to
+stat X but the note ties it to stat Y). The broad "note mentions a stat absent from props" scan
+threw 49 hits — ALL false positives (abbreviated/flavor notes, named-skill props like "+1 Shadow
+Disciplines" = "sin skills", individual resists summarized as "all res", empty-props sets/runes).
+The tight detector found exactly 2 real ones:
+
+### Bladebuckle (merc belt) — DEX shown as STR + def typo
+Note was "+10 STR · +25 def". Props: +5 to Strength, +10 to **Dexterity**, +30 Defense. The +10 is
+DEX (STR is +5); def is +30 (not +25). Reconciled to props (zero fabrication):
+"+5 STR · +10 DEX · +30 def · merc belt".
+
+### Spirit Forge (body armor) — fabricated stats, verified vs diablo2.io
+Note was "+25 STR · light res +30 · CBF". This wasn't a clean relabel (those values weren't in
+props), so it was FLAGGED to Konyo as possible RoW-mod-vs-stale. Konyo supplied the authoritative
+source (diablo2.io/uniques/spirit-forge-t926.html): real Spirit Forge = **+15 To Strength**, Fire
+Resist +5% (NO light res), Adds 20-65 Fire Damage, +120-160% ED, +1.25 life/clvl, +4 light radius,
+2 sockets, **no Cannot Be Frozen** — i.e. the PROPS were already correct and the note fabricated
++25 STR / +30 light res / CBF. Reconciled the note to the verified data:
+"+15 STR · +5% fire res · adds 20-65 fire dmg · 2 sockets · niche zealer body".
+
+### Guard
+Extended the v83 "utility-ring codex notes agree with their own props" test: Bladebuckle note
+carries no "+10 STR" + has "+10 DEX"; Spirit Forge note carries no "+25 STR"/"light res"/"CBF" +
+has "+15 STR".
+
+Suite: v83 17/17; v74_material_search clean. ITEM_CODEX note↔props sweep now exhausted
+(Annihilus v97 · Raven Frost + Bul-Kathos v98 · Bladebuckle + Spirit Forge v99).
