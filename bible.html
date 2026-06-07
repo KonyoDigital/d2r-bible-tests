@@ -3579,6 +3579,41 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </table></div>
   <p style="font-size:13px;color:var(--text-muted)">Guaranteed droppers — they always spill their full table, so extra players add only HP, never loot (these carry the <code>· P#-PROOF</code> tag on their cards).</p>
   </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🛡️ Mercenary mechanics <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
+  <div class="lead">A <strong>Warlock buffs his merc</strong> — and an Act&nbsp;2 merc's aura buffs <strong>you</strong> back. So the merc is a real part of the build, not just a body. Mechanics below are maxroll-sourced vanilla D2R; the drop-rate numbers everywhere else on this site stay silospen-RoW.</div>
+  <div class="warning"><strong>RotW caveat:</strong> aura names, availability and merc scaling are <strong>vanilla D2R</strong> (maxroll). Reign of the Warlock may rebalance them — <strong>verify the aura you actually get in-game</strong>; your firsthand RotW experience overrides any cell here.</div>
+
+  <div class="info" style="margin-top:10px"><strong>The four hirelings — one active at a time:</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Act</th><th>Hireling</th><th>Hired from</th><th>Fights with</th></tr></thead><tbody>
+    <tr><td>Act 1</td><td class="item-name">Rogue Scout</td><td>Kashya</td><td>Bow — Cold or Fire arrow variant</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Act 2</td><td class="item-name" style="color:var(--best)">Desert Mercenary ⭐</td><td>Greiz</td><td>Spear / polearm + a permanent <strong>party aura</strong> — the one almost everyone runs</td></tr>
+    <tr><td>Act 3</td><td class="item-name">Ironwolf</td><td>Asheara</td><td>Sword + shield, casts Cold / Fire / Lightning spells</td></tr>
+    <tr><td>Act 5</td><td class="item-name">Barbarian</td><td>Qual-Kehk</td><td>One- or two-handed melee, Stun / Bash</td></tr>
+  </tbody></table></div>
+
+  <div class="info" style="margin-top:12px"><strong>Act 2 Desert Mercenary auras — pick by the difficulty you HIRE in:</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Greiz menu</th><th>Normal &amp; Hell</th><th>Nightmare</th></tr></thead><tbody>
+    <tr><td class="item-name">Combat</td><td>Prayer <span style="color:var(--gold-dim)">(heal pulse)</span></td><td class="item-name">Thorns <span style="color:var(--gold-dim)">(reflect)</span></td></tr>
+    <tr><td class="item-name">Defensive</td><td>Defiance <span style="color:var(--gold-dim)">(+defense)</span></td><td class="item-name" style="color:var(--best)">Holy Freeze ⭐ <span style="color:var(--gold-dim)">(chills + slows everything)</span></td></tr>
+    <tr><td class="item-name">Offensive</td><td>Blessed Aim <span style="color:var(--gold-dim)">(+AR)</span></td><td class="item-name" style="color:var(--best)">Might ⭐ <span style="color:var(--gold-dim)">(+% phys damage)</span></td></tr>
+  </tbody></table></div>
+  <div class="success"><strong>The one rule:</strong> <strong>hire your Act 2 merc in NIGHTMARE.</strong> Hell mercs revert to the Normal auras, so the meta picks — <strong style="color:var(--best)">Holy Freeze</strong> (Defensive · the survival king, slows the whole screen) and <strong style="color:var(--best)">Might</strong> (Offensive · raw party damage) — only exist on the <strong>Nightmare</strong> menu. Hire there, then level him to Hell.</div>
+
+  <div class="info" style="margin-top:12px"><strong>Revive cost &amp; scaling:</strong></div>
+  <div class="lead"><code>revive gold = min( int(hlvl × hlvl / 2) × 15 , 50,000 )</code> — capped at <strong>50k gold</strong> (a lvl-92+ merc hits the cap). The merc <strong>levels with you</strong> and inherits life/AR/damage from its level; an Act 2 merc deals a % of its equipped weapon's damage, so its gear matters more than its base.</div>
+
+  <div class="info" style="margin-top:12px"><strong>Best Act 2 merc gear (3 slots — weapon · helm · armor):</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Slot</th><th>Top picks</th><th>Why</th></tr></thead><tbody>
+    <tr><td>Weapon</td><td class="item-name">Infinity · Insight · Reaper's Toll · Pride · Obedience</td><td><strong>Infinity</strong> = Conviction aura (−enemy res, breaks Lightning immunes) · <strong>Insight</strong> = Meditation mana engine · <strong>Reaper's Toll</strong> = Decrepify on hit · <strong>Pride</strong> = Concentration · <strong>Obedience</strong> = budget Crushing Blow</td></tr>
+    <tr><td>Helm</td><td class="item-name">Andariel's Visage · Tal Rasha's Horadric Crest · Vampire Gaze · Crown of Thieves</td><td><strong>Andariel's</strong> (socket a Ruby / rainbow to patch its −30 fire res) = +2 skills, 20 IAS, big life leech — the BiS merc helm</td></tr>
+    <tr><td>Armor</td><td class="item-name">Fortitude · Treachery · Stone · Duress</td><td><strong>Fortitude</strong> = +300% ED + 25 all res + Chilling Armor (BiS) · <strong>Treachery</strong> = budget Fade (25 res / DR) + 45 IAS + Venom</td></tr>
+  </tbody></table></div>
+  <div class="info"><strong>Use ETHEREAL bases on a merc:</strong> mercs ignore durability, so an ethereal weapon/armor never breaks and you keep the +50% ethereal damage/defense for free. The single biggest cheap upgrade.</div>
+
+  <div class="success" style="margin-top:10px"><strong>For Konyo (Warlock):</strong> your Lister bind already gives you a permanent <strong>Lvl-15 Meditation</strong>, so an <strong>Insight</strong> merc is redundant — run <strong style="color:var(--best)">Infinity</strong> instead (its Conviction shreds resists for your elemental Echo and breaks Lightning immunes), or a <strong style="color:var(--best)">Holy Freeze</strong> merc if you want the screen-wide slow for safety. See the 🔱 binds tab for the Meditation source.</div>
+  <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg · Mercenary Mechanics resource (vanilla D2R mechanics). Aura specifics to be confirmed against Reign of the Warlock in-game.</p>
+  </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">🧊 Cube Recipes — quick reference <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
 <div class="cube-section">
