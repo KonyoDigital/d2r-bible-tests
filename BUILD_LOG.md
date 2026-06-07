@@ -877,3 +877,34 @@ structure (_HERALD_SUNDERS) entirely. "Verified clean by eye" is not the same as
 consistent multi-structure mapping, LOCK it even if it looks clean — that's the whole point.
 
 Suite: v83 22/22; v74_material_search 8/8 clean.
+
+---
+
+## v105 — SPECIAL_DROPS ↔ boss-mapping cross-lock (guard-only, 2026-06-07)
+
+Round-9 "check for others like this". `SPECIAL_DROPS` (L3570) is the canonical material DB; it
+restates FOUR boss→drop maps that ALSO live in other structures — none were cross-guarded:
+- **boss→Pandemonium-key** — `EXCLUSIVE_DROPS` (L7103) · `BOSS_FEEDS_INTO` (L3667) · `SPECIAL_DROPS.key`
+  (countess→Key of Terror, summoner→Key of Hate, nihl→Key of Destruction)
+- **boss→Essence** — `BOSS_FEEDS_INTO` · `SPECIAL_DROPS.essence` (Andariel+Duriel→Suffering,
+  Mephisto→Hatred, Diablo→Terror, Baal→Destruction — Andariel & Duriel SHARE Suffering, verified)
+- **dclone→Annihilus** — `EXCLUSIVE_DROPS` · `BOSS_FEEDS_INTO` · `SPECIAL_DROPS.uberCharm`
+- **Colossal statue→boss** — `SPECIAL_DROPS.colossalStatue.from` is a 4th statue→boss surface that
+  the v101 guard MISSED (same gap pattern round-8 hit with `_HERALD_SUNDERS`)
+
+All four AGREE. No fabrication, no data edit; bible.html UNCHANGED (live still `a8485e3`).
+
+### Guard added
+One comprehensive v83 test cross-checks SPECIAL_DROPS against EXCLUSIVE_DROPS / BOSS_FEEDS_INTO /
+COLOSSAL_STATUES for all four maps (key label match + `from` names the boss; essence label + from;
+Annihilus label + from contains "Clone"; each statue's `from` segment names its bossId).
+
+### Lesson
+SPECIAL_DROPS is the single most-restated data hub — keys/essences/organs/charms/statues/shards
+all also appear in the per-boss feed structures. Each new guard round keeps finding the SAME
+shape: a canonical structure whose mapping is duplicated in 2-3 sibling structures, consistent
+but unguarded. The recurring "missed a 4th surface" (v104 _HERALD_SUNDERS, v105 SPECIAL_DROPS
+colossalStatue) confirms: when locking a mapping, grep ALL structures that could restate it
+before declaring the web fully covered.
+
+Suite: v83 23/23; v74_material_search 8/8 clean.

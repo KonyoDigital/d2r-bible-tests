@@ -569,4 +569,51 @@ test.describe('v83 website synchronization audit', () => {
     });
     expect(drift, `sunder element↔region web drifted across structures:\n${drift.join('\n')}`).toEqual([]);
   });
+
+  test('entity sync: SPECIAL_DROPS material DB agrees with the boss-mapping structures (keys · essences · Annihilus · Colossal statues)', async ({ page }) => {
+    // v105: SPECIAL_DROPS (L3570) is the canonical material DB; it restates FOUR boss→drop maps
+    // that also live in EXCLUSIVE_DROPS / BOSS_FEEDS_INTO / COLOSSAL_STATUES. None were cross-
+    // guarded. (The Colossal-statue `from` is a 4th statue→boss surface the v101 guard MISSED —
+    // same kind of gap round-8 found with _HERALD_SUNDERS.) Lock SPECIAL_DROPS to the others.
+    const drift = await page.evaluate(() => {
+      const lc = (s: any) => String(s || '').toLowerCase();
+      const BTOKEN: Record<string, string> = { countess: 'countess', summoner: 'summoner', nihl: 'nihlathak', andariel: 'andariel', duriel: 'duriel', mephisto: 'mephisto', diablo: 'diablo', baal: 'baal' };
+      const SD = SPECIAL_DROPS as any, EX = EXCLUSIVE_DROPS as any, BFI = BOSS_FEEDS_INTO as any;
+      const out: string[] = [];
+      const findFrom = (items: any[], name: string) => items.find((it) => lc(it.n) === lc(name));
+      // (1) Pandemonium keys: EXCLUSIVE_DROPS === BOSS_FEEDS_INTO === SPECIAL_DROPS.key
+      for (const bid of ['countess', 'summoner', 'nihl']) {
+        const ex = EX[bid].item;
+        const bfi = (BFI[bid] || []).find((x: any) => x.tone === 'key');
+        if (!bfi || bfi.label !== ex) out.push(`${bid} key: EXCLUSIVE_DROPS="${ex}" vs BOSS_FEEDS_INTO="${bfi && bfi.label}"`);
+        const sd = findFrom(SD.key.items, ex);
+        if (!sd) out.push(`${bid} key "${ex}" missing from SPECIAL_DROPS.key`);
+        else if (!sd.from.some((f: string) => lc(f).includes(BTOKEN[bid]))) out.push(`${ex}: SPECIAL_DROPS.from ${JSON.stringify(sd.from)} omits "${BTOKEN[bid]}"`);
+      }
+      // (2) Essences: BOSS_FEEDS_INTO === SPECIAL_DROPS.essence
+      for (const bid of ['andariel', 'duriel', 'mephisto', 'diablo', 'baal']) {
+        const bfi = (BFI[bid] || []).find((x: any) => x.tone === 'essence');
+        if (!bfi) { out.push(`${bid}: no essence in BOSS_FEEDS_INTO`); continue; }
+        const sd = findFrom(SD.essence.items, bfi.label);
+        if (!sd) out.push(`${bid} essence "${bfi.label}" missing from SPECIAL_DROPS.essence`);
+        else if (!sd.from.some((f: string) => lc(f).includes(BTOKEN[bid]))) out.push(`${bfi.label}: SPECIAL_DROPS.from ${JSON.stringify(sd.from)} omits "${BTOKEN[bid]}"`);
+      }
+      // (3) Annihilus / dclone: EXCLUSIVE_DROPS === BOSS_FEEDS_INTO === SPECIAL_DROPS.uberCharm
+      const exA = EX.dclone.item;
+      const bfiA = (BFI.dclone || []).find((x: any) => x.tone === 'uber');
+      if (!bfiA || bfiA.label !== exA) out.push(`dclone: EXCLUSIVE_DROPS="${exA}" vs BOSS_FEEDS_INTO="${bfiA && bfiA.label}"`);
+      const sdA = findFrom(SD.uberCharm.items, exA);
+      if (!sdA) out.push(`"${exA}" missing from SPECIAL_DROPS.uberCharm`);
+      else if (!lc(sdA.from.join(' ')).includes('clone')) out.push(`${exA}: SPECIAL_DROPS.from ${JSON.stringify(sdA.from)} omits "Clone"`);
+      // (4) Colossal statue→boss: COLOSSAL_STATUES === SPECIAL_DROPS.colossalStatue.from (4th surface)
+      const statueFrom: string[] = SD.colossalStatue.items[0].from;
+      for (const s of (COLOSSAL_STATUES as any[])) {
+        const seg = statueFrom.find((f) => lc(f).includes(lc(s.n)));
+        if (!seg) { out.push(`statue "${s.n}" missing from SPECIAL_DROPS.colossalStatue.from`); continue; }
+        if (!lc(seg).includes(lc(s.bossId))) out.push(`${s.n}: SPECIAL_DROPS segment "${seg}" omits boss "${s.bossId}"`);
+      }
+      return out;
+    });
+    expect(drift, `SPECIAL_DROPS material DB drifted from the boss-mapping structures:\n${drift.join('\n')}`).toEqual([]);
+  });
 });
