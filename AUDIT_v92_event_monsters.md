@@ -29,10 +29,13 @@
 - **The Pit** — ✅ **already gbc-parity.** Rendered through the TZ-zone rich card
   (`.gbc-card tz-zone-card-rich`, L4267) as a permanent-lvl85 TZ crosslink
   (L593/L4970). **No action.**
-- **Travincal Council** — ❌ **no dedicated detail card.** Exists only as Bind-tab
-  tables (Ismail/Geleb/Toorc L3233-35), council-count facts (L3332), and rune-source
-  prose (L3876-77). It IS a top-tier drop-source (best high-rune throughput in game).
-  **Gap: it has rows, not a card.** Candidate for a future card — but see scope note.
+- **Travincal Council** — ⚠️ **CORRECTION (v93):** this audit was WRONG to say "no
+  dedicated detail card / rows not a card." Travincal **already has a card** — it's a
+  `RUNE_SOURCES` entry (`id:'travincal'`, bible.html ~L8192) rendered in the **Runes
+  tab** by `renderRuneSources()` as a clickable expand card (artOr emblem, tier-S
+  badge, Lo/Ohm/Vex high-rune grid, honest-odds caveat, why/action/warn). It just used
+  the **legacy `.boss-*` shell**, not the golden `.gbc-*`. v93 was therefore a *shell
+  re-skin* (→ `.gbc-card`), NOT new authoring. **Shipped — commit `98bfd49`.**
 - **Secret Cow Level** — also has a second presence as the Runes-tab "Cow Level"
   card (rune detail). The `#tab-ancients` event-card (#4 above) is the procedural one.
 
@@ -63,9 +66,10 @@ verbatim, nothing cut.** Route emblems through `artOr()` to satisfy #52.
 **Deliberately OUT of v92 scope (separate later passes):**
 - Inner `.ubc` 9-boss cards + `.colossal-tile` index (#2/#3): already artOr'd and
   content-rich; their sub-card shells are a follow-up, not a blocker.
-- **Travincal card creation** — it's a genuine gap but it's *new card authoring*
-  (needs a content pass), not a *shell unification*; belongs in its own batch (v93)
-  to keep v92 a clean refactor with no fabrication risk.
+- ~~**Travincal card creation**~~ — **DONE in v93, and it was NOT new authoring.**
+  Travincal already existed as a `RUNE_SOURCES` card (Runes tab) in the legacy
+  `.boss-*` shell; v93 re-skinned it (+Hellforge/Cows/LK) to the golden `.gbc-card`.
+  Zero fabrication. The "needs a content pass" assumption here was incorrect.
 
 ## Guard to add (#52 lock)
 Extend the v83 sync audit with an invariant: **every `#tab-ancients .event-card`

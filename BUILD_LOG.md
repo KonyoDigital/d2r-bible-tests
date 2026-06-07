@@ -31,6 +31,42 @@
 
 ---
 
+## 2026-06-07 — CC: rune-source detail cards → golden .gbc-card shell (v93)
+
+**Premise correction:** the v92 audit said "Travincal has rows, not a card." That
+was **wrong**. Travincal is a `RUNE_SOURCES` entry (`id:'travincal'`, bible.html
+~L8192) already rendered in the **Runes tab** by `renderRuneSources()` as a clickable
+expand card — it just used the **legacy `.boss-*` shell**, not the golden `.gbc-*`.
+So the gap was a *shell re-skin*, not new authoring. **No new card built, no odds
+fabricated.**
+
+**Shipped:** `runeSourceDetailHtml()` now wraps its detail in the golden
+`.gbc-card rune-src-card-rich` banner (artOr emblem + `.gbc-name`/`.gbc-subtitle`/
+`.gbc-loc` + `.gbc-tier` badge + `.gbc-close`) over a `.gbc-body` of the EXISTING
+grid / tier-pool / why / action / warn / notes — **content verbatim**. This upgrades
+all 4 rune sources at once (Travincal, Hellforge, Cows, LK) into parity with the
+Baal / Herald / TZ-zone / super-unique cards. Followed the **v85.1/v91 wrapper-strip
+precedent**: extended the `.tz-zone-detail/.su-detail:has(>.gbc-card)` strip rule to
+`.rune-src-detail`, and rescoped the `.rune-src-card` 40px emblem clamp to
+`> .boss-header` so the nested gbc emblem isn't shrunk.
+
+**Tests:** relocated the v53 "editorial frame" assertion from the wrapper to the
+inner `.gbc-card` (frame moved there, per zone/SU); added a v53 v93 banner-parity
+lock (emblem + name + tier + close collapses); extended the v83 `gbc-format parity`
+guard to also assert `runeSourceDetailHtml` emits the gbc shell AND that Travincal's
+`pending silospen pull` honest-odds caveat survives the re-shell. **Full suite 427
+passed / 1 skipped.**
+
+**Ship:** commit `98bfd49` → deploy `38c16f34` → md5 parity `2af1afc6…`
+(local==live) → pushed (pre-push smoke 36/36 green).
+
+**Drop-source gbc-parity is now COMPLETE** across bosses · super-uniques · TZ-zones ·
+Herald-apex · event heads (v92) · rune-sources (v93). Remaining follow-ups are
+sub-card shells only (inner `.ubc` 9-boss cards + `.colossal-tile` index), not
+top-level drop-source gaps.
+
+---
+
 ## 2026-06-07 — CC: event-card heads → golden .gbc-header banner (v92, #52 / #51)
 
 **Context:** v92 audit (`AUDIT_v92_event_monsters.md`) scored the `#tab-ancients`
