@@ -725,3 +725,32 @@ has "+15 STR".
 
 Suite: v83 17/17; v74_material_search clean. ITEM_CODEX note↔props sweep now exhausted
 (Annihilus v97 · Raven Frost + Bul-Kathos v98 · Bladebuckle + Spirit Forge v99).
+
+## v100 — the unsynced-duplicate ROOT: ITEM_INFO is a second copy of the codex notes
+
+"Check for others like this" round 4 found the structural reason the v98/v99 fixes were
+incomplete: **`ITEM_INFO` is a SECOND hardcoded copy of each gear item's codex `note`** (merged
+at runtime with `ITEM_INFO_EXTRA` via `for(k in EXTRA){ if(!(k in ITEM_INFO)) ITEM_INFO[k]=… }`,
+L4945). The material card renders `ITEM_INFO[name]`, NOT the codex note — so fixing only the
+codex note (v98 RF/BK, v99 Bladebuckle/Spirit Forge) left the USER-VISIBLE one-liner stale.
+
+### Stale duplicates synced (4 gear items)
+- **Raven Frost** ITEM_INFO: "+150-250 mana" → "+40 mana · +150-250 AR" (matches v98 note)
+- **Bul-Kathos** ITEM_INFO: "+5% max life · +50 life" → "+0.5 life/clvl · 3-5% life leech · +50 max stamina"
+- **Spirit Forge** ITEM_INFO_EXTRA (L4696): "+25 STR · light res +30 · CBF" → "+15 STR · +5% fire res · adds 20-65 fire dmg · 2 sockets" (diablo2.io-verified)
+- **Bladebuckle** ITEM_INFO_EXTRA (L4750): "+10 STR · +25 def" → "+5 STR · +10 DEX · +30 def"
+
+### Guard — the general lock (supersedes piecemeal note checks)
+New v83 test "ITEM_INFO gear one-liners stay identical to their ITEM_CODEX note": for every
+GEAR item (non-empty `props`) present in both maps, INFO must equal the note (case-insensitive).
+Scoped to gear so keys/runes/shards — which intentionally carry a short crosslink blurb in
+ITEM_INFO vs a detailed `note` (empty props) — are excluded. This locks ALL ~96 shared gear
+one-liners, so a future single-surface edit can't silently desync the pair again.
+
+### Lesson
+The material card's source of truth is `ITEM_INFO[name]` (with codex-note fallback), and
+ITEM_INFO duplicates the notes. ANY item-stat edit must touch BOTH (or the guard fails). The
+v98/v99 guards only checked `codex.note` → blind to the visible ITEM_INFO copy. Fixed by the
+map-level identity invariant above.
+
+Suite: v83 18/18; v74_material_search clean.

@@ -393,6 +393,29 @@ test.describe('v83 website synchronization audit', () => {
     expect(sf).toContain('+15 STR');
   });
 
+  test('entity sync: ITEM_INFO gear one-liners stay identical to their ITEM_CODEX note (no stale duplicate)', async ({ page }) => {
+    // v100: ITEM_INFO (merged at runtime with ITEM_INFO_EXTRA) is a SECOND copy of each GEAR
+    // item's codex `note`. When v98/v99 fixed the Raven Frost / Bul-Kathos / Bladebuckle / Spirit
+    // Forge NOTES, the ITEM_INFO(_EXTRA) duplicates stayed stale — a classic unsynced-duplicate.
+    // Scope to gear (non-empty props): keys / runes / shards intentionally carry a DIFFERENT
+    // crosslink blurb in ITEM_INFO vs a detailed note, so they're excluded (empty props).
+    const mismatches = await page.evaluate(() => {
+      const codex = ITEM_CODEX as any;
+      const info = ITEM_INFO as any;
+      const out: string[] = [];
+      for (const name of Object.keys(info)) {
+        const c = codex[name];
+        if (!c || !c.note) continue;
+        if (!Array.isArray(c.props) || c.props.length === 0) continue; // gear only
+        if (String(info[name]).toLowerCase().trim() !== String(c.note).toLowerCase().trim()) {
+          out.push(`${name} :: INFO="${info[name]}" vs NOTE="${c.note}"`);
+        }
+      }
+      return out;
+    });
+    expect(mismatches, `ITEM_INFO gear desync from ITEM_CODEX note:\n${mismatches.join('\n')}`).toEqual([]);
+  });
+
   test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (area+3 rule)', async ({ page }) => {
     const { boss, su } = await page.evaluate(() => {
       const b = (BOSSES as any[]).find((x: any) => x.id === 'summoner');
