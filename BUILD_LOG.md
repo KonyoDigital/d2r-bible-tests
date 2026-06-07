@@ -908,3 +908,38 @@ colossalStatue) confirms: when locking a mapping, grep ALL structures that could
 before declaring the web fully covered.
 
 Suite: v83 23/23; v74_material_search 8/8 clean.
+
+---
+
+## v106 — Token of Absolution as a first-class item (FEATURE, ships bible.html)
+
+User request: "ALL 4 ESSENCES we have for essences should create something of destruction —
+it's called something... this should also be an item and updated accordingly to the tabs and
+subtabs associated with it." The cube product of the 4 Essences is the **Token of Absolution**;
+it previously existed ONLY as a recipe-output string (`MATERIAL_RECIPES` + essence blurb/recipe),
+never as a routable/searchable item.
+
+### What shipped (additive, DRY — flows through existing generic code)
+- New `SPECIAL_DROPS.token` category (between `essence` and `key`, L3583) — icon 🎟️, label
+  "Token of Absolution", blurb + 1 item (`from:["Horadric Cube (4 Essences)"]`, `does:` full
+  respec, `note:` cube the 4 essences). `recipe` is VERBATIM the essence-category recipe.
+- `MATERIAL_FEEDS.token = 'a full respec (reset skills + stats)'` (L3713).
+- `SD_META.token` (search builder, L10545) — icon/sub/keywords so it's globally searchable.
+- `renderEventRef` "who drops what" grid gains a 4th block `block(sd.token,'Full Respec')` (L4492).
+
+This auto-flows into: the material ID card (`materialDetailHtml`), the Special-Drops grid
+(`renderSpecialDrops` iterates `Object.entries(SPECIAL_DROPS)`), global search + `openDrop`
+routing, and the Main-tab cross-link reference — ALL via existing generic code paths.
+`MATERIAL_CATS` (stash tally) deliberately UNCHANGED (5 cats) so the stash count stays 21.
+
+### Zero fabrication
+Standard D2R facts: cube the 4 Hell-act-boss essences (Suffering+Hatred+Terror+Destruction) →
+1 Token; right-click to reset ALL skill AND stat points (full respec); single-use/consumed;
+farmable & stackable (unlike the 1-per-difficulty Akara respec).
+
+### Guard added (v83 test 24)
+Token recipe names every essence + == the essence-category recipe; `MATERIAL_RECIPES` Token
+`need{}` holds the same 4 essences; `openDrop('Token of Absolution')` opens a `.material-card`
+in `#item-detail` (respec/reset text present); global search → pick → opens the same card.
+
+Suite: v83 24/24; v74_material_search + v52 + v70 + v55 29/29; smoke 01+v71 21/21.

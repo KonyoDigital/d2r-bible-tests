@@ -3580,6 +3580,15 @@ const SPECIAL_DROPS = {
     ],
     recipe: "1 Essence of Suffering + 1 Essence of Hatred + 1 Essence of Terror + 1 Essence of Destruction → Token of Absolution"
   },
+  token: {
+    label: "Token of Absolution",
+    icon: "🎟️",
+    blurb: "The cube product of all 4 Essences. Right-click to FULLY respec — reset every skill AND stat point at once (one use per token, consumed). Unlike the 1-per-difficulty Akara respec, Tokens are farmable & stackable.",
+    items: [
+      {n: "Token of Absolution", from: ["Horadric Cube (4 Essences)"], rate: "crafted — 1 per full essence set", does: "Right-click → reset ALL skill points AND ALL stat points (full respec). Single use, consumed on use. Stack as many as you can farm.", note: "Cube the 4 Hell-act-boss essences (Suffering + Hatred + Terror + Destruction) — no level or charges requirement."}
+    ],
+    recipe: "1 Essence of Suffering + 1 Essence of Hatred + 1 Essence of Terror + 1 Essence of Destruction → Token of Absolution"
+  },
   key: {
     label: "Pandemonium Keys",
     icon: "🗝️",
@@ -3702,6 +3711,7 @@ function feedsIntoStripHtml(list){
    No new drop data is fabricated; this is a wiring/unification layer.    */
 const MATERIAL_FEEDS = {
   key: 'Uber Tristram (red portals)', essence: 'Token of Absolution',
+  token: 'a full respec (reset skills + stats)',
   organ: 'Hellfire Torch (cube)', uberCharm: 'equipped — top-tier grail charm',
   sunder: 'equipped — breaks one immunity to ~95%',
   worldstoneShard: 'Sunder Charm (breaks an immunity)',
@@ -4479,7 +4489,7 @@ function renderEventRef(){
   el.innerHTML = `<h2 class="sec-h er-title collapsed" onclick="toggleSec(this)">🔑 Keys &amp; 💎 Shards &amp; 🩸 Essences — who drops what <span class="sec-chev">▾</span></h2>
     <div class="sec-body" hidden>
     <div class="er-sub">Cross-link reference (not counted in the grail) — your "where do I farm this material" map.</div>
-    <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}</div>
+    <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}${block(sd.token, 'Full Respec')}</div>
     </div>`;
 }
 // v47 unify: event/uber sections (Uber Tristram, Cow, DClone, Colossal Ancients,
@@ -10532,6 +10542,7 @@ _v41_whenReady(() => {
     const SD_META = {
       sunder:          {icon:'💠', sub:'Sunder Charm · breaks an immunity',      kw:'sunder charm immunity break latent renewed herald grand charm'},
       essence:         {icon:'🩸', sub:'Essence · cube → Token of Absolution',    kw:'essence token absolution respec reset hell act boss'},
+      token:           {icon:'🎟️', sub:'Token of Absolution · cube 4 essences → respec', kw:'token absolution respec reset skills stats essence craft full'},
       worldstoneShard: {icon:'💠', sub:'Worldstone Shard · upgrades a Sunder',    kw:'worldstone shard renewed sunder upgrade tz hell western eastern southern northern deep'},
       colossalStatue:  {icon:'👑', sub:'Colossal Statue · summon ingredient',     kw:'colossal ancient statue summit pinnacle terror cube talic korlic madawc'},
       colossalJewel:   {icon:'💎', sub:'Colossal Jewel · endgame BiS',            kw:'colossal ancient jewel facet pinnacle reward bis'},

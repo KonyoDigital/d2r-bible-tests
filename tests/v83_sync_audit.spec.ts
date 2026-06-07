@@ -616,4 +616,56 @@ test.describe('v83 website synchronization audit', () => {
     });
     expect(drift, `SPECIAL_DROPS material DB drifted from the boss-mapping structures:\n${drift.join('\n')}`).toEqual([]);
   });
+
+  test('entity sync: Token of Absolution is a first-class material — its recipe matches the 4 essences, it routes to a card, and it is searchable', async ({ page }) => {
+    // v106: the user asked that the cube product of all 4 Essences (Token of Absolution) be a
+    // first-class item, not just a recipe-output string. It now lives as SPECIAL_DROPS.token.
+    // Lock: (1) every essence named in SPECIAL_DROPS.essence is required by the Token recipe,
+    // and the Token recipe == the essence-category recipe; (2) MATERIAL_RECIPES Token needs the
+    // exact same 4 essences; (3) openDrop('Token of Absolution') opens a material card; (4) it's
+    // searchable and the pick routes to the same card.
+    const data = await page.evaluate(() => {
+      const lc = (s: any) => String(s || '').toLowerCase();
+      const SD = SPECIAL_DROPS as any;
+      const out: string[] = [];
+      const tok = SD.token;
+      if (!tok) { out.push('SPECIAL_DROPS.token category is missing'); return { out, names: [] as string[] }; }
+      const item = (tok.items || []).find((it: any) => lc(it.n) === 'token of absolution');
+      if (!item) out.push('SPECIAL_DROPS.token has no "Token of Absolution" item');
+      // (1) the token recipe names every essence + matches the essence-category recipe verbatim
+      const ess = SD.essence;
+      const essNames: string[] = ess.items.map((it: any) => it.n);
+      for (const en of essNames) if (!lc(tok.recipe).includes(lc(en))) out.push(`SPECIAL_DROPS.token recipe omits essence "${en}"`);
+      if (tok.recipe !== ess.recipe) out.push(`token recipe "${tok.recipe}" ≠ essence recipe "${ess.recipe}"`);
+      // (2) MATERIAL_RECIPES Token needs the SAME 4 essences
+      const mr = (MATERIAL_RECIPES as any[]).find((r) => lc(r.n) === 'token of absolution');
+      if (!mr) out.push('MATERIAL_RECIPES has no Token of Absolution');
+      else { for (const en of essNames) if (!(en in mr.need)) out.push(`MATERIAL_RECIPES Token need{} omits "${en}"`); }
+      return { out, names: ['Token of Absolution'] };
+    });
+    expect(data.out, `Token-of-Absolution material sync drifted:\n${data.out.join('\n')}`).toEqual([]);
+
+    // (3) openDrop routes to a material card (rendered into #item-detail)
+    const card = await page.evaluate(() => {
+      (window as any).openDrop('Token of Absolution');
+      const panel = document.getElementById('item-detail');
+      return {
+        shown: !!panel?.classList.contains('show'),
+        name: panel?.querySelector('.material-card .gic-name')?.textContent?.trim() || '',
+        body: panel?.querySelector('.material-card')?.textContent || '',
+      };
+    });
+    expect(card.shown).toBe(true);
+    expect(card.name).toMatch(/Token of Absolution/);
+    expect(card.body).toMatch(/respec|reset/i);
+
+    // (4) it is searchable and picking the result opens the same card
+    await page.fill('#gsearch-input', 'Token of Absolution');
+    await page.waitForTimeout(220);
+    await page.locator('#gsearch-results .gsearch-item').first().click();
+    await page.waitForTimeout(250);
+    const picked = await page.evaluate(() =>
+      document.getElementById('item-detail')?.querySelector('.material-card .gic-name')?.textContent?.trim() || '');
+    expect(picked).toMatch(/Token of Absolution/);
+  });
 });
