@@ -265,7 +265,7 @@ test.describe('v71 d2art artwork layer', () => {
     });
     expect(r.total).toBeGreaterThanOrEqual(18);
     expect(r.missing).toEqual([]);                       // EVERY super-unique has real art
-    expect(r.lister).toMatch(/thetormentor_graphic\.png$/);
+    expect(r.lister).toMatch(/lister01_graphic\.png$/);    // the MONSTER portrait, not the item
   });
 
   test('the new Lister super-unique card renders its verified portrait art', async ({ page }) => {
@@ -285,7 +285,7 @@ test.describe('v71 d2art artwork layer', () => {
     });
     expect(r.hasCard).toBe(true);
     expect(r.name).toMatch(/Lister the Tormentor/);
-    expect(r.src).toMatch(/thetormentor_graphic\.png$/);
+    expect(r.src).toMatch(/lister01_graphic\.png$/);
     expect(r.lazy).toBe('lazy');
   });
 
