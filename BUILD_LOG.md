@@ -673,3 +673,25 @@ These are minor utility-ring display notes (not items Konyo is grail-hunting); l
 they can be reconciled deliberately rather than guessed.
 
 Suite: v83 16/16; 01_smoke + v74_material_search 16/16 (note renders in the material card).
+
+## v98 — reconcile the 2 flagged utility-ring notes to their own props
+
+Konyo confirmed: fix both. Both notes reconciled toward their structured `props` array (the
+canonical material-card source of truth) — zero fabrication, every value already lives in props.
+
+### Raven Frost note — AR-as-mana mislabel fixed
+Was "+15-20 DEX · +150-250 mana · Cannot Be Frozen". Props: +40 to Mana, +150-250 to **Attack
+Rating** (the 150-250 roll is AR, not mana). → "+15-20 DEX · +40 mana · +150-250 AR · Cannot Be
+Frozen · ESSENTIAL CBF ring for most builds".
+
+### Bul-Kathos Wedding Band note — stamina-as-life + fabricated max-life fixed
+Was "+1 ALL skills · +5% max life · +50 life". Props: +0.5 to Life (per clvl), +1 to All Skills,
+3-5% Life Stolen, +50 Maximum **Stamina** — no flat "+50 life", no "+5% max life". →
+"+1 all skills · +0.5 life/clvl · 3-5% life leech · +50 max stamina · pairs w/ SoJ for +2 skills total".
+
+### Guard
+New `v83_sync_audit` test "utility-ring codex notes agree with their own props": Raven Frost note
+carries no "+150-250 mana" and DOES contain "+40 mana"; Bul-Kathos note carries no "+5% max life"
+and DOES contain "stamina". Locks the note↔props self-consistency for these two.
+
+Suite: v83 17/17; v74_material_search clean (note renders in the material card).

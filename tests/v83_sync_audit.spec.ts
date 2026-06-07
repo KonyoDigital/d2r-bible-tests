@@ -361,6 +361,22 @@ test.describe('v83 website synchronization audit', () => {
     expect(note).toContain('experience');
   });
 
+  test('entity sync: utility-ring codex notes agree with their own props (no mislabeled rolls)', async ({ page }) => {
+    // v97: the structured `props` array is the canonical source of truth; a `note` must not
+    // mislabel a roll that props spells out. Raven Frost & Bul-Kathos notes drifted (AR shown
+    // as mana; max-stamina shown as "+50 life" + a fabricated "+5% max life"). Reconciled to props.
+    const { rf, bk } = await page.evaluate(() => {
+      const c = ITEM_CODEX as any;
+      return { rf: c['Raven Frost'].note as string, bk: c['Bul-Kathos Wedding Band'].note as string };
+    });
+    // Raven Frost: mana is +40, the 150-250 roll is Attack Rating (not mana).
+    expect(/\+150[-–]250 mana/i.test(rf), `Raven Frost note mislabels +150-250 AR as mana: ${rf}`).toBe(false);
+    expect(rf).toContain('+40 mana');
+    // Bul-Kathos: props are +0.5 life/clvl + +50 MAX STAMINA (no flat "+50 life", no "+5% max life").
+    expect(/\+5% max life/i.test(bk), `Bul-Kathos note carries a fabricated "+5% max life": ${bk}`).toBe(false);
+    expect(bk).toContain('stamina');
+  });
+
   test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (area+3 rule)', async ({ page }) => {
     const { boss, su } = await page.evaluate(() => {
       const b = (BOSSES as any[]).find((x: any) => x.id === 'summoner');
