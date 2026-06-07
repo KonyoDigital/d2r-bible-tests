@@ -250,6 +250,45 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.andaText).toContain('Andariel');
   });
 
+  test('every super-unique resolves verified diablo2.io art (full SU coverage, no emoji-only)', async ({ page }) => {
+    // v108: the whole SUPER_UNIQUES roster (incl. Lister the Tormentor) now carries real
+    // diablo2.io art — each URL was probed live (200 + image content-type) before shipping.
+    // This locks the coverage so a future entry can't silently regress to an emoji-only card.
+    const r = await page.evaluate(() => {
+      const sus = (SUPER_UNIQUES as any[]);
+      const missing = sus.filter((s) => !(window as any).artUrl(s.name)).map((s) => s.name);
+      return {
+        total: sus.length,
+        missing,
+        lister: (window as any).artUrl('Lister the Tormentor') || '',
+      };
+    });
+    expect(r.total).toBeGreaterThanOrEqual(18);
+    expect(r.missing).toEqual([]);                       // EVERY super-unique has real art
+    expect(r.lister).toMatch(/thetormentor_graphic\.png$/);
+  });
+
+  test('the new Lister super-unique card renders its verified portrait art', async ({ page }) => {
+    // jumpToSuperUniqueByName switches to the tz tab + toggles the detail open on a 110ms timer,
+    // so split the call from the query (mirrors the v83 entity-sync test).
+    await page.evaluate(() => (window as any).jumpToSuperUniqueByName('Lister the Tormentor'));
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => {
+      const card = document.querySelector('.su-card-rich') as HTMLElement | null;
+      const img = card?.querySelector('.gbc-header .d2art-img') as HTMLImageElement | null;
+      return {
+        hasCard: !!card,
+        name: card?.querySelector('.gbc-name')?.textContent?.trim() || '',
+        src: img?.getAttribute('src') || '',
+        lazy: img?.getAttribute('loading') || '',
+      };
+    });
+    expect(r.hasCard).toBe(true);
+    expect(r.name).toMatch(/Lister the Tormentor/);
+    expect(r.src).toMatch(/thetormentor_graphic\.png$/);
+    expect(r.lazy).toBe('lazy');
+  });
+
   test('no console errors when opening art-bearing cards', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

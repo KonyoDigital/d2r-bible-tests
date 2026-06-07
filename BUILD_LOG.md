@@ -976,3 +976,36 @@ references him · Hephasto (the precedent) still present · `jumpToSuperUniqueBy
 
 Suite: v83 25 sync tests (31/31 w/ Token) ; v51_superuniques + v41 + v40 + routing 41/41 ;
 v64 routing green. No console errors, no fabricated-odds violation (v51 sanity).
+
+---
+
+## v108 — full super-unique artOr coverage (real diablo2.io portraits) — 2026-06-08 (CC, opus4)
+
+**FEATURE (ships bible.html).** Konyo: "art0r for all logos of items/bosses/uniques —
+check others." Audited every drop-source entity for emoji-only fallback and closed the
+super-unique gap end-to-end.
+
+### Added (D2IO_ART, 9 verified URLs)
+- **Lister the Tormentor** → `items/thetormentor_graphic.png` (the v107 entry shipped on the
+  👿 emoji — now real art).
+- **Eldritch the Rectifier · Witch Doctor Endugu · Blood Raven · Coldcrow · Griswold ·
+  Bone Ash · Rakanishu · Bishibosh** → `images/avatars/gallery/6. Super Unique Monsters/<Name>.gif`
+  (spaces %20-encoded).
+- Every URL probed live (HTTP 200 + image content-type) before adding — **zero guessed URLs.**
+  Result: **all 18 SUPER_UNIQUES now carry real diablo2.io art** (the other 9 — Shenk, Summoner,
+  Nihlathak, Hephasto, Izual, Frozenstein, Pindleskin, Sszark, The Smith — were already mapped).
+
+### Verified-absent (kept honest emoji fallback — NO fabrication)
+- 4 **Essences** (Suffering/Hatred/Terror/Destruction) and 5 **Worldstone Shards**
+  (Western/Eastern/Southern/Northern/Deep) + **Colossal Ancient Jewels**: diablo2.io has no
+  graphic under any tried naming (`_graphic.png`, gallery `0. Items`, item-code, base-name).
+  RotW-mod / quest items absent from the avatar gallery. They keep 🩸/💠/💎 emoji.
+- All 13 tracked BOSSES already had art (confirmed programmatically).
+
+### Guards (v71_d2art — IN the pre-push smoke gate, now 15 tests)
+- "every super-unique resolves verified diablo2.io art" — `SUPER_UNIQUES.filter(s=>!artUrl(s.name))`
+  must be `[]`; locks 18/18 coverage so a future SU can't silently regress to emoji-only.
+- "the new Lister super-unique card renders its verified portrait art" — jump→card→`.gbc-header
+  .d2art-img` src matches `thetormentor_graphic.png` + `loading=lazy`.
+
+Suite: v71_d2art 15/15 · v51_superuniques + v83 sync (37) + v45 all green. Smoke 36→still gated.
