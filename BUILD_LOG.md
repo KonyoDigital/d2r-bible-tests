@@ -754,3 +754,36 @@ v98/v99 guards only checked `codex.note` → blind to the visible ITEM_INFO copy
 map-level identity invariant above.
 
 Suite: v83 18/18; v74_material_search clean.
+
+---
+
+## v101 — Colossal-Ancient 3-way mapping lock (guard-only, 2026-06-07)
+
+Round-5 "check for others like this": audited the ITEM_INFO/ITEM_INFO_EXTRA duplicate-map
+surface. Structural findings: (A) ~20 shadowed EXTRA keys identical to their ITEM_INFO copy
+(harmless dead duplicates, can't remove under additive-only); (B) no gear note missing a
+one-liner; (C) 6 orphan descriptions with no codex card — the 5 Colossal-Ancient statue
+drops + Hellfire Torch (latter already locked v100-era).
+
+### The one drift-prone shape surfaced — and it was CLEAN
+The 5 Colossal-Ancient statue drops are defined in THREE parallel structures:
+- `COLOSSAL_STATUES` (L3807, `bossId`)
+- `STATUE_LIST` (L4949, `bossId`)
+- `ITEM_INFO_EXTRA` (L4915, prose naming the boss)
+
+The drop→boss mapping (Talic's Anguish→andariel, Korlic's Pain→duriel, Madawc's Ire→mephisto,
+Bul-Kathos' Nightmare→diablo, Worusk's End→baal) AGREES across all three. **No fix needed —
+no fabrication.** But it was an UNGUARDED 3-way duplicate, exactly the drift shape this audit
+locks, so it got a guard rather than a data edit.
+
+### Guard added
+New v83 test "Colossal-Ancient statue drops map to the SAME boss across all 3 structures":
+asserts `COLOSSAL_STATUES.bossId === STATUE_LIST.bossId` AND the `ITEM_INFO` prose names that
+same boss, for each of the 5 drops. Locks the 3-way mapping against future single-structure edits.
+
+### Lesson
+Not every "check for others" round ends in a data fix — when the parallel structures already
+agree, the honest outcome is "clean + add the lock", not a manufactured edit. `bible.html`
+UNCHANGED this ship (no md5 change → no live redeploy needed); only the test file grew 18→19.
+
+Suite: v83 19/19; v74_material_search 8/8 clean.

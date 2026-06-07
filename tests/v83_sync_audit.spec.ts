@@ -439,4 +439,31 @@ test.describe('v83 website synchronization audit', () => {
       from = idx + 14;
     }
   });
+
+  test('entity sync: Colossal-Ancient statue drops map to the SAME boss across all 3 structures', async ({ page }) => {
+    // v101: the 5 Colossal-Ancient statue drops are defined in THREE parallel structures —
+    // COLOSSAL_STATUES (bossId), STATUE_LIST (bossId), and ITEM_INFO_EXTRA (prose naming the
+    // boss). They currently agree, but it's an unguarded 3-way duplicate exactly the drift-prone
+    // shape this audit locks. Assert the drop→boss mapping is identical across all three.
+    const drift = await page.evaluate(() => {
+      const cs = (COLOSSAL_STATUES as any[]).reduce((m: any, s: any) => (m[s.n] = s.bossId, m), {});
+      const sl = (STATUE_LIST as any[]).reduce((m: any, s: any) => (m[s.n] = s.bossId, m), {});
+      const info = ITEM_INFO as any;
+      const out: string[] = [];
+      const names = Object.keys(cs);
+      for (const n of names) {
+        const a = cs[n];
+        const b = sl[n];
+        if (a !== b) { out.push(`${n}: COLOSSAL_STATUES=${a} vs STATUE_LIST=${b}`); continue; }
+        // ITEM_INFO_EXTRA prose must name the SAME boss as the bossId.
+        const prose = String(info[n] || '').toLowerCase();
+        if (!prose) { out.push(`${n}: no ITEM_INFO description`); continue; }
+        if (!prose.includes(String(a).toLowerCase())) {
+          out.push(`${n}: bossId="${a}" not named in ITEM_INFO prose "${info[n]}"`);
+        }
+      }
+      return out;
+    });
+    expect(drift, `Colossal-Ancient drop→boss mapping drifted across structures:\n${drift.join('\n')}`).toEqual([]);
+  });
 });
