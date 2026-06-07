@@ -466,4 +466,32 @@ test.describe('v83 website synchronization audit', () => {
     });
     expect(drift, `Colossal-Ancient drop→boss mapping drifted across structures:\n${drift.join('\n')}`).toEqual([]);
   });
+
+  test('entity sync: Colossal jewel→Ancient binding agrees between COLOSSAL_JEWELS and UBER_BOSSES (+ strat names the element)', async ({ page }) => {
+    // v102: the jewel→Ancient binding lives in TWO structures — COLOSSAL_JEWELS[].ancient
+    // (L3799) and UBER_BOSSES[].jewels (L8847, the Ancient's loot list) — and each jewel's
+    // ELEMENT is restated a third time in the Ancient's `strat` prose. They agree today; lock it.
+    const drift = await page.evaluate(() => {
+      const jewels = (COLOSSAL_JEWELS as any[]).reduce((m: any, j: any) => (m[j.n] = j, m), {});
+      const ancients = (UBER_BOSSES as any[]).filter((b: any) => Array.isArray(b.jewels) && b.jewels.length);
+      const out: string[] = [];
+      for (const a of ancients) {
+        // capitalised Ancient name as it appears in COLOSSAL_JEWELS.ancient (e.g. 'Talic')
+        const wantAncient = a.name;
+        for (const jn of a.jewels) {
+          const j = jewels[jn];
+          if (!j) { out.push(`${a.name}: jewel "${jn}" not in COLOSSAL_JEWELS`); continue; }
+          if (j.ancient !== wantAncient) {
+            out.push(`${jn}: UBER_BOSSES lists it under ${wantAncient} but COLOSSAL_JEWELS.ancient=${j.ancient}`);
+          }
+          // the Ancient's strat prose must name this jewel's element (e.g. "(fire)")
+          if (!String(a.strat || '').toLowerCase().includes(String(j.elem).toLowerCase())) {
+            out.push(`${a.name} strat omits "${jn}" element (${j.elem}): ${a.strat}`);
+          }
+        }
+      }
+      return out;
+    });
+    expect(drift, `Colossal jewel→Ancient binding drifted:\n${drift.join('\n')}`).toEqual([]);
+  });
 });

@@ -787,3 +787,30 @@ agree, the honest outcome is "clean + add the lock", not a manufactured edit. `b
 UNCHANGED this ship (no md5 change → no live redeploy needed); only the test file grew 18→19.
 
 Suite: v83 19/19; v74_material_search 8/8 clean.
+
+---
+
+## v102 — Colossal jewel→Ancient binding lock (guard-only, 2026-06-07)
+
+Round-6 "check for others like this". First confirmed the sunder/shard element↔region mapping
+is consistent across its 3 structures (ACT_SHARD L3678, SHARD_RENEWED L4232, SHARD_OUTCOMES
+L8600) — all agree (Western/poison/Rotting Fissure, Eastern/cold/Cold Rupture, Southern/
+lightning/Crack of the Heavens, Deep/fire/Flame Rift, Northern/physical/Bone Break). No fix.
+
+### The drift-prone shape surfaced — and it was CLEAN
+The jewel→Ancient binding lives in TWO structures plus a third prose restatement:
+- `COLOSSAL_JEWELS[].ancient` (L3799)
+- `UBER_BOSSES[].jewels` (L8847, the Ancient's loot list)
+- each jewel's ELEMENT restated in the Ancient's `strat` prose (L8848/8857/8866)
+
+All three AGREE: talic→{Defender's Fire (fire), Defender's Bile (poison)}, korlic→
+{Protector's Frost (cold), Protector's Stone (physical)}, madawc→{Guardian's Thunder
+(lightning), Guardian's Light (magic)}. No fabrication, no data edit.
+
+### Guard added
+New v83 test "Colossal jewel→Ancient binding agrees between COLOSSAL_JEWELS and UBER_BOSSES
+(+ strat names the element)": for each Ancient's jewel, assert COLOSSAL_JEWELS.ancient matches
+the UBER_BOSSES owner AND the Ancient's strat prose names that jewel's element. Locks the 2+1
+restatement against future single-structure drift. bible.html UNCHANGED (live still `a8485e3`).
+
+Suite: v83 20/20; v74_material_search 8/8 clean.
