@@ -641,6 +641,18 @@ test.describe('v83 website synchronization audit', () => {
       const mr = (MATERIAL_RECIPES as any[]).find((r) => lc(r.n) === 'token of absolution');
       if (!mr) out.push('MATERIAL_RECIPES has no Token of Absolution');
       else { for (const en of essNames) if (!(en in mr.need)) out.push(`MATERIAL_RECIPES Token need{} omits "${en}"`); }
+      // (3) mechanic wording is CONSISTENT across every Token description — the canonical
+      // bible convention is "reset stats OR skills (player choice)", NOT a both-at-once full
+      // respec. v106 originally drifted to "AND / full respec"; lock all four strings to agree.
+      const mechStrings = [tok.blurb, item && item.does, ess.blurb, mr && mr.makes].filter(Boolean).map(lc);
+      for (const s of mechStrings) {
+        if (!s.includes('stats') || !s.includes('skills')) out.push(`Token mechanic string omits stats/skills: "${s}"`);
+        if (!s.includes('choice')) out.push(`Token mechanic string omits "(player) choice": "${s}"`);
+        if (/full respec|and all|reset every skill and/.test(s)) out.push(`Token mechanic string drifted to a both-at-once full respec: "${s}"`);
+      }
+      // (4) the emblem resolves REAL diablo2.io art via artUrl (not just the emoji fallback)
+      const u = (window as any).artUrl ? (window as any).artUrl('Token of Absolution') : null;
+      if (!u || !/diablo2\.io/.test(u)) out.push(`artUrl('Token of Absolution') did not resolve real art (got ${u})`);
       return { out, names: ['Token of Absolution'] };
     });
     expect(data.out, `Token-of-Absolution material sync drifted:\n${data.out.join('\n')}`).toEqual([]);
@@ -649,15 +661,21 @@ test.describe('v83 website synchronization audit', () => {
     const card = await page.evaluate(() => {
       (window as any).openDrop('Token of Absolution');
       const panel = document.getElementById('item-detail');
+      const img = panel?.querySelector('.material-card .gic-header .d2art-img') as HTMLImageElement | null;
       return {
         shown: !!panel?.classList.contains('show'),
         name: panel?.querySelector('.material-card .gic-name')?.textContent?.trim() || '',
         body: panel?.querySelector('.material-card')?.textContent || '',
+        artSrc: img?.getAttribute('src') || '',
+        artLazy: img?.getAttribute('loading') === 'lazy',
       };
     });
     expect(card.shown).toBe(true);
     expect(card.name).toMatch(/Token of Absolution/);
     expect(card.body).toMatch(/respec|reset/i);
+    // the emblem is the real diablo2.io extracted art (artOr-resolved), not the emoji fallback
+    expect(card.artSrc).toMatch(/diablo2\.io.*tokenofabsolution/);
+    expect(card.artLazy).toBe(true);
 
     // (4) it is searchable and picking the result opens the same card
     await page.fill('#gsearch-input', 'Token of Absolution');

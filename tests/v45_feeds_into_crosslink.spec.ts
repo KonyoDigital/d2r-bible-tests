@@ -91,14 +91,17 @@ test.describe('v45 feeds-into cross-link — zones clickable + keys/shards/essen
     await expect(er).toBeVisible();
     // v63: dropdown sections default-collapsed → expand the er section to read its body
     await er.locator('.sec-h').click();
-    // three reference blocks: keys, worldstone shards, essences
+    // four reference blocks: keys, worldstone shards, essences, Token of Absolution (v106)
     const blocks = er.locator('.er-block');
-    expect(await blocks.count()).toBe(3);
+    expect(await blocks.count()).toBe(4);
     const txt = (await er.innerText()).replace(/\s+/g, ' ');
     // canonical Pandemonium key -> boss attributions
     expect(txt).toMatch(/Key of Terror[\s\S]*Countess/);
     expect(txt).toMatch(/Key of Hate[\s\S]*Summoner/);
     expect(txt).toMatch(/Key of Destruction[\s\S]*Nihlathak/);
+    // v106: the Token-of-Absolution block surfaces here too, feeding a respec (block head is
+    // CSS-uppercased → match case-insensitively)
+    expect(txt).toMatch(/Token of Absolution[\s\S]*Respec/i);
     // it is explicitly a cross-link, not part of the grail count
     expect(txt).toContain('not counted in the grail');
   });

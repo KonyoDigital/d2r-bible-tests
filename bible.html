@@ -3583,9 +3583,9 @@ const SPECIAL_DROPS = {
   token: {
     label: "Token of Absolution",
     icon: "🎟️",
-    blurb: "The cube product of all 4 Essences. Right-click to FULLY respec — reset every skill AND stat point at once (one use per token, consumed). Unlike the 1-per-difficulty Akara respec, Tokens are farmable & stackable.",
+    blurb: "The cube product of all 4 Essences. Right-click to respec — reset stats OR skills (player choice), one use per token, consumed. Unlike the 1-per-difficulty Akara respec, Tokens are farmable & stackable.",
     items: [
-      {n: "Token of Absolution", from: ["Horadric Cube (4 Essences)"], rate: "crafted — 1 per full essence set", does: "Right-click → reset ALL skill points AND ALL stat points (full respec). Single use, consumed on use. Stack as many as you can farm.", note: "Cube the 4 Hell-act-boss essences (Suffering + Hatred + Terror + Destruction) — no level or charges requirement."}
+      {n: "Token of Absolution", from: ["Horadric Cube (4 Essences)"], rate: "crafted — 1 per full essence set", does: "Right-click → reset stats OR skills (player choice). Single use, consumed on use. Stack as many as you can farm.", note: "Cube the 4 Hell-act-boss essences (Suffering + Hatred + Terror + Destruction) — no level or charges requirement."}
     ],
     recipe: "1 Essence of Suffering + 1 Essence of Hatred + 1 Essence of Terror + 1 Essence of Destruction → Token of Absolution"
   },
@@ -3711,7 +3711,7 @@ function feedsIntoStripHtml(list){
    No new drop data is fabricated; this is a wiring/unification layer.    */
 const MATERIAL_FEEDS = {
   key: 'Uber Tristram (red portals)', essence: 'Token of Absolution',
-  token: 'a full respec (reset skills + stats)',
+  token: 'a respec (reset stats OR skills — player choice)',
   organ: 'Hellfire Torch (cube)', uberCharm: 'equipped — top-tier grail charm',
   sunder: 'equipped — breaks one immunity to ~95%',
   worldstoneShard: 'Sunder Charm (breaks an immunity)',
@@ -5314,6 +5314,7 @@ const D2IO_ART = {
   "Hell Bovines (Cow Level)": "https://diablo2.io/styles/zulu/theme/images/items/hellbovine_graphic.png",
   "Hellclap": "https://diablo2.io/styles/zulu/theme/images/items/hellclap_graphic.png",
   "Hellfire Torch": "https://diablo2.io/styles/zulu/theme/images/items/hellfiretorch_graphic.png",
+  "Token of Absolution": "https://diablo2.io/styles/zulu/theme/images/items/tokenofabsolution_graphic.png",
   "Key of Terror": "https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png",
   "Key of Hate": "https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png",
   "Key of Destruction": "https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png",
