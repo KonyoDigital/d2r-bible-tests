@@ -660,7 +660,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .aura-tile{display:flex;gap:10px;align-items:flex-start;padding:10px 11px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:linear-gradient(160deg,rgba(28,22,40,.55),rgba(16,12,24,.35));transition:transform .14s ease,box-shadow .25s ease,border-color .25s ease}
 .aura-tile:hover{transform:translateY(-2px);border-color:rgba(201,161,74,.55);box-shadow:0 6px 20px rgba(0,0,0,.35)}
 .aura-tile .aura-tile-art{flex:0 0 auto}
-.aura-tile .aura-logo .d2art-img{filter:drop-shadow(0 0 7px rgba(240,192,96,.4));border-radius:7px}
+/* v115 — 2x the aura icon (animated gifs); they read at a glance like the source site */
+.aura-tile .aura-logo.d2art-wrap{width:76px;height:76px}
+.aura-tile .aura-logo.d2art-wrap .d2art-img{max-width:76px;max-height:76px}
+.aura-tile .aura-logo .d2art-img{filter:drop-shadow(0 0 9px rgba(240,192,96,.45));border-radius:8px}
 .aura-tile-body{min-width:0}
 .aura-tile-name{font-family:var(--sans);font-weight:700;font-size:13px;color:var(--gold-bright,#ffd480);display:flex;flex-wrap:wrap;align-items:center;gap:5px;line-height:1.25}
 .aura-tile-lvl{font-size:11px;color:var(--best);font-weight:600;margin:2px 0 4px}
@@ -5725,21 +5728,25 @@ function artOr(name, fallbackHtml, size){
 }
 window.artOr = artOr;
 
-// ═══ v113 Warlock bind-aura logos — "what to look for" on a bound demon ═════
-// Verified diablo2.io Paladin-aura skill icons (each curl-confirmed HTTP 200,
-// image/png, ~9 KB). Same graceful artOr contract: on a load error the <img>
-// hides and the glyph fallback shows, so an aura tile can never render a broken
-// image box. Used by the Lister & Hephasto ID cards (unified logic — one map,
-// one renderer feeds both). Zero fabricated URLs; nothing invented.
+// ═══ v113/v115 Warlock bind-aura logos — "what to look for" on a bound demon ═
+// v115: swapped the static PNGs for the ANIMATED aura gifs cryptography posted on
+// the diablo2.io /skills/ threads (each curl-confirmed → 200 image/gif, ~8 MB) so
+// the in-game aura visual is live and lively. Lazy-loaded (they only fetch when a
+// bind card opens), and the graceful artOr contract still holds: on a load error
+// (e.g. an imgur hotlink hiccup) the <img> hides and the glyph fallback shows, so
+// an aura tile can never render a broken image box. Source page per aura:
+//   diablo2.io/skills/<aura>-t<id>.html  (fanaticism t4055, meditation t4119,
+//   conviction t4034, holy-freeze t4085, holy-fire t4084, holy-shock t4087,
+//   might t4121, blessed-aim t4006). Zero fabricated URLs; each verified live.
 const AURA_ART = {
-  "Fanaticism":  "https://diablo2.io/styles/zulu/theme/images/items/fanaticism_graphic.png",
-  "Meditation":  "https://diablo2.io/styles/zulu/theme/images/items/meditation_graphic.png",
-  "Conviction":  "https://diablo2.io/styles/zulu/theme/images/items/conviction_graphic.png",
-  "Holy Freeze": "https://diablo2.io/styles/zulu/theme/images/items/holyfreeze_graphic.png",
-  "Holy Fire":   "https://diablo2.io/styles/zulu/theme/images/items/holyfire_graphic.png",
-  "Holy Shock":  "https://diablo2.io/styles/zulu/theme/images/items/holyshock_graphic.png",
-  "Might":       "https://diablo2.io/styles/zulu/theme/images/items/might_graphic.png",
-  "Blessed Aim": "https://diablo2.io/styles/zulu/theme/images/items/blessedaim_graphic.png"
+  "Fanaticism":  "https://i.imgur.com/geASVE4.gif",
+  "Meditation":  "https://i.imgur.com/qlL3lxn.gif",
+  "Conviction":  "https://i.imgur.com/EflB9N4.gif",
+  "Holy Freeze": "https://i.imgur.com/DXnRCP0.gif",
+  "Holy Fire":   "https://i.imgur.com/CQCYZ9t.gif",
+  "Holy Shock":  "https://i.imgur.com/9GMvWz7.gif",
+  "Might":       "https://i.imgur.com/vVASShr.gif",
+  "Blessed Aim": "https://i.imgur.com/hj5K54S.gif"
 };
 window.AURA_ART = AURA_ART;
 function auraArt(name, glyph, size){
