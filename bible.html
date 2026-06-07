@@ -3152,7 +3152,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
 
   <div class="colossal" id="binds-gate">
-    <h3>🔑 The hard-point gate — why most monsters say "Impossible"</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🔑 The hard-point gate — why most monsters say "Impossible" <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>Bind Demon checks your <strong>hard points</strong> against the target's tier. Gear that adds +skills does NOT count toward this gate (it only helps the bound demon's aura level after the bind).</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Monster tier</th><th>Name color</th><th>Hard points needed</th><th>Aura Enchanted possible?</th></tr></thead><tbody>
       <tr><td>Regular</td><td>white</td><td><strong>1</strong> (any level)</td><td>No</td></tr>
@@ -3162,10 +3163,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table></div>
     <div class="warning"><strong>The "Minion" tag:</strong> any demon labeled <code>Minion</code> in its tooltip is a summoned follower and CANNOT be bound regardless of your points. Find a standalone or pack-leader demon instead.</div>
     <div class="info"><strong>Bind chance (3.2, per Maxroll PTR notes):</strong> base chance scales with the target's missing HP. <strong>Death Mark synergy was halved (1% → 0.5% per level)</strong>, the missing-HP benefit was reduced, and a <strong>max-HP cap that varies by each demon</strong> was introduced. Lower the target's HP as far as you can before casting — patch notes don't publish a fixed % threshold.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-aura">
-    <h3>✨ The aura pool (Patch 3.2 rewrite)</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">✨ The aura pool (Patch 3.2 rewrite) <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>When you bind an <strong>Aura Enchanted</strong> unique/super-unique, its aura is remapped into this pool. The old meta auras were removed.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Aura</th><th>Value for Echoing Strike</th><th>Status</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--best)">Fanaticism</td><td>JACKPOT — boosts attack speed, AR, and physical damage for you + merc + demons</td><td>✅ in pool</td></tr>
@@ -3178,19 +3181,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table></div>
     <div class="success"><strong>Target aura:</strong> Fanaticism. Bind, check the aura, release + rebind if it is not Fanaticism. <span style="color:var(--gold-dim)">Patch notes don't publish per-aura roll weights — just reroll until you hit it.</span></div>
     <div class="info"><strong>Removed-aura remap (3.2 LIVE notes — deterministic 1:1):</strong> when a bound demon's Aura Enchanted would roll a removed aura, it maps to exactly one replacement — Conviction→<strong style="color:var(--best)">Fanaticism</strong> · Might→Concentration · Holy Fire→Vigor · Holy Shock→Vigor · Blessed Aim→Thorns · Holy Freeze→Holy Freeze (unchanged). <span style="color:var(--gold-dim)">So the 5 possible results are Fanaticism / Concentration / Vigor / Thorns / Holy Freeze — reroll until Fanaticism. Hard-coded super-unique auras (Smith's Holy Fire, Lister's Meditation) pre-exist the bind and are NOT remapped. The PTR notes worded this loosely as "one of four"; the live Season 14 notes published the explicit 1:1 table above. Pre-3.2 demons you'd bound with a removed aura were remapped on patch day.</span></div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-howto">
-    <h3>📍 How the tiers actually work (read first)</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">📍 How the tiers actually work (read first) <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p><strong>Champions and Uniques are NOT different monsters.</strong> They are the <span style="color:#6699ff">blue (champion)</span> and <span style="color:#ffff66">yellow (unique pack)</span> spawns of the <em>same demon families</em>. A Pit Lord can spawn white (1 pt), champion (10 pts), or unique (15 pts). Only <span style="color:var(--uber)">Super-Uniques</span> are specific named bosses.</p>
     <p>So the tables below list the <strong>demon families</strong> and <strong>where they spawn densely</strong>. You hunt the area, then bind whichever blue/yellow version you find. <strong>Difficulty: Hell for everything</strong> — it gives the highest monster level, which means the strongest consume bonus and aura. A Hell <strong>Terror Zone</strong> is even better (lvl 96+ = max aura) once you are level 94+.</p>
     <div class="info"><strong>Demon-type only:</strong> Bind Demon ignores Undead (skeletons, Doom Knights, zombies) and Humans (Council, Barbarians). Hover the monster — the tooltip must say <code>Demon</code> and must NOT say <code>Minion</code>.</div>
     <div class="success"><strong>💡 Snapshot rule — gear up BEFORE you bind:</strong> a bound demon's stats and affixes are <strong>locked at the instant of binding</strong> (diablo2.io: a bound demon's characteristics are "snapshotted at the time of binding"). Equipping +skills gear or spending more hard points <em>afterward</em> does nothing to a demon you've already bound. So stack every <strong>+Bind Demon / +Warlock skills</strong> item you own, land the bind, <strong>then swap back to your normal gear</strong> — the demon keeps the stronger snapshot.</div>
     <div class="warning"><strong>⚠️ Channel it — don't let go, don't hotkey it:</strong> Patch 3.2 moved the bind roll to <strong>frame 24</strong> with no minimum-duration floor, so releasing the button before ~1 second means it <strong>never</strong> binds. Hold the cast until the demon is actually bound. And never put Bind Demon on a hotkey — an accidental bind <strong style="color:var(--hell)">instantly kills your current demon</strong>, aura and all (diablo2.io).</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-cant">
-    <h3>🚫 What you CANNOT bind (stop wasting casts)</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🚫 What you CANNOT bind (stop wasting casts) <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>Every "Impossible" / "I can't" you've hit falls into one of these. Check the monster tooltip BEFORE casting — hover it and read the type line.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Won't bind</th><th>Why</th><th>How to spot it</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--hell)">Undead</td><td>Bind Demon only affects Demon-type</td><td>Tooltip says <code>Undead</code> — skeletons, zombies, Doom/Abyss/Oblivion Knights, Burning Souls, Defiled Warriors, Returned, Ghosts</td></tr>
@@ -3206,10 +3213,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="warning"><strong>The two messages mean different things:</strong> <code>"Impossible"</code> = this target type/tier can never be bound by you right now (wrong type, Minion, or not enough points). <code>"I can't"</code> = you're out of mana or the cast was interrupted (Lister's Mana Burn does this — refill and retry).</div>
     <div class="info"><strong>Common traps you already hit:</strong> Travincal Council = Human (no). Defiled Warriors around Lister = Undead (no). The "Minion"-tagged Pit Lord in River of Flame = summoned follower (no — find a non-Minion one). Lister himself = Super-Unique, needs 20 points.</div>
     <div class="success"><strong>The 5-second check:</strong> hover → must say <strong>Demon</strong>, must NOT say <strong>Minion</strong>, must be a tier your points cover, must be low HP. All four true = it binds.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-champion">
-    <div class="tier-header" style="border-left:3px solid #6699ff;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#6699ff;margin-bottom:5px">Tier I · 10 Hard Points</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🔵 Champion Demons</h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid #6699ff;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#6699ff;margin-bottom:5px">Tier I · 10 Hard Points</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🔵 Champion Demons <span class="sec-chev">▾</span></h3></div>
+    <div class="sec-body" hidden>
     <p>Bind the <span style="color:#6699ff">blue-name</span> champion version of any demon family in the field guide below. <strong>Verified 3.2 mechanics:</strong> champion packs spawn as <strong>2–4 monsters of the same type</strong>, at <strong>mlvl = area level + 2</strong>, carrying one of five champion modifier sets (Champion · Berserker · Fanatic · Ghostly · Possessed).</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Demon family</th><th>Act · Area</th><th>mlvl</th><th>Consume buff</th><th>Best for</th></tr></thead><tbody>
       <tr><td class="item-name">Urdar</td><td>A4 · River of Flame</td><td>87</td><td><strong>+% Enhanced Damage</strong></td><td>⭐ Echo</td></tr>
@@ -3224,10 +3233,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="warning"><strong>No aura:</strong> Champions <strong>cannot</strong> roll Aura Enchanted — that affix is unique-pack only. The value of a champion bind is the body + its Extra Strong / Extra Fast / Spectral Hit stats, not an aura. For a permanent Fanaticism aura you need the 15-point Unique tier.</div>
     <div class="info"><strong>Best pick for Echo:</strong> a champion <strong>Urdar</strong> in River of Flame — the +% Enhanced Damage consume scales your weapon-based Echo hits.</div>
     <div class="info"><strong>Why no "Minion of Destruction" here?</strong> Despite the misleading name, it IS a real Demon and bindable — the "Minion" in its <em>name</em> is not the runtime Minion-tag that blocks binding. But it <strong>only spawns in Lister's Throne wave</strong> (alongside him at mlvl 92), never as a free-roaming champion/unique. So you can bind one, but you get it from Lister's pack — not by farming open Throne packs. See the Super-Unique row for Lister + the pack-sizes table.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-unique">
-    <div class="tier-header" style="border-left:3px solid #ffff66;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#ffff66;margin-bottom:5px">Tier II · 15 Hard Points · Aura Sweet Spot</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🟡 Unique Packs</h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid #ffff66;padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#ffff66;margin-bottom:5px">Tier II · 15 Hard Points · Aura Sweet Spot</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🟡 Unique Packs <span class="sec-chev">▾</span></h3></div>
+    <div class="sec-body" hidden>
     <p>Bind the <span style="color:#ffff66">yellow unique pack-leader</span>. <strong>Verified 3.2 mechanics:</strong> unique packs spawn as <strong>1 boss + 3–6 minions</strong>, at <strong>mlvl = area level + 3</strong>, with 3 elite affixes in Hell drawn from a 13-affix pool that <strong>includes Aura Enchanted</strong>.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Demon family</th><th>Act · Area</th><th>mlvl</th><th>Consume buff</th><th>Aura on bind</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:#ffff66">Urdar</td><td>A4 · River of Flame</td><td>88</td><td><strong>+% Enhanced Damage</strong></td><td><strong style="color:var(--best)">Fanaticism</strong> ⭐ reroll</td></tr>
@@ -3239,6 +3250,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table></div>
     <div class="success"><strong>The aura attach rule:</strong> at total Bind Demon skill level 20 (hard + soft combined — gear DOES count here), if the bound demon doesn't already have Aura Enchanted, it's <strong>added automatically on bind</strong> with one of the new 3.2 auras. So 15 hard points gates the unique, and skill-level-20 total guarantees an aura roll. Reroll (save+exit/rejoin) until <strong style="color:var(--best)">Fanaticism</strong>.</div>
     <div class="warning"><strong>Aura level math:</strong> aura level = floor(monster mlvl ÷ 8). A Hell mlvl-88 demon → level 11 aura. A level-96 Terror Zone monster → <strong>level 12</strong> (matches Infinity's Conviction). Bound aura level is also capped by YOUR character level at bind time.</div>
+    </div>
   </div>
 
   <style>
@@ -3259,7 +3271,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     @media (prefers-reduced-motion: reduce){ #binds-superunique{ animation: none; } }
   </style>
   <div class="colossal" id="binds-superunique">
-    <div class="tier-header" style="border-left:3px solid var(--gold-bright);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold-bright);margin-bottom:5px">Tier III · 20 Hard Points · Verified</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--gold-bright);margin:0;border:none;text-shadow:0 0 14px rgba(240,192,96,.55)">🟠 Super-Unique Bosses</h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--gold-bright);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold-bright);margin-bottom:5px">Tier III · 20 Hard Points · Verified</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--gold-bright);margin:0;border:none;text-shadow:0 0 14px rgba(240,192,96,.55)">🟠 Super-Unique Bosses <span class="sec-chev">▾</span></h3></div>
+    <div class="sec-body" hidden>
     <p>Specific named bosses with <strong>fixed</strong> consume stats. All bindable in <strong>Hell</strong> (and TZ). mlvl = Hell base spawn level (scales to 96/98/99 in Terror Zones). HP threshold to bind: historically <strong>&lt;40% Hephasto/Lister, &lt;50% Council</strong> (community-derived, pre-3.2). <strong style="color:var(--hell)">Patch 3.2 introduced a per-demon max-HP cap and reduced missing-HP benefit — exact thresholds now vary per demon and aren't published.</strong></p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Super-Unique</th><th>Act · Area</th><th>mlvl</th><th>Fixed aura (Consume "Equipped")</th><th>Consume stats</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--uber)">Bishibosh</td><td>A1 · Cold Plains</td><td>74</td><td>—</td><td>Fire Res + Max / -% Enemy Fire Res</td></tr>
@@ -3288,10 +3301,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="warning"><strong>NOT bindable in 3.2:</strong> <strong>Achmel the Cursed</strong> (Throne Wave 2) — he's Undead (Unraveler), explicitly de-listed in the 3.2 patch notes. Also never bindable: all Act Bosses + Uber Tristram trio + Colossal Ancients (Talic/Korlic/Madawc).</div>
     <div class="info"><strong>⚠️ Bartuc caveat:</strong> coded Demon and bindable pre-3.2, but he's absent from MrLlamaSC's list and the 3.2 notes only name Achmel as the exception. <strong>Test in-game</strong> — bring him to &lt;40% and cast; "Impossible" means he was quietly excluded with Achmel.</div>
     <div class="info"><strong>Council = Demon, confirmed:</strong> despite the human Zakarum-priest lore, the Council family (Ismail/Geleb/Toorc/Bremm/Wyand/Maffer + Bartuc) is coded <code>Demon</code> per Arreat Summit, PureDiablo, Fextralife, and Fandom. They ARE bindable at 20 hard points.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-fieldguide">
-    <h3>📖 Demon field guide — exact in-game names &amp; locations (verified 3.2)</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">📖 Demon field guide — exact in-game names &amp; locations (verified 3.2) <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>Every bindable demon family with its <strong>exact in-game name per area</strong> and Consume stat. Sourced from MrLlamaSC's Icy Veins demon-bind table cross-checked against diablo2.io, Arreat Summit, and the D2R bestiary. Any family can spawn white / champion (10 hp) / unique (15 hp).</p>
 
     <h3 style="margin-top:18px">⚔️ Act 4 demons — the prime Hell bind zone</h3>
@@ -3344,10 +3359,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name">Frenzied Hell Spawn</td><td>transformed Hell Spawn (Lasher-whipped)</td><td>Gains Magic Resist the base form lacks; aLvl 80–82</td></tr>
     </tbody></table></div>
     <div class="info"><strong>Why it matters:</strong> binding a Hell Temptress champion in <strong>Halls of Vaught</strong> gives mlvl 85, but the same name in <strong>Worldstone Keep L3</strong> gives mlvl 87 — the higher-mlvl zone yields a higher aura level. Always bind in the highest-mlvl zone the family spawns in (or a Terror Zone for mlvl 96 = aura 12).</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-packsizes">
-    <h3>🔢 Pack sizes &amp; super-unique entourages (verified)</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🔢 Pack sizes &amp; super-unique entourages (verified) <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>How many monsters you'll face. <strong>Champion pack:</strong> 2–4 of the same type. <strong>Unique pack:</strong> 1 boss + 3–6 minions.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Super-Unique</th><th>Minion type</th><th>Hell count</th></tr></thead><tbody>
       <tr><td class="item-name">The Smith</td><td>—</td><td><strong>Solo</strong> (by the Malus)</td></tr>
@@ -3369,10 +3386,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td>5</td><td class="item-name" style="color:var(--best)">Lister the Tormentor ⭐</td><td>Minions of Destruction</td><td><strong>7</strong> (NM 6 / Norm 5)</td></tr>
     </tbody></table></div>
     <div class="info"><strong>Travincal reality:</strong> a standard run = <strong>11 Council Members</strong> (3 super-uniques: Ismail/Geleb/Toorc + 8 minions). Durance L3 adds Bremm/Wyand/Maffer.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-tz">
-    <h3>⚡ The Terror Zone shortcut (level 94+)</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">⚡ The Terror Zone shortcut (level 94+) <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>Once you hit <strong>level 94</strong>, every demon in a Hell Terror Zone is level 96+, which produces the <strong>maximum aura level</strong> on bind. A lvl 12 Fanaticism from a TZ demon matches what a high-level Paladin provides.</p>
     <ol>
       <li>Reach lvl 94 (you are at 90 — ~4 levels of TZ/Baal farming)</li>
@@ -3381,10 +3400,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <li>If the aura is not Fanaticism, release and rebind the next one — no need to hunt specific named bosses</li>
     </ol>
     <div class="success">This removes the tedious super-unique hunt entirely. TZ + 15 hard points + lvl 94 = best practical bind in the game for an Echo Warlock.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-konyo">
-    <h3>🔱 For Konyo — Echoing Strike verdict</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🔱 For Konyo — Echoing Strike verdict <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p>Your build deals weapon-based magic damage and scales through Eldritch synergies, not pets. Here is the honest cost-benefit at lvl 90:</p>
     <div class="stat-grid">
       <div class="stat"><div class="stat-label">10 hard pts</div><div class="stat-value">Champion · flat buff, NO aura</div></div>
@@ -3396,10 +3417,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="warning"><strong>Opportunity cost:</strong> 15 hard points + ~5 prereqs = 20 points pulled out of Echoing Strike / Mirrored Blades / Blade Warp synergies. At lvl 90 with ~101 points, you can afford ONE maxed synergy fewer to fund it. At lvl 99 you can have both. If you can grind to 95+, do that before committing.</div>
     <div class="info"><strong>Cheapest splash (1 point):</strong> if you just want a tanky pet, 1 hard point binds any regular (white, non-Minion) demon — Urdar or Pit Lord in River of Flame. No aura, but it soaks hits and pulls aggro. Costs almost nothing.</div>
     <div class="warning"><strong>Don't spend points on Demonic Mastery:</strong> it raises your <strong>Summon</strong>-demon count (Goatman / Tainted / Defiler), not your bind count — and your bound demon is hard-capped at <strong>1</strong> regardless of mastery rank. With no summon skills on an Echoing Strike build, Demonic Mastery does <em>nothing</em> for you. Those points belong in Echoing Strike / Mirrored Blades / Blade Warp.</div>
+    </div>
   </div>
 
   <div class="colossal" id="binds-sources" style="opacity:0.9">
-    <h3>📚 Sources &amp; verification</h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">📚 Sources &amp; verification <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
     <p style="font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--gold-dim)">
       <strong style="color:var(--gold)">Verified 2026-05-28</strong> against Patch 3.2 / Reign of the Warlock (Season 14, live 2026-05-22). <strong style="color:var(--gold)">Deep monster-data pass</strong> cross-referenced diablo2.io/monsters, MonStats data (via studiokdm), and the <em>live</em> Blizzard Season 14 notes.<br>
       <strong>Spine:</strong> MrLlamaSC — Icy Veins "List of Demon Binds" + diablo2.io per-monster pages (mlvl, type, area).<br>
@@ -3410,6 +3433,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <strong>Resolved 2026-05-29 (Konyo in-game test + diablo2.io):</strong> binding Lister overwrote Hephasto at Demonic Mastery <em>hard</em> rank 10 with zero summons — <strong style="color:var(--best)">working as designed, not a bug</strong>. The bound-demon ceiling is always <strong>1</strong>; binding a new demon <strong>replaces</strong> the current one (diablo2.io skill page: "Successfully binding a new demon will replace the current one. Summon Defiler will not replace your bound demon"). Demonic Mastery's demon-count governs the <strong>Summon skills</strong> (Goatman / Tainted / Defiler) — +1 demon at rank 5, +1 at rank 10, max 3 <em>summoned</em> — <strong>not</strong> the bind count. An Echoing Strike build with no summon points therefore fields exactly one demon (the bound one), so each rebind overwrites the last. This confirms hypothesis (1). <strong>Cross-source flag:</strong> aoeah lists "rank 20 for a 3rd pet" — stale/incorrect; MrLlamaSC (Icy Veins) + diablo2.io confirm the 5 / 10 milestones. <strong>Needs primary-source verification</strong> — Blizzard skill description in-game tooltip + RotW patch 3.2 mod docs (not yet web-indexed).<br>
       <br><strong>Visual-polish pass (2026-05-28):</strong> Hell Temptress decoder HoV aLvl 83→85 (CC handoff #1); removed Minion of Destruction from Champion/Unique tier tables (Throne-wave-only, not farmable as open elites) with clarifying callout; carrying CC's mlvl-lock baseline (commit 1ba7661, lootcube + Diablo Archive area+3 rule).<br><strong>Candidates resolved (2026-05-28 lootcube sweep):</strong> <strong style="color:var(--hell)">Blood Raven</strong> (Burial Grounds · lootcube codes <em>Human</em> boss override, not Corrupt Rogue family — <em>confirmed NOT bindable</em>); <strong style="color:var(--hell)">Treehead Woodfist</strong> (Dark Wood · lootcube codes <em>Animal</em> mlvl 69, not Brute/Demon — <em>confirmed NOT bindable</em>); <strong style="color:var(--hell)">Bonebreaker</strong> (Crypt · Returned = Undead, <em>confirmed NOT bindable</em>).<br><span style="color:var(--gold-dim);font-style:italic">Re-verify if Blizzard ships a 3.2.x hotfix — watch for Cursed-affix proc restoration (currently 5%), Conviction returning to the aura pool, or Council/Bartuc re-bans.</span>
     </p>
+    </div>
   </div>
 
 </div>

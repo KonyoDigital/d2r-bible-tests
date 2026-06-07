@@ -1009,3 +1009,30 @@ super-unique gap end-to-end.
   .d2art-img` src matches `thetormentor_graphic.png` + `loading=lazy`.
 
 Suite: v71_d2art 15/15 · v51_superuniques + v83 sync (37) + v45 all green. Smoke 36→still gated.
+
+---
+
+## v109 — Warlock Bind Demon tab made collapsible (matches the site idiom) — 2026-06-08 (CC, opus4)
+
+**FEATURE (ships bible.html).** Konyo: "bind section i see isnt collapsible and isnt
+matching the other tabs.. maybe needs an update too." The `#tab-binds` tab was a stack of
+always-open `.colossal` blocks with plain `<h3>` headers — the only tab that didn't use the
+site-wide collapsible `.sec-h`/`.sec-body` dropdown idiom (v56/v63, default-COLLAPSED).
+
+### Change (additive re-wrap — content verbatim, nothing cut)
+All **12** binds sections (binds-gate · aura · howto · cant · champion · unique · superunique ·
+fieldguide · packsizes · tz · konyo · sources) converted to the generic `toggleSec()` pattern:
+- plain-`<h3>` heads → `<h3 class="sec-h collapsed" onclick="toggleSec(this)">…<span class="sec-chev">▾</span></h3>`
+  + body wrapped in `<div class="sec-body" hidden>`.
+- the 3 **tier-header** sections (Champion/Unique/Super-Unique) keep their fancy gradient banner —
+  the `.tier-header` div now also carries `sec-h collapsed` + the toggle, so the whole banner is the
+  clickable header. The `#binds-superunique .tier-header h3` glow CSS still applies (banner unchanged).
+- the `.events-intro` banner stays always-on (the tab description, like RotW keeps its Herald head).
+
+### Guard — `tests/v109_binds_collapsible.spec.ts` (4 tests)
+12 `.sec-h` + 12 `.sec-body` all `[hidden]` by default · 12 chevrons · intro still visible ·
+click-expand/click-collapse on a plain head · the tier-header Super-Unique section toggles + still
+shows Lister/Hephasto rows · `#tab-binds` textContent still carries the Lister-92 / Throne data the
+v83 sync test depends on (textContent reaches collapsed sections, so v83 stays green).
+
+Suite: v109 4/4 · v83 25/25 · 01_smoke + bug023 static-tabs green. Div-balance verified 0.
