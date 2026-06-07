@@ -67,9 +67,30 @@ test.describe('v53 rune sources — droppable cards', () => {
     await page.locator('.rune-src-card', { hasText: 'Travincal Council' }).click();
     const detail = page.locator('#rune-src-detail-travincal');
     await expect(detail).toBeVisible();
-    const f = await detail.evaluate((el) => { const cs = getComputedStyle(el as Element); return { bl: cs.borderLeftWidth, sh: cs.boxShadow }; });
-    expect(parseInt(f.bl)).toBeGreaterThanOrEqual(2);
+    // v93: the frame now lives on the inner golden .gbc-card (wrapper is stripped),
+    // matching how the TZ-zone / super-unique details carry the editorial frame.
+    const card = detail.locator('.gbc-card');
+    await expect(card).toBeVisible();
+    const f = await card.evaluate((el) => { const cs = getComputedStyle(el as Element); return { bw: cs.borderTopWidth, sh: cs.boxShadow }; });
+    expect(parseInt(f.bw)).toBeGreaterThanOrEqual(1);
     expect(f.sh).not.toBe('none');
+  });
+
+  test('v93: rune-source detail adopts the golden .gbc-card banner (emblem + name + tier + close)', async ({ page }) => {
+    await page.locator('.rune-src-card', { hasText: 'Travincal Council' }).click();
+    const detail = page.locator('#rune-src-detail-travincal');
+    await expect(detail).toBeVisible();
+    const head = detail.locator('.gbc-card > .gbc-header');
+    await expect(head).toBeVisible();
+    // artOr emblem (routes through the helper -> .d2art-wrap with img/fallback)
+    await expect(head.locator('.d2art-wrap')).toBeVisible();
+    await expect(head.locator('.d2art-wrap .d2art-fallback')).toHaveCount(1);
+    await expect(head.locator('.gbc-name')).toHaveText('Travincal Council');
+    await expect(head.locator('.gbc-tier .gbc-tier-val')).toHaveText('S');
+    await expect(head.locator('.gbc-close')).toBeVisible();
+    // close button collapses the detail (collapse contract preserved)
+    await head.locator('.gbc-close').click();
+    await expect(detail).toBeHidden();
   });
 
 });

@@ -185,8 +185,8 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .item-tile-row .item-tile-text{flex:1;min-width:0}
 .item-tile-row .d2art-wrap.sm{width:26px;height:26px}
 .item-tile-row .d2art-wrap.sm .d2art-img{max-width:26px;max-height:26px}
-.rune-src-card .d2art-wrap{width:40px!important;height:40px!important}
-.rune-src-card .d2art-img{max-width:40px!important;max-height:40px!important;width:40px!important;height:40px!important;object-fit:contain}
+.rune-src-card > .boss-header .d2art-wrap{width:40px!important;height:40px!important}
+.rune-src-card > .boss-header .d2art-img{max-width:40px!important;max-height:40px!important;width:40px!important;height:40px!important;object-fit:contain}
 .item-tile.tier-tc60{border-left:3px solid var(--norm)}
 .item-tile.tier-tc78{border-left:3px solid var(--gold)}
 .item-tile.tier-tc84,.item-tile.tier-tc85{border-left:3px solid var(--rune)}
@@ -477,7 +477,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-detail[hidden]{display:none}
 /* v85.1: when the detail box holds the unified golden .gbc-card, strip the wrapper's
    own border/bg/shadow so the gbc-card is the single visible card (no card-in-card). */
-.tz-zone-detail:has(> .gbc-card),.su-detail:has(> .gbc-card){background:none;border:none;box-shadow:none;border-radius:0;padding:0;overflow:visible}
+.tz-zone-detail:has(> .gbc-card),.su-detail:has(> .gbc-card),.rune-src-detail:has(> .gbc-card){background:none;border:none;box-shadow:none;border-radius:0;padding:0;overflow:visible}
 .gbc-body{padding:4px 20px 16px}
 .tz-zone-card-rich .zd-stats{margin:12px 0 0}
 .tz-zone-card-rich .gbc-body > .zd-row{margin:0}
@@ -8255,7 +8255,29 @@ function runeSourceDetailHtml(src){
   if(src.action) h+='<div class="info"><strong>📋 Action plan:</strong> '+src.action+'</div>';
   if(src.warn) h+='<div class="info" style="color:var(--terror)"><strong>⚠ Heads up:</strong> '+src.warn+'</div>';
   if(src.note) h+='<div class="zd-note">'+src.note+'</div>';
-  return h;
+  // v93: wrap the rune-source detail in the SAME golden .gbc-card shell the Baal /
+  // Herald / TZ-zone / super-unique cards use — gradient header banner (artOr emblem
+  // + name/subtitle/loc + tier badge + close) over a sectioned body — so every
+  // drop-source ID card (Travincal, Hellforge, Cows, LK) reads as one design language.
+  // The grid / tier pool / why / action / warn / notes above are preserved VERBATIM
+  // inside the body; only the shell is unified (additive, zero fabrication).
+  var loc='📍 '+src.loc+(src.headline?' · <strong style="color:var(--gold-bright)">'+src.headline+'</strong>':'');
+  return '<div class="gbc-card rune-src-card-rich">'+
+    '<header class="gbc-header rune-src-rich-header">'+
+      artOr(src.name, '<span class="gbc-emoji">'+src.emoji+'</span>', 'lg')+
+      '<div class="gbc-id-block">'+
+        '<h2 class="gbc-name">'+src.name+'</h2>'+
+        '<div class="gbc-subtitle">'+src.subtitle+'</div>'+
+        '<div class="gbc-loc">'+loc+'</div>'+
+      '</div>'+
+      '<div class="gbc-tier">'+
+        '<div class="gbc-tier-label">tier</div>'+
+        '<div class="gbc-tier-val">'+src.tier+'</div>'+
+      '</div>'+
+      '<button class="gbc-close" onclick="event.stopPropagation();toggleRuneSrc(\''+src.id+'\')">✕ close</button>'+
+    '</header>'+
+    '<div class="gbc-body rune-src-rich-body">'+h+'</div>'+
+  '</div>';
 }
 function toggleRuneSrc(id){
   var box=document.getElementById('rune-src-detail-'+id);

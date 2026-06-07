@@ -202,9 +202,11 @@ test.describe('v83 website synchronization audit', () => {
       const win = window as any;
       const su = (SUPER_UNIQUES as any[]).find((s) => s.name === 'Eldritch the Rectifier') || (SUPER_UNIQUES as any[])[0];
       const zone = (TZ_ZONES as any[])[0];
+      const rsrc = (RUNE_SOURCES as any[]).find((s) => s.id === 'travincal') || (RUNE_SOURCES as any[])[0];
       const cards: Record<string, string> = {
         superUnique: win.superUniqueDetailHtml(su),
         tzZone: win.zoneDetailHtml(zone),
+        runeSource: win.runeSourceDetailHtml(rsrc),
       };
       const check = (html: string) => ({
         shell: /class="gbc-card/.test(html),
@@ -216,12 +218,15 @@ test.describe('v83 website synchronization audit', () => {
       return {
         superUnique: check(cards.superUnique),
         tzZone: check(cards.tzZone),
+        runeSource: check(cards.runeSource),
         // honesty markers must survive the re-shell
         suCaveat: /pending silospen pull/.test(cards.superUnique),
         suTitle: /super-unique detail/.test(cards.superUnique),
+        // v93: Travincal's honest-odds caveat must survive its re-shell too
+        rsCaveat: /pending silospen pull/.test(cards.runeSource),
       };
     });
-    for (const [card, c] of Object.entries({ superUnique: r.superUnique, tzZone: r.tzZone })) {
+    for (const [card, c] of Object.entries({ superUnique: r.superUnique, tzZone: r.tzZone, runeSource: r.runeSource })) {
       expect(c.shell, `${card} missing .gbc-card shell`).toBe(true);
       expect(c.header, `${card} missing .gbc-header`).toBe(true);
       expect(c.name, `${card} missing .gbc-name`).toBe(true);
@@ -230,6 +235,7 @@ test.describe('v83 website synchronization audit', () => {
     }
     expect(r.suCaveat, 'super-unique lost its pending-odds caveat in the re-shell').toBe(true);
     expect(r.suTitle, 'super-unique lost its "super-unique detail" title in the re-shell').toBe(true);
+    expect(r.rsCaveat, 'rune-source (Travincal) lost its pending-odds caveat in the v93 re-shell').toBe(true);
   });
 
   test('event-card head parity (#52 / v92): every pinnacle event-card head shares the golden banner — emblem + titles + tier badge', async ({ page }) => {
