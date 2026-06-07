@@ -31,6 +31,31 @@
 
 ---
 
+## 2026-06-07 — CC: Herald of Terror card — farming-grounds + pro-tips enrichment
+
+**Ask (Konyo):** more depth on the Herald spawn/ladder mechanics + optimal farming,
+**additive only** ("I don't want changing, I want adding").
+
+**Shipped:** two new `.gbc-section` blocks in `#herald-card` (after "optimal farming
+strategies", before the Sunder-charm table) — **🗺️ where to draw ire** (best
+high-density elite zones: Chaos Sanctuary / WSK→Throne / Pit lvl2 / Ancient Tunnels)
+and **⚡ work the two-step like a pro** (bank-ire-then-reveal · big-teleport reveals ·
+elites-only-for-ire / minions don't count · lightning telegraph tell · never
+backtrack/exit · speed>MF post-3.2). **Zero fabrication:** every line is either
+verified against the DiabloBytes "Heralds of Terror" guide (zones, telegraph,
+speed>MF) or logically DERIVED from the card's own stated ~2% ire / ~1% hunt / 5×
+stack / per-kill tier-bump rules. No new numbers invented; existing sections + all
+sourcing (TheBugWarrior, Maxroll) untouched. Static HTML only — no CSS/JS/helper
+touched (minimal blast radius), but ran the FULL suite anyway (live deploy): **427
+passed / 1 skipped**. Herald specs (v72/v75/v85/v56_rotw) green.
+
+**Ship:** commit `545674d` → deploy `0eafb3e9` → md5 parity `6ab019a3…` → pushed
+(smoke 36/36). Research via WebSearch + DiabloBytes WebFetch (rpgstash 403'd;
+diablobytes' looser per-zone-killcount framing was NOT adopted — it conflicts with
+the card's precise two-step, so only its non-conflicting facts were used).
+
+---
+
 ## 2026-06-07 — CC: rune-source detail cards → golden .gbc-card shell (v93)
 
 **Premise correction:** the v92 audit said "Travincal has rows, not a card." That
