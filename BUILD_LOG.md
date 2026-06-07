@@ -31,6 +31,38 @@
 
 ---
 
+## 2026-06-08 — CC: v115 — animated aura GIFs (2x) + nightly B1 Mercenary section
+- **Ships** (one deploy): commit `25ec2a8` (gifs) + `5476017` (B1 merc), live md5
+  `7188c8de71748b5d6edc5bd5ef13917c` (apex parity OK).
+- **v115 animated aura gifs**: Konyo — "I want the aura icons as the animated gifs
+  cryptography posted on diablo2.io/skills/ (Conviction = i.imgur.com/EflB9N4.gif),
+  lively, 2x bigger." Swapped the 8 static aura PNGs in `AURA_ART` for the live
+  **imgur gifs** (each scraped from `diablo2.io/skills/<aura>-t<id>.html` raw HTML
+  via curl-grep, then curl-verified 200 image/gif ~8 MB): Fanaticism geASVE4,
+  Meditation qlL3lxn, Conviction EflB9N4, Holy Freeze DXnRCP0, Holy Fire CQCYZ9t,
+  Holy Shock 9GMvWz7, Might vVASShr, Blessed Aim hj5K54S. Aura logo bumped to **2x
+  (76px)** via `.aura-tile .aura-logo` CSS. Still lazy-loaded; glyph fallback still
+  covers an imgur hotlink hiccup. v113 spec URL asserts updated diablo2.io→imgur.
+  **Lesson: WebFetch's markdown converter DROPS imgur embeds — scrape forum-post
+  images with `curl … | grep -oE 'i\.imgur\.com/[A-Za-z0-9]+\.gif'`. Skill-page IDs
+  found via `diablo2.io/skills/` index grep.** Gif weight ~8 MB each (~60 MB when a
+  bind card opens all 7-8) — acceptable because lazy + only the 3 bind cards use them.
+- **Nightly B1 — Mercenary mechanics** (first bridge of the maxroll cross-ref):
+  additive `🛡️ Mercenary mechanics` collapsible in `#tab-ref` (nothing cut). 4
+  hirelings; the Act 2 Desert Merc **aura-by-difficulty** table (Normal&Hell vs NM —
+  Combat Prayer/Thorns · Defensive Defiance/**Holy Freeze** · Offensive Blessed Aim/
+  **Might**; "hire in NIGHTMARE, Hell reverts to Normal"); revive cost
+  `min(int(hlvl×hlvl/2)×15, 50000)`; best gear (Infinity/Insight/Reaper's/Pride ·
+  Andariel's/Tal's/Vamp Gaze · Fortitude/Treachery); ethereal-on-merc. maxroll
+  vanilla mechanics + **explicit RotW verify-in-game caveat**; cross-refs the binds
+  tab (Konyo's Lister Meditation → Insight merc redundant, run Infinity/Holy Freeze).
+  Merc-gear names kept as styled text (honest-affordance — runewords route differently).
+  Guard `tests/v114_mercenary_reference.spec.ts` (4 tests).
+- **Tests**: v115/v113 7/7 · v114 4/4 · smoke 8/8 · push gate 38/38 (both pushes).
+- **Nightly progress**: bridge 0 gap-map committed (`2e95151`); B1 done. Remaining
+  bridges B2 Gambling · B3 Breakpoints (verify FCR/FHR vs Konyo) · B4 Crafted recipes
+  · B5 Warlock-overview cross-ref · B6 cross-check sweep.
+
 ## 2026-06-08 — CC: v113 — glowing bind-aura logo grid + The Smith as a 3rd bind card
 - **Ship**: commit `0ee7953`, live md5 `e28e21501337097a4035240310962a60` (apex parity OK).
 - **What**: Lister, Hephasto and (NEW) **The Smith** each carry an eye-candy,
