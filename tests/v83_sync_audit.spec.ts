@@ -351,4 +351,28 @@ test.describe('v83 website synchronization audit', () => {
     expect(props).toContain('+1 to All Skills');
     expect(props).toContain('All Resistances +10-20');
   });
+
+  test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (area+3 rule)', async ({ page }) => {
+    const { boss, su } = await page.evaluate(() => {
+      const b = (BOSSES as any[]).find((x: any) => x.id === 'summoner');
+      const hell = b.diffs.find((d: any) => d.label === 'HELL');
+      const s = (SUPER_UNIQUES as any[]).find((x: any) => x.name === 'The Summoner');
+      return { boss: hell.mlvl, su: s.mlvl };
+    });
+    expect(boss, `The Summoner Hell mlvl drifted: BOSSES=${boss} vs SUPER_UNIQUES=${su}`).toBe(su);
+    expect(boss, 'The Summoner Hell mlvl should be 83 (Arcane Sanctuary alvl 80 + the verified area+3 rule)').toBe(83);
+  });
+
+  test('entity sync: the Hellfire Torch all-resist is unified to +10-20 (no stale all-res drift)', async () => {
+    const html = fs.readFileSync(path.join(ROOT, 'bible.html'), 'utf8');
+    // canonical Torch all-res = +10-20 (Moser's Blessed Circle legitimately is +20 all res, so
+    // scope the check to a window around each "Hellfire Torch" mention).
+    let from = 0, idx: number;
+    while ((idx = html.indexOf('Hellfire Torch', from)) >= 0) {
+      const w = html.slice(idx, idx + 200).replace(/<[^>]+>/g, ' ');
+      expect(/\+20 all res/i.test(w), `Hellfire Torch stated as "+20 all res" (it is +10-20): ${w.slice(0, 100)}`).toBe(false);
+      expect(/\+10 (all )?res(?!ist)/i.test(w), `Hellfire Torch stated as "+10 res" (it is +10-20): ${w.slice(0, 100)}`).toBe(false);
+      from = idx + 14;
+    }
+  });
 });

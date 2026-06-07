@@ -608,3 +608,31 @@ canonical ITEM_CODEX.Annihilus props survive.
   pattern, different item.
 
 Suite: v83 14/14, 01_smoke + v74 16/16 green.
+
+---
+
+## v96 — fix the two flagged drifts: Summoner mlvl + Hellfire Torch all-res
+
+Konyo confirmed: fix both. Both reconciled toward the project's canonical/verified values.
+
+### The Summoner mlvl 82 → 83
+`BOSSES.summoner` Hell mlvl was 82; `SUPER_UNIQUES` "The Summoner" was 83. Per the
+project's verified **area+3 rule** (Pindle = Nihlathak's-Temple alvl83 +3 = 86; Nihl =
+Halls-of-Vaught alvl82 +3 = 85, both agreeing across surfaces), Summoner = Arcane
+Sanctuary alvl80 +3 = **83**. Flipped BOSSES.summoner Hell mlvl 82 → 83 (drop unchanged:
+Key of Hate 36%). `"mlvl":82` was unique in BOSSES; no test/baseline hardcoded 82.
+
+### Hellfire Torch all-resist → +10-20 (unified)
+Canonical Torch all-res = +10-20 (`"Hellfire Torch"` summary L4654 + Road-tab L5613).
+Five restatements drifted ("+20 all res" ×2, "+10 res"/"+10 all res" ×3). Reconciled all
+five to "+10-20 all res" (uber-tristram event top-box + body + Anya cube-output + the
+"who drops what" note + the wishlist `why`). Left the SEPARATE attribute wording
+("+20 stats" vs "+10-20 attr") untouched — not flagged, no single clean canonical.
+Moser's Blessed Circle "+20 all res" is LEGIT (it really is +20) — Torch guard is
+Torch-scoped (window around each "Hellfire Torch" mention), not a global match.
+
+### Guards
+2 new `v83_sync_audit` tests: Summoner mlvl agrees across BOSSES + SUPER_UNIQUES (=83);
+Hellfire Torch carries no "+20 all res"/"+10 res" in any Torch-scoped window.
+
+Suite: v83 16/16; v44 + v51 + smoke 23/23; FULL 432 pass/1 skip, 19.8min.
