@@ -525,3 +525,47 @@ Ancient → jewel pair (which Ancient drops which, by last-kill):
 - Worusk's End — Hell Baal
 Rate ~1:8 to 1:15 per kill, terror only; MF does not affect. Cube all 5 →
 Colossal Summit → summon the Colossal Ancients.
+
+---
+
+## v94 — Entity sync lock: unify the cow level across its 4 surfaces (single source of truth)
+
+User directive: "this needs to be synced... not having duplicates of the same thing
+and especially them not being synced. they need to be unified and rich... only
+additive, nothing cut, only upgraded, and check for others like this."
+
+### Duplication audit (ground truth)
+Every drop-source entity is keyed by the SAME id across structures. The canonical
+pair is **`BOSSES` (drop-table) + `BOSS_FIELD_MANUAL` (run tips)** — joined by id
+into the one rich golden boss card. The *extra* surfaces (`#tab-ancients` event-card,
+`RUNE_SOURCES` rune card) restate the same facts and had DRIFTED.
+
+| Entity | Canonical (boss card) | Extra surfaces | Drift |
+|---|---|---|---|
+| cows | BOSSES.cows + FM.cows (Hell TC84 / TZ TC87) | event-card + RUNE_SOURCES.cow | **TC: card=TC84, FM="TC75-85", event="TC 66-69"; density "200+" vs "~400"** |
+| travincal | BOSSES.travincal + FM | RUNE_SOURCES.travincal | none (FM "TC85 boss-quality" = super-unique bump over area TC84 — defensible) |
+| pit | BOSSES.pit + FM | TZ-zone-rich card | none (mlvl85/TC85 agree) |
+| countess | BOSSES.countess + FM | COUNTESS_RUNES table | none — that table is the ONLY verified per-rune data, unique not duplicate |
+
+### Changes (additive + reconcile, nothing cut)
+1. **Reconciled cow TC to the canonical boss-card value** (the authoritative, verified
+   per-difficulty source): event-card "TC 66-69" → "TC84 in Hell (TC87 in a Terror
+   Zone)"; `BOSS_FIELD_MANUAL.cows` "TC75-85" → same; density "200+" → "~400" (matches
+   the figure already used on the other two cow surfaces + the canonical "highest
+   density of any zone").
+2. **Cross-links to the single source of truth**: added `bossId` to `RUNE_SOURCES.cow`
+   ('cows') + `.travincal` ('travincal'); `runeSourceDetailHtml()` now renders a
+   "🗺️ Full verified drop pool →" link that opens the canonical boss card. The cow
+   event-card's TC line links to the Hell Bovines drop card too.
+3. **No fabricated rune table**: only Countess has real per-rune 1:N odds. Cows/Travincal
+   roll normal-monster odds with no published per-rune grid — kept the honest
+   "would be fabricated" note instead of inventing one.
+
+### Guard (the actual sync lock)
+Two new tests in `tests/v83_sync_audit.spec.ts`:
+- `entity sync: every RUNE_SOURCES bossId cross-link resolves to a real boss card`
+- `entity sync: the cow Treasure-Class is unified to the canonical boss-card value`
+  (asserts the stale "TC 66-69"/"TC75-85" strings are GONE and TC84 is present on both
+  reconciled surfaces). Stops the drift from silently re-shipping.
+
+Suite: v83 13/13, v53 9/9, 01_smoke + v71 21/21 green.

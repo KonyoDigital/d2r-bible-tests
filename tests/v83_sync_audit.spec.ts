@@ -302,4 +302,31 @@ test.describe('v83 website synchronization audit', () => {
     // and the integrity baseline's Meph/Hell/Shako probe must equal the 836 anchor
     expect(baseline.probe_meph_shako?.hell, 'integrity baseline probe_meph_shako.hell drifted from the 1:836 anchor').toBe(836);
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ENTITY SYNC LOCK — the same drop-source entity is described across MULTIPLE
+  // surfaces (boss card = BOSSES + BOSS_FIELD_MANUAL · #tab-ancients event-card ·
+  // RUNE_SOURCES rune card). The boss card is the SINGLE SOURCE OF TRUTH. These
+  // assertions stop a secondary surface from restating a fact that contradicts it
+  // (the cow "TC 66-69" / "TC75-85" drift that this lock was written to kill).
+  // ───────────────────────────────────────────────────────────────────────────
+  test('entity sync: every RUNE_SOURCES bossId cross-link resolves to a real boss card', async ({ page }) => {
+    const bad = await page.evaluate(() => {
+      const ids = (BOSSES as any[]).map((b: any) => b.id);
+      return (RUNE_SOURCES as any[])
+        .filter((s: any) => s.bossId && !ids.includes(s.bossId))
+        .map((s: any) => s.id + '→' + s.bossId);
+    });
+    expect(bad, `rune-source bossId cross-links point at non-existent boss cards: ${bad.join(', ')}`).toEqual([]);
+  });
+
+  test('entity sync: the cow Treasure-Class is unified to the canonical boss-card value (no stale TC drift)', async () => {
+    const html = fs.readFileSync(path.join(ROOT, 'bible.html'), 'utf8');
+    // the boss card is authoritative: Hell cows reach TC84, TC87 in a Terror Zone
+    expect(html.includes('TC 66-69'), 'stale event-card cow TC "TC 66-69" survived — must defer to the canonical TC84').toBe(false);
+    expect(html.includes('TC75-85'), 'stale field-manual cow TC "TC75-85" survived — must defer to the canonical TC84').toBe(false);
+    // and the reconciled value must be present on BOTH secondary cow surfaces
+    const tc84 = (html.match(/TC84/g) || []).length;
+    expect(tc84, 'canonical cow TC84 missing from the reconciled surfaces (event-card + field-manual)').toBeGreaterThanOrEqual(2);
+  });
 });

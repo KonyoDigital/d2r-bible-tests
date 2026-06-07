@@ -2828,7 +2828,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <h3>💎 Step 4 — What to farm</h3>
     <ul>
       <li><strong>Runes:</strong> cows have a normal mob rune table — good for El/Eld/Tir/Nef/Ith/Tal/Ral/Ort up to ~Hel/Io. Not great for high runes (Countess + LK better) but ~400 cows = chipped runes flow steadily.</li>
-      <li><strong>Sets/Uniques:</strong> Hell Bovines have an OK TC bracket (TC 66-69 range). Can drop Hellbovine glove (cow-only specific drops), Trang's, Vidala's pieces.</li>
+      <li><strong>Sets/Uniques:</strong> Hell Bovines reach <strong>TC84</strong> in Hell (<strong>TC87</strong> in a Terror Zone) — see the full <span class="zd-item zd-item-click" style="color:var(--gold-bright);font-weight:600" onclick="event.stopPropagation(); openBossDetail('cows')">Hell Bovines drop card →</span> for the verified per-difficulty pool. Can drop Hellbovine glove (cow-only specific drops), Trang's, Vidala's pieces.</li>
       <li><strong>Density:</strong> Hammerdin / Frozen Orb sorc / Lightning Fury ama / Mosaic sin — all clear 200+ cows/min. MF stacking is meaningful here.</li>
     </ul>
     <div class="success"><strong>For Konyo:</strong> Konyodin (Blessed Hammer + Concentration) is the king. Stack Goldwrap/Chance Guards/MF charms, run cows for an hour, walk away with 5-10 chipped runes + 1-2 set greens + general grail noise.</div>
@@ -8210,7 +8210,7 @@ window.toggleSetPiece = toggleSetPiece;
 
 const RUNE_SOURCES = [
   {
-    id:'travincal', emoji:'💰', name:'Travincal Council', tier:'S',
+    id:'travincal', emoji:'💰', name:'Travincal Council', tier:'S', bossId:'travincal',
     subtitle:'Toorc + Geleb + Ismail · the 3-Council fight',
     loc:'Travincal · Act 3 Hell', headline:'Highest high-rune throughput in the game',
     grid:[
@@ -8236,7 +8236,7 @@ const RUNE_SOURCES = [
     action:'Once Mephisto is dead → River of Flame waypoint → walk to Hellforge → use Mephisto\'s Soulstone on the anvil → smash with hammer. Save the soulstone first. The pool is rolled per-character, so reroll characters if rune-hunting.'
   },
   {
-    id:'cow', emoji:'🐄', name:'Hell Bovines (Cow Level)', tier:'A',
+    id:'cow', emoji:'🐄', name:'Hell Bovines (Cow Level)', tier:'A', bossId:'cows',
     subtitle:'Secret Cow Level · always-Hell area',
     loc:'Moo Moo Farm · via Wirt\'s Leg + Tome of Town Portal in cube', headline:'',
     why:'Massive density (~400+ cows per game) + each cow has a normal monster rune table. NOT as fast as Countess for low-mid runes, but good for general MF + occasional high rune. Cows have decent body count for sets/uniques too.',
@@ -8276,6 +8276,7 @@ function runeSourceDetailHtml(src){
   if(src.action) h+='<div class="info"><strong>📋 Action plan:</strong> '+src.action+'</div>';
   if(src.warn) h+='<div class="info" style="color:var(--terror)"><strong>⚠ Heads up:</strong> '+src.warn+'</div>';
   if(src.note) h+='<div class="zd-note">'+src.note+'</div>';
+  if(src.bossId) h+='<div class="info" style="cursor:pointer" onclick="event.stopPropagation();openBossDetail(\''+src.bossId+'\')"><strong>🗺️ Full verified drop pool →</strong> this is the rune-throughput view; the complete per-difficulty TC + unique/set odds live on the <strong style="color:var(--gold-bright)">'+src.name+'</strong> boss card (single source of truth). Click to open it.</div>';
   // v93: wrap the rune-source detail in the SAME golden .gbc-card shell the Baal /
   // Herald / TZ-zone / super-unique cards use — gradient header banner (artOr emblem
   // + name/subtitle/loc + tier badge + close) over a sectioned body — so every
@@ -9720,8 +9721,8 @@ const BOSS_FIELD_MANUAL = {
     quest: "Anya rescue quest must be complete. First-kill bonus to drop quality."
   },
   cows: {
-    run: "Need <strong>Wirt's Leg + Tome of Town Portal</strong> cubed in Rogue Encampment after completing the difficulty's main quests. Massive density level — 200+ mobs per run.",
-    key_mobs: "<strong>The Cow King</strong> is the unique boss (kills him → can't reopen cows on that char/difficulty!). Hellbovines are TC75-85 in Hell.",
+    run: "Need <strong>Wirt's Leg + Tome of Town Portal</strong> cubed in Rogue Encampment after completing the difficulty's main quests. Massive density level — ~400 mobs per run.",
+    key_mobs: "<strong>The Cow King</strong> is the unique boss (kills him → can't reopen cows on that char/difficulty!). Hellbovines reach <strong>TC84</strong> in Hell (<strong>TC87</strong> in a Terror Zone).",
     pitfalls: "<strong>Killing the Cow King locks the level</strong> for that character on that difficulty. Bring lightning res for charged-bolt swarms.",
     pro_tip: "<strong>Best charm density</strong> in the game (small/large/grand). Decent rune drops from Hellbovines (Hel-Ist range). Mass-MF target.",
     quest: "Wirt's Leg in cube + town portal scroll → red portal appears in Rogue Encampment."
