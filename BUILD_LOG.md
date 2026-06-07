@@ -1083,3 +1083,40 @@ Fanaticism / Terror Zone / 20 hard points · Hephasto callout has Always Aura En
 solo / Fire Immune · a non-bind SU (Shenk) shows none · no console errors.
 
 Suite: v111 5/5 · v71 15/15 · v83 30/30 · v109 4/4 (49 green together). Smoke gate 38/38 on push.
+
+---
+
+## v112 — binds tier-list card + Aura Enchanted elite-affix deep-dive + Lister/Hephasto drop pools (2026-06-08)
+
+Commit `7206e27` · live md5 `e2033c39e16c734ca27bc37f7dc5d07b` (apex parity verified).
+
+Three additive ships, all clickable/routable in the site's existing format:
+
+1. **🏆 Best Warlock Binds — Tier List** (`#binds-tierlist`, top of binds tab) — ranked
+   best→budget (S: Hephasto→Fana / TZ-Urdar 15pt / Lister · A: Smith / champ-Urdar 10pt ·
+   B-C: Council / 1-pt splash). The 3 fully-sourced targets (Hephasto/Lister/Smith) route to
+   their super-unique ID cards via `jumpToSuperUniqueByName`; Urdar/Council route to their
+   tier tables via NEW `window.openBindSection(id)` helper (expands collapsed sec + scrolls).
+
+2. **⚜️ Aura Enchanted — exact aura levels & Hell elite-affix pool** (`#binds-elite`) — from
+   maxroll's Elite Monster guide. Per-aura level divisors (Fanaticism/Conviction/Holy Shock
+   = mlvl÷8 → cap 12 · Holy Freeze ÷7 · Holy Fire/Might ÷6 · Blessed Aim ÷5), aura RANDOM per
+   spawn (confirms Konyo's "the aura changes"), 3 Hell affixes / 1 Aura-Enchanted max, full
+   13-affix roll pool incl. Mana Burn (= Lister's "I can't"). Busts the "everything is ÷8" myth.
+
+3. **Baal-card-parity DROP POOLS** on Lister + Hephasto cards — NEW `su.pool:{tcMax,mlvl,src}`
+   field drives a `zoneHellGridHtml(pz)` ranked grid (reused engine, every row routes via
+   `navigateToItem`, zero fabricated odds). Lister = Throne Wave 5 · TC87/mlvl 92 (bible L9755
+   "all TC87 quality"). Hephasto = terrored River of Flame · mlvl 96/TC87. Shenk (no pool) = none.
+
+**Source consolidation** (Konyo: "keep the source in the reference tab, separate it nicely"):
+all bind/aura citations moved into a new `📐 reference` tab section "⚜️ Warlock bind & Aura
+Enchanted — sources" (maxroll Elite Monster · maxroll Summoner Warlock · diablo2.io · this
+tab's verified-3.2 · silospen). Inline notes slimmed to "(sources in the 📐 reference tab)".
+
+### Guard — `tests/v112_binds_tierlist_droppool.spec.ts` (9 tests)
+tier-list 7 rows + 4 routes · elite-affix per-aura table + Mana Burn + random-per-spawn ·
+sources in ref tab not on cards · openBindSection expands · only Lister/Hephasto have su.pool ·
+Lister grid TC87 clickable · Hephasto grid River of Flame · Shenk no pool · no console errors.
+
+Suite: v112 9/9 · v111 5/5 · smoke-set+v83 63/63. Smoke gate 38/38 on push.
