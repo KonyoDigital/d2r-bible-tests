@@ -569,3 +569,42 @@ Two new tests in `tests/v83_sync_audit.spec.ts`:
   reconciled surfaces). Stops the drift from silently re-shipping.
 
 Suite: v83 13/13, v53 9/9, 01_smoke + v71 21/21 green.
+
+---
+
+## v95 — "check for others like this": cross-surface dup sweep + Annihilus stat unify
+
+Swept every entity defined in >1 structure (BOSSES ↔ SUPER_UNIQUES ↔ event-cards ↔
+ITEM_CODEX). Findings:
+
+| Entity | Surfaces | Status |
+|---|---|---|
+| Pindleskin | BOSSES.pindle + SUPER_UNIQUES | ✓ synced (both mlvl 86) |
+| Nihlathak | BOSSES.nihl + SUPER_UNIQUES | ✓ synced (both mlvl 85) |
+| The Summoner | BOSSES.summoner (mlvl 82) + SUPER_UNIQUES (mlvl 83) | ✗ 1-level drift — FLAGGED for Konyo (verified-stat lock; area+3 rule favours 83) |
+| Annihilus | ITEM_CODEX (canonical) + 4 restatements | ✗ stat drift in 2 → FIXED |
+| Hellfire Torch | ITEM_CODEX + restatements | ✗ "+20 all res" looks like the same drift — FLAGGED |
+
+### Fixed (unambiguous — deferring to canonical ITEM_CODEX.Annihilus)
+Canonical Anni = +1 All Skills · +10-20 All Attributes · +10-20 All Resistances ·
++5-10% Experience. Reconciled 4 wrong restatements:
+- dclone event-card top box: "+20 all res" → "+10-20 all res · +5-10% experience"
+- summary-map one-liner: "+1-2 ALL skills … +5-10% all stats" → canonical
+- Road-tab prose: "+1–2 all skills, all-resist and all-stats" → canonical
+- "who drops what" note: "+20 all res" → "+10-20 all res · +5-10% experience"
+
+### Guard
+New v83_sync_audit test: scans a window around EVERY "Annihilus" mention and asserts
+none say "+1-2 all skills" / "+20 all res" / "all stats" (Anni-scoped so it doesn't
+false-flag Arkaine's Valor / Atma's Wail which really are +1-2 all skills) + the
+canonical ITEM_CODEX.Annihilus props survive.
+
+### Flagged (NOT changed — need Konyo's verified-value call)
+- The Summoner mlvl 82 (BOSSES) vs 83 (SUPER_UNIQUES). Pindle/Nihl both follow the
+  project's verified area+3 rule and agree across surfaces; by that rule Summoner = 83
+  (Arcane Sanctuary alvl 80 +3). Likely BOSSES 82 is the typo, but it touches the
+  deliberate v43-binds-verified mlvl lock → confirm before flipping.
+- Hellfire Torch "+20 all res" restatements (Torch is +10-20 all res) — same error
+  pattern, different item.
+
+Suite: v83 14/14, 01_smoke + v74 16/16 green.

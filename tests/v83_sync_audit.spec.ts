@@ -329,4 +329,26 @@ test.describe('v83 website synchronization audit', () => {
     const tc84 = (html.match(/TC84/g) || []).length;
     expect(tc84, 'canonical cow TC84 missing from the reconciled surfaces (event-card + field-manual)').toBeGreaterThanOrEqual(2);
   });
+
+  test('entity sync: the Annihilus stat line is unified to the canonical item card (no stale stat drift)', async ({ page }) => {
+    const html = fs.readFileSync(path.join(ROOT, 'bible.html'), 'utf8');
+    // canonical loot card = ITEM_CODEX.Annihilus: +1 all skills · +10-20 all attr · +10-20 all res · +5-10% exp.
+    // Scope each check to a window AROUND each "Annihilus" mention so we don't false-flag OTHER items
+    // that legitimately carry "+1-2 all skills" (Arkaine's Valor, Atma's Wail).
+    const windows: string[] = [];
+    let from = 0, idx: number;
+    while ((idx = html.indexOf('Annihilus', from)) >= 0) {
+      windows.push(html.slice(idx, idx + 230).replace(/<[^>]+>/g, ' '));
+      from = idx + 9;
+    }
+    for (const w of windows) {
+      expect(/\+1[-–]2 all skills/i.test(w), `Annihilus stated as "+1-2 all skills" (it is +1): ${w.slice(0, 90)}`).toBe(false);
+      expect(/\+20 all res/i.test(w), `Annihilus stated as "+20 all res" (it is +10-20): ${w.slice(0, 90)}`).toBe(false);
+      expect(/all[- ]stats/i.test(w), `Annihilus bonus stated as "all stats" (it is +5-10% experience): ${w.slice(0, 90)}`).toBe(false);
+    }
+    // and the canonical item card itself still carries the verified props
+    const props = await page.evaluate(() => (ITEM_CODEX as any)['Annihilus'].props.join(' | '));
+    expect(props).toContain('+1 to All Skills');
+    expect(props).toContain('All Resistances +10-20');
+  });
 });
