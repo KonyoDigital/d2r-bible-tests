@@ -686,4 +686,43 @@ test.describe('v83 website synchronization audit', () => {
       document.getElementById('item-detail')?.querySelector('.material-card .gic-name')?.textContent?.trim() || '');
     expect(picked).toMatch(/Token of Absolution/);
   });
+
+  test('entity sync: Lister the Tormentor is a first-class super-unique — in SUPER_UNIQUES, mlvl agrees with the binds tab, routes to a card, and is searchable', async ({ page }) => {
+    // v107: Lister the Tormentor (Baal's wave-5 Throne boss) was named in the binds tab but had
+    // NO SUPER_UNIQUES entry / ID card — unlike Hephasto the Armorer which is a full entity.
+    // Gap-fill: he now lives in SUPER_UNIQUES (card + search flow for free). Lock his existence,
+    // the mlvl-92 cross-consistency with the binds-tab monster-data note, and the card route.
+    const data = await page.evaluate(() => {
+      const out: string[] = [];
+      const SU = SUPER_UNIQUES as any[];
+      const lister = SU.find((s) => /lister the tormentor/i.test(s.name));
+      if (!lister) { out.push('SUPER_UNIQUES has no Lister the Tormentor'); return { out, mlvl: null as any }; }
+      // mlvl agrees with the binds-tab sourced note ("Lister 92" in #tab-binds sources)
+      if (lister.mlvl !== 92) out.push(`Lister mlvl is ${lister.mlvl}, expected 92 (binds-tab monster-data lock)`);
+      const bindsTxt = (document.getElementById('tab-binds') as HTMLElement | null)?.textContent || '';
+      if (!/Lister\s*92/i.test(bindsTxt) && !/Lister the Tormentor/i.test(bindsTxt)) out.push('binds tab no longer references Lister');
+      // Hephasto (the precedent the gap-fill mirrors) is still present
+      if (!SU.find((s) => /hephasto the armorer/i.test(s.name))) out.push('Hephasto the Armorer (precedent) missing from SUPER_UNIQUES');
+      return { out, mlvl: lister.mlvl };
+    });
+    expect(data.out, `Lister-the-Tormentor super-unique sync drifted:\n${data.out.join('\n')}`).toEqual([]);
+    expect(data.mlvl).toBe(92);
+
+    // routes to a super-unique ID card (gbc shell), via the by-name jump helper
+    await page.evaluate(() => (window as any).jumpToSuperUniqueByName('Lister the Tormentor'));
+    await page.waitForTimeout(250);
+    const card = await page.evaluate(() => {
+      const c = document.querySelector('.su-card-rich');
+      return { name: c?.querySelector('.gbc-name')?.textContent?.trim() || '', body: c?.textContent || '' };
+    });
+    expect(card.name).toMatch(/Lister the Tormentor/);
+    expect(card.body).toMatch(/Throne of Destruction/i);
+
+    // searchable: the global search surfaces him as a super-unique
+    const found = await page.evaluate(() => {
+      const SU = SUPER_UNIQUES as any[];
+      return SU.some((s) => /lister/i.test(s.name) && s.act && /throne/i.test(s.act));
+    });
+    expect(found).toBe(true);
+  });
 });

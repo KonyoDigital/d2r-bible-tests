@@ -943,3 +943,36 @@ Token recipe names every essence + == the essence-category recipe; `MATERIAL_REC
 in `#item-detail` (respec/reset text present); global search → pick → opens the same card.
 
 Suite: v83 24/24; v74_material_search + v52 + v70 + v55 29/29; smoke 01+v71 21/21.
+
+---
+
+## v107 — Lister the Tormentor as a first-class super-unique (FEATURE, ships bible.html)
+
+Konyo: "listor the tormentor ... this is the best to bind and as a search like its own idcard ...
+like hephasto the armorer i see we have it.. so listor needs to be also gap filled accordingly."
+
+Lister the Tormentor (Baal's wave-5 Throne of Destruction boss) was NAMED in the binds tab
+(wave table + monster-data sources) but had NO `SUPER_UNIQUES` entry — unlike Hephasto the
+Armorer, which is a full entity with an ID card. Gap-filled by appending one `SUPER_UNIQUES`
+member (after Bishibosh, end of array → no index shift). That single struct auto-flows into:
+the super-unique ID card (`superUniqueDetailHtml` golden `.gbc-card` shell), the TZ-tab
+super-unique roster (`renderSuperUniques`), global search (`SU_DATA.forEach`, L10513), and
+`linkifySU`/`suIndexByName` name-routing — all via existing generic code.
+
+### Zero fabrication (sourced from the bible's OWN binds tab + standard D2 facts)
+- mlvl **92** (binds-tab monster-data lock, L3407 "Lister 92 (custom overrides)").
+- Leads **7 Minions of Destruction** in Hell (NM 6 / Norm 5) (binds wave table L3369).
+- Act 5 · Throne of Destruction; not on the TZ rotation (Throne-only, not on-demand farmable).
+- One of only TWO super-uniques (with The Smith) whose bind/Consume stats are fully sourced.
+- Immunity set to **"random (Hell)"** (NOT a hardcoded Physical immunity — honestly flagged in
+  prose: Throne-boss Hell immunities roll per spawn; a Physical-immune Lister is common, so
+  bring a 2nd damage type or a Bone Break sunder. Answers Konyo's "physical immunity right?"
+  without fabricating a fixed immunity.)
+
+### Guard added (v83 test, now 25 sync tests)
+Lister is in SUPER_UNIQUES · mlvl===92 agrees with the binds-tab note · binds tab still
+references him · Hephasto (the precedent) still present · `jumpToSuperUniqueByName` opens his
+`.su-card-rich` gbc card naming "Throne of Destruction" · he's searchable as a Throne super-unique.
+
+Suite: v83 25 sync tests (31/31 w/ Token) ; v51_superuniques + v41 + v40 + routing 41/41 ;
+v64 routing green. No console errors, no fabricated-odds violation (v51 sanity).
