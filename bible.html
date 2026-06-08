@@ -726,6 +726,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .at3-rank-1 .at3-name{color:var(--best)}
 .at3-why{font-family:var(--serif-text);font-size:11.5px;font-style:italic;color:var(--text-dim);line-height:1.4}
 .at3-tier{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-family:var(--serif-display);font-weight:700;font-size:15px}
+/* in-game health-bar replica — the exact attribute banner a super-unique shows */
+.hpbar{max-width:560px;margin:12px auto 3px;padding:0 0 9px;background:linear-gradient(180deg,rgba(20,16,12,.94),rgba(9,7,5,.9));border:1px solid rgba(0,0,0,.6);border-radius:5px;box-shadow:inset 0 0 42px rgba(0,0,0,.72),0 2px 12px rgba(0,0,0,.5);text-align:center;font-family:var(--serif-display)}
+.hpbar-title{display:block;margin:0 auto 7px;padding:5px 22px;background:linear-gradient(180deg,#5c1515,#380c0c);border-bottom:1px solid rgba(0,0,0,.5);color:#d9c27a;font-size:15px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.85);border-radius:5px 5px 0 0}
+.hpbar-mods{padding:0 14px;color:#c39a3f;font-size:13.5px;letter-spacing:.015em;line-height:1.55}
+.hpbar-imm{padding:2px 14px 0;font-size:13.5px;letter-spacing:.015em;line-height:1.55}
+.hpbar-sep{color:#6f5f33;margin:0 5px}
+.hpbar-phys{color:#c9b074}
+.hpbar-fire{color:#e2502a}
+.hpbar-cold{color:#58a4e4}
+.hpbar-light{color:#e6c84a}
+.hpbar-cap{display:block;margin:6px auto 0;max-width:560px;text-align:center;font-size:11.5px;color:var(--text-dim);font-style:italic;line-height:1.45}
+.su-hpbar-sec{margin:2px 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(212,168,71,.16)}
 /* Herald of Terror — Sunder Charm table (RotW tab dedicated ID card) */
 .sunder-tbl{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px}
 .sunder-tbl th,.sunder-tbl td{border:1px solid rgba(255,255,255,.10);padding:7px 9px;text-align:left;vertical-align:top}
@@ -3583,6 +3595,37 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
+  <div class="colossal" id="binds-immroll">
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🛡️ Top 3 dream immunity rolls <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
+    <p>Your bound demon is a <strong>pet</strong>, so the immunities on its health-bar are pure survivability. They can't be rerolled — they come from the monster's own base resists — so it's really a question of <em>which super-unique you bind</em>. The tankiest binds stack <strong style="color:#c9b074">Physical Immunity</strong> plus one element. Here are the three health-bar immunity profiles worth hunting, best→worst for a pet that simply won't die.</p>
+    <div class="aura-top3">
+      <div class="at3-head">★ Top 3 immunity profiles to bind ★</div>
+      <div class="at3-list">
+        <div class="at3-row at3-rank-1">
+          <span class="at3-rank">1</span>
+          <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🔥</span>
+          <span class="at3-main"><span class="at3-name"><span class="hpbar-phys">Immune to Physical</span> <span class="hpbar-sep">+</span> <span class="hpbar-fire">Immune to Fire</span></span><span class="at3-why"><strong style="color:var(--best)">Proven — Lister the Tormentor.</strong> Tanks every melee &amp; missile hit plus all fire packs; the community-OP bind. The only profile confirmed in-game (his health-bar is shown in his ID card).</span></span>
+          <span class="at3-tier" style="color:var(--best);border-color:var(--best)">S</span>
+        </div>
+        <div class="at3-row">
+          <span class="at3-rank">2</span>
+          <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">❄️</span>
+          <span class="at3-main"><span class="at3-name"><span class="hpbar-phys">Immune to Physical</span> <span class="hpbar-sep">+</span> <span class="hpbar-cold">Immune to Cold</span></span><span class="at3-why">The cold analogue: a cold-immune pet <strong>can't be frozen or chilled</strong>, so it never loses attack speed in cold-heavy zones (Frigid Highlands, Nihlathak, Frozen packs). Same melee-tank value as #1.</span></span>
+          <span class="at3-tier" style="color:var(--gold-bright);border-color:var(--gold-dim)">A</span>
+        </div>
+        <div class="at3-row">
+          <span class="at3-rank">3</span>
+          <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">⚡</span>
+          <span class="at3-main"><span class="at3-name"><span class="hpbar-phys">Immune to Physical</span> <span class="hpbar-sep">+</span> <span class="hpbar-light">Immune to Lightning</span></span><span class="at3-why">The rarer roll — lightning is the hardest-hitting ranged element (Gloams, Tesla packs), so a phys+lightning pet shrugs off the deadliest spike damage in the game. Hunt it for lightning-heavy Terror Zones.</span></span>
+          <span class="at3-tier" style="color:var(--gold-bright);border-color:var(--gold-dim)">A</span>
+        </div>
+      </div>
+    </div>
+    <div class="info" style="margin-top:9px"><strong>Why Physical first:</strong> physical is the most common damage type in the game, so a <strong style="color:#c9b074">Physical-Immune</strong> pet tanks nearly everything that isn't elemental — pair it with the element your farm zone throws hardest. <strong>Note:</strong> only the Physical+Fire profile (Lister) is screenshot-verified; the cold &amp; lightning profiles are the survival <em>targets</em> to look for, not a claim about a specific named monster.</div>
+    </div>
+  </div>
+
   <div class="colossal" id="binds-bestroll">
     <h3 class="sec-h collapsed" onclick="toggleSec(this)">🎯 Best roll — what to look for <span class="sec-chev">▾</span></h3>
     <div class="sec-body" hidden>
@@ -3590,6 +3633,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div id="aura-bestroll"></div>
     <div class="success" style="margin-top:10px"><strong>Bottom line:</strong> only <strong style="color:var(--best)">Fanaticism</strong> is worth keeping — save &amp; exit and rebind until you see it. Everything else is a reroll.</div>
     <p style="margin-top:16px">The aura is only one line. On its in-game health-bar a bound super-unique stacks its <strong>fixed mods + its 3 random Hell rolls + its immunities</strong> — often <strong>8–9 attributes</strong> in total, so a perfect roll is rare. Beyond a Fanaticism aura, these are the <strong>3 damage affixes worth rerolling for</strong> on an Echoing Strike pet build — effects per the <em>Arreat Summit</em> bonus tables.</p>
+    <div class="hpbar" title="a real in-game super-unique health-bar">
+      <span class="hpbar-title">Lister the Tormentor</span>
+      <div class="hpbar-mods">Demon<span class="hpbar-sep">·</span>Spectral Hit<span class="hpbar-sep">·</span>Cursed<span class="hpbar-sep">·</span>Stone Skin<span class="hpbar-sep">·</span>Extra Strong<span class="hpbar-sep">·</span>Extra Fast<span class="hpbar-sep">·</span>Aura Enchanted</div>
+      <div class="hpbar-imm"><span class="hpbar-phys">Immune to Physical</span><span class="hpbar-sep">·</span><span class="hpbar-fire">Immune to Fire</span></div>
+    </div>
+    <span class="hpbar-cap">↑ exactly what Lister's health-bar reads in-game — <strong>9 lines</strong>. <strong style="color:#c9b074">Demon</strong> is his type; <strong style="color:var(--best)">Aura Enchanted</strong> + his other rolls are the rerollable part; the <strong style="color:#e2502a">immunities</strong> are his own base resists. Of the buffs, these 3 are the keepers:</span>
     <div class="aura-top3" style="margin-top:8px">
       <div class="at3-head">★ Top 3 bind affix buffs to look for ★</div>
       <div class="at3-list">
@@ -4930,10 +4979,34 @@ const BIND_SU = [
   {name:"Colenzo the Annihilator", area:"A5 · Throne (Wave 1)", mlvl:88, consume:"Fire Res + Max / -% Enemy Fire Res", note:"Throne of Destruction wave-1 boss (Baal run).", who:"Throne of Destruction wave-1 boss — the first of Baal's five minion waves.", tactic:"Bind during the wave before Baal's next set spawns; drop Colenzo low fast, then cast."},
   {name:"Bartuc the Bloody", area:"A5 · Throne (Wave 3)", mlvl:93, consume:"Lit Res + Max / -% Enemy Lit Res", council:true, warn:true, note:"Coded <code>Demon</code> &amp; bindable pre-3.2, but absent from MrLlamaSC's list — the 3.2 notes only name Achmel as the exception. <strong>Test in-game:</strong> bring him to &lt;40% and cast; \"Impossible\" means he was quietly excluded with Achmel.", who:"Throne of Destruction wave-3 boss — a Council-coded blood priest among Baal's minions.", tactic:"Bind window is the wave-3 pause; bring him below ~40% and cast — if it reads \"Impossible\" he was de-listed with Achmel."},
   {name:"Ventar the Unholy", area:"A5 · Throne (Wave 4)", mlvl:93, consume:"Fire Res + Max / -% Enemy Fire Res", family:"Megademon", note:"Throne of Destruction wave-4 boss (Baal run).", who:"Throne of Destruction wave-4 boss — a Megademon leading a Venom Lord pack.", tactic:"Bind during the wave-4 pause; clear the Venom Lords, drop Ventar low, then cast."},
-  {name:"Lister the Tormentor", area:"A5 · Throne (Wave 5)", mlvl:92, aura:"Lvl 15 Meditation", auraLogo:"Meditation", auraGlyph:"🧘", fixed:true, reroll:true, consume:"+150% ED / 25% Phys Dmg Reduction · 7 Minions of Destruction", suName:"Lister the Tormentor", tier:"S-Tier · the community OP bind", star:true, best:true, note:"The fixed Lvl-15 Meditation is permanent (a Consume \"Equipped\" stat). On top of it Lister ALSO rolls a separate <strong>Aura Enchanted</strong> per spawn → save &amp; exit and rebind until that rolled aura is Fanaticism. Both auras then coexist."},
+  {name:"Lister the Tormentor", area:"A5 · Throne (Wave 5)", mlvl:92, aura:"Lvl 15 Meditation", auraLogo:"Meditation", auraGlyph:"🧘", fixed:true, reroll:true, consume:"+150% ED / 25% Phys Dmg Reduction · 7 Minions of Destruction", suName:"Lister the Tormentor", tier:"S-Tier · the community OP bind", star:true, best:true, hpbar:{title:"Lister the Tormentor", mods:["Demon","Spectral Hit","Cursed","Stone Skin","Extra Strong","Extra Fast","Aura Enchanted"], imm:[{t:"Immune to Physical",c:"phys"},{t:"Immune to Fire",c:"fire"}], lines:9}, note:"The fixed Lvl-15 Meditation is permanent (a Consume \"Equipped\" stat). On top of it Lister ALSO rolls a separate <strong>Aura Enchanted</strong> per spawn → save &amp; exit and rebind until that rolled aura is Fanaticism. Both auras then coexist."},
 ];
 window.BIND_SU = BIND_SU;
 function bindSUName2Idx(name){if(typeof BIND_SU==='undefined'||!name)return -1;const n=String(name).toLowerCase().trim();return BIND_SU.findIndex(b=>(b.name||'').toLowerCase()===n);}
+// Unified in-game health-bar replica — single source of truth for the binds section
+// worked-example AND the super-unique ID cards. Renders ONLY from verified hpbar data.
+function bindHpBar(hp){
+  if(!hp || !hp.title) return '';
+  const sep = '<span class="hpbar-sep">·</span>';
+  const mods = (hp.mods||[]).join(sep);
+  const imm = (hp.imm||[]).map(i=>`<span class="hpbar-${i.c||'phys'}">${i.t}</span>`).join(sep);
+  return `<div class="hpbar" title="a real in-game super-unique health-bar">`+
+    `<span class="hpbar-title">${hp.title}</span>`+
+    (mods?`<div class="hpbar-mods">${mods}</div>`:'')+
+    (imm?`<div class="hpbar-imm">${imm}</div>`:'')+
+    `</div>`;
+}
+window.bindHpBar = bindHpBar;
+// Per-card health-bar data. Verified explicit hpbar (Lister) wins; otherwise derive
+// ONLY the verified structural truth — type "Demon" (why it's bindable) + the rerollable
+// "Aura Enchanted" line. Random Hell rolls + immunities vary per spawn → never fabricated.
+function bindSUHpData(b){
+  if(b.hpbar) return b.hpbar;
+  const mods=['Demon'];
+  if(b.reroll) mods.push('Aura Enchanted');
+  return {title:b.name, mods, imm:[], derived:true, fixedAura:(b.fixed&&b.aura)?b.aura:null};
+}
+window.bindSUHpData = bindSUHpData;
 function bindSUDetailHtml(b){
   const idx = bindSUName2Idx(b.name);
   const logo = b.auraLogo && typeof auraArt==='function' ? auraArt(b.auraLogo, b.auraGlyph||'⚜️', 'sm')+' ' : '';
@@ -4974,9 +5047,28 @@ function bindSUDetailHtml(b){
       <div class="gbc-tier"><div class="gbc-tier-label">mlvl</div><div class="gbc-tier-val">${b.mlvl}</div></div>
       <button class="gbc-close" onclick="event.stopPropagation();toggleBindSU(${idx})">✕ close</button>
     </header>
-    <div class="gbc-body su-zone-body">${h}</div>
+    <div class="gbc-body su-zone-body">${bindSUHpSection(b)}${h}</div>
   </div>`;
 }
+// Dedicated in-game health-bar section for each ID card — the screenshot format,
+// synced to the monster's type + best roll. Verified bar for Lister; honest derived
+// bar (type + rerollable line only) for the rest, with the random part labelled.
+function bindSUHpSection(b){
+  const hp = bindSUHpData(b);
+  const bar = bindHpBar(hp);
+  if(!bar) return '';
+  let cap;
+  if(hp.derived){
+    cap = `↑ ${b.name}'s in-game type. Coded <strong style="color:#c9b074">Demon</strong> — the reason it's bindable.`;
+    if(hp.fixedAura) cap += ` Carries a <strong style="color:var(--best)">fixed ${hp.fixedAura}</strong> aura.`;
+    if(b.reroll) cap += ` <strong style="color:var(--best)">Aura Enchanted</strong> is the rerollable line — bind, then save &amp; exit and rebind for the best roll below.`;
+    cap += ` Its 3 random Hell rolls + immunities vary per spawn, so they aren't shown.`;
+  } else {
+    cap = `↑ ${b.name}'s real in-game health-bar — <strong>${hp.lines||hp.mods.length} stacked lines</strong> (screenshot-verified). <strong style="color:#c9b074">Demon</strong> is his type; <strong style="color:var(--best)">Aura Enchanted</strong> + his other rolls are the rerollable part; the <strong style="color:#e2502a">immunities</strong> are his own base resists.`;
+  }
+  return `<div class="su-hpbar-sec">${bar}<span class="hpbar-cap">${cap}</span></div>`;
+}
+window.bindSUHpSection = bindSUHpSection;
 function toggleBindSU(idx){
   const b = (typeof BIND_SU!=='undefined') ? BIND_SU[idx] : null;
   const box = document.getElementById('bindsu-detail');

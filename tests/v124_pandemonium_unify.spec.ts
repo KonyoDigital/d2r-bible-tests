@@ -91,7 +91,7 @@ test.describe('v124 Pandemonium unify + top-3 bind-affix podium', () => {
 
   test('the top-3 bind-affix podium renders the 3 researched affixes in order', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const pod = document.querySelector('.aura-top3');
+      const pod = document.querySelector('#binds-bestroll .aura-top3');
       const rows = pod ? Array.from(pod.querySelectorAll('.at3-row')) : [];
       const names = rows.map((r) => (r.querySelector('.at3-name')?.textContent || '').trim());
       const tiers = rows.map((r) => (r.querySelector('.at3-tier')?.textContent || '').trim());
@@ -130,6 +130,85 @@ test.describe('v124 Pandemonium unify + top-3 bind-affix podium', () => {
     expect(r.immCold).toBe(true);
     expect(r.survival).toBe(true);
     expect(r.dream).toBe(true);
+  });
+
+  test("Lister's bind ID card renders his verified in-game health-bar", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const b = (window as any).BIND_SU.find((x: any) => x.name === 'Lister the Tormentor');
+      const html = (window as any).bindSUDetailHtml(b);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const bar = wrap.querySelector('.su-hpbar-sec .hpbar');
+      const title = (bar?.querySelector('.hpbar-title')?.textContent || '').trim();
+      const mods = bar?.querySelector('.hpbar-mods')?.textContent || '';
+      const imm = bar?.querySelector('.hpbar-imm')?.textContent || '';
+      return {
+        present: !!bar,
+        title,
+        extraStrong: mods.includes('Extra Strong'),
+        auraEnchanted: mods.includes('Aura Enchanted'),
+        immPhys: imm.includes('Immune to Physical'),
+        immFire: imm.includes('Immune to Fire'),
+        verified: (wrap.querySelector('.su-hpbar-sec .hpbar-cap')?.textContent || '').includes('screenshot-verified'),
+      };
+    });
+    expect(r.present).toBe(true);
+    expect(r.title).toBe('Lister the Tormentor');
+    expect(r.extraStrong).toBe(true);
+    expect(r.auraEnchanted).toBe(true);
+    expect(r.immPhys).toBe(true);
+    expect(r.immFire).toBe(true);
+    expect(r.verified).toBe(true);
+  });
+
+  test("a derived card (Hephasto) shows type + rerollable line but NO fabricated immunities", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const b = (window as any).BIND_SU.find((x: any) => x.name === 'Hephasto the Armorer');
+      const html = (window as any).bindSUDetailHtml(b);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const bar = wrap.querySelector('.su-hpbar-sec .hpbar');
+      const mods = bar?.querySelector('.hpbar-mods')?.textContent || '';
+      const immEl = bar?.querySelector('.hpbar-imm');
+      return {
+        present: !!bar,
+        demon: mods.includes('Demon'),
+        auraEnchanted: mods.includes('Aura Enchanted'),
+        noImmLine: !immEl, // immunities vary per spawn → must NOT be fabricated
+        cap: (wrap.querySelector('.su-hpbar-sec .hpbar-cap')?.textContent || ''),
+      };
+    });
+    expect(r.present).toBe(true);
+    expect(r.demon).toBe(true);
+    expect(r.auraEnchanted).toBe(true);
+    expect(r.noImmLine).toBe(true);
+    expect(r.cap).toContain("vary per spawn");
+  });
+
+  test('the top-3 immunity section renders 3 ranked profiles, phys+fire is #1/S', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const sec = document.getElementById('binds-immroll');
+      const pod = sec?.querySelector('.aura-top3');
+      const rows = pod ? Array.from(pod.querySelectorAll('.at3-row')) : [];
+      const names = rows.map((x) => (x.querySelector('.at3-name')?.textContent || '').replace(/\s+/g, ' ').trim());
+      return {
+        exists: !!sec,
+        head: (pod?.querySelector('.at3-head')?.textContent || '').toLowerCase(),
+        count: rows.length,
+        names,
+        firstIsTop: !!(rows[0] && rows[0].classList.contains('at3-rank-1')),
+        firstTier: (rows[0]?.querySelector('.at3-tier')?.textContent || '').trim(),
+      };
+    });
+    expect(r.exists).toBe(true);
+    expect(r.head).toContain('immunity');
+    expect(r.count).toBe(3);
+    expect(r.names[0]).toContain('Immune to Physical');
+    expect(r.names[0]).toContain('Immune to Fire');
+    expect(r.names[1]).toContain('Immune to Cold');
+    expect(r.names[2]).toContain('Immune to Lightning');
+    expect(r.firstIsTop).toBe(true);
+    expect(r.firstTier).toBe('S');
   });
 
   test('no console errors loading the events tab + opening an uber card', async ({ page }) => {
