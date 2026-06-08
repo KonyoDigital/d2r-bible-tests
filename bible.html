@@ -802,6 +802,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #arttip.tip-rich{max-width:300px;padding:11px 13px 12px}
 #arttip img{display:block;width:96px;height:96px;object-fit:contain;margin:0 auto 5px}
 #arttip.tip-rich img{width:52px;height:78px;margin:0 auto 4px}
+#arttip.tip-art{max-width:none;padding:10px}
+#arttip.tip-art img{width:168px;height:168px;margin:0 auto 4px}
+#arttip.tip-art .att-name{font-size:12px}
 #arttip .att-name{font-family:var(--mono,monospace);font-size:11px;color:var(--gold-bright,#f0c060);letter-spacing:.3px;line-height:1.3}
 #arttip.tip-rich .att-name{font-size:13px;font-weight:700;margin-bottom:1px}
 #arttip .att-info{font-family:var(--mono,monospace);font-size:10.5px;color:var(--text-dim,#9a8e78);line-height:1.45;margin-top:4px}
@@ -6936,8 +6939,11 @@ function _d2artEsc(s){ return String(s).replace(/"/g, '&quot;'); }
 // and the emoji fallback shows, so a card can never render a broken-image box.
 function artOr(name, fallbackHtml, size){
   var u = artUrl(name);
-  if (!u) return `<span class="d2art-wrap ${size||'lg'} d2art-failed"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
-  return `<span class="d2art-wrap ${size||'lg'}"><img class="d2art-img" src="${u}" alt="${_d2artEsc(name)}" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+  if (!u) return `<span class="d2art-wrap ${size||'lg'} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+  // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
+  // the name from being duplicated into copied text / shown as broken-image alt on platforms
+  // where the diablo2.io hotlink is blocked. Accessible name lives on the wrapper aria-label.
+  return `<span class="d2art-wrap ${size||'lg'}" role="img" aria-label="${_d2artEsc(name)}"><img class="d2art-img" src="${u}" alt="" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
 window.artOr = artOr;
 // Unified drop-row logo: render the registered in-game art thumbnail (lazy, graceful)
@@ -9115,7 +9121,7 @@ function renderCalc() {
     const isOwned = owned.has(it.n);
     return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
       <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
-        <div class="item-tile-name">${it.n}</div>
+        <div class="item-tile-name" data-art-logo="${_d2artEsc(it.n)}">${it.n}</div>
         <div class="item-tile-tc">TC${it.tc} · q${it.qlvl}${isOwned?' · ✓':''}</div>
       </div></div></div>`;
   }).join("");
@@ -9978,9 +9984,10 @@ function renderRuneTable() {
       ${(function(){
         const rune = (typeof findRune === 'function') ? findRune(r.n) : null;
         const baseClr = r.n.match(/Lo|Ohm|Vex|Gul/) ? 'color:var(--gold-bright)' : '';
+        const logo = (typeof nameLogo === 'function') ? nameLogo(r.n) : '';
         return rune
-          ? `<td class="item-name zd-item-click" style="cursor:pointer;${baseClr||'color:var(--gold)'}" onclick="window.openDrop('${r.n.replace(/'/g,"\\'")}')" title="open ${rune.n} rune card">${r.n} →</td>`
-          : `<td class="item-name" style="${baseClr}">${r.n}</td>`;
+          ? `<td class="item-name zd-item-click" style="cursor:pointer;${baseClr||'color:var(--gold)'}" onclick="window.openDrop('${r.n.replace(/'/g,"\\'")}')" title="open ${rune.n} rune card">${logo}${r.n} →</td>`
+          : `<td class="item-name" style="${baseClr}">${logo}${r.n}</td>`;
       })()}
       ${cell(r.norm,"Norm","dcol-norm")}
       ${cell(r.nm,"NM","dcol-nm")}
@@ -10789,7 +10796,24 @@ window._arttipResolve = _arttipResolve;
     function nameOf(el){ return el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || ''; }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
-      var el = e.target.closest && e.target.closest('[data-arttip],[data-art-logo],[data-aura-logo]'); if (!el) return;
+      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (!el) return;
+      // context-aware: hovering the TINY art thumbnail itself (.d2art-wrap, which
+      // closest() resolves before any ancestor name row) floats the ENLARGED image
+      // only — no stat card. Hovering the item NAME floats the rich description card.
+      if (el.classList && el.classList.contains('d2art-wrap')){
+        var wn = el.getAttribute('aria-label') || '';
+        var wimg = el.querySelector('img');
+        var wurl = (wimg && wimg.getAttribute('src')) || (typeof artUrl==='function' ? artUrl(wn) : '');
+        if (!wurl) return;
+        cur = el;
+        img.src = wurl; img.style.display = '';
+        lab.textContent = wn;
+        desc.innerHTML = '';
+        tip.classList.remove('tip-rich'); tip.classList.add('tip-art');
+        move(e); tip.classList.add('on');
+        return;
+      }
+      tip.classList.remove('tip-art');
       // aura cells: float the enlarged animated aura icon (AURA_ART) + its name.
       var aura = el.getAttribute('data-aura-logo');
       if (aura){
@@ -10815,7 +10839,7 @@ window._arttipResolve = _arttipResolve;
       move(e); tip.classList.add('on');
     });
     document.addEventListener('mousemove', function(e){ if (cur) move(e); });
-    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('[data-arttip],[data-art-logo],[data-aura-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit); else arttipInit();
 })();
