@@ -144,6 +144,27 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-003 — 2026-06-08 · per-charm Sunder recipe search misrouted to Bone Break
+- **Symptom**: searching "renew black cleft" (and every other charm) landed on the
+  Sunder recipe grid headed by Bone Break instead of the Black Cleft row. User: "when
+  i search for black cleft it routes me to bone break."
+- **Caught by**: user report (not a test — there was no per-charm routing assertion).
+- **Root cause**: `openSunderRecipes()` was charm-agnostic — it only switched to the
+  tools tab + uncollapsed the card, leaving all 6 rows collapsed (Bone Break first in
+  the grid). The 6 per-charm recipe search commands (v133) all called it with NO
+  argument, so any charm's "renew" intent landed on the same Bone-Break-led view. The
+  charm's own MATERIAL card (openDrop) was always correct — only the recipe-tool route
+  was generic.
+- **Fix**: `openSunderRecipes(charm)` now expands + scrolls EXACTLY that charm's
+  `details[data-charm]` row (closing siblings); per-charm commands pass `s.n`. No-arg
+  call unchanged (opens card, no row forced). bible.html `9603dd3`.
+- **Prevention**: v136_routing_audit_lockdown — AUDIT spec asserting every one of the
+  6 charms routes to its OWN recipe row AND its OWN material card via both the direct
+  fn and the global-search path (no sibling). Lesson: a per-entity action that takes
+  NO entity argument is a latent misroute — when N search commands fan into one
+  handler, the handler MUST receive + honor the entity key, and a lockdown test must
+  assert each entity lands on itself, not just that "something opens".
+
 ## REG-002 — 2026-06-08 · reference tables reused class="drops" → tripped droptable integrity guards
 - **Symptom**: Routine I (Playwright) shards 1 + 2 red — 3 tests:
   v109_binds_collapsible `all 12 binds sections` (count 12, got 14),
