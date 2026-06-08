@@ -785,6 +785,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sun-plus{opacity:.5;font-weight:700}
 .sun-arrow{color:var(--best,#7ddc7d);font-weight:700;margin:0 2px}
 .sun-renewed{display:inline-flex;align-items:center;gap:5px;color:var(--best,#7ddc7d);font-weight:600}
+.sun-cube{width:38px;height:38px;object-fit:contain;border:1px solid rgba(240,192,96,.45);border-radius:8px;background:rgba(0,0,0,.32);padding:2px;flex:0 0 auto;image-rendering:auto}
+.sun-cube.fail{display:none}
 .sun-note{color:var(--text-dim);font-size:11.5px;margin-top:2px}
 .sun-best{color:var(--gold-bright,#f0c060)}
 #arttip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .09s;background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.8);padding:8px 9px 7px;max-width:170px;text-align:center}
@@ -10029,6 +10031,8 @@ const SUNDER_RECIPES = [
   { n:'Black Cleft',          breaks:'Magic',     el:'magic',    gem:'Perfect Diamond',   rune:'Mal', shards:['Worldstone Shard (Southern)','Worldstone Shard (Deep)','Worldstone Shard (Northern)'], best:'Konyodin . Hammerdin' },
 ];
 window.SUNDER_RECIPES = SUNDER_RECIPES;
+/* Verified diablo2.io Horadric Cube graphic (image/png, 200) - the cube preview */
+const SUN_CUBE_IMG = 'https://diablo2.io/styles/zulu/theme/images/items/horadric_cube_graphic.png';
 const _SUN_IMM = {physical:'imm-phys',poison:'imm-pois',lightning:'imm-light',cold:'imm-cold',fire:'imm-fire',magic:'imm-magic'};
 function _sunIng(name, route){
   const esc = String(name).replace(/'/g,"\\'");
@@ -10052,6 +10056,7 @@ function renderSunderRecipes(){
       </summary>
       <div class="sun-body">
         <div class="sun-formula">
+          <img class="sun-cube" src="${SUN_CUBE_IMG}" alt="Horadric Cube" loading="lazy" title="Cube these together in the Horadric Cube" onerror="this.classList.add('fail')">
           ${_sunIng('Latent ' + s.n, false)}
           <span class="sun-plus">+</span>${_sunIng(s.gem, false)}
           <span class="sun-plus">+</span>${_sunIng(s.rune + ' Rune', true)}

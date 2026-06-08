@@ -72,6 +72,25 @@ test.describe('v133 Sunder Charm Renewal recipe tool', () => {
     }
   });
 
+  test('each recipe row shows a Horadric Cube preview image', async ({ page }) => {
+    await page.click('.tab[data-tab="tools"]');
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('#sunder-recipe-grid details.sun-recipe')];
+      const cubes = rows.map((row) => row.querySelector('.sun-formula img.sun-cube') as HTMLImageElement | null);
+      return {
+        rows: rows.length,
+        withCube: cubes.filter(Boolean).length,
+        srcs: [...new Set(cubes.filter(Boolean).map((c) => c!.getAttribute('src') || ''))],
+        allHttp: cubes.filter(Boolean).every((c) => /^https?:\/\//.test(c!.getAttribute('src') || '')),
+      };
+    });
+    expect(r.rows).toBe(6);
+    expect(r.withCube).toBe(6);
+    expect(r.srcs.length).toBe(1);
+    expect(r.allHttp).toBe(true);
+  });
+
   test('charm name in each row routes to its own card (no toggling the details open)', async ({ page }) => {
     await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(300);
