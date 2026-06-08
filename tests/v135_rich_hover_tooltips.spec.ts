@@ -49,7 +49,8 @@ test.describe('v135 rich hover tooltips (in-game descriptions)', () => {
         renewed: f('Renewed Cold Rupture'),
         latent: f('Latent Flame Rift'),
         base: f('Black Cleft'),                 // base charm name -> Renewed card
-        soj: f('The Stone of Jordan'),
+        soj: f('The Stone of Jordan'),           // grail item -> rich ITEM_TIP card
+        keyHate: f('Key of Hate'),               // ITEM_INFO-only -> one-liner fallback
         bogus: f('Zzz Not A Real Item'),
       };
     });
@@ -63,10 +64,13 @@ test.describe('v135 rich hover tooltips (in-game descriptions)', () => {
     expect(r.latent.rich).toBe(true);
     expect(r.latent.desc).toContain('Fire Resist -90% to -70%');
     expect(r.base.rich).toBe(true);                   // bare charm name routes to Renewed
-    // grail item -> verified ITEM_INFO one-liner
-    expect(r.soj.rich).toBe(false);
-    expect(r.soj.desc).toContain('att-info');
-    expect(r.soj.desc).toContain('ALL skills');
+    // grail item -> verified ITEM_TIP rich stat card
+    expect(r.soj.rich).toBe(true);
+    expect(r.soj.desc).toContain('att-type');
+    expect(r.soj.desc).toContain('+1 To All Skills');
+    // item with only a curated one-liner (no per-item stat block) -> ITEM_INFO fallback
+    expect(r.keyHate.rich).toBe(false);
+    expect(r.keyHate.desc).toContain('att-info');
     // unknown -> nothing
     expect(r.bogus.desc).toBe('');
   });
@@ -99,7 +103,7 @@ test.describe('v135 rich hover tooltips (in-game descriptions)', () => {
     expect(sunder.name).toContain('Renewed Black Cleft');
   });
 
-  test('a grail item rendered anywhere shows its ITEM_INFO description on hover (not rich)', async ({ page }) => {
+  test('a grail item rendered anywhere shows its rich ITEM_TIP stat card on hover', async ({ page }) => {
     const r = await page.evaluate(() => {
       (window as any).openDrop('The Stone of Jordan');
       // any data-arttip/data-art-logo element naming SoJ
@@ -111,13 +115,15 @@ test.describe('v135 rich hover tooltips (in-game descriptions)', () => {
         found: true,
         on: tip?.classList.contains('on'),
         rich: tip?.classList.contains('tip-rich'),
-        info: !!tip?.querySelector('.att-info'),
+        type: !!tip?.querySelector('.att-type'),
+        aff: !!tip?.querySelector('.att-aff'),
       };
     });
     if (r.found) {
       expect(r.on).toBe(true);
-      expect(r.rich).toBe(false);
-      expect(r.info).toBe(true);
+      expect(r.rich).toBe(true);
+      expect(r.type).toBe(true);
+      expect(r.aff).toBe(true);
     }
   });
 
