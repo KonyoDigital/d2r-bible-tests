@@ -196,6 +196,28 @@ test.describe('v119 bind super-unique ID cards', () => {
     expect(t).toContain('lightning priest');
   });
 
+  test('binds stays demon-only: the roster note correctly flags the 8 regular minions as Human / NOT bindable (v121)', async ({ page }) => {
+    // the v120 note wrongly said the 8 regular Council minions were "Demon-coded and bindable";
+    // they are Human (per the demon-check bestiary) so Bind Demon cannot bind them. No non-demon
+    // gets card treatment in the binds tab — only the corrected trap clarification remains.
+    const r = await page.evaluate(() => {
+      const sec = document.getElementById('binds-council') as HTMLElement;
+      const txt = sec.textContent || '';
+      return {
+        suLinks: sec.querySelectorAll('.su-link').length, // only the 7 named demon binds
+        noMinionCard: !document.getElementById('council-minion-detail'),
+        cannotBind: /cannot\s+bind/i.test(txt),
+        human: txt.includes('Human'),
+        notOldClaim: !/minions are\s+also\s+Demon-coded and bindable/i.test(txt),
+      };
+    });
+    expect(r.suLinks).toBe(7);
+    expect(r.noMinionCard).toBe(true);
+    expect(r.cannotBind).toBe(true);
+    expect(r.human).toBe(true);
+    expect(r.notOldClaim).toBe(true);
+  });
+
   test('no console errors opening every bind ID card', async ({ page }) => {
     const errs: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
