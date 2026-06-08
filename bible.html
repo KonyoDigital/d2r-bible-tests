@@ -2028,7 +2028,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .codex-card .cx-set-head{ font-family:var(--serif-display); font-weight:600; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--d2-set); margin-bottom:7px; }
 .codex-card .cx-setbonus{ color:var(--d2-set); font-size:12.5px; line-height:1.66; }
 .codex-card .cx-members{ margin-top:10px; }
-.codex-card .cx-member{ font-size:12.5px; color:var(--d2-set); line-height:1.62; }
+.codex-card .cx-member{ font-size:12.5px; color:var(--d2-set); line-height:1.62; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.codex-card .cx-member-art{ display:inline-flex; align-items:center; flex:0 0 auto; }
 .codex-card .cx-member-slot{ color:var(--text-dim); font-size:11px; font-style:italic; }
 .codex-card .cx-note{ font-family:var(--serif-text); font-style:italic; font-size:12.5px; color:var(--text-dim); margin-top:11px; line-height:1.55; }
 </style>
@@ -8140,11 +8141,12 @@ function renderCodexCard(name){
   ].filter(Boolean).map(function(r){return '<span class="cx-req">'+r+'</span>';}).join('');
   var props = (c.props&&c.props.length)?('<div class="cx-props">'+c.props.map(function(p){return '<div class="cx-prop">'+p+'</div>';}).join('')+'</div>'):'';
   var setb = (c.setBonuses&&c.setBonuses.length)?('<div class="cx-setblock"><div class="cx-set-head">'+(c.setName||'Set')+' &middot; '+(c.cat==='set'?'full set bonus':'partial set bonus')+'</div>'+c.setBonuses.map(function(s){return '<div class="cx-setbonus">'+s+'</div>';}).join('')+'</div>'):'';
-  var mem = (c.setMembers&&c.setMembers.length)?('<div class="cx-members"><div class="cx-set-head">Set Items</div>'+c.setMembers.map(function(m){return '<div class="cx-member">'+m.name+(m.slot?' <span class="cx-member-slot">'+m.slot+'</span>':'')+'</div>';}).join('')+'</div>'):'';
+  var _art = (typeof artOr==='function');
+  var mem = (c.setMembers&&c.setMembers.length)?('<div class="cx-members"><div class="cx-set-head">Set Items</div>'+c.setMembers.map(function(m){var lg=_art?artOr(m.name,'','sm'):'';return '<div class="cx-member">'+(lg?'<span class="cx-member-art">'+lg+'</span>':'')+'<span class="cx-member-nm">'+m.name+'</span>'+(m.slot?' <span class="cx-member-slot">'+m.slot+'</span>':'')+'</div>';}).join('')+'</div>'):'';
   var note = c.note?('<div class="cx-note">'+c.note+'</div>'):'';
   return '<div class="codex-card" style="--cx-accent:'+ac+'">'
     +'<div class="cx-head"><span class="cx-rarity">'+rarityLabel+'</span>'
-    +'<span class="cx-name" style="color:'+ac+'">'+title+'</span>'
+    +'<span class="cx-name" style="color:'+ac+'">'+(_art?artOr(title,'','sm'):'')+title+'</span>'
     +((c.base&&c.cat!=='set')?('<span class="cx-base">'+c.base+'</span>'):'')+'</div>'
     +(reqs?('<div class="cx-reqs">'+reqs+'</div>'):'')
     +props+setb+mem+note+'</div>';
