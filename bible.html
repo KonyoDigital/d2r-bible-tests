@@ -10279,6 +10279,12 @@ const _v41_STATUS_PATHS = [
 ];
 
 function _v41_loadStatusScript(idx, cb) {
+  // routine_status.js only exists alongside the LOCAL file:// copies (Konyo's machine).
+  // The deployed https site never serves it, so every path 404s to the SPA HTML
+  // fallback and the browser logs a "Refused to execute script (MIME 'text/html')"
+  // error that the script-tag onerror handler cannot suppress. Off of file://, skip
+  // injection entirely — the routine widget simply shows its idle "— / —" state.
+  if (location.protocol !== 'file:') { cb(null); return; }
   if (idx >= _v41_STATUS_PATHS.length) { cb(null); return; }
   const url = _v41_STATUS_PATHS[idx];
   // Use a fresh script tag so we can retry alternates if one fails
