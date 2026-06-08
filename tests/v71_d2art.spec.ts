@@ -118,7 +118,7 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.src).toMatch(/countess/i);
   });
 
-  test('rune-stash cells show rune icons for mapped runes, name-only for unmapped (Jah)', async ({ page }) => {
+  test('rune-stash cells show rune icons for mapped runes (incl. Jah=runeJo, now verified)', async ({ page }) => {
     await page.click('.tab[data-tab="runes"]');
     await page.waitForTimeout(200);
     const r = await page.evaluate(() => {
@@ -127,14 +127,14 @@ test.describe('v71 d2art artwork layer', () => {
       return {
         istImg: !!istCell?.querySelector('.d2art-img'),
         istSrc: (istCell?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('src') || '',
-        jahImg: !!jahCell?.querySelector('.d2art-img'),   // Jah was unverified → no icon, name only
-        jahName: jahCell?.querySelector('.rs-name')?.textContent?.trim(),
+        jahImg: !!jahCell?.querySelector('.d2art-img'),   // v139: Jah now mapped (runeJo, curl-verified 200)
+        jahSrc: (jahCell?.querySelector('.d2art-img') as HTMLImageElement)?.getAttribute('src') || '',
       };
     });
     expect(r.istImg).toBe(true);
     expect(r.istSrc).toMatch(/runeIst_icon\.png$/);
-    expect(r.jahImg).toBe(false);
-    expect(r.jahName).toBe('Jah');
+    expect(r.jahImg).toBe(true);
+    expect(r.jahSrc).toMatch(/runeJo_icon\.png$/);
   });
 
   test('the material detail card renders artwork for a mapped sunder (Bone Break)', async ({ page }) => {
