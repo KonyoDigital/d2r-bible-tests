@@ -460,6 +460,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .fi-clickable .fi-lab{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
 .fi-clickable:hover .fi-lab::after{content:' ↗';font-size:9px;opacity:.7}
 .fi-ic{font-size:11.5px;line-height:1}
+.fi-ic .d2art-wrap.sm{width:17px;height:17px}
+.fi-ic .d2art-wrap.sm .d2art-img{max-width:17px;max-height:17px}
 .fi-lab{font-weight:700}
 .fi-sep{font-size:9px;opacity:.7;margin:0 -1px}
 .fi-for{font-style:italic;color:var(--text-dim)}
@@ -3911,7 +3913,7 @@ function zoneActNum(z){ const m = (z && z.act || '').match(/Act\s*([1-5])/i); re
 function zoneFeedsInto(z){
   const out = [];
   const a = zoneActNum(z);
-  if (a && ACT_SHARD[a]) out.push({icon:'💎', tone:'shard', label:ACT_SHARD[a] + ' Worldstone Shard', fr:'Sunder Charm'});
+  if (a && ACT_SHARD[a]) out.push({icon:'💎', tone:'shard', label:ACT_SHARD[a] + ' Worldstone Shard', iconName:'Worldstone Shard (' + ACT_SHARD[a] + ')', fr:'Sunder Charm'});
   if (/arcane sanctuary/i.test(z.name)) out.push({icon:'🔑', tone:'key', label:'Key of Hate', fr:'Uber Tristram'});
   if (/halls of (anguish|pain|vaught)/i.test(z.name)) out.push({icon:'🔑', tone:'key', label:'Key of Destruction', fr:'Uber Tristram'});
   return out;
@@ -3921,7 +3923,8 @@ function feedsIntoStripHtml(list){
   return '<div class="feeds-into-strip">' + list.map(f => {
     const has = (typeof findMaterial === 'function') && !!findMaterial(f.label);
     const click = has ? ` onclick="event.stopPropagation();window.openDrop('${(f.label||'').replace(/'/g,"\\'")}')" role="button" tabindex="0"` : '';
-    return `<span class="fi-badge fi-${f.tone}${has?' fi-clickable':''}"${click} title="${has?'open '+f.label+' detail card':f.label+' → '+f.fr}"><span class="fi-ic">${f.icon}</span><span class="fi-lab">${f.label}</span><span class="fi-sep">→</span><span class="fi-for">${f.fr}</span></span>`;
+    const ic = (typeof artOr === 'function') ? artOr(f.iconName || f.label, f.icon, 'sm') : f.icon;
+    return `<span class="fi-badge fi-${f.tone}${has?' fi-clickable':''}"${click} title="${has?'open '+f.label+' detail card':f.label+' → '+f.fr}"><span class="fi-ic">${ic}</span><span class="fi-lab">${f.label}</span><span class="fi-sep">→</span><span class="fi-for">${f.fr}</span></span>`;
   }).join('') + '</div>';
 }
 
