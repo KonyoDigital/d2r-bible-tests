@@ -159,7 +159,9 @@ test.describe('v81 Colossal jewels + statues are searchable + clickable ID cards
     expect(r.allStop).toBe(true);
   });
 
-  test('the glowing Colossal showcase section renders 11 clickable .endgame-relic tiles', async ({ page }) => {
+  test('the glowing Colossal showcase section renders 19 clickable .endgame-relic tiles', async ({ page }) => {
+    // 6 Colossal Ancient Jewels + 5 Colossal Statues + 8 Rainbow Facets (the classic
+    // jewel they outclass, added in v128) = 19 tiles, all routed through openDrop.
     await page.click('.tab[data-tab="ancients"]');
     await page.waitForTimeout(150);
     const r = await page.evaluate(() => {
@@ -171,7 +173,7 @@ test.describe('v81 Colossal jewels + statues are searchable + clickable ID cards
         hasArt: tiles.every((t) => !!t.querySelector('.ct-art')),
       };
     });
-    expect(r.count).toBe(11);
+    expect(r.count).toBe(19);
     expect(r.allGlow).toBe(true);
     expect(r.allRouted).toBe(true);
     expect(r.hasArt).toBe(true);

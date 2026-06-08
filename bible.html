@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Konyo's D2R Farming Bible v43 · finalized</title>
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5;margin:0}
 html{scroll-behavior:smooth}
@@ -125,9 +125,11 @@ table.drops th.sort-desc::after{content:" ↓";font-size:9px;margin-left:3px}
 table.drops th.diff-col,table.drops td.diff-col{text-align:center;font-family:ui-monospace,monospace;font-size:11px}
 table.drops tr.clickable{cursor:pointer}
 table.drops tr.clickable:hover td{background:rgba(212,168,71,.06)}
-table.drops td.item-name{color:var(--text);font-weight:500;min-width:180px}
-table.drops td.item-name.tier-uber{color:var(--uber)}
-table.drops td.item-name.tier-grail{color:var(--grail)}
+table.drops td.item-name{color:var(--text);font-weight:500;min-width:180px;font-family:var(--serif-display),Georgia,serif !important;letter-spacing:.2px}
+/* in-game item-quality name colors (D2R palette): unique gold/tan, set green, rune+material orange */
+table.drops td.item-name.q-unique{color:var(--q-unique)}
+table.drops td.item-name.q-set{color:var(--q-set)}
+table.drops td.item-name.q-rune,table.drops td.item-name.q-material{color:var(--q-orange)}
 table.ref-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:780px}
 table.ref-tbl th,table.ref-tbl td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--border)}
 table.ref-tbl th{color:var(--gold);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.6px;background:var(--surface-3);border-bottom:2px solid var(--border)}
@@ -4341,6 +4343,11 @@ function materialDetailHtml(name){
       ${fromRows}
       ${item.note ? `<div class="zd-row"><span class="zd-k">note</span><span class="zd-v">${item.note}</span></div>` : ''}
     </section>
+    ${catKey==='colossalJewel' && typeof COLOSSAL_JEWELS!=='undefined' ? `<section class="gic-section">
+      <div class="gic-section-title">💎 The 6 jewels — open each ID card</div>
+      <div class="zd-note" style="margin-bottom:8px">Click any variant for its full affix list, source Ancient, and sister jewel. Each is also globally searchable by its own name.</div>
+      <div class="colossal-grid">${COLOSSAL_JEWELS.map(j=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${j.n} ID card" onclick="window.openDrop('${_esc1(j.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(j.n)}')}"><span class="ct-art">${artOr(j.n, '<span class="ct-emoji">'+j.emoji+'</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${j.n}</div><div class="ct-sub">${j.elem} · from Colossal ${j.ancient}</div></div></div>`).join('')}</div>
+    </section>` : ''}
     <section class="gic-section">
       <div class="gic-section-title">🧪 Recipe / use</div>
       <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">${cat.recipe || '—'}</span></div>
@@ -6982,6 +6989,20 @@ function deriveBlocked(item, diff) {
   return null;
 }
 
+// In-game item QUALITY (for D2R-accurate name colors). Distinct from item.tier,
+// which is the bible's grail-rarity bucket (common/high/grail/uber/set/special).
+// Keyed off tier (authoritative) NOT name keywords — names like "Carin Shard",
+// "Blackhand Key", "Nokozan Relic", "Annihilus", "Tyrael's Might" are UNIQUES
+// (gold), only the tier=special event tokens/shards (Keys, Worldstone Shard) are
+// the orange "material" group. set → green, rune → orange, else unique → gold.
+function itemQuality(item) {
+  const n = item.n || "";
+  if (item.tier === "special") return "material";
+  if (item.tier === "set" || /\(set\)|\(set piece\)|\bset\b/i.test(n)) return "set";
+  if (/\brune\b/i.test(n)) return "rune";
+  return "unique";
+}
+
 
 // Build inline SVG sparkline showing cumulative probability over hours
 function sparkline(chance, kph, hoursMax) {
@@ -8462,7 +8483,7 @@ function renderBossCards() {
         }
         return `<td class="diff-col ${dcol} cannot">—</td>`;
       }).join("");
-      const itemNameClass = d.tier === "uber" ? "tier-uber" : d.tier === "grail" ? "tier-grail" : "";
+      const itemNameClass = "q-" + itemQuality(d);
       const starred = wishlist.has(d.n);
       const isOwned = owned.has(d.n);
       const wishCls = starred ? 'wishlist-row' : '';
@@ -9113,6 +9134,12 @@ function renderAidCard(name, opts){
   // %-sources are achievable — don't drop them as "no sources".
   const valid = adj.filter(s => s.adj !== null && (s.adj >= 100 || isPctC(s.chance)));
   valid.sort((a,b) => (hoursForA(a.chance,a.adj,a.kph,0.5)||Infinity) - (hoursForA(b.chance,b.adj,b.kph,0.5)||Infinity));
+  // v87 is a Hell-only view: norm/normTz/nm/nmTz source chips are hidden site-wide
+  // (CSS line ~107). Only render the difficulties the user can actually see/click so
+  // the first chip is never an invisible NM/NORM source. Falls back to all tiers if an
+  // item has no Hell source at all (so the bar is never empty for a reachable item).
+  const _hellOnly = valid.filter(s => s.diffKey === 'hell' || s.diffKey === 'hellTz');
+  const chipSrc = _hellOnly.length ? _hellOnly : valid;
 
   let focus = null;
   if (activeSourceKey) {
@@ -9197,15 +9224,15 @@ function renderAidCard(name, opts){
 
     ${(typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n] && ITEM_CODEX[item.n].setMembers && ITEM_CODEX[item.n].setMembers.length) ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+renderCodexCard(item.n)+'</div>' : ''}
     <div class="aid-tabbar">
-      <div class="aid-tabbar-label">↔ pick your source · ${valid.length} option${valid.length===1?'':'s'} · click any to refocus the panel below</div>
+      <div class="aid-tabbar-label">↔ pick your source · ${chipSrc.length} option${chipSrc.length===1?'':'s'} · click any to refocus the panel below</div>
       <div class="aid-tabbar-chips">
-        ${valid.slice(0,12).map(s => {
+        ${chipSrc.slice(0,12).map(s => {
           const isF = s.bossId===focus.bossId && s.diffKey===focus.diffKey;
           const sH50 = hoursForA(s.chance, s.adj, s.kph, 0.5);
           const schip = {norm:'schip-norm',normTz:'schip-normtz',nm:'schip-nm',nmTz:'schip-nmtz'}[s.diffKey] || '';
           return `<button class="source-chip ${schip}" onclick="setActiveItem('${escName}', '${s.bossId}', '${s.diffKey}')${opts.context==='calc'?';switchTab(\'bosses\');setTimeout(()=>{document.getElementById(\''+s.bossId+'\').scrollIntoView();jumpToBossItem(\''+escName+'\')},100)':''}" ${isF?'data-active="true"':''}>${isF?'⭐ ':''}${s.boss}<span class="chip-chance">${fmt(s.adj)}</span><span class="chip-time">${fmtHours(sH50)}</span>${s.verified?'<span class="chip-verified">🔒</span>':''}</button>`;
         }).join('')}
-        ${valid.length > 12 ? `<span class="aid-tabbar-more">+${valid.length-12} more (see compare table below)</span>` : ''}
+        ${chipSrc.length > 12 ? `<span class="aid-tabbar-more">+${chipSrc.length-12} more (see compare table below)</span>` : ''}
       </div>
     </div>
 

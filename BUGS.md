@@ -192,3 +192,34 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   the spec you think you touched. (3) CI (Routine I) is the backstop, not the gate —
   treat a red scheduled run as a real regression first, re-run the failing spec in
   isolation to rule out suite-tail fatigue (this one reproduced in isolation = real).
+
+## REG-002 — 2026-06-08 · facet showcase + hidden-tier source-chip rank-first
+- **Symptom**: Routine I red (push `a92b308` "Add Rainbow Facet …", inherited by
+  `beda227`). 3 tests: `v81_colossal_jewels` showcase `.endgame-relic` count (was 11),
+  `04_item_routing:44` (click source chip → boss) + `:79` (Esc clears active item).
+- **Caught by**: scheduled CI (shards 1/3 + 3/3). Reproduced locally in isolation
+  (`04:44/79` fail; PASS on parent `c6922e8`) = real, not suite-tail fatigue. NOTE: a
+  concurrent CPU spike made local runs take ~19min — that was load noise, NOT the bug
+  (clean runs are ~10-30s); always sanity-check `uptime` before trusting slow runs.
+- **Root cause (two independent)**:
+  1. v81 — `a92b308` added 8 Rainbow-Facet tiles to `#colossal-showcase` with class
+     `colossal-tile endgame-relic`, so the showcase count went 11→19; the spec hard-
+     asserted `toBe(11)`. (Intended feature, stale test.)
+  2. 04 — LATENT since v87 (`a4d90d8`, "Hell-only view": CSS line ~107 hides
+     `schip-norm/normtz/nm/nmtz` source chips with `display:none !important`). The
+     aid-card chip bar still RENDERED those hidden tiers and ranked them fastest-first
+     (`valid.sort` by hours-to-50%). When a NM-tier source ranked #1 for SoJ/Shako the
+     first `.source-chip` was invisible → Playwright `.first().click()` timed out (a
+     real user couldn't click it either). Surfaced on the `a92b308` CI run.
+- **Fix** (render-only, math untouched): aid-card now builds `chipSrc =` the
+  hell/hellTz subset of `valid` (falls back to all tiers if an item has no Hell
+  source) and renders chips + count + "+N more" from `chipSrc` — so the first chip is
+  always a visible Hell chip. v81 count assertion bumped 11→19 with a comment. New
+  specs `v131_aggregate_jewel_links` (the user-requested 6-jewel links on the aggregate
+  card). 04 7/7, v81 11/11, v128 4/4, v131 3/3, +84 smoke/adjacent green; L_integrity 0.
+- **Prevention**: (1) when a CSS layer HIDES a class of interactive elements, stop
+  RENDERING them too — a hidden-but-present clickable is a latent trap (focus/first-
+  child/keyboard land on it). (2) A spec that hard-asserts a tile/row COUNT must be
+  bumped in lockstep with any feature that adds to that container (v81 ↔ facets, same
+  lesson as v109 ↔ binds in the BUG-above). (3) Sanity-check host load before trusting
+  a slow/failing local run.
