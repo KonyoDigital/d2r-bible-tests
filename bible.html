@@ -10163,7 +10163,20 @@ window._arttipResolve = _arttipResolve;
     function nameOf(el){ return el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || ''; }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
-      var el = e.target.closest && e.target.closest('[data-arttip],[data-art-logo]'); if (!el) return;
+      var el = e.target.closest && e.target.closest('[data-arttip],[data-art-logo],[data-aura-logo]'); if (!el) return;
+      // aura cells: float the enlarged animated aura icon (AURA_ART) + its name.
+      var aura = el.getAttribute('data-aura-logo');
+      if (aura){
+        var au = (typeof AURA_ART !== 'undefined') ? AURA_ART[aura] : '';
+        if (!au) return;
+        cur = el;
+        img.src = au; img.style.display = '';
+        lab.textContent = aura + ' aura';
+        desc.innerHTML = '';
+        tip.classList.remove('tip-rich');
+        move(e); tip.classList.add('on');
+        return;
+      }
       var nm = nameOf(el); if (!nm) return;
       var r = (typeof _arttipResolve==='function') ? _arttipResolve(nm) : { artName:nm, desc:'', rich:false };
       var url = (typeof artUrl==='function') ? (artUrl(nm) || artUrl(r.artName)) : '';
@@ -10176,7 +10189,7 @@ window._arttipResolve = _arttipResolve;
       move(e); tip.classList.add('on');
     });
     document.addEventListener('mousemove', function(e){ if (cur) move(e); });
-    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('[data-arttip],[data-art-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('[data-arttip],[data-art-logo],[data-aura-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit); else arttipInit();
 })();
