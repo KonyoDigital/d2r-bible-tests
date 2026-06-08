@@ -6145,6 +6145,13 @@ const D2IO_ART = {
   "Bone Ash": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Bone_Ash.gif",
   "Rakanishu": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Rakanishu.gif",
   "Bishibosh": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Bishibosh.gif",
+  "Pitspawn Fouldog": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Pitspawn_Fouldog.gif",
+  "Battlemaid Sarina": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Battlemaid_Sarina.gif",
+  "Infector of Souls": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Infector_of_Souls.gif",
+  "Sharptooth Slayer": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Sharptooth_Slayer.gif",
+  "Colenzo the Annihilator": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Colenzo_the_Annihilator.gif",
+  "Ventar the Unholy": "https://diablo2.io/images/avatars/gallery/6.%20Super%20Unique%20Monsters/Ventar_the_Unholy.gif",
+  "Jah": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeJo_icon.png",
   "Ist rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeIst_icon.png",
   "Jah/Ber/Sur rune": "https://diablo2.io/images/avatars/gallery/0.%20Items/runeSur_icon.png",
   "Alma Negra": "https://diablo2.io/styles/zulu/theme/images/items/rondache_graphic.png",
@@ -9718,7 +9725,7 @@ function renderRuneStash(){
   grid.innerHTML = RUNES.map((r) => {
     const c = _runeCount(r.n);
     const esc = r.n.replace(/'/g, "\\'");
-    return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}">
+    return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}" data-arttip="${r.n}">
       ${artOr(r.n, '', 'sm')}
       <span class="rs-name zd-item-click" data-arttip="${r.n}" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${r.n} rune card">${r.n}</span>
       <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
@@ -10689,7 +10696,7 @@ function renderMostWanted(){
       : e.tab ? `mwOpen(null,'${_mwEsc(e.tab)}')` : `mwOpen('${_mwEsc(e.drop || e.n)}')`;
     const rwPanel = isRw ? `<div class="mw-rw">
         <div class="mw-rw-lbl">recipe — click any rune to open its card:</div>
-        ${e.rw.map(r => `<span class="mw-rune-chip" role="button" tabindex="0" onclick="event.stopPropagation();mwOpen('${_mwEsc(r)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();mwOpen('${_mwEsc(r)}');}">${r}</span>`).join("")}
+        ${e.rw.map(r => `<span class="mw-rune-chip" role="button" tabindex="0" data-arttip="${_mwEsc(r)}" onclick="event.stopPropagation();mwOpen('${_mwEsc(r)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();mwOpen('${_mwEsc(r)}');}">${r}</span>`).join("")}
       </div>` : "";
     const aria = isRw ? `aria-expanded="false"` : "";
     return `<li class="mw-row" data-mw="${i}" role="button" tabindex="0" ${aria}
@@ -11162,6 +11169,32 @@ function decorateItemLogos() {
 }
 window.decorateItemLogos = decorateItemLogos;
 _v39_whenReady(decorateItemLogos);
+
+// v139 — platform-wide floating hover-image rollout for super-unique bosses + runes.
+// Every .su-link in the Bind-Demon table opens its bind ID card already; here we ALSO
+// give it the enlarged floating cursor avatar (the verified diablo2.io SU monster gif)
+// via the existing #arttip delegation — but ONLY where artUrl(name) resolves, so the
+// 8 SU without a verified avatar stay a silent no-op (no broken-image, no regression).
+// The name is parsed from onclick="openBindSUByName('NAME')"; existing click routing is
+// untouched (data-arttip is purely additive, pointer-events:none / click-through tip).
+function decorateSULinks() {
+  if (typeof artUrl !== 'function') return 0;
+  let n = 0;
+  document.querySelectorAll('.su-link').forEach((el) => {
+    if (el.hasAttribute('data-arttip')) return;
+    const oc = el.getAttribute('onclick') || '';
+    const m = oc.match(/openBindSUByName\(\s*'([^']+)'/);
+    const name = m ? m[1].replace(/\\'/g, "'") : '';
+    if (!name || !artUrl(name)) return; // only verified-avatar SU — no empty-tip regression
+    el.setAttribute('data-arttip', name);
+    n++;
+  });
+  return n;
+}
+window.decorateSULinks = decorateSULinks;
+_v39_whenReady(decorateSULinks);
+// (rune hover images are tagged at render-template level on .rune-stash-cell +
+//  .mw-rune-chip via data-arttip, since those elements render dynamically.)
 
 // Hook the MF slider oninput chain
 _v39_whenReady(() => {
