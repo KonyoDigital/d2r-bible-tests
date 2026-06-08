@@ -8,13 +8,13 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // This spec ratchets two things so a central-helper regression (artOr / artUrl /
 // nameLogo / decorateItemLogos — the REG-001 blast-radius class) can't silently
 // drop art coverage:
-//   1. >= 296 of 312 grid items resolve a verified diablo2.io art URL.
+//   1. >= 297 of 312 grid items resolve a verified diablo2.io art URL.
 //   2. EVERY unmapped item is on the KNOWN allowlist — 12 set-aggregate pseudo
-//      entries (no single-item art), 2 runeword/parenthetical names, and the 2
+//      entries (no single-item art), 1 runeword/parenthetical name, and the 2
 //      diablo2.io-index-skipped uniques (Polaris Spear, The Scourge). Adding a
 //      brand-new unmapped item fails this test (forces a deliberate decision).
 
-// These 16 are legitimately art-less or intentionally skipped (ZERO fabrication —
+// These 15 are legitimately art-less or intentionally skipped (ZERO fabrication —
 // none of them have a confidently-verified single diablo2.io graphic URL).
 const KNOWN_UNMAPPED = [
   // set-aggregate pseudo entries (a "set (any piece)" has no one item image)
@@ -35,8 +35,6 @@ const KNOWN_UNMAPPED = [
   // uniques not confidently present in the diablo2.io index (memory: skipped)
   'Polaris Spear',
   'The Scourge',
-  // unique with a bible name-spelling variant ("Verdugo's" vs game "Verdungo's")
-  'Verdugo\'s Hearty Cord',
 ];
 
 test.describe('v144 art coverage floor', () => {
@@ -56,7 +54,7 @@ test.describe('v144 art coverage floor', () => {
       return { total: names.length, mapped, unmappedCount: unmapped.length, unexpected };
     }, KNOWN_UNMAPPED);
     expect(r.total).toBe(312);
-    expect(r.mapped).toBeGreaterThanOrEqual(296);
+    expect(r.mapped).toBeGreaterThanOrEqual(297);
     expect(r.unexpected).toEqual([]);          // no NEW unmapped item slipped in
     expect(r.unmappedCount).toBeLessThanOrEqual(KNOWN_UNMAPPED.length);
   });
@@ -77,7 +75,7 @@ test.describe('v144 art coverage floor', () => {
       }
       return { checked, badAlt, missingWrap, missingAria };
     });
-    expect(r.checked).toBeGreaterThanOrEqual(296);
+    expect(r.checked).toBeGreaterThanOrEqual(297);
     expect(r.missingWrap).toBe(0);
     expect(r.missingAria).toBe(0);
     expect(r.badAlt).toBe(0);
