@@ -3652,7 +3652,54 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="cube-row"><div class="cube-input">Stone of Jordan + ring + amulet</div><div class="cube-arrow">→</div><div class="cube-output">unique ring (very rare RNG)</div></div>
 </div>
   </div>
-
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🔨 Crafted-item recipes <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
+  <div class="lead">Crafting cubes a <strong>magic (blue) base</strong> + a <strong>perfect gem</strong> + <strong>any jewel</strong> + a rune into a <strong>crafted rare</strong>. The <strong>perfect gem decides the craft type</strong> (and the 3 guaranteed mods) — the <strong>rune only varies by item slot and does NOT change the result</strong>, so match whatever slot-rune your in-game recipe lists. On top of the 3 guaranteed mods you roll <strong>1–4 random rare affixes</strong>.</div>
+  <div class="info"><strong>The four crafts — the perfect gem is what matters:</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Craft</th><th>Perfect gem</th><th>3 guaranteed mods</th><th>Best slots</th></tr></thead><tbody>
+    <tr><td class="item-name" style="color:var(--best)">Caster ⭐</td><td>Perfect Amethyst</td><td><strong>Faster Cast Rate</strong> + Regenerate Mana 4–10% + 10–20 Mana</td><td>Amulet · Ring · Belt · Gloves</td></tr>
+    <tr><td class="item-name">Blood</td><td>Perfect Ruby</td><td>1–3% Life stolen + 10–20 Life + (Crushing Blow / Open Wounds)</td><td>Ring · Amulet · Gloves · Belt</td></tr>
+    <tr><td class="item-name">Safety</td><td>Perfect Emerald</td><td>Magic Damage Reduced + Damage Reduced + (resists / %&nbsp;Enhanced Defense)</td><td>Amulet · Gloves · Shield · Boots</td></tr>
+    <tr><td class="item-name">Hit Power</td><td>Perfect Sapphire</td><td>5% CtC Lvl-4 Frost Nova when struck + Attacker Takes Damage + (Str / Dex)</td><td>Gloves · Helm · Boots · Shield</td></tr>
+  </tbody></table></div>
+  <div class="info" style="margin-top:12px"><strong>Roll quality — craft on a Hell base, at high clvl:</strong></div>
+  <div class="lead"><code>crafted ilvl = int(0.5 × clvl) + int(0.5 × base ilvl)</code> (cap 99). A high-ilvl base crafted by a high-level character unlocks the most random affixes — an <strong>ilvl 71+</strong> result can roll the full <strong>4 extra affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; the rune is the cheapest of the recipe. <strong>Reroll the same recipe</strong> until the random affixes land where you want them.</div>
+  <div class="success"><strong>For Konyo (Warlock):</strong> <strong style="color:var(--best)">Caster</strong> is your craft — a crafted <strong>amulet</strong> or <strong>ring</strong> (Perfect Amethyst) guarantees <strong>FCR + mana</strong>, the cheapest way to push Echoing Strike toward its cast breakpoints while you hunt the unique upgrades. Pair this with the <strong>⚡ Breakpoints</strong> section below to know exactly how much FCR you still need.</div>
+  <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg · Crafted Items (vanilla D2R mechanics — recipes/mods are base-game; Reign of the Warlock may retune affix pools, verify in-game).</p>
+  </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">⚡ Breakpoints — FCR / FHR <span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden>
+  <div class="lead">D2R runs animations at <strong>25 frames/sec</strong>, and an animation always takes a <strong>whole number of frames</strong>. <strong>Faster Cast Rate (FCR)</strong> and <strong>Faster Hit Recovery (FHR)</strong> cut a frame off only at fixed <strong>breakpoint</strong> thresholds — every % between two breakpoints is <strong>wasted</strong> until you reach the next one. So you don't stack FCR endlessly; you stack to the next breakpoint and stop.</div>
+  <div class="warning"><strong>RotW caveat — IMPORTANT:</strong> the tables below are the <strong>canonical vanilla Sorceress (caster) breakpoints</strong> — the right reference for a cast build. <strong>Reign of the Warlock's base animation may differ.</strong> Treat these as a <strong>starting reference</strong>: count your own cast/recovery frames in-game (or confirm the Warlock's base class) before committing gear. Your firsthand RotW timing overrides any cell here.</div>
+  <div class="info" style="margin-top:10px"><strong>Faster Cast Rate — the caster breakpoints:</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>FCR&nbsp;%</th><th>Cast frames</th><th>Note</th></tr></thead><tbody>
+    <tr><td>0</td><td>13</td><td>unbuffed</td></tr>
+    <tr><td class="item-name">9</td><td>12</td><td></td></tr>
+    <tr><td class="item-name">15</td><td>11</td><td></td></tr>
+    <tr><td class="item-name">20</td><td>10</td><td></td></tr>
+    <tr><td class="item-name" style="color:var(--best)">37</td><td>9</td><td><strong style="color:var(--best)">solid budget target</strong></td></tr>
+    <tr><td class="item-name" style="color:var(--best)">63</td><td>8</td><td><strong style="color:var(--best)">the standard caster goal</strong></td></tr>
+    <tr><td class="item-name">105</td><td>7</td><td>fast-cast</td></tr>
+    <tr><td class="item-name">200</td><td>6</td><td>max (200 FCR is the last useful point)</td></tr>
+  </tbody></table></div>
+  <div class="info" style="margin-top:12px"><strong>Faster Hit Recovery — stops you getting stun-locked:</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>FHR&nbsp;%</th><th>Recovery frames</th></tr></thead><tbody>
+    <tr><td>0</td><td>15</td></tr>
+    <tr><td class="item-name">5</td><td>14</td></tr>
+    <tr><td class="item-name">9</td><td>13</td></tr>
+    <tr><td class="item-name">14</td><td>12</td></tr>
+    <tr><td class="item-name">20</td><td>11</td></tr>
+    <tr><td class="item-name">30</td><td>10</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">42</td><td>9</td></tr>
+    <tr><td class="item-name">60</td><td>8</td></tr>
+    <tr><td class="item-name">86</td><td>7</td></tr>
+    <tr><td class="item-name">142</td><td>6</td></tr>
+    <tr><td class="item-name">280</td><td>5</td></tr>
+  </tbody></table></div>
+  <div class="info"><strong>The other two, briefly:</strong> <strong>Faster Run/Walk (FRW)</strong> has breakpoints too but the gains are small — most players just take what their boots/gear give. <strong>IAS / weapon speed</strong> matters for <em>melee</em> attack speed and is highly weapon-dependent (it's not a flat table) — largely irrelevant to a cast build. <strong>Faster Block Rate (FBR)</strong> only applies if you wear a shield and actively hold block; a caster usually skips it.</div>
+  <div class="success"><strong>For Konyo (Warlock):</strong> aim for <strong style="color:var(--best)">63% FCR (8-frame)</strong> as the standard caster goal, or <strong style="color:var(--best)">37% (9-frame)</strong> on a budget — assuming the Warlock casts on the Sorceress table (verify in-game). The cheapest way there: a <strong>Caster-crafted amulet / ring</strong> (🔨 section above, Perfect Amethyst guarantees FCR) plus FCR uniques (Magefist gloves, an FCR ring, a +FCR caster ammy). Hit the breakpoint, then stop stacking FCR and pour the rest into mana / resists.</div>
+  <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg · Breakpoints &amp; Animations (vanilla D2R Sorceress caster tables). RotW Warlock timing to be confirmed in-game.</p>
+  </div>
 <h2 class="sec-h collapsed" onclick="toggleSec(this)">📜 Tristram Stones — Cain rescue rerun <span class="sec-chev">▾</span></h2>
 <div class="sec-body" hidden>
 <div class="lead">After Cain is rescued in each act, you can cube 4 stones from Act bosses for a <strong>+1 socket weapon</strong> at Larzuk per act. Each Cain visit = 1 cube. Most ignore this past Act 1.</div>
