@@ -6408,7 +6408,37 @@ const D2IO_ART = {
   "Protector's Stone": "https://diablo2.io/styles/zulu/theme/images/items/colossal_jewel2_graphic.png",
   "Guardian's Thunder": "https://diablo2.io/styles/zulu/theme/images/items/colossal_jewel3_graphic.png",
   "Guardian's Light": "https://diablo2.io/styles/zulu/theme/images/items/colossal_jewel3_graphic.png",
-  "Colossal Ancient Jewels": "https://diablo2.io/styles/zulu/theme/images/items/colossal_jewel1_graphic.png"
+  "Colossal Ancient Jewels": "https://diablo2.io/styles/zulu/theme/images/items/colossal_jewel1_graphic.png",
+  // Set-member icons for the codex "Set Items" sub-list (artOr(m.name) at render).
+  // Each URL scraped from the item's own diablo2.io page + auto-verified HTTP 200 image/png
+  // on 2026-06-08. diablo2.io keys some pieces by their base-item sprite (the real in-game
+  // inventory graphic for that slot), so it is correct verified art.
+  "Aldur's Stony Gaze": "https://diablo2.io/styles/zulu/theme/images/items/aldursstoneygaze_graphic.png",
+  "Cow King's Hide": "https://diablo2.io/styles/zulu/theme/images/items/studdedleather_graphic.png",
+  "Cow King's Hoofs": "https://diablo2.io/styles/zulu/theme/images/items/heavyboots_graphic.png",
+  "Cow King's Horns": "https://diablo2.io/styles/zulu/theme/images/items/cap_graphic.png",
+  "Griswolds's Redemption": "https://diablo2.io/styles/zulu/theme/images/items/griswoldsredemption_graphic.png",
+  "Hwanin's Justice": "https://diablo2.io/styles/zulu/theme/images/items/voulge_graphic.png",
+  "Hwanin's Refuge": "https://diablo2.io/styles/zulu/theme/images/items/scalemail_graphic.png",
+  "Immortal King's Detail": "https://diablo2.io/styles/zulu/theme/images/items/girdle_graphic.png",
+  "Immortal King's Forge": "https://diablo2.io/styles/zulu/theme/images/items/gauntlets_graphic.png",
+  "Immortal King's Pillar": "https://diablo2.io/styles/zulu/theme/images/items/plateboots_graphic.png",
+  "Immortal King's Soul Cage": "https://diablo2.io/styles/zulu/theme/images/items/immortalsoulcage_graphic.png",
+  "Immortal King's Stone Crusher": "https://diablo2.io/styles/zulu/theme/images/items/maul_graphic.png",
+  "Immortal King's Will": "https://diablo2.io/styles/zulu/theme/images/items/immortalwill_graphic.png",
+  "Naj's Light Plate": "https://diablo2.io/styles/zulu/theme/images/items/platemail_graphic.png",
+  "Naj's Puzzler": "https://diablo2.io/styles/zulu/theme/images/items/lazarusspire_graphic.png",
+  "Sigon's Gage": "https://diablo2.io/styles/zulu/theme/images/items/sigonsgauntlets_graphic.png",
+  "Sigon's Sabot": "https://diablo2.io/styles/zulu/theme/images/items/sigonsgreaves_graphic.png",
+  "Tal Rasha's Adjudication": "https://diablo2.io/styles/zulu/theme/images/items/amu2_graphic.png",
+  "Tal Rasha's Fine-Spun Cloth": "https://diablo2.io/styles/zulu/theme/images/items/talrashasfine-spuncloth_graphic.png",
+  "Tal Rasha's Horadric Crest": "https://diablo2.io/styles/zulu/theme/images/items/mask_graphic.png",
+  "Trang-Oul's Claws": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsclaws_graphic.png",
+  "Trang-Oul's Girth": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsgirth_graphic.png",
+  "Trang-Oul's Guise": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsguise_graphic.png",
+  "Trang-Oul's Scales": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsscales_graphic.png",
+  "Trang-Oul's Wing": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulswing_graphic.png",
+  "Wihtstan's Guard": "https://diablo2.io/styles/zulu/theme/images/items/whitstansguard_graphic.png"
 };
 window.D2IO_ART = D2IO_ART;
 function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
