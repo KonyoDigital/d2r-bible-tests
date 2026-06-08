@@ -161,9 +161,9 @@ test.describe('v124 Pandemonium unify + top-3 bind-affix podium', () => {
     expect(r.verified).toBe(true);
   });
 
-  test("a derived card (Hephasto) shows type + rerollable line but NO fabricated immunities", async ({ page }) => {
+  test("a still-derived card (Bremm Sparkfist) shows type + rerollable line but NO fabricated immunities", async ({ page }) => {
     const r = await page.evaluate(() => {
-      const b = (window as any).BIND_SU.find((x: any) => x.name === 'Hephasto the Armorer');
+      const b = (window as any).BIND_SU.find((x: any) => x.name === 'Bremm Sparkfist');
       const html = (window as any).bindSUDetailHtml(b);
       const wrap = document.createElement('div');
       wrap.innerHTML = html;
@@ -183,6 +183,45 @@ test.describe('v124 Pandemonium unify + top-3 bind-affix podium', () => {
     expect(r.auraEnchanted).toBe(true);
     expect(r.noImmLine).toBe(true);
     expect(r.cap).toContain("vary per spawn");
+  });
+
+  test("Hephasto's bind card renders his screenshot-verified TZ spawn (Fanaticism + Physical immune)", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const b = (window as any).BIND_SU.find((x: any) => x.name === 'Hephasto the Armorer');
+      const html = (window as any).bindSUDetailHtml(b);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const bar = wrap.querySelector('.su-hpbar-sec .hpbar');
+      const title = (bar?.querySelector('.hpbar-title')?.textContent || '').trim();
+      const mods = bar?.querySelector('.hpbar-mods')?.textContent || '';
+      const imm = bar?.querySelector('.hpbar-imm')?.textContent || '';
+      const cap = wrap.querySelector('.su-hpbar-sec .hpbar-cap')?.textContent || '';
+      return {
+        present: !!bar,
+        title,
+        spectralHit: mods.includes('Spectral Hit'),
+        extraStrong: mods.includes('Extra Strong'),
+        stoneSkin: mods.includes('Stone Skin'),
+        extraFast: mods.includes('Extra Fast'),
+        auraEnchanted: mods.includes('Aura Enchanted'),
+        immPhys: imm.includes('Immune to Physical'),
+        // verified, but honestly labelled as a per-game-variable random-aura spawn
+        verified: cap.includes('screenshot-verified'),
+        fanaticism: cap.includes('Fanaticism'),
+        reRolls: cap.includes('re-roll'),
+      };
+    });
+    expect(r.present).toBe(true);
+    expect(r.title).toBe('Hephasto the Armorer');
+    expect(r.spectralHit).toBe(true);
+    expect(r.extraStrong).toBe(true);
+    expect(r.stoneSkin).toBe(true);
+    expect(r.extraFast).toBe(true);
+    expect(r.auraEnchanted).toBe(true);
+    expect(r.immPhys).toBe(true);
+    expect(r.verified).toBe(true);
+    expect(r.fanaticism).toBe(true);
+    expect(r.reRolls).toBe(true);
   });
 
   test('the top-3 immunity section renders 3 ranked profiles, phys+fire is #1/S', async ({ page }) => {

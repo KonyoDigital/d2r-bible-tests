@@ -253,9 +253,12 @@ h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-
 .statue-card{background:var(--surface-2);border:2px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;position:relative}
 .statue-card:hover{background:var(--surface-3);border-color:var(--terror)}
 .statue-card.collected{background:linear-gradient(180deg,rgba(102,255,136,.12),rgba(102,255,136,.04));border-color:var(--best)}
-.statue-card.collected::after{content:"✓";position:absolute;top:6px;right:8px;color:var(--best);font-size:16px;font-weight:700}
-.statue-card-name{font-size:13px;color:var(--gold-bright);font-weight:600}
+.statue-check{position:absolute;top:6px;right:8px;width:21px;height:21px;border-radius:50%;border:2px solid var(--border);background:var(--surface-3);color:var(--best);font-size:13px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s;z-index:2}
+.statue-check:hover{border-color:var(--best);transform:scale(1.12)}
+.statue-card.collected .statue-check{border-color:var(--best);background:rgba(102,255,136,.18)}
+.statue-card-name{font-size:13px;color:var(--gold-bright);font-weight:600;padding-right:26px}
 .statue-card-from{font-size:10px;color:var(--text-muted);margin-top:4px}
+.statue-card-from.zd-item-click:hover span{color:var(--gold-bright)}
 .statue-progress{background:var(--surface-2);border-radius:6px;padding:10px 14px;margin:8px 0;display:flex;align-items:center;gap:12px}
 .statue-progress-bar{flex:1;height:12px;background:var(--surface-3);border-radius:6px;overflow:hidden;position:relative}
 .statue-progress-fill{height:100%;background:linear-gradient(90deg,var(--best),var(--gold-bright));border-radius:6px;transition:width .3s ease}
@@ -726,6 +729,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .at3-rank-1 .at3-name{color:var(--best)}
 .at3-why{font-family:var(--serif-text);font-size:11.5px;font-style:italic;color:var(--text-dim);line-height:1.4}
 .at3-tier{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-family:var(--serif-display);font-weight:700;font-size:15px}
+/* expandable full bind-affix pool (the whole Arreat Summit boss-modifier list) */
+.baf-all{margin:2px 0 12px}
+.baf-all>summary{list-style:none;cursor:pointer;font-family:var(--serif-display);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-dim);text-align:center;padding:8px 12px;border:1px dashed rgba(212,168,71,.3);border-radius:10px;background:rgba(212,168,71,.04);transition:color .18s,border-color .18s}
+.baf-all>summary::-webkit-details-marker{display:none}
+.baf-all>summary:hover{color:var(--gold-bright);border-color:rgba(212,168,71,.55)}
+.baf-all[open]>summary{color:var(--gold-bright);margin-bottom:8px}
+.baf-all .at3-name{font-size:15px}
+.baf-all .at3-why{font-size:11px}
+.baf-tier-S{color:var(--best);border-color:var(--best)}
+.baf-tier-A{color:var(--gold-bright);border-color:var(--gold-dim)}
+.baf-tier-B{color:#8fd0ff;border-color:rgba(143,208,255,.5)}
+.baf-tier-C{color:#c9b074;border-color:rgba(201,176,116,.5)}
+.baf-tier-D{color:#9a6b6b;border-color:rgba(154,107,107,.5)}
 /* in-game health-bar replica — the exact attribute banner a super-unique shows */
 .hpbar{max-width:560px;margin:12px auto 3px;padding:0 0 9px;background:linear-gradient(180deg,rgba(20,16,12,.94),rgba(9,7,5,.9));border:1px solid rgba(0,0,0,.6);border-radius:5px;box-shadow:inset 0 0 42px rgba(0,0,0,.72),0 2px 12px rgba(0,0,0,.5);text-align:center;font-family:var(--serif-display)}
 .hpbar-title{display:block;margin:0 auto 7px;padding:5px 22px;background:linear-gradient(180deg,#5c1515,#380c0c);border-bottom:1px solid rgba(0,0,0,.5);color:#d9c27a;font-size:15px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.85);border-radius:5px 5px 0 0}
@@ -2637,14 +2653,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
   <h2 class="sec-h statue-head collapsed" onclick="toggleSec(this)" style="display:flex;align-items:center;gap:9px"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
-  <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → Colossal Summit. <span class="zd-item-click" data-art-logo="Colossal Ancient Statue" data-art-glyph="📋" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Statue')">open the Colossal Ancient Statue ID card →</span></div>
+  <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span>. <span class="zd-item-click" data-art-logo="Colossal Ancient Statue" data-art-glyph="📋" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Statue')">open the Colossal Ancient Statue ID card →</span></div>
   <div class="statue-progress">
     <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Progress:</span>
     <div class="statue-progress-bar"><div class="statue-progress-fill" id="statue-fill" style="width:0%"></div></div>
     <span class="statue-progress-text" id="statue-text">0 / 5</span>
   </div>
   <div class="statue-tracker" id="statue-tracker"></div>
-  <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <strong>Colossal Summit</strong> to summon the <strong>Colossal Ancients</strong> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" data-art-logo="Colossal Ancient Jewels" data-art-glyph="💎" style="color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></div>
+  <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span> to summon the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancients')">Colossal Ancients →</span> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" data-art-logo="Colossal Ancient Jewels" data-art-glyph="💎" style="color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></div>
   </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">💧 Essences <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
@@ -2889,7 +2905,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="ec-chevron">▾</div>
     </div>
     <div class="event-card-body" hidden>
-      <div class="lead">The full RotW pinnacle index — cube 5 <strong>Statues</strong> (terrorized Hell act bosses) → Colossal Summit → beat the Colossal Ancients → keep the <strong>Jewel</strong> matching the Ancient killed last. Tap any tile for its full ID card.</div>
+      <div class="lead">The full RotW pinnacle index — cube 5 <strong>Statues</strong> (terrorized Hell act bosses) → <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="event.stopPropagation();openDrop('Colossal Summit')">Colossal Summit →</span> → beat the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="event.stopPropagation();openDrop('Colossal Ancients')">Colossal Ancients →</span> → keep the <strong>Jewel</strong> matching the Ancient killed last. Tap any tile for its full ID card.</div>
       <div id="colossal-showcase"></div>
     </div>
   </div>
@@ -3662,6 +3678,87 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         </div>
       </div>
     </div>
+    <details class="baf-all">
+      <summary>▾ See the full bind-affix pool — all 12 ranked (tap to expand)</summary>
+      <div class="aura-top3" style="margin-top:0">
+        <div class="at3-head">★ Every super-unique boss modifier, ranked for a bind ★</div>
+        <div class="at3-list">
+          <div class="at3-row at3-rank-1">
+            <span class="at3-rank">1</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">💪</span>
+            <span class="at3-main"><span class="at3-name">Extra Strong</span><span class="at3-why">×2.5 physical damage — the single biggest pet-DPS multiplier in the pool, stacking multiplicatively with your demon's own boosts. The roll you reroll for.</span></span>
+            <span class="at3-tier baf-tier-S">S</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">2</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🩸</span>
+            <span class="at3-main"><span class="at3-name">Cursed</span><span class="at3-why">Its hits cast Amplify Damage — −100% enemy physical resist and it strips Physical Immunity, multiplying both your demon's hits and your own.</span></span>
+            <span class="at3-tier baf-tier-A">A</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">3</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">⚡</span>
+            <span class="at3-main"><span class="at3-name">Extra Fast</span><span class="at3-why">+25% attack speed and faster movement — more hits per second, and the demon keeps pace with you between packs instead of lagging behind.</span></span>
+            <span class="at3-tier baf-tier-A">A</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">4</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">✨</span>
+            <span class="at3-main"><span class="at3-name">Aura Enchanted</span><span class="at3-why">The rerollable aura line itself — lands on Fanaticism / Holy Freeze / Concentration / Vigor / Thorns. Fanaticism is the jackpot (see the ranked aura table above).</span></span>
+            <span class="at3-tier baf-tier-A">A</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">5</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">❄️</span>
+            <span class="at3-main"><span class="at3-name">Cold Enchanted</span><span class="at3-why">Bonus cold damage on the demon's hits, and its cold chills &amp; slows whatever it touches — a little extra damage plus genuine crowd-control utility.</span></span>
+            <span class="at3-tier baf-tier-B">B</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">6</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🌈</span>
+            <span class="at3-main"><span class="at3-name">Spectral Hit</span><span class="at3-why">Each swing adds a random element of bonus damage — free extra damage on top of the demon's physical, and it helps chip immunes.</span></span>
+            <span class="at3-tier baf-tier-B">B</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">7</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🔥</span>
+            <span class="at3-main"><span class="at3-name">Fire Enchanted</span><span class="at3-why">Bonus fire damage on hits + a fire burst when the demon scores a kill, plus a touch of extra resist. Modest, but never a wasted roll.</span></span>
+            <span class="at3-tier baf-tier-B">B</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">8</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">⚡</span>
+            <span class="at3-main"><span class="at3-name">Lightning Enchanted</span><span class="at3-why">Releases Charged Bolts when the demon is struck and on a kill — a small spray of extra lightning. Minor, but harmless padding damage.</span></span>
+            <span class="at3-tier baf-tier-B">B</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">9</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🪨</span>
+            <span class="at3-main"><span class="at3-name">Stone Skin</span><span class="at3-why">Greatly increased defense + physical-damage reduction — no offense, but a noticeably tankier, longer-living pet. A solid survival bonus roll.</span></span>
+            <span class="at3-tier baf-tier-C">C</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">10</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🛡️</span>
+            <span class="at3-main"><span class="at3-name">Magic Resistant</span><span class="at3-why">Boosted elemental resistances on the demon — pure survivability against caster packs. Fine, but it does nothing for your damage.</span></span>
+            <span class="at3-tier baf-tier-C">C</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">11</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🎯</span>
+            <span class="at3-main"><span class="at3-name">Multiple Shots</span><span class="at3-why">Fires a spread of missiles — only does anything on a ranged attacker, so on a melee bound demon it's effectively a dead roll. Reroll.</span></span>
+            <span class="at3-tier baf-tier-D">D</span>
+          </div>
+          <div class="at3-row">
+            <span class="at3-rank">12</span>
+            <span class="at3-art" style="width:38px;justify-content:center;font-size:25px;line-height:1">🌀</span>
+            <span class="at3-main"><span class="at3-name">Mana Burn · Teleportation</span><span class="at3-why">Mana Burn drains enemy mana (worthless for a pet) and Teleportation makes the demon blink around erratically, losing your packs. Both are reroll-now.</span></span>
+            <span class="at3-tier baf-tier-D">D</span>
+          </div>
+        </div>
+      </div>
+      <div class="info" style="margin-top:8px">Effects per the <em>Arreat Summit</em> boss-modifier tables — a bound super-unique keeps whatever modifiers it spawned with and turns them on <em>your</em> enemies. The top 3 are the only damage keepers; everything B-and-below is a bonus-at-best, D is an outright reroll.</div>
+    </details>
     <div class="info" style="margin-top:9px"><strong>Honorable mentions:</strong> <strong>Stone Skin</strong> (tankier, longer-living pet) and <strong>Spectral Hit</strong> (free random elemental on every swing) are fine bonus rolls. <strong>Avoid:</strong> Mana Burn and Teleportation do nothing useful for a bound pet.</div>
     <div class="success" style="margin-top:9px"><strong>Best survival rolls:</strong> because your bound demon is a <em>pet</em>, its <strong>immunities</strong> are pure survivability — an <strong style="color:#66ccff">Immune-to-Physical</strong> demon is near-unkillable and <strong style="color:#66ccff">Immune-to-Cold</strong> can't be frozen. <strong>The dream bind:</strong> Fanaticism aura + Extra Strong + a Physical or Cold immunity = a hard-hitting pet that simply won't die.</div>
     <div id="bindaura-detail" class="su-detail" hidden></div>
@@ -4366,6 +4463,90 @@ function colossalStatueDetailHtml(name){
   </div>`;
 }
 window.colossalStatueDetailHtml = colossalStatueDetailHtml;
+// Aggregate pinnacle-chain cards. "Colossal Summit" (the cube token built from the
+// 5 statues) and "Colossal Ancients" (the 3-boss pinnacle fight) are NOT individual
+// drops — they're the two steps that link the statues to the jewels. Both render a
+// golden enriched ID card from the verified RotW chain (GAME_RULES, Maxroll-sourced).
+function isColossalSummit(name){ return _norm(name)===_norm('Colossal Summit'); }
+function isColossalAncients(name){ const q=_norm(name); return q===_norm('Colossal Ancients')||q===_norm('Colossal Ancient'); }
+window.isColossalSummit = isColossalSummit;
+window.isColossalAncients = isColossalAncients;
+function colossalSummitDetailHtml(){
+  const statueChips = COLOSSAL_STATUES.map(s=>`<span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(s.n)}')">${s.n} →</span>`).join(' · ');
+  return `<div class="gic-card material-card colossal-card colossal-summit-card">
+    <header class="gic-header">
+      ${artOr('Colossal Summit', `<span class="gic-emoji">🗻</span>`, 'lg')}
+      <div class="gic-id-block">
+        <h2 class="gic-name">Colossal Summit <span class="gic-grail-badge" style="background:linear-gradient(135deg,#7a5a2a,#3a2a10);color:#ffe9b8">Cube token · portal key</span></h2>
+        <div class="gic-subtitle">The RotW pinnacle token. Cube all 5 Colossal Statues to forge it — using it in Act 5 tears open the red portal to the Colossal Ancients. No equip stats; it IS the gate.</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">built from: 5 statues</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">opens → Colossal Ancients</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">🧪 The recipe</div>
+      <div class="zd-row"><span class="zd-k">cube</span><span class="zd-v">All 5 Colossal Statues → <strong>Colossal Summit</strong></span></div>
+      <div class="zd-row"><span class="zd-k">the 5 statues</span><span class="zd-v">${statueChips}</span></div>
+      <div class="zd-row"><span class="zd-k">where</span><span class="zd-v">Act 5 (Harrogath) — use the Summit to open the <strong style="color:var(--uber)">red portal</strong></span></div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">🚪 What it opens</div>
+      <div class="zd-row"><span class="zd-k">portal leads to</span><span class="zd-v"><span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancients')">the Colossal Ancients →</span> — the buffed Talic / Korlic / Madawc pinnacle fight</span></div>
+      <div class="zd-row"><span class="zd-k">reward</span><span class="zd-v">beat them → keep the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient killed <strong>last</strong></span></div>
+    </section>
+    <div class="zd-note">⚠ The Summit is a one-shot consumable cube token, not equipment and not part of the 312-item grail count. Each run needs a fresh set of 5 statues. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
+  </div>`;
+}
+window.colossalSummitDetailHtml = colossalSummitDetailHtml;
+function colossalAncientsDetailHtml(){
+  const ancients = [
+    {n:'Talic',  id:'talic',  style:'sword &amp; shield · Whirlwind', drops:['Defender\'s Fire','Defender\'s Bile'], dcol:'var(--hell)'},
+    {n:'Korlic', id:'korlic', style:'polearm · Leap Attack',          drops:['Protector\'s Frost','Protector\'s Stone'], dcol:'#6688ff'},
+    {n:'Madawc', id:'madawc', style:'dual throwing axes · caster',    drops:['Guardian\'s Thunder','Guardian\'s Light'], dcol:'var(--nm)'},
+  ];
+  const rows = ancients.map(a=>{
+    const dl = a.drops.map(d=>`<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(d)}')">${d} →</span>`).join(' / ');
+    return `<div class="zd-row"><span class="zd-k"><span class="zd-item-click" style="cursor:pointer;color:${a.dcol};font-weight:700" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${a.id}')">${a.n} →</span></span><span class="zd-v"><span style="color:var(--text-dim)">${a.style}</span> · drops (by last kill): ${dl}</span></div>`;
+  }).join('');
+  return `<div class="gic-card material-card colossal-card colossal-ancients-card">
+    <header class="gic-header">
+      ${artOr('Colossal Ancients', `<span class="gic-emoji">⚡</span>`, 'lg')}
+      <div class="gic-id-block">
+        <h2 class="gic-name">Colossal Ancients <span class="gic-grail-badge" style="background:linear-gradient(135deg,#5a3a7a,#2a1545);color:#e9d0ff">Pinnacle fight · 3 bosses</span></h2>
+        <div class="gic-subtitle">The RotW pinnacle. Massively buffed Ancient Barbarians — Talic, Korlic &amp; Madawc — fought all at once. Beat them to claim a lvl-75 Colossal Ancient Jewel.</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">opened by: Colossal Summit</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">drops → Colossal Jewels (ilvl 75)</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">🧪 How to reach the fight</div>
+      <div class="zd-row"><span class="zd-k">step 1</span><span class="zd-v">Farm all 5 <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> from <strong>terrorized Hell act bosses</strong></span></div>
+      <div class="zd-row"><span class="zd-k">step 2</span><span class="zd-v">Cube the 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Summit')">Colossal Summit →</span> → use in Act 5 → red portal</span></div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">⚔️ The 3 ancients (tap a name for its uber ID card)</div>
+      ${rows}
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">🎲 The roll &amp; the reward</div>
+      <div class="zd-row"><span class="zd-k">immunities</span><span class="zd-v"><strong>One random immunity each, re-rolled every game</strong> (like vanilla Ancients). If all 3 share an unbreakable immunity, leave &amp; remake to re-roll.</span></div>
+      <div class="zd-row"><span class="zd-k">level</span><span class="zd-v">mlvl Colossal — massively buffed HP / defense, they drop lvl-75 jewels</span></div>
+      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> — 1 per character</span></div>
+    </section>
+    <div class="zd-note">⚠ Never bindable (Act-boss-class). Immunities vary per game so none are shown as fixed. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
+  </div>`;
+}
+window.colossalAncientsDetailHtml = colossalAncientsDetailHtml;
 // Resolve a rune label ("Lo", "Lo #28", "Lo Rune") to its RUNES entry.
 // Aggregated Countess rows ("Amn-Sol", "Ral-El-Tir-…") deliberately DON'T
 // resolve — they're not a single rune, so they stay plain text.
@@ -4551,6 +4732,20 @@ window.openDrop = function(name){
   // findMaterial — the aggregate "Colossal Ancient Jewels" / "Colossal Ancient
   // Statue" names are NOT in these lists, so they still fall through to their
   // material cards. Each individual named drop gets its own calculator card.
+  // Aggregate pinnacle-chain tokens (not individual drops) — Colossal Summit / the
+  // Colossal Ancients fight. Run BEFORE findColossalJewel/Statue so the aggregate
+  // names route to their own enriched cards instead of falling through to a material.
+  if (isColossalSummit(name) || isColossalAncients(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    const summit = isColossalSummit(name);
+    if (panel){ panel.classList.add('show'); panel.innerHTML = summit ? colossalSummitDetailHtml() : colossalAncientsDetailHtml(); }
+    __alignCard(summit ? '#item-detail .colossal-summit-card' : '#item-detail .colossal-ancients-card');
+    return;
+  }
   if (findColossalJewel(name)) {
     if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
     window.__activeMaterial = name; window.__activeRune = null;
@@ -4972,7 +5167,7 @@ const BIND_SU = [
   {name:"Wyand Voidbringer", area:"A3 · Durance of Hate L3", mlvl:86, consume:"Magic Res + Max / -% Enemy Magic Res", council:true, minions:"No personal minions", who:"Mephisto's Council in the Durance of Hate L3 — the magic-damage priest.", tactic:"Durance trio with Bremm/Maffer — clear the Mephisto antechamber, isolate Wyand low, then cast."},
   {name:"Maffer Dragonhand", area:"A3 · Durance of Hate L3", mlvl:86, consume:"Fire Res + Max / -% Enemy Fire Res", council:true, minions:"No personal minions", who:"Mephisto's Council in the Durance of Hate L3 — the fire priest.", tactic:"Durance trio — same antechamber as Bremm/Wyand; drop Maffer below the cap and bind."},
   {name:"Infector of Souls", area:"A4 · Chaos Sanctuary", mlvl:88, consume:"Fire Res + Max / -% Enemy Fire Res", minions:"Venom Lord — ~3–5", family:"Megademon", who:"Chaos Sanctuary seal boss — the Infector seal must be cleared to spawn Diablo. A Megademon with a Venom Lord escort.", tactic:"Pop the seal, kill the Venom Lords, then bind the Infector low — a strong Act 4 fire bind."},
-  {name:"Hephasto the Armorer", area:"A4 · River of Flame (Hellforge)", mlvl:83, aura:"RANDOM — always Aura Enchanted", auraLogo:"Fanaticism", auraGlyph:"⚔️", reroll:true, consume:"reroll for Fanaticism · BiS damage target", solo:true, suName:"Hephasto the Armorer", tier:"S-Tier · the Fanaticism reroll target", star:true, best:true},
+  {name:"Hephasto the Armorer", area:"A4 · River of Flame (Hellforge)", mlvl:83, aura:"RANDOM — always Aura Enchanted", auraLogo:"Fanaticism", auraGlyph:"⚔️", reroll:true, consume:"reroll for Fanaticism · BiS damage target", solo:true, suName:"Hephasto the Armorer", tier:"S-Tier · the Fanaticism reroll target", star:true, best:true, hpbar:{title:"Hephasto the Armorer", mods:["Demon","Spectral Hit","Aura Enchanted","Extra Strong","Stone Skin","Extra Fast"], imm:[{t:"Immune to Physical",c:"phys"}], lines:7, spawnNote:true, spawnAura:"Fanaticism", spawnZone:"Terror Zone"}},
   {name:"Shenk the Overseer", area:"A5 · Bloody Foothills", mlvl:80, consume:"Cold Res + Max / -% Enemy Magic Res", suName:"Shenk the Overseer"},
   {name:"Dac Farren", area:"A5 · Bloody Foothills", mlvl:83, consume:"Fire Res + Max / -% Enemy Fire Res", who:"Act 5 super-unique sharing Shenk's opening hillside — the Bloody Foothills.", tactic:"Spawns near Shenk's siege; clear the throng, isolate Dac Farren low, then cast."},
   {name:"Sharptooth Slayer", area:"A5 · Frigid Highlands", mlvl:84, consume:"Cold Res + Max / -% Enemy Magic Res", who:"Act 5 super-unique on the Frigid Highlands, the icy ridge past the Foothills.", tactic:"A cold-themed named pack — thin the adds, drop Sharptooth low, then Bind Demon."},
@@ -5063,6 +5258,11 @@ function bindSUHpSection(b){
     if(hp.fixedAura) cap += ` Carries a <strong style="color:var(--best)">fixed ${hp.fixedAura}</strong> aura.`;
     if(b.reroll) cap += ` <strong style="color:var(--best)">Aura Enchanted</strong> is the rerollable line — bind, then save &amp; exit and rebind for the best roll below.`;
     cap += ` Its 3 random Hell rolls + immunities vary per spawn, so they aren't shown.`;
+  } else if(hp.spawnNote){
+    // verified from a real screenshot, but this is a RANDOM-aura boss whose mods +
+    // resulting immunity re-roll each game — present the exact spawn honestly.
+    const aura = hp.spawnAura || 'a good aura';
+    cap = `↑ a <strong>screenshot-verified</strong> ${b.name} health-bar — <strong>${hp.lines||hp.mods.length} stacked lines</strong>${hp.spawnZone?` (a ${hp.spawnZone} spawn)`:''}. <strong style="color:#c9b074">Demon</strong> is his type; <strong style="color:var(--best)">Aura Enchanted</strong> is the rerollable line — <em>this</em> spawn rolled <strong style="color:var(--best)">${aura}</strong>, the jackpot. His other boss mods and the <strong style="color:#e2502a">Immune&nbsp;to&nbsp;Physical</strong> shown here re-roll every game, so save &amp; exit and rebind until you land ${aura} + Extra Strong.`;
   } else {
     cap = `↑ ${b.name}'s real in-game health-bar — <strong>${hp.lines||hp.mods.length} stacked lines</strong> (screenshot-verified). <strong style="color:#c9b074">Demon</strong> is his type; <strong style="color:var(--best)">Aura Enchanted</strong> + his other rolls are the rerollable part; the <strong style="color:#e2502a">immunities</strong> are his own base resists.`;
   }
@@ -9899,10 +10099,19 @@ function importMaterialTally(){
 window.importMaterialTally = importMaterialTally;
 
 function renderStatueTracker() {
-  $("statue-tracker").innerHTML = STATUE_LIST.map(s => `<div class="statue-card ${statues.has(s.n)?'collected':''}" onclick="toggleStatue('${s.n.replace(/'/g,"\\'")}')">
-    <div class="statue-card-name zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:6px" title="open ID card" onclick="event.stopPropagation();window.openDrop('${s.n.replace(/'/g,"\\'")}')">${artOr(s.n,artOr('Colossal Ancient Statue','👑','sm'),'sm')}<span>${s.n} <span style="font-size:10px;color:var(--text-dim);font-weight:normal">ID →</span></span></div>
-    <div class="statue-card-from" style="display:flex;align-items:center;gap:5px">${artOr(s.boss,s.fromGlyph||'',('sm'))}<span>${s.from}</span></div>
-  </div>`).join("");
+  $("statue-tracker").innerHTML = STATUE_LIST.map(s => {
+    const en = s.n.replace(/'/g,"\\'");
+    const done = statues.has(s.n);
+    // Three distinct click zones so every tile behaves identically:
+    //   • the ✓ badge (and the tile background) toggles the collect glow/tally
+    //   • the statue name routes to its statue ID card (openDrop)
+    //   • the boss "from" row routes to that boss's ID card (openBossDetail)
+    return `<div class="statue-card ${done?'collected':''}" onclick="toggleStatue('${en}')" title="click to mark collected">
+    <button type="button" class="statue-check" title="${done?'collected — click to clear':'mark collected'}" onclick="event.stopPropagation();toggleStatue('${en}')">${done?'✓':''}</button>
+    <div class="statue-card-name zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:6px" title="open ${s.n} ID card" onclick="event.stopPropagation();window.openDrop('${en}')">${artOr(s.n,artOr('Colossal Ancient Statue','👑','sm'),'sm')}<span>${s.n} <span style="font-size:10px;color:var(--text-dim);font-weight:normal">ID →</span></span></div>
+    <div class="statue-card-from zd-item-click" style="cursor:pointer;display:flex;align-items:center;gap:5px" title="open ${s.boss}'s boss ID card" onclick="event.stopPropagation();window.openBossDetail&&window.openBossDetail('${s.bossId}')">${artOr(s.boss,s.fromGlyph||'',('sm'))}<span>${s.from} <span style="font-size:10px;color:var(--text-dim);font-weight:normal">→</span></span></div>
+  </div>`;
+  }).join("");
   const pct = (statues.size / 5) * 100;
   $("statue-fill").style.width = pct + "%";
   $("statue-text").textContent = `${statues.size} / 5`;
