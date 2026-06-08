@@ -708,6 +708,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .su-aura-pick{display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;padding:3px 5px;transition:color .12s,box-shadow .12s}
 .su-aura-pick:hover{box-shadow:0 0 0 1px var(--gold-dim),0 0 10px rgba(212,168,71,.22)}
 .su-aura-rank{flex:0 0 auto;min-width:18px;text-align:center;font-family:var(--mono);font-weight:700;color:var(--gold)}
+/* "TOP 3 best rolls" podium — Diablo-flavored Cinzel display type */
+.aura-top3{margin:6px 0 14px;border:1px solid rgba(212,168,71,.34);border-radius:13px;background:linear-gradient(165deg,rgba(40,30,16,.62),rgba(14,11,20,.5));box-shadow:inset 0 0 30px rgba(0,0,0,.35),0 0 18px rgba(212,168,71,.1);overflow:hidden}
+.at3-head{font-family:var(--serif-display);font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-bright);text-align:center;padding:10px 12px 9px;background:linear-gradient(135deg,rgba(255,212,128,.14),rgba(212,168,71,.03));border-bottom:1px solid rgba(212,168,71,.26);text-shadow:0 0 16px rgba(240,192,96,.4)}
+.at3-list{display:flex;flex-direction:column}
+.at3-row{display:flex;align-items:center;gap:13px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;transition:background .18s ease,box-shadow .25s ease}
+.at3-row:last-child{border-bottom:none}
+.at3-row:hover{background:rgba(212,168,71,.08);box-shadow:inset 3px 0 0 var(--gold-dim)}
+.at3-rank-1{background:linear-gradient(100deg,rgba(120,220,140,.1),transparent 60%)}
+.at3-rank{flex:0 0 auto;width:30px;text-align:center;font-family:var(--serif-display);font-weight:700;font-size:26px;line-height:1;color:var(--gold);text-shadow:0 0 12px rgba(240,192,96,.45)}
+.at3-rank-1 .at3-rank{color:var(--best);text-shadow:0 0 14px rgba(120,220,140,.5)}
+.at3-art{flex:0 0 auto;display:inline-flex}
+.at3-art .aura-logo.d2art-wrap{width:38px;height:38px}
+.at3-art .aura-logo.d2art-wrap .d2art-img{max-width:38px;max-height:38px;border-radius:7px;filter:drop-shadow(0 0 7px rgba(240,192,96,.45))}
+.at3-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.at3-name{font-family:var(--serif-display);font-weight:700;font-size:17px;letter-spacing:.04em;color:var(--gold-bright);text-transform:uppercase;line-height:1.1}
+.at3-rank-1 .at3-name{color:var(--best)}
+.at3-why{font-family:var(--serif-text);font-size:11.5px;font-style:italic;color:var(--text-dim);line-height:1.4}
+.at3-tier{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-family:var(--serif-display);font-weight:700;font-size:15px}
 /* Herald of Terror — Sunder Charm table (RotW tab dedicated ID card) */
 .sunder-tbl{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px}
 .sunder-tbl th,.sunder-tbl td{border:1px solid rgba(255,255,255,.10);padding:7px 9px;text-align:left;vertical-align:top}
@@ -2622,10 +2640,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Essence</th><th>From</th><th class="diff-col">Rate</th></tr></thead>
     <tbody>
-      <tr><td class="item-name zd-item-click" style="color:#6688ff;cursor:pointer" onclick="openDrop('Essence of Suffering')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencesuffering_graphic.png" alt="Twisted Essence of Suffering" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Twisted Essence of Suffering →</td><td>🕷️ Andariel + 🪲 Duriel</td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--nm);cursor:pointer" onclick="openDrop('Essence of Hatred')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Charged Essence of Hatred" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Charged Essence of Hatred →</td><td>👺 Mephisto</td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--hell);cursor:pointer" onclick="openDrop('Essence of Terror')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essenceterror_graphic.png" alt="Burning Essence of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Burning Essence of Terror →</td><td>😈 Diablo</td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencedestruction_graphic.png" alt="Festering Essence of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Festering Essence of Destruction →</td><td>💀 Baal</td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:#6688ff;cursor:pointer" onclick="openDrop('Essence of Suffering')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencesuffering_graphic.png" alt="Twisted Essence of Suffering" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Twisted Essence of Suffering →</td><td><span data-art-logo="Andariel" data-art-glyph="🕷️">Andariel</span> + <span data-art-logo="Duriel" data-art-glyph="🪲">Duriel</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--nm);cursor:pointer" onclick="openDrop('Essence of Hatred')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Charged Essence of Hatred" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Charged Essence of Hatred →</td><td><span data-art-logo="Mephisto" data-art-glyph="👺">Mephisto</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--hell);cursor:pointer" onclick="openDrop('Essence of Terror')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essenceterror_graphic.png" alt="Burning Essence of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Burning Essence of Terror →</td><td><span data-art-logo="Diablo" data-art-glyph="😈">Diablo</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencedestruction_graphic.png" alt="Festering Essence of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Festering Essence of Destruction →</td><td><span data-art-logo="Baal" data-art-glyph="💀">Baal</span></td><td class="diff-col rare-4">~12%</td></tr>
     </tbody>
   </table></div>
   </div>
@@ -2635,9 +2653,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Key</th><th>Drops From</th><th>Where</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Terror')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Terror →</td><td>The Countess</td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% · Hell · /p3+ · same Countess as the rune farm</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Hate')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Hate" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Hate →</td><td>The Summoner</td><td>Act 2 · Arcane Sanctuary</td><td>~10% · Hell · /p3+ · short walk from Lost City / Canyon WP</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Destruction →</td><td>Nihlathak</td><td>Act 5 · Halls of Vaught</td><td>~10% · Hell · /p3+ · Corpse-Explosion danger, kite him</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Terror')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Terror →</td><td><span data-art-logo="The Countess" data-art-glyph="👸">The Countess</span></td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% · Hell · /p3+ · same Countess as the rune farm</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Hate')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Hate" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Hate →</td><td><span data-art-logo="The Summoner" data-art-glyph="🧙">The Summoner</span></td><td>Act 2 · Arcane Sanctuary</td><td>~10% · Hell · /p3+ · short walk from Lost City / Canyon WP</td></tr>
+      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Destruction →</td><td><span data-art-logo="Nihlathak" data-art-glyph="☠️">Nihlathak</span></td><td>Act 5 · Halls of Vaught</td><td>~10% · Hell · /p3+ · Corpse-Explosion danger, kite him</td></tr>
     </tbody>
   </table></div>
   <div style="background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(212,168,71,.5);border-radius:10px;padding:14px 16px 15px;margin:12px 0 4px">
@@ -2787,18 +2805,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
     <h3>🗝️ Step 1 — Farm the three keys (Hell only)</h3>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Key</th><th>Drops from</th><th>Where</th><th>Notes</th></tr></thead><tbody>
-      <tr><td class="item-name zd-item-click" data-art-logo="Key of Terror" data-art-glyph="🔑" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Terror')">Key of Terror →</td><td>The Countess</td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% drop · Hell only · same Countess as rune farm</td></tr>
-      <tr><td class="item-name zd-item-click" data-art-logo="Key of Hate" data-art-glyph="🔑" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Hate')">Key of Hate →</td><td>The Summoner</td><td>Act 2 · Arcane Sanctuary</td><td>~10% drop · Hell only · short walk from Canyon WP</td></tr>
-      <tr><td class="item-name zd-item-click" data-art-logo="Key of Destruction" data-art-glyph="🔑" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Destruction')">Key of Destruction →</td><td>Nihlathak</td><td>Act 5 · Halls of Vaught</td><td>~10% drop · Hell only · CE danger, kite him</td></tr>
+      <tr><td class="item-name zd-item-click" data-art-logo="Key of Terror" data-art-glyph="🔑" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Terror')">Key of Terror →</td><td><span data-art-logo="The Countess" data-art-glyph="👸">The Countess</span></td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% drop · Hell only · same Countess as rune farm</td></tr>
+      <tr><td class="item-name zd-item-click" data-art-logo="Key of Hate" data-art-glyph="🔑" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Hate')">Key of Hate →</td><td><span data-art-logo="The Summoner" data-art-glyph="🧙">The Summoner</span></td><td>Act 2 · Arcane Sanctuary</td><td>~10% drop · Hell only · short walk from Canyon WP</td></tr>
+      <tr><td class="item-name zd-item-click" data-art-logo="Key of Destruction" data-art-glyph="🔑" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Destruction')">Key of Destruction →</td><td><span data-art-logo="Nihlathak" data-art-glyph="☠️">Nihlathak</span></td><td>Act 5 · Halls of Vaught</td><td>~10% drop · Hell only · CE danger, kite him</td></tr>
     </tbody></table></div>
     <div class="info"><strong>Goal:</strong> 3× of EACH key (9 keys total). Don't run keys solo player count — running at p3 boosts elite pack count, more chances. Multi-key drops possible.</div>
 
     <h3>🩸 Step 2 — Cube 1 of each key → a random mini-uber portal</h3>
     <div class="info"><strong>The recipe:</strong> <code>1× Key of Terror + 1× Key of Hate + 1× Key of Destruction</code> → one <strong>random</strong> portal, chosen from the three you have not yet opened this game. Run another full set of 3 keys for the next portal — a complete clear needs <strong>3 sets = 3 of each key (9 total)</strong>, all opened in the same game.</div>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Portal (random)</th><th>Mini-uber</th><th>Lore &amp; mechanic</th><th>Drops the organ</th></tr></thead><tbody>
-      <tr><td>Matron's Den</td><td><strong>Lilith</strong></td><td>Queen of the Succubi · Andariel's mother · deadly poison charge, cannot be frozen</td><td>Diablo's Horn</td></tr>
-      <tr><td>Forgotten Sands</td><td><strong>Uber Duriel</strong></td><td>The Lord of Pain's uber form · cold-immune hold-down melee</td><td>Baal's Eye</td></tr>
-      <tr><td>Furnace of Pain</td><td><strong>Uber Izual</strong></td><td>The fallen Archangel of Justice · heavy frozen AoE caster</td><td>Mephisto's Brain</td></tr>
+      <tr><td><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="jumpToUberBoss('lilith')" title="open Lilith's uber ID card">Matron's Den</span></td><td><span class="zd-item-click" data-art-logo="Lilith" data-art-glyph="🕷️" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" onclick="jumpToUberBoss('lilith')" title="open Lilith's uber ID card"><strong>Lilith</strong> →</span></td><td>Queen of the Succubi · Andariel's mother · deadly poison charge, cannot be frozen</td><td><span class="zd-item-click" data-art-logo="Diablo's Horn" data-art-glyph="🦬" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span></td></tr>
+      <tr><td><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="jumpToUberBoss('uber-duriel')" title="open Uber Duriel's uber ID card">Forgotten Sands</span></td><td><span class="zd-item-click" data-art-logo="Uber Duriel" data-art-glyph="🦂" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" onclick="jumpToUberBoss('uber-duriel')" title="open Uber Duriel's uber ID card"><strong>Uber Duriel</strong> →</span></td><td>The Lord of Pain's uber form · cold-immune hold-down melee</td><td><span class="zd-item-click" data-art-logo="Baal's Eye" data-art-glyph="👁️" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></td></tr>
+      <tr><td><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="jumpToUberBoss('izual')" title="open Uber Izual's uber ID card">Furnace of Pain</span></td><td><span class="zd-item-click" data-art-logo="Uber Izual" data-art-glyph="❄️" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" onclick="jumpToUberBoss('izual')" title="open Uber Izual's uber ID card"><strong>Uber Izual</strong> →</span></td><td>The fallen Archangel of Justice · heavy frozen AoE caster</td><td><span class="zd-item-click" data-art-logo="Mephisto's Brain" data-art-glyph="🧠" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span></td></tr>
     </tbody></table></div>
     <div class="warning"><strong>Note:</strong> All portals open in <strong>Harrogath (Act 5 town)</strong>. Stay in town between fights — TP back if you die. Each mini-uber is brutal; a Smiter Paladin handles all three.</div>
 
@@ -2814,9 +2832,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <h3>⚔️ Step 4 — Inside Uber Tristram</h3>
     <p>Three uber bosses in the same room. They DON'T fight each other — only you. Spawn-locked positions but they path together fast.</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Uber boss</th><th>Element</th><th>Mechanic</th><th>Priority</th></tr></thead><tbody>
-      <tr><td class="item-name" style="color:var(--hell)">Uber Mephisto</td><td>Cold + Lit immune</td><td>Skull missile + Charged Bolt</td><td>Kill FIRST — slowest, most dangerous if left alive</td></tr>
-      <tr><td class="item-name" style="color:#ff7777">Uber Diablo</td><td>Fire + Lit immune</td><td>Lightning Hose + Inferno + huge HP</td><td>Kill SECOND — high HP wall</td></tr>
-      <tr><td class="item-name" style="color:#aa7755">Uber Baal</td><td>None (only physical-immune to some skills)</td><td>Heavy melee, summons skellies</td><td>Kill LAST — easy 1v1</td></tr>
+      <tr><td class="item-name" style="color:var(--hell)"><span class="zd-item-click" data-art-logo="Uber Mephisto" data-art-glyph="💀" style="cursor:pointer;color:inherit;display:inline-flex;align-items:center;gap:6px" onclick="jumpToUberBoss('uber-mephisto')" title="open Uber Mephisto's uber ID card"><strong>Uber Mephisto</strong> →</span></td><td>Cold + Lit immune</td><td>Skull missile + Charged Bolt</td><td>Kill FIRST — slowest, most dangerous if left alive</td></tr>
+      <tr><td class="item-name" style="color:#ff7777"><span class="zd-item-click" data-art-logo="Uber Diablo" data-art-glyph="🔥" style="cursor:pointer;color:inherit;display:inline-flex;align-items:center;gap:6px" onclick="jumpToUberBoss('uber-diablo')" title="open Uber Diablo's uber ID card"><strong>Uber Diablo</strong> →</span></td><td>Fire + Lit immune</td><td>Lightning Hose + Inferno + huge HP</td><td>Kill SECOND — high HP wall</td></tr>
+      <tr><td class="item-name" style="color:#aa7755"><span class="zd-item-click" data-art-logo="Uber Baal" data-art-glyph="👑" style="cursor:pointer;color:inherit;display:inline-flex;align-items:center;gap:6px" onclick="jumpToUberBoss('uber-baal')" title="open Uber Baal's uber ID card"><strong>Uber Baal</strong> →</span></td><td>None (only physical-immune to some skills)</td><td>Heavy melee, summons skellies</td><td>Kill LAST — easy 1v1</td></tr>
     </tbody></table></div>
 
     <h3>🔥 Step 5 — Hellfire Torch</h3>
@@ -3568,6 +3586,31 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <p>After the 3.2 remap a bound demon's Aura Enchanted lands on <strong>one of five results</strong>. Here they are ranked best→worst for an Echoing Strike Warlock — <span style="color:var(--gold-dim)">tap any row to open its aura ID card.</span></p>
     <div id="aura-bestroll"></div>
     <div class="success" style="margin-top:10px"><strong>Bottom line:</strong> only <strong style="color:var(--best)">Fanaticism</strong> is worth keeping — save &amp; exit and rebind until you see it. Everything else is a reroll.</div>
+    <p style="margin-top:16px">The aura is only half the roll. A bound super-unique <strong>keeps its other boss mods</strong> too — on Hell it carries <strong>2–3 fixed + 2 random bonus mods (≈4–5 total)</strong>, so a clean 1-for-1 is rare. Beyond a Fanaticism aura, here are the <strong>3 affixes worth rerolling for</strong> on an Echoing Strike pet build — effects per the <em>Arreat Summit</em> bonus tables.</p>
+    <div class="aura-top3" style="margin-top:8px">
+      <div class="at3-head">★ Top 3 bind affix buffs to look for ★</div>
+      <div class="at3-list">
+        <div class="at3-row at3-rank-1">
+          <span class="at3-rank">1</span>
+          <span class="at3-art" style="width:38px;justify-content:center;font-size:27px;line-height:1">💪</span>
+          <span class="at3-main"><span class="at3-name">Extra Strong</span><span class="at3-why">×2.5 physical damage on your bound demon — the single biggest pet-DPS multiplier in the pool. Stacks multiplicatively with your demon's own boosts.</span></span>
+          <span class="at3-tier" style="color:var(--best);border-color:var(--best)">S</span>
+        </div>
+        <div class="at3-row">
+          <span class="at3-rank">2</span>
+          <span class="at3-art" style="width:38px;justify-content:center;font-size:27px;line-height:1">🩸</span>
+          <span class="at3-main"><span class="at3-name">Cursed</span><span class="at3-why">Its hits cast Amplify Damage on the enemy (50% on-hit) — −100% physical resist and it strips Physical Immunity, multiplying both your demon's hits and your own.</span></span>
+          <span class="at3-tier" style="color:var(--gold-bright);border-color:var(--gold-dim)">A</span>
+        </div>
+        <div class="at3-row">
+          <span class="at3-rank">3</span>
+          <span class="at3-art" style="width:38px;justify-content:center;font-size:27px;line-height:1">⚡</span>
+          <span class="at3-main"><span class="at3-name">Extra Fast</span><span class="at3-why">+25% attack speed and faster movement — more hits per second, and the demon keeps pace with you between packs instead of lagging behind.</span></span>
+          <span class="at3-tier" style="color:var(--gold-bright);border-color:var(--gold-dim)">A</span>
+        </div>
+      </div>
+    </div>
+    <div class="info" style="margin-top:9px"><strong>Honorable mentions:</strong> <strong>Stone Skin</strong> (tankier, longer-living pet) and <strong>Spectral Hit</strong> (free random elemental on every swing) are fine bonus rolls. <strong>Avoid:</strong> Mana Burn and Teleportation do nothing useful for a bound pet.</div>
     <div id="bindaura-detail" class="su-detail" hidden></div>
     </div>
   </div>
