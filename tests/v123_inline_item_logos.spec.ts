@@ -25,6 +25,8 @@ test.describe('v123 inline item logos (decorateItemLogos)', () => {
     "Diablo's Horn": 'horn_graphic.png',
     "Baal's Eye": 'eye_graphic.png',
     'Annihilus': 'bluecharm_graphic.png',
+    'Colossal Ancient Statue': 'talic-opt_graphic.png',
+    'Colossal Ancient Jewels': 'colossal_jewel1_graphic.png',
   };
 
   test('decorateItemLogos is exposed and idempotent', async ({ page }) => {
