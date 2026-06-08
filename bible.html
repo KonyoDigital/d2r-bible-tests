@@ -9122,7 +9122,7 @@ function renderCalc() {
     const isOwned = owned.has(it.n);
     return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
       <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
-        <div class="item-tile-name" data-art-logo="${_d2artEsc(it.n)}">${it.n}</div>
+        <div class="item-tile-name" data-arttip="${_d2artEsc(it.n)}">${it.n}</div>
         <div class="item-tile-tc">TC${it.tc} · q${it.qlvl}${isOwned?' · ✓':''}</div>
       </div></div></div>`;
   }).join("");
