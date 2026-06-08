@@ -4463,6 +4463,77 @@ function colossalStatueDetailHtml(name){
   </div>`;
 }
 window.colossalStatueDetailHtml = colossalStatueDetailHtml;
+// Rainbow Facets — the classic unique jewel that Colossal Ancient Jewels are
+// "strictly better than" (the bible references them in prose). Modelled exactly
+// like COLOSSAL_JEWELS: descriptive, clickable ID cards routed via openDrop() and
+// searchable, NOT in any per-boss 1:N probability grid. Each of the 8 variants
+// (4 elements x 2 triggers) carries ONLY its verified, version-stable facts: the
+// art sprite (diablo2.io, HTTP 200 image/png verified 2026-06-08), the defining
+// dual-affix STRUCTURE (+% to <elem> skill damage AND -% to enemy <elem>
+// resistance — true of every facet) and the on-<trigger> proc. NO exact roll
+// percentages and NO drop odds are stated, because Konyo plays Reign of the
+// Warlock and no verified RotW facet stat/odds source exists — inventing either
+// would be fabrication. Pure additive enrichment + routing layer.
+const RAINBOW_FACETS = [
+  { n:"Rainbow Facet: Fire Level-up",      elem:'Fire',      trig:'Level-up', emoji:'🔥', sprite:'jewel05' },
+  { n:"Rainbow Facet: Fire Death",         elem:'Fire',      trig:'Death',    emoji:'🔥', sprite:'jewel05' },
+  { n:"Rainbow Facet: Cold Level-up",      elem:'Cold',      trig:'Level-up', emoji:'❄️', sprite:'jewel02' },
+  { n:"Rainbow Facet: Cold Death",         elem:'Cold',      trig:'Death',    emoji:'❄️', sprite:'jewel02' },
+  { n:"Rainbow Facet: Lightning Level-up", elem:'Lightning', trig:'Level-up', emoji:'⚡', sprite:'jewel06' },
+  { n:"Rainbow Facet: Lightning Death",    elem:'Lightning', trig:'Death',    emoji:'⚡', sprite:'jewel06' },
+  { n:"Rainbow Facet: Poison Level-up",    elem:'Poison',    trig:'Level-up', emoji:'🧪', sprite:'jewel04' },
+  { n:"Rainbow Facet: Poison Death",       elem:'Poison',    trig:'Death',    emoji:'🧪', sprite:'jewel04' },
+];
+window.RAINBOW_FACETS = RAINBOW_FACETS;
+function findRainbowFacet(name){ if(!name) return null; const q=_norm(name); return RAINBOW_FACETS.find(f=>_norm(f.n)===q)||null; }
+window.findRainbowFacet = findRainbowFacet;
+function rainbowFacetDetailHtml(name){
+  const f = findRainbowFacet(name); if(!f) return '';
+  const affixRows = [
+    `+% to ${f.elem} Skill Damage`,
+    `-% to Enemy ${f.elem} Resistance`,
+    `chance to cast a spell on ${f.trig}`,
+  ].map(s=>`<div class="zd-row"><span class="zd-k">affix</span><span class="zd-v">${s}</span></div>`).join('');
+  const sister = RAINBOW_FACETS.filter(x=>x.elem===f.elem && x.n!==f.n)
+    .map(x=>`<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${x.trig} →</span>`).join(' · ') || '—';
+  return `<div class="gic-card material-card colossal-card rainbow-facet-card">
+    <header class="gic-header">
+      ${artOr(f.n, `<span class="gic-emoji">${f.emoji}</span>`, 'lg')}
+      <div class="gic-id-block">
+        <h2 class="gic-name">${f.n} <span class="gic-grail-badge" style="background:linear-gradient(135deg,#3a5a7a,#152a45);color:#cfe6ff">Rainbow Facet · ${f.elem}</span></h2>
+        <div class="gic-subtitle">Classic unique jewel (Jewel of Fervor). In RotW it is outclassed by the element-matched Colossal Ancient Jewel — see below.</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">element: ${f.elem}</span>
+          <span class="gic-meta-chip">trigger: ${f.trig}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">⚔️ What it grants — affix structure</div>
+      ${affixRows}
+      <div class="zd-note" style="margin-top:6px">ℹ Every Rainbow Facet carries this dual stat (skill damage + enemy resistance reduction) for its element, plus the on-${f.trig.toLowerCase()} proc. Exact roll values are intentionally NOT shown — they are not verified for Reign of the Warlock.</div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">📍 Where it drops</div>
+      <div class="zd-stats" style="margin-bottom:8px">
+        <div class="zd-stat"><span class="zd-sk">item type</span><span class="zd-sv">unique jewel</span></div>
+        <div class="zd-stat"><span class="zd-sk">variants</span><span class="zd-sv">4 elements × 2 triggers</span></div>
+        <div class="zd-stat"><span class="zd-sk">grail count?</span><span class="zd-sv">no — not in the 312</span></div>
+        <div class="zd-stat"><span class="zd-sk">RotW odds</span><span class="zd-sv">not yet verified</span></div>
+      </div>
+      <div class="zd-row"><span class="zd-k">same element, other trigger</span><span class="zd-v">${sister}</span></div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">💎 The RotW upgrade</div>
+      <div class="zd-row"><span class="zd-k">strictly better option</span><span class="zd-v">the matching <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> (same element, higher skill damage + resist break, plus a CtC and utility affixes)</span></div>
+    </section>
+    <div class="zd-note">⚠ Art is diablo2.io verified (HTTP 200 image/png). Roll values and drop rates are deliberately omitted — no verified Reign of the Warlock source exists, and the bible never fabricates numbers.</div>
+  </div>`;
+}
+window.rainbowFacetDetailHtml = rainbowFacetDetailHtml;
 // Aggregate pinnacle-chain cards. "Colossal Summit" (the cube token built from the
 // 5 statues) and "Colossal Ancients" (the 3-boss pinnacle fight) are NOT individual
 // drops — they're the two steps that link the statues to the jewels. Both render a
@@ -4764,6 +4835,16 @@ window.openDrop = function(name){
     const panel = document.getElementById('item-detail');
     if (panel){ panel.classList.add('show'); panel.innerHTML = colossalStatueDetailHtml(name); }
     __alignCard('#item-detail .colossal-statue-card');
+    return;
+  }
+  if (findRainbowFacet(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = rainbowFacetDetailHtml(name); }
+    __alignCard('#item-detail .rainbow-facet-card');
     return;
   }
   // Material: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
@@ -6442,7 +6523,17 @@ const D2IO_ART = {
   // canonical set pieces (formerly mislabeled "Aldur's Gauntlet" / "Hwanin's Seal" — corrected
   // to the real members). Verified HTTP 200 image/png on 2026-06-08.
   "Aldur's Rhythm": "https://diablo2.io/styles/zulu/theme/images/items/aldursrythm_graphic.png",
-  "Hwanin's Blessing": "https://diablo2.io/styles/zulu/theme/images/items/hwaninsblessing_graphic.png"
+  "Hwanin's Blessing": "https://diablo2.io/styles/zulu/theme/images/items/hwaninsblessing_graphic.png",
+  // Rainbow Facets — per-element jewel sprites (diablo2.io). Both triggers of an
+  // element share the colour sprite. Verified HTTP 200 image/png on 2026-06-08.
+  "Rainbow Facet: Fire Level-up": "https://diablo2.io/styles/zulu/theme/images/items/jewel05_graphic.png",
+  "Rainbow Facet: Fire Death": "https://diablo2.io/styles/zulu/theme/images/items/jewel05_graphic.png",
+  "Rainbow Facet: Cold Level-up": "https://diablo2.io/styles/zulu/theme/images/items/jewel02_graphic.png",
+  "Rainbow Facet: Cold Death": "https://diablo2.io/styles/zulu/theme/images/items/jewel02_graphic.png",
+  "Rainbow Facet: Lightning Level-up": "https://diablo2.io/styles/zulu/theme/images/items/jewel06_graphic.png",
+  "Rainbow Facet: Lightning Death": "https://diablo2.io/styles/zulu/theme/images/items/jewel06_graphic.png",
+  "Rainbow Facet: Poison Level-up": "https://diablo2.io/styles/zulu/theme/images/items/jewel04_graphic.png",
+  "Rainbow Facet: Poison Death": "https://diablo2.io/styles/zulu/theme/images/items/jewel04_graphic.png"
 };
 window.D2IO_ART = D2IO_ART;
 function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
@@ -10064,11 +10155,19 @@ function renderColossalShowcase(){
     + '<span class="ct-art">' + artOr(s.n, '<span class="ct-emoji">👑</span>', 'lg') + '</span>'
     + '<div class="ct-body"><div class="ct-name">' + s.n + '</div>'
     + '<div class="ct-sub">from terrorized Hell ' + s.boss + '</div></div></div>';
+  const facetTile = (f) =>
+    '<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ' + f.n + ' ID card" onclick="window.openDrop(\'' + esc(f.n) + '\')">'
+    + '<span class="ct-art">' + artOr(f.n, '<span class="ct-emoji">' + f.emoji + '</span>', 'lg') + '</span>'
+    + '<div class="ct-body"><div class="ct-name">' + f.n + '</div>'
+    + '<div class="ct-sub">' + f.elem + ' · on ' + f.trig + '</div></div></div>';
+  const RF = (typeof RAINBOW_FACETS !== 'undefined') ? RAINBOW_FACETS : [];
   box.innerHTML =
     '<div class="cs-group-head">💎 The 6 Colossal Ancient Jewels — endgame BiS</div>'
     + '<div class="colossal-grid">' + COLOSSAL_JEWELS.map(jewelTile).join('') + '</div>'
     + '<div class="cs-group-head">👑 The 5 Colossal Statues — cube to the Summit</div>'
-    + '<div class="colossal-grid">' + COLOSSAL_STATUES.map(statueTile).join('') + '</div>';
+    + '<div class="colossal-grid">' + COLOSSAL_STATUES.map(statueTile).join('') + '</div>'
+    + (RF.length ? '<div class="cs-group-head">🌈 The 8 Rainbow Facets — the classic jewel they outclass</div>'
+      + '<div class="colossal-grid">' + RF.map(facetTile).join('') + '</div>' : '');
 }
 window.renderColossalShowcase = renderColossalShowcase;
 function toggleUberBoss(id){
@@ -11797,6 +11896,18 @@ _v41_whenReady(() => {
         cat: 'colossal statue', hint: '~1:8 to 1:15',
         keywords: 'colossal ancient statue summit pinnacle terror cube ' + s.n.toLowerCase() + ' ' + s.boss.toLowerCase() + ' ' + s.ancient.toLowerCase(),
         action: () => { if (window.openDrop) window.openDrop(s.n); }
+      });
+    });
+    // The 8 Rainbow Facets — each its own searchable ID card (openDrop →
+    // rainbowFacetDetailHtml). Descriptive only: no roll %s, no drop odds.
+    const RF = (typeof RAINBOW_FACETS !== 'undefined') ? RAINBOW_FACETS : [];
+    RF.forEach((f) => {
+      cmds.push({
+        icon: f.emoji, label: f.n,
+        sub: 'Rainbow Facet · ' + f.elem + ' · on ' + f.trig,
+        cat: 'rainbow facet', hint: f.elem + ' skill damage / -enemy resist',
+        keywords: 'rainbow facet jewel of fervor unique jewel skill damage enemy resistance ' + f.n.toLowerCase() + ' ' + f.elem.toLowerCase() + ' ' + f.trig.toLowerCase(),
+        action: () => { if (window.openDrop) window.openDrop(f.n); }
       });
     });
     return cmds;
