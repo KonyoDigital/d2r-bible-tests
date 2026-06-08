@@ -241,6 +241,14 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .sec-h{cursor:pointer;user-select:none}
 .sec-chev{font-size:12px;color:var(--text-muted);transition:transform .18s;display:inline-block;margin-left:6px}
 .sec-h.collapsed .sec-chev{transform:rotate(-90deg)}
+/* v142 — RotW tab: unified, symmetric section-header bars (art + title + chevron) */
+#tab-rotw .sec-h{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(201,161,74,.08),transparent);border:1px solid var(--border);border-left:3px solid var(--gold-dim);border-radius:9px;padding:9px 13px;margin:14px 0 0}
+#tab-rotw .sec-h:hover{border-left-color:var(--gold-bright);background:linear-gradient(135deg,rgba(201,161,74,.14),transparent)}
+#tab-rotw .sec-h .sec-h-art,#tab-rotw .sec-h #herald-sec-emblem{display:inline-flex;flex:0 0 auto;width:30px;height:30px;align-items:center;justify-content:center;font-size:20px}
+#tab-rotw .sec-h .sec-h-art .d2art-wrap{width:30px;height:30px}
+#tab-rotw .sec-h .sec-h-art .d2art-img,#tab-rotw .sec-h #herald-sec-emblem img{width:30px!important;height:30px!important;object-fit:cover;border-radius:6px;vertical-align:middle}
+#tab-rotw .sec-h .sec-h-t{flex:1 1 auto;font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.01em;color:var(--text)}
+#tab-rotw .sec-h .sec-chev{margin-left:0;font-size:13px}
 .sec-body[hidden]{display:none}
 h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-margin-top:70px}
 .statue-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:12px 0}
@@ -938,6 +946,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rec-chip{display:inline-block;padding:0 5px;border-radius:4px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer}
 .rec-chip:hover{background:rgba(240,192,96,.22)}
 .rec-plus{color:var(--text-dim);font-weight:700}
+/* v142 — recipe browser as a live tool (stash-linked) */
+.hcr-controls{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin-bottom:6px}
+.hcr-controls .arw-filter{flex:1 1 200px;margin:0}
+.hcr-toggle{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text-dim);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0 11px;transition:background .15s,color .15s,border-color .15s}
+.hcr-toggle:hover{color:var(--text);border-color:var(--gold-dim)}
+.hcr-toggle.on{color:#0c1f12;background:linear-gradient(135deg,#8ce6a6,#3fbf6a);border-color:#3fbf6a}
+.hcr-toggle-n{display:inline-flex;min-width:18px;justify-content:center;padding:1px 5px;border-radius:9px;font-size:11px;font-weight:800;background:rgba(0,0,0,.22)}
+.hcr-toggle.on .hcr-toggle-n{background:rgba(0,0,0,.28);color:#fff}
+.hcr-hint{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.hcr-status{margin-left:auto;flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.02em;padding:1px 7px;border-radius:9px;white-space:nowrap}
+.hcr-ready{color:#0c1f12;background:linear-gradient(135deg,#8ce6a6,#3fbf6a)}
+.hcr-need{color:var(--gold-bright);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32)}
+.hcr-row-ready{background:linear-gradient(90deg,rgba(63,191,106,.10),transparent);border-radius:6px}
+.hcr-row-ready .hcr-out{color:#9be8b4}
 /* Rune tally import box */
 .rs-import{margin:12px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:12px 16px}
 .rs-import summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none}
@@ -2634,7 +2656,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span id="herald-sec-emblem">👹</span> Herald of Terror <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art" id="herald-sec-emblem">👹</span><span class="sec-h-t">Herald of Terror</span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
     <div class="gbc-card herald-grail" id="herald-card">
       <header class="gbc-header boss-detail-header">
@@ -2728,7 +2750,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </section>
     </div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:-0.22em"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/deep_graphic.png" alt="Worldstone Shard" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💎</span></span> Worldstone Shards <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/deep_graphic.png" alt="Worldstone Shard" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💎</span></span></span><span class="sec-h-t">Worldstone Shards</span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500. <strong style="color:var(--gold-bright)">Right-click to terrorize its whole act on demand</strong> (consumed) — or save it as the matching-region <strong>Renewed Sunder</strong> ingredient.</div>
   <div class="shard-grid">
@@ -2748,7 +2770,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
   </div>
-  <h2 class="sec-h statue-head collapsed" onclick="toggleSec(this)" style="display:flex;align-items:center;gap:9px"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span>Colossal Ancient Statues <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h statue-head collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span></span><span class="sec-h-t">Colossal Ancient Statues</span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span>. <span class="zd-item-click" data-art-logo="Colossal Ancient Statue" data-art-glyph="📋" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Statue')">open the Colossal Ancient Statue ID card →</span></div>
   <div class="statue-progress">
@@ -2759,7 +2781,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="statue-tracker" id="statue-tracker"></div>
   <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span> to summon the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancients')">Colossal Ancients →</span> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" data-art-logo="Colossal Ancient Jewels" data-art-glyph="💎" style="color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)">💧 Essences <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Essences" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💧</span></span></span><span class="sec-h-t">Essences</span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">From <strong>act bosses Hell</strong>. Cube all 4 → Token of Absolution. ~10-15% per kill. MF unaffected.</div>
   <div class="scroll-table"><table class="drops">
@@ -2772,7 +2794,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody>
   </table></div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)" style="display:flex;align-items:center;gap:9px"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Pandemonium Keys" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Pandemonium Keys <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Pandemonium Keys" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span></span><span class="sec-h-t">Pandemonium Keys</span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">The 3 keys for <strong style="color:var(--uber)">Uber Tristram → Hellfire Torch</strong>. <strong>Hell only</strong>, and drops require <strong>/players 3+</strong>. Cube all 3 → red portal → Pandemonium Run → Uber Tristram.</div>
   <div class="scroll-table"><table class="drops">
@@ -2800,7 +2822,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table>
   </div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)" style="display:flex;align-items:center;gap:9px"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/bonebreakcharm_graphic.png" alt="Sunder Charms" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💠</span></span>Sunder Charms <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/bonebreakcharm_graphic.png" alt="Sunder Charms" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💠</span></span></span><span class="sec-h-t">Sunder Charms</span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">ONLY from <strong>Hell TZ Heralds of Terror</strong>. Drops immunes to ~95% resist.</div>
   <div class="scroll-table"><table class="drops">
@@ -2930,7 +2952,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div class="boss-body">
       <div class="arw-wrap">
-        <input id="horadric-filter" class="arw-filter" type="text" placeholder="filter recipes… (try 'socket', 'unique', 'ring', 'perfect emerald', 'cow')" autocomplete="off" spellcheck="false" oninput="window.renderHoradricRecipes&&window.renderHoradricRecipes()">
+        <div class="hcr-controls">
+          <input id="horadric-filter" class="arw-filter" type="text" placeholder="filter recipes… (try 'socket', 'unique', 'ring', 'perfect emerald', 'cow')" autocomplete="off" spellcheck="false" oninput="window.renderHoradricRecipes&&window.renderHoradricRecipes()">
+          <button type="button" id="horadric-ready-toggle" class="hcr-toggle" aria-pressed="false" title="Show only recipes you hold every rune &amp; gem for, from your live Rune + Gem Stash tallies above" onclick="window.toggleHoradricReady&&window.toggleHoradricReady()">🎒 Cubeable now <span class="hcr-toggle-n">0</span></button>
+        </div>
+        <div class="hcr-hint">Tied to your <strong>🧮 Rune Stash</strong> + <strong>💠 Gem Stash</strong> tallies above — green <span class="hcr-status hcr-ready" style="position:static">✓ cubeable</span> means you already hold every rune &amp; gem the recipe lists (base items / potions aren't tracked).</div>
         <div class="hcr-list" id="horadric-list"></div>
       </div>
     </div>
@@ -10042,6 +10068,7 @@ function renderRuneStash(){
     res.innerHTML = `<span class="cubeup-num">${n}×</span> <span class="zd-item-click" data-arttip="${name}" style="cursor:pointer" onclick="window.openDrop('${name.replace(/'/g,"\\'")}')" title="open ${name} rune card">${nameLogo(name)}${name}</span>`;
   }
   renderRuneCraftable();
+  if (typeof renderHoradricRecipes === 'function') renderHoradricRecipes();
 }
 window.renderRuneStash = renderRuneStash;
 
@@ -10222,6 +10249,7 @@ function renderGemStash(){
     res.innerHTML = '<span class="cubeup-num">' + n + '×</span> <span class="zd-item-click" data-arttip="' + gname + '" style="cursor:pointer" onclick="window.openDrop(\'' + esc + '\')" title="open the ' + gname + ' card">' + gname + '</span>';
   }
   renderGemCraftable();
+  if (typeof renderHoradricRecipes === 'function') renderHoradricRecipes();
 }
 window.renderGemStash = renderGemStash;
 function renderGemCraftable(){
@@ -10349,19 +10377,69 @@ function _recLinkify(text){
     return pre + c;
   }).join(' <span class="rec-plus">+</span> ');
 }
+// Parse a recipe input into the TRACKABLE rune + gem ingredients (with counts) that
+// live in your stash tallies. Base items / potions / quest items aren't trackable.
+function _recIngredients(inStr){
+  var out = [];
+  String(inStr).split(' + ').forEach(function(chunk){
+    var c = chunk.trim(); var need = 1;
+    var m = c.match(/^(\d+)×\s*/); if (m){ need = parseInt(m[1], 10) || 1; c = c.slice(m[0].length); }
+    if (typeof RUNE_INDEX !== 'undefined' && c in RUNE_INDEX){ out.push({ name: c, type: 'rune', need: need }); return; }
+    if (typeof findGem === 'function'){ var g = findGem(c); if (g){ out.push({ name: g, type: 'gem', need: need }); } }
+  });
+  return out;
+}
+// Cross-check a recipe's trackable ingredients against your live rune + gem stash.
+// {trackable} = has ≥1 specific rune/gem; {ready} = you hold every trackable ingredient;
+// {missing} = the shortfall list for the "need" chip.
+function _recReady(r){
+  var ing = _recIngredients(r.in);
+  if (!ing.length) return { trackable: false, ready: false, missing: [] };
+  var missing = [];
+  ing.forEach(function(it){
+    var have = it.type === 'rune' ? _runeCount(it.name) : _gemCount(it.name);
+    if (have < it.need) missing.push({ name: it.name, short: it.need - have });
+  });
+  return { trackable: true, ready: missing.length === 0, missing: missing };
+}
+var _horadricReadyOnly = false;
+function toggleHoradricReady(){ _horadricReadyOnly = !_horadricReadyOnly; renderHoradricRecipes(); }
+window.toggleHoradricReady = toggleHoradricReady;
 function renderHoradricRecipes(){
   var box = document.getElementById('horadric-list'); if (!box) return;
   var fEl = document.getElementById('horadric-filter');
   var q = (fEl && fEl.value || '').trim().toLowerCase();
   var cntEl = document.getElementById('horadric-count');
   var shown = q ? HORADRIC_RECIPES.filter(function(r){ return (r.c + ' ' + r.in + ' ' + r.out + ' ' + (r.note || '')).toLowerCase().includes(q); }) : HORADRIC_RECIPES;
-  if (cntEl) cntEl.textContent = q ? '(' + shown.length + '/' + HORADRIC_RECIPES.length + ')' : '(' + HORADRIC_RECIPES.length + ')';
-  if (!shown.length){ box.innerHTML = '<div class="rw-empty">No recipe matches “' + q.replace(/</g, '&lt;') + '”.</div>'; return; }
+  // live stash cross-check: tag every recipe, and (optionally) keep only cubeable ones
+  var readyTotal = 0;
+  shown = shown.map(function(r){ var s = _recReady(r); if (s.ready) readyTotal++; return { r: r, s: s }; });
+  if (_horadricReadyOnly) shown = shown.filter(function(x){ return x.s.ready; });
+  var tEl = document.getElementById('horadric-ready-toggle');
+  if (tEl){
+    tEl.classList.toggle('on', _horadricReadyOnly);
+    tEl.setAttribute('aria-pressed', _horadricReadyOnly ? 'true' : 'false');
+    tEl.innerHTML = '🎒 Cubeable now <span class="hcr-toggle-n">' + readyTotal + '</span>';
+  }
+  if (cntEl) cntEl.textContent = (q || _horadricReadyOnly) ? '(' + shown.length + '/' + HORADRIC_RECIPES.length + ')' : '(' + HORADRIC_RECIPES.length + ')';
+  if (!shown.length){
+    box.innerHTML = '<div class="rw-empty">' + (_horadricReadyOnly
+      ? 'No recipe is fully cubeable from your current rune + gem tally yet — tally up in the 🧮 Rune Stash and 💠 Gem Stash tools above.'
+      : 'No recipe matches “' + q.replace(/</g, '&lt;') + '”.') + '</div>';
+    return;
+  }
   var html = ''; var lastCat = null;
-  shown.forEach(function(r){
+  shown.forEach(function(x){
+    var r = x.r, s = x.s;
     if (r.c !== lastCat){ html += '<div class="hcr-cat">' + r.c + '</div>'; lastCat = r.c; }
-    html += '<div class="hcr-row"><span class="hcr-in">' + _recLinkify(r.in) + '</span><span class="hcr-arrow">→</span><span class="hcr-out">' + _recLinkify(r.out) + '</span>'
-      + (r.note ? '<span class="hcr-note">' + r.note + '</span>' : '') + '</div>';
+    var status = '';
+    if (s.trackable){
+      status = s.ready
+        ? '<span class="hcr-status hcr-ready" title="you hold every rune &amp; gem this recipe needs">✓ cubeable</span>'
+        : '<span class="hcr-status hcr-need" title="missing from your stash tally">need ' + s.missing.map(function(m){ return m.short + '× ' + m.name; }).join(', ') + '</span>';
+    }
+    html += '<div class="hcr-row' + (s.ready ? ' hcr-row-ready' : '') + '"><span class="hcr-in">' + _recLinkify(r.in) + '</span><span class="hcr-arrow">→</span><span class="hcr-out">' + _recLinkify(r.out) + '</span>'
+      + status + (r.note ? '<span class="hcr-note">' + r.note + '</span>' : '') + '</div>';
   });
   box.innerHTML = html;
 }
