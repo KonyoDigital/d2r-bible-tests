@@ -144,6 +144,33 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-002 — 2026-06-08 · reference tables reused class="drops" → tripped droptable integrity guards
+- **Symptom**: Routine I (Playwright) shards 1 + 2 red — 3 tests:
+  v109_binds_collapsible `all 12 binds sections` (count 12, got 14),
+  v40_lockdown `zero empty chance cells in any droptable` (empty cells:
+  tab-ref/9, /15, /20 = the FCR Note column), v50_p_slider_explainer
+  `all 4 tiers present` (`#tab-ref table.drops tbody tr` ≠ 4).
+- **Caught by**: scheduled CI run (push `aa6c300`) — NOT a local run.
+- **Root cause**: the additive #tab-ref tables added across v112 / v115 /
+  B3+B4 (bind sources, mercenary, crafted recipes, FCR/FHR breakpoints) all
+  reused `class="drops"`, which v40 + v50 treat as a SEMANTIC boss droptable.
+  v40 scans every `table.drops` for empty col≥2 cells (the FCR "Note" column
+  is legitimately empty); v50 expects `#tab-ref table.drops` to be exactly
+  the 4-row P# tier table. Separately v109 hard-codes 12 binds sections but
+  v112 added the Tier-List + Aura-Enchanted sections (→14). All accumulated
+  because v112–v118 ships validated SUBSETS, not the full suite, and the
+  38-test smoke gate doesn't include v40/v50/v109.
+- **Fix**: commit `e71e862` — new `class="ref-tbl"` (identical CSS, aliased)
+  for the 7 non-droptable reference tables so the integrity drills only scan
+  real drop tables; P# tier table stays `class="drops"` (v50's target).
+  v109 count 12→14. 17/17 targeted + 56 adjacent + 38 smoke gate green; live.
+- **Prevention**: (1) `class="drops"` is SEMANTIC (= boss droptable: item|tc|
+  6-diff cells), NOT a generic table skin — use `class="ref-tbl"` for any
+  reference/explainer table. (2) Adding a collapsible section to a tab that a
+  count-spec guards (v109 binds, others) means bumping that count in lockstep.
+  (3) Run the FULL `npx playwright test` before push when touching shared
+  markup/CSS — the smoke gate is a fast-path, not a substitute.
+
 ## REG-001 — 2026-06-05 · artOr() lazy-load strip → calc-grid load storm
 - **Symptom**: Routine I (Playwright) shard 3/3 failed — 3 tests red:
   v71_d2art `calc grid tiles` + `boss-nav chips` (assert `loading="lazy"`),
