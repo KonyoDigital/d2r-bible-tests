@@ -121,6 +121,29 @@ test.describe('v119 bind super-unique ID cards', () => {
     expect(txt).toMatch(/reroll Fanaticism/);
   });
 
+  test('mlvl reconciliation: every carded boss agrees with its SUPER_UNIQUES entry (single source of truth)', async ({ page }) => {
+    // SUPER_UNIQUES is the audited canon (v83 area+3 rule); the binds table used to carry
+    // its own drifted mlvl column. Lock BIND_SU.mlvl == SUPER_UNIQUES.mlvl for every linked
+    // boss AND that the static table cell shows the same number.
+    const drift = await page.evaluate(() => {
+      const SU = SUPER_UNIQUES as any[];
+      const BS = (window as any).BIND_SU as any[];
+      const sec = document.getElementById('binds-superunique');
+      const out: string[] = [];
+      BS.filter((b) => b.suName).forEach((b) => {
+        const su = SU.find((s) => s.name === b.suName);
+        if (!su) { out.push(`${b.name}: suName "${b.suName}" not in SUPER_UNIQUES`); return; }
+        if (su.mlvl !== b.mlvl) out.push(`${b.name}: BIND_SU mlvl ${b.mlvl} != SUPER_UNIQUES ${su.mlvl}`);
+        // the static table row's mlvl cell (3rd td) must match too
+        const row = sec ? Array.from(sec.querySelectorAll('tbody tr')).find((tr) => (tr.textContent || '').includes(b.name)) : null;
+        const cell = row ? (row.querySelectorAll('td')[2]?.textContent || '').trim() : '';
+        if (cell !== String(su.mlvl)) out.push(`${b.name}: table cell "${cell}" != SUPER_UNIQUES ${su.mlvl}`);
+      });
+      return out;
+    });
+    expect(drift, `binds-tab mlvl drifted from SUPER_UNIQUES:\n${drift.join('\n')}`).toEqual([]);
+  });
+
   test('no console errors opening every bind ID card', async ({ page }) => {
     const errs: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
