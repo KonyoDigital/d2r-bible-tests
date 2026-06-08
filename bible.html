@@ -687,6 +687,27 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .aura-cell{display:flex;align-items:center;gap:7px;line-height:1.3}
 .aura-cell .aura-logo.d2art-wrap{width:26px;height:26px;flex:0 0 auto}
 .aura-cell .aura-logo.d2art-wrap .d2art-img{max-width:26px;max-height:26px;border-radius:5px;filter:drop-shadow(0 0 6px rgba(240,192,96,.4))}
+/* clickable aura cells → aura ID card */
+.aura-clickable{cursor:pointer;border-radius:5px;transition:color .12s,box-shadow .12s}
+.aura-clickable:hover{color:var(--gold-bright);box-shadow:0 0 0 1px var(--gold-dim),0 0 10px rgba(212,168,71,.25)}
+/* Best-roll guide — ranked aura list */
+.aura-rank-list{display:flex;flex-direction:column;gap:7px;margin:8px 0}
+.aura-rank-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:linear-gradient(160deg,rgba(28,22,40,.55),rgba(16,12,24,.35));cursor:pointer;transition:transform .14s ease,box-shadow .25s ease,border-color .25s ease}
+.aura-rank-row:hover{transform:translateY(-1px);border-color:var(--gold-dim);box-shadow:0 0 14px rgba(212,168,71,.22)}
+.aura-rank-top{border-color:var(--best);box-shadow:0 0 16px rgba(120,220,140,.22)}
+.aura-rank-badge{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:8px;font-weight:700;font-size:14px;font-family:var(--mono)}
+.aura-rank-art{flex:0 0 auto;display:inline-flex}
+.aura-rank-art .aura-logo.d2art-wrap{width:32px;height:32px}
+.aura-rank-art .aura-logo.d2art-wrap .d2art-img{max-width:32px;max-height:32px;border-radius:6px;filter:drop-shadow(0 0 6px rgba(240,192,96,.4))}
+.aura-rank-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.aura-rank-name{font-weight:600;color:var(--gold-bright)}
+.aura-rank-why{font-size:12px;color:var(--text-dim);line-height:1.4}
+.aura-rank-top .aura-rank-name{color:var(--best)}
+/* super-unique card "best roll — top 3" picks */
+.su-aura-picks{display:flex;flex-direction:column;gap:6px}
+.su-aura-pick{display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;padding:3px 5px;transition:color .12s,box-shadow .12s}
+.su-aura-pick:hover{box-shadow:0 0 0 1px var(--gold-dim),0 0 10px rgba(212,168,71,.22)}
+.su-aura-rank{flex:0 0 auto;min-width:18px;text-align:center;font-family:var(--mono);font-weight:700;color:var(--gold)}
 /* Herald of Terror — Sunder Charm table (RotW tab dedicated ID card) */
 .sunder-tbl{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px}
 .sunder-tbl th,.sunder-tbl td{border:1px solid rgba(255,255,255,.10);padding:7px 9px;text-align:left;vertical-align:top}
@@ -3241,7 +3262,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="colossal" id="binds-aura">
     <h3 class="sec-h collapsed" onclick="toggleSec(this)">✨ The aura pool (Patch 3.2 rewrite) <span class="sec-chev">▾</span></h3>
     <div class="sec-body" hidden>
-    <p>When you bind an <strong>Aura Enchanted</strong> unique/super-unique, its aura is remapped into this pool. The old meta auras were removed.</p>
+    <p>When you bind an <strong>Aura Enchanted</strong> unique/super-unique, its aura is remapped into this pool. The old meta auras were removed. <span style="color:var(--gold-dim)">Tap any aura name to open its ID card.</span></p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Aura</th><th>Value for Echoing Strike</th><th>Status</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--best)" data-aura-logo="Fanaticism" data-aura-glyph="⚔️">Fanaticism</td><td>JACKPOT — boosts attack speed, AR, and physical damage for you + merc + demons</td><td>✅ in pool</td></tr>
       <tr><td data-aura-logo="Concentration" data-aura-glyph="🌀">Concentration</td><td>Boosts the bound demon's own damage; minor for you</td><td>✅ in pool</td></tr>
@@ -3538,6 +3559,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="warning"><strong>Opportunity cost:</strong> 15 hard points + ~5 prereqs = 20 points pulled out of Echoing Strike / Mirrored Blades / Blade Warp synergies. At lvl 90 with ~101 points, you can afford ONE maxed synergy fewer to fund it. At lvl 99 you can have both. If you can grind to 95+, do that before committing.</div>
     <div class="info"><strong>Cheapest splash (1 point):</strong> if you just want a tanky pet, 1 hard point binds any regular (white, non-Minion) demon — Urdar or Pit Lord in River of Flame. No aura, but it soaks hits and pulls aggro. Costs almost nothing.</div>
     <div class="warning"><strong>Don't spend points on Demonic Mastery:</strong> it raises your <strong>Summon</strong>-demon count (Goatman / Tainted / Defiler), not your bind count — and your bound demon is hard-capped at <strong>1</strong> regardless of mastery rank. With no summon skills on an Echoing Strike build, Demonic Mastery does <em>nothing</em> for you. Those points belong in Echoing Strike / Mirrored Blades / Blade Warp.</div>
+    </div>
+  </div>
+
+  <div class="colossal" id="binds-bestroll">
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🎯 Best roll — what to look for <span class="sec-chev">▾</span></h3>
+    <div class="sec-body" hidden>
+    <p>After the 3.2 remap a bound demon's Aura Enchanted lands on <strong>one of five results</strong>. Here they are ranked best→worst for an Echoing Strike Warlock — <span style="color:var(--gold-dim)">tap any row to open its aura ID card.</span></p>
+    <div id="aura-bestroll"></div>
+    <div class="success" style="margin-top:10px"><strong>Bottom line:</strong> only <strong style="color:var(--best)">Fanaticism</strong> is worth keeping — save &amp; exit and rebind until you see it. Everything else is a reroll.</div>
+    <div id="bindaura-detail" class="su-detail" hidden></div>
     </div>
   </div>
 
@@ -4841,18 +4872,18 @@ const BIND_SU = [
   {name:"Ismail Vilehand", area:"A3 · Travincal", mlvl:86, consume:"Poison Res + Max / Hydra proc (🐛 broken)", council:true, minions:"No personal minions", who:"Zakarum High Council — one of Travincal's three named priests guarding Mephisto's soulstone.", tactic:"A standard Travincal run is 11 Council (3 named + 8 minions); AoE the pack, isolate Ismail low, then Bind Demon."},
   {name:"Geleb Flamefinger", area:"A3 · Travincal", mlvl:86, consume:"Fire Res + Max / -% Enemy Fire Res", council:true, minions:"No personal minions", who:"Travincal High Council — the fire-casting priest of the named trio.", tactic:"Same Travincal pack as Ismail/Toorc — thin the 8 minions first, then bind the named priest low."},
   {name:"Toorc Icefist", area:"A3 · Travincal", mlvl:86, consume:"Cold Res + Max / -% Enemy Cold Res", council:true, minions:"No personal minions", who:"Travincal High Council — the cold-casting priest of the named trio.", tactic:"Same Travincal pack — clear minions, drop Toorc below the HP cap, then cast."},
-  {name:"Bremm Sparkfist", area:"A3 · Durance of Hate L3", mlvl:86, aura:"always Aura Enchanted", auraLogo:"Fanaticism", auraGlyph:"⚔️", consume:"Lit Res + Max / -% Enemy Lit Res", council:true, minions:"No personal minions", note:"Always spawns <strong>Aura Enchanted</strong> — like Hephasto, save &amp; exit and rebind until the rolled aura is Fanaticism.", who:"Mephisto's Council in the Durance of Hate L3 — the lightning priest guarding the stairs to Mephisto.", tactic:"Always Aura Enchanted — bind low, then save &amp; exit and rebind until the rolled aura is Fanaticism."},
+  {name:"Bremm Sparkfist", area:"A3 · Durance of Hate L3", mlvl:86, aura:"always Aura Enchanted", auraLogo:"Fanaticism", auraGlyph:"⚔️", reroll:true, consume:"Lit Res + Max / -% Enemy Lit Res", council:true, minions:"No personal minions", note:"Always spawns <strong>Aura Enchanted</strong> — like Hephasto, save &amp; exit and rebind until the rolled aura is Fanaticism.", who:"Mephisto's Council in the Durance of Hate L3 — the lightning priest guarding the stairs to Mephisto.", tactic:"Always Aura Enchanted — bind low, then save &amp; exit and rebind until the rolled aura is Fanaticism."},
   {name:"Wyand Voidbringer", area:"A3 · Durance of Hate L3", mlvl:86, consume:"Magic Res + Max / -% Enemy Magic Res", council:true, minions:"No personal minions", who:"Mephisto's Council in the Durance of Hate L3 — the magic-damage priest.", tactic:"Durance trio with Bremm/Maffer — clear the Mephisto antechamber, isolate Wyand low, then cast."},
   {name:"Maffer Dragonhand", area:"A3 · Durance of Hate L3", mlvl:86, consume:"Fire Res + Max / -% Enemy Fire Res", council:true, minions:"No personal minions", who:"Mephisto's Council in the Durance of Hate L3 — the fire priest.", tactic:"Durance trio — same antechamber as Bremm/Wyand; drop Maffer below the cap and bind."},
   {name:"Infector of Souls", area:"A4 · Chaos Sanctuary", mlvl:88, consume:"Fire Res + Max / -% Enemy Fire Res", minions:"Venom Lord — ~3–5", family:"Megademon", who:"Chaos Sanctuary seal boss — the Infector seal must be cleared to spawn Diablo. A Megademon with a Venom Lord escort.", tactic:"Pop the seal, kill the Venom Lords, then bind the Infector low — a strong Act 4 fire bind."},
-  {name:"Hephasto the Armorer", area:"A4 · River of Flame (Hellforge)", mlvl:83, aura:"RANDOM — always Aura Enchanted", auraLogo:"Fanaticism", auraGlyph:"⚔️", consume:"reroll for Fanaticism · BiS damage target", solo:true, suName:"Hephasto the Armorer", tier:"S-Tier · the Fanaticism reroll target", star:true, best:true},
+  {name:"Hephasto the Armorer", area:"A4 · River of Flame (Hellforge)", mlvl:83, aura:"RANDOM — always Aura Enchanted", auraLogo:"Fanaticism", auraGlyph:"⚔️", reroll:true, consume:"reroll for Fanaticism · BiS damage target", solo:true, suName:"Hephasto the Armorer", tier:"S-Tier · the Fanaticism reroll target", star:true, best:true},
   {name:"Shenk the Overseer", area:"A5 · Bloody Foothills", mlvl:80, consume:"Cold Res + Max / -% Enemy Magic Res", suName:"Shenk the Overseer"},
   {name:"Dac Farren", area:"A5 · Bloody Foothills", mlvl:83, consume:"Fire Res + Max / -% Enemy Fire Res", who:"Act 5 super-unique sharing Shenk's opening hillside — the Bloody Foothills.", tactic:"Spawns near Shenk's siege; clear the throng, isolate Dac Farren low, then cast."},
   {name:"Sharptooth Slayer", area:"A5 · Frigid Highlands", mlvl:84, consume:"Cold Res + Max / -% Enemy Magic Res", who:"Act 5 super-unique on the Frigid Highlands, the icy ridge past the Foothills.", tactic:"A cold-themed named pack — thin the adds, drop Sharptooth low, then Bind Demon."},
   {name:"Colenzo the Annihilator", area:"A5 · Throne (Wave 1)", mlvl:88, consume:"Fire Res + Max / -% Enemy Fire Res", note:"Throne of Destruction wave-1 boss (Baal run).", who:"Throne of Destruction wave-1 boss — the first of Baal's five minion waves.", tactic:"Bind during the wave before Baal's next set spawns; drop Colenzo low fast, then cast."},
   {name:"Bartuc the Bloody", area:"A5 · Throne (Wave 3)", mlvl:93, consume:"Lit Res + Max / -% Enemy Lit Res", council:true, warn:true, note:"Coded <code>Demon</code> &amp; bindable pre-3.2, but absent from MrLlamaSC's list — the 3.2 notes only name Achmel as the exception. <strong>Test in-game:</strong> bring him to &lt;40% and cast; \"Impossible\" means he was quietly excluded with Achmel.", who:"Throne of Destruction wave-3 boss — a Council-coded blood priest among Baal's minions.", tactic:"Bind window is the wave-3 pause; bring him below ~40% and cast — if it reads \"Impossible\" he was de-listed with Achmel."},
   {name:"Ventar the Unholy", area:"A5 · Throne (Wave 4)", mlvl:93, consume:"Fire Res + Max / -% Enemy Fire Res", family:"Megademon", note:"Throne of Destruction wave-4 boss (Baal run).", who:"Throne of Destruction wave-4 boss — a Megademon leading a Venom Lord pack.", tactic:"Bind during the wave-4 pause; clear the Venom Lords, drop Ventar low, then cast."},
-  {name:"Lister the Tormentor", area:"A5 · Throne (Wave 5)", mlvl:92, aura:"Lvl 15 Meditation", auraLogo:"Meditation", auraGlyph:"🧘", fixed:true, consume:"+150% ED / 25% Phys Dmg Reduction · 7 Minions of Destruction", suName:"Lister the Tormentor", tier:"S-Tier · the community OP bind", star:true, best:true, note:"The fixed Lvl-15 Meditation is permanent (a Consume \"Equipped\" stat). On top of it Lister ALSO rolls a separate <strong>Aura Enchanted</strong> per spawn → save &amp; exit and rebind until that rolled aura is Fanaticism. Both auras then coexist."},
+  {name:"Lister the Tormentor", area:"A5 · Throne (Wave 5)", mlvl:92, aura:"Lvl 15 Meditation", auraLogo:"Meditation", auraGlyph:"🧘", fixed:true, reroll:true, consume:"+150% ED / 25% Phys Dmg Reduction · 7 Minions of Destruction", suName:"Lister the Tormentor", tier:"S-Tier · the community OP bind", star:true, best:true, note:"The fixed Lvl-15 Meditation is permanent (a Consume \"Equipped\" stat). On top of it Lister ALSO rolls a separate <strong>Aura Enchanted</strong> per spawn → save &amp; exit and rebind until that rolled aura is Fanaticism. Both auras then coexist."},
 ];
 window.BIND_SU = BIND_SU;
 function bindSUName2Idx(name){if(typeof BIND_SU==='undefined'||!name)return -1;const n=String(name).toLowerCase().trim();return BIND_SU.findIndex(b=>(b.name||'').toLowerCase()===n);}
@@ -4875,6 +4906,14 @@ function bindSUDetailHtml(b){
   if (b.council) h += `<div class="zd-row"><span class="zd-k">Council</span><span class="zd-v">The Council family is coded <code>Demon</code> (Arreat Summit · PureDiablo · Fextralife · Fandom) — bindable at 20 hard points despite the Zakarum-priest lore.</span></div>`;
   if (b.tactic) h += `<div class="zd-row"><span class="zd-k">bind tactic</span><span class="zd-v">${b.tactic}</span></div>`;
   if (b.note) h += `<div class="zd-row"><span class="zd-k">note</span><span class="zd-v">${b.note}</span></div>`;
+  if (b.reroll && typeof AURA_RANK !== 'undefined'){
+    const top3 = AURA_RANK.slice(0,3).map(r => {
+      const a = (typeof auraEntry==='function') ? auraEntry(r.name) : {name:r.name, glyph:'⚜️', target:false};
+      const logo = (typeof auraArt==='function') ? auraArt(a.name, a.glyph, 'sm')+' ' : '';
+      return `<span class="su-aura-pick" role="button" tabindex="0" onclick="event.stopPropagation();openBindAuraByName('${r.name.replace(/'/g,"\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" title="open ${r.name}'s aura ID card"><span class="su-aura-rank">${a.target?'⭐':r.tier}</span> ${logo}<strong>${r.name}</strong> <span style="color:var(--text-dim)">— ${r.verdict}</span></span>`;
+    }).join('');
+    h += `<div class="zd-row"><span class="zd-k">🎯 best roll — top 3</span><span class="zd-v su-aura-picks">${top3}</span></div>`;
+  }
   if (b.suName) h += `<div class="zd-row"><span class="zd-k">full card</span><span class="zd-v"><span class="su-tz-link" onclick="event.stopPropagation();jumpToSuperUniqueByName('${b.suName.replace(/'/g,"\\'")}')" title="open the full TZ drop-pool card">📜 open ${b.name}'s full drop / TZ card →</span></span></div>`;
   h += `<div class="zd-note">⚠ Bind HP threshold was historically &lt;40% (pre-3.2); patch 3.2 added a per-demon max-HP cap that isn't published. Bound-aura level = floor(min(mlvl, your level)÷8); bind inside a Terror Zone (mlvl 96) at level 96+ for the level-12 cap. Consume "Equipped" stats are transcribed from the verified-3.2 bind table above — no per-kill drop odds are implied.</div>`;
   return `<div class="gbc-card su-card-rich">
@@ -6133,6 +6172,99 @@ function auraGridHtml(opts){
   </div>`;
 }
 window.auraGridHtml = auraGridHtml;
+
+// ═══ Aura ID cards + "best roll" guide ════════════════════════════════════
+// Single source of truth = BIND_AURA_POOL (the classic auras, with div/cap/fx).
+// A few auras only ever appear as a FIXED super-unique aura (Meditation) or as a
+// 3.2 REMAP result (Concentration/Vigor/Thorns) — described here with NO invented
+// formula. AURA_REMAP is the page's own 3.2 1:1 remap (see #binds-aura), verbatim.
+const AURA_EXTRA = {
+  "Concentration":{glyph:"🌀", fx:"Boosts the bound demon's own attack damage; small spillover for you. The 3.2 result a Might roll remaps to."},
+  "Vigor":        {glyph:"🏃", fx:"Faster run/walk + stamina regen for your party — pure utility, no combat value."},
+  "Thorns":       {glyph:"🌵", fx:"Returns a share of melee damage to attackers — niche; nothing for a pet build."},
+  "Meditation":   {glyph:"🧘", fx:"Fast mana-regeneration aura. Lister carries it FIXED at Lvl 15 — it never rerolls."}
+};
+const AURA_REMAP = { "Conviction":"Fanaticism", "Might":"Concentration", "Holy Fire":"Vigor", "Holy Shock":"Vigor", "Blessed Aim":"Thorns" };
+window.AURA_REMAP = AURA_REMAP;
+function auraEntry(name){
+  const p = (typeof BIND_AURA_POOL!=='undefined') ? BIND_AURA_POOL.find(a=>a.name===name) : null;
+  if (p) return {name:p.name, glyph:p.glyph, div:p.div, cap:p.cap, fx:p.fx, target:!!p.target};
+  const e = AURA_EXTRA[name];
+  return {name, glyph:(e&&e.glyph)||'⚜️', fx:(e&&e.fx)||'', target:false};
+}
+window.auraEntry = auraEntry;
+// The 5 auras a 3.2 bind can actually RESULT in, ranked best→worst for an Echoing
+// Strike Warlock. Verdicts are build judgement, not new game data.
+const AURA_RANK = [
+  {name:"Fanaticism",   tier:"S", verdict:"THE roll. Attack speed + AR + a big % physical-damage boost shared with you, your merc AND every bound demon. Reroll until you see this icon."},
+  {name:"Holy Freeze",  tier:"B", verdict:"No damage, but chills and slows everything around your pets — the best survival/utility result."},
+  {name:"Concentration",tier:"C", verdict:"Buffs only the demon's own hits — modest, and it never touches you or the merc."},
+  {name:"Vigor",        tier:"D", verdict:"Run/walk + stamina only. A wasted aura slot — reroll."},
+  {name:"Thorns",       tier:"D", verdict:"Reflect damage. Useless for a pet build — reroll."}
+];
+window.AURA_RANK = AURA_RANK;
+function bindAuraDetailHtml(name){
+  const a = auraEntry(name);
+  const logo = (typeof auraArt==='function') ? auraArt(a.name, a.glyph, 'lg') : '';
+  const rk = AURA_RANK.find(r=>r.name===a.name);
+  const remap = AURA_REMAP[a.name];
+  const mlvl = 96;
+  let rows = '';
+  if (typeof a.div === 'number'){
+    const lvl = Math.min(a.cap, Math.floor(mlvl/a.div));
+    rows += `<div class="zd-row"><span class="zd-k">level formula</span><span class="zd-v">mlvl ÷ ${a.div} → cap ${a.cap}</span></div>`;
+    rows += `<div class="zd-row"><span class="zd-k">level @ mlvl 96 (TZ)</span><span class="zd-v"><strong>${lvl}</strong> · range 1–${a.cap}</span></div>`;
+  }
+  rows += `<div class="zd-row"><span class="zd-k">effect</span><span class="zd-v">${a.fx}</span></div>`;
+  let status;
+  if (rk) status = '✅ a live 3.2 bind result — one of the 5 auras a bound demon can actually carry';
+  else if (remap) status = `🔁 removed / changed in 3.2 — a bind that would roll this now gives <strong>${remap}</strong> instead${a.name==='Holy Fire'?" (Holy Fire is still the Smith's FIXED aura)":''}`;
+  else if (a.name==='Meditation') status = '🧘 fixed super-unique aura only (Lister · Lvl 15) — it never rolls or rerolls';
+  else status = '—';
+  rows += `<div class="zd-row"><span class="zd-k">on a 3.2 bind</span><span class="zd-v">${status}</span></div>`;
+  if (rk) rows += `<div class="zd-row"><span class="zd-k">best-roll verdict</span><span class="zd-v">${a.target?'⭐ ':''}<strong>${rk.tier}-tier</strong> — ${rk.verdict}</span></div>`;
+  const badge = rk ? rk.tier : (remap ? '↻' : (a.name==='Meditation'?'fix':'—'));
+  return `<div class="gbc-card su-card-rich">
+    <header class="gbc-header su-rich-header">
+      ${logo}
+      <div class="gbc-id-block">
+        <h2 class="gbc-name">${a.name}${a.target?' ⭐':''}</h2>
+        <div class="gbc-subtitle">Paladin aura · Aura Enchanted</div>
+        <div class="gbc-loc">${a.target?'📍 the reroll target':'📍 what to look for on a bind'}</div>
+      </div>
+      <div class="gbc-tier"><div class="gbc-tier-label">tier</div><div class="gbc-tier-val">${badge}</div></div>
+      <button class="gbc-close" onclick="event.stopPropagation();toggleBindAura('${name.replace(/'/g,"\\'")}')">✕ close</button>
+    </header>
+    <div class="gbc-body su-zone-body">${rows}</div>
+  </div>`;
+}
+function toggleBindAura(name){
+  const box = document.getElementById('bindaura-detail');
+  if (!box) return;
+  if (box.getAttribute('data-open') === name){ box.setAttribute('hidden',''); box.removeAttribute('data-open'); box.innerHTML=''; return; }
+  box.innerHTML = bindAuraDetailHtml(name);
+  box.removeAttribute('hidden');
+  box.setAttribute('data-open', name);
+  box.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function openBindAuraByName(name){ toggleBindAura(name); }
+window.bindAuraDetailHtml = bindAuraDetailHtml; window.toggleBindAura = toggleBindAura; window.openBindAuraByName = openBindAuraByName;
+function renderAuraBestRoll(){
+  const el = document.getElementById('aura-bestroll');
+  if (!el) return;
+  const tc = {S:'var(--best)', A:'var(--gold-bright)', B:'var(--gold-dim)', C:'var(--text-dim)', D:'var(--hell)'};
+  el.innerHTML = '<div class="aura-rank-list">' + AURA_RANK.map(r=>{
+    const a = auraEntry(r.name);
+    const logo = (typeof auraArt==='function') ? auraArt(a.name, a.glyph, 'md') : '';
+    return `<div class="aura-rank-row ${a.target?'aura-rank-top':''}" role="button" tabindex="0" onclick="openBindAuraByName('${r.name.replace(/'/g,"\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" title="open ${r.name}'s aura ID card">
+      <span class="aura-rank-badge" style="color:${tc[r.tier]||'var(--text-dim)'};border-color:${tc[r.tier]||'var(--border)'}">${r.tier}</span>
+      <span class="aura-rank-art">${logo}</span>
+      <span class="aura-rank-body"><span class="aura-rank-name">${a.name}${a.target?' ⭐':''}</span><span class="aura-rank-why">${r.verdict}</span></span>
+    </div>`;
+  }).join('') + '</div>';
+}
+window.renderAuraBestRoll = renderAuraBestRoll;
+_v39_whenReady(renderAuraBestRoll);
 
 // ═══ Endgame relics — site-wide emphasis on the top-tier event drops ═══════
 // The Pandemonium keys, Uber organs, Sunder charms, Hellfire Torch, Annihilus and
@@ -10252,6 +10384,13 @@ function decorateAuraLogos() {
     const glyph = el.getAttribute('data-aura-glyph') || '⚜️';
     el.insertAdjacentHTML('afterbegin', auraArt(name, glyph, 'sm') + ' ');
     el.classList.add('aura-cell');
+    // make the aura cell open its ID card (route through openBindAuraByName)
+    el.classList.add('aura-clickable');
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('title', 'open ' + name + "'s aura ID card");
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); if (typeof openBindAuraByName === 'function') openBindAuraByName(name); });
+    el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } });
     n++;
   });
   return n;
