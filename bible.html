@@ -791,8 +791,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sun-best{color:var(--gold-bright,#f0c060)}
 #arttip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .09s;background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.8);padding:8px 9px 7px;max-width:170px;text-align:center}
 #arttip.on{opacity:1}
+#arttip.tip-rich{max-width:300px;padding:11px 13px 12px}
 #arttip img{display:block;width:96px;height:96px;object-fit:contain;margin:0 auto 5px}
+#arttip.tip-rich img{width:52px;height:78px;margin:0 auto 4px}
 #arttip .att-name{font-family:var(--mono,monospace);font-size:11px;color:var(--gold-bright,#f0c060);letter-spacing:.3px;line-height:1.3}
+#arttip.tip-rich .att-name{font-size:13px;font-weight:700;margin-bottom:1px}
+#arttip .att-info{font-family:var(--mono,monospace);font-size:10.5px;color:var(--text-dim,#9a8e78);line-height:1.45;margin-top:4px}
+#arttip .att-desc{font-family:var(--mono,monospace);font-size:10.5px;line-height:1.5;margin-top:5px}
+#arttip .att-type{color:#c9c9c9;font-size:10.5px;margin-bottom:3px}
+#arttip .att-meta{color:#8f8f8f;font-size:9.5px;margin-bottom:5px}
+#arttip .att-core{color:#6aa6ff;margin:2px 0}
+#arttip .att-aff{color:#d8d8d8;margin:5px 0 0}
+#arttip .att-var{display:inline-block;color:#5fd35f;background:rgba(95,211,95,.1);border:1px solid rgba(95,211,95,.35);border-radius:4px;padding:0 4px;font-weight:700}
+#arttip .att-or{color:var(--gold-bright,#f0c060);font-weight:700;font-style:italic;padding:0 2px}
+#arttip .att-tag{color:#b58bd6;font-size:9px;margin-top:6px;letter-spacing:.4px}
 .rs-name{font-weight:600;font-size:12px;color:var(--text);min-width:34px}
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -10061,7 +10073,7 @@ function renderSunderRecipes(){
           <span class="sun-plus">+</span>${_sunIng(s.gem, false)}
           <span class="sun-plus">+</span>${_sunIng(s.rune + ' Rune', true)}
           <span class="sun-plus">+</span>${shardIng}
-          <span class="sun-arrow">&rarr;</span><span class="sun-renewed">${nameLogo(s.n)}Renewed ${s.n}</span>
+          <span class="sun-arrow">&rarr;</span><span class="sun-renewed" data-arttip="Renewed ${attr}">${nameLogo(s.n)}Renewed ${s.n}</span>
         </div>
         <div class="sun-note">Sunders <span class="${pill}">${s.breaks.toLowerCase()}</span> immunity to ~95% resist . best for <span class="sun-best">${s.best}</span>. Renewing re-rolls all stats - re-cube for the best roll. Only ONE Sunder active at a time.</div>
       </div>
@@ -10069,29 +10081,84 @@ function renderSunderRecipes(){
   }).join('');
 }
 window.renderSunderRecipes = renderSunderRecipes;
-window.openSunderRecipes = function(){
+window.openSunderRecipes = function(charm){
   if (window.switchTab) window.switchTab('tools');
   const card = document.getElementById('sunder-recipe-card');
-  if (card){ card.classList.remove('collapsed'); const h=card.querySelector('.boss-header'); if(h) h.setAttribute('aria-expanded','true'); card.scrollIntoView({behavior:'smooth',block:'start'}); }
+  if (card){ card.classList.remove('collapsed'); const h=card.querySelector('.boss-header'); if(h) h.setAttribute('aria-expanded','true'); }
+  // When routed for a SPECIFIC charm (per-charm recipe search), expand + scroll
+  // that charm's row so "renew black cleft" lands on Black Cleft, not the
+  // top-of-grid Bone Break. No charm -> just open the card (collapsed grid).
+  const row = charm ? document.querySelector('#sunder-recipe-grid details.sun-recipe[data-charm="' + String(charm).replace(/"/g,'&quot;') + '"]') : null;
+  if (row){
+    document.querySelectorAll('#sunder-recipe-grid details.sun-recipe[open]').forEach((d) => { if (d !== row) d.removeAttribute('open'); });
+    row.setAttribute('open','');
+    row.scrollIntoView({behavior:'smooth',block:'center'});
+  } else if (card){
+    card.scrollIntoView({behavior:'smooth',block:'start'});
+  }
 };
+/* Verified in-game Sunder Charm tooltips, transcribed from diablo2.io's RotW    */
+/* item database (the canonical source - ajax.php?var per-item tooltips). Powers  */
+/* the rich hover popup. ZERO fabrication - exact stat ranges + fixed values.     */
+const SUNDER_TIP = {
+  "Latent Black Cleft": { base:"Black Cleft", kind:"latent", req:75, qlvl:69, lines:["Monster Immunity to Magic Damage is Sundered", "Magic Resist -65% to -45%"] },
+  "Renewed Black Cleft": { base:"Black Cleft", kind:"renewed", req:75, qlvl:69, lines:["Monster Immunity to Magic Damage is Sundered", "Magic Resist -45% (fixed)", "+[10-15]% to Magic Skill Damage OR -[5-10]% to Enemy Magic Resistance", "+[14-25]% Better Chance of Getting Magic Items OR +[20-55]% Extra Gold from Monsters", "+[10-65] to Life OR +[10-75] to Mana", "+[5-10]% Faster Run/Walk OR +[12-24]% Faster Hit Recovery OR +[3-8] to All Attributes", "Magic Damage Reduced by [5-10] OR Damage Reduced by [5-10]"] },
+  "Latent Bone Break": { base:"Bone Break", kind:"latent", req:75, qlvl:69, lines:["Monster Immunity to Physical Damage is Sundered", "Damage Reduced by -20% to -10%"] },
+  "Renewed Bone Break": { base:"Bone Break", kind:"renewed", req:75, qlvl:69, lines:["Monster Immunity to Physical Damage is Sundered", "Damage Reduced by -10% (fixed)", "+[75-100]% Enhanced Damage OR -[5-10]% to Enemy Physical Resistance", "+[14-25]% Better Chance of Getting Magic Items OR +[20-55]% Extra Gold from Monsters", "+[10-65] to Life OR +[10-75] to Mana", "+[5-10]% Faster Run/Walk OR +[12-24]% Faster Hit Recovery OR +[3-8] to All Attributes", "Magic Damage Reduced by [5-10] OR Damage Reduced by [5-10]"] },
+  "Latent Cold Rupture": { base:"Cold Rupture", kind:"latent", req:75, qlvl:69, lines:["Monster Immunity to Cold is Sundered", "Cold Resist -90% to -70%"] },
+  "Renewed Cold Rupture": { base:"Cold Rupture", kind:"renewed", req:75, qlvl:69, lines:["Monster Immunity to Cold is Sundered", "Cold Resist -70% (fixed)", "+[5-15]% to Cold Skill Damage OR -[5-10]% to Enemy Cold Resistance", "+[14-25]% Better Chance of Getting Magic Items OR +[20-55]% Extra Gold from Monsters", "+[10-65] to Life OR +[10-75] to Mana", "+[5-10]% Faster Run/Walk OR +[12-24]% Faster Hit Recovery OR +[3-8] to All Attributes", "Magic Damage Reduced by [5-10] OR Damage Reduced by [5-10]"] },
+  "Latent Rotting Fissure": { base:"Rotting Fissure", kind:"latent", req:75, qlvl:69, lines:["Monster Immunity to Poison is Sundered", "Poison Resist -90% to -70%"] },
+  "Renewed Rotting Fissure": { base:"Rotting Fissure", kind:"renewed", req:75, qlvl:69, lines:["Monster Immunity to Poison is Sundered", "Poison Resist -70% (fixed)", "+[5-15]% to Poison Skill Damage OR -[5-10]% to Enemy Poison Resistance", "+[14-25]% Better Chance of Getting Magic Items OR +[20-55]% Extra Gold from Monsters", "+[10-65] to Life OR +[10-75] to Mana", "+[5-10]% Faster Run/Walk OR +[12-24]% Faster Hit Recovery OR +[3-8] to All Attributes", "Magic Damage Reduced by [5-10] OR Damage Reduced by [5-10]"] },
+  "Latent Flame Rift": { base:"Flame Rift", kind:"latent", req:75, qlvl:69, lines:["Monster Immunity to Fire is Sundered", "Fire Resist -90% to -70%"] },
+  "Renewed Flame Rift": { base:"Flame Rift", kind:"renewed", req:75, qlvl:69, lines:["Monster Immunity to Fire is Sundered", "Fire Resist -70% (fixed)", "+[5-15]% to Fire Skill Damage OR -[5-10]% to Enemy Fire Resistance", "+[14-25]% Better Chance of Getting Magic Items OR +[20-55]% Extra Gold from Monsters", "+[10-65] to Life OR +[10-75] to Mana", "+[5-10]% Faster Run/Walk OR +[12-24]% Faster Hit Recovery OR +[3-8] to All Attributes", "Magic Damage Reduced by [5-10] OR Damage Reduced by [5-10]"] },
+  "Latent Crack of the Heavens": { base:"Crack of the Heavens", kind:"latent", req:75, qlvl:69, lines:["Monster Immunity to Lightning is Sundered", "Lightning Resist -90% to -70%"] },
+  "Renewed Crack of the Heavens": { base:"Crack of the Heavens", kind:"renewed", req:75, qlvl:69, lines:["Monster Immunity to Lightning is Sundered", "Lightning Resist -70% (fixed)", "+[5-15]% to Lightning Skill Damage OR -[5-10]% to Enemy Lightning Resistance", "+[14-25]% Better Chance of Getting Magic Items OR +[20-55]% Extra Gold from Monsters", "+[10-65] to Life OR +[10-75] to Mana", "+[5-10]% Faster Run/Walk OR +[12-24]% Faster Hit Recovery OR +[3-8] to All Attributes", "Magic Damage Reduced by [5-10] OR Damage Reduced by [5-10]"] }
+};
+window.SUNDER_TIP = SUNDER_TIP;
+/* base charm name (e.g. "Cold Rupture") -> its Renewed tooltip (the goal state) */
+const _SUN_BASES = {}; for (var _k in SUNDER_TIP){ var _e = SUNDER_TIP[_k]; if (_e.kind==='renewed') _SUN_BASES[_e.base] = _k; }
+function _sunMarkup(s){ return s.replace(/\[([^\]]+)\]/g, '<span class="att-var">$1</span>').replace(/ OR /g, ' <span class="att-or">or</span> '); }
+function _sunTipHtml(t){
+  var rows = t.lines.map(function(l){ return l.indexOf('[')>=0 ? '<div class="att-aff">'+_sunMarkup(l)+'</div>' : '<div class="att-core">'+l+'</div>'; }).join('');
+  return '<div class="att-type">Unique &middot; Grand Charm</div>'
+       + '<div class="att-meta">Req level: '+t.req+' &middot; Quality level: '+t.qlvl+'</div>'
+       + rows
+       + '<div class="att-tag">Patch 3.0 &middot; New in RotW</div>';
+}
+/* resolve a hovered name -> {artName, desc, rich}. SUNDER tooltips first, then    */
+/* the verified ITEM_INFO one-liner for grail items; else just art + name.         */
+function _arttipResolve(nm){
+  var t = SUNDER_TIP[nm] || (_SUN_BASES[nm] ? SUNDER_TIP[_SUN_BASES[nm]] : null);
+  if (t) return { artName: t.base, desc: _sunTipHtml(t), rich: true };
+  if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
+  return { artName: nm, desc: '', rich: false };
+}
+window._arttipResolve = _arttipResolve;
 /* Floating art-hover popup (the diablo2.io "nice detail"). Delegated + scoped   */
 /* to elements carrying data-arttip OR the site-wide existing data-art-logo      */
-/* chips, so item names everywhere reveal their in-game art on hover. Pure       */
-/* visual - never intercepts clicks (pointer-events:none); only shows when art   */
-/* is registered for that name.                                                  */
+/* chips, so item names everywhere reveal their in-game art + verified stats on  */
+/* hover. Pure visual - never intercepts clicks (pointer-events:none).           */
 (function(){
   function arttipInit(){
     if (window._arttipReady) return; window._arttipReady = true;
     var tip = document.getElementById('arttip');
-    if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div>'; document.body.appendChild(tip); }
-    var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), cur = null;
+    if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div><div class="att-desc"></div>'; document.body.appendChild(tip); }
+    if (!tip.querySelector('.att-desc')){ var dd=document.createElement('div'); dd.className='att-desc'; tip.appendChild(dd); }
+    var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), desc = tip.querySelector('.att-desc'), cur = null;
     function nameOf(el){ return el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || ''; }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest && e.target.closest('[data-arttip],[data-art-logo]'); if (!el) return;
-      var nm = nameOf(el), url = (typeof artUrl==='function') ? artUrl(nm) : '';
-      if (!nm || !url) return;
-      cur = el; img.src = url; lab.textContent = nm; move(e); tip.classList.add('on');
+      var nm = nameOf(el); if (!nm) return;
+      var r = (typeof _arttipResolve==='function') ? _arttipResolve(nm) : { artName:nm, desc:'', rich:false };
+      var url = (typeof artUrl==='function') ? (artUrl(nm) || artUrl(r.artName)) : '';
+      if (!url && !r.desc) return;
+      cur = el;
+      img.src = url || ''; img.style.display = url ? '' : 'none';
+      lab.textContent = nm;
+      desc.innerHTML = r.desc;
+      tip.classList.toggle('tip-rich', !!r.rich);
+      move(e); tip.classList.add('on');
     });
     document.addEventListener('mousemove', function(e){ if (cur) move(e); });
     document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('[data-arttip],[data-art-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
@@ -12110,7 +12177,7 @@ _v41_whenReady(() => {
         icon:'💠', label:'Renew '+s.n+' - recipe', sub:s.gem+' + '+s.rune+' Rune + '+s.shards.length+' shard'+(s.shards.length>1?'s':''),
         cat:'recipe', hint:'tools',
         keywords:'recipe renew renewed upgrade cube craft '+s.n.toLowerCase()+' '+s.breaks.toLowerCase()+' sunder charm '+s.rune.toLowerCase()+' '+s.gem.toLowerCase(),
-        action: () => { if (window.openSunderRecipes) window.openSunderRecipes(); }
+        action: () => { if (window.openSunderRecipes) window.openSunderRecipes(s.n); }
       });
     });
     return cmds;
