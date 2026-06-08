@@ -89,4 +89,32 @@ test.describe('v127 set-member codex icons are verified + lazy', () => {
     await page.waitForTimeout(150);
     expect(errs).toEqual([]);
   });
+
+  test('the two mislabeled members are corrected to canonical items (Aldur\'s Rhythm, Hwanin\'s Blessing)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const codex: any = ITEM_CODEX;
+      const art = (window as any).D2IO_ART;
+      const names = new Set<string>();
+      for (const e of Object.values(codex) as any[]) {
+        if (e.setMembers) for (const m of e.setMembers) names.add(m.name);
+      }
+      return {
+        hasOldAldur: names.has("Aldur's Gauntlet"),
+        hasOldHwanin: names.has("Hwanin's Seal"),
+        hasNewAldur: names.has("Aldur's Rhythm"),
+        hasNewHwanin: names.has("Hwanin's Blessing"),
+        aldurArt: art["Aldur's Rhythm"] || '',
+        hwaninArt: art["Hwanin's Blessing"] || '',
+        // zero set members lack art now
+        gap: [...names].filter((n) => !art[n]),
+      };
+    });
+    expect(r.hasOldAldur).toBe(false);
+    expect(r.hasOldHwanin).toBe(false);
+    expect(r.hasNewAldur).toBe(true);
+    expect(r.hasNewHwanin).toBe(true);
+    expect(r.aldurArt).toMatch(/aldursrythm_graphic\.png$/);
+    expect(r.hwaninArt).toMatch(/hwaninsblessing_graphic\.png$/);
+    expect(r.gap).toEqual([]);
+  });
 });
