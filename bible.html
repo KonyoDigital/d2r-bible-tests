@@ -659,6 +659,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .d2art-wrap.lg .d2art-img{max-width:54px;max-height:54px;filter:drop-shadow(0 0 10px rgba(240,192,96,.35))}
 .d2art-wrap.sm{width:22px;height:22px;flex:0 0 auto}
 .d2art-wrap.sm .d2art-img{max-width:22px;max-height:22px}
+.top-drop-name .d2art-wrap.sm,td.item-name .d2art-wrap.sm{width:20px;height:20px;margin-right:4px;vertical-align:middle}
+.top-drop-name .d2art-wrap.sm .d2art-img,td.item-name .d2art-wrap.sm .d2art-img{max-width:20px;max-height:20px}
 .d2art-wrap.md{width:38px;height:38px;flex:0 0 auto}
 .d2art-wrap.md .d2art-img{max-width:38px;max-height:38px}
 /* v113 — Warlock bind-aura logo grid (Lister / Hephasto / The Smith ID cards).
@@ -6555,6 +6557,11 @@ function artOr(name, fallbackHtml, size){
   return `<span class="d2art-wrap ${size||'lg'}"><img class="d2art-img" src="${u}" alt="${_d2artEsc(name)}" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
 window.artOr = artOr;
+// Unified drop-row logo: render the registered in-game art thumbnail (lazy, graceful)
+// ONLY when one exists for this name — no empty placeholder box for art-less items.
+// Used by every drop-table / top-drops surface so a named item shows its in-game logo.
+function nameLogo(name){ return (typeof artUrl==='function' && artUrl(name)) ? artOr(name, '', 'sm')+' ' : ''; }
+window.nameLogo = nameLogo;
 
 // ═══ v113/v115 Warlock bind-aura logos — "what to look for" on a bound demon ═
 // v115: swapped the static PNGs for the ANIMATED aura gifs cryptography posted on
@@ -8101,7 +8108,7 @@ function renderBossDetailCard(bossId, focusDiff) {
             const esc = d.n.replace(/'/g,"\\'");
             const adjusted = (v, dk) => v == null ? '<span style="color:var(--text-muted)">—</span>' : fmt(effChance(v, boss.id, dk));
             return `<tr style="cursor:pointer" onclick="navigateToItem(\'${esc}\', {tab:\'bosses\', bossId:\'${boss.id}\'})">
-              <td><strong>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
+              <td>${nameLogo(d.n)}<strong>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
               <td style="font-family:var(--mono);color:var(--text-muted);font-size:11px">TC${d.tc}</td>
               <td class="dcol-norm" style="text-align:right;font-family:var(--mono)">${adjusted(d.norm,'norm')}</td>
               <td class="dcol-nm" style="text-align:right;font-family:var(--mono)">${adjusted(d.nm,'nm')}</td>
@@ -8448,7 +8455,7 @@ function renderBossCards() {
             const esc = d.n.replace(/'/g, "\\'");
             return `<li class="top-drop-row ${d.tier === 'uber' ? 'top-drop-uber' : ''}" onclick="navigateToItem('${esc}')" title="open ${d.n} in the calculator">
               <span class="top-drop-rank">#${i + 1}</span>
-              <span class="top-drop-name">${sym} ${d.n}${ver}</span>
+              <span class="top-drop-name">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
               <span class="top-drop-odds">${fmt(t.best)} <span class="top-drop-diff">${diffLbl}</span></span>
               <span class="top-drop-hrs">${hrs !== null ? fmtHours(hrs) : "&mdash;"}</span>
             </li>`;
@@ -8492,7 +8499,7 @@ function renderBossCards() {
       return `<tr class="clickable ${wishCls} ${ownedCls}" data-item="${d.n}">
         <td class="item-name ${itemNameClass}">
           <span class="star-btn ${starred?'starred':''}" data-star="${d.n}" onclick="event.stopPropagation();toggleStar('${escName}')">${starred?'★':'☆'}</span>
-          ${d.n} ${tierPill(d.tier)}
+          ${nameLogo(d.n)}${d.n} ${tierPill(d.tier)}
           <button class="owned-btn ${isOwned?'owned':''}" onclick="event.stopPropagation();toggleOwned('${escName}')" title="${isOwned?'mark as not owned':'mark as owned (will strikethrough)'}">${isOwned?'✓':'☐'}</button>
         </td>
         <td class="tc">${tcPill(d.tc)} ${d.qlvl?'q'+d.qlvl:''}</td>
@@ -9652,7 +9659,7 @@ function renderRuneStash(){
     const esc = r.n.replace(/'/g, "\\'");
     return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}">
       ${artOr(r.n, '', 'sm')}
-      <span class="rs-name">${r.n}</span>
+      <span class="rs-name zd-item-click" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${r.n} rune card">${r.n}</span>
       <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
       <span class="rs-count" data-rune-count="${r.n}">${c}</span>
       <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',1)" title="add one ${r.n}" aria-label="plus ${r.n}">+</button>
@@ -9666,7 +9673,7 @@ function renderRuneStash(){
     const ti = parseInt(sel.value, 10) || 0;
     const n = cubeUpPotential(ti);
     const name = RUNES[ti] ? RUNES[ti].n : '';
-    res.innerHTML = `<span class="cubeup-num">${n}×</span> ${name}`;
+    res.innerHTML = `<span class="cubeup-num">${n}×</span> <span class="zd-item-click" style="cursor:pointer" onclick="window.openDrop('${name.replace(/'/g,"\\'")}')" title="open ${name} rune card">${nameLogo(name)}${name}</span>`;
   }
   renderRuneCraftable();
 }
@@ -9946,7 +9953,7 @@ function renderMaterialStash(){
       const esc = m.n.replace(/'/g, "\\'");
       const attr = m.n.replace(/"/g, '&quot;');
       return `<div class="mat-stash-cell${c > 0 ? ' rs-has' : ''}" data-material="${attr}">
-        <span class="mat-name">${artOr(m.n, m.icon, 'sm')} ${m.n}</span>
+        <span class="mat-name">${artOr(m.n, m.icon, 'sm')} <span class="zd-item-click" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${m.n} card">${m.n}</span></span>
         <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',-1)" title="remove one ${m.n}" aria-label="minus ${m.n}">−</button>
         <span class="rs-count" data-material-count="${attr}">${c}</span>
         <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',1)" title="add one ${m.n}" aria-label="plus ${m.n}">+</button>
