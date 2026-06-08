@@ -9475,9 +9475,14 @@ function renderSetTracker() {
     const complete = have === set.pieces.length;
     const pieces = set.pieces.map(p => {
       const esc = p.replace(/'/g, "\\'");
+      const _i = p.indexOf(' (');
+      const _b = _i >= 0 ? p.slice(0, _i) : p;            // strip the "(slot)" suffix -> base item name
+      const _bAttr = _b.replace(/"/g, '&quot;');
+      // set pieces have no individual openDrop card, so art-logo + hover-popup only (no dead route)
+      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}">${nameLogo(_b)}${p}</span>`;
       return `<div class="set-piece ${setPieces.has(p)?'checked':''}" onclick="toggleSetPiece('${esc}')">
         <span class="set-piece-box"></span>
-        <span class="set-piece-name">${p}</span>
+        ${_nm}
       </div>`;
     }).join('');
     return `<div class="set-card ${complete?'complete':''}">
@@ -9701,7 +9706,7 @@ function renderRuneStash(){
     const esc = r.n.replace(/'/g, "\\'");
     return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}">
       ${artOr(r.n, '', 'sm')}
-      <span class="rs-name zd-item-click" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${r.n} rune card">${r.n}</span>
+      <span class="rs-name zd-item-click" data-arttip="${r.n}" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${r.n} rune card">${r.n}</span>
       <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
       <span class="rs-count" data-rune-count="${r.n}">${c}</span>
       <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',1)" title="add one ${r.n}" aria-label="plus ${r.n}">+</button>
@@ -9715,7 +9720,7 @@ function renderRuneStash(){
     const ti = parseInt(sel.value, 10) || 0;
     const n = cubeUpPotential(ti);
     const name = RUNES[ti] ? RUNES[ti].n : '';
-    res.innerHTML = `<span class="cubeup-num">${n}×</span> <span class="zd-item-click" style="cursor:pointer" onclick="window.openDrop('${name.replace(/'/g,"\\'")}')" title="open ${name} rune card">${nameLogo(name)}${name}</span>`;
+    res.innerHTML = `<span class="cubeup-num">${n}×</span> <span class="zd-item-click" data-arttip="${name}" style="cursor:pointer" onclick="window.openDrop('${name.replace(/'/g,"\\'")}')" title="open ${name} rune card">${nameLogo(name)}${name}</span>`;
   }
   renderRuneCraftable();
 }
@@ -9995,7 +10000,7 @@ function renderMaterialStash(){
       const esc = m.n.replace(/'/g, "\\'");
       const attr = m.n.replace(/"/g, '&quot;');
       return `<div class="mat-stash-cell${c > 0 ? ' rs-has' : ''}" data-material="${attr}">
-        <span class="mat-name">${artOr(m.n, m.icon, 'sm')} <span class="zd-item-click" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${m.n} card">${m.n}</span></span>
+        <span class="mat-name">${artOr(m.n, m.icon, 'sm')} <span class="zd-item-click" data-arttip="${attr}" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${m.n} card">${m.n}</span></span>
         <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',-1)" title="remove one ${m.n}" aria-label="minus ${m.n}">−</button>
         <span class="rs-count" data-material-count="${attr}">${c}</span>
         <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',1)" title="add one ${m.n}" aria-label="plus ${m.n}">+</button>
