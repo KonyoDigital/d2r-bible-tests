@@ -108,8 +108,9 @@ test.describe('v74 materials are searchable + route to their ID card', () => {
     });
     expect(expanded.bodyVisible).toBe(true);
     expect(expanded.notCollapsed).toBe(true);
-    // the aggregate ID card is still reachable via the in-body link
-    await page.click('#tab-rotw .statue-head + .sec-body .zd-item-click');
+    // the aggregate ID card is still reachable via its in-body link (the lead now ALSO
+    // carries a "Colossal Summit →" link, so target the statue-card link specifically)
+    await page.click('#tab-rotw .statue-head + .sec-body [onclick*="openDrop(\'Colossal Ancient Statue\')"]');
     await page.waitForTimeout(250);
     const name = await page.evaluate(() =>
       document.getElementById('item-detail')?.querySelector('.material-card .gic-name')?.textContent?.trim() || '');
