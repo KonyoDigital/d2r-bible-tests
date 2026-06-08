@@ -3309,7 +3309,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name" data-aura-logo="Blessed Aim" data-aura-glyph="🎯">Blessed Aim <span style="color:var(--gold-dim)">(→ Thorns in 3.2)</span></td><td>mlvl ÷ 5</td><td>19</td><td>1–20</td></tr>
     </tbody></table></div>
     <div class="success"><strong>Why "the aura changes":</strong> the Aura Enchanted aura is <strong>random per spawn</strong> (maxroll: "the boss spawns with a random Paladin Aura that scales based on the mLVL"). That's exactly why you <strong>save &amp; exit and rebind until Fanaticism</strong> — and why a mlvl-96 Terror Zone matters: it's the only place Fanaticism reaches its <strong>level-12 cap</strong>. The level is ALSO capped by your own character level at bind time, so bind at lvl 96+.</div>
-    <div class="info"><strong>The 3 Hell affixes — the full roll pool (maxroll):</strong> every Hell unique/super-unique carries three of these, which is why a bound Lister/Hephasto can come with extra goodies (or headaches).</div>
+    <div class="info"><strong>What the monster's health-bar actually shows (in-game):</strong> a Hell unique rolls <strong>3 random modifiers</strong> — but a <strong>super-unique</strong> (Lister / Hephasto) also has its own <strong>fixed mods + its immunities</strong>, and the health-bar stacks <em>all of them together</em>. That's why you'll often count <strong>8–9 lines</strong> on one boss (e.g. Aura Enchanted · Extra Strong · Extra Fast · Cursed · Immune to Physical · Immune to Fire …). Only the <strong>random rolls + the aura</strong> are rerollable — the immunities come from the monster's own base resistances.</div>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Affix</th><th>What it does</th><th>Bind note</th></tr></thead><tbody>
       <tr><td class="item-name" style="color:var(--best)">Aura Enchanted</td><td>Boss carries a random Paladin aura (scales by mlvl, table above)</td><td><strong style="color:var(--best)">The target</strong> — reroll to Fanaticism</td></tr>
       <tr><td class="item-name">Extra Strong</td><td>Bonus damage + attack rating</td><td>✅ keeps — more pet damage</td></tr>
@@ -3322,6 +3322,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <tr><td class="item-name">Cold / Fire / Lightning Enchanted</td><td>Adds that element + a death-detonation / charged bolts</td><td>neutral on a pet</td></tr>
       <tr><td class="item-name" style="color:var(--hell)">Mana Burn</td><td>Drains mana on hit, converts it to the boss's life</td><td>⚠️ this is <strong>Lister's "I can't"</strong> while you fight him — irrelevant once bound</td></tr>
       <tr><td class="item-name" style="color:var(--hell)">Teleportation</td><td>Boss teleports and heals up to 30% max life</td><td>⚠️ annoying to kill; fine once bound</td></tr>
+      <tr><td class="item-name" style="color:#66ccff">Immune to Physical</td><td>Base physical resist ≥ 100% — a monster stat, not a random roll</td><td>✅ on a bound pet = <strong>near-unkillable</strong> vs physical attackers</td></tr>
+      <tr><td class="item-name" style="color:#66ccff">Immune to Cold</td><td>Base cold resist ≥ 100%</td><td>✅ your pet <strong>can't be frozen or chilled</strong> — a big survival win</td></tr>
+      <tr><td class="item-name" style="color:#66ccff">Immune to Fire / Lightning / Poison</td><td>That element's base resist ≥ 100%</td><td>✅ pet shrugs off that element (e.g. survives the Uber elemental rooms)</td></tr>
     </tbody></table></div>
     <div class="info"><strong>The ÷8 myth, busted:</strong> the per-aura divisors above mean only <strong>Fanaticism / Conviction / Holy Shock</strong> use ÷8 — Holy Freeze is ÷7, Holy Fire ÷6, Blessed Aim ÷5. <span style="color:var(--gold-dim)">Full sources in the 📐 reference tab.</span></div>
     </div>
@@ -3586,7 +3589,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <p>After the 3.2 remap a bound demon's Aura Enchanted lands on <strong>one of five results</strong>. Here they are ranked best→worst for an Echoing Strike Warlock — <span style="color:var(--gold-dim)">tap any row to open its aura ID card.</span></p>
     <div id="aura-bestroll"></div>
     <div class="success" style="margin-top:10px"><strong>Bottom line:</strong> only <strong style="color:var(--best)">Fanaticism</strong> is worth keeping — save &amp; exit and rebind until you see it. Everything else is a reroll.</div>
-    <p style="margin-top:16px">The aura is only half the roll. A bound super-unique <strong>keeps its other boss mods</strong> too — on Hell it carries <strong>2–3 fixed + 2 random bonus mods (≈4–5 total)</strong>, so a clean 1-for-1 is rare. Beyond a Fanaticism aura, here are the <strong>3 affixes worth rerolling for</strong> on an Echoing Strike pet build — effects per the <em>Arreat Summit</em> bonus tables.</p>
+    <p style="margin-top:16px">The aura is only one line. On its in-game health-bar a bound super-unique stacks its <strong>fixed mods + its 3 random Hell rolls + its immunities</strong> — often <strong>8–9 attributes</strong> in total, so a perfect roll is rare. Beyond a Fanaticism aura, these are the <strong>3 damage affixes worth rerolling for</strong> on an Echoing Strike pet build — effects per the <em>Arreat Summit</em> bonus tables.</p>
     <div class="aura-top3" style="margin-top:8px">
       <div class="at3-head">★ Top 3 bind affix buffs to look for ★</div>
       <div class="at3-list">
@@ -3599,7 +3602,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <div class="at3-row">
           <span class="at3-rank">2</span>
           <span class="at3-art" style="width:38px;justify-content:center;font-size:27px;line-height:1">🩸</span>
-          <span class="at3-main"><span class="at3-name">Cursed</span><span class="at3-why">Its hits cast Amplify Damage on the enemy (50% on-hit) — −100% physical resist and it strips Physical Immunity, multiplying both your demon's hits and your own.</span></span>
+          <span class="at3-main"><span class="at3-name">Cursed</span><span class="at3-why">Its hits cast Amplify Damage on the enemy — −100% physical resist and it strips Physical Immunity, multiplying both your demon's hits and your own.</span></span>
           <span class="at3-tier" style="color:var(--gold-bright);border-color:var(--gold-dim)">A</span>
         </div>
         <div class="at3-row">
@@ -3611,6 +3614,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </div>
     </div>
     <div class="info" style="margin-top:9px"><strong>Honorable mentions:</strong> <strong>Stone Skin</strong> (tankier, longer-living pet) and <strong>Spectral Hit</strong> (free random elemental on every swing) are fine bonus rolls. <strong>Avoid:</strong> Mana Burn and Teleportation do nothing useful for a bound pet.</div>
+    <div class="success" style="margin-top:9px"><strong>Best survival rolls:</strong> because your bound demon is a <em>pet</em>, its <strong>immunities</strong> are pure survivability — an <strong style="color:#66ccff">Immune-to-Physical</strong> demon is near-unkillable and <strong style="color:#66ccff">Immune-to-Cold</strong> can't be frozen. <strong>The dream bind:</strong> Fanaticism aura + Extra Strong + a Physical or Cold immunity = a hard-hitting pet that simply won't die.</div>
     <div id="bindaura-detail" class="su-detail" hidden></div>
     </div>
   </div>

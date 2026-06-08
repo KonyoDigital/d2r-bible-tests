@@ -112,6 +112,26 @@ test.describe('v124 Pandemonium unify + top-3 bind-affix podium', () => {
     expect(r.tiers[0]).toBe('S');
   });
 
+  test('the affix model now reflects the in-game health-bar (immunities + the 8-9 line note)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const txt = document.body.textContent || '';
+      return {
+        inGameModel: txt.includes("What the monster's health-bar actually shows"),
+        eightNine: txt.includes('8–9 lines'),
+        immPhys: txt.includes('Immune to Physical'),
+        immCold: txt.includes('Immune to Cold'),
+        survival: txt.includes('Best survival rolls'),
+        dream: txt.includes('The dream bind'),
+      };
+    });
+    expect(r.inGameModel).toBe(true);
+    expect(r.eightNine).toBe(true);
+    expect(r.immPhys).toBe(true);
+    expect(r.immCold).toBe(true);
+    expect(r.survival).toBe(true);
+    expect(r.dream).toBe(true);
+  });
+
   test('no console errors loading the events tab + opening an uber card', async ({ page }) => {
     const errs: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
