@@ -800,6 +800,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cube-arrow{color:var(--gold);font-size:14px;text-align:center}
 .cube-output{color:var(--gold-bright);font-weight:600;font-family:ui-monospace,monospace;font-size:11px;text-align:right}
 .cube-section h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--terror)}
+/* Nested collapsible recipe categories */
+.cube-cat{background:var(--surface-2);border-radius:8px;margin:10px 0;overflow:hidden;border:1px solid var(--border)}
+.cube-cat>summary{cursor:pointer;list-style:none;padding:10px 16px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--terror);font-weight:600;display:flex;align-items:center;gap:8px;user-select:none}
+.cube-cat>summary::-webkit-details-marker{display:none}
+.cube-cat>summary::before{content:"\25B8";color:var(--gold);transition:transform .15s;font-size:11px}
+.cube-cat[open]>summary::before{transform:rotate(90deg)}
+.cube-cat>summary:hover{color:var(--gold-bright);background:var(--surface-3)}
+.cube-cat>summary .cube-cat-count{margin-left:auto;color:var(--text-dim);font-size:10px;font-weight:400;letter-spacing:0;text-transform:none}
+.cube-cat .cube-body{padding:0 16px 8px}
+.cube-cat .cube-body>.cube-row:first-child{border-top:1px solid var(--border)}
 /* Compare-pin */
 .pin-btn{cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:3px 8px;border-radius:4px;font-size:10px;font-family:inherit;margin-left:8px}
 .pin-btn:hover{color:var(--terror);border-color:var(--terror)}
@@ -1092,7 +1102,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .sd-cat-blurb{font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:8px;font-style:italic}
   .sd-items{display:flex;flex-direction:column;gap:6px}
   .sd-item{background:var(--bg-elev0);border:1px solid var(--border);border-radius:5px;padding:7px 10px}
-  .sd-item-name{font-size:12px;font-weight:600;color:var(--gold-bright);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .sd-item-name{font-size:12px;font-weight:600;color:var(--gold-bright);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .sd-item-id{display:inline-flex;align-items:center;gap:6px;min-width:0}
+  .sd-item-id[role="button"]{cursor:pointer;border-radius:4px;transition:color .12s,box-shadow .12s}
+  .sd-item-id[role="button"]:hover{color:var(--gold-bright);box-shadow:0 0 0 1px var(--gold-dim),0 0 10px rgba(212,168,71,.25)}
   .sd-item-rate{color:var(--terror);font-size:10px;font-family:var(--mono);font-weight:600}
   .sd-item-from{font-size:11px;color:var(--text);margin-top:2px;font-family:var(--mono)}
   .sd-item-note{font-size:10px;color:var(--text-muted);margin-top:3px;font-style:italic;line-height:1.4}
@@ -3644,19 +3657,47 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="success" style="margin-top:10px"><strong>For Konyo (Warlock):</strong> your Lister bind already gives you a permanent <strong>Lvl-15 Meditation</strong>, so an <strong>Insight</strong> merc is redundant — run <strong style="color:var(--best)">Infinity</strong> instead (its Conviction shreds resists for your elemental Echo and breaks Lightning immunes), or a <strong style="color:var(--best)">Holy Freeze</strong> merc if you want the screen-wide slow for safety. See the 🔱 binds tab for the Meditation source.</div>
   <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg · Mercenary Mechanics resource (vanilla D2R mechanics). Aura specifics to be confirmed against Reign of the Warlock in-game.</p>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🧊 Cube Recipes — quick reference <span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)">🧊 Cube Recipes — the full book <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
-<div class="cube-section">
-  <h3>Rune upgrades (3-to-1)</h3>
+<div class="lead" style="margin:4px 0 10px">The full Horadric Cube recipe book, grouped by purpose — tap a category to expand it. The cube must be <strong>carried in your inventory</strong>; quest recipes (Cow portal · Horadric Staff · Khalim's Will) only fire in the matching <strong>town</strong>. <span style="color:var(--text-muted)">Mechanics are base-game D2R — Reign of the Warlock may retune some outputs; verify in-game.</span></div>
+<details class="cube-cat">
+  <summary>🔮 Rune upgrades — the full chain (El → Zod) <span class="cube-cat-count">33 steps</span></summary>
+  <div class="cube-body">
   <div class="cube-row"><div class="cube-input">3× El</div><div class="cube-arrow">→</div><div class="cube-output">1× Eld</div></div>
   <div class="cube-row"><div class="cube-input">3× Eld</div><div class="cube-arrow">→</div><div class="cube-output">1× Tir</div></div>
-  <div class="cube-row"><div class="cube-input">3× Sol + Chipped Amethyst</div><div class="cube-arrow">→</div><div class="cube-output">1× Shael</div></div>
-  <div class="cube-row"><div class="cube-input">3× Dol + Flawless Topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Hel</div></div>
-  <div class="cube-row"><div class="cube-input">2× Io + Flawless Sapphire</div><div class="cube-arrow">→</div><div class="cube-output">1× Lum (Hell only)</div></div>
-  <div class="cube-row"><div class="cube-input">2× Lum + Flawless Emerald</div><div class="cube-arrow">→</div><div class="cube-output">1× Ko (Hell only)</div></div>
-  <div class="cube-row"><div class="cube-input">2× Mal + Flawless Diamond</div><div class="cube-arrow">→</div><div class="cube-output">1× Ist (Hell only)</div></div>
-  <div class="cube-row"><div class="cube-input">2× Gul + 1 perfect topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Vex (Hell only)</div></div>
-</div>
+  <div class="cube-row"><div class="cube-input">3× Tir</div><div class="cube-arrow">→</div><div class="cube-output">1× Nef</div></div>
+  <div class="cube-row"><div class="cube-input">3× Nef</div><div class="cube-arrow">→</div><div class="cube-output">1× Eth</div></div>
+  <div class="cube-row"><div class="cube-input">3× Eth</div><div class="cube-arrow">→</div><div class="cube-output">1× Ith</div></div>
+  <div class="cube-row"><div class="cube-input">3× Ith</div><div class="cube-arrow">→</div><div class="cube-output">1× Tal</div></div>
+  <div class="cube-row"><div class="cube-input">3× Tal</div><div class="cube-arrow">→</div><div class="cube-output">1× Ral</div></div>
+  <div class="cube-row"><div class="cube-input">3× Ral</div><div class="cube-arrow">→</div><div class="cube-output">1× Ort</div></div>
+  <div class="cube-row"><div class="cube-input">3× Ort</div><div class="cube-arrow">→</div><div class="cube-output">1× Thul</div></div>
+  <div class="cube-row"><div class="cube-input">3× Thul + Chipped Topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Amn</div></div>
+  <div class="cube-row"><div class="cube-input">3× Amn + Chipped Amethyst</div><div class="cube-arrow">→</div><div class="cube-output">1× Sol</div></div>
+  <div class="cube-row"><div class="cube-input">3× Sol + Chipped Sapphire</div><div class="cube-arrow">→</div><div class="cube-output">1× Shael</div></div>
+  <div class="cube-row"><div class="cube-input">3× Shael + Chipped Ruby</div><div class="cube-arrow">→</div><div class="cube-output">1× Dol</div></div>
+  <div class="cube-row"><div class="cube-input">3× Dol + Chipped Emerald</div><div class="cube-arrow">→</div><div class="cube-output">1× Hel</div></div>
+  <div class="cube-row"><div class="cube-input">3× Hel + Chipped Diamond</div><div class="cube-arrow">→</div><div class="cube-output">1× Io</div></div>
+  <div class="cube-row"><div class="cube-input">3× Io + Flawed Topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Lum</div></div>
+  <div class="cube-row"><div class="cube-input">3× Lum + Flawed Amethyst</div><div class="cube-arrow">→</div><div class="cube-output">1× Ko</div></div>
+  <div class="cube-row"><div class="cube-input">3× Ko + Flawed Sapphire</div><div class="cube-arrow">→</div><div class="cube-output">1× Fal</div></div>
+  <div class="cube-row"><div class="cube-input">3× Fal + Flawed Ruby</div><div class="cube-arrow">→</div><div class="cube-output">1× Lem</div></div>
+  <div class="cube-row"><div class="cube-input">3× Lem + Flawed Emerald</div><div class="cube-arrow">→</div><div class="cube-output">1× Pul</div></div>
+  <div class="cube-row"><div class="cube-input">2× Pul + Flawed Diamond</div><div class="cube-arrow">→</div><div class="cube-output">1× Um</div></div>
+  <div class="cube-row"><div class="cube-input">2× Um + Topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Mal</div></div>
+  <div class="cube-row"><div class="cube-input">2× Mal + Amethyst</div><div class="cube-arrow">→</div><div class="cube-output">1× Ist</div></div>
+  <div class="cube-row"><div class="cube-input">2× Ist + Sapphire</div><div class="cube-arrow">→</div><div class="cube-output">1× Gul</div></div>
+  <div class="cube-row"><div class="cube-input">2× Gul + Ruby</div><div class="cube-arrow">→</div><div class="cube-output">1× Vex</div></div>
+  <div class="cube-row"><div class="cube-input">2× Vex + Emerald</div><div class="cube-arrow">→</div><div class="cube-output">1× Ohm</div></div>
+  <div class="cube-row"><div class="cube-input">2× Ohm + Diamond</div><div class="cube-arrow">→</div><div class="cube-output">1× Lo</div></div>
+  <div class="cube-row"><div class="cube-input">2× Lo + Flawless Topaz</div><div class="cube-arrow">→</div><div class="cube-output">1× Sur</div></div>
+  <div class="cube-row"><div class="cube-input">2× Sur + Flawless Amethyst</div><div class="cube-arrow">→</div><div class="cube-output">1× Ber</div></div>
+  <div class="cube-row"><div class="cube-input">2× Ber + Flawless Sapphire</div><div class="cube-arrow">→</div><div class="cube-output">1× Jah</div></div>
+  <div class="cube-row"><div class="cube-input">2× Jah + Flawless Ruby</div><div class="cube-arrow">→</div><div class="cube-output">1× Cham</div></div>
+  <div class="cube-row"><div class="cube-input">2× Cham + Flawless Emerald</div><div class="cube-arrow">→</div><div class="cube-output">1× Zod</div></div>
+  <div class="cubeup-note" style="margin-top:6px">Lower runes (El–Ort) are pure 3-to-1. From Thul up, each step also eats the listed gem; the gem <strong>type cycles</strong> Topaz·Amethyst·Sapphire·Ruby·Emerald·Diamond and its <strong>grade steps up</strong> every six runes (Chipped → Flawed → standard → Flawless).</div>
+  </div>
+</details>
 <div class="cube-section">
   <h3>Uber Tristram keys (1 of each → 1 random portal)</h3>
   <div class="cube-row"><div class="cube-input">1× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Terror')">Key of Terror</span> + 1× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Hate')">Key of Hate</span> + 1× <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Key of Destruction')">Key of Destruction</span></div><div class="cube-arrow">→</div><div class="cube-output">1 <strong>random</strong> mini-uber portal — repeat for all 3 organs (~3× each key)</div></div>
@@ -3666,14 +3707,75 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="cube-row"><div class="cube-input"><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Diablo\'s Horn')">Diablo's Horn</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Mephisto\'s Brain')">Mephisto's Brain</span> + <span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Baal\'s Eye')">Baal's Eye</span></div><div class="cube-arrow">→</div><div class="cube-output">red portal → <strong>Uber Tristram</strong></div></div>
   <div class="cube-row"><div class="cube-input">Uber Tristram clear</div><div class="cube-arrow">→</div><div class="cube-output">Standard of Heroes → <strong><span class="zd-item-click" style="cursor:pointer;color:var(--uber)" onclick="openDrop('Hellfire Torch')">Hellfire Torch</span></strong></div></div>
 </div>
-<div class="cube-section">
-  <h3>Useful in-game cubing</h3>
-  <div class="cube-row"><div class="cube-input">6× perfect skull + 1 amulet</div><div class="cube-arrow">→</div><div class="cube-output">+1 to all skills amulet (rare)</div></div>
-  <div class="cube-row"><div class="cube-input">3× perfect gem + magic weapon</div><div class="cube-arrow">→</div><div class="cube-output">rare weapon</div></div>
-  <div class="cube-row"><div class="cube-input">Hel rune + scroll of TP + item with sockets</div><div class="cube-arrow">→</div><div class="cube-output">unsocket item (keeps sockets, drops gems/runes)</div></div>
-  <div class="cube-row"><div class="cube-input">Wirt's Leg + Tome of TP</div><div class="cube-arrow">→</div><div class="cube-output">portal to Secret Cow Level</div></div>
-  <div class="cube-row"><div class="cube-input">Stone of Jordan + ring + amulet</div><div class="cube-arrow">→</div><div class="cube-output">unique ring (very rare RNG)</div></div>
-</div>
+<details class="cube-cat">
+  <summary>💠 Gems — grade-up <span class="cube-cat-count">1 step</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">3× same gem, same grade (any type, except perfect)</div><div class="cube-arrow">→</div><div class="cube-output">1× next grade up</div></div>
+  </div>
+</details>
+<details class="cube-cat">
+  <summary>💍 Jewelry &amp; resist rings <span class="cube-cat-count">7</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">3× Ring</div><div class="cube-arrow">→</div><div class="cube-output">1× Amulet</div></div>
+  <div class="cube-row"><div class="cube-input">3× Amulet</div><div class="cube-arrow">→</div><div class="cube-output">1× Ring</div></div>
+  <div class="cube-row"><div class="cube-input">Ring + Perfect Emerald + Antidote potion</div><div class="cube-arrow">→</div><div class="cube-output">Jade Ring (+21-30% Poison Res)</div></div>
+  <div class="cube-row"><div class="cube-input">Ring + Perfect Ruby + Exploding potion</div><div class="cube-arrow">→</div><div class="cube-output">Garnet Ring (+21-30% Fire Res)</div></div>
+  <div class="cube-row"><div class="cube-input">Ring + Perfect Sapphire + Thawing potion</div><div class="cube-arrow">→</div><div class="cube-output">Cobalt Ring (+21-30% Cold Res)</div></div>
+  <div class="cube-row"><div class="cube-input">Ring + Perfect Topaz + Rejuv potion</div><div class="cube-arrow">→</div><div class="cube-output">Coral Ring (+21-30% Light Res)</div></div>
+  <div class="cube-row"><div class="cube-input">Amulet + 6× Perfect Gem (one of each type)</div><div class="cube-arrow">→</div><div class="cube-output">Prismatic Amulet (+16-25% Res All)</div></div>
+  </div>
+</details>
+<details class="cube-cat">
+  <summary>🔩 Add sockets &amp; reroll magic <span class="cube-cat-count">7</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">Ral + Amn + Perfect Amethyst + Normal Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Socketed Weapon (same type)</div></div>
+  <div class="cube-row"><div class="cube-input">Tal + Thul + Perfect Topaz + Normal Body Armor</div><div class="cube-arrow">→</div><div class="cube-output">Socketed Body Armor</div></div>
+  <div class="cube-row"><div class="cube-input">Ral + Thul + Perfect Sapphire + Normal Helm</div><div class="cube-arrow">→</div><div class="cube-output">Socketed Helm</div></div>
+  <div class="cube-row"><div class="cube-input">Tal + Amn + Perfect Ruby + Normal Shield</div><div class="cube-arrow">→</div><div class="cube-output">Socketed Shield</div></div>
+  <div class="cube-row"><div class="cube-input">3× Perfect Gem (any) + Magic item</div><div class="cube-arrow">→</div><div class="cube-output">New Magic item (same type — reroll)</div></div>
+  <div class="cube-row"><div class="cube-input">3× Chipped/Standard/Flawless Gem + Magic Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Socketed Magic Weapon</div></div>
+  <div class="cube-row"><div class="cube-input">3× Perfect Skull + Rare item + Stone of Jordan</div><div class="cube-arrow">→</div><div class="cube-output">Add 1 socket to that Rare (if socketable)</div></div>
+  </div>
+</details>
+<details class="cube-cat">
+  <summary>⬆️ Upgrade tier — Normal → Exceptional → Elite <span class="cube-cat-count">8</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">Ral + Sol + Perfect Emerald + Normal Unique Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Exceptional Unique Weapon</div></div>
+  <div class="cube-row"><div class="cube-input">Lum + Pul + Perfect Emerald + Exceptional Unique Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Elite Unique Weapon</div></div>
+  <div class="cube-row"><div class="cube-input">Tal + Shael + Perfect Diamond + Normal Unique Armor</div><div class="cube-arrow">→</div><div class="cube-output">Exceptional Unique Armor</div></div>
+  <div class="cube-row"><div class="cube-input">Ko + Lem + Perfect Diamond + Exceptional Unique Armor</div><div class="cube-arrow">→</div><div class="cube-output">Elite Unique Armor</div></div>
+  <div class="cube-row"><div class="cube-input">Ort + Amn + Perfect Sapphire + Normal Rare Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Exceptional Rare Weapon</div></div>
+  <div class="cube-row"><div class="cube-input">Fal + Um + Perfect Sapphire + Exceptional Rare Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Elite Rare Weapon</div></div>
+  <div class="cube-row"><div class="cube-input">Ral + Thul + Perfect Amethyst + Normal Rare Armor</div><div class="cube-arrow">→</div><div class="cube-output">Exceptional Rare Armor</div></div>
+  <div class="cube-row"><div class="cube-input">Ko + Pul + Perfect Amethyst + Exceptional Rare Armor</div><div class="cube-arrow">→</div><div class="cube-output">Elite Rare Armor</div></div>
+  <div class="cubeup-note" style="margin-top:6px">Unique/Set upgrades keep the item's affixes and re-roll requirements to the new base. Set weapons/armor use the same runes as the Unique recipes above.</div>
+  </div>
+</details>
+<details class="cube-cat">
+  <summary>🔧 Repair &amp; unsocket <span class="cube-cat-count">3</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">Ort + Weapon</div><div class="cube-arrow">→</div><div class="cube-output">Fully Repaired Weapon</div></div>
+  <div class="cube-row"><div class="cube-input">Ral + Armor</div><div class="cube-arrow">→</div><div class="cube-output">Fully Repaired Armor</div></div>
+  <div class="cube-row"><div class="cube-input">Hel + Scroll of Town Portal + any Socketed item</div><div class="cube-arrow">→</div><div class="cube-output">Unsocket (keeps sockets, destroys the gems/runes/jewels)</div></div>
+  </div>
+</details>
+<details class="cube-cat">
+  <summary>🧪 Potions <span class="cube-cat-count">4</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">3× Health + 3× Mana + 1× standard Gem</div><div class="cube-arrow">→</div><div class="cube-output">Full Rejuvenation potion</div></div>
+  <div class="cube-row"><div class="cube-input">3× Partial Rejuvenation potion</div><div class="cube-arrow">→</div><div class="cube-output">Full Rejuvenation potion</div></div>
+  <div class="cube-row"><div class="cube-input">3× Health + 3× Mana + 1× chipped Gem</div><div class="cube-arrow">→</div><div class="cube-output">Partial Rejuvenation potion</div></div>
+  <div class="cube-row"><div class="cube-input">Health potion + Strangling Gas potion</div><div class="cube-arrow">→</div><div class="cube-output">Antidote potion</div></div>
+  </div>
+</details>
+<details class="cube-cat" open>
+  <summary>📜 Quest recipes — town only <span class="cube-cat-count">3</span></summary>
+  <div class="cube-body">
+  <div class="cube-row"><div class="cube-input">Wirt's Leg + Tome of Town Portal <span style="color:var(--text-dim)">(Rogue Encampment, game completed on this difficulty)</span></div><div class="cube-arrow">→</div><div class="cube-output">Red portal → Secret Cow Level</div></div>
+  <div class="cube-row"><div class="cube-input">Staff of Kings + Viper Amulet</div><div class="cube-arrow">→</div><div class="cube-output">Horadric Staff (Act 2)</div></div>
+  <div class="cube-row"><div class="cube-input">Khalim's Eye + Heart + Brain + Flail</div><div class="cube-arrow">→</div><div class="cube-output">Khalim's Will (Act 3)</div></div>
+  </div>
+</details>
   </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)">🔨 Crafted-item recipes <span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
@@ -7490,15 +7592,31 @@ function tzZoneBoss(zoneName){
 function renderSpecialDrops() {
   const el = $("special-drops-grid");
   if (!el || typeof SPECIAL_DROPS === 'undefined') return;
+  // Unified art: route the category emblem + every item through artOr so any logo
+  // registered once in D2IO_ART lights up here automatically (single source of truth).
+  // Aggregate categories with no graphic of their own borrow a representative item's art.
+  const CAT_ART = {essence:'Essence of Hatred', token:'Token of Absolution', key:'Key of Terror',
+    organ:"Diablo's Horn", uberCharm:'Hellfire Torch', colossalJewel:'Colossal Ancient Jewels',
+    colossalStatue:'Colossal Ancient Statue', sunder:'Bone Break'};
+  const _art = (typeof artOr === 'function');
   el.innerHTML = Object.entries(SPECIAL_DROPS).map(([key, cat]) => {
-    const itemsHtml = cat.items.map(it => `<div class="sd-item">
-      <div class="sd-item-name"><span>${it.n}</span><span class="sd-item-rate">${it.rate}</span></div>
+    const itemsHtml = cat.items.map(it => {
+      const safe = it.n.replace(/'/g, "\\'");
+      const has = (typeof findMaterial !== 'function') || !!findMaterial(it.n);
+      const inner = `${_art ? artOr(it.n, '', 'sm') : ''}<span>${it.n}</span>`;
+      const nameHtml = has
+        ? `<span class="sd-item-id" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${safe}')" title="open ${it.n} detail card">${inner}</span>`
+        : `<span class="sd-item-id">${inner}</span>`;
+      return `<div class="sd-item">
+      <div class="sd-item-name">${nameHtml}<span class="sd-item-rate">${it.rate}</span></div>
       <div class="sd-item-from">${it.from.join(' OR ')}</div>
       ${it.note ? `<div class="sd-item-note">${it.note}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+    }).join('');
+    const catIcon = _art ? artOr(CAT_ART[key] || cat.label, cat.icon, 'md') : cat.icon;
     return `<div class="sd-cat">
       <div class="sd-cat-head">
-        <span class="sd-cat-icon">${cat.icon}</span>
+        <span class="sd-cat-icon">${catIcon}</span>
         <div class="sd-cat-label">${cat.label}</div>
         <div class="sd-cat-count">${cat.items.length} item${cat.items.length===1?'':'s'}</div>
       </div>
