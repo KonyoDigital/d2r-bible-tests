@@ -144,6 +144,58 @@ test.describe('v119 bind super-unique ID cards', () => {
     expect(drift, `binds-tab mlvl drifted from SUPER_UNIQUES:\n${drift.join('\n')}`).toEqual([]);
   });
 
+  test('council bind cards carry the enriched who + bind-tactic detail (v120)', async ({ page }) => {
+    await page.evaluate(() => (window as any).openBindSUByName('Toorc Icefist'));
+    await page.waitForTimeout(120);
+    const r = await page.evaluate(() => {
+      const box = document.getElementById('bindsu-detail');
+      const txt = box ? (box.textContent || '') : '';
+      return {
+        whoLabel: txt.toLowerCase().includes('who'),
+        who: txt.includes('Travincal High Council'),
+        tacticLabel: txt.toLowerCase().includes('bind tactic'),
+        tactic: txt.includes('drop Toorc below the HP cap'),
+      };
+    });
+    expect(r.whoLabel).toBe(true);
+    expect(r.who).toBe(true);
+    expect(r.tacticLabel).toBe(true);
+    expect(r.tactic).toBe(true);
+  });
+
+  test('the new Council roster section lists all 6 council members + Bartuc as routable su-links (v120)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const sec = document.getElementById('binds-council');
+      const links = sec ? Array.from(sec.querySelectorAll('.su-link')) : [];
+      const onclicks = links.map((l) => l.getAttribute('onclick') || '');
+      const need = ['Ismail Vilehand', 'Geleb Flamefinger', 'Toorc Icefist',
+        'Bremm Sparkfist', 'Wyand Voidbringer', 'Maffer Dragonhand', 'Bartuc the Bloody'];
+      return {
+        exists: !!sec,
+        isSection: !!(sec && sec.querySelector('.sec-h.tier-header .sec-chev')),
+        count: links.length,
+        allRouted: need.every((n) => onclicks.some((o) => o.includes(`openBindSUByName('${n}')`))),
+      };
+    });
+    expect(r.exists).toBe(true);
+    expect(r.isSection).toBe(true);
+    expect(r.count).toBe(7);
+    expect(r.allRouted).toBe(true);
+  });
+
+  test('clicking a council member from the roster section opens their bind card (v120)', async ({ page }) => {
+    await page.evaluate(() => {
+      const sec = document.getElementById('binds-council')!;
+      const link = Array.from(sec.querySelectorAll('.su-link'))
+        .find((l) => (l.getAttribute('onclick') || '').includes("openBindSUByName('Bremm Sparkfist')")) as HTMLElement;
+      link.click();
+    });
+    await page.waitForTimeout(120);
+    const t = await page.evaluate(() => (document.getElementById('bindsu-detail')!.textContent || ''));
+    expect(t).toContain('Bremm Sparkfist');
+    expect(t).toContain('lightning priest');
+  });
+
   test('no console errors opening every bind ID card', async ({ page }) => {
     const errs: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });

@@ -8,7 +8,8 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // section is a collapsible .sec-h/.sec-body that defaults COLLAPSED (the v56/v63 idiom).
 // Each of the binds sections now carries a clickable .sec-h header + a .sec-body wrapper,
 // driven by the same generic toggleSec() — content verbatim, nothing cut. (Count grew 12→14
-// when v112 added the Tier-List + Aura-Enchanted elite-affix sections — both additive.)
+// when v112 added the Tier-List + Aura-Enchanted elite-affix sections — both additive; then
+// →15 when v120 added the Council roster section — also additive.)
 test.describe('v109 binds tab collapsible sections', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
@@ -17,12 +18,12 @@ test.describe('v109 binds tab collapsible sections', () => {
     await page.waitForTimeout(150);
   });
 
-  test('all 14 binds sections are collapsible and collapsed by default', async ({ page }) => {
-    await expect(page.locator('#tab-binds .sec-h')).toHaveCount(14);
-    await expect(page.locator('#tab-binds .sec-body')).toHaveCount(14);
-    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(14);
+  test('all 15 binds sections are collapsible and collapsed by default', async ({ page }) => {
+    await expect(page.locator('#tab-binds .sec-h')).toHaveCount(15);
+    await expect(page.locator('#tab-binds .sec-body')).toHaveCount(15);
+    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(15);
     // every section head has a chevron affordance (matches the other tabs)
-    await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(14);
+    await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(15);
     // the always-on intro banner is NOT a collapsible section
     await expect(page.locator('#tab-binds .events-intro')).toBeVisible();
   });
