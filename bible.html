@@ -903,6 +903,41 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwd-recipe{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .rwd-plus{color:var(--text-dim);font-weight:700}
 .rwd-stat .zd-v{color:var(--text)}
+/* v141 — Gem stash grid (7 type rows × 5 grade cells) */
+.gem-stash-grid{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.gem-row{display:flex;flex-direction:column;gap:5px;padding:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px}
+.gem-type-lbl{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.gem-type-name{font-weight:800;font-size:14px}
+.gem-role{font-size:10.5px;color:var(--text-dim)}
+.gem-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px}
+.gem-cell{display:flex;flex-direction:column;gap:3px;align-items:center;padding:6px 4px;background:var(--surface);border:1px solid var(--border);border-radius:7px}
+.gem-cell.gem-has{border-color:var(--gold-bright);box-shadow:0 0 0 1px rgba(240,192,96,.25) inset}
+.gem-q-lbl{font-size:11px;font-weight:600;color:var(--text-muted)}
+.gem-cell.gem-has .gem-q-lbl{color:var(--gold-bright)}
+.gem-cell-ctl{display:flex;align-items:center;gap:5px}
+.gem-cell-ctl .rs-count{margin-left:0}
+.gem-make-row .rw-name{min-width:78px}
+.gem-craft-role{color:var(--text-dim)}
+/* v141 — Gem ID card grade table */
+.gem-card .gic-name .gic-grail-badge{font-weight:700}
+.gemd-grades{display:flex;flex-direction:column;gap:5px}
+.gemd-q{padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface-2)}
+.gemd-q.gem-q-on{border-color:var(--gold-bright);background:rgba(240,192,96,.07)}
+.gemd-q-name{font-weight:700;font-size:12.5px;color:#bcd6ff}
+.gemd-slots{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:3px;font-size:11.5px;color:var(--text)}
+.gemd-slot b{color:var(--text-dim);font-weight:600}
+/* v141 — Horadric recipe browser */
+.hcr-list{display:flex;flex-direction:column;max-height:560px;overflow-y:auto}
+.hcr-cat{font-weight:800;font-size:12px;color:var(--gold-bright);margin:10px 0 3px;padding-bottom:3px;border-bottom:1px solid var(--border)}
+.hcr-cat:first-child{margin-top:0}
+.hcr-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px;padding:5px 6px;border-bottom:1px dotted var(--border)}
+.hcr-in{color:var(--text)}
+.hcr-arrow{color:var(--text-dim);font-weight:700}
+.hcr-out{font-weight:600;color:#bcd6ff}
+.hcr-note{flex-basis:100%;font-size:10.5px;color:var(--text-dim);font-style:italic}
+.rec-chip{display:inline-block;padding:0 5px;border-radius:4px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer}
+.rec-chip:hover{background:rgba(240,192,96,.22)}
+.rec-plus{color:var(--text-dim);font-weight:700}
 /* Rune tally import box */
 .rs-import{margin:12px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:12px 16px}
 .rs-import summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none}
@@ -2839,6 +2874,64 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="arw-wrap">
         <input id="all-rw-filter" class="arw-filter" type="text" placeholder="filter by name, rune, or base… (try 'enigma', 'jah', 'aura', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderAllRunewords&&window.renderAllRunewords()">
         <div class="arw-list" id="all-rw-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="gem-stash-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('gem-stash-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">💎</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Gem Stash &amp; Cube-Up Planner</p>
+        <p class="boss-subtitle">Count your gems → see what you can cube up &amp; what each one grants in a socket</p>
+        <p class="boss-loc">Saved on this device · included in 💾 Backup &amp; Share · socket stats verified from the D2R game data</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="rune-stash-wrap">
+        <div class="rw-make" id="gem-craftable"></div>
+        <div class="cubeup-panel">
+          <div class="cubeup-row">
+            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
+            <select id="gem-cubeup-type" onchange="window.renderGemStash()"></select>
+            <select id="gem-cubeup-q" onchange="window.renderGemStash()"></select>
+            <span class="cubeup-result" id="gem-cubeup-result">—</span>
+          </div>
+          <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
+        </div>
+        <details class="rs-import">
+          <summary>📥 Import a tally (paste counts)</summary>
+          <textarea id="gem-import-box" placeholder="Perfect Amethyst:4  Flawless Topaz:2  Chipped Ruby:9 …  (or paste JSON)"></textarea>
+          <div class="rs-import-row">
+            <button class="rs-import-btn" onclick="window.importGemTally()">Load tally</button>
+            <span class="rs-import-status" id="gem-import-status"></span>
+          </div>
+          <div class="rs-import-note">Format: <code>Full gem name:count</code> pairs (e.g. <code>Perfect Diamond:3</code>). Replaces your current tally.</div>
+        </details>
+        <div class="gem-stash-grid" id="gem-stash-grid"></div>
+        <div class="rune-stash-actions">
+          <button class="rs-clear-btn" onclick="window.clearGemStash()">clear stash</button>
+          <span class="rs-total" id="gem-stash-total"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="horadric-recipe-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('horadric-recipe-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">🧊</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Horadric Cube Recipes <span id="horadric-count" class="arw-count"></span></p>
+        <p class="boss-subtitle">Every cube recipe · filter it · click any rune or gem to open its card</p>
+        <p class="boss-loc">Sockets · upgrades · resist rings · potions · uber portals · quest staves — verified recipes; RotW may retune some outputs, verify in-game</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="arw-wrap">
+        <input id="horadric-filter" class="arw-filter" type="text" placeholder="filter recipes… (try 'socket', 'unique', 'ring', 'perfect emerald', 'cow')" autocomplete="off" spellcheck="false" oninput="window.renderHoradricRecipes&&window.renderHoradricRecipes()">
+        <div class="hcr-list" id="horadric-list"></div>
       </div>
     </div>
   </div>
@@ -4961,6 +5054,20 @@ window.openDrop = function(name){
     const panel = document.getElementById('item-detail');
     if (panel){ panel.classList.add('show'); panel.innerHTML = runewordDetailHtml(name); }
     __alignCard('#item-detail .runeword-card');
+    return;
+  }
+  // Gem: an EXACT (normalized) match against the 35 verified gem variants (7 types
+  // × 5 grades). Runs BEFORE findMaterial's loose substring fallback so bare gem
+  // names (Skull/Diamond/Topaz/Ruby…) route to their own verified socket card
+  // instead of mis-matching a material substring (e.g. Skull → Perfect Skull recipe).
+  if (typeof findGem === 'function' && findGem(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = gemDetailHtml(name); }
+    __alignCard('#item-detail .gem-card');
     return;
   }
   // Material: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
@@ -7140,6 +7247,9 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // Materials Stash: { materialName: count } map. Pandemonium keys / uber organs / Token
 // essences the user holds; powers the uber & token readiness planner.
 let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
+// Gem Stash: { gemFullName: count } map (e.g. "Perfect Amethyst":4). Powers the gem
+// cube-up planner. Gem socket stats are verified D2R game-data values (gems.json).
+let gemStash = _safeJsonParse(LS.getItem('d2r_gemStash'), {});
 
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
@@ -7190,6 +7300,7 @@ const persist = () => {
   LS.setItem('d2r_setPieces', JSON.stringify([...setPieces]));
   LS.setItem('d2r_runeStash', JSON.stringify(runeStash));
   LS.setItem('d2r_materialStash', JSON.stringify(materialStash));
+  LS.setItem('d2r_gemStash', JSON.stringify(gemStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
 
@@ -10043,6 +10154,219 @@ function renderAllRunewords(){
   box.innerHTML = rows || `<div class="rw-empty">No runeword matches “${esc(q)}”.</div>`;
 }
 window.renderAllRunewords = renderAllRunewords;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// v141 — Gems Stash & Cube-Up Planner + general Horadric Cube recipe browser.
+// GEM_TYPES socket stats are transcribed VERBATIM from the D2R game-data gems.json
+// (weapon/helm/shield mods, all 5 grades) — verified, zero fabrication. Mirrors the
+// rune-stash tool: count gems → see what you can cube up + what each gem grants.
+// ══════════════════════════════════════════════════════════════════════════════
+const GEM_TYPES = [{"type":"Amethyst","color":"#b48ce0","role":"Attack Rating · Strength · Defense","q":[{"q":"Chipped","name":"Chipped Amethyst","w":"+40 Attack Rating","a":"+3 to Strength","s":"+8 Defense"},{"q":"Flawed","name":"Flawed Amethyst","w":"+60 Attack Rating","a":"+4 to Strength","s":"+12 Defense"},{"q":"Normal","name":"Amethyst","w":"+80 Attack Rating","a":"+6 to Strength","s":"+18 Defense"},{"q":"Flawless","name":"Flawless Amethyst","w":"+100 Attack Rating","a":"+8 to Strength","s":"+24 Defense"},{"q":"Perfect","name":"Perfect Amethyst","w":"+150 Attack Rating","a":"+10 to Strength","s":"+30 Defense"}]},{"type":"Diamond","color":"#e8eef5","role":"vs-Undead · Attack Rating · All Resist","q":[{"q":"Chipped","name":"Chipped Diamond","w":"+28% Damage to Undead","a":"+20 Attack Rating","s":"All Resistances +6"},{"q":"Flawed","name":"Flawed Diamond","w":"+34% Damage to Undead","a":"+40 Attack Rating","s":"All Resistances +8"},{"q":"Normal","name":"Diamond","w":"+44% Damage to Undead","a":"+60 Attack Rating","s":"All Resistances +11"},{"q":"Flawless","name":"Flawless Diamond","w":"+54% Damage to Undead","a":"+80 Attack Rating","s":"All Resistances +14"},{"q":"Perfect","name":"Perfect Diamond","w":"+68% Damage to Undead","a":"+100 Attack Rating","s":"All Resistances +19"}]},{"type":"Emerald","color":"#5fd07a","role":"Poison · Dexterity · Poison Resist","q":[{"q":"Chipped","name":"Chipped Emerald","w":"+10 Poison Damage over 3 seconds","a":"+3 to Dexterity","s":"Poison Resist +12%"},{"q":"Flawed","name":"Flawed Emerald","w":"+20 Poison Damage over 4 seconds","a":"+4 to Dexterity","s":"Poison Resist +16%"},{"q":"Normal","name":"Emerald","w":"+40 Poison Damage over 5 seconds","a":"+6 to Dexterity","s":"Poison Resist +22%"},{"q":"Flawless","name":"Flawless Emerald","w":"+60 Poison Damage over 6 seconds","a":"+8 to Dexterity","s":"Poison Resist +28%"},{"q":"Perfect","name":"Perfect Emerald","w":"+100 Poison Damage over 7 seconds","a":"+10 to Dexterity","s":"Poison Resist +40%"}]},{"type":"Ruby","color":"#e0556a","role":"Fire · Life · Fire Resist","q":[{"q":"Chipped","name":"Chipped Ruby","w":"Adds 3-4 Fire Damage","a":"+10 to Life","s":"Fire Resist +12%"},{"q":"Flawed","name":"Flawed Ruby","w":"Adds 5-8 Fire Damage","a":"+17 to Life","s":"Fire Resist +16%"},{"q":"Normal","name":"Ruby","w":"Adds 8-12 Fire Damage","a":"+24 to Life","s":"Fire Resist +22%"},{"q":"Flawless","name":"Flawless Ruby","w":"Adds 10-16 Fire Damage","a":"+31 to Life","s":"Fire Resist +28%"},{"q":"Perfect","name":"Perfect Ruby","w":"Adds 15-20 Fire Damage","a":"+38 to Life","s":"Fire Resist +40%"}]},{"type":"Sapphire","color":"#5b8ff0","role":"Cold · Mana · Cold Resist","q":[{"q":"Chipped","name":"Chipped Sapphire","w":"Adds 1-3 Cold Damage","a":"+10 to Mana","s":"Cold Resist +12%"},{"q":"Flawed","name":"Flawed Sapphire","w":"Adds 3-5 Cold Damage","a":"+17 to Mana","s":"Cold Resist +16%"},{"q":"Normal","name":"Sapphire","w":"Adds 4-7 Cold Damage","a":"+24 to Mana","s":"Cold Resist +22%"},{"q":"Flawless","name":"Flawless Sapphire","w":"Adds 6-10 Cold Damage","a":"+31 to Mana","s":"Cold Resist +28%"},{"q":"Perfect","name":"Perfect Sapphire","w":"Adds 10-14 Cold Damage","a":"+38 to Mana","s":"Cold Resist +40%"}]},{"type":"Topaz","color":"#e6c84a","role":"Lightning · Magic Find · Lightning Resist","q":[{"q":"Chipped","name":"Chipped Topaz","w":"Adds 1-8 Lightning Damage","a":"+9% Better Chance of Getting Magic Items","s":"Lightning Resist +12%"},{"q":"Flawed","name":"Flawed Topaz","w":"Adds 1-14 Lightning Damage","a":"+13% Better Chance of Getting Magic Items","s":"Lightning Resist +16%"},{"q":"Normal","name":"Topaz","w":"Adds 1-22 Lightning Damage","a":"+16% Better Chance of Getting Magic Items","s":"Lightning Resist +22%"},{"q":"Flawless","name":"Flawless Topaz","w":"Adds 1-30 Lightning Damage","a":"+20% Better Chance of Getting Magic Items","s":"Lightning Resist +28%"},{"q":"Perfect","name":"Perfect Topaz","w":"Adds 1-40 Lightning Damage","a":"+24% Better Chance of Getting Magic Items","s":"Lightning Resist +40%"}]},{"type":"Skull","color":"#c8c2b4","role":"Leech · Regen · Thorns","q":[{"q":"Chipped","name":"Chipped Skull","w":"1% Mana Stolen per Hit / 2% Life Stolen per Hit","a":"Replenish Life +2 / Regenerate Mana 8%","s":"Attacker Takes Damage of 4"},{"q":"Flawed","name":"Flawed Skull","w":"2% Mana Stolen per Hit / 2% Life Stolen per Hit","a":"Replenish Life +3 / Regenerate Mana 8%","s":"Attacker Takes Damage of 8"},{"q":"Normal","name":"Skull","w":"2% Mana Stolen per Hit / 3% Life Stolen per Hit","a":"Replenish Life +3 / Regenerate Mana 12%","s":"Attacker Takes Damage of 12"},{"q":"Flawless","name":"Flawless Skull","w":"3% Mana Stolen per Hit / 3% Life Stolen per Hit","a":"Replenish Life +4 / Regenerate Mana 12%","s":"Attacker Takes Damage of 16"},{"q":"Perfect","name":"Perfect Skull","w":"3% Mana Stolen per Hit / 4% Life Stolen per Hit","a":"Replenish Life +5 / Regenerate Mana 19%","s":"Attacker Takes Damage of 20"}]}];
+window.GEM_TYPES = GEM_TYPES;
+const GEM_QUAL_ORDER = ['Chipped','Flawed','Normal','Flawless','Perfect'];
+// full gem name (lowercase) -> flattened {type,color,role,qi,q,name,w,a,s}
+const _GEM_INDEX = (function(){ var m = {}; GEM_TYPES.forEach(function(t){ t.q.forEach(function(g, qi){ m[g.name.toLowerCase()] = {type:t.type, color:t.color, role:t.role, qi:qi, q:g.q, name:g.name, w:g.w, a:g.a, s:g.s}; }); }); return m; })();
+function findGem(name){ if (!name) return null; var e = _GEM_INDEX[String(name).toLowerCase().trim()]; return e ? e.name : null; }
+window.findGem = findGem;
+const GEM_CRAFT_ROLE = {Amethyst:'feeds the Caster craft (FCR + mana)', Ruby:'feeds the Blood craft (life leech + life)', Emerald:'feeds the Safety craft (DR + resist)', Sapphire:'feeds the Hit Power craft (CtC Frost Nova)'};
+function _gemCount(n){ var v = parseInt(gemStash[n], 10); return isFinite(v) && v > 0 ? v : 0; }
+function adjustGemStash(name, delta){ var next = _gemCount(name) + delta; if (next <= 0) delete gemStash[name]; else gemStash[name] = next; persist(); renderGemStash(); }
+window.adjustGemStash = adjustGemStash;
+function clearGemStash(){ if (Object.keys(gemStash).length && !confirm('Clear your entire gem stash tally?')) return; gemStash = {}; persist(); renderGemStash(); }
+window.clearGemStash = clearGemStash;
+// Cube-up: 3 identical gems → 1 of the next grade. How many of GEM_TYPES[type][targetQi]
+// you could end with by cascading every lower grade of that type up the 3-to-1 chain.
+function gemCubeUpPotential(type, targetQi){
+  var t = GEM_TYPES.find(function(x){ return x.type === type; }); if (!t) return 0;
+  var carry = t.q.map(function(g){ return _gemCount(g.name); });
+  for (var i = 0; i < targetQi; i++){ var made = Math.floor(carry[i] / 3); carry[i] -= made * 3; carry[i + 1] += made; }
+  return carry[targetQi] || 0;
+}
+window.gemCubeUpPotential = gemCubeUpPotential;
+// rich-hover gem card body (image-less): type/role head + the 3 socket lines for that grade.
+function _gemTipHtml(e){
+  if (!e) return '';
+  return '<div class="att-type">Gem &middot; ' + e.type + '</div>'
+    + '<div class="att-meta">' + e.q + ' grade &middot; ' + e.role + '</div>'
+    + '<div class="att-aff"><b>⚔ Weapon</b> ' + e.w + '</div>'
+    + '<div class="att-aff"><b>🪖 Helm/Armor</b> ' + e.a + '</div>'
+    + '<div class="att-aff"><b>🛡 Shield</b> ' + e.s + '</div>';
+}
+window._gemTipHtml = _gemTipHtml;
+function renderGemStash(){
+  var grid = document.getElementById('gem-stash-grid');
+  if (!grid || typeof GEM_TYPES === 'undefined') return;
+  grid.innerHTML = GEM_TYPES.map(function(t){
+    var esct = t.type.replace(/'/g, "\\'");
+    var cells = t.q.map(function(g){
+      var c = _gemCount(g.name); var esc = g.name.replace(/'/g, "\\'");
+      return '<div class="gem-cell' + (c > 0 ? ' gem-has' : '') + '" data-gem="' + g.name + '" data-arttip="' + g.name + '">'
+        + '<span class="gem-q-lbl zd-item-click" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop(\'' + esc + '\')" title="open the ' + g.name + ' card">' + g.q + '</span>'
+        + '<div class="gem-cell-ctl"><button class="rs-btn" onclick="window.adjustGemStash(\'' + esc + '\',-1)" title="remove one ' + g.name + '" aria-label="minus ' + g.name + '">−</button>'
+        + '<span class="rs-count" data-gem-count="' + g.name + '">' + c + '</span>'
+        + '<button class="rs-btn" onclick="window.adjustGemStash(\'' + esc + '\',1)" title="add one ' + g.name + '" aria-label="plus ' + g.name + '">+</button></div></div>';
+    }).join('');
+    return '<div class="gem-row"><div class="gem-type-lbl"><span class="gem-type-name zd-item-click" data-arttip="Perfect ' + t.type + '" role="button" tabindex="0" style="cursor:pointer;color:' + t.color + '" onclick="window.openDrop(\'Perfect ' + esct + '\')" title="open the ' + t.type + ' socket card">' + t.type + '</span><span class="gem-role">' + t.role + '</span></div><div class="gem-cells">' + cells + '</div></div>';
+  }).join('');
+  var total = GEM_TYPES.reduce(function(a, t){ return a + t.q.reduce(function(b, g){ return b + _gemCount(g.name); }, 0); }, 0);
+  var te = document.getElementById('gem-stash-total'); if (te) te.textContent = total === 1 ? '1 gem tallied' : total + ' gems tallied';
+  var ts = document.getElementById('gem-cubeup-type');
+  if (ts && !ts.options.length) ts.innerHTML = GEM_TYPES.map(function(t){ return '<option value="' + t.type + '">' + t.type + '</option>'; }).join('');
+  var qs = document.getElementById('gem-cubeup-q');
+  if (qs && !qs.options.length) qs.innerHTML = GEM_QUAL_ORDER.map(function(q, i){ return '<option value="' + i + '"' + (q === 'Perfect' ? ' selected' : '') + '>' + q + '</option>'; }).join('');
+  var res = document.getElementById('gem-cubeup-result');
+  if (res && ts && qs){
+    var ty = ts.value || GEM_TYPES[0].type; var qi = parseInt(qs.value, 10) || 0;
+    var n = gemCubeUpPotential(ty, qi);
+    var gname = (qi === 2 ? ty : GEM_QUAL_ORDER[qi] + ' ' + ty); var esc = gname.replace(/'/g, "\\'");
+    res.innerHTML = '<span class="cubeup-num">' + n + '×</span> <span class="zd-item-click" data-arttip="' + gname + '" style="cursor:pointer" onclick="window.openDrop(\'' + esc + '\')" title="open the ' + gname + ' card">' + gname + '</span>';
+  }
+  renderGemCraftable();
+}
+window.renderGemStash = renderGemStash;
+function renderGemCraftable(){
+  var box = document.getElementById('gem-craftable'); if (!box) return;
+  var rows = GEM_TYPES.map(function(t){
+    var perf = gemCubeUpPotential(t.type, 4);
+    var esc = ('Perfect ' + t.type).replace(/'/g, "\\'");
+    var role = GEM_CRAFT_ROLE[t.type] ? '<span class="gem-craft-role"> · ' + GEM_CRAFT_ROLE[t.type] + '</span>' : '';
+    return '<div class="rw-row gem-make-row" data-arttip="Perfect ' + t.type + '" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" title="open the ' + t.type + ' socket card" style="cursor:pointer">'
+      + '<span class="rw-name" style="color:' + t.color + '">' + t.type + '</span>'
+      + '<span class="rw-recipe">' + (perf > 0 ? perf + '× Perfect possible' : '—') + '</span>'
+      + '<span class="rw-base">' + t.role + role + '</span></div>';
+  }).join('');
+  box.innerHTML = '<div class="rw-make-head">🔨 What I can do with gems</div><div class="rw-list">' + rows + '</div>'
+    + '<div class="cubeup-note">Cube <strong>3 identical gems</strong> (same type + grade) → <strong>1 of the next grade up</strong>, all the way to Perfect. Perfect gems also feed rune cube-ups (Thul→Zod), the socket/upgrade recipes, resist rings &amp; the 4 crafted-item types. Click any row to open that gem\'s verified socket card.</div>';
+}
+window.renderGemCraftable = renderGemCraftable;
+// full clickable gem ID card (routed via openDrop) — all 5 grades × 3 socket slots.
+function gemDetailHtml(name){
+  var key = findGem(name); if (!key) return '';
+  var e = _GEM_INDEX[key.toLowerCase()];
+  var t = GEM_TYPES.find(function(x){ return x.type === e.type; });
+  var qrows = t.q.map(function(g){
+    var on = g.q === e.q ? ' gem-q-on' : ''; var esc = g.name.replace(/'/g, "\\'");
+    return '<div class="gemd-q' + on + '">'
+      + '<span class="gemd-q-name zd-item-click" data-arttip="' + g.name + '" style="cursor:pointer" onclick="window.openDrop(\'' + esc + '\')" title="open the ' + g.name + ' card">' + g.q + (g.q === e.q ? ' ◂' : '') + '</span>'
+      + '<div class="gemd-slots"><span class="gemd-slot"><b>⚔</b> ' + g.w + '</span><span class="gemd-slot"><b>🪖</b> ' + g.a + '</span><span class="gemd-slot"><b>🛡</b> ' + g.s + '</span></div></div>';
+  }).join('');
+  var craft = GEM_CRAFT_ROLE[e.type] ? '<div class="zd-row"><span class="zd-k">crafting</span><span class="zd-v">Perfect ' + e.type + ' ' + GEM_CRAFT_ROLE[e.type] + '</span></div>' : '';
+  return '<div class="gic-card gem-card">'
+    + '<header class="gic-header">'
+    + '<span class="d2art-wrap lg"><span class="gic-emoji" style="font-family:serif;font-size:30px;color:' + e.color + '">💎</span></span>'
+    + '<div class="gic-id-block">'
+    + '<h2 class="gic-name">' + key + ' <span class="gic-grail-badge" style="background:linear-gradient(135deg,' + e.color + ',#12243a);color:#0c1622">Gem</span></h2>'
+    + '<div class="gic-subtitle">' + e.type + ' · ' + e.q + ' grade · ' + e.role + '</div>'
+    + '<div class="gic-meta-row"><span class="gic-meta-chip">7 types × 5 grades</span><span class="gic-meta-chip" style="color:' + e.color + ';border-color:' + e.color + '55">socketable</span></div>'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div>'
+    + '</header>'
+    + '<section class="gic-section"><div class="gic-section-title">💠 Socket bonus by grade (your grade marked ◂)</div><div class="gemd-grades">' + qrows + '</div></section>'
+    + '<section class="gic-section"><div class="gic-section-title">🔨 Cube uses</div>'
+    + '<div class="zd-row"><span class="zd-k">grade-up</span><span class="zd-v">3× same ' + e.type + ' (same grade) → 1× next grade up' + (e.qi < 4 ? '' : ' — Perfect is the top grade') + '</span></div>'
+    + craft
+    + '<div class="zd-row"><span class="zd-k">recipes</span><span class="zd-v">Perfect gems feed rune cube-ups (Thul→Zod), socketing, unique/rare tier upgrades, resist rings &amp; magic-reroll — see the 🧊 Horadric recipe browser below</span></div>'
+    + '</section>'
+    + '<div class="zd-note">⚠ Socket stats transcribed verbatim from the D2R game-data gems file (all 5 grades × weapon/helm-armor/shield). Gems are crafted/socketed, not a grail drop. Reign of the Warlock may retune socket outputs — verify in-game.</div>'
+    + '</div>';
+}
+window.gemDetailHtml = gemDetailHtml;
+function importGemTally(){
+  var ta = document.getElementById('gem-import-box'); var status = document.getElementById('gem-import-status');
+  var setStatus = function(m){ if (status) status.textContent = m; };
+  if (!ta) return;
+  var raw = (ta.value || '').trim();
+  if (!raw){ setStatus('Paste a tally first.'); return; }
+  var next = {}; var parsed = null;
+  try { parsed = JSON.parse(raw); } catch (e) {}
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)){
+    Object.keys(parsed).forEach(function(k){ var key = findGem(k); var v = parseInt(parsed[k], 10); if (key && isFinite(v) && v > 0) next[key] = v; });
+  } else {
+    var re = /([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*[:=]\s*(\d+)/g; var m;
+    while ((m = re.exec(raw)) !== null){ var key = findGem(m[1].trim()); var v = parseInt(m[2], 10); if (key && isFinite(v) && v > 0) next[key] = v; }
+  }
+  var n = Object.keys(next).length;
+  if (!n){ setStatus('No valid gems found — try "Perfect Amethyst: 4".'); return; }
+  if (Object.keys(gemStash).length && !confirm('Replace your current gem tally with this import?')){ setStatus('Import cancelled.'); return; }
+  gemStash = next; persist(); renderGemStash();
+  var total = Object.values(next).reduce(function(a, b){ return a + b; }, 0);
+  setStatus('Loaded ' + n + ' gem types (' + total + ' gems).'); ta.value = '';
+}
+window.importGemTally = importGemTally;
+
+// ── General Horadric Cube recipe browser (verified vanilla recipes) ──────────────
+// Sourced from the cited Horadric_Cube_Recipes wiki + the recipes already in this
+// bible's static "Cube Recipes" book. Rune & gem tokens auto-linkify → openDrop card.
+const HORADRIC_RECIPES = [
+  {c:'💠 Gems', in:'3× identical gems (same type + grade, except Perfect)', out:'1× next grade up', note:'No other items needed. Perfect is the top grade.'},
+  {c:'🔮 Runes', in:'3× a low rune (El–Ort) — or 2× a high rune + the listed gem', out:'1× next rune up', note:'Full El→Zod chain lives in the 🧮 Rune Stash tool above.'},
+  {c:'🔩 Sockets', in:'Ral + Amn + Perfect Amethyst + Normal Weapon', out:'Socketed Weapon (same type)', note:'Random socket count for that base.'},
+  {c:'🔩 Sockets', in:'Tal + Thul + Perfect Topaz + Normal Body Armor', out:'Socketed Body Armor'},
+  {c:'🔩 Sockets', in:'Ral + Thul + Perfect Sapphire + Normal Helm', out:'Socketed Helm'},
+  {c:'🔩 Sockets', in:'Tal + Amn + Perfect Ruby + Normal Shield', out:'Socketed Shield'},
+  {c:'🔩 Sockets', in:'3× Chipped/Standard/Flawless Gem + Magic Weapon', out:'Socketed Magic Weapon'},
+  {c:'🔩 Sockets', in:'3× Perfect Skull + Stone of Jordan + Rare item', out:'Add 1 socket to that Rare (if socketable)'},
+  {c:'⬆️ Quality up', in:'Eld + Chipped Gem + Low Quality Weapon', out:'Normal Weapon'},
+  {c:'⬆️ Quality up', in:'El + Chipped Gem + Low Quality Armor', out:'Normal Armor'},
+  {c:'⬆️ Unique upgrade', in:'Ral + Sol + Perfect Emerald + Normal Unique Weapon', out:'Exceptional Unique Weapon'},
+  {c:'⬆️ Unique upgrade', in:'Lum + Pul + Perfect Emerald + Exceptional Unique Weapon', out:'Elite Unique Weapon'},
+  {c:'⬆️ Unique upgrade', in:'Tal + Shael + Perfect Diamond + Normal Unique Armor', out:'Exceptional Unique Armor'},
+  {c:'⬆️ Unique upgrade', in:'Ko + Lem + Perfect Diamond + Exceptional Unique Armor', out:'Elite Unique Armor', note:'Set weapons/armor use the same runes as the Unique recipes.'},
+  {c:'⬆️ Rare upgrade', in:'Ort + Amn + Perfect Sapphire + Normal Rare Weapon', out:'Exceptional Rare Weapon'},
+  {c:'⬆️ Rare upgrade', in:'Fal + Um + Perfect Sapphire + Exceptional Rare Weapon', out:'Elite Rare Weapon'},
+  {c:'⬆️ Rare upgrade', in:'Ral + Thul + Perfect Amethyst + Normal Rare Armor', out:'Exceptional Rare Armor'},
+  {c:'⬆️ Rare upgrade', in:'Ko + Pul + Perfect Amethyst + Exceptional Rare Armor', out:'Elite Rare Armor'},
+  {c:'💍 Jewelry & resist rings', in:'3× Ring', out:'1× Amulet'},
+  {c:'💍 Jewelry & resist rings', in:'3× Amulet', out:'1× Ring'},
+  {c:'💍 Jewelry & resist rings', in:'Ring + Perfect Emerald + Antidote Potion', out:'Jade Ring (+21-30% Poison Resist)'},
+  {c:'💍 Jewelry & resist rings', in:'Ring + Perfect Ruby + Exploding Potion', out:'Garnet Ring (+21-30% Fire Resist)'},
+  {c:'💍 Jewelry & resist rings', in:'Ring + Perfect Sapphire + Thawing Potion', out:'Cobalt Ring (+21-30% Cold Resist)'},
+  {c:'💍 Jewelry & resist rings', in:'Ring + Perfect Topaz + Rejuvenation Potion', out:'Coral Ring (+21-30% Lightning Resist)'},
+  {c:'💍 Jewelry & resist rings', in:'Amulet + 6× Perfect Gem (one of each type)', out:'Prismatic Amulet (+16-25% All Resistances)'},
+  {c:'🎲 Reroll', in:'3× Perfect Gem (any) + Magic item', out:'New Magic item (same type — rerolls affixes)'},
+  {c:'🔧 Repair & unsocket', in:'Ort + Weapon', out:'Fully Repaired Weapon'},
+  {c:'🔧 Repair & unsocket', in:'Ral + Armor', out:'Fully Repaired Armor'},
+  {c:'🔧 Repair & unsocket', in:'Hel + Scroll of Town Portal + Socketed item', out:'Unsocket (keeps sockets, destroys the gems/runes/jewels)'},
+  {c:'🧪 Potions', in:'3× Health Potion + 3× Mana Potion + 1× Standard Gem', out:'Full Rejuvenation Potion'},
+  {c:'🧪 Potions', in:'3× Partial Rejuvenation Potion', out:'Full Rejuvenation Potion'},
+  {c:'🧪 Potions', in:'3× Health Potion + 3× Mana Potion + 1× Chipped Gem', out:'Partial Rejuvenation Potion'},
+  {c:'👹 Uber portals', in:'Key of Terror + Key of Hate + Key of Destruction', out:'1 random mini-uber portal', note:'Cube all 3 keys together. Repeat to farm the 3 organs.'},
+  {c:'👹 Uber portals', in:"Diablo's Horn + Mephisto's Brain + Baal's Eye", out:'Red portal → Uber Tristram (drops Hellfire Torch)'},
+  {c:'📜 Quest (town only)', in:'Wirt\'s Leg + Tome of Town Portal', out:'Red portal → Secret Cow Level', note:'Rogue Encampment, after the act is completed on this difficulty.'},
+  {c:'📜 Quest (town only)', in:'Staff of Kings + Viper Amulet', out:'Horadric Staff (Act 2)'},
+  {c:'📜 Quest (town only)', in:"Khalim's Eye + Khalim's Heart + Khalim's Brain + Khalim's Flail", out:"Khalim's Will (Act 3)"}
+];
+window.HORADRIC_RECIPES = HORADRIC_RECIPES;
+// linkify a ' + '-separated input/output: wrap exact rune & gem tokens in clickable chips.
+function _recLinkify(text){
+  return String(text).split(' + ').map(function(chunk){
+    var c = chunk.trim(); var pre = '';
+    var m = c.match(/^(\d+×\s*)/); if (m){ pre = m[1]; c = c.slice(m[1].length); }
+    var route = null;
+    if (typeof RUNE_INDEX !== 'undefined' && c in RUNE_INDEX) route = c;
+    else if (typeof findGem === 'function' && findGem(c)) route = findGem(c);
+    if (route){ var esc = route.replace(/'/g, "\\'"); return pre + '<span class="rec-chip" data-arttip="' + route + '" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" title="open the ' + route + ' card">' + c + '</span>'; }
+    return pre + c;
+  }).join(' <span class="rec-plus">+</span> ');
+}
+function renderHoradricRecipes(){
+  var box = document.getElementById('horadric-list'); if (!box) return;
+  var fEl = document.getElementById('horadric-filter');
+  var q = (fEl && fEl.value || '').trim().toLowerCase();
+  var cntEl = document.getElementById('horadric-count');
+  var shown = q ? HORADRIC_RECIPES.filter(function(r){ return (r.c + ' ' + r.in + ' ' + r.out + ' ' + (r.note || '')).toLowerCase().includes(q); }) : HORADRIC_RECIPES;
+  if (cntEl) cntEl.textContent = q ? '(' + shown.length + '/' + HORADRIC_RECIPES.length + ')' : '(' + HORADRIC_RECIPES.length + ')';
+  if (!shown.length){ box.innerHTML = '<div class="rw-empty">No recipe matches “' + q.replace(/</g, '&lt;') + '”.</div>'; return; }
+  var html = ''; var lastCat = null;
+  shown.forEach(function(r){
+    if (r.c !== lastCat){ html += '<div class="hcr-cat">' + r.c + '</div>'; lastCat = r.c; }
+    html += '<div class="hcr-row"><span class="hcr-in">' + _recLinkify(r.in) + '</span><span class="hcr-arrow">→</span><span class="hcr-out">' + _recLinkify(r.out) + '</span>'
+      + (r.note ? '<span class="hcr-note">' + r.note + '</span>' : '') + '</div>';
+  });
+  box.innerHTML = html;
+}
+window.renderHoradricRecipes = renderHoradricRecipes;
+
 // Import a pasted tally. Accepts JSON ({"El":3,…}) or "Name:count" pairs. Replaces stash.
 function importRuneTally(){
   const ta = document.getElementById('rune-import-box');
@@ -10368,6 +10692,7 @@ function _arttipResolve(nm){
   if (t) return { artName: t.base, desc: _sunTipHtml(t), rich: true };
   if (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[nm]) return { artName: nm, desc: _itemTipHtml(ITEM_TIP[nm]), rich: true };
   if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: _rwk, desc: _rwTipHtml(RUNEWORD_TIP[_rwk]), rich: true }; }
+  if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
   return { artName: nm, desc: '', rich: false };
 }
@@ -10971,6 +11296,8 @@ renderBossCards();
 renderCalc();
 renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderAllRunewords();
+renderGemStash();
+renderHoradricRecipes();
 renderStatueTracker();
 renderMaterialStash();
 renderSunderRecipes();
