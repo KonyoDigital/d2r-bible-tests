@@ -765,6 +765,32 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sunder-tbl td.brk{font-weight:600;white-space:nowrap}
 .sunder-tbl .rec{color:var(--text-muted,#9aa);font-size:12px}
 .imm-phys{color:#d9d2c5}.imm-magic{color:#9b8cff}.imm-fire{color:#ff7755}.imm-cold{color:#66ccff}.imm-light{color:#ffe066}.imm-pois{color:#88dd66}
+/* v133 — Sunder Charm Renewal recipe tool + floating art-hover popup */
+#sunder-recipe-grid{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.sun-recipe{border:1px solid var(--border);border-radius:9px;background:rgba(0,0,0,.22);overflow:hidden}
+.sun-recipe>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;font-family:var(--mono,monospace);font-size:13.5px}
+.sun-recipe>summary::-webkit-details-marker{display:none}
+.sun-recipe>summary:hover{background:rgba(240,192,96,.06)}
+.sun-recipe[open]>summary{border-bottom:1px solid var(--border);background:rgba(240,192,96,.05)}
+.sun-recipe .sun-charm{display:inline-flex;align-items:center;gap:7px;color:var(--gold-bright,#f0c060);font-weight:600;cursor:pointer}
+.sun-recipe .sun-charm:hover{text-decoration:underline}
+.sun-pill{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:20px;border:1px solid currentColor;white-space:nowrap}
+.sun-recipe .sun-chev{margin-left:auto;opacity:.55;font-size:12px;transition:transform .15s}
+.sun-recipe[open] .sun-chev{transform:rotate(180deg)}
+.sun-body{padding:12px 15px 14px;font-family:var(--mono,monospace);font-size:12.5px;line-height:1.65}
+.sun-formula{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:10px}
+.sun-ing{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:rgba(0,0,0,.3)}
+.sun-ing.route{cursor:pointer;border-color:rgba(240,192,96,.4)}
+.sun-ing.route:hover{background:rgba(240,192,96,.12);border-color:var(--gold-bright,#d4a849)}
+.sun-plus{opacity:.5;font-weight:700}
+.sun-arrow{color:var(--best,#7ddc7d);font-weight:700;margin:0 2px}
+.sun-renewed{display:inline-flex;align-items:center;gap:5px;color:var(--best,#7ddc7d);font-weight:600}
+.sun-note{color:var(--text-dim);font-size:11.5px;margin-top:2px}
+.sun-best{color:var(--gold-bright,#f0c060)}
+#arttip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .09s;background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.8);padding:8px 9px 7px;max-width:170px;text-align:center}
+#arttip.on{opacity:1}
+#arttip img{display:block;width:96px;height:96px;object-fit:contain;margin:0 auto 5px}
+#arttip .att-name{font-family:var(--mono,monospace);font-size:11px;color:var(--gold-bright,#f0c060);letter-spacing:.3px;line-height:1.3}
 .rs-name{font-weight:600;font-size:12px;color:var(--text);min-width:34px}
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -2795,6 +2821,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           <span class="rs-total" id="material-stash-total"></span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="sunder-recipe-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('sunder-recipe-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">💠</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Sunder Charm Renewal &mdash; what's the recipe?</p>
+        <p class="boss-subtitle">Renew any Latent Sunder &rarr; Renewed &middot; the exact cube ingredients per charm</p>
+        <p class="boss-loc">Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard &rarr; Renewed &middot; hover an ingredient for its art &middot; sources: Maxroll + d2db</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">Two ways to a Sunder: loot a <strong>Latent</strong> off a Hell-TZ <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright)" onclick="window.openDrop('Herald of Terror')">Herald of Terror</span>, or cube <strong>3 Worldstone Shards</strong> for a random Latent. <strong>Renew</strong> a Latent for the permanent upgrade + extra random stats &mdash; every charm has its own gem &middot; rune &middot; region-shard combo below. Renewing re-rolls all stats, so re-cube for the best roll.</div>
+      <div id="sunder-recipe-grid"></div>
     </div>
   </div>
 
@@ -9967,6 +10009,85 @@ function renderMaterialStash(){
   renderMaterialCraftable();
 }
 window.renderMaterialStash = renderMaterialStash;
+/* === v133 - Sunder Charm Renewal recipe tool ============================== */
+/* Verified per-charm Renewed-upgrade recipes, transcribed from the existing   */
+/* SPECIAL_DROPS.sunder notes (Maxroll) and independently corroborated by       */
+/* d2db.net's Sundering Charms guide. ZERO new/fabricated data - pure UI that   */
+/* surfaces "what's the recipe to renew my Sunder?" as a clickable, routable,   */
+/* art-hover tool. Every ingredient with its own card routes via openDrop.      */
+const SUNDER_RECIPES = [
+  { n:'Cold Rupture',         breaks:'Cold',      el:'cold',     gem:'Perfect Sapphire',  rune:'Lum', shards:['Worldstone Shard (Eastern)'],  best:'Frozen Orb / Blizzard sorc' },
+  { n:'Flame Rift',           breaks:'Fire',      el:'fire',     gem:'Perfect Ruby',      rune:'Io',  shards:['Worldstone Shard (Deep)'],     best:'Fireball / Meteor sorc' },
+  { n:'Crack of the Heavens', breaks:'Lightning', el:'lightning',gem:'Perfect Topaz',     rune:'Fal', shards:['Worldstone Shard (Southern)'], best:'Konyoress . lightning sorc' },
+  { n:'Rotting Fissure',      breaks:'Poison',    el:'poison',   gem:'Perfect Emerald',   rune:'Ko',  shards:['Worldstone Shard (Western)'],  best:'Poison Necromancer' },
+  { n:'Bone Break',           breaks:'Physical',  el:'physical', gem:'Perfect Amethyst',  rune:'Pul', shards:['Worldstone Shard (Northern)'], best:'Konyolock . physical Assassin' },
+  { n:'Black Cleft',          breaks:'Magic',     el:'magic',    gem:'Perfect Diamond',   rune:'Mal', shards:['Worldstone Shard (Southern)','Worldstone Shard (Deep)','Worldstone Shard (Northern)'], best:'Konyodin . Hammerdin' },
+];
+window.SUNDER_RECIPES = SUNDER_RECIPES;
+const _SUN_IMM = {physical:'imm-phys',poison:'imm-pois',lightning:'imm-light',cold:'imm-cold',fire:'imm-fire',magic:'imm-magic'};
+function _sunIng(name, route){
+  const esc = String(name).replace(/'/g,"\\'");
+  const attr = String(name).replace(/"/g,'&quot;');
+  const click = route ? ` onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${attr} card"` : '';
+  return `<span class="sun-ing${route?' route':''}" data-arttip="${attr}"${click}>${nameLogo(name)}${name}</span>`;
+}
+function renderSunderRecipes(){
+  const grid = document.getElementById('sunder-recipe-grid');
+  if (!grid) return;
+  grid.innerHTML = SUNDER_RECIPES.map((s) => {
+    const esc = s.n.replace(/'/g,"\\'");
+    const attr = s.n.replace(/"/g,'&quot;');
+    const pill = _SUN_IMM[s.el] || 'imm-phys';
+    const shardIng = s.shards.map((sh) => _sunIng(sh, true)).join('<span class="sun-plus">+</span>');
+    return `<details class="sun-recipe" data-charm="${attr}">
+      <summary>
+        <span class="sun-charm" data-arttip="${attr}" onclick="event.preventDefault();event.stopPropagation();window.openDrop('${esc}')" title="open ${attr} card">${nameLogo(s.n)}${s.n} &rarr;</span>
+        <span class="sun-pill ${pill}">breaks ${s.breaks}</span>
+        <span class="sun-chev" aria-hidden="true">▾</span>
+      </summary>
+      <div class="sun-body">
+        <div class="sun-formula">
+          ${_sunIng('Latent ' + s.n, false)}
+          <span class="sun-plus">+</span>${_sunIng(s.gem, false)}
+          <span class="sun-plus">+</span>${_sunIng(s.rune + ' Rune', true)}
+          <span class="sun-plus">+</span>${shardIng}
+          <span class="sun-arrow">&rarr;</span><span class="sun-renewed">${nameLogo(s.n)}Renewed ${s.n}</span>
+        </div>
+        <div class="sun-note">Sunders <span class="${pill}">${s.breaks.toLowerCase()}</span> immunity to ~95% resist . best for <span class="sun-best">${s.best}</span>. Renewing re-rolls all stats - re-cube for the best roll. Only ONE Sunder active at a time.</div>
+      </div>
+    </details>`;
+  }).join('');
+}
+window.renderSunderRecipes = renderSunderRecipes;
+window.openSunderRecipes = function(){
+  if (window.switchTab) window.switchTab('tools');
+  const card = document.getElementById('sunder-recipe-card');
+  if (card){ card.classList.remove('collapsed'); const h=card.querySelector('.boss-header'); if(h) h.setAttribute('aria-expanded','true'); card.scrollIntoView({behavior:'smooth',block:'start'}); }
+};
+/* Floating art-hover popup (the diablo2.io "nice detail"). Delegated + scoped   */
+/* to elements carrying data-arttip OR the site-wide existing data-art-logo      */
+/* chips, so item names everywhere reveal their in-game art on hover. Pure       */
+/* visual - never intercepts clicks (pointer-events:none); only shows when art   */
+/* is registered for that name.                                                  */
+(function(){
+  function arttipInit(){
+    if (window._arttipReady) return; window._arttipReady = true;
+    var tip = document.getElementById('arttip');
+    if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div>'; document.body.appendChild(tip); }
+    var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), cur = null;
+    function nameOf(el){ return el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || ''; }
+    function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
+    document.addEventListener('mouseover', function(e){
+      var el = e.target.closest && e.target.closest('[data-arttip],[data-art-logo]'); if (!el) return;
+      var nm = nameOf(el), url = (typeof artUrl==='function') ? artUrl(nm) : '';
+      if (!nm || !url) return;
+      cur = el; img.src = url; lab.textContent = nm; move(e); tip.classList.add('on');
+    });
+    document.addEventListener('mousemove', function(e){ if (cur) move(e); });
+    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('[data-arttip],[data-art-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+  }
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit); else arttipInit();
+})();
 // Herald of Terror ID card (RotW tab) — fills the Sunder table from the SAME
 // SPECIAL_DROPS.sunder data + D2IO_ART icons. Charm names open the full material
 // card via openDrop. Zero new data: breaks/best-for/recipe mirror the canonical
@@ -10523,6 +10644,7 @@ renderCalc();
 renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderStatueTracker();
 renderMaterialStash();
+renderSunderRecipes();
 renderHeraldCard();
 renderUberBossCards();
 renderColossalShowcase();
@@ -11593,7 +11715,29 @@ _v41_whenReady(() => {
       var ranked = [], active = -1, index = null;
       function getIndex(){ if (!index){ try { index = (typeof v42BuildCommands === 'function') ? v42BuildCommands() : []; } catch(e){ index = []; } } return index; }
       function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); }
-      function score(c, q){ var l=(c.label||'').toLowerCase(), k=(c.keywords||'').toLowerCase(); if (l===q) return 100; if (l.indexOf(q)===0) return 80; if (l.indexOf(q)>0) return 60; if (k.indexOf(q)>=0) return 40; return -1; }
+      // v133 - token AND-match for natural multi-word/intent queries ("recipe for
+      // renewing my sunder charm"): drop stopwords, loose-stem each token, require
+      // ALL to appear in label/keywords. Single-token + exact/prefix paths unchanged
+      // so existing precise matches still outrank fuzzy intent hits.
+      var GS_STOP={the:1,for:1,my:1,a:1,an:1,of:1,to:1,how:1,do:1,i:1,is:1,it:1,and:1,with:1,can:1,me:1,you:1,what:1,whats:1,'on':1,in:1};
+      function score(c, q){
+        var l=(c.label||'').toLowerCase(), k=(c.keywords||'').toLowerCase(), hay=l+' '+k;
+        if (l===q) return 100;
+        if (l.indexOf(q)===0) return 80;
+        if (l.indexOf(q)>0) return 60;
+        if (k.indexOf(q)>=0) return 40;
+        var toks=q.split(/\s+/).filter(function(t){ return t && !GS_STOP[t]; });
+        if (toks.length>=2){
+          var inLabel=0;
+          for (var i=0;i<toks.length;i++){
+            var t=toks[i], pre=t.slice(0, Math.max(4, t.length-3));
+            if (hay.indexOf(t)<0 && hay.indexOf(pre)<0) return -1;
+            if (l.indexOf(t)>=0 || l.indexOf(pre)>=0) inLabel++;
+          }
+          return 30 + inLabel*4;
+        }
+        return -1;
+      }
       function close(){ box.hidden=true; box.innerHTML=''; ranked=[]; active=-1; }
       function paint(){ var els=box.querySelectorAll('.gsearch-item'); for (var i=0;i<els.length;i++){ if (i===active) els[i].classList.add('gsearch-active'); else els[i].classList.remove('gsearch-active'); } var a=box.querySelector('.gsearch-active'); if (a) a.scrollIntoView({block:'nearest'}); }
       function render(q){
@@ -11942,6 +12086,21 @@ _v41_whenReady(() => {
         cat: 'rainbow facet', hint: f.elem + ' skill damage / -enemy resist',
         keywords: 'rainbow facet jewel of fervor unique jewel skill damage enemy resistance ' + f.n.toLowerCase() + ' ' + f.elem.toLowerCase() + ' ' + f.trig.toLowerCase(),
         action: () => { if (window.openDrop) window.openDrop(f.n); }
+      });
+    });
+    // v133 - "how do I renew my Sunder Charm?" -> the Sunder Renewal recipe tool.
+    cmds.push({
+      icon:'💠', label:'Renew a Sunder Charm - recipe', sub:'Latent + Perfect Gem + Rune + Worldstone Shard -> Renewed',
+      cat:'recipe', hint:'tools',
+      keywords:'recipe renew renewed sunder charm upgrade cube craft how to make what is the latent perfect gem rune worldstone shard immunity cold rupture flame rift crack of the heavens rotting fissure bone break black cleft',
+      action: () => { if (window.openSunderRecipes) window.openSunderRecipes(); }
+    });
+    (typeof SUNDER_RECIPES !== 'undefined' ? SUNDER_RECIPES : []).forEach(function(s){
+      cmds.push({
+        icon:'💠', label:'Renew '+s.n+' - recipe', sub:s.gem+' + '+s.rune+' Rune + '+s.shards.length+' shard'+(s.shards.length>1?'s':''),
+        cat:'recipe', hint:'tools',
+        keywords:'recipe renew renewed upgrade cube craft '+s.n.toLowerCase()+' '+s.breaks.toLowerCase()+' sunder charm '+s.rune.toLowerCase()+' '+s.gem.toLowerCase(),
+        action: () => { if (window.openSunderRecipes) window.openSunderRecipes(); }
       });
     });
     return cmds;
