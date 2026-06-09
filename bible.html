@@ -2451,6 +2451,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      handler and data-tip intact — nothing about the controls themselves changes. -->
 <div class="control-dock" id="control-dock" role="region" aria-label="Magic Find and players control dock">
   <div class="dock-inner">
+    <div class="dock-tagline" id="dock-tagline"></div>
     <div class="dock-cluster dock-sliders" id="dock-sliders"></div>
     <div class="dock-cluster dock-presets" id="dock-presets"></div>
   </div>
@@ -2479,6 +2480,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     });
     if(bar.parentNode) bar.parentNode.removeChild(bar);
   }
+  // Relocate the masthead tagline to the bottom dock (top caption row); the element
+  // keeps its class + verbatim text, so its smoke assertions still pass.
+  var tagline = header.querySelector('.masthead .masthead-tagline');
+  var dockT = document.getElementById('dock-tagline');
+  if(tagline && dockT){ dockT.appendChild(tagline); }
 })();
 </script>
 
@@ -15104,6 +15110,124 @@ body{ padding-bottom: 108px; }
 }
 @media (max-width:768px){
   .tabs{ width:auto; flex-wrap:wrap; }
+}
+</style>
+
+<style id="v159-masthead-tabs-animated">
+/* ════════════════════════════════════════════════════════════════════════
+   v159 — tagline-to-dock + animated masthead title + livelier tab bar
+   The "complete grail-hunting reference…" tagline is relocated (at parse time)
+   into a top caption row of the bottom command dock. The "Konyo's D2R Farming
+   Bible" wordmark gets an animated gold sheen, and the segmented tab bar gains
+   a breathing gold glow + a flowing animated underline on the active tab.
+   Everything is additive/cosmetic — ids, text and handlers are untouched, and
+   it all collapses gracefully under prefers-reduced-motion.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── the relocated tagline, as the dock's top caption row ───────────────── */
+.control-dock .dock-tagline{
+  flex:0 0 100%;
+  order:-1;                       /* always the first row of the dock */
+  text-align:center;
+  margin:0 0 1px;
+  line-height:1.35;
+}
+.control-dock .dock-tagline:empty{ display:none; }
+.control-dock .masthead-tagline{
+  font-family:var(--serif-text);
+  font-style:italic;
+  font-size:11.5px;
+  font-weight:400;
+  letter-spacing:.2px;
+  line-height:1.35;
+  color:var(--gold-dim);
+  max-width:none;
+  margin:0;
+  opacity:.92;
+}
+/* the dock now carries an extra caption row — reserve a touch more space */
+body{ padding-bottom:128px; }
+@media (max-width: 700px){
+  body{ padding-bottom: calc(var(--dock-h) + 44px); }
+}
+@media print{ body{ padding-bottom:0 !important; } }
+
+/* ── animated gold wordmark: "Konyo's D2R Farming Bible" ────────────────── */
+.masthead .h-title{
+  background:linear-gradient(100deg,
+      var(--gold) 0%, var(--gold-bright) 22%, #fff4d2 50%,
+      var(--gold-bright) 78%, var(--gold) 100%) !important;
+  background-size:220% auto !important;
+  -webkit-background-clip:text !important;
+  background-clip:text !important;
+  -webkit-text-fill-color:transparent !important;
+  color:transparent !important;
+  filter:drop-shadow(0 1px 12px rgba(240,192,96,.20)) !important;
+  animation: v159TitleSheen 7s linear infinite, v159TitleRise .85s var(--ease) both;
+}
+/* the inline emblem keeps its own colour (not clipped to the text gradient) */
+.masthead .h-title .masthead-art{
+  -webkit-text-fill-color:initial !important;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+  animation: v159ArtFloat 5.5s ease-in-out infinite;
+}
+@keyframes v159TitleSheen{
+  0%{ background-position:0% 50%; }
+  100%{ background-position:220% 50%; }
+}
+@keyframes v159TitleRise{
+  0%{ opacity:0; transform:translateY(10px) scale(.985); letter-spacing:2px; }
+  100%{ opacity:1; transform:none; letter-spacing:.5px; }
+}
+@keyframes v159ArtFloat{
+  0%,100%{ transform:translateY(0); }
+  50%{ transform:translateY(-3px); }
+}
+
+/* ── livelier segmented tab bar ─────────────────────────────────────────── */
+.tabs{
+  position:relative;
+  animation: v159TabsGlow 5s ease-in-out infinite;
+}
+/* a slow sheen that sweeps across the capsule */
+.tabs::before{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(115deg, transparent 40%, rgba(240,192,96,.14) 50%, transparent 60%);
+  background-size:240% 100%;
+  animation: v159TabsSheen 6.5s linear infinite;
+}
+.tabs .tab{ z-index:1; transition: color .22s var(--ease), transform .18s var(--ease) !important; }
+.tabs .tab:hover:not(.active){ transform:translateY(-1px) !important; }
+/* the active underline becomes a flowing, glowing gold ribbon */
+.tabs .tab.active::after{
+  background:linear-gradient(90deg,
+      var(--gold) 0%, var(--gold-bright) 50%, var(--gold) 100%) !important;
+  background-size:200% 100% !important;
+  box-shadow:0 0 8px rgba(240,192,96,.55);
+  animation: v159TabUnderline 2.6s linear infinite;
+}
+@keyframes v159TabsGlow{
+  0%,100%{ box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 3px 14px rgba(0,0,0,.40), 0 0 0 rgba(240,192,96,0); }
+  50%{ box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 3px 16px rgba(0,0,0,.42), 0 0 18px rgba(240,192,96,.16); }
+}
+@keyframes v159TabsSheen{
+  0%{ background-position:140% 0; }
+  100%{ background-position:-140% 0; }
+}
+@keyframes v159TabUnderline{
+  0%{ background-position:0% 50%; }
+  100%{ background-position:200% 50%; }
+}
+
+/* respect reduced-motion: keep the look, drop the motion ───────────────── */
+@media (prefers-reduced-motion: reduce){
+  .masthead .h-title,
+  .masthead .h-title .masthead-art,
+  .tabs, .tabs::before, .tabs .tab.active::after{
+    animation:none !important;
+  }
+  .masthead .h-title{ background-position:50% 50% !important; }
 }
 </style>
 
