@@ -675,6 +675,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-card:hover > .tz-zone-header,
 .tz-crosslink-card:hover > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.05))}
 .tz-zone-card.zone-open > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
+/* v151 — TZ zone cards become COLLAPSED rich-header cards (Konyo: the first glance must
+   replicate the Runes / Bosses / Tools stack). The name + italic super-unique subtitle +
+   small act/mlvl meta now live INSIDE the gradient header bar (mirrors .boss-header's
+   .boss-title-block); the prose body + feeds-into + tags collapse away until the card is
+   opened. Collapsed = one clean gradient bar; open (.zone-open) = the full inset card. */
+.tz-zone-title-block{flex:1;min-width:0}
+.tz-zone-sub{color:var(--text-muted);font-family:var(--serif-text);font-size:13.5px;font-weight:500;font-style:italic;margin:3px 0 4px;line-height:1.3}
+.tz-zone-loc{color:var(--text-muted);font-size:11px;font-family:var(--serif-text);margin:0;line-height:1.3}
+.tz-zone-collapse{display:none}
+.tz-zone-card.zone-open .tz-zone-collapse{display:block}
+/* collapsed card = the gradient bar fills the whole card (pull the bar to the bottom edge
+   too so there's no empty gap below it); keeps margin-top negative so the v149 bar probes hold */
+.tz-zone-card:not(.zone-open) > .tz-zone-header{margin-bottom:-16px;border-radius:9px;border-bottom-color:transparent}
 /* v149/v150 — EVERY collapsible section header (.sec-h) across every tab gets the prominent
    Bosses/Runes header-bar look (Konyo: unify every subtab title to the Runes/Bosses page).
    The deliberate Binds stacked .tier-header design is excluded so it stays flat. RoTW, the
@@ -691,6 +704,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sec-h:not(.tier-header):hover,
 .sec-h:not(.tier-header):not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
 .sec-h:not(.tier-header):not(.collapsed) .sec-h-t{font-size:20px}
+/* v151 — RoTW section headers gain the Tools/Runes rich-header SUBTITLE (Konyo: replicate
+   the Tools first glance). The title now stacks a one-line italic summary under it; each
+   subtitle is distilled from that section's own verified .lead, so nothing is invented. */
+.sec-h-block{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sec-h-block .sec-h-t{flex:0 0 auto}
+.sec-h-sub{font-family:var(--serif-text);font-size:13px;font-weight:500;font-style:italic;color:var(--text-muted);letter-spacing:.01em;line-height:1.3}
+.sec-h.collapsed .sec-h-sub{color:var(--text-dim)}
 /* TERROR_GROUPS act-region headers — section dividers above each act's zone cards */
 .tz-group-head{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding:7px 12px;border-left:3px solid var(--terror);background:linear-gradient(90deg,rgba(255,0,212,.08),transparent);border-radius:6px}
 .tz-group-head:first-child{margin-top:8px}
@@ -2753,7 +2773,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 
 <div class="tab-content" id="tab-rotw">
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art" id="herald-sec-emblem">👹</span><span class="sec-h-t">Herald of Terror</span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art" id="herald-sec-emblem">👹</span><span class="sec-h-block"><span class="sec-h-t">Herald of Terror</span><span class="sec-h-sub">Hell-TZ superunique · your prime Latent Sunder source · climb the 5-tier ladder</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
     <div class="gbc-card herald-grail" id="herald-card">
       <header class="gbc-header boss-detail-header">
@@ -2847,7 +2867,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </section>
     </div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/deep_graphic.png" alt="Worldstone Shard" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💎</span></span></span><span class="sec-h-t">Worldstone Shards</span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/deep_graphic.png" alt="Worldstone Shard" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💎</span></span></span><span class="sec-h-block"><span class="sec-h-t">Worldstone Shards</span><span class="sec-h-sub">Hell elite drop · right-click to terrorize a whole act, or save as the Renewed-Sunder ingredient</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">Drop only on <strong>Hell</strong> from elite/champion/unique/boss. <strong>MF does NOT affect shard drop rate.</strong> ~1:500-1500. <strong style="color:var(--gold-bright)">Right-click to terrorize its whole act on demand</strong> (consumed) — or save it as the matching-region <strong>Renewed Sunder</strong> ingredient.</div>
   <div class="shard-grid">
@@ -2867,7 +2887,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
   </div>
-  <h2 class="sec-h statue-head collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span></span><span class="sec-h-t">Colossal Ancient Statues</span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h statue-head collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/talic-opt_graphic.png" alt="Colossal Ancient Statue" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">👑</span></span></span><span class="sec-h-block"><span class="sec-h-t">Colossal Ancient Statues</span><span class="sec-h-sub">From terrorized Hell act bosses only · cube all 5 → Colossal Summit</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">From <strong>terrorized Hell act bosses ONLY</strong>. ~1:8 to 1:15 per kill. Cube all 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span>. <span class="zd-item-click" data-art-logo="Colossal Ancient Statue" data-art-glyph="📋" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Statue')">open the Colossal Ancient Statue ID card →</span></div>
   <div class="statue-progress">
@@ -2878,7 +2898,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="statue-tracker" id="statue-tracker"></div>
   <div style="margin:10px 0 4px;font-size:12px;color:var(--text-dim);line-height:1.5">Collect all 5 → cube into <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Summit')">Colossal Summit →</span> to summon the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancients')">Colossal Ancients →</span> (Pinnacle Events tab) → they drop the <span class="zd-item zd-item-click" data-art-logo="Colossal Ancient Jewels" data-art-glyph="💎" style="color:var(--uber);font-weight:600" onclick="openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Essences" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💧</span></span></span><span class="sec-h-t">Essences</span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Essences" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💧</span></span></span><span class="sec-h-block"><span class="sec-h-t">Essences</span><span class="sec-h-sub">From Hell act bosses · cube all 4 → Token of Absolution</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">From <strong>act bosses Hell</strong>. Cube all 4 → Token of Absolution. ~10-15% per kill. MF unaffected.</div>
   <div class="scroll-table"><table class="drops">
@@ -2891,7 +2911,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody>
   </table></div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Pandemonium Keys" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span></span><span class="sec-h-t">Pandemonium Keys</span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Pandemonium Keys" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span></span><span class="sec-h-block"><span class="sec-h-t">Pandemonium Keys</span><span class="sec-h-sub">The 3 keys for Uber Tristram → Hellfire Torch · Hell only · /players 3+</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">The 3 keys for <strong style="color:var(--uber)">Uber Tristram → Hellfire Torch</strong>. <strong>Hell only</strong>, and drops require <strong>/players 3+</strong>. Cube all 3 → red portal → Pandemonium Run → Uber Tristram.</div>
   <div class="scroll-table"><table class="drops">
@@ -2919,7 +2939,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </tbody></table>
   </div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/bonebreakcharm_graphic.png" alt="Sunder Charms" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💠</span></span></span><span class="sec-h-t">Sunder Charms</span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/bonebreakcharm_graphic.png" alt="Sunder Charms" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">💠</span></span></span><span class="sec-h-block"><span class="sec-h-t">Sunder Charms</span><span class="sec-h-sub">Only from Hell-TZ Heralds of Terror · break monster immunities to ~95% resist</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">ONLY from <strong>Hell TZ Heralds of Terror</strong>. Drops immunes to ~95% resist.</div>
   <div class="scroll-table"><table class="drops">
@@ -10087,15 +10107,19 @@ function tzZoneCardHtml(z, zi){
   return `<div class="tz-zone-card" data-zone-idx="${zi}" data-boss-id="${bossId}" onclick="${click}" style="cursor:pointer" title="${titleTxt}">
       <div class="tz-zone-header">
         ${tzZoneEmblem(z)}
-        <p class="tz-zone-name sec-h-t">${z.name}</p>
+        <div class="tz-zone-title-block">
+          <p class="tz-zone-name sec-h-t">${z.name}</p>
+          <p class="tz-zone-sub">🎯 ${linkifySU(z.unique)}</p>
+          <p class="tz-zone-loc">${z.act} · mlvl ${z.mlvl} terror · TC ${z.tcMax} max · ${z.density}</p>
+        </div>
         <span class="tz-zone-tier">${z.tier}</span>
         <span class="tz-zone-chev sec-chev" aria-hidden="true">▾</span>
       </div>
-      <div class="tz-zone-meta">${z.act} · mlvl ${z.mlvl} terror · TC ${z.tcMax} max · ${z.density}</div>
-      <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${linkifySU(z.unique)}</div>
-      <div class="tz-zone-body">${z.why}</div>
-      ${fiStrip}
-      <div class="tz-zone-tags">${tags}</div>
+      <div class="tz-zone-collapse">
+        <div class="tz-zone-body">${z.why}</div>
+        ${fiStrip}
+        <div class="tz-zone-tags">${tags}</div>
+      </div>
       <div class="tz-zone-detail" id="tz-zone-detail-${zi}" hidden></div>
     </div>`;
 }
@@ -10112,12 +10136,14 @@ function tzCrosslinkCardHtml(cl){
   return `<div class="tz-crosslink-card" data-crosslink-boss-id="${b.id}" onclick="window.openBossDetail('${b.id}')" style="cursor:pointer" title="open ${b.name}'s full ID card in the Bosses tab">
       <div class="tz-zone-header">
         ${clEmblem}
-        <p class="tz-zone-name sec-h-t">${b.name}</p>
+        <div class="tz-zone-title-block">
+          <p class="tz-zone-name sec-h-t">${b.name}</p>
+          <p class="tz-zone-sub">${b.subtitle || ''}</p>
+          <p class="tz-zone-loc">${b.loc || ''}</p>
+        </div>
         <span class="tz-zone-tier">${b.tierTag || ''}</span>
         <span class="tz-zone-chev sec-chev" aria-hidden="true">▾</span>
       </div>
-      <div class="tz-zone-meta">${b.subtitle || ''}${b.loc ? ' · ' + b.loc : ''}</div>
-      <div class="tz-zone-body">${b.why || ''}</div>
       <div class="tz-crosslink-go">📜 permanent lvl-85 zone — it fires TZ alerts, but its full ID card lives in the Bosses tab. Click to open ${b.name}'s drop table →</div>
     </div>`;
 }
