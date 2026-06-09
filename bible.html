@@ -238,23 +238,30 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .shard-act{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:600}
 .shard-name{font-size:14px;color:var(--gold-bright);font-weight:600;margin:4px 0}
 .shard-zones{font-size:11px;color:var(--text-muted)}
-.sec-h{cursor:pointer;user-select:none;transition:color .18s,text-shadow .18s}
-/* site-wide: section-header titles glow gold on hover (was RotW-only — v145) */
+/* v146 — UNIFIED editorial section-header bar, site-wide (was RotW-only).
+   Every collapsible .sec-h across every tab now shares ONE style: bordered bar,
+   gold-dim left accent, serif-display title, right-aligned chevron, gold hover
+   glow + pulse. Promoted verbatim from the old #tab-rotw .sec-h treatment. */
 @keyframes secHGlowPulse{0%,100%{text-shadow:0 0 7px rgba(240,192,96,.22)}50%{text-shadow:0 0 13px rgba(240,192,96,.45)}}
-.sec-h:hover{color:var(--gold-bright);text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
+.sec-h{display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none;background:linear-gradient(135deg,rgba(201,161,74,.08),transparent);border:1px solid var(--border);border-left:3px solid var(--gold-dim);border-radius:9px;padding:11px 15px;margin:18px 0 0;font-family:var(--serif-display);font-weight:700;font-size:17px;letter-spacing:.01em;color:var(--text);transition:color .18s,border-color .18s,background .18s,text-shadow .18s}
+.sec-h:hover{color:var(--gold-bright);border-left-color:var(--gold-bright);background:linear-gradient(135deg,rgba(201,161,74,.14),transparent);text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
+.sec-chev{flex:0 0 auto;margin-left:auto;font-size:13px;color:var(--gold-dim);transition:transform .18s,color .18s}
 .sec-h:hover .sec-chev{color:var(--gold-bright)}
-/* binds tier-header titles carry an inline color (tier accent) → re-assert the gold hover glow on the inner heading so Champion/Unique match every other .sec-h */
-#tab-binds .tier-header.sec-h:hover h3{color:var(--gold-bright)!important}
-.sec-chev{font-size:12px;color:var(--text-muted);transition:transform .18s,color .18s;display:inline-block;margin-left:6px}
 .sec-h.collapsed .sec-chev{transform:rotate(-90deg)}
-/* v142 — RotW tab: unified, symmetric section-header bars (art + title + chevron) */
-#tab-rotw .sec-h{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(201,161,74,.08),transparent);border:1px solid var(--border);border-left:3px solid var(--gold-dim);border-radius:9px;padding:9px 13px;margin:14px 0 0}
-#tab-rotw .sec-h:hover{border-left-color:var(--gold-bright);background:linear-gradient(135deg,rgba(201,161,74,.14),transparent)}
-#tab-rotw .sec-h .sec-h-art,#tab-rotw .sec-h #herald-sec-emblem{display:inline-flex;flex:0 0 auto;width:30px;height:30px;align-items:center;justify-content:center;font-size:20px}
-#tab-rotw .sec-h .sec-h-art .d2art-wrap{width:30px;height:30px}
-#tab-rotw .sec-h .sec-h-art .d2art-img,#tab-rotw .sec-h #herald-sec-emblem img{width:30px!important;height:30px!important;object-fit:cover;border-radius:6px;vertical-align:middle}
-#tab-rotw .sec-h .sec-h-t{flex:1 1 auto;font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.01em;color:var(--text)}
-#tab-rotw .sec-h .sec-chev{margin-left:0;font-size:13px}
+/* structured headers (separate art slot + title span) — RotW + the main-tab "who drops what" keys/shards/essences/sunder + boss-detail Herald */
+.sec-h .sec-h-art,.sec-h #herald-sec-emblem{display:inline-flex;flex:0 0 auto;width:30px;height:30px;align-items:center;justify-content:center;font-size:20px}
+.sec-h .sec-h-art .d2art-wrap{width:30px;height:30px}
+.sec-h .sec-h-art .d2art-img,.sec-h #herald-sec-emblem img{width:30px!important;height:30px!important;object-fit:cover;border-radius:6px;vertical-align:middle}
+.sec-h .sec-h-t{flex:1 1 auto;font-family:var(--serif-display);font-size:17px;font-weight:700;letter-spacing:.01em;color:var(--text)}
+/* binds tier-header keeps its stacked tier-label-over-title layout + colored accent,
+   but the title now glows gold on hover like every other header (inline color → !important) */
+.tier-header.sec-h{display:block;background:none;border:none;border-radius:0}
+.tier-header.sec-h:hover{background:none}
+#tab-binds .tier-header.sec-h:hover h3{color:var(--gold-bright)!important;text-shadow:0 0 10px rgba(240,192,96,.30)}
+/* a binds collapsible header is an h3.sec-h inside .colossal — beat the magenta
+   `.colossal h3{color:var(--uber)}` descendant rule so it matches the cream bar */
+#tab-binds .colossal h3.sec-h{color:var(--text)}
+#tab-binds .colossal h3.sec-h:hover{color:var(--gold-bright)}
 .sec-body[hidden]{display:none}
 h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-margin-top:70px}
 .statue-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:12px 0}
@@ -3387,7 +3394,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   padding:24px 26px;
   margin:26px 0;
 }
-#tab-binds .colossal > h3{
+#tab-binds .colossal > h3:not(.sec-h){
   font-family:var(--serif-display);
   font-weight:600;
   font-size:22px;
