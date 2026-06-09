@@ -658,6 +658,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .set-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:all .15s}
 .set-card.complete{border-color:var(--best);background:linear-gradient(180deg,rgba(102,255,136,.06),var(--surface-2))}
 .set-card-name{color:var(--gold-bright);font-size:13px;font-weight:600;margin-bottom:4px}
+.set-card-name.set-card-open{cursor:pointer;transition:color .15s}
+.set-card-name.set-card-open:hover{color:var(--gold);text-decoration:underline}
+.set-card-name .set-open-caret{font-size:10px;opacity:.55}
+.set-items-card .set-piece-tile{cursor:default}
+.set-items-card .set-bonus-row .zd-v{color:var(--best)}
 .set-card-progress{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-muted);margin-bottom:8px}
 .set-card.complete .set-card-progress{color:var(--best)}
 .set-pieces{display:flex;flex-direction:column;gap:3px}
@@ -4693,6 +4698,51 @@ function sunderCharmsDetailHtml(){
   </div>`;
 }
 window.sunderCharmsDetailHtml = sunderCharmsDetailHtml;
+// ── Full-set aggregate ID card — same unified structure as the Sunder Charms card.
+// Built ENTIRELY off the verified ITEM_CODEX set-cat entries (setName / setMembers
+// {name,slot,reqLvl} / setBonuses) — zero fabrication, no parallel data. Routes the
+// collective set name to a rich card listing every piece as a tile + the full set bonus.
+function _setCodexByName(name){
+  if (typeof ITEM_CODEX === 'undefined' || !name) return null;
+  var q = _norm(String(name).replace(/\s*\([^)]*\)\s*$/, ''));   // strip trailing "(Class)"/"(slot)" BEFORE normalizing (_norm turns ()→space)
+  for (var k in ITEM_CODEX){ var c = ITEM_CODEX[k];
+    if (c && c.cat === 'set'){ if (_norm(k) === _norm(name) || (c.setName && _norm(c.setName) === q)) return c; } }
+  return null;
+}
+window._setCodexByName = _setCodexByName;
+function isSetAggregate(name){ return !!_setCodexByName(name); }
+window.isSetAggregate = isSetAggregate;
+function setDetailHtml(name){
+  var c = _setCodexByName(name); if (!c) return '';
+  var sn = c.setName || name;
+  var mem = c.setMembers || [];
+  var tiles = mem.map(function(m){
+    var sub = m.slot ? ('<div class="ct-sub">'+m.slot+(m.reqLvl?(' · req lvl '+m.reqLvl):'')+'</div>') : '';
+    return '<div class="colossal-tile set-piece-tile" data-arttip="'+_d2artEsc(m.name)+'" title="'+_d2artEsc(m.name)+(m.slot?(' — '+_d2artEsc(m.slot)):'')+'">'
+      + '<span class="ct-art">'+artOr(m.name, '<span class="ct-emoji">💎</span>', 'lg')+'</span>'
+      + '<div class="ct-body"><div class="ct-name">'+m.name+'</div>'+sub+'</div></div>';
+  }).join('');
+  var bonuses = (c.setBonuses||[]).map(function(s){ return '<div class="zd-row set-bonus-row"><span class="zd-v">'+s+'</span></div>'; }).join('');
+  var note = c.note ? ('<div class="gic-subtitle">'+c.note+'</div>') : '';
+  return '<div class="gic-card material-card set-items-card">'
+    + '<header class="gic-header">'
+    +   artOr(sn, '<span class="gic-emoji">\uD83D\uDC8E</span>', 'lg')
+    +   '<div class="gic-id-block">'
+    +     '<h2 class="gic-name">'+sn+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#2e7d4f,#16432a);color:#dfffe0">Set \u00b7 '+mem.length+' pieces</span></h2>'
+    +     note
+    +     '<div class="gic-meta-row"><span class="gic-meta-chip">equip all '+mem.length+' \u2192 full set bonus</span><span class="gic-meta-chip" style="color:#8fe3a8;border-color:rgba(143,227,168,.4)">pieces drop individually across the game</span></div>'
+    +   '</div>'
+    +   '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">\u2715 close</button></div>'
+    + '</header>'
+    + '<section class="gic-section"><div class="gic-section-title">\uD83D\uDC8E The '+mem.length+' set items \u2014 hover any piece for its stats</div>'
+    +   '<div class="zd-note" style="margin-bottom:8px">Each piece is a distinct unique-rarity drop; hover its art for the in-game stat card. Collect all '+mem.length+' to light up the full set bonus below (track them in the Tools \u2192 Item Set Tracker).</div>'
+    +   '<div class="colossal-grid">'+tiles+'</div></section>'
+    + '<section class="gic-section"><div class="gic-section-title">\uD83E\uDDEC Full set bonus \u2014 all '+mem.length+' equipped</div>'
+    +   (bonuses || '<div class="zd-note">\u2014</div>')+'</section>'
+    + '<div class="zd-note">\u26a0 Full-set bonuses are the in-game green set-completion stats (diablo2.io / Arreat Summit). Individual per-piece affixes show on each tile\u2019s hover card.</div>'
+    + '</div>';
+}
+window.setDetailHtml = setDetailHtml;
 // Common-to-all-6 jewel affixes (Maxroll-verified, Konyo-confirmed).
 const COLOSSAL_JEWEL_COMMON = ['+3-5% Experience Gained','+25-50% Extra Gold from Monsters','+15-35% Magic Find'];
 function colossalJewelDetailHtml(name){
@@ -5142,6 +5192,20 @@ window.openDrop = function(name){
     const panel = document.getElementById('item-detail');
     if (panel){ panel.classList.add('show'); panel.innerHTML = sunderCharmsDetailHtml(); }
     __alignCard('#item-detail .sunder-charms-card');
+    return;
+  }
+  // Full set aggregate — the collective set name (e.g. "Tal Rasha's Wrappings")
+  // opens the unified set card (all pieces as tiles + the full set bonus). Individual
+  // set-piece names do NOT match here (they have no codex set-cat entry) — they keep
+  // their art+hover-only behaviour and fall through below.
+  if (typeof isSetAggregate === 'function' && isSetAggregate(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = setDetailHtml(name); }
+    __alignCard('#item-detail .set-items-card');
     return;
   }
   if (findColossalJewel(name)) {
@@ -9975,8 +10039,13 @@ function renderSetTracker() {
         ${_nm}
       </div>`;
     }).join('');
+    const _routable = (typeof isSetAggregate === 'function') && isSetAggregate(set.name);
+    const _setEsc = set.name.replace(/'/g, "\\'");
+    const nameHtml = _routable
+      ? `<div class="set-card-name set-card-open" role="button" tabindex="0" title="open the ${set.name} ID card" onclick="event.stopPropagation();window.openDrop('${_setEsc}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_setEsc}')}">${set.name}${complete?' ✓':''} <span class="set-open-caret">↗</span></div>`
+      : `<div class="set-card-name">${set.name}${complete?' ✓':''}</div>`;
     return `<div class="set-card ${complete?'complete':''}">
-      <div class="set-card-name">${set.name}${complete?' ✓':''}</div>
+      ${nameHtml}
       <div class="set-card-progress">${have} / ${set.pieces.length} pieces</div>
       <div class="set-pieces">${pieces}</div>
     </div>`;
