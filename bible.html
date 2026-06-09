@@ -675,10 +675,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-card:hover > .tz-zone-header,
 .tz-crosslink-card:hover > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.05))}
 .tz-zone-card.zone-open > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
-/* v149 — RoTW section headers get the prominent Bosses/Runes header-bar look (Konyo:
-   make RoTW like Bosses/Runes, matching the TZ titles). Scoped to #tab-rotw so the shared
-   .sec-h editorial bars elsewhere (Reference, Main, etc.) stay exactly as approved. */
-#tab-rotw .sec-h{
+/* v149/v150 — EVERY collapsible section header (.sec-h) across every tab gets the prominent
+   Bosses/Runes header-bar look (Konyo: unify every subtab title to the Runes/Bosses page).
+   The deliberate Binds stacked .tier-header design is excluded so it stays flat. RoTW, the
+   Reference tab, Main, and the Binds class-group headers all read as one bar language now. */
+.sec-h:not(.tier-header){
   background:linear-gradient(90deg,var(--surface-3),var(--surface-2));
   border:1px solid var(--border);
   border-left:3px solid var(--gold-dim);
@@ -686,10 +687,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   padding:14px 20px;
   gap:14px;
 }
-#tab-rotw .sec-h .sec-h-t{font-size:19px}
-#tab-rotw .sec-h:hover,
-#tab-rotw .sec-h:not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
-#tab-rotw .sec-h:not(.collapsed) .sec-h-t{font-size:20px}
+.sec-h:not(.tier-header) .sec-h-t{font-size:19px}
+.sec-h:not(.tier-header):hover,
+.sec-h:not(.tier-header):not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
+.sec-h:not(.tier-header):not(.collapsed) .sec-h-t{font-size:20px}
 /* TERROR_GROUPS act-region headers — section dividers above each act's zone cards */
 .tz-group-head{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding:7px 12px;border-left:3px solid var(--terror);background:linear-gradient(90deg,rgba(255,0,212,.08),transparent);border-radius:6px}
 .tz-group-head:first-child{margin-top:8px}

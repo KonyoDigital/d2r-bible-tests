@@ -99,15 +99,40 @@ test.describe('v149 TZ titles match the Bosses/RoTW header bar', () => {
     expect(r.titleWeight).toBe('700');
   });
 
-  test('the shared .sec-h bars on the Reference tab are NOT enlarged (scope held)', async ({ page }) => {
+  test('the shared .sec-h bars are now globally enriched on EVERY tab (Reference too)', async ({ page }) => {
+    // v150 — the header-bar look was promoted from #tab-rotw-scoped to a global
+    // .sec-h:not(.tier-header) so every collapsible section title across every tab
+    // (Reference, Main, Binds class-groups, RoTW) reads as the same prominent bar.
     await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('ref'));
     await page.waitForTimeout(300);
-    const size = await page.evaluate(() => {
-      const t = document.querySelector('#tab-ref .sec-h.collapsed .sec-h-t') as HTMLElement;
-      return t ? parseFloat(getComputedStyle(t).fontSize) : 0;
+    const r = await page.evaluate(() => {
+      const h = document.querySelector('#tab-ref .sec-h.collapsed:not(.tier-header)') as HTMLElement;
+      const t = h?.querySelector('.sec-h-t') as HTMLElement;
+      const cs = getComputedStyle(h);
+      const tcs = getComputedStyle(t);
+      return {
+        hasGradient: /gradient/.test(cs.backgroundImage),
+        titleSize: parseFloat(tcs.fontSize),
+        titleWeight: tcs.fontWeight,
+      };
     });
-    // Reference collapsed headers keep the original 17px editorial size (RoTW scope didn't leak)
-    expect(size).toBeLessThanOrEqual(17);
+    expect(r.hasGradient).toBe(true);
+    expect(r.titleSize).toBeGreaterThanOrEqual(19);
+    expect(r.titleWeight).toBe('700');
+  });
+
+  test('the deliberate flat Binds .tier-header stacks are NOT enriched (excluded by :not)', async ({ page }) => {
+    await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('binds'));
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => {
+      const h = document.querySelector('.tier-header.sec-h') as HTMLElement;
+      if (!h) return { found: false };
+      const cs = getComputedStyle(h);
+      return { found: true, hasGradient: /gradient/.test(cs.backgroundImage), display: cs.display };
+    });
+    expect(r.found).toBe(true);
+    // tier-headers stay flat block — no gradient bar leaked onto the stacked-bind design
+    expect(r.hasGradient).toBe(false);
   });
 
   test('no console errors rendering the restyled TZ tab', async ({ page }) => {
