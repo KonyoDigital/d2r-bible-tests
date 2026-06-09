@@ -53,10 +53,12 @@ test.describe('v71 d2art artwork layer', () => {
       mapped: (window as any).artOr('Ist', '<span class="x">FB</span>', 'sm'),
       unmapped: (window as any).artOr('No Such Thing 999', '<span class="x">FB</span>', 'lg'),
     }));
-    // mapped → real <img> from diablo2.io, carries the alt + an onerror that reveals the fallback span
+    // mapped → real <img> from diablo2.io, carries the alt + an onerror that (after a single
+    // retry) reveals the fallback span, plus an onload that clears a transient failed state
     expect(r.mapped).toMatch(/<img[^>]+class="d2art-img"/);
     expect(r.mapped).toMatch(/src="https:\/\/diablo2\.io\/images\/avatars\/gallery\//);
-    expect(r.mapped).toMatch(/onerror="this\.parentNode\.classList\.add\('d2art-failed'\)"/);
+    expect(r.mapped).toMatch(/onerror="[^"]*this\.parentNode\.classList\.add\('d2art-failed'\)/);
+    expect(r.mapped).toMatch(/onload="this\.parentNode\.classList\.remove\('d2art-failed'\)"/);
     expect(r.mapped).toContain('d2art-fallback');
     expect(r.mapped).toContain('FB');                    // fallback still embedded for the error path
     // unmapped → a consistent d2art-failed wrapper around the fallback (no <img>), so the

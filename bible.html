@@ -3342,8 +3342,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 @keyframes relicTextGlow{0%{text-shadow:0 0 1px rgba(240,200,110,.20)}100%{text-shadow:0 0 8px rgba(240,200,110,.62),0 0 2px rgba(240,200,110,.5)}}
 @keyframes relicArtGlow{0%{filter:drop-shadow(0 0 1px rgba(240,200,110,.45))}100%{filter:drop-shadow(0 0 7px rgba(240,200,110,.9))}}
 .endgame-relic{animation:relicTextGlow 2.3s ease-in-out infinite alternate}
-.endgame-relic .d2art-img{animation:relicArtGlow 2.3s ease-in-out infinite alternate}
-@media (prefers-reduced-motion:reduce){.endgame-relic,.endgame-relic .d2art-img{animation:none!important;text-shadow:0 0 6px rgba(240,200,110,.5)}}
+.endgame-relic .d2art-img,.endgame-relic .d2art-fallback{animation:relicArtGlow 2.3s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.endgame-relic,.endgame-relic .d2art-img,.endgame-relic .d2art-fallback{animation:none!important;text-shadow:0 0 6px rgba(240,200,110,.5);filter:drop-shadow(0 0 5px rgba(240,200,110,.6))}}
 
 @keyframes sigSheen{0%{background-position:-180% 0}100%{background-position:280% 0}}
 .sig-drop{position:relative;overflow:hidden;display:flex;flex-wrap:wrap;align-items:center;gap:9px 13px;cursor:pointer;
@@ -4634,6 +4634,65 @@ function findColossalStatue(name){ if(!name) return null; const q=_norm(name); r
 window.findColossalJewel = findColossalJewel;
 window.findColossalStatue = findColossalStatue;
 function _esc1(s){ return String(s||'').replace(/'/g,"\\'"); }
+// ── Sunder Charms aggregate — the rich "6 charms" hub card (mirrors the Colossal
+// Ancient Jewels card exactly). Presentation/routing only (parallel to COLOSSAL_JEWELS):
+// the 6 individual charm ID cards stay their SPECIAL_DROPS material cards; this just
+// adds a unified gateway that lists all 6, each clickable through to its own card.
+// element + best-build + region all match the SPECIAL_DROPS sunder data — ZERO fabrication.
+const SUNDER_CHARMS = [
+  { n:"Bone Break",           elem:'Physical',  emoji:'🦴', region:'Northern',                  build:'Konyolock' },
+  { n:"Black Cleft",          elem:'Magic',     emoji:'🌀', region:'Southern + Deep + Northern', build:'Konyodin' },
+  { n:"Crack of the Heavens", elem:'Lightning', emoji:'⚡', region:'Southern',                  build:'Konyoress' },
+  { n:"Cold Rupture",         elem:'Cold',      emoji:'❄️', region:'Eastern',                   build:'Frozen Orb sorc' },
+  { n:"Flame Rift",           elem:'Fire',      emoji:'🔥', region:'Deep',                      build:'Fireball sorc' },
+  { n:"Rotting Fissure",      elem:'Poison',    emoji:'🩸', region:'Western',                   build:'PoisonMancer' },
+];
+window.SUNDER_CHARMS = SUNDER_CHARMS;
+function isSunderAggregate(name){ const q=_norm(name); return q==='sunder charms'||q==='sunder charm'||q==='sunders'; }
+window.isSunderAggregate = isSunderAggregate;
+function sunderCharmsDetailHtml(){
+  const tiles = SUNDER_CHARMS.map(s=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${s.n} ID card" onclick="window.openDrop('${_esc1(s.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(s.n)}')}"><span class="ct-art">${artOr(s.n, '<span class="ct-emoji">'+s.emoji+'</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${s.n}</div><div class="ct-sub">${s.elem} · best for ${s.build}</div></div></div>`).join('');
+  return `<div class="gic-card material-card sunder-charms-card">
+    <header class="gic-header">
+      ${artOr('Sunder Charms', '<span class="gic-emoji">💠</span>', 'lg')}
+      <div class="gic-id-block">
+        <h2 class="gic-name">Sunder Charms <span class="gic-grail-badge" style="background:linear-gradient(135deg,#6a4,#363);color:#dfffe0">Sunder Charms</span></h2>
+        <div class="gic-subtitle">Immunity-breaking grand charms — Latent versions drop only from Hell Terror-Zone Heralds of Terror; each breaks one immunity to ~95% resist. Upgrade to Renewed via a cube recipe for extra random stats.</div>
+        <div class="gic-meta-row">
+          <span class="gic-meta-chip">Latent · drops from Hell-TZ Heralds of Terror</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">feeds → equipped — one immunity broken to ~95%</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button>
+      </div>
+    </header>
+    <section class="gic-section">
+      <div class="gic-section-title">⚔️ What it does</div>
+      <div style="font-size:13.5px;line-height:1.6">Six element-piercing grand charms — one per damage type. Only <strong>ONE Sunder can be active at a time</strong>; match it to your build's damage type. The ~95% floor still leaves resist on the monster, so stack −enemy-resist, Conviction / Lower Resist, Amplify Damage and Crushing Blow to push below it.</div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">📍 Where it drops</div>
+      <div class="zd-stats" style="margin-bottom:8px">
+        <div class="zd-stat"><span class="zd-sk">category</span><span class="zd-sv">Sunder Charms</span></div>
+        <div class="zd-stat"><span class="zd-sk">drop</span><span class="zd-sv">Latent — Hell-TZ Heralds of Terror</span></div>
+        <div class="zd-stat"><span class="zd-sk">also</span><span class="zd-sv">cube 3 Worldstone Shards → random Latent</span></div>
+        <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no — Herald drop (post-3.2, any MF)</span></div>
+      </div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">💠 The 6 Sunder Charms — open each ID card</div>
+      <div class="zd-note" style="margin-bottom:8px">Click any charm for its full immunity break, best build and Renewed recipe. Each is also globally searchable by its own name.</div>
+      <div class="colossal-grid">${tiles}</div>
+    </section>
+    <section class="gic-section">
+      <div class="gic-section-title">🧪 Recipe / use</div>
+      <div class="zd-row"><span class="zd-k">renewed</span><span class="zd-v">Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard → Renewed Sunder (permanent +pierce upgrade, per build's damage type)</span></div>
+    </section>
+    <div class="zd-note">⚠ Sunder charms are RotW mod items, not part of the 312-item grail count. The element → build → region mapping is community-sourced (Maxroll / TheBugWarrior), not fabricated odds.</div>
+  </div>`;
+}
+window.sunderCharmsDetailHtml = sunderCharmsDetailHtml;
 // Common-to-all-6 jewel affixes (Maxroll-verified, Konyo-confirmed).
 const COLOSSAL_JEWEL_COMMON = ['+3-5% Experience Gained','+25-50% Extra Gold from Monsters','+15-35% Magic Find'];
 function colossalJewelDetailHtml(name){
@@ -5070,6 +5129,19 @@ window.openDrop = function(name){
     const summit = isColossalSummit(name);
     if (panel){ panel.classList.add('show'); panel.innerHTML = summit ? colossalSummitDetailHtml() : colossalAncientsDetailHtml(); }
     __alignCard(summit ? '#item-detail .colossal-summit-card' : '#item-detail .colossal-ancients-card');
+    return;
+  }
+  // Sunder Charms aggregate — the collective name routes to the rich 6-charm
+  // "open each ID card" card. Individual charm names (Bone Break, Black Cleft…)
+  // still fall through to their own SPECIAL_DROPS material cards below.
+  if (typeof isSunderAggregate === 'function' && isSunderAggregate(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = sunderCharmsDetailHtml(); }
+    __alignCard('#item-detail .sunder-charms-card');
     return;
   }
   if (findColossalJewel(name)) {
@@ -7009,7 +7081,7 @@ function artOr(name, fallbackHtml, size){
   // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
   // the name from being duplicated into copied text / shown as broken-image alt on platforms
   // where the diablo2.io hotlink is blocked. Accessible name lives on the wrapper aria-label.
-  return `<span class="d2art-wrap ${size||'lg'}" role="img" aria-label="${_d2artEsc(name)}"><img class="d2art-img" src="${u}" alt="" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+  return `<span class="d2art-wrap ${size||'lg'}" role="img" aria-label="${_d2artEsc(name)}"><img class="d2art-img" src="${u}" alt="" loading="lazy" onload="this.parentNode.classList.remove('d2art-failed')" onerror="if(this.dataset.r){this.parentNode.classList.add('d2art-failed')}else{this.dataset.r=1;var s=this.src;this.src='';this.src=s}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
 window.artOr = artOr;
 // Unified drop-row logo: render the registered in-game art thumbnail (lazy, graceful)
@@ -7282,7 +7354,7 @@ function renderEndgameRoad(){
     + '<div class="road-section-h">The other endgame relics</div>'
     + '<div class="road-branches">'
     + '<div class="road-branch endgame-relic" role="button" tabindex="0" onclick="window.openDrop(\'Herald of Terror\')"><h3>' + branchEmblemRaw(HERALD_PORTRAIT,'👹') + '<span>Herald of Terror</span></h3><p>The RotW apex super-unique. The five-rung Herald ladder (Fright → Terror) scales loot and is the gateway to the Sunder charms. Opens the Herald card.</p></div>'
-    + '<div class="road-branch endgame-relic" role="button" tabindex="0" onclick="window.openDrop(\'Crack of the Heavens\')"><h3><span class="rb-art">' + artOr('Crack of the Heavens','💠','lg') + '</span><span>Sunder Charms</span></h3><p>Six element-piercing grand charms (Bone Break, Black Cleft, Crack of the Heavens, Cold Rupture, Flame Rift, Rotting Fissure) — cube Worldstone Shards into a Latent Sunder, then upgrade to a Renewed Sunder. Opens the Sunder card.</p></div>'
+    + '<div class="road-branch endgame-relic" role="button" tabindex="0" onclick="window.openDrop(\'Sunder Charms\')"><h3><span class="rb-art">' + artOr('Sunder Charms','💠','lg') + '</span><span>Sunder Charms</span></h3><p>Six element-piercing grand charms (Bone Break, Black Cleft, Crack of the Heavens, Cold Rupture, Flame Rift, Rotting Fissure) — cube Worldstone Shards into a Latent Sunder, then upgrade to a Renewed Sunder. Opens the unified Sunder card with all 6 ID cards.</p></div>'
     + '</div>';
   markEndgameRelics(box);
 }
