@@ -12452,11 +12452,15 @@ function _v40_renderRefExtras() {
   const wrapper = document.createElement('div');
   wrapper.className = 'v40-extras';
   wrapper.innerHTML = `
-    <h2 class="golden-underline" style="margin-top:24px;">💡 Tips & Wisdom</h2>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Curated D2R knowledge — verified, not folklore.</div>
-    <div class="tips-bento">${tipsHtml}</div>
-    <h2 class="golden-underline" style="margin-top:30px;">🔬 Methodology</h2>
-    ${methodologyHtml}
+    <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">💡</span><span class="sec-h-t">Tips &amp; Wisdom</span><span class="sec-chev">▾</span></h2>
+    <div class="sec-body" hidden>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Curated D2R knowledge — verified, not folklore.</div>
+      <div class="tips-bento">${tipsHtml}</div>
+    </div>
+    <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🔬</span><span class="sec-h-t">Methodology</span><span class="sec-chev">▾</span></h2>
+    <div class="sec-body" hidden>
+      ${methodologyHtml}
+    </div>
   `;
   refTab.appendChild(wrapper);
 }
