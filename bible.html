@@ -621,6 +621,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-tier{letter-spacing:.4px;padding:3px 9px}
 /* honest affordance: hover lift ONLY on clickable (routed) cards, not the info-only zones */
 .tz-zone-card[data-boss-id]:not([data-boss-id=""]):hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,.24)}
+/* TZ titles join the site-wide editorial language (Konyo): serif name + chevron
+   affordance + the Herald-of-Terror enlarge/glow when the drop detail opens. The card's
+   art-banner + terror-magenta accent identity is kept. */
+.tz-zone-name{font-family:var(--serif-display);font-size:17px;letter-spacing:.01em;transition:font-size .2s,color .2s,text-shadow .2s}
+.tz-zone-chev{flex:0 0 auto;font-size:13px;color:var(--gold-dim);transition:transform .2s,color .2s;transform:rotate(-90deg)}
+.tz-zone-card:hover .tz-zone-name{text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
+.tz-zone-card:hover .tz-zone-chev{color:var(--gold-bright)}
+.tz-zone-card[data-boss-id=""]:hover .tz-zone-name::after{content:none}
+.tz-zone-card.zone-open .tz-zone-chev{transform:rotate(0deg);color:var(--gold-bright)}
+.tz-zone-card.zone-open .tz-zone-name{font-size:20px;color:var(--gold-bright);text-shadow:0 0 9px rgba(240,192,96,.22)}
 /* TERROR_GROUPS act-region headers — section dividers above each act's zone cards */
 .tz-group-head{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding:7px 12px;border-left:3px solid var(--terror);background:linear-gradient(90deg,rgba(255,0,212,.08),transparent);border-radius:6px}
 .tz-group-head:first-child{margin-top:8px}
@@ -5370,7 +5380,8 @@ function toggleZoneDetail(zi){
   if (!box) return;
   const willOpen = box.hasAttribute('hidden');
   document.querySelectorAll('.tz-zone-detail').forEach(b => { if (b !== box) { b.setAttribute('hidden',''); b.innerHTML = ''; } });
-  if (willOpen) { box.innerHTML = zoneDetailHtml(z); box.removeAttribute('hidden'); }
+  document.querySelectorAll('.tz-zone-card.zone-open').forEach(c => c.classList.remove('zone-open'));
+  if (willOpen) { box.innerHTML = zoneDetailHtml(z); box.removeAttribute('hidden'); box.closest('.tz-zone-card')?.classList.add('zone-open'); }
   else { box.setAttribute('hidden',''); box.innerHTML = ''; }
 }
 // Super-unique cross-link: find the TZ_ZONES entry whose `unique` string names
@@ -9788,6 +9799,7 @@ function tzZoneCardHtml(z, zi){
         <span class="tz-zone-emoji">${z.emoji}</span>
         <p class="tz-zone-name">${z.name}</p>
         <span class="tz-zone-tier">${z.tier}</span>
+        <span class="tz-zone-chev" aria-hidden="true">▾</span>
       </div>
       <div class="tz-zone-meta">${z.act} · mlvl ${z.mlvl} terror · TC ${z.tcMax} max · ${z.density}</div>
       <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${linkifySU(z.unique)}</div>
