@@ -11339,15 +11339,15 @@ window.toggleNavPanel = toggleNavPanel; window.syncNavWidget = syncNavWidget;
    drop rate. Every entry routes to its real card via the unified openDrop()
    (rune / material / item) or, for runewords, expands to clickable rune chips. */
 const MW_TOP10 = [
-  { n:"Enigma",                  dt:"S", why:"Teleport on any class — the #1 chase, period. Gated by Ber + Jah.",                rw:["Jah","Ith","Ber"] },
+  { n:"Enigma",                  dt:"S", why:"Teleport on any class — the #1 chase, period. Gated by Ber + Jah.",                rw:["Jah","Ith","Ber"], ic:"🛡️" },
   { n:"Ber Rune",                dt:"S", why:"The bottleneck high rune: Enigma, Infinity (×2), CoH. The high-end currency unit.", drop:"Ber" },
   { n:"Jah Rune",                dt:"S", why:"Enigma's other half + Faith. Co-top high rune.",                                    drop:"Jah" },
-  { n:"Grief",                   dt:"S", why:"Melee phys-DPS king — still unmatched. Eth base = premium.",                        rw:["Eth","Tir","Lo","Mal","Ral"] },
-  { n:"Infinity",                dt:"S", why:"Conviction aura — caster + merc BiS. Eats 2 Ber.",                                  rw:["Ber","Mal","Ber","Ist"] },
+  { n:"Grief",                   dt:"S", why:"Melee phys-DPS king — still unmatched. Eth base = premium.",                        rw:["Eth","Tir","Lo","Mal","Ral"], ic:"⚔️" },
+  { n:"Infinity",                dt:"S", why:"Conviction aura — caster + merc BiS. Eats 2 Ber.",                                  rw:["Ber","Mal","Ber","Ist"], ic:"🔱" },
   { n:"Colossal Ancient Jewels", dt:"S", why:"ROTW endgame BiS — strictly better than Rainbow Facets. ~1 per character.",        drop:"Colossal Ancient Jewels", rotw:true },
   { n:"Hellfire Torch",          dt:"S", why:"+3 class skills · +20 stats · +10-20 all res. Every character wants one.",                drop:"Hellfire Torch" },
-  { n:"Call to Arms",            dt:"A", why:"Battle Orders for literally every build — the universal swap-weapon.",             rw:["Amn","Ral","Mal","Ist","Ohm"] },
-  { n:"Sunder Charms",           dt:"S", why:"Break a monster immunity to ~95% — gate the ROTW endgame climb.",                  tab:"rotw", rotw:true },
+  { n:"Call to Arms",            dt:"A", why:"Battle Orders for literally every build — the universal swap-weapon.",             rw:["Amn","Ral","Mal","Ist","Ohm"], ic:"📯" },
+  { n:"Sunder Charms",           dt:"S", why:"Break a monster immunity to ~95% — gate the ROTW endgame climb.",                  tab:"rotw", rotw:true, ic:"💠" },
   { n:"Annihilus",               dt:"S", why:"+1 all skills · stats · res small charm — universal, one-per-realm hunt.",         drop:"Annihilus" },
 ];
 const MW_SECTIONS = [
@@ -11415,7 +11415,7 @@ function renderMostWanted(){
         title="${isRw ? 'show '+e.n+' recipe' : 'open '+e.n}">
       <span class="mw-rank">#${i + 1}</span>
       <span class="mw-main">
-        <span class="mw-name">${caret}${e.n}${rotwBadge(e)}</span>
+        <span class="mw-name">${caret}<span class="mw-art">${artOr(e.drop || e.n, e.ic || '', 'sm')}</span> ${e.n}${rotwBadge(e)}</span>
         <span class="mw-why">${e.why}</span>
       </span>
       ${tierBadge(e)}
