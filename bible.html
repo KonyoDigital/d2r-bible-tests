@@ -5653,7 +5653,7 @@ function renderEventRef(){
   const sd = SPECIAL_DROPS;
   const rows = (cat) => cat.items.map(it => {
     const esc = (it.n||'').replace(/'/g,"\\'");
-    return `<tr><td class="er-item zd-item-click" style="cursor:pointer" onclick="openDrop('${esc}')">${it.n} <span class="er-arrow">→</span></td><td class="er-from">${(it.from||[]).join(' · ')}</td><td class="er-note">${it.note||''}</td></tr>`;
+    return `<tr><td class="er-item zd-item-click" style="cursor:pointer" onclick="openDrop('${esc}')">${nameLogo(it.n)}${it.n} <span class="er-arrow">→</span></td><td class="er-from">${(it.from||[]).join(' · ')}</td><td class="er-note">${it.note||''}</td></tr>`;
   }).join('');
   const block = (cat, feeds) => `<div class="er-block">
       <div class="er-block-head">${cat.icon} ${cat.label} <span class="er-arrow">→</span> <strong>${feeds}</strong></div>
@@ -8243,7 +8243,7 @@ function renderHeroV31() {
         else tierBadge = `<span style="color:var(--terror);font-size:8px;letter-spacing:.5px">#${p.rank} of ${p.totalBosses}</span>`;
         return `<div class="hero-pick" onclick="window.openItemDetail('${p.item.replace(/'/g, "\\'")}')">
           <div class="hero-pick-rank">${p.starred?'⭐ ':''}#${i+1}${p.tier==='uber'?' UBER':''}${p.verified?' 🔒':''}</div>
-          <div class="hero-pick-item">${p.item}</div>
+          <div class="hero-pick-item">${nameLogo(p.item)}${p.item}</div>
           <div class="hero-pick-boss" style="font-size:11px">${p.boss}${(typeof players !== "undefined" && players > 1 && playerMult(p.bossId, p.diffKey, 8) === 1) ? ' <span style="color:#8a7d62;font-size:9px;letter-spacing:.5px" title="guaranteed dropper (q=0) — player count adds HP, not loot; stays \u00d71.00">\u00b7 P#-PROOF</span>' : ''}</div>
           <div class="hero-pick-chance">${fmt(p.chance)} · <span style="color:var(--terror)">${fmtHours(p.hours)}</span></div>
           <div class="hero-pick-source-badge">${p.kph}/hr ${tierBadge}</div>
@@ -8318,7 +8318,7 @@ function renderHeroV31() {
   $('hero-picks').innerHTML = final.map((p,i) => `
     <div class="hero-pick" onclick="window.openItemDetail('${p.item.replace(/'/g, "\\'")}')">
       <div class="hero-pick-rank">${p.starred?'⭐ ':''}#${i+1} ${p.tier==='uber'?'UBER':'BEST'}${p.verified?' 🔒':''}</div>
-      <div class="hero-pick-item">${p.item}</div>
+      <div class="hero-pick-item">${nameLogo(p.item)}${p.item}</div>
       <div class="hero-pick-boss">${p.boss}${(typeof players !== "undefined" && players > 1 && playerMult(p.bossId, p.diffKey, 8) === 1) ? ' <span style="color:#8a7d62;font-size:9px;letter-spacing:.5px" title="guaranteed dropper (q=0) — player count adds HP, not loot; stays \u00d71.00">\u00b7 P#-PROOF</span>' : ''}</div>
       <div class="hero-pick-chance">${fmt(p.chance)} · <span style="color:var(--terror)">${fmtHours(p.hours)}</span></div>
       <div class="hero-pick-source-badge">${p.kph}/hr</div>
