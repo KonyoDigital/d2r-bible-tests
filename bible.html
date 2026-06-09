@@ -5670,6 +5670,31 @@ function renderEventRef(){
 // 22 Nights) now expand inline like the TZ-zone dropdown / boss detail cards —
 // click the card header to reveal its detail in place; accordion (one open at a time).
 function toggleSec(h){var b=h.nextElementSibling;if(!b||!b.classList.contains('sec-body'))return;if(b.hasAttribute('hidden')){b.removeAttribute('hidden');h.classList.remove('collapsed');}else{b.setAttribute('hidden','');h.classList.add('collapsed');}}
+/* Konyo: make EVERY collapsible header render like the ROTW Herald-of-Terror one —
+   boxed emoji emblem (.sec-h-art) + serif title (.sec-h-t). Plain headers ship with a
+   raw leading emoji + title as a bare text node ("🏆 Grail Progress "); this wraps that
+   into the structured form at runtime so they all match without hand-editing ~30 lines.
+   Skips .tier-header (stacked binds headers) and anything already structured. */
+function _normalizeSecHeaders(){
+  document.querySelectorAll('.sec-h').forEach(function(h){
+    if(h.classList.contains('tier-header'))return;
+    if(h.querySelector('.sec-h-t'))return; // already structured
+    var tn=null;
+    for(var n=h.firstChild;n;n=n.nextSibling){
+      if(n.nodeType===3 && n.textContent.trim()){tn=n;break;}
+    }
+    if(!tn)return;
+    var raw=tn.textContent.trim();
+    var sp=raw.indexOf(' ');
+    if(sp<=0)return;
+    var emoji=raw.slice(0,sp), title=raw.slice(sp+1).trim();
+    if(!title)return;
+    var art=document.createElement('span');art.className='sec-h-art';art.textContent=emoji;
+    var t=document.createElement('span');t.className='sec-h-t';t.textContent=title;
+    h.insertBefore(t,tn);h.insertBefore(art,t);h.removeChild(tn);
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_normalizeSecHeaders);else _normalizeSecHeaders();
       function toggleEventCard(id){
   const card = document.getElementById(id);
   if (!card) return;
