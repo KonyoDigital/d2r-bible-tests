@@ -240,8 +240,11 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 .shard-zones{font-size:11px;color:var(--text-muted)}
 .sec-h{cursor:pointer;user-select:none;transition:color .18s,text-shadow .18s}
 /* site-wide: section-header titles glow gold on hover (was RotW-only — v145) */
-.sec-h:hover{color:var(--gold-bright);text-shadow:0 0 10px rgba(240,192,96,.30)}
+@keyframes secHGlowPulse{0%,100%{text-shadow:0 0 7px rgba(240,192,96,.22)}50%{text-shadow:0 0 13px rgba(240,192,96,.45)}}
+.sec-h:hover{color:var(--gold-bright);text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
 .sec-h:hover .sec-chev{color:var(--gold-bright)}
+/* binds tier-header titles carry an inline color (tier accent) → re-assert the gold hover glow on the inner heading so Champion/Unique match every other .sec-h */
+#tab-binds .tier-header.sec-h:hover h3{color:var(--gold-bright)!important}
 .sec-chev{font-size:12px;color:var(--text-muted);transition:transform .18s,color .18s;display:inline-block;margin-left:6px}
 .sec-h.collapsed .sec-chev{transform:rotate(-90deg)}
 /* v142 — RotW tab: unified, symmetric section-header bars (art + title + chevron) */
@@ -3440,7 +3443,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 }
 #tab-ancients .event-card-head:hover{background:rgba(212,168,71,.06);}
 /* v145 — match the site-wide .sec-h hover glow + chevron convention */
-#tab-ancients .event-card-head:hover .ec-title{text-shadow:0 0 10px rgba(240,192,96,.30)}
+#tab-ancients .event-card-head:hover .ec-title{text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
 #tab-ancients .ec-title{
   font-family:var(--serif-display);font-weight:600;font-size:21px;
   letter-spacing:.4px;color:var(--gold-bright);line-height:1.22;
@@ -6459,6 +6462,13 @@ const D2IO_ART = {
   // super-unique boss art (auto-verified HTTP 200 + image/png on 2026-06-06; names absent keep emoji)
   "The Summoner": "https://diablo2.io/styles/zulu/theme/images/items/summoner_graphic.png",
   "Izual": "https://diablo2.io/styles/zulu/theme/images/items/izual_graphic.png",
+  // Pandemonium mini-ubers + Tristram trio (verified 200/image/png 2026-06-09; same art UBER_BOSSES renders)
+  "Lilith": "https://diablo2.io/styles/zulu/theme/images/items/Andariel_graphic.png",
+  "Uber Izual": "https://diablo2.io/styles/zulu/theme/images/items/izual_graphic.png",
+  "Uber Duriel": "https://diablo2.io/styles/zulu/theme/images/items/duriel_graphic.png",
+  "Uber Mephisto": "https://diablo2.io/styles/zulu/theme/images/items/mephisto_graphic.png",
+  "Uber Diablo": "https://diablo2.io/styles/zulu/theme/images/items/diablo_graphic.png",
+  "Uber Baal": "https://diablo2.io/styles/zulu/theme/images/items/baal-opt_graphic.png",
   "Hephasto the Armorer": "https://diablo2.io/styles/zulu/theme/images/items/hephasto_graphic.png",
   "Shenk the Overseer": "https://diablo2.io/styles/zulu/theme/images/items/shenk_graphic.png",
   "Nihlathak": "https://diablo2.io/styles/zulu/theme/images/items/nihlathak-opt_graphic.png",
