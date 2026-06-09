@@ -550,7 +550,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-drops-grp{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
 .zd-grp-lab{flex:0 0 80px;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);padding-top:4px}
 .zd-drops{display:flex;flex-wrap:wrap;gap:5px;flex:1}
-.zd-item{display:inline-block;border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;border:1px solid}
+.zd-item{display:inline-flex;align-items:center;gap:4px;border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;border:1px solid;vertical-align:middle}
+.zd-item .d2art-wrap.sm{width:15px;height:15px;flex:0 0 auto}
+.zd-item .d2art-wrap.sm .d2art-img{max-width:15px;max-height:15px;border-radius:3px}
 .zd-item-click{cursor:pointer;transition:transform .1s ease,box-shadow .15s ease,border-color .15s ease}
 .zd-item-click:hover{transform:translateY(-1px);border-color:var(--gold-bright);box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .zd-item-click:hover::after{content:' ↗';font-size:9px;opacity:.7}
@@ -700,7 +702,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   padding:14px 20px;
   gap:14px;
 }
-.sec-h:not(.tier-header) .sec-h-t{font-size:19px}
+.sec-h:not(.tier-header) .sec-h-t{font-size:19px;color:var(--gold-bright)}
 .sec-h:not(.tier-header):hover,
 .sec-h:not(.tier-header):not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
 .sec-h:not(.tier-header):not(.collapsed) .sec-h-t{font-size:20px}
@@ -711,6 +713,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sec-h-block .sec-h-t{flex:0 0 auto}
 .sec-h-sub{font-family:var(--serif-text);font-size:13px;font-weight:500;font-style:italic;color:var(--text-muted);letter-spacing:.01em;line-height:1.3}
 .sec-h.collapsed .sec-h-sub{color:var(--text-dim)}
+/* v152 — anchor the RoTW (any .sec-h-block) title-block to the TOP of the bar so the
+   italic subtitle tucks directly UNDER the bold title instead of floating in the vertical
+   middle (Konyo: "the little font words must not be in the middle — it breaks the beauty of
+   the titles one after the other"). Mirrors the Runes/Bosses top-anchored .boss-title-block. */
+.sec-h:has(.sec-h-block){align-items:flex-start}
+.sec-h:has(.sec-h-block) .sec-h-art,.sec-h:has(.sec-h-block) #herald-sec-emblem{margin-top:1px}
+.sec-h:has(.sec-h-block) .sec-chev{margin-top:5px}
 /* TERROR_GROUPS act-region headers — section dividers above each act's zone cards */
 .tz-group-head{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding:7px 12px;border-left:3px solid var(--terror);background:linear-gradient(90deg,rgba(255,0,212,.08),transparent);border-radius:6px}
 .tz-group-head:first-child{margin-top:8px}
@@ -1350,7 +1359,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .gbc-grail-item{background:var(--bg-elev1);border:1px solid var(--border);border-radius:6px;padding:9px 12px;cursor:pointer;transition:all .15s}
   .gbc-grail-item:hover{border-color:var(--gold-bright);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.3)}
   .gbc-grail-rank{font-size:9px;color:var(--text-muted);font-family:var(--mono)}
-  .gbc-grail-name{font-size:13px;color:var(--gold-bright);font-weight:600;margin:2px 0}
+  .gbc-grail-name{font-size:13px;color:var(--gold-bright);font-weight:600;margin:2px 0;display:flex;align-items:center;gap:6px}
+  .gbc-grail-name .d2art-wrap.sm{width:20px;height:20px;flex:0 0 auto}
+  .gbc-grail-name .d2art-wrap.sm .d2art-img{max-width:20px;max-height:20px;border-radius:4px}
   .gbc-grail-stats{font-size:11px;color:var(--text-dim);font-family:var(--mono)}
   .gbc-grail-stats .chance{color:var(--gold-bright);font-weight:600}
   .gbc-grail-stats .time{color:var(--terror)}
@@ -3121,7 +3132,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <span class="rs-chevron" aria-hidden="true">▾</span>
     </div>
     <div class="boss-body">
-      <div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">Two ways to a Sunder: loot a <strong>Latent</strong> off a Hell-TZ <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright)" onclick="window.openDrop('Herald of Terror')">Herald of Terror</span>, or cube <strong>3 Worldstone Shards</strong> for a random Latent. <strong>Renew</strong> a Latent for the permanent upgrade + extra random stats &mdash; every charm has its own gem &middot; rune &middot; region-shard combo below. Renewing re-rolls all stats, so re-cube for the best roll.</div>
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">Two ways to a Sunder: loot a <strong>Latent</strong> off a Hell-TZ <span class="zd-item-click" data-arttip="Herald of Terror" style="cursor:pointer;color:var(--gold-bright)" onclick="window.openDrop('Herald of Terror')">Herald of Terror</span>, or cube <strong>3 Worldstone Shards</strong> for a random Latent. <strong>Renew</strong> a Latent for the permanent upgrade + extra random stats &mdash; every charm has its own gem &middot; rune &middot; region-shard combo below. Renewing re-rolls all stats, so re-cube for the best roll.</div>
       <div id="sunder-recipe-grid"></div>
     </div>
   </div>
@@ -4642,7 +4653,7 @@ function materialDetailHtml(name){
   const fromRows = (item.from || []).map(f => {
     const sn = _statueNames.find(n => String(f).indexOf(n) === 0);
     const fv = sn
-      ? `<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${sn.replace(/'/g,"\\'")}')">${sn} →</span>${String(f).slice(sn.length)}`
+      ? `<span class="zd-item-click" data-arttip="${_d2artEsc(sn)}" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${sn.replace(/'/g,"\\'")}')">${nameLogo(sn)}${sn} →</span>${String(f).slice(sn.length)}`
       : f;
     return `<div class="zd-row"><span class="zd-k">drops from</span><span class="zd-v">${fv}</span></div>`;
   }).join('');
@@ -4877,11 +4888,11 @@ function colossalJewelDetailHtml(name){
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no — fixed pinnacle reward</span></div>
       </div>
       <div class="zd-row"><span class="zd-k">you get this jewel by</span><span class="zd-v">killing <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${j.ancient.toLowerCase()}')">Colossal ${j.ancient} →</span> <strong>last</strong> in the encounter (you keep the jewel matching the Ancient killed last)</span></div>
-      <div class="zd-row"><span class="zd-k">the other jewel ${j.ancient} can give</span><span class="zd-v"><span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(j.sister)}')">${j.sister} →</span></span></div>
+      <div class="zd-row"><span class="zd-k">the other jewel ${j.ancient} can give</span><span class="zd-v"><span class="zd-item-click" data-arttip="${_d2artEsc(j.sister)}" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(j.sister)}')">${j.sister} →</span></span></div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">🧪 How to reach the fight</div>
-      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> → Colossal Summit → Act 5 red portal → beat Talic / Korlic / Madawc.</span></div>
+      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 <span class="zd-item-click" data-arttip="Colossal Ancient Statue" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> → Colossal Summit → Act 5 red portal → beat Talic / Korlic / Madawc.</span></div>
     </section>
     <div class="zd-note">⚠ Jewel affixes are diablo2.io / Maxroll sourced (Konyo-verified). Colossal jewels are not MF-scaled and are not part of the 312-item grail count.</div>
   </div>`;
@@ -4890,7 +4901,7 @@ window.colossalJewelDetailHtml = colossalJewelDetailHtml;
 function colossalStatueDetailHtml(name){
   const s = findColossalStatue(name); if(!s) return '';
   const others = COLOSSAL_STATUES.filter(x=>x.n!==s.n)
-    .map(x=>`<span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${x.n} →</span>`).join(' · ');
+    .map(x=>`<span class="zd-item-click" data-arttip="${_d2artEsc(x.n)}" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${nameLogo(x.n)}${x.n} →</span>`).join(' · ');
   return `<div class="gic-card material-card colossal-card colossal-statue-card">
     <header class="gic-header">
       ${artOr(s.n, `<span class="gic-emoji">👑</span>`, 'lg')}
@@ -4920,7 +4931,7 @@ function colossalStatueDetailHtml(name){
       <div class="gic-section-title">🧩 The full 5-statue set</div>
       <div class="zd-row"><span class="zd-k">this statue</span><span class="zd-v"><strong>${s.n}</strong> — ${s.boss}</span></div>
       <div class="zd-row"><span class="zd-k">the other four</span><span class="zd-v">${others}</span></div>
-      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 → Colossal Summit → summon the Colossal Ancients → they drop the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></span></div>
+      <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">Cube all 5 → Colossal Summit → summon the Colossal Ancients → they drop the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewels →</span></span></div>
     </section>
     <div class="zd-note">⚠ Statue drops are not MF-scaled, only drop from TERRORIZED Hell act bosses, and are not part of the 312-item grail count. Source: diablo2.io / Maxroll.</div>
   </div>`;
@@ -4958,7 +4969,7 @@ function rainbowFacetDetailHtml(name){
     `chance to cast a spell on ${f.trig}`,
   ].map(s=>`<div class="zd-row"><span class="zd-k">affix</span><span class="zd-v">${s}</span></div>`).join('');
   const sister = RAINBOW_FACETS.filter(x=>x.elem===f.elem && x.n!==f.n)
-    .map(x=>`<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${x.trig} →</span>`).join(' · ') || '—';
+    .map(x=>`<span class="zd-item-click" data-arttip="${_d2artEsc(x.n)}" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(x.n)}')">${x.trig} →</span>`).join(' · ') || '—';
   return `<div class="gic-card material-card colossal-card rainbow-facet-card">
     <header class="gic-header">
       ${artOr(f.n, `<span class="gic-emoji">${f.emoji}</span>`, 'lg')}
@@ -4991,7 +5002,7 @@ function rainbowFacetDetailHtml(name){
     </section>
     <section class="gic-section">
       <div class="gic-section-title">💎 The RotW upgrade</div>
-      <div class="zd-row"><span class="zd-k">strictly better option</span><span class="zd-v">the matching <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> (same element, higher skill damage + resist break, plus a CtC and utility affixes)</span></div>
+      <div class="zd-row"><span class="zd-k">strictly better option</span><span class="zd-v">the matching <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> (same element, higher skill damage + resist break, plus a CtC and utility affixes)</span></div>
     </section>
     <div class="zd-note">⚠ Art is diablo2.io verified (HTTP 200 image/png). Roll values and drop rates are deliberately omitted — no verified Reign of the Warlock source exists, and the bible never fabricates numbers.</div>
   </div>`;
@@ -5006,7 +5017,7 @@ function isColossalAncients(name){ const q=_norm(name); return q===_norm('Coloss
 window.isColossalSummit = isColossalSummit;
 window.isColossalAncients = isColossalAncients;
 function colossalSummitDetailHtml(){
-  const statueChips = COLOSSAL_STATUES.map(s=>`<span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(s.n)}')">${s.n} →</span>`).join(' · ');
+  const statueChips = COLOSSAL_STATUES.map(s=>`<span class="zd-item-click" data-arttip="${_d2artEsc(s.n)}" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('${_esc1(s.n)}')">${nameLogo(s.n)}${s.n} →</span>`).join(' · ');
   return `<div class="gic-card material-card colossal-card colossal-summit-card">
     <header class="gic-header">
       ${artOr('Colossal Summit', `<span class="gic-emoji">🗻</span>`, 'lg')}
@@ -5030,8 +5041,8 @@ function colossalSummitDetailHtml(){
     </section>
     <section class="gic-section">
       <div class="gic-section-title">🚪 What it opens</div>
-      <div class="zd-row"><span class="zd-k">portal leads to</span><span class="zd-v"><span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancients')">the Colossal Ancients →</span> — the buffed Talic / Korlic / Madawc pinnacle fight</span></div>
-      <div class="zd-row"><span class="zd-k">reward</span><span class="zd-v">beat them → keep the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient killed <strong>last</strong></span></div>
+      <div class="zd-row"><span class="zd-k">portal leads to</span><span class="zd-v"><span class="zd-item-click" data-arttip="Colossal Ancients" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancients')">the Colossal Ancients →</span> — the buffed Talic / Korlic / Madawc pinnacle fight</span></div>
+      <div class="zd-row"><span class="zd-k">reward</span><span class="zd-v">beat them → keep the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient killed <strong>last</strong></span></div>
     </section>
     <div class="zd-note">⚠ The Summit is a one-shot consumable cube token, not equipment and not part of the 312-item grail count. Each run needs a fresh set of 5 statues. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
   </div>`;
@@ -5044,7 +5055,7 @@ function colossalAncientsDetailHtml(){
     {n:'Madawc', id:'madawc', style:'dual throwing axes · caster',    drops:['Guardian\'s Thunder','Guardian\'s Light'], dcol:'var(--nm)'},
   ];
   const rows = ancients.map(a=>{
-    const dl = a.drops.map(d=>`<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(d)}')">${d} →</span>`).join(' / ');
+    const dl = a.drops.map(d=>`<span class="zd-item-click" data-arttip="${_d2artEsc(d)}" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('${_esc1(d)}')">${d} →</span>`).join(' / ');
     return `<div class="zd-row"><span class="zd-k"><span class="zd-item-click" style="cursor:pointer;color:${a.dcol};font-weight:700" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${a.id}')">${a.n} →</span></span><span class="zd-v"><span style="color:var(--text-dim)">${a.style}</span> · drops (by last kill): ${dl}</span></div>`;
   }).join('');
   return `<div class="gic-card material-card colossal-card colossal-ancients-card">
@@ -5064,7 +5075,7 @@ function colossalAncientsDetailHtml(){
     </header>
     <section class="gic-section">
       <div class="gic-section-title">🧪 How to reach the fight</div>
-      <div class="zd-row"><span class="zd-k">step 1</span><span class="zd-v">Farm all 5 <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> from <strong>terrorized Hell act bosses</strong></span></div>
+      <div class="zd-row"><span class="zd-k">step 1</span><span class="zd-v">Farm all 5 <span class="zd-item-click" data-arttip="Colossal Ancient Statue" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Ancient Statue')">Colossal Statues →</span> from <strong>terrorized Hell act bosses</strong></span></div>
       <div class="zd-row"><span class="zd-k">step 2</span><span class="zd-v">Cube the 5 → <span class="zd-item-click" style="cursor:pointer;color:var(--gold-bright);font-weight:600" onclick="window.openDrop('Colossal Summit')">Colossal Summit →</span> → use in Act 5 → red portal</span></div>
     </section>
     <section class="gic-section">
@@ -5075,7 +5086,7 @@ function colossalAncientsDetailHtml(){
       <div class="gic-section-title">🎲 The roll &amp; the reward</div>
       <div class="zd-row"><span class="zd-k">immunities</span><span class="zd-v"><strong>One random immunity each, re-rolled every game</strong> (like vanilla Ancients). If all 3 share an unbreakable immunity, leave &amp; remake to re-roll.</span></div>
       <div class="zd-row"><span class="zd-k">level</span><span class="zd-v">mlvl Colossal — massively buffed HP / defense, they drop lvl-75 jewels</span></div>
-      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> — 1 per character</span></div>
+      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--uber);font-weight:600" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> — 1 per character</span></div>
     </section>
     <div class="zd-note">⚠ Never bindable (Act-boss-class). Immunities vary per game so none are shown as fixed. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
   </div>`;
@@ -5166,7 +5177,7 @@ function heraldTierDetailHtml(name){
     ? "You're at the apex — every Herald that spawns after this is another Terror."
     : `Kill this one and the next Herald to spawn is <strong>${next.n}</strong> (tier ${next.tier}).`;
   const sunderChips = ['Bone Break','Black Cleft','Crack of the Heavens','Cold Rupture','Flame Rift','Rotting Fissure']
-    .map(sn => { const e = sn.replace(/'/g, "\\'"); return `<span class="zd-item-click" style="cursor:pointer;font-weight:600;color:var(--uber);border:1px solid var(--border);border-radius:6px;padding:3px 8px" onclick="window.openDrop('${e}')" title="open the ${sn} card">${sn} →</span>`; })
+    .map(sn => { const e = sn.replace(/'/g, "\\'"); return `<span class="zd-item-click" data-arttip="${_d2artEsc(sn)}" style="cursor:pointer;font-weight:600;color:var(--uber);border:1px solid var(--border);border-radius:6px;padding:3px 8px" onclick="window.openDrop('${e}')" title="open the ${sn} card">${nameLogo(sn)}${sn} →</span>`; })
     .join('');
   return `<div class="gic-card material-card herald-tier-card">
     <header class="gic-header">
@@ -5418,7 +5429,9 @@ function zoneDropBlockHtml(z){
   // boss top-drops. One item entity, reachable from every zone it drops in.
   const chip = (d, cls) => {
     const esc = (d.name || '').replace(/'/g, "\\'");
-    return `<span class="zd-item zd-item-click ${cls}" role="button" tabindex="0" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">${d.name}</span>`;
+    // each grail chip carries the in-game art logo + the floating #arttip rich hover card
+    // (data-arttip), matching every other item reference site-wide
+    return `<span class="zd-item zd-item-click ${cls}" role="button" tabindex="0" data-arttip="${_d2artEsc(d.name)}" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">${nameLogo(d.name)}${d.name}</span>`;
   };
   let h = `<div class="zd-row"><span class="zd-k">grail drops</span><span class="zd-v">`;
   h += `<div class="zd-drops-head">🏆 ${pool.length} grail-eligible uniques reachable in this terror pool</div>`;
@@ -5449,7 +5462,7 @@ function zoneHellGridHtml(z){
     const q = codexQ(d.name);
     return `<tr class="zd-hg-row" role="button" tabindex="0" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">
         <td class="zd-hg-rank">#${i + 1}</td>
-        <td class="zd-hg-name"><strong>${d.name}</strong> ${tierBadge(d.tier)}</td>
+        <td class="zd-hg-name" data-arttip="${_d2artEsc(d.name)}">${nameLogo(d.name)}<strong>${d.name}</strong> ${tierBadge(d.tier)}</td>
         <td class="zd-hg-tc">${tcTag(d.tc)}</td>
         <td class="zd-hg-q">${q ? 'qlvl ' + q : '—'}</td>
       </tr>`;
@@ -5474,7 +5487,7 @@ function zoneSuRosterHtml(zi){
   if (typeof SUPER_UNIQUES === 'undefined' || typeof suTzZone !== 'function') return '';
   const members = SUPER_UNIQUES.map((su, si) => ({su, si})).filter(({su}) => { const m = suTzZone(su); return m && m.zi === zi; });
   if (!members.length) return '';
-  const cards = members.map(({su, si}) => `<div class="zd-su-card" data-su-idx="${si}" role="button" tabindex="0" onclick="event.stopPropagation();window.jumpToSuperUnique(${si})" title="open ${su.name}'s super-unique ID card">
+  const cards = members.map(({su, si}) => `<div class="zd-su-card" data-su-idx="${si}" data-arttip="${_d2artEsc(su.name)}" role="button" tabindex="0" onclick="event.stopPropagation();window.jumpToSuperUnique(${si})" title="open ${su.name}'s super-unique ID card">
       <span class="zd-su-card-name"><span class="zd-su-card-emoji">${artOr(su.name, su.emoji, 'sm')}</span> ${su.name}</span>
       <span class="zd-su-card-meta">mlvl ${su.mlvl} · ${su.immune === 'none' ? 'no immunity' : su.immune + ' immune'}${su.dclone ? ' · 🔱 DClone camp' : ''}</span>
       <span class="zd-su-card-go">open ID card →</span>
@@ -5496,7 +5509,7 @@ function zoneSpecialDropsHtml(z){
     const esc = (drop || '').replace(/'/g, "\\'");
     const routable = (typeof findMaterial === 'function' && findMaterial(drop)) || (typeof findHeraldTier === 'function' && findHeraldTier(drop));
     if (!routable) return `<span class="zd-item zd-item-dim" title="${title || label}">${label}</span>`;
-    return `<span class="zd-item zd-item-click" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${esc}')" title="${title || ('open ' + drop)}">${label} →</span>`;
+    return `<span class="zd-item zd-item-click" role="button" tabindex="0" data-arttip="${_d2artEsc(drop)}" onclick="event.stopPropagation();window.openDrop('${esc}')" title="${title || ('open ' + drop)}">${nameLogo(drop)}${label} →</span>`;
   };
   const grps = [];
   // 1) Sunder — every Hell TZ draws a roaming Herald of Terror (the Latent source).
@@ -8724,9 +8737,9 @@ function renderBossDetailCard(bossId, focusDiff) {
   const top15Html = top15.length ? `<div class="gbc-grail-list">${top15.map((p,i) => {
     const esc = p.name.replace(/'/g,"\\'");
     const diffLabel = (p.diffKey||'').replace('Tz',' TZ').toUpperCase();
-    return `<div class="gbc-grail-item" onclick="navigateToItem('${esc}', {tab:'bosses', bossId:'${boss.id}'})">
+    return `<div class="gbc-grail-item" data-arttip="${_d2artEsc(p.name)}" onclick="navigateToItem('${esc}', {tab:'bosses', bossId:'${boss.id}'})">
       <div class="gbc-grail-rank">#${i+1}</div>
-      <div class="gbc-grail-name">${p.name}</div>
+      <div class="gbc-grail-name">${nameLogo(p.name)}${p.name}</div>
       <div class="gbc-grail-stats">${diffLabel} · <span class="chance">${fmt(p.adj)}</span> · <span class="time">${fmtHours(p.h50)}</span></div>
     </div>`;
   }).join('')}</div>` : `<div style="color:var(--text-muted);font-style:italic;font-size:12px">No grail items in this boss's table.</div>`;
@@ -10349,9 +10362,11 @@ function renderRuneTable() {
       ${(function(){
         const rune = (typeof findRune === 'function') ? findRune(r.n) : null;
         const baseClr = r.n.match(/Lo|Ohm|Vex|Gul/) ? 'color:var(--gold-bright)' : '';
-        const logo = (typeof nameLogo === 'function') ? nameLogo(r.n) : '';
+        // bare rune name ("Lo", not "Lo #28") so the registered rune art + the floating
+        // #arttip rune card both resolve; multi-rune rows (no single rune) stay plain
+        const logo = (typeof nameLogo === 'function') ? nameLogo(rune ? rune.n : r.n) : '';
         return rune
-          ? `<td class="item-name zd-item-click" style="cursor:pointer;${baseClr||'color:var(--gold)'}" onclick="window.openDrop('${r.n.replace(/'/g,"\\'")}')" title="open ${rune.n} rune card">${logo}${r.n} →</td>`
+          ? `<td class="item-name zd-item-click" data-arttip="${rune.n}" style="cursor:pointer;${baseClr||'color:var(--gold)'}" onclick="window.openDrop('${r.n.replace(/'/g,"\\'")}')" title="open ${rune.n} rune card">${logo}${r.n} →</td>`
           : `<td class="item-name" style="${baseClr}">${logo}${r.n}</td>`;
       })()}
       ${cell(r.norm,"Norm","dcol-norm")}
@@ -11378,12 +11393,12 @@ function renderUberBossCards(){
     // both as their own clickable ID-card chips instead of the aggregate link.
     const _jewelChips = (b.jewels && b.jewels.length)
       ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:7px">'
-        + b.jewels.map((jn) => '<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:13px;border:1px solid rgba(201,161,74,.4);border-radius:6px;padding:4px 9px;background:rgba(90,58,122,.18)" onclick="window.openDrop(\'' + jn.replace(/'/g, "\\'") + '\')">' + jn + ' →</span>').join('')
+        + b.jewels.map((jn) => '<span class="zd-item-click" data-arttip="' + _d2artEsc(jn) + '" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:13px;border:1px solid rgba(201,161,74,.4);border-radius:6px;padding:4px 9px;background:rgba(90,58,122,.18)" onclick="window.openDrop(\'' + jn.replace(/'/g, "\\'") + '\')">' + nameLogo(jn) + jn + ' →</span>').join('')
         + '</div><div style="color:var(--gold-dim);font-size:11px;margin-top:5px;font-style:italic">You keep the jewel matching the Ancient killed <strong>last</strong>.</div>'
       : '';
     const _headLink = (b.jewels && b.jewels.length)
-      ? '<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:14px" onclick="window.openDrop(\'Colossal Ancient Jewels\')">' + _item + ' →</span>'
-      : '<span class="zd-item-click" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:14px" onclick="window.openDrop(\'' + _item.replace(/'/g, "\\'") + '\')">' + _item + ' →</span>';
+      ? '<span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:14px" onclick="window.openDrop(\'Colossal Ancient Jewels\')">' + nameLogo(_item) + _item + ' →</span>'
+      : '<span class="zd-item-click" data-arttip="' + _d2artEsc(_item) + '" style="cursor:pointer;color:var(--uber);font-weight:700;font-size:14px" onclick="window.openDrop(\'' + _item.replace(/'/g, "\\'") + '\')">' + nameLogo(_item) + _item + ' →</span>';
     const dropRow = '<div class="ubc-drop" style="border:1px solid var(--gold);border-radius:8px;padding:9px 11px;background:linear-gradient(135deg,rgba(201,161,74,.13),rgba(201,161,74,.03))">'
       + '<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;color:#100c05;background:linear-gradient(135deg,#eccd80,#c9a14a);padding:2px 7px;border-radius:4px;white-space:nowrap;margin-right:7px">🏆 ONLY DROPS HERE</span>'
       + _headLink

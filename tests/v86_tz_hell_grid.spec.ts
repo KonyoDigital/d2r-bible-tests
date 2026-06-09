@@ -23,7 +23,7 @@ test.describe('v86 TZ zones carry the rarest-first Hell drops grid', () => {
       const h = (window as any).zoneHellGridHtml(tc87);
       const pool = (window as any).zoneGrailDrops(tc87);
       // rank-order check: the first rendered row must be the highest-TC item
-      const firstName = (h.match(/zd-hg-name"><strong>([^<]+)</) || [, ''])[1];
+      const firstName = (h.match(/zd-hg-name"[\s\S]*?<strong>([^<]+)</) || [, ''])[1];
       const topByTc = pool.slice().sort((a: any, b: any) => b.tc - a.tc)[0];
       return {
         type: typeof (window as any).zoneHellGridHtml,
