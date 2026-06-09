@@ -2451,6 +2451,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      handler and data-tip intact — nothing about the controls themselves changes. -->
 <div class="control-dock" id="control-dock" role="region" aria-label="Magic Find and players control dock">
   <div class="dock-inner">
+    <button type="button" class="dock-handle" onclick="toggleDock()" aria-expanded="true" aria-controls="control-dock" title="Hide MF / Players dock (D)">
+      <span class="dock-handle-grip" aria-hidden="true"></span>
+      <span class="dock-handle-chev" aria-hidden="true">▾</span>
+    </button>
     <div class="dock-tagline" id="dock-tagline"></div>
     <div class="dock-cluster dock-sliders" id="dock-sliders"></div>
     <div class="dock-cluster dock-presets" id="dock-presets"></div>
@@ -8041,6 +8045,7 @@ const KBD_SHORTCUTS = [
   {keys:['Shift+4'], desc:'MF 699% (MF swap)', action:() => setMFPreset(699)},
   {keys:['Shift+5'], desc:'MF 800%', action:() => setMFPreset(800)},
   {keys:['Shift+6'], desc:'MF 1000%', action:() => setMFPreset(1000)},
+  {keys:['d','D'], desc:'Toggle the MF / Players dock (bottom)', action:() => window.toggleDock()},
   {keys:['r','R','Shift+R','Shift+r'], desc:'Toggle routine status widget (bottom-right)', action:() => {
     // v42 UX fix: lookup by both IDs because the on-load advertising pulse temporarily renames it
     const bar = document.getElementById('routine-status-bar') 
@@ -8062,6 +8067,23 @@ document.addEventListener('keydown', e => {
     shortcut.action();
   }
 });
+
+// Bottom MF/P# dock collapse — slides the glass command bar down behind its grab
+// handle (hotkey D, or click the handle). State persists across reloads.
+window.toggleDock = function(force) {
+  const dock = document.getElementById('control-dock');
+  if (!dock) return;
+  const collapsed = (typeof force === 'boolean') ? force : !dock.classList.contains('dock-collapsed');
+  dock.classList.toggle('dock-collapsed', collapsed);
+  const handle = dock.querySelector('.dock-handle');
+  if (handle) {
+    handle.setAttribute('aria-expanded', String(!collapsed));
+    handle.setAttribute('title', (collapsed ? 'Show' : 'Hide') + ' MF / Players dock (D)');
+  }
+  try { LS.setItem('d2r_dockCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+};
+// restore the persisted collapsed state on load
+(function () { try { if (LS.getItem('d2r_dockCollapsed') === '1') window.toggleDock(true); } catch (e) {} })();
 
 window.toggleKbdHelp = function() {
   let modal = document.getElementById('kbd-help-modal');
@@ -15229,6 +15251,44 @@ body{ padding-bottom:128px; }
   }
   .masthead .h-title{ background-position:50% 50% !important; }
 }
+</style>
+
+<style id="v161-dock-collapse">
+/* ════════════════════════════════════════════════════════════════════════
+   v161 — collapsible bottom dock (hotkey D / click the grab handle)
+   The glass command bar slides DOWN behind a slim grab handle, reclaiming the
+   reserved space. State persists (d2r_dockCollapsed). R stays on the routine
+   widget; D is registered in the ? shortcut help.
+   ════════════════════════════════════════════════════════════════════════ */
+.control-dock .dock-inner{ transition: transform .34s cubic-bezier(.2,.8,.2,1); }
+
+/* the grab handle: a centered pull-bar + chevron, full-width top row of the dock */
+.control-dock .dock-handle{
+  flex:0 0 100%; order:-2;
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  height:16px; margin:-3px 0 1px; padding:0;
+  background:none; border:none; cursor:pointer;
+  color:var(--gold-dim);
+  transition: color .2s var(--ease);
+}
+.control-dock .dock-handle:hover{ color:var(--gold-bright); }
+.control-dock .dock-handle-grip{
+  width:46px; height:4px; border-radius:3px;
+  background:linear-gradient(90deg, rgba(240,192,96,.22), rgba(240,192,96,.62), rgba(240,192,96,.22));
+}
+.control-dock .dock-handle-chev{ font-size:11px; line-height:1; transition: transform .32s var(--ease); }
+
+/* collapsed: drop the bar, leaving only the handle peeking; flip the chevron */
+.control-dock.dock-collapsed .dock-inner{ transform: translateY(calc(100% - 12px)); }
+.control-dock.dock-collapsed .dock-handle-chev{ transform: rotate(180deg); }
+
+/* reclaim the reserved bottom space while collapsed (smooth) */
+body{ transition: padding-bottom .34s cubic-bezier(.2,.8,.2,1); }
+body:has(.control-dock.dock-collapsed){ padding-bottom: 40px; }
+@media (max-width: 700px){
+  body:has(.control-dock.dock-collapsed){ padding-bottom: 34px; }
+}
+@media print{ .control-dock .dock-handle{ display:none !important; } }
 </style>
 
 </body>
