@@ -2444,6 +2444,44 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="tools">🧰 tools</button>
   </div>
 </div>
+
+<!-- v158: MF/P# sliders + eff-unique readout + MF quick-set presets are relocated
+     (at parse time, below) from the top header into a glass command dock that is
+     pinned to the bottom of the viewport. The relocation keeps every id, onclick
+     handler and data-tip intact — nothing about the controls themselves changes. -->
+<div class="control-dock" id="control-dock" role="region" aria-label="Magic Find and players control dock">
+  <div class="dock-inner">
+    <div class="dock-cluster dock-sliders" id="dock-sliders"></div>
+    <div class="dock-cluster dock-presets" id="dock-presets"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var dockS = document.getElementById('dock-sliders');
+  var dockP = document.getElementById('dock-presets');
+  var header = document.querySelector('.header');
+  if(!dockS || !dockP || !header) return;
+  function divider(){ var d = document.createElement('span'); d.className = 'dock-div'; return d; }
+  // Relocate the two slider-groups (MF + P#) and the eff-unique readout.
+  var groups = header.querySelectorAll('.header-top .slider-group');
+  if(groups[0]) dockS.appendChild(groups[0]);
+  if(groups[0] && groups[1]) dockS.appendChild(divider());
+  if(groups[1]) dockS.appendChild(groups[1]);
+  var eff = header.querySelector('.eff-readout');
+  if(eff){ dockS.appendChild(divider()); dockS.appendChild(eff); }
+  // Relocate the MF quick-set preset bar (label + chips + exact input); the trailing
+  // keyboard-hint caption span is dropped to keep the dock clean.
+  var bar = header.querySelector('.mf-preset-bar');
+  if(bar){
+    Array.prototype.slice.call(bar.children).forEach(function(k){
+      if(k.tagName === 'SPAN' && !k.classList.contains('mf-preset-label')) return;
+      dockP.appendChild(k);
+    });
+    if(bar.parentNode) bar.parentNode.removeChild(bar);
+  }
+})();
+</script>
+
 <div class="container">
 
 <div class="tab-content active" id="tab-main">
@@ -14953,6 +14991,121 @@ table th {
 </script>
 <!-- ===== end v42 TZ countdown ===== -->
 
+<style id="v158-control-dock-styles">
+/* ════════════════════════════════════════════════════════════════════════
+   v158 — bottom control dock + refined tab bar
+   The MF/P# sliders, eff-unique readout, and MF quick-set presets are relocated
+   into a glass "command bar" pinned to the bottom of the viewport. The top nav
+   tabs become a centered segmented control. The bottom-corner FABs (compass,
+   help, TZ countdown) stay clear of the dock via click-through side gutters.
+   ════════════════════════════════════════════════════════════════════════ */
+:root{ --dock-h: 84px; }
+
+/* keep the last of the page content clear of the floating dock */
+body{ padding-bottom: 108px; }
+
+.control-dock{
+  position:fixed; left:0; right:0; bottom:0;
+  display:flex; justify-content:center;
+  padding:0 92px 14px;
+  z-index:120;
+  pointer-events:none;               /* side gutters stay click-through for corner FABs */
+}
+.control-dock .dock-inner{
+  position:relative;
+  pointer-events:auto;
+  display:flex; align-items:center; justify-content:center;
+  flex-wrap:wrap; gap:7px 20px;
+  width:100%; max-width:1240px;
+  padding:9px 22px;
+  background:linear-gradient(180deg, rgba(26,19,10,.93), rgba(13,10,6,.96));
+  -webkit-backdrop-filter:blur(16px) saturate(1.25);
+  backdrop-filter:blur(16px) saturate(1.25);
+  border:1px solid rgba(212,168,71,.40);
+  border-radius:16px;
+  box-shadow:
+    0 14px 46px rgba(0,0,0,.62),
+    0 0 0 1px rgba(0,0,0,.45),
+    0 0 42px rgba(240,192,96,.10),
+    0 1px 0 rgba(240,192,96,.10) inset;
+}
+/* gold hairline glow along the top edge of the command bar */
+.control-dock .dock-inner::before{
+  content:""; position:absolute; left:22px; right:22px; top:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(240,192,96,.75) 22%, rgba(240,192,96,.75) 78%, transparent);
+}
+.control-dock .dock-cluster{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center; }
+.control-dock .dock-div{ width:1px; height:22px; flex:0 0 auto;
+  background:linear-gradient(180deg, transparent, rgba(212,168,71,.42), transparent); }
+.control-dock .slider-group{ flex:0 0 auto; min-width:0; gap:9px; }
+.control-dock .slider-group input[type=range]{ width:148px; }
+.control-dock #players{ width:84px; }
+.control-dock .slider-value{ min-width:auto; }
+.control-dock .eff-readout{
+  background:rgba(240,192,96,.06);
+  border:1px solid rgba(212,168,71,.28);
+  white-space:nowrap;
+}
+.control-dock .mf-preset-label{
+  font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase;
+  color:var(--gold-dim); white-space:nowrap;
+}
+.control-dock .mf-preset-chip{ padding:3px 9px; font-size:11px; }
+.control-dock .mf-number-input{ width:64px; font-size:12px; padding:2px 6px; }
+
+@media (max-width: 980px){
+  .control-dock{ padding:0 14px 10px; }
+  .control-dock .dock-inner{ gap:5px 14px; padding:8px 14px; }
+  .control-dock .slider-group input[type=range]{ width:118px; }
+}
+@media (max-width: 700px){
+  :root{ --dock-h: 118px; }
+  body{ padding-bottom: calc(var(--dock-h) + 22px); }
+  .control-dock{ padding:0 8px 8px; }
+  /* lift the bottom-corner widgets above the taller mobile dock */
+  .nav-widget{ bottom: calc(var(--dock-h) + 12px) !important; }
+  .help-btn{ bottom: calc(var(--dock-h) + 12px) !important; }
+  #v42-tz-countdown{ bottom: calc(var(--dock-h) + 12px) !important; }
+}
+@media print{ .control-dock{ display:none !important; } body{ padding-bottom:0 !important; } }
+
+/* ── refined nav tabs: a centered segmented control ─────────────────────── */
+.tabs{
+  justify-content:center;
+  gap:3px;
+  width:fit-content;
+  max-width:100%;
+  margin:14px auto 2px;
+  padding:5px;
+  background:linear-gradient(180deg, rgba(0,0,0,.34), rgba(0,0,0,.16));
+  border:1px solid var(--border);
+  border-radius:13px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 3px 14px rgba(0,0,0,.40);
+}
+.tabs .tab{
+  border:1px solid transparent;
+  background:transparent;
+  border-radius:8px;
+  padding:6px 13px;
+  letter-spacing:.2px;
+  color:var(--text-muted);
+}
+.tabs .tab:hover:not(.active){
+  background:rgba(212,168,71,.10);
+  border-color:rgba(212,168,71,.20);
+  color:var(--text);
+}
+.tabs .tab.active{
+  background:linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+  color:#1a1208;
+  border-color:rgba(240,192,96,.6);
+  box-shadow:0 2px 12px rgba(240,192,96,.30), inset 0 1px 0 rgba(255,255,255,.25);
+  font-weight:600;
+}
+@media (max-width:768px){
+  .tabs{ width:auto; flex-wrap:wrap; }
+}
+</style>
 
 </body>
 </html>
