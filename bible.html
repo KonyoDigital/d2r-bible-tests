@@ -752,15 +752,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-su-card-go{color:var(--gold-bright);font-size:10px;letter-spacing:.3px}
 /* Set tracker */
 .set-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
-.set-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;transition:all .15s}
-.set-card.complete{border-color:var(--best);background:linear-gradient(180deg,rgba(102,255,136,.06),var(--surface-2))}
-.set-card-name{color:var(--gold-bright);font-size:13px;font-weight:600;margin-bottom:4px}
+.set-card{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--gold-dim);border-radius:8px;padding:12px 14px;transition:all .15s}
+.set-card.complete{border-color:var(--best);border-left-color:var(--best);background:linear-gradient(180deg,rgba(102,255,136,.06),var(--surface-2))}
+/* v157 — Item-Set tracker cards adopt the rich gradient-header look of the TZ/Runes
+   first-glance (Konyo: "i want the bottom of the page also like this"): a compact
+   emblem + gold name + N/M progress bar across the card top; the piece checklist body
+   is unchanged. Header text (.set-card-name) stays a pure set name for v145's titleName. */
+.set-card-header{display:flex;align-items:center;gap:10px;margin:-12px -14px 10px;padding:9px 14px;background:linear-gradient(90deg,var(--surface-3),var(--surface-2));border-bottom:1px solid var(--border);border-radius:8px 8px 0 0}
+.set-card.complete .set-card-header{background:linear-gradient(90deg,var(--surface-3),rgba(102,255,136,.07))}
+.set-card-emblem{flex:0 0 auto;display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;font-size:18px}
+.set-card-emblem .d2art-wrap{width:26px;height:26px}
+.set-card-emblem .d2art-img{width:26px!important;height:26px!important;object-fit:cover;border-radius:5px;vertical-align:middle}
+.set-card-title-block{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.set-card-name{color:var(--gold-bright);font-size:13.5px;font-weight:700;margin:0}
 .set-card-name.set-card-open{cursor:pointer;transition:color .15s}
 .set-card-name.set-card-open:hover{color:var(--gold);text-decoration:underline}
 .set-card-name .set-open-caret{font-size:10px;opacity:.55}
 .set-items-card .set-piece-tile{cursor:default}
 .set-items-card .set-bonus-row .zd-v{color:var(--best)}
-.set-card-progress{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-muted);margin-bottom:8px}
+.set-card-progress{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-muted);margin:0}
 .set-card.complete .set-card-progress{color:var(--best)}
 .set-pieces{display:flex;flex-direction:column;gap:3px}
 .set-piece{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px;transition:background .15s}
@@ -10232,8 +10242,13 @@ function renderSetTracker() {
       ? `<div class="set-card-name set-card-open" role="button" tabindex="0" title="open the ${set.name} ID card" onclick="event.stopPropagation();window.openDrop('${_setEsc}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_setEsc}')}">${set.name}${complete?' ✓':''} <span class="set-open-caret">↗</span></div>`
       : `<div class="set-card-name">${set.name}${complete?' ✓':''}</div>`;
     return `<div class="set-card ${complete?'complete':''}">
-      ${nameHtml}
-      <div class="set-card-progress">${have} / ${set.pieces.length} pieces</div>
+      <div class="set-card-header">
+        <span class="sec-h-art set-card-emblem">${artOr(set.name, '🛡️', 'sm')}</span>
+        <div class="set-card-title-block">
+          ${nameHtml}
+          <div class="set-card-progress">${have} / ${set.pieces.length} pieces${complete?' · complete':''}</div>
+        </div>
+      </div>
       <div class="set-pieces">${pieces}</div>
     </div>`;
   }).join('');
