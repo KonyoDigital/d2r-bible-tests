@@ -653,16 +653,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
    art-banner + terror-magenta accent identity is kept. */
 .tz-zone-name{font-family:var(--serif-display);font-size:17px;letter-spacing:.01em;transition:font-size .2s,color .2s,text-shadow .2s}
 .tz-zone-chev{flex:0 0 auto;font-size:13px;color:var(--gold-dim);transition:transform .2s,color .2s;transform:rotate(-90deg)}
-.tz-zone-card:hover .tz-zone-name{text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
-.tz-zone-card:hover .tz-zone-chev{color:var(--gold-bright)}
+.tz-zone-card:hover .tz-zone-name,.su-card:hover .tz-zone-name{text-shadow:0 0 10px rgba(240,192,96,.30);animation:secHGlowPulse 1.8s ease-in-out infinite}
+.tz-zone-card:hover .tz-zone-chev,.su-card:hover .tz-zone-chev{color:var(--gold-bright)}
 .tz-zone-card[data-boss-id=""]:hover .tz-zone-name::after{content:none}
-.tz-zone-card.zone-open .tz-zone-chev{transform:rotate(0deg);color:var(--gold-bright)}
-.tz-zone-card.zone-open .tz-zone-name{font-size:20px;color:var(--gold-bright);text-shadow:0 0 9px rgba(240,192,96,.22)}
+.tz-zone-card.zone-open .tz-zone-chev,.su-card.zone-open .tz-zone-chev{transform:rotate(0deg);color:var(--gold-bright)}
+.tz-zone-card.zone-open .tz-zone-name,.su-card.zone-open .tz-zone-name{font-size:20px;color:var(--gold-bright);text-shadow:0 0 9px rgba(240,192,96,.22)}
 /* v149 — TZ + cross-link titles adopt the Bosses-tab header-bar STRUCTURE (Konyo: make
    them identical in structure & font to RoTW / Runes / Bosses). The title row becomes a
    full-width gradient bar across the card top (mirrors .boss-header) with a bold 19px
    serif name + emblem + tier + chevron. The card's terror-magenta left identity is kept. */
 .tz-zone-card > .tz-zone-header,
+.su-card > .tz-zone-header,
 .tz-crosslink-card > .tz-zone-header{
   background:linear-gradient(90deg,var(--surface-3),var(--surface-2));
   border-bottom:1px solid var(--border);
@@ -672,8 +673,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   gap:13px;
 }
 .tz-zone-card > .tz-zone-header .tz-zone-name,
+.su-card > .tz-zone-header .tz-zone-name,
 .tz-crosslink-card > .tz-zone-header .tz-zone-name{font-size:19px;font-weight:700;color:var(--gold-bright)}
-.tz-zone-card.zone-open > .tz-zone-header .tz-zone-name{font-size:20px}
+.tz-zone-card.zone-open > .tz-zone-header .tz-zone-name,
+.su-card.zone-open > .tz-zone-header .tz-zone-name{font-size:20px}
 .tz-zone-card:hover > .tz-zone-header,
 .tz-crosslink-card:hover > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.05))}
 .tz-zone-card.zone-open > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
@@ -686,10 +689,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-sub{color:var(--text-muted);font-family:var(--serif-text);font-size:13.5px;font-weight:500;font-style:italic;margin:3px 0 4px;line-height:1.3}
 .tz-zone-loc{color:var(--text-muted);font-size:11px;font-family:var(--serif-text);margin:0;line-height:1.3}
 .tz-zone-collapse{display:none}
-.tz-zone-card.zone-open .tz-zone-collapse{display:block}
+.tz-zone-card.zone-open .tz-zone-collapse,.su-card.zone-open .tz-zone-collapse{display:block}
 /* collapsed card = the gradient bar fills the whole card (pull the bar to the bottom edge
    too so there's no empty gap below it); keeps margin-top negative so the v149 bar probes hold */
-.tz-zone-card:not(.zone-open) > .tz-zone-header{margin-bottom:-16px;border-radius:9px;border-bottom-color:transparent}
+.tz-zone-card:not(.zone-open) > .tz-zone-header,.su-card:not(.zone-open) > .tz-zone-header{margin-bottom:-16px;border-radius:9px;border-bottom-color:transparent}
+/* v156 — Super-Unique cards adopt the collapsed rich-header look of the TZ-zone cards
+   (Konyo: "i want the bottom of the page also like this"). Same emblem + title-block +
+   tier badge + chevron gradient bar; tags collapse until the card opens. */
+.su-card.zone-open > .tz-zone-header,.su-card:hover > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
+.su-card:hover .tz-zone-name::after{content:none}
 /* v149/v150 — EVERY collapsible section header (.sec-h) across every tab gets the prominent
    Bosses/Runes header-bar look (Konyo: unify every subtab title to the Runes/Bosses page).
    The deliberate Binds stacked .tier-header design is excluded so it stays flat. RoTW, the
@@ -2752,9 +2760,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="tz-zone-tags"></div>
     </div>
     </div>
-  <div class="info" style="margin-top:18px"><strong>💡 Flayer Dungeon answer (your question):</strong> Correct that it's not in the boss list — it's TZ-only valuable. When terror'd hits mlvl 96 + TC85 + dense monsters with Endugu super-unique. Equivalent TC ceiling to Pit Hell TZ, just only good during its window. Outside terror = skip.</div>
-  <div class="lead" style="margin-top:26px;border-top:1px solid var(--border);padding-top:20px">💀 <strong>Super-Uniques — the named bosses your TZ alert calls out</strong> — every gold-name boss (Eldritch, Shenk, Pindleskin, …) with its act/area, Hell area mlvl, fixed immunities, DClone-camp eligibility, and a live cross-link to the Terror Zone it spawns in. Click any card for the full detail box.</div>
+  <div class="tz-group-head" style="margin-top:26px"><span class="tz-group-emoji">💀</span><span class="tz-group-act">Super-Uniques</span><span class="tz-group-label">named bosses your TZ alert calls out</span><span class="tz-group-count">click any card →</span></div>
   <div id="superunique-container"></div>
+  <div class="lead" style="margin-top:22px;border-top:1px solid var(--border);padding-top:18px">💀 <strong>Super-Uniques — the named bosses your TZ alert calls out</strong> — every gold-name boss (Eldritch, Shenk, Pindleskin, …) with its act/area, Hell area mlvl, fixed immunities, DClone-camp eligibility, and a live cross-link to the Terror Zone it spawns in. Click any card for the full detail box.</div>
+  <div class="info" style="margin-top:14px"><strong>💡 Flayer Dungeon answer (your question):</strong> Correct that it's not in the boss list — it's TZ-only valuable. When terror'd hits mlvl 96 + TC85 + dense monsters with Endugu super-unique. Equivalent TC ceiling to Pit Hell TZ, just only good during its window. Outside terror = skip.</div>
 </div>
 
 <div class="tab-content" id="tab-runes">
@@ -5726,15 +5735,21 @@ function renderSuperUniques(){
     if (su.dclone) tags.push('<span class="tz-zone-tag hot">🔱 DClone camp</span>');
     if (tz) tags.push(`<span class="tz-zone-tag tc${tz.z.tcMax >= 87 ? '87' : '85'}">in TZ rotation</span>`);
     if (su.immune && su.immune !== 'none' && su.immune !== 'random (Hell)') tags.push(`<span class="tz-zone-tag dense">${su.immune} immune</span>`);
+    const immune = su.immune === 'none' ? 'no fixed immunity' : su.immune + ' immune';
     return `<div class="su-card" data-su-idx="${si}" onclick="window.toggleSuperUnique(${si})" style="cursor:pointer" title="click for super-unique detail">
       <div class="tz-zone-header">
-        <span class="tz-zone-emoji">${artOr(su.name, su.emoji, 'sm')}</span>
-        <p class="tz-zone-name">${su.name}</p>
+        <span class="sec-h-art tz-zone-emblem">${artOr(su.name, su.emoji, 'sm')}</span>
+        <div class="tz-zone-title-block">
+          <p class="tz-zone-name sec-h-t">${su.name}</p>
+          <p class="tz-zone-sub">🎯 ${su.role}</p>
+          <p class="tz-zone-loc">${su.act} · ${immune}</p>
+        </div>
         <span class="tz-zone-tier">mlvl ${su.mlvl}</span>
+        <span class="tz-zone-chev sec-chev" aria-hidden="true">▾</span>
       </div>
-      <div class="tz-zone-meta">${su.act} · ${su.immune === 'none' ? 'no fixed immunity' : su.immune + ' immune'}</div>
-      <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${su.role}</div>
-      <div class="tz-zone-tags">${tags.join('')}</div>
+      <div class="tz-zone-collapse">
+        <div class="tz-zone-tags">${tags.join('')}</div>
+      </div>
       <div class="su-detail" id="su-detail-${si}" hidden></div>
     </div>`;
   }).join('');
@@ -5746,8 +5761,10 @@ function toggleSuperUnique(si){
   if (!box) return;
   const willOpen = box.hasAttribute('hidden');
   document.querySelectorAll('.su-detail').forEach(b => { if (b !== box) { b.setAttribute('hidden',''); b.innerHTML = ''; } });
-  if (willOpen) { box.innerHTML = superUniqueDetailHtml(su); box.removeAttribute('hidden'); }
-  else { box.setAttribute('hidden',''); box.innerHTML = ''; }
+  document.querySelectorAll('.su-card.zone-open').forEach(c => { if (c.getAttribute('data-su-idx') !== String(si)) c.classList.remove('zone-open'); });
+  const card = box.closest('.su-card');
+  if (willOpen) { box.innerHTML = superUniqueDetailHtml(su); box.removeAttribute('hidden'); if (card) card.classList.add('zone-open'); }
+  else { box.setAttribute('hidden',''); box.innerHTML = ''; if (card) card.classList.remove('zone-open'); }
 }
 window.toggleSuperUnique = toggleSuperUnique;
 function jumpToTzZone(zi){
