@@ -138,7 +138,7 @@ test.describe('v74 materials are searchable + route to their ID card', () => {
     });
     await page.waitForTimeout(200);
     const wired = await page.evaluate(() => {
-      const cells = [...document.querySelectorAll('#event-ref .er-item')];
+      const cells = [...document.querySelectorAll('#event-ref .er-line-main')];
       return {
         count: cells.length,
         allClickable: cells.length > 0 && cells.every((c) => (c.getAttribute('onclick') || '').includes('openDrop(')),
@@ -146,11 +146,41 @@ test.describe('v74 materials are searchable + route to their ID card', () => {
     });
     expect(wired.count).toBeGreaterThanOrEqual(10);
     expect(wired.allClickable).toBe(true);
-    await page.locator('#event-ref .er-item').first().click();
+    await page.locator('#event-ref .er-line-main').first().click();
     await page.waitForTimeout(250);
     const shown = await page.evaluate(() =>
       document.getElementById('item-detail')?.classList.contains('show') &&
       !!document.getElementById('item-detail')?.querySelector('.material-card .gic-name'));
     expect(shown).toBe(true);
+  });
+
+  test('"who drops what" boss source chips carry art + route to the boss detail card', async ({ page }) => {
+    await page.evaluate(() => {
+      const h = [...document.querySelectorAll('#event-ref .sec-h')]
+        .find((e) => /who drops what/i.test(e.textContent || '')) as HTMLElement | undefined;
+      if (h && h.classList.contains('collapsed')) h.click();
+    });
+    await page.waitForTimeout(200);
+    const chips = await page.evaluate(() => {
+      const c = [...document.querySelectorAll('#event-ref .er-src-boss')];
+      return {
+        count: c.length,
+        allRoute: c.length > 0 && c.every((e) => (e.getAttribute('onclick') || '').includes('openBossDetail(')),
+        allArt: c.every((e) => !!e.querySelector('.d2art-wrap')),
+        allHover: c.every((e) => !!e.getAttribute('data-art-logo')),
+      };
+    });
+    expect(chips.count).toBeGreaterThanOrEqual(8);
+    expect(chips.allRoute).toBe(true);
+    expect(chips.allArt).toBe(true);
+    expect(chips.allHover).toBe(true);
+    // clicking a boss chip routes to the bosses tab + opens that boss detail
+    await page.locator('#event-ref .er-src-boss').first().click();
+    await page.waitForTimeout(400);
+    const routed = await page.evaluate(() => {
+      const ov = document.getElementById('boss-detail-overlay');
+      return !!ov && !ov.classList.contains('hidden');
+    });
+    expect(routed).toBe(true);
   });
 });

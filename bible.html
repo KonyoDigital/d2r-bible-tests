@@ -33,7 +33,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .gsearch-results[hidden]{display:none}
 .gsearch-item{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;padding:9px 16px;cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px;color:#e8d8b8;border-left:2px solid transparent}
 .gsearch-item:hover,.gsearch-item.gsearch-active{background:rgba(240,192,96,.10);border-left-color:var(--gold-bright,#f0c060);color:#fff5d8}
-.gsearch-ic{font-size:15px;text-align:center;opacity:.9}
+.gsearch-ic{font-size:15px;text-align:center;opacity:.9;display:flex;align-items:center;justify-content:center}
+.gsearch-ic .d2art-wrap.sm{width:24px;height:24px}
+.gsearch-ic .d2art-wrap.sm .d2art-img{max-width:24px;max-height:24px;border-radius:4px}
+.gsearch-ic .gsearch-ic-emoji{font-size:15px}
 .gsearch-lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gsearch-sub{color:rgba(240,192,96,.55);font-size:11px;margin-left:6px}
 .gsearch-cat{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:rgba(240,192,96,.6);font-weight:600;white-space:nowrap}
@@ -576,19 +579,38 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-more .zd-drops{margin-top:7px}
 /* keys/shards/essences codex reference (under the grail) */
 .event-ref{position:relative;background:linear-gradient(165deg,rgba(240,192,96,.055),rgba(0,255,255,.022) 60%,transparent);border:1px solid var(--border-light);border-radius:13px;padding:18px 22px 20px;margin-bottom:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.er-title{font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-bright);text-shadow:0 0 16px rgba(240,192,96,.28);display:flex;align-items:center;gap:9px}
+.er-title .er-title-art{display:inline-flex;align-items:center;justify-content:center}
 .er-sub{font-family:var(--serif-text);font-style:italic;color:var(--text-muted);font-size:11.5px;margin:5px 0 15px;padding-bottom:13px;border-bottom:1px solid rgba(212,168,71,.2)}
-.er-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:15px}
-.er-block{background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(212,168,71,.4);border-radius:9px;padding:12px 14px 13px}
-.er-block-head{font-family:var(--serif-display);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text);margin-bottom:9px;line-height:1.4}
-.er-block-head .er-arrow{color:var(--gold);font-weight:400;margin:0 3px}
-.er-table{width:100%;border-collapse:collapse}
-.er-table td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:top;font-family:var(--serif-text);font-size:11.5px}
-.er-table tr:last-child td{border-bottom:none}
-.er-item{color:var(--gold-bright);font-weight:700;white-space:nowrap}
-.er-from{color:var(--text);font-style:italic}
-.er-note{color:var(--text-dim);font-size:10px}
-.er-recipe{margin-top:10px;padding:7px 9px;background:rgba(0,0,0,.2);border-left:2px solid var(--gold);border-radius:0 5px 5px 0;font-family:ui-monospace,monospace;font-size:10px;color:var(--gold)}
+.er-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;align-items:stretch}
+@media(max-width:720px){.er-grid{grid-template-columns:1fr}}
+.er-block{display:flex;flex-direction:column;background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(212,168,71,.4);border-radius:10px;padding:13px 15px 14px}
+.er-block-head{display:flex;align-items:center;gap:7px;font-family:var(--serif-display);font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text);margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid rgba(212,168,71,.18);line-height:1.3}
+.er-block-head .d2art-wrap.sm{width:21px;height:21px;flex:none}
+.er-block-head .d2art-wrap.sm .d2art-img{max-width:21px;max-height:21px;border-radius:4px}
+.er-block-head .er-block-lab{color:var(--gold-bright)}
+.er-block-head .er-arrow{color:var(--gold);font-weight:400;margin:0 1px}
+.er-block-head .er-block-feeds{color:var(--text-muted);font-weight:600;font-style:italic;letter-spacing:.02em;text-transform:none;font-family:var(--serif-text);font-size:11px}
+.er-items{display:flex;flex-direction:column;gap:2px;flex:1}
+.er-line{padding:8px 0;border-bottom:1px solid var(--border)}
+.er-line:last-child{border-bottom:none}
+.er-line-main{display:flex;align-items:center;gap:7px;color:var(--gold-bright);font-weight:700;font-size:12px;cursor:pointer;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background .12s ease}
+.er-line-main:hover{background:rgba(240,192,96,.08)}
+.er-line-main .d2art-wrap.sm{width:24px;height:24px;flex:none}
+.er-line-main .d2art-wrap.sm .d2art-img{max-width:24px;max-height:24px;border-radius:4px}
+.er-it-name{flex:1;min-width:0}
+.er-line-main .er-go{color:var(--gold);font-size:10px;opacity:.6}
+.er-line-main:hover .er-go{opacity:1}
+.er-rate{font-family:ui-monospace,monospace;font-size:9.5px;color:var(--text-dim);font-weight:400;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:9px;padding:1px 7px;white-space:nowrap}
+.er-line-from{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:6px 0 0 2px}
+.er-from-lbl{font-family:var(--serif-display);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-right:1px}
+.er-src{display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:11px;padding:2px 9px;font-family:var(--serif-text);font-size:10.5px;color:var(--text-muted)}
+.er-src-boss{cursor:pointer;border-color:rgba(212,168,71,.42);color:var(--gold-bright);transition:transform .1s ease,border-color .15s ease,box-shadow .15s ease}
+.er-src-boss:hover{transform:translateY(-1px);border-color:var(--gold);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.er-src .d2art-wrap.sm{width:18px;height:18px;flex:none}
+.er-src .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px;border-radius:3px}
+.er-src-go{font-size:8px;color:var(--gold);opacity:.7}
+.er-line-note{color:var(--text-dim);font-size:10px;font-style:italic;line-height:1.4;margin:5px 0 0 2px}
+.er-recipe{margin-top:11px;padding:8px 10px;background:rgba(0,0,0,.2);border-left:2px solid var(--gold);border-radius:0 6px 6px 0;font-family:ui-monospace,monospace;font-size:10px;color:var(--gold);line-height:1.45}
 /* honest affordance: untracked TZ zones toggle inline detail -> clickable, subtler than routed lift */
 .tz-zone-card[data-boss-id=""]:hover{border-left-color:var(--gold-bright);background:linear-gradient(180deg,rgba(240,192,96,.04),transparent)}
 .tz-zone-card[data-boss-id=""]:hover .tz-zone-name::after{content:' \25BE';color:var(--gold);font-size:11px}
@@ -608,12 +630,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-tag.tc87{background:rgba(255,0,212,.15);border-color:var(--terror);color:var(--terror)}
 /* ═══ TZ-zone cards · editorial chrome polish (Desktop 2026-05-30) — terror-magenta identity kept ═══ */
 .tz-zone-card{border:1px solid var(--border-light);border-left:3px solid var(--terror);border-radius:10px;margin:12px 0;padding:16px 20px;transition:border-color .12s,transform .12s,box-shadow .12s}
-/* v73: verified diablo2.io area artwork banner across the top of each TZ zone card */
-.tz-zone-art{margin:-16px -20px 12px -20px;height:132px;overflow:hidden;position:relative;background:#0a0a0a;border-radius:9px 9px 0 0}
-.tz-zone-art img{width:100%;height:100%;object-fit:cover;display:block;opacity:.5;transition:opacity .15s,transform .3s}
-.tz-zone-card:hover .tz-zone-art img{opacity:1;transform:scale(1.03)}
-.tz-zone-art::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,12,.45) 0%,rgba(10,10,12,.1) 38%,rgba(10,10,12,.82) 100%)}
-.tz-zone-art.d2art-failed{display:none}
+/* v148: the big 132px area banner is retired — its verified art now lives in a small
+   boss-header-style emblem (.tz-zone-emblem) in the title row. .tz-zone-art is no longer
+   emitted; rules kept inert/harmless for any cached external reference. */
+.tz-zone-art{display:none}
+/* boss-section-header parity: boxed art/emoji emblem at the head of the TZ title row */
+.tz-zone-emblem{display:inline-flex;flex:0 0 auto;width:30px;height:30px;align-items:center;justify-content:center;font-size:20px}
+.tz-zone-emblem .d2art-wrap{width:30px;height:30px}
+.tz-zone-emblem .d2art-img{width:30px!important;height:30px!important;object-fit:cover;border-radius:6px;vertical-align:middle}
+.tz-zone-emblem .tz-zone-emoji{font-size:22px;line-height:1}
 .tz-zone-header{margin-bottom:10px}
 .tz-zone-meta{margin-bottom:7px}
 .tz-zone-body{line-height:1.6}
@@ -2824,10 +2849,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Essence</th><th>From</th><th class="diff-col">Rate</th></tr></thead>
     <tbody>
-      <tr><td class="item-name zd-item-click" style="color:#6688ff;cursor:pointer" onclick="openDrop('Essence of Suffering')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencesuffering_graphic.png" alt="Twisted Essence of Suffering" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Twisted Essence of Suffering →</td><td><span data-art-logo="Andariel" data-art-glyph="🕷️">Andariel</span> + <span data-art-logo="Duriel" data-art-glyph="🪲">Duriel</span></td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--nm);cursor:pointer" onclick="openDrop('Essence of Hatred')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Charged Essence of Hatred" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Charged Essence of Hatred →</td><td><span data-art-logo="Mephisto" data-art-glyph="👺">Mephisto</span></td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--hell);cursor:pointer" onclick="openDrop('Essence of Terror')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essenceterror_graphic.png" alt="Burning Essence of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Burning Essence of Terror →</td><td><span data-art-logo="Diablo" data-art-glyph="😈">Diablo</span></td><td class="diff-col rare-4">~12%</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencedestruction_graphic.png" alt="Festering Essence of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Festering Essence of Destruction →</td><td><span data-art-logo="Baal" data-art-glyph="💀">Baal</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Essence of Suffering" style="color:#6688ff;cursor:pointer" onclick="openDrop('Essence of Suffering')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencesuffering_graphic.png" alt="Twisted Essence of Suffering" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Twisted Essence of Suffering →</td><td><span data-art-logo="Andariel" data-art-glyph="🕷️">Andariel</span> + <span data-art-logo="Duriel" data-art-glyph="🪲">Duriel</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Essence of Hatred" style="color:var(--nm);cursor:pointer" onclick="openDrop('Essence of Hatred')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencehatred_graphic.png" alt="Charged Essence of Hatred" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Charged Essence of Hatred →</td><td><span data-art-logo="Mephisto" data-art-glyph="👺">Mephisto</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Essence of Terror" style="color:var(--hell);cursor:pointer" onclick="openDrop('Essence of Terror')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essenceterror_graphic.png" alt="Burning Essence of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Burning Essence of Terror →</td><td><span data-art-logo="Diablo" data-art-glyph="😈">Diablo</span></td><td class="diff-col rare-4">~12%</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Essence of Destruction" style="color:var(--best);cursor:pointer" onclick="openDrop('Essence of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px;vertical-align:middle"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/essencedestruction_graphic.png" alt="Festering Essence of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🩸</span></span>Festering Essence of Destruction →</td><td><span data-art-logo="Baal" data-art-glyph="💀">Baal</span></td><td class="diff-col rare-4">~12%</td></tr>
     </tbody>
   </table></div>
   </div>
@@ -2837,16 +2862,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="scroll-table"><table class="drops">
     <thead><tr><th>Key</th><th>Drops From</th><th>Where</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Terror')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Terror →</td><td><span data-art-logo="The Countess" data-art-glyph="👸">The Countess</span></td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% · Hell · /p3+ · same Countess as the rune farm</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Hate')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Hate" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Hate →</td><td><span data-art-logo="The Summoner" data-art-glyph="🧙">The Summoner</span></td><td>Act 2 · Arcane Sanctuary</td><td>~10% · Hell · /p3+ · short walk from Lost City / Canyon WP</td></tr>
-      <tr><td class="item-name zd-item-click" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Destruction →</td><td><span data-art-logo="Nihlathak" data-art-glyph="☠️">Nihlathak</span></td><td>Act 5 · Halls of Vaught</td><td>~10% · Hell · /p3+ · Corpse-Explosion danger, kite him</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Key of Terror" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Terror')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Terror" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Terror →</td><td><span data-art-logo="The Countess" data-art-glyph="👸">The Countess</span></td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% · Hell · /p3+ · same Countess as the rune farm</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Key of Hate" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Hate')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Hate" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Hate →</td><td><span data-art-logo="The Summoner" data-art-glyph="🧙">The Summoner</span></td><td>Act 2 · Arcane Sanctuary</td><td>~10% · Hell · /p3+ · short walk from Lost City / Canyon WP</td></tr>
+      <tr><td class="item-name zd-item-click" data-arttip="Key of Destruction" style="color:var(--uber);cursor:pointer" onclick="openDrop('Key of Destruction')"><span class="d2art-wrap sm" style="margin-right:6px"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/questkey_graphic.png" alt="Key of Destruction" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span>Key of Destruction →</td><td><span data-art-logo="Nihlathak" data-art-glyph="☠️">Nihlathak</span></td><td>Act 5 · Halls of Vaught</td><td>~10% · Hell · /p3+ · Corpse-Explosion danger, kite him</td></tr>
     </tbody>
   </table></div>
   <div style="background:linear-gradient(180deg,var(--surface-2),rgba(0,0,0,.12));border:1px solid var(--border);border-top:2px solid rgba(212,168,71,.5);border-radius:10px;padding:14px 16px 15px;margin:12px 0 4px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div data-art-logo="The Summoner" data-art-glyph="🔮" role="button" tabindex="0" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer" title="open The Summoner boss detail" onclick="window.openBossDetail&&window.openBossDetail('summoner')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openBossDetail&&window.openBossDetail('summoner')}">
       <span class="d2art-wrap md"><img class="d2art-img" src="https://diablo2.io/styles/zulu/theme/images/items/summoner_graphic.png" alt="The Summoner" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback" style="font-size:26px;line-height:1">🔮</span></span>
       <div>
-        <div style="font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.02em;color:var(--text)">The Summoner</div>
+        <div style="font-family:var(--serif-display);font-size:16px;font-weight:700;letter-spacing:.02em;color:var(--gold-bright)">The Summoner →</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:.04em">Horazon's incarnation · the only Key dropper without its own boss card</div>
       </div>
     </div>
@@ -4601,6 +4626,11 @@ function materialDetailHtml(name){
       <div class="zd-note" style="margin-bottom:8px">Click any variant for its full affix list, source Ancient, and sister jewel. Each is also globally searchable by its own name.</div>
       <div class="colossal-grid">${COLOSSAL_JEWELS.map(j=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${j.n} ID card" onclick="window.openDrop('${_esc1(j.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(j.n)}')}"><span class="ct-art">${artOr(j.n, '<span class="ct-emoji">'+j.emoji+'</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${j.n}</div><div class="ct-sub">${j.elem} · from Colossal ${j.ancient}</div></div></div>`).join('')}</div>
     </section>` : ''}
+    ${catKey==='token' && typeof SPECIAL_DROPS!=='undefined' && SPECIAL_DROPS.essence ? `<section class="gic-section">
+      <div class="gic-section-title">🩸 The 4 essences — cube all four</div>
+      <div class="zd-note" style="margin-bottom:8px">Each drops from a specific Hell act boss; click any for its full ID card. Cube all four → Token of Absolution.</div>
+      <div class="colossal-grid">${SPECIAL_DROPS.essence.items.map(e=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${e.n} ID card" onclick="window.openDrop('${_esc1(e.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(e.n)}')}"><span class="ct-art">${artOr(e.n, '<span class="ct-emoji">🩸</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${e.n}</div><div class="ct-sub">${(e.from||[]).join(' · ')}</div></div></div>`).join('')}</div>
+    </section>` : ''}
     <section class="gic-section">
       <div class="gic-section-title">🧪 Recipe / use</div>
       <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">${cat.recipe || '—'}</span></div>
@@ -4712,8 +4742,21 @@ function _setCodexByName(name){
 window._setCodexByName = _setCodexByName;
 function isSetAggregate(name){ return !!_setCodexByName(name); }
 window.isSetAggregate = isSetAggregate;
-function setDetailHtml(name){
+// A set's collective name has no art sprite of its own, so the "set picture" is the
+// first member piece that has a verified in-game logo (zero fabrication — real piece art).
+function _setRepArtName(name){
+  var c = _setCodexByName(name); if (!c) return null;
+  if (typeof artUrl === 'function'){
+    if (c.setName && artUrl(c.setName)) return c.setName;
+    var mem = c.setMembers || [];
+    for (var i=0;i<mem.length;i++){ if (mem[i] && artUrl(mem[i].name)) return mem[i].name; }
+  }
+  return null;
+}
+window._setRepArtName = _setRepArtName;
+function setDetailHtml(name, opts){
   var c = _setCodexByName(name); if (!c) return '';
+  opts = opts || {};
   var sn = c.setName || name;
   var mem = c.setMembers || [];
   var tiles = mem.map(function(m){
@@ -4724,15 +4767,16 @@ function setDetailHtml(name){
   }).join('');
   var bonuses = (c.setBonuses||[]).map(function(s){ return '<div class="zd-row set-bonus-row"><span class="zd-v">'+s+'</span></div>'; }).join('');
   var note = c.note ? ('<div class="gic-subtitle">'+c.note+'</div>') : '';
+  var headerArtName = _setRepArtName(name) || sn;
   return '<div class="gic-card material-card set-items-card">'
     + '<header class="gic-header">'
-    +   artOr(sn, '<span class="gic-emoji">\uD83D\uDC8E</span>', 'lg')
+    +   artOr(headerArtName, '<span class="gic-emoji">\uD83D\uDC8E</span>', 'lg')
     +   '<div class="gic-id-block">'
     +     '<h2 class="gic-name">'+sn+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#2e7d4f,#16432a);color:#dfffe0">Set \u00b7 '+mem.length+' pieces</span></h2>'
     +     note
     +     '<div class="gic-meta-row"><span class="gic-meta-chip">equip all '+mem.length+' \u2192 full set bonus</span><span class="gic-meta-chip" style="color:#8fe3a8;border-color:rgba(143,227,168,.4)">pieces drop individually across the game</span></div>'
     +   '</div>'
-    +   '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">\u2715 close</button></div>'
+    +   (opts.embed ? '' : '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">\u2715 close</button></div>')
     + '</header>'
     + '<section class="gic-section"><div class="gic-section-title">\uD83D\uDC8E The '+mem.length+' set items \u2014 hover any piece for its stats</div>'
     +   '<div class="zd-note" style="margin-bottom:8px">Each piece is a distinct unique-rarity drop; hover its art for the in-game stat card. Collect all '+mem.length+' to light up the full set bonus below (track them in the Tools \u2192 Item Set Tracker).</div>'
@@ -5783,23 +5827,58 @@ function toggleBindSU(idx){
 }
 function openBindSUByName(name){ const i = bindSUName2Idx(name); if (i>=0) toggleBindSU(i); }
 window.bindSUDetailHtml = bindSUDetailHtml; window.toggleBindSU = toggleBindSU; window.openBindSUByName = openBindSUByName;
+// v147 — boss-name source chips for the keys/shards/essences cross-ref. A "from"
+// string ("Hell Andariel", "Hell Summoner (Arcane Sanctuary)") that names one of the
+// 8 farmable bosses becomes a routable art chip (logo + floating hover popup +
+// openBossDetail); non-boss sources ("Hell TZ Act 1 zones", "Horadric Cube") render
+// as plain chips. Reuses the verified D2IO_ART boss avatars — zero fabrication.
+const _ER_BOSS_SRC = [
+  {re:/countess/i,  id:'countess',  art:'The Countess'},
+  {re:/summoner/i,  id:'summoner',  art:'The Summoner'},
+  {re:/nihlathak/i, id:'nihl',      art:'Nihlathak'},
+  {re:/andariel/i,  id:'andariel',  art:'Andariel'},
+  {re:/duriel/i,    id:'duriel',    art:'Duriel'},
+  {re:/mephisto/i,  id:'mephisto',  art:'Mephisto'},
+  {re:/diablo/i,    id:'diablo',    art:'Diablo'},
+  {re:/baal/i,      id:'baal',      art:'Baal'}
+];
+function _erSourceChip(src){
+  let b = null;
+  for (let i=0;i<_ER_BOSS_SRC.length;i++){ if (_ER_BOSS_SRC[i].re.test(src)){ b=_ER_BOSS_SRC[i]; break; } }
+  if (b){
+    const ic = (typeof artOr==='function') ? artOr(b.art, '<span class="er-src-emoji">🗡️</span>', 'sm') : '';
+    return `<span class="er-src er-src-boss" role="button" tabindex="0" data-art-logo="${b.art}" title="open ${b.art} boss detail"`
+      + ` onclick="event.stopPropagation();window.openBossDetail&&window.openBossDetail('${b.id}')"`
+      + ` onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openBossDetail&&window.openBossDetail('${b.id}')}">`
+      + `${ic}<span class="er-src-lab">${src}</span><span class="er-src-go">↗</span></span>`;
+  }
+  return `<span class="er-src">${src}</span>`;
+}
 function renderEventRef(){
   const el = document.getElementById('event-ref');
   if (!el || typeof SPECIAL_DROPS === 'undefined') return;
   const sd = SPECIAL_DROPS;
-  const rows = (cat) => cat.items.map(it => {
-    const esc = (it.n||'').replace(/'/g,"\\'");
-    return `<tr><td class="er-item zd-item-click" style="cursor:pointer" onclick="openDrop('${esc}')">${nameLogo(it.n)}${it.n} <span class="er-arrow">→</span></td><td class="er-from">${(it.from||[]).join(' · ')}</td><td class="er-note">${it.note||''}</td></tr>`;
-  }).join('');
-  const block = (cat, feeds) => `<div class="er-block">
-      <div class="er-block-head">${cat.icon} ${cat.label} <span class="er-arrow">→</span> <strong>${feeds}</strong></div>
-      <table class="er-table"><tbody>${rows(cat)}</tbody></table>
+  const esc1 = (s) => (s||'').replace(/'/g,"\\'");
+  const aOr = (n,g) => (typeof artOr==='function') ? artOr(n,g,'sm') : g;
+  const itemLine = (it) => {
+    const sources = (it.from||[]).map(_erSourceChip).join('');
+    return `<div class="er-line">
+        <div class="er-line-main" role="button" tabindex="0" data-arttip="${it.n}" title="open ${it.n} ID card" onclick="window.openDrop&&window.openDrop('${esc1(it.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop&&window.openDrop('${esc1(it.n)}')}">
+          ${aOr(it.n,'<span class="er-it-emoji">🔹</span>')}<span class="er-it-name">${it.n}</span><span class="er-go">↗</span>${it.rate?`<span class="er-rate">${it.rate}</span>`:''}
+        </div>
+        <div class="er-line-from"><span class="er-from-lbl">from</span>${sources}</div>
+        ${it.note?`<div class="er-line-note">${it.note}</div>`:''}
+      </div>`;
+  };
+  const block = (cat, feeds, repArt) => `<div class="er-block">
+      <div class="er-block-head">${aOr(repArt, cat.icon)}<span class="er-block-lab">${cat.label}</span><span class="er-arrow">→</span><strong class="er-block-feeds">${feeds}</strong></div>
+      <div class="er-items">${cat.items.map(itemLine).join('')}</div>
       <div class="er-recipe">🧪 ${cat.recipe}</div>
     </div>`;
-  el.innerHTML = `<h2 class="sec-h er-title collapsed" onclick="toggleSec(this)">🔑 Keys &amp; 💎 Shards &amp; 🩸 Essences — who drops what <span class="sec-chev">▾</span></h2>
+  el.innerHTML = `<h2 class="sec-h er-title collapsed" onclick="toggleSec(this)"><span class="sec-h-art er-title-art">${aOr('Key of Terror','<span class="d2art-fallback">🔑</span>')}</span><span class="sec-h-t er-title-t">Keys, Shards &amp; Essences — who drops what</span><span class="sec-chev">▾</span></h2>
     <div class="sec-body" hidden>
-    <div class="er-sub">Cross-link reference (not counted in the grail) — your "where do I farm this material" map.</div>
-    <div class="er-grid">${block(sd.key, 'Uber Tristram')}${block(sd.worldstoneShard, 'Sunder Charms')}${block(sd.essence, 'Token of Absolution')}${block(sd.token, 'Full Respec')}</div>
+      <div class="er-sub">Cross-link reference (not counted in the grail) — your "where do I farm this material" map. Click any boss to jump to its detail card.</div>
+      <div class="er-grid">${block(sd.key, 'Uber Tristram', 'Key of Terror')}${block(sd.worldstoneShard, 'Sunder Charms', 'Worldstone Shard (Western)')}${block(sd.essence, 'Token of Absolution', 'Essence of Suffering')}${block(sd.token, 'Full Respec', 'Token of Absolution')}</div>
     </div>`;
 }
 // v47 unify: event/uber sections (Uber Tristram, Cow, DClone, Colossal Ancients,
@@ -6331,10 +6410,24 @@ const TZ_ZONE_ART = {
   "Spider Forest + Cavern": "act3-spiderforest",
   "Catacombs L4": "act1-catacombs",
 };
+function _tzArtSrc(slug){
+  return (slug.indexOf('data:')===0||slug.indexOf('http')===0||slug.charAt(0)==='/'||slug.indexOf('banners/')===0)?slug:TZ_ART_BASE+slug+'_graphic.png';
+}
 function tzZoneArtBanner(name){
   const slug = TZ_ZONE_ART[name];
   if (!slug) return '';
-  return `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${name}" src="${slug.indexOf('data:')===0||slug.indexOf('http')===0||slug.charAt(0)==='/'||slug.indexOf('banners/')===0?slug:TZ_ART_BASE+slug+'_graphic.png'}" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>`;
+  return `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${name}" src="${_tzArtSrc(slug)}" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>`;
+}
+// v148 — Konyo: drop the big 132px area banner; fold the SAME verified area art into a
+// small boss-header-style emblem box (.sec-h-art look) at the head of the title row, so the
+// TZ titles read exactly like the Bosses-tab section headers (boxed emblem + serif glow +
+// chevron). Verified diablo2.io art is preserved — just relocated, no fabrication, onerror-safe.
+function tzZoneEmblem(z){
+  const slug = (typeof TZ_ZONE_ART !== 'undefined') ? TZ_ZONE_ART[z.name] : null;
+  if (slug){
+    return `<span class="sec-h-art tz-zone-emblem"><span class="d2art-wrap sm"><img class="d2art-img" loading="lazy" alt="${z.name}" src="${_tzArtSrc(slug)}" onload="this.parentNode.classList.remove('d2art-failed')" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback"><span class="tz-zone-emoji">${z.emoji}</span></span></span></span>`;
+  }
+  return `<span class="sec-h-art tz-zone-emblem"><span class="tz-zone-emoji">${z.emoji}</span></span>`;
 }
 window.TZ_ZONE_ART = TZ_ZONE_ART;
 
@@ -9824,7 +9917,9 @@ function renderAidCard(name, opts){
       </div>
     </header>
 
-    ${(typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n] && ITEM_CODEX[item.n].setMembers && ITEM_CODEX[item.n].setMembers.length) ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+renderCodexCard(item.n)+'</div>' : ''}
+    ${(typeof isSetAggregate==='function' && isSetAggregate(item.n))
+        ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+setDetailHtml(item.n, {embed:true})+'</div>'
+        : ((typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n] && ITEM_CODEX[item.n].setMembers && ITEM_CODEX[item.n].setMembers.length) ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+renderCodexCard(item.n)+'</div>' : '')}
     <div class="aid-tabbar">
       <div class="aid-tabbar-label">↔ pick your source · ${chipSrc.length} option${chipSrc.length===1?'':'s'} · click any to refocus the panel below</div>
       <div class="aid-tabbar-chips">
@@ -9955,12 +10050,11 @@ function tzZoneCardHtml(z, zi){
   const click = `window.toggleZoneDetail(${zi})`;
   const titleTxt = bossId ? ('open ' + z.name + ' drop detail (with ' + bossId + ' cross-link)') : 'open full zone drop detail';
   return `<div class="tz-zone-card" data-zone-idx="${zi}" data-boss-id="${bossId}" onclick="${click}" style="cursor:pointer" title="${titleTxt}">
-      ${tzZoneArtBanner(z.name)}
       <div class="tz-zone-header">
-        <span class="tz-zone-emoji">${z.emoji}</span>
-        <p class="tz-zone-name">${z.name}</p>
+        ${tzZoneEmblem(z)}
+        <p class="tz-zone-name sec-h-t">${z.name}</p>
         <span class="tz-zone-tier">${z.tier}</span>
-        <span class="tz-zone-chev" aria-hidden="true">▾</span>
+        <span class="tz-zone-chev sec-chev" aria-hidden="true">▾</span>
       </div>
       <div class="tz-zone-meta">${z.act} · mlvl ${z.mlvl} terror · TC ${z.tcMax} max · ${z.density}</div>
       <div class="tz-zone-meta" style="color:var(--gold-bright)">🎯 ${linkifySU(z.unique)}</div>
@@ -9977,13 +10071,15 @@ function tzCrosslinkCardHtml(cl){
   const b = (typeof BOSSES !== 'undefined') ? BOSSES.find((x) => x.id === cl.bossId) : null;
   if (!b) return '';
   const clArt = (typeof artUrl === 'function') ? artUrl(b.name) : null;
-  const clBanner = clArt ? `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${b.name}" src="${clArt}" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>` : '';
+  const clEmblem = clArt
+    ? `<span class="sec-h-art tz-zone-emblem"><span class="d2art-wrap sm"><img class="d2art-img" loading="lazy" alt="${b.name}" src="${clArt}" onload="this.parentNode.classList.remove('d2art-failed')" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback"><span class="tz-zone-emoji">${b.emoji || '🗺️'}</span></span></span></span>`
+    : `<span class="sec-h-art tz-zone-emblem"><span class="tz-zone-emoji">${b.emoji || '🗺️'}</span></span>`;
   return `<div class="tz-crosslink-card" data-crosslink-boss-id="${b.id}" onclick="window.openBossDetail('${b.id}')" style="cursor:pointer" title="open ${b.name}'s full ID card in the Bosses tab">
-      ${clBanner}
       <div class="tz-zone-header">
-        <span class="tz-zone-emoji">${b.emoji || '🗺️'}</span>
-        <p class="tz-zone-name">${b.name}</p>
+        ${clEmblem}
+        <p class="tz-zone-name sec-h-t">${b.name}</p>
         <span class="tz-zone-tier">${b.tierTag || ''}</span>
+        <span class="tz-zone-chev sec-chev" aria-hidden="true">▾</span>
       </div>
       <div class="tz-zone-meta">${b.subtitle || ''}${b.loc ? ' · ' + b.loc : ''}</div>
       <div class="tz-zone-body">${b.why || ''}</div>
@@ -12024,6 +12120,35 @@ function decorateItemLogos() {
 window.decorateItemLogos = decorateItemLogos;
 _v39_whenReady(decorateItemLogos);
 
+// v146 — make the act-boss "drops from" cells (ROTW key + essence tables) clickable
+// gateways to their boss detail card. Acts ONLY on the 8 boss display-names below and
+// ONLY when the cell has no existing onclick (item cells keep their own openDrop route).
+// The cells already carry data-art-logo so they get the art logo + floating hover popup;
+// this layer adds the route. Idempotent (data-boss-routed guard).
+const _BOSS_NAME_TO_ID = {'the countess':'countess','the summoner':'summoner','nihlathak':'nihl','andariel':'andariel','duriel':'duriel','mephisto':'mephisto','diablo':'diablo','baal':'baal'};
+function decorateBossNameLinks() {
+  if (typeof _norm !== 'function') return 0;
+  let n = 0;
+  document.querySelectorAll('[data-art-logo]').forEach((el) => {
+    if (el.dataset.bossRouted) return;
+    if (el.getAttribute('onclick')) return; // don't hijack item cells with their own route
+    const id = _BOSS_NAME_TO_ID[_norm(el.getAttribute('data-art-logo') || '')];
+    if (!id) return;
+    el.dataset.bossRouted = '1';
+    el.style.cursor = 'pointer';
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('title', 'open ' + el.getAttribute('data-art-logo') + ' boss detail');
+    el.classList.add('zd-item-click');
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); if (typeof window.openBossDetail === 'function') window.openBossDetail(id); });
+    el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (typeof window.openBossDetail === 'function') window.openBossDetail(id); } });
+    n++;
+  });
+  return n;
+}
+window.decorateBossNameLinks = decorateBossNameLinks;
+_v39_whenReady(decorateBossNameLinks);
+
 // v139 — platform-wide floating hover-image rollout for super-unique bosses + runes.
 // Every .su-link in the Bind-Demon table opens its bind ID card already; here we ALSO
 // give it the enlarged floating cursor avatar (the verified diablo2.io SU monster gif)
@@ -12742,7 +12867,16 @@ _v41_whenReady(() => {
         if (!ranked.length){ box.innerHTML='<div class="gsearch-empty">No boss, zone, act, or item matches "'+esc(q)+'"</div>'; box.hidden=false; active=-1; return; }
         var html='';
         for (var j=0;j<ranked.length;j++){ var c=ranked[j].c;
-          html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+(c.icon||'\u2022')+'</span><span class="gsearch-lab">'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
+          // v146 — prefer the verified in-game art logo over the generic tier emoji.
+          // artUrl() returns null for art-less labels (tabs/bosses/MF), so those keep
+          // their emoji; any label matching a D2IO_ART key shows its synced logo.
+          var _ic = (c.icon||'\u2022');
+          var _artName = (typeof window.artUrl==='function' && window.artUrl(c.label)) ? c.label
+            : ((typeof window._setRepArtName==='function') ? window._setRepArtName(c.label) : null);
+          var icHtml = (_artName && typeof window.artOr==='function')
+            ? window.artOr(_artName, '<span class="gsearch-ic-emoji">'+_ic+'</span>', 'sm')
+            : _ic;
+          html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+icHtml+'</span><span class="gsearch-lab">'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
         }
         box.innerHTML=html; active=0; box.hidden=false; paint();
       }

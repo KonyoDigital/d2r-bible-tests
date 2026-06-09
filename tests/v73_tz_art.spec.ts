@@ -3,11 +3,12 @@ import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-// v73 — verified diablo2.io AREA artwork banners on every terror-zone card. Each TZ_ZONES
-// entry maps (by name) to its primary area's scene graphic; tzZoneCardHtml renders a banner
-// across the top of the card. Every slug was HEAD-probed live (HTTP 200 + image content-type)
+// v73 — verified diablo2.io AREA artwork on every terror-zone card. Each TZ_ZONES entry
+// maps (by name) to its primary area's scene graphic. v148: the big top banner was retired;
+// the SAME verified art now renders in a small boss-header-style emblem (.tz-zone-emblem) at
+// the head of the title row. Every slug was HEAD-probed live (HTTP 200 + image content-type)
 // before shipping, and a hard onerror keeps a 404 from ever showing a broken-image box.
-test.describe('v73 TZ zone artwork banners', () => {
+test.describe('v73 TZ zone artwork emblems', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
@@ -37,7 +38,7 @@ test.describe('v73 TZ zone artwork banners', () => {
   test('every TZ zone card renders a verified area banner (lazy + onerror fallback)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#tz-zones-container .tz-zone-card')];
-      const banners = cards.map((c) => c.querySelector('.tz-zone-art img') as HTMLImageElement | null);
+      const banners = cards.map((c) => c.querySelector('.tz-zone-emblem .d2art-img') as HTMLImageElement | null);
       const withArt = banners.filter(Boolean) as HTMLImageElement[];
       return {
         cardCount: cards.length,
@@ -58,7 +59,7 @@ test.describe('v73 TZ zone artwork banners', () => {
     const src = await page.evaluate(() => {
       const card = [...document.querySelectorAll('#tz-zones-container .tz-zone-card')]
         .find((c) => /Arcane Sanctuary/.test(c.querySelector('.tz-zone-name')?.textContent || ''));
-      return (card?.querySelector('.tz-zone-art img') as HTMLImageElement)?.getAttribute('src') || '';
+      return (card?.querySelector('.tz-zone-emblem .d2art-img') as HTMLImageElement)?.getAttribute('src') || '';
     });
     expect(src).toMatch(/act2-arcanesanctuary_graphic\.png$/);
   });
@@ -66,7 +67,7 @@ test.describe('v73 TZ zone artwork banners', () => {
   test('the permanent lvl-85 cross-link card (The Pit) also gets its scene banner', async ({ page }) => {
     const src = await page.evaluate(() => {
       const card = document.querySelector('#tz-zones-container .tz-crosslink-card');
-      return (card?.querySelector('.tz-zone-art img') as HTMLImageElement)?.getAttribute('src') || '';
+      return (card?.querySelector('.tz-zone-emblem .d2art-img') as HTMLImageElement)?.getAttribute('src') || '';
     });
     expect(src).toMatch(/act1-underground_graphic\.png$/);
   });
