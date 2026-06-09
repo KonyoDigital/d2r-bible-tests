@@ -144,6 +144,32 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-004 — 2026-06-09 · calc item-tile data-art-logo → decorateItemLogos dup + DOM-order hijack
+- **Symptom**: Routine I (Playwright) shard 1/3 red — `v123_inline_item_logos`
+  "Key of Terror has emoji fallback" failed (`r.fallback.length` was 0, expected >0).
+- **Caught by**: scheduled CI full suite — NOT the 38-test pre-push smoke gate
+  (which does not include v123). Reproduced locally in isolation = real.
+- **Root cause**: v143 (`21a033b`) added a context-aware NAME hover to the calc grid
+  by tagging every `.item-tile-name` (312 tiles) with `data-art-logo`. But
+  `data-art-logo` has a SIDE EFFECT beyond the hover delegation: `decorateItemLogos()`
+  consumes every `[data-art-logo]` lacking a `.d2art-wrap` child and PREPENDS
+  `artOr(name, glyph, 'sm')` — with no `data-art-glyph` attr the injected wrap had an
+  EMPTY fallback. Two failures cascaded: (a) every calc name got a duplicate glyph-less
+  thumbnail; (b) calc tiles sit EARLIER in the DOM than the event-card cells, so
+  v123's `querySelector('[data-art-logo="Key of Terror"]')` matched the empty-fallback
+  calc tile first → `fallback.textContent.length === 0`.
+- **Fix**: commit `dca9247` — calc tile uses `data-arttip` instead of `data-art-logo`.
+  The #arttip delegation still reads `data-arttip` for the rich name-hover, but
+  `decorateItemLogos` ignores it → no duplicate injection, no querySelector hijack.
+  v123 5/5 in isolation; full suite 634 passed / 1 skipped / 0 failed.
+- **Prevention**: (1) `data-art-logo` is NOT a neutral hover hook — it is CONSUMED by
+  `decorateItemLogos` (auto-injects a logo). For hover-only intent use `data-arttip`
+  (read by the same #arttip delegation, ignored by the decorator). (2) A `querySelector`
+  that selects by a shared attribute picks FIRST-IN-DOM — adding that attribute to a
+  high-frequency render path (312 calc tiles) silently hijacks any earlier-test
+  selector. (3) A change to a high-frequency render path needs the FULL suite, not the
+  smoke gate — same lesson as REG-002 (smoke ≠ substitute for `npx playwright test`).
+
 ## REG-003 — 2026-06-08 · per-charm Sunder recipe search misrouted to Bone Break
 - **Symptom**: searching "renew black cleft" (and every other charm) landed on the
   Sunder recipe grid headed by Bone Break instead of the Black Cleft row. User: "when
