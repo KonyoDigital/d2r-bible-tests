@@ -144,6 +144,34 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-005 — 2026-06-09 · v154 ref-header restructure truncated two test-locked section titles
+- **Symptom**: Routine I (Playwright) shards 1 + 2 red on the v154 push (`f5dcb4a`) —
+  2 real tests: `v50_p_slider_explainer:25` (expected substring "What the P# slider
+  actually does") and `v112_binds_tierlist_droppool:77` (`refHasSources` regex
+  `/Warlock bind .* Aura Enchanted .* sources/i` no longer matched). A 3rd red
+  (`v41_deep_audit:324` calc "shako" search) was the KNOWN badge-interception flake —
+  passed in isolation, NOT a regression.
+- **Caught by**: scheduled CI full suite — NOT the 39-test pre-push smoke gate (neither
+  v50/v112/v41 is in it). v50 + v112 reproduced locally = real.
+- **Root cause**: the v154 first-glance restructure (single-line `emoji Title ▾` → rich
+  `.sec-h-block` with title + subtitle) rewrote all 12 ref-tab `<h2>` titles. Two were
+  SHORTENED for the bar: "What the P# slider actually does" → "…slider does", and
+  "Warlock bind & Aura Enchanted — sources" → "Bind & Aura Enchanted sources". Both
+  exact strings are LOCKED by older specs (v50 asserts the verbatim methodology title;
+  v112 regexes the ref text for "Warlock bind"). The v154 spec only checks the NEW short
+  titles ("Cube Recipes" etc.), so it stayed green while the older locks broke.
+- **Fix**: commit restores both titles verbatim ("What the P# slider actually does",
+  "Warlock bind & Aura Enchanted — sources"); the rich `.sec-h-block`/subtitle structure
+  is untouched. v50 3/3, v112 7/7, v154 4/4, v146 (20 total) green; L_integrity 0; v41
+  calc-shako passes in isolation.
+- **Prevention**: (1) Restyling a section HEADER must preserve the exact title TEXT —
+  older specs lock title strings as content anchors, not just structure. Before
+  retitling, `grep` the verbatim phrase across `tests/`. (2) A new spec that asserts the
+  POST-change wording will pass even as it breaks an OLD spec asserting the PRE-change
+  wording — run the FULL suite, not just the new spec + smoke gate (same lesson as
+  REG-002/004: smoke ≠ substitute for `npx playwright test`). (3) Shortening copy is a
+  content change even when the intent is "just visual."
+
 ## REG-004 — 2026-06-09 · calc item-tile data-art-logo → decorateItemLogos dup + DOM-order hijack
 - **Symptom**: Routine I (Playwright) shard 1/3 red — `v123_inline_item_logos`
   "Key of Terror has emoji fallback" failed (`r.fallback.length` was 0, expected >0).
