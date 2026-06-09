@@ -656,6 +656,40 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .tz-zone-card[data-boss-id=""]:hover .tz-zone-name::after{content:none}
 .tz-zone-card.zone-open .tz-zone-chev{transform:rotate(0deg);color:var(--gold-bright)}
 .tz-zone-card.zone-open .tz-zone-name{font-size:20px;color:var(--gold-bright);text-shadow:0 0 9px rgba(240,192,96,.22)}
+/* v149 — TZ + cross-link titles adopt the Bosses-tab header-bar STRUCTURE (Konyo: make
+   them identical in structure & font to RoTW / Runes / Bosses). The title row becomes a
+   full-width gradient bar across the card top (mirrors .boss-header) with a bold 19px
+   serif name + emblem + tier + chevron. The card's terror-magenta left identity is kept. */
+.tz-zone-card > .tz-zone-header,
+.tz-crosslink-card > .tz-zone-header{
+  background:linear-gradient(90deg,var(--surface-3),var(--surface-2));
+  border-bottom:1px solid var(--border);
+  border-radius:9px 9px 0 0;
+  padding:13px 18px;
+  margin:-16px -20px 13px;
+  gap:13px;
+}
+.tz-zone-card > .tz-zone-header .tz-zone-name,
+.tz-crosslink-card > .tz-zone-header .tz-zone-name{font-size:19px;font-weight:700;color:var(--gold-bright)}
+.tz-zone-card.zone-open > .tz-zone-header .tz-zone-name{font-size:20px}
+.tz-zone-card:hover > .tz-zone-header,
+.tz-crosslink-card:hover > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.05))}
+.tz-zone-card.zone-open > .tz-zone-header{background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
+/* v149 — RoTW section headers get the prominent Bosses/Runes header-bar look (Konyo:
+   make RoTW like Bosses/Runes, matching the TZ titles). Scoped to #tab-rotw so the shared
+   .sec-h editorial bars elsewhere (Reference, Main, etc.) stay exactly as approved. */
+#tab-rotw .sec-h{
+  background:linear-gradient(90deg,var(--surface-3),var(--surface-2));
+  border:1px solid var(--border);
+  border-left:3px solid var(--gold-dim);
+  border-radius:10px;
+  padding:14px 20px;
+  gap:14px;
+}
+#tab-rotw .sec-h .sec-h-t{font-size:19px}
+#tab-rotw .sec-h:hover,
+#tab-rotw .sec-h:not(.collapsed){background:linear-gradient(90deg,var(--surface-3),rgba(255,212,128,.06))}
+#tab-rotw .sec-h:not(.collapsed) .sec-h-t{font-size:20px}
 /* TERROR_GROUPS act-region headers — section dividers above each act's zone cards */
 .tz-group-head{display:flex;align-items:center;gap:9px;margin:22px 0 4px;padding:7px 12px;border-left:3px solid var(--terror);background:linear-gradient(90deg,rgba(255,0,212,.08),transparent);border-radius:6px}
 .tz-group-head:first-child{margin-top:8px}
