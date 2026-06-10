@@ -6899,6 +6899,7 @@ const ITEMS = [];
 // — every URL was probed live and only kept if it resolved to a real image.
 const D2IO_ART = {
   // set/runeword representative art + sunder chips (auto-verified HTTP 200 + image/png on 2026-06-10; sets use an iconic piece)
+  "Worldstone Shards": "https://diablo2.io/styles/zulu/theme/images/items/northern_graphic.png",
   "Call to Arms": "https://diablo2.io/styles/zulu/theme/images/items/flail_graphic.png",
   "Sunder Charms": "https://diablo2.io/styles/zulu/theme/images/items/flamerift_graphic.png",
   "Sigon's Complete Steel": "https://diablo2.io/styles/zulu/theme/images/items/sigonsshelter_graphic.png",
@@ -10426,9 +10427,10 @@ function runeSourceDetailHtml(src){
     var rows=src.grid.map(function(r){
       var hi=/Lo|Ohm|Vex|Gul|Mal/.test(r.n);
       var rune=(typeof findRune==='function')?findRune(r.n):null;
+      var logo=(typeof nameLogo==='function')?nameLogo(rune?rune.n:r.n):'';
       var nameCell=rune
-        ? '<td class="item-name zd-item-click" style="cursor:pointer;'+(hi?'color:var(--gold-bright)':'color:var(--gold)')+'" onclick="event.stopPropagation();window.openDrop(\''+r.n.replace(/'/g,"\\'")+'\')" title="open '+rune.n+' rune card">'+r.n+' →</td>'
-        : '<td class="item-name" style="'+(hi?'color:var(--gold-bright)':'')+'">'+r.n+'</td>';
+        ? '<td class="item-name zd-item-click" data-arttip="'+rune.n+'" style="cursor:pointer;'+(hi?'color:var(--gold-bright)':'color:var(--gold)')+'" onclick="event.stopPropagation();window.openDrop(\''+r.n.replace(/'/g,"\\'")+'\')" title="open '+rune.n+' rune card">'+logo+r.n+' →</td>'
+        : '<td class="item-name" style="'+(hi?'color:var(--gold-bright)':'')+'">'+logo+r.n+'</td>';
       return '<tr>'+nameCell+'<td class="diff-col">'+r.hell+'</td><td><span style="color:var(--text-dim);font-size:11px">'+(r.use||'')+'</span></td></tr>';
     }).join('');
     h+='<div class="scroll-table"><table class="drops"><thead><tr><th>Rune</th><th class="diff-col">HELL (approx)</th><th>Used for</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
