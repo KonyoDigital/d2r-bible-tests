@@ -2334,7 +2334,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .nav-compass{width:33px;height:33px;display:block;overflow:visible;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
   .nc-ring{fill:rgba(26,20,13,.45);stroke:#3a2c14;stroke-width:2.4}
   .nc-ticks line{stroke:#6a5226;stroke-width:1.8;stroke-linecap:round}
-  .nc-needle{transform-origin:24px 24px;animation:navCompassSpin 9s cubic-bezier(.45,.05,.55,.95) infinite}
+  .nc-needle{transform-origin:24px 24px;animation:navCompassSpin 9s cubic-bezier(.45,.05,.55,.95) infinite;
+    filter:drop-shadow(0 0 1.5px rgba(240,192,96,.95)) drop-shadow(0 0 4px rgba(240,192,96,.6))}
+  .nav-fab:hover .nc-needle{filter:drop-shadow(0 0 2px rgba(245,205,120,1)) drop-shadow(0 0 6px rgba(240,192,96,.85))}
   .nc-n{fill:#c0392b}
   .nc-s{fill:#f4e9d0}
   .nc-hub{fill:#1a140d;stroke:#6a5226;stroke-width:1}
