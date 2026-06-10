@@ -11627,9 +11627,13 @@ window._arttipResolve = _arttipResolve;
     document.addEventListener('mousemove', function(e){ if (!cur) return; if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; } move(e); });
     document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
     // v169 fix: a click can re-render / hide the hovered element, leaving the tip
-    // orphaned and chasing the cursor. Any click or scroll dismisses it outright.
+    // orphaned and chasing the cursor. A click dismisses it outright.
     document.addEventListener('click', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
-    window.addEventListener('scroll', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
+    // v171 fix: scroll only dismisses an ORPHANED tip (disconnected / hidden host) —
+    // mirroring the mousemove guard. A benign smooth-scroll (scroll-behavior:smooth
+    // scrollIntoView fires a stream of scroll events) no longer suppresses the popup
+    // while the hovered element is still on-screen, which previously blanked it.
+    window.addEventListener('scroll', function(){ if (cur && (!cur.isConnected || cur.offsetParent===null)){ cur=null; tip.classList.remove('on'); } }, true);
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit); else arttipInit();
 })();
