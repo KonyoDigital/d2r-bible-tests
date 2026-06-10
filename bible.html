@@ -3360,14 +3360,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <ol>
       <li>Rescue Cain in Act 1 (the Cairn Stones quest in Stony Field — activate them in order: 5 → 2 → 3 → 1 → 4)</li>
       <li>Red portal opens in Stony Field → Tristram</li>
-      <li>Click Wirt's corpse → picks up <strong>Wirt's Leg</strong></li>
+      <li>Click Wirt's corpse → picks up <strong><span class="zd-item-click" data-art-logo="Wirt's Leg" data-art-glyph="🦴" data-art-route="Wirt's Leg" style="cursor:pointer;color:var(--gold)">Wirt's Leg</span></strong></li>
     </ol>
     <div class="info"><strong>Note:</strong> You can grab Wirt's Leg on ANY difficulty as long as you rescue Cain on that difficulty. The Leg itself is the same item across all 3 difficulties — keep ONE in stash, it never breaks.</div>
 
     <h3>🌀 Step 2 — Cube the portal</h3>
     <div class="cube-section">
       <div class="cube-row">
-        <div class="cube-input">Wirt's Leg + Tome of Town Portal (any)</div>
+        <div class="cube-input"><span class="zd-item-click" data-art-logo="Wirt's Leg" data-art-glyph="🦴" data-art-route="Wirt's Leg" style="cursor:pointer;color:var(--gold)">Wirt's Leg</span> + Tome of Town Portal (any)</div>
         <div class="cube-arrow">→</div>
         <div class="cube-output">red portal in Rogue Encampment · "Moo Moo Farm"</div>
       </div>
@@ -4431,7 +4431,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <details class="cube-cat" open>
   <summary>📜 Quest recipes — town only <span class="cube-cat-count">3</span></summary>
   <div class="cube-body">
-  <div class="cube-row"><div class="cube-input">Wirt's Leg + Tome of Town Portal <span style="color:var(--text-dim)">(Rogue Encampment, game completed on this difficulty)</span></div><div class="cube-arrow">→</div><div class="cube-output">Red portal → Secret Cow Level</div></div>
+  <div class="cube-row"><div class="cube-input"><span class="zd-item-click" data-art-logo="Wirt's Leg" data-art-glyph="🦴" data-art-route="Wirt's Leg" style="cursor:pointer;color:var(--gold)">Wirt's Leg</span> + Tome of Town Portal <span style="color:var(--text-dim)">(Rogue Encampment, game completed on this difficulty)</span></div><div class="cube-arrow">→</div><div class="cube-output">Red portal → Secret Cow Level</div></div>
   <div class="cube-row"><div class="cube-input">Staff of Kings + Viper Amulet</div><div class="cube-arrow">→</div><div class="cube-output">Horadric Staff (Act 2)</div></div>
   <div class="cube-row"><div class="cube-input">Khalim's Eye + Heart + Brain + Flail</div><div class="cube-arrow">→</div><div class="cube-output">Khalim's Will (Act 3)</div></div>
   </div>
@@ -4654,6 +4654,16 @@ const SPECIAL_DROPS = {
       {n: "Worldstone Shard (Deep)", from: ["Hell TZ Act 4 zones"], rate: "~1:500-1500", note: "Drops: River of Flame, Chaos Sanctuary. -> Renewed Flame Rift (fire) + part of Renewed Black Cleft (magic)."}
     ],
     recipe: "Renewed Sunder upgrade (per charm): Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard(s) -> Renewed (adds random stats). Per-shard Renewed targets are listed above. Source: Maxroll."
+  },
+  cowAccess: {
+    label: "Cow Level Access",
+    icon: "🦴",
+    blurb: "Wirt's Leg + Tome of Town Portal cubed in the Rogue Encampment opens the red portal to the Secret Cow Level (you must have killed Baal on that difficulty).",
+    items: [
+      {n: "Wirt's Leg", from: ["Wirt's corpse \u00b7 Tristram (red portal at the Cairn Stones, Stony Field)"], rate: "guaranteed \u00b7 1 per Tristram visit \u00b7 any difficulty", note: "Club-class quest item off Wirt's corpse \u2014 works on ANY difficulty as long as Cain was rescued on it. The cube consumes the Leg, so fetch a fresh one from Tristram for every portal you want to open."}
+    ],
+    recipe: "Wirt's Leg + Tome of Town Portal in cube (Rogue Encampment) \u2192 red portal to the Secret Cow Level",
+    important: "Portal difficulty = game difficulty. Full cow strategy, drops + the Cow King live on the Hell Bovines boss card and the Secret Cow Level event card."
   }
 };
 
@@ -6900,6 +6910,8 @@ const ITEMS = [];
 const D2IO_ART = {
   // set/runeword representative art + sunder chips (auto-verified HTTP 200 + image/png on 2026-06-10; sets use an iconic piece)
   "Worldstone Shards": "https://diablo2.io/styles/zulu/theme/images/items/northern_graphic.png",
+  "Wirt's Leg": "https://diablo2.io/styles/zulu/theme/images/items/wirtsleg_graphic.png",
+  "Cow Level Access": "https://diablo2.io/styles/zulu/theme/images/items/wirtsleg_graphic.png",
   "Call to Arms": "https://diablo2.io/styles/zulu/theme/images/items/flail_graphic.png",
   "Sunder Charms": "https://diablo2.io/styles/zulu/theme/images/items/flamerift_graphic.png",
   "Sigon's Complete Steel": "https://diablo2.io/styles/zulu/theme/images/items/sigonsshelter_graphic.png",
@@ -10407,16 +10419,16 @@ const RUNE_SOURCES = [
   {
     id:'cow', emoji:'🐄', name:'Hell Bovines (Cow Level)', tier:'A', bossId:'cows',
     subtitle:'Secret Cow Level · always-Hell area',
-    loc:'Moo Moo Farm · via Wirt\'s Leg + Tome of Town Portal in cube', headline:'',
-    why:'Massive density (~400+ cows per game) + each cow has a normal monster rune table. NOT as fast as Countess for low-mid runes, but good for general MF + occasional high rune. Cows have decent body count for sets/uniques too.',
-    action:'Wirt\'s Leg (Rogue Encampment Normal) + Tome of Town Portal in cube → red portal in Rogue Encampment → walk + farm. Konyodin Hammerdin is king here (Concentration aura + Blessed Hammer one-shots cows).',
+    loc:'Moo Moo Farm · via <span class="zd-item-click" data-art-logo="Wirt\'s Leg" data-art-glyph="🦴" data-art-route="Wirt\'s Leg" style="cursor:pointer;color:var(--gold)">Wirt\'s Leg</span> + Tome of Town Portal in cube', headline:'',
+    why:'Massive density (~400+ cows per game) + each cow has a normal monster rune table. NOT as fast as <span class="zd-item-click" data-art-logo="The Countess" data-art-glyph="👸" data-boss-route="countess" style="cursor:pointer;color:var(--gold)">Countess</span> for low-mid runes, but good for general MF + occasional high rune. Cows have decent body count for sets/uniques too.',
+    action:'<span class="zd-item-click" data-art-logo="Wirt\'s Leg" data-art-glyph="🦴" data-art-route="Wirt\'s Leg" style="cursor:pointer;color:var(--gold)">Wirt\'s Leg</span> (Rogue Encampment Normal) + Tome of Town Portal in cube → red portal in Rogue Encampment → walk + farm. Konyodin Hammerdin is king here (Concentration aura + Blessed Hammer one-shots cows).',
     note:'No dedicated rune table — cows roll the normal-monster rune odds, so the value is sheer density + unique/set volume, not a high-rune rate. No per-rune grid (would be fabricated).'
   },
   {
     id:'lk', emoji:'📦', name:'Lower Kurast Chests', tier:'B+',
     subtitle:'3 superchests per game · rune-drop possible',
     loc:'Lower Kurast · Act 3 Hell', headline:'chest-only farm, no monster kills needed',
-    why:'3 fixed superchest locations that can drop runes (including high runes). ~20-30 sec per game with teleport. NOT competitive with Countess for low runes but worth as a side activity during long sessions. Each chest has an independent rune roll.',
+    why:'3 fixed superchest locations that can drop runes (including high runes). ~20-30 sec per game with teleport. NOT competitive with <span class="zd-item-click" data-art-logo="The Countess" data-art-glyph="👸" data-boss-route="countess" style="cursor:pointer;color:var(--gold)">Countess</span> for low runes but worth as a side activity during long sessions. Each chest has an independent rune roll.',
     action:'LK waypoint → teleport NE/SE/NW to find each of the 3 chest huts → open all 3 → exit + reset. With Enigma this is ~15s/game.',
     note:'Superchests roll an independent rune chance incl. high runes; exact per-chest rune odds are not cleanly published — a side activity, not a primary rune farm.'
   }
@@ -10476,7 +10488,7 @@ function toggleRuneSrc(id){
   if(!box) return;
   var open=box.hasAttribute('hidden');
   document.querySelectorAll('.rune-src-detail').forEach(function(b){ if(b!==box){ b.setAttribute('hidden',''); b.innerHTML=''; } });
-  if(open){ var src=RUNE_SOURCES.find(function(s){return s.id===id;}); if(src){ box.innerHTML=runeSourceDetailHtml(src); box.removeAttribute('hidden'); } }
+  if(open){ var src=RUNE_SOURCES.find(function(s){return s.id===id;}); if(src){ box.innerHTML=runeSourceDetailHtml(src); if(typeof decorateItemLogos==='function')decorateItemLogos(); box.removeAttribute('hidden'); } }
   else { box.setAttribute('hidden',''); box.innerHTML=''; }
 }
 function renderRuneSources(){
@@ -12355,6 +12367,23 @@ function decorateItemLogos() {
 }
 window.decorateItemLogos = decorateItemLogos;
 _v39_whenReady(decorateItemLogos);
+// v166 — delegated keyword routing: data-art-route opens an item/material card
+// (openDrop), data-boss-route opens a boss card. Keeps data strings free of
+// escaped-quote onclick handlers — enriched keywords stay plain HTML attributes.
+document.addEventListener('click', function(e){
+  var r = e.target.closest && e.target.closest('[data-art-route],[data-boss-route]');
+  if (!r) return;
+  var item = r.getAttribute('data-art-route');
+  var boss = r.getAttribute('data-boss-route');
+  if (item && typeof window.openDrop === 'function'){ e.stopPropagation(); window.openDrop(item); }
+  else if (boss && typeof window.openBossDetail === 'function'){ e.stopPropagation(); window.openBossDetail(boss); }
+}, true);
+// v166 — boss cards render enriched keyword spans too: re-run the logo decorator
+// after every boss-card open (idempotent, cheap — only undecorated spans get touched).
+if (typeof window.openBossDetail === 'function'){
+  var __obd166 = window.openBossDetail;
+  window.openBossDetail = function(){ var r = __obd166.apply(this, arguments); if (typeof decorateItemLogos === 'function') setTimeout(decorateItemLogos, 60); return r; };
+}
 
 // v146 — make the act-boss "drops from" cells (ROTW key + essence tables) clickable
 // gateways to their boss detail card. Acts ONLY on the 8 boss display-names below and
@@ -12513,7 +12542,7 @@ const BOSS_FIELD_MANUAL = {
     quest: "Anya rescue quest must be complete. First-kill bonus to drop quality."
   },
   cows: {
-    run: "Need <strong>Wirt's Leg + Tome of Town Portal</strong> cubed in Rogue Encampment after completing the difficulty's main quests. Massive density level — ~400 mobs per run.",
+    run: "Need <strong><span class='zd-item-click' data-art-logo='Wirt&#39;s Leg' data-art-glyph='🦴' data-art-route='Wirt&#39;s Leg' style='cursor:pointer;color:var(--gold)'>Wirt's Leg</span> + Tome of Town Portal</strong> cubed in Rogue Encampment after completing the difficulty's main quests. Massive density level — ~400 mobs per run.",
     key_mobs: "<strong>The Cow King</strong> is the unique boss (kills him → can't reopen cows on that char/difficulty!). Hellbovines reach <strong>TC84</strong> in Hell (<strong>TC87</strong> in a Terror Zone).",
     pitfalls: "<strong>Killing the Cow King locks the level</strong> for that character on that difficulty. Bring lightning res for charged-bolt swarms.",
     pro_tip: "<strong>Best charm density</strong> in the game (small/large/grand). Decent rune drops from Hellbovines (Hel-Ist range). Mass-MF target.",
