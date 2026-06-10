@@ -5584,6 +5584,18 @@ window.openDrop = function(name){
     __alignCard('#item-detail .gem-card');
     return;
   }
+  // Set pieces: every piece named in ITEM_SETS (+ supplements) gets an identity
+  // card. Runs BEFORE findMaterial — piece names are disjoint from material names.
+  if (typeof findSetPiece === 'function' && findSetPiece(name)){
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = null; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = setPieceDetailHtml(name); }
+    __alignCard('#item-detail .set-piece-card');
+    return;
+  }
   // Material: keys/essences/organs/charms/shards have a SPECIAL_DROPS entry
   // (some, like the Pandemonium keys, ALSO live in the ITEMS grail set) — their
   // canonical in-depth card is the material card.
@@ -6778,6 +6790,86 @@ const ITEM_SETS = [
   {name:"Angelic Raiment",pieces:["Angelic Sickle (sword)","Angelic Mantle (armor)","Angelic Halo (ring)","Angelic Wings (amulet)"]},
   {name:"Cathan's Traps",pieces:["Cathan's Visage (mask)","Cathan's Mesh (chainmail)","Cathan's Sigil (amulet)","Cathan's Seal (ring)","Cathan's Rule (rod)"]},
 ];
+// v169 — set-piece ID cards: every piece in ITEM_SETS (+ the 4 supplemental calc sets)
+// resolves to its own identity card — name, art, slot, parent set, sister pieces.
+// Identity only: per-piece stats are not stored in this file, so none are rendered.
+const SET_PIECES_EXTRA = [
+  {name:"Cow King's Leathers (set)", pieces:["Cow King's Horns (war bonnet)","Cow King's Hide (studded leather)","Cow King's Hooves (heavy boots)"]},
+  {name:"Sazabi's Grand Tribute", pieces:["Sazabi's Cobalt Redeemer (cryptic sword)","Sazabi's Ghost Liberator (balrog skin)","Sazabi's Mental Sheath (basinet)"]},
+  {name:"Naj's Ancient Vestige", pieces:["Naj's Puzzler (elder staff)","Naj's Light Plate (hellforge plate)","Naj's Circlet (circlet)"]},
+  {name:"Orphan's Call (set)", pieces:["Guillaume's Face (winged helm)","Whitstan's Guard (round shield)","Magnus' Skin (sharkskin gloves)","Wilhelm's Pride (battle belt)"]}
+];
+function __allSets(){ return (typeof ITEM_SETS!=='undefined'?ITEM_SETS:[]).concat(SET_PIECES_EXTRA); }
+function __pieceBase(pc){ return String(pc).replace(/\s*\([^)]*\)\s*$/,''); }
+function __pieceSlot(pc){ var m=String(pc).match(/\(([^)]*)\)\s*$/); return m?m[1]:''; }
+function findSetPiece(name){
+  if(!name) return null;
+  var q=_norm(name);
+  var sets=__allSets();
+  for(var i=0;i<sets.length;i++){
+    var ps=sets[i].pieces||[];
+    for(var k=0;k<ps.length;k++){
+      if(_norm(__pieceBase(ps[k]))===q) return {set:sets[i], piece:ps[k], base:__pieceBase(ps[k]), slot:__pieceSlot(ps[k])};
+    }
+  }
+  return null;
+}
+window.findSetPiece = findSetPiece;
+function __setStem(s){ return _norm(String(s).replace(/\((any piece|any|set|sorc|necro|barb|ama|sin|pala|druid)\)/gi,'').replace(/\bset\b/gi,'')); }
+function setEntryForItemName(name){
+  if(!name) return null;
+  var q=__setStem(name);
+  if(!q) return null;
+  var sets=__allSets();
+  for(var i=0;i<sets.length;i++){
+    var t=__setStem(sets[i].name);
+    if(t===q||t.indexOf(q)===0||q.indexOf(t)===0) return sets[i];
+  }
+  return null;
+}
+window.setEntryForItemName = setEntryForItemName;
+function setAggregateItemFor(setName){
+  if(typeof ITEMS==='undefined') return null;
+  var t=__setStem(setName);
+  var hit=ITEMS.find(function(it){ var s=__setStem(it.n); return s===t||s.indexOf(t)===0||t.indexOf(s)===0; });
+  return hit?hit.n:null;
+}
+window.setAggregateItemFor = setAggregateItemFor;
+function setPieceDetailHtml(name){
+  var hit=findSetPiece(name); if(!hit) return '';
+  var agg=setAggregateItemFor(hit.set.name);
+  var sibs=(hit.set.pieces||[]).filter(function(pc){return __pieceBase(pc)!==hit.base;}).map(function(pc){
+    var b=__pieceBase(pc), sl=__pieceSlot(pc);
+    return '<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open '+b+' ID card" onclick="window.openDrop(\''+_esc1(b)+'\')"><span class="ct-art">'+(typeof artOr==='function'?artOr(b,'<span class="ct-emoji">\U0001F9E9</span>','lg'):'')+'</span><div class="ct-body"><div class="ct-name">'+b+'</div><div class="ct-sub">'+(sl||'set piece')+'</div></div></div>';
+  }).join('');
+  var setChip = agg
+    ? '<span class="zd-item-click" style="cursor:pointer;color:var(--gold)" onclick="window.navigateToItem(\''+_esc1(agg)+'\')">'+hit.set.name+' \u2192</span>'
+    : hit.set.name;
+  return '<div class="gic-card material-card set-piece-card">'
+    +'<header class="gic-header">'
+    +(typeof artOr==='function'?artOr(hit.base,'<span class="gic-emoji">\U0001F9E9</span>','lg'):'')
+    +'<div class="gic-id-block">'
+    +'<h2 class="gic-name">'+hit.base+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#4a6,#336);color:#dfeaff">Set Piece</span></h2>'
+    +'<div class="gic-subtitle">'+(hit.slot?hit.slot+' \u00b7 ':'')+'one piece of <strong>'+hit.set.name+'</strong></div>'
+    +'<div class="gic-meta-row"><span class="gic-meta-chip">set: '+setChip+'</span><span class="gic-meta-chip">'+String((hit.set.pieces||[]).length)+' pieces total</span></div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">\u2715 close</button></div>'
+    +'</header>'
+    +'<section class="gic-section"><div class="gic-section-title">\U0001F9E9 Sister pieces \u2014 open each ID card</div><div class="colossal-grid">'+sibs+'</div></section>'
+    +'<div class="zd-note" style="margin-top:10px">Identity card \u2014 set membership + slot from this file\'s set data. Per-piece stats are not stored here, so none are shown (no fabricated odds).</div>'
+    +'</div>';
+}
+window.setPieceDetailHtml = setPieceDetailHtml;
+function setPiecesSectionHtml(name){
+  var entry=(typeof setEntryForItemName==='function')?setEntryForItemName(name):null;
+  if(!entry) return '';
+  var tiles=(entry.pieces||[]).map(function(pc){
+    var b=__pieceBase(pc), sl=__pieceSlot(pc);
+    return '<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open '+b+' ID card" onclick="window.openDrop(\''+_esc1(b)+'\')"><span class="ct-art">'+(typeof artOr==='function'?artOr(b,'<span class="ct-emoji">🧩</span>','lg'):'')+'</span><div class="ct-body"><div class="ct-name">'+b+'</div><div class="ct-sub">'+(sl||'set piece')+'</div></div></div>';
+  }).join('');
+  return '<div class="gic-card material-card set-pieces-inline" style="margin-top:12px"><section class="gic-section"><div class="gic-section-title">🧩 The pieces of '+entry.name+' \u2014 open each ID card</div><div class="zd-note" style="margin-bottom:8px">Slot in parentheses on each tile. Click any piece for its identity card.</div><div class="colossal-grid">'+tiles+'</div></section></div>';
+}
+window.setPiecesSectionHtml = setPiecesSectionHtml;
 
 const COUNTESS_RUNES = [
   {n:"Lo #28",norm:null,nm:null,hell:320197,hellTz:80000,use:"Fortitude, Grief"},
@@ -7018,6 +7110,30 @@ const D2IO_ART = {
   "Worldstone Shards": "https://diablo2.io/styles/zulu/theme/images/items/northern_graphic.png",
   "Wirt's Leg": "https://diablo2.io/styles/zulu/theme/images/items/wirtsleg_graphic.png",
   "Cow Level Access": "https://diablo2.io/styles/zulu/theme/images/items/wirtsleg_graphic.png",
+  // v169 — set-piece art (each slug previously curl-verified 200 image/png or already hotlinked in-page)
+  "Tal Rasha's Guardianship": "https://diablo2.io/styles/zulu/theme/images/items/talrashasguardianship_graphic.png",
+  "Trang-Oul's Guise": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsguise_graphic.png",
+  "Trang-Oul's Scales": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsscales_graphic.png",
+  "Trang-Oul's Wing": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulswing_graphic.png",
+  "Trang-Oul's Claws": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsclaws_graphic.png",
+  "Trang-Oul's Girth": "https://diablo2.io/styles/zulu/theme/images/items/trang-oulsgirth_graphic.png",
+  "IK's Soul Cage": "https://diablo2.io/styles/zulu/theme/images/items/immortalsoulcage_graphic.png",
+  "IK's Will": "https://diablo2.io/styles/zulu/theme/images/items/immortalwill_graphic.png",
+  "M'avina's True Sight": "https://diablo2.io/styles/zulu/theme/images/items/mavinastruesight_graphic.png",
+  "Natalya's Totem": "https://diablo2.io/styles/zulu/theme/images/items/natalyastotem_graphic.png",
+  "Griswold's Heart": "https://diablo2.io/styles/zulu/theme/images/items/griswoldsheart_graphic.png",
+  "Griswold's Valor": "https://diablo2.io/styles/zulu/theme/images/items/griswoldsvalor_graphic.png",
+  "Aldur's Advance": "https://diablo2.io/styles/zulu/theme/images/items/aldursadvance_graphic.png",
+  "Bul-Kathos' Sacred Charge": "https://diablo2.io/styles/zulu/theme/images/items/bulkathossacredcharge_graphic.png",
+  "Iratha's Coil": "https://diablo2.io/styles/zulu/theme/images/items/irathascoil_graphic.png",
+  "Sigon's Shelter": "https://diablo2.io/styles/zulu/theme/images/items/sigonsshelter_graphic.png",
+  "Sigon's Visor": "https://diablo2.io/styles/zulu/theme/images/items/sigonsvisor_graphic.png",
+  "Angelic Mantle": "https://diablo2.io/styles/zulu/theme/images/items/angelicmantle_graphic.png",
+  "Angelic Sickle": "https://diablo2.io/styles/zulu/theme/images/items/angelicsickle_graphic.png",
+  "Cathan's Mesh": "https://diablo2.io/styles/zulu/theme/images/items/cathansmesh_graphic.png",
+  "Naj's Circlet": "https://diablo2.io/styles/zulu/theme/images/items/najscirclet_graphic.png",
+  "Guillaume's Face": "https://diablo2.io/styles/zulu/theme/images/items/guillaumesface_graphic.png",
+  "Sazabi's Ghost Liberator": "https://diablo2.io/styles/zulu/theme/images/items/sazabisghostliberator_graphic.png",
   "Call to Arms": "https://diablo2.io/styles/zulu/theme/images/items/flail_graphic.png",
   "Sunder Charms": "https://diablo2.io/styles/zulu/theme/images/items/flamerift_graphic.png",
   "Sigon's Complete Steel": "https://diablo2.io/styles/zulu/theme/images/items/sigonsshelter_graphic.png",
@@ -8540,6 +8656,14 @@ function renderItemDetailCard(itemName) {
     </section>`;
   }
 
+  // v169 — set aggregates render their full piece list as routable ID-card tiles.
+  const __setEntry = (typeof setEntryForItemName === 'function') ? setEntryForItemName(item.n) : null;
+  const __piecesHtml = __setEntry ? `<section class="gic-section">
+        <div class="gic-section-title">🧩 The pieces — open each ID card</div>
+        <div class="zd-note" style="margin-bottom:8px">Every piece of ${__setEntry.name} — slot in parentheses. Click any piece for its identity card.</div>
+        <div class="colossal-grid">${__setEntry.pieces.map(pc => { const b = pc.replace(/\s*\([^)]*\)\s*$/,''); const sl = (pc.match(/\(([^)]*)\)\s*$/)||[, ''])[1]; return `<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${b} ID card" onclick="window.openDrop('${_esc1(b)}')"><span class="ct-art">${typeof artOr==='function'?artOr(b, '<span class="ct-emoji">🧩</span>', 'lg'):''}</span><div class="ct-body"><div class="ct-name">${b}</div><div class="ct-sub">${sl||'set piece'}</div></div></div>`; }).join('')}</div>
+      </section>` : '';
+
   panel.innerHTML = `
     <div class="gic-card">
       <header class="gic-header">
@@ -8621,6 +8745,8 @@ function renderItemDetailCard(itemName) {
           </div>
         </div>
       </section>
+
+      ${__piecesHtml}
 
       <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--gold-dim);font-family:var(--mono)">
         Press ESC to close · MF: ${mf}% · /players ${typeof players !== 'undefined' ? players : 1}
@@ -9866,7 +9992,7 @@ function renderDetail() {
   }
   const starHtml = `<span class="star-btn ${wishlist.has(item.n)?'starred':''}" style="font-size:24px" onclick="toggleStar('${item.n.replace(/'/g,"\\'")}')">${wishlist.has(item.n)?'★':'☆'}</span>`;
   const ownedHtml = `<button class="owned-btn ${owned.has(item.n)?'owned':''}" style="font-size:14px;padding:4px 10px" onclick="toggleOwned('${item.n.replace(/'/g,"\\'")}')">${owned.has(item.n)?'✓ owned':'☐ mark owned'}</button>`;
-  panel.innerHTML = `${renderAidCard(item.n, {context:'calc'})}${renderCodexCard(item.n)}<div class="scroll-table"><table class="drops">
+  panel.innerHTML = `${renderAidCard(item.n, {context:'calc'})}${renderCodexCard(item.n)}${typeof setPiecesSectionHtml==='function'?setPiecesSectionHtml(item.n):''}<div class="scroll-table"><table class="drops">
     <thead><tr><th>source</th><th class="diff-col">your chance</th><th class="diff-col">50% conf</th><th class="diff-col">≈ time</th><th class="diff-col">95% conf</th></tr></thead>
     <tbody>
       ${allSorted.map(s => {
@@ -11489,8 +11615,12 @@ window._arttipResolve = _arttipResolve;
       tip.classList.toggle('tip-rich', !!r.rich);
       move(e); tip.classList.add('on');
     });
-    document.addEventListener('mousemove', function(e){ if (cur) move(e); });
+    document.addEventListener('mousemove', function(e){ if (!cur) return; if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; } move(e); });
     document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+    // v169 fix: a click can re-render / hide the hovered element, leaving the tip
+    // orphaned and chasing the cursor. Any click or scroll dismisses it outright.
+    document.addEventListener('click', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
+    window.addEventListener('scroll', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit); else arttipInit();
 })();
