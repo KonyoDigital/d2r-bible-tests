@@ -5909,6 +5909,23 @@ function superUniqueDetailHtml(su){
       if (typeof zoneHellGridHtml === 'function') h += zoneHellGridHtml(pz);
     }
   }
+  // v172 — TZ-tab unification: a super-unique with NO TZ cross-link AND no curated pool
+  // (Pindleskin, Izual, Coldcrow, Bone Ash, Rakanishu, Bishibosh) still gets the SAME ranked
+  // golden drop grid the headliner SUs show — so the whole roster is droppable one-to-one.
+  // The grid is gated PURELY by the super-unique's own verified Hell area mlvl (su.mlvl) via
+  // the file-wide qlvl<=mlvl reachability rule, with the TC ceiling clamped to that same mlvl
+  // (TC<=area-level, capped at the game's TC87 unique top) — the identical, already-trusted
+  // methodology behind the Lister / Hephasto / Smith pools. No per-kill odds and no new
+  // item-to-source claims are invented: it reuses zoneGrailDrops + zoneHellGridHtml exactly
+  // like the zone tables, just keyed off the SU's native mlvl instead of a terror ceiling.
+  else if (!tz && typeof zoneGrailDrops === 'function'){
+    const nz = {name: su.act, tcMax: Math.min(su.mlvl, 87), mlvl: su.mlvl};
+    const nn = zoneGrailDrops(nz).length;
+    if (nn){
+      h += `<div class="zd-row su-pool-intro"><span class="zd-k">drop pool</span><span class="zd-v"><div class="zd-drops-head">🏆 native area · ${su.act} · mlvl ${su.mlvl} — ${nn} TC-reachable grail / uber uniques (every grail whose qlvl &le; mlvl ${su.mlvl}). Every item below routes to its own golden card, exactly like the Baal &amp; terror-zone drop tables.</div></span></div>`;
+      if (typeof zoneHellGridHtml === 'function') h += zoneHellGridHtml(nz);
+    }
+  }
   if (su.dclone){
     h += `<div class="zd-row"><span class="zd-k">DClone</span><span class="zd-v">🔱 When <strong>Diablo Walks the Earth</strong> (stage 6), spawn-camp here — DClone replaces the first super-unique you meet, and ${su.name.split(' ')[0]} is a known camp spot.</span></div>`;
   }
