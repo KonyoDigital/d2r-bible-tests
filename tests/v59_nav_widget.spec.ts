@@ -12,6 +12,10 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // (header click, hash route, or the widget itself).
 test.describe('v59 nav compass widget', () => {
   test.beforeEach(async ({ page }) => {
+    // suppress the transient first-visit routine-bar pulse (z9999) — since v162 moved the
+    // compass to the bottom-right it shares the corner with that pulse; suppressing it
+    // tests the compass in its persistent, returning-visitor state (deterministic)
+    await page.addInitScript(() => { try { localStorage.setItem('routineBarSeen', '1'); } catch (e) {} });
     await page.goto(URL);
     await page.waitForTimeout(1200);
   });
@@ -26,7 +30,8 @@ test.describe('v59 nav compass widget', () => {
       return {
         hasWidget: !!w,
         hasFab: !!fab,
-        fabIsCompass: (fab?.textContent || '').includes('🧭'),
+        // v162: the flat 🧭 emoji was upgraded to an animated inline SVG compass face
+        fabIsCompass: !!fab?.querySelector('svg.nav-compass'),
         tabNames, chipNames,
         chipsMatchTabs: JSON.stringify(tabNames) === JSON.stringify(chipNames),
         hasBackToTop: !!document.querySelector('#nav-widget .nav-chip.nav-top'),
@@ -136,11 +141,11 @@ test.describe('v59 nav compass widget', () => {
       const w = document.getElementById('nav-widget')!;
       const fab = document.getElementById('nav-fab')!;
       const cs = (el: Element) => getComputedStyle(el).pointerEvents;
-      // a point inside the widget's box but to the RIGHT of the FAB (the 188px-wide
-      // dead zone that previously intercepted clicks on content underneath)
+      // a point inside the widget's box but to the LEFT of the FAB (v162 right-aligned
+      // the widget, so the 188px-wide dead zone now sits to the LEFT of the corner FAB)
       const wr = w.getBoundingClientRect();
       const fr = fab.getBoundingClientRect();
-      const probeX = Math.min(wr.right - 4, fr.right + 40);
+      const probeX = Math.max(wr.left + 4, fr.left - 40);
       const probeY = fr.top + fr.height / 2;
       const hit = document.elementFromPoint(probeX, probeY);
       const fabHit = document.elementFromPoint(fr.left + fr.width / 2, fr.top + fr.height / 2);

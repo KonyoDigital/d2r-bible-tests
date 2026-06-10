@@ -2313,10 +2313,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      depth, so you can jump to any tab or back to the top WITHOUT scrolling up
      to the sticky header. Solves the "I clicked a card, now I have to scroll
      all the way back up to switch tabs" friction. */
-  /* bottom-LEFT: bottom-right is taken by the ? help-btn + routine-status-bar (z9999) */
+  /* bottom-RIGHT, stacked ABOVE the ? help-btn (bottom:18px,42px tall) so the two
+     gold circles share a corner without overlapping; routine-status-bar (z9999) is
+     hidden by default and only flashes briefly, so it's safe to share the corner */
   /* container is click-through (its 188px-wide box must not eat content clicks underneath);
      only the FAB + an open panel are interactive */
-  .nav-widget{position:fixed;left:20px;bottom:20px;z-index:210;display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-family:inherit;pointer-events:none}
+  /* right:11px centers the 56px compass on the same vertical axis as the 42px ? help-btn
+     (right:18px) so the two corner controls form a clean, symmetric stack */
+  .nav-widget{position:fixed;right:11px;bottom:72px;z-index:210;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit;pointer-events:none}
   .nav-fab{pointer-events:auto;width:56px;height:56px;border-radius:50%;border:1px solid var(--gold);cursor:pointer;
     background:radial-gradient(circle at 35% 30%,var(--gold-bright),var(--gold) 55%,#8a6a2a);
     color:#1a140d;font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;
@@ -2325,6 +2329,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .nav-fab:hover{transform:scale(1.07) rotate(-8deg);box-shadow:0 6px 24px rgba(0,0,0,.6),0 0 0 5px rgba(212,168,71,.18),0 0 30px rgba(240,192,96,.55)}
   .nav-fab:active{transform:scale(.96)}
   .nav-widget.open .nav-fab{transform:rotate(45deg)}
+  /* animated compass face inside the FAB: dark rose, gold ticks, a red/cream needle
+     that slowly "searches" then settles, spinning faster on hover */
+  .nav-compass{width:33px;height:33px;display:block;overflow:visible;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
+  .nc-ring{fill:rgba(26,20,13,.45);stroke:#3a2c14;stroke-width:2.4}
+  .nc-ticks line{stroke:#6a5226;stroke-width:1.8;stroke-linecap:round}
+  .nc-needle{transform-origin:24px 24px;animation:navCompassSpin 9s cubic-bezier(.45,.05,.55,.95) infinite}
+  .nc-n{fill:#c0392b}
+  .nc-s{fill:#f4e9d0}
+  .nc-hub{fill:#1a140d;stroke:#6a5226;stroke-width:1}
+  .nav-fab:hover .nc-needle{animation-duration:2.6s}
+  @keyframes navCompassSpin{
+    0%{transform:rotate(0deg)} 14%{transform:rotate(168deg)} 26%{transform:rotate(120deg)}
+    44%{transform:rotate(312deg)} 58%{transform:rotate(258deg)} 76%{transform:rotate(392deg)}
+    100%{transform:rotate(360deg)}
+  }
+  @media(prefers-reduced-motion:reduce){.nc-needle{animation:none}}
   .nav-panel{display:flex;flex-direction:column;gap:5px;min-width:188px;max-height:0;overflow:hidden;
     background:rgba(16,12,8,.97);backdrop-filter:blur(12px);border:1px solid var(--border-light);border-radius:14px;
     box-shadow:0 12px 40px rgba(0,0,0,.65);padding:0 8px;opacity:0;transform:translateY(10px) scale(.97);transform-origin:bottom right;
@@ -2338,7 +2358,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .nav-chip.active{background:linear-gradient(135deg,rgba(255,208,64,.2),rgba(212,168,71,.06));color:var(--gold-bright);border-color:var(--gold);font-weight:600}
   .nav-chip.nav-top{color:var(--grail);border-top:1px solid var(--border);border-radius:0 0 9px 9px;margin-top:3px}
   .nav-chip.nav-top:hover{background:rgba(0,255,255,.1);color:var(--grail);border-color:rgba(0,255,255,.3)}
-  @media(max-width:700px){.nav-widget{left:14px;bottom:14px}.nav-fab{width:50px;height:50px;font-size:23px}.nav-panel{min-width:168px}}
+  @media(max-width:700px){.nav-widget{right:8px;bottom:62px}.nav-fab{width:50px;height:50px;font-size:23px}.nav-panel{min-width:168px}}
   @media print{.nav-widget{display:none}}
 
 </style>
@@ -4509,6 +4529,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <li><span class="kbd">↑↓←→</span> in calculator: navigate item grid</li>
       <li><span class="kbd">Enter</span> when item focused: open detail panel</li>
       <li><span class="kbd">B</span> when item selected: jump to bosses + highlight every drop source</li>
+      <li><span class="kbd">D</span> toggle the MF / Players dock at the bottom (slides it down to reclaim space)</li>
+      <li><span class="kbd">R</span> toggle the routine-status widget</li>
       <li><span class="kbd">?</span> open this help · <span class="kbd">Esc</span> close modal / clear item highlight</li>
     </ul>
     <h3>🎯 v12 sharper routing (your request)</h3>
@@ -11697,7 +11719,15 @@ function buildNavWidget() {
     + `<div class="nav-chip nav-top" role="button" tabindex="0" onclick="navTop()">`
     + `<span class="nav-ic">⬆️</span><span>Back to top</span></div>`
     + `</div>`
-    + `<button class="nav-fab" id="nav-fab" aria-label="Navigation menu" title="Navigate" onclick="toggleNavPanel(event)">🧭</button>`;
+    + `<button class="nav-fab" id="nav-fab" aria-label="Navigation menu" title="Navigate" onclick="toggleNavPanel(event)">`
+    + `<svg class="nav-compass" viewBox="0 0 48 48" aria-hidden="true" focusable="false">`
+    + `<circle class="nc-ring" cx="24" cy="24" r="20"/>`
+    + `<g class="nc-ticks"><line x1="24" y1="5" x2="24" y2="10"/><line x1="24" y1="38" x2="24" y2="43"/>`
+    + `<line x1="5" y1="24" x2="10" y2="24"/><line x1="38" y1="24" x2="43" y2="24"/></g>`
+    + `<g class="nc-needle"><polygon class="nc-n" points="24,8 28.5,24 24,21.5 19.5,24"/>`
+    + `<polygon class="nc-s" points="24,40 19.5,24 24,26.5 28.5,24"/></g>`
+    + `<circle class="nc-hub" cx="24" cy="24" r="2.6"/>`
+    + `</svg></button>`;
   document.body.appendChild(w);
   // keyboard activation: Enter / Space fire the focused chip or FAB (role=button a11y)
   w.addEventListener("keydown", (e) => {
@@ -12083,7 +12113,10 @@ setTimeout(() => {
   if (bar && !localStorage.getItem('routineBarSeen')) {
     bar.style.display = 'block';
     bar.id = 'routine-toggle-pulse';
-    setTimeout(() => { bar.id = 'routine-status-bar'; }, 5000);
+    // the pulse is meant to be BRIEF — hide it again after 5s so it doesn't sit on top
+    // of the bottom-right corner controls (? help-btn + nav compass) for the whole
+    // session. It only ever shows once (routineBarSeen), and R re-toggles it on demand.
+    setTimeout(() => { bar.id = 'routine-status-bar'; bar.style.display = 'none'; }, 5000);
     localStorage.setItem('routineBarSeen', '1');
   }
 }, 1500);
@@ -14797,7 +14830,7 @@ button:hover:not(:disabled) {
   transform: none !important;
 }
 
-.gbc-close, .aid-close-btn, .help-btn {
+.gbc-close, .aid-close-btn {
   font-family: var(--sans) !important;
   font-size: 10px !important;
   font-weight: 600 !important;
@@ -14805,6 +14838,8 @@ button:hover:not(:disabled) {
   text-transform: uppercase !important;
   border-radius: 2px !important;
 }
+/* the floating ? help-btn is a circular FAB (matches the nav compass) — keep it out of
+   the squared editorial close-button group above so the bottom-right corner stays unified */
 
 /* ════════════════════════════════════════════════════════════════════════
    HELP MODAL + GLOSSARY — feature article
@@ -15090,8 +15125,9 @@ body{ padding-bottom: 108px; }
   :root{ --dock-h: 118px; }
   body{ padding-bottom: calc(var(--dock-h) + 22px); }
   .control-dock{ padding:0 8px 8px; }
-  /* lift the bottom-corner widgets above the taller mobile dock */
-  .nav-widget{ bottom: calc(var(--dock-h) + 12px) !important; }
+  /* lift the bottom-corner widgets above the taller mobile dock; the nav compass
+     stacks above the ? help-btn (38px tall on mobile) so they don't overlap */
+  .nav-widget{ bottom: calc(var(--dock-h) + 62px) !important; }
   .help-btn{ bottom: calc(var(--dock-h) + 12px) !important; }
   #v42-tz-countdown{ bottom: calc(var(--dock-h) + 12px) !important; }
 }
