@@ -4793,6 +4793,11 @@ function materialDetailHtml(name){
       <div class="zd-note" style="margin-bottom:8px">Click any variant for its full affix list, source Ancient, and sister jewel. Each is also globally searchable by its own name.</div>
       <div class="colossal-grid">${COLOSSAL_JEWELS.map(j=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${j.n} ID card" onclick="window.openDrop('${_esc1(j.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(j.n)}')}"><span class="ct-art">${artOr(j.n, '<span class="ct-emoji">'+j.emoji+'</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${j.n}</div><div class="ct-sub">${j.elem} · from Colossal ${j.ancient}</div></div></div>`).join('')}</div>
     </section>` : ''}
+    ${catKey==='colossalStatue' && typeof COLOSSAL_STATUES!=='undefined' ? `<section class="gic-section">
+      <div class="gic-section-title">🗿 The 5 statues — open each ID card</div>
+      <div class="zd-note" style="margin-bottom:8px">Each drops from one TERRORIZED Hell act boss; click any statue for its full ID card. Cube all 5 → Colossal Summit to summon the Colossal Ancients.</div>
+      <div class="colossal-grid">${COLOSSAL_STATUES.map(s=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${s.n} ID card" onclick="window.openDrop('${_esc1(s.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(s.n)}')}"><span class="ct-art">${artOr(s.n, '<span class="ct-emoji">🗿</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${s.n}</div><div class="ct-sub">from terrorized Hell ${s.boss}</div></div></div>`).join('')}</div>
+    </section>` : ''}
     ${catKey==='token' && typeof SPECIAL_DROPS!=='undefined' && SPECIAL_DROPS.essence ? `<section class="gic-section">
       <div class="gic-section-title">🩸 The 4 essences — cube all four</div>
       <div class="zd-note" style="margin-bottom:8px">Each drops from a specific Hell act boss; click any for its full ID card. Cube all four → Token of Absolution.</div>
@@ -9163,6 +9168,9 @@ function renderSpecialDrops() {
   const CAT_ART = {essence:'Essence of Hatred', token:'Token of Absolution', key:'Key of Terror',
     organ:"Diablo's Horn", uberCharm:'Hellfire Torch', colossalJewel:'Colossal Ancient Jewels',
     colossalStatue:'Colossal Ancient Statue', sunder:'Bone Break'};
+  // v167 — category titles route to their aggregate hub/golden card when one exists.
+  const CAT_ROUTE = {sunder:'Sunder Charms', colossalJewel:'Colossal Ancient Jewels',
+    colossalStatue:'Colossal Ancient Statue', token:'Token of Absolution', cowAccess:"Wirt's Leg"};
   const _art = (typeof artOr === 'function');
   el.innerHTML = Object.entries(SPECIAL_DROPS).map(([key, cat]) => {
     const itemsHtml = cat.items.map(it => {
@@ -9179,10 +9187,11 @@ function renderSpecialDrops() {
     </div>`;
     }).join('');
     const catIcon = _art ? artOr(CAT_ART[key] || cat.label, cat.icon, 'md') : cat.icon;
+    const catRoute = CAT_ROUTE[key] || null;
     return `<div class="sd-cat">
       <div class="sd-cat-head">
         <span class="sd-cat-icon">${catIcon}</span>
-        <div class="sd-cat-label">${cat.label}</div>
+        <div class="sd-cat-label${catRoute?' zd-item-click':''}"${catRoute?` role="button" tabindex="0" style="cursor:pointer" title="open ${catRoute} card" onclick="event.stopPropagation();window.openDrop('${_esc1(catRoute)}')"`:''}>${cat.label}</div>
         <div class="sd-cat-count">${cat.items.length} item${cat.items.length===1?'':'s'}</div>
       </div>
       <div class="sd-cat-blurb">${cat.blurb}</div>
