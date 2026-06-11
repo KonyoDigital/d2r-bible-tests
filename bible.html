@@ -16098,5 +16098,116 @@ body:has(.control-dock.dock-collapsed){ padding-bottom: 40px; }
 @media print{ .control-dock .dock-handle{ display:none !important; } }
 </style>
 
+<style id="v192-gilded-grimoire-styles">
+/* ═══════════ v192 — GILDED GRIMOIRE layer (CSS-only, appended last to win cascade) ═══════════ */
+
+/* ── A. Atmosphere: film grain + breathing ember behind the masthead ── */
+body::after{
+  content:""; position:fixed; inset:0; z-index:9999; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity:.05; mix-blend-mode:overlay;
+}
+body::before{
+  content:""; position:fixed; left:50%; top:-340px; width:1100px; height:680px; z-index:0;
+  transform:translateX(-50%); pointer-events:none;
+  background:radial-gradient(ellipse at center, rgba(212,168,71,.075), rgba(212,168,71,.028) 45%, transparent 70%);
+  animation:gildEmber 11s ease-in-out infinite alternate;
+}
+@keyframes gildEmber{ from{opacity:.65} to{opacity:1} }
+
+
+/* ── C. Section bars: gilt left rail, hairline top sheen, hover ignition ── */
+.sec-h{ position:relative; transition:box-shadow .28s var(--ease-out,ease), border-color .28s var(--ease-out,ease); }
+.sec-h::before{
+  content:""; position:absolute; left:0; top:10%; bottom:10%; width:2px; border-radius:2px;
+  background:linear-gradient(180deg, transparent, rgba(212,168,71,.55) 30%, rgba(240,192,96,.8) 50%, rgba(212,168,71,.55) 70%, transparent);
+  opacity:.5; transition:opacity .28s ease, top .28s ease, bottom .28s ease; pointer-events:none;
+}
+.sec-h:hover::before{ opacity:1; top:0; bottom:0; }
+.sec-h:hover{ box-shadow:inset 0 1px 0 rgba(240,192,96,.10), 0 6px 18px rgba(0,0,0,.45), 0 0 22px rgba(212,168,71,.07); border-color:var(--border-light,#4a3f2a); }
+.sec-h .sec-h-t{ font-family:var(--serif-display,serif); letter-spacing:.10em; font-variant-caps:small-caps; }
+.sec-chev{ transition:transform .32s var(--ease-out,ease), color .32s ease; }
+.sec-h:hover .sec-chev{ color:var(--gold-bright,#f0c060); }
+
+/* ── D. Card gilding: inner hairline + layered depth + hover lift (clickable tiles only) ── */
+.gbc-card, .colossal-tile, .event-card, .tz-zone-card, .gic-card, .set-card{
+  box-shadow:inset 0 0 0 1px rgba(240,192,96,.05), var(--shadow-low,0 1px 3px rgba(0,0,0,.4));
+}
+.colossal-tile[onclick], .tz-zone-card, .event-card{ transition:transform .22s var(--ease-out,ease), box-shadow .22s var(--ease-out,ease); }
+.colossal-tile[onclick]:hover, .tz-zone-card:hover, .event-card:hover{
+  transform:translateY(-2px);
+  box-shadow:inset 0 0 0 1px rgba(240,192,96,.14), var(--shadow-mid,0 4px 14px rgba(0,0,0,.5)), 0 0 26px rgba(212,168,71,.09);
+}
+
+/* ── E. One-shot load orchestration (transform+opacity, ends at identity, ~.7s total) ── */
+@media (prefers-reduced-motion: no-preference){
+  .header{ animation:gildRise .5s var(--ease-out,ease) both; }
+  .tabs{ animation:gildRise .55s var(--ease-out,ease) .08s both; }
+  .tab-content.active{ animation:gildRise .6s var(--ease-out,ease) .15s both; }
+}
+@keyframes gildRise{ from{opacity:.01; transform:translateY(7px)} to{opacity:1; transform:none} }
+
+/* ── F. Data typography: lining tabular numerals in every odds/data table ── */
+table.drops td, table.ref-tbl td, .zd-stat .zd-sv, .lc-best, .lc-num{ font-variant-numeric:tabular-nums lining-nums; }
+table.drops tbody tr{ transition:background .15s ease; }
+table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
+
+
+/* ── H. Illuminated drop-cap on editorial leads — the grimoire signature ── */
+.lead::first-letter{
+  font-family:var(--serif-display,serif); float:left;
+  font-size:2.55em; line-height:.82; padding:2px 8px 0 0; margin-top:3px;
+  color:var(--gold-bright,#f0c060);
+  text-shadow:0 0 14px rgba(240,192,96,.35), 0 1px 0 rgba(0,0,0,.8);
+}
+
+/* ── I. Section bars, stronger: double hairline + corner ticks ── */
+.sec-h{
+  border:1px solid var(--border,#3a2f1e);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(240,192,96,.06);
+}
+.sec-h::after{
+  content:""; position:absolute; right:42px; top:50%; width:90px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(212,168,71,.4));
+  opacity:0; transition:opacity .3s ease, width .3s var(--ease-out,ease);
+}
+.sec-h:hover::after{ opacity:1; width:150px; }
+
+/* ── J. Tab capsule: gilt frame + active tab ember underglow ── */
+.tabs{ box-shadow:inset 0 0 0 1px rgba(240,192,96,.07), 0 6px 22px rgba(0,0,0,.5); }
+.tab{ font-variant-caps:all-small-caps; letter-spacing:.09em; }
+.tab.active{ text-shadow:0 0 12px rgba(240,192,96,.5); }
+
+
+/* ── L. Rich hover card (#arttip): deeper gilt frame + halo ── */
+#arttip{
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.6), 0 14px 40px rgba(0,0,0,.75), 0 0 30px rgba(212,168,71,.14);
+  backdrop-filter:blur(2px);
+}
+
+/* ── M. Global search: gilt bloom on focus ── */
+.gsearch-wrap{ transition:box-shadow .25s var(--ease-out,ease), border-color .25s ease; }
+.gsearch-wrap:focus-within{
+  border-color:rgba(240,192,96,.55);
+  box-shadow:inset 0 0 0 1px rgba(240,192,96,.12), 0 0 0 3px rgba(212,168,71,.08), 0 8px 26px rgba(0,0,0,.5), 0 0 28px rgba(212,168,71,.1);
+}
+
+/* ── N. Group headers (TZ / uber / cube-step rosters): Cinzel small-caps + gilt underline ── */
+.tz-group-head, .ubc-group-head, .cs-group-head{
+  font-family:var(--serif-display,serif); font-variant-caps:small-caps; letter-spacing:.12em;
+  position:relative;
+}
+
+/* ── O. Odds emphasis: the lc-best green cells get a soft win-glow on row hover ── */
+table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35); }
+/* ── K. Sticky bottom dock: match the gilt frame language ── */
+#control-dock .dock-inner{ box-shadow:inset 0 0 0 1px rgba(240,192,96,.07), 0 -8px 28px rgba(0,0,0,.55); }
+/* ── G. Gilt tapered rule with center diamond under the masthead ── */
+.header{ border-bottom:none; }
+.header::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(212,168,71,.55) 18%, rgba(240,192,96,.9) 50%, rgba(212,168,71,.55) 82%, transparent);
+}
+</style>
 </body>
 </html>
