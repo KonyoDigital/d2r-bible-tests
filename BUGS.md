@@ -144,6 +144,30 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-006 — 2026-06-11 · v176 gambling section used `.drops` tables in the reference tab → broke v50 tier-count
+- **Symptom**: Routine I (Playwright) shard 3/3 red on the v176 push (`670e33a`) and still
+  red through v177 — 1 real test, all 3 retries deterministic:
+  `v50_p_slider_explainer:41` (`expect(rows.length).toBe(4)` for the P# slider tier table).
+- **Caught by**: scheduled CI full suite — NOT the 39-test pre-push smoke gate (v50 not in
+  it). Reproduced locally (v50 + v176 together) = real, not tail-fatigue (failed on all retries).
+- **Root cause**: the v176 Gambling section (Bridge B2) added THREE `<table class="drops">`
+  (NPC / odds / what-to-gamble) inside `#tab-ref`. v50 counts `#tab-ref table.drops tbody tr`
+  and assumes the P# slider tier table is the ONLY `.drops` table in the reference tab (it
+  expects exactly 4 tier rows). Every OTHER ref-tab table uses `class="ref-tbl"` (Mercenary,
+  Craft matrix, Breakpoints) — the gambling section broke that convention, inflating the count.
+  The v176 spec only checks `#gambling-ref` text content (odds/NPCs), so it stayed green while
+  the older v50 lock broke.
+- **Fix (v180, commit pending)**: convert the 3 gambling tables `class="drops"` → `class="ref-tbl"`
+  (the correct ref-tab convention; ids/content/`item-name` colours unchanged). v50 4/4 + v176 5/5
+  green together; L_integrity 0. +6 bytes.
+- **Prevention**: (1) The reference tab's table convention is `.ref-tbl`, NOT `.drops` — a
+  `.drops` table there silently hijacks `v50`'s loosely-scoped `#tab-ref table.drops` selector.
+  Use `ref-tbl` for any new reference-tab table. (2) A new section's spec asserting only its OWN
+  `#id` text WILL pass while breaking an older spec that counts a shared selector across the tab —
+  same lesson as REG-002/004/005: run the FULL `npx playwright test`, the 39-test smoke gate does
+  not include v50. (3) When adding tables to an existing tab, grep `tests/` for selectors scoped
+  to that tab's container (`#tab-ref table...`) before picking a table class.
+
 ## REG-005 — 2026-06-09 · v154 ref-header restructure truncated two test-locked section titles
 - **Symptom**: Routine I (Playwright) shards 1 + 2 red on the v154 push (`f5dcb4a`) —
   2 real tests: `v50_p_slider_explainer:25` (expected substring "What the P# slider
