@@ -3342,6 +3342,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="ec-chevron">▾</div>
     </div>
     <div class="event-card-body" hidden><!-- special-drop:event-cow-level --><div style="margin:0 0 16px;padding:13px 15px;border:1px solid var(--uber);border-radius:8px;background:rgba(170,110,200,0.07)"><div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🏆 What you actually farm here</div><span style="color:var(--gold-bright);font-weight:600">Rune volume + a broad unique/set pool</span><div style="font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.55">Not a single grail item — a <strong>density farm</strong>: ~400+ Hell Bovines per game for rune throughput plus a wide normal-monster unique/set pool. For the rune-specific detail, see the <strong>Cow Level</strong> card in the Runes tab.</div></div>
+    <div id="cow-grail-grid"></div>
     <p>Always-Hell-difficulty area accessed via cube. ~400 Hell Bovines + rare elite packs + the Cow King. Excellent for rune density (chipped/low-mid runes), set/unique drops, and general MF. Fast clears with AoE builds.</p>
 
     <h3>🦴 Step 1 — Get Wirt's Leg</h3>
@@ -8191,6 +8192,18 @@ function renderAuraBestRoll(){
 window.renderAuraBestRoll = renderAuraBestRoll;
 _v39_whenReady(renderAuraBestRoll);
 
+function renderCowGrailGrid(){
+  const el = document.getElementById('cow-grail-grid');
+  if (!el || typeof BOSSES==='undefined' || typeof bossTopDropsHtml!=='function') return;
+  const cows = BOSSES.find(b=>b.id==='cows'); if(!cows) return;
+  const grid = bossTopDropsHtml(cows, 12);
+  if(!grid){ el.innerHTML=''; return; }
+  el.innerHTML = grid +
+    `<div class="info" style="margin-top:8px;cursor:pointer" onclick="event.stopPropagation();openBossDetail('cows')"><strong>🗺️ Full verified drop pool →</strong> these are the rarest grail/uber items a Hell Bovine can drop, ranked by best-achievable odds. The complete per-difficulty TC + unique/set table lives on the <strong style="color:var(--gold-bright)">Hell Bovines</strong> boss card (single source). Click to open it.</div>`;
+}
+window.renderCowGrailGrid = renderCowGrailGrid;
+_v39_whenReady(renderCowGrailGrid);
+
 // ═══ Endgame relics — site-wide emphasis on the top-tier event drops ═══════
 // The Pandemonium keys, Uber organs, Sunder charms, Hellfire Torch, Annihilus and
 // Colossal Jewels are the game's pinnacle "you came here for THIS" drops. The names
@@ -9858,6 +9871,44 @@ function renderBossNav() {
   $("boss-nav").innerHTML = groups + leftoverHtml;
 }
 
+
+function bossTopDropsHtml(boss, limit){
+  const _grailPool = boss.dropTable.filter(d => d.tier === "grail" || d.tier === "uber");
+  const _topDrops = [];
+  _grailPool.forEach(d => {
+    let best = null, bestKey = null;
+    ["norm","normTz","nm","nmTz","hell","hellTz"].forEach(k => {
+      const adj = effChance(d[k], boss.id, k);
+      if (adj !== null && (best === null || adj < best)) { best = adj; bestKey = k; }
+    });
+    if (best !== null) _topDrops.push({ d, best, bestKey });
+  });
+  _topDrops.sort((a, b) => b.best - a.best); // rarest (highest 1:N) first
+  const _topN = _topDrops.slice(0, limit || 20);
+  return _topN.length ? `
+      <div class="top-drops">
+        <h3 class="top-drops-title">&#127942; Holy Grail &mdash; Top Drops <span class="top-drops-sub">rarest first &middot; top ${_topN.length} of ${_grailPool.length} grail/uber droppable here</span></h3>
+        <ol class="top-drops-list">
+          ${_topN.map((t, i) => {
+            const d = t.d;
+            const kphMult = (t.bestKey === "norm" || t.bestKey === "normTz") ? 1.2 : (t.bestKey === "nm" || t.bestKey === "nmTz") ? 1.1 : 1.0;
+            const hrs = hoursFor(t.best, 0.5, boss.kph * kphMult);
+            const diffLbl = t.bestKey.replace("Tz", " TZ").toUpperCase();
+            const ver = (d.v || []).includes(t.bestKey) ? ' <span class="top-drop-verified" title="silospen-verified anchor">&#128274;</span>' : '';
+            const sym = d.tier === "uber" ? "&#9889;" : "&#9733;";
+            const esc = d.n.replace(/'/g, "\\'");
+            return `<li class="top-drop-row ${d.tier === 'uber' ? 'top-drop-uber' : ''}" onclick="navigateToItem('${esc}')" title="open ${d.n} in the calculator">
+              <span class="top-drop-rank">#${i + 1}</span>
+              <span class="top-drop-name" data-arttip="${_d2artEsc(d.n)}">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
+              <span class="top-drop-odds">${fmt(t.best)} <span class="top-drop-diff">${diffLbl}</span></span>
+              <span class="top-drop-hrs">${hrs !== null ? fmtHours(hrs) : "&mdash;"}</span>
+            </li>`;
+          }).join("")}
+        </ol>
+      </div>` : '';
+}
+window.bossTopDropsHtml = bossTopDropsHtml;
+
 function renderBossCards() {
   var __cardOf = {};
   BOSSES.forEach(boss => {
@@ -9912,39 +9963,7 @@ function renderBossCards() {
     // === Holy Grail — Top Drops: grail/uber items droppable here, ranked rarest-first ===
     // best achievable 1:N per item at this boss, sorted descending so the rarest / most
     // prestigious chase items lead; the full common-item tail lives in the dropdown below.
-    const _grailPool = boss.dropTable.filter(d => d.tier === "grail" || d.tier === "uber");
-    const _topDrops = [];
-    _grailPool.forEach(d => {
-      let best = null, bestKey = null;
-      ["norm","normTz","nm","nmTz","hell","hellTz"].forEach(k => {
-        const adj = effChance(d[k], boss.id, k);
-        if (adj !== null && (best === null || adj < best)) { best = adj; bestKey = k; }
-      });
-      if (best !== null) _topDrops.push({ d, best, bestKey });
-    });
-    _topDrops.sort((a, b) => b.best - a.best); // rarest (highest 1:N) first
-    const _topN = _topDrops.slice(0, 20);
-    const topDropsHtml = _topN.length ? `
-      <div class="top-drops">
-        <h3 class="top-drops-title">&#127942; Holy Grail &mdash; Top Drops <span class="top-drops-sub">rarest first &middot; top ${_topN.length} of ${_grailPool.length} grail/uber droppable here</span></h3>
-        <ol class="top-drops-list">
-          ${_topN.map((t, i) => {
-            const d = t.d;
-            const kphMult = (t.bestKey === "norm" || t.bestKey === "normTz") ? 1.2 : (t.bestKey === "nm" || t.bestKey === "nmTz") ? 1.1 : 1.0;
-            const hrs = hoursFor(t.best, 0.5, boss.kph * kphMult);
-            const diffLbl = t.bestKey.replace("Tz", " TZ").toUpperCase();
-            const ver = (d.v || []).includes(t.bestKey) ? ' <span class="top-drop-verified" title="silospen-verified anchor">&#128274;</span>' : '';
-            const sym = d.tier === "uber" ? "&#9889;" : "&#9733;";
-            const esc = d.n.replace(/'/g, "\\'");
-            return `<li class="top-drop-row ${d.tier === 'uber' ? 'top-drop-uber' : ''}" onclick="navigateToItem('${esc}')" title="open ${d.n} in the calculator">
-              <span class="top-drop-rank">#${i + 1}</span>
-              <span class="top-drop-name" data-arttip="${_d2artEsc(d.n)}">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
-              <span class="top-drop-odds">${fmt(t.best)} <span class="top-drop-diff">${diffLbl}</span></span>
-              <span class="top-drop-hrs">${hrs !== null ? fmtHours(hrs) : "&mdash;"}</span>
-            </li>`;
-          }).join("")}
-        </ol>
-      </div>` : '';
+    const topDropsHtml = bossTopDropsHtml(boss, 20);
 
     const rows = dropTable.map(d => {
       const diffKeys = ["norm","normTz","nm","nmTz","hell","hellTz"];

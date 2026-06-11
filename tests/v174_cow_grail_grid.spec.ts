@@ -3,79 +3,94 @@ import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-// v174 — the Secret Cow Level event card routes to the full Hell Bovines boss card
-// via openBossDetail('cows'). Desktop golden-merge removed the inline #cow-grail-grid
-// and the shared bossTopDropsHtml helper; the boss detail card now renders its Top Drops
-// inline via renderBossDetailCard. This spec validates that the cow event card still
-// routes correctly and the boss detail card shows top drops for cows.
+// v174 — the Secret Cow Level event card now surfaces the SAME golden "Holy Grail —
+// Top Drops" grid the Hell Bovines boss card shows, INLINE (#cow-grail-grid), built
+// by the shared bossTopDropsHtml() helper off the SAME BOSSES "cows" dropTable + the
+// live effChance engine — one source of truth, zero fabricated odds. This makes the
+// cow event card itself "dropeable" like the unified zone cards, while still routing
+// to the full per-difficulty boss card. The bossTopDropsHtml extraction is verbatim,
+// so the boss-card top-drops (top_drops_per_boss.spec) are unchanged.
 
-test.describe('v174 Cow Level grail drops via boss card', () => {
+test.describe('v174 Cow Level inline grail Top-Drops grid', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1200); // let _v39_whenReady(renderCowGrailGrid) run
   });
 
-  test('the cow event card links to the Hell Bovines boss detail', async ({ page }) => {
+  test('the event card renders an inline golden Top-Drops grid sourced from BOSSES cows', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const card = document.getElementById('event-cow-level');
-      if (!card) return { found: false, hasLink: false };
+      const host = document.getElementById('cow-grail-grid')!;
+      const rows = [...host.querySelectorAll('.top-drop-row')] as HTMLElement[];
+      const cows = (BOSSES as any).find((b: any) => b.id === 'cows');
+      const grailNames = new Set(cows.dropTable.filter((d: any) => d.tier === 'grail' || d.tier === 'uber').map((d: any) => d.n));
+      const names = rows.map((r) => (r.querySelector('.top-drop-name')!.textContent || '').replace(/^[★⚡\s]+/, '').replace(/\s*🔒.*$/, '').trim());
       return {
-        found: true,
-        hasLink: /openBossDetail\('cows'\)/.test(card.innerHTML),
+        hasGrid: !!host.querySelector('.top-drops'),
+        rowCount: rows.length,
+        allGrail: names.every((n) => grailNames.has(n)),
+        routesToBoss: /openBossDetail\('cows'\)/.test(host.innerHTML),
       };
     });
-    expect(r.found).toBe(true);
-    expect(r.hasLink).toBe(true);
+    expect(r.hasGrid).toBe(true);
+    expect(r.rowCount).toBeGreaterThan(0);
+    expect(r.rowCount).toBeLessThanOrEqual(12);
+    expect(r.allGrail).toBe(true);    // every previewed item is a real grail/uber cow drop
+    expect(r.routesToBoss).toBe(true); // still routes to the canonical boss card
   });
 
-  test('the BOSSES cows entry has a real grail/uber drop pool', async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const cows = (BOSSES as any).find((b: any) => b.id === 'cows');
-      if (!cows) return { found: false, grail: 0 };
-      const grailCount = cows.dropTable.filter((d: any) => d.tier === 'grail' || d.tier === 'uber').length;
-      return { found: true, grail: grailCount };
-    });
-    expect(r.found).toBe(true);
-    expect(r.grail).toBeGreaterThan(2); // cows have a real multi-item grail pool
-  });
-
-  test('opening the boss detail for cows renders grail pick items', async ({ page }) => {
-    // openBossDetail calls switchTab('bosses') + renderBossDetailCard which renders
-    // the top 15 grail picks as .gbc-grail-item (NOT .top-drop-row, which is in the
-    // full boss card's "Holy Grail — Top Drops" section, a different render path).
-    await page.evaluate(() => (window as any).openBossDetail('cows'));
-    await page.waitForTimeout(300);
-    const r = await page.evaluate(() => {
-      const panel = document.getElementById('boss-detail-panel');
-      if (!panel) return { found: false, items: 0 };
-      const items = panel.querySelectorAll('.gbc-grail-item');
-      return { found: true, items: items.length };
-    });
-    expect(r.found).toBe(true);
-    expect(r.items).toBeGreaterThan(0);
-  });
-
-  test('boss detail grail picks for cows are sorted by hours-to-50%', async ({ page }) => {
-    await page.evaluate(() => (window as any).openBossDetail('cows'));
-    await page.waitForTimeout(300);
-    const stats = await page.evaluate(() => {
-      const panel = document.getElementById('boss-detail-panel')!;
-      return [...panel.querySelectorAll('.gbc-grail-item .gbc-grail-stats')].map((el) => {
+  test('inline preview rows are sorted rarest-first (non-increasing 1:N)', async ({ page }) => {
+    const odds = await page.evaluate(() => {
+      const host = document.getElementById('cow-grail-grid')!;
+      return [...host.querySelectorAll('.top-drop-row .top-drop-odds')].map((el) => {
         const txt = el.textContent || '';
-        // extract the chance value (e.g., "HELL · 1:5,000 · 2.3h")
+        if (txt.includes('%')) return 1;
         const m = txt.match(/1:([\d,]+)/);
         return m ? parseInt(m[1].replace(/,/g, '')) : null;
       });
     });
-    expect(stats.length).toBeGreaterThan(1);
+    expect(odds.length).toBeGreaterThan(1);
+    for (let i = 1; i < odds.length; i++) expect(odds[i - 1]).toBeGreaterThanOrEqual(odds[i] as number);
   });
 
-  test('no console errors rendering the cow boss detail', async ({ page }) => {
+  test('the inline grid is the SAME data as the Hell Bovines boss card (single source)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cows = (BOSSES as any).find((b: any) => b.id === 'cows');
+      // first 12 of the boss-card top-drops == the inline preview (same helper, same data)
+      const bossTop = (window as any).bossTopDropsHtml(cows, 12);
+      const tmp = document.createElement('div'); tmp.innerHTML = bossTop;
+      const bossNames = [...tmp.querySelectorAll('.top-drop-name')].map((e) => (e.textContent || '').trim());
+      const inlineNames = [...document.querySelectorAll('#cow-grail-grid .top-drop-name')].map((e) => (e.textContent || '').trim());
+      return { bossNames, inlineNames };
+    });
+    expect(r.inlineNames.length).toBeGreaterThan(0);
+    expect(r.inlineNames).toEqual(r.bossNames);
+  });
+
+  test('clicking an inline row navigates to the item in the calculator', async ({ page }) => {
+    await page.evaluate(() => { localStorage.clear(); });
+    await page.reload();
+    await page.waitForTimeout(1200);
+    const target = await page.evaluate(() => {
+      const row = document.querySelector('#cow-grail-grid .top-drop-row') as HTMLElement;
+      const name = (row.querySelector('.top-drop-name')!.textContent || '').replace(/^[★⚡\s]+/, '').replace(/\s*🔒.*$/, '').trim();
+      row.click();
+      return name;
+    });
+    await page.waitForTimeout(700);
+    const state = await page.evaluate(() => ({
+      tab: document.querySelector('.tab.active')?.getAttribute('data-tab'),
+      selectedItem: eval('typeof selectedItem !== "undefined" ? selectedItem : null'),
+    }));
+    expect(state.tab).toBe('calc');
+    expect(state.selectedItem).toBe(target);
+  });
+
+  test('no console errors rendering the cow grail grid', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.evaluate(() => (window as any).openBossDetail('cows'));
-    await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any).renderCowGrailGrid && (window as any).renderCowGrailGrid());
+    await page.waitForTimeout(150);
     expect(errors).toEqual([]);
   });
 });
