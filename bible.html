@@ -16209,5 +16209,74 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
   background:linear-gradient(90deg, transparent, rgba(212,168,71,.55) 18%, rgba(240,192,96,.9) 50%, rgba(212,168,71,.55) 82%, transparent);
 }
 </style>
+
+<style id="v193-lightbox-styles">
+/* ═══ v193 — fullscreen HD lightbox for bind-roll screenshots ═══ */
+.su-banner-slot.filled img{ cursor:zoom-in; }
+#gild-lightbox{ position:fixed; inset:0; z-index:99999; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; background:rgba(5,3,1,.94); cursor:zoom-out; padding:28px; }
+#gild-lightbox.show{ display:flex; }
+@media (prefers-reduced-motion: no-preference){
+  #gild-lightbox.show{ animation:glbIn .2s ease both; }
+  #gild-lightbox.show .glb-frame{ animation:glbZoom .24s var(--ease-out,ease) both; }
+}
+@keyframes glbIn{ from{opacity:0} to{opacity:1} }
+@keyframes glbZoom{ from{transform:scale(.96)} to{transform:none} }
+#gild-lightbox .glb-frame{ margin:0; max-width:96vw; max-height:86vh; display:flex; flex-direction:column; gap:10px; }
+#gild-lightbox .glb-img{ width:auto; height:80vh; max-width:96vw; object-fit:contain; border:1px solid rgba(212,168,71,.5); border-radius:6px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.6), 0 22px 70px rgba(0,0,0,.85), 0 0 44px rgba(212,168,71,.13); background:#000; }
+#gild-lightbox .glb-cap{ text-align:center; color:var(--text-muted,#b5a48a); font-size:13px; max-width:900px; margin:0 auto; line-height:1.45; }
+#gild-lightbox .glb-cap strong{ color:var(--gold-bright,#f0c060); }
+#gild-lightbox .glb-close{ position:absolute; top:18px; right:22px; background:rgba(26,20,13,.9); color:var(--gold-bright,#f0c060); border:1px solid rgba(212,168,71,.45); border-radius:999px; padding:7px 16px; font-size:13px; cursor:pointer; letter-spacing:.06em; }
+#gild-lightbox .glb-close:hover{ background:rgba(47,38,26,.95); box-shadow:0 0 18px rgba(212,168,71,.25); }
+#gild-lightbox .glb-hint{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); color:var(--text-dim,#756657); font-size:11px; letter-spacing:.08em; }
+html.glb-lock, html.glb-lock body{ overflow:hidden; }
+</style>
+<script id="v193-lightbox-js">
+(function(){
+  'use strict';
+  var box = null;
+  function ensure(){
+    if (box) return box;
+    box = document.createElement('div');
+    box.id = 'gild-lightbox';
+    box.setAttribute('aria-hidden','true');
+    box.setAttribute('role','dialog');
+    box.innerHTML = '<button class="glb-close" aria-label="close (Esc)">\u2715 close</button>'
+      + '<figure class="glb-frame"><img class="glb-img" alt=""><figcaption class="glb-cap"></figcaption></figure>'
+      + '<div class="glb-hint">click anywhere or press Esc to close</div>';
+    box.addEventListener('click', closeBox);
+    document.body.appendChild(box);
+    return box;
+  }
+  function openBox(src, cap, alt){
+    var b = ensure();
+    var img = b.querySelector('.glb-img');
+    img.src = src; img.alt = alt || cap || 'screenshot';
+    b.querySelector('.glb-cap').textContent = cap || '';
+    b.classList.add('show'); b.setAttribute('aria-hidden','false');
+    document.documentElement.classList.add('glb-lock');
+  }
+  function closeBox(){
+    if (!box) return;
+    box.classList.remove('show'); box.setAttribute('aria-hidden','true');
+    document.documentElement.classList.remove('glb-lock');
+  }
+  // CAPTURE phase: the gallery slots live inside .btg-card[onclick] (routes to the
+  // bind card) — capture beats the inline onclick so a screenshot click means
+  // "view HD", never "route" (same capture technique as the keyword router).
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var img = t.closest('.su-banner-slot.filled img') || ((t.tagName === 'IMG' && t.closest('.su-banner-slot.filled')) ? t : null);
+    if (!img) return;
+    e.preventDefault(); e.stopPropagation();
+    var fig = img.closest('.su-banner-slot');
+    var cap = fig ? ((fig.querySelector('figcaption') || {}).textContent || '').trim() : '';
+    openBox(img.src, cap, img.alt);
+  }, true);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeBox(); });
+  window._gildLightboxOpen = openBox;
+  window._gildLightboxClose = closeBox;
+})();
+</script>
 </body>
 </html>
