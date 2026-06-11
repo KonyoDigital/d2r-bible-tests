@@ -4458,9 +4458,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="info" style="margin-top:12px"><strong>The fixed quality odds — per item bought (these never change):</strong></div>
   <div class="scroll-table"><table class="drops"><thead><tr><th>Quality</th><th>Chance</th><th>Exact ratio</th></tr></thead><tbody>
     <tr><td>Magic</td><td>89.85%</td><td>1797 / 2000</td></tr>
-    <tr><td class="item-name" style="color:var(--rare)">Rare</td><td>10%</td><td>200 / 2000</td></tr>
-    <tr><td class="item-name" style="color:var(--set)">Set</td><td>0.10%</td><td>2 / 2000</td></tr>
-    <tr><td class="item-name" style="color:var(--uber)">Unique</td><td>0.05%</td><td>1 / 2000</td></tr>
+    <tr><td class="item-name" style="color:var(--star)">Rare</td><td>10%</td><td>200 / 2000</td></tr>
+    <tr><td class="item-name" style="color:var(--q-set)">Set</td><td>0.10%</td><td>2 / 2000</td></tr>
+    <tr><td class="item-name" style="color:var(--q-unique)">Unique</td><td>0.05%</td><td>1 / 2000</td></tr>
   </tbody></table></div>
 
   <div class="info" style="margin-top:12px"><strong>The mechanics that decide WHAT you can roll:</strong></div>
@@ -4614,6 +4614,59 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <tr><td class="item-name">Safety</td><td>Perfect Emerald</td><td>Magic Damage Reduced + Damage Reduced + (resists / %&nbsp;Enhanced Defense)</td><td>Amulet · Gloves · Shield · Boots</td></tr>
     <tr><td class="item-name">Hit Power</td><td>Perfect Sapphire</td><td>5% CtC Lvl-4 Frost Nova when struck + Attacker Takes Damage + (Str / Dex)</td><td>Gloves · Helm · Boots · Shield</td></tr>
   </tbody></table></div>
+  <details class="all-drops-details" id="craft-recipe-matrix" style="margin-top:12px">
+    <summary style="cursor:pointer;font-weight:600">📋 Exact cube recipes — every slot, all four crafts (tap to expand)</summary>
+  <div class="lead" style="margin:8px 0 4px">The <strong>perfect gem still decides the craft</strong>; the <strong>rune varies only by slot</strong> (a different rune on the same slot is simply a different craft). Use a <strong>magic (blue)</strong> base of the listed type + any jewel. Base columns show the normal · exceptional · elite tier of that slot.</div>
+  <div class="info" style="margin-top:10px"><strong>Caster</strong> — Perfect Amethyst + any jewel + the slot rune + a magic base:</div>
+  <div class="scroll-table"><table class="ref-tbl"><thead><tr><th>Slot</th><th>Rune</th><th>Magic base (normal · exceptional · elite)</th></tr></thead><tbody>
+    <tr><td>Weapon</td><td class="item-name" style="color:var(--rune)">Tir</td><td>Scepter · Wand · Staff</td></tr>
+    <tr><td>Shield</td><td class="item-name" style="color:var(--rune)">Eth</td><td>Small Shield · Round Shield · Luna</td></tr>
+    <tr><td>Helm</td><td class="item-name" style="color:var(--rune)">Nef</td><td>Mask · Death Mask · Demonhead</td></tr>
+    <tr><td>Body Armor</td><td class="item-name" style="color:var(--rune)">Tal</td><td>Light Plate · Mage Plate · Archon Plate</td></tr>
+    <tr><td>Gloves</td><td class="item-name" style="color:var(--rune)">Ort</td><td>Leather · Demonhide · Bramble Mitts</td></tr>
+    <tr><td>Belt</td><td class="item-name" style="color:var(--rune)">Ith</td><td>Light Belt · Sharkskin Belt · Vampirefang Belt</td></tr>
+    <tr><td>Boots</td><td class="item-name" style="color:var(--rune)">Thul</td><td>Boots · Demonhide · Wyrmhide Boots</td></tr>
+    <tr><td>Amulet</td><td class="item-name" style="color:var(--rune)">Ral</td><td>any Amulet</td></tr>
+    <tr><td>Ring</td><td class="item-name" style="color:var(--rune)">Amn</td><td>any Ring</td></tr>
+  </tbody></table></div>
+  <div class="info" style="margin-top:10px"><strong>Blood</strong> — Perfect Ruby + any jewel + the slot rune + a magic base:</div>
+  <div class="scroll-table"><table class="ref-tbl"><thead><tr><th>Slot</th><th>Rune</th><th>Magic base (normal · exceptional · elite)</th></tr></thead><tbody>
+    <tr><td>Weapon</td><td class="item-name" style="color:var(--rune)">Ort</td><td>Axes (1H / 2H) · Throwing Axes</td></tr>
+    <tr><td>Shield</td><td class="item-name" style="color:var(--rune)">Ith</td><td>Spiked Shield · Barbed Shield · Blade Barrier</td></tr>
+    <tr><td>Helm</td><td class="item-name" style="color:var(--rune)">Ral</td><td>Helm · Casque · Armet</td></tr>
+    <tr><td>Body Armor</td><td class="item-name" style="color:var(--rune)">Thul</td><td>Plate Mail · Templar Coat · Hellforge Plate</td></tr>
+    <tr><td>Gloves</td><td class="item-name" style="color:var(--rune)">Nef</td><td>Heavy · Sharkskin · Vampirebone Gloves</td></tr>
+    <tr><td>Belt</td><td class="item-name" style="color:var(--rune)">Tal</td><td>Belt · Mesh Belt · Mithril Coil</td></tr>
+    <tr><td>Boots</td><td class="item-name" style="color:var(--rune)">Eth</td><td>Light Plated · Battle · Mirrored Boots</td></tr>
+    <tr><td>Amulet</td><td class="item-name" style="color:var(--rune)">Amn</td><td>any Amulet</td></tr>
+    <tr><td>Ring</td><td class="item-name" style="color:var(--rune)">Sol</td><td>any Ring</td></tr>
+  </tbody></table></div>
+  <div class="info" style="margin-top:10px"><strong>Safety</strong> — Perfect Emerald + any jewel + the slot rune + a magic base:</div>
+  <div class="scroll-table"><table class="ref-tbl"><thead><tr><th>Slot</th><th>Rune</th><th>Magic base (normal · exceptional · elite)</th></tr></thead><tbody>
+    <tr><td>Weapon</td><td class="item-name" style="color:var(--rune)">Sol</td><td>Javelins · Spears (incl. Amazon)</td></tr>
+    <tr><td>Shield</td><td class="item-name" style="color:var(--rune)">Nef</td><td>Kite Shield · Dragon Shield · Monarch</td></tr>
+    <tr><td>Helm</td><td class="item-name" style="color:var(--rune)">Ith</td><td>Crown · Grand Crown · Corona</td></tr>
+    <tr><td>Body Armor</td><td class="item-name" style="color:var(--rune)">Eth</td><td>Breast Plate · Cuirass · Great Hauberk</td></tr>
+    <tr><td>Gloves</td><td class="item-name" style="color:var(--rune)">Ral</td><td>Gauntlets · War Gauntlets · Ogre Gauntlets</td></tr>
+    <tr><td>Belt</td><td class="item-name" style="color:var(--rune)">Tal</td><td>Sash · Demonhide Sash · Spiderweb Sash</td></tr>
+    <tr><td>Boots</td><td class="item-name" style="color:var(--rune)">Ort</td><td>Greaves · War Boots · Myrmidon Greaves</td></tr>
+    <tr><td>Amulet</td><td class="item-name" style="color:var(--rune)">Thul</td><td>any Amulet</td></tr>
+    <tr><td>Ring</td><td class="item-name" style="color:var(--rune)">Amn</td><td>any Ring</td></tr>
+  </tbody></table></div>
+  <div class="info" style="margin-top:10px"><strong>Hit Power</strong> — Perfect Sapphire + any jewel + the slot rune + a magic base:</div>
+  <div class="scroll-table"><table class="ref-tbl"><thead><tr><th>Slot</th><th>Rune</th><th>Magic base (normal · exceptional · elite)</th></tr></thead><tbody>
+    <tr><td>Weapon</td><td class="item-name" style="color:var(--rune)">Tir</td><td>Clubs · Hammers · Maces · Scepters · Staves · Wands</td></tr>
+    <tr><td>Shield</td><td class="item-name" style="color:var(--rune)">Eth</td><td>Gothic Shield · Ancient Shield · Ward</td></tr>
+    <tr><td>Helm</td><td class="item-name" style="color:var(--rune)">Ith</td><td>Full Helm · Basinet · Giant Conch</td></tr>
+    <tr><td>Body Armor</td><td class="item-name" style="color:var(--rune)">Nef</td><td>Field Plate · Sharktooth Armor · Kraken Shell</td></tr>
+    <tr><td>Gloves</td><td class="item-name" style="color:var(--rune)">Ort</td><td>Chain · Heavy Bracers · Vambraces</td></tr>
+    <tr><td>Belt</td><td class="item-name" style="color:var(--rune)">Tal</td><td>Heavy Belt · Battle Belt · Troll Belt</td></tr>
+    <tr><td>Boots</td><td class="item-name" style="color:var(--rune)">Ral</td><td>Chain Boots · Mesh Boots · Boneweave Boots</td></tr>
+    <tr><td>Amulet</td><td class="item-name" style="color:var(--rune)">Thul</td><td>any Amulet</td></tr>
+    <tr><td>Ring</td><td class="item-name" style="color:var(--rune)">Amn</td><td>any Ring</td></tr>
+  </tbody></table></div>
+  <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg · Crafted Items recipe list (base-game D2R recipes). The cube ingredients are core-game and unchanged; Reign of the Warlock may retune the random-affix pool — verify the rolled mods in-game.</p>
+  </details>
   <div class="info" style="margin-top:12px"><strong>Roll quality — craft on a Hell base, at high clvl:</strong></div>
   <div class="lead"><code>crafted ilvl = int(0.5 × clvl) + int(0.5 × base ilvl)</code> (cap 99). A high-ilvl base crafted by a high-level character unlocks the most random affixes — an <strong>ilvl 71+</strong> result can roll the full <strong>4 extra affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; the rune is the cheapest of the recipe. <strong>Reroll the same recipe</strong> until the random affixes land where you want them.</div>
   <div class="success"><strong>For Konyo (Warlock):</strong> <strong style="color:var(--best)">Caster</strong> is your craft — a crafted <strong>amulet</strong> or <strong>ring</strong> (Perfect Amethyst) guarantees <strong>FCR + mana</strong>, the cheapest way to push Echoing Strike toward its cast breakpoints while you hunt the unique upgrades. Pair this with the <strong>⚡ Breakpoints</strong> section below to know exactly how much FCR you still need.</div>
