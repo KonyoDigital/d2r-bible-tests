@@ -19,10 +19,11 @@ test.describe('v112 binds tier-list + elite-affix + drop pools', () => {
     await page.waitForTimeout(1200);
   });
 
-  test('tier-list card exists with 7 ranked rows and routable sourced targets', async ({ page }) => {
+  test('tier-list card exists with 7 ranked tiles and routable sourced targets', async ({ page }) => {
     const r = await page.evaluate(() => {
       const sec = document.getElementById('binds-tierlist');
-      const rows = sec ? sec.querySelectorAll('tbody tr') : [];
+      // Desktop golden-merge: the ranked table became golden .colossal-tile cards
+      const rows = sec ? sec.querySelectorAll('.binds-tierlist-card .colossal-grid .colossal-tile') : [];
       const html = sec ? sec.innerHTML : '';
       return {
         has: !!sec,

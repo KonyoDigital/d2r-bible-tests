@@ -30,7 +30,9 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
     await openBind(page, 'Hephasto the Armorer');
     const r = await page.evaluate(() => {
       const box = document.getElementById('bindsu-detail')!;
-      const fig = box.querySelector('.su-hpbar-sec .su-banner img') as HTMLImageElement | null;
+      // Desktop golden-merge: the banner became a 3-slot best-roll gallery; the verified
+      // Hephasto screenshot is the single FILLED slot (still a lazy data-URI, never a URL).
+      const fig = box.querySelector('.su-hpbar-sec .su-banner-gallery .su-banner-slot.filled img') as HTMLImageElement | null;
       return {
         hasBar: !!box.querySelector('.hpbar'),
         hasBanner: !!fig,
@@ -50,10 +52,10 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
     await openBind(page, 'Lister the Tormentor');
     const r = await page.evaluate(() => {
       const box = document.getElementById('bindsu-detail')!;
-      return { hasBar: !!box.querySelector('.hpbar'), hasBanner: !!box.querySelector('.su-banner') };
+      return { hasBar: !!box.querySelector('.hpbar'), hasBanner: !!box.querySelector('.su-banner-gallery') };
     });
     expect(r.hasBar).toBe(true);      // his verified health-bar replica IS his picture
-    expect(r.hasBanner).toBe(false);  // zero fabrication — no invented screenshot
+    expect(r.hasBanner).toBe(false);  // zero fabrication — no invented screenshot, no gallery
   });
 
   test('the top-3 gallery renders all three S/A binds, 2 verified + 1 placeholder', async ({ page }) => {
@@ -65,7 +67,7 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
         names: cards.map((c) => (c.querySelector('.btg-name')?.textContent || '').trim()),
         withBar: cards.filter((c) => !!c.querySelector('.hpbar')).length,
         todo: cards.filter((c) => c.classList.contains('btg-card-todo')).length,
-        hephBanner: cards.some((c) => /Hephasto/.test(c.textContent || '') && !!c.querySelector('.su-banner img')),
+        hephBanner: cards.some((c) => /Hephasto/.test(c.textContent || '') && !!c.querySelector('.su-banner-gallery .su-banner-slot.filled img')),
       };
     });
     expect(r.count).toBe(3);
@@ -93,9 +95,14 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
   test('only Hephasto is mapped in BIND_SU_BANNER — Lister/Smith are image-less', async ({ page }) => {
     const r = await page.evaluate(() => {
       const m = (window as any).BIND_SU_BANNER || {};
+      // Desktop golden-merge: BIND_SU_BANNER is now the 3-slot best-roll shape
+      // { name: { target, rolls:[{src, label, note}] } } — the verified Hephasto
+      // screenshot lives at rolls[0].src (still a data-URI JPEG, never a URL).
+      const heph = m['Hephasto the Armorer'];
+      const src = heph && Array.isArray(heph.rolls) && heph.rolls[0] ? heph.rolls[0].src : '';
       return {
         keys: Object.keys(m),
-        hephIsJpeg: typeof m['Hephasto the Armorer'] === 'string' && m['Hephasto the Armorer'].startsWith('data:image/jpeg;base64,'),
+        hephIsJpeg: typeof src === 'string' && src.startsWith('data:image/jpeg;base64,'),
         lister: 'Lister the Tormentor' in m,
         smith: 'The Smith' in m,
       };

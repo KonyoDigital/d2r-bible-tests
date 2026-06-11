@@ -12,7 +12,9 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // →15 when v120 added the Council roster section — also additive; then →16 when the
 // "🎯 Best roll — what to look for" aura guide section was added — also additive; then
 // →17 when v124c added the "Top 3 immunity profiles to bind" (#binds-immroll) section
-// — also additive.)
+// — also additive; then →16 when the Desktop golden-merge FOLDED the standalone aura-pool
+// section INTO the "⚜️ Aura Enchanted" elite section (#binds-elite) as one golden card —
+// a consolidation, not a cut: the aura-pool value table now lives inside binds-aura-card.)
 test.describe('v109 binds tab collapsible sections', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
@@ -21,12 +23,12 @@ test.describe('v109 binds tab collapsible sections', () => {
     await page.waitForTimeout(150);
   });
 
-  test('all 17 binds sections are collapsible and collapsed by default', async ({ page }) => {
-    await expect(page.locator('#tab-binds .sec-h')).toHaveCount(17);
-    await expect(page.locator('#tab-binds .sec-body')).toHaveCount(17);
-    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(17);
+  test('all 16 binds sections are collapsible and collapsed by default', async ({ page }) => {
+    await expect(page.locator('#tab-binds .sec-h')).toHaveCount(16);
+    await expect(page.locator('#tab-binds .sec-body')).toHaveCount(16);
+    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(16);
     // every section head has a chevron affordance (matches the other tabs)
-    await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(17);
+    await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(16);
     // the always-on intro banner is NOT a collapsible section
     await expect(page.locator('#tab-binds .events-intro')).toBeVisible();
   });
