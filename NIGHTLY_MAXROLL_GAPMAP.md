@@ -8,10 +8,16 @@
   dream-uniques. Gap #2 CLOSED. Spec `v176_gambling_reference` (5).
 - **B3 Breakpoints** — SHIPPED. `#` Breakpoints section (FCR/FHR caster tables) with an
   explicit RotW caveat. Gap #3 CLOSED.
-- **REMAINING: B4 Crafted-item recipes** (gap #4 — note: a "Crafted-item recipes" section
-  at ~L4564 may ALREADY exist; re-verify completeness before building), **B5 Warlock-overview
-  cross-ref** (gap #5), **B6 cross-check completeness sweep**. Verify-don't-assume: grep the
-  bible BEFORE picking the next bridge — gaps #1/#3 below were already filled when re-checked.
+- **B4 Crafted-item recipes** — SHIPPED v177 (commit `70b5cfc`, live md5 `71142643`). The
+  Crafting section already had the 4-craft overview; the real gap was the EXACT per-slot
+  recipe matrix. Added `#craft-recipe-matrix` collapsible: magic base + slot rune for all 9
+  slots × 4 crafts (Caster/Blood/Safety/Hit Power), base-game cube recipes from maxroll's
+  Crafted Items list, RotW affix-pool caveat. Also fixed the v176 gambling colour bug
+  (Rare/Set/Unique cells used non-existent `--rare`/`--set` vars → `--star`/`--q-set`/`--q-unique`).
+  Spec `v177_craft_recipe_matrix` (5). Gap #4 CLOSED.
+- **REMAINING: B5 Warlock-overview cross-ref** (gap #5), **B6 cross-check completeness sweep**.
+  Verify-don't-assume: grep the bible BEFORE picking the next bridge — gaps #1/#3 were already
+  filled when re-checked, and #4 was half-built (overview present, matrix missing).
 
 Bridge 0 of the nightly project. Tab-by-tab inventory of the d2r bible vs maxroll.gg/d2
 resource coverage. **ADDITIVE ONLY** (nothing cut), **zero fabrication**, **RotW-aware**
