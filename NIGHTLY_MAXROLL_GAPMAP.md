@@ -15,9 +15,18 @@
   Crafted Items list, RotW affix-pool caveat. Also fixed the v176 gambling colour bug
   (Rare/Set/Unique cells used non-existent `--rare`/`--set` vars → `--star`/`--q-set`/`--q-unique`).
   Spec `v177_craft_recipe_matrix` (5). Gap #4 CLOSED.
-- **REMAINING: B5 Warlock-overview cross-ref** (gap #5), **B6 cross-check completeness sweep**.
+- **B5 Warlock-overview cross-ref** — SHIPPED v178 (commit `c0f7d84`, live md5 `febc0520`).
+  The bible covered Bind Demon exhaustively (binds tab) but never laid out the build's ACTIVE
+  skill kit. Added `#warlock-skill-kit` to the reference accordion: Echoing Strike (up to 5
+  weapon echoes off FCR, cone+return, scales weapon base/ED/off-weapon ED), Mirrored Blades /
+  Blade Warp / Hex Bane / Levitation Mastery synergies, Demonic Mastery (10pt→2 Defilers),
+  Consume, Bind Demon (cross-links to binds tab), 125% FCR target. Sourced maxroll Echoing
+  Strike guide + icy-veins skill page, RotW "verify live tooltips" caveat, no fabricated
+  numbers. Spec `v178_warlock_skill_kit` (6). Gap #5 CLOSED.
+- **REMAINING: B6 cross-check completeness sweep** (runewords/cube/MF/TZ/sunder/immunity).
   Verify-don't-assume: grep the bible BEFORE picking the next bridge — gaps #1/#3 were already
-  filled when re-checked, and #4 was half-built (overview present, matrix missing).
+  filled when re-checked, #4 was half-built (overview present, matrix missing), #5 was a real
+  gap (deep bind mechanics present, but no active-skill overview).
 
 Bridge 0 of the nightly project. Tab-by-tab inventory of the d2r bible vs maxroll.gg/d2
 resource coverage. **ADDITIVE ONLY** (nothing cut), **zero fabrication**, **RotW-aware**
