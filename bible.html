@@ -575,6 +575,21 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-hg-uber{background:rgba(255,0,212,.12);border-color:rgba(255,0,212,.45);color:#ff9ee8}
 .zd-hg-grail{background:rgba(212,168,71,.1);border-color:rgba(212,168,71,.4);color:var(--gold-bright)}
 .zd-hg-note{font-size:9.5px;color:var(--text-muted);font-style:italic;font-family:var(--serif-text);margin-top:3px;line-height:1.4}
+/* ═══ v185-A: TZ Hell-grid golden reskin — boss-card Top-Drops visual parity (CSS-only, zero data change) ═══ */
+.zd-drops-head{font-family:var(--serif-display);font-size:15px;font-weight:600;letter-spacing:.4px;color:var(--gold-bright);text-transform:uppercase;margin:6px 0 10px;padding-bottom:8px;border-bottom:1px solid rgba(212,168,71,.22);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.zd-drops-sub{font-family:var(--serif-text);font-style:italic;color:var(--text-muted);font-weight:400;font-size:11.5px;letter-spacing:0;text-transform:none}
+.zd-hell-grid{border-collapse:separate;border-spacing:0 5px;font-size:12px;margin:4px 0 6px}
+.zd-hell-grid thead th{border-bottom:none;padding:2px 10px}
+.zd-hg-row td{background:linear-gradient(180deg,rgba(212,168,71,.03),rgba(0,0,0,.12));border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);padding:8px 10px;transition:border-color .12s,background .12s}
+.zd-hg-row td:first-child{border-left:1px solid var(--border-light);border-radius:8px 0 0 8px}
+.zd-hg-row td:last-child{border-right:1px solid var(--border-light);border-radius:0 8px 8px 0}
+.zd-hg-row:hover td{border-color:rgba(212,168,71,.5);background:linear-gradient(180deg,rgba(212,168,71,.085),rgba(0,0,0,.06))}
+.zd-hg-row .zd-hg-rank{color:var(--gold);font-weight:700;font-family:var(--mono);font-size:11px;letter-spacing:-.3px}
+.zd-more{margin-top:14px;border-top:1px solid rgba(212,168,71,.14);padding-top:9px}
+.zd-more summary{font-size:11px;color:var(--text-dim);font-family:var(--serif-text);font-style:italic;letter-spacing:.02em}
+.zd-more summary:hover{color:var(--gold-bright)}
+.zd-more[open] summary{color:var(--gold-bright);margin-bottom:6px}
+
 .zd-more{margin-top:4px}
 .zd-more summary{cursor:pointer;font-size:10px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.03em;padding:3px 0}
 .zd-more summary:hover{color:var(--gold-bright)}
@@ -5946,7 +5961,7 @@ function zoneHellGridHtml(z){
   const top = pool.slice(0, TOP).map(row).join('');
   const rest = pool.slice(TOP);
   let h = `<div class="zd-row"><span class="zd-k">hell drops</span><span class="zd-v">`;
-  h += `<div class="zd-drops-head">🏆 HELL terror-pool drops — ${pool.length} grail / uber uniques reachable here · rarest first</div>`;
+  h += `<div class="zd-drops-head">🏆 Holy Grail — HELL terror-pool drops <span class="zd-drops-sub">${pool.length} grail / uber uniques reachable here · rarest first</span></div>`;
   h += `<div class="scroll-table"><table class="drops zd-hell-grid">${head}<tbody>${top}</tbody></table></div>`;
   if (rest.length) h += `<details class="zd-more"><summary>▸ show all ${pool.length} droppable uniques — full table (TC-ranked)</summary><div class="scroll-table"><table class="drops zd-hell-grid">${head}<tbody>${rest.map((d, i) => row(d, i + TOP)).join('')}</tbody></table></div></details>`;
   h += `<div class="zd-hg-note">ranked by TC ceiling (the rarity proxy) — per-kill terror odds are a pending silospen TZ pull, deliberately not shown to avoid fabricated numbers.</div>`;
