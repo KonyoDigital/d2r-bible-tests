@@ -1,5 +1,18 @@
 # Nightly maxroll.gg cross-reference — gap-map (2026-06-08)
 
+## SHIPPED STATUS (updated 2026-06-11)
+- **B1 Mercenary** — SHIPPED. `#` Mercenary mechanics section in the reference tab
+  (auras by hire-difficulty + best merc gear). Gap #1 is CLOSED (`mercenar` now 87 hits).
+- **B2 Gambling** — SHIPPED v176 (commit `670e33a`). `#gambling-ref` reference section:
+  fixed odds 1797/200/2/1 per 2000, per-act NPCs, ilvl=clvl, MF-irrelevance, RotW-flagged
+  dream-uniques. Gap #2 CLOSED. Spec `v176_gambling_reference` (5).
+- **B3 Breakpoints** — SHIPPED. `#` Breakpoints section (FCR/FHR caster tables) with an
+  explicit RotW caveat. Gap #3 CLOSED.
+- **REMAINING: B4 Crafted-item recipes** (gap #4 — note: a "Crafted-item recipes" section
+  at ~L4564 may ALREADY exist; re-verify completeness before building), **B5 Warlock-overview
+  cross-ref** (gap #5), **B6 cross-check completeness sweep**. Verify-don't-assume: grep the
+  bible BEFORE picking the next bridge — gaps #1/#3 below were already filled when re-checked.
+
 Bridge 0 of the nightly project. Tab-by-tab inventory of the d2r bible vs maxroll.gg/d2
 resource coverage. **ADDITIVE ONLY** (nothing cut), **zero fabrication**, **RotW-aware**
 (Konyo plays Reign of the Warlock — flag where maxroll vanilla data may differ).
