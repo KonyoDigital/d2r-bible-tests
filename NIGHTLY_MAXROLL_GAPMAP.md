@@ -23,10 +23,19 @@
   Consume, Bind Demon (cross-links to binds tab), 125% FCR target. Sourced maxroll Echoing
   Strike guide + icy-veins skill page, RotW "verify live tooltips" caveat, no fabricated
   numbers. Spec `v178_warlock_skill_kit` (6). Gap #5 CLOSED.
-- **REMAINING: B6 cross-check completeness sweep** (runewords/cube/MF/TZ/sunder/immunity).
-  Verify-don't-assume: grep the bible BEFORE picking the next bridge — gaps #1/#3 were already
-  filled when re-checked, #4 was half-built (overview present, matrix missing), #5 was a real
-  gap (deep bind mechanics present, but no active-skill overview).
+- **B6 cross-check completeness sweep** — SHIPPED v179 (commit `4b16073`, live md5 `4e3d67ad`).
+  The sweep CONFIRMED runewords (v140 100-entry DB), cube recipes (v141/v142 tool), the MF
+  diminishing-returns curve (factors 250/500/600), sunder charms (5 by damage type, ~95% +
+  stacking) and immunities (RotW sunder path, Conviction-removed) are all already complete &
+  RotW-accurate. The one genuine thin spot was the absent "what MF does NOT touch" + Gold Find
+  facts — added two honesty boxes (`#mf-not-touch`) inside the existing MF-math section
+  (categorical mechanics, no fabricated numbers). Spec `v179_mf_goldfind` (4). Gap CLOSED.
+
+## ✅ PROJECT COMPLETE — all six bridges shipped (B1–B6)
+B1 Mercenary · B2 Gambling (v176) · B3 Breakpoints · B4 Craft recipe matrix (v177) ·
+B5 Warlock skill kit (v178) · B6 MF/Gold-Find completeness (v179). The nightly maxroll
+gap-map is fully bridged. Net result: the bible is at parity with maxroll's resource pages
+for every cross-referenced topic, RotW-aware throughout, zero fabricated drop numbers.
 
 Bridge 0 of the nightly project. Tab-by-tab inventory of the d2r bible vs maxroll.gg/d2
 resource coverage. **ADDITIVE ONLY** (nothing cut), **zero fabrication**, **RotW-aware**
