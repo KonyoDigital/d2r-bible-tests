@@ -589,6 +589,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-more summary{font-size:11px;color:var(--text-dim);font-family:var(--serif-text);font-style:italic;letter-spacing:.02em}
 .zd-more summary:hover{color:var(--gold-bright)}
 .zd-more[open] summary{color:var(--gold-bright);margin-bottom:6px}
+/* ═══ v186: binds top-3 gallery — stacked (Lister, under it Hephasto, then Smith) ═══ */
+.btg-grid{display:grid;grid-template-columns:1fr;gap:14px;margin:8px 0 4px}
+.btg-card{border:1px solid rgba(212,168,71,.32);border-radius:14px;background:linear-gradient(165deg,rgba(36,27,14,.5),rgba(13,10,18,.46));box-shadow:inset 0 0 26px rgba(0,0,0,.34),0 0 16px rgba(212,168,71,.07);padding:11px 11px 0;cursor:pointer;transition:box-shadow .14s,transform .14s;display:flex;flex-direction:column}
+.btg-card:hover,.btg-card:focus-visible{box-shadow:inset 0 0 26px rgba(0,0,0,.34),0 0 0 1px var(--gold-dim),0 0 22px rgba(212,168,71,.22);transform:translateY(-1px);outline:none}
+.btg-card-todo{opacity:.78;border-style:dashed}
+.btg-head{display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap}
+.btg-slot{flex:0 0 auto;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--bg);background:var(--gold);border-radius:5px;padding:1px 6px}
+.btg-name{font-family:var(--serif-display);font-size:14.5px;color:var(--gold-bright);font-weight:700}
+.btg-tier{flex:0 0 auto;margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--best);border:1px solid var(--gold-dim);border-radius:5px;padding:1px 5px}
+.btg-card .hpbar{margin:6px auto 4px;max-width:100%}
+.btg-card .su-banner{margin:6px auto 4px;max-width:100%}
+.btg-todo{display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 12px;text-align:center;color:var(--text-dim);font-size:12px;line-height:1.5}
+.btg-todo-glyph{font-size:30px;opacity:.55}
+.btg-foot{margin-top:auto;padding:8px 2px 10px;text-align:center;font-size:11px;color:var(--gold-dim);font-family:var(--mono)}
+.btg-card .hpbar-cap{display:block;margin:7px auto 2px;max-width:640px}
+
 
 .zd-more{margin-top:4px}
 .zd-more summary{cursor:pointer;font-size:10px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.03em;padding:3px 0}
@@ -4142,12 +4158,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div id="aura-bestroll"></div>
     <div class="success" style="margin-top:10px"><strong>Bottom line:</strong> only <strong style="color:var(--best)">Fanaticism</strong> is worth keeping — save &amp; exit and rebind until you see it. Everything else is a reroll.</div>
     <p style="margin-top:16px">The aura is only one line. On its in-game health-bar a bound super-unique stacks its <strong>fixed mods + its 3 random Hell rolls + its immunities</strong> — often <strong>8–9 attributes</strong> in total, so a perfect roll is rare. Beyond a Fanaticism aura, these are the <strong>3 damage affixes worth rerolling for</strong> on an Echoing Strike pet build — effects per the <em>Arreat Summit</em> bonus tables.</p>
-    <div class="hpbar" title="a real in-game super-unique health-bar">
-      <span class="hpbar-title">Lister the Tormentor</span>
-      <div class="hpbar-mods">Demon<span class="hpbar-sep">·</span>Spectral Hit<span class="hpbar-sep">·</span>Cursed<span class="hpbar-sep">·</span>Stone Skin<span class="hpbar-sep">·</span>Extra Strong<span class="hpbar-sep">·</span>Extra Fast<span class="hpbar-sep">·</span>Aura Enchanted</div>
-      <div class="hpbar-imm"><span class="hpbar-phys">Immune to Physical</span><span class="hpbar-sep">·</span><span class="hpbar-fire">Immune to Fire</span></div>
-    </div>
-    <span class="hpbar-cap">↑ exactly what Lister's health-bar reads in-game — <strong>9 lines</strong>. <strong style="color:#c9b074">Demon</strong> is his type; <strong style="color:var(--best)">Aura Enchanted</strong> + his other rolls are the rerollable part; the <strong style="color:#e2502a">immunities</strong> are his own base resists. Of the buffs, these 3 are the keepers:</span>
+    <div id="binds-top-gallery"></div>
     <div class="aura-top3" style="margin-top:8px">
       <div class="at3-head">★ Top 3 bind affix buffs to look for ★</div>
       <div class="at3-list">
@@ -6318,7 +6329,12 @@ const BIND_SU_BANNER = {
     rolls: [
       { src: HEPHASTO_BANNER, label: "Fanaticism + Extra Strong + Stone Skin", note: "current best — rare find, Jun 2026" }
     ]
-  }
+  },
+  // v186: Lister + The Smith carry the same 3-slot best-roll tracker — rolls
+  // intentionally EMPTY (no verified screenshots yet; empty slots are honest,
+  // fabricated images are not). Slots fill as in-game affix banners are captured.
+  "Lister the Tormentor": { target: 3, rolls: [] },
+  "The Smith": { target: 3, rolls: [] }
 };
 window.BIND_SU_BANNER = BIND_SU_BANNER;
 // Render the banner gallery for a bind target: filled rolls as captioned shots +
@@ -6348,6 +6364,31 @@ function bindSUBannerHtml(b){
   return '<div class="su-banner-gallery">'+slots+'</div>'+note;
 }
 window.bindSUBannerHtml = bindSUBannerHtml;
+
+const LISTER_ANATOMY_CAP = "<span class=\"hpbar-cap\">\u2191 exactly what Lister's health-bar reads in-game \u2014 <strong>9 lines</strong>. <strong style=\"color:#c9b074\">Demon</strong> is his type; <strong style=\"color:var(--best)\">Aura Enchanted</strong> + his other rolls are the rerollable part; the <strong style=\"color:#e2502a\">immunities</strong> are his own base resists. Of the buffs, these 3 are the keepers:</span>";
+function renderBindTopGallery(){
+  const el = document.getElementById('binds-top-gallery');
+  if (!el || typeof BIND_SU==='undefined') return;
+  const names = ['Lister the Tormentor','Hephasto the Armorer','The Smith'];
+  el.innerHTML = '<div class="btg-grid">' + names.map((nm,i)=>{
+    const b = BIND_SU.find(x=>x.name===nm); if(!b) return '';
+    const hp = (typeof bindSUHpData==='function') ? bindSUHpData(b) : (b.hpbar||null);
+    const verified = hp && !hp.derived; // an explicit (screenshot) hp-bar, not a type-only derive
+    const bar = (verified && typeof bindHpBar==='function') ? bindHpBar(hp) : '';
+    const banner = (typeof bindSUBannerHtml==='function') ? bindSUBannerHtml(b) : '';
+    const slot = i+1;
+    let pic;
+    if (bar) pic = bar + (nm==='Lister the Tormentor' ? LISTER_ANATOMY_CAP : '') + banner;
+    else pic = `<div class="btg-todo"><div class="btg-todo-glyph">📷</div><div>No screenshot-verified health-bar yet — <strong>1 more to go</strong>. <em>${nm}\u2019s exact in-game bar still needs a verified capture.</em></div></div>`;
+    return `<div class="btg-card${verified?'':' btg-card-todo'}" role="button" tabindex="0" onclick="openBindSUByName('${nm.replace(/'/g,"\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" title="open ${nm}'s bind ID card">
+        <div class="btg-head"><span class="btg-slot">${slot}/3</span><span class="btg-name">${nm}</span>${b.tier?`<span class="btg-tier">${b.tier.split('·')[0].trim()}</span>`:''}</div>
+        ${pic}
+        <div class="btg-foot">📜 open ${nm}'s full bind card →</div>
+      </div>`;
+  }).join('') + '</div>';
+}
+window.renderBindTopGallery = renderBindTopGallery;
+_v39_whenReady(renderBindTopGallery);
 window.BIND_SU = BIND_SU;
 function bindSUName2Idx(name){if(typeof BIND_SU==='undefined'||!name)return -1;const n=String(name).toLowerCase().trim();return BIND_SU.findIndex(b=>(b.name||'').toLowerCase()===n);}
 // Unified in-game health-bar replica — single source of truth for the binds section

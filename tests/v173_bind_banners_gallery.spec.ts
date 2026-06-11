@@ -45,14 +45,23 @@ test.describe('v173 bind ID-card banners', () => {
     expect(r.alt).toMatch(/Hephasto/);
   });
 
-  test('Lister bind ID card shows his hp-bar but NO fabricated banner image', async ({ page }) => {
+  test('Lister bind ID card: hp-bar + 3-slot tracker with ZERO fabricated images', async ({ page }) => {
+    // v186: Lister carries the 3-slot best-roll tracker (rolls:[]) — the gallery
+    // renders 3 honest EMPTY slots. Zero fabrication = zero <img>, not zero gallery.
     await openBind(page, 'Lister the Tormentor');
     const r = await page.evaluate(() => {
       const box = document.getElementById('bindsu-detail')!;
-      return { hasBar: !!box.querySelector('.hpbar'), hasBanner: !!box.querySelector('.su-banner-gallery') };
+      return {
+        hasBar: !!box.querySelector('.hpbar'),
+        hasGallery: !!box.querySelector('.su-banner-gallery'),
+        emptySlots: box.querySelectorAll('.su-banner-gallery .su-banner-slot.empty').length,
+        imgs: box.querySelectorAll('.su-banner-gallery img').length,
+      };
     });
-    expect(r.hasBar).toBe(true);      // his verified health-bar replica IS his picture
-    expect(r.hasBanner).toBe(false);  // zero fabrication — no invented screenshot, no gallery
+    expect(r.hasBar).toBe(true);    // his verified health-bar replica IS his picture
+    expect(r.hasGallery).toBe(true);
+    expect(r.emptySlots).toBe(3);   // 3 slots waiting for real screenshots
+    expect(r.imgs).toBe(0);         // zero fabrication — no invented screenshot
   });
 
   test('the tier-list grid shows the S/A bind targets with their art', async ({ page }) => {
@@ -89,22 +98,69 @@ test.describe('v173 bind ID-card banners', () => {
     expect(r.text).toMatch(/Hephasto/);
   });
 
-  test('only Hephasto is mapped in BIND_SU_BANNER — Lister/Smith are image-less', async ({ page }) => {
+  test('BIND_SU_BANNER: Hephasto 1/3 filled (data-URI); Lister/Smith mapped with 3 HONEST empty slots', async ({ page }) => {
+    // v186: all three S/A binds carry the 3-slot best-roll tracker. Only Hephasto
+    // has a verified screenshot (rolls[0], data-URI). Lister/Smith have rolls:[] —
+    // empty slots are honest, fabricated images are not.
     const r = await page.evaluate(() => {
       const m = (window as any).BIND_SU_BANNER || {};
       const heph = m['Hephasto the Armorer'];
       const src = heph && Array.isArray(heph.rolls) && heph.rolls[0] ? heph.rolls[0].src : '';
       return {
-        keys: Object.keys(m),
+        keys: Object.keys(m).sort(),
         hephIsJpeg: typeof src === 'string' && src.startsWith('data:image/jpeg;base64,'),
-        lister: 'Lister the Tormentor' in m,
-        smith: 'The Smith' in m,
+        hephRolls: heph ? heph.rolls.length : -1,
+        hephTarget: heph ? heph.target : -1,
+        listerRolls: m['Lister the Tormentor'] ? m['Lister the Tormentor'].rolls.length : -1,
+        listerTarget: m['Lister the Tormentor'] ? m['Lister the Tormentor'].target : -1,
+        smithRolls: m['The Smith'] ? m['The Smith'].rolls.length : -1,
       };
     });
-    expect(r.keys).toEqual(['Hephasto the Armorer']);
+    expect(r.keys).toEqual(['Hephasto the Armorer', 'Lister the Tormentor', 'The Smith']);
     expect(r.hephIsJpeg).toBe(true);
-    expect(r.lister).toBe(false);
-    expect(r.smith).toBe(false);
+    expect(r.hephRolls).toBe(1);
+    expect(r.hephTarget).toBe(3);
+    expect(r.listerRolls).toBe(0);   // mapped, zero images
+    expect(r.listerTarget).toBe(3);  // 3 slots waiting
+    expect(r.smithRolls).toBe(0);
+  });
+
+  test('v186: the stacked top-3 gallery renders at the best-roll spot — Lister, under it Hephasto, then Smith', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const el = document.getElementById('binds-top-gallery')!;
+      const cards = [...el.querySelectorAll('.btg-card')] as HTMLElement[];
+      const grid = el.querySelector('.btg-grid') as HTMLElement;
+      return {
+        names: cards.map((c) => (c.querySelector('.btg-name')?.textContent || '').trim()),
+        cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+        listerHasBar: !!cards[0]?.querySelector('.hpbar'),
+        listerKeepsAnatomyCap: /exactly what Lister/.test(cards[0]?.innerHTML || ''),
+        listerNoImg: !cards[0]?.querySelector('.su-banner-slot img'),
+        hephFilledShot: !!cards[1]?.querySelector('.su-banner-slot.filled img'),
+        smithTodo: !!cards[2]?.classList.contains('btg-card-todo'),
+      };
+    });
+    expect(r.names).toEqual(['Lister the Tormentor', 'Hephasto the Armorer', 'The Smith']);
+    expect(r.cols).toBe(1); // stacked — "lister image and under it hephasto"
+    expect(r.listerHasBar).toBe(true);
+    expect(r.listerKeepsAnatomyCap).toBe(true); // the 9-lines anatomy lesson survives
+    expect(r.listerNoImg).toBe(true);           // zero fabricated images
+    expect(r.hephFilledShot).toBe(true);
+    expect(r.smithTodo).toBe(true);
+  });
+
+  test('v186: clicking a gallery card opens that bind ID card', async ({ page }) => {
+    await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#binds-top-gallery .btg-card')] as HTMLElement[];
+      cards.find((c) => /Hephasto/.test(c.textContent || ''))!.click();
+    });
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => {
+      const box = document.getElementById('bindsu-detail')!;
+      return { open: !box.hasAttribute('hidden'), text: box.textContent || '' };
+    });
+    expect(r.open).toBe(true);
+    expect(r.text).toMatch(/Hephasto/);
   });
 
   test('no console errors across the banner flow', async ({ page }) => {
