@@ -4441,6 +4441,49 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="success" style="margin-top:10px"><strong>For Konyo (Warlock):</strong> your <span class="su-link zd-item-click" data-art-logo="Lister the Tormentor" data-su-route="Lister the Tormentor" style="cursor:pointer;color:var(--uber)">Lister</span> bind already gives you a permanent <strong>Lvl-15 Meditation</strong>, so an <strong>Insight</strong> merc is redundant — run <strong style="color:var(--best)">Infinity</strong> instead (its Conviction shreds resists for your elemental Echo and breaks Lightning immunes), or a <strong style="color:var(--best)">Holy Freeze</strong> merc if you want the screen-wide slow for safety. See the 🔱 binds tab for the Meditation source.</div>
   <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg · Mercenary Mechanics resource (vanilla D2R mechanics). Aura specifics to be confirmed against Reign of the Warlock in-game.</p>
   </div>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🎲</span><span class="sec-h-block"><span class="sec-h-t">Gambling</span><span class="sec-h-sub">Buy unidentified items for gold — a flat shot at rares, sets &amp; uniques (no MF needed)</span></span><span class="sec-chev">▾</span></h2>
+  <div class="sec-body" hidden id="gambling-ref">
+  <div class="lead" style="margin:4px 0 10px">Gambling = buying a normal-looking <strong>unidentified magic item</strong> from a town vendor; the game re-rolls its quality the instant you buy it. It's the one drop source <strong>Magic Find does NOT touch</strong> — only your <strong>character level</strong> matters (it sets the item level). Gold-rich and grail-hunting? This is a flat, repeatable shot at slot-specific uniques like the Stone of Jordan.</div>
+
+  <div class="info"><strong>Who gambles — every act, every difficulty:</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Act</th><th>Gambling NPC</th></tr></thead><tbody>
+    <tr><td class="item-name" style="color:var(--best)">Act 1</td><td>Gheed</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Act 2</td><td>Elzix</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Act 3</td><td>Alkor</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Act 4</td><td>Jamella</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Act 5</td><td>Anya (also Nihlathak)</td></tr>
+  </tbody></table></div>
+  <p style="font-size:12px;color:var(--text-muted)">The act, difficulty and NPC you pick have <strong>zero</strong> effect on the odds — they're identical everywhere. Pick whichever town you're already in.</p>
+
+  <div class="info" style="margin-top:12px"><strong>The fixed quality odds — per item bought (these never change):</strong></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Quality</th><th>Chance</th><th>Exact ratio</th></tr></thead><tbody>
+    <tr><td>Magic</td><td>89.85%</td><td>1797 / 2000</td></tr>
+    <tr><td class="item-name" style="color:var(--rare)">Rare</td><td>10%</td><td>200 / 2000</td></tr>
+    <tr><td class="item-name" style="color:var(--set)">Set</td><td>0.10%</td><td>2 / 2000</td></tr>
+    <tr><td class="item-name" style="color:var(--uber)">Unique</td><td>0.05%</td><td>1 / 2000</td></tr>
+  </tbody></table></div>
+
+  <div class="info" style="margin-top:12px"><strong>The mechanics that decide WHAT you can roll:</strong></div>
+  <ul>
+    <li><strong>Item level = your character level</strong> (with a small ±variance). A higher clvl unlocks higher-tier uniques in the gamble pool — gamble on your <em>highest</em> character.</li>
+    <li><strong>Past character level 56</strong>, every item type can appear in the gambling window; below that the slot pool is restricted and widens gradually.</li>
+    <li><strong>Rings &amp; amulets are ALWAYS in the window</strong> — one of each, at a <strong>fixed</strong> gold cost (≈50,000 ring / ≈63,000 amulet, level-independent). Other slots scale in price with your level. That fixed cost makes rings/amulets the reliable <strong>reset-and-rebuy</strong> targets.</li>
+    <li><strong>Magic Find does nothing here.</strong> Gold Find only helps you <em>afford</em> more rolls — it never improves the odds above.</li>
+  </ul>
+
+  <div class="info" style="margin-top:12px"><strong>What's worth gambling for</strong> <span style="color:var(--text-muted)">(vanilla high-value targets — confirm the exact unique exists in Reign of the Warlock):</span></div>
+  <div class="scroll-table"><table class="drops"><thead><tr><th>Slot</th><th>Why gamble it</th><th>Dream uniques</th></tr></thead><tbody>
+    <tr><td class="item-name" style="color:var(--best)">Rings</td><td>Fixed cheap cost, always in window — the classic SoJ hunt</td><td><strong>Stone of Jordan</strong> · Bul-Kathos' Wedding Band · Nature's Peace · Raven Frost · Dwarf Star</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Amulets</td><td>Fixed cost, always in window; rolls +skill rares too</td><td><strong>Mara's Kaleidoscope</strong> · The Eye of Etlich · Highlord's Wrath · Seraph's Hymn</td></tr>
+    <tr><td class="item-name" style="color:var(--best)">Circlets / Coronets</td><td>Can roll +class-skill magic/rare bases — a cheap skiller helm</td><td>+2 class-skill circlet · rare 2-skill coronet</td></tr>
+  </tbody></table></div>
+
+  <div class="warning" style="margin-top:12px"><strong>Read the odds honestly:</strong> the <strong>1 / 2000</strong> is the chance the bought item is <em>some</em> unique of that slot — <em>which</em> unique then depends on that slot's treasure class at your item level. So a <strong>specific</strong> Stone of Jordan is rarer than 1/2000. Gamble for the <strong>slot</strong>, reset the window between buys, and only do it with overflowing gold (a roll is individually cheap, but you'll buy thousands).</div>
+
+  <div class="success"><strong>For Konyo (Warlock):</strong> ring/amulet gambling is the only <strong>MF-independent</strong> path to a Stone of Jordan or Mara's. Bank gold from <strong>Travincal council</strong> runs, then sit on the highest-level character and reset-buy rings between farming sessions — every SoJ you gamble is also another DClone trigger you control.</div>
+
+  <p style="font-size:12px;color:var(--text-muted)">Source: maxroll.gg Gambling resource + fextralife D2R gamble-odds (1797 / 200 / 2 / 1 per 2000). Core gamble mechanics are base-game D2R; <strong>Reign of the Warlock may add or retune the unique pool</strong> — confirm which ring/amulet uniques are actually gambleable in-game.</p>
+  </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🧊</span><span class="sec-h-block"><span class="sec-h-t">Cube Recipes</span><span class="sec-h-sub">The full Horadric Cube recipe book, grouped by purpose</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
 <div class="lead" style="margin:4px 0 10px">The full Horadric Cube recipe book, grouped by purpose — tap a category to expand it. The cube must be <strong>carried in your inventory</strong>; quest recipes (Cow portal · Horadric Staff · Khalim's Will) only fire in the matching <strong>town</strong>. <span style="color:var(--text-muted)">Mechanics are base-game D2R — Reign of the Warlock may retune some outputs; verify in-game.</span></div>
