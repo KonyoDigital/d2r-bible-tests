@@ -6,8 +6,11 @@ test.describe('Each cell renders the correct state', () => {
   test('blocked-tc cells render with TC-overrun title', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(400);
-    // Mephisto Norm-TZ caps below SoJ TC60 — TC block, blocked-tc class with TC overrun in title
-    const row = page.locator('#mephisto tr[data-item="The Stone of Jordan"]');
+    // Mephisto Norm-TZ TC57 caps below Vampire Gaze TC60 — TC block with overrun title.
+    // (Was SoJ, but SoJ is a RING — jewelry is qlvl-gated, not TC-gated; the v187
+    // silospen RoW pull gives Norm-TZ Meph real SoJ odds (1:4472), so the old pin
+    // was asserting a vanilla-think wrong state. Vampire Gaze is true TC60 equipment.)
+    const row = page.locator('#mephisto tr[data-item="Vampire Gaze"]');
     const normTzCell = row.locator('td.diff-col').nth(1);
     await expect(normTzCell).toHaveClass(/blocked-tc/);
     await expect(normTzCell).toHaveAttribute('title', /TC \d+/);
