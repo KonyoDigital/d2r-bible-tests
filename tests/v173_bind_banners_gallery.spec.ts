@@ -118,7 +118,7 @@ test.describe('v173 bind ID-card banners', () => {
     });
     expect(r.keys).toEqual(['Hephasto the Armorer', 'Lister the Tormentor', 'The Smith']);
     expect(r.hephIsJpeg).toBe(true);
-    expect(r.hephRolls).toBe(1);
+    expect(r.hephRolls).toBe(2);  // v188: champion (Fana+ES+EF) + the demoted Stone Skin roll
     expect(r.hephTarget).toBe(3);
     expect(r.listerRolls).toBe(0);   // mapped, zero images
     expect(r.listerTarget).toBe(3);  // 3 slots waiting
