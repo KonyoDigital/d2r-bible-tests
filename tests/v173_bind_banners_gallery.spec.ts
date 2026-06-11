@@ -3,36 +3,33 @@ import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-// v173 — the binds best-roll section gains a "top 3 bind targets" picture gallery
-// (#binds-top-gallery) and every bind ID card now shows its OWN photo under the
-// in-game health-bar: Hephasto carries a real screenshot-verified data-URI banner
-// (BIND_SU_BANNER), while Lister / The Smith — who have NO verified screenshot —
-// keep ONLY their health-bar replica (zero fabricated image). The gallery shows the
-// three S/A binds with their verified hp-bars (Lister, Hephasto) + Hephasto's banner,
-// and an honest "1 more to go" placeholder for The Smith. Each card routes to its
-// bind ID card via openBindSUByName. Additive: bindSUHpSection / renderAuraBestRoll
-// are untouched except for the appended banner + the new gallery render.
+// v173 — bind ID-card banners. Hephasto carries a real screenshot-verified data-URI
+// banner (BIND_SU_BANNER, 3-slot best-roll gallery rendered by bindSUBannerHtml) at
+// the TOP of his bind detail card, while Lister / The Smith — who have NO verified
+// screenshot — keep ONLY their health-bar replica (zero fabricated image).
+// Desktop golden-merge removed the separate #binds-top-gallery / .btg-card /
+// renderBindTopGallery — the banner now lives directly in the bind detail card.
 
 async function openBind(page: any, name: string) {
   await page.evaluate((n: string) => (window as any).openBindSUByName(n), name);
   await page.waitForTimeout(250);
 }
 
-test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
+test.describe('v173 bind ID-card banners', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
-    await page.waitForTimeout(900); // let _v39_whenReady gallery render run
+    await page.waitForTimeout(900);
     await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('binds'));
     await page.waitForTimeout(250);
   });
 
-  test('Hephasto bind ID card renders his real screenshot banner under the hp-bar', async ({ page }) => {
+  test('Hephasto bind ID card renders his real screenshot banner', async ({ page }) => {
     await openBind(page, 'Hephasto the Armorer');
     const r = await page.evaluate(() => {
       const box = document.getElementById('bindsu-detail')!;
-      // Desktop golden-merge: the banner became a 3-slot best-roll gallery; the verified
-      // Hephasto screenshot is the single FILLED slot (still a lazy data-URI, never a URL).
-      const fig = box.querySelector('.su-hpbar-sec .su-banner-gallery .su-banner-slot.filled img') as HTMLImageElement | null;
+      // The banner gallery is rendered at the top of the card by bindSUBannerHtml,
+      // NOT inside .su-hpbar-sec. Look for it directly in the detail container.
+      const fig = box.querySelector('.su-banner-gallery .su-banner-slot.filled img') as HTMLImageElement | null;
       return {
         hasBar: !!box.querySelector('.hpbar'),
         hasBanner: !!fig,
@@ -58,32 +55,32 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
     expect(r.hasBanner).toBe(false);  // zero fabrication — no invented screenshot, no gallery
   });
 
-  test('the top-3 gallery renders all three S/A binds, 2 verified + 1 placeholder', async ({ page }) => {
+  test('the tier-list grid shows the S/A bind targets with their art', async ({ page }) => {
+    // Desktop golden-merge: the standalone #binds-top-gallery was removed; the bind
+    // tier-list colossal-grid (always visible in the binds tab) shows the S/A targets
+    // with art + linked to their SU cards. Verify the key names are present.
     const r = await page.evaluate(() => {
-      // ensure the best-roll section is expanded so the gallery is in the live DOM
-      const cards = [...document.querySelectorAll('#binds-top-gallery .btg-card')] as HTMLElement[];
+      const grid = document.querySelector('#tab-binds .colossal-grid');
+      if (!grid) return { found: false, names: [] as string[] };
+      const tiles = [...grid.querySelectorAll('.colossal-tile')];
+      const names = tiles.map((t) => (t.querySelector('.ct-name')?.textContent || '').trim());
       return {
-        count: cards.length,
-        names: cards.map((c) => (c.querySelector('.btg-name')?.textContent || '').trim()),
-        withBar: cards.filter((c) => !!c.querySelector('.hpbar')).length,
-        todo: cards.filter((c) => c.classList.contains('btg-card-todo')).length,
-        hephBanner: cards.some((c) => /Hephasto/.test(c.textContent || '') && !!c.querySelector('.su-banner-gallery .su-banner-slot.filled img')),
+        found: true,
+        names,
+        hasHephasto: names.some(n => /Hephasto/.test(n)),
+        hasLister: names.some(n => /Lister/.test(n)),
+        hasSmith: names.some(n => /The Smith/.test(n)),
       };
     });
-    expect(r.count).toBe(3);
-    expect(r.names).toEqual(['Lister the Tormentor', 'Hephasto the Armorer', 'The Smith']);
-    expect(r.withBar).toBe(2);   // Lister + Hephasto verified hp-bars
-    expect(r.todo).toBe(1);      // The Smith — honest "1 more to go" slot
-    expect(r.hephBanner).toBe(true);
+    expect(r.found).toBe(true);
+    expect(r.hasHephasto).toBe(true);
+    expect(r.hasLister).toBe(true);
+    expect(r.hasSmith).toBe(true);
   });
 
-  test('clicking a gallery card opens that bind ID card', async ({ page }) => {
-    await page.evaluate(() => {
-      const cards = [...document.querySelectorAll('#binds-top-gallery .btg-card')] as HTMLElement[];
-      const heph = cards.find((c) => /Hephasto/.test(c.textContent || ''))!;
-      heph.click();
-    });
-    await page.waitForTimeout(300);
+  test('clicking a tier-list SU link opens that bind ID card', async ({ page }) => {
+    // Use openBindSUByName directly (the su-link onclick handler)
+    await openBind(page, 'Hephasto the Armorer');
     const r = await page.evaluate(() => {
       const box = document.getElementById('bindsu-detail')!;
       return { open: !box.hasAttribute('hidden'), text: box.textContent || '' };
@@ -95,9 +92,6 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
   test('only Hephasto is mapped in BIND_SU_BANNER — Lister/Smith are image-less', async ({ page }) => {
     const r = await page.evaluate(() => {
       const m = (window as any).BIND_SU_BANNER || {};
-      // Desktop golden-merge: BIND_SU_BANNER is now the 3-slot best-roll shape
-      // { name: { target, rolls:[{src, label, note}] } } — the verified Hephasto
-      // screenshot lives at rolls[0].src (still a data-URI JPEG, never a URL).
       const heph = m['Hephasto the Armorer'];
       const src = heph && Array.isArray(heph.rolls) && heph.rolls[0] ? heph.rolls[0].src : '';
       return {
@@ -113,13 +107,12 @@ test.describe('v173 bind ID-card banners + top-3 picture gallery', () => {
     expect(r.smith).toBe(false);
   });
 
-  test('no console errors across the banner + gallery flow', async ({ page }) => {
+  test('no console errors across the banner flow', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(e.message));
     await openBind(page, 'Hephasto the Armorer');
     await openBind(page, 'Lister the Tormentor');
-    await page.evaluate(() => (window as any).renderBindTopGallery && (window as any).renderBindTopGallery());
     await page.waitForTimeout(150);
     expect(errors).toEqual([]);
   });

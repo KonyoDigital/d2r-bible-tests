@@ -85,7 +85,7 @@ test.describe('v75 Herald tiers are searchable + clickable ID cards', () => {
       return {
         rotwActive: !!rotw?.classList.contains('active'),
         sectionOpen: !!sec && !sec.hasAttribute('hidden'),
-        richName: card?.querySelector('.gbc-name')?.textContent?.trim() || '',
+        richName: card?.querySelector('.gic-name')?.textContent?.trim() || '',
         leanShown,
       };
     });
@@ -103,7 +103,7 @@ test.describe('v75 Herald tiers are searchable + clickable ID cards', () => {
     expect(txt).toMatch(/Herald of Fear/); // Dread → Fear is the next spawn
   });
 
-  test('the RotW Herald ladder table rows are clickable → open tier cards', async ({ page }) => {
+  test('the RotW Herald ladder tiles are clickable → open tier cards', async ({ page }) => {
     await page.click('.tab[data-tab="rotw"]');
     await page.waitForTimeout(200);
     // expand the Herald section
@@ -114,9 +114,9 @@ test.describe('v75 Herald tiers are searchable + clickable ID cards', () => {
     });
     await page.waitForTimeout(200);
     const wired = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll('#herald-card .sunder-tbl .zd-item-click')]
+      const tiles = [...document.querySelectorAll('#herald-card .colossal-grid .colossal-tile')]
         .filter((e) => /Herald of/.test(e.textContent || ''));
-      return { count: rows.length, allWired: rows.every((r) => (r.getAttribute('onclick') || '').includes('openDrop(')) };
+      return { count: tiles.length, allWired: tiles.every((t) => (t.getAttribute('onclick') || '').includes('openDrop(')) };
     });
     expect(wired.count).toBe(5);
     expect(wired.allWired).toBe(true);

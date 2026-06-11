@@ -23,8 +23,8 @@ test.describe('v72 Herald of Terror ID card', () => {
     await expect(card).toBeHidden();
     await page.locator('#tab-rotw .sec-h', { hasText: 'Herald of Terror' }).evaluate((e: any) => e.click());
     await expect(card).toBeVisible();
-    await expect(card.locator('.gbc-name')).toHaveText(/Herald of Terror/);
-    await expect(card.locator('.gbc-subtitle')).toHaveText(/Sunder/i);
+    await expect(card.locator('.gic-name')).toHaveText(/Herald of Terror/);
+    await expect(card.locator('.gic-subtitle')).toHaveText(/Sunder/i);
     // it sits ABOVE the Worldstone Shards section (first section in the tab)
     const order = await page.evaluate(() => {
       const tab = document.getElementById('tab-rotw')!;
@@ -38,8 +38,8 @@ test.describe('v72 Herald of Terror ID card', () => {
   test('the header emblem is the verified Herald of Terror portrait (embedded data-URI, 👹 fallback)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const card = document.getElementById('herald-card')!;
-      const img = card.querySelector('.gbc-header .d2art-img') as HTMLImageElement | null;
-      const fallback = card.querySelector('.gbc-header .d2art-fallback .gbc-emoji');
+      const img = card.querySelector('.gic-header .d2art-img') as HTMLImageElement | null;
+      const fallback = card.querySelector('.gic-header .d2art-fallback .gbc-emoji');
       return {
         hasImg: !!img,
         src: img?.getAttribute('src') || '',

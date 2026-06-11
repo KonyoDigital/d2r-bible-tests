@@ -49,15 +49,18 @@ test.describe('v116 site-wide aura-cell logos', () => {
         names,
       };
     });
-    // 7 (Aura Enchanted table) + 7 (aura pool table) = 14 tagged cells
+    // Desktop golden-merge: aura tables restructured; 7 aura pool tiles +
+    // 3 SU table cells (Holy Fire/Fanaticism/Meditation) + 5 tier-list mentions = 15 tags
     expect(r.total).toBeGreaterThanOrEqual(14);
     expect(r.decorated).toBe(r.total);
     // all tagged auras exist in AURA_ART, so every cell has a real <img>, not just a glyph
     expect(r.withImg).toBe(r.total);
     expect(r.firstSrc).toMatch(/^https:\/\/i\.imgur\.com\/[A-Za-z0-9]+\.gif$/);
     expect(r.firstLazy).toBe('lazy');
-    // the 3 newly-sourced auras are actually present in the rendered tables
-    expect(r.names).toEqual(expect.arrayContaining(['Concentration', 'Vigor', 'Thorns']));
+    // Desktop golden-merge: the aura pool table now shows the 7 Aura-Enchanted
+    // auras + the bind tables tag Fanaticism/Meditation/Holy Fire. Concentration,
+    // Vigor, Thorns are still in AURA_ART but no longer tagged in HTML tables.
+    expect(r.names).toEqual(expect.arrayContaining(['Fanaticism', 'Holy Fire', 'Meditation']));
   });
 
   test('decorateAuraLogos is idempotent — a second call injects nothing new', async ({ page }) => {

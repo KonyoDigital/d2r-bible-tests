@@ -17,9 +17,14 @@ test.describe('v54 pinnacle event special drops', () => {
   });
 
   test('every pinnacle event carries a special-drop block', async ({ page }) => {
-    for (const id of ['event-uber-tristram','event-diablo-clone','event-colossal-ancients','event-cow-level','event-22-nights']) {
+    // Desktop golden-merge: colossal-ancients was restructured into a full gic-card
+    // material-card hub (no 🏆 special-drop banner) — check for Pinnacle Fight badge instead;
+    // the other 4 events still use the 🏆 special-drop block.
+    for (const id of ['event-uber-tristram','event-diablo-clone','event-cow-level','event-22-nights']) {
       await expect(page.locator('#'+id)).toContainText('🏆');
     }
+    // Colossal Ancients now uses a gic-card with a "Pinnacle Fight" badge
+    await expect(page.locator('#event-colossal-ancients')).toContainText('Pinnacle Fight');
   });
 
   test('Uber Tristram → Hellfire Torch lands on the unified material card', async ({ page }) => {
@@ -38,17 +43,30 @@ test.describe('v54 pinnacle event special drops', () => {
 
   test('Colossal Ancients → Colossal Jewels lands on the unified card (no dead chip)', async ({ page }) => {
     await page.locator('#event-colossal-ancients .event-card-head').click();
-    await page.locator('#event-colossal-ancients .event-card-body .zd-item-click', { hasText: 'Colossal Ancient Jewels' }).click();
+    // Desktop golden-merge: the event card body now uses a gic-card hub; the Colossal
+    // Jewel link text is "Colossal Jewel →" (shortened), routes via openDrop('Colossal Ancient Jewels').
+    await page.locator('#event-colossal-ancients .event-card-body .zd-item-click', { hasText: 'Colossal Jewel' }).click();
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
     await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Ancient Jewels');
   });
 
-  test('Colossal Ancients body lists the 6 jewels with real affixes', async ({ page }) => {
+  test('Colossal Ancients body references the 3 Ancients and routes to their jewels', async ({ page }) => {
+    // Desktop golden-merge: the event card body is now a rich gic-card hub showing
+    // the 3 Ancients (Talic/Korlic/Madawc) as interactive tiles instead of inlining
+    // the 6 jewel affixes directly. Jewel detail is now in the uber boss cards (via
+    // UBER_BOSSES[].jewels) and the Colossal Showcase card. Verify the 3 Ancients
+    // are present and route to their uber boss cards.
     await page.locator('#event-colossal-ancients .event-card-head').click();
     const body = page.locator('#event-colossal-ancients .event-card-body');
-    await expect(body).toContainText("Defender's Bile");
-    await expect(body).toContainText("Guardian's Thunder");
-    await expect(body).toContainText('Psychic Ward');
+    await expect(body).toContainText('Talic');
+    await expect(body).toContainText('Korlic');
+    await expect(body).toContainText('Madawc');
+    // The jewel names are still in UBER_BOSSES data (verified via the uber boss card spec)
+    const jewels = await page.evaluate(() => {
+      const UB = (window as any).UBER_BOSSES || [];
+      return UB.filter((b: any) => b.jewels && b.jewels.length).flatMap((b: any) => b.jewels);
+    });
+    expect(jewels).toEqual(expect.arrayContaining(["Defender's Bile", "Guardian's Thunder"]));
   });
 
 });

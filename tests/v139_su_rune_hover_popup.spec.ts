@@ -13,16 +13,19 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // that resolve in D2IO_ART get tagged (art-less SU stay a silent no-op, no broken image).
 
 // SU that now carry a verified avatar (resolve in D2IO_ART)
+// Desktop golden-merge added councilmember_graphic.png art for all 6 council members
+// + Bartuc the Bloody — they are no longer art-less.
 const SU_WITH_ART = [
   'Hephasto the Armorer', 'Lister the Tormentor', 'The Smith', 'Shenk the Overseer',
   'Bishibosh', 'Coldcrow', 'Rakanishu', 'Witch Doctor Endugu', 'Pitspawn Fouldog',
   'Battlemaid Sarina', 'Infector of Souls', 'Sharptooth Slayer',
   'Colenzo the Annihilator', 'Ventar the Unholy',
+  'Ismail Vilehand', 'Geleb Flamefinger', 'Toorc Icefist', 'Bremm Sparkfist',
+  'Wyand Voidbringer', 'Maffer Dragonhand', 'Bartuc the Bloody',
 ];
 // SU with NO verified avatar — must NOT get a data-arttip (no broken-image hover)
 const SU_NO_ART = [
-  'Ismail Vilehand', 'Geleb Flamefinger', 'Toorc Icefist', 'Bremm Sparkfist',
-  'Wyand Voidbringer', 'Maffer Dragonhand', 'Dac Farren', 'Bartuc the Bloody',
+  'Dac Farren',
 ];
 const ALL_RUNES = ['El','Eld','Tir','Nef','Eth','Ith','Tal','Ral','Ort','Thul','Amn','Sol',
   'Shael','Dol','Hel','Io','Lum','Ko','Fal','Lem','Pul','Um','Mal','Ist','Gul','Vex','Ohm',

@@ -47,7 +47,9 @@ test.describe('v78 Uber Boss ID cards (9)', () => {
       return {
         fn: typeof (window as any).renderUberBossCards,
         count: cards.length,
-        allHaveArt: imgs.every((s) => /^https:\/\/diablo2\.io\/styles\/zulu\/theme\/images\/items\/.*\.png$/.test(s)),
+        // Desktop golden-merge: Colossal Ancients (Talic/Korlic/Madawc) art resolved
+        // from D2IO_ART as avatar gallery .gif URLs, not /items/ .png — accept both.
+        allHaveArt: imgs.every((s) => /^https:\/\/diablo2\.io\//.test(s) && /\.(png|gif)$/.test(s)),
         allHidden: cards.every((c) => c.querySelector('.ubc-body')!.hasAttribute('hidden')),
         lilithArt: imgs[0],
         baalArt: imgs[5],

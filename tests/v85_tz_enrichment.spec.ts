@@ -71,7 +71,7 @@ test.describe('v85 TZ zones carry the unified rich ID-card modules', () => {
     await page.evaluate(() => (window as any).openDrop('Herald of Terror'));
     await page.waitForTimeout(400);
     const richName = await page.evaluate(() =>
-      document.getElementById('herald-card')?.querySelector('.gbc-name')?.textContent?.trim() || '');
+      document.getElementById('herald-card')?.querySelector('.gic-name')?.textContent?.trim() || '');
     expect(richName).toMatch(/Herald of Terror/);
   });
 
