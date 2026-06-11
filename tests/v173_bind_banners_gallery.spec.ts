@@ -7,8 +7,9 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // banner (BIND_SU_BANNER, 3-slot best-roll gallery rendered by bindSUBannerHtml) at
 // the TOP of his bind detail card, while Lister / The Smith — who have NO verified
 // screenshot — keep ONLY their health-bar replica (zero fabricated image).
-// Desktop golden-merge removed the separate #binds-top-gallery / .btg-card /
-// renderBindTopGallery — the banner now lives directly in the bind detail card.
+// NOTE (corrected 2026-06-12): #binds-top-gallery / .btg-card / renderBindTopGallery
+// are LIVE — v186 ships the stacked top-3 gallery (Lister → Hephasto → Smith) and the
+// v186 tests below drive it. The banner ALSO lives in the bind detail card.
 
 async function openBind(page: any, name: string) {
   await page.evaluate((n: string) => (window as any).openBindSUByName(n), name);
@@ -65,8 +66,8 @@ test.describe('v173 bind ID-card banners', () => {
   });
 
   test('the tier-list grid shows the S/A bind targets with their art', async ({ page }) => {
-    // Desktop golden-merge: the standalone #binds-top-gallery was removed; the bind
-    // tier-list colossal-grid (always visible in the binds tab) shows the S/A targets
+    // The bind tier-list colossal-grid (always visible in the binds tab,
+    // alongside the v186 top-gallery) shows the S/A targets
     // with art + linked to their SU cards. Verify the key names are present.
     const r = await page.evaluate(() => {
       const grid = document.querySelector('#tab-binds .colossal-grid');

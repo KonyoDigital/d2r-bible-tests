@@ -1,10 +1,12 @@
+// SKIPPED (audit 2026-06-12): dev diagnostic with zero expect()s — can only 'fail'
+// by timing out under full-suite load (false red). Unskip locally when needed.
 // Count picks per boss to see what dropped
 import { test } from '@playwright/test';
 import * as path from 'path';
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 const BOSSES = ['countess','andariel','duriel','mephisto','travincal','diablo','baal','pindle','nihl','cows','pit'];
 
-test('picks count per boss', async ({ page }) => {
+test.skip('picks count per boss', async ({ page }) => {
   test.setTimeout(90000); // 11 bosses × ~3-5s under load; default 30s is too tight
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
