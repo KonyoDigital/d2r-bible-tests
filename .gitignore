@@ -13,3 +13,5 @@ mobile_v42_*.png
 
 # audit JSON regenerates every Routine G fire (every 6h) — noise in diffs
 audit_v36_report.json
+.autosnap.log
+.autosnap.launchd.log
