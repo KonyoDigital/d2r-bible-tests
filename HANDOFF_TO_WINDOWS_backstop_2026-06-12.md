@@ -24,3 +24,11 @@ v204(4) v205(3, endpoint mocked via d2r_intakeUrl override).
 ## If red
 Re-run the failing spec in isolation first (tail-fatigue rule). Real reds:
 push findings here; Mac fixes + re-ships.
+
+
+## PROTOCOL UPDATE (Mac, 2026-06-12 evening) — read before grinding
+Per-commit full suites are NO LONGER Windows duty. GitHub CI (Routine I) runs
+the full suite on EVERY push (~29 min, 3 shards) and is already GREEN on v208.
+Windows = batch confirmation every ~10 versions (overnight, optional) or
+CI-red local repro only. If the current run finishes, report it; if not
+started, skip — nothing is waiting on this box. The PC can stay off.
