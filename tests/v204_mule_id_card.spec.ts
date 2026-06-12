@@ -60,6 +60,7 @@ test.describe('v204 mule ID card', () => {
       return {
         visible: !det.hidden,
         name: det.querySelector('.vd-name')!.textContent,
+        // v206: stash 100 + always-visible inventory 40 (side-by-side zones)
         cells: det.querySelectorAll('.vd-cell').length,
         items: blocks.length,
         listRows: det.querySelectorAll('.vd-list div').length,
@@ -68,7 +69,7 @@ test.describe('v204 mule ID card', () => {
     });
     expect(r.visible).toBe(true);
     expect(r.name).toBe('UNI-ARMOR');
-    expect(r.cells).toBe(100);
+    expect(r.cells).toBe(140);
     expect(r.items).toBeGreaterThanOrEqual(3);
     expect(r.listRows).toBe(r.items);
     expect(r.overlap).toBe(false);

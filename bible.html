@@ -16206,9 +16206,11 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 .vd-name{font-family:var(--mono,monospace);font-weight:800;font-size:16px;letter-spacing:.1em;color:var(--gold-bright,#f0c060);flex:1}
 .vd-close{background:rgba(26,20,13,.9);color:var(--gold-bright,#f0c060);border:1px solid rgba(212,168,71,.45);border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer}
 .vd-sub{font-size:11px;color:var(--text-dim,#756657);margin-bottom:10px}
+.vd-zones{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:flex-start}
+.vd-zone{min-width:0}
 .vd-zone-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.12em;font-size:13px;color:var(--gold,#d4a847);margin:12px 0 6px}
 .vd-grid{position:relative;display:grid;gap:2px;background:rgba(0,0,0,.65);border:2px solid rgba(212,168,71,.45);border-radius:6px;padding:3px;width:max-content;max-width:100%;box-shadow:inset 0 0 18px rgba(0,0,0,.8)}
-.vd-cell{width:34px;height:34px;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
+.vd-cell{width:40px;height:40px;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
 .vd-item{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,rgba(58,44,22,.92),rgba(34,24,12,.96));border:1px solid rgba(240,192,96,.55);border-radius:3px;cursor:pointer;overflow:hidden;box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 8px rgba(212,168,71,.12);transition:all .15s}
 .vd-item:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 16px rgba(212,168,71,.4);z-index:3}
 .vd-item .d2art-wrap{pointer-events:none}
@@ -16217,7 +16219,7 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 .vd-list{margin-top:12px;columns:2;column-gap:22px;font-size:11.5px;color:var(--text-muted,#b5a48a)}
 .vd-list div{break-inside:avoid;padding:2px 0}
 .vd-list .vl-slot{font-family:var(--mono,monospace);color:var(--gold-bright,#f0c060)}
-@media(max-width:640px){.vd-cell{width:26px;height:26px}.vd-list{columns:1}}
+@media(max-width:640px){.vd-cell{width:30px;height:30px}.vd-list{columns:1}}
 /* the location badge on item detail cards */
 .vault-loc-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(212,168,71,.13);border:1px solid rgba(212,168,71,.45);color:var(--gold-bright,#f0c060);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;margin-left:8px;vertical-align:middle;font-family:var(--mono,monospace)}
 .vault-loc-badge:hover{box-shadow:0 0 14px rgba(212,168,71,.3)}
@@ -16540,7 +16542,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var names=Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     var sized=names.map(function(n){ var s=vaultSize(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1]}; })
                    .sort(function(a,b){ return b.area-a.area || b.h-a.h; });
-    var cell = (window.innerWidth<640)?26:34;
+    var cell = (window.innerWidth<640)?30:40;
     var stash=packGrid(sized,10,10);
     var inv=packGrid(stash.left,10,4);
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
@@ -16549,8 +16551,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     box.innerHTML = '<div class="vd-head"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+'</span>'
       + '<button class="vd-close" onclick="document.getElementById(\'vault-detail\').hidden=true">✕ close</button></div>'
       + '<div class="vd-sub">'+names.length+' item'+(names.length===1?'':'s')+' assigned · the grids below replicate the in-game layout — pack it EXACTLY like this. Item sizes approximated from base type.</div>'
-      + '<div class="vd-zone-title">⬛ Personal stash — 10×10</div>' + gridHtml(stash.placed,10,10,cell)
-      + (inv.placed.length ? '<div class="vd-zone-title">🎒 Inventory — 10×4 (stash overflow)</div>' + gridHtml(inv.placed,10,4,cell) : '')
+      + '<div class="vd-zones">'
+      +   '<div class="vd-zone"><div class="vd-zone-title">⬛ Personal stash — 10×10</div>' + gridHtml(stash.placed,10,10,cell) + '</div>'
+      +   '<div class="vd-zone"><div class="vd-zone-title">🎒 Inventory — 10×4' + (inv.placed.length?' (stash overflow)':'') + '</div>' + gridHtml(inv.placed,10,4,cell) + '</div>'
+      + '</div>'
       + (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+' do not fit this mule</strong> — time to roll <strong>'+esc(m.name)+'-2</strong>: '+inv.left.map(function(i){return esc(i.n);}).join(' · ')+'</div>' : '')
       + (names.length ? '<div class="vd-list">'+list+'</div>' : '<div class="vm-empty" style="padding:8px 2px">empty locker — assign items above, then this card shows exactly where each one sits</div>');
     box.hidden=false;
