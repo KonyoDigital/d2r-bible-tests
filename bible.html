@@ -16560,8 +16560,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!m||!box) return;
     openMuleId = muleId;
     var names=Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
-    var sized=names.map(function(n){ var s=vaultSize(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1]}; })
-                   .sort(function(a,b){ return b.area-a.area || b.h-a.h; });
+    // v211: same-set pieces pack as NEIGHBORS — sort groups sets together first
+    // (first-fit places consecutive items adjacently), then big-first within a group
+    var sized=names.map(function(n){ var s=vaultSize(n); var t=tipOf(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1],set:(t&&t.setName)||''}; })
+                   .sort(function(a,b){
+                     if (a.set !== b.set) return a.set ? (b.set ? (a.set<b.set?-1:1) : -1) : 1;
+                     return b.area-a.area || b.h-a.h;
+                   });
     // v207: size the grids to FILL the card like the in-game two-panel screen —
     // stash (10 cols) left, inventory (10 cols) bottom-right; measure after unhide
     box.hidden = false;
