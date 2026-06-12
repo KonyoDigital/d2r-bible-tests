@@ -60,17 +60,37 @@ test.describe('v199 aura-read boxes', () => {
     for (const [k, v] of Object.entries(r)) expect(v, k).toBe(true);
   });
 
-  test('boxes render ABOVE the long-form disclaimer; other bind cards have no box', async ({ page }) => {
+  test('Smith card (v200): nameplate-gated box, solo reads, Stone Skin = 75% NOT immune', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      (window as any).openBindSUByName('The Smith');
+      const box = document.querySelector('#bindsu-detail .aura-read') as HTMLElement;
+      const detail = document.getElementById('bindsu-detail')!.textContent!;
+      if (!box) return { box: false };
+      return {
+        box: true,
+        nameplate: box.querySelector('.ar-title')!.textContent!.includes('NAMEPLATE decides'),
+        solo: box.querySelector('.ar-title')!.textContent!.includes('solo'),
+        yesGate: !!box.querySelector('.ar-gate.ar-yes'),
+        blindGate: !!box.querySelector('.ar-gate.ar-blind'),
+        notImmune: detail.includes('Stone Skin does NOT make him physically immune'),
+        base25: detail.includes('75%'),
+        fixedEF: detail.includes('Extra Fast burns the skill-10 grant'),
+      };
+    });
+    for (const [k, v] of Object.entries(r)) expect(v, k).toBe(true);
+  });
+
+  test('boxes render ABOVE the long-form disclaimer; untailored cards have no box', async ({ page }) => {
     const r = await page.evaluate(() => {
       (window as any).openBindSUByName('Lister the Tormentor');
       const detail = document.getElementById('bindsu-detail')!;
       const html = detail.innerHTML;
       const order = html.indexOf('aura-read') < html.indexOf('AURA VISIBILITY');
-      (window as any).openBindSUByName('The Smith');
-      const smithBox = !!document.querySelector('#bindsu-detail .aura-read');
-      return { order, smithBox };
+      (window as any).openBindSUByName('Shenk the Overseer');
+      const shenkBox = !!document.querySelector('#bindsu-detail .aura-read');
+      return { order, shenkBox };
     });
     expect(r.order).toBe(true);
-    expect(r.smithBox).toBe(false);
+    expect(r.shenkBox).toBe(false);
   });
 });
