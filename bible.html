@@ -7257,6 +7257,12 @@ function findSetPiece(name){
   return null;
 }
 window.findSetPiece = findSetPiece;
+// v227: the vault + AI intake work with EXACT pieces, never aggregates
+window.__setPieceNames = function(){
+  var out=[]; try{ __allSets().forEach(function(st){ (st.pieces||[]).forEach(function(p){ out.push(__pieceBase(p)); }); }); }catch(e){}
+  return out;
+};
+window.__setStemOf = function(x){ try{ return __setStem(x); }catch(e){ return String(x||''); } };
 function __setStem(s){ return _norm(String(s).replace(/\((any piece|any|set|sorc|necro|barb|ama|sin|pala|druid)\)/gi,'').replace(/\bset\b/gi,'')); }
 function setEntryForItemName(name){
   if(!name) return null;
@@ -16420,6 +16426,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }catch(e){ return null; }
   }
   function suggestMule(name){
+    try{
+      var spm = window.findSetPiece && window.findSetPiece(name);
+      if (spm){
+        var psn = (spm.set && spm.set.name) || name;
+        return MAJOR_SETS.test(psn) ? {id:'sets-major', why:'set piece: '+psn} : {id:'sets-rest', why:'set piece: '+psn};
+      }
+    }catch(e){}
     var it = (typeof ITEMS!=='undefined') ? ITEMS.find(function(i){return i.n===name;}) : null;
     var tip = tipOf(name);
     if (it && it.tier === 'uber') return {id:'mats', why:'uber relic / event item'};
@@ -16436,10 +16449,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
 
   function muleById(id){ return roster.find(function(m){return m.id===id;}); }
+  // v227: "X set (any piece)" rows are grail ODDS rows, not physical items —
+  // they have no base, no size, nothing to pack. They keep their calc ✓ but
+  // never appear in the vault. Exact set pieces (findSetPiece) are first-class.
+  function isAggregate(n){ return /\((any piece|any|set)\)\s*$/i.test(n); }
   function ownedPool(){
     try{
       if (typeof owned==='undefined' || typeof ITEMS==='undefined') return [];
-      return Array.from(owned).filter(function(n){ return ITEMS.some(function(i){return i.n===n;}); }).sort();
+      return Array.from(owned).filter(function(n){
+        if (isAggregate(n)) return false;
+        return ITEMS.some(function(i){return i.n===n;}) || !!(window.findSetPiece && window.findSetPiece(n));
+      }).sort();
     }catch(e){ return []; }
   }
   function art(n, glyph, size){ try{ return (typeof artOr==='function') ? artOr(n, glyph||'◆', size||'sm') : ''; }catch(e){ return ''; } }
@@ -16565,10 +16585,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     [/\b(grand charm|sunder|gheed)\b/i,[1,3]],
     [/\b(ring|amulet|jewel|essence|organ|eye|brain|horn)\b/i,[1,1]],
     [/\b(key)\b/i,[1,2]],
-    [/\b(wand|orb|eagle orb|fang)\b/i,[1,2]],
+    [/\b(wand|orb|eagle orb|fang|swirling crystal)\b/i,[1,2]],
     [/\b(dagger|dirk|kris|stiletto|blade of|cinquedeas?)\b/i,[1,3]],
-    [/\b(javelin|pilum|glaive|spiculum|katar|claws?|talons?|cestus|fist|knuckles?|scepter|caduceus|club|cudgel|truncheon)\b/i,[1,3]],
-    [/\b(gloves?|gauntlets?|grasp|bracers?|vambraces?|boots?|greaves|sabatons?|treads?|trek|belt|sash|cord|girdle|buckle|helm|cap|crown|casque|basinet|mask|circlet|coronet|tiara|diadem|sallet|armet|shako|visor|pelt|buckler)\b/i,[2,2]],
+    [/\b(javelin|pilum|glaive|spiculum|katar|claws?|talons?|cestus|fist|knuckles?|scepter|caduceus|rod|club|cudgel|truncheon)\b/i,[1,3]],
+    [/\b(gloves?|gauntlets?|grasp|bracers?|vambraces?|boots?|greaves|sabatons?|treads?|trek|belt|sash|cord|girdle|buckle|helm|cap|crown|casque|basinet|bonnet|mask|circlet|coronet|tiara|diadem|sallet|armet|shako|visor|pelt|buckler)\b/i,[2,2]],
     [/\b(maul|great maul|thunder maul|stave|staff|bow|crossbow|matriarchal|grand matron|spear|pike|lance|trident|brandistock|spetum|poleaxe|polearm|halberd|scythe|thresher|cromachan|war pike|colossus|executioner|decapitator|champion|balrog blade|glorious)\b/i,[2,4]],
     [/\b(armor|plate|mail|hauberk|tunic|jupon|cuirass|husk|hide|shell|carapace|wyrmhide|leather|splint|gothic|ornate|embossed|templar|shadow plate|kraken|hellforge|balrog skin|archon|dusk shroud|wire fleece|scarab husk|loricated|shield|rondache|aegis|ward|monarch|luna|hyperion|defender|targe|scutum|pavise|tower|royal|kite|dragon)\b/i,[2,3]],
     [/\b(sword|sabre|scimitar|falchion|tulwar|crystal|axe|hammer|mace|flail|morning star|war hammer)\b/i,[2,3]]
@@ -16576,6 +16596,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function vaultSize(name){
     var tip=tipOf(name);
     var probe=((tip&&tip.base)||'')+' '+name;
+    try{ var spz=window.findSetPiece && window.findSetPiece(name); if (spz && spz.slot) probe = spz.slot + ' ' + probe; }catch(e){}
     for (var i=0;i<SIZE_RULES.length;i++){ if (SIZE_RULES[i][0].test(probe)) return SIZE_RULES[i][1]; }
     return [2,2];
   }
@@ -16765,7 +16786,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!files || !files.length || !report) return;
     report.hidden = false;
     report.innerHTML = '📸 reading ' + files.length + ' screenshot' + (files.length===1?'':'s') + ' — the AI is looking at your loot…';
-    var vocab = (typeof ITEMS!=='undefined') ? ITEMS.map(function(i){return i.n;}) : [];
+    var vocab = (typeof ITEMS!=='undefined') ? ITEMS.map(function(i){return i.n;}).filter(function(n){ return !/\((any piece|any|set)\)\s*$/i.test(n); }) : [];
+    try { if (window.__setPieceNames) vocab = Array.from(new Set(vocab.concat(window.__setPieceNames()))); } catch(e){}
     var logged = [], unrec = [], errors = 0, cost = 0;
     for (var i = 0; i < files.length; i++){
       try {
@@ -16782,6 +16804,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         (data.items || []).forEach(function(n){
           if (!owned.has(n)) {
             owned.add(n);
+            // v227: an exact piece ✓s its set's grail aggregate row too (calc-only)
+            try {
+              var spg = window.findSetPiece && window.findSetPiece(n);
+              if (spg && window.__setStemOf && typeof ITEMS!=='undefined'){
+                var pstem = window.__setStemOf((spg.set && spg.set.name) || '');
+                var agg = ITEMS.find(function(it2){ return /\((any piece|set)\)\s*$/i.test(it2.n) && pstem.indexOf(window.__setStemOf(it2.n)) === 0; });
+                if (agg) owned.add(agg.n);
+              }
+            } catch(e){}
             var sg = suggestMule(n);
             if (sg && muleById(sg.id) && !assign[n]) assign[n] = sg.id;
             logged.push(n);

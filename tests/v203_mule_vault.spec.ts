@@ -30,7 +30,9 @@ test.describe('v203 the vault', () => {
       names: [...document.querySelectorAll('.vm-name')].map(e => e.textContent),
     }));
     expect(r.mules).toBe(10);
-    expect(r.chips).toBe(OWNED.length);
+    // v227: 'Tal Rasha set (any piece)' is a grail ODDS row, not a physical
+    // item — aggregates keep their calc ✓ but never become vault chips
+    expect(r.chips).toBe(OWNED.length - 1);
     expect(r.names).toContain('SETS-TAL-IK');
     expect(r.names).toContain('UNI-SMALL');
   });
@@ -76,6 +78,63 @@ test.describe('v203 the vault', () => {
     expect(r.storm).toBe('uni-armor');
     expect(r.anni).toBe('mats');
     expect(r.wf).toBe('uni-weap');
+  });
+
+  // v227 — the vault holds EXACT set pieces, never fabricated aggregates
+  // (Konyo: '"Tal Rasha any piece"?? needs the exact individual item within
+  // the set, and size accordingly — can't be fabricated').
+  test('v227 exact set pieces: in the dock with slot-true sizes + set-locker routing; aggregate stays out', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      eval('owned').add("Tal Rasha's Guardianship");
+      eval('owned').add("Trang-Oul's Girth");
+      (window as any).renderVault();
+      const chips = [...document.querySelectorAll('#vault-dock .vault-chip')].map((c: any) => c.dataset.vaultItem);
+      return {
+        pieceVocab: (window as any).__setPieceNames().length,
+        aggInDock: chips.includes('Tal Rasha set (any piece)'),
+        guardInDock: chips.includes("Tal Rasha's Guardianship"),
+        girthInDock: chips.includes("Trang-Oul's Girth"),
+        guardSize: eval('vaultSize')("Tal Rasha's Guardianship"),   // armor → 2×3
+        girthSize: eval('vaultSize')("Trang-Oul's Girth"),          // belt → 2×2 row family
+        crestSize: eval('vaultSize')("Tal Rasha's Horadric Crest"), // helm → 2×2
+        adjSize: eval('vaultSize')("Tal Rasha's Adjudication"),     // amulet → 1×1
+        guardSug: (window as any).vaultSuggest("Tal Rasha's Guardianship").id,
+        girthSug: (window as any).vaultSuggest("Trang-Oul's Girth").id,
+      };
+    });
+    expect(r.pieceVocab).toBeGreaterThanOrEqual(50);
+    expect(r.aggInDock).toBe(false);
+    expect(r.guardInDock).toBe(true);
+    expect(r.girthInDock).toBe(true);
+    expect(r.guardSize).toEqual([2, 3]);
+    expect(r.crestSize).toEqual([2, 2]);
+    expect(r.adjSize).toEqual([1, 1]);
+    expect(r.guardSug).toBe('sets-major');
+    expect(r.girthSug).toBe('sets-rest');
+  });
+
+  test('v227 AI intake registers the exact piece AND ✓s the set grail row (calc-only)', async ({ page }) => {
+    await page.route('**/api/intake', (route) =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ items: ["Tal Rasha's Lidless Eye"], unrecognized: [], usage: { in: 700, out: 20, cached: 0 } }),
+      })
+    );
+    await page.evaluate(() => localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake'));
+    await page.evaluate(async (b64: string) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const f = new File([bytes], 'shot.jpg', { type: 'image/jpeg' });
+      await (window as any).vaultIntake([f]);
+    }, '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==');
+    const r = await page.evaluate(() => ({
+      piece: eval('owned').has("Tal Rasha's Lidless Eye"),
+      grailRow: eval('owned').has('Tal Rasha set (any piece)'),
+      chips: [...document.querySelectorAll('#vault-dock .vault-chip, .vm-item-row')].map((c: any) => c.dataset?.vaultItem || c.textContent),
+      assigned: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')["Tal Rasha's Lidless Eye"],
+    }));
+    expect(r.piece).toBe(true);
+    expect(r.grailRow).toBe(true);             // grail ✓ rides along
+    expect(r.assigned).toBe('sets-major');     // auto-filed to SETS-TAL-IK
   });
 
   test('auto-assign empties the dock, persists, and survives reload', async ({ page }) => {
