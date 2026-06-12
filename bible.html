@@ -3098,6 +3098,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
         <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
         <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
+        <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
         <input type="file" id="vault-intake-file" accept="image/*" multiple style="display:none" onchange="window.vaultIntake(this.files)">
         <span class="vault-status" id="vault-status"></span>
       </div>
@@ -16857,11 +16858,54 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       window.vaultIntake(fresh);
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
   };
+  // v221: Safari/Firefox have no showDirectoryPicker — fall back to the classic
+  // webkitdirectory picker. No persistent handle, so each scan re-picks the folder;
+  // the SAME seen-ledger keeps it incremental and the SAME first-connect guard
+  // protects the token budget. NEVER hide the feature silently again (REG-011).
+  window.vaultScanFolderLegacy = function(fileList){
+    try {
+      var seen = seenLedger(), fresh = [];
+      var firstConnect = Object.keys(seen).length === 0;
+      Array.prototype.forEach.call(fileList, function(f){
+        if (!/\.(png|jpe?g|webp)$/i.test(f.name)) return;
+        var rel = f.webkitRelativePath || f.name;
+        if (rel.split('/').length > 2) return; // top-level only, like handle.values()
+        var sig = f.name + '|' + f.lastModified;
+        if (!seen[sig]) { seen[sig] = 1; fresh.push(f); }
+      });
+      if (firstConnect && fresh.length > 0){
+        var readOld = confirm('This folder already has ' + fresh.length + ' screenshot' + (fresh.length===1?'':'s') + '.\n\nOK = read them ALL now (uses AI budget)\nCancel = start fresh — only NEW screenshots from now on');
+        if (!readOld){
+          localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+          status('📂 baseline saved — ' + fresh.length + ' old screenshots skipped; re-scan after your next capture');
+          return;
+        }
+      }
+      if (!fresh.length){ status('📂 no new screenshots since last scan'); return; }
+      fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+      if (fresh.length > 12) { status('📂 '+fresh.length+' new — reading the latest 12 (scan again for the rest)'); fresh = fresh.slice(-12); }
+      else status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' found — reading…');
+      localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+      window.vaultIntake(fresh);
+    } catch(e){ status('scan failed: '+(e && e.message || e)); }
+  };
   function initFolderWatch(){
-    if (!('showDirectoryPicker' in window)) return; // Chrome/Edge only
     var cb=document.getElementById('vault-folder-btn'), sb=document.getElementById('vault-scan-btn');
-    if (cb) cb.style.display=''; if (sb) sb.style.display='';
-    idbGet(FOLDER_KEY).then(function(h){ if (h) window.vaultScanFolder(true); }).catch(function(){});
+    var di=document.getElementById('vault-dir-input');
+    if ('showDirectoryPicker' in window){
+      if (cb) cb.style.display=''; if (sb) sb.style.display='';
+      idbGet(FOLDER_KEY).then(function(h){ if (h) window.vaultScanFolder(true); }).catch(function(){});
+      return;
+    }
+    if (di && 'webkitdirectory' in di){
+      if (sb){
+        sb.style.display='';
+        sb.textContent='📂 Scan screenshot folder';
+        sb.title='pick your screenshots folder — only NEW images since the last scan are read (this browser re-asks each scan; Chrome/Edge remember the folder)';
+        sb.onclick=function(){ di.click(); };
+      }
+      di.addEventListener('change', function(){ window.vaultScanFolderLegacy(di.files); di.value=''; });
+    }
   }
   // v215: the example = Konyo's OWN stash screenshot (Spellsteel tooltip visible) —
   // the exact input format the live endpoint reads correctly

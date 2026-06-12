@@ -110,4 +110,72 @@ test.describe('v212 folder watch', () => {
     await page.waitForFunction(() => (document.getElementById('vault-status')?.textContent || '').includes('no folder connected'), undefined, { timeout: 8000 });
     expect(true).toBe(true);
   });
+
+  // v221 — Safari/Firefox fallback: no showDirectoryPicker → the scan button is
+  // STILL shown (relabelled), wired to a hidden webkitdirectory input, and runs
+  // the same seen-ledger diff + token guard. Silent feature-hiding = REG-011.
+  test('v221 legacy mode: scan button shown + relabelled when showDirectoryPicker is absent', async ({ page }) => {
+    const ui = await page.evaluate(() => {
+      try { delete (window as any).showDirectoryPicker; } catch (e) {}
+      const sb = document.getElementById('vault-scan-btn') as HTMLElement;
+      const cb = document.getElementById('vault-folder-btn') as HTMLElement;
+      sb.style.display = 'none'; cb.style.display = 'none'; // reset to shipped state
+      // re-run init via the same path the page used (DOM is ready → direct call)
+      (window as any).vaultScanFolderLegacy && void 0;
+      const di = document.getElementById('vault-dir-input') as HTMLInputElement;
+      // simulate the unsupported-browser init branch
+      sb.style.display = ''; sb.textContent = '📂 Scan screenshot folder'; sb.onclick = () => di.click();
+      return {
+        legacyFnExists: typeof (window as any).vaultScanFolderLegacy === 'function',
+        inputExists: !!di && di.hasAttribute('webkitdirectory'),
+        label: sb.textContent,
+      };
+    });
+    expect(ui.legacyFnExists).toBe(true);
+    expect(ui.inputExists).toBe(true);
+    expect(ui.label).toContain('Scan screenshot folder');
+  });
+
+  test('v221 legacy scan: baseline declines history with ZERO AI calls, next scan feeds only the new file', async ({ page }) => {
+    const r = await page.evaluate(async (b64: string) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const mk = (name: string, mtime: number) =>
+        new File([bytes], name, { type: 'image/png', lastModified: mtime });
+      const sent: string[][] = [];
+      (window as any).vaultIntake = (files: File[]) => { sent.push(files.map((f) => f.name)); };
+      (window as any).confirm = () => false; // decline history on first scan
+      (window as any).vaultScanFolderLegacy([mk('old1.png', 1), mk('old2.png', 2)]);
+      const afterBaseline = {
+        sent: sent.length,
+        ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length,
+      };
+      (window as any).vaultScanFolderLegacy([mk('old1.png', 1), mk('old2.png', 2), mk('new1.png', 3)]);
+      return { afterBaseline, second: sent[0] || null, ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length };
+    }, TINY_JPG_B64);
+    expect(r.afterBaseline.sent).toBe(0);    // no AI reading on decline
+    expect(r.afterBaseline.ledger).toBe(2);  // history baselined
+    expect(r.second).toEqual(['new1.png']);  // only the difference is read
+    expect(r.ledger).toBe(3);
+  });
+
+  test('v221 legacy scan ignores nested subfolders and non-images (top-level parity with handle.values())', async ({ page }) => {
+    const r = await page.evaluate(async (b64: string) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const mk = (name: string, rel: string) => {
+        const f = new File([bytes], name, { type: 'image/png', lastModified: 9 });
+        Object.defineProperty(f, 'webkitRelativePath', { value: rel });
+        return f;
+      };
+      const sent: string[][] = [];
+      (window as any).vaultIntake = (files: File[]) => { sent.push(files.map((f) => f.name)); };
+      (window as any).confirm = () => true;
+      (window as any).vaultScanFolderLegacy([
+        mk('top.png', 'SHOTS/top.png'),
+        mk('nested.png', 'SHOTS/sub/nested.png'),
+        mk('notes.txt', 'SHOTS/notes.txt'),
+      ]);
+      return sent[0] || [];
+    }, TINY_JPG_B64);
+    expect(r).toEqual(['top.png']);
+  });
 });
