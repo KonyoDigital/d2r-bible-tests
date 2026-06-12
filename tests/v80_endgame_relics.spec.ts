@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { ENDGAME_RELICS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -43,7 +44,7 @@ test.describe('v80 endgame relics + Road-to-the-Torch tab', () => {
         rejectsJunk: (window as any).isEndgameRelic('Shako'),
       };
     });
-    expect(r.size).toBe(15);
+    expect(r.size).toBe(ENDGAME_RELICS_TOTAL);
     expect(r.fns.every((t) => t === 'function')).toBe(true);
     expect(r.hasKeys).toBe(true);
     expect(r.hasOrgans).toBe(true);

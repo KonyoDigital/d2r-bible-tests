@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -9,7 +10,7 @@ test.describe('BUG-030..035 — aesthetics sweep', () => {
     await page.waitForTimeout(1200);
     const cards = page.locator('#boss-cards .boss-card');
     const count = await cards.count();
-    expect(count).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(count).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
 
     // Each must have: .boss-header.clickable, .boss-emoji, .boss-name, .boss-tier-tag, .boss-body
     for (let i = 0; i < count; i++) {

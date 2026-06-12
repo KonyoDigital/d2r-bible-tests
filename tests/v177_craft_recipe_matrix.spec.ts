@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { HORADRIC_RECIPES_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -51,7 +52,7 @@ test.describe('v177 Craft recipe matrix (Bridge B4)', () => {
       trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => (td.textContent || '').trim()))
     );
     // four 9-slot tables = 36 rows
-    expect(rows.length).toBe(36);
+    expect(rows.length).toBe(HORADRIC_RECIPES_TOTAL);
     // Caster table is first: Weapon=Tir, Amulet=Ral, Ring=Amn
     const caster = rows.slice(0, 9);
     expect(caster.find((r) => r[0] === 'Weapon')?.[1]).toBe('Tir');

@@ -1,5 +1,6 @@
 import { test, expect, ConsoleMessage } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -20,7 +21,7 @@ test.describe('v21_kai diagnostic — runtime errors + missing renders', () => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
     const cards = await page.locator('#boss-cards .boss-card').count();
-    expect(cards).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(cards).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
   });
 
   test('boss-nav chips exist for all 11 bosses', async ({ page }) => {

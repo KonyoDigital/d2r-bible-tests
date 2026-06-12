@@ -13,6 +13,7 @@
  */
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import { BOSS_CHIPS_TOTAL, CALC_ITEMS_TOTAL } from './_data_locks';
 
 const FILE_URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -30,7 +31,7 @@ test.describe('v42 UX — boss clicks', () => {
     const bossIds = await page.evaluate(() => 
       (typeof BOSSES !== 'undefined' ? BOSSES : []).map(b => ({ id: b.id, name: b.n || b.name }))
     );
-    expect(bossIds.length).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(bossIds.length).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
 
     for (const boss of bossIds) {
       // Click the boss chip
@@ -73,7 +74,7 @@ test.describe('v42 UX — item routing (all 312)', () => {
     const itemNames = await page.evaluate(() => 
       (typeof ITEMS !== 'undefined' ? ITEMS : []).map(i => i.n || i.name)
     );
-    expect(itemNames.length).toBe(312);
+    expect(itemNames.length).toBe(CALC_ITEMS_TOTAL);
     
     const failures: string[] = [];
     for (const name of itemNames) {

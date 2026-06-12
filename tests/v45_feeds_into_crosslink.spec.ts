@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -23,7 +24,7 @@ test.describe('v45 feeds-into cross-link — zones clickable + keys/shards/essen
       hasToggle: typeof (window as any).toggleZoneDetail,
       hasRenderEventRef: typeof (window as any).renderEventRef,
     }));
-    expect(r.bosses).toBe(13);
+    expect(r.bosses).toBe(BOSS_CHIPS_TOTAL);
     expect(r.items).toBe(312); // grail count NOT inflated by event/material cross-links
     expect(r.feedsKeys).toBeGreaterThanOrEqual(8);
     expect(r.hasZoneFeedsInto).toBe('function');

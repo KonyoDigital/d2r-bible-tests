@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL, CALC_ITEMS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -48,7 +49,7 @@ test.describe('boss-chip routing — each chip opens its OWN boss', () => {
 
   test('all 13 chips route to the matching boss detail', async ({ page }) => {
     const ids: string[] = await page.evaluate(() => (BOSSES as any[]).map(b => b.id));
-    expect(ids.length).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(ids.length).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     for (const id of ids) {
       await page.evaluate((bid) => {
         const chip = document.querySelector(`.boss-chip[data-boss-id="${bid}"]`) as HTMLElement;
@@ -247,7 +248,7 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
       }));
       return { items: Object.keys(reg).length, badTier, vCount, vIssues, cross };
     });
-    expect(r.items).toBe(312);
+    expect(r.items).toBe(CALC_ITEMS_TOTAL);
     expect(r.badTier).toBe(0);
     expect(r.vIssues).toBe(0);
     expect(r.cross).toBe(0);

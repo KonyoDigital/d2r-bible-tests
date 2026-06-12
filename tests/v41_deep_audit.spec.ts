@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
 const BIBLE_URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -32,7 +33,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
       };
     });
     expect(probe.ok, 'BOSSES + ITEMS not on page').toBe(true);
-    expect(probe.bosses).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(probe.bosses).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(probe.items).toBeGreaterThanOrEqual(300);
     expect(probe.diffKeys).toEqual(expect.arrayContaining(['norm', 'normTz', 'nm', 'nmTz', 'hell', 'hellTz']));
     expect(probe.bossIds).toEqual(expect.arrayContaining([

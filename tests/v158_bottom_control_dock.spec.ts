@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { NAV_TABS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -103,7 +104,7 @@ test.describe('v158 bottom control dock + refined tab bar', () => {
         tabsInStickyHeader: header.contains(tabs) && getComputedStyle(header).position === 'sticky',
       };
     });
-    expect(r.tabCount).toBe(11);
+    expect(r.tabCount).toBe(NAV_TABS_TOTAL);
     expect(r.radius).toBeGreaterThanOrEqual(8);     // pill capsule, not square
     expect(r.tabsInStickyHeader).toBe(true);
   });

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -19,7 +20,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       openBossDetail: typeof window.openBossDetail === 'function',
     }));
     expect(state.items).toBe(312);
-    expect(state.bossChips).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(state.bossChips).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(state.jumpToBossItem).toBe(true);
     expect(state.navigateToItem).toBe(true);
     expect(state.openBossDetail).toBe(true);
@@ -121,7 +122,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       wishlistSize: typeof wishlist !== 'undefined' ? wishlist.size : -1,
     }));
     expect(state.itemTiles).toBe(312);
-    expect(state.bossChips).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(state.bossChips).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(state.wishlistSize).toBe(0);
   });
 

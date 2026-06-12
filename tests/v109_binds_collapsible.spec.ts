@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BINDS_SECTIONS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -24,11 +25,11 @@ test.describe('v109 binds tab collapsible sections', () => {
   });
 
   test('all 16 binds sections are collapsible and collapsed by default', async ({ page }) => {
-    await expect(page.locator('#tab-binds .sec-h')).toHaveCount(16);
-    await expect(page.locator('#tab-binds .sec-body')).toHaveCount(16);
-    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(16);
+    await expect(page.locator('#tab-binds .sec-h')).toHaveCount(BINDS_SECTIONS_TOTAL);
+    await expect(page.locator('#tab-binds .sec-body')).toHaveCount(BINDS_SECTIONS_TOTAL);
+    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(BINDS_SECTIONS_TOTAL);
     // every section head has a chevron affordance (matches the other tabs)
-    await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(16);
+    await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(BINDS_SECTIONS_TOTAL);
     // the always-on intro banner is NOT a collapsible section
     await expect(page.locator('#tab-binds .events-intro')).toBeVisible();
   });

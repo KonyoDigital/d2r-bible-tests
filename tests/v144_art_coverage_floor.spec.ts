@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { CALC_ITEMS_TOTAL } from './_data_locks';
 
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -53,7 +54,7 @@ test.describe('v144 art coverage floor', () => {
       const unexpected = unmapped.filter((n) => !knownSet.has(n));
       return { total: names.length, mapped, unmappedCount: unmapped.length, unexpected };
     }, KNOWN_UNMAPPED);
-    expect(r.total).toBe(312);
+    expect(r.total).toBe(CALC_ITEMS_TOTAL);
     expect(r.mapped).toBeGreaterThanOrEqual(297);
     expect(r.unexpected).toEqual([]);          // no NEW unmapped item slipped in
     expect(r.unmappedCount).toBeLessThanOrEqual(KNOWN_UNMAPPED.length);

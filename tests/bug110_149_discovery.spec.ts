@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { BOSS_CHIPS_TOTAL } from './_data_locks';
 
 const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -175,7 +176,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     await page.goto(BIBLE);
     await page.waitForTimeout(500);
     const chips = await page.locator('#boss-nav .boss-chip').count();
-    expect(chips).toBe(13); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
+    expect(chips).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
   });
 
   test('BUG-122 TZ tab has ≥10 zones', async ({ page }) => {
