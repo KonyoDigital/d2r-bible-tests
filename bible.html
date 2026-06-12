@@ -16833,6 +16833,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     html += '<button class="vault-btn" onclick="window.vaultReadBatch(0)">Skip — just baseline</button>';
     el.innerHTML = html;
   }
+  // v223: session REWIND — when a scan finds nothing new (e.g. the baseline
+  // already swallowed tonight's farming session), offer a deliberate re-read of
+  // the newest 20/40 REGARDLESS of the ledger. Costs tokens by explicit choice
+  // only; items already ✓ owned are skipped inside vaultIntake, so no dupes.
+  var _pendingAll = null;
+  function vaultOfferRewind(all){
+    if (!all || !all.length){ status('📂 no screenshots found in that folder'); return; }
+    all.sort(function(a,b){ return a.lastModified-b.lastModified; });
+    _pendingAll = all;
+    var el = document.getElementById('vault-status'); if (!el) { status('📂 no new screenshots since last scan'); return; }
+    var html = '📂 no NEW screenshots — re-read a session anyway? ';
+    [20, 40].forEach(function(k){ if (all.length >= k) html += '<button class="vault-btn" onclick="window.vaultRewind('+k+')">🕐 Latest '+k+'</button> '; });
+    if (all.length < 20) html += '<button class="vault-btn" onclick="window.vaultRewind('+all.length+')">🕐 All '+all.length+'</button> ';
+    html += '<button class="vault-btn" onclick="window.vaultRewind(0)">Never mind</button>';
+    el.innerHTML = html;
+  }
+  window.vaultRewind = function(n){
+    var all = _pendingAll || []; _pendingAll = null;
+    var el = document.getElementById('vault-status'); if (el) el.innerHTML = '';
+    if (!n || !all.length){ status('📂 watching for new screenshots'); return; }
+    var pick = all.slice(-n);
+    status('📂 re-reading the latest ' + pick.length + ' — already-owned items are skipped automatically…');
+    window.vaultIntake(pick);
+  };
   window.vaultReadBatch = function(n){
     var fresh = _pendingBatch || []; _pendingBatch = null;
     var el = document.getElementById('vault-status'); if (el) el.innerHTML = '';
@@ -16862,16 +16886,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         perm = await handle.requestPermission({ mode:'read' });
         if (perm !== 'granted') { status('folder access declined'); return; }
       }
-      var seen = seenLedger(), fresh = [];
+      var seen = seenLedger(), fresh = [], all = [];
       var firstConnect = Object.keys(seen).length === 0;
       for await (var entry of handle.values()){
         if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
         var f = await entry.getFile();
+        all.push(f);
         // v222: dedupe by FILE NAME — a name ever registered is NEVER read
         // again, even if the file is touched/re-saved (old name|mtime keys honored)
         if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
       }
-      if (!fresh.length){ if(!quiet) status('📂 no new screenshots since last scan'); return; }
+      if (!fresh.length){ if(!quiet) vaultOfferRewind(all); return; }
       vaultOfferBatch(fresh, seen, firstConnect);
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
   };
@@ -16881,15 +16906,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // protects the token budget. NEVER hide the feature silently again (REG-011).
   window.vaultScanFolderLegacy = function(fileList){
     try {
-      var seen = seenLedger(), fresh = [];
+      var seen = seenLedger(), fresh = [], all = [];
       var firstConnect = Object.keys(seen).length === 0;
       Array.prototype.forEach.call(fileList, function(f){
         if (!/\.(png|jpe?g|webp)$/i.test(f.name)) return;
         var rel = f.webkitRelativePath || f.name;
         if (rel.split('/').length > 2) return; // top-level only, like handle.values()
+        all.push(f);
         if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
       });
-      if (!fresh.length){ status('📂 no new screenshots since last scan'); return; }
+      if (!fresh.length){ vaultOfferRewind(all); return; }
       vaultOfferBatch(fresh, seen, firstConnect);
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
   };

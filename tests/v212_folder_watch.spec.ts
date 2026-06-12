@@ -202,6 +202,31 @@ test.describe('v212 folder watch', () => {
     expect(r.ledger).toBe(50);            // the unread 30 are baselined too
   });
 
+  test('v223 session rewind: nothing-new scan offers Latest 20/40 that re-read PAST the ledger', async ({ page }) => {
+    const r = await page.evaluate(async (b64: string) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const mk = (name: string, mtime: number) =>
+        new File([bytes], name, { type: 'image/png', lastModified: mtime });
+      const sent: string[][] = [];
+      (window as any).vaultIntake = (files: File[]) => { sent.push(files.map((f) => f.name)); };
+      const pile = Array.from({ length: 45 }, (_, i) => mk('s' + String(i + 1).padStart(2, '0') + '.png', i + 1));
+      // pre-baseline EVERYTHING (the Konyo situation: Cancel swallowed the session)
+      const seen: any = {}; pile.forEach((f) => { seen[f.name] = 1; });
+      localStorage.setItem('d2r_intakeSeen', JSON.stringify(seen));
+      (window as any).vaultScanFolderLegacy(pile);
+      const bar = document.getElementById('vault-status')!.innerHTML;
+      (window as any).vaultRewind(20);
+      return {
+        offered: bar.includes('re-read a session') && bar.includes('Latest 20') && bar.includes('Latest 40'),
+        got: sent[0] || [],
+      };
+    }, TINY_JPG_B64);
+    expect(r.offered).toBe(true);
+    expect(r.got.length).toBe(20);
+    expect(r.got[0]).toBe('s26.png');  // the NEWEST 20, ledger ignored on purpose
+    expect(r.got[19]).toBe('s45.png');
+  });
+
   test('v222 never-duplicate: a registered file NAME is never re-read, even with a changed mtime', async ({ page }) => {
     const r = await page.evaluate(async (b64: string) => {
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -212,7 +237,8 @@ test.describe('v212 folder watch', () => {
       (window as any).vaultScanFolderLegacy([mk('dup.png', 100)]);
       (window as any).vaultReadBatch(999);
       const firstSent = sent.length;
-      // same name re-saved with a NEW mtime → must NOT be read again
+      // same name re-saved with a NEW mtime → must NOT be auto-read again
+      // (v223: the nothing-new path now OFFERS a deliberate rewind instead)
       (window as any).vaultScanFolderLegacy([mk('dup.png', 999999)]);
       return {
         firstSent,
@@ -222,13 +248,13 @@ test.describe('v212 folder watch', () => {
         legacyHonored: (function(){
           localStorage.setItem('d2r_intakeSeen', JSON.stringify({ 'old-style.png|123': 1 }));
           (window as any).vaultScanFolderLegacy([mk('old-style.png', 123)]);
-          return (document.getElementById('vault-status')!.textContent || '').includes('no new screenshots');
+          return (document.getElementById('vault-status')!.textContent || '').includes('no NEW screenshots');
         })(),
       };
     }, TINY_JPG_B64);
     expect(r.firstSent).toBe(1);
-    expect(r.totalSent).toBe(1); // nothing re-sent
-    expect(r.status).toContain('no new screenshots');
+    expect(r.totalSent).toBe(1); // nothing auto-re-sent
+    expect(r.status).toContain('no NEW screenshots'); // rewind offer, not a silent dead end
     expect(r.legacyHonored).toBe(true);
   });
 });
