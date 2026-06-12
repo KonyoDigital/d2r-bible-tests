@@ -16142,7 +16142,8 @@ body::before{
 /* ── E. One-shot load orchestration (transform+opacity, ends at identity, ~.7s total) ── */
 @media (prefers-reduced-motion: no-preference){
   .header{ animation:gildRise .5s var(--ease-out,ease) both; }
-  .tabs{ animation:gildRise .55s var(--ease-out,ease) .08s both; }
+  /* .tabs deliberately NOT in the load rise: the animation shorthand would override
+     v159TabsGlow (one property, last rule wins) — and .tabs rises with .header anyway. */
   .tab-content.active{ animation:gildRise .6s var(--ease-out,ease) .15s both; }
 }
 @keyframes gildRise{ from{opacity:.01; transform:translateY(7px)} to{opacity:1; transform:none} }
@@ -16229,6 +16230,15 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 #gild-lightbox .glb-close:hover{ background:rgba(47,38,26,.95); box-shadow:0 0 18px rgba(212,168,71,.25); }
 #gild-lightbox .glb-hint{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); color:var(--text-dim,#756657); font-size:11px; letter-spacing:.08em; }
 html.glb-lock, html.glb-lock body{ overflow:hidden; }
+
+/* ── v194: calc item-tile gilt hover (the most-used surface) ── */
+.item-tile{ transition:transform .18s var(--ease-out,ease), box-shadow .18s var(--ease-out,ease), border-color .18s ease, background .18s ease; }
+.item-tile:hover{ transform:translateY(-2px); border-color:rgba(240,192,96,.42);
+  box-shadow:inset 0 0 0 1px rgba(240,192,96,.09), 0 6px 18px rgba(0,0,0,.5), 0 0 20px rgba(212,168,71,.08); }
+.item-tile.selected{ box-shadow:inset 0 0 0 1px rgba(240,192,96,.22), 0 0 22px rgba(212,168,71,.14); }
+/* hero-pick + preset buttons join the same hover language */
+.hero-pick{ transition:transform .2s var(--ease-out,ease), box-shadow .2s var(--ease-out,ease); }
+.hero-pick:hover{ transform:translateY(-2px); box-shadow:var(--shadow-mid,0 4px 14px rgba(0,0,0,.5)), 0 0 22px rgba(212,168,71,.08); }
 </style>
 <script id="v193-lightbox-js">
 (function(){
