@@ -4689,9 +4689,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
 </div>
 <div class="footer">
-  Sources: silospen dropcalc · d2runewizard · diablo2.io · Maxroll · DiabloBytes · pairofdocs<br>
-  <strong>v41</strong> · v27 contract symmetry · added alias classes WITHOUT rebuilding: panel wrapped in <div id=\'boss-detail-overlay\' class=\'boss-detail-overlay hidden\'> · gbc-header also has class boss-detail-header · gbc-name also has class bd-name · boss-card .boss-header also has .clickable class with onclick=openBossDetail · setActiveBoss + clearActiveBoss now toggle .hidden on #boss-detail-overlay · Esc still calls clearActiveBoss · focusDiff param threaded through · result: my visual Golden Card stays exactly as Konyo prefers, but CC's tests can locate all expected DOM elements · 27 May 2026
-    <br><button class="reset-btn" onclick="if(confirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.')){localStorage.clear();location.reload()}">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
+  <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px">
+    <span style="flex:0 1 120px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,168,71,.55))"></span>
+    <span style="font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.28em;color:var(--gold-bright,#f0c060);font-size:15px;text-shadow:0 0 12px rgba(240,192,96,.25);white-space:nowrap">⚒ Konyo ⚒</span>
+    <span style="flex:0 1 120px;height:1px;background:linear-gradient(90deg,rgba(212,168,71,.55),transparent)"></span>
+  </div>
+    <button class="reset-btn" onclick="if(confirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.')){localStorage.clear();location.reload()}">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
 </div>
 </div>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-6</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
