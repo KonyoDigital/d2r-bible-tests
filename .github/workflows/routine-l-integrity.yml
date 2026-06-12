@@ -9,6 +9,9 @@ on:
     - cron: '30 7 * * *'   # 10:30 IDT
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   integrity:
     runs-on: ubuntu-latest
