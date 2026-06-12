@@ -80,9 +80,10 @@ test.describe('v212 folder watch', () => {
     await page.evaluate(() => (window as any).vaultConnectFolder());
     await chooserPick(page, 999);
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
-    // same folder again → nothing new
+    // same folder again → nothing new → v223 rewind offer (not a silent dead end)
     await page.evaluate(() => (window as any).vaultScanFolder());
-    await page.waitForFunction(() => (document.getElementById('vault-status')?.textContent || '').includes('no new screenshots'), undefined, { timeout: 8000 });
+    await page.waitForFunction(() => (document.getElementById('vault-status')?.textContent || '').includes('no NEW screenshots'), undefined, { timeout: 8000 });
+    await page.evaluate(() => (window as any).vaultRewind(0)); // dismiss the offer
     // add a new capture → routine scan reads it WITHOUT a chooser
     await stubFolder(page, [{ name: 'a.png', mtime: 1 }, { name: 'b.png', mtime: 2 }]);
     await page.evaluate(() => (window as any).vaultConnectFolder());
