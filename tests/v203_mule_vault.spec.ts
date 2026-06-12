@@ -35,6 +35,32 @@ test.describe('v203 the vault', () => {
     expect(r.names).toContain('UNI-SMALL');
   });
 
+  // v226 — the AI-misread eraser: dock chips carry an ✕ that removes the
+  // ✓ owned mark itself (not just the assignment), persisted. Born from the
+  // 2026-06-13 incident: a pre-v225 scan registered Ist rune / Jah-Ber-Sur
+  // rune / Tal Rasha set off a no-tooltip shards screenshot.
+  test('v226 dock chip ✕ un-owns the item, persists, and leaves other items alone', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const chip = [...document.querySelectorAll('#vault-dock .vault-chip')]
+        .find((c: any) => c.dataset.vaultItem === 'Windforce') as HTMLElement;
+      const btn = chip?.querySelector('.vc-unown') as HTMLElement;
+      btn?.click();
+      return {
+        hadBtn: !!btn,
+        stillOwned: eval('owned').has('Windforce'),
+        otherKept: eval('owned').has('Stormshield'),
+        chipGone: ![...document.querySelectorAll('#vault-dock .vault-chip')]
+          .some((c: any) => c.dataset.vaultItem === 'Windforce'),
+        persisted: !JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Windforce'),
+      };
+    });
+    expect(r.hadBtn).toBe(true);
+    expect(r.stillOwned).toBe(false);
+    expect(r.otherKept).toBe(true);
+    expect(r.chipGone).toBe(true);
+    expect(r.persisted).toBe(true);
+  });
+
   test('taxonomy: sets→set lockers, jewelry→small, helms/shields→armor, uber→mats', async ({ page }) => {
     const r = await page.evaluate(() => {
       const sug = (n: string) => (window as any).vaultSuggest(n).id;

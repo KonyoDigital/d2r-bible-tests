@@ -16184,6 +16184,8 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 .vault-btn-danger{color:var(--hell,#ff4040)}
 .vault-status{font-size:11.5px;color:var(--text-dim,#756657);margin-left:auto}
 /* dock: the unsorted pile */
+.vault-chip .vc-unown{border:none;background:none;color:var(--text-dim,#756657);cursor:pointer;font-size:11px;padding:0 2px;margin-left:2px;line-height:1}
+.vault-chip .vc-unown:hover{color:var(--hell,#ff4040)}
 .vault-dock{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-items:center}
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
 .vault-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#241c12);border:1px solid var(--border,#3a2f1e);border-radius:999px;padding:4px 11px 4px 5px;font-size:12px;cursor:grab;user-select:none;transition:all .16s var(--ease-out,ease)}
@@ -16454,7 +16456,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
     var unsorted = pool.filter(function(n){ return !assign[n]; });
     dock.innerHTML = unsorted.map(function(n){
-      return '<span class="vault-chip'+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span></span>';
+      return '<span class="vault-chip'+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span>'
+        +'<button class="vc-unown" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="not mine — remove from ✓ owned (AI misread? this erases it)">✕</button></span>';
     }).join('');
     var byMule={};
     Object.keys(assign).forEach(function(n){ (byMule[assign[n]]=byMule[assign[n]]||[]).push(n); });
@@ -16506,6 +16509,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window.vaultAssign = assignItem;
   window.vaultUnassign = function(name){ delete assign[name]; saveA(); renderVault(); refreshOpenCard(); };
+  // v226: erase an AI misread in one click — removes the ✓ owned mark itself
+  // (not just the locker assignment). Recoverable: re-✓ on the item's card.
+  window.vaultUnown = function(name){
+    try { owned.delete(name); } catch(e){}
+    delete assign[name];
+    persistOwned(); saveA(); renderVault(); refreshOpenCard();
+    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    status('🗑 "'+name+'" removed from owned — if that was wrong, re-✓ it on its item card');
+  };
   window.vaultAutoAssign = function(){
     var n=0;
     ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } } });
