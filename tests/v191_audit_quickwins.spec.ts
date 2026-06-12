@@ -145,7 +145,8 @@ test.describe('v191 audit quick-wins', () => {
         listerStone: lister.includes('Immune to Physical, the tank-maker'),
         hephSight: heph.includes('AURA VISIBILITY'),
         hephAlways: heph.includes('ALWAYS Aura Enchanted'),
-        hephNoHunt: !heph.includes('Hunt protocol'),
+        // v198: Hephasto gained his own hunt protocol (Konyo's mod-farm pick)
+        hephHunt: heph.includes('Hunt protocol'),
       };
     });
     expect(r.listerSight).toBe(true);
@@ -154,6 +155,6 @@ test.describe('v191 audit quick-wins', () => {
     expect(r.listerStone).toBe(true);
     expect(r.hephSight).toBe(true);
     expect(r.hephAlways).toBe(true);
-    expect(r.hephNoHunt).toBe(true);
+    expect(r.hephHunt).toBe(true);
   });
 });
