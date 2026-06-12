@@ -16461,13 +16461,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // ── actions ──
   function assignItem(name, muleId){
     if (!muleById(muleId)) return;
-    assign[name]=muleId; saveA(); selectedChip=null; renderVault();
+    assign[name]=muleId; saveA(); selectedChip=null; renderVault(); refreshOpenCard();
     var card=document.querySelector('[data-vault-mule="'+(window.CSS&&CSS.escape?CSS.escape(muleId):muleId)+'"]');
     if (card){ card.classList.remove('vm-flash'); void card.offsetWidth; card.classList.add('vm-flash'); }
     status('🏦 '+name+' → '+muleById(muleId).name);
   }
   window.vaultAssign = assignItem;
-  window.vaultUnassign = function(name){ delete assign[name]; saveA(); renderVault(); };
+  window.vaultUnassign = function(name){ delete assign[name]; saveA(); renderVault(); refreshOpenCard(); };
   window.vaultAutoAssign = function(){
     var n=0;
     ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } } });
@@ -16554,9 +16554,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }).join('');
     return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px)">'+cells+blocks+'</div>';
   }
+  var openMuleId = null;
   window.openMuleCard = function(muleId){
     var m=muleById(muleId); var box=document.getElementById('vault-detail');
     if (!m||!box) return;
+    openMuleId = muleId;
     var names=Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     var sized=names.map(function(n){ var s=vaultSize(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1]}; })
                    .sort(function(a,b){ return b.area-a.area || b.h-a.h; });
@@ -16571,7 +16573,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span></div>'; })
       .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span></div>'; })).join('');
     box.innerHTML = '<div class="vd-head"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+'</span>'
-      + '<button class="vd-close" onclick="document.getElementById(\'vault-detail\').hidden=true">✕ close</button></div>'
+      + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close</button></div>'
       + '<div class="vd-sub">'+names.length+' item'+(names.length===1?'':'s')+' assigned · the grids below replicate the in-game layout — pack it EXACTLY like this. Item sizes approximated from base type.</div>'
       + '<div class="vd-zones">'
       +   '<div class="vd-zone"><div class="vd-zone-title">⬛ Personal stash — 10×10</div>' + gridHtml(stash.placed,10,10,cell) + '</div>'
@@ -16581,6 +16583,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + (names.length ? '<div class="vd-list">'+list+'</div>' : '<div class="vm-empty" style="padding:8px 2px">empty locker — assign items above, then this card shows exactly where each one sits</div>');
     setTimeout(function(){ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 80);
   };
+  window.vaultCloseCard = function(){ var b=document.getElementById('vault-detail'); if(b) b.hidden=true; openMuleId=null; };
+  // v210: live re-pack — any assignment change re-tetrises an OPEN mule card
+  function refreshOpenCard(){
+    var box=document.getElementById('vault-detail');
+    if (openMuleId && box && !box.hidden && muleById(openMuleId)) window.openMuleCard(openMuleId);
+  }
   window.vaultSize = vaultSize;
   window.vaultSuggest = suggestMule;
   window.renderVault = renderVault;
@@ -16682,7 +16690,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } catch(e){ errors++; }
       report.innerHTML = '📸 ' + (i+1) + '/' + files.length + ' read · ' + logged.length + ' new items logged…';
     }
-    persistOwned(); saveA(); renderVault();
+    persistOwned(); saveA(); renderVault(); refreshOpenCard();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     var html = '<strong style="color:#7fd4ff">📸 AI intake done.</strong> ';
     html += logged.length
