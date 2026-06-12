@@ -3099,6 +3099,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </div>
       <div class="vault-dock" id="vault-dock"></div>
       <div class="vault-shelf" id="vault-shelf"></div>
+      <div class="vault-detail" id="vault-detail" hidden></div>
       <div class="zd-note" style="margin-top:10px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry), uber relics to MATS. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div>
     </div>
   </div>
@@ -16195,6 +16196,25 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 .vm-set-row .vs-done{color:var(--best,#66ff88)}
 .vm-linked{padding:6px 11px 10px;font-size:11px;color:var(--text-muted,#b5a48a)}
 .vm-empty{font-size:11px;color:var(--text-dim,#756657);font-style:italic;padding:4px 5px}
+/* mule ID card — in-game stash/inventory replica */
+.vault-detail{margin-top:14px;border:1px solid rgba(212,168,71,.5);border-radius:12px;background:linear-gradient(180deg,rgba(24,17,9,.97),rgba(14,10,5,.99));box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 10px 34px rgba(0,0,0,.6),0 0 30px rgba(212,168,71,.08);padding:14px}
+.vd-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.vd-icon{font-size:22px}
+.vd-name{font-family:var(--mono,monospace);font-weight:800;font-size:16px;letter-spacing:.1em;color:var(--gold-bright,#f0c060);flex:1}
+.vd-close{background:rgba(26,20,13,.9);color:var(--gold-bright,#f0c060);border:1px solid rgba(212,168,71,.45);border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer}
+.vd-sub{font-size:11px;color:var(--text-dim,#756657);margin-bottom:10px}
+.vd-zone-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.12em;font-size:13px;color:var(--gold,#d4a847);margin:12px 0 6px}
+.vd-grid{position:relative;display:grid;gap:2px;background:rgba(0,0,0,.65);border:2px solid rgba(212,168,71,.45);border-radius:6px;padding:3px;width:max-content;max-width:100%;box-shadow:inset 0 0 18px rgba(0,0,0,.8)}
+.vd-cell{width:34px;height:34px;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
+.vd-item{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,rgba(58,44,22,.92),rgba(34,24,12,.96));border:1px solid rgba(240,192,96,.55);border-radius:3px;cursor:pointer;overflow:hidden;box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 8px rgba(212,168,71,.12);transition:all .15s}
+.vd-item:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 16px rgba(212,168,71,.4);z-index:3}
+.vd-item .d2art-wrap{pointer-events:none}
+.vd-item .d2art-img{max-width:88%;max-height:88%;object-fit:contain}
+.vd-overflow{margin-top:10px;padding:9px 12px;border-left:3px solid var(--hell,#ff4040);background:rgba(255,64,64,.06);font-size:12px;border-radius:0 8px 8px 0}
+.vd-list{margin-top:12px;columns:2;column-gap:22px;font-size:11.5px;color:var(--text-muted,#b5a48a)}
+.vd-list div{break-inside:avoid;padding:2px 0}
+.vd-list .vl-slot{font-family:var(--mono,monospace);color:var(--gold-bright,#f0c060)}
+@media(max-width:640px){.vd-cell{width:26px;height:26px}.vd-list{columns:1}}
 /* the location badge on item detail cards */
 .vault-loc-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(212,168,71,.13);border:1px solid rgba(212,168,71,.45);color:var(--gold-bright,#f0c060);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;margin-left:8px;vertical-align:middle;font-family:var(--mono,monospace)}
 .vault-loc-badge:hover{box-shadow:0 0 14px rgba(212,168,71,.3)}
@@ -16397,7 +16417,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }).join('');
       }
       return '<div class="vault-mule" data-vault-mule="'+esc(m.id)+'">'
-        + '<div class="vm-plate" title="click to assign the selected chip here">'
+        + '<div class="vm-plate" title="click: open the in-game ID card of this mule · with a chip selected: assign it here">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count">'+items.length+'</span>'
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
@@ -16465,6 +16485,75 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (unsorted.length){ md+='\n## UNSORTED ('+unsorted.length+')\n'; unsorted.forEach(function(n){ md+='- '+n+'\n'; }); }
     navigator.clipboard.writeText(md).then(function(){ status('📋 manifests copied — paste anywhere'); }, function(){ status('clipboard blocked — copy manually'); });
   };
+  // ── v204: in-game size taxonomy (approximate, from base type) ──
+  var SIZE_RULES=[
+    [/\b(small charm|annihilus)\b/i,[1,1]],
+    [/\b(large charm|torch)\b/i,[1,2]],
+    [/\b(grand charm|sunder|gheed)\b/i,[1,3]],
+    [/\b(ring|amulet|jewel|essence|organ|eye|brain|horn)\b/i,[1,1]],
+    [/\b(key)\b/i,[1,2]],
+    [/\b(wand|orb|eagle orb|fang)\b/i,[1,2]],
+    [/\b(dagger|dirk|kris|stiletto|blade of|cinquedeas?)\b/i,[1,3]],
+    [/\b(javelin|pilum|glaive|spiculum|katar|claws?|talons?|cestus|fist|knuckles?|scepter|caduceus|club|cudgel|truncheon)\b/i,[1,3]],
+    [/\b(gloves?|gauntlets?|grasp|bracers?|vambraces?|boots?|greaves|sabatons?|treads?|trek|belt|sash|cord|girdle|buckle|helm|cap|crown|casque|basinet|mask|circlet|coronet|tiara|diadem|sallet|armet|shako|visor|pelt|buckler)\b/i,[2,2]],
+    [/\b(maul|great maul|thunder maul|stave|staff|bow|crossbow|matriarchal|grand matron|spear|pike|lance|trident|brandistock|spetum|poleaxe|polearm|halberd|scythe|thresher|cromachan|war pike|colossus|executioner|decapitator|champion|balrog blade|glorious)\b/i,[2,4]],
+    [/\b(armor|plate|mail|hauberk|tunic|jupon|cuirass|husk|hide|shell|carapace|wyrmhide|leather|splint|gothic|ornate|embossed|templar|shadow plate|kraken|hellforge|balrog skin|archon|dusk shroud|wire fleece|scarab husk|loricated|shield|rondache|aegis|ward|monarch|luna|hyperion|defender|targe|scutum|pavise|tower|royal|kite|dragon)\b/i,[2,3]],
+    [/\b(sword|sabre|scimitar|falchion|tulwar|crystal|axe|hammer|mace|flail|morning star|war hammer)\b/i,[2,3]]
+  ];
+  function vaultSize(name){
+    var tip=tipOf(name);
+    var probe=((tip&&tip.base)||'')+' '+name;
+    for (var i=0;i<SIZE_RULES.length;i++){ if (SIZE_RULES[i][0].test(probe)) return SIZE_RULES[i][1]; }
+    return [2,2];
+  }
+  // first-fit-decreasing packer over a w×h grid
+  function packGrid(items, gw, gh){
+    var grid=[], placed=[], left=[];
+    for (var y=0;y<gh;y++){ grid.push(new Array(gw).fill(false)); }
+    function fits(x,y,w,h){
+      if (x+w>gw||y+h>gh) return false;
+      for (var dy=0;dy<h;dy++) for (var dx=0;dx<w;dx++) if (grid[y+dy][x+dx]) return false;
+      return true;
+    }
+    function mark(x,y,w,h){ for (var dy=0;dy<h;dy++) for (var dx=0;dx<w;dx++) grid[y+dy][x+dx]=true; }
+    items.forEach(function(it){
+      for (var y=0;y<gh;y++) for (var x=0;x<gw;x++){
+        if (fits(x,y,it.w,it.h)){ mark(x,y,it.w,it.h); placed.push({n:it.n,x:x,y:y,w:it.w,h:it.h}); return; }
+      }
+      left.push(it);
+    });
+    return {placed:placed, left:left};
+  }
+  function gridHtml(placed, gw, gh, cell){
+    var cells=''; for (var i=0;i<gw*gh;i++) cells+='<div class="vd-cell"></div>';
+    var blocks=placed.map(function(p){
+      return '<div class="vd-item" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+esc(p.n)+' ('+p.w+'×'+p.h+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')+'</div>';
+    }).join('');
+    return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px)">'+cells+blocks+'</div>';
+  }
+  window.openMuleCard = function(muleId){
+    var m=muleById(muleId); var box=document.getElementById('vault-detail');
+    if (!m||!box) return;
+    var names=Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
+    var sized=names.map(function(n){ var s=vaultSize(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1]}; })
+                   .sort(function(a,b){ return b.area-a.area || b.h-a.h; });
+    var cell = (window.innerWidth<640)?26:34;
+    var stash=packGrid(sized,10,10);
+    var inv=packGrid(stash.left,10,4);
+    var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
+    var list = stash.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">STASH '+slotName(p)+'</span></div>'; })
+      .concat(inv.placed.map(function(p){ return '<div>'+esc(p.n)+' → <span class="vl-slot">INVENTORY '+slotName(p)+'</span></div>'; })).join('');
+    box.innerHTML = '<div class="vd-head"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+'</span>'
+      + '<button class="vd-close" onclick="document.getElementById(\'vault-detail\').hidden=true">✕ close</button></div>'
+      + '<div class="vd-sub">'+names.length+' item'+(names.length===1?'':'s')+' assigned · the grids below replicate the in-game layout — pack it EXACTLY like this. Item sizes approximated from base type.</div>'
+      + '<div class="vd-zone-title">⬛ Personal stash — 10×10</div>' + gridHtml(stash.placed,10,10,cell)
+      + (inv.placed.length ? '<div class="vd-zone-title">🎒 Inventory — 10×4 (stash overflow)</div>' + gridHtml(inv.placed,10,4,cell) : '')
+      + (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+' do not fit this mule</strong> — time to roll <strong>'+esc(m.name)+'-2</strong>: '+inv.left.map(function(i){return esc(i.n);}).join(' · ')+'</div>' : '')
+      + (names.length ? '<div class="vd-list">'+list+'</div>' : '<div class="vm-empty" style="padding:8px 2px">empty locker — assign items above, then this card shows exactly where each one sits</div>');
+    box.hidden=false;
+    setTimeout(function(){ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 80);
+  };
+  window.vaultSize = vaultSize;
   window.vaultSuggest = suggestMule;
   window.renderVault = renderVault;
   // the detail-card badge (renderItemDetailCard calls this)
@@ -16504,7 +16593,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
     if (chip){ selectedChip = (selectedChip===chip.dataset.vaultItem) ? null : chip.dataset.vaultItem; renderVault(); return; }
     var plate=e.target&&e.target.closest&&e.target.closest('.vm-plate');
-    if (plate && selectedChip){ var mule=plate.closest('.vault-mule'); assignItem(selectedChip, mule.dataset.vaultMule); }
+    if (plate){
+      var mule=plate.closest('.vault-mule');
+      if (selectedChip) assignItem(selectedChip, mule.dataset.vaultMule);
+      else window.openMuleCard(mule.dataset.vaultMule); // v204: click a locker → its in-game ID card
+    }
   });
 
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderVault);
