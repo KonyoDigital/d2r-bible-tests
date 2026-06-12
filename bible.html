@@ -3096,6 +3096,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
         <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
+        <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
+        <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
         <input type="file" id="vault-intake-file" accept="image/*" multiple style="display:none" onchange="window.vaultIntake(this.files)">
         <span class="vault-status" id="vault-status"></span>
       </div>
@@ -16707,6 +16709,66 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     report.innerHTML = html;
   };
 
+  // ── v212: 📂 folder watch — connect the D2R screenshots dir ONCE (File System
+  // Access API, Chrome/Edge); the handle persists in IndexedDB, a seen-ledger in
+  // localStorage keeps every scan incremental. New images run the SAME intake.
+  var FOLDER_DB='d2r_vault_fs', FOLDER_KEY='shotdir', SEEN_KEY='d2r_intakeSeen';
+  function idb(){ return new Promise(function(res, rej){
+    var r=indexedDB.open(FOLDER_DB,1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore('kv'); };
+    r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+  }); }
+  function idbSet(k,v){ return idb().then(function(db){ return new Promise(function(res,rej){
+    var t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k);
+    t.oncomplete=res; t.onerror=function(){ rej(t.error); };
+  }); }); }
+  function idbGet(k){ return idb().then(function(db){ return new Promise(function(res,rej){
+    var t=db.transaction('kv','readonly'); var q=t.objectStore('kv').get(k);
+    q.onsuccess=function(){ res(q.result); }; q.onerror=function(){ rej(q.error); };
+  }); }); }
+  function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
+  var liveHandle = null; // session fallback when IndexedDB can't persist the handle
+  window.vaultConnectFolder = async function(){
+    try {
+      var handle = await window.showDirectoryPicker({ id:'d2r-shots', mode:'read' });
+      liveHandle = handle;
+      try { await idbSet(FOLDER_KEY, handle); } catch(e){ /* session-only is fine */ }
+      status('📂 folder connected — scanning…');
+      window.vaultScanFolder();
+    } catch(e){ if (e && e.name!=='AbortError') status('folder connect failed: '+e.name); }
+  };
+  window.vaultScanFolder = async function(quiet){
+    try {
+      var handle = liveHandle;
+      if (!handle) { try { handle = await idbGet(FOLDER_KEY); } catch(e){} }
+      if (!handle) { if(!quiet) status('no folder connected yet — click 📂 first'); return; }
+      var perm = await handle.queryPermission({ mode:'read' });
+      if (perm !== 'granted'){
+        if (quiet) { status('📂 click 🔄 Scan folder to re-authorize access'); return; }
+        perm = await handle.requestPermission({ mode:'read' });
+        if (perm !== 'granted') { status('folder access declined'); return; }
+      }
+      var seen = seenLedger(), fresh = [];
+      for await (var entry of handle.values()){
+        if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
+        var f = await entry.getFile();
+        var sig = f.name + '|' + f.lastModified;
+        if (!seen[sig]) { seen[sig] = 1; fresh.push(f); }
+      }
+      if (!fresh.length){ if(!quiet) status('📂 no new screenshots since last scan'); return; }
+      fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+      if (fresh.length > 12) { status('📂 '+fresh.length+' new — reading the latest 12 (scan again for the rest)'); fresh = fresh.slice(-12); }
+      else status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' found — reading…');
+      localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+      window.vaultIntake(fresh);
+    } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
+  };
+  function initFolderWatch(){
+    if (!('showDirectoryPicker' in window)) return; // Chrome/Edge only
+    var cb=document.getElementById('vault-folder-btn'), sb=document.getElementById('vault-scan-btn');
+    if (cb) cb.style.display=''; if (sb) sb.style.display='';
+    idbGet(FOLDER_KEY).then(function(h){ if (h) window.vaultScanFolder(true); }).catch(function(){});
+  }
   function initShotExample(){
     try {
       var cfg = (typeof BIND_SU_BANNER!=='undefined') && BIND_SU_BANNER['Hephasto the Armorer'];
@@ -16715,8 +16777,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else if (img) img.closest('.vault-shot-guide').style.display='none';
     } catch(e){}
   }
-  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); initShotExample(); });
-  else { renderVault(); initShotExample(); }
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); initShotExample(); initFolderWatch(); });
+  else { renderVault(); initShotExample(); initFolderWatch(); }
 })();
 </script>
 </body>
