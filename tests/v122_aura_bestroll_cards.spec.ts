@@ -8,7 +8,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // (Fanaticism / Holy Freeze / Concentration / Vigor / Thorns) best→worst; every aura
 // NAMED anywhere in the binds tab (the data-aura-logo cells) is now clickable and
 // routes to bindAuraDetailHtml via openBindAuraByName. The 3 rerollable super-uniques
-// (Hephasto / Bremm / Lister) carry a "best roll — top 3" block in their bind card.
+// (Hephasto / Bremm / Lister / Smith since v200) carry a "best roll — top 3" block in their bind card.
 // Single source of truth = BIND_AURA_POOL (+ the page's own 3.2 remap, AURA_REMAP).
 test.describe('v122 aura best-roll guide + clickable aura ID cards', () => {
   test.beforeEach(async ({ page }) => {
@@ -114,8 +114,10 @@ test.describe('v122 aura best-roll guide + clickable aura ID cards', () => {
     expect(r.clickable).toBe(r.total);
   });
 
-  test('the 3 rerollable super-uniques carry a "best roll — top 3" block (Hephasto/Bremm/Lister)', async ({ page }) => {
-    for (const name of ['Hephasto the Armorer', 'Bremm Sparkfist', 'Lister the Tormentor']) {
+  test('the rerollable super-uniques carry a "best roll — top 3" block (Hephasto/Bremm/Lister/Smith)', async ({ page }) => {
+    // v200: The Smith joined — his fixed Holy Fire is the CONSUME stat; the BD-20
+    // grant gives every bound SU a rolled/granted aura, so the top-3 applies to him too.
+    for (const name of ['Hephasto the Armorer', 'Bremm Sparkfist', 'Lister the Tormentor', 'The Smith']) {
       const r = await page.evaluate((n) => {
         const html = (window as any).bindSUDetailHtml((window as any).BIND_SU.find((b: any) => b.name === n));
         return {
@@ -128,10 +130,8 @@ test.describe('v122 aura best-roll guide + clickable aura ID cards', () => {
       expect(r.picksFanaticism, `${name} top-3 missing Fanaticism`).toBe(true);
       expect(r.picksHolyFreeze, `${name} top-3 missing Holy Freeze`).toBe(true);
     }
-    // a non-rerollable super-unique (the Smith, fixed Holy Fire) gets NO top-3 block
-    const smith = await page.evaluate(() =>
-      (window as any).bindSUDetailHtml((window as any).BIND_SU.find((b: any) => b.name === 'The Smith')).includes('best roll — top 3'));
-    expect(smith).toBe(false);
+    // (the old "Smith gets NO top-3" lock was deliberately flipped by v200 —
+    // he is covered by the loop above now)
   });
 
   test('no console errors opening every aura ID card', async ({ page }) => {
