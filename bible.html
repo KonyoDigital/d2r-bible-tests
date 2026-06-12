@@ -3095,9 +3095,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
+        <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
+        <input type="file" id="vault-intake-file" accept="image/*" multiple style="display:none" onchange="window.vaultIntake(this.files)">
         <span class="vault-status" id="vault-status"></span>
       </div>
       <div class="vault-dock" id="vault-dock"></div>
+      <div id="vault-intake-report" hidden style="margin:0 0 12px;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <div class="vault-shelf" id="vault-shelf"></div>
       <div class="vault-detail" id="vault-detail" hidden></div>
       <div class="zd-note" style="margin-top:10px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry), uber relics to MATS. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div>
@@ -16599,6 +16602,72 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else window.openMuleCard(mule.dataset.vaultMule); // v204: click a locker → its in-game ID card
     }
   });
+
+  // ── v205: 📸 AI intake — screenshots → Claude vision (via the same-origin
+  // /api/intake Pages Function; the API key lives server-side) → ✓ owned + assigned
+  function downscale(file){
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){
+        var MAX = 1344;
+        var scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+  function persistOwned(){
+    try { localStorage.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
+  }
+  window.vaultIntake = async function(files){
+    var report = document.getElementById('vault-intake-report');
+    if (!files || !files.length || !report) return;
+    report.hidden = false;
+    report.innerHTML = '📸 reading ' + files.length + ' screenshot' + (files.length===1?'':'s') + ' — the AI is looking at your loot…';
+    var vocab = (typeof ITEMS!=='undefined') ? ITEMS.map(function(i){return i.n;}) : [];
+    var logged = [], unrec = [], errors = 0, cost = 0;
+    for (var i = 0; i < files.length; i++){
+      try {
+        var b64 = await downscale(files[i]);
+        var endpoint = localStorage.getItem('d2r_intakeUrl')
+          || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+        var resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ image: b64, media_type: 'image/jpeg', names: vocab }),
+        });
+        if (!resp.ok) { errors++; continue; }
+        var data = await resp.json();
+        (data.items || []).forEach(function(n){
+          if (!owned.has(n)) {
+            owned.add(n);
+            var sg = suggestMule(n);
+            if (sg && muleById(sg.id) && !assign[n]) assign[n] = sg.id;
+            logged.push(n);
+          }
+        });
+        (data.unrecognized || []).forEach(function(n){ if (unrec.indexOf(n) < 0) unrec.push(n); });
+        if (data.usage) cost += (data.usage.in || 0) / 1e6 * 1.0 + (data.usage.out || 0) / 1e6 * 5.0;
+      } catch(e){ errors++; }
+      report.innerHTML = '📸 ' + (i+1) + '/' + files.length + ' read · ' + logged.length + ' new items logged…';
+    }
+    persistOwned(); saveA(); renderVault();
+    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    var html = '<strong style="color:#7fd4ff">📸 AI intake done.</strong> ';
+    html += logged.length
+      ? '<strong style="color:var(--best,#66ff88)">' + logged.length + ' item' + (logged.length===1?'':'s') + ' logged ✓ owned + assigned:</strong> ' + logged.map(esc).join(' · ')
+      : 'no new tracked items found in ' + files.length + ' screenshot' + (files.length===1?'':'s') + '.';
+    if (unrec.length) html += '<br><span style="color:var(--text-dim,#756657)">not grail-tracked (read but skipped): ' + unrec.map(esc).join(' · ') + '</span>';
+    if (errors) html += '<br><span style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</span>';
+    if (cost) html += '<br><span style="color:var(--text-dim,#756657)">≈$' + cost.toFixed(4) + ' of API budget used</span>';
+    report.innerHTML = html;
+  };
 
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderVault);
   else renderVault();
