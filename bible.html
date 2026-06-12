@@ -16749,11 +16749,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (perm !== 'granted') { status('folder access declined'); return; }
       }
       var seen = seenLedger(), fresh = [];
+      var firstConnect = Object.keys(seen).length === 0;
       for await (var entry of handle.values()){
         if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
         var f = await entry.getFile();
         var sig = f.name + '|' + f.lastModified;
         if (!seen[sig]) { seen[sig] = 1; fresh.push(f); }
+      }
+      // v213 token guard: on FIRST connect, default to from-now-forward — never
+      // silently burn budget reading screenshot history
+      if (firstConnect && fresh.length > 0){
+        var readOld = confirm('This folder already has ' + fresh.length + ' screenshot' + (fresh.length===1?'':'s') + '.\n\nOK = read them ALL now (uses AI budget)\nCancel = start fresh — only NEW screenshots from now on');
+        if (!readOld){
+          localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+          status('📂 connected — ' + fresh.length + ' old screenshots skipped; watching for new ones from now');
+          return;
+        }
       }
       if (!fresh.length){ if(!quiet) status('📂 no new screenshots since last scan'); return; }
       fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });

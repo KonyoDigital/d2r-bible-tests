@@ -41,6 +41,9 @@ test.describe('v212 folder watch', () => {
       localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake');
       (window as any).switchTab('tools');
       (window as any).renderVault();
+      // v213: first-connect guard confirms before reading existing files —
+      // default these tests to the read-all path; the skip path has its own test
+      (window as any).confirm = () => true;
     });
   });
 
@@ -80,6 +83,26 @@ test.describe('v212 folder watch', () => {
     }, undefined, { timeout: 10000 });
     const seen = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).sort());
     expect(seen).toEqual(['a.png|1', 'b.png|2']);
+  });
+
+  test('v213 token guard: declining first-connect baselines old files WITHOUT reading them', async ({ page }) => {
+    await stubFolder(page, [{ name: 'old1.png', mtime: 1 }, { name: 'old2.png', mtime: 2 }]);
+    await page.evaluate(() => {
+      (window as any).confirm = () => false; // "start fresh"
+      (window as any).vaultConnectFolder();
+    });
+    await page.waitForFunction(
+      () => (document.getElementById('vault-status')?.textContent || '').includes('old screenshots skipped'),
+      undefined, { timeout: 8000 }
+    );
+    const r = await page.evaluate(() => ({
+      seen: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length,
+      report: document.getElementById('vault-intake-report')!.hidden, // intake never ran
+      owned: eval('owned').has('Vampire Gaze'),
+    }));
+    expect(r.seen).toBe(2);        // baselined as seen
+    expect(r.report).toBe(true);   // no AI reading happened
+    expect(r.owned).toBe(false);
   });
 
   test('no folder connected → scan explains instead of failing', async ({ page }) => {

@@ -28,11 +28,15 @@ export async function onRequestPost(context) {
 
   const system = [{
     type: 'text',
-    text: 'You read Diablo 2 Resurrected screenshots (stash tabs, inventories, loot on the ground, hover tooltips). '
-      + 'Extract every ITEM NAME visible in the image. Match each against this exact vocabulary of tracked item names — '
-      + 'return matches VERBATIM from the vocabulary in "items" (a vocabulary entry like "Harlequin Crest (Shako)" matches '
-      + 'the in-game name "Harlequin Crest"). Names you can clearly read that are NOT in the vocabulary go in "unrecognized" '
-      + 'as written. Ignore UI labels, gold amounts, potion/scroll clutter, and anything you cannot read with confidence. '
+    text: 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
+      + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
+      + '(1) Report a vocabulary item ONLY if its name appears as readable text — NEVER fuzzy-match a similar-looking '
+      + 'string (a base type like "Tyrant Club" is NOT "Tyrael\'s Might"). '
+      + '(2) In a tooltip, the ITEM NAME is the TOP line; the line under it is the BASE TYPE (e.g. "Bearded Axe", '
+      + '"Bone Shield", "Tyrant Club") — base types are never items, do not report them anywhere. '
+      + '(3) Ignore NPC name labels (Charsi, Kashya, Warriv, Akara, Gheed the NPC...), zone names, UI text, gold, potions. '
+      + '(4) Item ART without readable name text is NOT enough — skip it. '
+      + 'Clearly readable item names NOT in the vocabulary go in "unrecognized" as written. '
       + 'VOCABULARY:\n' + names.join('\n'),
     cache_control: { type: 'ephemeral' },
   }];
