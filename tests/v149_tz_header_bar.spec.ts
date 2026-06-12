@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_net_stub'; // diablo2.io art stubbed — flaked on the 2026-06-12 backstop run
 import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
