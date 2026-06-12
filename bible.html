@@ -4697,7 +4697,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="reset-btn" onclick="if(confirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.')){localStorage.clear();location.reload()}">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
 </div>
 </div>
-<div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-6</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
+<div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
 <button class="help-btn" onclick="document.getElementById('help-modal').classList.add('show')" title="Help & guide">?</button>
 <div class="help-modal" id="help-modal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="help-content">
@@ -4718,24 +4718,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <h3>⏱️ Per-hour math</h3>
     <p>Each boss has a realistic kills/hr rate (Pindle=300, Meph=80, Baal=22). Time-to-50% uses your MF setting + this rate.</p>
     <h3>🎲 Drop simulator</h3>
-    <p>In the Calculator detail panel: set runs, hit "Simulate" to roll RNG N times and see actual distribution.</p>
-    <h3>⌨️ Keyboard shortcuts (v12)</h3>
+    <p>Two of them: the Calculator item detail (🎲 RUN — percentiles + histogram) and the grail item card (🎲 simulate — 20 farming sessions). Set your runs, roll the RNG, see the real variance.</p>
+    <h3>⌨️ Keyboard shortcuts</h3>
     <ul>
       <li><span class="kbd">/</span> jump to search box in calculator</li>
-      <li><span class="kbd">1</span>-<span class="kbd">7</span> switch tabs (1=bosses, 2=calc, 3=TZ, 4=runes, 5=RotW, 6=ancients, 7=ref)</li>
+      <li><span class="kbd">1</span>-<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ · 4=runes · 5=RotW · 6=events · 7=binds · 8=reference · 9=endgame · 0=tools</li>
       <li><span class="kbd">↑↓←→</span> in calculator: navigate item grid</li>
       <li><span class="kbd">Enter</span> when item focused: open detail panel</li>
-      <li><span class="kbd">B</span> when item selected: jump to bosses + highlight every drop source</li>
+      <li><span class="kbd">B</span> with an item selected — from ANY tab: jump to bosses + highlight every drop source</li>
       <li><span class="kbd">D</span> toggle the MF / Players dock at the bottom (slides it down to reclaim space)</li>
       <li><span class="kbd">R</span> toggle the routine-status widget</li>
       <li><span class="kbd">?</span> open this help · <span class="kbd">Esc</span> close modal / clear item highlight</li>
     </ul>
-    <h3>🎯 v12 sharper routing (your request)</h3>
+    <h3>🎯 Active-item routing</h3>
     <p>Click <strong>any item</strong> anywhere → it becomes "active":</p>
     <ul>
       <li>Yellow bar pins to top of bosses tab showing the item + fastest farm summary</li>
       <li>Boss cards that drop it <strong>glow gold</strong>; cards that don't <strong>dim out</strong></li>
-      <li>Calc detail panel shows a <strong>source-strip</strong> — all bosses with the item as one-click jump buttons</li>
+      <li>The item's detail card shows <strong>every boss that drops it as one-click chips</strong> — tap a chip to jump straight to that boss + difficulty</li>
       <li>Esc clears the highlight, returns boss tab to normal</li>
     </ul>
     <h3>🎲 What the drop simulator actually shows</h3>
@@ -8734,6 +8734,8 @@ const KBD_SHORTCUTS = [
   {keys:['6'], desc:'Ancients', action:() => switchTab('ancients')},
   {keys:['7'], desc:'Bind Demon', action:() => switchTab('binds')},
   {keys:['8'], desc:'Reference', action:() => switchTab('ref')},
+  {keys:['9'], desc:'Endgame', action:() => switchTab('endgame')},
+  {keys:['0'], desc:'Tools', action:() => switchTab('tools')},
   {keys:['/'], desc:'Focus search', action:() => {
     const s = document.querySelector('#searchInput, input[type="search"], .search-input');
     if (s) { s.focus(); s.select(); }
@@ -12603,6 +12605,14 @@ document.addEventListener("keydown", (e) => {
     }
   }
   if (inInput) return;
+  // v202: B works from ANYWHERE once an item is selected/active (was gated behind
+  // keyboard-focus on a calc tile — click-selecting then pressing B did nothing)
+  if (e.key.toLowerCase() === "b" && !e.shiftKey && (selectedItem || activeItem)) {
+    e.preventDefault();
+    switchTab("bosses");
+    setActiveItem(selectedItem || activeItem);
+    return;
+  }
   if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
     e.preventDefault();
     switchTab("calc");
@@ -13778,7 +13788,7 @@ _v41_whenReady(() => {
           icon,
           label: `Switch to ${label}`,
           cat: 'tab',
-          hint: i < 9 ? String(i + 1) : '',
+          hint: ({bosses:'1',calc:'2',tz:'3',runes:'4',rotw:'5',ancients:'6',binds:'7',ref:'8',endgame:'9',tools:'0'})[id] || '',
           keywords: `tab ${label.toLowerCase()} ${id} ${TAB_KW[id] || ''}`,
           action: () => { if (typeof window.switchTab === 'function') window.switchTab(id); }
         });
