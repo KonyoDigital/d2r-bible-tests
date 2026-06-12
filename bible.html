@@ -16811,58 +16811,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     q.onsuccess=function(){ res(q.result); }; q.onerror=function(){ rej(q.error); };
   }); }); }
   function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
-  // v222: session-batch chooser. EVERY fresh file is baselined into the ledger
-  // immediately (registered by name, never duplicated) — the buttons only pick
-  // how many of the NEWEST get fed to the AI. Pound an hour, log on, hit 40.
-  // Routine scans with ≤12 new auto-read as before; bigger piles (or the first
-  // connect) get the chooser.
-  var _pendingBatch = null;
-  function vaultOfferBatch(fresh, seen, firstConnect){
-    fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+  // v224: ONE scan menu, rendered FULL-WIDTH in #vault-intake-report (the tiny
+  // toolbar #vault-status span was invisible to Konyo — REG-class lesson:
+  // injecting interactive UI into a cramped inline span = users never see it).
+  // Every manual scan shows it. EVERY file is registered by name the moment the
+  // menu appears (never re-read automatically); the buttons pick what to feed
+  // the AI: the new ones, or a deliberate 🕐 Latest 20/40 session PAST the ledger.
+  var _pendingAll = null, _pendingFresh = null;
+  function vaultOfferMenu(all, fresh, seen){
     localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-    if (!firstConnect && fresh.length <= 12){
-      status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' found — reading…');
-      window.vaultIntake(fresh);
+    all.sort(function(a,b){ return a.lastModified-b.lastModified; });
+    fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+    _pendingAll = all; _pendingFresh = fresh;
+    var rep = document.getElementById('vault-intake-report');
+    if (!rep){ if (fresh.length) window.vaultIntake(fresh); return; }
+    rep.hidden = false;
+    var html = '📂 folder scanned: <strong style="color:var(--best,#66ff88)">' + fresh.length + ' new</strong> · ' + all.length + ' screenshots total — read which?<br>';
+    if (fresh.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'new\')" style="border-color:rgba(102,255,136,.5);color:var(--best,#66ff88)">✨ New ' + fresh.length + '</button> ';
+    [20, 40].forEach(function(k){ if (all.length >= k) html += '<button class="vault-btn" onclick="window.vaultReadBatch('+k+')">🕐 Latest '+k+'</button> '; });
+    if (all.length && all.length < 20) html += '<button class="vault-btn" onclick="window.vaultReadBatch('+all.length+')">🕐 All '+all.length+'</button> ';
+    html += '<button class="vault-btn" onclick="window.vaultReadBatch(0)">Skip — just register</button>';
+    rep.innerHTML = html;
+  }
+  window.vaultReadBatch = function(k){
+    var all = _pendingAll || [], fresh = _pendingFresh || [];
+    _pendingAll = _pendingFresh = null;
+    var rep = document.getElementById('vault-intake-report');
+    var pick = (k === 'new') ? fresh : (k ? all.slice(-k) : []);
+    if (!pick.length){
+      if (rep){ rep.innerHTML = ''; rep.hidden = true; }
+      status(k ? '📂 nothing to read' : '📂 registered — only NEW screenshots count from now on');
       return;
     }
-    _pendingBatch = fresh;
-    var el = document.getElementById('vault-status'); if (!el) return;
-    var n = fresh.length, html = '📂 <strong>' + n + '</strong> new screenshot' + (n===1?'':'s') + ' — read how many? ';
-    [20, 40].forEach(function(k){ if (n > k) html += '<button class="vault-btn" onclick="window.vaultReadBatch('+k+')">🕐 Latest '+k+'</button> '; });
-    html += '<button class="vault-btn" onclick="window.vaultReadBatch('+n+')">All '+n+'</button> ';
-    html += '<button class="vault-btn" onclick="window.vaultReadBatch(0)">Skip — just baseline</button>';
-    el.innerHTML = html;
-  }
-  // v223: session REWIND — when a scan finds nothing new (e.g. the baseline
-  // already swallowed tonight's farming session), offer a deliberate re-read of
-  // the newest 20/40 REGARDLESS of the ledger. Costs tokens by explicit choice
-  // only; items already ✓ owned are skipped inside vaultIntake, so no dupes.
-  var _pendingAll = null;
-  function vaultOfferRewind(all){
-    if (!all || !all.length){ status('📂 no screenshots found in that folder'); return; }
-    all.sort(function(a,b){ return a.lastModified-b.lastModified; });
-    _pendingAll = all;
-    var el = document.getElementById('vault-status'); if (!el) { status('📂 no new screenshots since last scan'); return; }
-    var html = '📂 no NEW screenshots — re-read a session anyway? ';
-    [20, 40].forEach(function(k){ if (all.length >= k) html += '<button class="vault-btn" onclick="window.vaultRewind('+k+')">🕐 Latest '+k+'</button> '; });
-    if (all.length < 20) html += '<button class="vault-btn" onclick="window.vaultRewind('+all.length+')">🕐 All '+all.length+'</button> ';
-    html += '<button class="vault-btn" onclick="window.vaultRewind(0)">Never mind</button>';
-    el.innerHTML = html;
-  }
-  window.vaultRewind = function(n){
-    var all = _pendingAll || []; _pendingAll = null;
-    var el = document.getElementById('vault-status'); if (el) el.innerHTML = '';
-    if (!n || !all.length){ status('📂 watching for new screenshots'); return; }
-    var pick = all.slice(-n);
-    status('📂 re-reading the latest ' + pick.length + ' — already-owned items are skipped automatically…');
-    window.vaultIntake(pick);
-  };
-  window.vaultReadBatch = function(n){
-    var fresh = _pendingBatch || []; _pendingBatch = null;
-    var el = document.getElementById('vault-status'); if (el) el.innerHTML = '';
-    if (!n || !fresh.length){ status('📂 baseline saved — only NEW screenshots count from now on'); return; }
-    var pick = fresh.slice(-n);
-    status('📂 reading the latest ' + pick.length + '…');
+    status('📂 reading ' + pick.length + ' screenshot' + (pick.length===1?'':'s') + ' — already-owned items are skipped automatically…');
     window.vaultIntake(pick);
   };
   var liveHandle = null; // session fallback when IndexedDB can't persist the handle
@@ -16896,8 +16877,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // again, even if the file is touched/re-saved (old name|mtime keys honored)
         if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
       }
-      if (!fresh.length){ if(!quiet) vaultOfferRewind(all); return; }
-      vaultOfferBatch(fresh, seen, firstConnect);
+      if (quiet){
+        if (!fresh.length) return;
+        if (fresh.length <= 12){
+          localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+          fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+          status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…');
+          window.vaultIntake(fresh);
+        } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch');
+        return;
+      }
+      vaultOfferMenu(all, fresh, seen);
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
   };
   // v221: Safari/Firefox have no showDirectoryPicker — fall back to the classic
@@ -16915,8 +16905,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         all.push(f);
         if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
       });
-      if (!fresh.length){ vaultOfferRewind(all); return; }
-      vaultOfferBatch(fresh, seen, firstConnect);
+      vaultOfferMenu(all, fresh, seen);
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
   };
   function initFolderWatch(){
