@@ -7281,14 +7281,14 @@ function setPieceDetailHtml(name){
   var agg=setAggregateItemFor(hit.set.name);
   var sibs=(hit.set.pieces||[]).filter(function(pc){return __pieceBase(pc)!==hit.base;}).map(function(pc){
     var b=__pieceBase(pc), sl=__pieceSlot(pc);
-    return '<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open '+b+' ID card" onclick="window.openDrop(\''+_esc1(b)+'\')"><span class="ct-art">'+(typeof artOr==='function'?artOr(b,'<span class="ct-emoji">\U0001F9E9</span>','lg'):'')+'</span><div class="ct-body"><div class="ct-name">'+b+'</div><div class="ct-sub">'+(sl||'set piece')+'</div></div></div>';
+    return '<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open '+b+' ID card" onclick="window.openDrop(\''+_esc1(b)+'\')"><span class="ct-art">'+(typeof artOr==='function'?artOr(b,'<span class="ct-emoji">🧩</span>','lg'):'')+'</span><div class="ct-body"><div class="ct-name">'+b+'</div><div class="ct-sub">'+(sl||'set piece')+'</div></div></div>';
   }).join('');
   var setChip = agg
     ? '<span class="zd-item-click" style="cursor:pointer;color:var(--gold)" onclick="window.navigateToItem(\''+_esc1(agg)+'\')">'+hit.set.name+' \u2192</span>'
     : hit.set.name;
   return '<div class="gic-card material-card set-piece-card">'
     +'<header class="gic-header">'
-    +(typeof artOr==='function'?artOr(hit.base,'<span class="gic-emoji">\U0001F9E9</span>','lg'):'')
+    +(typeof artOr==='function'?artOr(hit.base,'<span class="gic-emoji">🧩</span>','lg'):'')
     +'<div class="gic-id-block">'
     +'<h2 class="gic-name">'+hit.base+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#4a6,#336);color:#dfeaff">Set Piece</span></h2>'
     +'<div class="gic-subtitle">'+(hit.slot?hit.slot+' \u00b7 ':'')+'one piece of <strong>'+hit.set.name+'</strong></div>'
@@ -7296,7 +7296,7 @@ function setPieceDetailHtml(name){
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">\u2715 close</button></div>'
     +'</header>'
-    +'<section class="gic-section"><div class="gic-section-title">\U0001F9E9 Sister pieces \u2014 open each ID card</div><div class="colossal-grid">'+sibs+'</div></section>'
+    +'<section class="gic-section"><div class="gic-section-title">🧩 Sister pieces \u2014 open each ID card</div><div class="colossal-grid">'+sibs+'</div></section>'
     +'<div class="zd-note" style="margin-top:10px">Identity card \u2014 set membership + slot from this file\'s set data. Per-piece stats are not stored here, so none are shown (no fabricated odds).</div>'
     +'</div>';
 }
@@ -16262,8 +16262,12 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-cell{width:40px;height:40px;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
 .vd-item{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,rgba(58,44,22,.92),rgba(34,24,12,.96));border:1px solid rgba(240,192,96,.55);border-radius:3px;cursor:pointer;overflow:hidden;box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 8px rgba(212,168,71,.12);transition:all .15s}
 .vd-item:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 16px rgba(212,168,71,.4);z-index:3}
-.vd-item .d2art-wrap{pointer-events:none}
-.vd-item .d2art-img{max-width:88%;max-height:88%;object-fit:contain}
+.vd-item .d2art-wrap.sm,.vd-item .d2art-wrap.lg{width:94%;height:94%;min-width:0;min-height:0}
+.vd-item .d2art-fallback{font-size:clamp(18px,3vh,34px)}
+.vd-item .d2art-wrap{pointer-events:auto;cursor:zoom-in;width:94%;height:94%;display:flex;align-items:center;justify-content:center}
+/* fullscreen replica: the floating enlarged-art popup goes BIG */
+html.vd-lock #arttip.tip-art .d2art-img,html.vd-lock #arttip.tip-art img{max-width:340px;max-height:340px}
+.vd-item .d2art-img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.8))}
 .vd-overflow{margin-top:10px;padding:9px 12px;border-left:3px solid var(--hell,#ff4040);background:rgba(255,64,64,.06);font-size:12px;border-radius:0 8px 8px 0}
 .vd-list{margin-top:12px;columns:2;column-gap:22px;font-size:11.5px;color:var(--text-muted,#b5a48a)}
 .vd-list div{break-inside:avoid;padding:2px 0}
