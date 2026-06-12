@@ -144,6 +144,54 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-010 — 2026-06-12 · vault hover magnifier rendered UNDERNEATH the fullscreen overlay (looked "not working")
+- **Symptom**: Konyo, live on v217-v219: "the image floating cursor wasn't working" — hovering a
+  vault item in the fullscreen mule card showed no enlarged image at all.
+- **Caught by**: the USER on the live site. My v217/v219 headless checks verified the popup turned
+  `on` and measured its size — but never that it was visibly on TOP.
+- **Root cause**: `#arttip` lives at z-index 9999; the fullscreen replica `.vd-fs` overlay is
+  99997. The magnifier fired correctly and rendered the whole time — underneath the overlay.
+- **Fix (v220, `cf19720`)**: `html.vd-lock #arttip{z-index:2147483000 !important}`. Verified with
+  a REAL `page.mouse.move` hover + screenshot (575px Spellsteel floating above the card).
+- **Prevention**: (1) Any new full-viewport overlay must audit the z-index of every shared
+  floating element (`#arttip`, lightbox, palette) it can co-exist with. (2) "Popup is on + has
+  size" is NOT visibility — screenshot it. (3) `elementFromPoint` cannot prove popup visibility:
+  it skips `pointer-events:none` elements by design.
+
+## REG-009 — 2026-06-12 · vault stash items overflowed their grid boxes (cell ≠ track)
+- **Symptom**: Konyo screenshot: items misaligned vs the 10×10 stash boxes — "you need to
+  recalibrate it… match the box its sitting in."
+- **Caught by**: the USER on the live site (v214-v217).
+- **Root cause**: `.vd-cell` was hard-coded 40px while the CSS grid TRACKS were responsive
+  (~60px) — background boxes and item blocks were sized on two different rulers.
+- **Fix (v218, `8ce082f`)**: cells `width/height:auto` fill their tracks + `gridHtml` emits
+  explicit `grid-auto-rows:<cell>px`; geometric audit (100 cells, cell==track ≤3px, item spans
+  exactly w×h tracks).
+- **Prevention**: in any CSS-grid replica, the cell ELEMENT must inherit its size from the
+  track — never restate the dimension in a second place. Verify geometrically, not visually.
+
+## REG-008 — 2026-06-12 · Python-style `\U0001F9E9` escapes rendered as literal text in vault UI
+- **Symptom**: Konyo screenshot: literal `U0001F9E9` strings visible in the set sister-pieces
+  header + art fallbacks (3 occurrences).
+- **Caught by**: the USER on the live site.
+- **Root cause**: `\U0001F9E9` is a PYTHON escape; JS treats it as `U0001F9E9` with a dead `\`.
+- **Fix (v217)**: replaced with literal 🧩; repo-wide scan confirmed zero remaining `\U` escapes.
+- **Prevention**: in JS strings use literal emoji or `\u{1F9E9}` (ES6 braces) — never `\UXXXXXXXX`;
+  after any emoji-in-JS work, grep `\\U000`.
+
+## REG-007 — 2026-06-12 · vault cards used `card-body` + v200 Smith top-3 flip broke two suite locks
+- **Symptom**: Routine I shards 1+3 red on the v204-v207 pushes — `v83_sync_audit` (tools-card
+  structure) + `v122` ("Smith gets NO top-3 strip").
+- **Caught by**: scheduled CI full suite (per-push backstop) — NOT the pre-push smoke gate.
+- **Root cause**: (a) the new vault tool cards used `class="card-body"`; the v83 audit requires
+  every tools card to clone the idiom exactly (`.boss-card.collapsible` + `.boss-header` +
+  `.boss-body`). (b) v200 deliberately GAVE the Smith a top-3 strip, but v122 had locked the
+  opposite claim and was never updated.
+- **Fix (v208)**: vault cards converted to `.boss-body`; v122 lock flipped to assert the new truth.
+- **Prevention**: (1) new tool cards: copy an existing card's exact class skeleton. (2) Flipping
+  any content claim requires grepping ALL specs for the OLD claim — a lock is a spec-encoded
+  sentence, not just a selector (same family as REG-005/006).
+
 ## REG-006 — 2026-06-11 · v176 gambling section used `.drops` tables in the reference tab → broke v50 tier-count
 - **Symptom**: Routine I (Playwright) shard 3/3 red on the v176 push (`670e33a`) and still
   red through v177 — 1 real test, all 3 retries deterministic:
