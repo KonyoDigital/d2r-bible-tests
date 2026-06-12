@@ -58,9 +58,15 @@ test.describe('v60 Most Wanted community-demand board', () => {
   test('every Top-10 + section target resolves to a real card (no dead clicks)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const fr = (window as any).findRune, fm = (window as any).findMaterial;
-      // ITEMS is a top-level const (page scope) — reference it bare, not via window
+      // ITEMS / SPECIAL_DROPS are top-level consts (page scope) — reference bare.
+      // v228: openDrop ALSO resolves SPECIAL_DROPS group LABELS (e.g. 'Sunder
+      // Charms' → the golden 6-charm card), so the resolver must know them too.
+      const groupLabel = (n: string) => {
+        try { return Object.values(SPECIAL_DROPS as any).some((g: any) => g && g.label === n); }
+        catch (e) { return false; }
+      };
       const resolves = (n: string) => !!(fm && fm(n)) || !!(fr && fr(n)) ||
-        (ITEMS as any).some((i: any) => i.n === n);
+        (ITEMS as any).some((i: any) => i.n === n) || groupLabel(n);
       const dead: string[] = [];
       // MW_TOP10 / MW_SECTIONS are top-level consts (page scope), referenced bare
       (MW_TOP10 as any).forEach((e: any) => {
