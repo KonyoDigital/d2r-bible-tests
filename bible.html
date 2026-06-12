@@ -7101,11 +7101,6 @@ const TZ_ZONE_ART = {
 function _tzArtSrc(slug){
   return (slug.indexOf('data:')===0||slug.indexOf('http')===0||slug.charAt(0)==='/'||slug.indexOf('banners/')===0)?slug:TZ_ART_BASE+slug+'_graphic.png';
 }
-function tzZoneArtBanner(name){
-  const slug = TZ_ZONE_ART[name];
-  if (!slug) return '';
-  return `<div class="tz-zone-art"><img class="d2art-img" loading="lazy" alt="${name}" src="${_tzArtSrc(slug)}" onerror="this.closest('.tz-zone-art').classList.add('d2art-failed')"></div>`;
-}
 // v148 — Konyo: drop the big 132px area banner; fold the SAME verified area art into a
 // small boss-header-style emblem box (.sec-h-art look) at the head of the title row, so the
 // TZ titles read exactly like the Bosses-tab section headers (boxed emblem + serif glow +
@@ -8969,7 +8964,6 @@ function renderWishlistHuntPath() {
 }
 
 // Wire renderWishlistHuntPath into MF + players input + init
-const _origRenderHero = (typeof renderHero === 'function') ? renderHero : null;
 window.renderWishlistHuntPath = renderWishlistHuntPath;
 
 /* === v31: Golden Item Card — symmetric to Golden Boss Card === */
@@ -9039,7 +9033,7 @@ function renderItemDetailCard(itemName) {
   if (typeof BOSS_CHAR_REC !== 'undefined' && BOSS_CHAR_REC[best.bossId]) {
     const rec = BOSS_CHAR_REC[best.bossId];
     // richer char card — reuse the canonical CHARS roster (name + build + role) and
-    // the class medal, matching the calc-tab renderClassRec. BOSS_CHAR_REC only holds
+    // the class medal, matching the calc-tab class-medal markup. BOSS_CHAR_REC only holds
     // {top, reason}, so the name/build come from CHARS[rec.top].
     const char = (typeof CHARS !== 'undefined' && CHARS[rec.top]) ? CHARS[rec.top] : null;
     const medal = rec.top === 'konyolock' ? '🗡️' : rec.top === 'konyodin' ? '🔨' : rec.top === 'konyoress' ? '❄️' : rec.top === 'konyossin' ? '🥋' : '⚔️';
@@ -10311,40 +10305,8 @@ function renderCalc() {
 window.openGlossary = () => document.getElementById('glossary-modal').classList.add('show');
 window.closeGlossary = () => document.getElementById('glossary-modal').classList.remove('show');
 
-function renderItemDesc(itemName){
-  const info = ITEM_INFO[itemName];
-  if (info) return `<div class="item-desc">${info}</div>`;
-  return '';
-}
 
-function renderClassRec(item, bestSource){
-  if (!bestSource) return '';
-  const rec = BOSS_CHAR_REC[bestSource.bossId];
-  if (!rec) return '';
-  const char = CHARS[rec.top];
-  if (!char) return '';
-  return `<div class="char-rec-card">
-    <div class="char-rec-medal">${rec.top==='konyolock'?'🗡️':rec.top==='konyodin'?'🔨':rec.top==='konyoress'?'❄️':'🥋'}</div>
-    <div class="char-rec-body">
-      <div class="char-rec-label">⭐ best char from your roster for this farm</div>
-      <div class="char-rec-name">${char.name} <span style="color:var(--text-dim);font-size:11px;font-weight:400">· ${char.build}</span></div>
-      <div class="char-rec-reason">${rec.reason}</div>
-    </div>
-  </div>`;
-}
 
-function renderActionPlan(item, bestSource){
-  if (!bestSource) return '';
-  const plan = BOSS_ACTION_PLAN[bestSource.bossId];
-  if (!plan) return '';
-  return `<div class="action-plan">
-    <div class="action-plan-title">📋 pre-run action plan · ${bestSource.boss}</div>
-    <div class="action-plan-row"><div class="action-plan-key">go to</div><div class="action-plan-val">${plan.open}</div></div>
-    <div class="action-plan-row"><div class="action-plan-key">build tip</div><div class="action-plan-val">${plan.build}</div></div>
-    <div class="action-plan-row"><div class="action-plan-key">cadence</div><div class="action-plan-val">${plan.run}</div></div>
-    ${plan.warning?`<div class="action-plan-warning">⚠ ${plan.warning}</div>`:''}
-  </div>`;
-}
 
 function renderCodexCard(name){
   if (typeof ITEM_CODEX === 'undefined') return "";
@@ -10650,37 +10612,6 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
 }
 
 
-function renderDiffCompareTable(item, focus, validSources){
-  // Build per-diff comparison for THIS boss × THIS item
-  const boss = BOSSES.find(b => b.id === focus.bossId);
-  if (!boss) return '';
-  const rows = DIFF_KEYS_ORDERED.map(dk => {
-    const src = item.sources.find(s => s.bossId === focus.bossId && s.diffKey === dk);
-    if (!src) return null;
-    const diffMeta = boss.diffs.find(d => {
-      const idx = boss.diffs.findIndex(dx => DIFF_KEYS_ORDERED[boss.diffs.indexOf(dx)] === dk);
-      return DIFF_KEYS_ORDERED[boss.diffs.indexOf(d)] === dk;
-    });
-    const adj = src.chance ? effChance(src.chance, src.bossId, src.diffKey) : null;
-    const blocked = src.blocked;
-    const h50 = adj ? hoursFor(adj, 0.5, src.kph) : null;
-    const isFocused = dk === focus.diffKey;
-    const escName = item.n.replace(/'/g,"\\'");
-    const diffLabel = (DIFF_MODIFIERS[dk]||{}).label || dk.toUpperCase();
-    return `<div class="diff-compare-row ${isFocused?'dc-focused':''}">
-      <div class="diff-compare-label">${isFocused?'⭐ ':''}${diffLabel}</div>
-      <div class="diff-compare-chance ${!adj?'dc-blocked':''}">${adj ? fmt(adj) : (blocked || '—')}</div>
-      <div class="diff-compare-time">${h50 ? fmtHours(h50) : '—'}</div>
-      <div style="color:var(--text-muted);font-size:10px">${src.kph?src.kph+'/hr':''}</div>
-      <div class="diff-compare-pin" onclick="setActiveItem('${escName}', '${focus.bossId}', '${dk}')" title="focus this difficulty">${isFocused?'●':'○'}</div>
-    </div>`;
-  }).filter(Boolean).join('');
-  if (!rows) return '';
-  return `<div class="diff-compare">
-    <div class="diff-compare-title">⚖ compare all difficulties · ${boss.name} × ${item.n}</div>
-    ${rows}
-  </div>`;
-}
 
 
 function renderActiveItemDetail(name){
@@ -10886,32 +10817,6 @@ function renderAidCard(name, opts){
 }
 window.clearActiveItem = () => setActiveItem(null);
 
-function renderSourceStrip(item) {
-  if (!item) return "";
-  const adj = item.sources.map(s => ({...s, adj: s.chance ? effChance(s.chance, s.bossId, s.diffKey) : null}));
-  const valid = adj.filter(s => s.adj !== null && s.adj >= 100);
-  if (!valid.length) return `<div class="source-strip"><span class="source-strip-label">no achievable sources at MF ${mf}%</span></div>`;
-  valid.sort((a, b) => {
-    const ah = hoursFor(a.adj, 0.5, a.kph) || Infinity;
-    const bh = hoursFor(b.adj, 0.5, b.kph) || Infinity;
-    return ah - bh;
-  });
-  const chips = valid.slice(0, 12).map((s, i) => {
-    const h50 = hoursFor(s.adj, 0.5, s.kph);
-    const bestCls = i === 0 ? "best" : "";
-    const esc = item.n.replace(/'/g, "\\'");
-    return `<button class="source-chip ${bestCls}" onclick="switchTab('bosses');setActiveItem('${esc}', '${s.bossId}', '${s.diffKey}');setTimeout(()=>{document.getElementById('${s.bossId}').scrollIntoView();jumpToBossItem('${esc}')},100)" title="jump to ${s.boss}, highlight item">
-      ${i===0?'⭐ ':''}${s.boss}
-      <span class="source-chip-chance">${fmt(s.adj)}</span>
-      <span class="source-chip-time">${fmtHours(h50)}</span>
-      ${s.verified?'<span style="color:var(--verified);font-size:10px">🔒</span>':''}
-    </button>`;
-  }).join("");
-  return `<div class="source-strip">
-    <span class="source-strip-label">⚡ jump to source · ${valid.length} options:</span>
-    ${chips}
-  </div>`;
-}
 
 /* One terror-zone card. zi MUST stay the zone's index in TZ_ZONES (routing + tests key
    off data-zone-idx), so grouping is presentation-only — the card identity is unchanged. */
@@ -12815,12 +12720,6 @@ const ROUTINE_INFO = {
   'S': { name: 'Tracker poller', schedule: 'every 10min', desc: 'Legacy: polled GitHub Issue #1 for claude.ai routine output. Superseded by T.' },
   'T': { name: 'Claude.ai A-F proxy', schedule: '15×/day (A: 6h · B-am: 09:00 · B-pm: 21:00 · C: 10:15 · D: 8h · E: 6h · F: 11:00)', desc: 'Runs the A-F observation prompts (System Pulse, Content Health, Daily Rollup, Drift Watch, Heal Insights, Meta-Health) via Anthropic Haiku API directly. Writes to 90-ClaudeTracker/. Telegram alerts on severity=red.' },
 };
-
-document.addEventListener('keydown', e => {
-  // v42 UX fix: was only matching capital 'R' (Shift+R). Routed through KBD_SHORTCUTS now.
-  // Kept this listener empty as a deprecation marker — main R handler lives in KBD_SHORTCUTS.
-  if (false) { /* deprecated */ }
-});
 
 document.addEventListener('click', e => {
   if (e.target.classList && e.target.classList.contains('routine-letter')) {
