@@ -16206,8 +16206,10 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 .vd-name{font-family:var(--mono,monospace);font-weight:800;font-size:16px;letter-spacing:.1em;color:var(--gold-bright,#f0c060);flex:1}
 .vd-close{background:rgba(26,20,13,.9);color:var(--gold-bright,#f0c060);border:1px solid rgba(212,168,71,.45);border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer}
 .vd-sub{font-size:11px;color:var(--text-dim,#756657);margin-bottom:10px}
-.vd-zones{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:flex-start}
+.vd-zones{display:flex;flex-wrap:wrap;gap:14px 44px;align-items:stretch;justify-content:center}
 .vd-zone{min-width:0}
+.vd-zone-inv{display:flex;flex-direction:column;justify-content:flex-end}
+.vd-char-hint{flex:1;min-height:60px;display:flex;align-items:center;justify-content:center;color:rgba(117,102,87,.4);font-size:11px;font-style:italic;letter-spacing:.08em}
 .vd-zone-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.12em;font-size:13px;color:var(--gold,#d4a847);margin:12px 0 6px}
 .vd-grid{position:relative;display:grid;gap:2px;background:rgba(0,0,0,.65);border:2px solid rgba(212,168,71,.45);border-radius:6px;padding:3px;width:max-content;max-width:100%;box-shadow:inset 0 0 18px rgba(0,0,0,.8)}
 .vd-cell{width:40px;height:40px;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
@@ -16542,7 +16544,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var names=Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     var sized=names.map(function(n){ var s=vaultSize(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1]}; })
                    .sort(function(a,b){ return b.area-a.area || b.h-a.h; });
-    var cell = (window.innerWidth<640)?30:40;
+    // v207: size the grids to FILL the card like the in-game two-panel screen —
+    // stash (10 cols) left, inventory (10 cols) bottom-right; measure after unhide
+    box.hidden = false;
+    var availW = box.clientWidth || 1200;
+    var cell = Math.max(30, Math.min(64, Math.floor((availW - 110) / 2 / 10) - 2));
     var stash=packGrid(sized,10,10);
     var inv=packGrid(stash.left,10,4);
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
@@ -16553,11 +16559,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<div class="vd-sub">'+names.length+' item'+(names.length===1?'':'s')+' assigned · the grids below replicate the in-game layout — pack it EXACTLY like this. Item sizes approximated from base type.</div>'
       + '<div class="vd-zones">'
       +   '<div class="vd-zone"><div class="vd-zone-title">⬛ Personal stash — 10×10</div>' + gridHtml(stash.placed,10,10,cell) + '</div>'
-      +   '<div class="vd-zone"><div class="vd-zone-title">🎒 Inventory — 10×4' + (inv.placed.length?' (stash overflow)':'') + '</div>' + gridHtml(inv.placed,10,4,cell) + '</div>'
+      +   '<div class="vd-zone vd-zone-inv"><div class="vd-char-hint">⚔ character panel — someday</div><div><div class="vd-zone-title">🎒 Inventory — 10×4' + (inv.placed.length?' (stash overflow)':'') + '</div>' + gridHtml(inv.placed,10,4,cell) + '</div></div>'
       + '</div>'
       + (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+' do not fit this mule</strong> — time to roll <strong>'+esc(m.name)+'-2</strong>: '+inv.left.map(function(i){return esc(i.n);}).join(' · ')+'</div>' : '')
       + (names.length ? '<div class="vd-list">'+list+'</div>' : '<div class="vm-empty" style="padding:8px 2px">empty locker — assign items above, then this card shows exactly where each one sits</div>');
-    box.hidden=false;
     setTimeout(function(){ box.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 80);
   };
   window.vaultSize = vaultSize;
