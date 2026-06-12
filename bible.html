@@ -16811,6 +16811,36 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     q.onsuccess=function(){ res(q.result); }; q.onerror=function(){ rej(q.error); };
   }); }); }
   function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
+  // v222: session-batch chooser. EVERY fresh file is baselined into the ledger
+  // immediately (registered by name, never duplicated) — the buttons only pick
+  // how many of the NEWEST get fed to the AI. Pound an hour, log on, hit 40.
+  // Routine scans with ≤12 new auto-read as before; bigger piles (or the first
+  // connect) get the chooser.
+  var _pendingBatch = null;
+  function vaultOfferBatch(fresh, seen, firstConnect){
+    fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+    if (!firstConnect && fresh.length <= 12){
+      status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' found — reading…');
+      window.vaultIntake(fresh);
+      return;
+    }
+    _pendingBatch = fresh;
+    var el = document.getElementById('vault-status'); if (!el) return;
+    var n = fresh.length, html = '📂 <strong>' + n + '</strong> new screenshot' + (n===1?'':'s') + ' — read how many? ';
+    [20, 40].forEach(function(k){ if (n > k) html += '<button class="vault-btn" onclick="window.vaultReadBatch('+k+')">🕐 Latest '+k+'</button> '; });
+    html += '<button class="vault-btn" onclick="window.vaultReadBatch('+n+')">All '+n+'</button> ';
+    html += '<button class="vault-btn" onclick="window.vaultReadBatch(0)">Skip — just baseline</button>';
+    el.innerHTML = html;
+  }
+  window.vaultReadBatch = function(n){
+    var fresh = _pendingBatch || []; _pendingBatch = null;
+    var el = document.getElementById('vault-status'); if (el) el.innerHTML = '';
+    if (!n || !fresh.length){ status('📂 baseline saved — only NEW screenshots count from now on'); return; }
+    var pick = fresh.slice(-n);
+    status('📂 reading the latest ' + pick.length + '…');
+    window.vaultIntake(pick);
+  };
   var liveHandle = null; // session fallback when IndexedDB can't persist the handle
   window.vaultConnectFolder = async function(){
     try {
@@ -16837,25 +16867,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       for await (var entry of handle.values()){
         if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
         var f = await entry.getFile();
-        var sig = f.name + '|' + f.lastModified;
-        if (!seen[sig]) { seen[sig] = 1; fresh.push(f); }
-      }
-      // v213 token guard: on FIRST connect, default to from-now-forward — never
-      // silently burn budget reading screenshot history
-      if (firstConnect && fresh.length > 0){
-        var readOld = confirm('This folder already has ' + fresh.length + ' screenshot' + (fresh.length===1?'':'s') + '.\n\nOK = read them ALL now (uses AI budget)\nCancel = start fresh — only NEW screenshots from now on');
-        if (!readOld){
-          localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-          status('📂 connected — ' + fresh.length + ' old screenshots skipped; watching for new ones from now');
-          return;
-        }
+        // v222: dedupe by FILE NAME — a name ever registered is NEVER read
+        // again, even if the file is touched/re-saved (old name|mtime keys honored)
+        if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
       }
       if (!fresh.length){ if(!quiet) status('📂 no new screenshots since last scan'); return; }
-      fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
-      if (fresh.length > 12) { status('📂 '+fresh.length+' new — reading the latest 12 (scan again for the rest)'); fresh = fresh.slice(-12); }
-      else status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' found — reading…');
-      localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-      window.vaultIntake(fresh);
+      vaultOfferBatch(fresh, seen, firstConnect);
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
   };
   // v221: Safari/Firefox have no showDirectoryPicker — fall back to the classic
@@ -16870,23 +16887,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (!/\.(png|jpe?g|webp)$/i.test(f.name)) return;
         var rel = f.webkitRelativePath || f.name;
         if (rel.split('/').length > 2) return; // top-level only, like handle.values()
-        var sig = f.name + '|' + f.lastModified;
-        if (!seen[sig]) { seen[sig] = 1; fresh.push(f); }
+        if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
       });
-      if (firstConnect && fresh.length > 0){
-        var readOld = confirm('This folder already has ' + fresh.length + ' screenshot' + (fresh.length===1?'':'s') + '.\n\nOK = read them ALL now (uses AI budget)\nCancel = start fresh — only NEW screenshots from now on');
-        if (!readOld){
-          localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-          status('📂 baseline saved — ' + fresh.length + ' old screenshots skipped; re-scan after your next capture');
-          return;
-        }
-      }
       if (!fresh.length){ status('📂 no new screenshots since last scan'); return; }
-      fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
-      if (fresh.length > 12) { status('📂 '+fresh.length+' new — reading the latest 12 (scan again for the rest)'); fresh = fresh.slice(-12); }
-      else status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' found — reading…');
-      localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-      window.vaultIntake(fresh);
+      vaultOfferBatch(fresh, seen, firstConnect);
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
   };
   function initFolderWatch(){
