@@ -30,8 +30,13 @@ export async function onRequestPost(context) {
     type: 'text',
     text: 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
       + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
+      + '(0) FIRST check whether a hover-TOOLTIP panel (translucent dark box of colored stat lines) is open anywhere. '
+      + 'If NO tooltip is open, return {"items":[],"unrecognized":[]} immediately — recognizable item ARTWORK alone is '
+      + 'NEVER reportable, no matter how distinctive. '
       + '(1) Report a vocabulary item ONLY if its name appears as readable text — NEVER fuzzy-match a similar-looking '
-      + 'string (a base type like "Tyrant Club" is NOT "Tyrael\'s Might"). '
+      + 'string (a base type like "Tyrant Club" is NOT "Tyrael\'s Might"). If text is too small or blurry to read with '
+      + 'CERTAINTY, do not guess: omit it or put your literal best transcription in "unrecognized". A wrong match is far '
+      + 'worse than a miss — the user can re-screenshot. '
       + '(2) In a tooltip, the ITEM NAME is the TOP line; the line under it is the BASE TYPE (e.g. "Bearded Axe", '
       + '"Bone Shield", "Tyrant Club") — base types are never items, do not report them anywhere. '
       + '(3) Ignore NPC name labels (Charsi, Kashya, Warriv, Akara, Gheed the NPC...), zone names, UI text, gold, potions. '
@@ -85,10 +90,29 @@ export async function onRequestPost(context) {
   const textBlock = (data.content || []).find((b) => b.type === 'text');
   let parsed = { items: [], unrecognized: [] };
   try { parsed = JSON.parse(textBlock ? textBlock.text : '{}'); } catch {}
+  // Vocab matching — NEVER drop a read silently (the Frostburn lesson,
+  // 2026-06-13): Haiku often returns "<Name> <BaseType>" merged from the two
+  // tooltip lines ("Frostburn Gauntlets"). Resolve via (1) exact, (2)
+  // normalized (case/punctuation-insensitive), (3) vocab-name-is-prefix of the
+  // read string at a word boundary (min 6 chars, longest vocab match wins).
+  // Anything still unmatched goes to "unrecognized" — visible, not vanished.
   const vocab = new Set(names);
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const normMap = new Map(names.map((n) => [norm(n), n]));
+  const sortedVocab = names.map((n) => [norm(n), n]).filter(([k]) => k.length >= 6)
+    .sort((a, b) => b[0].length - a[0].length);
+  const items = [], unrec = [];
+  for (const r of (parsed.items || [])) {
+    if (vocab.has(r)) { items.push(r); continue; }
+    const nr = norm(r);
+    if (normMap.has(nr)) { items.push(normMap.get(nr)); continue; }
+    const hit = sortedVocab.find(([k]) => nr === k || nr.startsWith(k + ' '));
+    if (hit) { items.push(hit[1]); continue; }
+    unrec.push(r);
+  }
   return json({
-    items: [...new Set((parsed.items || []).filter((n) => vocab.has(n)))],
-    unrecognized: (parsed.unrecognized || []).slice(0, 40),
+    items: [...new Set(items)],
+    unrecognized: [...new Set([...unrec, ...(parsed.unrecognized || [])])].slice(0, 40),
     usage: data.usage ? { in: data.usage.input_tokens, out: data.usage.output_tokens, cached: data.usage.cache_read_input_tokens } : null,
   }, 200);
 }

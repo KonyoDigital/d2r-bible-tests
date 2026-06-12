@@ -16709,7 +16709,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var img = new Image();
       var url = URL.createObjectURL(file);
       img.onload = function(){
-        var MAX = 1344;
+        var MAX = 1568; // Anthropic vision max useful long edge — 4K fullscreen shots at 1344 made tooltip text unreadably small (Tyrael hallucination, 2026-06-13)
         var scale = Math.min(1, MAX / Math.max(img.width, img.height));
         var c = document.createElement('canvas');
         c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
