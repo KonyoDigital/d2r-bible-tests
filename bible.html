@@ -3101,6 +3101,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </div>
       <div class="vault-dock" id="vault-dock"></div>
       <div id="vault-intake-report" hidden style="margin:0 0 12px;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
+      <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
+        <summary style="cursor:pointer;color:#7fd4ff;font-weight:600">📸 How to take screenshots the AI can actually read — example below</summary>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px">
+          <img id="vault-shot-example" alt="example: in-game text visible — this is what the AI reads" style="max-width:300px;border:1px solid rgba(212,168,71,.5);border-radius:6px;cursor:zoom-in" onclick="window._gildLightboxOpen&&this.src&&window._gildLightboxOpen(this.src,'Example — the AI reads VISIBLE TEXT like this banner. Item names must be on screen.')">
+          <div style="flex:1;min-width:240px;line-height:1.6">
+            <strong style="color:var(--best)">The AI reads NAMES, not slots</strong> — items never need to be in a special position. What matters is that the <strong>name text is visible in the picture</strong>:
+            <ul style="margin:6px 0 6px 18px;padding:0">
+              <li>✅ <strong>ground loot with Alt held</strong> — every name labeled, the best batch input</li>
+              <li>✅ <strong>hover tooltip open</strong> over an item in stash/inventory</li>
+              <li>✅ trade / vendor / mule windows where names show</li>
+              <li>❌ a bare stash tab — that is item ART only, no names → little to read</li>
+            </ul>
+            <span style="color:var(--text-dim)">Tip: after a session, stand over your pile, hold Alt, screenshot once — one picture logs the whole haul. The example image (click to enlarge) shows readable in-game text — that banner is exactly what the AI extracted in our live test.</span>
+          </div>
+        </div>
+      </details>
       <div class="vault-shelf" id="vault-shelf"></div>
       <div class="vault-detail" id="vault-detail" hidden></div>
       <div class="zd-note" style="margin-top:10px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry), uber relics to MATS. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div>
@@ -16678,8 +16694,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     report.innerHTML = html;
   };
 
-  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderVault);
-  else renderVault();
+  function initShotExample(){
+    try {
+      var cfg = (typeof BIND_SU_BANNER!=='undefined') && BIND_SU_BANNER['Hephasto the Armorer'];
+      var img = document.getElementById('vault-shot-example');
+      if (cfg && cfg.rolls && cfg.rolls[0] && img) img.src = cfg.rolls[0].src;
+      else if (img) img.closest('.vault-shot-guide').style.display='none';
+    } catch(e){}
+  }
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); initShotExample(); });
+  else { renderVault(); initShotExample(); }
 })();
 </script>
 </body>
