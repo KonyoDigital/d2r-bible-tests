@@ -3080,6 +3080,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="tab-content" id="tab-tools">
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
 
+  <div class="boss-card collapsible collapsed" id="mule-vault-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji">🏦</span>
+      <div class="boss-title-block">
+        <p class="boss-name">The Vault — Mule Manager</p>
+        <p class="boss-subtitle">Your second-account warehouse — every ✓ owned item gets a home, and the search will always know where it lives</p>
+      </div>
+      <span class="collapse-chevron">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="vault-toolbar">
+        <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">⚖️ Auto-assign unsorted</button>
+        <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
+        <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
+        <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
+        <span class="vault-status" id="vault-status"></span>
+      </div>
+      <div class="vault-dock" id="vault-dock"></div>
+      <div class="vault-shelf" id="vault-shelf"></div>
+      <div class="zd-note" style="margin-top:10px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry), uber relics to MATS. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div>
+    </div>
+  </div>
+
   <div class="boss-card collapsible collapsed" id="rune-stash-card">
     <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji">🧮</span>
@@ -9012,6 +9035,7 @@ function renderItemDetailCard(itemName) {
   const esc = itemName.replace(/'/g, "\\'");
   const isOwned = owned.has(itemName);
   const isStarred = wishlist.has(itemName);
+  const vaultLoc = (typeof window._vaultBadge === 'function') ? window._vaultBadge(itemName) : '';
   const tierBadge = item.tier === 'uber' ? '<span class="gic-uber-badge">⚡ UBER</span>' : item.tier === 'grail' ? '<span class="gic-grail-badge">★ GRAIL</span>' : '';
   const itemInfo = (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[itemName]) ? ITEM_INFO[itemName] : null;
   const itemDesc = (typeof renderCodexCard !== 'undefined') ? renderCodexCard(itemName) : null;
@@ -9087,7 +9111,7 @@ function renderItemDetailCard(itemName) {
       <header class="gic-header">
         ${artOr(item.n, `<span class="gic-emoji">${isStarred?'⭐':'🎯'}</span>`, 'lg')}
         <div class="gic-id-block">
-          <h2 class="gic-name">${item.n} ${tierBadge}${item.qlvl ? `<span class="gic-grail-badge" style="background:linear-gradient(135deg,#888,#555);color:#fff">qlvl ${item.qlvl}</span>`:''}${item.tc ? `<span class="gic-grail-badge" style="background:linear-gradient(135deg,#444,#222);color:#f0c060">TC${item.tc}</span>`:''}</h2>
+          <h2 class="gic-name">${item.n} ${tierBadge}${vaultLoc}${item.qlvl ? `<span class="gic-grail-badge" style="background:linear-gradient(135deg,#888,#555);color:#fff">qlvl ${item.qlvl}</span>`:''}${item.tc ? `<span class="gic-grail-badge" style="background:linear-gradient(135deg,#444,#222);color:#f0c060">TC${item.tc}</span>`:''}</h2>
           <div class="gic-subtitle">${itemInfo?.tagline || item.cat || ''}</div>
           <div class="gic-meta-row">
             <span class="gic-meta-chip">${sources.length} viable sources @ ${mf}% MF</span>
@@ -16127,6 +16151,55 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 }
 </style>
 
+<style id="v203-vault-styles">
+/* v203 — THE VAULT mule manager: gilded locker shelf + drag-assign dock */
+.vault-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.vault-btn{background:var(--surface-2,#241c12);border:1px solid var(--border-light,#4a3f2a);color:var(--text,#f4e8d0);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.02em;transition:all .18s var(--ease-out,ease)}
+.vault-btn:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 16px rgba(212,168,71,.15);transform:translateY(-1px)}
+.vault-btn-primary{border-color:rgba(102,255,136,.45);color:var(--best,#66ff88)}
+.vault-btn-danger{color:var(--hell,#ff4040)}
+.vault-status{font-size:11.5px;color:var(--text-dim,#756657);margin-left:auto}
+/* dock: the unsorted pile */
+.vault-dock{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-items:center}
+.vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
+.vault-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#241c12);border:1px solid var(--border,#3a2f1e);border-radius:999px;padding:4px 11px 4px 5px;font-size:12px;cursor:grab;user-select:none;transition:all .16s var(--ease-out,ease)}
+.vault-chip:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 14px rgba(212,168,71,.14);transform:translateY(-1px)}
+.vault-chip.vc-selected{border-color:var(--best,#66ff88);box-shadow:0 0 0 1px rgba(102,255,136,.4),0 0 16px rgba(102,255,136,.18)}
+.vault-chip:active{cursor:grabbing}
+/* shelf: symmetric locker grid */
+.vault-shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
+.vault-mule{border:1px solid var(--border-light,#4a3f2a);border-radius:11px;background:linear-gradient(180deg,rgba(36,28,18,.92),rgba(22,16,9,.95));overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),inset 0 1px 0 rgba(240,192,96,.06),0 4px 14px rgba(0,0,0,.4);transition:all .2s var(--ease-out,ease);display:flex;flex-direction:column}
+.vault-mule.vm-over{border-color:var(--best,#66ff88);box-shadow:inset 0 0 0 1px rgba(102,255,136,.35),0 0 26px rgba(102,255,136,.2);transform:translateY(-2px)}
+.vault-mule.vm-flash{animation:vmFlash 1.2s ease}
+@keyframes vmFlash{0%,100%{box-shadow:inset 0 0 0 1px rgba(0,0,0,.55)}30%{box-shadow:inset 0 0 0 2px rgba(240,192,96,.8),0 0 34px rgba(212,168,71,.45)}}
+.vm-plate{display:flex;align-items:center;gap:8px;padding:9px 11px;background:linear-gradient(180deg,rgba(212,168,71,.16),rgba(212,168,71,.05));border-bottom:1px solid rgba(212,168,71,.3);cursor:pointer}
+.vm-icon{font-size:17px;line-height:1}
+.vm-name{font-family:var(--mono,monospace);font-weight:700;font-size:12.5px;letter-spacing:.08em;color:var(--gold-bright,#f0c060);flex:1;text-shadow:0 1px 0 rgba(0,0,0,.7)}
+.vm-count{font-family:var(--mono,monospace);font-size:11px;color:var(--text-muted,#b5a48a)}
+.vm-tools{display:flex;gap:2px;opacity:0;transition:opacity .15s}
+.vault-mule:hover .vm-tools{opacity:1}
+.vm-tool{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:11px;padding:2px 4px}
+.vm-tool:hover{color:var(--gold-bright,#f0c060)}
+.vm-note{padding:6px 11px 0;font-size:10.5px;color:var(--text-dim,#756657);line-height:1.4;font-style:italic}
+.vm-gauge{height:4px;margin:8px 11px 0;border-radius:2px;background:rgba(0,0,0,.55);overflow:hidden}
+.vm-gauge-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#9a7426,var(--gold-bright,#f0c060));transition:width .35s var(--ease-out,ease)}
+.vm-gauge-fill.vg-hot{background:linear-gradient(90deg,#c2541f,var(--hell,#ff4040))}
+.vm-body{padding:8px 11px 11px;display:flex;flex-direction:column;gap:4px;min-height:30px;flex:1}
+.vm-item{display:flex;align-items:center;gap:6px;font-size:11.8px;padding:3px 5px;border-radius:6px;transition:background .14s}
+.vm-item:hover{background:rgba(212,168,71,.07)}
+.vm-item-name{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#f4e8d0)}
+.vm-item-name:hover{color:var(--gold-bright,#f0c060)}
+.vm-unassign{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:10px;padding:0 3px}
+.vm-unassign:hover{color:var(--hell,#ff4040)}
+.vm-set-row{font-size:10.5px;color:var(--text-muted,#b5a48a);padding:2px 5px}
+.vm-set-row .vs-done{color:var(--best,#66ff88)}
+.vm-linked{padding:6px 11px 10px;font-size:11px;color:var(--text-muted,#b5a48a)}
+.vm-empty{font-size:11px;color:var(--text-dim,#756657);font-style:italic;padding:4px 5px}
+/* the location badge on item detail cards */
+.vault-loc-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(212,168,71,.13);border:1px solid rgba(212,168,71,.45);color:var(--gold-bright,#f0c060);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;margin-left:8px;vertical-align:middle;font-family:var(--mono,monospace)}
+.vault-loc-badge:hover{box-shadow:0 0 14px rgba(212,168,71,.3)}
+@media(max-width:560px){.vault-shelf{grid-template-columns:1fr}}
+</style>
 <style id="v199-aura-read-styles">
 /* v199 — per-boss AURA READ quick-decision boxes on the bind ID cards */
 .aura-read{margin:10px 0;border:1px solid rgba(212,168,71,.4);border-radius:8px;background:linear-gradient(180deg,rgba(26,20,13,.85),rgba(18,13,7,.9));overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5), 0 4px 14px rgba(0,0,0,.4)}
@@ -16221,6 +16294,221 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeBox(); });
   window._gildLightboxOpen = openBox;
   window._gildLightboxClose = closeBox;
+})();
+</script>
+<script id="v203-vault-js">
+(function(){
+  'use strict';
+  var RK='d2r_muleRoster', AK='d2r_muleAssign';
+  var DEFAULT_ROSTER=[
+    {id:'sets-major', name:'SETS-TAL-IK', icon:'🛡️', note:'Tal Rasha · Immortal King · Griswold — never split a set'},
+    {id:'sets-rest',  name:'SETS-REST',   icon:'🧩', note:'every other set — partials live here'},
+    {id:'uni-weap',   name:'UNI-WEAPONS', icon:'⚔️', note:'unique melee + caster weapons'},
+    {id:'uni-armor',  name:'UNI-ARMOR',   icon:'🪖', note:'body armor · helms · shields · belts · boots · gloves'},
+    {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
+    {id:'runes-high', name:'RUNES-HIGH',  icon:'🪨', note:'the rune bank', linked:'runes'},
+    {id:'bases',      name:'BASES',       icon:'📐', note:'runeword bases — they look like junk, they are not'},
+    {id:'mats',       name:'MATS',        icon:'🗝️', note:'keys · organs · essences · uber relics', linked:'mats'},
+    {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
+    {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
+  ];
+  function load(k,f){ try{ var v=JSON.parse(localStorage.getItem(k)); return v||f; }catch(e){ return f; } }
+  var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
+  var assign = load(AK, {});
+  function saveR(){ localStorage.setItem(RK, JSON.stringify(roster)); }
+  function saveA(){ localStorage.setItem(AK, JSON.stringify(assign)); }
+  var selectedChip = null;
+
+  // ── taxonomy brain ──
+  var MAJOR_SETS = /^(Tal Rasha|Immortal King|Griswold)/i;
+  var JEWELRY_RE = /\b(ring|amulet|charm|jewel)\b/i;
+  var ARMOR_RE = /\b(armor|plate|mail|hauberk|tunic|jupon|cuirass|husk|hide|pelt|shell|carapace|wyrmhide|helm|cap|crown|casque|basinet|mask|circlet|coronet|tiara|diadem|sallet|armet|shako|visor|shield|buckler|rondache|aegis|ward|monarch|luna|hyperion|defender|gauntlets?|gloves?|grasp|bracers?|vambraces?|boots?|greaves|sabatons?|treads?|trek|spurs?|belt|sash|cord|girdle|buckle)\b/i;
+  // ITEM_CODEX = {base, rarity, setName} (lexical, not on window) · ITEM_TIP = {b, t}
+  function tipOf(n){
+    try{
+      var c = (typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[n]) || null;
+      var t = (typeof ITEM_TIP!=='undefined' && ITEM_TIP[n]) || null;
+      if (!c && !t) return null;
+      return {
+        base: (c && c.base) || (t && t.b) || '',
+        rarity: ((c && c.rarity) || (t && t.t) || '').toLowerCase(),
+        setName: (c && c.setName) || null
+      };
+    }catch(e){ return null; }
+  }
+  function suggestMule(name){
+    var it = (typeof ITEMS!=='undefined') ? ITEMS.find(function(i){return i.n===name;}) : null;
+    var tip = tipOf(name);
+    if (it && it.tier === 'uber') return {id:'mats', why:'uber relic / event item'};
+    var isSet = (tip && tip.rarity==='set') || (it && it.tier==='set') || /\bset\b|\(any/i.test(name);
+    if (isSet){
+      var sn = (tip && tip.setName) || name;
+      return MAJOR_SETS.test(sn) ? {id:'sets-major', why:'major set: '+sn} : {id:'sets-rest', why:'set: '+sn};
+    }
+    var base = (tip && tip.base) || '';
+    var probe = base + ' ' + name;
+    if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
+    if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
+    return {id:'uni-weap', why: base ? 'weapon — base: '+base : 'default: weapons'};
+  }
+
+  function muleById(id){ return roster.find(function(m){return m.id===id;}); }
+  function ownedPool(){
+    try{
+      if (typeof owned==='undefined' || typeof ITEMS==='undefined') return [];
+      return Array.from(owned).filter(function(n){ return ITEMS.some(function(i){return i.n===n;}); }).sort();
+    }catch(e){ return []; }
+  }
+  function art(n, glyph, size){ try{ return (typeof artOr==='function') ? artOr(n, glyph||'◆', size||'sm') : ''; }catch(e){ return ''; } }
+  function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function jsArg(t){ return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function status(msg){ var el=document.getElementById('vault-status'); if(el){ el.textContent=msg; setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, 4200); } }
+
+  // ── render ──
+  function renderVault(){
+    var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
+    if (!dock || !shelf) return;
+    var pool=ownedPool();
+    // prune assignments of items no longer owned or mules deleted
+    Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
+    var unsorted = pool.filter(function(n){ return !assign[n]; });
+    dock.innerHTML = unsorted.map(function(n){
+      return '<span class="vault-chip'+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span></span>';
+    }).join('');
+    var byMule={};
+    Object.keys(assign).forEach(function(n){ (byMule[assign[n]]=byMule[assign[n]]||[]).push(n); });
+    shelf.innerHTML = roster.map(function(m){
+      var items=(byMule[m.id]||[]).sort();
+      var cap=40, pct=Math.min(100, Math.round(items.length/cap*100));
+      var linked='';
+      try{
+        if (m.linked==='runes' && typeof runeStash!=='undefined'){ var rc=Object.keys(runeStash).reduce(function(a,k){return a+(runeStash[k]||0);},0); linked='<div class="vm-linked">🧮 tracked by the Rune Stash — <strong>'+rc+'</strong> runes tallied</div>'; }
+        if (m.linked==='mats' && typeof materialStash!=='undefined'){ var mc=Object.keys(materialStash).reduce(function(a,k){return a+(materialStash[k]||0);},0); linked='<div class="vm-linked">🗝️ tracked by the Materials Stash — <strong>'+mc+'</strong> mats tallied</div>'; }
+      }catch(e){}
+      // set-completion rows for set lockers
+      var setRows='';
+      if (/^sets/.test(m.id) && typeof ITEMS!=='undefined'){
+        var bySet={};
+        items.forEach(function(n){ var t=tipOf(n); if(t && t.setName) (bySet[t.setName]=bySet[t.setName]||[]).push(n); });
+        // group labels only — the bible tracks set AGGREGATES, so an X/Y fraction
+        // here would lie; real per-piece completion lives in the Item-Set tracker
+        setRows = Object.keys(bySet).sort().map(function(sn){
+          return '<div class="vm-set-row"><span class="vs-done">✦</span> '+esc(sn)+'</div>';
+        }).join('');
+      }
+      return '<div class="vault-mule" data-vault-mule="'+esc(m.id)+'">'
+        + '<div class="vm-plate" title="click to assign the selected chip here">'
+        + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
+        + '<span class="vm-count">'+items.length+'</span>'
+        + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
+        + '</div>'
+        + '<div class="vm-gauge"><div class="vm-gauge-fill'+(pct>=85?' vg-hot':'')+'" style="width:'+pct+'%"></div></div>'
+        + (m.note?'<div class="vm-note">'+esc(m.note)+'</div>':'')
+        + '<div class="vm-body">'
+        + setRows
+        + (items.length ? items.map(function(n){
+            return '<div class="vm-item">'+art(n)
+              +'<span class="vm-item-name" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')" title="open item card">'+esc(n)+'</span>'
+              +'<button class="vm-unassign" onclick="window.vaultUnassign(\''+jsArg(n)+'\')" title="send back to the unsorted dock">✕</button></div>';
+          }).join('') : (linked?'':'<div class="vm-empty">empty locker</div>'))
+        + '</div>' + linked + '</div>';
+    }).join('');
+  }
+
+  // ── actions ──
+  function assignItem(name, muleId){
+    if (!muleById(muleId)) return;
+    assign[name]=muleId; saveA(); selectedChip=null; renderVault();
+    var card=document.querySelector('[data-vault-mule="'+(window.CSS&&CSS.escape?CSS.escape(muleId):muleId)+'"]');
+    if (card){ card.classList.remove('vm-flash'); void card.offsetWidth; card.classList.add('vm-flash'); }
+    status('🏦 '+name+' → '+muleById(muleId).name);
+  }
+  window.vaultAssign = assignItem;
+  window.vaultUnassign = function(name){ delete assign[name]; saveA(); renderVault(); };
+  window.vaultAutoAssign = function(){
+    var n=0;
+    ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } } });
+    saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s'));
+  };
+  window.vaultAddMule = function(){
+    var name=prompt('New mule name (this IS your in-game character name — make it say what it holds):','UNI-WEAP-2');
+    if (!name) return;
+    var id='m'+Date.now().toString(36);
+    roster.push({id:id, name:name.toUpperCase().slice(0,15), icon:'📦', note:''}); saveR(); renderVault();
+  };
+  window.vaultRenameMule = function(id){
+    var m=muleById(id); if(!m) return;
+    var name=prompt('Rename mule:', m.name); if(!name) return;
+    m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
+  };
+  window.vaultDeleteMule = function(id){
+    var m=muleById(id); if(!m) return;
+    if (!confirm('Delete locker '+m.name+'? Its items return to the unsorted dock.')) return;
+    roster=roster.filter(function(x){return x.id!==id;});
+    Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });
+    saveR(); saveA(); renderVault();
+  };
+  window.vaultReset = function(){
+    if (!confirm('Clear ALL vault assignments? (The mule roster stays; every item returns to the unsorted dock.)')) return;
+    assign={}; saveA(); renderVault();
+  };
+  window.vaultExport = function(){
+    var byMule={};
+    Object.keys(assign).forEach(function(n){ (byMule[assign[n]]=byMule[assign[n]]||[]).push(n); });
+    var md='# The Vault — mule manifests\n';
+    roster.forEach(function(m){
+      var items=(byMule[m.id]||[]).sort();
+      md+='\n## '+m.name+' ('+items.length+')\n'+(m.note?'_'+m.note+'_\n':'');
+      items.forEach(function(n){ md+='- '+n+'\n'; });
+    });
+    var unsorted=ownedPool().filter(function(n){return !assign[n];});
+    if (unsorted.length){ md+='\n## UNSORTED ('+unsorted.length+')\n'; unsorted.forEach(function(n){ md+='- '+n+'\n'; }); }
+    navigator.clipboard.writeText(md).then(function(){ status('📋 manifests copied — paste anywhere'); }, function(){ status('clipboard blocked — copy manually'); });
+  };
+  window.vaultSuggest = suggestMule;
+  window.renderVault = renderVault;
+  // the detail-card badge (renderItemDetailCard calls this)
+  window._vaultBadge = function(name){
+    var id=assign[name]; var m=id&&muleById(id);
+    return m ? '<span class="vault-loc-badge" onclick="window.vaultJump&&window.vaultJump()" title="stored in your vault — click to open it">🏦 '+esc(m.name)+'</span>' : '';
+  };
+  window.vaultJump = function(){
+    if (typeof switchTab==='function') switchTab('tools');
+    var card=document.getElementById('mule-vault-card');
+    if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse==='function') window.toggleCardCollapse('mule-vault-card');
+    renderVault();
+    setTimeout(function(){ card&&card.scrollIntoView({behavior:'smooth', block:'start'}); }, 120);
+  };
+
+  // ── drag & drop + click-assign (delegated) ──
+  document.addEventListener('dragstart', function(e){
+    var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
+    if (chip){ e.dataTransfer.setData('text/vault-item', chip.dataset.vaultItem); e.dataTransfer.effectAllowed='move'; }
+  });
+  document.addEventListener('dragover', function(e){
+    var mule=e.target&&e.target.closest&&e.target.closest('.vault-mule');
+    if (mule){ e.preventDefault(); e.dataTransfer.dropEffect='move'; mule.classList.add('vm-over'); }
+  });
+  document.addEventListener('dragleave', function(e){
+    var mule=e.target&&e.target.closest&&e.target.closest('.vault-mule');
+    if (mule) mule.classList.remove('vm-over');
+  });
+  document.addEventListener('drop', function(e){
+    var mule=e.target&&e.target.closest&&e.target.closest('.vault-mule');
+    if (!mule) return;
+    e.preventDefault(); mule.classList.remove('vm-over');
+    var name=e.dataTransfer.getData('text/vault-item');
+    if (name) assignItem(name, mule.dataset.vaultMule);
+  });
+  document.addEventListener('click', function(e){
+    var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
+    if (chip){ selectedChip = (selectedChip===chip.dataset.vaultItem) ? null : chip.dataset.vaultItem; renderVault(); return; }
+    var plate=e.target&&e.target.closest&&e.target.closest('.vm-plate');
+    if (plate && selectedChip){ var mule=plate.closest('.vault-mule'); assignItem(selectedChip, mule.dataset.vaultMule); }
+  });
+
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderVault);
+  else renderVault();
 })();
 </script>
 </body>
