@@ -16259,7 +16259,7 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-char-hint{flex:1;min-height:60px;display:flex;align-items:center;justify-content:center;color:rgba(117,102,87,.4);font-size:11px;font-style:italic;letter-spacing:.08em}
 .vd-zone-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.12em;font-size:13px;color:var(--gold,#d4a847);margin:12px 0 6px}
 .vd-grid{position:relative;display:grid;gap:2px;background:rgba(0,0,0,.65);border:2px solid rgba(212,168,71,.45);border-radius:6px;padding:3px;width:max-content;max-width:100%;box-shadow:inset 0 0 18px rgba(0,0,0,.8)}
-.vd-cell{width:40px;height:40px;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
+.vd-cell{width:auto;height:auto;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
 .vd-item{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,rgba(58,44,22,.92),rgba(34,24,12,.96));border:1px solid rgba(240,192,96,.55);border-radius:3px;cursor:pointer;overflow:hidden;box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 8px rgba(212,168,71,.12);transition:all .15s}
 .vd-item:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 16px rgba(212,168,71,.4);z-index:3}
 .vd-item .d2art-wrap.sm,.vd-item .d2art-wrap.lg{width:94%;height:94%;min-width:0;min-height:0}
@@ -16272,7 +16272,7 @@ html.vd-lock #arttip.tip-art .d2art-img,html.vd-lock #arttip.tip-art img{max-wid
 .vd-list{margin-top:12px;columns:2;column-gap:22px;font-size:11.5px;color:var(--text-muted,#b5a48a)}
 .vd-list div{break-inside:avoid;padding:2px 0}
 .vd-list .vl-slot{font-family:var(--mono,monospace);color:var(--gold-bright,#f0c060)}
-@media(max-width:640px){.vd-cell{width:30px;height:30px}.vd-list{columns:1}}
+@media(max-width:640px){.vd-list{columns:1}}
 /* the location badge on item detail cards */
 .vault-loc-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(212,168,71,.13);border:1px solid rgba(212,168,71,.45);color:var(--gold-bright,#f0c060);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;margin-left:8px;vertical-align:middle;font-family:var(--mono,monospace)}
 .vault-loc-badge:hover{box-shadow:0 0 14px rgba(212,168,71,.3)}
@@ -16587,7 +16587,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var blocks=placed.map(function(p){
       return '<div class="vd-item" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+esc(p.n)+' ('+p.w+'×'+p.h+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')+'</div>';
     }).join('');
-    return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px)">'+cells+blocks+'</div>';
+    return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px">'+cells+blocks+'</div>';
   }
   var openMuleId = null;
   window.openMuleCard = function(muleId){
