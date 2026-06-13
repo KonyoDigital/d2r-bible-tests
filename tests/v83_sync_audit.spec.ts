@@ -652,7 +652,7 @@ test.describe('v83 website synchronization audit', () => {
       }
       // (4) the emblem resolves REAL diablo2.io art via artUrl (not just the emoji fallback)
       const u = (window as any).artUrl ? (window as any).artUrl('Token of Absolution') : null;
-      if (!u || !/diablo2\.io/.test(u)) out.push(`artUrl('Token of Absolution') did not resolve real art (got ${u})`);
+      if (!u || !/art\//.test(u)) out.push(`artUrl('Token of Absolution') did not resolve real art (got ${u})`);
       return { out, names: ['Token of Absolution'] };
     });
     expect(data.out, `Token-of-Absolution material sync drifted:\n${data.out.join('\n')}`).toEqual([]);
@@ -674,7 +674,7 @@ test.describe('v83 website synchronization audit', () => {
     expect(card.name).toMatch(/Token of Absolution/);
     expect(card.body).toMatch(/respec|reset/i);
     // the emblem is the real diablo2.io extracted art (artOr-resolved), not the emoji fallback
-    expect(card.artSrc).toMatch(/diablo2\.io.*tokenofabsolution/);
+    expect(card.artSrc).toMatch(/art\/.*tokenofabsolution/);
     expect(card.artLazy).toBe(true);
 
     // (4) it is searchable and picking the result opens the same card

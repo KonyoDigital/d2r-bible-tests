@@ -82,7 +82,7 @@ test.describe('v133 Sunder Charm Renewal recipe tool', () => {
         rows: rows.length,
         withCube: cubes.filter(Boolean).length,
         srcs: [...new Set(cubes.filter(Boolean).map((c) => c!.getAttribute('src') || ''))],
-        allHttp: cubes.filter(Boolean).every((c) => /^https?:\/\//.test(c!.getAttribute('src') || '')),
+        allHttp: cubes.filter(Boolean).every((c) => /^art\//.test(c!.getAttribute('src') || '')),
       };
     });
     expect(r.rows).toBe(6);
@@ -174,7 +174,7 @@ test.describe('v133 Sunder Charm Renewal recipe tool', () => {
     expect(r.exists).toBe(true);
     expect(r.clickThrough).toBe(true);
     expect(r.on).toBe(true);
-    expect(r.imgSrc).toContain('http');
+    expect(r.imgSrc).toContain('art/');
     expect(r.name.length).toBeGreaterThan(0);
   });
 

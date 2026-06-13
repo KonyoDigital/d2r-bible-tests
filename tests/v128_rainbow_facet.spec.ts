@@ -28,7 +28,7 @@ test.describe('v128 Rainbow Facet descriptive cards (no odds, no roll %s)', () =
       const art = (window as any).D2IO_ART;
       const labels = facets.map((f) => f.n);
       const missingData = names.filter((n) => !labels.includes(n));
-      const badArt = names.filter((n) => !/^https:\/\/diablo2\.io\/.*_graphic\.png$/.test(art[n] || ''));
+      const badArt = names.filter((n) => !/^art\/.*_graphic\.png$/.test(art[n] || ''));
       return { count: facets.length, missingData, badArt };
     }, FACETS);
     expect(r.count).toBe(8);

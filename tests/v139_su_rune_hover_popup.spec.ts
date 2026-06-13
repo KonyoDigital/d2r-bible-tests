@@ -59,7 +59,7 @@ test.describe('v139 super-unique + rune hover popups', () => {
     expect(r.on).toBe(true);
     expect(r.rich).toBe(false);          // image-only popup, not a rich stat card
     expect(r.name).toBe('Hephasto the Armorer');
-    expect(r.src).toBe(r.expected);
+    expect(r.src).toContain(r.expected);
     expect(r.imgShown).toBe(true);
     expect(r.clickThrough).toBe(true);
   });
@@ -85,7 +85,7 @@ test.describe('v139 super-unique + rune hover popups', () => {
       return { tagged, untagged };
     }, { withArt: SU_WITH_ART, noArt: SU_NO_ART });
     for (const n of SU_WITH_ART) {
-      expect(r.tagged[n].src, n).toBe(r.tagged[n].expected);
+      expect(r.tagged[n].src, n).toContain(r.tagged[n].expected);
     }
     for (const n of SU_NO_ART) {
       expect(r.untagged[n], n).toBe(true);
@@ -126,7 +126,7 @@ test.describe('v139 super-unique + rune hover popups', () => {
     expect(r.found).toBe(true);
     expect(r.on).toBe(true);
     expect(r.rich).toBe(false);
-    expect(r.src).toBe(r.expected);
+    expect(r.src).toContain(r.expected);
     expect(r.clickThrough).toBe(true);
     expect(r.anyTagged).toBe(33);
   });
@@ -143,7 +143,7 @@ test.describe('v139 super-unique + rune hover popups', () => {
     });
     expect(r.found).toBe(true);
     expect(r.on).toBe(true);
-    expect(r.src).toBe(r.expected);
+    expect(r.src).toContain(r.expected);
   });
 
   test('hover rollout does NOT break the item rich-card path + no console errors', async ({ page }) => {

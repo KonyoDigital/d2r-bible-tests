@@ -37,7 +37,7 @@ test.describe('v138 aura hover popup (enlarged aura icon)', () => {
     expect(r.on).toBe(true);
     expect(r.rich).toBe(false);
     expect(r.name).toBe('Fanaticism aura');
-    expect(r.src).toBe(r.expected);     // the verified AURA_ART gif, enlarged
+    expect(r.src).toContain(r.expected);     // the verified AURA_ART gif, enlarged
     expect(r.imgShown).toBe(true);
     expect(r.clickThrough).toBe(true);
   });
@@ -56,7 +56,7 @@ test.describe('v138 aura hover popup (enlarged aura icon)', () => {
       return out;
     }, AURAS);
     for (const a of AURAS) {
-      expect(r[a].src, a).toBe(r[a].expected);
+      expect(r[a].src, a).toContain(r[a].expected);
       expect(r[a].name, a).toBe(a + ' aura');
     }
   });

@@ -33,7 +33,7 @@ test.describe('v124 Pandemonium unify + top-3 bind-affix podium', () => {
         };
       }, name);
       expect(r.present, `${name} tagged cell present`).toBe(true);
-      expect(r.src, `${name} portrait src`).toContain('diablo2.io');
+      expect(r.src, `${name} portrait src`).toContain('art/');
       expect(r.lazy, `${name} lazy`).toBe(true);
       expect(r.fallback, `${name} emoji fallback`).toBe(true);
     }

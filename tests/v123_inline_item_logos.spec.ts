@@ -61,7 +61,7 @@ test.describe('v123 inline item logos (decorateItemLogos)', () => {
       }, name);
       expect(r.present, `${name} cell present`).toBe(true);
       expect(r.src, `${name} src`).toContain(slug);
-      expect(r.src, `${name} items path`).toContain('diablo2.io');
+      expect(r.src, `${name} items path`).toContain('art/');
       expect(r.lazy, `${name} lazy-loaded`).toBe(true);
       expect(r.fallback.length, `${name} has emoji fallback`).toBeGreaterThan(0);
       expect(r.routed, `${name} openDrop routing preserved`).toBe(true);

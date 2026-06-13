@@ -43,7 +43,7 @@ test.describe('v73 TZ zone artwork emblems', () => {
       return {
         cardCount: cards.length,
         bannerCount: withArt.length,
-        allDiablo2io: withArt.every((i) => /^https:\/\/diablo2\.io\/styles\/zulu\/theme\/images\/items\/act\d-[a-z0-9]+_graphic\.png$/.test(i.getAttribute('src') || '')),
+        allDiablo2io: withArt.every((i) => /^art\/act\d-[a-z0-9]+_graphic\.png$/.test(i.getAttribute('src') || '')),
         allLazy: withArt.every((i) => i.getAttribute('loading') === 'lazy'),
         allOnerror: withArt.every((i) => (i.getAttribute('onerror') || '').includes('d2art-failed')),
       };

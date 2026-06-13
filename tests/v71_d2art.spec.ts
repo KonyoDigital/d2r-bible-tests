@@ -23,7 +23,7 @@ test.describe('v71 d2art artwork layer', () => {
       return {
         type: typeof m,
         len: names.length,
-        allDiablo2io: names.every((n) => /^https:\/\/diablo2\.io\/(images\/avatars\/gallery|styles\/zulu\/theme\/images\/items)\//.test(m[n])),
+        allDiablo2io: names.every((n) => /^art\//.test(m[n])),
         allImageExt: names.every((n) => /\.(png|gif|jpe?g)$/i.test(m[n])),
         encoded: names.every((n) => !/ /.test(m[n])),           // spaces URL-encoded, no raw spaces
         hasItem: !!m['Arachnid Mesh'],
@@ -56,7 +56,7 @@ test.describe('v71 d2art artwork layer', () => {
     // mapped → real <img> from diablo2.io, carries the alt + an onerror that (after a single
     // retry) reveals the fallback span, plus an onload that clears a transient failed state
     expect(r.mapped).toMatch(/<img[^>]+class="d2art-img"/);
-    expect(r.mapped).toMatch(/src="https:\/\/diablo2\.io\/images\/avatars\/gallery\//);
+    expect(r.mapped).toMatch(/src="art\//);
     expect(r.mapped).toMatch(/onerror="[^"]*this\.parentNode\.classList\.add\('d2art-failed'\)/);
     expect(r.mapped).toMatch(/onload="this\.parentNode\.classList\.remove\('d2art-failed'\)"/);
     expect(r.mapped).toContain('d2art-fallback');
@@ -83,7 +83,7 @@ test.describe('v71 d2art artwork layer', () => {
       };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toMatch(/^https:\/\/diablo2\.io\/(images\/avatars\/gallery|styles\/zulu\/theme\/images\/items)\//);
+    expect(r.src).toMatch(/^art\//);
     expect(r.hasFallback).toBe(true);
   });
 
@@ -116,7 +116,7 @@ test.describe('v71 d2art artwork layer', () => {
       return { hasImg: !!img, src: img?.getAttribute('src') || '' };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toContain('diablo2.io/styles/zulu/theme/images/items/');
+    expect(r.src).toContain('art/');
     expect(r.src).toMatch(/countess/i);
   });
 
@@ -147,7 +147,7 @@ test.describe('v71 d2art artwork layer', () => {
       return { hasImg: !!img, src: img?.getAttribute('src') || '' };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toContain('diablo2.io/styles/zulu/theme/images/items/');
+    expect(r.src).toContain('art/');
     expect(r.src).toMatch(/bonebreakcharm/);
   });
 
@@ -177,7 +177,7 @@ test.describe('v71 d2art artwork layer', () => {
       };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toContain('diablo2.io/');
+    expect(r.src).toContain('art/');
     expect(r.name).toBe('Arachnid Mesh');
     expect(r.lazy).toBe('lazy');     // grid art is lazy-loaded, not a load-time storm
   });
@@ -242,7 +242,7 @@ test.describe('v71 d2art artwork layer', () => {
       };
     });
     expect(r.mephImg).toBe(true);
-    expect(r.mephSrc).toContain('diablo2.io/');
+    expect(r.mephSrc).toContain('art/');
     expect(r.mephLazy).toBe('lazy');
     expect(r.mephText).toContain('Mephisto');   // name still rendered alongside the art
     expect(r.baalImg).toBe(true);

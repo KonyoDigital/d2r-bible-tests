@@ -61,7 +61,7 @@ test.describe('v72 Herald of Terror ID card', () => {
       return {
         count: rows.length,
         names,
-        allImgs: imgs.every((s) => /^https:\/\/diablo2\.io\/styles\/zulu\/theme\/images\/items\/.*_graphic\.png$/.test(s)),
+        allImgs: imgs.every((s) => /^art\/.*_graphic\.png$/.test(s)),
         bonebreakImg: imgs[0],
         breaks,
         fnType: typeof (window as any).renderHeraldCard,

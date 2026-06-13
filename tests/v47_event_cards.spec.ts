@@ -123,7 +123,7 @@ test.describe('v47 event cards — pinnacle events expand inline like boss/TZ de
         return {
           id,
           artOk: !!logo && w.art.test(logo.getAttribute('src') || ''),
-          itemsPath: !!logo && /diablo2\.io\/styles\/zulu\/theme\/images\/items\//.test(logo.getAttribute('src') || ''),
+          itemsPath: !!logo && /art\//.test(logo.getAttribute('src') || ''),
           emojiOk: (fb?.textContent || '').trim() === w.emoji,
         };
       });

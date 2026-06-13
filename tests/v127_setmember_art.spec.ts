@@ -32,7 +32,7 @@ test.describe('v127 set-member codex icons are verified + lazy', () => {
       for (const n of names) {
         const u = art[n];
         if (!u) { missing.push(n); continue; }
-        if (!/^https:\/\/diablo2\.io\/.*_graphic\.png$/.test(u)) badUrl.push(n + ' -> ' + u);
+        if (!/^art\/.*_graphic\.png$/.test(u)) badUrl.push(n + ' -> ' + u);
       }
       return { missing, badUrl, total: Object.keys(art).length };
     }, NEW_MEMBERS);

@@ -27,7 +27,7 @@ test.describe('v76 quest-item art (keys + organs)', () => {
     const map = await page.evaluate(() => (window as any).D2IO_ART);
     for (const [name, slug] of Object.entries(EXPECT)) {
       expect(map[name], name).toBeTruthy();
-      expect(map[name]).toContain('diablo2.io');
+      expect(map[name]).toContain('art/');
       expect(map[name]).toContain(slug);
     }
   });
