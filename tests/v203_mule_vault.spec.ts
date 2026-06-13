@@ -23,13 +23,17 @@ test.describe('v203 the vault', () => {
     }, OWNED);
   });
 
-  test('default roster renders 10 lockers; owned items appear as dock chips', async ({ page }) => {
+  test('default roster renders 8 lockers (v230: RUNES-HIGH + MATS retired); owned items appear as dock chips', async ({ page }) => {
     const r = await page.evaluate(() => ({
       mules: document.querySelectorAll('.vault-mule').length,
       chips: document.querySelectorAll('.vault-dock .vault-chip').length,
       names: [...document.querySelectorAll('.vm-name')].map(e => e.textContent),
     }));
-    expect(r.mules).toBe(10);
+    // v230: runes / essences / Worldstone shards / statues live in RoW's infinite
+    // shared stash, so the RUNES-HIGH and MATS lockers were removed (10 → 8).
+    expect(r.mules).toBe(8);
+    expect(r.names).not.toContain('RUNES-HIGH');
+    expect(r.names).not.toContain('MATS');
     // v227: 'Tal Rasha set (any piece)' is a grail ODDS row, not a physical
     // item — aggregates keep their calc ✓ but never become vault chips
     expect(r.chips).toBe(OWNED.length - 1);
@@ -63,21 +67,30 @@ test.describe('v203 the vault', () => {
     expect(r.persisted).toBe(true);
   });
 
-  test('taxonomy: sets→set lockers, jewelry→small, helms/shields→armor, uber→mats', async ({ page }) => {
+  test('taxonomy: sets→set lockers, jewelry/charms→small, helms/shields→armor; shared-stash items never mule', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const sug = (n: string) => (window as any).vaultSuggest(n).id;
+      const sug = (n: string) => { const s = (window as any).vaultSuggest(n); return s ? s.id : null; };
       return {
         tal: sug('Tal Rasha set (any piece)'), soj: sug('The Stone of Jordan'),
         gaze: sug('Vampire Gaze'), storm: sug('Stormshield'),
         anni: sug('Annihilus'), wf: sug('Windforce'),
+        // v230 shared-stash guard: these must never get a mule (returns null)
+        rune: sug('Ber Rune'), essence: sug('Essence of Hatred'),
+        shard: sug('Worldstone Shard (Deep)'), statue: sug("Madawc's Ire"),
       };
     });
     expect(r.tal).toBe('sets-major');
     expect(r.soj).toBe('uni-small');
     expect(r.gaze).toBe('uni-armor');
     expect(r.storm).toBe('uni-armor');
-    expect(r.anni).toBe('mats');
+    // Annihilus is a Small Charm — routes to UNI-SMALL now that MATS is gone
+    expect(r.anni).toBe('uni-small');
     expect(r.wf).toBe('uni-weap');
+    // shared-stash items are explicitly excluded from muling
+    expect(r.rune).toBeNull();
+    expect(r.essence).toBeNull();
+    expect(r.shard).toBeNull();
+    expect(r.statue).toBeNull();
   });
 
   // v227 — the vault holds EXACT set pieces, never fabricated aggregates

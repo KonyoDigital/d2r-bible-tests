@@ -3123,7 +3123,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </details>
       <div class="vault-shelf" id="vault-shelf"></div>
       <div class="vault-detail" id="vault-detail" hidden></div>
-      <div class="zd-note" style="margin-top:10px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry), uber relics to MATS. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div>
+      <div class="zd-note" style="margin-top:10px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div>
     </div>
   </div>
 
@@ -16395,15 +16395,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'uni-weap',   name:'UNI-WEAPONS', icon:'⚔️', note:'unique melee + caster weapons'},
     {id:'uni-armor',  name:'UNI-ARMOR',   icon:'🪖', note:'body armor · helms · shields · belts · boots · gloves'},
     {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
-    {id:'runes-high', name:'RUNES-HIGH',  icon:'🪨', note:'the rune bank', linked:'runes'},
     {id:'bases',      name:'BASES',       icon:'📐', note:'runeword bases — they look like junk, they are not'},
-    {id:'mats',       name:'MATS',        icon:'🗝️', note:'keys · organs · essences · uber relics', linked:'mats'},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
   function load(k,f){ try{ var v=JSON.parse(localStorage.getItem(k)); return v||f; }catch(e){ return f; } }
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
+  // v230 migration: runes / essences / Worldstone shards / statues live in RoW's
+  // infinite shared stash, so the RUNES-HIGH + MATS lockers are retired. Strip them
+  // from any roster saved before this version and drop every assignment that pointed
+  // at them, so existing users converge on the new shelf without re-doing the vault.
+  (function(){
+    var DEAD = {'runes-high':1, 'mats':1};
+    var had = roster.some(function(m){ return DEAD[m.id]; });
+    roster = roster.filter(function(m){ return !DEAD[m.id]; });
+    var prunedAssign = false;
+    Object.keys(assign).forEach(function(n){ if (DEAD[assign[n]]){ delete assign[n]; prunedAssign = true; } });
+    if (had){ try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){} }
+    if (prunedAssign){ try{ localStorage.setItem(AK, JSON.stringify(assign)); }catch(e){} }
+  })();
   function saveR(){ localStorage.setItem(RK, JSON.stringify(roster)); }
   function saveA(){ localStorage.setItem(AK, JSON.stringify(assign)); }
   var selectedChip = null;
@@ -16425,7 +16436,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       };
     }catch(e){ return null; }
   }
+  // RoW shared-stash items never get a mule — runes, essences, Worldstone shards,
+  // and the 5 Colossal statues all live in one infinite shared stash, so the
+  // assembler must never route them. (They aren't in ITEMS either, so this is a
+  // belt-and-suspenders guard that also documents the intent.)
+  var SHARED_STASH_RE = /\b(rune|essence|worldstone shard|colossal ancient statue)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
+  function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
   function suggestMule(name){
+    if (isSharedStash(name)) return null;
     try{
       var spm = window.findSetPiece && window.findSetPiece(name);
       if (spm){
@@ -16435,7 +16453,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }catch(e){}
     var it = (typeof ITEMS!=='undefined') ? ITEMS.find(function(i){return i.n===name;}) : null;
     var tip = tipOf(name);
-    if (it && it.tier === 'uber') return {id:'mats', why:'uber relic / event item'};
     var isSet = (tip && tip.rarity==='set') || (it && it.tier==='set') || /\bset\b|\(any/i.test(name);
     if (isSet){
       var sn = (tip && tip.setName) || name;
@@ -16484,11 +16501,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     shelf.innerHTML = roster.map(function(m){
       var items=(byMule[m.id]||[]).sort();
       var cap=40, pct=Math.min(100, Math.round(items.length/cap*100));
+      // v230: runes + materials (essences/shards/keys/organs/statues) live in RoW's
+      // infinite shared stash — they are no longer muled, so no linked-tally lockers.
       var linked='';
-      try{
-        if (m.linked==='runes' && typeof runeStash!=='undefined'){ var rc=Object.keys(runeStash).reduce(function(a,k){return a+(runeStash[k]||0);},0); linked='<div class="vm-linked">🧮 tracked by the Rune Stash — <strong>'+rc+'</strong> runes tallied</div>'; }
-        if (m.linked==='mats' && typeof materialStash!=='undefined'){ var mc=Object.keys(materialStash).reduce(function(a,k){return a+(materialStash[k]||0);},0); linked='<div class="vm-linked">🗝️ tracked by the Materials Stash — <strong>'+mc+'</strong> mats tallied</div>'; }
-      }catch(e){}
       // set-completion rows for set lockers
       var setRows='';
       if (/^sets/.test(m.id) && typeof ITEMS!=='undefined'){
