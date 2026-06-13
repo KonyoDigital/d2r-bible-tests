@@ -3241,6 +3241,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <span class="vault-status" id="vault-status"></span>
       </div>
       <div id="vault-journal" style="display:none;margin:0 0 12px;padding:9px 13px;border:1px solid rgba(102,255,136,.3);border-radius:10px;background:rgba(102,255,136,.04);font-size:12px;line-height:1.6"></div>
+      <div class="vault-find">
+        <span class="vault-find-ic">🔎</span>
+        <input id="vault-find-input" class="vault-find-input" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
+        <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
+      </div>
+      <div id="vault-find-results" class="vault-find-results" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
       <div id="vault-intake-report" hidden style="margin:0 0 12px;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
@@ -16459,6 +16465,27 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 <style id="v203-vault-styles">
 /* v203 — THE VAULT mule manager: gilded locker shelf + drag-assign dock */
 .vault-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+/* v236 — vault item finder: which alt holds it? */
+.vault-find{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:8px 12px;border:1px solid rgba(212,168,71,.32);border-radius:11px;
+  background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));transition:border-color .15s,box-shadow .15s}
+.vault-find:focus-within{border-color:var(--gold-bright,#f0c060);box-shadow:0 0 0 1px rgba(240,192,96,.2),0 0 18px rgba(240,192,96,.1)}
+.vault-find-ic{font-size:15px;opacity:.8}
+.vault-find-input{flex:1;background:transparent;border:none;outline:none;color:var(--text,#e8dcc8);font-family:var(--serif-text,Georgia,serif);font-size:14px;letter-spacing:.2px}
+.vault-find-input::placeholder{color:rgba(240,192,96,.42);font-style:italic}
+.vault-find-x{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;transition:color .12s,background .12s}
+.vault-find-x:hover{color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.08)}
+.vault-find-results{margin:0 0 12px;border:1px solid rgba(212,168,71,.28);border-radius:11px;overflow:hidden;background:rgba(8,6,3,.55)}
+.vfr-head{padding:7px 13px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold-dim);background:rgba(240,192,96,.05);border-bottom:1px solid rgba(212,168,71,.18)}
+.vfr-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:9px 13px;cursor:pointer;border-bottom:1px solid rgba(212,168,71,.08);transition:background .12s}
+.vfr-row:last-child{border-bottom:none}
+.vfr-row:hover{background:linear-gradient(90deg,rgba(240,192,96,.1),transparent 75%)}
+.vfr-name{font-weight:600;font-size:14px;color:var(--gold-bright,#f0c060);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vfr-row:hover .vfr-name{text-shadow:0 0 9px rgba(240,192,96,.35)}
+.vfr-loc{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--text);white-space:nowrap}
+.vfr-loc .vfr-mule{color:var(--best,#66ff88);font-weight:700}
+.vfr-loc .vfr-arrow{color:var(--gold-dim);margin:0 5px}
+.vfr-empty{padding:14px 13px;text-align:center;color:var(--text-muted);font-style:italic;font-size:12.5px}
+.vfr-empty b{color:var(--gold-bright,#f0c060);font-style:normal}
 .vault-btn{background:var(--surface-2,#241c12);border:1px solid var(--border-light,#4a3f2a);color:var(--text,#f4e8d0);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.02em;transition:all .18s var(--ease-out,ease)}
 .vault-btn:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 16px rgba(212,168,71,.15);transform:translateY(-1px)}
 .vault-btn-primary{border-color:rgba(102,255,136,.45);color:var(--best,#66ff88)}
@@ -16758,6 +16785,31 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function jsArg(t){ return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
   function status(msg){ var el=document.getElementById('vault-status'); if(el){ el.textContent=msg; setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, 4200); } }
+  // v236 — vault item finder: type a name → which alt (mule) holds it. Searches
+  // everything you've ✓ owned + vaulted; click a hit to open that mule's card.
+  window.vaultFind = function(q){
+    var res = document.getElementById('vault-find-results');
+    if (!res) return;
+    q = String(q||'').trim().toLowerCase();
+    if (!q){ res.hidden = true; res.innerHTML = ''; return; }
+    var pool = ownedPool();
+    var matches = pool.filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; }).sort();
+    res.hidden = false;
+    if (!matches.length){
+      res.innerHTML = '<div class="vfr-empty">no vaulted item matches "<b>'+esc(q)+'</b>" — only items you’ve ✓ owned show here</div>';
+      return;
+    }
+    var rows = matches.slice(0,30).map(function(n){
+      var mid = assign[n], m = mid ? muleById(mid) : null;
+      var loc = m
+        ? '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(m.icon+' '+m.name)+'</span>'
+        : '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">unsorted · in the dock</span>';
+      var click = mid ? ' onclick="window.openMuleCard&&window.openMuleCard(\''+jsArg(mid)+'\')"' : '';
+      return '<div class="vfr-row"'+click+' title="'+(mid?'open this mule’s ID card':'still unsorted — assign it to a mule')+'">'
+        + art(n) + '<span class="vfr-name">'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
+    }).join('');
+    res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — click to open the mule</div>' + rows;
+  };
 
   // ── render ──
   function renderVault(){
