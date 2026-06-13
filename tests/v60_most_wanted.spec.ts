@@ -137,10 +137,12 @@ test.describe('v60 Most Wanted community-demand board', () => {
     await expect(aid).toContainText("Griffon's Eye");
   });
 
-  test('a tab-routed entry (#9 Sunder Charms) jumps to the RotW tab', async ({ page }) => {
+  test('#9 Sunder Charms opens the golden 6-charm card (v228 routing)', async ({ page }) => {
     await page.locator('#most-wanted .mw-row[data-mw="8"]').click();
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => !!document.querySelector('.tab[data-tab="rotw"].active'))).toBe(true);
+    const six = ['Bone Break', 'Black Cleft', 'Crack of the Heavens', 'Cold Rupture', 'Flame Rift', 'Rotting Fissure'];
+    const txt = await page.evaluate(() => document.getElementById('item-detail')?.textContent || '');
+    for (const c of six) expect(txt, `missing charm: ${c}`).toContain(c);
   });
 
   test('keyboard: Enter on a focused row activates it (a11y role=button)', async ({ page }) => {
