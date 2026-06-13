@@ -2408,6 +2408,32 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   @media(max-width:700px){.nav-widget{right:8px;bottom:62px}.nav-fab{width:50px;height:50px;font-size:23px}.nav-panel{min-width:168px}}
   @media print{.nav-widget{display:none}}
 
+  /* ===== Vault folder "watcher" — animated connected-state eye ===== */
+  .vault-watcher{display:inline-flex;align-items:center;gap:10px;padding:5px 14px 5px 9px;border:1px solid rgba(127,212,255,.42);border-radius:22px;
+    background:linear-gradient(180deg,rgba(127,212,255,.10),rgba(8,16,22,.55));cursor:pointer;position:relative;overflow:hidden;vertical-align:middle;
+    box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 16px rgba(127,212,255,.12);transition:box-shadow .2s,border-color .2s}
+  .vault-watcher:hover{border-color:rgba(127,212,255,.75);box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 22px rgba(127,212,255,.28)}
+  .vault-watcher::after{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;
+    background:linear-gradient(100deg,transparent,rgba(127,212,255,.16),transparent);transform:skewX(-18deg);animation:vwSheen 4.5s ease-in-out infinite}
+  @keyframes vwSheen{0%,72%{left:-60%}88%,100%{left:130%}}
+  .vw-eye{position:relative;width:24px;height:24px;border-radius:50%;flex:0 0 auto;
+    background:radial-gradient(circle at 50% 45%,#0c2330,#04090c 78%);border:1.5px solid rgba(127,212,255,.65);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    box-shadow:0 0 11px rgba(127,212,255,.45),inset 0 0 7px rgba(0,0,0,.8)}
+  .vw-eye::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:1px solid rgba(127,212,255,.55);animation:vwRadar 2.4s ease-out infinite}
+  @keyframes vwRadar{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.7);opacity:0}}
+  .vw-iris{position:relative;width:12px;height:12px;border-radius:50%;
+    background:radial-gradient(circle at 50% 50%,#aee6ff 0%,#4fb0d8 42%,#10465c 78%,#0a2530 100%);
+    box-shadow:0 0 6px rgba(127,212,255,.7);animation:vwScan 4.2s cubic-bezier(.6,0,.4,1) infinite}
+  .vw-pupil{position:absolute;top:50%;left:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:#020608;
+    box-shadow:0 0 0 1px rgba(127,212,255,.35)}
+  @keyframes vwScan{0%,100%{transform:translateX(-3.5px)}22%{transform:translateX(3.5px)}30%{transform:translateX(3px)}55%{transform:translateX(-2px)}70%{transform:translateX(2px)}}
+  .vw-lid{position:absolute;inset:0;background:#04090c;transform:translateY(-101%);animation:vwBlink 6s infinite}
+  @keyframes vwBlink{0%,93%,100%{transform:translateY(-101%)}95.5%{transform:translateY(0)}97.5%{transform:translateY(-101%)}}
+  .vw-txt{display:flex;flex-direction:column;line-height:1.15;font-family:ui-monospace,monospace}
+  .vw-t1{font-size:10.5px;font-weight:700;letter-spacing:1.3px;color:#bfe9ff;text-shadow:0 0 8px rgba(127,212,255,.4)}
+  .vw-t2{font-size:9.5px;font-style:italic;color:rgba(127,212,255,.6)}
+
   /* ===== TZ TRACKER tab ===== */
   .tzt-hero{display:flex;align-items:center;justify-content:center;gap:20px;padding:22px 16px 18px;margin-bottom:6px}
   .tzt-emblem{display:flex;align-items:center;gap:14px;flex:0 0 auto}
@@ -3206,6 +3232,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
         <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
         <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
+        <span id="vault-watcher" class="vault-watcher" style="display:none" title="your screenshots folder is linked — the vault watches it and auto-reads new captures. Click to re-pick the folder.">
+          <span class="vw-eye"><span class="vw-iris"><span class="vw-pupil"></span></span><span class="vw-lid"></span></span>
+          <span class="vw-txt"><span class="vw-t1">FOLDER LINKED</span><span class="vw-t2">watching for new shots…</span></span>
+        </span>
         <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
         <input type="file" id="vault-intake-file" accept="image/*" multiple style="display:none" onchange="window.vaultIntake(this.files)">
         <span class="vault-status" id="vault-status"></span>
@@ -7688,6 +7718,7 @@ const D2IO_ART = {
   "Cathan's Mesh": "art/cathansmesh_graphic.png",
   "Naj's Circlet": "art/najscirclet_graphic.png",
   "Guillaume's Face": "art/guillaumesface_graphic.png",
+  "Whitstan's Guard": "art/whitstansguard_graphic.png",
   "Sazabi's Ghost Liberator": "art/sazabisghostliberator_graphic.png",
   "Call to Arms": "art/flail_graphic.png",
   "Sunder Charms": "art/flamerift_graphic.png",
@@ -16486,18 +16517,18 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-pagebar span.vp-arrow{color:#6a5a40}
 .vd-goldbox{margin:8px auto 0;width:60%;text-align:center;background:#0d0a07;border:2px solid #3a322a;border-radius:3px;padding:4px;font-family:var(--mono,monospace);font-size:13px;color:#e8c860;letter-spacing:.1em}
 /* equipment region — mirrors the in-game inventory top half */
-.vd-equip{flex:1;display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:10px;min-height:0}
+.vd-equip{display:grid;grid-template-columns:repeat(10,var(--eqc,40px));grid-template-rows:repeat(6,var(--eqc,40px));gap:2px;width:max-content;margin:0 auto 8px;padding:3px}
 .vd-eq{background:linear-gradient(160deg,#1c1814,#0e0b08);border:1px solid #3a322a;border-radius:3px;display:flex;align-items:center;justify-content:center;color:rgba(122,108,88,.35);box-shadow:inset 0 0 12px rgba(0,0,0,.75)}
 .vd-eq span{font-size:clamp(14px,2.2vh,26px);filter:grayscale(1);opacity:.45}
 .vd-eq.eq-w1{grid-column:1/3;grid-row:1/5}
-.vd-eq.eq-helm{grid-column:4/7;grid-row:1/3}
-.vd-eq.eq-amu{grid-column:7/8;grid-row:2/3;align-self:center;justify-self:center;width:74%;height:74%}
-.vd-eq.eq-body{grid-column:4/7;grid-row:3/6}
+.vd-eq.eq-helm{grid-column:5/7;grid-row:1/3}
+.vd-eq.eq-amu{grid-column:7/8;grid-row:2/3;align-self:center;justify-self:center;width:84%;height:84%}
+.vd-eq.eq-body{grid-column:5/7;grid-row:3/6}
 .vd-eq.eq-w2{grid-column:9/11;grid-row:1/5}
 .vd-eq.eq-glove{grid-column:1/3;grid-row:5/7}
-.vd-eq.eq-ring1{grid-column:3/4;grid-row:6/7;align-self:center;justify-self:center;width:74%;height:74%}
-.vd-eq.eq-belt{grid-column:4/7;grid-row:6/7}
-.vd-eq.eq-ring2{grid-column:7/8;grid-row:6/7;align-self:center;justify-self:center;width:74%;height:74%}
+.vd-eq.eq-ring1{grid-column:4/5;grid-row:6/7;align-self:center;justify-self:center;width:84%;height:84%}
+.vd-eq.eq-belt{grid-column:5/7;grid-row:6/7}
+.vd-eq.eq-ring2{grid-column:7/8;grid-row:6/7;align-self:center;justify-self:center;width:84%;height:84%}
 .vd-eq.eq-boot{grid-column:9/11;grid-row:5/7}
 /* mule ID card — in-game stash/inventory replica */
 .vault-detail{margin-top:14px;border:1px solid rgba(212,168,71,.5);border-radius:12px;background:linear-gradient(180deg,rgba(24,17,9,.97),rgba(14,10,5,.99));box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 10px 34px rgba(0,0,0,.6),0 0 30px rgba(212,168,71,.08);padding:14px}
@@ -16884,11 +16915,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }).join('');
     return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px">'+cells+blocks+'</div>';
   }
-  var openMuleId = null;
+  var openMuleId = null, _muleReturnTab = null;
   window.openMuleCard = function(muleId){
     var m=muleById(muleId); var box=document.getElementById('vault-detail');
     if (!m||!box) return;
     openMuleId = muleId;
+    // v235: remember the tab the card was opened from (the vault lives in Tools)
+    // so closing returns here, not wherever a stray hotkey routed to.
+    try { var _at=document.querySelector('.tab.active'); if (_at && _at.dataset && _at.dataset.tab) _muleReturnTab=_at.dataset.tab; } catch(e){}
     // a display:none ancestor (collapsed card) kills fixed children — live on <body>
     if (box.parentElement !== document.body) document.body.appendChild(box);
     box.classList.add('vd-fs');
@@ -16905,7 +16939,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     box.hidden = false;
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
     var cell = Math.max(26, Math.min(60, Math.floor(Math.min((vw * 0.30) / 10, (vh - 330) / 10))));
-    var eqc = Math.floor(cell * 0.72);
+    var eqc = cell;   // v235: equipment cells = the SAME unit cell as stash/inventory (was 0.72 → misaligned)
     var stash=packGrid(sized,10,10);
     var inv=packGrid(stash.left,10,4);
     var slotName=function(p){ return 'col '+(p.x+1)+' · row '+(p.y+1); };
@@ -16938,6 +16972,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(b){ b.hidden=true; b.classList.remove('vd-fs'); }
     document.documentElement.classList.remove('vd-lock');
     openMuleId=null;
+    // v235: route back to where the card was opened from (Tools/vault), not TZ zones.
+    if (_muleReturnTab && window.switchTab) { try { window.switchTab(_muleReturnTab); } catch(e){} }
   };
   document.addEventListener('keydown', function(e){
     if (e.key==='Escape' && openMuleId){ window.vaultCloseCard(); }
@@ -17154,6 +17190,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var handle = await window.showDirectoryPicker({ id:'d2r-shots', mode:'read' });
       liveHandle = handle;
       try { await idbSet(FOLDER_KEY, handle); } catch(e){ /* session-only is fine */ }
+      // v235: folder is remembered now — swap the Connect button for the animated
+      // "watcher" (eye) so it's clear the folder is linked + being watched, and show Scan.
+      _setFolderConnectedUI(true);
       status('📂 folder connected — scanning…');
       window.vaultScanFolder();
     } catch(e){ if (e && e.name!=='AbortError') status('folder connect failed: '+e.name); }
@@ -17210,12 +17249,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       vaultOfferMenu(all, fresh, seen);
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
   };
+  // v235: toggle the folder UI between "connect me" and the live animated watcher.
+  function _setFolderConnectedUI(connected){
+    try {
+      var cb=document.getElementById('vault-folder-btn'),
+          sb=document.getElementById('vault-scan-btn'),
+          wch=document.getElementById('vault-watcher');
+      if (cb)  cb.style.display  = connected ? 'none' : '';
+      if (sb)  sb.style.display  = connected ? '' : 'none';
+      if (wch) wch.style.display = connected ? 'inline-flex' : 'none';
+    } catch(e){}
+  }
+  window._setFolderConnectedUI = _setFolderConnectedUI;
   function initFolderWatch(){
     var cb=document.getElementById('vault-folder-btn'), sb=document.getElementById('vault-scan-btn');
     var di=document.getElementById('vault-dir-input');
     if ('showDirectoryPicker' in window){
-      if (cb) cb.style.display=''; if (sb) sb.style.display='';
-      idbGet(FOLDER_KEY).then(function(h){ if (h) window.vaultScanFolder(true); }).catch(function(){});
+      // v235: a remembered folder → swap Connect for the animated 👁 watcher +
+      // show 🔄 Scan (folder stays linked across sessions; permission re-auths on
+      // the first Scan click). No folder yet → show only 📂 Connect. Kills the
+      // "connect again?" confusion and makes the linked state feel alive.
+      var wch=document.getElementById('vault-watcher');
+      if (wch) wch.onclick=function(){ window.vaultConnectFolder(); };
+      idbGet(FOLDER_KEY).then(function(h){
+        if (h){ _setFolderConnectedUI(true); window.vaultScanFolder(true); }
+        else  { _setFolderConnectedUI(false); }
+      }).catch(function(){ _setFolderConnectedUI(false); });
       return;
     }
     if (di && 'webkitdirectory' in di){
