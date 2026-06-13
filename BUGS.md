@@ -144,6 +144,25 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-011 — 2026-06-13 · AI intake: art hallucination + silent vocab-filter drop (live, user-caught)
+- **Symptom**: Konyo's 3-shot test: a no-tooltip stash screenshot registered phantom items
+  (runes, "Tal Rasha set (any piece)"; replay also produced "Tyrael's Might"), while a
+  crystal-clear Frostburn tooltip registered NOTHING.
+- **Caught by**: the USER, live. Audited by replaying his exact screenshots against the
+  live endpoint — the decisive method (headless UI tests can't catch model behavior).
+- **Root cause**: (a) vision model reads item ART without a tooltip and fuzzy-matches it;
+  (b) server filter `vocab.has(n)` silently discarded near-matches ("Frostburn Gauntlets"
+  = tooltip name+base merged) without even surfacing them in `unrecognized`;
+  (c) 4K fullscreen shots downscaled to 1344px → ~6px tooltip text → guessing regime.
+- **Fix (v225 `8f29d72` + v226 `797f79c` + v227 `55e1300`)**: tooltip-or-nothing prompt
+  rule + no-guess rule; exact→normalized→prefix vocab matching with NO silent drops;
+  downscale 1568; dock-chip ✕ eraser; set AGGREGATES banned from vault/vocab, 67 exact
+  pieces first-class. Post-fix replay of all 3 shots = exact ground truth.
+- **Prevention**: (1) NEVER `filter()` model output silently — unmatched reads must
+  surface somewhere visible. (2) Audit AI features by replaying REAL user inputs against
+  the LIVE endpoint, not just mocked routes. (3) A vision prompt needs an explicit
+  "absence" rule (no tooltip → empty), not just positive instructions.
+
 ## REG-010 — 2026-06-12 · vault hover magnifier rendered UNDERNEATH the fullscreen overlay (looked "not working")
 - **Symptom**: Konyo, live on v217-v219: "the image floating cursor wasn't working" — hovering a
   vault item in the fullscreen mule card showed no enlarged image at all.
