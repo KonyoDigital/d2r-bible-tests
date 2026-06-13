@@ -10959,7 +10959,7 @@ function renderAidCard(name, opts){
     </div>`;
   }).filter(Boolean).join('');
 
-  return `<div class="aid-card">
+  return `<div class="aid-card${_artRarity(name)?' aid-r-'+_artRarity(name):''}">
     <header class="aid-header">
       <div class="aid-header-left">
         <div class="aid-item-name">
@@ -12154,6 +12154,12 @@ window._arttipResolve = _arttipResolve;
     if (!tip.querySelector('.att-desc')){ var dd=document.createElement('div'); dd.className='att-desc'; tip.appendChild(dd); }
     var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), desc = tip.querySelector('.att-desc'), cur = null;
     function nameOf(el){ return el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || ''; }
+    // v238: rarity-frame the floating card (gold unique / green set / orange RW · rune / blue magic)
+    function setTipR(name){
+      tip.classList.remove('tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune');
+      var rc = (typeof _artRarity==='function') ? _artRarity(name) : '';
+      if (rc) tip.classList.add('tip-r-'+rc);
+    }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (!el) return;
@@ -12170,6 +12176,7 @@ window._arttipResolve = _arttipResolve;
         lab.textContent = wn;
         desc.innerHTML = '';
         tip.classList.remove('tip-rich'); tip.classList.add('tip-art');
+        setTipR(wn);
         move(e); tip.classList.add('on');
         return;
       }
@@ -12184,6 +12191,7 @@ window._arttipResolve = _arttipResolve;
         lab.textContent = aura + ' aura';
         desc.innerHTML = '';
         tip.classList.remove('tip-rich');
+        setTipR('');
         move(e); tip.classList.add('on');
         return;
       }
@@ -12196,6 +12204,7 @@ window._arttipResolve = _arttipResolve;
       lab.textContent = nm;
       desc.innerHTML = r.desc;
       tip.classList.toggle('tip-rich', !!r.rich);
+      setTipR(nm);
       move(e); tip.classList.add('on');
     });
     document.addEventListener('mousemove', function(e){ if (!cur) return; if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; } move(e); });
@@ -16486,6 +16495,24 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.6), 0 14px 40px rgba(0,0,0,.75), 0 0 30px rgba(212,168,71,.14);
   backdrop-filter:blur(2px);
 }
+/* v238: rarity-frame the floating card — colored border + halo + name tint */
+#arttip.tip-r-unique{border-color:rgba(212,168,71,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(212,168,71,.34)}
+#arttip.tip-r-set{border-color:rgba(102,255,136,.82);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(102,255,136,.3)}
+#arttip.tip-r-magic{border-color:rgba(122,162,255,.88);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(122,162,255,.32)}
+#arttip.tip-r-rare{border-color:rgba(255,235,90,.88);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(255,235,90,.3)}
+#arttip.tip-r-rw{border-color:rgba(255,170,70,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 27px rgba(255,170,70,.34)}
+#arttip.tip-r-rune{border-color:rgba(255,150,50,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 27px rgba(255,150,50,.36)}
+#arttip.tip-r-set .att-name{color:#7dff9d}
+#arttip.tip-r-magic .att-name{color:#9fb8ff}
+#arttip.tip-r-rare .att-name{color:#ffef6a}
+#arttip.tip-r-rw .att-name,#arttip.tip-r-rune .att-name{color:#ffc070}
+/* v238: item ID card (.aid-card) gets a rarity quality-strip + halo */
+.aid-card.aid-r-unique{border-color:rgba(212,168,71,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(212,168,71,.1),inset 0 3px 0 rgba(212,168,71,.6)}
+.aid-card.aid-r-set{border-color:rgba(102,255,136,.5);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(102,255,136,.09),inset 0 3px 0 rgba(102,255,136,.6)}
+.aid-card.aid-r-magic{border-color:rgba(122,162,255,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(122,162,255,.1),inset 0 3px 0 rgba(122,162,255,.65)}
+.aid-card.aid-r-rare{border-color:rgba(255,235,90,.5);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,235,90,.09),inset 0 3px 0 rgba(255,235,90,.6)}
+.aid-card.aid-r-rw{border-color:rgba(255,170,70,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,170,70,.1),inset 0 3px 0 rgba(255,170,70,.65)}
+.aid-card.aid-r-rune{border-color:rgba(255,150,50,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,150,50,.11),inset 0 3px 0 rgba(255,150,50,.68)}
 
 /* ── M. Global search: gilt bloom on focus ── */
 .gsearch-wrap{ transition:box-shadow .25s var(--ease-out,ease), border-color .25s ease; }
