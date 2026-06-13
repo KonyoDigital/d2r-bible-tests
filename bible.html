@@ -16965,6 +16965,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         sb.textContent='📂 Scan screenshot folder';
         sb.title='pick your screenshots folder — only NEW images since the last scan are read (this browser re-asks each scan; Chrome/Edge remember the folder)';
         sb.onclick=function(){ di.click(); };
+        // v229: Safari can't remember folder permission (no such API) — tell the
+        // user the hands-free mode exists instead of leaving it undiscoverable
+        var hint=document.createElement('span');
+        hint.className='vault-status';
+        hint.style.cssText='font-size:11px;color:var(--text-dim,#756657)';
+        hint.innerHTML='⚡ want it hands-free? open this site in <strong>Chrome/Edge</strong> — connect the folder ONCE and the vault auto-reads new screenshots every visit';
+        sb.parentNode.insertBefore(hint, sb.nextSibling);
       }
       di.addEventListener('change', function(){ window.vaultScanFolderLegacy(di.files); di.value=''; });
     }
