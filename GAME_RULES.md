@@ -147,10 +147,13 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
 - Live: `https://bull-4-u.com/d2r/` — Cloudflare **Pages** project `d2r-bible`
   (free tier), serves `d2r-bible.pages.dev`; apex `/` → 302 → `/d2r/` via `_redirects`.
 - Deploy is **MANUAL direct-upload** (project `source: None` — a `git push` does NOT
-  build the site): `cp bible.html /tmp/d2r_dist/d2r/index.html && cd /tmp/d2r_dist &&
-  set -a && . ~/.config/cf-d2r/env && set +a && npx wrangler@latest pages deploy .
-  --project-name=d2r-bible --branch=main`. Then verify md5 parity:
-  `curl -s -A 'Mozilla/5.0' https://bull-4-u.com/d2r/ | md5 -q` == `md5 -q bible.html`.
+  build the site). **Since v231 the art is self-hosted, so the dist must include `art/`:**
+  `cp bible.html /tmp/d2r_dist/d2r/index.html` (single-line!) then
+  `rm -rf /tmp/d2r_dist/d2r/art && cp -R art /tmp/d2r_dist/d2r/art` then
+  `cd /tmp/d2r_dist && set -a && . ~/.config/cf-d2r/env && set +a && npx wrangler@latest
+  pages deploy . --project-name=d2r-bible --branch=main`. Then verify md5 parity:
+  `curl -s -A 'Mozilla/5.0' https://bull-4-u.com/d2r/ | md5 -q` == `md5 -q bible.html`,
+  and a sample `https://bull-4-u.com/d2r/art/madawcs_ire_graphic.png` → `200 image/png`.
 - Edge does NOT cache HTML (`cf-cache-status: DYNAMIC`) — a stale view is the user's
   browser cache (⌘⇧R fixes it).
 - Repo `KonyoDigital/d2r-bible-tests` is **PUBLIC** → free/unlimited GitHub Actions
