@@ -2408,6 +2408,51 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   @media(max-width:700px){.nav-widget{right:8px;bottom:62px}.nav-fab{width:50px;height:50px;font-size:23px}.nav-panel{min-width:168px}}
   @media print{.nav-widget{display:none}}
 
+  /* ===== TZ TRACKER tab ===== */
+  .tzt-hero{display:flex;align-items:center;justify-content:center;gap:20px;padding:22px 16px 18px;margin-bottom:6px}
+  .tzt-emblem{display:flex;align-items:center;gap:14px;flex:0 0 auto}
+  .tzt-flame{font-size:30px;filter:drop-shadow(0 0 8px rgba(255,90,30,.55));animation:tztFlicker 1.6s ease-in-out infinite}
+  .tzt-flame-r{animation-delay:.8s}
+  @keyframes tztFlicker{0%,100%{transform:translateY(0) scale(1);opacity:.92}50%{transform:translateY(-2px) scale(1.08);opacity:1}}
+  .tzt-disc{position:relative;width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%,rgba(255,60,30,.18),rgba(20,12,8,.85));
+    border:2px solid rgba(240,192,96,.55);box-shadow:0 0 18px rgba(255,70,30,.32),inset 0 0 14px rgba(0,0,0,.55)}
+  .tzt-ring{position:absolute;inset:6px;border-radius:50%;border:1px solid rgba(240,192,96,.28)}
+  .tzt-ring2{inset:13px;border-color:rgba(240,192,96,.18)}
+  .tzt-sweep{position:absolute;inset:0;border-radius:50%;overflow:hidden}
+  .tzt-sweep::before{content:"";position:absolute;left:50%;top:50%;width:50%;height:50%;transform-origin:top left;
+    background:conic-gradient(from 0deg,rgba(102,255,136,.55),rgba(102,255,136,0) 70%);animation:tztSweep 3.4s linear infinite}
+  @keyframes tztSweep{to{transform:rotate(360deg)}}
+  .tzt-core{position:relative;z-index:2;font-size:26px;filter:drop-shadow(0 0 6px rgba(255,80,40,.6))}
+  .tzt-title-block{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .tzt-title{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:30px;font-weight:700;letter-spacing:.04em;margin:0;
+    background:linear-gradient(180deg,#ffe9b0,#d4a847 62%,#a9802f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 2px 10px rgba(212,168,71,.18)}
+  .tzt-sub{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:13px;color:var(--text-muted)}
+  .tzt-panel{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 2px}
+  @media(max-width:680px){.tzt-panel{grid-template-columns:1fr}.tzt-hero{gap:12px}.tzt-title{font-size:24px}}
+  .tzt-loading,.tzt-offline{grid-column:1/-1;text-align:center;color:var(--text-muted);font-style:italic;padding:26px 14px;
+    border:1px dashed var(--border);border-radius:12px;background:var(--surface-2)}
+  .tzt-offline a{color:var(--gold-bright)}
+  .tzt-slot{border:1px solid var(--border);border-radius:12px;padding:13px 15px;background:linear-gradient(180deg,var(--surface),var(--surface-2))}
+  .tzt-now{border-left:3px solid var(--best);box-shadow:0 0 0 1px rgba(102,255,136,.08),0 6px 18px rgba(0,0,0,.22)}
+  .tzt-next{border-left:3px solid var(--nm)}
+  .tzt-slot-label{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--text-dim);margin-bottom:9px}
+  .tzt-now .tzt-slot-label{color:var(--best)}.tzt-next .tzt-slot-label{color:var(--nm)}
+  .tzt-zone{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px 10px;padding:10px 12px;border-radius:9px;background:rgba(0,0,0,.18);border:1px solid transparent}
+  .tzt-z-emoji{font-size:19px;grid-row:1/3;align-self:center}
+  .tzt-z-name{font-weight:600;font-size:15px;color:var(--text);min-width:0}
+  .tzt-z-go{font-family:ui-monospace,monospace;font-size:11.5px;font-weight:700;color:var(--gold-bright);text-align:right;white-space:nowrap}
+  .tzt-z-why{grid-column:2/4;font-size:11.5px;color:var(--text-muted);font-style:italic}
+  .tzt-z-skip{grid-column:2/4;font-size:11px;color:var(--text-dim);font-style:italic}
+  .tzt-hunt{cursor:pointer;border-color:rgba(240,192,96,.32);background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(0,0,0,.16));transition:border-color .13s,transform .13s,box-shadow .13s}
+  .tzt-hunt:hover{border-color:var(--gold-bright);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.26)}
+  .tzt-hunt:hover .tzt-z-name{text-shadow:0 0 10px rgba(240,192,96,.35)}
+  .tzt-filler{opacity:.58}.tzt-filler .tzt-z-name{font-weight:500;color:var(--text-muted)}
+  .tzt-foot{display:flex;align-items:center;gap:14px;margin-top:12px}
+  .tzt-refresh{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;transition:border-color .12s,background .12s}
+  .tzt-refresh:hover{border-color:var(--gold-bright);background:rgba(240,192,96,.08)}
+  .tzt-updated{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-dim)}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2502,6 +2547,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="bosses">🗺️ bosses</button>
     <button class="tab" data-tab="calc">🔍 calculator</button>
     <button class="tab" data-tab="tz">🔥 TZ zones</button>
+    <button class="tab" data-tab="tztracker">📡 TZ tracker</button>
     <button class="tab" data-tab="runes">🪨 runes</button>
     <button class="tab" data-tab="rotw">👑 RotW special</button>
     <button class="tab" data-tab="ancients">🔥 events</button>
@@ -2889,6 +2935,28 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div id="superunique-container"></div>
   <div class="lead" style="margin-top:22px;border-top:1px solid var(--border);padding-top:18px">💀 <strong>Super-Uniques — the named bosses your TZ alert calls out</strong> — every gold-name boss (Eldritch, Shenk, Pindleskin, …) with its act/area, Hell area mlvl, fixed immunities, DClone-camp eligibility, and a live cross-link to the Terror Zone it spawns in. Click any card for the full detail box.</div>
   <div class="info" style="margin-top:14px"><strong>💡 Flayer Dungeon answer (your question):</strong> Correct that it's not in the boss list — it's TZ-only valuable. When terror'd hits mlvl 96 + TC85 + dense monsters with Endugu super-unique. Equivalent TC ceiling to Pit Hell TZ, just only good during its window. Outside terror = skip.</div>
+</div>
+
+<div class="tab-content" id="tab-tztracker">
+  <div class="tzt-hero">
+    <div class="tzt-emblem" role="img" aria-label="Terror Zone Tracker emblem">
+      <span class="tzt-flame tzt-flame-l">🔥</span>
+      <span class="tzt-disc"><span class="tzt-ring"></span><span class="tzt-ring tzt-ring2"></span><span class="tzt-sweep"></span><span class="tzt-core">☠️</span></span>
+      <span class="tzt-flame tzt-flame-r">🔥</span>
+    </div>
+    <div class="tzt-title-block">
+      <h1 class="tzt-title">Terror Zone Tracker</h1>
+      <div class="tzt-sub">Live region rotation — only the zones worth hunting light up</div>
+    </div>
+  </div>
+  <div class="tzt-panel" id="tztracker-body">
+    <div class="tzt-loading">📡 Loading the live rotation…</div>
+  </div>
+  <div class="tzt-foot">
+    <button class="tzt-refresh" type="button" onclick="window.refreshTzTracker&&window.refreshTzTracker(true)">↻ Refresh</button>
+    <span class="tzt-updated" id="tzt-updated"></span>
+  </div>
+  <div class="lead" style="margin-top:18px">🎯 <strong>Only huntable zones route.</strong> The 5 act bosses + the S-tier farm zones (Travincal · Countess · Pindle · Cows · Pit · Eldritch · Arcane …) glow gold and jump straight to their card — the exact set your Telegram alert calls out. Filler zones show dimmed. Region-wide rotation, refreshes every 30 min.</div>
 </div>
 
 <div class="tab-content" id="tab-runes">
@@ -12356,7 +12424,103 @@ function switchTab(name) {
   $("tab-"+name).classList.add("active");
   // v28: ensure data-boss-id is set on TZ zones when tab becomes visible
   if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId();
+  if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow();
 }
+
+// ===== TZ TRACKER (live terror-zone tab) =====
+// Reads the live rotation from the same-origin /api/tz Pages Function (which
+// proxies d2runewizard server-side). Only the HUNTABLE zones — the exact set
+// the Telegram alert calls out — are clickable and route to their bible card;
+// everything else renders dimmed. Offline (file://) shows a graceful note, so
+// the suite's "no console errors" checks never see a failed fetch.
+const TZ_HUNT = [
+  { id:'mephisto', m:['durance of hate'],                                          label:'Mephisto',           emoji:'💧', why:'Act 3 boss — SoJ · Shako · deep unique pool',        go:()=>window.openBossDetail&&openBossDetail('mephisto') },
+  { id:'duriel',   m:['tal rasha'],                                                label:'Duriel',             emoji:'🪲', why:'Act 2 tomb boss — fast, sparkly chests en route',      go:()=>window.openBossDetail&&openBossDetail('duriel') },
+  { id:'andariel', m:['catacombs','cathedral'],                                    label:'Andariel',           emoji:'🕷️', why:'Act 1 boss — easy SoJ / Shako resets',                 go:()=>window.openBossDetail&&openBossDetail('andariel') },
+  { id:'diablo',   m:['chaos sanctuary'],                                          label:'Diablo',             emoji:'😈', why:'Act 4 boss — full clear, Annihilus camp',             go:()=>window.openBossDetail&&openBossDetail('diablo') },
+  { id:'baal',     m:['worldstone keep','throne of destruction','worldstone chamber'], label:'Baal',           emoji:'👹', why:'Act 5 boss — WSK pop + throne waves',                 go:()=>window.openBossDetail&&openBossDetail('baal') },
+  { id:'travincal',m:['travincal'],                                                label:'Travincal',          emoji:'💰', why:'Council — #1 gold dump + runes + TC85',               go:()=>window.openBossDetail&&openBossDetail('travincal') },
+  { id:'countess', m:['forgotten tower','tower cellar'],                           label:'Countess',           emoji:'🔑', why:'Dedicated rune table + Key of Terror',                go:()=>window.openBossDetail&&openBossDetail('countess') },
+  { id:'pindle',   m:['nihlathak','halls of vaught','halls of anguish','halls of pain'], label:'Pindle / Nihlathak', emoji:'❄️', why:'Pindle = fastest exp + loot per second',         go:()=>window.openBossDetail&&openBossDetail('nihl') },
+  { id:'cows',     m:['cow level','moo moo farm'],                                 label:'Secret Cow Level',   emoji:'🐄', why:'Rune farming + insane density',                       go:()=>window.openBossDetail&&openBossDetail('cow') },
+  { id:'pit',      m:['the pit','pit level'],                                      label:'The Pit',            emoji:'🕳️', why:'mlvl 85 · TC85 — best non-boss item ceiling',         go:()=>window.navTo&&navTo('tz') },
+  { id:'eldritch', m:['bloody foothills','frigid highlands','abaddon'],            label:'Eldritch / Shenk',   emoji:'🧊', why:'DClone camp · huge packs = bulk drops',               go:()=>window.navTo&&navTo('tz') },
+  { id:'arcane',   m:['arcane sanctuary'],                                         label:'Arcane Sanctuary',   emoji:'🌀', why:'Summoner · wide-open density',                        go:()=>window.navTo&&navTo('tz') },
+  { id:'river',    m:['river of flame'],                                           label:'River of Flame',     emoji:'🔥', why:'Hephasto · TZ aura cap (lvl 12)',                     go:()=>window.navTo&&navTo('tz') },
+  { id:'flayer',   m:['flayer dungeon'],                                           label:'Flayer Dungeon',     emoji:'🪓', why:'Endugu · mlvl 96 + TC85 when terror’d',          go:()=>window.navTo&&navTo('tz') },
+  { id:'crystal',  m:['crystalline passage','frozen river'],                       label:'Crystalline Passage',emoji:'🧊', why:'Frozenstein · dense cold-imm pack',                   go:()=>window.navTo&&navTo('tz') },
+];
+function tzHuntMatch(zoneName){
+  const z = String(zoneName||'').toLowerCase();
+  for (const h of TZ_HUNT){ for (const n of h.m){ if (z.indexOf(n) !== -1) return h; } }
+  return null;
+}
+function tzGo(id){ const h = TZ_HUNT.find(x => x.id === id); if (h && h.go) h.go(); }
+window.tzGo = tzGo; window.tzHuntMatch = tzHuntMatch; window.TZ_HUNT = TZ_HUNT;
+
+function _tzEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function tzZoneRowHtml(zoneName){
+  if (!zoneName) return '<div class="tzt-zone tzt-filler"><span class="tzt-z-emoji">·</span><span class="tzt-z-name">(unknown)</span></div>';
+  const h = tzHuntMatch(zoneName);
+  if (h){
+    return '<div class="tzt-zone tzt-hunt" role="button" tabindex="0" data-tz-hunt="'+h.id+'" '
+      + 'onclick="window.tzGo(\''+h.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.tzGo(\''+h.id+'\')}" '
+      + 'title="hunt → '+_tzEsc(h.label)+'">'
+      + '<span class="tzt-z-emoji">'+h.emoji+'</span>'
+      + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
+      + '<span class="tzt-z-go">'+_tzEsc(h.label)+' →</span>'
+      + '<span class="tzt-z-why">'+_tzEsc(h.why)+'</span></div>';
+  }
+  return '<div class="tzt-zone tzt-filler"><span class="tzt-z-emoji">·</span>'
+    + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
+    + '<span class="tzt-z-skip">not a hunt zone — skip</span></div>';
+}
+function renderTzTracker(data){
+  const body = document.getElementById('tztracker-body');
+  if (!body) return;
+  if (data === 'offline'){
+    body.innerHTML = '<div class="tzt-offline">📡 Live rotation needs the online site — open '
+      + '<a href="https://bull-4-u.com/d2r/" target="_blank" rel="noopener">bull-4-u.com/d2r</a> to see the current terror zone.</div>';
+    return;
+  }
+  if (data === 'error'){
+    body.innerHTML = '<div class="tzt-offline">⚠️ Couldn’t reach the live tracker right now — hit ↻ Refresh in a moment.</div>';
+    return;
+  }
+  body.innerHTML =
+    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label">🟢 LIVE NOW</div>'+tzZoneRowHtml(data.current)+'</div>'
+    + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'+tzZoneRowHtml(data.next)+'</div>';
+  const u = document.getElementById('tzt-updated');
+  if (u){ try { u.textContent = data.ts ? ('updated '+new Date(data.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) : ''; } catch(e){ u.textContent=''; } }
+}
+window.renderTzTracker = renderTzTracker;
+
+let _tzLast = null, _tzFetching = false, _tzTimer = null;
+async function refreshTzTracker(manual){
+  if (_tzFetching) return;
+  if (location.protocol === 'file:'){ renderTzTracker('offline'); return; }
+  _tzFetching = true;
+  try {
+    const r = await fetch('/api/tz', { cache: 'no-store' });
+    if (!r.ok) throw new Error('http '+r.status);
+    const data = await r.json();
+    if (data && (data.current || data.next)){ _tzLast = data; renderTzTracker(data); }
+    else { renderTzTracker(_tzLast || 'error'); }
+  } catch(e){ renderTzTracker(_tzLast || 'error'); }
+  finally { _tzFetching = false; }
+}
+window.refreshTzTracker = refreshTzTracker;
+
+function tzTrackerOnShow(){
+  refreshTzTracker(false);
+  if (_tzTimer){ clearInterval(_tzTimer); _tzTimer = null; }
+  _tzTimer = setInterval(function(){
+    const panel = document.getElementById('tab-tztracker');
+    if (panel && panel.classList.contains('active')) refreshTzTracker(false);
+    else { clearInterval(_tzTimer); _tzTimer = null; }
+  }, 120000);
+}
+window.tzTrackerOnShow = tzTrackerOnShow;
 
 $("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
 $("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); renderBossNav(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
