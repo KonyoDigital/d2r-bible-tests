@@ -2453,6 +2453,34 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .tzt-refresh{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;transition:border-color .12s,background .12s}
   .tzt-refresh:hover{border-color:var(--gold-bright);background:rgba(240,192,96,.08)}
   .tzt-updated{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-dim)}
+  /* TZ tracker — 48h history (expandable) */
+  .tzt-history{margin-top:20px;border:1px solid var(--border);border-radius:13px;overflow:hidden;background:linear-gradient(180deg,rgba(20,14,8,.5),rgba(8,6,4,.4))}
+  .tzt-history[open]{border-color:rgba(240,192,96,.34)}
+  .tzt-history-head{list-style:none;cursor:pointer;display:flex;align-items:center;gap:13px;padding:14px 18px;user-select:none;transition:background .14s}
+  .tzt-history-head::-webkit-details-marker{display:none}
+  .tzt-history-head:hover{background:rgba(240,192,96,.05)}
+  .tzt-history-scroll{font-size:22px;filter:drop-shadow(0 0 6px rgba(240,192,96,.3))}
+  .tzt-history-tt{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+  .tzt-history-title{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:17px;font-weight:700;letter-spacing:.03em;color:var(--gold-bright)}
+  .tzt-history-sub{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:12px;color:var(--text-muted)}
+  .tzt-history-count{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-dim);white-space:nowrap}
+  .tzt-history-chev{color:var(--gold);font-size:13px;transition:transform .2s}
+  .tzt-history[open] .tzt-history-chev{transform:rotate(180deg)}
+  .tzt-history-body{padding:4px 14px 14px;max-height:440px;overflow-y:auto}
+  .tzt-hist-empty{text-align:center;color:var(--text-muted);font-style:italic;padding:22px 12px;font-size:12.5px}
+  .tzt-hist-day{font-family:ui-monospace,monospace;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold-dim);margin:12px 0 5px;padding-left:4px;border-bottom:1px solid var(--border);padding-bottom:4px}
+  .tzt-hist-day:first-child{margin-top:4px}
+  .tzt-hist-row{display:grid;grid-template-columns:64px auto 1fr auto;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;border-left:2px solid transparent}
+  .tzt-hist-time{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--text-dim);white-space:nowrap}
+  .tzt-hist-emoji{font-size:15px;text-align:center}
+  .tzt-hist-zone{font-size:13.5px;color:var(--text-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tzt-hist-go{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:var(--gold-bright);white-space:nowrap;opacity:0;transition:opacity .12s}
+  .tzt-hist-row.tzt-hunt{cursor:pointer;border-left-color:rgba(240,192,96,.5);background:linear-gradient(90deg,rgba(240,192,96,.07),transparent 70%)}
+  .tzt-hist-row.tzt-hunt .tzt-hist-zone{color:var(--gold-bright);font-weight:600}
+  .tzt-hist-row.tzt-hunt:hover{background:linear-gradient(90deg,rgba(240,192,96,.14),transparent 70%)}
+  .tzt-hist-row.tzt-hunt:hover .tzt-hist-go{opacity:1}
+  .tzt-hist-row.tzt-now{border-left-color:var(--best)}
+  .tzt-hist-row.tzt-now .tzt-hist-time::after{content:' ●';color:var(--best);font-size:9px}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2957,6 +2985,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <span class="tzt-updated" id="tzt-updated"></span>
   </div>
   <div class="lead" style="margin-top:18px">🎯 <strong>Only huntable zones route.</strong> The 5 act bosses + the S-tier farm zones (Travincal · Countess · Pindle · Cows · Pit · Eldritch · Arcane …) glow gold and jump straight to their card — the exact set your Telegram alert calls out. Filler zones show dimmed. Region-wide rotation, refreshes every 30 min.</div>
+
+  <details class="tzt-history" id="tzt-history">
+    <summary class="tzt-history-head">
+      <span class="tzt-history-scroll">📜</span>
+      <span class="tzt-history-tt"><span class="tzt-history-title">Last 48 Hours</span><span class="tzt-history-sub">the full rotation log — huntable windows glow gold &amp; stay clickable</span></span>
+      <span class="tzt-history-count" id="tzt-history-count"></span>
+      <span class="tzt-history-chev">▾</span>
+    </summary>
+    <div class="tzt-history-body" id="tzt-history-body">
+      <div class="tzt-hist-empty">📡 Loading the rotation log…</div>
+    </div>
+  </details>
 </div>
 
 <div class="tab-content" id="tab-runes">
@@ -12494,10 +12534,50 @@ function renderTzTracker(data){
 }
 window.renderTzTracker = renderTzTracker;
 
+function renderTzHistory(history){
+  const el = document.getElementById('tztracker-body') && document.getElementById('tzt-history-body');
+  if (!el) return;
+  const cnt = document.getElementById('tzt-history-count');
+  if (!history || !history.length){
+    el.innerHTML = '<div class="tzt-hist-empty">📡 The 48-hour log is recording — it fills as rotations roll in (24/7, even while you’re away). Check back soon.</div>';
+    if (cnt) cnt.textContent = '';
+    return;
+  }
+  const nowSlot = Math.floor(Date.now() / 1800000) * 1800000;
+  let lastDay = '', out = '';
+  for (const h of history){
+    const d = new Date(h.slot);
+    const day = d.toLocaleDateString([], { weekday:'long', month:'short', day:'numeric' });
+    if (day !== lastDay){ out += '<div class="tzt-hist-day">'+day+'</div>'; lastDay = day; }
+    const time = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    const hu = tzHuntMatch(h.zone);
+    const isNow = h.slot === nowSlot;
+    if (hu){
+      out += '<div class="tzt-hist-row tzt-hunt'+(isNow?' tzt-now':'')+'" role="button" tabindex="0" '
+        + 'onclick="window.tzGo(\''+hu.id+'\')" onkeydown="if(event.key===\'Enter\'){window.tzGo(\''+hu.id+'\')}" title="hunt → '+_tzEsc(hu.label)+'">'
+        + '<span class="tzt-hist-time">'+time+'</span><span class="tzt-hist-emoji">'+hu.emoji+'</span>'
+        + '<span class="tzt-hist-zone">'+_tzEsc(h.zone)+'</span><span class="tzt-hist-go">'+_tzEsc(hu.label)+' →</span></div>';
+    } else {
+      out += '<div class="tzt-hist-row tzt-filler'+(isNow?' tzt-now':'')+'">'
+        + '<span class="tzt-hist-time">'+time+'</span><span class="tzt-hist-emoji">·</span>'
+        + '<span class="tzt-hist-zone">'+_tzEsc(h.zone)+'</span><span></span></div>';
+    }
+  }
+  el.innerHTML = out;
+  if (cnt){ const huntable = history.filter(h => tzHuntMatch(h.zone)).length; cnt.textContent = history.length+' slots · '+huntable+' huntable'; }
+}
+window.renderTzHistory = renderTzHistory;
+
 let _tzLast = null, _tzFetching = false, _tzTimer = null;
+function _tzHistCache(read, val){
+  try {
+    if (read){ const r = localStorage.getItem('d2r_tz_hist_cache'); return r ? JSON.parse(r) : []; }
+    localStorage.setItem('d2r_tz_hist_cache', JSON.stringify(val || []));
+  } catch(e){ return []; }
+}
 async function refreshTzTracker(manual){
   if (_tzFetching) return;
-  if (location.protocol === 'file:'){ renderTzTracker('offline'); return; }
+  if (location.protocol === 'file:'){ renderTzTracker('offline'); renderTzHistory(_tzHistCache(true)); return; }
   _tzFetching = true;
   try {
     const r = await fetch('/api/tz', { cache: 'no-store' });
@@ -12505,7 +12585,8 @@ async function refreshTzTracker(manual){
     const data = await r.json();
     if (data && (data.current || data.next)){ _tzLast = data; renderTzTracker(data); }
     else { renderTzTracker(_tzLast || 'error'); }
-  } catch(e){ renderTzTracker(_tzLast || 'error'); }
+    if (data && Array.isArray(data.history)){ _tzHistCache(false, data.history); renderTzHistory(data.history); }
+  } catch(e){ renderTzTracker(_tzLast || 'error'); renderTzHistory(_tzHistCache(true)); }
   finally { _tzFetching = false; }
 }
 window.refreshTzTracker = refreshTzTracker;
