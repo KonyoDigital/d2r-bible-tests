@@ -105,7 +105,9 @@ test.describe('v139 super-unique + rune hover popups', () => {
     expect(r['Shael']).toContain('runeShae_icon.png');
   });
 
-  test('rune stash cells carry data-arttip and float the rune icon on hover', async ({ page }) => {
+  // v253: rune-stash cells now float the rune's DESCRIPTION CARD (rich, with the HD icon
+  // + its weapon/armor/shield stats), matching the item-hover behavior — not a bare icon.
+  test('rune stash cells carry data-arttip and float the rune description card on hover (v253)', async ({ page }) => {
     const r = await page.evaluate(() => {
       (window as any).renderRuneStash();
       const cell = document.querySelector('.rune-stash-cell[data-arttip="Ber"]') as HTMLElement | null;
@@ -119,14 +121,16 @@ test.describe('v139 super-unique + rune hover popups', () => {
         rich: tip.classList.contains('tip-rich'),
         src: img.src,
         expected: (window as any).artUrl('Ber'),
+        desc: (tip.querySelector('.att-desc') as HTMLElement).innerHTML,
         clickThrough: getComputedStyle(tip).pointerEvents === 'none',
         anyTagged: document.querySelectorAll('.rune-stash-cell[data-arttip]').length,
       };
     });
     expect(r.found).toBe(true);
     expect(r.on).toBe(true);
-    expect(r.rich).toBe(false);
-    expect(r.src).toContain(r.expected);
+    expect(r.rich).toBe(true);
+    expect(r.src).toContain(r.expected);   // the rich card still leads with the HD rune icon
+    expect((r.desc || '').toLowerCase()).toContain('weapon');  // …followed by its stats
     expect(r.clickThrough).toBe(true);
     expect(r.anyTagged).toBe(33);
   });

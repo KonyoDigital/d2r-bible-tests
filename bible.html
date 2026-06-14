@@ -1220,6 +1220,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-import textarea{width:100%;box-sizing:border-box;min-height:54px;margin-top:8px;background:var(--surface-3);color:var(--text);border:1px solid var(--border-light);border-radius:6px;padding:8px 10px;font-family:ui-monospace,monospace;font-size:12px;resize:vertical}
 .rs-import-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
 .rs-import-btn{background:var(--gold-bright);border:none;color:#0a0805;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+/* v253: rune AI 1-photo intake — cyan to match the vault's 📸 AI intake */
+.rs-ai-row{margin:12px 0 0;display:flex}
+.rs-ai-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:13px;letter-spacing:.02em;color:#7fd4ff;background:linear-gradient(180deg,rgba(127,212,255,.10),rgba(127,212,255,.03));border:1px solid rgba(127,212,255,.45);border-radius:10px;padding:9px 16px;transition:transform .14s ease,box-shadow .2s ease,background .14s ease}
+.rs-ai-btn:hover{transform:translateY(-1px);background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.05));box-shadow:0 3px 14px rgba(0,0,0,.4),0 0 20px rgba(127,212,255,.22)}
+.rs-ai-btn:active{transform:translateY(0)}
+.rs-ai-report{margin:10px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55;color:var(--text,#f4e8d0)}
 .rs-import-btn:hover{filter:brightness(1.08)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
 .rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
@@ -3366,6 +3372,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           </div>
           <div class="rs-import-note">Format: <code>Name:count</code> pairs separated by spaces or commas. Replaces your current tally.</div>
         </details>
+        <div class="rs-ai-row">
+          <button class="rs-ai-btn" onclick="document.getElementById('rune-intake-file').click()" title="1 screenshot of your rune stash → the AI counts every rune and adds it to your tally">📸 AI intake — 1 photo tallies your runes</button>
+          <input type="file" id="rune-intake-file" accept="image/*" multiple style="display:none" onchange="window.runeIntake(this.files)">
+        </div>
+        <div id="rune-intake-report" hidden class="rs-ai-report"></div>
         <div class="rune-stash-grid" id="rune-stash-grid"></div>
         <div class="rune-stash-actions">
           <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
@@ -11892,6 +11903,55 @@ function importRuneTally(){
 }
 window.importRuneTally = importRuneTally;
 
+// v253: 1-photo AI rune intake — screenshot your rune stash → Claude vision counts
+// each rune by its glyph → counts ADD to your tally (same /api/intake function, kind:'tally').
+window.runeIntake = async function(files){
+  var report = document.getElementById('rune-intake-report');
+  if (!files || !files.length) return;
+  if (report){ report.hidden=false; report.innerHTML='📸 reading your rune stash — the AI is counting your runes…'; }
+  function downscale(file){
+    return new Promise(function(resolve, reject){
+      var img=new Image(), url=URL.createObjectURL(file);
+      img.onload=function(){
+        var MAX=1568, scale=Math.min(1, MAX/Math.max(img.width,img.height));
+        var c=document.createElement('canvas');
+        c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg',0.85).split(',')[1]);
+      };
+      img.onerror=reject; img.src=url;
+    });
+  }
+  var vocab = (typeof RUNES!=='undefined') ? RUNES.map(function(r){return r.n;}) : [];
+  var added={}, total=0, errors=0;
+  for (var i=0;i<files.length;i++){
+    try{
+      var b64=await downscale(files[i]);
+      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
+      if(!resp.ok){ errors++; continue; }
+      var data=await resp.json();
+      var t=data.tally||{};
+      Object.keys(t).forEach(function(k){
+        if(k in RUNE_INDEX){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ runeStash[k]=(parseInt(runeStash[k],10)||0)+c; added[k]=(added[k]||0)+c; total+=c; } }
+      });
+    }catch(e){ errors++; }
+  }
+  persist(); renderRuneStash();
+  if (report){
+    var names=Object.keys(added);
+    if (names.length){
+      report.innerHTML='🪄 <strong>tallied '+total+' rune'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
+        + names.sort(function(a,b){return RUNE_INDEX[a]-RUNE_INDEX[b];}).map(function(k){return '<span style="color:var(--gold-bright,#f0c060)">'+k+' ×'+added[k]+'</span>';}).join(' · ')
+        + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Counts are a best-effort read — eyeball the grid below and nudge any with the −/+ buttons. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
+    } else {
+      report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
+    }
+  }
+};
+
 // --- v69: Materials Stash & Uber Planner ---
 // Material names, labels and icons are read LIVE from SPECIAL_DROPS (the same
 // Pandemonium keys / uber organs / Token essences the events tab already
@@ -12175,12 +12235,22 @@ function _itemTipHtml(o){
 }
 /* resolve a hovered name -> {artName, desc, rich}. SUNDER tooltips first, then    */
 /* the verified ITEM_INFO one-liner for grail items; else just art + name.         */
+function _runeTipHtml(r){
+  if (!r) return '';
+  return '<div class="att-type">'+r.n+' Rune <span class="att-tag">#'+r.num+' · '+r.tier+'</span></div>'
+    + '<div class="att-meta">Required Level '+r.clvl+'</div>'
+    + '<div class="att-core"><span class="att-aff">⚔ Weapon</span> '+r.w+'</div>'
+    + '<div class="att-core"><span class="att-aff">🛡 Armor</span> '+r.a+'</div>'
+    + '<div class="att-core"><span class="att-aff">🔰 Shield/Helm</span> '+r.s+'</div>'
+    + (r.up?'<div class="att-meta">⬆ '+r.up+'</div>':'');
+}
 function _arttipResolve(nm){
   var t = SUNDER_TIP[nm] || (_SUN_BASES[nm] ? SUNDER_TIP[_SUN_BASES[nm]] : null);
   if (t) return { artName: t.base, desc: _sunTipHtml(t), rich: true };
   if (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[nm]) return { artName: nm, desc: _itemTipHtml(ITEM_TIP[nm]), rich: true };
   if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: _rwk, desc: _rwTipHtml(RUNEWORD_TIP[_rwk]), rich: true }; }
   if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
+  if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
   return { artName: nm, desc: '', rich: false };
 }
