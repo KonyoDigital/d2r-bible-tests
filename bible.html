@@ -845,6 +845,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .boss-header .d2art-wrap.lg .d2art-img{max-width:56px;max-height:56px}
 .aid-item-name .d2art-wrap{width:28px !important;height:28px !important;flex:0 0 auto;margin-right:5px;vertical-align:middle}
 .aid-item-name .d2art-wrap .d2art-img{max-width:28px;max-height:28px}
+/* v245: item-view portrait — the detail-card header icon grows into a framed,
+   rarity-glowing chip (Maxroll item-view style). CSS-only; the card already
+   carries aid-r-<rarity>, so the frame color follows the item automatically. */
+.aid-card .aid-item-name .d2art-wrap{width:42px !important;height:42px !important;margin-right:9px;border-radius:8px;padding:3px;background:radial-gradient(circle at 50% 32%,rgba(255,255,255,.07),rgba(0,0,0,.28));box-shadow:inset 0 0 0 1px rgba(0,0,0,.55)}
+.aid-card .aid-item-name .d2art-wrap .d2art-img{max-width:36px;max-height:36px}
+.aid-card.aid-r-unique .aid-item-name .d2art-wrap{box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),0 0 0 1.5px rgba(212,168,71,.65),0 0 16px rgba(212,168,71,.28)}
+.aid-card.aid-r-set .aid-item-name .d2art-wrap{box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),0 0 0 1.5px rgba(102,255,136,.6),0 0 16px rgba(102,255,136,.26)}
+.aid-card.aid-r-rw .aid-item-name .d2art-wrap,.aid-card.aid-r-rune .aid-item-name .d2art-wrap{box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),0 0 0 1.5px rgba(255,165,55,.62),0 0 16px rgba(255,150,50,.28)}
+.aid-card.aid-r-magic .aid-item-name .d2art-wrap{box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),0 0 0 1.5px rgba(122,162,255,.6),0 0 16px rgba(122,162,255,.26)}
+.aid-card.aid-r-rare .aid-item-name .d2art-wrap{box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),0 0 0 1.5px rgba(255,235,90,.6),0 0 16px rgba(255,235,90,.26)}
 .boss-chip .d2art-wrap.sm .d2art-img{max-width:48px;max-height:48px}
 .herald-grail{border:1px solid rgba(201,161,74,.55);box-shadow:0 0 26px rgba(201,161,74,.13),inset 0 0 0 1px rgba(201,161,74,.18)}
 .d2art-wrap.lg .d2art-img{max-width:54px;max-height:54px;filter:drop-shadow(0 0 10px rgba(240,192,96,.35))}
