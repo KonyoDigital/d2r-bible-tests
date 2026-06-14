@@ -104,9 +104,10 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // Tally mode must read small printed stack-count DIGITS off each cell → use the stronger
-      // vision model by default (Haiku misreads two-digit stacks as 1/2). Override via env.MODEL.
-      model: env.MODEL || (isTally ? 'claude-sonnet-4-6' : 'claude-haiku-4-5'),
+      // Tally mode must read small printed stack-count DIGITS off each cell → HARD-PIN the stronger
+      // vision model (don't let a global env.MODEL=haiku, set for the cheap Vault item-intake, downgrade
+      // it). Items intake stays on Haiku unless env.MODEL overrides.
+      model: isTally ? 'claude-sonnet-4-6' : (env.MODEL || 'claude-haiku-4-5'),
       max_tokens: 1024,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
