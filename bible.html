@@ -16513,6 +16513,11 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 .aid-card.aid-r-rare{border-color:rgba(255,235,90,.5);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,235,90,.09),inset 0 3px 0 rgba(255,235,90,.6)}
 .aid-card.aid-r-rw{border-color:rgba(255,170,70,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,170,70,.1),inset 0 3px 0 rgba(255,170,70,.65)}
 .aid-card.aid-r-rune{border-color:rgba(255,150,50,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,150,50,.11),inset 0 3px 0 rgba(255,150,50,.68)}
+/* v239: slow gold sheen sweep across the hero "Best Grail Picks" card */
+.hero{position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;top:0;left:-45%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(240,192,96,.08),transparent);transform:skewX(-18deg);animation:heroSheen 8s ease-in-out infinite;pointer-events:none;z-index:0}
+.hero > *{position:relative;z-index:1}
+@keyframes heroSheen{0%,80%{left:-45%}92%,100%{left:150%}}
 
 /* ── M. Global search: gilt bloom on focus ── */
 .gsearch-wrap{ transition:box-shadow .25s var(--ease-out,ease), border-color .25s ease; }
@@ -16575,6 +16580,19 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
 .vault-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#241c12);border:1px solid var(--border,#3a2f1e);border-radius:999px;padding:4px 11px 4px 5px;font-size:12px;cursor:grab;user-select:none;transition:all .16s var(--ease-out,ease)}
 .vault-chip:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 14px rgba(212,168,71,.14);transform:translateY(-1px)}
+/* v239: rarity-tint the vault chips (border + name) */
+.vault-chip.vc-r-unique{border-color:rgba(212,168,71,.5)}
+.vault-chip.vc-r-set{border-color:rgba(102,255,136,.45)}
+.vault-chip.vc-r-magic{border-color:rgba(122,162,255,.5)}
+.vault-chip.vc-r-rw{border-color:rgba(255,170,70,.5)}
+.vault-chip.vc-r-rune{border-color:rgba(255,150,50,.5)}
+.vault-chip.vc-r-unique > span:not(.d2art-wrap){color:#f0c060}
+.vault-chip.vc-r-set > span:not(.d2art-wrap){color:#7dff9d}
+.vault-chip.vc-r-magic > span:not(.d2art-wrap){color:#9fb8ff}
+.vault-chip.vc-r-rw > span:not(.d2art-wrap),.vault-chip.vc-r-rune > span:not(.d2art-wrap){color:#ffc070}
+.vault-chip.vc-r-set:hover{border-color:rgba(102,255,136,.7);box-shadow:0 0 14px rgba(102,255,136,.18)}
+.vault-chip.vc-r-rw:hover,.vault-chip.vc-r-rune:hover{border-color:rgba(255,170,70,.7);box-shadow:0 0 14px rgba(255,170,70,.2)}
+.vault-chip.vc-r-magic:hover{border-color:rgba(122,162,255,.7);box-shadow:0 0 14px rgba(122,162,255,.2)}
 .vault-chip.vc-selected{border-color:var(--best,#66ff88);box-shadow:0 0 0 1px rgba(102,255,136,.4),0 0 16px rgba(102,255,136,.18)}
 .vault-chip:active{cursor:grabbing}
 /* shelf: symmetric locker grid */
@@ -16897,7 +16915,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
     var unsorted = pool.filter(function(n){ return !assign[n]; });
     dock.innerHTML = unsorted.map(function(n){
-      return '<span class="vault-chip'+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span>'
+      var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
+      return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span>'
         +'<button class="vc-unown" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="not mine — remove from ✓ owned (AI misread? this erases it)">✕</button></span>';
     }).join('');
     var byMule={};
