@@ -5083,13 +5083,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <p>Two of them: the Calculator item detail (🎲 RUN — percentiles + histogram) and the grail item card (🎲 simulate — 20 farming sessions). Set your runs, roll the RNG, see the real variance.</p>
     <h3>⌨️ Keyboard shortcuts</h3>
     <ul>
-      <li><span class="kbd">/</span> jump to search box in calculator</li>
-      <li><span class="kbd">1</span>-<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ · 4=runes · 5=RotW · 6=events · 7=binds · 8=reference · 9=endgame · 0=tools</li>
-      <li><span class="kbd">↑↓←→</span> in calculator: navigate item grid</li>
-      <li><span class="kbd">Enter</span> when item focused: open detail panel</li>
-      <li><span class="kbd">B</span> with an item selected — from ANY tab: jump to bosses + highlight every drop source</li>
+      <li><span class="kbd">/</span> jump to the calculator and focus its item search</li>
+      <li><span class="kbd">1</span>–<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ zones · 4=runes · 5=RotW special · 6=events · 7=endgame · 8=binds · 9=reference · 0=tools <span style="color:var(--text-dim)">(home + TZ tracker are click-only)</span></li>
+      <li><span class="kbd">Shift</span>+<span class="kbd">1</span>–<span class="kbd">6</span> MF presets — 250 · 400 · 553 (Shako) · 699 (MF swap) · 800 · 1000%</li>
+      <li><span class="kbd">↑↓←→</span> in the calculator: navigate the item grid · <span class="kbd">Enter</span> open its detail panel</li>
+      <li><span class="kbd">B</span> with an item active — from ANY tab: jump to bosses + highlight every drop source</li>
       <li><span class="kbd">D</span> toggle the MF / Players dock at the bottom (slides it down to reclaim space)</li>
-      <li><span class="kbd">R</span> toggle the routine-status widget</li>
+      <li><span class="kbd">R</span> toggle the routine-status widget (bottom-right)</li>
       <li><span class="kbd">?</span> open this help · <span class="kbd">Esc</span> close modal / clear item highlight</li>
     </ul>
     <h3>🎯 Active-item routing</h3>
@@ -9138,16 +9138,17 @@ const KBD_SHORTCUTS = [
   {keys:['3'], desc:'TZ zones', action:() => switchTab('tz')},
   {keys:['4'], desc:'Runes', action:() => switchTab('runes')},
   {keys:['5'], desc:'RotW special', action:() => switchTab('rotw')},
-  {keys:['6'], desc:'Ancients', action:() => switchTab('ancients')},
-  {keys:['7'], desc:'Bind Demon', action:() => switchTab('binds')},
-  {keys:['8'], desc:'Reference', action:() => switchTab('ref')},
-  {keys:['9'], desc:'Endgame', action:() => switchTab('endgame')},
+  {keys:['6'], desc:'Events', action:() => switchTab('ancients')},
+  {keys:['7'], desc:'Endgame', action:() => switchTab('endgame')},
+  {keys:['8'], desc:'Binds', action:() => switchTab('binds')},
+  {keys:['9'], desc:'Reference', action:() => switchTab('ref')},
   {keys:['0'], desc:'Tools', action:() => switchTab('tools')},
-  {keys:['/'], desc:'Focus search', action:() => {
-    const s = document.querySelector('#searchInput, input[type="search"], .search-input');
-    if (s) { s.focus(); s.select(); }
+  {keys:['b','B'], desc:'Jump to bosses + highlight the active item’s drop sources', action:() => { if (typeof activeItem !== 'undefined' && activeItem) switchTab('bosses'); else switchTab('bosses'); }},
+  {keys:['/'], desc:'Calculator search', action:() => {
+    switchTab('calc');
+    setTimeout(() => { const s = document.getElementById('item-search'); if (s) { s.focus(); if (s.select) s.select(); } }, 100);
   }},
-  {keys:['?'], desc:'This help', action:() => toggleKbdHelp()},
+  {keys:['?'], desc:'This help', action:() => { const m = document.getElementById('help-modal'); if (m) m.classList.add('show'); }},
   {keys:['Esc'], desc:'Close any overlay / clear selection'},
   {keys:['Shift+1'], desc:'MF 250%', action:() => setMFPreset(250)},
   {keys:['Shift+2'], desc:'MF 400%', action:() => setMFPreset(400)},
@@ -13611,8 +13612,9 @@ document.addEventListener("keydown", (e) => {
     document.getElementById("help-modal")?.classList.add("show");
     return;
   }
-  // Note: 1=bosses, 2=calc, 3=tz, 4=runes, 5=rotw, 6=ancients(events), 7=binds, 8=ref
-  const tabMap = {"1":"bosses","2":"calc","3":"tz","4":"runes","5":"rotw","6":"ancients","7":"binds","8":"ref"};
+  // v282: digit shortcuts follow the visual tab order, skipping the home + TZ-tracker tabs
+  // (1=bosses … 0=tools). Keep this IN SYNC with KBD_SHORTCUTS above + the help-modal prose.
+  const tabMap = {"1":"bosses","2":"calc","3":"tz","4":"runes","5":"rotw","6":"ancients","7":"endgame","8":"binds","9":"ref","0":"tools"};
   if (tabMap[e.key]) switchTab(tabMap[e.key]);
 });
 
