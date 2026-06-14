@@ -16,13 +16,17 @@ test.describe('v202 keyboard + help truth', () => {
     await page.waitForTimeout(2200);
   });
 
-  test('keys 9 and 0 switch to endgame and tools', async ({ page }) => {
-    await page.keyboard.press('9');
-    await page.waitForTimeout(250);
-    expect(await page.evaluate(() => (document.querySelector('.tabs .tab.active') as HTMLElement)?.dataset.tab)).toBe('endgame');
-    await page.keyboard.press('0');
-    await page.waitForTimeout(250);
-    expect(await page.evaluate(() => (document.querySelector('.tabs .tab.active') as HTMLElement)?.dataset.tab)).toBe('tools');
+  // v282: digit shortcuts follow the visual tab order — 7=endgame, 8=binds, 9=reference, 0=tools.
+  test('keys 7/8/9/0 switch to endgame/binds/reference/tools (visual order)', async ({ page }) => {
+    const active = () => page.evaluate(() => (document.querySelector('.tabs .tab.active') as HTMLElement)?.dataset.tab);
+    await page.keyboard.press('7'); await page.waitForTimeout(200);
+    expect(await active()).toBe('endgame');
+    await page.keyboard.press('8'); await page.waitForTimeout(200);
+    expect(await active()).toBe('binds');
+    await page.keyboard.press('9'); await page.waitForTimeout(200);
+    expect(await active()).toBe('ref');
+    await page.keyboard.press('0'); await page.waitForTimeout(200);
+    expect(await active()).toBe('tools');
   });
 
   test('B works from ANY tab once an item is selected: jump + bar + glow/dim; Esc clears', async ({ page }) => {
@@ -54,7 +58,7 @@ test.describe('v202 keyboard + help truth', () => {
     expect(after.glow).toBe(0);
   });
 
-  test('palette tab hints match the REAL key map (binds=7, ref=8, endgame=9, tools=0)', async ({ page }) => {
+  test('palette tab hints match the REAL key map (endgame=7, binds=8, ref=9, tools=0)', async ({ page }) => {
     const r = await page.evaluate(() => {
       (window as any)._v42_openPalette();
       const input = document.querySelector('#v42-palette-input') as HTMLInputElement;
@@ -74,9 +78,9 @@ test.describe('v202 keyboard + help truth', () => {
         tools: hintFor('tools', 'Switch to Tools'),
       };
     });
-    expect(r.binds).toBe('7');
-    expect(r.ref).toBe('8');
-    expect(r.endgame).toBe('9');
+    expect(r.endgame).toBe('7');
+    expect(r.binds).toBe('8');
+    expect(r.ref).toBe('9');
     expect(r.tools).toBe('0');
   });
 
@@ -86,7 +90,7 @@ test.describe('v202 keyboard + help truth', () => {
       const hint = document.getElementById('shortcut-hint')!.textContent!;
       return {
         noV12Kbd: !help.includes('Keyboard shortcuts (v12)'),
-        tabsLine: help.includes('9=endgame') && help.includes('0=tools') && help.includes('7=binds'),
+        tabsLine: help.includes('7=endgame') && help.includes('0=tools') && help.includes('8=binds'),
         bAnywhere: help.includes('from ANY tab'),
         noSourceStrip: !help.includes('source-strip'),
         chips: help.includes('one-click chips'),

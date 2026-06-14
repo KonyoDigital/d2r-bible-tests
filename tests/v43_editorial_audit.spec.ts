@@ -144,7 +144,8 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
 
   test('keyboard shortcuts 1-8 switch tabs', async ({ page }) => {
     const tabs = ['1','2','3','4','5','6','7','8'];
-    const expected = ['bosses','calc','tz','runes','rotw','ancients','binds','ref'];
+    // v282: digits follow the visual tab order — 7=endgame, 8=binds (was 7=binds, 8=ref)
+    const expected = ['bosses','calc','tz','runes','rotw','ancients','endgame','binds'];
     for (let i = 0; i < tabs.length; i++) {
       await page.keyboard.press(tabs[i]);
       await page.waitForTimeout(150);

@@ -14854,7 +14854,7 @@ _v41_whenReady(() => {
           icon,
           label: `Switch to ${label}`,
           cat: 'tab',
-          hint: ({bosses:'1',calc:'2',tz:'3',runes:'4',rotw:'5',ancients:'6',binds:'7',ref:'8',endgame:'9',tools:'0'})[id] || '',
+          hint: ({bosses:'1',calc:'2',tz:'3',runes:'4',rotw:'5',ancients:'6',endgame:'7',binds:'8',ref:'9',tools:'0'})[id] || '',
           keywords: `tab ${label.toLowerCase()} ${id} ${TAB_KW[id] || ''}`,
           action: () => { if (typeof window.switchTab === 'function') window.switchTab(id); }
         });
