@@ -460,7 +460,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .gp-detail strong{color:var(--gold-bright);font-family:ui-monospace,monospace}
 .gp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .gp-bar{flex:1;height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden;min-width:140px}
-.gp-bar-fill{height:100%;background:linear-gradient(90deg,var(--verified),var(--gold-bright));border-radius:3px;transition:width .5s ease}
+.gp-bar-fill{height:100%;background:linear-gradient(90deg,var(--verified),var(--gold-bright));border-radius:3px;transition:width .5s ease;position:relative;overflow:hidden}
+/* v246: the grail dial + bar come alive — the ring glows gold, the fill bar gets a
+   slow gloss sweep clipped to the filled portion. Reduced-motion safe. */
+.gp-circle-fill{filter:drop-shadow(0 0 4px rgba(240,192,96,.5))}
+@media (prefers-reduced-motion: no-preference){
+  .gp-bar-fill::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 28%,rgba(255,255,255,.38) 50%,transparent 72%);transform:translateX(-100%);animation:gpSheen 3.4s ease-in-out infinite}
+  @keyframes gpSheen{0%{transform:translateX(-100%)}48%{transform:translateX(100%)}100%{transform:translateX(100%)}}
+}
 /* grail tier breakdown (uber vs grail) — pure aggregation of owned state per item.tier */
 .gp-tiers{display:flex;flex-direction:column;gap:9px;margin-top:14px}
 .gp-tier-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;margin-bottom:4px}
