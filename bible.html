@@ -1295,14 +1295,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .mat-blocks{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
 .mat-block{display:flex;flex-direction:column;gap:4px}
 .mat-block-row{display:grid;gap:4px}
-.mat-r3{grid-template-columns:repeat(3,52px)}
-.mat-r5{grid-template-columns:repeat(5,52px)}
-.mat-r6{grid-template-columns:repeat(6,52px);justify-content:center}
-@media(max-width:560px){.mat-r3,.mat-r5,.mat-r6{grid-template-columns:repeat(3,46px)}}
+.mat-r3{grid-template-columns:repeat(3,66px)}
+.mat-r5{grid-template-columns:repeat(5,66px)}
+.mat-r6{grid-template-columns:repeat(6,66px);justify-content:center}
+@media(max-width:620px){.mat-r3,.mat-r5,.mat-r6{grid-template-columns:repeat(3,54px)}}
 .mat-sunder-sec{margin-top:16px;border-top:1px solid rgba(150,120,70,.18);padding-top:11px}
 .mat-group-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
 .mat-group-label .mat-sub{font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:10px}
-.mat-stash-cell.mat-slot{position:relative;width:52px;height:52px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:2px;border:1px solid #000;background:linear-gradient(135deg,#1b1610,#0e0a06);box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),inset -1px -1px 1px rgba(125,98,55,.13);cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.mat-stash-cell.mat-slot{position:relative;width:66px;height:66px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:2px;border:1px solid #000;background:linear-gradient(135deg,#1b1610,#0e0a06);box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),inset -1px -1px 1px rgba(125,98,55,.13);cursor:pointer;transition:border-color .12s,box-shadow .12s}
 .mat-stash-cell.mat-slot.rs-has{background:linear-gradient(135deg,#2d2214,#17110a);border-color:#4a3a1d}
 .mat-stash-cell.mat-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 10px rgba(212,168,71,.4);z-index:3}
 .mat-stash-cell.mat-slot .d2art-wrap{width:84%!important;height:84%!important}
@@ -3494,16 +3494,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div class="boss-body">
       <div class="rune-stash-wrap">
-        <div class="rw-make" id="gem-craftable"></div>
-        <div class="cubeup-panel">
-          <div class="cubeup-row">
-            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
-            <select id="gem-cubeup-type" onchange="window.renderGemStash()"></select>
-            <select id="gem-cubeup-q" onchange="window.renderGemStash()"></select>
-            <span class="cubeup-result" id="gem-cubeup-result">—</span>
-          </div>
-          <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
+        <!-- v281: grid on TOP, descriptions on the bottom (Konyo — match runes) -->
+        <div class="rs-ai-row">
+          <button class="rs-ai-btn" onclick="document.getElementById('gem-intake-file').click()" title="1 screenshot of your gems → the AI counts every gem by colour + cut and adds it to your tally">📸 AI intake — 1 photo tallies your gems</button>
+          <input type="file" id="gem-intake-file" accept="image/*" multiple style="display:none" onchange="window.gemIntake(this.files)">
         </div>
+        <div class="gem-stash-grid" id="gem-stash-grid"></div>
+        <div class="rune-stash-actions">
+          <button class="rs-clear-btn" onclick="window.clearGemStash()">clear stash</button>
+          <span class="rs-total" id="gem-stash-total"></span>
+        </div>
+        <div id="gem-intake-report" hidden class="rs-ai-report"></div>
         <details class="rs-import">
           <summary>📥 Import a tally (paste counts)</summary>
           <textarea id="gem-import-box" placeholder="Perfect Amethyst:4  Flawless Topaz:2  Chipped Ruby:9 …  (or paste JSON)"></textarea>
@@ -3513,16 +3514,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           </div>
           <div class="rs-import-note">Format: <code>Full gem name:count</code> pairs (e.g. <code>Perfect Diamond:3</code>). Replaces your current tally.</div>
         </details>
-        <div class="rs-ai-row">
-          <button class="rs-ai-btn" onclick="document.getElementById('gem-intake-file').click()" title="1 screenshot of your gems → the AI counts every gem by colour + cut and adds it to your tally">📸 AI intake — 1 photo tallies your gems</button>
-          <input type="file" id="gem-intake-file" accept="image/*" multiple style="display:none" onchange="window.gemIntake(this.files)">
+        <div class="cubeup-panel">
+          <div class="cubeup-row">
+            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
+            <select id="gem-cubeup-type" onchange="window.renderGemStash()"></select>
+            <select id="gem-cubeup-q" onchange="window.renderGemStash()"></select>
+            <span class="cubeup-result" id="gem-cubeup-result">—</span>
+          </div>
+          <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
         </div>
-        <div id="gem-intake-report" hidden class="rs-ai-report"></div>
-        <div class="gem-stash-grid" id="gem-stash-grid"></div>
-        <div class="rune-stash-actions">
-          <button class="rs-clear-btn" onclick="window.clearGemStash()">clear stash</button>
-          <span class="rs-total" id="gem-stash-total"></span>
-        </div>
+        <div class="rw-make" id="gem-craftable"></div>
       </div>
     </div>
   </div>
@@ -3561,7 +3562,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div class="boss-body">
       <div class="rune-stash-wrap">
-        <div class="rw-make" id="material-craftable"></div>
+        <!-- v281: grid on TOP (like runes/gems), descriptions on the bottom (Konyo) -->
+        <div class="rs-ai-row">
+          <button class="rs-ai-btn" onclick="document.getElementById('material-intake-file').click()" title="1 screenshot of your keys / organs / essences / statues / shards → the AI counts each and adds it to your tally">📸 AI intake — 1 photo tallies your keys, organs, essences &amp; statues</button>
+          <input type="file" id="material-intake-file" accept="image/*" multiple style="display:none" onchange="window.materialIntake(this.files)">
+        </div>
+        <div class="material-stash-grid" id="material-stash-grid"></div>
+        <div class="rune-stash-actions">
+          <button class="rs-clear-btn" onclick="window.clearMaterialStash()">clear stash</button>
+          <span class="rs-total" id="material-stash-total"></span>
+        </div>
+        <div id="material-intake-report" hidden class="rs-ai-report"></div>
         <details class="rs-import">
           <summary>📥 Import a tally (paste counts)</summary>
           <textarea id="material-import-box" placeholder="Key of Terror:3  Diablo's Horn:1  Essence of Hatred:2 …  (or paste JSON)"></textarea>
@@ -3571,16 +3582,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           </div>
           <div class="rs-import-note">Format: <code>Full material name: count</code> per line. Replaces your current tally.</div>
         </details>
-        <div class="rs-ai-row">
-          <button class="rs-ai-btn" onclick="document.getElementById('material-intake-file').click()" title="1 screenshot of your keys / organs / essences / statues / shards → the AI counts each and adds it to your tally">📸 AI intake — 1 photo tallies your keys, organs, essences &amp; statues</button>
-          <input type="file" id="material-intake-file" accept="image/*" multiple style="display:none" onchange="window.materialIntake(this.files)">
-        </div>
-        <div id="material-intake-report" hidden class="rs-ai-report"></div>
-        <div class="material-stash-grid" id="material-stash-grid"></div>
-        <div class="rune-stash-actions">
-          <button class="rs-clear-btn" onclick="window.clearMaterialStash()">clear stash</button>
-          <span class="rs-total" id="material-stash-total"></span>
-        </div>
+        <div class="rw-make" id="material-craftable"></div>
       </div>
     </div>
   </div>
