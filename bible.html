@@ -1203,7 +1203,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .hcr-arrow{color:var(--text-dim);font-weight:700}
 .hcr-out{font-weight:600;color:#bcd6ff}
 .hcr-note{flex-basis:100%;font-size:10.5px;color:var(--text-dim);font-style:italic}
-.rec-chip{display:inline-block;padding:0 5px;border-radius:4px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer}
+.rec-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-radius:5px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer;vertical-align:middle}
+/* v257: HD rune/gem icon in each cube-recipe ingredient chip */
+.rec-chip .d2art-wrap.sm{width:16px;height:16px}
+.rec-chip .d2art-wrap.sm .d2art-img{max-width:16px;max-height:16px}
 .rec-chip:hover{background:rgba(240,192,96,.22)}
 .rec-plus{color:var(--text-dim);font-weight:700}
 /* v142 — recipe browser as a live tool (stash-linked) */
@@ -11879,7 +11882,7 @@ function _recLinkify(text){
     var route = null;
     if (typeof RUNE_INDEX !== 'undefined' && c in RUNE_INDEX) route = c;
     else if (typeof findGem === 'function' && findGem(c)) route = findGem(c);
-    if (route){ var esc = route.replace(/'/g, "\\'"); return pre + '<span class="rec-chip" data-arttip="' + route + '" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" title="open the ' + route + ' card">' + c + '</span>'; }
+    if (route){ var esc = route.replace(/'/g, "\\'"); var logo = (typeof nameLogo==='function') ? nameLogo(route) : ''; return pre + '<span class="rec-chip" data-arttip="' + route + '" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" title="open the ' + route + ' card">' + logo + c + '</span>'; }
     return pre + c;
   }).join(' <span class="rec-plus">+</span> ');
 }
