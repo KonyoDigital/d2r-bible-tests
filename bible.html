@@ -16707,6 +16707,14 @@ body{
 .vm-item:hover{background:rgba(212,168,71,.07)}
 .vm-item-name{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#f4e8d0)}
 .vm-item-name:hover{color:var(--gold-bright,#f0c060)}
+/* v252: per-mule "show first 4, expand the rest" — native <details>, hidden rows stay in DOM */
+.vm-more{margin-top:3px}
+.vm-more-list{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.vm-more-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--mono,monospace);font-size:10.5px;letter-spacing:.04em;color:var(--gold-bright,#f0c060);padding:4px 8px;border:1px dashed rgba(240,192,96,.3);border-radius:7px;background:rgba(240,192,96,.04);transition:background .14s,border-color .14s,color .14s;user-select:none}
+.vm-more-sum::-webkit-details-marker{display:none}
+.vm-more-sum:hover{background:rgba(240,192,96,.1);border-color:rgba(240,192,96,.5);color:var(--gold-bright,#f0c060)}
+.vm-more[open] > .vm-more-sum .vmm-open{display:none}
+.vm-more:not([open]) > .vm-more-sum .vmm-close{display:none}
 .vm-unassign{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:10px;padding:0 3px}
 .vm-unassign:hover{color:var(--hell,#ff4040)}
 .vm-set-row{font-size:10.5px;color:var(--text-muted,#b5a48a);padding:2px 5px}
@@ -17052,6 +17060,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           return '<div class="vm-set-row"><span class="vs-done">✦</span> '+esc(sn)+'</div>';
         }).join('');
       }
+      // v252: keep lockers compact — show the first 4 items, tuck the rest behind a
+      // native "+ N more" expander (the hidden rows stay in the DOM, just collapsed).
+      var SHOWN = 4;
+      var itemRows = items.map(function(n){
+        return '<div class="vm-item">'+art(n)
+          +'<span class="vm-item-name" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')" title="open item card">'+esc(n)+'</span>'
+          +'<button class="vm-unassign" onclick="window.vaultUnassign(\''+jsArg(n)+'\')" title="send back to the unsorted dock">✕</button></div>';
+      });
+      var itemsHtml;
+      if (!items.length){ itemsHtml = (linked?'':'<div class="vm-empty">empty locker</div>'); }
+      else if (itemRows.length > SHOWN){
+        itemsHtml = itemRows.slice(0,SHOWN).join('')
+          + '<details class="vm-more"><summary class="vm-more-sum"><span class="vmm-open">+ '+(itemRows.length-SHOWN)+' more ▾</span><span class="vmm-close">show less ▴</span></summary>'
+          + '<div class="vm-more-list">'+itemRows.slice(SHOWN).join('')+'</div></details>';
+      } else { itemsHtml = itemRows.join(''); }
       return '<div class="vault-mule" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="click: open the in-game ID card of this mule · with a chip selected: assign it here">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
@@ -17062,11 +17085,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + (m.note?'<div class="vm-note">'+esc(m.note)+'</div>':'')
         + '<div class="vm-body">'
         + setRows
-        + (items.length ? items.map(function(n){
-            return '<div class="vm-item">'+art(n)
-              +'<span class="vm-item-name" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')" title="open item card">'+esc(n)+'</span>'
-              +'<button class="vm-unassign" onclick="window.vaultUnassign(\''+jsArg(n)+'\')" title="send back to the unsorted dock">✕</button></div>';
-          }).join('') : (linked?'':'<div class="vm-empty">empty locker</div>'))
+        + itemsHtml
         + '</div>' + linked + '</div>';
     }).join('');
   }
