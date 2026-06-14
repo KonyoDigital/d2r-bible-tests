@@ -27,7 +27,7 @@ test.describe('v70 material stash + uber planner', () => {
       const SD = (window as any).SPECIAL_DROPS || (SPECIAL_DROPS as any);
       // every material name must come straight from a SPECIAL_DROPS item (no fabrication)
       const allSdNames = new Set<string>();
-      ['key', 'organ', 'essence', 'worldstoneShard', 'sunder'].forEach((c) => (SD[c]?.items || []).forEach((i: any) => allSdNames.add(i.n)));
+      ['key', 'organ', 'essence', 'token', 'rejuv', 'worldstoneShard', 'sunder'].forEach((c) => (SD[c]?.items || []).forEach((i: any) => allSdNames.add(i.n)));
       // every recipe ingredient must be a real tracked material; the category-based
       // recipes (needCat) reference a SPECIAL_DROPS category rather than named items.
       const matNames = new Set(M.map((m) => m.n));
@@ -44,9 +44,9 @@ test.describe('v70 material stash + uber planner', () => {
           .map((n) => typeof (window as any)[n]),
       };
     });
-    expect(r.len).toBe(21);                       // 3 keys + 3 organs + 4 essences + 5 shards + 6 sunders
+    expect(r.len).toBe(24);                       // 3 keys + 3 organs + 4 essences + 1 token + 2 rejuv + 5 shards + 6 sunders (v280: mirror in-game Materials tab)
     expect(r.allFromSd).toBe(true);
-    expect(r.cats).toEqual(['Pandemonium Keys', 'Uber Organs', 'Essences', 'Worldstone Shards', 'Sunder Charms']);
+    expect(r.cats).toEqual(['Pandemonium Keys', 'Uber Organs', 'Essences', 'Token of Absolution', 'Rejuvenation Potions', 'Worldstone Shards', 'Sunder Charms']);
     expect(r.recipeNames).toEqual(['Pandemonium Portal', 'Uber Tristram', 'Token of Absolution', 'Latent Sunder (cube 3 shards)', 'Renewed Sunder (upgrade a Latent)']);
     expect(r.recipeKeysValid).toBe(true);
     expect(r.fns.every((t) => t === 'function')).toBe(true);

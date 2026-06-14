@@ -1290,13 +1290,30 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .gem-cells{display:flex!important;flex-direction:column;gap:3px!important}
 .gem-cell.gem-slot .gem-q-lbl{position:absolute;top:0;left:2px;font-size:8px;font-weight:700;color:var(--text-dim);text-shadow:0 1px 1px #000;cursor:pointer;pointer-events:none}
 /* Materials Stash (keys / organs / essences → uber & token planner) */
-.material-stash-grid{display:flex;flex-direction:column;gap:14px;margin:12px 0}
-.mat-group-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
-.mat-group-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:7px}
-.mat-stash-cell{display:flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--uber);border-radius:7px;padding:6px 9px}
-.mat-stash-cell.rs-has{background:linear-gradient(180deg,rgba(170,110,200,.10),var(--surface-2))}
-.mat-stash-cell .mat-name{flex:1;font-size:12px;color:var(--text)}
-.mat-stash-cell .rs-count{margin-left:0}
+/* v280: in-game Materials-tab skeleton — LEFT 3-wide + RIGHT 5-wide blocks, beveled slots */
+.material-stash-grid{margin:12px 0;padding:13px;background:linear-gradient(180deg,#15120c,#0b0905 70%);border:2px solid #322a1a;border-radius:5px;box-shadow:inset 0 0 30px rgba(0,0,0,.85),inset 0 1px 0 rgba(150,120,70,.12),0 2px 9px rgba(0,0,0,.5)}
+.mat-blocks{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.mat-block{display:flex;flex-direction:column;gap:4px}
+.mat-block-row{display:grid;gap:4px}
+.mat-r3{grid-template-columns:repeat(3,52px)}
+.mat-r5{grid-template-columns:repeat(5,52px)}
+.mat-r6{grid-template-columns:repeat(6,52px);justify-content:center}
+@media(max-width:560px){.mat-r3,.mat-r5,.mat-r6{grid-template-columns:repeat(3,46px)}}
+.mat-sunder-sec{margin-top:16px;border-top:1px solid rgba(150,120,70,.18);padding-top:11px}
+.mat-group-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.mat-group-label .mat-sub{font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:10px}
+.mat-stash-cell.mat-slot{position:relative;width:52px;height:52px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:2px;border:1px solid #000;background:linear-gradient(135deg,#1b1610,#0e0a06);box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),inset -1px -1px 1px rgba(125,98,55,.13);cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.mat-stash-cell.mat-slot.rs-has{background:linear-gradient(135deg,#2d2214,#17110a);border-color:#4a3a1d}
+.mat-stash-cell.mat-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 10px rgba(212,168,71,.4);z-index:3}
+.mat-stash-cell.mat-slot .d2art-wrap{width:84%!important;height:84%!important}
+.mat-stash-cell.mat-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
+.mat-stash-cell.mat-slot:not(.rs-has) .d2art-wrap{opacity:.32;filter:grayscale(.5)}
+.mat-stash-cell.mat-slot:hover:not(.rs-has) .d2art-wrap{opacity:.75;filter:none}
+.mat-stash-cell.mat-slot .mat-name{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.mat-stash-cell.mat-slot .rs-count{position:absolute;bottom:-1px;right:1px;margin:0;min-width:0;font-size:11px;font-weight:700;color:#f4d27a;text-shadow:0 1px 2px #000,0 0 4px #000,1px 0 2px #000,-1px 0 2px #000;pointer-events:none}
+.mat-stash-cell.mat-slot:not(.rs-has) .rs-count{display:none}
+.mat-stash-cell.mat-slot .mat-minus{position:absolute;top:0;left:0;width:15px;height:15px;font-size:11px;line-height:1;padding:0;opacity:0;transition:opacity .1s;z-index:4}
+.mat-stash-cell.mat-slot:hover .mat-minus{opacity:.9}
 /* Cube recipes */
 .cube-section{background:var(--surface-2);border-radius:8px;padding:12px 16px;margin:10px 0}
 .cube-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -5114,6 +5131,16 @@ const SPECIAL_DROPS = {
       {n: "Token of Absolution", from: ["Horadric Cube (4 Essences)"], rate: "crafted — 1 per full essence set", does: "Right-click → reset stats OR skills (player choice). Single use, consumed on use. Stack as many as you can farm.", note: "Cube the 4 Hell-act-boss essences (Suffering + Hatred + Terror + Destruction) — no level or charges requirement."}
     ],
     recipe: "1 Essence of Suffering + 1 Essence of Hatred + 1 Essence of Terror + 1 Essence of Destruction → Token of Absolution"
+  },
+  rejuv: {
+    label: "Rejuvenation Potions",
+    icon: "🧪",
+    blurb: "Purple emergency potions — restore both Life and Mana instantly. Full = 100%, Partial = 35%. They live in the in-game Materials stash tab, so they're tracked here to mirror it 1:1.",
+    items: [
+      {n: "Full Rejuvenation Potion", from: ["any drop", "vendor (Akara/Ormus/Jamella)", "cube 3x Partial Rejuv"], rate: "common", note: "Instantly restores 100% Life and 100% Mana. Cube: 3 Partial Rejuvenation Potions -> 1 Full."},
+      {n: "Partial Rejuvenation Potion", from: ["any drop", "vendor"], rate: "very common", note: "Instantly restores 35% Life and 35% Mana. 3 of these cube into 1 Full Rejuvenation Potion."}
+    ],
+    recipe: "3 Partial Rejuvenation Potions -> 1 Full Rejuvenation Potion (Horadric Cube)"
   },
   key: {
     label: "Pandemonium Keys",
@@ -11797,6 +11824,17 @@ try { GEM_TYPES.forEach(function(t){ t.q.forEach(function(g){
   var f = 'art/gem_' + g.name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') + '.png';
   if (typeof D2IO_ART !== 'undefined' && !D2IO_ART[g.name]) D2IO_ART[g.name] = f;
 }); }); } catch(e){}
+// v280: real D2R-extracted art for the Materials-tab items the bible didn't have yet
+// (decoded from the game's own .sprite files via the CASC pipeline) so the Materials
+// grid mirrors the in-game tab exactly.
+try {
+  var _MAT_ART = {
+    'Full Rejuvenation Potion':'art/full_rejuvenation_potion.png',
+    'Partial Rejuvenation Potion':'art/partial_rejuvenation_potion.png',
+    'Token of Absolution':'art/token_of_absolution.png'
+  };
+  if (typeof D2IO_ART !== 'undefined') Object.keys(_MAT_ART).forEach(function(k){ if (!D2IO_ART[k]) D2IO_ART[k] = _MAT_ART[k]; });
+} catch(e){}
 const GEM_QUAL_ORDER = ['Chipped','Flawed','Normal','Flawless','Perfect'];
 // full gem name (lowercase) -> flattened {type,color,role,qi,q,name,w,a,s}
 const _GEM_INDEX = (function(){ var m = {}; GEM_TYPES.forEach(function(t){ t.q.forEach(function(g, qi){ m[g.name.toLowerCase()] = {type:t.type, color:t.color, role:t.role, qi:qi, q:g.q, name:g.name, w:g.w, a:g.a, s:g.s}; }); }); return m; })();
@@ -12275,7 +12313,7 @@ window.runeIntake = async function(files){
 // transcribe the cube quantities stated in SPECIAL_DROPS + the cube-recipe
 // section (1 of each key → a random uber portal; 3 organs → Uber Tristram;
 // 4 essences → Token of Absolution).
-const MATERIAL_CATS = ['key', 'organ', 'essence', 'worldstoneShard', 'sunder'];
+const MATERIAL_CATS = ['key', 'organ', 'essence', 'token', 'rejuv', 'worldstoneShard', 'sunder'];
 const MATERIALS = (function(){
   const out = [];
   MATERIAL_CATS.forEach((cat) => {
@@ -12413,26 +12451,53 @@ function renderShardCrystal(){
   </div>`;
 }
 window.renderShardCrystal = renderShardCrystal;
+// v280: the Materials Stash mirrors the in-game RoW Materials tab EXACTLY (Konyo's
+// hover-labelled screenshots): a LEFT 3-wide block + a RIGHT 5-wide block, plus the
+// 6 Sunder charms (which live elsewhere in-game) as their own row below. Beveled
+// stash slots like the rune/gem grids — HD icon + corner count, hover for the name,
+// click +1 / right-click −1. Statues are count-tracked here via materialStash (the
+// separate grail-style #statue-tracker keeps its collected ✓ toggle).
+const MAT_TAB_LAYOUT = {
+  left: [
+    ['Key of Terror', 'Key of Hate', 'Key of Destruction'],
+    ["Diablo's Horn", "Baal's Eye", "Mephisto's Brain"],
+    ['Full Rejuvenation Potion', 'Partial Rejuvenation Potion'],
+  ],
+  right: [
+    ["Talic's Anguish", "Korlic's Pain", "Madawc's Ire", "Bul-Kathos' Nightmare", "Worusk's End"],
+    ['Worldstone Shard (Western)', 'Worldstone Shard (Eastern)', 'Worldstone Shard (Southern)', 'Worldstone Shard (Northern)', 'Worldstone Shard (Deep)'],
+    ['Token of Absolution', 'Essence of Suffering', 'Essence of Hatred', 'Essence of Terror', 'Essence of Destruction'],
+  ],
+  sunders: ['Bone Break', 'Black Cleft', 'Crack of the Heavens', 'Cold Rupture', 'Flame Rift', 'Rotting Fissure'],
+};
+function _matIcon(name){
+  if (typeof MATERIALS !== 'undefined'){ const m = MATERIALS.find((x) => x.n === name); if (m) return m.icon; }
+  if (typeof COLOSSAL_STATUES !== 'undefined' && COLOSSAL_STATUES.some((s) => s.n === name)) return '👑';
+  return '🧪';
+}
+function _matSlot(name){
+  const c = _materialCount(name);
+  const esc = name.replace(/'/g, "\\'");
+  const attr = name.replace(/"/g, '&quot;');
+  return `<div class="mat-stash-cell mat-slot${c > 0 ? ' rs-has' : ''}" data-material="${attr}" data-arttip="${attr}" onclick="window.adjustMaterialStash('${esc}',1)" oncontextmenu="event.preventDefault();window.adjustMaterialStash('${esc}',-1)" title="${attr} — click +1 · right-click −1">
+    ${artOr(name, _matIcon(name), 'sm')}
+    <span class="mat-name"><span class="zd-item-click" data-arttip="${attr}" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${attr} card">${name}</span></span>
+    <button class="rs-btn mat-minus" onclick="event.stopPropagation();window.adjustMaterialStash('${esc}',-1)" title="remove one ${attr}" aria-label="minus ${attr}">−</button>
+    <span class="rs-count" data-material-count="${attr}">${c}</span>
+  </div>`;
+}
 function renderMaterialStash(){
   const grid = document.getElementById('material-stash-grid');
   if (!grid || typeof MATERIALS === 'undefined') return;
-  const cats = [...new Set(MATERIALS.map((m) => m.cat))];
-  grid.innerHTML = cats.map((cat) => {
-    const items = MATERIALS.filter((m) => m.cat === cat);
-    const cells = items.map((m) => {
-      const c = _materialCount(m.n);
-      const esc = m.n.replace(/'/g, "\\'");
-      const attr = m.n.replace(/"/g, '&quot;');
-      return `<div class="mat-stash-cell${c > 0 ? ' rs-has' : ''}" data-material="${attr}">
-        <span class="mat-name">${artOr(m.n, m.icon, 'sm')} <span class="zd-item-click" data-arttip="${attr}" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${m.n} card">${m.n}</span></span>
-        <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',-1)" title="remove one ${m.n}" aria-label="minus ${m.n}">−</button>
-        <span class="rs-count" data-material-count="${attr}">${c}</span>
-        <button class="rs-btn" onclick="window.adjustMaterialStash('${esc}',1)" title="add one ${m.n}" aria-label="plus ${m.n}">+</button>
-      </div>`;
-    }).join('');
-    return `<div class="mat-group"><div class="mat-group-label">${items[0].icon} ${cat}</div><div class="mat-group-cells">${cells}</div></div>`;
-  }).join('');
-  const total = MATERIALS.reduce((a, m) => a + _materialCount(m.n), 0);
+  const row = (names, cls) => `<div class="mat-block-row ${cls}">${names.map(_matSlot).join('')}</div>`;
+  let html = '<div class="mat-blocks">';
+  html += `<div class="mat-block">${MAT_TAB_LAYOUT.left.map((r) => row(r, 'mat-r3')).join('')}</div>`;
+  html += `<div class="mat-block">${MAT_TAB_LAYOUT.right.map((r) => row(r, 'mat-r5')).join('')}</div>`;
+  html += '</div>';
+  html += `<div class="mat-sunder-sec"><div class="mat-group-label">💠 Sunder Charms <span class="mat-sub">— not in the in-game Materials tab, but tracked here</span></div>${row(MAT_TAB_LAYOUT.sunders, 'mat-r6')}</div>`;
+  grid.innerHTML = html;
+  const allNames = [].concat(...MAT_TAB_LAYOUT.left, ...MAT_TAB_LAYOUT.right, MAT_TAB_LAYOUT.sunders);
+  const total = allNames.reduce((a, n) => a + _materialCount(n), 0);
   const totalEl = document.getElementById('material-stash-total');
   if (totalEl) totalEl.textContent = total === 1 ? '1 material tallied' : `${total} materials tallied`;
   renderMaterialCraftable();
@@ -13025,7 +13090,7 @@ window.materialIntake = async function(files){
       Object.keys(t).forEach(function(k){
         var lc = String(k).toLowerCase().trim();
         if (byLc[lc]){ var canon=byLc[lc]; var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ materialStash[canon]=(parseInt(materialStash[canon],10)||0)+c; added[canon]=(added[canon]||0)+c; total+=c; } }
-        else if (statueByLc[lc]){ var sn=statueByLc[lc]; try { if(!statues.has(sn)){ statues.add(sn); statuesAdded.push(sn); } } catch(e){} }
+        else if (statueByLc[lc]){ var sn=statueByLc[lc]; var sc=parseInt(t[k],10); if(isFinite(sc)&&sc>0){ materialStash[sn]=(parseInt(materialStash[sn],10)||0)+sc; added[sn]=(added[sn]||0)+sc; total+=sc; } try { if(!statues.has(sn)){ statues.add(sn); statuesAdded.push(sn); } } catch(e){} }
       });
     }catch(e){ errors++; }
   }
