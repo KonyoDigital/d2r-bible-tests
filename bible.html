@@ -3500,6 +3500,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           </div>
           <div class="rs-import-note">Format: <code>Full material name: count</code> per line. Replaces your current tally.</div>
         </details>
+        <div class="rs-ai-row">
+          <button class="rs-ai-btn" onclick="document.getElementById('material-intake-file').click()" title="1 screenshot of your keys / organs / essences / statues / shards → the AI counts each and adds it to your tally">📸 AI intake — 1 photo tallies your keys, organs, essences &amp; statues</button>
+          <input type="file" id="material-intake-file" accept="image/*" multiple style="display:none" onchange="window.materialIntake(this.files)">
+        </div>
+        <div id="material-intake-report" hidden class="rs-ai-report"></div>
         <div class="material-stash-grid" id="material-stash-grid"></div>
         <div class="rune-stash-actions">
           <button class="rs-clear-btn" onclick="window.clearMaterialStash()">clear stash</button>
@@ -12728,6 +12733,63 @@ function importMaterialTally(){
   ta.value = '';
 }
 window.importMaterialTally = importMaterialTally;
+
+// v256: 1-photo AI materials intake — screenshot your keys / organs / essences /
+// statues / shards → Claude vision counts each → counts ADD to your materials tally.
+window.materialIntake = async function(files){
+  var report = document.getElementById('material-intake-report');
+  if (!files || !files.length) return;
+  if (report){ report.hidden=false; report.innerHTML='📸 reading your special materials — the AI is counting…'; }
+  function downscale(file){
+    return new Promise(function(resolve, reject){
+      var img=new Image(), url=URL.createObjectURL(file);
+      img.onload=function(){
+        var MAX=1568, scale=Math.min(1, MAX/Math.max(img.width,img.height));
+        var c=document.createElement('canvas');
+        c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg',0.85).split(',')[1]);
+      };
+      img.onerror=reject; img.src=url;
+    });
+  }
+  var byLc = {}, statueByLc = {}, vocab = [];
+  try { MATERIALS.forEach(function(m){ byLc[m.n.toLowerCase()] = m.n; vocab.push(m.n); }); } catch(e){}
+  // Colossal Statues are a COLLECTED tracker (Set), not a count stash — fold them into
+  // the same photo: a detected statue gets marked collected.
+  try { COLOSSAL_STATUES.forEach(function(s){ statueByLc[s.n.toLowerCase()] = s.n; vocab.push(s.n); }); } catch(e){}
+  var added={}, statuesAdded=[], total=0, errors=0;
+  for (var i=0;i<files.length;i++){
+    try{
+      var b64=await downscale(files[i]);
+      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
+      if(!resp.ok){ errors++; continue; }
+      var data=await resp.json();
+      var t=data.tally||{};
+      Object.keys(t).forEach(function(k){
+        var lc = String(k).toLowerCase().trim();
+        if (byLc[lc]){ var canon=byLc[lc]; var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ materialStash[canon]=(parseInt(materialStash[canon],10)||0)+c; added[canon]=(added[canon]||0)+c; total+=c; } }
+        else if (statueByLc[lc]){ var sn=statueByLc[lc]; try { if(!statues.has(sn)){ statues.add(sn); statuesAdded.push(sn); } } catch(e){} }
+      });
+    }catch(e){ errors++; }
+  }
+  persist(); renderMaterialStash(); if (typeof renderStatueTracker==='function') renderStatueTracker();
+  if (report){
+    var names=Object.keys(added);
+    if (names.length || statuesAdded.length){
+      var parts=[];
+      if (names.length) parts.push('<strong>'+total+' material'+(total===1?'':'s')+'</strong> ('+names.sort().map(function(k){return k+' ×'+added[k];}).join(' · ')+')');
+      if (statuesAdded.length) parts.push('<strong>'+statuesAdded.length+' Colossal Statue'+(statuesAdded.length===1?'':'s')+'</strong> marked collected ('+statuesAdded.sort().join(' · ')+')');
+      report.innerHTML='🪄 tallied '+parts.join(' · ')
+        + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Best-effort read — eyeball the grid below and nudge any with −/+. Re-run adds again, so clear first for a fresh total.</div>';
+    } else {
+      report.innerHTML='No materials read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your keys / organs / essences / statues.';
+    }
+  }
+};
 
 function renderStatueTracker() {
   $("statue-tracker").innerHTML = STATUE_LIST.map(s => {
