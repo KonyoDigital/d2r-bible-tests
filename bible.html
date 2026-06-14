@@ -12406,6 +12406,16 @@ function _runeTipHtml(r){
     + '<div class="att-core"><span class="att-aff">🔰 Shield/Helm</span> '+r.s+'</div>'
     + (r.up?'<div class="att-meta">⬆ '+r.up+'</div>':'');
 }
+// v260: set pieces that aren't in ITEM_TIP and have no art used to pop NO hover card
+// at all (the resolver returned empty → the handler bailed). Give every recognised set
+// piece at least a membership card so the hover always works (honest — no fabricated stats).
+function _setPieceTipHtml(sp){
+  if (!sp || !sp.set) return '';
+  return '<div class="att-type">'+sp.base+(sp.slot?' <span class="att-tag">'+sp.slot+'</span>':'')+'</div>'
+    + '<div class="att-meta">Set item — part of <b>'+sp.set.name+'</b></div>'
+    + '<div class="att-core">One of '+(sp.set.pieces?sp.set.pieces.length:'the')+' pieces. Collect the full set to light up its set bonus (tracked in Tools → Item Set Tracker).</div>'
+    + '<div class="att-meta" style="opacity:.65">Full per-piece affixes for this one aren’t in the card DB yet.</div>';
+}
 function _arttipResolve(nm){
   var t = SUNDER_TIP[nm] || (_SUN_BASES[nm] ? SUNDER_TIP[_SUN_BASES[nm]] : null);
   if (t) return { artName: t.base, desc: _sunTipHtml(t), rich: true };
@@ -12414,6 +12424,7 @@ function _arttipResolve(nm){
   if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
   if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
+  if (typeof findSetPiece === 'function'){ var _sp = findSetPiece(nm); if (_sp) return { artName: nm, desc: _setPieceTipHtml(_sp), rich: true }; }
   return { artName: nm, desc: '', rich: false };
 }
 window._arttipResolve = _arttipResolve;
