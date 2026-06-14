@@ -1176,6 +1176,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-plus{color:var(--text-dim);font-size:10px;margin:0 1px}
 .arw-rune-txt{color:var(--gold-bright)}
 .arw-base{font-size:11px;color:var(--text-dim);margin-left:auto;white-space:nowrap}
+/* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
+.rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
+.arw-row.rw-ready .arw-name{color:var(--best,#7bc77b)}
+.arw-row.rw-cube .arw-name{color:var(--gold-bright,#f0c060)}
+.rw-make-stick{position:sticky;top:0;background:var(--surface-2);padding:8px 0 5px;z-index:2}
 /* v140 — runeword rich-hover recipe line + ID-card recipe chips */
 .att-rwrec{color:var(--gold-bright);font-family:ui-monospace,monospace;letter-spacing:.02em}
 .rwd-recipe{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
@@ -3412,12 +3417,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           <button class="rs-ai-btn" onclick="document.getElementById('rune-intake-file').click()" title="1 screenshot of your rune stash → the AI counts every rune and adds it to your tally">📸 AI intake — 1 photo tallies your runes</button>
           <input type="file" id="rune-intake-file" accept="image/*" multiple style="display:none" onchange="window.runeIntake(this.files)">
         </div>
-        <div id="rune-intake-report" hidden class="rs-ai-report"></div>
         <div class="rune-stash-grid" id="rune-stash-grid"></div>
         <div class="rune-stash-actions">
           <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
           <span class="rs-total" id="rune-stash-total"></span>
         </div>
+        <div id="rune-intake-report" hidden class="rs-ai-report"></div>
         <details class="rs-import">
           <summary>📥 Import a tally (paste counts)</summary>
           <textarea id="rune-import-box" placeholder="El:3 Eld:1 Tir:6 …  (or paste JSON)"></textarea>
@@ -11710,21 +11715,22 @@ function renderRuneCraftable(){
   const box = document.getElementById('rune-craftable');
   if (!box) return;
   const { ready, cube } = runeCraftStatus();
-  const row = (rw, cls) => { const esc = rw.n.replace(/'/g, "\\'"); const q = rw.n.replace(/"/g, '&quot;'); return `<div class="rw-row ${cls}" data-rw="${q}" data-arttip="${q}" onclick="window.openDrop&&window.openDrop('${esc}')" title="open the ${q} ID card" style="cursor:pointer">
-      <span class="rw-name">${rw.n}</span>
-      <span class="rw-recipe">${rw.runes}</span>
-      <span class="rw-base">${rw.base}</span>
+  // v277: same row style as the "All Runewords" browser below — name + HD rune-icon recipe chips
+  // (_rwRecipeArt), in a scrollable .arw-list box (the long list no longer pushes the page down).
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const row = (rw, cls) => { const oc = rw.n.replace(/'/g, "\\'"); const q = esc(rw.n); return `<div class="arw-row ${cls}" data-rw="${q}" data-arttip="${q}" onclick="window.openDrop&&window.openDrop('${oc}')" title="open the ${q} ID card">
+      <span class="arw-name">${q}</span>
+      <span class="arw-recipe">${(typeof _rwRecipeArt==='function')?_rwRecipeArt(rw.runes):esc(rw.runes)}</span>
+      <span class="arw-base">${esc(rw.base)}</span>
     </div>`; };
-  let html = `<div class="rw-make-head">🛠 What I can make</div>`;
-  html += `<div class="rw-make-group"><div class="rw-make-group-title">✅ Ready now · ${ready.length}</div>`;
-  html += ready.length ? `<div class="rw-list">${ready.map((rw) => row(rw, 'rw-ready')).join('')}</div>`
-                       : `<div class="rw-empty">No popular runeword is fully in hand yet — tally more runes.</div>`;
-  html += `</div>`;
+  let inner = `<div class="rw-make-group-title rw-make-stick">✅ Ready now · ${ready.length}</div>`;
+  inner += ready.length ? ready.map((rw) => row(rw, 'rw-ready')).join('')
+                        : `<div class="rw-empty">No popular runeword is fully in hand yet — tally more runes.</div>`;
   if (cube.length){
-    html += `<div class="rw-make-group"><div class="rw-make-group-title">🔨 With cube-ups · ${cube.length}</div>`;
-    html += `<div class="rw-list">${cube.map((rw) => row(rw, 'rw-cube')).join('')}</div></div>`;
+    inner += `<div class="rw-make-group-title rw-make-stick" style="margin-top:8px">🔨 With cube-ups · ${cube.length}</div>`;
+    inner += cube.map((rw) => row(rw, 'rw-cube')).join('');
   }
-  box.innerHTML = html;
+  box.innerHTML = `<div class="rw-make-head">🛠 What I can make</div><div class="arw-list rw-make-scroll">${inner}</div>`;
 }
 window.renderRuneCraftable = renderRuneCraftable;
 // v140 — "All Runewords" browser: lists every RUNEWORDS entry (filterable), each row
@@ -12071,25 +12077,52 @@ function _recLinkify(text){
 }
 // Parse a recipe input into the TRACKABLE rune + gem ingredients (with counts) that
 // live in your stash tallies. Base items / potions / quest items aren't trackable.
+var _GEM_GRADE_WORD = {chipped:'Chipped', flawed:'Flawed', normal:'Normal', standard:'Normal', flawless:'Flawless', perfect:'Perfect'};
 function _recIngredients(inStr){
   var out = [];
   String(inStr).split(' + ').forEach(function(chunk){
     var c = chunk.trim(); var need = 1;
     var m = c.match(/^(\d+)×\s*/); if (m){ need = parseInt(m[1], 10) || 1; c = c.slice(m[0].length); }
     if (typeof RUNE_INDEX !== 'undefined' && c in RUNE_INDEX){ out.push({ name: c, type: 'rune', need: need }); return; }
-    if (typeof findGem === 'function'){ var g = findGem(c); if (g){ out.push({ name: g, type: 'gem', need: need }); } }
+    if (typeof findGem === 'function'){ var g = findGem(c); if (g){ out.push({ name: g, type: 'gem', need: need }); return; } }
+    // generic GEM-grade requirement (no specific type): the chunk is essentially "[grade(/grade…)] Gem [(…)]".
+    // Without this, "Eld + Chipped Gem → Normal Weapon" was marked cubeable on the Eld rune alone, ignoring the
+    // gem the user may not own. (Tight match so descriptive rule rows like "the listed gem"/"identical gems" stay untracked.)
+    var gm = c.match(/^((?:chipped|flawed|normal|standard|flawless|perfect)(?:\/(?:chipped|flawed|normal|standard|flawless|perfect))*\s+)?gem(?:\s*\(.+\))?$/i);
+    if (gm){
+      if (/one of each/i.test(c)){ out.push({ name: c, type: 'gemEach', need: need }); return; }
+      var grades = [];
+      (gm[1] ? gm[1].trim().toLowerCase().split('/') : []).forEach(function(w){ if (_GEM_GRADE_WORD[w]) grades.push(_GEM_GRADE_WORD[w]); });
+      grades = grades.filter(function(x, i){ return grades.indexOf(x) === i; });
+      if (!grades.length) grades = ['Chipped','Flawed','Normal','Flawless','Perfect'];   // bare "Gem" = any grade
+      out.push({ name: c, type: 'gemGrade', grades: grades, need: need });
+    }
   });
   return out;
 }
+// total gems the user holds whose grade is in `grades`
+function _gemGradeHave(grades){
+  var total = 0;
+  try { GEM_TYPES.forEach(function(t){ t.q.forEach(function(g){ if (grades.indexOf(g.q) >= 0) total += _gemCount(g.name); }); }); } catch(e){}
+  return total;
+}
+// distinct perfect-gem TYPES held (for "Perfect Gem (one of each type)" → the Prismatic Amulet's 6 standard types)
+function _gemEachHave(){
+  var n = 0; ['Perfect Amethyst','Perfect Diamond','Perfect Emerald','Perfect Ruby','Perfect Sapphire','Perfect Topaz'].forEach(function(nm){ if (_gemCount(nm) > 0) n++; }); return n;
+}
 // Cross-check a recipe's trackable ingredients against your live rune + gem stash.
-// {trackable} = has ≥1 specific rune/gem; {ready} = you hold every trackable ingredient;
+// {trackable} = has a specific rune/gem OR a generic gem-grade requirement; {ready} = you hold every one;
 // {missing} = the shortfall list for the "need" chip.
 function _recReady(r){
   var ing = _recIngredients(r.in);
   if (!ing.length) return { trackable: false, ready: false, missing: [] };
   var missing = [];
   ing.forEach(function(it){
-    var have = it.type === 'rune' ? _runeCount(it.name) : _gemCount(it.name);
+    var have = it.type === 'rune' ? _runeCount(it.name)
+             : it.type === 'gem' ? _gemCount(it.name)
+             : it.type === 'gemGrade' ? _gemGradeHave(it.grades)
+             : it.type === 'gemEach' ? _gemEachHave()
+             : 0;
     if (have < it.need) missing.push({ name: it.name, short: it.need - have });
   });
   return { trackable: true, ready: missing.length === 0, missing: missing, total: ing.length };
