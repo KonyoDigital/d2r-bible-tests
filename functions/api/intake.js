@@ -44,17 +44,27 @@ export async function onRequestPost(context) {
     + 'Clearly readable item names NOT in the vocabulary go in "unrecognized" as written. '
     + 'VOCABULARY:\n' + names.join('\n');
 
-  const tallyText = 'You read a Diablo 2 Resurrected screenshot of a RUNE or GEM stash / inventory. Each rune (and each gem) '
-    + 'is a SEPARATE item occupying one inventory cell, identified by its distinctive ICON/GLYPH (runes are engraved '
-    + 'stones with a unique symbol; gems are coloured shapes whose tint = type and cut = grade). '
-    + 'COUNT how many copies of each vocabulary entry appear, and return a "tally" array of {name, count}. RULES: '
-    + '(1) Identify by the icon/glyph — and any readable name text — but ONLY report a vocabulary entry you can '
-    + 'identify with CONFIDENCE. If two runes/gems look too similar to tell apart at this resolution, OMIT them rather '
-    + 'than guess (a wrong rune is worse than a miss; the user can re-screenshot closer). '
-    + '(2) count = the number of separate cells/icons of that exact item that you can see. Count carefully and '
-    + 'methodically, scanning the whole grid; do not double-count the same cell. '
-    + '(3) Only names from the vocabulary. Anything you can read but is not in the vocabulary goes in "unrecognized". '
-    + '(4) Ignore gold, potions, UI text, and non-rune/non-gem items entirely. '
+  const tallyText = 'You read a Diablo 2 Resurrected screenshot showing RUNES and/or GEMS — usually a dedicated organized '
+    + 'stash tab (the Runes tab or Gems tab), or a stash/inventory grid. Return a "tally" array of {name, count} for '
+    + 'every rune/gem you can identify. '
+    + 'HOW TO COUNT — THIS IS THE MOST IMPORTANT PART, READ CAREFULLY: '
+    + '(1) In D2R\'s organized RUNES and GEMS stash tabs each rune/gem type sits in ONE fixed cell, and the QUANTITY you '
+    + 'own is printed as a small STACK-COUNT NUMBER, usually in the lower-RIGHT corner of that cell (e.g. a Tal rune cell '
+    + 'showing "23" means you own TWENTY-THREE Tal runes — NOT one). '
+    + '(2) count = that printed stack number. READ THE DIGITS CAREFULLY — stack counts are frequently TWO DIGITS '
+    + '(3, 7, 11, 15, 16, 17, 19, 22, 23 …). DO NOT assume every stack is 1 or 2 — that is the most common mistake. '
+    + 'Look at each cell\'s corner number and transcribe exactly what is printed. '
+    + '(3) If a cell shows an icon but NO printed number, count = 1. '
+    + '(4) If the SAME item also appears loose across several separate cells (a normal inventory), ADD those cells together. '
+    + '(5) A dark/empty cell, or a faint GREYED-OUT placeholder icon with no number, means you own ZERO of that rune — '
+    + 'do NOT report it. '
+    + 'IDENTIFY & COVERAGE: '
+    + '(6) Identify each rune by its engraved glyph (gems by tint = type, cut = grade) and any readable name. '
+    + 'SCAN THE ENTIRE GRID top-to-bottom and LEFT-to-right, including the rare high runes near the BOTTOM rows '
+    + '(Vex, Ohm, Lo, Sur, Ber, Jah, Cham, Zod) — do not stop early. Report every cell that has a real (non-greyed) icon. '
+    + '(7) Only report a vocabulary entry you can identify with CONFIDENCE; if two look too similar to tell apart, put your '
+    + 'best transcription in "unrecognized" rather than guessing the wrong rune. '
+    + '(8) Only names from the vocabulary. Ignore gold, potions, UI text, non-rune/non-gem items. Readable-but-not-in-vocab → "unrecognized". '
     + 'VOCABULARY:\n' + names.join('\n');
 
   const itemsSchema = {
@@ -94,7 +104,9 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: env.MODEL || 'claude-haiku-4-5',
+      // Tally mode must read small printed stack-count DIGITS off each cell → use the stronger
+      // vision model by default (Haiku misreads two-digit stacks as 1/2). Override via env.MODEL.
+      model: env.MODEL || (isTally ? 'claude-sonnet-4-6' : 'claude-haiku-4-5'),
       max_tokens: 1024,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
@@ -102,7 +114,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isTally ? 'Count every rune/gem in this screenshot.' : 'Extract the item names from this screenshot.' },
+          { type: 'text', text: isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : 'Extract the item names from this screenshot.' },
         ],
       }],
     }),

@@ -3407,24 +3407,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
     <div class="boss-body">
       <div class="rune-stash-wrap">
-        <div class="rw-make" id="rune-craftable"></div>
-        <div class="cubeup-panel">
-          <div class="cubeup-row">
-            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
-            <select id="rune-cubeup-target" onchange="window.renderRuneStash()"></select>
-            <span class="cubeup-result" id="cubeup-result">—</span>
-          </div>
-          <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
-        </div>
-        <details class="rs-import">
-          <summary>📥 Import a tally (paste counts)</summary>
-          <textarea id="rune-import-box" placeholder="El:3 Eld:1 Tir:6 …  (or paste JSON)"></textarea>
-          <div class="rs-import-row">
-            <button class="rs-import-btn" onclick="window.importRuneTally()">Load tally</button>
-            <span class="rs-import-status" id="rune-import-status"></span>
-          </div>
-          <div class="rs-import-note">Format: <code>Name:count</code> pairs separated by spaces or commas. Replaces your current tally.</div>
-        </details>
+        <!-- v274: runes grid on TOP, the long reference list moved to the bottom (Konyo) -->
         <div class="rs-ai-row">
           <button class="rs-ai-btn" onclick="document.getElementById('rune-intake-file').click()" title="1 screenshot of your rune stash → the AI counts every rune and adds it to your tally">📸 AI intake — 1 photo tallies your runes</button>
           <input type="file" id="rune-intake-file" accept="image/*" multiple style="display:none" onchange="window.runeIntake(this.files)">
@@ -3435,6 +3418,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           <button class="rs-clear-btn" onclick="window.clearRuneStash()">clear stash</button>
           <span class="rs-total" id="rune-stash-total"></span>
         </div>
+        <details class="rs-import">
+          <summary>📥 Import a tally (paste counts)</summary>
+          <textarea id="rune-import-box" placeholder="El:3 Eld:1 Tir:6 …  (or paste JSON)"></textarea>
+          <div class="rs-import-row">
+            <button class="rs-import-btn" onclick="window.importRuneTally()">Load tally</button>
+            <span class="rs-import-status" id="rune-import-status"></span>
+          </div>
+          <div class="rs-import-note">Format: <code>Name:count</code> pairs separated by spaces or commas. Replaces your current tally.</div>
+        </details>
+        <div class="cubeup-panel">
+          <div class="cubeup-row">
+            <span style="font-size:13px;color:var(--text-muted)">From my stash I can cube up to</span>
+            <select id="rune-cubeup-target" onchange="window.renderRuneStash()"></select>
+            <span class="cubeup-result" id="cubeup-result">—</span>
+          </div>
+          <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
+        </div>
+        <div class="rw-make" id="rune-craftable"></div>
       </div>
     </div>
   </div>
@@ -12176,7 +12177,7 @@ window.runeIntake = async function(files){
       report.innerHTML='🪄 <strong>tallied '+total+' rune'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
         + names.sort(function(a,b){return RUNE_INDEX[a]-RUNE_INDEX[b];}).map(function(k){return '<span style="color:var(--gold-bright,#f0c060)">'+k+' ×'+added[k]+'</span>';}).join(' · ')
         + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
-        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Counts are a best-effort read — eyeball the grid below and nudge any with the −/+ buttons. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Counts are a best-effort read of each rune’s stack number — eyeball the grid below and nudge any with the −/+ buttons. <b>Tip:</b> screenshot just the Runes stash panel (crop tight) for the sharpest digit reads. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
