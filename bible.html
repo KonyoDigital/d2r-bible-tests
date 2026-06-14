@@ -12444,7 +12444,16 @@ window._arttipResolve = _arttipResolve;
     if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div><div class="att-desc"></div>'; document.body.appendChild(tip); }
     if (!tip.querySelector('.att-desc')){ var dd=document.createElement('div'); dd.className='att-desc'; tip.appendChild(dd); }
     var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), desc = tip.querySelector('.att-desc'), cur = null;
-    function nameOf(el){ return el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || ''; }
+    function nameOf(el){
+      var n = el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || el.getAttribute('data-vault-item');
+      if (n) return n;
+      // v262: tiles/rows/chips that route via openDrop('Name') / navigateToItem('Name')
+      // — derive the name so hovering the TEXT (not just the art) floats the rich card.
+      // Covers every colossal-tile grid + vault item without per-template data-arttip.
+      var oc = el.getAttribute('onclick') || '';
+      var m = oc.match(/openDrop\(['"]([^'"]+)['"]/) || oc.match(/navigateToItem\(['"]([^'"]+)['"]/);
+      return m ? m[1].replace(/\\'/g, "'") : '';
+    }
     // v238: rarity-frame the floating card (gold unique / green set / orange RW · rune / blue magic)
     function setTipR(name){
       tip.classList.remove('tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune');
@@ -12453,7 +12462,7 @@ window._arttipResolve = _arttipResolve;
     }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
-      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (!el) return;
+      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch'); if (!el) return;
       // context-aware: hovering the TINY art thumbnail itself (.d2art-wrap, which
       // closest() resolves before any ancestor name row) floats the ENLARGED image
       // only — no stat card. Hovering the item NAME floats the rich description card.
