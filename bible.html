@@ -1181,6 +1181,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-row.rw-ready .arw-name{color:var(--best,#7bc77b)}
 .arw-row.rw-cube .arw-name{color:var(--gold-bright,#f0c060)}
 .rw-make-stick{position:sticky;top:0;background:var(--surface-2);padding:8px 0 5px;z-index:2}
+.rw-make-hint{font-size:10.5px;color:var(--text-dim);font-style:italic;padding:1px 2px 6px;line-height:1.45}
+.rw-make-hint b{color:var(--gold-bright,#f0c060);font-style:normal}
 /* v140 — runeword rich-hover recipe line + ID-card recipe chips */
 .att-rwrec{color:var(--gold-bright);font-family:ui-monospace,monospace;letter-spacing:.02em}
 .rwd-recipe{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
@@ -11724,10 +11726,12 @@ function renderRuneCraftable(){
       <span class="arw-base">${esc(rw.base)}</span>
     </div>`; };
   let inner = `<div class="rw-make-group-title rw-make-stick">✅ Ready now · ${ready.length}</div>`;
+  inner += `<div class="rw-make-hint">You hold every rune outright — build it right now.</div>`;
   inner += ready.length ? ready.map((rw) => row(rw, 'rw-ready')).join('')
                         : `<div class="rw-empty">No popular runeword is fully in hand yet — tally more runes.</div>`;
   if (cube.length){
     inner += `<div class="rw-make-group-title rw-make-stick" style="margin-top:8px">🔨 With cube-ups · ${cube.length}</div>`;
+    inner += `<div class="rw-make-hint">Not fully in hand — but you own enough lower runes to <b>cube up</b> the missing higher ones (e.g. 2 Lo → Sur, 2 Sur → Ber). Each cube step also eats the gem in that rune's recipe.</div>`;
     inner += cube.map((rw) => row(rw, 'rw-cube')).join('');
   }
   box.innerHTML = `<div class="rw-make-head">🛠 What I can make</div><div class="arw-list rw-make-scroll">${inner}</div>`;
