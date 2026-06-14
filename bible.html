@@ -11983,7 +11983,7 @@ function _recReady(r){
     var have = it.type === 'rune' ? _runeCount(it.name) : _gemCount(it.name);
     if (have < it.need) missing.push({ name: it.name, short: it.need - have });
   });
-  return { trackable: true, ready: missing.length === 0, missing: missing };
+  return { trackable: true, ready: missing.length === 0, missing: missing, total: ing.length };
 }
 var _horadricReadyOnly = false;
 function toggleHoradricReady(){ _horadricReadyOnly = !_horadricReadyOnly; renderHoradricRecipes(); }
@@ -12017,9 +12017,14 @@ function renderHoradricRecipes(){
     if (r.c !== lastCat){ html += '<div class="hcr-cat">' + r.c + '</div>'; lastCat = r.c; }
     var status = '';
     if (s.trackable){
-      status = s.ready
-        ? '<span class="hcr-status hcr-ready" title="you hold every rune &amp; gem this recipe needs">✓ cubeable</span>'
-        : '<span class="hcr-status hcr-need" title="missing from your stash tally">need ' + s.missing.map(function(m){ return m.short + '× ' + m.name; }).join(', ') + '</span>';
+      if (s.ready){
+        status = '<span class="hcr-status hcr-ready" title="you hold every rune &amp; gem this recipe needs">✓ cubeable</span>';
+      } else if (s.missing.length < s.total){
+        // v261: only show the "need" chip once you hold SOME of the ingredients — then it's
+        // a useful "what's left". When you hold NONE it just repeats the recipe, so suppress
+        // it for a clean default list (the badges light up as you tally runes/gems in).
+        status = '<span class="hcr-status hcr-need" title="still missing from your stash tally">need ' + s.missing.map(function(m){ return m.short + '× ' + m.name; }).join(', ') + '</span>';
+      }
     }
     html += '<div class="hcr-row' + (s.ready ? ' hcr-row-ready' : '') + '"><span class="hcr-in">' + _recLinkify(r.in) + '</span><span class="hcr-arrow">→</span><span class="hcr-out">' + _recLinkify(r.out) + '</span>'
       + status + (r.note ? '<span class="hcr-note">' + r.note + '</span>' : '') + '</div>';
