@@ -368,6 +368,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .top-drop-row:hover{border-color:rgba(212,168,71,.5);background:linear-gradient(180deg,rgba(212,168,71,.085),rgba(0,0,0,.06));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .top-drop-rank{color:var(--gold);font-weight:700;font-size:11px;font-family:var(--mono);text-align:center;background:rgba(212,168,71,.10);border-radius:5px;padding:3px 0;letter-spacing:-.3px}
 .top-drop-name{color:var(--gold-bright);font-weight:600;letter-spacing:.2px}
+/* v242: rarity item-color in the Top-Drops grid (non-uber rows; uber keeps its terror tint).
+   unique already reads gold-bright by default; set→green, rune/material→orange. */
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-set{color:var(--q-set)}
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rune,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-material{color:var(--q-orange)}
 .top-drop-uber{border-left:2px solid var(--terror)}
 .top-drop-uber .top-drop-name{color:var(--terror)}
 .top-drop-uber .top-drop-rank{color:var(--terror);background:rgba(255,0,212,.10)}
@@ -10223,7 +10227,7 @@ function bossTopDropsHtml(boss, limit){
             const esc = d.n.replace(/'/g, "\\'");
             return `<li class="top-drop-row ${d.tier === 'uber' ? 'top-drop-uber' : ''}" onclick="navigateToItem('${esc}')" title="open ${d.n} in the calculator">
               <span class="top-drop-rank">#${i + 1}</span>
-              <span class="top-drop-name" data-arttip="${_d2artEsc(d.n)}">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
+              <span class="top-drop-name q-${itemQuality(d)}" data-arttip="${_d2artEsc(d.n)}">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
               <span class="top-drop-odds">${fmt(t.best)} <span class="top-drop-diff">${diffLbl}</span></span>
               <span class="top-drop-hrs">${hrs !== null ? fmtHours(hrs) : "&mdash;"}</span>
             </li>`;
