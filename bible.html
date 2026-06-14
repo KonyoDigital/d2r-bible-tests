@@ -1030,6 +1030,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sun-tile-emblem{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}
 .sun-tile-emblem .d2art-wrap.lg{width:46px;height:46px}
 .sun-tile-emblem .d2art-wrap.lg .d2art-img{max-width:46px;max-height:46px}
+/* Per-charm sunder TINT — the 6 sunder charm art files are one shared amber grand-charm
+   icon (identical in-game inventory graphic), so hue-rotate each to its element colour to
+   match the in-game element tint. Keyed off artOr's aria-label so it tints EVERY surface
+   (recipe grid, unified Sunder card, hover popup, drop tables). !important beats the rarity
+   drop-shadow rules; each carries its own element-coloured glow in place of the gold one. */
+.d2art-wrap[aria-label="Cold Rupture"] .d2art-img{filter:hue-rotate(178deg) saturate(1.7) brightness(1.02) drop-shadow(0 0 7px rgba(116,182,255,.6))!important}
+.d2art-wrap[aria-label="Flame Rift"] .d2art-img{filter:hue-rotate(-16deg) saturate(1.85) brightness(1.05) drop-shadow(0 0 7px rgba(255,122,69,.6))!important}
+.d2art-wrap[aria-label="Crack of the Heavens"] .d2art-img{filter:hue-rotate(20deg) saturate(1.8) brightness(1.18) drop-shadow(0 0 7px rgba(255,224,77,.6))!important}
+.d2art-wrap[aria-label="Rotting Fissure"] .d2art-img{filter:hue-rotate(78deg) saturate(1.55) brightness(1) drop-shadow(0 0 7px rgba(122,209,122,.6))!important}
+.d2art-wrap[aria-label="Bone Break"] .d2art-img{filter:saturate(.22) brightness(1.4) drop-shadow(0 0 7px rgba(220,220,220,.55))!important}
+.d2art-wrap[aria-label="Black Cleft"] .d2art-img{filter:hue-rotate(248deg) saturate(1.5) brightness(1.08) drop-shadow(0 0 7px rgba(185,139,232,.6))!important}
 .sun-tile-id{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
 .sun-tile-meta{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sun-tile-best{font-size:10.5px;color:var(--text-muted);font-family:var(--sans)}
