@@ -16,6 +16,12 @@ export async function onRequest(context) {
   const { request, env, next } = context;
   const url = new URL(request.url);
 
+  // the app lives under /d2r/ — send the bare domain (and /index.html) there so a
+  // bookmark of the plain host lands on the app instead of a blank 404.
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    return Response.redirect(url.origin + '/d2r/', 308);
+  }
+
   // bot recorder + public TZ endpoint: always open
   if (url.pathname === '/api/tz') return next();
 
