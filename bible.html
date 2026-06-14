@@ -1157,7 +1157,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-row:hover{background:rgba(60,90,138,.16)}
 .arw-row:last-child{border-bottom:none}
 .arw-name{font-weight:700;color:#bcd6ff;min-width:150px}
-.arw-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-bright)}
+.arw-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-bright);display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+/* v255: HD rune-icon chips in each runeword recipe */
+.arw-rune{display:inline-flex;align-items:center;gap:3px}
+.arw-rune .d2art-wrap.sm{width:18px;height:18px;vertical-align:middle}
+.arw-rune .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
+.arw-rune-n{color:var(--gold-bright)}
+.arw-plus{color:var(--text-dim);font-size:10px;margin:0 1px}
+.arw-rune-txt{color:var(--gold-bright)}
 .arw-base{font-size:11px;color:var(--text-dim);margin-left:auto;white-space:nowrap}
 /* v140 — runeword rich-hover recipe line + ID-card recipe chips */
 .att-rwrec{color:var(--gold-bright);font-family:ui-monospace,monospace;letter-spacing:.02em}
@@ -11582,6 +11589,23 @@ window.renderRuneCraftable = renderRuneCraftable;
 // v140 — "All Runewords" browser: lists every RUNEWORDS entry (filterable), each row
 // clickable → openDrop ID card + data-arttip hover popup. Pure read of the shared
 // RUNEWORDS global, so it always mirrors the planner/search.
+// v255: render a runeword's "Jah + Ith + Ber" recipe as HD rune-icon chips — each
+// carries the rune's name + data-arttip so it shows its stat card on hover (v253).
+function _rwRecipeArt(runesStr){
+  if (!runesStr) return '';
+  const esc2 = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(runesStr).split('+').map((tok) => {
+    const t = tok.trim();
+    const m = t.match(/^([A-Za-z]+)/);
+    const rn = m ? (m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()) : '';
+    if (rn && typeof RUNE_INDEX !== 'undefined' && (rn in RUNE_INDEX)){
+      const logo = (typeof nameLogo === 'function') ? nameLogo(rn) : '';
+      return '<span class="arw-rune" data-arttip="'+rn+'">'+logo+'<span class="arw-rune-n">'+esc2(t)+'</span></span>';
+    }
+    return '<span class="arw-rune-txt">'+esc2(t)+'</span>';
+  }).join('<span class="arw-plus">+</span>');
+}
+window._rwRecipeArt = _rwRecipeArt;
 function renderAllRunewords(){
   const box = document.getElementById('all-rw-list');
   if (!box) return;
@@ -11600,7 +11624,7 @@ function renderAllRunewords(){
     const q2 = esc(rw.n);
     return `<div class="arw-row" data-rw="${q2}" data-arttip="${q2}" onclick="window.openDrop&&window.openDrop('${oc}')" title="open the ${q2} ID card">
       <span class="arw-name">${esc(rw.n)}</span>
-      <span class="arw-recipe">${esc(rw.runes)}</span>
+      <span class="arw-recipe">${_rwRecipeArt(rw.runes)}</span>
       <span class="arw-base">${esc(rw.base)}</span>
     </div>`;
   }).join('');
