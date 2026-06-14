@@ -1314,6 +1314,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .mat-stash-cell.mat-slot:not(.rs-has) .rs-count{display:none}
 .mat-stash-cell.mat-slot .mat-minus{position:absolute;top:0;left:0;width:15px;height:15px;font-size:11px;line-height:1;padding:0;opacity:0;transition:opacity .1s;z-index:4}
 .mat-stash-cell.mat-slot:hover .mat-minus{opacity:.9}
+/* v283: emphasized, structured cube-recipe block on material ID cards */
+.recipe-block{margin:6px 0 12px;padding:14px 16px;background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(20,16,10,.35));border:1px solid rgba(240,192,96,.34);border-radius:11px;box-shadow:inset 0 0 22px rgba(0,0,0,.35)}
+.recipe-block-lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--gold-bright,#f0c060);margin-bottom:10px;opacity:.85}
+.recipe-flow{display:flex;flex-wrap:wrap;align-items:center;gap:7px 9px;font-size:15px;line-height:1.3}
+.recipe-ing{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:linear-gradient(180deg,#241c10,#161009);border:1px solid #4a3a1d;border-radius:8px;color:#f4e6c4;font-weight:600;cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .1s;white-space:nowrap}
+.recipe-ing:hover{border-color:var(--gold-bright,#f0c060);box-shadow:0 0 12px rgba(240,192,96,.32);transform:translateY(-1px)}
+.recipe-ing-flat{cursor:default;opacity:.92}
+.recipe-ing .d2art-wrap.sm{width:26px;height:26px}
+.recipe-ing .d2art-wrap.sm .d2art-img{max-width:26px;max-height:26px}
+.recipe-op{font-size:17px;font-weight:700;color:var(--text-dim,#9a8e78);padding:0 1px}
+.recipe-arrow{color:var(--gold-bright,#f0c060);font-size:22px;font-weight:800;text-shadow:0 0 8px rgba(240,192,96,.4)}
+.recipe-flow .recipe-ing:last-child{background:linear-gradient(180deg,#1d2a18,#10180c);border-color:#3f6a3a;color:#bdf0b4}
+@media(max-width:560px){.recipe-flow{font-size:13px}.recipe-ing{padding:5px 8px}}
 /* Cube recipes */
 .cube-section{background:var(--surface-2);border-radius:8px;padding:12px 16px;margin:10px 0}
 .cube-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -5309,6 +5322,48 @@ function findMaterial(name){
   hit = idx.find(e => { const n = _norm(e.item.n); return n.includes(q) || q.includes(n); });
   return hit || null;
 }
+// v283: a PROMINENT, structured cube-recipe block for material ID cards — ingredient
+// chips (HD art + clickable + hover card) → output, since the recipe is the whole point
+// when you route in from the Horadric-recipes browser. Sunders use the exact per-charm
+// SUNDER_RECIPES data; everything else parses its cat.recipe "A + B + C → Output" string.
+function _matRecipeFlow(catKey, item, cat){
+  function chip(disp, route, artNm){
+    artNm = artNm || route || disp;
+    var art = (typeof nameLogo === 'function' && typeof artUrl === 'function' && (artUrl(artNm) || artUrl(route || ''))) ? nameLogo(artNm) : '';
+    var aEsc = String(artNm).replace(/"/g, '&quot;');
+    if (route){ var rEsc = String(route).replace(/'/g, "\\'"); return '<span class="recipe-ing zd-item-click" data-arttip="' + aEsc + '" role="button" tabindex="0" onclick="window.openDrop(\'' + rEsc + '\')" title="open ' + aEsc + ' card">' + art + disp + '</span>'; }
+    return '<span class="recipe-ing recipe-ing-flat" data-arttip="' + aEsc + '">' + art + disp + '</span>';
+  }
+  var ings = [], out = null;
+  if (catKey === 'sunder' && typeof SUNDER_RECIPES !== 'undefined'){
+    var sr = SUNDER_RECIPES.find(function(s){ return s.n === item.n; });
+    if (sr){
+      ings.push(chip('Latent ' + sr.n, sr.n, sr.n));
+      ings.push(chip(sr.gem, sr.gem, sr.gem));
+      ings.push(chip(sr.rune + ' rune', sr.rune, sr.rune));
+      (sr.shards || []).forEach(function(sh){ ings.push(chip(sh, sh, sh)); });
+      out = chip('Renewed ' + sr.n, sr.n, sr.n);
+    }
+  }
+  if (!ings.length){
+    var rec = String(cat.recipe || '');
+    var parts = rec.split(/\s*(?:→|->|⟶|»)\s*/);
+    if (parts.length >= 2){
+      var lhs = parts[0].replace(/^[^:]*:\s*/, '');                       // drop "Renewed upgrade (per charm): "
+      var rhs = parts[1].replace(/\.\s*Source.*$/i, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+      lhs.split(/\s*\+\s*/).forEach(function(tok){
+        var t = tok.replace(/^\s*\d+×?\s*/, '').trim();                   // drop leading "3 " / "1× "
+        if (!t) return;
+        var routable = (typeof findMaterial === 'function' && findMaterial(t)) || (typeof RUNE_INDEX !== 'undefined' && t in RUNE_INDEX) || (typeof findGem === 'function' && findGem(t));
+        ings.push(chip(t, routable ? t : '', t));
+      });
+      if (rhs) { var rRoutable = (typeof findMaterial === 'function' && findMaterial(rhs)); out = chip(rhs, rRoutable ? rhs : '', rhs); }
+    }
+  }
+  if (!ings.length) return '';
+  var flow = ings.join('<span class="recipe-op">+</span>') + (out ? '<span class="recipe-op recipe-arrow">→</span>' + out : '');
+  return '<div class="recipe-block"><div class="recipe-block-lab">🧪 Horadric Cube</div><div class="recipe-flow">' + flow + '</div></div>';
+}
 function materialDetailHtml(name){
   const m = findMaterial(name); if (!m) return '';
   const { cat, item, catKey } = m;
@@ -5372,6 +5427,7 @@ function materialDetailHtml(name){
     </section>` : ''}
     <section class="gic-section">
       <div class="gic-section-title">🧪 Recipe / use</div>
+      ${_matRecipeFlow(catKey, item, cat)}
       <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">${cat.recipe || '—'}</span></div>
       ${cat.important ? `<div class="zd-row"><span class="zd-k">⚠ important</span><span class="zd-v">${cat.important}</span></div>` : ''}
     </section>
@@ -12748,8 +12804,22 @@ window._arttipResolve = _arttipResolve;
       setTipR(nm);
       move(e); tip.classList.add('on');
     });
-    document.addEventListener('mousemove', function(e){ if (!cur) return; if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; } move(e); });
-    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo]'); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+    // v283 BUG FIX: the tip used to trail the cursor forever once shown — mousemove kept
+    // re-positioning it as long as `cur` was set, and mouseout's selector was NARROWER than
+    // mouseover's (missing .colossal-tile/.top-drop-row/etc.), so hovering those never cleared it.
+    // Now mousemove SELF-CORRECTS: if the cursor is no longer over the element that opened the
+    // tip, hide it immediately. This is selector-agnostic and can't get stuck.
+    var ARTTIP_SEL = '.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch';
+    document.addEventListener('mousemove', function(e){
+      if (!cur) return;
+      if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; }
+      var over = e.target && e.target.closest && e.target.closest(ARTTIP_SEL);
+      if (over !== cur){ cur=null; tip.classList.remove('on'); return; }   // left the source → hide
+      move(e);
+    });
+    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest(ARTTIP_SEL); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+    // ultimate safety net: leaving the document entirely also clears it
+    document.addEventListener('mouseleave', function(){ if (cur){ cur=null; tip.classList.remove('on'); } });
     // v169 fix: a click can re-render / hide the hovered element, leaving the tip
     // orphaned and chasing the cursor. A click dismisses it outright.
     document.addEventListener('click', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
