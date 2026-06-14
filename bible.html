@@ -201,6 +201,13 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .item-tile.tier-tc84,.item-tile.tier-tc85{border-left:3px solid var(--rune)}
 .item-tile.tier-tc87{border-left:3px solid var(--hell)}
 .item-tile.tier-tc0{border-left:3px solid var(--terror)}
+/* v241: rarity-tint the item name (D2 item-color convention) — name channel only;
+   the left border stays TC-tier. Most grail items are unique(gold)/set(green). */
+.item-tile.it-r-unique .item-tile-name{color:var(--q-unique,#c7b377)}
+.item-tile.it-r-set .item-tile-name{color:var(--q-set,#5fe85f)}
+.item-tile.it-r-rw .item-tile-name,.item-tile.it-r-rune .item-tile-name{color:var(--rune,#ff7d3c)}
+.item-tile.it-r-magic .item-tile-name{color:#7aa2ff}
+.item-tile.it-r-rare .item-tile-name{color:#ffe35a}
 .item-tile-grail::before,.item-tile-uber::before{position:absolute;top:6px;right:6px;font-size:7px;font-weight:600;letter-spacing:.5px}
 .item-tile-grail::before{content:"GRAIL";color:var(--grail)}
 .item-tile-uber::before{content:"UBER";color:var(--uber)}
@@ -10545,7 +10552,8 @@ function renderCalc() {
   $("search-counter").textContent = `showing ${filtered.length} of ${ITEMS.length} items${searchQ?` matching "${searchQ}"`:''}${currentFilter!=='all'?` · filter: ${currentFilter}`:''}`;
   grid.innerHTML = filtered.map((it, idx) => {
     const isOwned = owned.has(it.n);
-    return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
+    const _r = (typeof _artRarity === 'function') ? _artRarity(it.n) : '';
+    return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${_r?'it-r-'+_r:''} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
       <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
         <div class="item-tile-name" data-arttip="${_d2artEsc(it.n)}">${it.n}</div>
         <div class="item-tile-tc">TC${it.tc} · q${it.qlvl}${isOwned?' · ✓':''}</div>
