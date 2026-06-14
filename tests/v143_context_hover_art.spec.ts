@@ -39,7 +39,10 @@ test.describe('v143 context-aware art hover + dup-name fix', () => {
     expect(r.unmappedAria).toBe('Totally Not A Real Item XYZ');
   });
 
-  test('hovering a tiny art thumbnail floats the ENLARGED image (tip-art, image-only)', async ({ page }) => {
+  // v250: hovering an item PICTURE now floats the same rich STAT CARD as a name-hover
+  // (Maxroll-style), whenever the item has rich data. The enlarged-image popup is now
+  // only a FALLBACK for art with no stat description (boss portraits, auras, runes).
+  test('hovering a tiny art thumbnail of a stat-bearing item floats the RICH description card (v250)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const host = document.createElement('div');
       host.innerHTML = (window as any).artOr("Andariel's Visage", '💀', 'sm');
@@ -47,13 +50,11 @@ test.describe('v143 context-aware art hover + dup-name fix', () => {
       const wrap = host.querySelector('.d2art-wrap[aria-label]') as HTMLElement;
       wrap.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 150, clientY: 150 }));
       const tip = document.getElementById('arttip')!;
-      const img = tip.querySelector('img') as HTMLImageElement;
       const out = {
         on: tip.classList.contains('on'),
         art: tip.classList.contains('tip-art'),
         rich: tip.classList.contains('tip-rich'),
-        hasImg: img.style.display !== 'none' && !!img.src,
-        descEmpty: (tip.querySelector('.att-desc') as HTMLElement).innerHTML === '',
+        hasDesc: ((tip.querySelector('.att-desc') as HTMLElement).innerHTML || '').length > 0,
         name: (tip.querySelector('.att-name') as HTMLElement).textContent,
       };
       wrap.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
@@ -61,11 +62,33 @@ test.describe('v143 context-aware art hover + dup-name fix', () => {
       return out;
     });
     expect(r.on).toBe(true);
+    expect(r.rich).toBe(true);
+    expect(r.art).toBe(false);
+    expect(r.hasDesc).toBe(true);
+    expect(r.name).toBe("Andariel's Visage");
+  });
+
+  test('hovering art with NO stat data (a boss portrait) falls back to the enlarged image', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const host = document.createElement('div');
+      host.innerHTML = (window as any).artOr("The Countess", '👸', 'sm');
+      document.body.appendChild(host);
+      const wrap = host.querySelector('.d2art-wrap[aria-label]') as HTMLElement;
+      wrap.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 150, clientY: 150 }));
+      const tip = document.getElementById('arttip')!;
+      const img = tip.querySelector('img') as HTMLImageElement;
+      const out = {
+        art: tip.classList.contains('tip-art'),
+        rich: tip.classList.contains('tip-rich'),
+        hasImg: img.style.display !== 'none' && !!img.src,
+      };
+      wrap.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+      host.remove();
+      return out;
+    });
     expect(r.art).toBe(true);
     expect(r.rich).toBe(false);
     expect(r.hasImg).toBe(true);
-    expect(r.descEmpty).toBe(true);
-    expect(r.name).toBe("Andariel's Visage");
   });
 
   test('hovering an item NAME floats the rich description card (not the enlarged image)', async ({ page }) => {
@@ -92,7 +115,7 @@ test.describe('v143 context-aware art hover + dup-name fix', () => {
     expect(r.hasDesc).toBe(true);
   });
 
-  test('switching from a thumbnail to a name clears tip-art (no stuck enlarged mode)', async ({ page }) => {
+  test('switching from a stat-item thumbnail to its name stays on the rich card (no stuck mode)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const host = document.createElement('div');
       host.innerHTML = (window as any).artOr("Andariel's Visage", '💀', 'sm');
@@ -103,13 +126,14 @@ test.describe('v143 context-aware art hover + dup-name fix', () => {
       document.body.appendChild(name);
       const tip = document.getElementById('arttip')!;
       wrap.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 150, clientY: 150 }));
-      const afterArt = tip.classList.contains('tip-art');
+      const afterWrap = { art: tip.classList.contains('tip-art'), rich: tip.classList.contains('tip-rich') };
       name.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 250, clientY: 250 }));
       const afterName = { art: tip.classList.contains('tip-art'), rich: tip.classList.contains('tip-rich') };
       host.remove(); name.remove();
-      return { afterArt, afterName };
+      return { afterWrap, afterName };
     });
-    expect(r.afterArt).toBe(true);
+    expect(r.afterWrap.rich).toBe(true);
+    expect(r.afterWrap.art).toBe(false);
     expect(r.afterName.art).toBe(false);
     expect(r.afterName.rich).toBe(true);
   });
