@@ -1249,6 +1249,40 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-import-btn:hover{filter:brightness(1.08)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
 .rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
+/* ── v271: in-game STASH GRID for the rune + gem tools (icon + count slots) ── */
+.rune-stash-grid{grid-template-columns:repeat(auto-fill,minmax(46px,1fr))!important;gap:4px}
+.rune-stash-cell.rs-slot{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;gap:0;padding:0;border-radius:3px;border:1px solid rgba(212,168,71,.16);background:linear-gradient(135deg,#1a1207,#0d0904);box-shadow:inset 1px 1px 3px rgba(0,0,0,.7),inset -1px -1px 1px rgba(255,220,150,.03);cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .1s}
+.rune-stash-cell.rs-slot.rs-has{background:linear-gradient(135deg,#2c2113,#16100a)}
+.rune-stash-cell.rs-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 11px rgba(212,168,71,.35);z-index:3;transform:translateY(-1px)}
+.rune-stash-cell.rs-slot .d2art-wrap{width:82%!important;height:82%!important}
+.rune-stash-cell.rs-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
+.rune-stash-cell.rs-slot .rs-name{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.rune-stash-cell.rs-slot .rs-count{position:absolute;bottom:0;right:2px;margin:0;min-width:0;font-size:11px;font-weight:700;color:#f4d27a;text-shadow:0 1px 2px #000,0 0 4px #000}
+.rune-stash-cell.rs-slot:not(.rs-has) .rs-count{opacity:.3}
+.rune-stash-cell.rs-slot .rs-btn{position:absolute;top:1px;left:1px;width:15px;height:15px;font-size:11px;opacity:0;transition:opacity .1s;z-index:4}
+.rune-stash-cell.rs-slot:hover .rs-btn{opacity:.92}
+.rune-stash-cell.rs-slot::before{content:"";position:absolute;top:0;left:20%;right:20%;height:2px;border-radius:0 0 2px 2px;opacity:.65}
+.rune-stash-cell.rs-slot.rs-low::before{background:var(--text-dim)}
+.rune-stash-cell.rs-slot.rs-mid::before{background:#8aa0c8}
+.rune-stash-cell.rs-slot.rs-high::before{background:var(--gold-bright)}
+.rune-stash-cell.rs-slot.rs-ultra::before{background:var(--uber)}
+.gem-stash-grid{display:grid!important;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0}
+.gem-row{display:flex!important;flex-direction:column;gap:4px;background:none!important;border:none!important;padding:0!important}
+.gem-type-lbl{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0 0 2px!important;margin:0!important}
+.gem-type-lbl .gem-type-name{font-size:0!important;color:transparent!important}
+.gem-type-lbl .gem-type-name .d2art-wrap{width:26px!important;height:26px!important}
+.gem-type-lbl .gem-role{display:none!important}
+.gem-cells{display:flex!important;flex-direction:column;gap:4px}
+.gem-cell.gem-slot{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;border:1px solid rgba(212,168,71,.16);background:linear-gradient(135deg,#171008,#0d0904);box-shadow:inset 1px 1px 3px rgba(0,0,0,.7),inset -1px -1px 1px rgba(255,220,150,.03);cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .1s}
+.gem-cell.gem-slot.gem-has{background:linear-gradient(135deg,#241c12,#15100a)}
+.gem-cell.gem-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 11px rgba(212,168,71,.35);z-index:3;transform:translateY(-1px)}
+.gem-cell.gem-slot .d2art-wrap{width:80%!important;height:80%!important}
+.gem-cell.gem-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
+.gem-cell.gem-slot .gem-q-lbl{position:absolute;top:0;left:3px;font-size:8.5px;font-weight:700;color:var(--text-dim);text-shadow:0 1px 1px #000;cursor:pointer}
+.gem-cell.gem-slot .rs-count{position:absolute;bottom:0;right:2px;margin:0;min-width:0;font-size:11px;font-weight:700;color:#f4d27a;text-shadow:0 1px 2px #000,0 0 4px #000}
+.gem-cell.gem-slot:not(.gem-has) .rs-count{opacity:.3}
+.gem-cell.gem-slot .gem-minus{position:absolute;top:1px;right:1px;width:15px;height:15px;font-size:11px;opacity:0;transition:opacity .1s;z-index:4}
+.gem-cell.gem-slot:hover .gem-minus{opacity:.92}
 /* Materials Stash (keys / organs / essences → uber & token planner) */
 .material-stash-grid{display:flex;flex-direction:column;gap:14px;margin:12px 0}
 .mat-group-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
@@ -11574,12 +11608,11 @@ function renderRuneStash(){
   grid.innerHTML = RUNES.map((r) => {
     const c = _runeCount(r.n);
     const esc = r.n.replace(/'/g, "\\'");
-    return `<div class="rune-stash-cell rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}" data-arttip="${r.n}">
+    return `<div class="rune-stash-cell rs-slot rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}" data-arttip="${r.n}" onclick="window.adjustRuneStash('${esc}',1)" oncontextmenu="event.preventDefault();window.adjustRuneStash('${esc}',-1)" title="${r.n} rune — click +1 · right-click −1">
       ${artOr(r.n, '', 'sm')}
-      <span class="rs-name zd-item-click" data-arttip="${r.n}" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${r.n} rune card">${r.n}</span>
-      <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
+      <span class="rs-name zd-item-click" data-arttip="${r.n}" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${esc}')" title="open ${r.n} rune card">${r.n}</span>
+      <button class="rs-btn rs-minus" onclick="event.stopPropagation();window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
       <span class="rs-count" data-rune-count="${r.n}">${c}</span>
-      <button class="rs-btn" onclick="window.adjustRuneStash('${esc}',1)" title="add one ${r.n}" aria-label="plus ${r.n}">+</button>
     </div>`;
   }).join('');
   const total = RUNES.reduce((a, r) => a + _runeCount(r.n), 0);
@@ -11775,11 +11808,11 @@ function renderGemStash(){
     var esct = t.type.replace(/'/g, "\\'");
     var cells = t.q.map(function(g){
       var c = _gemCount(g.name); var esc = g.name.replace(/'/g, "\\'");
-      return '<div class="gem-cell' + (c > 0 ? ' gem-has' : '') + '" data-gem="' + g.name + '" data-arttip="' + g.name + '">'
-        + '<span class="gem-q-lbl zd-item-click" role="button" tabindex="0" style="cursor:pointer" onclick="event.stopPropagation();window.openDrop(\'' + esc + '\')" title="open the ' + g.name + ' card">' + g.q + '</span>'
-        + '<div class="gem-cell-ctl"><button class="rs-btn" onclick="window.adjustGemStash(\'' + esc + '\',-1)" title="remove one ' + g.name + '" aria-label="minus ' + g.name + '">−</button>'
+      return '<div class="gem-cell gem-slot' + (c > 0 ? ' gem-has' : '') + '" data-gem="' + g.name + '" data-arttip="' + g.name + '" onclick="window.adjustGemStash(\'' + esc + '\',1)" oncontextmenu="event.preventDefault();window.adjustGemStash(\'' + esc + '\',-1)" title="' + g.name + ' — click +1 · right-click −1">'
+        + artOr(g.name, '', 'sm')
+        + '<span class="gem-q-lbl zd-item-click" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop(\'' + esc + '\')" title="open the ' + g.name + ' card">' + g.q.charAt(0) + '</span>'
         + '<span class="rs-count" data-gem-count="' + g.name + '">' + c + '</span>'
-        + '<button class="rs-btn" onclick="window.adjustGemStash(\'' + esc + '\',1)" title="add one ' + g.name + '" aria-label="plus ' + g.name + '">+</button></div></div>';
+        + '<button class="rs-btn gem-minus" onclick="event.stopPropagation();window.adjustGemStash(\'' + esc + '\',-1)" title="remove one ' + g.name + '" aria-label="minus ' + g.name + '">−</button></div>';
     }).join('');
     return '<div class="gem-row"><div class="gem-type-lbl"><span class="gem-type-name zd-item-click" data-arttip="Perfect ' + t.type + '" role="button" tabindex="0" style="cursor:pointer;color:' + t.color + '" onclick="window.openDrop(\'Perfect ' + esct + '\')" title="open the ' + t.type + ' socket card">' + ((typeof nameLogo==='function')?nameLogo('Perfect '+t.type):'') + t.type + '</span><span class="gem-role">' + t.role + '</span></div><div class="gem-cells">' + cells + '</div></div>';
   }).join('');
