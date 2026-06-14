@@ -11830,7 +11830,13 @@ window._gemTipHtml = _gemTipHtml;
 function renderGemStash(){
   var grid = document.getElementById('gem-stash-grid');
   if (!grid || typeof GEM_TYPES === 'undefined') return;
-  grid.innerHTML = GEM_TYPES.map(function(t){
+  // v279: column order matches the in-game RoW Gems stash tab (Konyo's screenshot):
+  // Diamond · Emerald · Ruby · Topaz · Amethyst · Sapphire · Skull (left→right), grades chipped→perfect.
+  // Reorders the GRID only — GEM_TYPES (cube-up dropdown, _GEM_INDEX, findGem) keeps its canonical order.
+  var GEM_TAB_ORDER = ['Diamond','Emerald','Ruby','Topaz','Amethyst','Sapphire','Skull'];
+  var _gemCols = GEM_TAB_ORDER.map(function(tn){ return GEM_TYPES.filter(function(x){ return x.type === tn; })[0]; }).filter(Boolean);
+  if (_gemCols.length !== GEM_TYPES.length) _gemCols = GEM_TYPES;  // safety: never drop a column
+  grid.innerHTML = _gemCols.map(function(t){
     var esct = t.type.replace(/'/g, "\\'");
     var cells = t.q.map(function(g){
       var c = _gemCount(g.name); var esc = g.name.replace(/'/g, "\\'");
