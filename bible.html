@@ -877,6 +877,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .d2art-r-rw:hover .d2art-img,.d2art-r-rune:hover .d2art-img{filter:brightness(1.16) drop-shadow(0 0 14px rgba(255,165,55,.85))}
 /* card-sized art also gets a gentle pop on hover (tiny inline thumbnails don't, to avoid text jitter) */
 .d2art-wrap.lg:hover,.d2art-wrap.md:hover{transform:translateY(-1px) scale(1.08);z-index:2}
+/* v244: glossy hover highlight — a soft top-left sphere gloss on card-sized icons,
+   like Maxroll's lit item portraits. No overflow:hidden (would clip the rarity
+   bloom); the radial fades before the edges so corners stay clean. Hover-only. */
+.d2art-wrap.lg::after,.d2art-wrap.md::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.26),rgba(255,255,255,.06) 40%,transparent 62%);transition:opacity .18s ease}
+.d2art-wrap.lg:hover::after,.d2art-wrap.md:hover::after{opacity:1}
 /* v113 — Warlock bind-aura logo grid (Lister / Hephasto / The Smith ID cards).
    Eye-candy maxroll-style grid: glowing tiles, the rerolled-target row pulses gold,
    the fixed-aura row pulses violet. Each tile leads with the actual in-game aura
