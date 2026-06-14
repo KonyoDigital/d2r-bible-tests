@@ -1037,8 +1037,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sun-cube.fail{display:none}
 .sun-note{color:var(--text-dim);font-size:11.5px;margin-top:2px}
 .sun-best{color:var(--gold-bright,#f0c060)}
-#arttip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .09s;background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.8);padding:8px 9px 7px;max-width:170px;text-align:center}
-#arttip.on{opacity:1}
+#arttip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transform:scale(.94) translateY(3px);transition:opacity .09s ease,transform .13s cubic-bezier(.2,.8,.2,1);background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.8);padding:8px 9px 7px;max-width:170px;text-align:center}
+/* v247: the hover tooltip pops in — a subtle scale + rise instead of a hard cut.
+   move() positions via left/top, so transform is ours to animate freely. */
+#arttip.on{opacity:1;transform:scale(1) translateY(0)}
 #arttip.tip-rich{max-width:300px;padding:11px 13px 12px}
 #arttip img{display:block;width:96px;height:96px;object-fit:contain;margin:0 auto 5px}
 #arttip.tip-rich img{width:52px;height:78px;margin:0 auto 4px}
