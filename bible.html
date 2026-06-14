@@ -11921,6 +11921,53 @@ window.importGemTally = importGemTally;
 
 // v254: 1-photo AI gem intake — screenshot your gems → Claude vision counts each by
 // colour (type) + cut (grade) → counts ADD to your gem tally (/api/intake, kind:'tally').
+// v276: shared prep + read for the TALLY intakes (runes/gems/materials — always the LEFT stash panel).
+// (1) _tallyPrepImage auto-CROPS the left stash region of a full-screen capture and ENLARGES it to a
+//     1568 long edge, so the small printed stack-count digits keep their real pixels instead of being
+//     blurred away by a whole-screen downscale (Sonnet read single digits fine but lost two-digit
+//     stacks like 11/23 at full-screen res). Already-cropped / non-landscape shots pass through whole.
+// (2) _tallyRead double-reads the SAME image (two model passes) and merges per-name by MAX — the failure
+//     mode is UNDER-reading a digit, so the higher of two independent reads is the better estimate.
+function _tallyPrepImage(file){
+  return new Promise(function(resolve, reject){
+    var img=new Image(), url=URL.createObjectURL(file);
+    img.onload=function(){
+      var W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+      var sx=0, sy=0, sw=W, sh=H;
+      // D2R full-screen capture → the stash (Runes/Gems/Materials) is ALWAYS the left panel, same spot.
+      if ((W/H) >= 1.3 && W >= 1200){
+        var x0=0.06, y0=0.165, x1=0.43, y1=0.49;     // left rune/gem/material grid, generous margin
+        sx=Math.round(x0*W); sy=Math.round(y0*H); sw=Math.round((x1-x0)*W); sh=Math.round((y1-y0)*H);
+      }
+      var MAX=1568, scale=Math.min(2.4, MAX/Math.max(sw,sh)); // enlarge the crop (cap up-scale at 2.4×)
+      var c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(sw*scale)); c.height=Math.max(1,Math.round(sh*scale));
+      var ctx=c.getContext('2d'); try{ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; }catch(e){}
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',0.92).split(',')[1]);
+    };
+    img.onerror=reject; img.src=url;
+  });
+}
+window._tallyPrepImage = _tallyPrepImage;
+async function _tallyRead(b64, vocab){
+  var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  var merged = {}, ok = false;
+  for (var pass=0; pass<2; pass++){
+    try{
+      var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
+      if(!resp.ok) continue;
+      ok = true;
+      var data = await resp.json();
+      var t = data.tally || {};
+      Object.keys(t).forEach(function(k){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0) merged[k]=Math.max(merged[k]||0, c); });
+    }catch(e){ /* try the other pass */ }
+  }
+  return ok ? merged : null;   // null = both passes failed (network/server) → caller counts an error
+}
+window._tallyRead = _tallyRead;
+
 window.gemIntake = async function(files){
   var report = document.getElementById('gem-intake-report');
   if (!files || !files.length) return;
@@ -11944,12 +11991,9 @@ window.gemIntake = async function(files){
   var added={}, total=0, errors=0;
   for (var i=0;i<files.length;i++){
     try{
-      var b64=await downscale(files[i]);
-      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
-      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
-      if(!resp.ok){ errors++; continue; }
-      var data=await resp.json();
-      var t=data.tally||{};
+      var b64=await _tallyPrepImage(files[i]);
+      var t=await _tallyRead(b64, vocab);
+      if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         var key=findGem(k);
         if(key){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ gemStash[key]=(parseInt(gemStash[key],10)||0)+c; added[key]=(added[key]||0)+c; total+=c; } }
@@ -12159,12 +12203,9 @@ window.runeIntake = async function(files){
   var added={}, total=0, errors=0;
   for (var i=0;i<files.length;i++){
     try{
-      var b64=await downscale(files[i]);
-      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
-      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
-      if(!resp.ok){ errors++; continue; }
-      var data=await resp.json();
-      var t=data.tally||{};
+      var b64=await _tallyPrepImage(files[i]);
+      var t=await _tallyRead(b64, vocab);
+      if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         if(k in RUNE_INDEX){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ runeStash[k]=(parseInt(runeStash[k],10)||0)+c; added[k]=(added[k]||0)+c; total+=c; } }
       });
@@ -12177,7 +12218,7 @@ window.runeIntake = async function(files){
       report.innerHTML='🪄 <strong>tallied '+total+' rune'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
         + names.sort(function(a,b){return RUNE_INDEX[a]-RUNE_INDEX[b];}).map(function(k){return '<span style="color:var(--gold-bright,#f0c060)">'+k+' ×'+added[k]+'</span>';}).join(' · ')
         + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
-        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Counts are a best-effort read of each rune’s stack number — eyeball the grid below and nudge any with the −/+ buttons. <b>Tip:</b> screenshot just the Runes stash panel (crop tight) for the sharpest digit reads. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Auto-cropped to your left stash panel + enlarged, then double-read for accuracy — but still eyeball the grid and nudge any stack with the −/+ buttons. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
@@ -12935,12 +12976,9 @@ window.materialIntake = async function(files){
   var added={}, statuesAdded=[], total=0, errors=0;
   for (var i=0;i<files.length;i++){
     try{
-      var b64=await downscale(files[i]);
-      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
-      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
-      if(!resp.ok){ errors++; continue; }
-      var data=await resp.json();
-      var t=data.tally||{};
+      var b64=await _tallyPrepImage(files[i]);
+      var t=await _tallyRead(b64, vocab);
+      if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         var lc = String(k).toLowerCase().trim();
         if (byLc[lc]){ var canon=byLc[lc]; var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ materialStash[canon]=(parseInt(materialStash[canon],10)||0)+c; added[canon]=(added[canon]||0)+c; total+=c; } }
