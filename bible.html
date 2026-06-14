@@ -1249,40 +1249,38 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-import-btn:hover{filter:brightness(1.08)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
 .rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
-/* ── v271: in-game STASH GRID for the rune + gem tools (icon + count slots) ── */
-.rune-stash-grid{grid-template-columns:repeat(auto-fill,minmax(46px,1fr))!important;gap:4px}
-.rune-stash-cell.rs-slot{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;gap:0;padding:0;border-radius:3px;border:1px solid rgba(212,168,71,.16);background:linear-gradient(135deg,#1a1207,#0d0904);box-shadow:inset 1px 1px 3px rgba(0,0,0,.7),inset -1px -1px 1px rgba(255,220,150,.03);cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .1s}
-.rune-stash-cell.rs-slot.rs-has{background:linear-gradient(135deg,#2c2113,#16100a)}
-.rune-stash-cell.rs-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 11px rgba(212,168,71,.35);z-index:3;transform:translateY(-1px)}
-.rune-stash-cell.rs-slot .d2art-wrap{width:82%!important;height:82%!important}
-.rune-stash-cell.rs-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
+/* ── v272: EXACT in-game STASH-TAB skeleton (rune + gem) — rigid fixed grid, beveled metal slots, framed panel ── */
+/* RUNES: fixed 10-wide grid (matches the in-game Runes tab), every rune always shown, empty fillers complete the rectangle */
+.rune-stash-grid{display:grid!important;grid-template-columns:repeat(10,1fr)!important;gap:3px!important;margin:10px 0;padding:11px;background:linear-gradient(180deg,#15120c,#0b0905 70%);border:2px solid #322a1a;border-radius:5px;box-shadow:inset 0 0 30px rgba(0,0,0,.85),inset 0 1px 0 rgba(150,120,70,.12),0 2px 9px rgba(0,0,0,.5)}
+@media(max-width:600px){.rune-stash-grid{grid-template-columns:repeat(5,1fr)!important}}
+.rune-stash-cell.rs-slot,.gem-cell.gem-slot,.rs-empty{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;gap:0;padding:0;border-radius:2px;border:1px solid #000;background:linear-gradient(135deg,#1b1610,#0e0a06);box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),inset -1px -1px 1px rgba(125,98,55,.13);cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.rs-empty{cursor:default;background:linear-gradient(135deg,#120e09,#090705);box-shadow:inset 1px 1px 3px rgba(0,0,0,.92),inset -1px -1px 1px rgba(90,70,40,.07)}
+.rune-stash-cell.rs-slot.rs-has,.gem-cell.gem-slot.gem-has{background:linear-gradient(135deg,#2d2214,#17110a);border-color:#4a3a1d}
+.rune-stash-cell.rs-slot:hover,.gem-cell.gem-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 10px rgba(212,168,71,.4);z-index:3}
+.rune-stash-cell.rs-slot .d2art-wrap,.gem-cell.gem-slot .d2art-wrap{width:88%!important;height:88%!important}
+.rune-stash-cell.rs-slot .d2art-wrap .d2art-img,.gem-cell.gem-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
+.rune-stash-cell.rs-slot:not(.rs-has) .d2art-wrap,.gem-cell.gem-slot:not(.gem-has) .d2art-wrap{opacity:.3;filter:grayscale(.5)}
+.rune-stash-cell.rs-slot:hover:not(.rs-has) .d2art-wrap,.gem-cell.gem-slot:hover:not(.gem-has) .d2art-wrap{opacity:.7;filter:none}
 .rune-stash-cell.rs-slot .rs-name{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.rune-stash-cell.rs-slot .rs-count{position:absolute;bottom:0;right:2px;margin:0;min-width:0;font-size:11px;font-weight:700;color:#f4d27a;text-shadow:0 1px 2px #000,0 0 4px #000}
-.rune-stash-cell.rs-slot:not(.rs-has) .rs-count{opacity:.3}
-.rune-stash-cell.rs-slot .rs-btn{position:absolute;top:1px;left:1px;width:15px;height:15px;font-size:11px;opacity:0;transition:opacity .1s;z-index:4}
-.rune-stash-cell.rs-slot:hover .rs-btn{opacity:.92}
-.rune-stash-cell.rs-slot::before{content:"";position:absolute;top:0;left:20%;right:20%;height:2px;border-radius:0 0 2px 2px;opacity:.65}
+.rune-stash-cell.rs-slot .rs-count,.gem-cell.gem-slot .rs-count{position:absolute;bottom:-1px;right:1px;margin:0;min-width:0;font-size:11px;font-weight:700;color:#f4d27a;text-shadow:0 1px 2px #000,0 0 4px #000,1px 0 2px #000,-1px 0 2px #000;pointer-events:none}
+.rune-stash-cell.rs-slot:not(.rs-has) .rs-count,.gem-cell.gem-slot:not(.gem-has) .rs-count{display:none}
+.rune-stash-cell.rs-slot .rs-btn,.gem-cell.gem-slot .gem-minus{position:absolute;top:0;left:0;width:14px;height:14px;font-size:10px;line-height:1;padding:0;opacity:0;transition:opacity .1s;z-index:4}
+.rune-stash-cell.rs-slot:hover .rs-btn,.gem-cell.gem-slot:hover .gem-minus{opacity:.9}
+/* thin tier accent at the top edge of each rune slot */
+.rune-stash-cell.rs-slot::before{content:"";position:absolute;top:0;left:24%;right:24%;height:2px;border-radius:0 0 2px 2px;opacity:.7}
 .rune-stash-cell.rs-slot.rs-low::before{background:var(--text-dim)}
 .rune-stash-cell.rs-slot.rs-mid::before{background:#8aa0c8}
 .rune-stash-cell.rs-slot.rs-high::before{background:var(--gold-bright)}
 .rune-stash-cell.rs-slot.rs-ultra::before{background:var(--uber)}
-.gem-stash-grid{display:grid!important;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0}
-.gem-row{display:flex!important;flex-direction:column;gap:4px;background:none!important;border:none!important;padding:0!important}
-.gem-type-lbl{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0 0 2px!important;margin:0!important}
+/* GEMS: 7 type-columns × 5 grade-rows (chipped→perfect), one continuous framed stash grid like the in-game Gems tab */
+.gem-stash-grid{display:grid!important;grid-template-columns:repeat(7,1fr)!important;gap:3px!important;margin:10px 0;padding:11px;background:linear-gradient(180deg,#15120c,#0b0905 70%);border:2px solid #322a1a;border-radius:5px;box-shadow:inset 0 0 30px rgba(0,0,0,.85),inset 0 1px 0 rgba(150,120,70,.12),0 2px 9px rgba(0,0,0,.5)}
+.gem-row{display:flex!important;flex-direction:column;gap:3px!important;background:none!important;border:none!important;padding:0!important}
+.gem-type-lbl{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0 0 3px!important;margin:0!important}
 .gem-type-lbl .gem-type-name{font-size:0!important;color:transparent!important}
-.gem-type-lbl .gem-type-name .d2art-wrap{width:26px!important;height:26px!important}
+.gem-type-lbl .gem-type-name .d2art-wrap{width:24px!important;height:24px!important}
 .gem-type-lbl .gem-role{display:none!important}
-.gem-cells{display:flex!important;flex-direction:column;gap:4px}
-.gem-cell.gem-slot{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;padding:0;border-radius:3px;border:1px solid rgba(212,168,71,.16);background:linear-gradient(135deg,#171008,#0d0904);box-shadow:inset 1px 1px 3px rgba(0,0,0,.7),inset -1px -1px 1px rgba(255,220,150,.03);cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .1s}
-.gem-cell.gem-slot.gem-has{background:linear-gradient(135deg,#241c12,#15100a)}
-.gem-cell.gem-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 11px rgba(212,168,71,.35);z-index:3;transform:translateY(-1px)}
-.gem-cell.gem-slot .d2art-wrap{width:80%!important;height:80%!important}
-.gem-cell.gem-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
-.gem-cell.gem-slot .gem-q-lbl{position:absolute;top:0;left:3px;font-size:8.5px;font-weight:700;color:var(--text-dim);text-shadow:0 1px 1px #000;cursor:pointer}
-.gem-cell.gem-slot .rs-count{position:absolute;bottom:0;right:2px;margin:0;min-width:0;font-size:11px;font-weight:700;color:#f4d27a;text-shadow:0 1px 2px #000,0 0 4px #000}
-.gem-cell.gem-slot:not(.gem-has) .rs-count{opacity:.3}
-.gem-cell.gem-slot .gem-minus{position:absolute;top:1px;right:1px;width:15px;height:15px;font-size:11px;opacity:0;transition:opacity .1s;z-index:4}
-.gem-cell.gem-slot:hover .gem-minus{opacity:.92}
+.gem-cells{display:flex!important;flex-direction:column;gap:3px!important}
+.gem-cell.gem-slot .gem-q-lbl{position:absolute;top:0;left:2px;font-size:8px;font-weight:700;color:var(--text-dim);text-shadow:0 1px 1px #000;cursor:pointer;pointer-events:none}
 /* Materials Stash (keys / organs / essences → uber & token planner) */
 .material-stash-grid{display:flex;flex-direction:column;gap:14px;margin:12px 0}
 .mat-group-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
@@ -11614,7 +11612,7 @@ function renderRuneStash(){
       <button class="rs-btn rs-minus" onclick="event.stopPropagation();window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
       <span class="rs-count" data-rune-count="${r.n}">${c}</span>
     </div>`;
-  }).join('');
+  }).join('') + Array(((10 - (RUNES.length % 10)) % 10)).fill('<div class="rs-empty" aria-hidden="true"></div>').join('');
   const total = RUNES.reduce((a, r) => a + _runeCount(r.n), 0);
   const totalEl = document.getElementById('rune-stash-total');
   if (totalEl) totalEl.textContent = total === 1 ? '1 rune tallied' : `${total} runes tallied`;
