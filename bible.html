@@ -3311,6 +3311,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
+      <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
       <div id="vault-intake-report" hidden style="margin:0 0 12px;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
@@ -16652,6 +16653,20 @@ body{
 .vault-chip .vc-unown:hover{color:var(--hell,#ff4040)}
 .vault-dock{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-items:center}
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
+/* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
+.vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+.vdb-label{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.04em;color:var(--text-muted,#b5a48a)}
+.vdb-count{font-family:var(--mono,monospace);font-weight:700;font-size:11px;color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32);border-radius:20px;padding:1px 9px}
+.vault-resort-btn{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:13px;letter-spacing:.03em;color:#1a1206;background:linear-gradient(180deg,#f3c768,#c79a3a);border:1px solid #f0d488;border-radius:22px;padding:7px 16px;box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 16px rgba(240,192,96,.22),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .14s ease,box-shadow .2s ease,filter .14s ease}
+.vault-resort-btn:hover{transform:translateY(-1px) scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.5),0 0 28px rgba(240,192,96,.5),inset 0 1px 0 rgba(255,255,255,.55);filter:brightness(1.06)}
+.vault-resort-btn:active{transform:translateY(0) scale(.985)}
+.vault-resort-btn .vrb-wand{font-size:15px;filter:drop-shadow(0 0 5px rgba(255,240,180,.75))}
+.vault-resort-btn .vrb-go{transition:transform .15s ease}
+.vault-resort-btn:hover .vrb-go{transform:translateX(3px)}
+@media (prefers-reduced-motion: no-preference){
+  .vault-resort-btn{animation:vrbPulse 2.6s ease-in-out infinite}
+  @keyframes vrbPulse{0%,100%{box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 14px rgba(240,192,96,.2),inset 0 1px 0 rgba(255,255,255,.45)}50%{box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 26px rgba(240,192,96,.45),inset 0 1px 0 rgba(255,255,255,.45)}}
+}
 .vault-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#241c12);border:1px solid var(--border,#3a2f1e);border-radius:999px;padding:4px 11px 4px 5px;font-size:12px;cursor:grab;user-select:none;transition:all .16s var(--ease-out,ease)}
 .vault-chip:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 14px rgba(212,168,71,.14);transform:translateY(-1px)}
 /* v239: rarity-tint the vault chips (border + name) */
@@ -17002,6 +17017,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // prune assignments of items no longer owned or mules deleted
     Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
     var unsorted = pool.filter(function(n){ return !assign[n]; });
+    // v251: the dock's own "Auto-Sort" widget — appears only when items are unsorted,
+    // sends every loose item back to its proper mule/alt in one click (vaultAutoAssign).
+    var dbar=document.getElementById('vault-dock-bar');
+    if (dbar){
+      if (unsorted.length){
+        dbar.hidden=false;
+        dbar.innerHTML='<span class="vdb-label">🎒 Unsorted dock<span class="vdb-count">'+unsorted.length+'</span></span>'
+          +'<button class="vault-resort-btn" onclick="window.vaultAutoAssign()" title="Auto-Sort: send every unsorted item back to its proper mule / alt">'
+          +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>';
+      } else { dbar.hidden=true; dbar.innerHTML=''; }
+    }
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span>'
