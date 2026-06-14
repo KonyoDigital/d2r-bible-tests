@@ -16542,6 +16542,20 @@ table.drops tbody tr:hover .lc-best{ text-shadow:0 0 10px rgba(102,255,136,.35);
   content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px; pointer-events:none;
   background:linear-gradient(90deg, transparent, rgba(212,168,71,.55) 18%, rgba(240,192,96,.9) 50%, rgba(212,168,71,.55) 82%, transparent);
 }
+
+/* ── P. (v240) Ambient depth: a candlelit vault wash behind the whole page ──
+   The flat near-black body gains a warm top glow, a deeper sink at the foot,
+   and a faint side shade — fixed so it stays put while scrolling (no overflow,
+   no repaint churn). Sits behind everything, including the masthead ember. */
+body{
+  background:
+    radial-gradient(125% 70% at 50% -8%,  rgba(74,58,30,.20), transparent 58%),
+    radial-gradient(120% 78% at 50% 112%, rgba(34,24,12,.44), transparent 60%),
+    radial-gradient(90% 55% at -6% 42%,   rgba(22,15,8,.30),  transparent 62%),
+    radial-gradient(90% 55% at 106% 58%,  rgba(22,15,8,.30),  transparent 62%),
+    var(--bg);
+  background-attachment:fixed;
+}
 </style>
 
 <style id="v203-vault-styles">
