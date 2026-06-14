@@ -1020,13 +1020,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sunder-tbl .rec{color:var(--text-muted,#9aa);font-size:12px}
 .imm-phys{color:#d9d2c5}.imm-magic{color:#9b8cff}.imm-fire{color:#ff7755}.imm-cold{color:#66ccff}.imm-light{color:#ffe066}.imm-pois{color:#88dd66}
 /* v133 — Sunder Charm Renewal recipe tool + floating art-hover popup */
-#sunder-recipe-grid{display:flex;flex-direction:column;gap:10px;margin-top:6px}
-.sun-recipe{border:1px solid var(--border);border-radius:9px;background:rgba(0,0,0,.22);overflow:hidden}
-.sun-recipe>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;font-family:var(--mono,monospace);font-size:13.5px}
+/* v263: ID-card tile look — multi-column grid of rich charm tiles (emblem + name +
+   element + best-for), each expands to its cube formula. Keeps the <details> structure. */
+#sunder-recipe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px;margin-top:6px;align-items:start}
+.sun-recipe{border:1px solid var(--border);border-radius:11px;background:linear-gradient(180deg,rgba(36,27,14,.4),rgba(0,0,0,.26));overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.sun-recipe:hover{border-color:rgba(240,192,96,.4);box-shadow:0 3px 14px rgba(0,0,0,.4)}
+.sun-recipe[open]{border-color:rgba(240,192,96,.45)}
+.sun-recipe>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:11px;padding:11px 13px;font-family:var(--mono,monospace);font-size:13.5px}
+.sun-tile-emblem{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}
+.sun-tile-emblem .d2art-wrap.lg{width:46px;height:46px}
+.sun-tile-emblem .d2art-wrap.lg .d2art-img{max-width:46px;max-height:46px}
+.sun-tile-id{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.sun-tile-meta{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sun-tile-best{font-size:10.5px;color:var(--text-muted);font-family:var(--sans)}
 .sun-recipe>summary::-webkit-details-marker{display:none}
 .sun-recipe>summary:hover{background:rgba(240,192,96,.06)}
 .sun-recipe[open]>summary{border-bottom:1px solid var(--border);background:rgba(240,192,96,.05)}
-.sun-recipe .sun-charm{display:inline-flex;align-items:center;gap:7px;color:var(--gold-bright,#f0c060);font-weight:600;cursor:pointer}
+.sun-recipe .sun-charm{display:inline-flex;align-items:center;gap:7px;color:var(--gold-bright,#f0c060);font-weight:700;cursor:pointer;font-family:var(--serif-display,serif);font-size:15px;letter-spacing:.01em}
 .sun-recipe .sun-charm:hover{text-decoration:underline}
 .sun-pill{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:2px 7px;border-radius:20px;border:1px solid currentColor;white-space:nowrap}
 .sun-recipe .sun-chev{margin-left:auto;opacity:.55;font-size:12px;transition:transform .15s}
@@ -12321,10 +12331,16 @@ function renderSunderRecipes(){
     const attr = s.n.replace(/"/g,'&quot;');
     const pill = _SUN_IMM[s.el] || 'imm-phys';
     const shardIng = s.shards.map((sh) => _sunIng(sh, true)).join('<span class="sun-plus">+</span>');
-    return `<details class="sun-recipe" data-charm="${attr}">
+    const cc = (typeof SUNDER_CHARMS !== 'undefined') ? (SUNDER_CHARMS.find(c => c.n === s.n) || {}) : {};
+    const emoji = cc.emoji || '🔮';
+    const best = cc.build ? (cc.star ? '⭐ ' + cc.build : cc.build) : s.best;
+    return `<details class="sun-recipe sun-tile" data-charm="${attr}">
       <summary>
-        <span class="sun-charm" data-arttip="${attr}" onclick="event.preventDefault();event.stopPropagation();window.openDrop('${esc}')" title="open ${attr} card">${nameLogo(s.n)}${s.n} &rarr;</span>
-        <span class="sun-pill ${pill}">breaks ${s.breaks}</span>
+        <span class="sun-tile-emblem" data-arttip="${attr}">${artOr(s.n, '<span class="ct-emoji">'+emoji+'</span>', 'lg')}</span>
+        <span class="sun-tile-id">
+          <span class="sun-charm" data-arttip="${attr}" onclick="event.preventDefault();event.stopPropagation();window.openDrop('${esc}')" title="open ${attr} ID card">${s.n}</span>
+          <span class="sun-tile-meta"><span class="sun-pill ${pill}">breaks ${s.breaks}</span><span class="sun-tile-best">best for ${best}</span></span>
+        </span>
         <span class="sun-chev" aria-hidden="true">▾</span>
       </summary>
       <div class="sun-body">
