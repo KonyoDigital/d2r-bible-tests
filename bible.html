@@ -5480,8 +5480,14 @@ const SUNDER_CHARMS = [
 window.SUNDER_CHARMS = SUNDER_CHARMS;
 function isSunderAggregate(name){ const q=_norm(name); return q==='sunder charms'||q==='sunder charm'||q==='sunders'; }
 window.isSunderAggregate = isSunderAggregate;
+// v283: per-element coloring for the Sunder charm names, matching the in-game damage colors
+// (Cold = ice blue, Fire = red, Lightning = yellow, Poison = green, Physical = white, Magic = violet).
+function _sunElColor(elem){
+  return ({Physical:'#dcdcdc', Magic:'#b98be8', Lightning:'#ffe04d', Cold:'#74b6ff', Fire:'#ff7a45', Poison:'#7ad17a'})[elem] || 'var(--uber)';
+}
+window._sunElColor = _sunElColor;
 function sunderCharmsDetailHtml(embedded){
-  const tiles = SUNDER_CHARMS.map(s=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${s.n} ID card" onclick="window.openDrop('${_esc1(s.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(s.n)}')}"><span class="ct-art">${artOr(s.n, '<span class="ct-emoji">'+s.emoji+'</span>', 'lg')}</span><div class="ct-body"><div class="ct-name">${s.n}</div><div class="ct-sub">${s.elem} · best for ${s.star?'⭐ '+s.build:s.build}</div></div></div>`).join('');
+  const tiles = SUNDER_CHARMS.map(s=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${s.n} ID card" onclick="window.openDrop('${_esc1(s.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(s.n)}')}" style="border-left:3px solid ${_sunElColor(s.elem)}"><span class="ct-art">${artOr(s.n, '<span class="ct-emoji">'+s.emoji+'</span>', 'lg')}</span><div class="ct-body"><div class="ct-name" style="color:${_sunElColor(s.elem)}">${s.n}</div><div class="ct-sub">${s.elem} · best for ${s.star?'⭐ '+s.build:s.build}</div></div></div>`).join('');
   return `<div class="gic-card material-card sunder-charms-card">
     <header class="gic-header">
       ${artOr('Sunder Charms', '<span class="gic-emoji">💠</span>', 'lg')}
