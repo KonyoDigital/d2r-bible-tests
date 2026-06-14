@@ -1250,9 +1250,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
 .rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
 /* ── v272: EXACT in-game STASH-TAB skeleton (rune + gem) — rigid fixed grid, beveled metal slots, framed panel ── */
-/* RUNES: fixed 10-wide grid (matches the in-game Runes tab), every rune always shown, empty fillers complete the rectangle */
-.rune-stash-grid{display:grid!important;grid-template-columns:repeat(10,1fr)!important;gap:3px!important;margin:10px 0;padding:11px;background:linear-gradient(180deg,#15120c,#0b0905 70%);border:2px solid #322a1a;border-radius:5px;box-shadow:inset 0 0 30px rgba(0,0,0,.85),inset 0 1px 0 rgba(150,120,70,.12),0 2px 9px rgba(0,0,0,.5)}
-@media(max-width:600px){.rune-stash-grid{grid-template-columns:repeat(5,1fr)!important}}
+/* RUNES: fixed 9-wide grid EXACTLY matching the in-game RoW Runes tab — rows 1-3 full (El→Ohm),
+   row 4 = Lo,Sur (left) · gap · Ber,Jah (right), row 5 = Cham (left) · gap · Zod (right); gap = cube area */
+.rune-stash-grid{display:grid!important;grid-template-columns:repeat(9,1fr)!important;gap:3px!important;margin:10px 0;padding:11px;background:linear-gradient(180deg,#15120c,#0b0905 70%);border:2px solid #322a1a;border-radius:5px;box-shadow:inset 0 0 30px rgba(0,0,0,.85),inset 0 1px 0 rgba(150,120,70,.12),0 2px 9px rgba(0,0,0,.5)}
+.rs-gap{aspect-ratio:1;background:transparent;border:none;box-shadow:none;pointer-events:none}
 .rune-stash-cell.rs-slot,.gem-cell.gem-slot,.rs-empty{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;gap:0;padding:0;border-radius:2px;border:1px solid #000;background:linear-gradient(135deg,#1b1610,#0e0a06);box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),inset -1px -1px 1px rgba(125,98,55,.13);cursor:pointer;transition:border-color .12s,box-shadow .12s}
 .rs-empty{cursor:default;background:linear-gradient(135deg,#120e09,#090705);box-shadow:inset 1px 1px 3px rgba(0,0,0,.92),inset -1px -1px 1px rgba(90,70,40,.07)}
 .rune-stash-cell.rs-slot.rs-has,.gem-cell.gem-slot.gem-has{background:linear-gradient(135deg,#2d2214,#17110a);border-color:#4a3a1d}
@@ -11603,7 +11604,22 @@ function renderRuneStash(){
   if (sel && !sel.options.length){
     sel.innerHTML = RUNES.map((r, i) => `<option value="${i}"${r.n === 'Vex' ? ' selected' : ''}>${r.n}</option>`).join('');
   }
-  grid.innerHTML = RUNES.map((r) => {
+  // EXACT in-game RoW Runes-tab skeleton: 9 columns × 5 rows. 1 = rune slot, 0 = panel gap (the
+  // central Horadric-cube area). Runes drop into the slots in canonical El→Zod order, reading
+  // left→right / top→bottom and skipping the gaps — reproducing rows 1-3 full, row 4 Lo,Sur·gap·Ber,Jah,
+  // row 5 Cham·gap·Zod. (33 slots = RUNES.length; the mask is asserted below so it can't silently drift.)
+  const RUNE_MASK = [
+    [1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1],
+    [1,1,0,0,0,0,0,1,1],
+    [1,0,0,0,0,0,0,0,1],
+  ];
+  let ri = 0;
+  const cellFor = (filled) => {
+    if (!filled) return '<div class="rs-gap" aria-hidden="true"></div>';
+    const r = RUNES[ri++];
+    if (!r) return '<div class="rs-gap" aria-hidden="true"></div>';
     const c = _runeCount(r.n);
     const esc = r.n.replace(/'/g, "\\'");
     return `<div class="rune-stash-cell rs-slot rs-${r.tier}${c > 0 ? ' rs-has' : ''}" data-rune="${r.n}" data-arttip="${r.n}" onclick="window.adjustRuneStash('${esc}',1)" oncontextmenu="event.preventDefault();window.adjustRuneStash('${esc}',-1)" title="${r.n} rune — click +1 · right-click −1">
@@ -11612,7 +11628,8 @@ function renderRuneStash(){
       <button class="rs-btn rs-minus" onclick="event.stopPropagation();window.adjustRuneStash('${esc}',-1)" title="remove one ${r.n}" aria-label="minus ${r.n}">−</button>
       <span class="rs-count" data-rune-count="${r.n}">${c}</span>
     </div>`;
-  }).join('') + Array(((10 - (RUNES.length % 10)) % 10)).fill('<div class="rs-empty" aria-hidden="true"></div>').join('');
+  };
+  grid.innerHTML = RUNE_MASK.map((row) => row.map(cellFor).join('')).join('');
   const total = RUNES.reduce((a, r) => a + _runeCount(r.n), 0);
   const totalEl = document.getElementById('rune-stash-total');
   if (totalEl) totalEl.textContent = total === 1 ? '1 rune tallied' : `${total} runes tallied`;
