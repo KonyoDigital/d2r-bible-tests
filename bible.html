@@ -3544,6 +3544,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <span class="rs-chevron" aria-hidden="true">▾</span>
     </div>
     <div class="boss-body">
+      <div class="rs-ai-row" style="margin:0 0 12px">
+        <button class="rs-ai-btn" onclick="document.getElementById('set-intake-file').click()" title="1 screenshot of your set items (stash/inventory) → the AI checks off the pieces you own in the tracker">📸 AI intake — 1 photo checks off the set pieces you own</button>
+        <input type="file" id="set-intake-file" accept="image/*" multiple style="display:none" onchange="window.setIntake(this.files)">
+      </div>
+      <div id="set-intake-report" hidden class="rs-ai-report" style="margin:0 0 12px"></div>
       <div class="set-tracker" id="set-tracker"></div>
     </div>
   </div>
@@ -11299,6 +11304,57 @@ function toggleSetPiece(piece) {
   renderSetTracker();
 }
 window.toggleSetPiece = toggleSetPiece;
+
+// v259: 1-photo AI set-piece intake — screenshot your set items → Claude reads the
+// names → each recognised piece is checked off in the tracker (the setPieces Set).
+window.setIntake = async function(files){
+  var report = document.getElementById('set-intake-report');
+  if (!files || !files.length) return;
+  if (report){ report.hidden=false; report.innerHTML='📸 reading your set items — the AI is checking the tracker…'; }
+  function downscale(file){
+    return new Promise(function(resolve, reject){
+      var img=new Image(), url=URL.createObjectURL(file);
+      img.onload=function(){
+        var MAX=1568, scale=Math.min(1, MAX/Math.max(img.width,img.height));
+        var c=document.createElement('canvas');
+        c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg',0.85).split(',')[1]);
+      };
+      img.onerror=reject; img.src=url;
+    });
+  }
+  // base-name vocab + base→full-piece map (setPieces keys are the full "Name (slot)" strings)
+  var baseToPiece={}, vocab=[];
+  try { __allSets().forEach(function(st){ (st.pieces||[]).forEach(function(p){ var i=p.indexOf(' ('); var b=(i>=0?p.slice(0,i):p); baseToPiece[b.toLowerCase()]=p; vocab.push(b); }); }); } catch(e){}
+  var marked=[], errors=0;
+  for (var i=0;i<files.length;i++){
+    try{
+      var b64=await downscale(files[i]);
+      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      // items mode (reads NAMES from tooltips), not tally — a set piece is owned-or-not
+      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab})});
+      if(!resp.ok){ errors++; continue; }
+      var data=await resp.json();
+      (data.items||[]).forEach(function(n){
+        var piece = baseToPiece[String(n).toLowerCase().trim()];
+        if(piece && !setPieces.has(piece)){ setPieces.add(piece); marked.push(piece); }
+      });
+    }catch(e){ errors++; }
+  }
+  persist(); renderSetTracker();
+  if (report){
+    if (marked.length){
+      report.innerHTML='🪄 <strong>checked off '+marked.length+' set piece'+(marked.length===1?'':'s')+'</strong>: '
+        + marked.sort().map(function(k){return '<span style="color:var(--best,#66ff88)">'+k+'</span>';}).join(' · ')
+        + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Reads item NAMES from tooltips — for best results, screenshot with an item’s hover-tooltip open. Click any piece to toggle it manually.</div>';
+    } else {
+      report.innerHTML='No set pieces recognised'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Tip: this reads NAMES, so a shot with the item’s hover-tooltip open works best (artwork alone isn’t enough).';
+    }
+  }
+};
 
 const RUNE_SOURCES = [
   {
