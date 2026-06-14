@@ -8350,6 +8350,8 @@ const D2IO_ART = {
   "Rainbow Facet: Poison Level-up": "art/jewel04_graphic.png",
   "Rainbow Facet: Poison Death": "art/jewel04_graphic.png"
 };
+// v258: art file is present but was never mapped — wire it so the set tracker shows it
+if (!Object.prototype.hasOwnProperty.call(D2IO_ART, "Griswold's Redemption")) D2IO_ART["Griswold's Redemption"] = 'art/griswoldsredemption_graphic.png';
 window.D2IO_ART = D2IO_ART;
 function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
 window.artUrl = artUrl;
@@ -11239,6 +11241,22 @@ function renderTzZones() {
   el.innerHTML = html;
 }
 
+// v258: a slot-appropriate emoji fallback for set pieces whose art file we don't have
+// yet (diablo2.io bot-guards server fetches — those 14 need the browser fetcher). Shows
+// the real art when present, a 💍/📿/🥾… glyph by slot otherwise — never a blank.
+function _setSlotGlyph(p){
+  const m = /\(([^)]+)\)\s*$/.exec(p); const slot = m ? m[1].toLowerCase() : '';
+  if (/ring/.test(slot)) return '💍';
+  if (/amulet/.test(slot)) return '📿';
+  if (/helm|mask|circlet|crown|cap|visage|coif|diadem/.test(slot)) return '⛑️';
+  if (/shield|guard/.test(slot)) return '🛡️';
+  if (/armor|chainmail|plate|mail|body|skin|hide/.test(slot)) return '🥋';
+  if (/glove|gauntlet|cuff|gage/.test(slot)) return '🧤';
+  if (/boot|greave|sabot|pillar|advance/.test(slot)) return '🥾';
+  if (/belt|cord|sash|girdle|detail/.test(slot)) return '🔗';
+  if (/sword|axe|mace|hammer|scepter|rod|staff|spear|polearm|club|wand|orb|blade|charge|guardian|crusher|sickle/.test(slot)) return '⚔️';
+  return '🗡️';
+}
 function renderSetTracker() {
   const el = document.getElementById('set-tracker');
   if (!el) return;
@@ -11251,7 +11269,7 @@ function renderSetTracker() {
       const _b = _i >= 0 ? p.slice(0, _i) : p;            // strip the "(slot)" suffix -> base item name
       const _bAttr = _b.replace(/"/g, '&quot;');
       // set pieces have no individual openDrop card, so art-logo + hover-popup only (no dead route)
-      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}">${nameLogo(_b)}${p}</span>`;
+      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}">${artOr(_b, _setSlotGlyph(p), 'sm')} ${p}</span>`;
       return `<div class="set-piece ${setPieces.has(p)?'checked':''}" onclick="toggleSetPiece('${esc}')">
         <span class="set-piece-box"></span>
         ${_nm}
