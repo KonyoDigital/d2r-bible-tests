@@ -16742,8 +16742,10 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 /* fullscreen replica: the floating enlarged-art popup goes BIG */
 html.vd-lock #arttip{z-index:2147483000 !important}
 html.vd-lock #arttip.tip-art{padding:14px;border-width:2px}
-html.vd-lock #arttip.tip-art .d2art-img,html.vd-lock #arttip.tip-art img{width:auto !important;height:48vh !important;max-width:44vw !important;max-height:48vh !important;object-fit:contain;image-rendering:pixelated}
-.vd-item .d2art-wrap .d2art-img,.vd-item .d2art-wrap.sm .d2art-img,.vd-item .d2art-wrap.lg .d2art-img{width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;min-width:0;min-height:0;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 2px 6px rgba(0,0,0,.8))}
+/* v249: HD rendering — smooth high-quality upscaling (was pixelated → blocky on the
+   ~112px source) + a vividness pass so item art reads rich + defined, not jagged. */
+html.vd-lock #arttip.tip-art .d2art-img,html.vd-lock #arttip.tip-art img{width:auto !important;height:48vh !important;max-width:44vw !important;max-height:48vh !important;object-fit:contain;image-rendering:auto;filter:saturate(1.12) contrast(1.06) brightness(1.02) drop-shadow(0 6px 18px rgba(0,0,0,.7))}
+.vd-item .d2art-wrap .d2art-img,.vd-item .d2art-wrap.sm .d2art-img,.vd-item .d2art-wrap.lg .d2art-img{width:100% !important;height:100% !important;max-width:100% !important;max-height:100% !important;min-width:0;min-height:0;object-fit:contain;image-rendering:auto;filter:saturate(1.14) contrast(1.07) brightness(1.03) drop-shadow(0 2px 7px rgba(0,0,0,.85))}
 .vd-overflow{margin-top:10px;padding:9px 12px;border-left:3px solid var(--hell,#ff4040);background:rgba(255,64,64,.06);font-size:12px;border-radius:0 8px 8px 0}
 .vd-list{margin-top:12px;columns:2;column-gap:22px;font-size:11.5px;color:var(--text-muted,#b5a48a)}
 .vd-list div{break-inside:avoid;padding:2px 0}
