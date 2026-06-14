@@ -16694,6 +16694,18 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-cell{width:auto;height:auto;background:linear-gradient(135deg,#171008,#0d0904);border:1px solid rgba(212,168,71,.12);border-radius:2px}
 .vd-item{position:absolute;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,rgba(58,44,22,.92),rgba(34,24,12,.96));border:1px solid rgba(240,192,96,.55);border-radius:3px;cursor:pointer;overflow:hidden;box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 8px rgba(212,168,71,.12);transition:all .15s}
 .vd-item:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 16px rgba(212,168,71,.4);z-index:3}
+/* v243: rarity-framed inventory cells — the D2/Maxroll inventory look. Border + halo
+   keyed to item rarity; hover intensifies the same color so the cell ignites. */
+.vd-item.vd-r-unique{border-color:rgba(212,168,71,.85);box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 12px rgba(212,168,71,.30)}
+.vd-item.vd-r-set{border-color:rgba(102,255,136,.78);box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 12px rgba(102,255,136,.28)}
+.vd-item.vd-r-rw,.vd-item.vd-r-rune{border-color:rgba(255,170,70,.8);box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 12px rgba(255,150,50,.28)}
+.vd-item.vd-r-magic{border-color:rgba(122,162,255,.78);box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 12px rgba(122,162,255,.26)}
+.vd-item.vd-r-rare{border-color:rgba(255,235,90,.78);box-shadow:inset 0 0 8px rgba(0,0,0,.6),0 0 12px rgba(255,235,90,.26)}
+.vd-item.vd-r-unique:hover{border-color:#f0c060;box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 20px rgba(212,168,71,.55);z-index:3}
+.vd-item.vd-r-set:hover{border-color:#8dffb0;box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 20px rgba(102,255,136,.5);z-index:3}
+.vd-item.vd-r-rw:hover,.vd-item.vd-r-rune:hover{border-color:#ffb05a;box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 20px rgba(255,150,50,.5);z-index:3}
+.vd-item.vd-r-magic:hover{border-color:#9cbcff;box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 20px rgba(122,162,255,.48);z-index:3}
+.vd-item.vd-r-rare:hover{border-color:#fff07a;box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 20px rgba(255,235,90,.48);z-index:3}
 .vd-item .d2art-wrap.sm,.vd-item .d2art-wrap.lg{width:94%;height:94%;min-width:0;min-height:0}
 .vd-item .d2art-fallback{font-size:clamp(18px,3vh,34px)}
 .vd-item .d2art-wrap{pointer-events:auto;cursor:zoom-in;width:94%;height:94%;display:flex;align-items:center;justify-content:center}
@@ -17085,7 +17097,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function gridHtml(placed, gw, gh, cell){
     var cells=''; for (var i=0;i<gw*gh;i++) cells+='<div class="vd-cell"></div>';
     var blocks=placed.map(function(p){
-      return '<div class="vd-item" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+esc(p.n)+' ('+p.w+'×'+p.h+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')+'</div>';
+      var _vr=(window._artRarity?window._artRarity(p.n):'');
+      return '<div class="vd-item'+(_vr?' vd-r-'+_vr:'')+'" style="left:'+(3+p.x*(cell+2))+'px;top:'+(3+p.y*(cell+2))+'px;width:'+(p.w*cell+(p.w-1)*2)+'px;height:'+(p.h*cell+(p.h-1)*2)+'px" title="'+esc(p.n)+' ('+p.w+'×'+p.h+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')+'</div>';
     }).join('');
     return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px">'+cells+blocks+'</div>';
   }
