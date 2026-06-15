@@ -14371,6 +14371,36 @@ renderAllRunewords();
 renderGemStash();
 renderHoradricRecipes();
 renderCraftWorkshop();
+// v305: give the high-value reference items base-type artwork (artOr like every other card),
+// reusing existing self-hosted art. Profiles share a representative base image; bases/types
+// without a local image keep their rarity emoji until their graphic is fetched (browser grabber).
+(function _wireExtraItemArt(){
+  if (typeof D2IO_ART === 'undefined' || typeof EXTRA_ITEMS === 'undefined') return;
+  var baseArt = {
+    // existing self-hosted base art
+    'Ring':'art/ring1_graphic.png', 'Jewel':'art/jewel02_graphic.png',
+    'Grand Charm':'art/largecharm01_graphic.png', 'Small Charm':'art/bluecharm_graphic.png',
+    'Circlet':'art/tiara_graphic.png', 'Mace':'art/maul_graphic.png',
+    'Helm':'art/fangedhelm_graphic.png', 'Body Armor':'art/balrogskin_graphic.png',
+    // pre-wired — light up the moment the d2r_art_hvf grabber drops base_<type>.png into art/
+    'Amulet':'art/base_amulet.png', 'Sword':'art/base_sword.png', 'Polearm':'art/base_polearm.png',
+    'Shield':'art/base_shield.png', 'Gloves':'art/base_gloves.png', 'Boots':'art/base_boots.png',
+    'Axe':'art/base_axe.png', 'Bow':'art/base_bow.png', 'Belt':'art/base_belt.png', 'Spear':'art/base_spear.png'
+  };
+  // top-tier uniques → their own graphic (pre-wired; grabber saves <slug>.png into art/)
+  var uniqArt = { "The Grandfather":'art/grandfather.png', "The Cranium Basher":'art/craniumbasher.png',
+    "Fleshripper":'art/fleshripper.png', "Arioc's Needle":'art/ariocsneedle.png', "Flamebellow":'art/flamebellow.png',
+    "Gimmershred":'art/gimmershred.png', "Lacerator":'art/lacerator.png', "Baranar's Star":'art/baranarsstar.png',
+    "Bloodmoon":'art/bloodmoon.png', "Cranebeak":'art/cranebeak.png' };
+  try { Object.keys(EXTRA_ITEMS).forEach(function(n){
+    if (D2IO_ART[n]) return;  // already wired (Nord's, etc.)
+    if (uniqArt[n]) { D2IO_ART[n] = uniqArt[n]; return; }
+    var e = EXTRA_ITEMS[n];
+    var b = e.base || (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[n] && ITEM_TIP[n].b) || '';
+    if (b === 'Diadem') { D2IO_ART[n] = 'art/diadem_graphic.png'; return; }
+    if (baseArt[b]) D2IO_ART[n] = baseArt[b];
+  }); } catch(e){}
+})();
 renderHighValueFinds();
 renderStatueTracker();
 renderMaterialStash();
