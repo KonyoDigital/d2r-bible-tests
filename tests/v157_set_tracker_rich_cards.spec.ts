@@ -56,7 +56,7 @@ test.describe('v157 set-tracker cards mirror the rich gradient-header first-glan
         emblemIsSibling: emblem.parentElement === header && !name.contains(emblem),
       };
     });
-    expect(r.nameColor).toBe('rgb(240, 192, 96)');   // --gold-bright
+    expect(r.nameColor).toBe('rgb(0, 255, 0)');   // v321: set-card-name = --q-set (in-game green)
     expect(r.hasGradient).toBe(true);
     expect(r.nameResolves).toBe(true);               // first card is a codex-backed set → titleName clean
     expect(r.emblemIsSibling).toBe(true);            // emblem outside .set-card-name (no titleName pollution)
