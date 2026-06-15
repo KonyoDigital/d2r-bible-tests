@@ -8792,6 +8792,13 @@ function _artRarity(name){
       else if (x === 'rare') r = 'rare';
       else if (x === 'runeword') r = 'rw';
     }
+    // v309: High-Value Finds reference items carry their own rarity — sync the
+    // floating-tip frame + name colour to the in-game quality (unique gold, rare
+    // yellow, magic blue, crafted orange, basic white) exactly like everywhere else.
+    if (!r && typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]){
+      var ex = String(EXTRA_ITEMS[name].rarity || '').toLowerCase();
+      r = (ex === 'crafted') ? 'crafted' : (ex === 'basic') ? 'basic' : ex;
+    }
     if (!r && typeof findRuneword === 'function' && findRuneword(name)) r = 'rw';
     if (!r && /\bRune\b/.test(name)) r = 'rune';
     if (!r && typeof findSetPiece === 'function' && findSetPiece(name)) r = 'set';
@@ -9234,21 +9241,21 @@ const EXTRA_ITEMS = {
   "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). Chase <b>+2 skills / 20% FCR / life / res</b> — top rolls beat most unique amulets. Your exact rolls are on the item." },
   "Blood Gyre":        { rarity:'rare', cat:'Rare jewelry', desc:"A rare item — rares roll 3–6 random affixes from their base's pool. Judge it by the affixes shown on the item; the value lives in the right combo (skills/FCR/leech/res/life for jewelry)." },
   // ── top-tier "what to look for" profiles (researched from D2R trade/shop values) ──
-  "Godly Caster Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'≈ Jah rune', desc:"The caster jackpot: <b>+2 to your class's skills + 20% Faster Cast Rate</b> + life + all-resist (+mana). Out-classes Mara's Kaleidoscope; top rolls trade around a <b>Jah rune</b>. +2 / 10% FCR with life+res is still excellent." },
-  "Godly Sorceress Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high (HR+)', desc:"<b>+3 Sorceress Skills</b> + 10–20% FCR + life + resists — the dream sorc neck, beats most uniques for a caster." },
-  "Godly Necromancer Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Necromancer Skills</b> + FCR + life/res — summoner/poison caster ceiling." },
-  "Caster Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid–high', desc:"Rings can't roll +class skills, so the ceiling is <b>10% FCR + +mana + life + a resist + dual-leech</b>. A clean FCR caster ring frees an amulet slot." },
-  "Dual-Leech Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"<b>Life Stolen + Mana Stolen per hit</b> + Attack Rating + life + resist — the melee/zealer ring." },
-  "Stat / Leech Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"+life, all-resist, +stats and dual-leech — a clean filler rare ring that upgrades over most unique rings short of SoJ / Bul-Kathos." },
-  "Godly Rare Jewel (40 ED / 15 IAS)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 50 Ist', desc:"The best rare jewel: <b>40% Enhanced Damage + 15% Increased Attack Speed</b> in one socket. The single most valuable jewel roll." },
+  "Godly Caster Amulet (rare)": { stats:["+2 to Your Class Skills","+10-20% Faster Cast Rate","+to Life","All Resistances +","+to Mana"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'≈ Jah rune', beats:"Mara's Kaleidoscope", desc:"The caster jackpot: <b>+2 to your class's skills + 20% Faster Cast Rate</b> + life + all-resist (+mana). Out-classes Mara's Kaleidoscope; top rolls trade around a <b>Jah rune</b>. +2 / 10% FCR with life+res is still excellent." },
+  "Godly Sorceress Amulet (rare)": { stats:["+3 to Sorceress Skills","+10-20% Faster Cast Rate","+to Life","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high (HR+)', beats:'most unique caster amulets', desc:"<b>+3 Sorceress Skills</b> + 10–20% FCR + life + resists — the dream sorc neck, beats most uniques for a caster." },
+  "Godly Necromancer Amulet (rare)": { stats:["+3 to Necromancer Skills","+Faster Cast Rate","+to Life","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Necromancer Skills</b> + FCR + life/res — summoner/poison caster ceiling." },
+  "Caster Ring (rare)": { stats:["+10% Faster Cast Rate","+to Mana","+to Life","All Resistances +","Mana/Life Stolen Per Hit"], rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid–high', desc:"Rings can't roll +class skills, so the ceiling is <b>10% FCR + +mana + life + a resist + dual-leech</b>. A clean FCR caster ring frees an amulet slot." },
+  "Dual-Leech Ring (rare)": { stats:["X% Life Stolen Per Hit","X% Mana Stolen Per Hit","+to Attack Rating","+to Life","+to a Resistance"], rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"<b>Life Stolen + Mana Stolen per hit</b> + Attack Rating + life + resist — the melee/zealer ring." },
+  "Stat / Leech Ring (rare)": { stats:["+to Life","All Resistances +","+to Strength / Dexterity","Mana/Life Stolen Per Hit"], rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"+life, all-resist, +stats and dual-leech — a clean filler rare ring that upgrades over most unique rings short of SoJ / Bul-Kathos." },
+  "Godly Rare Jewel (40 ED / 15 IAS)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 50 Ist', beats:'every other jewel', desc:"The best rare jewel: <b>40% Enhanced Damage + 15% Increased Attack Speed</b> in one socket. The single most valuable jewel roll." },
   "Rare Jewel (40 ED / 9 stat)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 7 Ist', desc:"<b>40% ED + 9 to a stat</b> (Str/Dex) — top-tier filler for any socketed weapon/armor." },
   "Rare Jewel (15 IAS / −15 Req)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid', desc:"<b>15% IAS + −15% Requirements</b> — slots into runeword/socket bases to drop their strength/dex needs." },
   "Element Jewel (high % / ED)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid', desc:"High single-element damage % (cold/fire/light) + ED/IAS — facet-adjacent for elemental builds." },
-  "Crafted Caster Amulet (jackpot)": { rarity:'crafted', base:'Amulet', cat:'Crafted', val:'high', desc:"Perfect-Amethyst craft: <b>guaranteed FCR + mana</b>, then can roll +2–3 skills / life / resist. A jackpot crafted amulet beats unique necks." },
-  "Crafted Blood Ring (jackpot)": { rarity:'crafted', base:'Ring', cat:'Crafted', val:'mid–high', desc:"Perfect-Ruby craft: <b>life-leech + life guaranteed</b>; rolls Deadly Strike / dual-leech / AR. A melee ring that can beat Raven Frost on damage." },
-  "Crafted Caster Ring (jackpot)": { rarity:'crafted', base:'Ring', cat:'Crafted', val:'mid', desc:"Perfect-Amethyst craft: <b>FCR + mana guaranteed</b>; rolls life / resist / leech — the caster FCR ring." },
-  "Crafted Hit Power Gloves (jackpot)": { rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', desc:"Perfect-Sapphire craft: rolls <b>IAS + +skills + life/res</b> + Frost-Nova-when-struck. A jackpot beats many unique gloves." },
-  "Crafted Blood Gloves (jackpot)": { rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', desc:"Perfect-Ruby craft: <b>leech + IAS + +life + Crushing Blow</b> — melee glove ceiling." },
+  "Crafted Caster Amulet (jackpot)": { stats:["+5-10% Faster Cast Rate (guaranteed)","Regenerate Mana / +Mana (guaranteed)","+1-3 to Skills (rolled)","+to Life / Resists (rolled)"], rarity:'crafted', base:'Amulet', cat:'Crafted', val:'high', beats:'unique caster amulets', desc:"Perfect-Amethyst craft: <b>guaranteed FCR + mana</b>, then can roll +2–3 skills / life / resist. A jackpot crafted amulet beats unique necks." },
+  "Crafted Blood Ring (jackpot)": { stats:["Life Stolen Per Hit (guaranteed)","+to Life (guaranteed)","Deadly Strike / dual-leech (rolled)","+Attack Rating (rolled)"], rarity:'crafted', base:'Ring', cat:'Crafted', val:'mid–high', beats:'Raven Frost (on damage)', desc:"Perfect-Ruby craft: <b>life-leech + life guaranteed</b>; rolls Deadly Strike / dual-leech / AR. A melee ring that can beat Raven Frost on damage." },
+  "Crafted Caster Ring (jackpot)": { stats:["+Faster Cast Rate (guaranteed)","+to Mana (guaranteed)","+to Life / Resists (rolled)"], rarity:'crafted', base:'Ring', cat:'Crafted', val:'mid', desc:"Perfect-Amethyst craft: <b>FCR + mana guaranteed</b>; rolls life / resist / leech — the caster FCR ring." },
+  "Crafted Hit Power Gloves (jackpot)": { stats:["+20% Increased Attack Speed (rolled)","+to Skills (rolled)","5% CtC Lvl 4 Frost Nova when struck","+to Life / Resists (rolled)"], rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', beats:'many unique gloves', desc:"Perfect-Sapphire craft: rolls <b>IAS + +skills + life/res</b> + Frost-Nova-when-struck. A jackpot beats many unique gloves." },
+  "Crafted Blood Gloves (jackpot)": { stats:["Life Stolen Per Hit (guaranteed)","+20% Increased Attack Speed (rolled)","10% Chance of Crushing Blow (rolled)","+to Life (rolled)"], rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', desc:"Perfect-Ruby craft: <b>leech + IAS + +life + Crushing Blow</b> — melee glove ceiling." },
   "Eth Thresher (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'high (eth)', desc:"The best <b>Insight</b> merc base — lowest strength of the 4-socket polearms, high damage. Ethereal = ~10% more damage and the merc never breaks it." },
   "Eth Cryptic Axe (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'≈ 2–3 Ist (eth)', desc:"Premium <b>Insight / Infinity</b> base — high damage 4-socket polearm. Eth Cryptic Axe trades ≈ 2–3 Ist." },
   "Eth Colossus Voulge (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'≈ 2–3 Ist (eth)', desc:"<b>Insight</b> base — top raw damage 4-socket polearm; eth ≈ 2–3 Ist." },
@@ -9261,22 +9268,22 @@ const EXTRA_ITEMS = {
   "4-socket Monarch (Spirit base)": { rarity:'basic', base:'Shield', cat:'Runeword bases', val:'mid', desc:"The <b>Spirit</b> shield base — needs exactly <b>4 sockets</b>; lowest-strength elite shield. The 4os roll is the value." },
   "4-socket Crystal Sword (Spirit base)": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'low–mid', desc:"The budget <b>Spirit</b> sword base — 4 sockets, very low requirements; the standard early-caster weapon." },
   "Eth Bone Visage (caster helm base)": { rarity:'basic', base:'Helm', cat:'Runeword bases', val:'mid (eth)', desc:"Necro/caster elite helm base for runewords; eth for defense." },
-  "Godly Circlet (rare/magic)": { rarity:'magic', base:'Circlet', cat:'Rare jewelry', val:'mid–high', desc:"A circlet with <b>+2 skills / FCR / resists / sockets</b> can rival or beat unique helms for casters — and it can roll +class skills that most helms can't." },
+  "Godly Circlet (rare/magic)": { stats:["+2 to Skills","+Faster Cast Rate","All Resistances +","2 Sockets"], rarity:'magic', base:'Circlet', cat:'Rare jewelry', val:'mid–high', desc:"A circlet with <b>+2 skills / FCR / resists / sockets</b> can rival or beat unique helms for casters — and it can roll +class skills that most helms can't." },
   "+1 Skiller Grand Charm": { rarity:'magic', base:'Grand Charm', cat:'Charms', val:'high (per skiller)', desc:"<b>+1 to one of your class's skill tabs</b> + 30–45 life or Faster Hit Recovery. A full inventory of class skillers is the endgame charm grail." },
   "Godly Small Charm (res/life/FRW)": { rarity:'magic', base:'Small Charm', cat:'Charms', val:'mid', desc:"<b>20 life / all-resist / 5% Faster Run-Walk</b> small charms — the inventory fillers every build wants; a 'shimmering of life/FRW' SC stacks." },
   // ── v302 expansion: more best-of-the-best profiles ──
-  "Godly Druid Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Druid Skills</b> + FCR + life + resists — the wind/fire druid neck that beats most unique amulets." },
-  "Godly Paladin Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Paladin Skills</b> + FCR/FHR + resists — hammerdin/caster paladin ceiling." },
-  "Godly Amazon Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'mid–high', desc:"<b>+3 Bow/Javelin Skills</b> + life + IAS-adjacent + resists for a bowzon/javazon." },
-  "Godly Barbarian Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'mid–high', desc:"<b>+3 Barbarian Skills</b> + life + FHR + resists — warcry/combat barb neck." },
-  "Godly Assassin Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Assassin Skills</b> + FCR (trapper) or IAS (MA) + life + resists." },
-  "Caster Boots (rare)": { rarity:'rare', base:'Boots', cat:'Rare jewelry', val:'mid', desc:"<b>+30% Faster Run-Walk + all-resist + life + Faster Hit Recovery</b> — rare boots beat most uniques except Sandstorm/War Traveler for casters." },
-  "Caster Belt (rare)": { rarity:'rare', base:'Belt', cat:'Rare jewelry', val:'mid', desc:"<b>+life + all-resist + FHR + stats</b> on a 16-slot belt — a clean rare belt rivals Arachnid/Verdungo for a budget caster." },
-  "Melee Gloves (rare)": { rarity:'rare', base:'Gloves', cat:'Rare jewelry', val:'mid', desc:"<b>20% IAS + dual-leech + +life + Attack Rating</b> — rare gloves can match Laying of Hands for a non-elemental zealer." },
+  "Godly Druid Amulet (rare)": { stats:["+3 to Druid Skills","+Faster Cast Rate","+to Life","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Druid Skills</b> + FCR + life + resists — the wind/fire druid neck that beats most unique amulets." },
+  "Godly Paladin Amulet (rare)": { stats:["+3 to Paladin Skills","+Faster Cast / Hit Recovery","+to Life","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Paladin Skills</b> + FCR/FHR + resists — hammerdin/caster paladin ceiling." },
+  "Godly Amazon Amulet (rare)": { stats:["+3 to Bow / Javelin Skills","+to Life","+Increased Attack Speed","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'mid–high', desc:"<b>+3 Bow/Javelin Skills</b> + life + IAS-adjacent + resists for a bowzon/javazon." },
+  "Godly Barbarian Amulet (rare)": { stats:["+3 to Barbarian Skills","+to Life","+Faster Hit Recovery","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'mid–high', desc:"<b>+3 Barbarian Skills</b> + life + FHR + resists — warcry/combat barb neck." },
+  "Godly Assassin Amulet (rare)": { stats:["+3 to Assassin Skills","+Faster Cast Rate","+to Life","All Resistances +"], rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Assassin Skills</b> + FCR (trapper) or IAS (MA) + life + resists." },
+  "Caster Boots (rare)": { stats:["+30% Faster Run/Walk","All Resistances +","+to Life","+10% Faster Hit Recovery"], rarity:'rare', base:'Boots', cat:'Rare jewelry', val:'mid', desc:"<b>+30% Faster Run-Walk + all-resist + life + Faster Hit Recovery</b> — rare boots beat most uniques except Sandstorm/War Traveler for casters." },
+  "Caster Belt (rare)": { stats:["+to Life","All Resistances +","+10% Faster Hit Recovery","+to Stats"], rarity:'rare', base:'Belt', cat:'Rare jewelry', val:'mid', beats:'Arachnid / Verdungo', desc:"<b>+life + all-resist + FHR + stats</b> on a 16-slot belt — a clean rare belt rivals Arachnid/Verdungo for a budget caster." },
+  "Melee Gloves (rare)": { stats:["+20% Increased Attack Speed","3-5% Life Stolen Per Hit","10% Chance of Crushing Blow","+10-20 to Life","+to a Resistance"], rarity:'rare', base:'Gloves', cat:'Rare jewelry', val:'mid', beats:'Laying of Hands', desc:"<b>20% IAS + dual-leech + +life + Attack Rating</b> — rare gloves can match Laying of Hands for a non-elemental zealer." },
   "Rare Jewel (40 ED / 38 Life)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid–high', desc:"<b>40% Enhanced Damage + ~38 to Life</b> in one socket — top damage-and-survivability jewel." },
   "Resist Jewel (rare)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid', desc:"High single-resist or two-resist + ED jewel — slots into shields/armor to cap resistances cheaply." },
   "Crafted Safety Gloves (jackpot)": { rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', desc:"Perfect-Emerald craft: guaranteed Damage/Magic-Damage Reduced; rolls IAS + resist + life — survivability glove." },
-  "Crafted Caster Gloves (jackpot)": { rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid–high', desc:"Perfect-Amethyst craft: FCR + mana guaranteed; rolls +2 skills / life / resist — caster glove that can beat Magefist + Frostburn combined." },
+  "Crafted Caster Gloves (jackpot)": { stats:["+Faster Cast Rate (guaranteed)","+to Mana (guaranteed)","+2 to Skills (rolled)","+to Life / Resists (rolled)"], rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid–high', beats:'Magefist + Frostburn (combined)', desc:"Perfect-Amethyst craft: FCR + mana guaranteed; rolls +2 skills / life / resist — caster glove that can beat Magefist + Frostburn combined." },
   "Crafted Blood Amulet (jackpot)": { rarity:'crafted', base:'Amulet', cat:'Crafted', val:'mid', desc:"Perfect-Ruby craft: leech + life guaranteed; rolls +skills / Deadly Strike for a melee neck." },
   "Eth Great Poleaxe (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'mid (eth)', desc:"A high-damage 4-socket <b>Insight</b> polearm base; eth for the merc's Meditation aura weapon." },
   "Eth Giant Thresher (Infinity base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'high (eth)', desc:"Top-tier <b>Infinity / Insight</b> base — elite 4-socket polearm; eth = max damage for a Conviction merc." },
@@ -9337,6 +9344,13 @@ const EXTRA_ITEMS = {
   "Baranar's Star": { rarity:'unique', cat:'Uniques', val:'mid' },
   "Bloodmoon": { rarity:'unique', cat:'Uniques', val:'mid' },
   "Cranebeak": { rarity:'unique', cat:'Uniques', val:'mid' },
+  // ── v309: tooltip-style example items from Konyo's screenshots (the crafted orange is the priority) ──
+  "Dire Hand (Crafted Blood Gloves)": { stats:["+20% Increased Attack Speed","3% Life Stolen Per Hit","+10% Chance of Crushing Blow","+20 to Life","Fire / Cold / Poison Resist +30%"], rarity:'crafted', base:'Vampirebone Gloves', req:57, cat:'Crafted', val:'high', beats:'most unique gloves (melee)', desc:"The crafted-glove jackpot — a Perfect-Ruby <b>Blood</b> craft on elite Vampirebone Gloves (“Dire Hand” is the auto-generated crafted name). <b>Life-leech + life are guaranteed</b>; a godly roll adds <b>20% IAS + 10% Crushing Blow + triple resists</b>. That combo (IAS + leech + Crushing Blow + res) out-classes most unique gloves for a melee / zealer build — exactly the kind of crafted <b>orange</b> item to chase." },
+  "Chromatic Amulet (+30 all res, magic)": { stats:["All Resistances +30"], rarity:'magic', base:'Amulet', req:41, cat:'Rare jewelry', val:'low–mid', desc:"A clean magic amulet with the <b>Chromatic</b> prefix maxed — <b>All Resistances +30</b> in one neck slot. The cheapest way to plug a big resist hole; a budget stand-in until you find a +skills / FCR rare or Mara's." },
+  "Jeweler's Dusk Shroud of Stability (4os caster armor)": { stats:["Socketed (4) — “Jeweler's” prefix","“of Stability” — +Enhanced Defense","— filled with godly rare jewels →","+45% Increased Attack Speed","+24% Faster Hit Recovery","+9 to Dexterity"], rarity:'magic', base:'Dusk Shroud', req:58, cat:'Runeword bases', val:'mid–high', desc:"A magic <b>Jeweler's</b> (max-socket) Dusk Shroud — the lightest caster body — rolled with <b>4 sockets + “of Stability” ED</b>, then filled with godly rare jewels for IAS / FHR / +stats. A 4-socket magic base like this is a premium runeword shell OR a jewel-stuffed end-game armor in its own right." },
+  "Jeweler's Diadem of Speed (3os circlet)": { stats:["Socketed (3) — “Jeweler's” prefix","“of Speed” — +30% Faster Run/Walk","— filled with godly rare jewels →","+45% Increased Attack Speed","+120% Enhanced Damage"], rarity:'magic', base:'Diadem', req:64, cat:'Runeword bases', val:'mid–high', desc:"A magic <b>Jeweler's</b> Diadem (the top circlet base) with <b>3 sockets + “of Speed” FRW</b>, jewel-stuffed for IAS + ED. Circlets keep their magic affixes AND carry 3 jewels — a godly socketed Diadem rivals unique helms for a melee build." },
+  "Godly Leech Ring (rare)": { stats:["+9 to Minimum Damage","+120 to Attack Rating","8% Life Stolen Per Hit","+20 to Strength","Fire / Cold / Lightning / Poison Resist +"], rarity:'rare', base:'Ring', req:66, cat:'Rare jewelry', val:'mid', beats:'most unique rings (short of Raven Frost / SoJ)', desc:"The melee all-rounder rare ring — <b>life-leech + big Attack Rating + min damage + 20 Strength + multi-resist</b>. A clean roll like this beats most unique rings short of Raven Frost / SoJ for a physical build." },
+  "Superior Phase Blade (4× Shael, max-IAS base)": { stats:["+110% Increased Attack Speed (4× Shael)","+15% Enhanced Damage (superior)","+3 to Attack Rating","All Resistances +30 (res jewels)","Indestructible · Socketed"], rarity:'basic', base:'Phase Blade', req:54, cat:'Runeword bases', val:'mid', desc:"A budget max-attack-speed weapon — a <b>Superior</b> (extra ED) Phase Blade socketed with <b>4 Shael runes</b> for ~110% IAS, indestructible and very low strength. The poor-man's Grief base: hit the top IAS breakpoint cheaply, then add res / ED jewels in the spare sockets." },
 };
 window.EXTRA_ITEMS = EXTRA_ITEMS;
 // kept for back-compat: the unique-only name list (some call sites use it)
@@ -9353,6 +9367,40 @@ window.findExtraUnique = findExtraItem; // alias
 var _Q_HEX = { unique:'#c7b377', rare:'#ffff64', magic:'#6969ff', crafted:'#ffa800', set:'#00ff00', basic:'#cfcfcf' };
 var _Q_BADGE = { unique:'linear-gradient(135deg,#c7b377,#5c4a23)', rare:'linear-gradient(135deg,#caca4f,#5c5c1e)', magic:'linear-gradient(135deg,#6969ff,#26267a)', crafted:'linear-gradient(135deg,#ffa800,#6e4900)', basic:'linear-gradient(135deg,#cfcfcf,#5a5a5a)' };
 var _Q_LABEL = { basic:'Base item' };
+// v309: "🔨 How to craft it" — for crafted reference cards, derive the exact Horadric Cube
+// recipe (rune + perfect gem + magic base + jewel) from the SAME CRAFTS data the Workshop
+// uses, so each orange "beats-the-system" caster/blood card teaches how to make it. Rune +
+// gem are clickable (route to their own card) and carry in-game art on hover.
+function _extraCraftRecipeHtml(name, e){
+  if (!e || e.rarity !== 'crafted' || typeof CRAFTS === 'undefined' || typeof _CRAFT_INDEX === 'undefined') return '';
+  var lc = String(name).toLowerCase();
+  var craft = null;
+  ['Hit Power','Caster','Blood','Safety'].forEach(function(k){ if (!craft && lc.indexOf(k.toLowerCase()) >= 0) craft = _CRAFT_INDEX[k.toLowerCase()]; });
+  if (!craft) return '';
+  var slot = null;
+  (typeof CRAFT_SLOTS !== 'undefined' ? CRAFT_SLOTS : []).forEach(function(s){ if (lc.indexOf(s.toLowerCase()) >= 0 && (!slot || s.length > slot.length)) slot = s; });
+  if (!slot || !craft.slots[slot]) return '';
+  var sl = craft.slots[slot];
+  var ic = function(nm, glyph){ return (typeof artOr === 'function') ? artOr(nm, '<span class="ecr-glyph">' + glyph + '</span>', 'sm') : glyph; };
+  function ing(nm, glyph, routable){
+    var esc = String(nm).replace(/'/g, "\\'");
+    var attrs = routable ? ' data-arttip="' + nm + '" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" style="cursor:pointer"' : '';
+    return '<span class="ecr-ing"' + attrs + '>' + ic(nm, glyph) + '<span class="ecr-ing-t">' + nm + '</span></span>';
+  }
+  var plus = '<span class="ecr-plus">+</span>';
+  var formula = ing(sl.rune, '🔣', true) + plus + ing(craft.gem, '💎', true)
+    + plus + '<span class="ecr-ing ecr-base"><span class="ecr-glyph">🧩</span><span class="ecr-ing-t">a MAGIC ' + slot + '</span></span>'
+    + plus + '<span class="ecr-ing"><span class="ecr-glyph">💠</span><span class="ecr-ing-t">any Jewel</span></span>';
+  var mods = (craft.mods || []).map(function(m){ return '<li>' + m + '</li>'; }).join('');
+  return '<section class="gic-section ecr-section">'
+    + '<div class="gic-section-title">🔨 How to craft it <span class="ecr-cube">Horadric Cube</span></div>'
+    + '<div class="ecr-formula">' + formula + '</div>'
+    + '<div class="ecr-yield">→ a <b style="color:' + craft.color + '">' + craft.key + '</b>-crafted <b>' + slot + '</b> · the 3 craft mods below are <b>guaranteed</b>, the rest roll random</div>'
+    + '<div class="ecr-guar"><div class="ecr-guar-h">always rolls</div><ul>' + mods + '</ul></div>'
+    + '<div class="ecr-note">Magic base options: <b>' + sl.base + '</b>. Re-craft until you hit the godly affixes above.' + (craft.konyo ? ' <span class="ecr-konyo">' + craft.konyo + '</span>' : '') + '</div>'
+    + '</section>';
+}
+window._extraCraftRecipeHtml = _extraCraftRecipeHtml;
 // Self-contained reference ID card (gic-card). Uniques show fixed ITEM_TIP stats; magic/rare/
 // crafted show a general affix-pool description (rolls are random, so judge the actual item).
 function extraItemDetailHtml(name){
@@ -9361,7 +9409,8 @@ function extraItemDetailHtml(name){
   var col = _Q_HEX[rar] || '#c7b377'; var badgeBg = _Q_BADGE[rar] || _Q_BADGE.unique;
   var tip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[key] : null;
   var base = e.base || (tip && tip.b) || '';
-  var sub = (base ? base : rar.charAt(0).toUpperCase()+rar.slice(1)) + (tip && tip.r != null ? ' · req level ' + tip.r : '');
+  var reqLvl = (tip && tip.r != null) ? tip.r : (e.req != null ? e.req : null);
+  var sub = (base ? base : rar.charAt(0).toUpperCase()+rar.slice(1)) + (reqLvl != null ? ' · req level ' + reqLvl : '');
   var rollLine = rar === 'magic' ? '1–2 random affixes (one prefix and/or one suffix)'
     : rar === 'crafted' ? '3 fixed mods + 1–4 random affixes'
     : rar === 'basic' ? 'no magic affixes — value = base type + socket count + ethereal'
@@ -9370,19 +9419,32 @@ function extraItemDetailHtml(name){
   if (rar === 'unique' && tip && typeof _itemTipHtml === 'function'){
     body = '<div class="att-rich extra-item-stats">' + _itemTipHtml(tip) + '</div>';
   } else {
-    body = '<div class="extra-item-desc">' + (e.desc || 'A ' + rar + ' item — judge it by the affixes shown on the item.') + '</div>'
+    var statBlock = (e.stats && e.stats.length)
+      ? '<div class="att-rich extra-item-stats"><div class="att-meta">✦ ideal godly roll</div>' + e.stats.map(function(l){ return '<div class="att-aff">' + l + '</div>'; }).join('') + '</div>'
+      : '';
+    body = statBlock
+      + '<div class="extra-item-desc">' + (e.desc || 'A ' + rar + ' item — judge it by the affixes shown on the item.') + '</div>'
       + '<div class="zd-row"><span class="zd-k">rolls</span><span class="zd-v">' + rollLine + '</span></div>';
   }
   var icon = rar==='unique'?'⚔️':rar==='rare'?'🟡':rar==='magic'?'🔵':rar==='crafted'?'🟠':'⚪';
   var rarLabel = _Q_LABEL[rar] || (rar.charAt(0).toUpperCase()+rar.slice(1));
   var valChip = e.val ? '<span class="gic-meta-chip" style="color:#8ce6a6;border-color:rgba(140,230,166,.4)">💰 ' + e.val + '</span>' : '';
-  return '<div class="gic-card extra-item-card extra-unique-card" style="--cw-c:' + col + '">'
+  // v309: ⭐ star tier — an item that BEATS a named unique / runeword gets a star on the name,
+  // an upscaled glowing card, and a loud "BEATS <X>" banner so it reads as special at a glance.
+  var isStar = !!e.beats;
+  var starName = isStar ? '<span class="gic-starmark" title="elite — beats a named item">★</span> ' : '';
+  var beatsBanner = isStar
+    ? '<div class="gic-beats-banner">⭐ <b>ELITE</b> — can <b>BEAT ' + e.beats + '</b> <span class="gic-beats-sub">a top-tier find worth chasing &amp; keeping</span></div>'
+    : '';
+  return '<div class="gic-card extra-item-card extra-unique-card' + (isStar ? ' extra-star-card' : '') + '" style="--cw-c:' + col + '">'
     + '<header class="gic-header">' + artOr(key, '<span class="gic-emoji" style="color:' + col + '">' + icon + '</span>', 'lg')
-    + '<div class="gic-id-block"><h2 class="gic-name" style="color:' + col + '">' + key + ' <span class="gic-grail-badge" style="background:' + badgeBg + ';color:#1a1207">' + rarLabel + '</span></h2>'
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:' + col + '">' + starName + key + ' <span class="gic-grail-badge" style="background:' + badgeBg + ';color:#1a1207">' + rarLabel + '</span></h2>'
     + '<div class="gic-subtitle">' + sub + (e.cat ? ' · ' + e.cat : '') + '</div>'
-    + '<div class="gic-meta-row"><span class="gic-meta-chip">reference card</span>' + valChip + '<span class="gic-meta-chip" style="color:' + col + ';border-color:' + col + '55">rivals runewords / uniques</span></div></div>'
+    + '<div class="gic-meta-row"><span class="gic-meta-chip">reference card</span>' + valChip + (isStar ? '<span class="gic-meta-chip gic-star-chip">★ beats ' + e.beats + '</span>' : '<span class="gic-meta-chip" style="color:' + col + ';border-color:' + col + '55">rivals runewords / uniques</span>') + '</div></div>'
     + '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div></header>'
+    + beatsBanner
     + '<section class="gic-section"><div class="gic-section-title">📜 ' + (rar === 'unique' ? 'In-game stats' : 'What makes it godly') + '</div>' + body + '</section>'
+    + _extraCraftRecipeHtml(key, e)
     + '<div class="zd-note">A best-of-the-best item that rivals runewords / uniques — shown as a reference card, outside the curated 312-item boss-drop grail (so no drop-odds row). The Vault logs your actual finds on intake. The list grows as we identify more.</div>'
     + '</div>';
 }
@@ -9397,18 +9459,23 @@ function renderHighValueFinds(){
   var groups = {};
   keys.forEach(function(n){
     var e = EXTRA_ITEMS[n]; var cat = e.cat || 'Other';
-    var hay = (n + ' ' + (e.base || '') + ' ' + (e.desc || '') + ' ' + cat + ' ' + (e.rarity || '') + ' ' + (e.val || '')).toLowerCase();
+    var hay = (n + ' ' + (e.base || '') + ' ' + (e.desc || '') + ' ' + cat + ' ' + (e.rarity || '') + ' ' + (e.val || '') + ' ' + (e.beats ? 'star ⭐ beats ' + e.beats : '')).toLowerCase();
     if (q && hay.indexOf(q) < 0) return;
     (groups[cat] = groups[cat] || []).push(n);
   });
   var order = ['Uniques','Rare jewelry','Rare jewels','Crafted','Runeword bases','Charms','Other'];
   var shown = 0;
+  // v309: ⭐ star tier — items that BEAT a named unique / runeword float to the top of
+  // their category, render upscaled with a star + a "beats X" chip (Konyo's emphasis ask).
   var html = order.filter(function(c){ return groups[c]; }).map(function(cat){
+    groups[cat].sort(function(a,b){ return (EXTRA_ITEMS[b].beats?1:0) - (EXTRA_ITEMS[a].beats?1:0); });
     var rows = groups[cat].map(function(n){
       var e = EXTRA_ITEMS[n]; var col = _Q_HEX[e.rarity] || '#c7b377'; shown++;
       var esc = n.replace(/'/g, "\\'");
-      return '<div class="hvf-row" data-arttip="' + n + '" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" onkeydown="if(event.key===\'Enter\'){window.openDrop&&window.openDrop(\'' + esc + '\')}" title="open ' + n + '">'
-        + '<span class="hvf-name" style="color:' + col + '">' + (typeof nameLogo === 'function' ? nameLogo(n) : '') + n + '</span>'
+      var star = e.beats ? ' hvf-star' : '';
+      return '<div class="hvf-row' + star + '" data-arttip="' + n + '" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" onkeydown="if(event.key===\'Enter\'){window.openDrop&&window.openDrop(\'' + esc + '\')}" title="open ' + n + '">'
+        + '<span class="hvf-name" style="color:' + col + '">' + (e.beats ? '<span class="hvf-starmark" title="beats ' + e.beats.replace(/"/g,'') + '">★</span> ' : '') + (typeof nameLogo === 'function' ? nameLogo(n) : '') + n + '</span>'
+        + (e.beats ? '<span class="hvf-beats">beats ' + e.beats + '</span>' : '')
         + '<span class="hvf-base">' + (e.base || (e.rarity || '')) + '</span>'
         + (e.val ? '<span class="hvf-val">💰 ' + e.val + '</span>' : '') + '</div>';
     }).join('');
@@ -13517,9 +13584,13 @@ function _extraTipHtml(nm){
   var rar = e.rarity || 'rare';
   var rarLabel = (typeof _Q_LABEL !== 'undefined' && _Q_LABEL[rar]) ? _Q_LABEL[rar] : (rar.charAt(0).toUpperCase() + rar.slice(1));
   var roll = rar === 'magic' ? '1–2 random affixes' : rar === 'crafted' ? '3 fixed mods + 1–4 random' : rar === 'basic' ? 'base item — value = type + sockets + ethereal' : '3–6 random affixes';
-  return '<div class="att-type">' + rarLabel + (e.base ? ' &middot; ' + e.base : '') + '</div>'
+  var statLines = (e.stats && e.stats.length) ? e.stats.map(function(l){ return '<div class="att-aff">' + l + '</div>'; }).join('') : '';
+  var beatsLine = e.beats ? '<div class="att-beats">★ ELITE — beats ' + e.beats + '</div>' : '';
+  return '<div class="att-type">' + rarLabel + (e.base ? ' &middot; ' + e.base : '') + (e.req != null ? ' &middot; req ' + e.req : '') + '</div>'
     + (e.cat ? '<div class="att-meta">' + e.cat + (e.val ? ' &middot; 💰 ' + e.val : '') + '</div>' : (e.val ? '<div class="att-meta">💰 ' + e.val + '</div>' : ''))
-    + (e.desc ? '<div class="att-aff">' + e.desc + '</div>' : '')
+    + beatsLine
+    + statLines
+    + (e.desc && !statLines ? '<div class="att-aff">' + e.desc + '</div>' : '')
     + '<div class="att-tag">rolls: ' + roll + '</div>'
     + '<div class="att-info">Best-of-the-best — rivals runewords / uniques. Outside the 312 grail.</div>';
 }
@@ -13535,6 +13606,10 @@ window._extraTipHtml = _extraTipHtml;
     if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div><div class="att-desc"></div>'; document.body.appendChild(tip); }
     if (!tip.querySelector('.att-desc')){ var dd=document.createElement('div'); dd.className='att-desc'; tip.appendChild(dd); }
     var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), desc = tip.querySelector('.att-desc'), cur = null;
+    // v309: a missing/blocked art file must never show the browser's broken-image box in
+    // the floating tip — hide the <img> on error (the ID-card surface already falls back to
+    // the rarity glyph; this gives the popup the same grace).
+    img.addEventListener('error', function(){ img.style.display = 'none'; });
     function nameOf(el){
       var n = el.getAttribute('data-arttip') || el.getAttribute('data-art-logo') || el.getAttribute('data-vault-item');
       if (n) return n;
@@ -13547,7 +13622,7 @@ window._extraTipHtml = _extraTipHtml;
     }
     // v238: rarity-frame the floating card (gold unique / green set / orange RW · rune / blue magic)
     function setTipR(name){
-      tip.classList.remove('tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune');
+      tip.classList.remove('tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune','tip-r-crafted','tip-r-basic');
       var rc = (typeof _artRarity==='function') ? _artRarity(name) : '';
       if (rc) tip.classList.add('tip-r-'+rc);
     }
@@ -14405,29 +14480,53 @@ renderCraftWorkshop();
 // without a local image keep their rarity emoji until their graphic is fetched (browser grabber).
 (function _wireExtraItemArt(){
   if (typeof D2IO_ART === 'undefined' || typeof EXTRA_ITEMS === 'undefined') return;
-  var baseArt = {
-    // existing self-hosted base art
-    'Ring':'art/ring1_graphic.png', 'Jewel':'art/jewel02_graphic.png',
-    'Grand Charm':'art/largecharm01_graphic.png', 'Small Charm':'art/bluecharm_graphic.png',
-    'Circlet':'art/tiara_graphic.png', 'Mace':'art/maul_graphic.png',
-    'Helm':'art/fangedhelm_graphic.png', 'Body Armor':'art/balrogskin_graphic.png',
-    // pre-wired — light up the moment the d2r_art_hvf grabber drops base_<type>.png into art/
-    'Amulet':'art/base_amulet.png', 'Sword':'art/base_sword.png', 'Polearm':'art/base_polearm.png',
-    'Shield':'art/base_shield.png', 'Gloves':'art/base_gloves.png', 'Boots':'art/base_boots.png',
-    'Axe':'art/base_axe.png', 'Bow':'art/base_bow.png', 'Belt':'art/base_belt.png', 'Spear':'art/base_spear.png'
+  // v309: every reference item now shows a REAL self-hosted base-type picture (no more
+  // broken-image boxes). Ordered keyword → existing local art file; first match wins, so
+  // "Vampirebone Gloves" → gloves, "Dusk Shroud" → body armor, "Phase Blade" → sword, etc.
+  // Each file is verified present in art/ (no base_*.png placeholders that 404).
+  var ART = {
+    gloves:'art/leathergloves_graphic.png', boots:'art/leatherboots_graphic.png', belt:'art/belt_graphic.png',
+    ring:'art/ring1_graphic.png', amulet:'art/amu1_graphic.png', jewel:'art/jewel02_graphic.png',
+    grandcharm:'art/largecharm01_graphic.png', smallcharm:'art/bluecharm_graphic.png',
+    diadem:'art/diadem_graphic.png', circlet:'art/tiara_graphic.png', helm:'art/fangedhelm_graphic.png',
+    body:'art/balrogskin_graphic.png', shield:'art/rondache_graphic.png',
+    sword:'art/swordguard_graphic.png', axe:'art/broadaxe_graphic.png', mace:'art/maul_graphic.png',
+    polearm:'art/poleaxe_graphic.png', spear:'art/poleaxe_graphic.png', bow:'art/longbattlebow_graphic.png'
   };
-  // top-tier uniques → their own graphic (pre-wired; grabber saves <slug>.png into art/)
-  var uniqArt = { "The Grandfather":'art/grandfather.png', "The Cranium Basher":'art/craniumbasher.png',
-    "Fleshripper":'art/fleshripper.png', "Arioc's Needle":'art/ariocsneedle.png', "Flamebellow":'art/flamebellow.png',
-    "Gimmershred":'art/gimmershred.png', "Lacerator":'art/lacerator.png', "Baranar's Star":'art/baranarsstar.png',
-    "Bloodmoon":'art/bloodmoon.png', "Cranebeak":'art/cranebeak.png' };
+  // ordered [needle, artKey] — first substring hit wins (specific before generic)
+  var RULES = [
+    ['small charm','smallcharm'], ['grand charm','grandcharm'], ['skiller','grandcharm'], ['charm','grandcharm'],
+    ['gloves','gloves'], ['glove','gloves'], ['boots','boots'], ['boot','boots'], ['belt','belt'],
+    ['amulet','amulet'], ['ring','ring'],
+    ['diadem','diadem'], ['tiara','circlet'], ['coronet','circlet'], ['circlet','circlet'],
+    ['visage','helm'], ['crown','helm'], ["arreat",'helm'], ['face','helm'], ['helm','helm'],
+    ['shroud','body'], ['archon plate','body'], ['armor','body'], ['plate','body'], ['skin','body'],
+    ['fleece','body'], ['hide','body'], ['shell','body'], ['wyrmhide','body'], ['lacquered','body'],
+    ['monarch','shield'], ['targe','shield'], ['rondache','shield'], ['troll nest','shield'],
+    ['blade barrier','shield'], ['aegis','shield'], ['hyperion','shield'], ['shield','shield'],
+    ['phase blade','sword'], ['crystal sword','sword'], ['colossus blade','sword'], ['balrog blade','sword'],
+    ['cryptic sword','sword'], ['long sword','sword'], ['broad sword','sword'], ['fanged knife','sword'],
+    ['thresher','polearm'], ['voulge','polearm'], ['poleaxe','polearm'], ['war pike','polearm'],
+    ['great poleaxe','polearm'], ['giant thresher','polearm'], ['polearm','polearm'],
+    ['ghost spear','spear'], ['hyperion spear','spear'], ['needle','spear'], ['spear','spear'],
+    ['matron bow','bow'], ['ward bow','bow'], ['grand matron','bow'], ['bow','bow'],
+    ['berserker axe','axe'], ['ettin axe','axe'], ['flying axe','axe'], ['winged axe','axe'],
+    ['thunder maul','mace'], ['ogre maul','mace'], ['devil star','mace'], ['crescent moon','mace'],
+    ['flail','mace'], ['maul','mace'], ['mace','mace'], ["baranar's star",'mace'],
+    ['blade','sword'], ['sword','sword'], ['axe','axe'], ['star','mace'],
+    // jewels last — "Jeweler's" prefix on socketed gear would otherwise hijack diadems/armor
+    ['facet','jewel'], ['jewel','jewel']
+  ];
+  function resolve(n, e){
+    var b = (e.base || (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[n] && ITEM_TIP[n].b) || '');
+    var hay = (b + ' ' + n).toLowerCase();
+    for (var i=0;i<RULES.length;i++){ if (hay.indexOf(RULES[i][0]) >= 0) return ART[RULES[i][1]]; }
+    return '';
+  }
   try { Object.keys(EXTRA_ITEMS).forEach(function(n){
     if (D2IO_ART[n]) return;  // already wired (Nord's, etc.)
-    if (uniqArt[n]) { D2IO_ART[n] = uniqArt[n]; return; }
-    var e = EXTRA_ITEMS[n];
-    var b = e.base || (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[n] && ITEM_TIP[n].b) || '';
-    if (b === 'Diadem') { D2IO_ART[n] = 'art/diadem_graphic.png'; return; }
-    if (baseArt[b]) D2IO_ART[n] = baseArt[b];
+    var u = resolve(n, EXTRA_ITEMS[n]);
+    if (u) D2IO_ART[n] = u;
   }); } catch(e){}
 })();
 renderHighValueFinds();
@@ -18045,10 +18144,47 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 #arttip.tip-r-rare{border-color:rgba(255,235,90,.88);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(255,235,90,.3)}
 #arttip.tip-r-rw{border-color:rgba(255,170,70,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 27px rgba(255,170,70,.34)}
 #arttip.tip-r-rune{border-color:rgba(255,150,50,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 27px rgba(255,150,50,.36)}
-#arttip.tip-r-set .att-name{color:#7dff9d}
-#arttip.tip-r-magic .att-name{color:#9fb8ff}
-#arttip.tip-r-rare .att-name{color:#ffef6a}
+#arttip.tip-r-crafted{border-color:rgba(255,168,0,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(255,168,0,.34)}
+#arttip.tip-r-basic{border-color:rgba(207,207,207,.7);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 22px rgba(207,207,207,.22)}
+/* v309: floating-tip item NAME painted in the EXACT in-game quality colour — synced with
+   the ID-card name and the Vault chips so a rare reads yellow, a set green, a unique gold,
+   a magic blue, a crafted orange, a base white. Same palette across the entire platform. */
+#arttip.tip-r-unique .att-name{color:#c7b377}
+#arttip.tip-r-set .att-name{color:#00ff00}
+#arttip.tip-r-magic .att-name{color:#6f6fff}
+#arttip.tip-r-rare .att-name{color:#ffff64}
+#arttip.tip-r-crafted .att-name{color:#ffa800}
+#arttip.tip-r-basic .att-name{color:#cfcfcf}
 #arttip.tip-r-rw .att-name,#arttip.tip-r-rune .att-name{color:#ffc070}
+/* v309: ⭐ star-tier emphasis — items that BEAT a named unique / runeword */
+#arttip .att-beats{margin:3px 0 2px;font-family:var(--mono,monospace);font-size:10px;font-weight:700;letter-spacing:.4px;color:#ffe08a;background:linear-gradient(90deg,rgba(255,168,0,.22),rgba(255,168,0,.04));border:1px solid rgba(255,200,90,.5);border-radius:5px;padding:2px 6px}
+.hvf-row.hvf-star{background:linear-gradient(90deg,rgba(255,184,40,.10),transparent);border-left:2px solid rgba(255,196,80,.75)}
+.hvf-row.hvf-star .hvf-name{font-size:1.06em;font-weight:800;text-shadow:0 0 10px rgba(255,196,80,.28)}
+.hvf-starmark{color:#ffd23b;text-shadow:0 0 8px rgba(255,196,80,.7);margin-right:1px}
+.hvf-beats{font-family:var(--mono,monospace);font-size:10px;color:#ffe08a;background:rgba(255,168,0,.14);border:1px solid rgba(255,200,90,.42);border-radius:999px;padding:1px 8px;margin-left:6px;white-space:nowrap}
+.gic-starmark{color:#ffd23b;text-shadow:0 0 12px rgba(255,196,80,.8)}
+.extra-star-card{box-shadow:0 6px 30px rgba(0,0,0,.45),0 0 26px rgba(255,184,40,.16),inset 0 2px 0 rgba(255,196,80,.5)!important}
+.extra-star-card .gic-name{font-size:1.1em}
+.gic-beats-banner{margin:0 0 10px;padding:9px 13px;border-radius:9px;font-family:var(--mono,monospace);font-size:13px;color:#ffe6a8;background:linear-gradient(95deg,rgba(255,168,0,.20),rgba(255,168,0,.05));border:1px solid rgba(255,200,90,.55);box-shadow:0 0 18px rgba(255,184,40,.14)}
+.gic-beats-banner b{color:#ffd23b}
+.gic-beats-sub{display:block;margin-top:2px;font-size:10.5px;color:rgba(255,230,168,.62);font-weight:400;letter-spacing:.2px}
+.gic-meta-chip.gic-star-chip{color:#ffd23b;border-color:rgba(255,200,90,.6);background:rgba(255,168,0,.12)}
+/* v309: "How to craft it" recipe block on crafted reference cards */
+.ecr-section .ecr-cube{font-size:10px;font-weight:600;color:#cdbf9a;border:1px solid var(--border,#3a2f1e);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.ecr-formula{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0 8px}
+.ecr-ing{display:inline-flex;align-items:center;gap:5px;padding:4px 9px 4px 5px;border:1px solid var(--border,#3a2f1e);border-radius:9px;background:rgba(0,0,0,.25);font-size:12px;color:#e8d8b8;transition:border-color .15s,box-shadow .15s}
+.ecr-ing[role=button]:hover{border-color:rgba(212,168,71,.7);box-shadow:0 0 12px rgba(212,168,71,.2)}
+.ecr-ing.ecr-base{border-style:dashed;color:#cdbf9a}
+.ecr-ing-t{white-space:nowrap}
+.ecr-glyph{font-size:1.05em}
+.ecr-plus{color:#caa24a;font-weight:700;font-size:14px;padding:0 1px}
+.ecr-yield{font-size:12.5px;color:#d8c9a6;margin:2px 0 8px}
+.ecr-guar{margin:6px 0;padding:8px 12px;border-radius:8px;background:rgba(255,168,0,.07);border:1px solid rgba(255,200,90,.32)}
+.ecr-guar-h{font-family:var(--mono,monospace);font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#ffd23b;margin-bottom:3px}
+.ecr-guar ul{margin:0;padding-left:18px}
+.ecr-guar li{font-size:12.5px;color:#ffe6a8;line-height:1.5}
+.ecr-note{font-size:11.5px;color:rgba(232,216,184,.66);line-height:1.5;margin-top:6px}
+.ecr-konyo{display:block;margin-top:4px;color:#b9d8b2;font-style:italic}
 /* v238: item ID card (.aid-card) gets a rarity quality-strip + halo */
 .aid-card.aid-r-unique{border-color:rgba(212,168,71,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(212,168,71,.1),inset 0 3px 0 rgba(212,168,71,.6)}
 .aid-card.aid-r-set{border-color:rgba(102,255,136,.5);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(102,255,136,.09),inset 0 3px 0 rgba(102,255,136,.6)}
@@ -18158,6 +18294,9 @@ body{
 .vk-title{font-weight:700;font-size:12.5px;color:var(--gold-bright,#f0c060)}
 .vk-items{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}
 .vk-chip{font-size:11px;font-family:ui-monospace,monospace;color:#e8d8b8;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:7px;padding:1px 8px}
+/* v309: shared-stash chips are COUNTS (e.g. "229 runes"), not items — paint them a neutral
+   slate so they never read as an in-game item-quality colour (no gold/yellow/blue confusion). */
+.vk-chip.vk-chip-count{color:#9aa7b8;background:rgba(120,135,160,.10);border-color:rgba(140,155,180,.3);text-transform:uppercase;letter-spacing:.4px;font-size:10.5px}
 .vk-reason{font-size:11px;line-height:1.45;color:var(--text-dim)}
 .vault-dock{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-items:center}
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
@@ -18544,14 +18683,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }); }catch(e){}
     try{ if(typeof owned!=='undefined') ['Annihilus','Hellfire Torch',"Gheed's Fortune"].forEach(function(n){ if(owned.has(n)) charm.push(n); }); }catch(e){}
     var rows=[];
-    if(shared.length) rows.push({ic:'🏦', t:'Account-shared stash', items:shared, r:"runes, gems, essences, Worldstone shards & Colossal statues sit in your shared stash — reachable by every character instantly. A separate alt ACCOUNT can't see it, so keep them here."});
+    if(shared.length) rows.push({ic:'🏦', t:'Account-shared stash', items:shared, count:true, r:"runes, gems, essences, Worldstone shards & Colossal statues sit in your shared stash — reachable by every character instantly. A separate alt ACCOUNT can't see it, so keep them here."});
     if(charm.length) rows.push({ic:'💠', t:'Charms — keep in your inventory', items:charm, r:"Sunders, Annihilus, Torch, Gheed's & skillers only do anything in the inventory of the character you're playing — never bury them on an alt."});
     if(ingred.length) rows.push({ic:'🗝️', t:'Active cube / uber ingredients', items:ingred, r:"Pandemonium keys, uber organs, Token essences & Wirt's Leg — you need these on-hand to cube portals / a Token. Keep them reachable."});
     if(!rows.length){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false;
     el.innerHTML='<div class="vk-head">🚫 <strong>Don’t mule to your alt account</strong> — keep these on your main:</div>'
       + rows.map(function(r){ return '<div class="vk-row"><div class="vk-row-h"><span class="vk-ic">'+r.ic+'</span><span class="vk-title">'+esc(r.t)+'</span></div>'
-        + '<div class="vk-items">'+r.items.map(function(s){return '<span class="vk-chip">'+esc(s)+'</span>';}).join('')+'</div>'
+        + '<div class="vk-items">'+r.items.map(function(s){return '<span class="vk-chip'+(r.count?' vk-chip-count':'')+'">'+esc(s)+'</span>';}).join('')+'</div>'
         + '<div class="vk-reason">'+esc(r.r)+'</div></div>'; }).join('');
   }
   function renderVault(){
