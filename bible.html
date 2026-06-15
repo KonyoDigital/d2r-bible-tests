@@ -3554,6 +3554,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
+      <div id="vault-keep" class="vault-keep" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
       <div id="vault-intake-report" hidden style="margin:0 0 12px;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
@@ -18147,6 +18148,17 @@ body{
 /* dock: the unsorted pile */
 .vault-chip .vc-unown{border:none;background:none;color:var(--text-dim,#756657);cursor:pointer;font-size:11px;padding:0 2px;margin-left:2px;line-height:1}
 .vault-chip .vc-unown:hover{color:var(--hell,#ff4040)}
+.vault-keep{margin:0 0 14px;padding:11px 14px;border:1px solid rgba(255,120,120,.32);border-left:3px solid #ff7878;border-radius:11px;background:linear-gradient(135deg,rgba(255,120,120,.07),rgba(20,14,9,.3))}
+.vk-head{font-size:12.5px;color:var(--text);margin-bottom:9px}
+.vk-head strong{color:#ff9a9a}
+.vk-row{padding:7px 0;border-top:1px dotted var(--border)}
+.vk-row:first-of-type{border-top:none;padding-top:2px}
+.vk-row-h{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.vk-ic{font-size:15px}
+.vk-title{font-weight:700;font-size:12.5px;color:var(--gold-bright,#f0c060)}
+.vk-items{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}
+.vk-chip{font-size:11px;font-family:ui-monospace,monospace;color:#e8d8b8;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:7px;padding:1px 8px}
+.vk-reason{font-size:11px;line-height:1.45;color:var(--text-dim)}
 .vault-dock{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-items:center}
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
@@ -18514,6 +18526,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
 
   // ── render ──
+  // v307: the AI's "don't mule to your alt account" advisory — reads your live rune/gem/
+  // material tallies + owned charms and flags what belongs on your MAIN (a separate account
+  // can't reach your shared stash, and charms only work in your playing inventory).
+  function renderVaultKeep(){
+    var el = document.getElementById('vault-keep'); if (!el) return;
+    function sum(o){ var t=0; try{ Object.keys(o||{}).forEach(function(k){ var v=parseInt(o[k],10); if(isFinite(v)&&v>0) t+=v; }); }catch(e){} return t; }
+    var shared=[], ingred=[], charm=[];
+    var rc=(typeof runeStash!=='undefined')?sum(runeStash):0; if(rc) shared.push(rc+' rune'+(rc===1?'':'s'));
+    var gc=(typeof gemStash!=='undefined')?sum(gemStash):0; if(gc) shared.push(gc+' gem'+(gc===1?'':'s'));
+    try{ Object.keys(typeof materialStash!=='undefined'?materialStash:{}).forEach(function(k){
+      var v=parseInt(materialStash[k],10); if(!(isFinite(v)&&v>0)) return; var lk=k.toLowerCase(); var tag=k+' ×'+v;
+      if(/sunder/.test(lk)) charm.push(tag);
+      else if(/shard|statue/.test(lk)) shared.push(tag);
+      else if(/key|horn|brain|\beye\b|essence|wirt|leg/.test(lk)) ingred.push(tag);
+      else shared.push(tag);
+    }); }catch(e){}
+    try{ if(typeof owned!=='undefined') ['Annihilus','Hellfire Torch',"Gheed's Fortune"].forEach(function(n){ if(owned.has(n)) charm.push(n); }); }catch(e){}
+    var rows=[];
+    if(shared.length) rows.push({ic:'🏦', t:'Account-shared stash', items:shared, r:"runes, gems, essences, Worldstone shards & Colossal statues sit in your shared stash — reachable by every character instantly. A separate alt ACCOUNT can't see it, so keep them here."});
+    if(charm.length) rows.push({ic:'💠', t:'Charms — keep in your inventory', items:charm, r:"Sunders, Annihilus, Torch, Gheed's & skillers only do anything in the inventory of the character you're playing — never bury them on an alt."});
+    if(ingred.length) rows.push({ic:'🗝️', t:'Active cube / uber ingredients', items:ingred, r:"Pandemonium keys, uber organs, Token essences & Wirt's Leg — you need these on-hand to cube portals / a Token. Keep them reachable."});
+    if(!rows.length){ el.hidden=true; el.innerHTML=''; return; }
+    el.hidden=false;
+    el.innerHTML='<div class="vk-head">🚫 <strong>Don’t mule to your alt account</strong> — keep these on your main:</div>'
+      + rows.map(function(r){ return '<div class="vk-row"><div class="vk-row-h"><span class="vk-ic">'+r.ic+'</span><span class="vk-title">'+esc(r.t)+'</span></div>'
+        + '<div class="vk-items">'+r.items.map(function(s){return '<span class="vk-chip">'+esc(s)+'</span>';}).join('')+'</div>'
+        + '<div class="vk-reason">'+esc(r.r)+'</div></div>'; }).join('');
+  }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
@@ -18532,6 +18572,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>';
       } else { dbar.hidden=true; dbar.innerHTML=''; }
     }
+    renderVaultKeep();
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span>'
