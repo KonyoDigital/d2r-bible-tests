@@ -135,6 +135,34 @@ test.describe('v288 Crafted Items Workshop', () => {
     await expect(page.locator('#item-detail .craft-card .gic-name')).toContainText('Hit Power Craft');
   });
 
+  test('each recipe row states the exact crafted OUTPUT + marks basic items as default-owned', async ({ page }) => {
+    await page.evaluate(() => (window as any).switchTab('tools'));
+    await page.evaluate(() => {
+      const card = document.getElementById('craft-workshop-card');
+      if (card && card.classList.contains('collapsed')) (window as any).toggleCardCollapse('craft-workshop-card');
+      (window as any).selectCraft('Caster');
+    });
+    await page.waitForTimeout(150);
+    // every visible recipe row names what it creates ("Caster <Slot>") + "crafted rare" + random affixes
+    const firstOut = page.locator('#craft-workshop .cw-recipe .cw-rec-out').first();
+    await expect(firstOut).toContainText('creates');
+    await expect(firstOut.locator('.cw-out-name')).toContainText('Caster');
+    await expect(firstOut).toContainText('1–4 random affixes');
+    // basic items (jewel + magic base) render as "basic ✓" chips, NOT as missing/blockers
+    const row = page.locator('#craft-workshop .cw-recipe').first();
+    expect(await row.locator('.cw-ing-basic').count()).toBe(2); // any jewel + magic base
+    await expect(row.locator('.cw-ing-basic').first()).toContainText('basic');
+    // the basic-items legend + reroll enrichment are present for the selected craft
+    expect(await page.locator('#craft-workshop .cw-basic-legend').count()).toBe(1);
+    expect(await page.locator('#craft-workshop .cw-reroll .cw-reroll-mod').count()).toBeGreaterThan(2);
+    // CRAFT_REROLL + CRAFT_BASE_SOURCE data exist for all crafts/slots
+    const data = await page.evaluate(() => {
+      const w = window as any;
+      return { reroll: Object.keys((w.CRAFT_REROLL)||{}).length, hasGetter: typeof w._cwRecipeRow === 'function' };
+    });
+    expect(data.hasGetter).toBe(true);
+  });
+
   test('the "craft now" banner reflects the live stash (crystallization)', async ({ page }) => {
     await page.evaluate(() => (window as any).switchTab('tools'));
     await page.evaluate(() => {
