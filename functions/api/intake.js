@@ -126,10 +126,11 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // Tally mode must read small printed stack-count DIGITS off each cell → HARD-PIN the stronger
-      // vision model (don't let a global env.MODEL=haiku, set for the cheap Vault item-intake, downgrade
-      // it). Items intake stays on Haiku unless env.MODEL overrides.
-      model: isTally ? 'claude-sonnet-4-6' : (env.MODEL || 'claude-haiku-4-5'),
+      // Both modes read small/stylized text off screenshots (tally = stack-count digits; items = item
+      // NAMES off tooltips) → Haiku under-reads and misses most items ("3 of 10" calibration complaints).
+      // HARD-PIN Sonnet for both so item-intake actually catches every readable name. env.MODEL can still
+      // override item-intake to a cheaper model if cost ever matters more than recall.
+      model: isTally ? 'claude-sonnet-4-6' : (env.MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },

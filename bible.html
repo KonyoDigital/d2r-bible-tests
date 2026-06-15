@@ -132,11 +132,19 @@ table.drops td.item-name{color:var(--text);font-weight:500;min-width:180px;font-
 /* in-game item-quality name colors (D2R palette): unique gold/tan, set green, rune+material orange */
 table.drops td.item-name.q-unique{color:var(--q-unique)}
 table.drops td.item-name.q-set{color:var(--q-set)}
-table.drops td.item-name.q-rune,table.drops td.item-name.q-material{color:var(--q-orange)}
+table.drops td.item-name.q-magic{color:var(--q-magic)}
+table.drops td.item-name.q-rare{color:var(--q-rare)}
+table.drops td.item-name.q-rune,table.drops td.item-name.q-material,table.drops td.item-name.q-rw,table.drops td.item-name.q-crafted{color:var(--q-orange)}
 table.ref-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:780px}
 table.ref-tbl th,table.ref-tbl td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--border)}
 table.ref-tbl th{color:var(--gold);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.6px;background:var(--surface-3);border-bottom:2px solid var(--border)}
 table.ref-tbl td.item-name{color:var(--text);font-weight:500;min-width:180px}
+/* v321: ref-tbl (merc-gear / gambling tables) had NO rarity rules — real grail items read plain cream. Tag spans q-* / _qStyle. */
+table.ref-tbl td.item-name.q-unique,table.ref-tbl td.item-name .q-unique{color:var(--q-unique)}
+table.ref-tbl td.item-name.q-set,table.ref-tbl td.item-name .q-set{color:var(--q-set)}
+table.ref-tbl td.item-name.q-magic,table.ref-tbl td.item-name .q-magic{color:var(--q-magic)}
+table.ref-tbl td.item-name.q-rare,table.ref-tbl td.item-name .q-rare{color:var(--q-rare)}
+table.ref-tbl td.item-name.q-rune,table.ref-tbl td.item-name.q-rw,table.ref-tbl td.item-name.q-crafted,table.ref-tbl td.item-name .q-rune,table.ref-tbl td.item-name .q-rw,table.ref-tbl td.item-name .q-crafted{color:var(--q-orange)}
 .star-btn{cursor:pointer;color:var(--text-dim);font-size:14px;margin-right:4px;user-select:none;transition:color .15s}
 .star-btn:hover{color:var(--star)}
 .star-btn.starred{color:var(--star)}
@@ -211,9 +219,10 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
    the left border stays TC-tier. Most grail items are unique(gold)/set(green). */
 .item-tile.it-r-unique .item-tile-name{color:var(--q-unique,#c7b377)}
 .item-tile.it-r-set .item-tile-name{color:var(--q-set,#5fe85f)}
-.item-tile.it-r-rw .item-tile-name,.item-tile.it-r-rune .item-tile-name{color:var(--rune,#ff7d3c)}
-.item-tile.it-r-magic .item-tile-name{color:#7aa2ff}
-.item-tile.it-r-rare .item-tile-name{color:#ffe35a}
+.item-tile.it-r-rw .item-tile-name,.item-tile.it-r-rune .item-tile-name,.item-tile.it-r-crafted .item-tile-name{color:var(--q-orange)}
+.item-tile.it-r-magic .item-tile-name{color:var(--q-magic)}
+.item-tile.it-r-rare .item-tile-name{color:var(--q-rare)}
+.item-tile.it-r-basic .item-tile-name{color:var(--q-normal)}
 .item-tile-grail::before,.item-tile-uber::before{position:absolute;top:6px;right:6px;font-size:7px;font-weight:600;letter-spacing:.5px}
 .item-tile-grail::before{content:"GRAIL";color:var(--grail)}
 .item-tile-uber::before{content:"UBER";color:var(--uber)}
@@ -374,10 +383,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .top-drop-row:hover{border-color:rgba(212,168,71,.5);background:linear-gradient(180deg,rgba(212,168,71,.085),rgba(0,0,0,.06));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .top-drop-rank{color:var(--gold);font-weight:700;font-size:11px;font-family:var(--mono);text-align:center;background:rgba(212,168,71,.10);border-radius:5px;padding:3px 0;letter-spacing:-.3px}
 .top-drop-name{color:var(--gold-bright);font-weight:600;letter-spacing:.2px}
-/* v242: rarity item-color in the Top-Drops grid (non-uber rows; uber keeps its terror tint).
-   unique already reads gold-bright by default; set→green, rune/material→orange. */
+/* v242/v321: rarity item-color in the Top-Drops grid (non-uber rows; uber keeps its terror tint).
+   v321 — the Mephisto Top-12 fix: uniques had NO rule and fell to the theme --gold-bright default
+   instead of in-game --q-unique. ALL rarities now covered; the render also paints _qStyle inline. */
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-unique{color:var(--q-unique)}
 .top-drop-row:not(.top-drop-uber) .top-drop-name.q-set{color:var(--q-set)}
-.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rune,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-material{color:var(--q-orange)}
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-magic{color:var(--q-magic)}
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rare{color:var(--q-rare)}
+.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rune,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-material,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-rw,.top-drop-row:not(.top-drop-uber) .top-drop-name.q-crafted{color:var(--q-orange)}
 .top-drop-uber{border-left:2px solid var(--terror)}
 .top-drop-uber .top-drop-name{color:var(--terror)}
 .top-drop-uber .top-drop-rank{color:var(--terror);background:rgba(255,0,212,.10)}
@@ -412,7 +425,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .mw-rw{display:none;grid-column:1 / -1;margin-top:8px;padding:9px 11px;background:rgba(0,0,0,.22);border-radius:7px;border:1px dashed var(--border-light)}
 .mw-row.open .mw-rw{display:block}
 .mw-rw-lbl{font-size:11px;color:var(--text-muted);font-family:var(--mono);margin-bottom:6px}
-.mw-rune-chip{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--rune);background:rgba(255,125,60,.10);border:1px solid rgba(255,125,60,.4);border-radius:5px;padding:3px 8px;margin:0 5px 5px 0;cursor:pointer;transition:background .12s,border-color .12s}
+.mw-rune-chip{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--q-orange);background:rgba(255,125,60,.10);border:1px solid rgba(255,125,60,.4);border-radius:5px;padding:3px 8px;margin:0 5px 5px 0;cursor:pointer;transition:background .12s,border-color .12s}
 .mw-rune-chip:hover,.mw-rune-chip:focus-visible{background:rgba(255,125,60,.22);border-color:var(--rune);outline:none}
 .mw-sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:10px}
 .mw-sec{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
@@ -819,9 +832,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .set-card-emblem .d2art-wrap{width:26px;height:26px}
 .set-card-emblem .d2art-img{width:26px!important;height:26px!important;object-fit:cover;border-radius:5px;vertical-align:middle}
 .set-card-title-block{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-.set-card-name{color:var(--gold-bright);font-size:13.5px;font-weight:700;margin:0}
+.set-card-name{color:var(--q-set);font-size:13.5px;font-weight:700;margin:0}/* v321: set names = in-game set green */
 .set-card-name.set-card-open{cursor:pointer;transition:color .15s}
-.set-card-name.set-card-open:hover{color:var(--gold);text-decoration:underline}
+.set-card-name.set-card-open:hover{color:var(--q-set);text-decoration:underline}
 .set-card-name .set-open-caret{font-size:10px;opacity:.55}
 .set-items-card .set-piece-tile{cursor:default}
 .set-items-card .set-bonus-row .zd-v{color:var(--best)}
@@ -1074,7 +1087,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #arttip .att-var{display:inline-block;color:#5fd35f;background:rgba(95,211,95,.1);border:1px solid rgba(95,211,95,.35);border-radius:4px;padding:0 4px;font-weight:700}
 #arttip .att-or{color:var(--gold-bright,#f0c060);font-weight:700;font-style:italic;padding:0 2px}
 #arttip .att-tag{color:#b58bd6;font-size:9px;margin-top:6px;letter-spacing:.4px}
-.rs-name{font-weight:600;font-size:12px;color:var(--text);min-width:34px}
+.rs-name{font-weight:600;font-size:12px;color:var(--q-orange);min-width:34px}/* v321: runes orange */
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
 .rs-btn:hover{background:var(--surface);border-color:var(--gold-bright)}
@@ -1172,9 +1185,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-rune{display:inline-flex;align-items:center;gap:3px}
 .arw-rune .d2art-wrap.sm{width:18px;height:18px;vertical-align:middle}
 .arw-rune .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
-.arw-rune-n{color:var(--gold-bright)}
+.arw-rune-n{color:var(--q-orange)}
 .arw-plus{color:var(--text-dim);font-size:10px;margin:0 1px}
-.arw-rune-txt{color:var(--gold-bright)}
+.arw-rune-txt{color:var(--q-orange)}
 .arw-base{font-size:11px;color:var(--text-dim);margin-left:auto;white-space:nowrap}
 /* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
 .rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
@@ -1221,7 +1234,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .hcr-arrow{color:var(--text-dim);font-weight:700}
 .hcr-out{font-weight:600;color:#bcd6ff}
 .hcr-note{flex-basis:100%;font-size:10.5px;color:var(--text-dim);font-style:italic}
-.rec-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-radius:5px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer;vertical-align:middle}
+.rec-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-radius:5px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--q-orange);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer;vertical-align:middle}
 /* v257: HD rune/gem icon in each cube-recipe ingredient chip */
 .rec-chip .d2art-wrap.sm{width:16px;height:16px}
 .rec-chip .d2art-wrap.sm .d2art-img{max-width:16px;max-height:16px}
@@ -1367,15 +1380,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-basic-tag{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-left:1px}
 .cw-rec-out{grid-area:out;font-size:11.5px;line-height:1.45;color:var(--text-muted);padding:3px 0 1px;border-top:1px dashed var(--border)}
 .cw-out-arrow{color:var(--cw-c,#f0c060);font-weight:800;font-size:13px}
-.cw-out-name{color:#ffe35a;font-weight:700}
-.cw-out-rare{font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#ffe35a;border:1px solid rgba(255,227,90,.4);border-radius:8px;padding:1px 6px}
+.cw-out-name{color:var(--q-orange);font-weight:700}/* v321: crafted item = in-game orange */
+.cw-out-rare{font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--q-orange);border:1px solid rgba(255,168,0,.4);border-radius:8px;padding:1px 6px}
 .cw-out-mods{color:var(--text)}
 .cw-out-extra{color:var(--cw-c,#f0c060);font-style:italic;opacity:.92}
 .cw-rec-base{grid-area:base;font-size:10.5px;color:var(--text-dim);line-height:1.35}
 .cw-base-src{color:var(--text-dim);opacity:.8;font-style:italic}
 .cw-output-head{font-size:12.5px;line-height:1.5;color:var(--text);margin:6px 0 8px;padding:9px 13px;border-radius:10px;border:1px solid color-mix(in srgb,var(--cw-c,#f0c060) 34%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--cw-c,#f0c060) 11%,rgba(20,16,10,.35)),rgba(12,9,5,.3))}
 .cw-output-head b{color:var(--cw-c,#f0c060)}
-.cw-out-rare-inline{color:#ffe35a!important}
+.cw-out-rare-inline{color:var(--q-orange)!important}
 .cw-g-plus{font-size:10px;font-weight:700;color:var(--cw-c,#f0c060);font-style:italic;align-self:center;opacity:.9}
 .cw-reroll{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:0 0 10px;padding:9px 13px;border-radius:10px;background:rgba(20,16,10,.4);border:1px solid var(--border)}
 .cw-reroll-lab{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
@@ -9092,7 +9105,7 @@ function renderEndgameRoad(){
   const node = (item, emoji, src, rate) =>
     '<div class="road-node" role="button" tabindex="0" onclick="window.openDrop(\'' + item.replace(/'/g, "\\'") + '\')">'
     + '<div class="rn-art">' + artOr(item, emoji, 'lg') + '</div>'
-    + '<div class="rn-name"' + (typeof _qStyle==='function'?_qStyle(item,'unique'):'') + '>' + item + '</div>'
+    + '<div class="rn-name" style="color:var(--uber) !important">' + item + '</div>'
     + '<div class="rn-src">' + src + '</div>'
     + '<div class="rn-rate">' + rate + '</div></div>';
   // Branch-title emblems — the upgraded animated art logos (relicArtGlow runs on the
@@ -9118,7 +9131,7 @@ function renderEndgameRoad(){
     + '<div class="road-cube">cube <code>Diablo\'s Horn + Mephisto\'s Brain + Baal\'s Eye</code> → the <strong>Uber Tristram</strong> red portal</div></div>'
     + '<div class="road-arrow">▼</div>'
     + '<div class="road-final" role="button" tabindex="0" onclick="window.openDrop(\'Hellfire Torch\')"><div class="rf-art">' + artOr('Hellfire Torch','🔥','lg') + '</div>'
-    + '<div><div class="rf-name"' + (typeof _qStyle==='function'?_qStyle('Hellfire Torch','unique'):'') + '>🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
+    + '<div><div class="rf-name" style="color:var(--uber) !important">🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
     + '<div class="road-section-h">Pinnacle side-paths off the same road</div>'
     + '<div class="road-branches">'
     + '<div class="road-branch endgame-relic" role="button" tabindex="0" onclick="window.openDrop(\'Annihilus\')"><h3>' + branchEmblem('diablo_graphic.png','🌑') + '<span>Diablo Clone → Annihilus</span></h3><p>A world event triggered by mass Stone of Jordan sales. Über Diablo spawns; killing him drops the <strong>Annihilus</strong> — the only small charm with +1 all skills, +10-20 all attributes, +10-20 all resist and +5-10% experience. Every kill drops one.</p></div>'
@@ -9905,7 +9918,7 @@ function renderWishlistHuntPath() {
       </div>
       <div class="wishlist-quick-add">
         <span class="wishlist-quick-add-label">Quick-add wishlist:</span>
-        ${top.map(s => `<button class="wishlist-suggest-chip" onclick="toggleStarred('${s.name.replace(/'/g, "\\'")}'); renderWishlistHuntPath(); renderHero();">+ ${s.name}${s.tier==='uber'?' ⚡':''}</button>`).join('')}
+        ${top.map(s => `<button class="wishlist-suggest-chip" onclick="toggleStarred('${s.name.replace(/'/g, "\\'")}'); renderWishlistHuntPath(); renderHero();">+ <span${s.tier==='uber'?' style="color:var(--uber) !important"':_qStyle(s.name,'unique')}>${s.name}</span>${s.tier==='uber'?' ⚡':''}</button>`).join('')}
       </div>
       </div>
     `;
@@ -9980,7 +9993,7 @@ function renderWishlistHuntPath() {
         if (h.owned) {
           return `<div class="wishlist-item" onclick="openItemDetail('${h.name.replace(/'/g, "\\'")}')" style="opacity:.5">
             <div class="wishlist-item-rank">✓ found</div>
-            <div class="wishlist-item-name">${h.name}</div>
+            <div class="wishlist-item-name"${_qStyle(h.name,'unique')}>${h.name}</div>
             <div class="wishlist-item-source" style="color:#00ffaa">already owned</div>
             <span class="wishlist-item-star" onclick="event.stopPropagation();toggleStarred('${h.name.replace(/'/g, "\\'")}');renderWishlistHuntPath();renderHero()" title="unstar">★</span>
           </div>`;
@@ -9988,7 +10001,7 @@ function renderWishlistHuntPath() {
         if (!h.best) {
           return `<div class="wishlist-item" onclick="openItemDetail('${h.name.replace(/'/g, "\\'")}')">
             <div class="wishlist-item-rank">⚠ no viable source</div>
-            <div class="wishlist-item-name">${h.name}</div>
+            <div class="wishlist-item-name"${_qStyle(h.name,'unique')}>${h.name}</div>
             <div class="wishlist-item-source">unreachable @ ${mf}% MF</div>
             <span class="wishlist-item-star" onclick="event.stopPropagation();toggleStarred('${h.name.replace(/'/g, "\\'")}');renderWishlistHuntPath();renderHero()" title="unstar">★</span>
           </div>`;
@@ -9996,7 +10009,7 @@ function renderWishlistHuntPath() {
         const rankNum = huntItems.indexOf(h) + 1 - ownedFromWishlist;
         return `<div class="wishlist-item" onclick="openItemDetail('${h.name.replace(/'/g, "\\'")}')">
           <div class="wishlist-item-rank">#${Math.max(1,rankNum)} hunt next${h.best.verified?' · 🔒':''}</div>
-          <div class="wishlist-item-name">${h.name}${h.tier==='uber'?' <span style="color:#a020c0;font-size:10px">⚡UBER</span>':''}</div>
+          <div class="wishlist-item-name"${h.tier==='uber'?' style="color:var(--uber) !important"':_qStyle(h.name,'unique')}>${h.name}${h.tier==='uber'?' <span style="color:#a020c0;font-size:10px">⚡UBER</span>':''}</div>
           <div class="wishlist-item-source">${h.best.boss}</div>
           <div class="wishlist-item-stats">${fmt(h.best.chance)} · ${fmtHours(h.best.hours)} · ${h.best.kph}/hr</div>
           <span class="wishlist-item-star" onclick="event.stopPropagation();toggleStarred('${h.name.replace(/'/g, "\\'")}');renderWishlistHuntPath();renderHero()" title="unstar">★</span>
@@ -11004,7 +11017,7 @@ function bossTopDropsHtml(boss, limit){
             const esc = d.n.replace(/'/g, "\\'");
             return `<li class="top-drop-row ${d.tier === 'uber' ? 'top-drop-uber' : ''}" onclick="navigateToItem('${esc}')" title="open ${d.n} in the calculator">
               <span class="top-drop-rank">#${i + 1}</span>
-              <span class="top-drop-name q-${itemQuality(d)}" data-arttip="${_d2artEsc(d.n)}">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
+              <span class="top-drop-name${d.tier==='uber'?'':' q-'+(_artRarity(d.n)||itemQuality(d))}" data-arttip="${_d2artEsc(d.n)}">${sym} ${nameLogo(d.n)}${d.n}${ver}</span>
               <span class="top-drop-odds">${fmt(t.best)} <span class="top-drop-diff">${diffLbl}</span></span>
               <span class="top-drop-hrs">${hrs !== null ? fmtHours(hrs) : "&mdash;"}</span>
             </li>`;
@@ -11061,7 +11074,7 @@ function renderBossCards() {
       const diffLabel = bestDiffKey.replace("Tz", " TZ").toUpperCase();
       // v26: null-guard — runsFor + hoursFor can return null when chance is unreachable/blocked
       if (r50 !== null && hrs !== null) {
-        quickTake = `<div class="quick-take">⚡ <strong>Quick take @ ${mf}% MF:</strong> Best grail = <span class="item-link">${bestRow.n}</span> at <strong>${fmt(bestChance)}</strong> (${diffLabel}) · <strong>${r50.toLocaleString()} runs</strong> ≈ <strong style="color:var(--terror)">${fmtHours(hrs)}</strong> for 50% drop at ${Math.round(boss.kph * kphMult)}/hr</div>`;
+        quickTake = `<div class="quick-take">⚡ <strong>Quick take @ ${mf}% MF:</strong> Best grail = <span class="item-link"${_qStyle(bestRow.n,'unique')}>${bestRow.n}</span> at <strong>${fmt(bestChance)}</strong> (${diffLabel}) · <strong>${r50.toLocaleString()} runs</strong> ≈ <strong style="color:var(--terror)">${fmtHours(hrs)}</strong> for 50% drop at ${Math.round(boss.kph * kphMult)}/hr</div>`;
       }
     }
 
@@ -12116,7 +12129,7 @@ function runeSourceDetailHtml(src){
       var rune=(typeof findRune==='function')?findRune(r.n):null;
       var logo=(typeof nameLogo==='function')?nameLogo(rune?rune.n:r.n):'';
       var nameCell=rune
-        ? '<td class="item-name zd-item-click" data-arttip="'+rune.n+'" style="cursor:pointer;'+(hi?'color:var(--gold-bright)':'color:var(--gold)')+'" onclick="event.stopPropagation();window.openDrop(\''+r.n.replace(/'/g,"\\'")+'\')" title="open '+rune.n+' rune card">'+logo+r.n+' →</td>'
+        ? '<td class="item-name zd-item-click" data-arttip="'+rune.n+'" style="cursor:pointer;color:var(--q-orange)" onclick="event.stopPropagation();window.openDrop(\''+r.n.replace(/'/g,"\\'")+'\')" title="open '+rune.n+' rune card">'+logo+r.n+' →</td>'
         : '<td class="item-name" style="'+(hi?'color:var(--gold-bright)':'')+'">'+logo+r.n+'</td>';
       return '<tr>'+nameCell+'<td class="diff-col">'+r.hell+'</td><td><span style="color:var(--text-dim);font-size:11px">'+(r.use||'')+'</span></td></tr>';
     }).join('');
@@ -12197,7 +12210,7 @@ function renderRuneTable() {
     return `<tr>
       ${(function(){
         const rune = (typeof findRune === 'function') ? findRune(r.n) : null;
-        const baseClr = r.n.match(/Lo|Ohm|Vex|Gul/) ? 'color:var(--gold-bright)' : '';
+        const baseClr = 'color:var(--q-orange)'; /* v321: runes = in-game orange, not theme gold */
         // bare rune name ("Lo", not "Lo #28") so the registered rune art + the floating
         // #arttip rune card both resolve; multi-rune rows (no single rune) stay plain
         const logo = (typeof nameLogo === 'function') ? nameLogo(rune ? rune.n : r.n) : '';
@@ -12303,7 +12316,7 @@ function renderRuneStash(){
     const ti = parseInt(sel.value, 10) || 0;
     const n = cubeUpPotential(ti);
     const name = RUNES[ti] ? RUNES[ti].n : '';
-    res.innerHTML = `<span class="cubeup-num">${n}×</span> <span class="zd-item-click" data-arttip="${name}" style="cursor:pointer" onclick="window.openDrop('${name.replace(/'/g,"\\'")}')" title="open ${name} rune card">${nameLogo(name)}${name}</span>`;
+    res.innerHTML = `<span class="cubeup-num">${n}×</span> <span class="zd-item-click" data-arttip="${name}" style="cursor:pointer;color:var(--q-orange)" onclick="window.openDrop('${name.replace(/'/g,"\\'")}')" title="open ${name} rune card">${nameLogo(name)}${name}</span>`;
   }
   renderRuneCraftable();
   if (typeof renderHoradricRecipes === 'function') renderHoradricRecipes();
@@ -14556,6 +14569,21 @@ renderCraftWorkshop();
     var u = resolve(n, EXTRA_ITEMS[n]);
     if (u) D2IO_ART[n] = u;
   }); } catch(e){}
+})();
+// v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
+// colour. These spans carry data-arttip with the item name but no rarity class; table.ref-tbl had
+// no q-* rules so they read plain cream. Skip any span with an intentional inline colour (uber).
+(function _wireRefTblRarity(){
+  function go(){
+    try {
+      document.querySelectorAll('table.ref-tbl td.item-name [data-arttip]').forEach(function(el){
+        if (el.style && el.style.color) return;
+        var c = (typeof _qHex==='function') ? _qHex(el.getAttribute('data-arttip')) : '';
+        if (c) el.style.color = c;
+      });
+    } catch(e){}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 renderHighValueFinds();
 renderStatueTracker();
@@ -18230,7 +18258,9 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 .aid-card.aid-r-magic .aid-item-name{color:var(--q-magic)}
 .aid-card.aid-r-rare .aid-item-name{color:var(--q-rare)}
 .aid-card.aid-r-rw .aid-item-name{color:var(--q-orange)}
-.aid-card.aid-r-rune .aid-item-name{color:var(--rune)}
+.aid-card.aid-r-rune .aid-item-name{color:var(--q-orange)}
+.aid-card.aid-r-crafted .aid-item-name{color:var(--q-orange)}
+.aid-card.aid-r-basic .aid-item-name{color:var(--q-normal)}
 /* set items route to a set card (not an aid-card) — colour its title set-green to match.
    Runeword/rune/gem cards keep their own gold/orange identity already. */
 .set-items-card .gic-name,.set-piece-card .gic-name{color:var(--q-set)}
