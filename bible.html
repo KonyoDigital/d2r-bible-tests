@@ -9190,9 +9190,9 @@ const persist = () => {
 // affix-pool description (their exact rolls live on the item, since they're random).
 const EXTRA_ITEMS = {
   "Nord's Tenderizer": { rarity:'unique' },  // fixed stats from ITEM_TIP
-  "Marshal's Amulet":  { rarity:'rare', base:'Amulet', desc:"A rare amulet — rares roll 3–6 random affixes. The amulet pool includes <b>+2–3 to a class's skills</b>, <b>+to a skill tab</b>, Faster Cast Rate, all-resistances, +life/mana and +stats. The very best rare amulets rival or beat Mara's Kaleidoscope. Your exact rolls are on the item." },
-  "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). A top roll can out-class many uniques. Your exact rolls are on the item." },
-  "Blood Gyre":        { rarity:'rare', desc:"A rare item — rares roll 3–6 random affixes from their base's pool. Judge it by the affixes shown on the item itself." },
+  "Marshal's Amulet":  { rarity:'rare', base:'Amulet', desc:"A rare amulet — rares roll 3–6 random affixes. The <b>godly</b> caster combo is <b>+2 to your class skills + 20% Faster Cast Rate</b> plus life / all-res / mana — that pairing can out-class Mara's and trades around a <b>Jah rune</b>; even +2 / 10% FCR with life+res sells well. Your exact rolls are on the item — check them against that target." },
+  "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). Chase <b>+2 skills / 20% FCR / life / res</b> — top rolls beat most unique amulets. Your exact rolls are on the item." },
+  "Blood Gyre":        { rarity:'rare', desc:"A rare item — rares roll 3–6 random affixes from their base's pool. Judge it by the affixes shown on the item; the value lives in the right combo (skills/FCR/leech/res/life for jewelry)." },
 };
 window.EXTRA_ITEMS = EXTRA_ITEMS;
 // kept for back-compat: the unique-only name list (some call sites use it)
