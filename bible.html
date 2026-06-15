@@ -18560,6 +18560,12 @@ body{
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
 .vdb-label{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.04em;color:var(--text-muted,#b5a48a)}
 .vdb-count{font-family:var(--mono,monospace);font-weight:700;font-size:11px;color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32);border-radius:20px;padding:1px 9px}
+.vdb-actions{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
+/* v327: danger button to wipe the unsorted dock — sits LEFT of the gold Auto-Sort, outlined red so it reads as destructive */
+.vault-clear-btn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:12.5px;letter-spacing:.03em;color:#ff8a8a;background:rgba(255,64,64,.08);border:1px solid rgba(255,80,80,.45);border-radius:22px;padding:7px 15px;transition:transform .14s ease,box-shadow .2s ease,background .14s ease,color .14s ease}
+.vault-clear-btn:hover{transform:translateY(-1px);background:rgba(255,64,64,.16);border-color:rgba(255,90,90,.8);color:#ffb3b3;box-shadow:0 3px 14px rgba(0,0,0,.45),0 0 16px rgba(255,64,64,.22)}
+.vault-clear-btn:active{transform:translateY(0) scale(.985)}
+.vault-clear-btn .vcb-x{font-size:14px;filter:drop-shadow(0 0 4px rgba(255,90,90,.5))}
 .vault-resort-btn{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:13px;letter-spacing:.03em;color:#1a1206;background:linear-gradient(180deg,#f3c768,#c79a3a);border:1px solid #f0d488;border-radius:22px;padding:7px 16px;box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 16px rgba(240,192,96,.22),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .14s ease,box-shadow .2s ease,filter .14s ease}
 .vault-resort-btn:hover{transform:translateY(-1px) scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.5),0 0 28px rgba(240,192,96,.5),inset 0 1px 0 rgba(255,255,255,.55);filter:brightness(1.06)}
 .vault-resort-btn:active{transform:translateY(0) scale(.985)}
@@ -19067,8 +19073,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (unsorted.length){
         dbar.hidden=false;
         dbar.innerHTML='<span class="vdb-label">🎒 Unsorted dock<span class="vdb-count">'+unsorted.length+'</span></span>'
+          +'<span class="vdb-actions">'
+          +'<button class="vault-clear-btn" onclick="window.vaultClearUnsorted()" title="Delete every UNSORTED item from the dock — items already filed in a mule are NOT touched">'
+          +'<span class="vcb-x">🗑</span><span>Delete unsorted</span></button>'
           +'<button class="vault-resort-btn" onclick="window.vaultAutoAssign()" title="Auto-Sort: send every unsorted item back to its proper mule / alt">'
-          +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>';
+          +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>'
+          +'</span>';
       } else { dbar.hidden=true; dbar.innerHTML=''; }
     }
     renderVaultKeep();
@@ -19162,6 +19172,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var n=0;
     ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } } });
     saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s'));
+  };
+  // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
+  // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
+  window.vaultClearUnsorted = function(){
+    var unsorted = ownedPool().filter(function(name){ return !assign[name]; });
+    if (!unsorted.length){ status('nothing unsorted to clear'); return; }
+    if (!confirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.')) return;
+    unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });
+    persistOwned(); saveA(); renderVault(); refreshOpenCard();
+    try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
+    status('🗑 cleared '+unsorted.length+' unsorted item'+(unsorted.length===1?'':'s')+' from the dock');
   };
   window.vaultAddMule = function(){
     var name=prompt('New mule name (this IS your in-game character name — make it say what it holds):','UNI-WEAP-2');
