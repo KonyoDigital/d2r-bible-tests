@@ -130,7 +130,7 @@ export async function onRequestPost(context) {
       // vision model (don't let a global env.MODEL=haiku, set for the cheap Vault item-intake, downgrade
       // it). Items intake stays on Haiku unless env.MODEL overrides.
       model: isTally ? 'claude-sonnet-4-6' : (env.MODEL || 'claude-haiku-4-5'),
-      max_tokens: 1024,
+      max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
       messages: [{
