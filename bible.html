@@ -1424,6 +1424,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .ir-tie{font-size:11px;line-height:1.45;color:var(--text-dim);border-top:1px dashed var(--border);padding-top:6px;margin-top:auto}
 .ir-tie b{color:var(--ir)}
 .ir-note{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:11px;line-height:1.5}
+/* v301: High-Value Finds browser rows */
+.hvf-row{display:flex;gap:10px;align-items:baseline;padding:6px 7px;border-bottom:1px dotted var(--border);cursor:pointer;transition:background .12s}
+.hvf-row:hover{background:rgba(240,192,96,.06)}
+.hvf-name{font-weight:700;flex:1 1 auto;min-width:0}
+.hvf-name .d2art-wrap.sm{width:18px;height:18px;vertical-align:middle;margin-right:2px}
+.hvf-base{font-size:11px;color:var(--text-dim);white-space:nowrap}
+.hvf-val{font-size:11px;color:#8ce6a6;font-family:ui-monospace,monospace;white-space:nowrap}
 /* v283: emphasized, structured cube-recipe block on material ID cards */
 .recipe-block{margin:6px 0 12px;padding:14px 16px;background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(20,16,10,.35));border:1px solid rgba(240,192,96,.34);border-radius:11px;box-shadow:inset 0 0 22px rgba(0,0,0,.35)}
 .recipe-block-lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--gold-bright,#f0c060);margin-bottom:10px;opacity:.85}
@@ -3836,6 +3843,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </div>
       <div id="set-intake-report" hidden class="rs-ai-report" style="margin:0 0 12px"></div>
       <div class="set-tracker" id="set-tracker"></div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="hvf-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('hvf-card');window.renderHighValueFinds&&window.renderHighValueFinds()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="font-size:34px">💰</span>
+      <div class="boss-title-block">
+        <p class="boss-name">High-Value Finds <span id="hvf-count" class="arw-count"></span></p>
+        <p class="boss-subtitle">The best-of-the-best rares, crafts &amp; bases that rival runewords &amp; uniques — what to keep &amp; what it's worth</p>
+        <p class="boss-loc">Researched from D2R trade values · click any to open its card · this list grows as we find more</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="arw-wrap">
+        <input id="hvf-filter" class="arw-filter" type="text" placeholder="filter… (try 'amulet', 'jewel', 'eth', 'caster', 'crafted', 'base')" autocomplete="off" spellcheck="false" oninput="window.renderHighValueFinds&&window.renderHighValueFinds()">
+        <div class="hcr-list" id="hvf-list"></div>
+      </div>
     </div>
   </div>
 
@@ -9189,10 +9214,42 @@ const persist = () => {
 // 2026-06-15). Uniques pull fixed stats from ITEM_TIP; magic/rare/crafted carry a GENERAL
 // affix-pool description (their exact rolls live on the item, since they're random).
 const EXTRA_ITEMS = {
-  "Nord's Tenderizer": { rarity:'unique' },  // fixed stats from ITEM_TIP
-  "Marshal's Amulet":  { rarity:'rare', base:'Amulet', desc:"A rare amulet — rares roll 3–6 random affixes. The <b>godly</b> caster combo is <b>+2 to your class skills + 20% Faster Cast Rate</b> plus life / all-res / mana — that pairing can out-class Mara's and trades around a <b>Jah rune</b>; even +2 / 10% FCR with life+res sells well. Your exact rolls are on the item — check them against that target." },
-  "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). Chase <b>+2 skills / 20% FCR / life / res</b> — top rolls beat most unique amulets. Your exact rolls are on the item." },
-  "Blood Gyre":        { rarity:'rare', desc:"A rare item — rares roll 3–6 random affixes from their base's pool. Judge it by the affixes shown on the item; the value lives in the right combo (skills/FCR/leech/res/life for jewelry)." },
+  // ── your specific finds (read off your screenshots) ──
+  "Nord's Tenderizer": { rarity:'unique', cat:'Uniques' },  // fixed stats from ITEM_TIP
+  "Marshal's Amulet":  { rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — rares roll 3–6 random affixes. The <b>godly</b> caster combo is <b>+2 to your class skills + 20% Faster Cast Rate</b> plus life / all-res / mana — that pairing can out-class Mara's and trades around a <b>Jah rune</b>; even +2 / 10% FCR with life+res sells well. Your exact rolls are on the item — check them against that target." },
+  "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). Chase <b>+2 skills / 20% FCR / life / res</b> — top rolls beat most unique amulets. Your exact rolls are on the item." },
+  "Blood Gyre":        { rarity:'rare', cat:'Rare jewelry', desc:"A rare item — rares roll 3–6 random affixes from their base's pool. Judge it by the affixes shown on the item; the value lives in the right combo (skills/FCR/leech/res/life for jewelry)." },
+  // ── top-tier "what to look for" profiles (researched from D2R trade/shop values) ──
+  "Godly Caster Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'≈ Jah rune', desc:"The caster jackpot: <b>+2 to your class's skills + 20% Faster Cast Rate</b> + life + all-resist (+mana). Out-classes Mara's Kaleidoscope; top rolls trade around a <b>Jah rune</b>. +2 / 10% FCR with life+res is still excellent." },
+  "Godly Sorceress Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high (HR+)', desc:"<b>+3 Sorceress Skills</b> + 10–20% FCR + life + resists — the dream sorc neck, beats most uniques for a caster." },
+  "Godly Necromancer Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Necromancer Skills</b> + FCR + life/res — summoner/poison caster ceiling." },
+  "Caster Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid–high', desc:"Rings can't roll +class skills, so the ceiling is <b>10% FCR + +mana + life + a resist + dual-leech</b>. A clean FCR caster ring frees an amulet slot." },
+  "Dual-Leech Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"<b>Life Stolen + Mana Stolen per hit</b> + Attack Rating + life + resist — the melee/zealer ring." },
+  "Bul-Kathos / Stat Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"+life, all-resist, +stats and leech — a clean filler ring upgrade over most uniques except SoJ/BK." },
+  "Godly Rare Jewel (40 ED / 15 IAS)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 50 Ist', desc:"The best rare jewel: <b>40% Enhanced Damage + 15% Increased Attack Speed</b> in one socket. The single most valuable jewel roll." },
+  "Rare Jewel (40 ED / 9 stat)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 7 Ist', desc:"<b>40% ED + 9 to a stat</b> (Str/Dex) — top-tier filler for any socketed weapon/armor." },
+  "Rare Jewel (15 IAS / −15 Req)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid', desc:"<b>15% IAS + −15% Requirements</b> — slots into runeword/socket bases to drop their strength/dex needs." },
+  "Element Jewel (high % / ED)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid', desc:"High single-element damage % (cold/fire/light) + ED/IAS — facet-adjacent for elemental builds." },
+  "Crafted Caster Amulet (jackpot)": { rarity:'crafted', base:'Amulet', cat:'Crafted', val:'high', desc:"Perfect-Amethyst craft: <b>guaranteed FCR + mana</b>, then can roll +2–3 skills / life / resist. A jackpot crafted amulet beats unique necks." },
+  "Crafted Blood Ring (jackpot)": { rarity:'crafted', base:'Ring', cat:'Crafted', val:'mid–high', desc:"Perfect-Ruby craft: <b>life-leech + life guaranteed</b>; rolls Deadly Strike / dual-leech / AR. A melee ring that can beat Raven Frost on damage." },
+  "Crafted Caster Ring (jackpot)": { rarity:'crafted', base:'Ring', cat:'Crafted', val:'mid', desc:"Perfect-Amethyst craft: <b>FCR + mana guaranteed</b>; rolls life / resist / leech — the caster FCR ring." },
+  "Crafted Hit Power Gloves (jackpot)": { rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', desc:"Perfect-Sapphire craft: rolls <b>IAS + +skills + life/res</b> + Frost-Nova-when-struck. A jackpot beats many unique gloves." },
+  "Crafted Blood Gloves (jackpot)": { rarity:'crafted', base:'Gloves', cat:'Crafted', val:'mid', desc:"Perfect-Ruby craft: <b>leech + IAS + +life + Crushing Blow</b> — melee glove ceiling." },
+  "Eth Thresher (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'high (eth)', desc:"The best <b>Insight</b> merc base — lowest strength of the 4-socket polearms, high damage. Ethereal = ~10% more damage and the merc never breaks it." },
+  "Eth Cryptic Axe (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'≈ 2–3 Ist (eth)', desc:"Premium <b>Insight / Infinity</b> base — high damage 4-socket polearm. Eth Cryptic Axe trades ≈ 2–3 Ist." },
+  "Eth Colossus Voulge (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'≈ 2–3 Ist (eth)', desc:"<b>Insight</b> base — top raw damage 4-socket polearm; eth ≈ 2–3 Ist." },
+  "Eth Berserker Axe (Grief/BotD base)": { rarity:'basic', base:'Axe', cat:'Runeword bases', val:'very high (eth)', desc:"The 1-handed <b>Grief</b> and <b>Breath of the Dying</b> base. Ethereal = huge damage; the bis melee weapon base." },
+  "Eth Colossus Blade (BotD/CB base)": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'high (eth)', desc:"2-handed <b>Breath of the Dying / Chains of Honor</b> base — eth = top damage for a BotD zerker/barb." },
+  "Phase Blade (Grief/Spirit base)": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'high', desc:"<b>Indestructible</b> (no eth needed) — the PvP <b>Grief</b>, <b>Spirit</b> and <b>Plague</b> base; immune to breaking, very low strength." },
+  "4-socket Phase Blade": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'high', desc:"A Phase Blade rolled with exactly <b>4 sockets</b> — the ready-to-go Grief / Spirit base. The socket count is the hard part." },
+  "Eth Archon Plate (Enigma/CoH base)": { rarity:'basic', base:'Body Armor', cat:'Runeword bases', val:'high (eth)', desc:"The lightest elite body armor — <b>Enigma / Fortitude / Chains of Honor</b> base. Ethereal = much higher defense for the same low strength." },
+  "Eth Dusk Shroud (caster base)": { rarity:'basic', base:'Body Armor', cat:'Runeword bases', val:'mid (eth)', desc:"Lightest caster body armor — lowest strength <b>Enigma</b> base for a caster; eth for more defense." },
+  "4-socket Monarch (Spirit base)": { rarity:'basic', base:'Shield', cat:'Runeword bases', val:'mid', desc:"The <b>Spirit</b> shield base — needs exactly <b>4 sockets</b>; lowest-strength elite shield. The 4os roll is the value." },
+  "4-socket Crystal Sword (Spirit base)": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'low–mid', desc:"The budget <b>Spirit</b> sword base — 4 sockets, very low requirements; the standard early-caster weapon." },
+  "Eth Bone Visage (caster helm base)": { rarity:'basic', base:'Helm', cat:'Runeword bases', val:'mid (eth)', desc:"Necro/caster elite helm base for runewords; eth for defense." },
+  "Godly Circlet (rare/magic)": { rarity:'magic', base:'Circlet', cat:'Rare jewelry', val:'mid–high', desc:"A circlet with <b>+2 skills / FCR / resists / sockets</b> can rival or beat unique helms for casters — and it can roll +class skills that most helms can't." },
+  "+1 Skiller Grand Charm": { rarity:'magic', base:'Grand Charm', cat:'Charms', val:'high (per skiller)', desc:"<b>+1 to one of your class's skill tabs</b> + 30–45 life or Faster Hit Recovery. A full inventory of class skillers is the endgame charm grail." },
+  "Godly Small Charm (res/life/FRW)": { rarity:'magic', base:'Small Charm', cat:'Charms', val:'mid', desc:"<b>20 life / all-resist / 5% Faster Run-Walk</b> small charms — the inventory fillers every build wants; a 'shimmering of life/FRW' SC stacks." },
 };
 window.EXTRA_ITEMS = EXTRA_ITEMS;
 // kept for back-compat: the unique-only name list (some call sites use it)
@@ -9206,8 +9263,9 @@ function findExtraItem(name){
 }
 window.findExtraItem = findExtraItem;
 window.findExtraUnique = findExtraItem; // alias
-var _Q_HEX = { unique:'#c7b377', rare:'#ffff64', magic:'#6969ff', crafted:'#ffa800', set:'#00ff00' };
-var _Q_BADGE = { unique:'linear-gradient(135deg,#c7b377,#5c4a23)', rare:'linear-gradient(135deg,#caca4f,#5c5c1e)', magic:'linear-gradient(135deg,#6969ff,#26267a)', crafted:'linear-gradient(135deg,#ffa800,#6e4900)' };
+var _Q_HEX = { unique:'#c7b377', rare:'#ffff64', magic:'#6969ff', crafted:'#ffa800', set:'#00ff00', basic:'#cfcfcf' };
+var _Q_BADGE = { unique:'linear-gradient(135deg,#c7b377,#5c4a23)', rare:'linear-gradient(135deg,#caca4f,#5c5c1e)', magic:'linear-gradient(135deg,#6969ff,#26267a)', crafted:'linear-gradient(135deg,#ffa800,#6e4900)', basic:'linear-gradient(135deg,#cfcfcf,#5a5a5a)' };
+var _Q_LABEL = { basic:'Base item' };
 // Self-contained reference ID card (gic-card). Uniques show fixed ITEM_TIP stats; magic/rare/
 // crafted show a general affix-pool description (rolls are random, so judge the actual item).
 function extraItemDetailHtml(name){
@@ -9217,25 +9275,63 @@ function extraItemDetailHtml(name){
   var tip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[key] : null;
   var base = e.base || (tip && tip.b) || '';
   var sub = (base ? base : rar.charAt(0).toUpperCase()+rar.slice(1)) + (tip && tip.r != null ? ' · req level ' + tip.r : '');
+  var rollLine = rar === 'magic' ? '1–2 random affixes (one prefix and/or one suffix)'
+    : rar === 'crafted' ? '3 fixed mods + 1–4 random affixes'
+    : rar === 'basic' ? 'no magic affixes — value = base type + socket count + ethereal'
+    : '3–6 random affixes';
   var body;
   if (rar === 'unique' && tip && typeof _itemTipHtml === 'function'){
     body = '<div class="att-rich extra-item-stats">' + _itemTipHtml(tip) + '</div>';
   } else {
     body = '<div class="extra-item-desc">' + (e.desc || 'A ' + rar + ' item — judge it by the affixes shown on the item.') + '</div>'
-      + '<div class="zd-row"><span class="zd-k">rolls</span><span class="zd-v">' + (rar === 'magic' ? '1–2 random affixes (one prefix and/or one suffix)' : rar === 'crafted' ? '3 fixed mods + 1–4 random affixes' : '3–6 random affixes') + '</span></div>';
+      + '<div class="zd-row"><span class="zd-k">rolls</span><span class="zd-v">' + rollLine + '</span></div>';
   }
+  var icon = rar==='unique'?'⚔️':rar==='rare'?'🟡':rar==='magic'?'🔵':rar==='crafted'?'🟠':'⚪';
+  var rarLabel = _Q_LABEL[rar] || (rar.charAt(0).toUpperCase()+rar.slice(1));
+  var valChip = e.val ? '<span class="gic-meta-chip" style="color:#8ce6a6;border-color:rgba(140,230,166,.4)">💰 ' + e.val + '</span>' : '';
   return '<div class="gic-card extra-item-card extra-unique-card" style="--cw-c:' + col + '">'
-    + '<header class="gic-header">' + artOr(key, '<span class="gic-emoji" style="color:' + col + '">' + (rar==='unique'?'⚔️':rar==='rare'?'🟡':rar==='magic'?'🔵':'🟠') + '</span>', 'lg')
-    + '<div class="gic-id-block"><h2 class="gic-name" style="color:' + col + '">' + key + ' <span class="gic-grail-badge" style="background:' + badgeBg + ';color:#1a1207">' + rar.charAt(0).toUpperCase()+rar.slice(1) + '</span></h2>'
-    + '<div class="gic-subtitle">' + sub + '</div>'
-    + '<div class="gic-meta-row"><span class="gic-meta-chip">reference card</span><span class="gic-meta-chip" style="color:' + col + ';border-color:' + col + '55">outside the 312 grail</span></div></div>'
+    + '<header class="gic-header">' + artOr(key, '<span class="gic-emoji" style="color:' + col + '">' + icon + '</span>', 'lg')
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:' + col + '">' + key + ' <span class="gic-grail-badge" style="background:' + badgeBg + ';color:#1a1207">' + rarLabel + '</span></h2>'
+    + '<div class="gic-subtitle">' + sub + (e.cat ? ' · ' + e.cat : '') + '</div>'
+    + '<div class="gic-meta-row"><span class="gic-meta-chip">reference card</span>' + valChip + '<span class="gic-meta-chip" style="color:' + col + ';border-color:' + col + '55">rivals runewords / uniques</span></div></div>'
     + '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div></header>'
-    + '<section class="gic-section"><div class="gic-section-title">📜 ' + (rar === 'unique' ? 'In-game stats' : 'What this item can roll') + '</div>' + body + '</section>'
-    + '<div class="zd-note">An item you own, shown as a reference card — outside the bible’s curated 312-item boss-drop grail, so it has no drop-odds row. The Vault logs it on intake. More finds get added as we go.</div>'
+    + '<section class="gic-section"><div class="gic-section-title">📜 ' + (rar === 'unique' ? 'In-game stats' : 'What makes it godly') + '</div>' + body + '</section>'
+    + '<div class="zd-note">A best-of-the-best item that rivals runewords / uniques — shown as a reference card, outside the curated 312-item boss-drop grail (so no drop-odds row). The Vault logs your actual finds on intake. The list grows as we identify more.</div>'
     + '</div>';
 }
 window.extraItemDetailHtml = extraItemDetailHtml;
 window.extraUniqueDetailHtml = extraItemDetailHtml; // alias
+// 💰 High-Value Finds browser (Tools tab): every EXTRA_ITEMS profile, grouped by category,
+// filterable, each row → its reference card. Grows automatically as EXTRA_ITEMS grows.
+function renderHighValueFinds(){
+  var box = document.getElementById('hvf-list'); if (!box || typeof EXTRA_ITEMS === 'undefined') return;
+  var fEl = document.getElementById('hvf-filter'); var q = (fEl && fEl.value || '').trim().toLowerCase();
+  var keys = Object.keys(EXTRA_ITEMS);
+  var groups = {};
+  keys.forEach(function(n){
+    var e = EXTRA_ITEMS[n]; var cat = e.cat || 'Other';
+    var hay = (n + ' ' + (e.base || '') + ' ' + (e.desc || '') + ' ' + cat + ' ' + (e.rarity || '') + ' ' + (e.val || '')).toLowerCase();
+    if (q && hay.indexOf(q) < 0) return;
+    (groups[cat] = groups[cat] || []).push(n);
+  });
+  var order = ['Uniques','Rare jewelry','Rare jewels','Crafted','Runeword bases','Charms','Other'];
+  var shown = 0;
+  var html = order.filter(function(c){ return groups[c]; }).map(function(cat){
+    var rows = groups[cat].map(function(n){
+      var e = EXTRA_ITEMS[n]; var col = _Q_HEX[e.rarity] || '#c7b377'; shown++;
+      var esc = n.replace(/'/g, "\\'");
+      return '<div class="hvf-row" data-arttip="' + n + '" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\'' + esc + '\')" onkeydown="if(event.key===\'Enter\'){window.openDrop&&window.openDrop(\'' + esc + '\')}" title="open ' + n + '">'
+        + '<span class="hvf-name" style="color:' + col + '">' + (typeof nameLogo === 'function' ? nameLogo(n) : '') + n + '</span>'
+        + '<span class="hvf-base">' + (e.base || (e.rarity || '')) + '</span>'
+        + (e.val ? '<span class="hvf-val">💰 ' + e.val + '</span>' : '') + '</div>';
+    }).join('');
+    return '<div class="hcr-cat">' + cat + ' <span class="arw-count">(' + groups[cat].length + ')</span></div>' + rows;
+  }).join('');
+  if (!shown) html = '<div class="rw-empty">No high-value item matches “' + q.replace(/</g, '&lt;') + '”.</div>';
+  box.innerHTML = html;
+  var cntEl = document.getElementById('hvf-count'); if (cntEl) cntEl.textContent = '(' + keys.length + ')';
+}
+window.renderHighValueFinds = renderHighValueFinds;
 (function _v42_sanitizeWishlistOwned() {
   const beforeWish = wishlist.size;
   const beforeOwned = owned.size;
@@ -14202,6 +14298,7 @@ renderAllRunewords();
 renderGemStash();
 renderHoradricRecipes();
 renderCraftWorkshop();
+renderHighValueFinds();
 renderStatueTracker();
 renderMaterialStash();
 renderSunderRecipes();
