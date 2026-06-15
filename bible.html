@@ -12574,7 +12574,7 @@ function _cwRecipeRow(craft, s, withStepper){
     + '<span class="cw-rec-glyph">' + (CRAFT_SLOT_GLYPH[s] || '🔨') + '</span>'
     + '<div class="cw-rec-head"><span class="cw-rec-slot">' + s + '</span>' + best + '</div>'
     + '<div class="cw-rec-ing"><span class="cw-ing-lab">cube</span>' + _cwIngChip(craft.gem, st.haveGem) + _cwIngChip(rec.rune, st.haveRune)
-      + _cwBasicChip('any jewel', 'any jewel — magic jewels drop constantly') + _cwBasicChip('magic base', CRAFT_BASE_SOURCE[s] || 'find or gamble a magic base') + '</div>'
+      + _cwBasicChip('any jewel', 'any jewel — magic jewels drop constantly') + _cwBasicChip('magic ' + s, 'the blue (magic-quality) ' + s + ' you craft ONTO — it becomes the crafted item. ' + (CRAFT_BASE_SOURCE[s] || 'find or gamble a magic base') + '. See base options below.') + '</div>'
     + '<div class="cw-rec-out"><span class="cw-out-arrow">→</span> creates <b class="cw-out-name">' + craft.key + ' ' + s + '</b> <span class="cw-out-rare">crafted rare</span> — <span class="cw-out-mods">' + craft.mods.join(' · ') + '</span> <span class="cw-out-extra">+ 1–4 random affixes</span></div>'
     + '<div class="cw-rec-base"><b>base options:</b> ' + rec.base + ' <span class="cw-base-src">· ' + (CRAFT_BASE_SOURCE[s] || '') + '</span></div>'
     + '<span class="cw-rec-stat ' + statusCls + '" title="cubeable = you hold the Perfect gem + the slot rune; the jewel &amp; magic base are basic vendor/find items, assumed on hand">' + statusTxt + '</span>'
