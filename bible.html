@@ -13158,6 +13158,85 @@ function _craftSlotReady(craft, slot){
            ready: haveGem && haveRune, cube: !(haveGem && haveRune) && haveGemCubed && haveRune, missing: missing };
 }
 window._craftSlotReady = _craftSlotReady;
+
+// ═══ v331 — AI Diablo II Helper. A Sonnet-powered assistant (backend functions/api/ask.js) that
+// answers "what can I make right now & how" from the player's LIVE tallies. It AUGMENTS the manual
+// tally: the four 📸 intakes still feed the counts; this reads them + the bible's own makeable-now
+// engines (runeCraftStatus, _craftSlotReady, canMakeMaterial) into a compact snapshot the model
+// reasons over. Konyo: "architecture it correctly, integrate it creatively to what's already there." ═══
+window.buildAskSnapshot = function(){
+  function names(arr){ try{ return (arr||[]).map(function(x){ return x && (x.name||x.n||x); }).filter(Boolean); }catch(e){ return []; } }
+  function nonzero(o){ var r={}; try{ Object.keys(o||{}).forEach(function(k){ var v=parseInt(o[k],10); if(v>0)r[k]=v; }); }catch(e){} return r; }
+  var snap = { runewords:{completableNow:[],afterCubing:[]}, crafts:{cubeableNow:[],afterGemCube:[],oneAway:[]}, tally:{}, materialsCubeable:[], owned:{} };
+  try { var rc = runeCraftStatus(); snap.runewords.completableNow = names(rc.ready); snap.runewords.afterCubing = names(rc.cube); }catch(e){}
+  try { CRAFTS.forEach(function(c){ CRAFT_SLOTS.forEach(function(s){
+      var st=_craftSlotReady(c,s), label=c.key+' '+s;
+      if (st.ready) snap.crafts.cubeableNow.push(label);
+      else if (st.cube) snap.crafts.afterGemCube.push(label+' (after cubing gems up to '+c.gem+')');
+      else if (st.missing && st.missing.length===1) snap.crafts.oneAway.push(label+' — need '+st.missing[0]);
+  }); }); }catch(e){}
+  try { snap.tally.runes = nonzero(typeof runeStash!=='undefined'?runeStash:{}); }catch(e){}
+  try { snap.tally.gems = nonzero(typeof gemStash!=='undefined'?gemStash:{}); }catch(e){}
+  try { snap.tally.materials = nonzero(typeof materialStash!=='undefined'?materialStash:{}); }catch(e){}
+  try { snap.owned.count=(typeof owned!=='undefined')?owned.size:0; snap.owned.setPieces=(typeof setPieces!=='undefined')?setPieces.size:0; }catch(e){}
+  return snap;
+};
+function _askEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _askMd(t){ return _askEsc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^[•\-]\s?/gm,'• ').replace(/\n/g,'<br>'); }
+window.askBible = function(q){
+  q=String(q||'').trim(); if(!q) return;
+  var out=document.getElementById('ask-thread'); if(!out) return;
+  var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
+  out.insertAdjacentHTML('beforeend','<div class="ask-q">'+_askEsc(q)+'</div><div class="ask-a ask-loading" id="ask-pending">🔮 consulting the bible…</div>');
+  out.scrollTop=out.scrollHeight;
+  var snap=(typeof buildAskSnapshot==='function')?buildAskSnapshot():{};
+  fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q,snapshot:snap})})
+    .then(function(r){return r.json();})
+    .then(function(d){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a'; el.innerHTML=_askMd(d.answer||d.error||'(no answer)'); el.removeAttribute('id'); } out.scrollTop=out.scrollHeight; })
+    .catch(function(e){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a ask-err'; el.textContent='⚠️ '+(e&&e.message||'request failed')+' — is the site deployed (the AI needs the /api/ask endpoint)?'; el.removeAttribute('id'); } });
+};
+window.askBibleQuick = function(q){ var i=document.getElementById('ask-input'); if(i) i.value=q; window.askBible(q); };
+(function(){
+  function inject(){
+    var cw=document.getElementById('craft-workshop-card');
+    if(!cw || document.getElementById('ask-bible-card')) return;
+    var html='<div class="boss-card collapsible collapsed" id="ask-bible-card">'
+      +'<div class="boss-header" onclick="window.toggleCardCollapse&&window.toggleCardCollapse(\'ask-bible-card\')" role="button" tabindex="0" aria-expanded="false">'
+      +'<div class="boss-title-wrap"><p class="boss-name">🔮 Ask the AI — Diablo II Helper <span class="arw-count">Sonnet</span></p>'
+      +'<p class="boss-sub" style="color:var(--text-dim);font-size:11.5px;margin:2px 0 0">“what can I make right now & how” — answers from your live rune / gem / craft tallies</p></div>'
+      +'<span class="boss-chev">▾</span></div>'
+      +'<div class="boss-body"><div class="ask-quick">'
+      +'<button class="ask-chip" onclick="window.askBibleQuick(\'What runewords can I make right now with my runes?\')">⚡ Runewords I can make now</button>'
+      +'<button class="ask-chip" onclick="window.askBibleQuick(\'What crafted items can I cube right now, and which am I one item away from?\')">🔨 Crafts I can make</button>'
+      +'<button class="ask-chip" onclick="window.askBibleQuick(\'What high runes am I closest to cubing up to, and what should I work toward?\')">⬆️ What to cube toward</button>'
+      +'<button class="ask-chip" onclick="window.askBibleQuick(\'Given my stash, what is the single best thing to build next and exactly how?\')">🎯 Best next build</button>'
+      +'</div><div id="ask-thread" class="ask-thread"></div>'
+      +'<div class="ask-input-row"><input id="ask-input" class="ask-input" type="text" placeholder="Ask anything — e.g. can I make Spirit? what am I close to?" autocomplete="off" onkeydown="if(event.key===\'Enter\'){window.askBible(this.value);this.value=\'\'}">'
+      +'<button class="ask-send" onclick="var i=document.getElementById(\'ask-input\');window.askBible(i.value);i.value=\'\'">Ask&nbsp;→</button></div>'
+      +'<div class="ask-note">Reads your live tallies on this device and answers with Claude Sonnet · the same key powers the 📸 intake · answers can be imperfect — verify against the recipe tools.</div>'
+      +'</div></div>';
+    cw.insertAdjacentHTML('afterend', html);
+    var st=document.createElement('style'); st.textContent=
+      '#ask-bible-card .arw-count{background:rgba(127,212,255,.16);color:#8fd0ff;border-radius:8px;padding:1px 8px;font-size:9px;font-weight:800;letter-spacing:.05em}'
+      +'.ask-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 11px}'
+      +'.ask-chip{cursor:pointer;font-size:11.5px;font-weight:600;color:#cfe8ff;background:rgba(127,212,255,.08);border:1px solid rgba(127,212,255,.3);border-radius:18px;padding:5px 12px;transition:background .14s,border-color .14s,transform .12s}'
+      +'.ask-chip:hover{background:rgba(127,212,255,.16);border-color:rgba(127,212,255,.6);transform:translateY(-1px)}'
+      +'.ask-thread{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-bottom:10px}'
+      +'.ask-q{align-self:flex-end;max-width:82%;background:linear-gradient(180deg,rgba(127,212,255,.16),rgba(127,212,255,.08));border:1px solid rgba(127,212,255,.3);border-radius:13px 13px 3px 13px;padding:7px 12px;font-size:12.5px;color:#e8f4ff}'
+      +'.ask-a{align-self:flex-start;max-width:92%;background:rgba(20,16,10,.5);border:1px solid var(--border);border-left:3px solid #8fd0ff;border-radius:3px 13px 13px 13px;padding:9px 13px;font-size:12.8px;line-height:1.6;color:var(--text)}'
+      +'.ask-a b{color:var(--gold-bright)}.ask-loading{color:var(--text-dim);font-style:italic;animation:askPulse 1.3s ease-in-out infinite}.ask-err{border-left-color:var(--hell);color:#ffb3b3}'
+      +'@keyframes askPulse{0%,100%{opacity:.55}50%{opacity:1}}'
+      +'.ask-input-row{display:flex;gap:8px}'
+      +'.ask-input{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 13px;color:var(--text);font-size:13px;font-family:inherit}'
+      +'.ask-input:focus{outline:none;border-color:#8fd0ff;box-shadow:0 0 0 2px rgba(127,212,255,.18)}'
+      +'.ask-send{cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:13px;color:#06121c;background:linear-gradient(180deg,#9fdcff,#5fb4e8);border:1px solid #bfe6ff;border-radius:10px;padding:9px 17px;white-space:nowrap;transition:filter .14s,transform .12s}'
+      +'.ask-send:hover{filter:brightness(1.07);transform:translateY(-1px)}'
+      +'.ask-note{font-size:10px;color:var(--text-dim);margin-top:8px;font-style:italic}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState!=='loading') inject(); else document.addEventListener('DOMContentLoaded', inject);
+})();
 var _craftSel = 'Caster', _craftSlotSel = 'all', _craftReadyOnly = false;
 function selectCraft(key){ _craftSel = key; _craftSlotSel = 'all'; renderCraftWorkshop(); var box = document.getElementById('craft-workshop'); if (box){ var r = box.querySelector('.cw-recipes'); if (r) r.scrollTop = 0; } }
 window.selectCraft = selectCraft;
