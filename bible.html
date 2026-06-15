@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Konyo's D2R Farming Bible v43 · finalized</title>
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5;margin:0}
 html{scroll-behavior:smooth}
@@ -3681,37 +3681,37 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="boss-body">
       <div class="ir-lead">Every item in D2R is colour-coded by its <strong>rarity</strong>, and the colour tells you how many magic properties it can roll. This is the backbone of the cube: you craft <strong>onto a blue (magic) base</strong>, the cube hands you an <strong>orange (crafted)</strong> result, and you reroll <strong>yellow (rare)</strong> affixes — see the 🔨 Workshop &amp; 🧊 Horadric recipes below.</div>
       <div class="ir-grid">
-        <div class="ir-tile" style="--ir:#e6e6e6">
+        <div class="ir-tile" style="--ir:var(--q-normal)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Normal <small>White</small></span><span class="ir-mods">0 mods</span></div>
           <div class="ir-desc">Base items with no magical properties — a blank slate.</div>
           <div class="ir-tie">🔩 The canvas for <b>Runewords</b> (socket the runes into a white base) and the start of most <b>cube upgrades</b>.</div>
         </div>
-        <div class="ir-tile" style="--ir:#9a9a9a">
+        <div class="ir-tile" style="--ir:var(--q-grey)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Socketed / Ethereal <small>Grey</small></span><span class="ir-mods">sockets · eth</span></div>
           <div class="ir-desc">Function like white items, but with <strong>open sockets</strong> (slot runes/gems/jewels) or <strong>Ethereal</strong> (can't be repaired, but higher base defence/damage).</div>
           <div class="ir-tie">🔩 Add sockets in the cube; Ethereal bases are prized for runewords &amp; auto-repair builds.</div>
         </div>
-        <div class="ir-tile" style="--ir:#7d7dff">
+        <div class="ir-tile" style="--ir:var(--q-magic)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Magic <small>Blue</small></span><span class="ir-mods">1–2 mods</span></div>
           <div class="ir-desc">One prefix and/or one suffix. They can roll certain <strong>high-tier / max single stats</strong> (e.g. <strong>+3 to class skills on charms</strong>) that rares cannot.</div>
           <div class="ir-tie">🔨 The <b>magic base</b> you cube in crafting. Reroll a blue item with <b>3 Perfect gems</b> (Horadric below).</div>
         </div>
-        <div class="ir-tile" style="--ir:#ffe14d">
+        <div class="ir-tile" style="--ir:var(--q-rare)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Rare <small>Yellow</small></span><span class="ir-mods">3–6 mods</span></div>
           <div class="ir-desc">Three to six random modifiers and a randomly-generated two-word name (not the "prefix + base + suffix" of magic items).</div>
           <div class="ir-tie">🎲 <b>Renew its affixes</b> by cubing <b>6 Perfect Skulls + the rare</b> → a fresh roll (Horadric below).</div>
         </div>
-        <div class="ir-tile" style="--ir:#ffa83f">
+        <div class="ir-tile" style="--ir:var(--q-orange)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Crafted <small>Orange</small></span><span class="ir-mods">3 fixed + 1–4 random</span></div>
           <div class="ir-desc">Player-made in the Horadric Cube — a few <strong>guaranteed fixed mods</strong> plus 1–4 random ones.</div>
           <div class="ir-tie">🔨 This is exactly what the <b>Crafted Items Workshop</b> below builds (Caster / Blood / Safety / Hit Power).</div>
         </div>
-        <div class="ir-tile" style="--ir:#2fd24a">
+        <div class="ir-tile" style="--ir:var(--q-set)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Set <small>Green</small></span><span class="ir-mods">fixed + set bonus</span></div>
           <div class="ir-desc">Predetermined, themed items. Wearing several pieces of the same set unlocks extra <strong>hidden set bonuses</strong>.</div>
           <div class="ir-tie">📗 Track which pieces you own in the <b>Item Set Tracker</b> (Tools tab).</div>
         </div>
-        <div class="ir-tile" style="--ir:#c7a85a">
+        <div class="ir-tile" style="--ir:var(--q-unique)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Unique <small>Gold / Brown</small></span><span class="ir-mods">fixed</span></div>
           <div class="ir-desc">Fixed base stats, fixed unique properties, fixed name &amp; its own graphic (e.g. <strong>The Stone of Jordan</strong>). Cannot be rerolled.</div>
           <div class="ir-tie">🏆 The grail items the <b>Calculator</b> ranks by drop odds. Cube to <b>upgrade the tier</b> (normal → exceptional → elite).</div>
@@ -17729,6 +17729,21 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 .aid-card.aid-r-rare{border-color:rgba(255,235,90,.5);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,235,90,.09),inset 0 3px 0 rgba(255,235,90,.6)}
 .aid-card.aid-r-rw{border-color:rgba(255,170,70,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,170,70,.1),inset 0 3px 0 rgba(255,170,70,.65)}
 .aid-card.aid-r-rune{border-color:rgba(255,150,50,.55);box-shadow:0 4px 24px rgba(0,0,0,.34),0 0 22px rgba(255,150,50,.11),inset 0 3px 0 rgba(255,150,50,.68)}
+/* v294: the item NAME on every ID card is rendered in its EXACT in-game rarity colour
+   (the ÿc quality palette — unique gold #c7b377, set green #00ff00, magic blue #6969ff,
+   rare yellow #ffff64, crafted/rune orange #ffa800). _artRarity stamps aid-r-<rarity> on the
+   card (line ~11408), so the name colour follows the item automatically. Overrides the
+   default gold so a set item reads green, a rare reads yellow, etc. — matching the game. */
+.aid-card.aid-r-unique .aid-item-name{color:var(--q-unique)}
+.aid-card.aid-r-set .aid-item-name{color:var(--q-set)}
+.aid-card.aid-r-magic .aid-item-name{color:var(--q-magic)}
+.aid-card.aid-r-rare .aid-item-name{color:var(--q-rare)}
+.aid-card.aid-r-rw .aid-item-name{color:var(--q-orange)}
+.aid-card.aid-r-rune .aid-item-name{color:var(--rune)}
+/* set items route to a set card (not an aid-card) — colour its title set-green to match.
+   Runeword/rune/gem cards keep their own gold/orange identity already. */
+.set-items-card .gic-name,.set-piece-card .gic-name{color:var(--q-set)}
+.runeword-card .gic-name{color:var(--q-orange)}
 /* v239: slow gold sheen sweep across the hero "Best Grail Picks" card */
 .hero{position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;top:0;left:-45%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(240,192,96,.08),transparent);transform:skewX(-18deg);animation:heroSheen 8s ease-in-out infinite;pointer-events:none;z-index:0}
