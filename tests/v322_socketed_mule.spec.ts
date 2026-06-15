@@ -8,23 +8,29 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => (window as any)._artRarity && (window as any).EXTRA_ITEMS);
 });
 
-test('the 7 generic socketed buckets exist in EXTRA_ITEMS (basic rarity, Socketed bases cat)', async ({ page }) => {
+test('the generic socketed buckets exist in EXTRA_ITEMS (basic rarity, Socketed bases cat)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const E = (window as any).EXTRA_ITEMS;
-    const slots = ['Socketed Body Armor','Socketed Helm','Socketed Shield','Socketed Weapon','Socketed Gloves','Socketed Belt','Socketed Boots'];
-    return slots.map(s => ({ s, present: !!E[s], rarity: E[s] && E[s].rarity, cat: E[s] && E[s].cat }));
+    // v324: only the 4 D2-socketable slots — weapons split 1H/2H. gloves/belt/boots can't be socketed.
+    const slots = ['Socketed Body Armor','Socketed Helm','Socketed Shield','Socketed 1H Weapon','Socketed 2H Weapon'];
+    const removed = ['Socketed Gloves','Socketed Belt','Socketed Boots','Socketed Weapon'];
+    return {
+      slots: slots.map(s => ({ s, present: !!E[s], rarity: E[s] && E[s].rarity, cat: E[s] && E[s].cat })),
+      removed: removed.map(s => ({ s, present: !!E[s] })),
+    };
   });
-  for (const e of r) {
+  for (const e of r.slots) {
     expect(e.present, e.s).toBe(true);
     expect(e.rarity, e.s).toBe('basic');
     expect(e.cat, e.s).toBe('Socketed bases');
   }
+  for (const e of r.removed) expect(e.present, e.s + ' should be gone (not socketable)').toBe(false);
 });
 
 test('socketed buckets resolve to in-game white (--q-normal) via _artRarity/_qStyle', async ({ page }) => {
   const r = await page.evaluate(() => {
     const ar = (window as any)._artRarity, qh = (window as any)._qHex;
-    return { rar: ar('Socketed Body Armor'), hex: qh('Socketed Weapon') };
+    return { rar: ar('Socketed Body Armor'), hex: qh('Socketed 2H Weapon') };
   });
   expect(r.rar).toBe('basic');
   expect(r.hex).toBe('var(--q-normal)');
@@ -33,7 +39,7 @@ test('socketed buckets resolve to in-game white (--q-normal) via _artRarity/_qSt
 test('socketed items are in the intake vocab (so the AI can register them)', async ({ page }) => {
   const inVocab = await page.evaluate(() => {
     const vocab = Object.keys((window as any).EXTRA_ITEMS);
-    return ['Socketed Body Armor','Socketed Helm','Socketed Shield','Socketed Weapon'].every(n => vocab.includes(n));
+    return ['Socketed Body Armor','Socketed Helm','Socketed Shield','Socketed 1H Weapon','Socketed 2H Weapon'].every(n => vocab.includes(n));
   });
   expect(inVocab).toBe(true);
 });
@@ -45,10 +51,12 @@ test('the SOCKETED mule exists and socketed items route to it', async ({ page })
     const sm = (window as any).suggestMule;
     return sm ? {
       armor: sm('Socketed Body Armor'),
-      weapon: sm('Socketed Weapon'),
+      w1: sm('Socketed 1H Weapon (5os)'),
+      w2: sm('Socketed 2H Weapon (4os)'),
     } : null;
   });
   expect(r).not.toBeNull();
   expect(r!.armor.id).toBe('bases');
-  expect(r!.weapon.id).toBe('bases');
+  expect(r!.w1.id).toBe('bases');
+  expect(r!.w2.id).toBe('bases');
 });
