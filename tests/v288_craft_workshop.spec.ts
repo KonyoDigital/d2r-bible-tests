@@ -135,6 +135,41 @@ test.describe('v288 Crafted Items Workshop', () => {
     await expect(page.locator('#item-detail .craft-card .gic-name')).toContainText('Hit Power Craft');
   });
 
+  test('the "craft now" banner reflects the live stash (crystallization)', async ({ page }) => {
+    await page.evaluate(() => (window as any).switchTab('tools'));
+    await page.evaluate(() => {
+      const card = document.getElementById('craft-workshop-card');
+      if (card && card.classList.contains('collapsed')) (window as any).toggleCardCollapse('craft-workshop-card');
+      const w = window as any;
+      w.adjustRuneStash('Ral', 1); w.adjustGemStash('Perfect Amethyst', 1); // → Caster Amulet cubeable
+      w.renderCraftWorkshop();
+    });
+    await page.waitForTimeout(150);
+    // banner switches to the green "Craft now" state and names the cubeable recipe
+    await expect(page.locator('#craft-workshop .cw-readynow.cw-rn-go')).toBeVisible();
+    await expect(page.locator('#craft-workshop .cw-rn-go')).toContainText('Caster Amulet');
+    // a jump-chip routes to that craft + slot
+    await page.locator('#craft-workshop .cw-rn-chip').first().click();
+    await page.waitForTimeout(120);
+    await expect(page.locator('#craft-workshop .cw-tile.cw-sel .cw-tile-name')).toContainText('Caster');
+    // clean up the seeded stash
+    await page.evaluate(() => { const w = window as any; w.adjustRuneStash('Ral', -1); w.adjustGemStash('Perfect Amethyst', -1); });
+  });
+
+  test('openCraftWorkshop opens + expands the tool, and the reference cross-link exists', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w = window as any;
+      w.openCraftWorkshop('Blood');
+      return { hasFn: typeof w.openCraftWorkshop === 'function' };
+    });
+    expect(r.hasFn).toBe(true);
+    await page.waitForTimeout(250);
+    const card = page.locator('#craft-workshop-card');
+    await expect(card).not.toHaveClass(/collapsed/);
+    // the reference-tab "Crafted-item recipes" section carries a cross-link into the workshop
+    expect(await page.locator('.gic-cross-link', { hasText: 'Crafted Items Workshop' }).count()).toBeGreaterThan(0);
+  });
+
   test('every craft + the workshop are reachable from global search', async ({ page }) => {
     const labels = await page.evaluate(() => {
       const w = window as any;

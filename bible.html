@@ -1046,7 +1046,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .sun-ing{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:rgba(0,0,0,.3)}
 .sun-ing.route{cursor:pointer;border-color:rgba(240,192,96,.4)}
 .sun-ing.route:hover{background:rgba(240,192,96,.12);border-color:var(--gold-bright,#d4a849)}
-.sun-plus{opacity:.5;font-weight:700}
+.sun-plus{opacity:.65;font-weight:700}
 .sun-arrow{color:var(--best,#7ddc7d);font-weight:700;margin:0 2px}
 .sun-renewed{display:inline-flex;align-items:center;gap:5px;color:var(--best,#7ddc7d);font-weight:600}
 .sun-cube{width:38px;height:38px;object-fit:contain;border:1px solid rgba(240,192,96,.45);border-radius:8px;background:rgba(0,0,0,.32);padding:2px;flex:0 0 auto;image-rendering:auto}
@@ -1375,6 +1375,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-summary b{color:var(--gold-bright,#f0c060);font-family:ui-monospace,monospace}
 .cw-quality{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:9px;line-height:1.5}
 .cw-quality code{font-style:normal;color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.08);padding:1px 5px;border-radius:4px}
+.cw-readynow{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin:11px 0;padding:11px 14px;border-radius:11px;font-size:12.5px;line-height:1.7;border:1px solid var(--border)}
+.cw-rn-go{background:linear-gradient(135deg,rgba(63,191,106,.14),rgba(16,12,7,.3));border-color:rgba(63,191,106,.42)}
+.cw-rn-near{background:linear-gradient(135deg,rgba(240,192,96,.12),rgba(16,12,7,.3));border-color:rgba(240,192,96,.4)}
+.cw-rn-none{background:linear-gradient(135deg,rgba(122,162,255,.1),rgba(16,12,7,.3));border-color:rgba(122,162,255,.32)}
+.cw-rn-lab{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.cw-rn-go .cw-rn-lab{color:#8ce6a6}.cw-rn-near .cw-rn-lab{color:var(--gold-bright,#f0c060)}.cw-rn-none .cw-rn-lab{color:#9db4ff}
+.cw-rn-body{color:var(--text);flex:1 1 240px}.cw-rn-body b{color:var(--gold-bright,#f0c060)}
+.cw-rn-chip{display:inline-flex;align-items:center;gap:4px;margin:2px 3px 0 0;padding:2px 9px;border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--cw-c,#f0c060);background:color-mix(in srgb,var(--cw-c,#f0c060) 12%,rgba(0,0,0,.25));border:1px solid color-mix(in srgb,var(--cw-c,#f0c060) 45%,transparent);transition:transform .12s ease,box-shadow .16s ease}
+.cw-rn-chip:hover{transform:translateY(-1px);box-shadow:0 3px 12px color-mix(in srgb,var(--cw-c,#f0c060) 30%,transparent)}
+.cw-rn-more{font-size:11px;color:var(--text-dim);font-style:italic;margin-left:2px}
 @media(max-width:560px){.cw-recipe{grid-template-columns:auto 1fr;grid-template-areas:"glyph head" "glyph ing" "glyph base" "stat own"}.cw-rec-stat,.cw-rec-own{justify-self:start;margin-top:5px}}
 /* v283: emphasized, structured cube-recipe block on material ID cards */
 .recipe-block{margin:6px 0 12px;padding:14px 16px;background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(20,16,10,.35));border:1px solid rgba(240,192,96,.34);border-radius:11px;box-shadow:inset 0 0 22px rgba(0,0,0,.35)}
@@ -5039,6 +5049,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🔨</span><span class="sec-h-block"><span class="sec-h-t">Crafted-item recipes</span><span class="sec-h-sub">Caster, blood, safety &amp; hit-power crafts — the perfect gem decides the type</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="lead">Crafting cubes a <strong>magic (blue) base</strong> + a <strong>perfect gem</strong> + <strong>any jewel</strong> + a rune into a <strong>crafted rare</strong>. The <strong>perfect gem decides the craft type</strong> (and the 3 guaranteed mods) — the <strong>rune only varies by item slot and does NOT change the result</strong>, so match whatever slot-rune your in-game recipe lists. On top of the 3 guaranteed mods you roll <strong>1–4 random rare affixes</strong>.</div>
+  <div style="margin:10px 0"><span class="gic-cross-link" role="button" tabindex="0" onclick="window.openCraftWorkshop&&window.openCraftWorkshop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openCraftWorkshop&&window.openCraftWorkshop()}" title="open the interactive workshop in the Tools tab">🔨 Open the interactive Crafted Items Workshop — shows what's cubeable right now from your stash →</span></div>
   <div class="info"><strong>The four crafts — the perfect gem is what matters:</strong></div>
   <div class="scroll-table"><table class="ref-tbl"><thead><tr><th>Craft</th><th>Perfect gem</th><th>3 guaranteed mods</th><th>Best slots</th></tr></thead><tbody>
     <tr><td class="item-name" style="color:var(--best)">Caster ⭐</td><td>Perfect Amethyst</td><td><strong>Faster Cast Rate</strong> + Regenerate Mana 4–10% + 10–20 Mana</td><td>Amulet · Ring · Belt · Gloves</td></tr>
@@ -12533,8 +12544,31 @@ function renderCraftWorkshop(){
   // ── slot filter chips + cubeable toggle ──
   var slotChips = '<button class="cw-slot-chip' + (_craftSlotSel === 'all' ? ' on' : '') + '" onclick="window.craftSlotFilter(\'all\')">All slots</button>'
     + CRAFT_SLOTS.map(function(s){ var esc = s.replace(/'/g, "\\'"); return '<button class="cw-slot-chip' + (_craftSlotSel === s ? ' on' : '') + '" onclick="window.craftSlotFilter(\'' + esc + '\')">' + (CRAFT_SLOT_GLYPH[s] || '') + ' ' + s + '</button>'; }).join('');
-  var totalReady = CRAFTS.reduce(function(a, c){ return a + CRAFT_SLOTS.filter(function(s){ return _craftSlotReady(c, s).ready; }).length; }, 0);
+  // ── crystallized "what's needed RIGHT NOW" banner: scan all 36, surface what's cubeable
+  // (top slots first) or, if none, the single closest recipe + the exact item still missing ──
+  var readyAll = [], nearAll = [];
+  CRAFTS.forEach(function(c){ CRAFT_SLOTS.forEach(function(s){
+    var st = _craftSlotReady(c, s); var top = c.best.indexOf(s) >= 0;
+    if (st.ready) readyAll.push({ c: c, s: s, top: top });
+    else if (st.missing.length === 1) nearAll.push({ c: c, s: s, top: top, miss: st.missing[0] });
+  }); });
+  readyAll.sort(function(a, b){ return (b.top - a.top); });
+  nearAll.sort(function(a, b){ return (b.top - a.top); });
+  var _jumpChip = function(x, extra){ var ek = x.c.key.replace(/'/g, "\\'"), es = x.s.replace(/'/g, "\\'");
+    return '<span class="cw-rn-chip" data-arttip="' + x.c.gem + '" style="--cw-c:' + x.c.color + '" onclick="window.selectCraft(\'' + ek + '\');window.craftSlotFilter(\'' + es + '\')" title="jump to this recipe">' + (CRAFT_SLOT_GLYPH[x.s] || '') + ' ' + x.c.key + ' ' + x.s + (x.top ? ' ★' : '') + (extra || '') + '</span>'; };
+  var banner;
+  if (readyAll.length){
+    banner = '<div class="cw-readynow cw-rn-go"><span class="cw-rn-lab">💡 Craft now</span><span class="cw-rn-body">You hold the gem + rune for <b>' + readyAll.length + '</b> recipe' + (readyAll.length === 1 ? '' : 's') + ': '
+      + readyAll.slice(0, 6).map(function(x){ return _jumpChip(x); }).join('') + (readyAll.length > 6 ? '<span class="cw-rn-more">+' + (readyAll.length - 6) + ' more</span>' : '') + '</span></div>';
+  } else if (nearAll.length){
+    banner = '<div class="cw-readynow cw-rn-near"><span class="cw-rn-lab">🛒 One step away</span><span class="cw-rn-body">Closest craft' + (nearAll.length === 1 ? '' : 's') + ' — grab the missing piece: '
+      + nearAll.slice(0, 4).map(function(x){ return _jumpChip(x, ' — need ' + x.miss); }).join('') + '</span></div>';
+  } else {
+    banner = '<div class="cw-readynow cw-rn-none"><span class="cw-rn-lab">🔨 Get started</span><span class="cw-rn-body">No recipe is cubeable yet. Tally a <b>Perfect gem</b> (Amethyst=Caster, Ruby=Blood, Emerald=Safety, Sapphire=Hit Power) + the slot rune in your 💠 Gem &amp; 🧮 Rune Stash above — green chips here light up the instant you do.</span></div>';
+  }
+  var totalReady = readyAll.length;
   box.innerHTML = '<div class="cw-crafts">' + tiles + '</div>'
+    + banner
     + '<div class="cw-controls"><div class="cw-slot-chips">' + slotChips + '</div>'
     + '<button type="button" class="hcr-toggle' + (_craftReadyOnly ? ' on' : '') + '" aria-pressed="' + (_craftReadyOnly ? 'true' : 'false') + '" onclick="window.toggleCraftReady()" title="show only the slots you can cube right now from your Gem + Rune Stash">🎒 Cubeable now <span class="hcr-toggle-n">' + readyCount + '</span></button></div>'
     + guaranteed
@@ -12544,6 +12578,20 @@ function renderCraftWorkshop(){
     + '<div class="cw-quality">⚒ <strong>Roll quality:</strong> craft on a Hell base at high clvl — <code>crafted ilvl = ½ clvl + ½ base ilvl</code> (cap 99). An ilvl-71+ result can roll all <strong>4 random affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; reroll the same recipe until the random mods land. <span style="opacity:.8">Source: maxroll.gg · Crafted Items (base-game recipes; Reign of the Warlock may retune the random-affix pool — verify in-game).</span></div>';
 }
 window.renderCraftWorkshop = renderCraftWorkshop;
+// Open the Crafted Items Workshop tool (Tools tab) — expand it, render it, scroll to it.
+// Shared by the global search command and the Reference-tab cross-link.
+function openCraftWorkshop(craftKey){
+  if (window.switchTab) window.switchTab('tools');
+  setTimeout(function(){
+    var card = document.getElementById('craft-workshop-card');
+    if (!card) return;
+    if (card.classList.contains('collapsed') && window.toggleCardCollapse) window.toggleCardCollapse('craft-workshop-card');
+    if (craftKey && _CRAFT_INDEX[String(craftKey).toLowerCase()]) _craftSel = craftKey;
+    if (window.renderCraftWorkshop) window.renderCraftWorkshop();
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 110);
+}
+window.openCraftWorkshop = openCraftWorkshop;
 // Full clickable craft ID card (routed via openDrop) — all 9 slots + guaranteed mods + live cubeable.
 function craftDetailHtml(name){
   var f = findCraft(name); if (!f) return ''; var c = f.craft;
@@ -15358,17 +15406,7 @@ _v41_whenReady(() => {
       sub: 'Tools · what\'s needed to craft + cubeable now',
       cat: 'tool',
       keywords: 'craft crafted items workshop tool planner recipe caster blood safety hit power perfect gem rune cubeable what do i need',
-      action: () => {
-        if (window.switchTab) window.switchTab('tools');
-        setTimeout(() => {
-          const card = document.getElementById('craft-workshop-card');
-          if (card){
-            if (card.classList.contains('collapsed') && window.toggleCardCollapse) window.toggleCardCollapse('craft-workshop-card');
-            if (window.renderCraftWorkshop) window.renderCraftWorkshop();
-            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 110);
-      }
+      action: () => { if (window.openCraftWorkshop) window.openCraftWorkshop(); }
     });
 
 
