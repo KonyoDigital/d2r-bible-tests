@@ -9304,6 +9304,17 @@ const EXTRA_ITEMS = {
   "Eth Colossus Blade (BotD/CB base)": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'high (eth)', desc:"2-handed <b>Breath of the Dying / Chains of Honor</b> base — eth = top damage for a BotD zerker/barb." },
   "Phase Blade (Grief/Spirit base)": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'high', desc:"<b>Indestructible</b> (no eth needed) — the PvP <b>Grief</b>, <b>Spirit</b> and <b>Plague</b> base; immune to breaking, very low strength." },
   "4-socket Phase Blade": { rarity:'basic', base:'Sword', cat:'Runeword bases', val:'high', desc:"A Phase Blade rolled with exactly <b>4 sockets</b> — the ready-to-go Grief / Spirit base. The socket count is the hard part." },
+  // v322: GENERIC socketed-base buckets — the AI intake reports any white/magic/rare socketed base
+  // as one of these by SLOT (Konyo: "just socketed and type of socketed, no need to be specific").
+  // All route to the SOCKETED mule. rarity:'basic' = in-game white/grey; magic/rare socketed keep
+  // their own colour if recognized specifically. Generalized on purpose so it doesn't mesh things up.
+  "Socketed Body Armor": { rarity:'basic', base:'Body Armor', cat:'Socketed bases', val:'base', desc:"A <b>socketed body armor</b> base (white / magic / rare). The home for any chest you keep for a runeword (Enigma, Fortitude, CoH, Treachery…) or a crafted/socket-filler. Socket count + base type decide which runeword it can hold." },
+  "Socketed Helm": { rarity:'basic', base:'Helm', cat:'Socketed bases', val:'base', desc:"A <b>socketed helm/circlet</b> base. Keep for helm runewords (Delirium, Dream, Lore) or socket fillers. Circlets can roll +skills on top of the sockets." },
+  "Socketed Shield": { rarity:'basic', base:'Shield', cat:'Socketed bases', val:'base', desc:"A <b>socketed shield</b> base — Spirit / Exile / Ancient's Pledge / Dragon, or a Paladin smite shield. The socket count (usually 4 for Spirit) is the valuable roll." },
+  "Socketed Weapon": { rarity:'basic', base:'Weapon', cat:'Socketed bases', val:'base', desc:"A <b>socketed weapon</b> base (sword/axe/mace/polearm/etc.) for a weapon runeword (Grief, Spirit, Insight, Infinity, Call to Arms…) or a crafted/socket-filler." },
+  "Socketed Gloves": { rarity:'basic', base:'Gloves', cat:'Socketed bases', val:'base', desc:"A <b>socketed gloves</b> base — magic/rare gloves with sockets for crafting or socket fillers." },
+  "Socketed Belt": { rarity:'basic', base:'Belt', cat:'Socketed bases', val:'base', desc:"A <b>socketed belt</b> base kept for crafting or socket fillers." },
+  "Socketed Boots": { rarity:'basic', base:'Boots', cat:'Socketed bases', val:'base', desc:"A <b>socketed boots</b> base kept for crafting or socket fillers." },
   "Eth Archon Plate (Enigma/CoH base)": { rarity:'basic', base:'Body Armor', cat:'Runeword bases', val:'high (eth)', desc:"The lightest elite body armor — <b>Enigma / Fortitude / Chains of Honor</b> base. Ethereal = much higher defense for the same low strength." },
   "Eth Dusk Shroud (caster base)": { rarity:'basic', base:'Body Armor', cat:'Runeword bases', val:'mid (eth)', desc:"Lightest caster body armor — lowest strength <b>Enigma</b> base for a caster; eth for more defense." },
   "4-socket Monarch (Spirit base)": { rarity:'basic', base:'Shield', cat:'Runeword bases', val:'mid', desc:"The <b>Spirit</b> shield base — needs exactly <b>4 sockets</b>; lowest-strength elite shield. The 4os roll is the value." },
@@ -9504,7 +9515,7 @@ function renderHighValueFinds(){
     if (q && hay.indexOf(q) < 0) return;
     (groups[cat] = groups[cat] || []).push(n);
   });
-  var order = ['Uniques','Rare jewelry','Rare jewels','Crafted','Runeword bases','Charms','Other'];
+  var order = ['Uniques','Rare jewelry','Rare jewels','Crafted','Runeword bases','Socketed bases','Charms','Other'];
   var shown = 0;
   // v309: ⭐ star tier — items that BEAT a named unique / runeword float to the top of
   // their category, render upscaled with a star + a "beats X" chip (Konyo's emphasis ask).
@@ -14554,7 +14565,7 @@ renderCraftWorkshop();
     ['berserker axe','axe'], ['ettin axe','axe'], ['flying axe','axe'], ['winged axe','axe'],
     ['thunder maul','mace'], ['ogre maul','mace'], ['devil star','mace'], ['crescent moon','mace'],
     ['flail','mace'], ['maul','mace'], ['mace','mace'], ["baranar's star",'mace'],
-    ['blade','sword'], ['sword','sword'], ['axe','axe'], ['star','mace'],
+    ['blade','sword'], ['sword','sword'], ['axe','axe'], ['star','mace'], ['weapon','sword'],
     // jewels last — "Jeweler's" prefix on socketed gear would otherwise hijack diadems/armor
     ['facet','jewel'], ['jewel','jewel']
   ];
@@ -18386,6 +18397,9 @@ body{
 .vault-chip.vc-r-magic > span:not(.d2art-wrap){color:var(--q-magic)}
 .vault-chip.vc-r-rare > span:not(.d2art-wrap){color:var(--q-rare)}
 .vault-chip.vc-r-rw > span:not(.d2art-wrap),.vault-chip.vc-r-rune > span:not(.d2art-wrap){color:var(--q-orange)}
+.vault-chip.vc-r-crafted > span:not(.d2art-wrap){color:var(--q-orange)}
+.vault-chip.vc-r-basic{border-color:rgba(180,180,180,.4)}
+.vault-chip.vc-r-basic > span:not(.d2art-wrap){color:var(--q-normal)}/* v322: socketed/normal bases = in-game white */
 .vault-chip.vc-r-set:hover{border-color:rgba(102,255,136,.7);box-shadow:0 0 14px rgba(102,255,136,.18)}
 .vault-chip.vc-r-rw:hover,.vault-chip.vc-r-rune:hover{border-color:rgba(255,170,70,.7);box-shadow:0 0 14px rgba(255,170,70,.2)}
 .vault-chip.vc-r-magic:hover{border-color:rgba(122,162,255,.7);box-shadow:0 0 14px rgba(122,162,255,.2)}
@@ -18428,6 +18442,21 @@ body{
 .vm-set-row .vs-done{color:var(--best,#66ff88)}
 .vm-linked{padding:6px 11px 10px;font-size:11px;color:var(--text-muted,#b5a48a)}
 .vm-empty{font-size:11px;color:var(--text-dim,#756657);font-style:italic;padding:4px 5px}
+/* ═══ v322 vault polish — per-locker RARITY ACCENT (the Crafted-Workshop-grade colour identity) ═══
+   one --acc rgb triplet per locker tints the plate, top stripe, name, count pill, gauge + hover glow.
+   sets=green · uniques=gold · SOCKETED=white · dupes=cyan · WIP=muted gold — coherent with in-game. */
+.vault-mule.vm-a-set{--acc:0,255,0}
+.vault-mule.vm-a-uni{--acc:199,179,119}
+.vault-mule.vm-a-basic{--acc:206,206,206}
+.vault-mule.vm-a-dupe{--acc:0,255,255}
+.vault-mule.vm-a-wip{--acc:212,168,71}
+.vault-mule[class*="vm-a-"]{border-top:2px solid rgba(var(--acc),.5)}
+.vault-mule[class*="vm-a-"] .vm-plate{background:linear-gradient(180deg,rgba(var(--acc),.17),rgba(var(--acc),.035));border-bottom-color:rgba(var(--acc),.32)}
+.vault-mule[class*="vm-a-"] .vm-icon{filter:drop-shadow(0 0 5px rgba(var(--acc),.45))}
+.vault-mule[class*="vm-a-"] .vm-name{color:rgb(var(--acc));text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.vault-mule[class*="vm-a-"] .vm-count{color:rgb(var(--acc));background:rgba(var(--acc),.12);border:1px solid rgba(var(--acc),.3);border-radius:9px;padding:1px 8px;font-weight:700;line-height:1.5}
+.vault-mule[class*="vm-a-"] .vm-gauge-fill:not(.vg-hot){background:linear-gradient(90deg,rgba(var(--acc),.35),rgb(var(--acc)))}
+.vault-mule[class*="vm-a-"]:hover{border-color:rgba(var(--acc),.5);box-shadow:inset 0 0 0 1px rgba(var(--acc),.2),0 6px 20px rgba(0,0,0,.45),0 0 22px rgba(var(--acc),.13);transform:translateY(-2px)}
 /* mule ID card — FULLSCREEN in-game replica (v214, calibrated to Konyo's RotW shots) */
 .vault-detail.vd-fs{position:fixed;inset:0;z-index:99997;margin:0;border:none;border-radius:0;overflow:auto;background:radial-gradient(ellipse at 50% 30%,#15100a,#070503 75%);padding:14px 26px 30px;display:flex;flex-direction:column}
 html.vd-lock,html.vd-lock body{overflow:hidden}
@@ -18610,7 +18639,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'uni-weap',   name:'UNI-WEAPONS', icon:'⚔️', note:'unique melee + caster weapons'},
     {id:'uni-armor',  name:'UNI-ARMOR',   icon:'🪖', note:'body armor · helms · shields · belts · boots · gloves'},
     {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
-    {id:'bases',      name:'BASES',       icon:'📐', note:'runeword bases — they look like junk, they are not'},
+    {id:'bases',      name:'SOCKETED',    icon:'🔩', note:'socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)'},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
@@ -18630,9 +18659,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (had){ try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){} }
     if (prunedAssign){ try{ localStorage.setItem(AK, JSON.stringify(assign)); }catch(e){} }
   })();
+  // v322: rename the legacy BASES locker → SOCKETED (same id 'bases', so assignments survive) for
+  // rosters saved before this version, and refresh its icon/note to the socketed-base wording.
+  (function(){
+    var b = roster.find(function(m){ return m.id==='bases'; });
+    if (b && b.name !== 'SOCKETED'){
+      b.name='SOCKETED'; b.icon='🔩';
+      b.note='socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)';
+      try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+    }
+  })();
   function saveR(){ localStorage.setItem(RK, JSON.stringify(roster)); }
   function saveA(){ localStorage.setItem(AK, JSON.stringify(assign)); }
   var selectedChip = null;
+  // v322 polish: each locker carries a rarity ACCENT (like the Crafted Workshop's per-craft gem
+  // colours) — tinted plate + top stripe + gauge, keyed to what the locker HOLDS. Sets green,
+  // uniques gold, SOCKETED white, dupes cyan, WIP muted — coherent with the in-game palette.
+  var MULE_ACCENT = { 'sets-major':'vm-a-set','sets-rest':'vm-a-set','uni-weap':'vm-a-uni','uni-armor':'vm-a-uni','uni-small':'vm-a-uni','bases':'vm-a-basic','dupes':'vm-a-dupe','wip':'vm-a-wip' };
+  function _muleAccent(id){ return MULE_ACCENT[id] || ''; }
 
   // ── taxonomy brain ──
   var MAJOR_SETS = /^(Tal Rasha|Immortal King|Griswold)/i;
@@ -18675,6 +18719,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var base = (tip && tip.base) || '';
     var probe = base + ' ' + name;
+    // v322: socketed bases (generic "Socketed <Slot>" buckets, or any item literally named with
+    // sockets) get their own home — the SOCKETED mule — BEFORE the jewelry/armor/weapon fallbacks.
+    if (/\bsocket(ed|s)?\b/i.test(name)) return {id:'bases', why:'socketed base'};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     return {id:'uni-weap', why: base ? 'weapon — base: '+base : 'default: weapons'};
@@ -18811,7 +18858,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + '<details class="vm-more"><summary class="vm-more-sum"><span class="vmm-open">+ '+(itemRows.length-SHOWN)+' more ▾</span><span class="vmm-close">show less ▴</span></summary>'
           + '<div class="vm-more-list">'+itemRows.slice(SHOWN).join('')+'</div></details>';
       } else { itemsHtml = itemRows.join(''); }
-      return '<div class="vault-mule" data-vault-mule="'+esc(m.id)+'">'
+      return '<div class="vault-mule '+_muleAccent(m.id)+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="click: open the in-game ID card of this mule · with a chip selected: assign it here">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count">'+items.length+'</span>'
@@ -19004,6 +19051,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.vaultSize = vaultSize;
   window.vaultSuggest = suggestMule;
   window.renderVault = renderVault;
+  window.suggestMule = suggestMule;  // v322: exposed for the socketed-routing test + external callers
   // the detail-card badge (renderItemDetailCard calls this)
   window._vaultBadge = function(name){
     var id=assign[name]; var m=id&&muleById(id);
