@@ -1424,6 +1424,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .ir-tie{font-size:11px;line-height:1.45;color:var(--text-dim);border-top:1px dashed var(--border);padding-top:6px;margin-top:auto}
 .ir-tie b{color:var(--ir)}
 .ir-note{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:11px;line-height:1.5}
+/* v306: Vault "Recently registered" — clean session cards + scroll (like the Workshop) */
+#vault-journal .vj-head{font-size:12.5px;margin-bottom:8px;color:var(--best,#66ff88)}
+.vj-scroll{max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding-right:3px}
+.vj-session{padding:7px 10px;border-radius:9px;background:rgba(102,255,136,.05);border:1px solid rgba(102,255,136,.14)}
+.vj-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.vj-when{font-family:var(--mono,ui-monospace),monospace;font-size:10.5px;color:var(--text-dim)}
+.vj-count{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9be8b4;background:rgba(102,255,136,.13);border-radius:8px;padding:1px 7px}
+.vj-items{display:flex;flex-wrap:wrap;gap:5px}
+.vj-chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:7px;padding:2px 8px;cursor:pointer;transition:background .12s,border-color .12s}
+.vj-chip:hover{background:rgba(240,192,96,.1);border-color:var(--gold-dim,#6a5a38)}
+.vj-chip .d2art-wrap.sm{width:16px;height:16px}
+.vj-chip .d2art-wrap.sm .d2art-img{max-width:16px;max-height:16px}
+.vj-more{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
 /* v301: High-Value Finds browser rows */
 .hvf-row{display:flex;gap:10px;align-items:baseline;padding:6px 7px;border-bottom:1px dotted var(--border);cursor:pointer;transition:background .12s}
 .hvf-row:hover{background:rgba(240,192,96,.06)}
@@ -9225,7 +9238,7 @@ const EXTRA_ITEMS = {
   "Godly Necromancer Amulet (rare)": { rarity:'rare', base:'Amulet', cat:'Rare jewelry', val:'high', desc:"<b>+3 Necromancer Skills</b> + FCR + life/res — summoner/poison caster ceiling." },
   "Caster Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid–high', desc:"Rings can't roll +class skills, so the ceiling is <b>10% FCR + +mana + life + a resist + dual-leech</b>. A clean FCR caster ring frees an amulet slot." },
   "Dual-Leech Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"<b>Life Stolen + Mana Stolen per hit</b> + Attack Rating + life + resist — the melee/zealer ring." },
-  "Bul-Kathos / Stat Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"+life, all-resist, +stats and leech — a clean filler ring upgrade over most uniques except SoJ/BK." },
+  "Stat / Leech Ring (rare)": { rarity:'rare', base:'Ring', cat:'Rare jewelry', val:'mid', desc:"+life, all-resist, +stats and dual-leech — a clean filler rare ring that upgrades over most unique rings short of SoJ / Bul-Kathos." },
   "Godly Rare Jewel (40 ED / 15 IAS)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 50 Ist', desc:"The best rare jewel: <b>40% Enhanced Damage + 15% Increased Attack Speed</b> in one socket. The single most valuable jewel roll." },
   "Rare Jewel (40 ED / 9 stat)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'≈ 7 Ist', desc:"<b>40% ED + 9 to a stat</b> (Str/Dex) — top-tier filler for any socketed weapon/armor." },
   "Rare Jewel (15 IAS / −15 Req)": { rarity:'rare', base:'Jewel', cat:'Rare jewels', val:'mid', desc:"<b>15% IAS + −15% Requirements</b> — slots into runeword/socket bases to drop their strength/dex needs." },
@@ -13492,9 +13505,24 @@ function _arttipResolve(nm){
   if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
   if (typeof findSetPiece === 'function'){ var _sp = findSetPiece(nm); if (_sp) return { artName: nm, desc: _setPieceTipHtml(_sp), rich: true }; }
+  // High-Value Finds reference profiles (non-unique; uniques already resolved via ITEM_TIP above)
+  if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm]) return { artName: nm, desc: _extraTipHtml(nm), rich: true };
   return { artName: nm, desc: '', rich: false };
 }
 window._arttipResolve = _arttipResolve;
+// Rich hover-card body for a High-Value Finds reference profile (matches the gem/item tip style).
+function _extraTipHtml(nm){
+  var e = (typeof EXTRA_ITEMS !== 'undefined') ? EXTRA_ITEMS[nm] : null; if (!e) return '';
+  var rar = e.rarity || 'rare';
+  var rarLabel = (typeof _Q_LABEL !== 'undefined' && _Q_LABEL[rar]) ? _Q_LABEL[rar] : (rar.charAt(0).toUpperCase() + rar.slice(1));
+  var roll = rar === 'magic' ? '1–2 random affixes' : rar === 'crafted' ? '3 fixed mods + 1–4 random' : rar === 'basic' ? 'base item — value = type + sockets + ethereal' : '3–6 random affixes';
+  return '<div class="att-type">' + rarLabel + (e.base ? ' &middot; ' + e.base : '') + '</div>'
+    + (e.cat ? '<div class="att-meta">' + e.cat + (e.val ? ' &middot; 💰 ' + e.val : '') + '</div>' : (e.val ? '<div class="att-meta">💰 ' + e.val + '</div>' : ''))
+    + (e.desc ? '<div class="att-aff">' + e.desc + '</div>' : '')
+    + '<div class="att-tag">rolls: ' + roll + '</div>'
+    + '<div class="att-info">Best-of-the-best — rivals runewords / uniques. Outside the 312 grail.</div>';
+}
+window._extraTipHtml = _extraTipHtml;
 /* Floating art-hover popup (the diablo2.io "nice detail"). Delegated + scoped   */
 /* to elements carrying data-arttip OR the site-wide existing data-art-logo      */
 /* chips, so item names everywhere reveal their in-game art + verified stats on  */
@@ -18814,14 +18842,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var j = journal();
     if (!j.length){ el.style.display='none'; return; }
     el.style.display='';
-    el.innerHTML = '<strong style="color:var(--best,#66ff88)">🕘 Recently registered</strong> — your last intake sessions:'
-      + j.slice(0, 5).map(function(e){
-          var d = new Date(e.ts);
-          var when = d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
-          return '<div style="padding:2px 0"><span style="font-family:var(--mono,monospace);color:var(--text-dim,#756657)">' + when + '</span> · <strong>' + e.items.length + ' item' + (e.items.length===1?'':'s') + ':</strong> '
-            + e.items.map(function(n){ return '<span style="color:var(--gold-bright,#f0c060);cursor:pointer" onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">' + esc(n) + '</span>'; }).join(' · ') + '</div>';
-        }).join('')
-      + (j.length>5 ? '<div style="color:var(--text-dim)">… and ' + (j.length-5) + ' older session' + (j.length-5===1?'':'s') + '</div>' : '');
+    var Q = { unique:'#c7b377', set:'#00ff00', rw:'#ffa800', rune:'#ff7d3c', magic:'#6969ff', rare:'#ffff64' };
+    var sessions = j.slice(0, 8).map(function(e){
+      var d = new Date(e.ts);
+      var when = d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+      var chips = e.items.map(function(n){
+        var r = (typeof _artRarity === 'function') ? _artRarity(n) : '';
+        var col = Q[r] || 'var(--gold-bright,#f0c060)';
+        var logo = (typeof nameLogo === 'function') ? nameLogo(n) : '';
+        return '<span class="vj-chip" data-arttip="' + esc(n) + '" style="color:' + col + '" onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')" title="open ' + esc(n) + '">' + logo + esc(n) + '</span>';
+      }).join('');
+      return '<div class="vj-session"><div class="vj-meta"><span class="vj-when">' + when + '</span><span class="vj-count">' + e.items.length + ' item' + (e.items.length===1?'':'s') + '</span></div><div class="vj-items">' + chips + '</div></div>';
+    }).join('');
+    el.innerHTML = '<div class="vj-head">🕘 <strong>Recently registered</strong> — your last intake sessions</div>'
+      + '<div class="vj-scroll">' + sessions + '</div>'
+      + (j.length>8 ? '<div class="vj-more">… and ' + (j.length-8) + ' older session' + (j.length-8===1?'':'s') + '</div>' : '');
   }
   function persistOwned(){
     try { localStorage.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
