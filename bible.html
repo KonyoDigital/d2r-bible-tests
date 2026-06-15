@@ -1166,7 +1166,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12.5px;padding:6px 8px;border-bottom:1px dotted var(--border);cursor:pointer;border-radius:5px}
 .arw-row:hover{background:rgba(60,90,138,.16)}
 .arw-row:last-child{border-bottom:none}
-.arw-name{font-weight:700;color:#bcd6ff;min-width:150px}
+.arw-name{font-weight:700;color:var(--q-orange);min-width:150px}/* v311: runewords read orange like their ID card / drop tables */
 .arw-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-bright);display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
 /* v255: HD rune-icon chips in each runeword recipe */
 .arw-rune{display:inline-flex;align-items:center;gap:3px}
@@ -1178,8 +1178,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-base{font-size:11px;color:var(--text-dim);margin-left:auto;white-space:nowrap}
 /* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
 .rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
-.arw-row.rw-ready .arw-name{color:var(--best,#7bc77b)}
-.arw-row.rw-cube .arw-name{color:var(--gold-bright,#f0c060)}
+/* v311: keep the name in runeword-orange; show craftable/cubeable as a GLOW, not a colour swap */
+.arw-row.rw-ready .arw-name{color:var(--q-orange);text-shadow:0 0 8px rgba(123,199,123,.6)}
+.arw-row.rw-cube .arw-name{color:var(--q-orange);text-shadow:0 0 8px rgba(240,192,96,.55)}
 .rw-make-stick{position:sticky;top:0;background:var(--surface-2);padding:8px 0 5px;z-index:2}
 .rw-make-hint{font-size:10.5px;color:var(--text-dim);font-style:italic;padding:1px 2px 6px;line-height:1.45}
 .rw-make-hint b{color:var(--gold-bright,#f0c060);font-style:normal}
@@ -3536,6 +3537,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
+        <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="empty the Recently-registered log + forget which screenshots were scanned, so you can re-read the same files (owned items are kept)">🧹 Clear intake history</button>
         <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
         <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
         <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
@@ -6646,7 +6648,7 @@ function zoneDropBlockHtml(z){
     const esc = (d.name || '').replace(/'/g, "\\'");
     // each grail chip carries the in-game art logo + the floating #arttip rich hover card
     // (data-arttip), matching every other item reference site-wide
-    return `<span class="zd-item zd-item-click ${cls}" role="button" tabindex="0" data-arttip="${_d2artEsc(d.name)}" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">${nameLogo(d.name)}${d.name}</span>`;
+    return `<span class="zd-item zd-item-click ${cls}" role="button" tabindex="0" data-arttip="${_d2artEsc(d.name)}" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">${nameLogo(d.name)}<span${_qStyle(d.name,'unique')}>${d.name}</span></span>`;
   };
   let h = `<div class="zd-row"><span class="zd-k">grail drops</span><span class="zd-v">`;
   h += `<div class="zd-drops-head">🏆 ${pool.length} grail-eligible uniques reachable in this terror pool</div>`;
@@ -6677,7 +6679,7 @@ function zoneHellGridHtml(z){
     const q = codexQ(d.name);
     return `<tr class="zd-hg-row" role="button" tabindex="0" onclick="event.stopPropagation();window.navigateToItem('${esc}')" title="open ${d.name}'s grail card">
         <td class="zd-hg-rank">#${i + 1}</td>
-        <td class="zd-hg-name" data-arttip="${_d2artEsc(d.name)}">${nameLogo(d.name)}<strong>${d.name}</strong> ${tierBadge(d.tier)}</td>
+        <td class="zd-hg-name" data-arttip="${_d2artEsc(d.name)}">${nameLogo(d.name)}<strong${_qStyle(d.name,'unique')}>${d.name}</strong> ${tierBadge(d.tier)}</td>
         <td class="zd-hg-tc">${tcTag(d.tc)}</td>
         <td class="zd-hg-q">${q ? 'qlvl ' + q : '—'}</td>
       </tr>`;
@@ -8803,11 +8805,36 @@ function _artRarity(name){
     if (!r && typeof findRuneword === 'function' && findRuneword(name)) r = 'rw';
     if (!r && /\bRune\b/.test(name)) r = 'rune';
     if (!r && typeof findSetPiece === 'function' && findSetPiece(name)) r = 'set';
+    // v311 — THE ONE SWITCH: _artRarity is the single source of truth for an item's in-game
+    // quality colour. Any KNOWN grail/registry item that didn't resolve above falls through to
+    // its itemQuality() (set / rune / unique); materials ('special') stay uncoloured (they use
+    // their own element scheme). This is why uniques now light up everywhere — the floating
+    // tip, calc grid, boss cards, TZ zones, vault, search — from this ONE resolver.
+    if (!r && typeof ITEM_REGISTRY !== 'undefined' && ITEM_REGISTRY[name] && typeof itemQuality === 'function'){
+      var _iq = itemQuality(ITEM_REGISTRY[name]);
+      r = (_iq === 'material') ? '' : _iq;
+    }
+    // last-resort name heuristic so set aggregates ("... (set)" / "(any piece)") read green
+    if (!r && /\(set\)|\(set piece\)|\(any piece\)/i.test(name)) r = 'set';
   } catch(e){}
   _ARTRARITY_CACHE[name] = r;
   return r;
 }
 window._artRarity = _artRarity;
+// v311: ONE source of truth for "paint this item name its exact in-game rarity colour".
+// Returns a --q-* CSS var for a name's rarity, '' if unknown. _qStyle() returns an inline
+// style attr (with !important) so it wins over any surface's flat/!important colour — used
+// to close every rarity-colour gap the section-by-section audit found.
+function _qHex(name){
+  var r = (typeof _artRarity === 'function') ? _artRarity(name) : '';
+  var M = { unique:'var(--q-unique)', set:'var(--q-set)', magic:'var(--q-magic)', rare:'var(--q-rare)', rw:'var(--q-orange)', rune:'var(--q-orange)', crafted:'var(--q-orange)', basic:'var(--q-normal)' };
+  return M[r] || '';
+}
+function _qStyle(name, fallback){
+  var c = _qHex(name) || (fallback ? ('var(--q-' + fallback + ')') : '');
+  return c ? (' style="color:' + c + ' !important"') : '';
+}
+window._qHex = _qHex; window._qStyle = _qStyle;
 function artOr(name, fallbackHtml, size){
   var u = artUrl(name);
   var _rc = _artRarity(name); var _rcls = _rc ? ' d2art-r-' + _rc : '';
@@ -9065,7 +9092,7 @@ function renderEndgameRoad(){
   const node = (item, emoji, src, rate) =>
     '<div class="road-node" role="button" tabindex="0" onclick="window.openDrop(\'' + item.replace(/'/g, "\\'") + '\')">'
     + '<div class="rn-art">' + artOr(item, emoji, 'lg') + '</div>'
-    + '<div class="rn-name">' + item + '</div>'
+    + '<div class="rn-name"' + (typeof _qStyle==='function'?_qStyle(item,'unique'):'') + '>' + item + '</div>'
     + '<div class="rn-src">' + src + '</div>'
     + '<div class="rn-rate">' + rate + '</div></div>';
   // Branch-title emblems — the upgraded animated art logos (relicArtGlow runs on the
@@ -9091,7 +9118,7 @@ function renderEndgameRoad(){
     + '<div class="road-cube">cube <code>Diablo\'s Horn + Mephisto\'s Brain + Baal\'s Eye</code> → the <strong>Uber Tristram</strong> red portal</div></div>'
     + '<div class="road-arrow">▼</div>'
     + '<div class="road-final" role="button" tabindex="0" onclick="window.openDrop(\'Hellfire Torch\')"><div class="rf-art">' + artOr('Hellfire Torch','🔥','lg') + '</div>'
-    + '<div><div class="rf-name">🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
+    + '<div><div class="rf-name"' + (typeof _qStyle==='function'?_qStyle('Hellfire Torch','unique'):'') + '>🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
     + '<div class="road-section-h">Pinnacle side-paths off the same road</div>'
     + '<div class="road-branches">'
     + '<div class="road-branch endgame-relic" role="button" tabindex="0" onclick="window.openDrop(\'Annihilus\')"><h3>' + branchEmblem('diablo_graphic.png','🌑') + '<span>Diablo Clone → Annihilus</span></h3><p>A world event triggered by mass Stone of Jordan sales. Über Diablo spawns; killing him drops the <strong>Annihilus</strong> — the only small charm with +1 all skills, +10-20 all attributes, +10-20 all resist and +5-10% experience. Every kill drops one.</p></div>'
@@ -10354,7 +10381,7 @@ function renderHeroV31() {
         else tierBadge = `<span style="color:var(--terror);font-size:8px;letter-spacing:.5px">#${p.rank} of ${p.totalBosses}</span>`;
         return `<div class="hero-pick" onclick="window.openItemDetail('${p.item.replace(/'/g, "\\'")}')">
           <div class="hero-pick-rank">${p.starred?'⭐ ':''}#${i+1}${p.tier==='uber'?' UBER':''}${p.verified?' 🔒':''}</div>
-          <div class="hero-pick-item">${nameLogo(p.item)}${p.item}</div>
+          <div class="hero-pick-item"${_qStyle(p.item,'unique')}>${nameLogo(p.item)}${p.item}</div>
           <div class="hero-pick-boss" style="font-size:11px">${p.boss}${(typeof players !== "undefined" && players > 1 && playerMult(p.bossId, p.diffKey, 8) === 1) ? ' <span style="color:#8a7d62;font-size:9px;letter-spacing:.5px" title="guaranteed dropper (q=0) — player count adds HP, not loot; stays \u00d71.00">\u00b7 P#-PROOF</span>' : ''}</div>
           <div class="hero-pick-chance">${fmt(p.chance)} · <span style="color:var(--terror)">${fmtHours(p.hours)}</span></div>
           <div class="hero-pick-source-badge">${p.kph}/hr ${tierBadge}</div>
@@ -10429,7 +10456,7 @@ function renderHeroV31() {
   $('hero-picks').innerHTML = final.map((p,i) => `
     <div class="hero-pick" onclick="window.openItemDetail('${p.item.replace(/'/g, "\\'")}')">
       <div class="hero-pick-rank">${p.starred?'⭐ ':''}#${i+1} ${p.tier==='uber'?'UBER':'BEST'}${p.verified?' 🔒':''}</div>
-      <div class="hero-pick-item">${nameLogo(p.item)}${p.item}</div>
+      <div class="hero-pick-item"${_qStyle(p.item,'unique')}>${nameLogo(p.item)}${p.item}</div>
       <div class="hero-pick-boss">${p.boss}${(typeof players !== "undefined" && players > 1 && playerMult(p.bossId, p.diffKey, 8) === 1) ? ' <span style="color:#8a7d62;font-size:9px;letter-spacing:.5px" title="guaranteed dropper (q=0) — player count adds HP, not loot; stays \u00d71.00">\u00b7 P#-PROOF</span>' : ''}</div>
       <div class="hero-pick-chance">${fmt(p.chance)} · <span style="color:var(--terror)">${fmtHours(p.hours)}</span></div>
       <div class="hero-pick-source-badge">${p.kph}/hr</div>
@@ -10553,7 +10580,7 @@ function renderBossDetailCard(bossId, focusDiff) {
     const diffLabel = (p.diffKey||'').replace('Tz',' TZ').toUpperCase();
     return `<div class="gbc-grail-item" data-arttip="${_d2artEsc(p.name)}" onclick="navigateToItem('${esc}', {tab:'bosses', bossId:'${boss.id}'})">
       <div class="gbc-grail-rank">#${i+1}</div>
-      <div class="gbc-grail-name">${nameLogo(p.name)}${p.name}</div>
+      <div class="gbc-grail-name"${_qStyle(p.name,'unique')}>${nameLogo(p.name)}${p.name}</div>
       <div class="gbc-grail-stats">${diffLabel} · <span class="chance">${fmt(p.adj)}</span> · <span class="time">${fmtHours(p.h50)}</span></div>
     </div>`;
   }).join('')}</div>` : `<div style="color:var(--text-muted);font-style:italic;font-size:12px">No grail items in this boss's table.</div>`;
@@ -10587,7 +10614,7 @@ function renderBossDetailCard(bossId, focusDiff) {
       <div class="sig-drop endgame-relic" role="button" tabindex="0" onclick="event.stopPropagation();window.openDrop('${EXCLUSIVE_DROPS[boss.id].item.replace(/'/g,"\\'")}')">
         <span class="sig-art">${artOr(EXCLUSIVE_DROPS[boss.id].item, '🏆', 'lg')}</span>
         <span class="sig-badge">★ ONLY DROPS HERE</span>
-        <span class="sig-name">${EXCLUSIVE_DROPS[boss.id].item} →</span>
+        <span class="sig-name"${_qStyle(EXCLUSIVE_DROPS[boss.id].item,'unique')}>${EXCLUSIVE_DROPS[boss.id].item} →</span>
         <span class="sig-note">${EXCLUSIVE_DROPS[boss.id].note}</span>
       </div>
     </section>` : ''}
@@ -10678,7 +10705,7 @@ function renderBossDetailCard(bossId, focusDiff) {
             const esc = d.n.replace(/'/g,"\\'");
             const adjusted = (v, dk) => v == null ? '<span style="color:var(--text-muted)">—</span>' : fmt(effChance(v, boss.id, dk));
             return `<tr style="cursor:pointer" onclick="navigateToItem(\'${esc}\', {tab:\'bosses\', bossId:\'${boss.id}\'})">
-              <td data-arttip="${_d2artEsc(d.n)}">${nameLogo(d.n)}<strong>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
+              <td data-arttip="${_d2artEsc(d.n)}">${nameLogo(d.n)}<strong${_qStyle(d.n,'unique')}>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
               <td style="font-family:var(--mono);color:var(--text-muted);font-size:11px">TC${d.tc}</td>
               <td class="dcol-norm" style="text-align:right;font-family:var(--mono)">${adjusted(d.norm,'norm')}</td>
               <td class="dcol-nm" style="text-align:right;font-family:var(--mono)">${adjusted(d.nm,'nm')}</td>
@@ -11955,7 +11982,7 @@ function renderSetTracker() {
       const _b = _i >= 0 ? p.slice(0, _i) : p;            // strip the "(slot)" suffix -> base item name
       const _bAttr = _b.replace(/"/g, '&quot;');
       // set pieces have no individual openDrop card, so art-logo + hover-popup only (no dead route)
-      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}">${artOr(_b, _setSlotGlyph(p), 'sm')} ${p}</span>`;
+      const _nm = `<span class="set-piece-name" data-arttip="${_bAttr}"${_qStyle(_b, 'set')}>${artOr(_b, _setSlotGlyph(p), 'sm')} ${p}</span>`;
       return `<div class="set-piece ${setPieces.has(p)?'checked':''}" onclick="toggleSetPiece('${esc}')">
         <span class="set-piece-box"></span>
         ${_nm}
@@ -15751,7 +15778,7 @@ _v41_whenReady(() => {
           var icHtml = (_artName && typeof window.artOr==='function')
             ? window.artOr(_artName, '<span class="gsearch-ic-emoji">'+_ic+'</span>', 'sm')
             : _ic;
-          html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+icHtml+'</span><span class="gsearch-lab">'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
+          html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+icHtml+'</span><span class="gsearch-lab"'+(typeof _qStyle==='function'?_qStyle(c.label):'')+'>'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
         }
         box.innerHTML=html; active=0; box.hidden=false; paint();
       }
@@ -18323,10 +18350,12 @@ body{
 .vault-chip.vc-r-magic{border-color:rgba(122,162,255,.5)}
 .vault-chip.vc-r-rw{border-color:rgba(255,170,70,.5)}
 .vault-chip.vc-r-rune{border-color:rgba(255,150,50,.5)}
-.vault-chip.vc-r-unique > span:not(.d2art-wrap){color:#f0c060}
-.vault-chip.vc-r-set > span:not(.d2art-wrap){color:#7dff9d}
-.vault-chip.vc-r-magic > span:not(.d2art-wrap){color:#9fb8ff}
-.vault-chip.vc-r-rw > span:not(.d2art-wrap),.vault-chip.vc-r-rune > span:not(.d2art-wrap){color:#ffc070}
+/* v320: vault chips share the exact in-game --q-* palette so the WHOLE platform is one unit */
+.vault-chip.vc-r-unique > span:not(.d2art-wrap){color:var(--q-unique)}
+.vault-chip.vc-r-set > span:not(.d2art-wrap){color:var(--q-set)}
+.vault-chip.vc-r-magic > span:not(.d2art-wrap){color:var(--q-magic)}
+.vault-chip.vc-r-rare > span:not(.d2art-wrap){color:var(--q-rare)}
+.vault-chip.vc-r-rw > span:not(.d2art-wrap),.vault-chip.vc-r-rune > span:not(.d2art-wrap){color:var(--q-orange)}
 .vault-chip.vc-r-set:hover{border-color:rgba(102,255,136,.7);box-shadow:0 0 14px rgba(102,255,136,.18)}
 .vault-chip.vc-r-rw:hover,.vault-chip.vc-r-rune:hover{border-color:rgba(255,170,70,.7);box-shadow:0 0 14px rgba(255,170,70,.2)}
 .vault-chip.vc-r-magic:hover{border-color:rgba(122,162,255,.7);box-shadow:0 0 14px rgba(122,162,255,.2)}
@@ -18660,7 +18689,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">unsorted · in the dock</span>';
       var click = mid ? ' onclick="window.openMuleCard&&window.openMuleCard(\''+jsArg(mid)+'\')"' : '';
       return '<div class="vfr-row"'+click+' title="'+(mid?'open this mule’s ID card':'still unsorted — assign it to a mule')+'">'
-        + art(n) + '<span class="vfr-name">'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
+        + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
     }).join('');
     res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — click to open the mule</div>' + rows;
   };
@@ -18742,7 +18771,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var SHOWN = 4;
       var itemRows = items.map(function(n){
         return '<div class="vm-item">'+art(n)
-          +'<span class="vm-item-name" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')" title="open item card">'+esc(n)+'</span>'
+          +'<span class="vm-item-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+' onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')" title="open item card">'+esc(n)+'</span>'
           +'<button class="vm-unassign" onclick="window.vaultUnassign(\''+jsArg(n)+'\')" title="send back to the unsorted dock">✕</button></div>';
       });
       var itemsHtml;
@@ -19011,6 +19040,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // ── v215: intake journal — persists what was registered, when, across sessions
   var JOURNAL_KEY='d2r_intakeLog';
   function journal(){ try { return JSON.parse(localStorage.getItem(JOURNAL_KEY)||'[]'); } catch(e){ return []; } }
+  // v320: clear the intake history so the SAME screenshots can be re-read (for test runs).
+  // Empties the "Recently registered" log + the folder seen-ledger. Owned items are NOT
+  // touched — re-scanning them just shows "already owned" in the per-file breakdown.
+  window.vaultClearHistory = function(){
+    if (!window.confirm('Clear intake history?\n\nThis empties the “Recently registered” log and forgets which screenshots were already scanned, so you can re-read the same files. Your owned items are NOT removed.')) return;
+    try { localStorage.removeItem(JOURNAL_KEY); } catch(e){}
+    try { localStorage.removeItem('d2r_intakeSeen'); } catch(e){}
+    var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
+    try { renderJournal(); } catch(e){}
+  };
   function journalAdd(items){
     if (!items.length) return;
     var j = journal();
@@ -19101,12 +19140,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     var html = '<strong style="color:#7fd4ff">📸 AI intake done.</strong> ';
+    var _colorNames = function(arr){ return arr.map(function(n){ var s=(typeof _qStyle==='function'?_qStyle(n,'unique'):''); return '<span'+s+'>'+esc(n)+'</span>'; }).join(' · '); };
     html += logged.length
-      ? '<strong style="color:var(--best,#66ff88)">' + logged.length + ' NEW item' + (logged.length===1?'':'s') + ' logged ✓ owned + assigned:</strong> ' + logged.map(esc).join(' · ')
+      ? '<strong style="color:var(--best,#66ff88)">' + logged.length + ' NEW item' + (logged.length===1?'':'s') + ' logged ✓ owned + assigned:</strong> ' + _colorNames(logged)
       : (dupes.length ? 'no NEW items — everything the AI read was already ✓ owned.' : 'no readable tracked items found in ' + files.length + ' screenshot' + (files.length===1?'':'s') + '.');
     // v310: show items the AI DID recognize but you already own — so a low "new" count
     // reads as "already registered", not "intake failed". This is the usual 3-of-9 cause.
-    if (dupes.length) html += '<br><span style="color:#7fd4ff">already owned (recognized, not re-added): ' + dupes.map(esc).join(' · ') + '</span>';
+    if (dupes.length) html += '<br><span style="color:#7fd4ff">already owned (recognized, not re-added):</span> ' + _colorNames(dupes);
     if (unrec.length) html += '<br><span style="color:var(--text-dim,#756657)">read but not in the tracked list (no card yet): ' + unrec.map(esc).join(' · ') + '</span>';
     if (!logged.length && !dupes.length && !unrec.length && !errors) html += '<br><span style="color:var(--text-dim,#756657)">💡 the AI reads item NAMES, not icons — a bare stash tab has no text to read. Open a tooltip (hover) or hold Alt over loot, then screenshot.</span>';
     // v310: per-file breakdown — name the exact screenshot each item came from, so intake

@@ -70,7 +70,7 @@ test.describe('v205 AI intake', () => {
     expect(r.persisted).toContain('Harlequin Crest (Shako)');
     expect(r.assigned['The Stone of Jordan']).toBe('uni-small');
     expect(r.assigned['Harlequin Crest (Shako)']).toBe('uni-armor');
-    expect(r.report).toContain('2 items logged');
+    expect(r.report).toContain('2 NEW items logged');  // v310: report distinguishes NEW vs already-owned
     expect(r.report).toContain('Hephast⚒ The Armorer');
     expect(r.report).toContain('API budget');
   });
