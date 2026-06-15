@@ -26,7 +26,7 @@ test.describe('v142 recipe browser wired to the stash tallies', () => {
       const socket = f('Ral + Amn + Perfect Amethyst + Normal Weapon'); // 2 runes + 1 gem, base untracked
       const gems3 = f('3× identical gems (same type + grade, except Perfect)'); // descriptive rule — nothing trackable
       const potions = f('3× Health Potion + 3× Mana Potion + 1× Standard Gem'); // a generic Standard (Normal) gem IS trackable
-      const quality = f('Eld + Chipped Gem + Low Quality Weapon'); // rune + generic chipped-grade gem
+      const quality = f('El + Chipped Gem + Low Quality Weapon'); // rune + generic chipped-grade gem
       return {
         socketLen: socket.length,
         socketNames: socket.map((i: any) => i.name + ':' + i.type + ':' + i.need),
@@ -42,7 +42,7 @@ test.describe('v142 recipe browser wired to the stash tallies', () => {
     expect(r.gems3Len).toBe(0);
     // generic gem-grade requirements are now tracked (fixes recipes shown cubeable without the gem)
     expect(r.potions).toEqual(['gemGrade:Normal:1']);
-    expect(r.quality).toEqual(['rune:Eld:1', 'gemGrade:Chipped:1']);
+    expect(r.quality).toEqual(['rune:El:1', 'gemGrade:Chipped:1']);
   });
 
   test('_recReady flips to ready once the stash holds every rune + gem', async ({ page }) => {
