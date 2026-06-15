@@ -1407,6 +1407,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-rn-chip:hover{transform:translateY(-1px);box-shadow:0 3px 12px color-mix(in srgb,var(--cw-c,#f0c060) 30%,transparent)}
 .cw-rn-more{font-size:11px;color:var(--text-dim);font-style:italic;margin-left:2px}
 @media(max-width:560px){.cw-recipe{grid-template-columns:auto 1fr;grid-template-areas:"glyph head" "glyph ing" "glyph out" "glyph base" "stat own"}.cw-rec-stat,.cw-rec-own{justify-self:start;margin-top:5px}.cw-rec-out{border-top:none}}
+/* v293: Item Rarity & Colours explainer (Tools tab) — colour-coded rarity tiles */
+.ir-lead{font-size:12.5px;line-height:1.55;color:var(--text);background:linear-gradient(135deg,rgba(240,192,96,.07),rgba(20,16,10,.25));border:1px solid rgba(240,192,96,.24);border-left:3px solid var(--gold-bright,#f0c060);border-radius:10px;padding:11px 14px;margin:4px 0 12px}
+.ir-lead strong{color:var(--gold-bright,#f0c060)}
+.ir-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:10px;margin:4px 0}
+.ir-tile{position:relative;display:flex;flex-direction:column;gap:7px;padding:12px 14px 12px 18px;border-radius:11px;border:1px solid var(--border);background:linear-gradient(150deg,color-mix(in srgb,var(--ir) 9%,rgba(18,14,9,.5)),rgba(10,8,5,.4));overflow:hidden;transition:transform .15s ease,box-shadow .2s ease,border-color .2s ease}
+.ir-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--ir);box-shadow:0 0 14px color-mix(in srgb,var(--ir) 70%,transparent)}
+.ir-tile:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--ir) 55%,transparent);box-shadow:0 6px 22px rgba(0,0,0,.4),0 0 18px color-mix(in srgb,var(--ir) 22%,transparent)}
+.ir-head{display:flex;align-items:center;gap:9px}
+.ir-swatch{width:18px;height:18px;border-radius:4px;background:var(--ir);box-shadow:0 0 8px color-mix(in srgb,var(--ir) 60%,transparent),inset 0 0 0 1px rgba(0,0,0,.45);flex:0 0 auto}
+.ir-name{font-family:var(--serif-display,serif);font-weight:700;font-size:16px;color:var(--ir);text-shadow:0 0 12px color-mix(in srgb,var(--ir) 32%,transparent);line-height:1.1}
+.ir-name small{font-family:var(--mono,ui-monospace),monospace;font-weight:600;font-size:10.5px;color:var(--text-dim);text-shadow:none;margin-left:3px}
+.ir-mods{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ir);border:1px solid color-mix(in srgb,var(--ir) 45%,transparent);border-radius:8px;padding:1px 7px;margin-left:auto;white-space:nowrap}
+.ir-desc{font-size:12px;line-height:1.5;color:var(--text-muted)}
+.ir-desc strong{color:var(--text)}
+.ir-tie{font-size:11px;line-height:1.45;color:var(--text-dim);border-top:1px dashed var(--border);padding-top:6px;margin-top:auto}
+.ir-tie b{color:var(--ir)}
+.ir-note{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:11px;line-height:1.5}
 /* v283: emphasized, structured cube-recipe block on material ID cards */
 .recipe-block{margin:6px 0 12px;padding:14px 16px;background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(20,16,10,.35));border:1px solid rgba(240,192,96,.34);border-radius:11px;box-shadow:inset 0 0 22px rgba(0,0,0,.35)}
 .recipe-block-lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--gold-bright,#f0c060);margin-bottom:10px;opacity:.85}
@@ -3648,6 +3665,59 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         </div>
         <div class="rw-make" id="gem-craftable"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="item-rarity-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('item-rarity-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="font-size:34px">🎨</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Item Rarity &amp; Colours</p>
+        <p class="boss-subtitle">What every item colour means — how many mods it rolls, and how it ties into cubing &amp; crafting</p>
+        <p class="boss-loc">Normal · Socketed/Ethereal · Magic · Rare · Crafted · Set · Unique</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="ir-lead">Every item in D2R is colour-coded by its <strong>rarity</strong>, and the colour tells you how many magic properties it can roll. This is the backbone of the cube: you craft <strong>onto a blue (magic) base</strong>, the cube hands you an <strong>orange (crafted)</strong> result, and you reroll <strong>yellow (rare)</strong> affixes — see the 🔨 Workshop &amp; 🧊 Horadric recipes below.</div>
+      <div class="ir-grid">
+        <div class="ir-tile" style="--ir:#e6e6e6">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Normal <small>White</small></span><span class="ir-mods">0 mods</span></div>
+          <div class="ir-desc">Base items with no magical properties — a blank slate.</div>
+          <div class="ir-tie">🔩 The canvas for <b>Runewords</b> (socket the runes into a white base) and the start of most <b>cube upgrades</b>.</div>
+        </div>
+        <div class="ir-tile" style="--ir:#9a9a9a">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Socketed / Ethereal <small>Grey</small></span><span class="ir-mods">sockets · eth</span></div>
+          <div class="ir-desc">Function like white items, but with <strong>open sockets</strong> (slot runes/gems/jewels) or <strong>Ethereal</strong> (can't be repaired, but higher base defence/damage).</div>
+          <div class="ir-tie">🔩 Add sockets in the cube; Ethereal bases are prized for runewords &amp; auto-repair builds.</div>
+        </div>
+        <div class="ir-tile" style="--ir:#7d7dff">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Magic <small>Blue</small></span><span class="ir-mods">1–2 mods</span></div>
+          <div class="ir-desc">One prefix and/or one suffix. They can roll certain <strong>high-tier / max single stats</strong> (e.g. <strong>+3 to class skills on charms</strong>) that rares cannot.</div>
+          <div class="ir-tie">🔨 The <b>magic base</b> you cube in crafting. Reroll a blue item with <b>3 Perfect gems</b> (Horadric below).</div>
+        </div>
+        <div class="ir-tile" style="--ir:#ffe14d">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Rare <small>Yellow</small></span><span class="ir-mods">3–6 mods</span></div>
+          <div class="ir-desc">Three to six random modifiers and a randomly-generated two-word name (not the "prefix + base + suffix" of magic items).</div>
+          <div class="ir-tie">🎲 <b>Renew its affixes</b> by cubing <b>6 Perfect Skulls + the rare</b> → a fresh roll (Horadric below).</div>
+        </div>
+        <div class="ir-tile" style="--ir:#ffa83f">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Crafted <small>Orange</small></span><span class="ir-mods">3 fixed + 1–4 random</span></div>
+          <div class="ir-desc">Player-made in the Horadric Cube — a few <strong>guaranteed fixed mods</strong> plus 1–4 random ones.</div>
+          <div class="ir-tie">🔨 This is exactly what the <b>Crafted Items Workshop</b> below builds (Caster / Blood / Safety / Hit Power).</div>
+        </div>
+        <div class="ir-tile" style="--ir:#2fd24a">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Set <small>Green</small></span><span class="ir-mods">fixed + set bonus</span></div>
+          <div class="ir-desc">Predetermined, themed items. Wearing several pieces of the same set unlocks extra <strong>hidden set bonuses</strong>.</div>
+          <div class="ir-tie">📗 Track which pieces you own in the <b>Item Set Tracker</b> (Tools tab).</div>
+        </div>
+        <div class="ir-tile" style="--ir:#c7a85a">
+          <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Unique <small>Gold / Brown</small></span><span class="ir-mods">fixed</span></div>
+          <div class="ir-desc">Fixed base stats, fixed unique properties, fixed name &amp; its own graphic (e.g. <strong>The Stone of Jordan</strong>). Cannot be rerolled.</div>
+          <div class="ir-tie">🏆 The grail items the <b>Calculator</b> ranks by drop odds. Cube to <b>upgrade the tier</b> (normal → exceptional → elite).</div>
+        </div>
+      </div>
+      <div class="ir-note">⚠ Colours follow the in-game name colour. Reign of the Warlock may add or retune affixes — verify in-game.</div>
     </div>
   </div>
 
@@ -12296,7 +12366,6 @@ const HORADRIC_RECIPES = [
   {c:'🔩 Sockets', in:'Ral + Thul + Perfect Sapphire + Normal Helm', out:'Socketed Helm'},
   {c:'🔩 Sockets', in:'Tal + Amn + Perfect Ruby + Normal Shield', out:'Socketed Shield'},
   {c:'🔩 Sockets', in:'3× Chipped/Standard/Flawless Gem + Magic Weapon', out:'Socketed Magic Weapon'},
-  {c:'🔩 Sockets', in:'3× Perfect Skull + Stone of Jordan + Rare item', out:'Add 1 socket to that Rare (if socketable)'},
   {c:'⬆️ Quality up', in:'Eld + Chipped Gem + Low Quality Weapon', out:'Normal Weapon'},
   {c:'⬆️ Quality up', in:'El + Chipped Gem + Low Quality Armor', out:'Normal Armor'},
   {c:'⬆️ Unique upgrade', in:'Ral + Sol + Perfect Emerald + Normal Unique Weapon', out:'Exceptional Unique Weapon'},
@@ -12314,7 +12383,9 @@ const HORADRIC_RECIPES = [
   {c:'💍 Jewelry & resist rings', in:'Ring + Perfect Sapphire + Thawing Potion', out:'Cobalt Ring (+21-30% Cold Resist)'},
   {c:'💍 Jewelry & resist rings', in:'Ring + Perfect Topaz + Rejuvenation Potion', out:'Coral Ring (+21-30% Lightning Resist)'},
   {c:'💍 Jewelry & resist rings', in:'Amulet + 6× Perfect Gem (one of each type)', out:'Prismatic Amulet (+16-25% All Resistances)'},
-  {c:'🎲 Reroll', in:'3× Perfect Gem (any) + Magic item', out:'New Magic item (same type — rerolls affixes)'},
+  {c:'🎲 Reroll / renew affixes', in:'6× Perfect Skull + Rare item', out:'New Rare item (same type — rerolls EVERY affix)', note:'The classic rare reroll. Recube to chase better mods — but it can roll worse, and the new item level is recalculated from your character level, so very high-tier affixes are not guaranteed. Great on cheap rare bases (rings, amulets, circlets, gloves).'},
+  {c:'🎲 Reroll / renew affixes', in:'3× Perfect Gem (any) + Magic item', out:'New Magic item (same type — rerolls its affixes)', note:'Same idea for a blue item — 3 perfect gems of any type. Cheap way to re-roll a magic ring/amulet/charm toward the prefix/suffix you want.'},
+  {c:'🎲 Reroll / renew affixes', in:'3× Perfect Skull + Stone of Jordan + Rare item', out:'That Rare item with +1 socket (if the type can be socketed)', note:'Not an affix reroll — it ADDS a socket to an existing rare (the Stone of Jordan recipe). Keeps all current affixes.'},
   {c:'🔧 Repair & unsocket', in:'Ort + Weapon', out:'Fully Repaired Weapon'},
   {c:'🔧 Repair & unsocket', in:'Ral + Armor', out:'Fully Repaired Armor'},
   {c:'🔧 Repair & unsocket', in:'Hel + Scroll of Town Portal + Socketed item', out:'Unsocket (keeps sockets, destroys the gems/runes/jewels)'},
