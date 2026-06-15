@@ -1489,6 +1489,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .hvf-row{display:flex;gap:10px;align-items:baseline;padding:6px 7px;border-bottom:1px dotted var(--border);cursor:pointer;transition:background .12s}
 .hvf-row:hover{background:rgba(240,192,96,.06)}
 .hvf-name{font-weight:700;flex:1 1 auto;min-width:0}
+/* v332 — rare name-pool reference (top of High-Value Finds) */
+.rnp-details{margin:0 0 12px;border:1px solid rgba(255,255,100,.18);border-radius:10px;background:rgba(255,255,100,.03);overflow:hidden}
+.rnp-sum{cursor:pointer;list-style:none;padding:9px 12px;font-size:12.5px;color:var(--q-rare,#ffff64);display:flex;align-items:center;gap:6px;user-select:none}
+.rnp-sum::-webkit-details-marker{display:none}
+.rnp-sum:hover{background:rgba(255,255,100,.06)}
+.rnp-hint{color:var(--text-dim);font-weight:400;font-size:11px}
+.rnp-details[open] .vj-chev{transform:rotate(180deg)}
+.rnp-body{padding:4px 12px 12px}
+.rnp-note{font-size:11px;color:var(--text-muted);line-height:1.5;margin-bottom:9px}
+.rnp-row{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-top:1px dotted var(--border)}
+.rnp-slot{flex:0 0 64px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--q-rare,#ffff64);padding-top:3px}
+.rnp-slot-pre{color:var(--text-muted)}
+.rnp-words{display:flex;flex-wrap:wrap;gap:4px}
+.rnp-chip{font-size:11px;color:var(--text);background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:6px;padding:2px 7px}
 .hvf-name .d2art-wrap.sm{width:18px;height:18px;vertical-align:middle;margin-right:2px}
 .hvf-base{font-size:11px;color:var(--text-dim);white-space:nowrap}
 .hvf-val{font-size:11px;color:#8ce6a6;font-family:ui-monospace,monospace;white-space:nowrap}
@@ -9633,6 +9647,29 @@ window.extraItemDetailHtml = extraItemDetailHtml;
 window.extraUniqueDetailHtml = extraItemDetailHtml; // alias
 // 💰 High-Value Finds browser (Tools tab): every EXTRA_ITEMS profile, grouped by category,
 // filterable, each row → its reference card. Grows automatically as EXTRA_ITEMS grows.
+// v332 — authoritative D2R rare-affix NAME POOLS (from the game's RarePrefix/RareSuffix tables via
+// blizzhackers/d2data). A rare item's name = one PREFIX word + one slot-specific SUFFIX word, e.g.
+// "Havoc Noose" = Havoc + Noose(amulet). Lets you recognise a found rare ("Viper Eye" → a rare
+// jewel; "Bitter Spiral" → a rare ring) and judge it against the rare-jewelry profiles below.
+const RARE_NAME_POOLS = {
+  Amulet: ['Wing','Mark','Emblem','Clasp','Talisman','Heart','Noose','Necklace','Collar','Beads','Torc','Gorget','Scarab'],
+  Ring:   ['Grip','Grasp','Hold','Touch','Finger','Knot','Circle','Loop','Turn','Spiral','Coil','Gyre','Band','Whorl','Master'],
+  Jewel:  ['Gyre','Whorl','Talisman','Heart','Scarab'],
+};
+const RARE_NAME_PREFIXES = ['Beast','Eagle','Raven','Viper','Ghoul','Skull','Blood','Dread','Doom','Grim','Bone','Death','Shadow','Storm','Rune','Plague','Stone','Wraith','Spirit','Demon','Cruel','Empyrion','Bramble','Pain','Loath','Glyph','Imp','Fiend','Hailstone','Gale','Dire','Soul','Brimstone','Corpse','Carrion','Holocaust','Havoc','Bitter','Entropy','Chaos','Order','Rule','Warp','Rift','Corruption'];
+window.RARE_NAME_POOLS = RARE_NAME_POOLS; window.RARE_NAME_PREFIXES = RARE_NAME_PREFIXES;
+function _rareNamePoolHtml(){
+  var chips = function(arr){ return arr.map(function(w){ return '<span class="rnp-chip">'+w+'</span>'; }).join(''); };
+  var rows = Object.keys(RARE_NAME_POOLS).map(function(slot){
+    return '<div class="rnp-row"><span class="rnp-slot">'+slot+'</span><span class="rnp-words">'+chips(RARE_NAME_POOLS[slot])+'</span></div>';
+  }).join('');
+  return '<details class="rnp-details"><summary class="rnp-sum">🏷️ <b>Rare name pools</b> — recognise a rolled rare by its name <span class="rnp-hint">(prefix + slot suffix)</span> <span class="vj-chev">▾</span></summary>'
+    + '<div class="rnp-body"><div class="rnp-note">A rare\'s name = one <b>prefix</b> + one slot-specific <b>suffix</b>. The suffix tells you the SLOT; judge the item by its affixes against the profiles below.</div>'
+    + rows
+    + '<div class="rnp-row"><span class="rnp-slot rnp-slot-pre">Prefixes</span><span class="rnp-words">'+chips(RARE_NAME_PREFIXES)+'</span></div>'
+    + '</div></details>';
+}
+window._rareNamePoolHtml = _rareNamePoolHtml;
 function renderHighValueFinds(){
   var box = document.getElementById('hvf-list'); if (!box || typeof EXTRA_ITEMS === 'undefined') return;
   var fEl = document.getElementById('hvf-filter'); var q = (fEl && fEl.value || '').trim().toLowerCase();
@@ -9663,7 +9700,8 @@ function renderHighValueFinds(){
     return '<div class="hcr-cat">' + cat + ' <span class="arw-count">(' + groups[cat].length + ')</span></div>' + rows;
   }).join('');
   if (!shown) html = '<div class="rw-empty">No high-value item matches “' + q.replace(/</g, '&lt;') + '”.</div>';
-  box.innerHTML = html;
+  // v332: rare name-pool reference rides at the top of High-Value Finds (only when unfiltered).
+  box.innerHTML = (q ? '' : _rareNamePoolHtml()) + html;
   var cntEl = document.getElementById('hvf-count'); if (cntEl) cntEl.textContent = '(' + keys.length + ')';
 }
 window.renderHighValueFinds = renderHighValueFinds;

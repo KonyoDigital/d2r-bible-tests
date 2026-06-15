@@ -56,7 +56,10 @@ export async function onRequestPost(context) {
     + 'do NOT report the specific base name. A base with ZERO sockets is still non-reportable (rule 2). '
     + '(3) Ignore NPC name labels (Charsi, Kashya, Warriv, Akara, Gheed the NPC...), zone names, UI text, gold, potions. '
     + '(4) Item ART without readable name text is NOT enough — skip it. '
-    + 'Clearly readable item names NOT in the vocabulary go in "unrecognized" as written. '
+    + 'Put a string in "unrecognized" ONLY when it is a FULLY-LEGIBLE, COMPLETE item name you read '
+    + 'character-by-character that simply is not in the vocabulary — NEVER a partial read, an inferred/'
+    + 'autocompleted name, or a guess. If you are not certain a real item name is printed there, omit it '
+    + 'entirely. Inventing plausible-sounding names (fake set/unique names) is the worst possible error. '
     + 'VOCABULARY:\n' + names.join('\n');
 
   const tallyText = 'You read a Diablo 2 Resurrected screenshot showing RUNES and/or GEMS — usually a dedicated organized '
