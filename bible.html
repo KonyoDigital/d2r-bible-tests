@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Konyo's D2R Farming Bible v43 · finalized</title>
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5;margin:0}
 html{scroll-behavior:smooth}
@@ -225,6 +225,10 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 .item-tile.it-r-magic .item-tile-name{color:var(--q-magic);text-shadow:0 0 7px rgba(105,105,255,.45);font-weight:600}
 .item-tile.it-r-rare .item-tile-name{color:var(--q-rare);text-shadow:0 0 7px rgba(255,255,100,.4);font-weight:600}
 .item-tile.it-r-basic .item-tile-name{color:var(--q-normal);text-shadow:0 0 6px rgba(244,244,244,.25)}
+/* v329 — rarity GLOW everywhere: a soft same-colour (currentColor) halo so item names pop with depth,
+   in-game-realistic + UI/UX-tasteful. Works for class- AND inline-coloured names. Calc keeps its own. */
+.top-drop-name[class*="q-"],table.drops td.item-name[class*="q-"],table.ref-tbl td.item-name[class*="q-"],.hvf-name,.set-card-name,.vm-cell-name,.vj-chip,.cw-out-name,.arw-rune-n,.mw-rune-chip,.rec-chip{text-shadow:0 0 6px currentColor}
+.gic-name{text-shadow:0 0 12px currentColor,0 1px 2px rgba(0,0,0,.55)}
 .item-tile-grail::before,.item-tile-uber::before{position:absolute;top:6px;right:6px;font-size:7px;font-weight:600;letter-spacing:.5px}
 .item-tile-grail::before{content:"GRAIL";color:var(--grail)}
 .item-tile-uber::before{content:"UBER";color:var(--uber)}
@@ -584,7 +588,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-sk{font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
 .zd-sv{font-family:var(--serif-text);font-size:12px;color:var(--gold-bright);font-weight:600}
 .zd-su-wrap{display:flex;flex-wrap:wrap;gap:5px}
-.zd-su{display:inline-block;background:rgba(255,0,212,.1);border:1px solid rgba(255,0,212,.32);border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;color:#ff9ee8}
+/* v329 — super-unique MONSTER names read in-game gold (--su), not uber-pink. Real ubers + the
+   Three Ancients keep their own colours; this is just the named-boss/super-unique chips. */
+.zd-su{display:inline-block;background:rgba(232,178,74,.1);border:1px solid rgba(232,178,74,.34);border-radius:9px;padding:2px 9px;font-family:var(--serif-text);font-size:11px;color:var(--su)}
 .zd-drops-head{font-family:var(--serif-display);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-bright);margin:2px 0 7px}
 .zd-drops-grp{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
 .zd-grp-lab{flex:0 0 80px;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);padding-top:4px}
@@ -817,7 +823,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .zd-su-card{display:flex;flex-direction:column;gap:2px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--uber);border-radius:7px;padding:9px 12px;cursor:pointer;transition:border-color .12s,transform .12s,box-shadow .12s}
 .zd-su-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.22);border-left-color:var(--gold-bright)}
 .zd-su-card-emoji{font-size:14px}
-.zd-su-card-name{color:var(--uber);font-weight:600;font-size:12.5px}
+.zd-su-card-name{color:var(--su);font-weight:600;font-size:12.5px}
 .zd-su-card-meta{color:var(--text-muted);font-size:10.5px;font-family:ui-monospace,monospace}
 .zd-su-card-go{color:var(--gold-bright);font-size:10px;letter-spacing:.3px}
 /* Set tracker */
@@ -9532,7 +9538,7 @@ function findExtraItem(name){
 }
 window.findExtraItem = findExtraItem;
 window.findExtraUnique = findExtraItem; // alias
-var _Q_HEX = { unique:'#c7b377', rare:'#ffff64', magic:'#6969ff', crafted:'#ffa800', set:'#00ff00', basic:'#cfcfcf' };
+var _Q_HEX = { unique:'#c7b377', rare:'#ffff64', magic:'#6969ff', crafted:'#ffa800', set:'#00ff00', basic:'#f4f4f4', rw:'#ffa800', rune:'#ffa800' };
 var _Q_BADGE = { unique:'linear-gradient(135deg,#c7b377,#5c4a23)', rare:'linear-gradient(135deg,#caca4f,#5c5c1e)', magic:'linear-gradient(135deg,#6969ff,#26267a)', crafted:'linear-gradient(135deg,#ffa800,#6e4900)', basic:'linear-gradient(135deg,#cfcfcf,#5a5a5a)' };
 var _Q_LABEL = { basic:'Base item' };
 // v309: "🔨 How to craft it" — for crafted reference cards, derive the exact Horadric Cube
