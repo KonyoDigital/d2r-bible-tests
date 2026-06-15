@@ -12183,7 +12183,11 @@ try {
   var _MAT_ART = {
     'Full Rejuvenation Potion':'art/full_rejuvenation_potion.png',
     'Partial Rejuvenation Potion':'art/partial_rejuvenation_potion.png',
-    'Token of Absolution':'art/token_of_absolution.png'
+    'Token of Absolution':'art/token_of_absolution.png',
+    // v300: reference-item art (EXTRA_ITEMS). Pre-wired — the card shows the emoji fallback
+    // until the PNG is fetched into art/ via the diablo2.io browser-console grabber, then it
+    // auto-renders. Grab nords_tenderizer.png the same way the other 406 images were obtained.
+    "Nord's Tenderizer":'art/nords_tenderizer.png'
   };
   if (typeof D2IO_ART !== 'undefined') Object.keys(_MAT_ART).forEach(function(k){ if (!D2IO_ART[k]) D2IO_ART[k] = _MAT_ART[k]; });
 } catch(e){}
