@@ -1314,6 +1314,68 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .mat-stash-cell.mat-slot:not(.rs-has) .rs-count{display:none}
 .mat-stash-cell.mat-slot .mat-minus{position:absolute;top:0;left:0;width:15px;height:15px;font-size:11px;line-height:1;padding:0;opacity:0;transition:opacity .1s;z-index:4}
 .mat-stash-cell.mat-slot:hover .mat-minus{opacity:.9}
+/* ══ v288: Crafted Items Workshop — the 4 crafts, every per-slot recipe, live cubeable
+   from your Gem+Rune Stash, and a tally of finished crafted items you own (📸 AI intake) ══ */
+.cw-wrap{margin:14px 0}
+.cw-intro{font-size:12.5px;line-height:1.55;color:var(--text);background:linear-gradient(135deg,rgba(240,192,96,.07),rgba(20,16,10,.25));border:1px solid rgba(240,192,96,.26);border-left:3px solid var(--gold-bright,#f0c060);border-radius:10px;padding:11px 14px;margin-bottom:12px}
+.cw-intro b{color:var(--gold-bright,#f0c060)}
+.cw-crafts{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:10px;margin:12px 0}
+.cw-tile{position:relative;display:flex;flex-direction:column;gap:7px;padding:13px 13px 11px;border-radius:13px;cursor:pointer;overflow:hidden;border:1px solid var(--border-light);background:linear-gradient(165deg,color-mix(in srgb,var(--cw-c) 12%,rgba(20,16,10,.6)),rgba(10,8,5,.55));transition:transform .16s ease,box-shadow .22s ease,border-color .22s ease}
+.cw-tile::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 22% 18%,color-mix(in srgb,var(--cw-c) 26%,transparent),transparent 58%);opacity:.5;pointer-events:none;transition:opacity .22s ease}
+.cw-tile:hover{transform:translateY(-3px);border-color:var(--cw-c);box-shadow:0 8px 26px rgba(0,0,0,.45),0 0 22px color-mix(in srgb,var(--cw-c) 30%,transparent)}
+.cw-tile.cw-sel{border-color:var(--cw-c);box-shadow:0 0 0 1px var(--cw-c) inset,0 0 26px color-mix(in srgb,var(--cw-c) 34%,transparent)}
+.cw-tile.cw-sel::before{opacity:.9}
+.cw-tile-head{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.cw-tile-head .d2art-wrap.lg{width:46px;height:46px}
+.cw-tile-head .d2art-wrap.lg .d2art-img{max-width:46px;max-height:46px}
+.cw-tile-name{font-family:var(--serif-display,serif);font-weight:700;font-size:16px;line-height:1.1;color:var(--cw-c)}
+.cw-tile-gem{font-size:10.5px;color:var(--text-dim);font-family:ui-monospace,monospace}
+.cw-tile-tell{position:relative;z-index:1;font-size:11px;color:var(--text-muted);line-height:1.4}
+.cw-tile-foot{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:1px}
+.cw-tile-ready{font-size:10px;font-weight:800;letter-spacing:.02em;padding:2px 8px;border-radius:9px;white-space:nowrap;color:#0c1f12;background:linear-gradient(135deg,#8ce6a6,#3fbf6a)}
+.cw-tile-ready.cw-ready-0{color:var(--text-dim);background:rgba(255,255,255,.06);border:1px solid var(--border)}
+.cw-tile-own{font-size:10.5px;font-weight:700;color:var(--gold-bright,#f0c060);font-family:ui-monospace,monospace}
+.cw-tile-star{position:absolute;top:8px;right:9px;z-index:2;font-size:10px;font-weight:800;letter-spacing:.04em;color:#1a1207;background:linear-gradient(135deg,#ffd886,#e0a838);padding:2px 7px;border-radius:20px}
+.cw-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.cw-slot-chips{display:flex;flex-wrap:wrap;gap:5px;flex:1 1 auto}
+.cw-slot-chip{font-size:11px;font-weight:600;color:var(--text-dim);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:4px 9px;cursor:pointer;transition:color .14s,border-color .14s,background .14s}
+.cw-slot-chip:hover{color:var(--text);border-color:var(--gold-dim)}
+.cw-slot-chip.on{color:#1a1207;background:linear-gradient(135deg,#ffd886,#e0a838);border-color:#e0a838}
+.cw-guaranteed{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 10px;padding:10px 13px;border-radius:11px;background:linear-gradient(135deg,color-mix(in srgb,var(--cw-c) 13%,rgba(20,16,10,.4)),rgba(12,9,5,.3));border:1px solid color-mix(in srgb,var(--cw-c) 36%,transparent)}
+.cw-guaranteed .cw-g-lab{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--cw-c)}
+.cw-g-mod{font-size:11.5px;color:var(--text);background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:7px;padding:3px 9px}
+.cw-recipes{display:flex;flex-direction:column;gap:6px;max-height:560px;overflow-y:auto;padding-right:2px}
+.cw-recipe{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"glyph head own" "glyph ing own" "glyph base stat";gap:2px 11px;align-items:center;padding:9px 11px;border-radius:10px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(36,28,16,.4),rgba(16,12,7,.3));transition:border-color .14s,box-shadow .14s}
+.cw-recipe:hover{border-color:var(--gold-dim)}
+.cw-recipe.cw-rec-ready{border-color:#3fbf6a;background:linear-gradient(90deg,rgba(63,191,106,.10),rgba(16,12,7,.3))}
+.cw-rec-glyph{grid-area:glyph;font-size:22px;width:34px;text-align:center;opacity:.92}
+.cw-rec-head{grid-area:head;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cw-rec-slot{font-weight:700;font-size:13.5px;color:var(--text)}
+.cw-rec-best{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--cw-c);border:1px solid color-mix(in srgb,var(--cw-c) 45%,transparent);border-radius:9px;padding:1px 6px}
+.cw-rec-ing{grid-area:ing;display:flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:11.5px;color:var(--text-dim)}
+.cw-ing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.32);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:11px;cursor:pointer;vertical-align:middle;transition:background .12s}
+.cw-ing:hover{background:rgba(240,192,96,.24)}
+.cw-ing .d2art-wrap.sm{width:17px;height:17px}
+.cw-ing .d2art-wrap.sm .d2art-img{max-width:17px;max-height:17px}
+.cw-ing.cw-ing-have{border-color:#3fbf6a;background:rgba(63,191,106,.14);color:#bdf0b4}
+.cw-ing.cw-ing-miss{border-color:rgba(255,120,120,.4);background:rgba(255,120,120,.08);color:#ffb0b0}
+.cw-ing-plain{color:var(--text-dim);font-style:italic}
+.cw-rec-base{grid-area:base;font-size:10.5px;color:var(--text-dim);line-height:1.35}
+.cw-rec-base b{color:var(--text-muted);font-weight:600;font-style:normal}
+.cw-rec-stat{grid-area:stat;justify-self:end;font-size:10px;font-weight:800;letter-spacing:.02em;padding:2px 8px;border-radius:9px;white-space:nowrap;text-align:center}
+.cw-stat-ready{color:#0c1f12;background:linear-gradient(135deg,#8ce6a6,#3fbf6a)}
+.cw-stat-cube{color:#1a1207;background:linear-gradient(135deg,#ffd886,#e0a838)}
+.cw-stat-need{color:var(--text-dim);background:rgba(255,255,255,.05);border:1px solid var(--border)}
+.cw-rec-own{grid-area:own;justify-self:end;display:inline-flex;align-items:center;gap:6px}
+.cw-own-n{font-family:ui-monospace,monospace;font-size:13px;font-weight:700;color:var(--gold-bright,#f0c060);min-width:16px;text-align:center}
+.cw-own-n.cw-own-0{color:var(--text-dim)}
+.cw-own-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em}
+.cw-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:11px}
+.cw-summary{font-size:12px;color:var(--text-muted)}
+.cw-summary b{color:var(--gold-bright,#f0c060);font-family:ui-monospace,monospace}
+.cw-quality{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:9px;line-height:1.5}
+.cw-quality code{font-style:normal;color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.08);padding:1px 5px;border-radius:4px}
+@media(max-width:560px){.cw-recipe{grid-template-columns:auto 1fr;grid-template-areas:"glyph head" "glyph ing" "glyph base" "stat own"}.cw-rec-stat,.cw-rec-own{justify-self:start;margin-top:5px}}
 /* v283: emphasized, structured cube-recipe block on material ID cards */
 .recipe-block{margin:6px 0 12px;padding:14px 16px;background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(20,16,10,.35));border:1px solid rgba(240,192,96,.34);border-radius:11px;box-shadow:inset 0 0 22px rgba(0,0,0,.35)}
 .recipe-block-lab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--gold-bright,#f0c060);margin-bottom:10px;opacity:.85}
@@ -3537,6 +3599,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
         </div>
         <div class="rw-make" id="gem-craftable"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed" id="craft-workshop-card">
+    <div class="boss-header" onclick="window.toggleCardCollapse('craft-workshop-card');window.renderCraftWorkshop&&window.renderCraftWorkshop()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/warhammer_graphic.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(240,192,96,.5))" loading="lazy"></span>
+      <div class="boss-title-block">
+        <p class="boss-name">Crafted Items Workshop</p>
+        <p class="boss-subtitle">The 4 crafts &amp; every per-slot recipe · exactly what's needed, and what you can cube right now</p>
+        <p class="boss-loc">Reads your 💠 Gem + 🧮 Rune Stash for cubeable status · 📸 logs the crafted items you own · 💾 Backup &amp; Share</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="cw-wrap">
+        <div class="cw-intro">🔨 <b>Crafting</b> cubes a <b>magic (blue) base</b> + a <b>perfect gem</b> + <b>any jewel</b> + a <b>rune</b> into a crafted rare. The <b>perfect gem decides the craft</b> (and its 3 guaranteed mods); the <b>rune only varies by slot</b>. Pick a craft below to see <b>exactly what each slot needs</b> — green means you already hold the gem &amp; rune in your stash. Log what you've made with 📸 AI intake.</div>
+        <div class="rs-ai-row">
+          <button class="rs-ai-btn" onclick="document.getElementById('craft-intake-file').click()" title="1 screenshot of your crafted items (tooltip open) → the AI reads each one's mods, decides its craft type + slot, and logs it as owned">📸 AI intake — 1 photo logs the crafted items you own</button>
+          <input type="file" id="craft-intake-file" accept="image/*" multiple style="display:none" onchange="window.craftIntake(this.files)">
+        </div>
+        <div id="craft-intake-report" hidden class="rs-ai-report"></div>
+        <div id="craft-workshop"></div>
       </div>
     </div>
   </div>
@@ -6311,6 +6396,19 @@ window.openDrop = function(name){
     __alignCard('#item-detail .gem-card');
     return;
   }
+  // Craft: the 4 craft types ("Caster", "Blood Craft", "Hit Power Ring"…) — EXACT
+  // (normalized) matches against the 4-craft index, disjoint from every other entity.
+  // Runs BEFORE findMaterial so the short keys never mis-route to a material substring.
+  if (typeof findCraft === 'function' && findCraft(name)) {
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = name; window.__activeRune = null;
+    selectedItem = null;
+    switchTab('calc');
+    const panel = document.getElementById('item-detail');
+    if (panel){ panel.classList.add('show'); panel.innerHTML = craftDetailHtml(name); }
+    __alignCard('#item-detail .craft-card');
+    return;
+  }
   // Set pieces: every piece named in ITEM_SETS (+ supplements) gets an identity
   // card. Runs BEFORE findMaterial — piece names are disjoint from material names.
   if (typeof findSetPiece === 'function' && findSetPiece(name)){
@@ -8890,6 +8988,10 @@ let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
 // Gem Stash: { gemFullName: count } map (e.g. "Perfect Amethyst":4). Powers the gem
 // cube-up planner. Gem socket stats are verified D2R game-data values (gems.json).
 let gemStash = _safeJsonParse(LS.getItem('d2r_gemStash'), {});
+// Crafted Items Workshop: { "<Craft> <Slot>": count } map (e.g. "Caster Amulet":2) — the
+// finished crafted rares the user owns. Ingredients are NOT stored here (cubeable status
+// reads live from runeStash + gemStash); this tracks only completed crafts (📸 AI intake).
+let craftStash = _safeJsonParse(LS.getItem('d2r_craftStash'), {});
 
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
@@ -8941,6 +9043,7 @@ const persist = () => {
   LS.setItem('d2r_runeStash', JSON.stringify(runeStash));
   LS.setItem('d2r_materialStash', JSON.stringify(materialStash));
   LS.setItem('d2r_gemStash', JSON.stringify(gemStash));
+  LS.setItem('d2r_craftStash', JSON.stringify(craftStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
 
@@ -12288,6 +12391,239 @@ function renderHoradricRecipes(){
 }
 window.renderHoradricRecipes = renderHoradricRecipes;
 
+// ══════════════════════════════════════════════════════════════════════════════
+// v288 — Crafted Items Workshop. The 4 crafts × 9 slots = 36 exact cube recipes
+// (rune + magic base per slot, transcribed from the bible's "Crafted-item recipes"
+// reference, maxroll.gg). "Cubeable now" reads LIVE from runeStash + gemStash (one
+// source of truth — the same tallies the Gem/Rune planners use); craftStash tracks
+// the finished crafted rares the user owns, fed by 📸 AI intake (kind:'craft').
+// ══════════════════════════════════════════════════════════════════════════════
+const CRAFT_SLOTS = ['Weapon','Shield','Helm','Body Armor','Gloves','Belt','Boots','Amulet','Ring'];
+const CRAFT_SLOT_GLYPH = {Weapon:'⚔️',Shield:'🛡️',Helm:'🪖','Body Armor':'🧥',Gloves:'🧤',Belt:'🪢',Boots:'🥾',Amulet:'📿',Ring:'💍'};
+const CRAFTS = [
+  { key:'Caster', gem:'Perfect Amethyst', gemType:'Amethyst', color:'#b48ce0', star:true,
+    tell:'Faster Cast Rate + mana — the spellcaster\'s craft',
+    mods:['+10–20% Faster Cast Rate','Regenerate Mana 4–10%','+10–20 to Mana'],
+    best:['Amulet','Ring','Belt','Gloves'],
+    konyo:'Your craft, Konyo — a Caster amulet or ring guarantees FCR + mana, the cheapest push toward Echoing Strike\'s cast breakpoints.',
+    slots:{ Weapon:{rune:'Tir',base:'Scepter · Wand · Staff'}, Shield:{rune:'Eth',base:'Small Shield · Round Shield · Luna'}, Helm:{rune:'Nef',base:'Mask · Death Mask · Demonhead'}, 'Body Armor':{rune:'Tal',base:'Light Plate · Mage Plate · Archon Plate'}, Gloves:{rune:'Ort',base:'Leather · Demonhide · Bramble Mitts'}, Belt:{rune:'Ith',base:'Light Belt · Sharkskin Belt · Vampirefang Belt'}, Boots:{rune:'Thul',base:'Boots · Demonhide · Wyrmhide Boots'}, Amulet:{rune:'Ral',base:'any Amulet'}, Ring:{rune:'Amn',base:'any Ring'} } },
+  { key:'Blood', gem:'Perfect Ruby', gemType:'Ruby', color:'#e0556a', star:false,
+    tell:'Life leech + life — melee survivability',
+    mods:['1–3% Life stolen per hit','+10–20 to Life','Crushing Blow / Open Wounds'],
+    best:['Ring','Amulet','Gloves','Belt'],
+    slots:{ Weapon:{rune:'Ort',base:'Axes (1H / 2H) · Throwing Axes'}, Shield:{rune:'Ith',base:'Spiked Shield · Barbed Shield · Blade Barrier'}, Helm:{rune:'Ral',base:'Helm · Casque · Armet'}, 'Body Armor':{rune:'Thul',base:'Plate Mail · Templar Coat · Hellforge Plate'}, Gloves:{rune:'Nef',base:'Heavy · Sharkskin · Vampirebone Gloves'}, Belt:{rune:'Tal',base:'Belt · Mesh Belt · Mithril Coil'}, Boots:{rune:'Eth',base:'Light Plated · Battle · Mirrored Boots'}, Amulet:{rune:'Amn',base:'any Amulet'}, Ring:{rune:'Sol',base:'any Ring'} } },
+  { key:'Safety', gem:'Perfect Emerald', gemType:'Emerald', color:'#5fd07a', star:false,
+    tell:'Damage reduction + resists — the tank\'s craft',
+    mods:['Magic Damage Reduced','Damage Reduced','Resists / % Enhanced Defense'],
+    best:['Amulet','Gloves','Shield','Boots'],
+    slots:{ Weapon:{rune:'Sol',base:'Javelins · Spears (incl. Amazon)'}, Shield:{rune:'Nef',base:'Kite Shield · Dragon Shield · Monarch'}, Helm:{rune:'Ith',base:'Crown · Grand Crown · Corona'}, 'Body Armor':{rune:'Eth',base:'Breast Plate · Cuirass · Great Hauberk'}, Gloves:{rune:'Ral',base:'Gauntlets · War Gauntlets · Ogre Gauntlets'}, Belt:{rune:'Tal',base:'Sash · Demonhide Sash · Spiderweb Sash'}, Boots:{rune:'Ort',base:'Greaves · War Boots · Myrmidon Greaves'}, Amulet:{rune:'Thul',base:'any Amulet'}, Ring:{rune:'Amn',base:'any Ring'} } },
+  { key:'Hit Power', gem:'Perfect Sapphire', gemType:'Sapphire', color:'#5b8ff0', star:false,
+    tell:'Frost Nova when struck + thorns — the crowd-control craft',
+    mods:['5% CtC Lvl-4 Frost Nova when struck','Attacker Takes Damage','Strength / Dexterity'],
+    best:['Gloves','Helm','Boots','Shield'],
+    slots:{ Weapon:{rune:'Tir',base:'Clubs · Hammers · Maces · Scepters · Staves · Wands'}, Shield:{rune:'Eth',base:'Gothic Shield · Ancient Shield · Ward'}, Helm:{rune:'Ith',base:'Full Helm · Basinet · Giant Conch'}, 'Body Armor':{rune:'Nef',base:'Field Plate · Sharktooth Armor · Kraken Shell'}, Gloves:{rune:'Ort',base:'Chain · Heavy Bracers · Vambraces'}, Belt:{rune:'Tal',base:'Heavy Belt · Battle Belt · Troll Belt'}, Boots:{rune:'Ral',base:'Chain Boots · Mesh Boots · Boneweave Boots'}, Amulet:{rune:'Thul',base:'any Amulet'}, Ring:{rune:'Amn',base:'any Ring'} } },
+];
+window.CRAFTS = CRAFTS;
+const _CRAFT_INDEX = (function(){ var m = {}; CRAFTS.forEach(function(c){ m[c.key.toLowerCase()] = c; }); return m; })();
+const _CRAFT_KEYS_BYLEN = CRAFTS.map(function(c){ return c.key; }).sort(function(a,b){ return b.length - a.length; });
+// findCraft("Caster") → {craft,slot:null}; findCraft("Blood Ring") → {craft,slot}; "Caster Craft" → {craft}.
+function findCraft(name){
+  if (!name) return null;
+  var s = String(name).trim().replace(/\s+craft$/i, '');
+  var lc = s.toLowerCase();
+  if (_CRAFT_INDEX[lc]) return { craft: _CRAFT_INDEX[lc], slot: null };
+  for (var i = 0; i < _CRAFT_KEYS_BYLEN.length; i++){
+    var k = _CRAFT_KEYS_BYLEN[i];
+    if (lc.indexOf(k.toLowerCase() + ' ') === 0){
+      var rest = s.slice(k.length).trim();
+      var slot = CRAFT_SLOTS.find(function(sl){ return sl.toLowerCase() === rest.toLowerCase(); });
+      if (slot) return { craft: _CRAFT_INDEX[k.toLowerCase()], slot: slot };
+    }
+  }
+  return null;
+}
+window.findCraft = findCraft;
+function _craftCount(craftKey, slot){ var v = parseInt(craftStash[craftKey + ' ' + slot], 10); return isFinite(v) && v > 0 ? v : 0; }
+function adjustCraftStash(craftKey, slot, delta){
+  var k = craftKey + ' ' + slot; var next = _craftCount(craftKey, slot) + delta;
+  if (next <= 0) delete craftStash[k]; else craftStash[k] = next;
+  persist(); renderCraftWorkshop();
+}
+window.adjustCraftStash = adjustCraftStash;
+function clearCraftStash(){ if (Object.keys(craftStash).length && !confirm('Clear every crafted-item you\'ve logged as owned?')) return; craftStash = {}; persist(); renderCraftWorkshop(); }
+window.clearCraftStash = clearCraftStash;
+// Live cubeable check for one craft+slot — reads runeStash + gemStash (the same tallies
+// the Gem/Rune planners drive). ready = hold the Perfect gem AND the slot rune outright;
+// cube = could get the Perfect gem by cubing lower grades of its type up the 3→1 chain.
+function _craftSlotReady(craft, slot){
+  var rune = craft.slots[slot].rune;
+  var haveRune = (typeof _runeCount === 'function') ? _runeCount(rune) >= 1 : false;
+  var haveGem = (typeof _gemCount === 'function') ? _gemCount(craft.gem) >= 1 : false;
+  var haveGemCubed = (typeof gemCubeUpPotential === 'function') ? gemCubeUpPotential(craft.gemType, 4) >= 1 : false;
+  var missing = [];
+  if (!haveGem) missing.push(craft.gem);
+  if (!haveRune) missing.push(rune + ' rune');
+  return { rune: rune, haveRune: haveRune, haveGem: haveGem, haveGemCubed: haveGemCubed,
+           ready: haveGem && haveRune, cube: !(haveGem && haveRune) && haveGemCubed && haveRune, missing: missing };
+}
+window._craftSlotReady = _craftSlotReady;
+var _craftSel = 'Caster', _craftSlotSel = 'all', _craftReadyOnly = false;
+function selectCraft(key){ _craftSel = key; renderCraftWorkshop(); var box = document.getElementById('craft-workshop'); if (box){ var r = box.querySelector('.cw-recipes'); if (r) r.scrollTop = 0; } }
+window.selectCraft = selectCraft;
+function craftSlotFilter(slot){ _craftSlotSel = slot; renderCraftWorkshop(); }
+window.craftSlotFilter = craftSlotFilter;
+function toggleCraftReady(){ _craftReadyOnly = !_craftReadyOnly; renderCraftWorkshop(); }
+window.toggleCraftReady = toggleCraftReady;
+// One ingredient chip (gem or rune) — clickable → openDrop, coloured by whether you hold it.
+function _cwIngChip(name, have){
+  var esc = String(name).replace(/'/g, "\\'");
+  var logo = (typeof nameLogo === 'function') ? nameLogo(name) : '';
+  return '<span class="cw-ing ' + (have ? 'cw-ing-have' : 'cw-ing-miss') + '" data-arttip="' + name + '" onclick="event.stopPropagation();window.openDrop&&window.openDrop(\'' + esc + '\')" title="' + (have ? 'in your stash — ' : 'not in your stash — ') + 'open the ' + name + ' card">' + logo + name + (have ? ' ✓' : '') + '</span>';
+}
+function renderCraftWorkshop(){
+  var box = document.getElementById('craft-workshop'); if (!box || typeof CRAFTS === 'undefined') return;
+  if (!_CRAFT_INDEX[_craftSel.toLowerCase()]) _craftSel = 'Caster';
+  // ── the 4 craft tiles (selector) ──
+  var totalOwned = 0; Object.keys(craftStash).forEach(function(k){ var v = parseInt(craftStash[k], 10); if (isFinite(v) && v > 0) totalOwned += v; });
+  var tiles = CRAFTS.map(function(c){
+    var readyN = CRAFT_SLOTS.filter(function(s){ return _craftSlotReady(c, s).ready; }).length;
+    var own = CRAFT_SLOTS.reduce(function(a, s){ return a + _craftCount(c.key, s); }, 0);
+    var esc = c.key.replace(/'/g, "\\'");
+    return '<div class="cw-tile' + (c.key === _craftSel ? ' cw-sel' : '') + '" style="--cw-c:' + c.color + '" role="button" tabindex="0" data-arttip="' + c.gem + '" onclick="window.selectCraft(\'' + esc + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.selectCraft(\'' + esc + '\')}" title="show the ' + c.key + ' recipes">'
+      + (c.star ? '<span class="cw-tile-star">★ YOURS</span>' : '')
+      + '<div class="cw-tile-head">' + artOr(c.gem, '<span style="font-size:24px;color:' + c.color + '">💎</span>', 'lg') + '<div><div class="cw-tile-name">' + c.key + '</div><div class="cw-tile-gem">' + c.gem + '</div></div></div>'
+      + '<div class="cw-tile-tell">' + c.tell + '</div>'
+      + '<div class="cw-tile-foot"><span class="cw-tile-ready' + (readyN ? '' : ' cw-ready-0') + '">' + (readyN ? '✓ ' + readyN + '/9 cubeable' : '0/9 cubeable') + '</span><span class="cw-tile-own">' + own + ' owned</span></div></div>';
+  }).join('');
+  // ── selected craft: guaranteed mods + per-slot recipes ──
+  var craft = _CRAFT_INDEX[_craftSel.toLowerCase()];
+  var guaranteed = '<div class="cw-guaranteed" style="--cw-c:' + craft.color + '"><span class="cw-g-lab">3 guaranteed mods</span>'
+    + craft.mods.map(function(m){ return '<span class="cw-g-mod">' + m + '</span>'; }).join('')
+    + '</div>'
+    + (craft.konyo ? '<div class="success" style="margin:0 0 10px">⭐ <strong>' + craft.konyo + '</strong></div>' : '');
+  var slots = _craftSlotSel === 'all' ? CRAFT_SLOTS : CRAFT_SLOTS.filter(function(s){ return s === _craftSlotSel; });
+  var readyCount = 0;
+  var rows = slots.map(function(s){
+    var st = _craftSlotReady(craft, s); if (st.ready) readyCount++;
+    var rec = craft.slots[s];
+    var statusCls = st.ready ? 'cw-stat-ready' : st.cube ? 'cw-stat-cube' : 'cw-stat-need';
+    var statusTxt = st.ready ? '✓ cubeable now' : st.cube ? '◆ after gem cube-up' : 'need ' + st.missing.join(' + ');
+    var own = _craftCount(craft.key, s); var escSlot = s.replace(/'/g, "\\'"); var escKey = craft.key.replace(/'/g, "\\'");
+    var best = craft.best.indexOf(s) >= 0 ? '<span class="cw-rec-best">top slot</span>' : '';
+    return '<div class="cw-recipe' + (st.ready ? ' cw-rec-ready' : '') + '" style="--cw-c:' + craft.color + '">'
+      + '<span class="cw-rec-glyph">' + (CRAFT_SLOT_GLYPH[s] || '🔨') + '</span>'
+      + '<div class="cw-rec-head"><span class="cw-rec-slot">' + s + '</span>' + best + '</div>'
+      + '<div class="cw-rec-ing">' + _cwIngChip(craft.gem, st.haveGem) + _cwIngChip(rec.rune, st.haveRune) + '<span class="cw-ing-plain">+ any jewel + magic base</span></div>'
+      + '<div class="cw-rec-base"><b>base:</b> ' + rec.base + '</div>'
+      + '<span class="cw-rec-stat ' + statusCls + '" title="cubeable = you hold the Perfect gem + the slot rune in your stash">' + statusTxt + '</span>'
+      + '<span class="cw-rec-own"><button class="rs-btn" onclick="event.stopPropagation();window.adjustCraftStash(\'' + escKey + '\',\'' + escSlot + '\',-1)" title="remove one owned ' + craft.key + ' ' + s + '" aria-label="minus">−</button>'
+      + '<span class="cw-own-n' + (own ? '' : ' cw-own-0') + '" data-craft-own="' + craft.key + ' ' + s + '">' + own + '</span>'
+      + '<button class="rs-btn" onclick="event.stopPropagation();window.adjustCraftStash(\'' + escKey + '\',\'' + escSlot + '\',1)" title="log one owned ' + craft.key + ' ' + s + '" aria-label="plus">+</button>'
+      + '<span class="cw-own-lbl">owned</span></span>'
+      + '</div>';
+  });
+  if (_craftReadyOnly){
+    rows = slots.map(function(s){ return { s: s, st: _craftSlotReady(craft, s) }; }).filter(function(x){ return x.st.ready; }).map(function(x){
+      var s = x.s, st = x.st, rec = craft.slots[s], own = _craftCount(craft.key, s), escSlot = s.replace(/'/g, "\\'"), escKey = craft.key.replace(/'/g, "\\'");
+      var best = craft.best.indexOf(s) >= 0 ? '<span class="cw-rec-best">top slot</span>' : '';
+      return '<div class="cw-recipe cw-rec-ready" style="--cw-c:' + craft.color + '"><span class="cw-rec-glyph">' + (CRAFT_SLOT_GLYPH[s] || '🔨') + '</span><div class="cw-rec-head"><span class="cw-rec-slot">' + s + '</span>' + best + '</div><div class="cw-rec-ing">' + _cwIngChip(craft.gem, true) + _cwIngChip(rec.rune, true) + '<span class="cw-ing-plain">+ any jewel + magic base</span></div><div class="cw-rec-base"><b>base:</b> ' + rec.base + '</div><span class="cw-rec-stat cw-stat-ready">✓ cubeable now</span><span class="cw-rec-own"><button class="rs-btn" onclick="event.stopPropagation();window.adjustCraftStash(\'' + escKey + '\',\'' + escSlot + '\',-1)" aria-label="minus">−</button><span class="cw-own-n' + (own ? '' : ' cw-own-0') + '" data-craft-own="' + craft.key + ' ' + s + '">' + own + '</span><button class="rs-btn" onclick="event.stopPropagation();window.adjustCraftStash(\'' + escKey + '\',\'' + escSlot + '\',1)" aria-label="plus">+</button><span class="cw-own-lbl">owned</span></span></div>';
+    });
+  }
+  var recipesHtml = rows.length ? rows.join('') : '<div class="rw-empty">' + (_craftReadyOnly ? 'No ' + craft.key + ' slot is cubeable from your current Gem + Rune Stash yet — tally up in the 💠 Gem Stash and 🧮 Rune Stash above (you need a Perfect ' + craft.gemType + ' + the slot rune).' : 'No recipe matches that slot.') + '</div>';
+  // ── slot filter chips + cubeable toggle ──
+  var slotChips = '<button class="cw-slot-chip' + (_craftSlotSel === 'all' ? ' on' : '') + '" onclick="window.craftSlotFilter(\'all\')">All slots</button>'
+    + CRAFT_SLOTS.map(function(s){ var esc = s.replace(/'/g, "\\'"); return '<button class="cw-slot-chip' + (_craftSlotSel === s ? ' on' : '') + '" onclick="window.craftSlotFilter(\'' + esc + '\')">' + (CRAFT_SLOT_GLYPH[s] || '') + ' ' + s + '</button>'; }).join('');
+  var totalReady = CRAFTS.reduce(function(a, c){ return a + CRAFT_SLOTS.filter(function(s){ return _craftSlotReady(c, s).ready; }).length; }, 0);
+  box.innerHTML = '<div class="cw-crafts">' + tiles + '</div>'
+    + '<div class="cw-controls"><div class="cw-slot-chips">' + slotChips + '</div>'
+    + '<button type="button" class="hcr-toggle' + (_craftReadyOnly ? ' on' : '') + '" aria-pressed="' + (_craftReadyOnly ? 'true' : 'false') + '" onclick="window.toggleCraftReady()" title="show only the slots you can cube right now from your Gem + Rune Stash">🎒 Cubeable now <span class="hcr-toggle-n">' + readyCount + '</span></button></div>'
+    + guaranteed
+    + '<div class="cw-recipes">' + recipesHtml + '</div>'
+    + '<div class="cw-foot"><span class="cw-summary"><b>' + totalReady + '</b> of 36 recipes cubeable now · <b>' + totalOwned + '</b> crafted item' + (totalOwned === 1 ? '' : 's') + ' logged</span>'
+    + (totalOwned ? '<button class="rs-clear-btn" onclick="window.clearCraftStash()">clear owned</button>' : '') + '</div>'
+    + '<div class="cw-quality">⚒ <strong>Roll quality:</strong> craft on a Hell base at high clvl — <code>crafted ilvl = ½ clvl + ½ base ilvl</code> (cap 99). An ilvl-71+ result can roll all <strong>4 random affixes</strong> on top of the 3 guaranteed. The jewel can be magic or rare; reroll the same recipe until the random mods land. <span style="opacity:.8">Source: maxroll.gg · Crafted Items (base-game recipes; Reign of the Warlock may retune the random-affix pool — verify in-game).</span></div>';
+}
+window.renderCraftWorkshop = renderCraftWorkshop;
+// Full clickable craft ID card (routed via openDrop) — all 9 slots + guaranteed mods + live cubeable.
+function craftDetailHtml(name){
+  var f = findCraft(name); if (!f) return ''; var c = f.craft;
+  var rows = CRAFT_SLOTS.map(function(s){
+    var st = _craftSlotReady(c, s); var rec = c.slots[s];
+    var statusCls = st.ready ? 'cw-stat-ready' : st.cube ? 'cw-stat-cube' : 'cw-stat-need';
+    var statusTxt = st.ready ? '✓ cubeable now' : st.cube ? '◆ after cube-up' : 'need ' + st.missing.join(' + ');
+    var best = c.best.indexOf(s) >= 0 ? '<span class="cw-rec-best">top slot</span>' : '';
+    return '<div class="cw-recipe' + (st.ready ? ' cw-rec-ready' : '') + '" style="--cw-c:' + c.color + '"><span class="cw-rec-glyph">' + (CRAFT_SLOT_GLYPH[s] || '🔨') + '</span><div class="cw-rec-head"><span class="cw-rec-slot">' + s + '</span>' + best + '</div><div class="cw-rec-ing">' + _cwIngChip(c.gem, st.haveGem) + _cwIngChip(rec.rune, st.haveRune) + '<span class="cw-ing-plain">+ any jewel + magic base</span></div><div class="cw-rec-base"><b>base:</b> ' + rec.base + '</div><span class="cw-rec-stat ' + statusCls + '">' + statusTxt + '</span></div>';
+  }).join('');
+  return '<div class="gic-card craft-card" style="--cw-c:' + c.color + '">'
+    + '<header class="gic-header">' + artOr(c.gem, '<span class="gic-emoji" style="color:' + c.color + '">💎</span>', 'lg')
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:' + c.color + '">' + c.key + ' Craft <span class="gic-grail-badge" style="background:linear-gradient(135deg,' + c.color + ',#12243a);color:#0c1622">' + c.gem + '</span></h2>'
+    + '<div class="gic-subtitle">' + c.tell + '</div>'
+    + '<div class="gic-meta-row"><span class="gic-meta-chip">9 slots</span><span class="gic-meta-chip" style="color:' + c.color + ';border-color:' + c.color + '55">crafted rare</span></div></div>'
+    + '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div></header>'
+    + '<section class="gic-section"><div class="gic-section-title">✨ 3 guaranteed mods (every ' + c.key + ' craft rolls these)</div><div class="cw-guaranteed" style="--cw-c:' + c.color + ';margin:0">' + c.mods.map(function(m){ return '<span class="cw-g-mod">' + m + '</span>'; }).join('') + '</div></section>'
+    + (c.konyo ? '<div class="success" style="margin:0 0 14px">⭐ <strong>' + c.konyo + '</strong></div>' : '')
+    + '<section class="gic-section"><div class="gic-section-title">🔨 Every slot — recipe &amp; live cubeable status</div><div class="cw-recipes" style="max-height:none">' + rows + '</div></section>'
+    + '<div class="zd-note">Cube a <strong>magic (blue) base</strong> + <strong>' + c.gem + '</strong> + <strong>any jewel</strong> + the <strong>slot rune</strong>. The perfect gem decides the craft; the rune only varies by slot. Green = you hold the gem &amp; rune in your stash. Full planner: the 🔨 Crafted Items Workshop in the Tools tab. Source: maxroll.gg — RotW may retune the random-affix pool, verify in-game.</div>'
+    + '</div>';
+}
+window.craftDetailHtml = craftDetailHtml;
+// ── 📸 AI intake: read finished crafted items → classify by craft + slot → log as owned ──
+function _craftPrepImage(file){
+  return new Promise(function(resolve, reject){
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function(){
+      var MAX = 1568, scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * scale)); c.height = Math.max(1, Math.round(img.height * scale));
+      var ctx = c.getContext('2d'); try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch(e){}
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.9).split(',')[1]);
+    };
+    img.onerror = reject; img.src = url;
+  });
+}
+async function _craftRead(b64, vocab){
+  var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+  try {
+    var resp = await fetch(endpoint, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ image: b64, media_type:'image/jpeg', names: vocab, kind:'craft' }) });
+    if (!resp.ok) return null;
+    var data = await resp.json();
+    return data.tally || {};
+  } catch(e){ return null; }
+}
+window.craftIntake = async function(files){
+  var report = document.getElementById('craft-intake-report');
+  if (!files || !files.length) return;
+  if (report){ report.hidden = false; report.innerHTML = '📸 reading your crafted items — the AI is classifying each by craft type + slot…'; }
+  var vocab = []; CRAFTS.forEach(function(c){ CRAFT_SLOTS.forEach(function(s){ vocab.push(c.key + ' ' + s); }); });
+  var added = {}, total = 0, errors = 0;
+  for (var i = 0; i < files.length; i++){
+    try {
+      var b64 = await _craftPrepImage(files[i]);
+      var t = await _craftRead(b64, vocab);
+      if (t === null){ errors++; continue; }
+      Object.keys(t).forEach(function(k){
+        var f = findCraft(k); if (!f || !f.slot) return;
+        var key = f.craft.key + ' ' + f.slot; var c = parseInt(t[k], 10);
+        if (isFinite(c) && c > 0){ craftStash[key] = (parseInt(craftStash[key], 10) || 0) + c; added[key] = (added[key] || 0) + c; total += c; }
+      });
+    } catch(e){ errors++; }
+  }
+  persist(); renderCraftWorkshop();
+  if (report){
+    var names = Object.keys(added);
+    if (names.length){
+      report.innerHTML = '🪄 <strong>logged ' + total + ' crafted item' + (total === 1 ? '' : 's') + '</strong> across ' + names.length + ' craft+slot type' + (names.length === 1 ? '' : 's') + ': '
+        + names.sort().map(function(k){ return '<span style="color:var(--gold-bright,#f0c060)">' + k + ' ×' + added[k] + '</span>'; }).join(' · ')
+        + (errors ? ' · <span style="color:var(--hell,#ff4040)">' + errors + ' image error' + (errors === 1 ? '' : 's') + '</span>' : '')
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">The AI logs an item only when its tooltip mods match a craft signature — open a tooltip (or hold Alt over loot) so the stats are readable. Re-running adds again; use “clear owned” for a fresh count.</div>';
+    } else {
+      report.innerHTML = 'No crafted items read' + (errors ? ' (' + errors + ' image error' + (errors === 1 ? '' : 's') + ')' : '') + '. Crafted items are identified by their mods — make sure an item TOOLTIP is open so the AI can read the stats (a bare stash of art alone can\'t be classified).';
+    }
+  }
+};
+
 // Import a pasted tally. Accepts JSON ({"El":3,…}) or "Name:count" pairs. Replaces stash.
 function importRuneTally(){
   const ta = document.getElementById('rune-import-box');
@@ -13593,6 +13929,7 @@ renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderAllRunewords();
 renderGemStash();
 renderHoradricRecipes();
+renderCraftWorkshop();
 renderStatueTracker();
 renderMaterialStash();
 renderSunderRecipes();
@@ -15004,7 +15341,37 @@ _v41_whenReady(() => {
       }
     });
 
-    
+    // v288: the 4 crafts → their ID cards, + the Crafted Items Workshop tool opener.
+    const CRAFT_DATA = (typeof CRAFTS !== 'undefined') ? CRAFTS : [];
+    CRAFT_DATA.forEach((c) => cmds.push({
+      icon: '🔨',
+      label: c.key + ' Craft',
+      sub: c.gem + ' · ' + c.tell,
+      cat: 'craft',
+      hint: '9 slots',
+      keywords: 'craft crafted item ' + c.key.toLowerCase() + ' ' + c.gem.toLowerCase() + ' ' + c.gemType.toLowerCase() + ' perfect gem rune jewel rare ' + c.best.join(' ').toLowerCase() + ' caster blood safety hit power fcr leech damage reduced frost nova',
+      action: () => { if (window.openDrop) window.openDrop(c.key); }
+    }));
+    cmds.push({
+      icon: '🔨',
+      label: 'Crafted Items Workshop',
+      sub: 'Tools · what\'s needed to craft + cubeable now',
+      cat: 'tool',
+      keywords: 'craft crafted items workshop tool planner recipe caster blood safety hit power perfect gem rune cubeable what do i need',
+      action: () => {
+        if (window.switchTab) window.switchTab('tools');
+        setTimeout(() => {
+          const card = document.getElementById('craft-workshop-card');
+          if (card){
+            if (card.classList.contains('collapsed') && window.toggleCardCollapse) window.toggleCardCollapse('craft-workshop-card');
+            if (window.renderCraftWorkshop) window.renderCraftWorkshop();
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 110);
+      }
+    });
+
+
     // --- v61 search index: Terror Zones + Super-Uniques (acts/zones/gold-names jumpable) ---
     const TZ_DATA = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES : [];
     TZ_DATA.forEach((z, zi) => cmds.push({

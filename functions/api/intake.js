@@ -26,7 +26,8 @@ export async function onRequestPost(context) {
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
   if (!Array.isArray(names) || names.length < 3 || names.length > 600) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
-  const isTally = kind === 'tally';
+  const isCraft = kind === 'craft';
+  const isTally = kind === 'tally' || isCraft;   // craft shares the {tally} count contract
 
   const itemsText = 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
     + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
@@ -67,6 +68,26 @@ export async function onRequestPost(context) {
     + '(8) Only names from the vocabulary. Ignore gold, potions, UI text, non-rune/non-gem items. Readable-but-not-in-vocab → "unrecognized". '
     + 'VOCABULARY:\n' + names.join('\n');
 
+  const craftText = 'You read Diablo 2 Resurrected screenshots to find CRAFTED ITEMS the player owns and classify each by its '
+    + 'CRAFT TYPE and EQUIPMENT SLOT. A crafted item is a RARE item (yellow two-word random name) made in the Horadric '
+    + 'Cube; it is identified ONLY by the GUARANTEED MODS its craft always rolls. Return a "tally" array of {name, count} '
+    + 'where each name is exactly one vocabulary string of the form "<Craft> <Slot>" (e.g. "Caster Amulet", "Blood Ring"). '
+    + 'YOU MUST READ AFFIX TEXT — a hover TOOLTIP (or a readable rare-item stat list) must be visible. If no readable stat '
+    + 'text is present, return {"tally":[],"unrecognized":[]} — item ART alone is NEVER classifiable. '
+    + 'THE FOUR CRAFTS — match by these telltale GUARANTEED mods (a craft must show its signature mod): '
+    + '(A) CASTER → has BOTH "Faster Cast Rate" AND ("Regenerate Mana" or "+N to Mana"). '
+    + '(B) BLOOD → has "Life Stolen per Hit" (life leech) AND ("+N to Life", often with "Crushing Blow" or "Open Wounds"). '
+    + '(C) SAFETY → has "Magic Damage Reduced by N" AND "Damage Reduced by N" (flat physical DR). The Magic-Damage-Reduced line is the strongest tell. '
+    + '(D) HIT POWER → has "Chance to Cast" a "Frost Nova" "when struck" AND "Attacker Takes Damage". '
+    + 'If an item shows none of these signatures, it is NOT a crafted item — skip it (a normal magic/rare/unique drop is not crafted). '
+    + 'THE SLOT — read the item BASE TYPE (the line under the name) and map it to ONE slot word: '
+    + 'Amulet, Ring, Weapon (any sword/axe/mace/club/hammer/scepter/wand/staff/spear/javelin/bow/etc.), '
+    + 'Shield (any shield), Helm (any helm/cap/crown/mask/circlet), "Body Armor" (any chest/plate/mail/armor), '
+    + 'Gloves (gloves/gauntlets/bracers), Belt (belt/sash/girdle), Boots (boots/greaves). '
+    + 'COUNT: if several separate crafted items share the same Craft+Slot, ADD them (each tooltip/cell = the items it shows). '
+    + 'Only emit names that exist in the vocabulary. A readable crafted item whose craft you cannot confidently classify → "unrecognized". '
+    + 'VOCABULARY:\n' + names.join('\n');
+
   const itemsSchema = {
     type: 'object',
     properties: {
@@ -94,7 +115,8 @@ export async function onRequestPost(context) {
     additionalProperties: false,
   };
 
-  const system = [{ type: 'text', text: isTally ? tallyText : itemsText, cache_control: { type: 'ephemeral' } }];
+  const sysText = isCraft ? craftText : isTally ? tallyText : itemsText;
+  const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -115,7 +137,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : 'Extract the item names from this screenshot.' },
+          { type: 'text', text: isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : 'Extract the item names from this screenshot.' },
         ],
       }],
     }),
