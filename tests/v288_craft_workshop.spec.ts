@@ -163,6 +163,28 @@ test.describe('v288 Crafted Items Workshop', () => {
     expect(data.hasGetter).toBe(true);
   });
 
+  test('filtering a slot shows that slot for ALL 4 crafts (v295)', async ({ page }) => {
+    await page.evaluate(() => (window as any).switchTab('tools'));
+    await page.evaluate(() => {
+      const card = document.getElementById('craft-workshop-card');
+      if (card && card.classList.contains('collapsed')) (window as any).toggleCardCollapse('craft-workshop-card');
+      (window as any).selectCraft('Caster');
+      (window as any).craftSlotFilter('Gloves');
+    });
+    await page.waitForTimeout(150);
+    // 4 rows — one Gloves recipe per craft
+    expect(await page.locator('#craft-workshop .cw-recipe').count()).toBe(4);
+    const outs = (await page.locator('#craft-workshop .cw-rec-out .cw-out-name').allTextContents()).join(' | ');
+    expect(outs).toContain('Caster Gloves');
+    expect(outs).toContain('Blood Gloves');
+    expect(outs).toContain('Safety Gloves');
+    expect(outs).toContain('Hit Power Gloves');
+    // selecting a craft tile returns to that craft's full 9-slot view
+    await page.evaluate(() => (window as any).selectCraft('Blood'));
+    await page.waitForTimeout(120);
+    expect(await page.locator('#craft-workshop .cw-recipe').count()).toBe(9);
+  });
+
   test('the "craft now" banner reflects the live stash (crystallization)', async ({ page }) => {
     await page.evaluate(() => (window as any).switchTab('tools'));
     await page.evaluate(() => {
