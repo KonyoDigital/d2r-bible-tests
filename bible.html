@@ -13455,10 +13455,12 @@ window.renderCreateNow = function(){
     var jewelRows=[pvOpt('Magic Jewel','magic Jewel','jewel'), pvOpt('Rare Jewel','rare Jewel','jewel')].join('');
     var menuOpen=!!window._pvMenuOpen;
     var menu='<div class="cn-pv-menu"'+(menuOpen?'':' style="display:none"')+'>'
-      +'<div class="cn-pv-ggh">⟐ Runes</div><div class="cn-pv-ggrid">'+runeRows+'</div>'
-      +'<div class="cn-pv-ggh">◆ Gems</div><div class="cn-pv-ggrid">'+gemRows+'</div>'
-      +'<div class="cn-pv-ggh">🔨 Base item to craft <span class="cn-pv-gsub">(magic — becomes your crafted item)</span></div><div class="cn-pv-ggrid">'+baseRows+'</div>'
-      +'<div class="cn-pv-ggh">◈ Jewel <span class="cn-pv-gsub">(extra ingredient — magic or rare)</span></div><div class="cn-pv-ggrid">'+jewelRows+'</div></div>';
+      // order = the recipe ingredients first (rune · gem · jewel), then the BASE ITEM you're
+      // crafting LAST — it's the thing that becomes your finished craft (Konyo's clearer order).
+      +'<div class="cn-pv-ggh">① ⟐ Runes</div><div class="cn-pv-ggrid">'+runeRows+'</div>'
+      +'<div class="cn-pv-ggh">② ◆ Gems</div><div class="cn-pv-ggrid">'+gemRows+'</div>'
+      +'<div class="cn-pv-ggh">③ ◈ Jewel <span class="cn-pv-gsub">(extra ingredient — magic or rare)</span></div><div class="cn-pv-ggrid">'+jewelRows+'</div>'
+      +'<div class="cn-pv-ggh">④ 🔨 Base item to craft <span class="cn-pv-gsub">(magic — the weapon/gloves/amulet that BECOMES your craft)</span></div><div class="cn-pv-ggrid">'+baseRows+'</div></div>';
     // sandbox chips — WITH art (icons for runes/gems, slot glyph for bases, ◈ for jewels)
     var chips=[];
     Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(pvArt(k,'rune')+_askEsc(k)+(pv.runes[k]>1?(' ×'+pv.runes[k]):'')); });
