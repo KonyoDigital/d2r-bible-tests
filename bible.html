@@ -320,7 +320,7 @@ h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-
 .colossal-tile:hover{border-color:var(--uber);background:linear-gradient(135deg,rgba(90,58,122,.28),rgba(42,21,69,.12));transform:translateY(-1px)}
 .colossal-tile .ct-art{flex:0 0 auto;display:flex;align-items:center}
 .colossal-tile .ct-art .d2art-img,.colossal-tile .ct-art .ct-emoji{max-width:40px;max-height:40px;font-size:30px;line-height:1}
-.colossal-tile .ct-name{font-weight:700;font-size:13.5px;color:var(--uber)}
+.colossal-tile .ct-name{font-weight:700;font-size:13.5px;color:var(--q-orange);text-shadow:0 0 7px currentColor}
 .colossal-tile .ct-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
 /* v341.19 — per-piece set affixes on the tile + partial-set-bonus rows */
 .ct-affixes{list-style:none;margin:5px 0 0;padding:0;display:flex;flex-direction:column;gap:1px}
@@ -9356,7 +9356,7 @@ function renderEndgameRoad(){
   const node = (item, emoji, src, rate) =>
     '<div class="road-node" role="button" tabindex="0" onclick="window.openDrop(\'' + item.replace(/'/g, "\\'") + '\')">'
     + '<div class="rn-art">' + artOr(item, emoji, 'lg') + '</div>'
-    + '<div class="rn-name" style="color:var(--uber) !important">' + item + '</div>'
+    + '<div class="rn-name" style="color:var(--q-orange) !important">' + item + '</div>'
     + '<div class="rn-src">' + src + '</div>'
     + '<div class="rn-rate">' + rate + '</div></div>';
   // Branch-title emblems — the upgraded animated art logos (relicArtGlow runs on the
@@ -9382,7 +9382,7 @@ function renderEndgameRoad(){
     + '<div class="road-cube">cube <code>Diablo\'s Horn + Mephisto\'s Brain + Baal\'s Eye</code> → the <strong>Uber Tristram</strong> red portal</div></div>'
     + '<div class="road-arrow">▼</div>'
     + '<div class="road-final" role="button" tabindex="0" onclick="window.openDrop(\'Hellfire Torch\')"><div class="rf-art">' + artOr('Hellfire Torch','🔥','lg') + '</div>'
-    + '<div><div class="rf-name" style="color:var(--uber) !important">🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
+    + '<div><div class="rf-name" style="color:var(--gold-bright) !important">🔥 Hellfire Torch</div><div class="rf-sub">+3 random class skills · +10–20 all resist · +10 all stats — the Uber Tristram trio is the <strong>only</strong> source · 1 per character</div></div></div>'
     + '<div class="road-section-h">Pinnacle side-paths off the same road</div>'
     + '<div class="road-branches">'
     + '<div class="road-branch endgame-relic" role="button" tabindex="0" onclick="window.openDrop(\'Annihilus\')"><h3>' + branchEmblem('diablo_graphic.png','🌑') + '<span>Diablo Clone → Annihilus</span></h3><p>A world event triggered by mass Stone of Jordan sales. Über Diablo spawns; killing him drops the <strong>Annihilus</strong> — the only small charm with +1 all skills, +10-20 all attributes, +10-20 all resist and +5-10% experience. Every kill drops one.</p></div>'
