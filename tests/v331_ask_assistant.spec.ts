@@ -256,6 +256,29 @@ test('v341.5 rich hover tooltips: golden base-options card + emphasized endgame-
   expect(r.craftGrailRoll).toBe(true);
 });
 
+test('v341.12 dashboard shows crafts up to 2-away with count + the crafted RESULT image', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    w.togglePreview(); w.previewAdd('Nef', 'rune'); w.previewAdd('Perfect Ruby', 'gem');  // Blood ingredients
+    const tp = w._previewWrap(w.buildTopPicks);
+    const closeCrafts = tp.close.filter((x: any) => x.kind === 'craft');
+    const oneAway = closeCrafts.filter((x: any) => x.awayN === 1).map((x: any) => x.display);
+    const twoAway = closeCrafts.filter((x: any) => x.awayN === 2).map((x: any) => x.display);
+    w.renderCreateNow();
+    const host = document.getElementById('create-now')!;
+    const craftTileImg = !!host.querySelector('.cn-tile.cn-craft .cn-ic img');  // result image (not gem)
+    const countBadges = [...host.querySelectorAll('.cn-need-n')].map((e) => e.textContent);
+    w.togglePreview();
+    return { oneAway, twoAwayCount: twoAway.length, sorted: (closeCrafts[0]?.awayN || 1) === 1, craftTileImg, countBadges };
+  });
+  expect(r.oneAway).toContain('Blood Gloves');        // 1-away (needs base)
+  expect(r.twoAwayCount).toBeGreaterThanOrEqual(2);   // Blood Ring/Amulet/Boots etc. now surface too
+  expect(r.sorted).toBe(true);                        // 1-away sorted before 2-away
+  expect(r.craftTileImg).toBe(true);                  // tile shows the crafted RESULT sprite
+  expect(r.countBadges.some((c) => /1 more to go/.test(c || ''))).toBe(true);
+  expect(r.countBadges.some((c) => /2 more to go/.test(c || ''))).toBe(true);
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {

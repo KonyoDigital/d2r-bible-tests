@@ -13313,9 +13313,12 @@ window.buildTopPicks = function(){
       var tile={kind:'craft', name:name, display:core, craft:craft.key, slot:slot, gem:craft.gem, rune:sl.rune, base:sl.base, beats:e.beats||'', val:e.val||''};
       if(st.ready) out.makeNow.push(tile);
       else if(st.cube) out.afterCubing.push(tile);
-      else if(st.missing && st.missing.length===1){ tile.need=st.missing[0]; out.close.push(tile); }
+      // v341.12 — show crafts up to TWO ingredients away (not just one) with an accurate count,
+      // so the dashboard surfaces more top-tier options + an honest "N more to go" progression.
+      else if(st.missing && st.missing.length>=1 && st.missing.length<=2){ tile.need=st.missing.join(' + '); tile.awayN=st.missing.length; out.close.push(tile); }
     });
   } }catch(e){}
+  out.close.sort(function(a,b){ return (a.awayN||1)-(b.awayN||1); });   // 1-away before 2-away
   return out;
 };
 // v338 — 🧪 PREVIEW MODE. A sandbox overlay on the rune/gem tallies for the AI helper ONLY. When
@@ -13390,7 +13393,7 @@ window.scanTopPicks = function(opts){
   var L=['<b>🎯 Top picks for your stash</b> <span style="color:var(--text-dim);font-weight:400">(top-tier only — crafts &amp; runewords that rival/beat uniques)</span>'];
   L.push(tp.makeNow.length ? ('<b style="color:var(--best)">✅ Make NOW:</b> '+fmt(tp.makeNow)) : '<span style="color:var(--text-dim)">✅ Nothing top-tier craftable yet — keep banking runes/gems.</span>');
   if(tp.afterCubing.length) L.push('<b style="color:var(--q-orange)">◆ After cubing up:</b> '+fmt(tp.afterCubing));
-  if(tp.close.length) L.push('<b>🔜 One item away:</b> '+tp.close.map(function(x){return _askEsc(x.name)+' <span style="color:var(--text-dim)">(need '+_askEsc(x.need)+')</span>';}).slice(0,8).join(' · '));
+  if(tp.close.length) L.push('<b>🔜 Almost there:</b> '+tp.close.map(function(x){return _askEsc(x.name)+' <span style="color:var(--text-dim)">('+(x.awayN||1)+' more: '+_askEsc(x.need)+')</span>';}).slice(0,8).join(' · '));
   out.insertAdjacentHTML('beforeend','<div class="ask-a ask-toppicks">'+L.join('<br>')+'</div>');
   out.scrollTop=out.scrollHeight;
   try{ localStorage.setItem('d2r_lastTopScan', new Date().toISOString().slice(0,10)); }catch(e){}
@@ -13404,20 +13407,27 @@ window.renderCreateNow = function(){
   var host=document.getElementById('create-now'); if(!host) return;
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
   function cnIcon(n){ return (typeof artOr==='function') ? artOr(n,'','sm') : _askEsc(n); }
-  function cnNeedHtml(need){
-    var s=String(need), ic='';
+  function _cnNeedItem(s){
+    s=String(s); var ic='';
     var mb=s.match(/^magic ([\w ]+?) base/);
     if(mb){ var sl=mb[1].trim(); if(typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[sl]) ic='<span class="cn-rc-g">'+CRAFT_SLOT_GLYPH[sl]+'</span> '; }
     else { var a=(typeof artOr==='function')?artOr(s.replace(/ rune$/,''),'','sm'):''; if(/<img/.test(a)) ic='<span class="cn-rc-i">'+a+'</span> '; }
     var disp=s.replace(/\s*\([^)]*\)\s*$/,'');  // drop the "(any Ring)" tail — keep the tile compact
-    return ic+'need '+_askEsc(disp);
+    return ic+_askEsc(disp);
+  }
+  function cnNeedHtml(need, awayN){
+    var parts=String(need).split(' + ').map(_cnNeedItem);
+    var n=awayN||parts.length;
+    return '<span class="cn-need-n">'+n+' more to go</span> '+parts.join('<span class="cn-rc-p"> + </span>');
   }
   function tile(p, badge){
     // rarity glow — crafts & runewords are both the orange (--q-orange) tier in D2; the tile
     // border/name/glow take that colour so the dashboard reads like in-game item rarity.
     var rar = (typeof _artRarity==='function') ? _artRarity(p.name) : '';
     var glow = (typeof _Q_HEX!=='undefined' && _Q_HEX[rar]) ? _Q_HEX[rar] : '#ffa800';  // in-game palette, keyed by _artRarity
-    var icon = p.kind==='craft' ? ((typeof artOr==='function'&&p.gem)?artOr(p.gem,'🔨','sm'):'🔨') : '📜';
+    // the tile's main image = the FINISHED crafted item (the result), rarity-glowing — not the gem.
+    // Crafted jackpots resolve to their base sprite (Blood Gloves → leather gloves, etc.).
+    var icon = p.kind==='craft' ? ((typeof artOr==='function')?artOr(p.name,'🔨','sm'):'🔨') : '📜';
     var star = p.beats?(' <span class="cn-star" title="rivals/beats '+_askEsc(p.beats)+'">★</span>'):'';
     // recipe rendered as ART CHIPS (no truncation): runeword = the rune sequence as icons;
     // craft = slot glyph + Perfect gem icon + slot rune icon (+ the throwaway jewel).
@@ -13432,12 +13442,12 @@ window.renderCreateNow = function(){
       recipe='<span class="cn-rc">'+(p.runes||[]).map(function(r,i){return (i?'<span class="cn-rc-p">+</span>':'')+'<span class="cn-rc-i" title="'+_askEsc(r)+' rune">'+cnIcon(r)+'</span>';}).join('')+'</span>';
     }
     var beats = (p.beats && !p.need) ? ('<span class="cn-beats" title="rivals/beats '+_askEsc(p.beats)+'">⚔ beats '+_askEsc(p.beats)+'</span>') : '';
-    var sub = p.need ? ('<span class="cn-need">'+cnNeedHtml(p.need)+'</span>') : (recipe + beats);
+    var sub = p.need ? ('<span class="cn-need">'+cnNeedHtml(p.need, p.awayN)+'</span>') : (recipe + beats);
     return '<div class="cn-tile cn-'+p.kind+'" style="--cn-glow:'+glow+'" role="button" tabindex="0" data-arttip="'+_askEsc(p.name)+'" onclick="window.openDrop&&window.openDrop(\''+String(p.name).replace(/'/g,"\\'")+'\')" title="open '+_askEsc(p.name)+'">'
       +'<span class="cn-ic">'+icon+'</span><span class="cn-body"><span class="cn-name">'+_askEsc(p.display||p.name)+star+'</span>'+sub+'</span><span class="cn-badge">'+badge+'</span></div>';
   }
   function group(t, arr, badge, cls){ return arr.length ? ('<div class="cn-group '+cls+'"><div class="cn-gh">'+t+' <span class="cn-ct">'+arr.length+'</span></div><div class="cn-grid">'+arr.map(function(p){return tile(p,badge);}).join('')+'</div></div>') : ''; }
-  var body = group('✅ Make now', tp.makeNow,'✅','cn-now') + group('◆ After cubing gems/runes up', tp.afterCubing,'◆','cn-cube') + group('🔜 One item away', tp.close,'🔜','cn-close');
+  var body = group('✅ Make now', tp.makeNow,'✅','cn-now') + group('◆ After cubing gems/runes up', tp.afterCubing,'◆','cn-cube') + group('🔜 Almost there — what to grab next', tp.close,'🔜','cn-close');
   if(!body) body='<div class="cn-empty">Nothing top-tier craftable yet — tally more runes &amp; gems with 📸 intake and this dashboard updates itself.</div>';
   var when=''; try{ when=localStorage.getItem('d2r_createNowDate')||''; }catch(e){}
   var ai=''; try{ ai=localStorage.getItem('d2r_createNowAi')||''; }catch(e){}
@@ -13550,7 +13560,8 @@ window.dailyCreateAi = function(force){
       +'.cn-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}'
       +'.cn-name{font-weight:700;font-size:12.5px;color:var(--cn-glow,#ffa800);text-shadow:0 0 6px var(--cn-glow,#ffa800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       +'.cn-recipe{font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-      +'.cn-need{display:flex;align-items:center;gap:3px;font-size:10.5px;color:#ffb3b3;margin-top:2px}.cn-need img{max-width:16px;max-height:16px}'
+      +'.cn-need{display:flex;align-items:center;flex-wrap:wrap;gap:3px;font-size:10.5px;color:#ffb3b3;margin-top:2px}.cn-need img{max-width:16px;max-height:16px}'
+      +'.cn-need-n{font-size:8.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#1a1207;background:#f0b86a;border-radius:4px;padding:1px 5px;margin-right:2px}'
       +'.cn-rc{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;margin-top:2px}'
       +'.cn-rc-i{display:inline-flex;align-items:center}.cn-rc-i img{max-width:19px;max-height:19px;vertical-align:middle}'
       +'.cn-rc-g{font-size:15px;margin-right:1px}.cn-rc-p{color:var(--text-dim);font-size:10px;margin:0 1px}.cn-rc-j{color:#9fd0ff;font-size:11px;margin-left:2px;opacity:.8}'
