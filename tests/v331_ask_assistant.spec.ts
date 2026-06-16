@@ -77,6 +77,29 @@ test('the visual Create-Now dashboard auto-renders makeable top-tier items (rune
   expect(r.names.some((n) => /Spirit/.test(n))).toBe(true);  // runewords resolve via .n (bug fix)
 });
 
+test('🧪 Preview mode simulates against a sandbox — the REAL stash is never touched', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const realRune = (window as any).eval('runeStash');
+    const before = JSON.stringify(realRune);
+    (window as any).togglePreview();                       // preview ON
+    ['Tal', 'Thul', 'Ort', 'Amn'].forEach((n) => (window as any).previewAdd(n, false));  // sandbox Spirit
+    (window as any).renderCreateNow();
+    const host = document.getElementById('create-now')!;
+    const previewNames = [...host.querySelectorAll('.cn-name')].map((e) => e.textContent || '');
+    const realAfterPreview = JSON.stringify((window as any).eval('runeStash'));   // must equal `before`
+    const hasBar = !!host.querySelector('.cn-preview');
+    (window as any).togglePreview();                       // preview OFF
+    (window as any).renderCreateNow();
+    const namesOff = [...host.querySelectorAll('.cn-name')].map((e) => e.textContent || '');
+    return { before, realAfterPreview, sawSpirit: previewNames.some((n) => /Spirit/.test(n)), hasBar, spiritGoneOff: !namesOff.some((n) => /Spirit/.test(n)), previewNull: (window as any).previewStash === null };
+  });
+  expect(r.sawSpirit).toBe(true);                 // sandbox unlocked Spirit in the dashboard
+  expect(r.hasBar).toBe(true);                    // the preview bar shows
+  expect(r.realAfterPreview).toBe(r.before);      // ⭐ the REAL rune stash is byte-identical — untouched
+  expect(r.previewNull).toBe(true);               // toggling off clears the sandbox
+  expect(r.spiritGoneOff).toBe(true);             // dashboard reverts to real data
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {
