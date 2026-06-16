@@ -161,7 +161,7 @@ test('v341.2 the preview picker is a custom ART-RICH menu (rune/gem HD icons, ba
     w.previewAdd('Perfect Ruby', 'gem');   // add → sandbox chip should carry art
     return {
       noNativeSelect: !host.querySelector('select'),                          // the text-only dropdown is gone
-      optCount: opts.length,                                                   // 33 runes + 14 gems + 9 bases
+      optCount: opts.length,                                                   // 33 runes + 14 gems + 9 bases + 2 jewels
       runeImg: !!find(/Sol rune/)?.querySelector('.cn-pv-opt-art img'),
       gemImg: !!find(/Perfect Amethyst/)?.querySelector('.cn-pv-opt-art img'),
       baseGlyph: !!find(/magic Gloves base/)?.querySelector('.cn-pv-glyph'),
@@ -169,7 +169,7 @@ test('v341.2 the preview picker is a custom ART-RICH menu (rune/gem HD icons, ba
     };
   });
   expect(r.noNativeSelect).toBe(true);
-  expect(r.optCount).toBe(56);
+  expect(r.optCount).toBe(58);   // v341.7 added a 4th section (Jewels = 2 entries)
   expect(r.runeImg).toBe(true);    // rune HD icon in the picker
   expect(r.gemImg).toBe(true);     // gem HD icon
   expect(r.baseGlyph).toBe(true);  // base slot glyph

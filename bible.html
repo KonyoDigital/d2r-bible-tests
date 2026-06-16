@@ -1416,6 +1416,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-ing-need{border-color:rgba(240,176,80,.5);background:rgba(240,176,80,.1);color:#f0b050}
 .cw-ing-need:hover{background:rgba(240,176,80,.2)}
 .cw-base-tag{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-left:1px}
+/* v341.7 — recipe ingredient chips synced to the AI-helper material colours: the NAME glows in
+   its in-game rarity colour (rune=orange · gem=its gem colour · jewel & magic base=magic blue),
+   while the have/need STATUS is a separate coloured badge + a subtle status-tinted border. */
+.cw-ing-col.cw-ing-have,.cw-ing-col.cw-ing-miss,.cw-ing-col.cw-ing-need,.cw-ing-col.cw-ing-basic{background:rgba(0,0,0,.3);color:var(--text)}
+.cw-ing-col.cw-ing-have{border-color:rgba(63,191,106,.5)}.cw-ing-col.cw-ing-have:hover{background:rgba(63,191,106,.12)}
+.cw-ing-col.cw-ing-miss{border-color:rgba(255,120,120,.45)}
+.cw-ing-col.cw-ing-need{border-color:rgba(240,176,80,.5)}
+.cw-ing-col.cw-ing-basic{border-color:rgba(122,155,216,.42)}
+.cw-ing-nm{color:var(--ing-c,#ffa800);text-shadow:0 0 5px var(--ing-c,#ffa800),0 1px 1px rgba(0,0,0,.5);font-weight:700}
+.cw-ing-badge{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:2px;flex:0 0 auto}
+.cw-bg-have{color:#0a1a0e;background:#5fd07a}.cw-bg-need{color:#1a1207;background:#f0b86a}.cw-bg-basic{color:#0c1018;background:#8fb0e0}
 .cw-rec-out{grid-area:out;font-size:11.5px;line-height:1.45;color:var(--text-muted);padding:3px 0 1px;border-top:1px dashed var(--border)}
 .cw-out-arrow{color:var(--cw-c,#f0c060);font-weight:800;font-size:13px}
 .cw-out-name{color:var(--q-orange);font-weight:700}/* v321: crafted item = in-game orange */
@@ -13302,20 +13313,22 @@ window._previewWrap = function(fn){
   finally { runeStash=rR; gemStash=rG; }   // real tallies + localStorage never written
 };
 window.togglePreview = function(){
-  window.previewStash = window.previewStash ? null : { runes:{}, gems:{}, bases:{} };
+  window.previewStash = window.previewStash ? null : { runes:{}, gems:{}, bases:{}, jewels:{} };
   window.renderCreateNow();
 };
-// kind: 'gem' → gems · 'base' → magic base by slot · else (default) → runes. (Back-compat:
-// previewAdd(name, true) still means a gem.) Bases are keyed by SLOT name.
+// kind: 'gem' → gems · 'base' → magic base by slot · 'jewel' → jewels · else (default) → runes.
+// (Back-compat: previewAdd(name, true) still means a gem.) Bases/jewels are cosmetic completeness
+// — the jewel never gates a craft, so adding it just rounds out the sandbox recipe picture.
 window.previewAdd = function(name, kind){
-  if(!window.previewStash) window.previewStash={runes:{},gems:{},bases:{}};
+  if(!window.previewStash) window.previewStash={runes:{},gems:{},bases:{},jewels:{}};
   if(!window.previewStash.bases) window.previewStash.bases={};
-  var k = (kind===true||kind==='gem') ? 'gems' : (kind==='base' ? 'bases' : 'runes');
+  if(!window.previewStash.jewels) window.previewStash.jewels={};
+  var k = (kind===true||kind==='gem') ? 'gems' : (kind==='base' ? 'bases' : (kind==='jewel' ? 'jewels' : 'runes'));
   var bag = window.previewStash[k];
   bag[name] = (parseInt(bag[name],10)||0) + 1;
   window.renderCreateNow();
 };
-window.previewClear = function(){ if(window.previewStash){ window.previewStash={runes:{},gems:{},bases:{}}; window.renderCreateNow(); } };
+window.previewClear = function(){ if(window.previewStash){ window.previewStash={runes:{},gems:{},bases:{},jewels:{}}; window.renderCreateNow(); } };
 window.buildAskSnapshot = function(){
   function names(arr){ try{ return (arr||[]).map(function(x){ return x && (x.name||x.n||x); }).filter(Boolean); }catch(e){ return []; } }
   function nonzero(o){ var r={}; try{ Object.keys(o||{}).forEach(function(k){ var v=parseInt(o[k],10); if(v>0)r[k]=v; }); }catch(e){} return r; }
@@ -13423,28 +13436,34 @@ window.renderCreateNow = function(){
     // the sandbox; the menu stays open (window._pvMenuOpen) so you can stack several.
     function pvArt(name, kind){
       if(kind==='base'){ var g=(typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[name])?CRAFT_SLOT_GLYPH[name]:'🔨'; return '<span class="cn-pv-glyph">'+g+'</span>'; }
+      if(kind==='jewel'){ return '<span class="cn-pv-glyph" style="color:#9fb6ff">◈</span>'; }
       return (typeof artOr==='function') ? artOr(name,'','sm') : '';
     }
     function pvOpt(name, label, kind){
       // data-arttip → the rich #arttip card fires on hover: runes/gems resolve to their stat
-      // cards, a base resolves to the golden "magic <slot> base" options card (v341.5).
-      var at = kind==='base' ? ('magic '+name+' base') : name;
+      // cards, a base → the golden "magic <slot> base" options card, a jewel → its magic card.
+      var at = kind==='base' ? ('magic '+name+' base') : (kind==='jewel' ? 'any jewel' : name);
       return '<div class="cn-pv-opt" role="button" tabindex="0" data-arttip="'+_askEsc(at)+'" onclick="window.previewAdd(\''+String(name).replace(/'/g,"\\'")+'\',\''+kind+'\')">'
         +'<span class="cn-pv-opt-art">'+pvArt(name,kind)+'</span><span class="cn-pv-opt-nm">'+_askEsc(label)+'</span><span class="cn-pv-opt-plus">＋</span></div>';
     }
     var runeRows=RUNES.map(function(r){return pvOpt(r, r+' rune', 'rune');}).join('');
     var gemRows=GEMS.map(function(g){return pvOpt(g, g, 'gem');}).join('');
     var baseRows=(typeof CRAFT_SLOTS!=='undefined'?CRAFT_SLOTS:[]).map(function(sl){return pvOpt(sl, 'magic '+sl+' base', 'base');}).join('');
+    // v341.7 — 4th section: the JEWEL (the recipe's 4th ingredient). It never gates a craft, but
+    // listing it lets the sandbox represent a full recipe. Magic + rare jewels both craft.
+    var jewelRows=[pvOpt('Magic Jewel','magic Jewel','jewel'), pvOpt('Rare Jewel','rare Jewel','jewel')].join('');
     var menuOpen=!!window._pvMenuOpen;
     var menu='<div class="cn-pv-menu"'+(menuOpen?'':' style="display:none"')+'>'
       +'<div class="cn-pv-ggh">⟐ Runes</div><div class="cn-pv-ggrid">'+runeRows+'</div>'
       +'<div class="cn-pv-ggh">◆ Gems</div><div class="cn-pv-ggrid">'+gemRows+'</div>'
-      +'<div class="cn-pv-ggh">🔨 Craft Bases (magic)</div><div class="cn-pv-ggrid">'+baseRows+'</div></div>';
-    // sandbox chips — now WITH art (icons for runes/gems, slot glyph for bases)
+      +'<div class="cn-pv-ggh">🔨 Craft Bases (magic)</div><div class="cn-pv-ggrid">'+baseRows+'</div>'
+      +'<div class="cn-pv-ggh">◈ Jewels</div><div class="cn-pv-ggrid">'+jewelRows+'</div></div>';
+    // sandbox chips — WITH art (icons for runes/gems, slot glyph for bases, ◈ for jewels)
     var chips=[];
     Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(pvArt(k,'rune')+_askEsc(k)+(pv.runes[k]>1?(' ×'+pv.runes[k]):'')); });
     Object.keys(pv.gems).forEach(function(k){ if(pv.gems[k]>0) chips.push(pvArt(k,'gem')+_askEsc(k)+(pv.gems[k]>1?(' ×'+pv.gems[k]):'')); });
     Object.keys(pv.bases||{}).forEach(function(k){ if(pv.bases[k]>0) chips.push(pvArt(k,'base')+'magic '+_askEsc(k)+' base'); });
+    Object.keys(pv.jewels||{}).forEach(function(k){ if(pv.jewels[k]>0) chips.push(pvArt(k,'jewel')+_askEsc(k)+(pv.jewels[k]>1?(' ×'+pv.jewels[k]):'')); });
     pvBar='<div class="cn-preview"><div class="cn-pv-note">🧪 <b>Preview</b> — simulating extra runes, gems &amp; magic bases on a <b>sandbox</b>. Your real tallies &amp; every other section are <b>untouched</b>. Toggle off to return to your real stash.</div>'
       +'<div class="cn-pv-row"><button class="cn-pv-add" onclick="window._pvMenuOpen=!window._pvMenuOpen;window.renderCreateNow()">➕ Add item '+(menuOpen?'▲':'▼')+'</button>'
       +(chips.length?'<button class="cn-pv-clear" onclick="window.previewClear()">✕ clear sandbox</button>':'')+'</div>'
@@ -13595,10 +13614,29 @@ window.craftSlotFilter = craftSlotFilter;
 function toggleCraftReady(){ _craftReadyOnly = !_craftReadyOnly; renderCraftWorkshop(); }
 window.toggleCraftReady = toggleCraftReady;
 // One ingredient chip (gem or rune) — clickable → openDrop, coloured by whether you hold it.
+// v341.7 — in-game colour for each gem so the recipe chips match the AI-helper materials.
+function _gemColor(name){
+  var n = String(name).toLowerCase();
+  if (n.indexOf('ruby') >= 0) return '#e0556a';
+  if (n.indexOf('amethyst') >= 0) return '#b48ce0';
+  if (n.indexOf('sapphire') >= 0) return '#5b8ff0';
+  if (n.indexOf('emerald') >= 0) return '#5fd07a';
+  if (n.indexOf('topaz') >= 0) return '#ffd84d';
+  if (n.indexOf('diamond') >= 0) return '#dfe6f0';
+  if (n.indexOf('skull') >= 0) return '#cfcfcf';
+  return '#ffa800';
+}
+window._gemColor = _gemColor;
+// v341.7 — the gem/rune ingredient chip: the NAME carries its in-game rarity colour + glow (rune
+// = orange, gem = its gem colour), and the have/need state is a SEPARATE coloured badge (green ✓ /
+// amber NEED) so status reads independently of the item's colour. data-arttip → rich hover card.
 function _cwIngChip(name, have){
   var esc = String(name).replace(/'/g, "\\'");
   var logo = (typeof nameLogo === 'function') ? nameLogo(name) : '';
-  return '<span class="cw-ing ' + (have ? 'cw-ing-have' : 'cw-ing-miss') + '" data-arttip="' + name + '" onclick="event.stopPropagation();window.openDrop&&window.openDrop(\'' + esc + '\')" title="' + (have ? 'in your stash — ' : 'not in your stash — ') + 'open the ' + name + ' card">' + logo + name + (have ? ' ✓' : '') + '</span>';
+  var isRune = (typeof RUNE_INDEX !== 'undefined' && (name in RUNE_INDEX));
+  var col = isRune ? '#ffa800' : _gemColor(name);
+  var badge = have ? '<span class="cw-ing-badge cw-bg-have">✓</span>' : '<span class="cw-ing-badge cw-bg-need">need</span>';
+  return '<span class="cw-ing cw-ing-col ' + (have ? 'cw-ing-have' : 'cw-ing-miss') + '" style="--ing-c:' + col + '" data-arttip="' + name + '" onclick="event.stopPropagation();window.openDrop&&window.openDrop(\'' + esc + '\')" title="' + (have ? 'in your stash — ' : 'not in your stash — ') + 'open the ' + name + ' card">' + logo + '<span class="cw-ing-nm">' + name + '</span>' + badge + '</span>';
 }
 // Where the BASIC ingredients come from, by slot — vendor/gamble/find items you effectively
 // always have (so they never gate "cubeable": only the gem + rune do).
@@ -13622,18 +13660,20 @@ const CRAFT_REROLL = {
   Safety:['+All Resistances','more Damage / Magic-Damage Reduced','+% Enhanced Defense','Faster Hit Recovery','+Life'],
   'Hit Power':['+Life','+Strength / Dexterity','+to Attack Rating','+Min/Max Damage','Faster Hit Recovery']
 };
-// A basic/vendor ingredient chip — styled as "you always have this" (jewel only now).
+// A basic/vendor ingredient chip — the jewel. v341.7: NAME in magic-BLUE (a jewel is a magic
+// item) + glow, with a separate "basic ✓" badge, and a rich hover card via data-arttip.
 function _cwBasicChip(label, source){
-  return '<span class="cw-ing cw-ing-basic" title="' + source + ' — a basic item, assumed on hand (never gates cubeable)">' + label + ' <span class="cw-basic-tag">basic ✓</span></span>';
+  return '<span class="cw-ing cw-ing-basic cw-ing-col" style="--ing-c:#6969ff" data-arttip="any jewel" title="' + source + ' — a basic item, assumed on hand (never gates cubeable)"><span class="cw-ing-nm">' + label + '</span> <span class="cw-ing-badge cw-bg-basic">basic ✓</span></span>';
 }
 // v341 — the magic BASE is NOT auto-owned. A real, click-to-toggle ingredient: green ✓ when
 // you've told the bible you have a magic base of this slot, amber ＋ "need" otherwise. Gates
 // the craft honestly (the dashboard/AI then says exactly which base you still need to grab).
 function _cwBaseChip(slot, have, baseHint){
   var esc = slot.replace(/'/g, "\\'");
-  return '<button class="cw-ing cw-ing-base ' + (have ? 'cw-ing-have' : 'cw-ing-need') + '" onclick="event.stopPropagation();window.toggleCraftBase(\'' + esc + '\')" '
+  var badge = have ? '<span class="cw-ing-badge cw-bg-have">✓ have</span>' : '<span class="cw-ing-badge cw-bg-need">＋ need</span>';
+  return '<button class="cw-ing cw-ing-base cw-ing-col ' + (have ? 'cw-ing-have' : 'cw-ing-need') + '" style="--ing-c:#6969ff" data-arttip="magic ' + slot + ' base" onclick="event.stopPropagation();window.toggleCraftBase(\'' + esc + '\')" '
     + 'title="' + (have ? 'You have a magic ' + slot + ' base — click to un-mark' : 'You need a magic (blue) ' + slot + ' base to craft onto (' + baseHint + '). Click when you have one.') + '">'
-    + 'magic ' + slot + ' base <span class="cw-base-tag">' + (have ? '✓ have' : '＋ need') + '</span></button>';
+    + '<span class="cw-ing-nm">magic ' + slot + ' base</span> ' + badge + '</button>';
 }
 // One enriched recipe row: inputs (gem + rune gate cubeable; jewel + base are basic) → the
 // exact crafted item created, its guaranteed mods, base options, status, and (optional) owned stepper.
@@ -14262,6 +14302,7 @@ function _arttipResolve(nm){
   if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: _rwk, desc: _rwTipHtml(RUNEWORD_TIP[_rwk]), rich: true }; }
   if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
   if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
+  if (/^(any |magic |rare )?jewel$/i.test(nm)) return { artName: '', desc: _jewelTipHtml(), rich: true };
   var _mb = /^magic (.+) base$/.exec(nm); if (_mb && typeof CRAFT_SLOTS !== 'undefined' && CRAFT_SLOTS.indexOf(_mb[1]) >= 0) return { artName: '', desc: _craftBaseTipHtml(_mb[1]), rich: true };
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
   if (typeof findSetPiece === 'function'){ var _sp = findSetPiece(nm); if (_sp) return { artName: nm, desc: _setPieceTipHtml(_sp), rich: true }; }
@@ -14342,6 +14383,13 @@ function _craftBaseTipHtml(slot){
     +'<div class="att-tag">+ Perfect gem + slot rune + any jewel → your crafted '+slot.toLowerCase()+'</div></div>';
 }
 window._craftBaseTipHtml = _craftBaseTipHtml;
+// v341.7 — rich card for the "any jewel" recipe ingredient (the 4th craft item).
+function _jewelTipHtml(){
+  return '<div class="att-basecard"><div class="att-type" style="color:#9fb6ff">◈ Jewel — magic ingredient</div>'
+    + '<div class="att-basenote"><b>Any magic (blue) jewel</b> is the 4th item in every craft recipe. Jewels drop constantly, so this never holds a craft back — it is the one assumed-on-hand ingredient. A <b>rare</b> jewel works too (and adds its own random affixes).</div>'
+    + '<div class="att-tag">magic base + Perfect gem + slot rune + <b>this jewel</b> → cube → crafted rare</div></div>';
+}
+window._jewelTipHtml = _jewelTipHtml;
 /* Floating art-hover popup (the diablo2.io "nice detail"). Delegated + scoped   */
 /* to elements carrying data-arttip OR the site-wide existing data-art-logo      */
 /* chips, so item names everywhere reveal their in-game art + verified stats on  */
