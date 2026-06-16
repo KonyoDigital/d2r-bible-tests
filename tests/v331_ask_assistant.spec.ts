@@ -59,6 +59,24 @@ test('buildTopPicks ranks top-tier makeable opportunities + scanTopPicks renders
   expect(r.inSnapshot).toBe(true);
 });
 
+test('the visual Create-Now dashboard auto-renders makeable top-tier items (runewords detected)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    ['Tal', 'Thul', 'Ort', 'Amn'].forEach((n) => (window as any).adjustRuneStash(n, 2)); // Spirit runes
+    (window as any).renderCreateNow();
+    const host = document.getElementById('create-now')!;
+    return {
+      atTop: document.querySelector('#ask-bible-card .boss-body')?.firstElementChild?.id === 'create-now',
+      hasTitle: !!host.querySelector('.cn-title'),
+      tiles: host.querySelectorAll('.cn-tile').length,
+      names: [...host.querySelectorAll('.cn-name')].map((e) => e.textContent || ''),
+    };
+  });
+  expect(r.atTop).toBe(true);          // dashboard sits at the top of the card body
+  expect(r.hasTitle).toBe(true);
+  expect(r.tiles).toBeGreaterThan(0);
+  expect(r.names.some((n) => /Spirit/.test(n))).toBe(true);  // runewords resolve via .n (bug fix)
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {

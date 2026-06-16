@@ -13209,16 +13209,21 @@ const TOP_RUNEWORDS = ['Enigma','Infinity','Call to Arms','Grief','Spirit','Hear
 window.buildTopPicks = function(){
   var out = { makeNow:[], afterCubing:[], close:[] };
   var topSet = {}; TOP_RUNEWORDS.forEach(function(n){ topSet[n.toLowerCase()]=1; });
+  // runeword objects from runeCraftStatus use `.n` (e.g. "Spirit (sword)") + a `.runes` string +
+  // `.base`. Match TOP_RUNEWORDS against the parenthetical-stripped base name.
+  function rwNorm(n){ return String(n).replace(/\s*\([^)]*\)\s*$/,'').trim().toLowerCase(); }
+  function rwTile(rw){ var n=rw.n||rw.name||rw; var runes=String(rw.runes||'').split('+').map(function(s){return s.trim();}).filter(Boolean); return {kind:'runeword', name:n, runes:runes, base:rw.base||''}; }
+  function craftTile(c, slot){ var sl=c.slots[slot]||{}; return {kind:'craft', name:c.key+' '+slot, craft:c.key, slot:slot, gem:c.gem, rune:sl.rune, base:sl.base}; }
   try { var rc = runeCraftStatus();
-    (rc.ready||[]).forEach(function(rw){ var n=rw&&(rw.name||rw); if(n&&topSet[String(n).toLowerCase()]) out.makeNow.push({kind:'runeword', name:n}); });
-    (rc.cube||[]).forEach(function(rw){ var n=rw&&(rw.name||rw); if(n&&topSet[String(n).toLowerCase()]) out.afterCubing.push({kind:'runeword', name:n}); });
+    (rc.ready||[]).forEach(function(rw){ var n=rw&&(rw.n||rw.name); if(n&&topSet[rwNorm(n)]) out.makeNow.push(rwTile(rw)); });
+    (rc.cube||[]).forEach(function(rw){ var n=rw&&(rw.n||rw.name); if(n&&topSet[rwNorm(n)]) out.afterCubing.push(rwTile(rw)); });
   } catch(e){}
   try { CRAFTS.forEach(function(c){ (c.best||[]).forEach(function(slot){
       if(!c.slots||!c.slots[slot]) return;
-      var st=_craftSlotReady(c,slot), label=c.key+' '+slot;
-      if(st.ready) out.makeNow.push({kind:'craft', name:label});
-      else if(st.cube) out.afterCubing.push({kind:'craft', name:label});
-      else if(st.missing && st.missing.length===1) out.close.push({kind:'craft', name:label, need:st.missing[0]});
+      var st=_craftSlotReady(c,slot), tile=craftTile(c,slot);
+      if(st.ready) out.makeNow.push(tile);
+      else if(st.cube) out.afterCubing.push(tile);
+      else if(st.missing && st.missing.length===1){ tile.need=st.missing[0]; out.close.push(tile); }
   }); }); }catch(e){}
   return out;
 };
@@ -13271,6 +13276,44 @@ window.scanTopPicks = function(opts){
   try{ localStorage.setItem('d2r_lastTopScan', new Date().toISOString().slice(0,10)); }catch(e){}
   if(!opts || !opts.localOnly) window.askBible('From my Top Picks above, what ONE thing should I make first and exactly how (recipe + why it beats the alternatives)? Then list the rest in priority order, briefly and to the point.');
 };
+// v337 — the always-visible "✨ What you can create now" DATA PANEL. Auto-renders the makeable
+// top-tier items as VISUAL tiles (art + recipe + status), refreshed once a day on load (the
+// client-side "cron" — the tallies live on this device, so a server cron can't see them). A
+// once-a-day cached AI line names the single best pick.
+window.renderCreateNow = function(){
+  var host=document.getElementById('create-now'); if(!host) return;
+  var tp=(typeof buildTopPicks==='function')?buildTopPicks():{makeNow:[],afterCubing:[],close:[]};
+  function tile(p, badge){
+    var icon = p.kind==='craft' ? ((typeof artOr==='function'&&p.gem)?artOr(p.gem,'🔨','sm'):'🔨') : '📜';
+    var recipe = p.kind==='craft'
+      ? ('magic '+_askEsc(p.base||p.slot)+' + '+_askEsc(p.gem||'')+' + '+_askEsc(p.rune||'')+' + jewel')
+      : (_askEsc((p.runes||[]).join(' • '))+(p.base?(' · '+_askEsc(p.base)):''));
+    var sub = p.need ? ('<span class="cn-need">need '+_askEsc(p.need)+'</span>') : ('<span class="cn-recipe">'+recipe+'</span>');
+    return '<div class="cn-tile cn-'+p.kind+'" role="button" tabindex="0" data-arttip="'+_askEsc(p.name)+'" onclick="window.openDrop&&window.openDrop(\''+String(p.name).replace(/'/g,"\\'")+'\')" title="open '+_askEsc(p.name)+'">'
+      +'<span class="cn-ic">'+icon+'</span><span class="cn-body"><span class="cn-name">'+_askEsc(p.name)+'</span>'+sub+'</span><span class="cn-badge">'+badge+'</span></div>';
+  }
+  function group(t, arr, badge, cls){ return arr.length ? ('<div class="cn-group '+cls+'"><div class="cn-gh">'+t+' <span class="cn-ct">'+arr.length+'</span></div><div class="cn-grid">'+arr.map(function(p){return tile(p,badge);}).join('')+'</div></div>') : ''; }
+  var body = group('✅ Make now', tp.makeNow,'✅','cn-now') + group('◆ After cubing gems/runes up', tp.afterCubing,'◆','cn-cube') + group('🔜 One item away', tp.close,'🔜','cn-close');
+  if(!body) body='<div class="cn-empty">Nothing top-tier craftable yet — tally more runes &amp; gems with 📸 intake and this dashboard updates itself.</div>';
+  var when=''; try{ when=localStorage.getItem('d2r_createNowDate')||''; }catch(e){}
+  var ai=''; try{ ai=localStorage.getItem('d2r_createNowAi')||''; }catch(e){}
+  var aiBanner = ai ? ('<div class="cn-ai">💡 <b>Today’s pick:</b> '+_askMd(ai)+'</div>') : '';
+  host.innerHTML='<div class="cn-head"><span class="cn-title">✨ What you can create now</span><span class="cn-meta">auto-updated daily'+(when?(' · '+when):'')+' <button class="cn-refresh" onclick="window.renderCreateNow();window.dailyCreateAi(true)" title="refresh + re-ask the AI now">🔄</button></span></div>'+aiBanner+body;
+  try{ localStorage.setItem('d2r_createNowDate', new Date().toISOString().slice(0,10)); }catch(e){}
+};
+// once-a-day (or forced) AI enrichment: name the single best pick, cache it, re-render.
+window.dailyCreateAi = function(force){
+  var today; try{ today=new Date().toISOString().slice(0,10); }catch(e){ today=''; }
+  try{ if(!force && localStorage.getItem('d2r_createNowAiDate')===today) return; }catch(e){}
+  var tp=(typeof buildTopPicks==='function')?buildTopPicks():{makeNow:[],afterCubing:[],close:[]};
+  try{ localStorage.setItem('d2r_createNowAiDate', today); }catch(e){}
+  if(!(tp.makeNow.length||tp.afterCubing.length)){ try{ localStorage.removeItem('d2r_createNowAi'); }catch(e){} return; }
+  var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
+  var snap=(typeof buildAskSnapshot==='function')?buildAskSnapshot():{};
+  fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing I can make right now from my Top Picks and why.',snapshot:snap})})
+    .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ localStorage.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
+};
 (function(){
   function inject(){
     var tools=document.getElementById('tab-tools');
@@ -13280,7 +13323,7 @@ window.scanTopPicks = function(opts){
       +'<div class="boss-title-wrap"><p class="boss-name">🔮 Ask the AI — Diablo II Helper <span class="arw-count">Sonnet</span></p>'
       +'<p class="boss-sub" style="color:var(--text-dim);font-size:11.5px;margin:2px 0 0">“what can I make right now & how” — answers from your live rune / gem / craft tallies</p></div>'
       +'<span class="boss-chev">▾</span></div>'
-      +'<div class="boss-body"><div class="ask-quick">'
+      +'<div class="boss-body"><div id="create-now" class="create-now"></div><div class="ask-quick">'
       +'<button class="ask-chip ask-chip-scan" onclick="window.scanTopPicks()">🎯 Scan: what should I make?</button>'
       +'<button class="ask-chip" onclick="window.askBibleQuick(\'What runewords can I make right now with my runes?\')">⚡ Runewords I can make now</button>'
       +'<button class="ask-chip" onclick="window.askBibleQuick(\'What crafted items can I cube right now, and which am I one item away from?\')">🔨 Crafts I can make</button>'
@@ -13297,7 +13340,27 @@ window.scanTopPicks = function(opts){
     var st=document.createElement('style'); st.textContent=
       '.ask-chip-scan{color:#06121c!important;background:linear-gradient(180deg,#9fdcff,#5fb4e8)!important;border-color:#bfe6ff!important;font-weight:800}'
       +'.ask-chip-scan:hover{filter:brightness(1.07)}'
-      +'.ask-toppicks{border-left-color:var(--best)!important;background:rgba(102,255,136,.06)!important;line-height:1.8}'+
+      +'.ask-toppicks{border-left-color:var(--best)!important;background:rgba(102,255,136,.06)!important;line-height:1.8}'
+      +'.create-now{margin:2px 0 12px;border:1px solid rgba(102,255,136,.18);border-radius:12px;background:linear-gradient(180deg,rgba(102,255,136,.05),rgba(20,16,10,.25));padding:11px 13px}'
+      +'.cn-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;flex-wrap:wrap}'
+      +'.cn-title{font-family:var(--serif-display,serif);font-weight:700;font-size:15px;color:var(--best,#66ff88)}'
+      +'.cn-meta{font-size:10px;color:var(--text-dim);font-style:italic;display:inline-flex;align-items:center;gap:6px}'
+      +'.cn-refresh{cursor:pointer;background:none;border:none;font-size:12px;padding:0;opacity:.7}.cn-refresh:hover{opacity:1}'
+      +'.cn-ai{font-size:12px;color:var(--text);background:rgba(127,212,255,.07);border:1px solid rgba(127,212,255,.22);border-radius:8px;padding:7px 11px;margin-bottom:10px;line-height:1.5}.cn-ai b{color:#8fd0ff}'
+      +'.cn-group{margin-bottom:9px}.cn-gh{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px}'
+      +'.cn-ct{color:var(--text-dim);font-weight:600}'
+      +'.cn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:7px}'
+      +'.cn-tile{display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:9px;padding:7px 10px;cursor:pointer;transition:transform .12s,border-color .12s,background .12s}'
+      +'.cn-tile:hover{transform:translateY(-1px);border-color:rgba(240,192,96,.5);background:rgba(240,192,96,.06)}'
+      +'.cn-now{border-left:3px solid var(--best,#66ff88)}.cn-cube{border-left:3px solid var(--q-orange,#ffa800)}.cn-close{border-left:3px solid var(--text-dim)}'
+      +'.cn-ic{flex:0 0 auto;font-size:18px;width:26px;height:26px;display:flex;align-items:center;justify-content:center}'
+      +'.cn-ic .d2art-wrap.sm{width:26px;height:26px}.cn-ic .d2art-img{max-width:26px;max-height:26px}'
+      +'.cn-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}'
+      +'.cn-name{font-weight:700;font-size:12.5px;color:var(--q-orange,#ffa800);text-shadow:0 0 6px currentColor;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      +'.cn-tile.cn-runeword .cn-name{color:var(--q-orange,#ffa800)}'
+      +'.cn-recipe,.cn-need{font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cn-need{color:#ffb3b3}'
+      +'.cn-badge{flex:0 0 auto;font-size:12px}'
+      +'.cn-empty{font-size:12px;color:var(--text-dim);font-style:italic;padding:6px 2px}'+
       '#ask-bible-card .arw-count{background:rgba(127,212,255,.16);color:#8fd0ff;border-radius:8px;padding:1px 8px;font-size:9px;font-weight:800;letter-spacing:.05em}'
       +'.ask-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 11px}'
       +'.ask-chip{cursor:pointer;font-size:11.5px;font-weight:600;color:#cfe8ff;background:rgba(127,212,255,.08);border:1px solid rgba(127,212,255,.3);border-radius:18px;padding:5px 12px;transition:background .14s,border-color .14s,transform .12s}'
@@ -13317,13 +13380,10 @@ window.scanTopPicks = function(opts){
   }
   function boot(){
     inject();
-    // v335: once-a-day proactive scan — render the local top-picks panel (free, no AI call) so it
-    // "already knows" what to make when Konyo opens the card. The AI explain stays one click away.
-    try {
-      var today=new Date().toISOString().slice(0,10);
-      if(localStorage.getItem('d2r_lastTopScan')!==today && document.getElementById('ask-thread') && typeof window.scanTopPicks==='function')
-        window.scanTopPicks({localOnly:true});
-    } catch(e){}
+    // v337: auto-render the visual "What you can create now" dashboard (free, local, daily-stamped),
+    // then fire the once-a-day cached AI "today's pick" line. This is the hands-off daily dashboard.
+    try { if(typeof window.renderCreateNow==='function') window.renderCreateNow(); } catch(e){}
+    try { if(typeof window.dailyCreateAi==='function') window.dailyCreateAi(); } catch(e){}
   }
   if(document.readyState!=='loading') boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
