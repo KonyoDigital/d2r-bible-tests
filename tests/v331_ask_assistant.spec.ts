@@ -151,6 +151,31 @@ test('v341 HONEST base: a craft with gem+rune but no magic base is held back unt
   expect(r.liveBaseToggle).toBe(true);     // live row: base is a click-to-mark ingredient, defaults to "need"
 });
 
+test('v341.2 the preview picker is a custom ART-RICH menu (rune/gem HD icons, base glyphs) — not a text-only <select>', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    w.togglePreview(); w._pvMenuOpen = true; w.renderCreateNow();
+    const host = document.getElementById('create-now')!;
+    const opts = host.querySelectorAll('.cn-pv-opt');
+    const find = (re: RegExp) => [...opts].find((o) => re.test(o.textContent || ''));
+    w.previewAdd('Perfect Ruby', 'gem');   // add → sandbox chip should carry art
+    return {
+      noNativeSelect: !host.querySelector('select'),                          // the text-only dropdown is gone
+      optCount: opts.length,                                                   // 33 runes + 14 gems + 9 bases
+      runeImg: !!find(/Sol rune/)?.querySelector('.cn-pv-opt-art img'),
+      gemImg: !!find(/Perfect Amethyst/)?.querySelector('.cn-pv-opt-art img'),
+      baseGlyph: !!find(/magic Gloves base/)?.querySelector('.cn-pv-glyph'),
+      chipArt: !!host.querySelector('.cn-pv-chip img'),
+    };
+  });
+  expect(r.noNativeSelect).toBe(true);
+  expect(r.optCount).toBe(56);
+  expect(r.runeImg).toBe(true);    // rune HD icon in the picker
+  expect(r.gemImg).toBe(true);     // gem HD icon
+  expect(r.baseGlyph).toBe(true);  // base slot glyph
+  expect(r.chipArt).toBe(true);    // the sandbox chip shows art too
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {

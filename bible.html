@@ -13377,17 +13377,35 @@ window.renderCreateNow = function(){
   if(pv){
     var RUNES=['El','Eld','Tir','Nef','Eth','Ith','Tal','Ral','Ort','Thul','Amn','Sol','Shael','Dol','Hel','Io','Lum','Ko','Fal','Lem','Pul','Um','Mal','Ist','Gul','Vex','Ohm','Lo','Sur','Ber','Jah','Cham','Zod'];
     var GEMS=['Perfect Amethyst','Perfect Topaz','Perfect Sapphire','Perfect Emerald','Perfect Ruby','Perfect Diamond','Perfect Skull','Flawless Amethyst','Flawless Topaz','Flawless Sapphire','Flawless Emerald','Flawless Ruby','Flawless Diamond','Flawless Skull'];
-    var ropts=RUNES.map(function(r){return '<option value="r:'+r+'">'+r+' rune</option>';}).join('');
-    var gopts=GEMS.map(function(g){return '<option value="g:'+g+'">'+g+'</option>';}).join('');
-    // v341 — magic BASE items (one per slot). A craft needs a magic base of the slot type; it
-    // is NOT auto-owned, so add it here to simulate "if I had the gloves base to craft on".
-    var bopts=(typeof CRAFT_SLOTS!=='undefined'?CRAFT_SLOTS:[]).map(function(sl){return '<option value="b:'+sl+'">magic '+sl+' base</option>';}).join('');
-    var chips=[]; Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(k+'×'+pv.runes[k]); }); Object.keys(pv.gems).forEach(function(k){ if(pv.gems[k]>0) chips.push(k+'×'+pv.gems[k]); }); Object.keys(pv.bases||{}).forEach(function(k){ if(pv.bases[k]>0) chips.push('magic '+k+' base'); });
+    // v341.2 — a native <select> can't render images, so the picker is a CUSTOM art-rich menu:
+    // each pickable rune/gem shows its HD icon, bases show the slot glyph. Click a row → add to
+    // the sandbox; the menu stays open (window._pvMenuOpen) so you can stack several.
+    function pvArt(name, kind){
+      if(kind==='base'){ var g=(typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[name])?CRAFT_SLOT_GLYPH[name]:'🔨'; return '<span class="cn-pv-glyph">'+g+'</span>'; }
+      return (typeof artOr==='function') ? artOr(name,'','sm') : '';
+    }
+    function pvOpt(name, label, kind){
+      return '<div class="cn-pv-opt" role="button" tabindex="0" title="add '+_askEsc(label)+' to the sandbox" onclick="window.previewAdd(\''+String(name).replace(/'/g,"\\'")+'\',\''+kind+'\')">'
+        +'<span class="cn-pv-opt-art">'+pvArt(name,kind)+'</span><span class="cn-pv-opt-nm">'+_askEsc(label)+'</span><span class="cn-pv-opt-plus">＋</span></div>';
+    }
+    var runeRows=RUNES.map(function(r){return pvOpt(r, r+' rune', 'rune');}).join('');
+    var gemRows=GEMS.map(function(g){return pvOpt(g, g, 'gem');}).join('');
+    var baseRows=(typeof CRAFT_SLOTS!=='undefined'?CRAFT_SLOTS:[]).map(function(sl){return pvOpt(sl, 'magic '+sl+' base', 'base');}).join('');
+    var menuOpen=!!window._pvMenuOpen;
+    var menu='<div class="cn-pv-menu"'+(menuOpen?'':' style="display:none"')+'>'
+      +'<div class="cn-pv-ggh">⟐ Runes</div><div class="cn-pv-ggrid">'+runeRows+'</div>'
+      +'<div class="cn-pv-ggh">◆ Gems</div><div class="cn-pv-ggrid">'+gemRows+'</div>'
+      +'<div class="cn-pv-ggh">🔨 Craft Bases (magic)</div><div class="cn-pv-ggrid">'+baseRows+'</div></div>';
+    // sandbox chips — now WITH art (icons for runes/gems, slot glyph for bases)
+    var chips=[];
+    Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(pvArt(k,'rune')+_askEsc(k)+(pv.runes[k]>1?(' ×'+pv.runes[k]):'')); });
+    Object.keys(pv.gems).forEach(function(k){ if(pv.gems[k]>0) chips.push(pvArt(k,'gem')+_askEsc(k)+(pv.gems[k]>1?(' ×'+pv.gems[k]):'')); });
+    Object.keys(pv.bases||{}).forEach(function(k){ if(pv.bases[k]>0) chips.push(pvArt(k,'base')+'magic '+_askEsc(k)+' base'); });
     pvBar='<div class="cn-preview"><div class="cn-pv-note">🧪 <b>Preview</b> — simulating extra runes, gems &amp; magic bases on a <b>sandbox</b>. Your real tallies &amp; every other section are <b>untouched</b>. Toggle off to return to your real stash.</div>'
-      +'<div class="cn-pv-row"><select id="cn-pv-pick" class="cn-pv-sel"><optgroup label="Runes">'+ropts+'</optgroup><optgroup label="Gems">'+gopts+'</optgroup><optgroup label="Craft Bases (magic)">'+bopts+'</optgroup></select>'
-      +'<button class="cn-pv-add" onclick="var s=document.getElementById(\'cn-pv-pick\').value;window.previewAdd(s.slice(2), s[0]===\'g\'?\'gem\':(s[0]===\'b\'?\'base\':\'rune\'))">➕ add to sandbox</button>'
+      +'<div class="cn-pv-row"><button class="cn-pv-add" onclick="window._pvMenuOpen=!window._pvMenuOpen;window.renderCreateNow()">➕ Add item '+(menuOpen?'▲':'▼')+'</button>'
       +(chips.length?'<button class="cn-pv-clear" onclick="window.previewClear()">✕ clear sandbox</button>':'')+'</div>'
-      +(chips.length?('<div class="cn-pv-chips"><span class="cn-pv-lab">sandbox:</span> '+chips.map(function(c){return '<span class="cn-pv-chip">'+_askEsc(c)+'</span>';}).join('')+'</div>'):'<div class="cn-pv-empty">add runes, gems &amp; a magic base above → the dashboard shows what they’d unlock</div>')
+      +menu
+      +(chips.length?('<div class="cn-pv-chips"><span class="cn-pv-lab">sandbox:</span> '+chips.map(function(c){return '<span class="cn-pv-chip">'+c+'</span>';}).join('')+'</div>'):'<div class="cn-pv-empty">tap <b>➕ Add item</b> → pick runes, gems &amp; a magic base (with art) → the dashboard shows what they’d unlock</div>')
       +'</div>';
   }
   host.innerHTML='<div class="cn-head"><span class="cn-title">✨ What you can create now'+(pv?' <span class="cn-pv-badge">PREVIEW</span>':'')+'</span><span class="cn-meta">'+pvToggle+' <span class="cn-when">auto-updated daily'+(when?(' · '+when):'')+'</span> <button class="cn-refresh" onclick="window.renderCreateNow();window.dailyCreateAi(true)" title="refresh + re-ask the AI now">🔄</button></span></div>'+pvBar+aiBanner+body;
@@ -13467,7 +13485,15 @@ window.dailyCreateAi = function(force){
       +'.cn-pv-add:hover{filter:brightness(1.07)}'
       +'.cn-pv-clear{cursor:pointer;font-size:11.5px;color:#ff9e9e;background:rgba(255,64,64,.08);border:1px solid rgba(255,80,80,.4);border-radius:8px;padding:6px 11px}'
       +'.cn-pv-chips{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}.cn-pv-lab{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)}'
-      +'.cn-pv-chip{font-size:11px;font-weight:600;color:#e8d8ff;background:rgba(180,140,224,.15);border:1px solid rgba(180,140,224,.4);border-radius:6px;padding:2px 8px}'
+      +'.cn-pv-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#e8d8ff;background:rgba(180,140,224,.15);border:1px solid rgba(180,140,224,.4);border-radius:6px;padding:2px 8px}'
+      +'.cn-pv-chip img{max-width:16px;max-height:16px;vertical-align:middle}.cn-pv-chip .cn-pv-glyph{font-size:13px}'
+      +'.cn-pv-menu{margin-top:9px;max-height:280px;overflow-y:auto;border:1px solid rgba(180,140,224,.42);border-radius:11px;padding:7px 9px;background:rgba(12,9,5,.55)}'
+      +'.cn-pv-ggh{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#c9aef0;margin:9px 3px 4px;border-bottom:1px dashed rgba(180,140,224,.28);padding-bottom:3px}.cn-pv-ggh:first-child{margin-top:2px}'
+      +'.cn-pv-ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:2px}'
+      +'.cn-pv-opt{display:flex;align-items:center;gap:7px;padding:3px 7px;border-radius:7px;cursor:pointer;transition:background .1s}.cn-pv-opt:hover{background:rgba(180,140,224,.2)}'
+      +'.cn-pv-opt-art{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}.cn-pv-opt-art img{max-width:24px;max-height:24px}'
+      +'.cn-pv-opt-nm{font-size:11.5px;color:#e8dcff;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cn-pv-opt-plus{font-size:13px;color:#b48ce0;opacity:.65}.cn-pv-opt:hover .cn-pv-opt-plus{opacity:1}'
+      +'.cn-pv-glyph{font-size:17px;line-height:1}'
       +'.cn-pv-empty{margin-top:8px;font-size:11px;color:var(--text-dim);font-style:italic}'+
       '#ask-bible-card .arw-count{background:rgba(127,212,255,.16);color:#8fd0ff;border-radius:8px;padding:1px 8px;font-size:9px;font-weight:800;letter-spacing:.05em}'
       +'.ask-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 11px}'
