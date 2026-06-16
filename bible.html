@@ -78,6 +78,17 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .boss-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);border-radius:12px;margin:20px 0;overflow:hidden;scroll-margin-top:130px;content-visibility:auto;contain-intrinsic-size:auto 90px}
 .boss-header{background:linear-gradient(90deg,var(--surface-3),var(--surface-2));border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:14px}
 .boss-emoji{font-size:40px;line-height:1;filter:drop-shadow(0 0 8px rgba(212,168,71,.5))}
+/* v341.10 — premium Tools-tab cards: each carries a themed accent (--tc) so the whole Tools tab
+   feels as polished as the flagship AI Helper, while the ANIMATED hero treatment stays unique to
+   the Helper. A static top sheen + themed header wash + glowing emblem + accent-tinted border. */
+.tool-premium{position:relative;border-color:color-mix(in srgb,var(--tc,#f0c060) 32%,var(--border));box-shadow:0 8px 26px -16px color-mix(in srgb,var(--tc,#f0c060) 70%,transparent)}
+.tool-premium::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--tc,#f0c060),transparent);opacity:.75;z-index:2}
+.tool-premium > .boss-header{background:linear-gradient(118deg,color-mix(in srgb,var(--tc,#f0c060) 13%,var(--surface-3)),var(--surface-2) 72%)}
+.tool-premium > .boss-header:hover{background:linear-gradient(118deg,color-mix(in srgb,var(--tc,#f0c060) 19%,var(--surface-3)),var(--surface-2) 68%)}
+.tool-premium > .boss-header .boss-emoji{filter:drop-shadow(0 0 9px color-mix(in srgb,var(--tc,#f0c060) 80%,transparent))}
+.tool-premium > .boss-header .boss-emoji img{filter:drop-shadow(0 0 8px color-mix(in srgb,var(--tc,#f0c060) 75%,transparent))!important}
+.tool-premium > .boss-header .boss-name{text-shadow:0 0 10px color-mix(in srgb,var(--tc,#f0c060) 45%,transparent)}
+.tool-premium:hover{border-color:color-mix(in srgb,var(--tc,#f0c060) 52%,var(--border))}
 .boss-title-block{flex:1;min-width:0}
 .boss-name{color:var(--gold-bright);font-family:var(--serif-display);font-size:22px;font-weight:600;margin:0;letter-spacing:.3px}
 .boss-subtitle{color:var(--text-muted);font-family:var(--serif-text);font-size:13.5px;font-weight:500;font-style:italic;margin:3px 0 4px}
@@ -3625,7 +3636,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <div class="tab-content" id="tab-tools">
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
 
-  <div class="boss-card collapsible collapsed" id="mule-vault-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="mule-vault-card" style="--tc:#f0c060">
     <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/logo_gold.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" loading="lazy"></span>
       <div class="boss-title-block">
@@ -3687,7 +3698,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed" id="rune-stash-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="rune-stash-card" style="--tc:#ffa800">
     <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/runeZod_icon.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,150,50,.5))" loading="lazy"></span>
       <div class="boss-title-block">
@@ -3732,7 +3743,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed" id="all-runewords-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="all-runewords-card" style="--tc:#ffa800">
     <div class="boss-header" onclick="window.toggleCardCollapse('all-runewords-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/logo_scroll.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" loading="lazy"></span>
       <div class="boss-title-block">
@@ -3768,7 +3779,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed" id="gem-stash-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="gem-stash-card" style="--tc:#6fd0e0">
     <div class="boss-header" onclick="window.toggleCardCollapse('gem-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/gem_perfect_amethyst.png" alt="" style="width:42px;height:42px;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 0 7px rgba(180,140,224,.55))" loading="lazy"></span>
       <div class="boss-title-block">
@@ -3867,7 +3878,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed" id="craft-workshop-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="craft-workshop-card" style="--tc:#b48ce0">
     <div class="boss-header" onclick="window.toggleCardCollapse('craft-workshop-card');window.renderCraftWorkshop&&window.renderCraftWorkshop()" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/warhammer_graphic.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(240,192,96,.5))" loading="lazy"></span>
       <div class="boss-title-block">
@@ -3890,7 +3901,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed" id="horadric-recipe-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="horadric-recipe-card" style="--tc:#d0a050">
     <div class="boss-header" onclick="window.toggleCardCollapse('horadric-recipe-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/logo_cube.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(127,212,255,.4))" loading="lazy"></span>
       <div class="boss-title-block">
@@ -3912,7 +3923,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed" id="material-stash-card">
+  <div class="boss-card collapsible collapsed tool-premium" id="material-stash-card" style="--tc:#5fd07a">
     <div class="boss-header" onclick="window.toggleCardCollapse('material-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img src="art/logo_key.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" loading="lazy"></span>
       <div class="boss-title-block">

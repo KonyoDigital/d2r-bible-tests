@@ -75,6 +75,22 @@ test('v341.7 the preview picker has a 4th Jewels section', async ({ page }) => {
   expect(r.jewelOptArttip).toBe('any jewel');   // jewel row → rich card
 });
 
+test('v341.10 Tools-tab cards get the premium themed treatment (accent --tc) — flagship feel carried outward', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const ids = ['mule-vault-card', 'rune-stash-card', 'all-runewords-card', 'gem-stash-card', 'craft-workshop-card', 'horadric-recipe-card', 'material-stash-card'];
+    const themed = ids.filter((id) => {
+      const el = document.getElementById(id);
+      return el && el.classList.contains('tool-premium') && /--tc:/.test(el.getAttribute('style') || '');
+    });
+    // distinct accent colours (not all the same) → cohesive but varied
+    const colors = new Set(ids.map((id) => (document.getElementById(id)?.getAttribute('style') || '').match(/--tc:([^;]+)/)?.[1]).filter(Boolean));
+    return { themedCount: themed.length, distinctColors: colors.size, flagshipStillUnique: document.getElementById('ask-bible-card')?.classList.contains('ask-flagship') && !document.getElementById('rune-stash-card')?.classList.contains('ask-flagship') };
+  });
+  expect(r.themedCount).toBe(7);             // every Tools card themed
+  expect(r.distinctColors).toBeGreaterThanOrEqual(5);  // varied accents
+  expect(r.flagshipStillUnique).toBe(true);  // the animated hero stays only on the AI Helper
+});
+
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {
   const r = await page.evaluate(() => {
     let txt = '';
