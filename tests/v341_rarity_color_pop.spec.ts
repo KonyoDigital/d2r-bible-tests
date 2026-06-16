@@ -213,6 +213,27 @@ test('v341.21 the 🧰 Tools field-guide widget opens a premium structured legen
   expect(r.hero).toBe(true);             // hero header
 });
 
+test('v341.24 no special-item NAME renders uber-pink — synced (materials orange, charms gold, super-uniques su-gold)', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 1000 });
+  const tabs = ['tz', 'runes', 'rotw', 'events', 'endgame'];
+  const pink: string[] = [];
+  for (const t of tabs) {
+    await page.evaluate((tb) => { try { (window as any).switchTab(tb); } catch (e) {} }, t);
+    await page.waitForTimeout(200);
+    const hits = await page.evaluate(() => {
+      const out: string[] = [];
+      document.querySelectorAll('[data-art-logo],[onclick*="openDrop"],.su-link,.rn-name,.ct-name,.rf-name').forEach((el) => {
+        const e = el as HTMLElement; if (e.offsetParent === null) return;
+        const c = getComputedStyle(e).color.replace(/\s/g, '');
+        if (/^rgba?\(25[0-5],0,2(0[0-9]|1[0-9]|2[0-5])/.test(c)) { const t = (e.textContent || '').trim().slice(0, 30); if (t) out.push(t); }
+      });
+      return out;
+    });
+    pink.push(...hits);
+  }
+  expect(pink).toEqual([]);   // ZERO item/special names rendered in uber-pink
+});
+
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {
   const r = await page.evaluate(() => {
     let txt = '';
