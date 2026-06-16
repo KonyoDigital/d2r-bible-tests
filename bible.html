@@ -13359,7 +13359,7 @@ window.renderCreateNow = function(){
     var icon = p.kind==='craft' ? ((typeof artOr==='function'&&p.gem)?artOr(p.gem,'🔨','sm'):'🔨') : '📜';
     var label = _askEsc(p.display||p.name) + (p.beats?(' <span class="cn-star" title="beats '+_askEsc(p.beats)+'">★</span>'):'');
     var recipe = p.kind==='craft'
-      ? ('magic '+_askEsc(p.base||p.slot)+' + '+_askEsc(p.gem||'')+' + '+_askEsc(p.rune||'')+(p.beats?(' · <b style="color:#8ce6a6">beats '+_askEsc(p.beats)+'</b>'):''))
+      ? ('magic '+_askEsc(p.base||p.slot)+' + any jewel + '+_askEsc(p.gem||'')+' + '+_askEsc(p.rune||'')+(p.beats?(' · <b style="color:#8ce6a6">beats '+_askEsc(p.beats)+'</b>'):''))
       : (_askEsc((p.runes||[]).join(' • '))+(p.base?(' · '+_askEsc(p.base)):''));
     var sub = p.need ? ('<span class="cn-need">need '+_askEsc(p.need)+'</span>') : ('<span class="cn-recipe">'+recipe+'</span>');
     return '<div class="cn-tile cn-'+p.kind+'" role="button" tabindex="0" data-arttip="'+_askEsc(p.name)+'" onclick="window.openDrop&&window.openDrop(\''+String(p.name).replace(/'/g,"\\'")+'\')" title="open '+_askEsc(p.name)+'">'
