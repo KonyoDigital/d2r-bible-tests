@@ -36,7 +36,9 @@ export async function onRequestPost(context) {
     + '(2b) PRIORITISE snapshot.topPicks — those are the TOP-TIER, build-defining opportunities (BiS runewords + the best crafts that rival/beat uniques). When asked "what should I make", lead with topPicks.makeNow ranked highest-value-first, then topPicks.afterCubing, then topPicks.close (one item away). Ignore low-value filler (keys, basic gear). Crafts that beat a named unique (e.g. a Caster amulet vs Mara\'s) outrank ordinary picks. '
     + '(3) For runewords give the exact rune ORDER (runes must be inserted left-to-right in order) and the correct socket count + base type. For crafts give the recipe (magic base of the right type + the deciding Perfect gem + the rune + a jewel) and the 2 universal guaranteed mods (the 3rd is slot-specific). '
     + '(3b) BE HONEST ABOUT THE MAGIC BASE. A craft ALSO needs a magic (blue) base item of that slot — e.g. a magic pair of gloves, a magic amulet. The bible does NOT auto-assume the player owns one: snapshot.tally.craftBasesOwned lists ONLY the slots they have marked a base for, and crafts.oneAway / crafts.cubeableNow already factor the base in. If a craft is held back only by a missing base, SAY SO plainly — name the exact base to grab (e.g. "you have the Perfect Ruby + Sol rune; you still need a magic pair of gloves — a blue Vampirebone/Sharkskin/Heavy Gloves"). Never tell them something is craftable now if they lack the base. '
-    + '(4) Be ACCURATE to current D2R (Reign of the Warlock) mechanics — never invent runewords, recipes, or affixes. A rare amulet caps at +2 class skills; rings can\'t roll +class skills; Spirit goes in a 4-socket sword OR shield; Crescent Moon is axe/sword/polearm only; etc. If unsure, say so rather than guess. '
+    + '(4) Be ACCURATE to current D2R (Reign of the Warlock) mechanics — never invent runewords, recipes, or affixes. A rare amulet caps at +2 class skills; rings can\'t roll +class skills; Spirit goes in a 4-socket sword OR shield; Crescent Moon is axe/sword/polearm only; etc. '
+    + '(4a) YOU HAVE A web_search TOOL — USE IT. You are NOT a static model: you can and should search the live web. ALWAYS research with it before answering anything you are not 100% certain of — exact affix ranges, drop sources, build guides, breakpoints, niche/novelty builds, the current meta. NEVER tell the user you "can\'t browse the internet" or "can\'t read links" — that is false; search instead. When the user names or links a build/guide (e.g. a maxroll.gg guide), search for it and summarise the real content. Trusted D2R knowledge bases: maxroll.gg/d2 (build guides + planner — the primary reference), diablo2.io (item/affix database), d2runewizard.com (runewords/runes), diablo.wiki.gg & purediablo.com & icy-veins.com. Briefly cite which source you used. '
+    + '(4b) NOVELTY BUILDS ARE REAL — do not deny a build exists just because it is unusual. Example: a "Werebear Sorceress" IS a real, documented build (maxroll has a guide) — the Beast runeword grants Werebear shapeshift CHARGES that let ANY class (including a Sorceress) morph into a bear, and the bear form\'s +life/+defense plus the Beast Fanaticism aura make a tanky melee/caster hybrid. When asked about an off-meta build, SEARCH for it before responding, and explain how it actually works rather than dismissing it. '
     + '(5) Keep answers tight — a few short paragraphs or a compact list. Plain text with simple markdown (•, **bold**). No preamble like "Great question". '
     + '(6) Stay on Diablo II AND this app. You may answer "how do I use this site / where is X / how does the vault work" — see ABOUT below. Only redirect truly off-topic (non-D2, non-app) questions. '
     + 'ABOUT THIS APP — "Konyo\'s D2R Farming Bible", a single-page grail-hunting reference. TABS: '
@@ -75,9 +77,18 @@ export async function onRequestPost(context) {
     },
     body: JSON.stringify({
       model: env.MODEL || 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 1536,
       system,
       messages: msgs,
+      // v341.34 — live web research over authoritative D2R sources so the assistant can verify
+      // facts / read build guides (maxroll etc.) instead of claiming it "can't browse". Anthropic
+      // server-side tool: it runs the searches itself and returns the final cited answer in one call.
+      tools: [{
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: 5,
+        allowed_domains: ['maxroll.gg', 'diablo2.io', 'd2runewizard.com', 'diablo.wiki.gg', 'purediablo.com', 'icy-veins.com'],
+      }],
     }),
   });
 
@@ -88,8 +99,12 @@ export async function onRequestPost(context) {
   const data = await apiResp.json();
   const usage = data.usage ? { in: data.usage.input_tokens, out: data.usage.output_tokens, cached: data.usage.cache_read_input_tokens } : null;
   if (data.stop_reason === 'refusal') return json({ answer: 'I can only help with Diablo II questions about your stash — try rephrasing.', note: 'refused', usage }, 200);
-  const textBlock = (data.content || []).find((b) => b.type === 'text');
-  const answer = textBlock ? textBlock.text : '(no answer)';
+  // with web search the model interleaves search blocks + multiple text blocks — join them all.
+  const answer = (data.content || [])
+    .filter((b) => b.type === 'text' && b.text)
+    .map((b) => b.text)
+    .join('\n\n')
+    .trim() || '(no answer)';
   return json({ answer, usage }, 200);
 }
 
