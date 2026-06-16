@@ -13292,6 +13292,8 @@ window.scanTopPicks = function(opts){
       +'<div class="ask-note">Reads your live tallies on this device and answers with Claude Sonnet · the same key powers the 📸 intake · answers can be imperfect — verify against the recipe tools.</div>'
       +'</div></div>';
     tools.insertAdjacentHTML('afterbegin', html);   // v335: AI helper rides at the TOP of Tools, above the Vault
+    // v336: the "Your personal planners" intro banner moves to the BOTTOM of the Tools tab.
+    try { var _lead=tools.querySelector(':scope > .lead'); if(_lead) tools.appendChild(_lead); } catch(e){}
     var st=document.createElement('style'); st.textContent=
       '.ask-chip-scan{color:#06121c!important;background:linear-gradient(180deg,#9fdcff,#5fb4e8)!important;border-color:#bfe6ff!important;font-weight:800}'
       +'.ask-chip-scan:hover{filter:brightness(1.07)}'
