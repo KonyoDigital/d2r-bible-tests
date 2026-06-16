@@ -204,6 +204,30 @@ test('v341.3 dashboard tiles render with in-game rarity glow + icon-chip recipes
   expect(r.noTruncatedText).toBe(true);
 });
 
+test('v341.4 flagship hero header + chat bubbles render (orb, Sonnet badge, AI avatar)', async ({ page }) => {
+  await page.route('**/api/ask', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ answer: 'Make **Spirit** first.' }) }));
+  const r = await page.evaluate(async () => {
+    const w = window as any;
+    const card = document.getElementById('ask-bible-card')!;
+    const hero = {
+      flagship: card.classList.contains('ask-flagship'),
+      heroHeader: !!card.querySelector('.ask-hero'),
+      orb: !!card.querySelector('.ask-orb'),
+      sonnet: (card.querySelector('.ask-sonnet')?.textContent || '').includes('Sonnet'),
+    };
+    w.askBible('test');
+    await new Promise((res) => setTimeout(res, 250));
+    const ans = document.querySelector('#ask-thread .ask-a.ask-bubble:not(.ask-loading)');
+    return { ...hero, answerHasAvatarClass: !!ans, userBubble: !!document.querySelector('#ask-thread .ask-q') };
+  });
+  expect(r.flagship).toBe(true);
+  expect(r.heroHeader).toBe(true);
+  expect(r.orb).toBe(true);
+  expect(r.sonnet).toBe(true);              // ✦ Sonnet badge
+  expect(r.answerHasAvatarClass).toBe(true); // AI answer gets the 🔮-avatar bubble class
+  expect(r.userBubble).toBe(true);
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {

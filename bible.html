@@ -13324,13 +13324,13 @@ window.askBible = function(q){
   var out=document.getElementById('ask-thread'); if(!out) return;
   var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
-  out.insertAdjacentHTML('beforeend','<div class="ask-q">'+_askEsc(q)+'</div><div class="ask-a ask-loading" id="ask-pending">🔮 consulting the bible…</div>');
+  out.insertAdjacentHTML('beforeend','<div class="ask-q">'+_askEsc(q)+'</div><div class="ask-a ask-bubble ask-loading" id="ask-pending">consulting the bible…</div>');
   out.scrollTop=out.scrollHeight;
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
   fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q,snapshot:snap})})
     .then(function(r){return r.json();})
-    .then(function(d){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a'; el.innerHTML=_askMd(d.answer||d.error||'(no answer)'); el.removeAttribute('id'); } out.scrollTop=out.scrollHeight; })
-    .catch(function(e){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a ask-err'; el.textContent='⚠️ '+(e&&e.message||'request failed')+' — is the site deployed (the AI needs the /api/ask endpoint)?'; el.removeAttribute('id'); } });
+    .then(function(d){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a ask-bubble'; el.innerHTML=_askMd(d.answer||d.error||'(no answer)'); el.removeAttribute('id'); } out.scrollTop=out.scrollHeight; })
+    .catch(function(e){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a ask-bubble ask-err'; el.textContent='⚠️ '+(e&&e.message||'request failed')+' — is the site deployed (the AI needs the /api/ask endpoint)?'; el.removeAttribute('id'); } });
 };
 window.askBibleQuick = function(q){ var i=document.getElementById('ask-input'); if(i) i.value=q; window.askBible(q); };
 // v335 — the proactive scan: render an instant, to-the-point TOP-PICKS panel from the live stash,
@@ -13451,10 +13451,10 @@ window.dailyCreateAi = function(force){
   function inject(){
     var tools=document.getElementById('tab-tools');
     if(!tools || document.getElementById('ask-bible-card')) return;
-    var html='<div class="boss-card collapsible collapsed" id="ask-bible-card">'
-      +'<div class="boss-header" onclick="window.toggleCardCollapse&&window.toggleCardCollapse(\'ask-bible-card\')" role="button" tabindex="0" aria-expanded="false">'
-      +'<div class="boss-title-wrap"><p class="boss-name">🔮 Ask the AI — Diablo II Helper <span class="arw-count">Sonnet</span></p>'
-      +'<p class="boss-sub" style="color:var(--text-dim);font-size:11.5px;margin:2px 0 0">“what can I make right now & how” — answers from your live rune / gem / craft tallies</p></div>'
+    var html='<div class="boss-card collapsible collapsed ask-flagship" id="ask-bible-card">'
+      +'<div class="boss-header ask-hero" onclick="window.toggleCardCollapse&&window.toggleCardCollapse(\'ask-bible-card\')" role="button" tabindex="0" aria-expanded="false">'
+      +'<div class="boss-title-wrap"><p class="boss-name ask-hero-name"><span class="ask-orb">🔮</span> Ask the AI <span class="ask-hero-d2">— Diablo II Helper</span> <span class="ask-sonnet">✦ Sonnet</span></p>'
+      +'<p class="boss-sub ask-hero-sub">“what can I make right now &amp; how” — live answers from your rune / gem / craft tallies</p></div>'
       +'<span class="boss-chev">▾</span></div>'
       +'<div class="boss-body"><div id="create-now" class="create-now"></div><div class="ask-quick">'
       +'<button class="ask-chip ask-chip-scan" onclick="window.scanTopPicks()">🎯 Scan: what should I make?</button>'
@@ -13536,7 +13536,25 @@ window.dailyCreateAi = function(force){
       +'.ask-input:focus{outline:none;border-color:#8fd0ff;box-shadow:0 0 0 2px rgba(127,212,255,.18)}'
       +'.ask-send{cursor:pointer;font-family:var(--serif-display,serif);font-weight:700;font-size:13px;color:#06121c;background:linear-gradient(180deg,#9fdcff,#5fb4e8);border:1px solid #bfe6ff;border-radius:10px;padding:9px 17px;white-space:nowrap;transition:filter .14s,transform .12s}'
       +'.ask-send:hover{filter:brightness(1.07);transform:translateY(-1px)}'
-      +'.ask-note{font-size:10px;color:var(--text-dim);margin-top:8px;font-style:italic}';
+      +'.ask-note{font-size:10px;color:var(--text-dim);margin-top:8px;font-style:italic}'
+      // ── v341.4 FLAGSHIP hero header: a distinctive violet→cyan→gold sheen that sets the AI
+      //    Helper apart from the ordinary boss cards, with a glowing orb + a sleek Sonnet badge.
+      +'.ask-flagship{border:1px solid rgba(150,120,220,.45);box-shadow:0 0 0 1px rgba(150,120,220,.12),0 8px 30px -12px rgba(120,90,200,.5);position:relative;overflow:hidden}'
+      +'.ask-flagship::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,#b48ce0,#8fd0ff,#ffd040,#b48ce0);background-size:300% 100%;animation:askSheen 9s linear infinite;opacity:.9;z-index:2}'
+      +'@keyframes askSheen{0%{background-position:0% 0}100%{background-position:300% 0}}'
+      +'.ask-hero{background:linear-gradient(120deg,rgba(120,90,200,.16),rgba(127,212,255,.08) 45%,rgba(240,192,96,.08));border-bottom:1px solid rgba(150,120,220,.25)}'
+      +'.ask-hero-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:17px!important}'
+      +'.ask-hero-d2{color:var(--gold-bright,#f0c060);font-family:var(--serif-display,serif)}'
+      +'.ask-orb{font-size:19px;filter:drop-shadow(0 0 6px rgba(180,140,224,.9));animation:askOrb 3.2s ease-in-out infinite;display:inline-block}'
+      +'@keyframes askOrb{0%,100%{transform:translateY(0) rotate(-4deg);filter:drop-shadow(0 0 5px rgba(180,140,224,.7))}50%{transform:translateY(-2px) rotate(4deg);filter:drop-shadow(0 0 11px rgba(143,208,255,.95))}}'
+      +'.ask-sonnet{font-family:ui-sans-serif,system-ui,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#0a0e16;background:linear-gradient(180deg,#cbb0f0,#9fd0ff);border:1px solid #d8c8ff;border-radius:9px;padding:2px 9px;box-shadow:0 0 10px -2px rgba(160,180,255,.6)}'
+      +'.ask-hero-sub{color:#c8bfe0!important;font-size:11.5px!important;margin:3px 0 0!important}'
+      // chat thread polish — the AI answer gets a 🔮 avatar; bubbles a touch richer; smooth entry
+      +'.ask-q,.ask-a{animation:askIn .22s ease-out}@keyframes askIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'
+      +'.ask-a{position:relative;padding-left:13px}.ask-a.ask-bubble{padding-left:38px}'
+      +'.ask-a.ask-bubble::before{content:"🔮";position:absolute;left:9px;top:8px;font-size:15px;filter:drop-shadow(0 0 4px rgba(143,208,255,.8))}'
+      +'.ask-toppicks{border-left-color:#ffd040!important;background:rgba(40,30,10,.45)!important}'
+      +'.ask-q::after{content:"🧑";margin-left:6px;font-size:11px;opacity:.7}';
     document.head.appendChild(st);
   }
   function boot(){
