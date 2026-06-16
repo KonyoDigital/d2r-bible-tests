@@ -91,6 +91,17 @@ test('v341.10 Tools-tab cards get the premium themed treatment (accent --tc) —
   expect(r.flagshipStillUnique).toBe(true);  // the animated hero stays only on the AI Helper
 });
 
+test('v341.16 the floating tooltip TITLE tints to the item rarity (magic base = blue, not white)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const t = (window as any)._tipTint;
+    return { base: t('magic Ring base'), jewel: t('any jewel'), rune: t('Sol'), gem: t('Perfect Ruby') };
+  });
+  expect(r.base).toBe('#9fb0ff');   // magic base → blue (was white)
+  expect(r.jewel).toBe('#9fb0ff');  // jewel (magic) → blue
+  expect(r.rune).toBe('#ffa800');   // rune → orange
+  expect(r.gem).toBe('#e0556a');    // Perfect Ruby → ruby red
+});
+
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {
   const r = await page.evaluate(() => {
     let txt = '';

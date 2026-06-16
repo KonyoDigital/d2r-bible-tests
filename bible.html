@@ -14348,6 +14348,22 @@ function _arttipResolve(nm){
   return { artName: nm, desc: '', rich: false };
 }
 window._arttipResolve = _arttipResolve;
+// v341.16 — the floating card TITLE tints to the item's in-game rarity (Konyo: "exact + synced").
+// magic base/jewel → magic blue · gem → its gem colour · rune/runeword/crafted → orange ·
+// unique gold / set green / rare yellow via _Q_HEX. Empty → keep the default gold card title.
+function _tipTint(nm){
+  try {
+    if (/^(any |magic |rare )?jewel$/i.test(nm) || /^magic .+ base$/i.test(nm)) return '#9fb0ff';
+    if (typeof findGem === 'function'){ var gk = findGem(nm); if (gk && typeof _gemColor === 'function') return _gemColor(gk); }
+    if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)) return '#ffa800';
+    if (typeof findRuneword === 'function' && findRuneword(nm)) return '#ffa800';
+    var rar = (typeof _artRarity === 'function') ? _artRarity(nm) : '';
+    if (rar === 'magic') return '#9fb0ff';   // lighten magic for title legibility on dark
+    if (typeof _Q_HEX !== 'undefined' && _Q_HEX[rar]) return _Q_HEX[rar];
+  } catch (e) {}
+  return '';
+}
+window._tipTint = _tipTint;
 // Rich hover-card body for a High-Value Finds reference profile (matches the gem/item tip style).
 function _extraTipHtml(nm){
   var e = (typeof EXTRA_ITEMS !== 'undefined') ? EXTRA_ITEMS[nm] : null; if (!e) return '';
@@ -14478,7 +14494,7 @@ window._jewelTipHtml = _jewelTipHtml;
             var vurl = (typeof artUrl==='function') ? (artUrl(wn) || artUrl(vr.artName)) : '';
             cur = el;
             img.src = vurl || ''; img.style.display = vurl ? '' : 'none';
-            lab.textContent = wn;
+            lab.textContent = wn; lab.style.color = (typeof _tipTint==='function' ? _tipTint(wn) : '') || '';
             desc.innerHTML = vr.desc;
             tip.classList.remove('tip-art'); tip.classList.add('tip-rich');
             setTipR(wn);
@@ -14491,7 +14507,7 @@ window._jewelTipHtml = _jewelTipHtml;
         if (!wurl) return;
         cur = el;
         img.src = wurl; img.style.display = '';
-        lab.textContent = wn;
+        lab.textContent = wn; lab.style.color = (typeof _tipTint==='function' ? _tipTint(wn) : '') || '';
         desc.innerHTML = '';
         tip.classList.remove('tip-rich'); tip.classList.add('tip-art');
         setTipR(wn);
@@ -14506,7 +14522,7 @@ window._jewelTipHtml = _jewelTipHtml;
         if (!au) return;
         cur = el;
         img.src = au; img.style.display = '';
-        lab.textContent = aura + ' aura';
+        lab.textContent = aura + ' aura'; lab.style.color = '';
         desc.innerHTML = '';
         tip.classList.remove('tip-rich');
         setTipR('');
@@ -14519,7 +14535,7 @@ window._jewelTipHtml = _jewelTipHtml;
       if (!url && !r.desc) return;
       cur = el;
       img.src = url || ''; img.style.display = url ? '' : 'none';
-      lab.textContent = nm;
+      lab.textContent = nm; lab.style.color = (typeof _tipTint==='function' ? _tipTint(nm) : '') || '';
       desc.innerHTML = r.desc;
       tip.classList.toggle('tip-rich', !!r.rich);
       setTipR(nm);
