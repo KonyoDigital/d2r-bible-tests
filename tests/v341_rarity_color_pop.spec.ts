@@ -162,6 +162,34 @@ test('v341.19 Sigon set: per-piece affixes + partial bonuses (incl 30% IAS) + gr
   expect(r.glowSynced).toBe(true);     // set-green glow follows the text colour (no matte/gold mismatch)
 });
 
+test('v341.20 tooltip title tint matches the item rarity (no runeword-name collisions) + title glows', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    // a unique whose name collides with a runeword must stay gold, not runeword-orange
+    const cm = w._tipTint('Crescent Moon (amulet)');
+    const wilhelm = w._tipTint("Wilhelm's Pride");   // set → green
+    const spirit = w._tipTint('Spirit');             // real runeword → orange
+    // scan every codex item: tint must match its rarity colour
+    const Q: any = { unique: '#c7b377', set: '#00ff00', magic: '#9fb0ff', rare: '#ffff64', crafted: '#ffa800', rw: '#ffa800', rune: '#ffa800', basic: '#f4f4f4' };
+    const items = eval('ITEM_CODEX'); let mism = 0;
+    Object.keys(items).forEach((k: string) => {
+      const it = items[k]; if (!it) return; const rar = w._artRarity(k) || it.rarity; const want = Q[rar]; const tint = w._tipTint(k);
+      if (want && tint && tint.toLowerCase() !== want.toLowerCase()) mism++;
+    });
+    // the #arttip title carries a currentColor glow
+    let titleGlows = false;
+    for (const ss of Array.from(document.styleSheets)) { try { for (const rule of Array.from((ss as CSSStyleSheet).cssRules)) {
+      if (/#arttip .att-name\b/.test(rule.cssText) && /text-shadow/i.test(rule.cssText) && /currentcolor/i.test(rule.cssText)) titleGlows = true;
+    } } catch (e) {} }
+    return { cm, wilhelm, spirit, mism, titleGlows };
+  });
+  expect(r.cm).toBe('#c7b377');     // Crescent Moon = unique gold (was orange)
+  expect(r.wilhelm).toBe('#00ff00'); // set green
+  expect(r.spirit).toBe('#ffa800');  // runeword orange (real runeword still works)
+  expect(r.mism).toBe(0);            // ZERO tint/rarity mismatches across the codex
+  expect(r.titleGlows).toBe(true);   // tooltip title glows in its colour
+});
+
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {
   const r = await page.evaluate(() => {
     let txt = '';
