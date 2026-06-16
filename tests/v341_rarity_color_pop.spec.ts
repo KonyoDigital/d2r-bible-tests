@@ -190,6 +190,29 @@ test('v341.20 tooltip title tint matches the item rarity (no runeword-name colli
   expect(r.titleGlows).toBe(true);   // tooltip title glows in its colour
 });
 
+test('v341.21 the 🧰 Tools field-guide widget opens a premium structured legend (additive, beyond the ?)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const btn = document.querySelector('.tools-legend-btn') as HTMLElement | null;
+    const help = document.querySelector('.help-btn:not(.tools-legend-btn)');   // the ? still exists (additive)
+    if (btn) btn.click();
+    const m = document.getElementById('tools-legend-modal');
+    return {
+      btn: !!btn, helpStillThere: !!help, shown: !!(m && m.classList.contains('show')),
+      cards: document.querySelectorAll('#tools-legend-modal .tlg-card').length,
+      featured: !!document.querySelector('#tools-legend-modal .tlg-card.tlg-feat .tlg-badge'),
+      chips: document.querySelectorAll('#tools-legend-modal .tlg-chip').length,
+      hero: !!document.querySelector('#tools-legend-modal .tlg-hero-t'),
+    };
+  });
+  expect(r.btn).toBe(true);
+  expect(r.helpStillThere).toBe(true);   // additive — the ? help is untouched
+  expect(r.shown).toBe(true);
+  expect(r.cards).toBe(8);               // one card per tool
+  expect(r.featured).toBe(true);         // AI Helper featured with a badge
+  expect(r.chips).toBe(6);               // the 6-rarity colour legend
+  expect(r.hero).toBe(true);             // hero header
+});
+
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {
   const r = await page.evaluate(() => {
     let txt = '';
