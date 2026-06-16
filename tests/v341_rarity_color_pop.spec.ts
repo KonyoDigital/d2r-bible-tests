@@ -68,7 +68,7 @@ test('v341.7 the preview picker has a 4th Jewels section', async ({ page }) => {
     const host = document.getElementById('create-now')!;
     const heads = [...host.querySelectorAll('.cn-pv-ggh')].map((h) => h.textContent || '');
     const jewelOpt = [...host.querySelectorAll('.cn-pv-opt')].find((o) => /magic Jewel/.test(o.textContent || ''));
-    return { hasJewelsSection: heads.some((h) => /Jewels/.test(h)), groupCount: heads.length, jewelOptArttip: jewelOpt?.getAttribute('data-arttip') };
+    return { hasJewelsSection: heads.some((h) => /Jewel/.test(h)), groupCount: heads.length, jewelOptArttip: jewelOpt?.getAttribute('data-arttip') };
   });
   expect(r.hasJewelsSection).toBe(true);
   expect(r.groupCount).toBe(4);                 // Runes · Gems · Craft Bases · Jewels

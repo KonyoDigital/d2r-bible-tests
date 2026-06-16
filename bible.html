@@ -1115,6 +1115,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* magic-base options card (picker hover) */
 .att-basecard{text-align:left}
 .att-basenote{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin:3px 0 6px}
+.att-baserule{font-size:10px;color:#f0c060;line-height:1.45;margin:0 0 7px;padding:4px 7px;border-radius:6px;background:rgba(240,176,80,.1);border:1px solid rgba(240,176,80,.3)}.att-baserule b{color:#ffd886}
 .cbt-row{display:flex;align-items:center;gap:6px;margin:4px 0;padding:3px 5px;border-radius:6px;border-left:3px solid var(--cw-c,#b48ce0);background:rgba(0,0,0,.25)}
 .cbt-gem{flex:0 0 auto;display:inline-flex}.cbt-gem img{max-width:18px;max-height:18px}
 .cbt-craft{font-size:10px;font-weight:800;color:var(--cw-c,#b48ce0);min-width:46px}
@@ -13456,8 +13457,8 @@ window.renderCreateNow = function(){
     var menu='<div class="cn-pv-menu"'+(menuOpen?'':' style="display:none"')+'>'
       +'<div class="cn-pv-ggh">⟐ Runes</div><div class="cn-pv-ggrid">'+runeRows+'</div>'
       +'<div class="cn-pv-ggh">◆ Gems</div><div class="cn-pv-ggrid">'+gemRows+'</div>'
-      +'<div class="cn-pv-ggh">🔨 Craft Bases (magic)</div><div class="cn-pv-ggrid">'+baseRows+'</div>'
-      +'<div class="cn-pv-ggh">◈ Jewels</div><div class="cn-pv-ggrid">'+jewelRows+'</div></div>';
+      +'<div class="cn-pv-ggh">🔨 Base item to craft <span class="cn-pv-gsub">(magic — becomes your crafted item)</span></div><div class="cn-pv-ggrid">'+baseRows+'</div>'
+      +'<div class="cn-pv-ggh">◈ Jewel <span class="cn-pv-gsub">(extra ingredient — magic or rare)</span></div><div class="cn-pv-ggrid">'+jewelRows+'</div></div>';
     // sandbox chips — WITH art (icons for runes/gems, slot glyph for bases, ◈ for jewels)
     var chips=[];
     Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(pvArt(k,'rune')+_askEsc(k)+(pv.runes[k]>1?(' ×'+pv.runes[k]):'')); });
@@ -13556,6 +13557,7 @@ window.dailyCreateAi = function(force){
       +'.cn-pv-chip img{max-width:16px;max-height:16px;vertical-align:middle}.cn-pv-chip .cn-pv-glyph{font-size:13px}'
       +'.cn-pv-menu{margin-top:9px;max-height:280px;overflow-y:auto;border:1px solid rgba(180,140,224,.42);border-radius:11px;padding:7px 9px;background:rgba(12,9,5,.55)}'
       +'.cn-pv-ggh{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#c9aef0;margin:9px 3px 4px;border-bottom:1px dashed rgba(180,140,224,.28);padding-bottom:3px}.cn-pv-ggh:first-child{margin-top:2px}'
+      +'.cn-pv-gsub{font-weight:600;text-transform:none;letter-spacing:0;color:var(--text-dim);font-size:9px;margin-left:4px}'
       +'.cn-pv-ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:2px}'
       +'.cn-pv-opt{display:flex;align-items:center;gap:7px;padding:3px 7px;border-radius:7px;cursor:pointer;transition:background .1s}.cn-pv-opt:hover{background:rgba(180,140,224,.2)}'
       +'.cn-pv-opt-art{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}.cn-pv-opt-art img{max-width:24px;max-height:24px}'
@@ -14379,6 +14381,7 @@ function _craftBaseTipHtml(slot){
   }).join('');
   return '<div class="att-basecard"><div class="att-type">'+glyph+' Magic '+slot+' base</div>'
     +'<div class="att-basenote">A magic (blue) '+slot+' to craft onto — <b>any</b> of these bases works; higher tiers roll higher. Choose by the craft you want:</div>'
+    +'<div class="att-baserule">⚠ Crafting <b>only</b> works on a <b>MAGIC</b> base — a rare, unique or normal '+slot.toLowerCase()+' can\'t be crafted on.</div>'
     +rows
     +'<div class="att-tag">+ Perfect gem + slot rune + any jewel → your crafted '+slot.toLowerCase()+'</div></div>';
 }
