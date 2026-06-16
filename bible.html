@@ -1102,6 +1102,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .att-craft .att-aff{color:#d8d8d8;margin:3px 0 0;font-size:11.5px}
 .att-godly{color:#7fff7f;font-weight:800}
 .att-chase{margin-top:5px;font-size:10.5px;color:var(--text-muted);line-height:1.5}
+/* v341.5 — emphasized "endgame craft" tooltip: a distinct INGREDIENTS (recipe) strip → a
+   RESULT block, and the godly (100%) roll starred as the best-of-the-best grail-tier target. */
+.att-craft-end{box-shadow:0 0 14px -6px var(--cw-c,#b48ce0)}
+.att-recipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:4px 0 5px;padding:5px 7px;border-radius:7px;background:rgba(0,0,0,.3);border:1px dashed color-mix(in srgb,var(--cw-c,#b48ce0) 40%,transparent);font-size:11px}
+.att-recipe img{max-width:18px;max-height:18px;vertical-align:middle}
+.att-rec-g{font-size:14px}.att-rec-i{display:inline-flex;align-items:center}.att-rec-p{color:var(--text-dim);margin:0 1px}
+.att-rec-j{color:#9fd0ff;opacity:.8;margin-left:2px}.att-rec-arrow{margin-left:5px;color:var(--gold-bright,#f0c060)}.att-rec-arrow b{color:var(--q-orange,#ffa800)}
+.att-result-h{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin:5px 0 2px;border-top:1px solid rgba(255,255,255,.07);padding-top:5px}
+.att-grailroll{margin-top:6px;font-size:9.5px;font-weight:800;letter-spacing:.03em;color:#1a1207;background:linear-gradient(180deg,#ffe08a,#f0b84a);border-radius:6px;padding:3px 8px;display:inline-block;box-shadow:0 0 10px -2px rgba(240,184,74,.7)}
+/* magic-base options card (picker hover) */
+.att-basecard{text-align:left}
+.att-basenote{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin:3px 0 6px}
+.cbt-row{display:flex;align-items:center;gap:6px;margin:4px 0;padding:3px 5px;border-radius:6px;border-left:3px solid var(--cw-c,#b48ce0);background:rgba(0,0,0,.25)}
+.cbt-gem{flex:0 0 auto;display:inline-flex}.cbt-gem img{max-width:18px;max-height:18px}
+.cbt-craft{font-size:10px;font-weight:800;color:var(--cw-c,#b48ce0);min-width:46px}
+.cbt-bases{display:flex;flex-wrap:wrap;gap:3px}
+.cbt-base{font-size:9.5px;color:#d8c8a0;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.28);border-radius:4px;padding:1px 5px}
 .rs-name{font-weight:600;font-size:12px;color:var(--q-orange);min-width:34px}/* v321: runes orange */
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -13408,7 +13425,10 @@ window.renderCreateNow = function(){
       return (typeof artOr==='function') ? artOr(name,'','sm') : '';
     }
     function pvOpt(name, label, kind){
-      return '<div class="cn-pv-opt" role="button" tabindex="0" title="add '+_askEsc(label)+' to the sandbox" onclick="window.previewAdd(\''+String(name).replace(/'/g,"\\'")+'\',\''+kind+'\')">'
+      // data-arttip → the rich #arttip card fires on hover: runes/gems resolve to their stat
+      // cards, a base resolves to the golden "magic <slot> base" options card (v341.5).
+      var at = kind==='base' ? ('magic '+name+' base') : name;
+      return '<div class="cn-pv-opt" role="button" tabindex="0" data-arttip="'+_askEsc(at)+'" onclick="window.previewAdd(\''+String(name).replace(/'/g,"\\'")+'\',\''+kind+'\')">'
         +'<span class="cn-pv-opt-art">'+pvArt(name,kind)+'</span><span class="cn-pv-opt-nm">'+_askEsc(label)+'</span><span class="cn-pv-opt-plus">＋</span></div>';
     }
     var runeRows=RUNES.map(function(r){return pvOpt(r, r+' rune', 'rune');}).join('');
@@ -14241,6 +14261,7 @@ function _arttipResolve(nm){
   if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: _rwk, desc: _rwTipHtml(RUNEWORD_TIP[_rwk]), rich: true }; }
   if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
   if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
+  var _mb = /^magic (.+) base$/.exec(nm); if (_mb && typeof CRAFT_SLOTS !== 'undefined' && CRAFT_SLOTS.indexOf(_mb[1]) >= 0) return { artName: '', desc: _craftBaseTipHtml(_mb[1]), rich: true };
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
   if (typeof findSetPiece === 'function'){ var _sp = findSetPiece(nm); if (_sp) return { artName: nm, desc: _setPieceTipHtml(_sp), rich: true }; }
   // High-Value Finds reference profiles (non-unique; uniques already resolved via ITEM_TIP above)
@@ -14281,10 +14302,45 @@ function _craftBuffsHtml(nm, e){
   function hi(m){ return String(m).replace(/(\d+)\s*[–-]\s*(\d+)/g, function(_m,a,b){ return a+'–<b class="att-godly">'+b+'</b>'; }); }
   var g=(ck.mods||[]).map(function(m){ return '<div class="att-aff">• '+hi(m)+'</div>'; }).join('');
   var chase=(typeof CRAFT_REROLL!=='undefined' && CRAFT_REROLL[ck.key]) ? '<div class="att-chase">🎲 chase: '+CRAFT_REROLL[ck.key].join(' · ')+'</div>' : '';
-  return '<div class="att-craft" style="--cw-c:'+ck.color+'"><div class="att-craft-h">⚒️ '+ck.key+' craft — buffs <span class="att-craft-fg">floor → <b class="att-godly">godly</b></span></div>'+g+chase+'</div>';
+  // v341.5 — EMPHASIZED endgame-result header: the recipe that makes this masterpiece, as icons
+  // (slot glyph + Perfect-gem icon + slot-rune icon + jewel). This crafted item IS the result of
+  // the whole calculation, so the tooltip leads with the "→ this" recipe before the buff ranges.
+  var slot=e.base, recipe='';
+  if (slot && ck.slots && ck.slots[slot]){
+    var sl=ck.slots[slot];
+    var glyph=(typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[slot])?CRAFT_SLOT_GLYPH[slot]:'🔨';
+    var gi=(typeof artOr==='function')?artOr(ck.gem,'','sm'):'';
+    var ri=(typeof artOr==='function')?artOr(sl.rune,'','sm'):'';
+    recipe='<div class="att-recipe"><span class="att-rec-g" title="magic '+slot+'">'+glyph+'</span>'
+      +'<span class="att-rec-i" title="'+ck.gem+'">'+gi+'</span><span class="att-rec-p">+</span>'
+      +'<span class="att-rec-i" title="'+sl.rune+' rune">'+ri+'</span><span class="att-rec-j" title="+ any jewel">+◈</span>'
+      +'<span class="att-rec-arrow">→ <b>'+ck.key+' '+slot+'</b></span></div>';
+  }
+  var grail='<div class="att-grailroll" title="every affix at the top of its range — the kind that trades for a fortune">⭐ 100% god-roll = grail-tier · best-of-the-best</div>';
+  return '<div class="att-craft att-craft-end" style="--cw-c:'+ck.color+'"><div class="att-craft-h">✦ Endgame craft — the result of this recipe</div>'
+    +'<div class="att-result-h">⚗️ ingredients</div>'+recipe
+    +'<div class="att-result-h">🎁 result — buffs <span class="att-craft-fg">floor → <b class="att-godly">godly</b></span></div>'+g+chase+grail+'</div>';
 }
 window._craftBuffsHtml = _craftBuffsHtml;
 window._extraTipHtml = _extraTipHtml;
+// v341.5 — rich golden tooltip for a "magic <slot> base" picker row: shows the real base
+// OPTIONS per craft (with the craft's Perfect-gem icon), since magic bases have no single
+// sprite. Konyo: "render the options/type visually showing examples."
+function _craftBaseTipHtml(slot){
+  if (typeof CRAFTS === 'undefined') return '';
+  var glyph=(typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[slot])?CRAFT_SLOT_GLYPH[slot]:'🔨';
+  var rows=CRAFTS.map(function(c){
+    var sl=c.slots[slot]; if(!sl) return '';
+    var gi=(typeof artOr==='function')?artOr(c.gem,'','sm'):'';
+    var bases=String(sl.base).split('·').map(function(b){ return '<span class="cbt-base">'+b.trim()+'</span>'; }).join('');
+    return '<div class="cbt-row" style="--cw-c:'+c.color+'"><span class="cbt-gem" title="'+c.gem+'">'+gi+'</span><span class="cbt-craft">'+c.key+'</span><span class="cbt-bases">'+bases+'</span></div>';
+  }).join('');
+  return '<div class="att-basecard"><div class="att-type">'+glyph+' Magic '+slot+' base</div>'
+    +'<div class="att-basenote">A magic (blue) '+slot+' to craft onto — <b>any</b> of these bases works; higher tiers roll higher. Choose by the craft you want:</div>'
+    +rows
+    +'<div class="att-tag">+ Perfect gem + slot rune + any jewel → your crafted '+slot.toLowerCase()+'</div></div>';
+}
+window._craftBaseTipHtml = _craftBaseTipHtml;
 /* Floating art-hover popup (the diablo2.io "nice detail"). Delegated + scoped   */
 /* to elements carrying data-arttip OR the site-wide existing data-art-logo      */
 /* chips, so item names everywhere reveal their in-game art + verified stats on  */

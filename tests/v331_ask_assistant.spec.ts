@@ -228,6 +228,34 @@ test('v341.4 flagship hero header + chat bubbles render (orb, Sonnet badge, AI a
   expect(r.userBubble).toBe(true);
 });
 
+test('v341.5 rich hover tooltips: golden base-options card + emphasized endgame-craft card', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    const base = w._craftBaseTipHtml('Helm');
+    const resolveBase = w._arttipResolve('magic Helm base');
+    const craft = w._extraTipHtml('Crafted Blood Gloves (jackpot)');
+    // picker base row carries the data-arttip that triggers the rich card
+    w.togglePreview(); w._pvMenuOpen = true; w.renderCreateNow();
+    const baseRow = [...document.querySelectorAll('#create-now .cn-pv-opt')].find((o) => /magic Gloves base/.test(o.textContent || ''));
+    return {
+      baseRows: (base.match(/cbt-row/g) || []).length,          // one per craft
+      baseGemIcons: (base.match(/cbt-gem/g) || []).length >= 4,  // gem art per craft row
+      baseResolvesRich: resolveBase?.rich === true,
+      rowArttip: baseRow?.getAttribute('data-arttip') === 'magic Gloves base',
+      craftRecipe: /att-recipe/.test(craft),                     // ingredients strip
+      craftIngredientsVsResult: /ingredients/.test(craft) && /result — buffs/.test(craft),  // distinguished sections
+      craftGrailRoll: /att-grailroll/.test(craft),               // ⭐ 100% god-roll = grail-tier
+    };
+  });
+  expect(r.baseRows).toBe(4);
+  expect(r.baseGemIcons).toBe(true);
+  expect(r.baseResolvesRich).toBe(true);
+  expect(r.rowArttip).toBe(true);
+  expect(r.craftRecipe).toBe(true);
+  expect(r.craftIngredientsVsResult).toBe(true);  // material-in vs result-out are visually separate
+  expect(r.craftGrailRoll).toBe(true);
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {
