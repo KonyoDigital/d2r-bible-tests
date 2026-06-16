@@ -13218,13 +13218,23 @@ window.buildTopPicks = function(){
     (rc.ready||[]).forEach(function(rw){ var n=rw&&(rw.n||rw.name); if(n&&topSet[rwNorm(n)]) out.makeNow.push(rwTile(rw)); });
     (rc.cube||[]).forEach(function(rw){ var n=rw&&(rw.n||rw.name); if(n&&topSet[rwNorm(n)]) out.afterCubing.push(rwTile(rw)); });
   } catch(e){}
-  try { CRAFTS.forEach(function(c){ (c.best||[]).forEach(function(slot){
-      if(!c.slots||!c.slots[slot]) return;
-      var st=_craftSlotReady(c,slot), tile=craftTile(c,slot);
+  // v339: top-tier CRAFTS = the EXTRA_ITEMS "Crafted … (jackpot)" reference items (the high-end
+  // orange ones that rival/beat uniques — Konyo's "good stuff, not the simpletons"), each mapped
+  // to its craft+slot for live cubeability + routing to its godly reference card.
+  try { if(typeof EXTRA_ITEMS!=='undefined'){
+    Object.keys(EXTRA_ITEMS).forEach(function(name){
+      var e=EXTRA_ITEMS[name]; if(!e || String(e.cat||'')!=='Crafted') return;
+      var core=name.replace(/^Crafted\s+/i,'').replace(/\s*\([^)]*\)\s*$/,'').trim();
+      var craft=null, slot=null;
+      for(var ci=0;ci<CRAFTS.length && !craft;ci++){ var c=CRAFTS[ci]; for(var si=0;si<CRAFT_SLOTS.length;si++){ if(core===c.key+' '+CRAFT_SLOTS[si]){ craft=c; slot=CRAFT_SLOTS[si]; break; } } }
+      if(!craft||!slot||!craft.slots[slot]) return;
+      var st=_craftSlotReady(craft, slot), sl=craft.slots[slot];
+      var tile={kind:'craft', name:name, display:core, craft:craft.key, slot:slot, gem:craft.gem, rune:sl.rune, base:sl.base, beats:e.beats||'', val:e.val||''};
       if(st.ready) out.makeNow.push(tile);
       else if(st.cube) out.afterCubing.push(tile);
       else if(st.missing && st.missing.length===1){ tile.need=st.missing[0]; out.close.push(tile); }
-  }); }); }catch(e){}
+    });
+  } }catch(e){}
   return out;
 };
 // v338 — 🧪 PREVIEW MODE. A sandbox overlay on the rune/gem tallies for the AI helper ONLY. When
@@ -13288,7 +13298,7 @@ window.askBibleQuick = function(q){ var i=document.getElementById('ask-input'); 
 window.scanTopPicks = function(opts){
   var out=document.getElementById('ask-thread'); if(!out) return;
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
-  function fmt(a){ return a.map(function(x){ return (x.kind==='craft'?'🔨 ':'⚡ ')+_askEsc(x.name); }).join(' · '); }
+  function fmt(a){ return a.map(function(x){ return (x.kind==='craft'?'🔨 ':'⚡ ')+_askEsc(x.display||x.name); }).join(' · '); }
   var L=['<b>🎯 Top picks for your stash</b> <span style="color:var(--text-dim);font-weight:400">(top-tier only — crafts &amp; runewords that rival/beat uniques)</span>'];
   L.push(tp.makeNow.length ? ('<b style="color:var(--best)">✅ Make NOW:</b> '+fmt(tp.makeNow)) : '<span style="color:var(--text-dim)">✅ Nothing top-tier craftable yet — keep banking runes/gems.</span>');
   if(tp.afterCubing.length) L.push('<b style="color:var(--q-orange)">◆ After cubing up:</b> '+fmt(tp.afterCubing));
@@ -13307,12 +13317,13 @@ window.renderCreateNow = function(){
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
   function tile(p, badge){
     var icon = p.kind==='craft' ? ((typeof artOr==='function'&&p.gem)?artOr(p.gem,'🔨','sm'):'🔨') : '📜';
+    var label = _askEsc(p.display||p.name) + (p.beats?(' <span class="cn-star" title="beats '+_askEsc(p.beats)+'">★</span>'):'');
     var recipe = p.kind==='craft'
-      ? ('magic '+_askEsc(p.base||p.slot)+' + '+_askEsc(p.gem||'')+' + '+_askEsc(p.rune||'')+' + jewel')
+      ? ('magic '+_askEsc(p.base||p.slot)+' + '+_askEsc(p.gem||'')+' + '+_askEsc(p.rune||'')+(p.beats?(' · <b style="color:#8ce6a6">beats '+_askEsc(p.beats)+'</b>'):''))
       : (_askEsc((p.runes||[]).join(' • '))+(p.base?(' · '+_askEsc(p.base)):''));
     var sub = p.need ? ('<span class="cn-need">need '+_askEsc(p.need)+'</span>') : ('<span class="cn-recipe">'+recipe+'</span>');
     return '<div class="cn-tile cn-'+p.kind+'" role="button" tabindex="0" data-arttip="'+_askEsc(p.name)+'" onclick="window.openDrop&&window.openDrop(\''+String(p.name).replace(/'/g,"\\'")+'\')" title="open '+_askEsc(p.name)+'">'
-      +'<span class="cn-ic">'+icon+'</span><span class="cn-body"><span class="cn-name">'+_askEsc(p.name)+'</span>'+sub+'</span><span class="cn-badge">'+badge+'</span></div>';
+      +'<span class="cn-ic">'+icon+'</span><span class="cn-body"><span class="cn-name">'+label+'</span>'+sub+'</span><span class="cn-badge">'+badge+'</span></div>';
   }
   function group(t, arr, badge, cls){ return arr.length ? ('<div class="cn-group '+cls+'"><div class="cn-gh">'+t+' <span class="cn-ct">'+arr.length+'</span></div><div class="cn-grid">'+arr.map(function(p){return tile(p,badge);}).join('')+'</div></div>') : ''; }
   var body = group('✅ Make now', tp.makeNow,'✅','cn-now') + group('◆ After cubing gems/runes up', tp.afterCubing,'◆','cn-cube') + group('🔜 One item away', tp.close,'🔜','cn-close');
@@ -13398,6 +13409,7 @@ window.dailyCreateAi = function(force){
       +'.cn-tile.cn-runeword .cn-name{color:var(--q-orange,#ffa800)}'
       +'.cn-recipe,.cn-need{font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cn-need{color:#ffb3b3}'
       +'.cn-badge{flex:0 0 auto;font-size:12px}'
+      +'.cn-star{color:var(--star,#ffd040);font-size:11px}'
       +'.cn-empty{font-size:12px;color:var(--text-dim);font-style:italic;padding:6px 2px}'
       +'.cn-when{opacity:.85}'
       +'.cn-prev-toggle{cursor:pointer;font-size:10.5px;font-weight:800;letter-spacing:.04em;color:#cfa8ff;background:rgba(180,140,224,.1);border:1px solid rgba(180,140,224,.4);border-radius:14px;padding:3px 10px;transition:background .14s,border-color .14s}'
