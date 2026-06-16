@@ -24,7 +24,7 @@ test.describe('v123 inline item logos (decorateItemLogos)', () => {
     "Mephisto's Brain": 'brain_graphic.png',
     "Diablo's Horn": 'horn_graphic.png',
     "Baal's Eye": 'eye_graphic.png',
-    'Annihilus': 'bluecharm_graphic.png',
+    'Annihilus': 'mr_annihilus.png',
     'Colossal Ancient Statue': 'talic-opt_graphic.png',
     'Colossal Ancient Jewels': 'colossal_jewel1_graphic.png',
   };

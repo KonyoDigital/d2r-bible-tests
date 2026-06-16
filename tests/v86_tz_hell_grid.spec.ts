@@ -22,14 +22,17 @@ test.describe('v86 TZ zones carry the rarest-first Hell drops grid', () => {
       const tc87 = ZS.find((z) => z.tcMax >= 87)!;
       const h = (window as any).zoneHellGridHtml(tc87);
       const pool = (window as any).zoneGrailDrops(tc87);
-      // rank-order check: the first rendered row must be the highest-TC item
-      const firstName = (h.match(/zd-hg-name"[\s\S]*?<strong>([^<]+)</) || [, ''])[1];
-      const topByTc = pool.slice().sort((a: any, b: any) => b.tc - a.tc)[0];
+      // rank-order check: the first rendered row must be a highest-TC item. The row name now
+      // lives in data-arttip (the cell renders artOr()+name, not a bare <strong>); tie-robust —
+      // several items can share the max TC, so assert the first row's item HAS the max TC.
+      const firstName = (h.match(/zd-hg-name"\s+data-arttip="([^"]+)"/) || [, ''])[1];
+      const maxTc = Math.max.apply(null, pool.map((p: any) => p.tc));
+      const firstEntry = pool.find((p: any) => p.name === firstName);
       return {
         type: typeof (window as any).zoneHellGridHtml,
         hasTable: /class="drops zd-hell-grid"/.test(h),
         hasHead: /HELL terror-pool drops/.test(h),
-        ranksRarestFirst: firstName === topByTc.name,
+        ranksRarestFirst: !!firstEntry && firstEntry.tc === maxTc,
         hasUndefined: /undefined/.test(h),
         // honesty: no fabricated 1:N per-kill odds in the grid
         noFakeOdds: !/1:[0-9]/.test(h),
