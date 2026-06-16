@@ -219,15 +219,16 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
    the left border stays TC-tier. Most grail items are unique(gold)/set(green). */
 /* v326: rarity names now POP — authentic in-game hue + a soft same-colour glow + bump weight so the
    muted unique gold (#c7b377) reads as gold on the dark bg instead of washing out (Konyo: "make it pop"). */
-.item-tile.it-r-unique .item-tile-name{color:var(--q-unique,#c7b377);text-shadow:0 0 7px rgba(199,179,119,.45);font-weight:600}
-.item-tile.it-r-set .item-tile-name{color:var(--q-set,#5fe85f);text-shadow:0 0 7px rgba(0,255,0,.35);font-weight:600}
-.item-tile.it-r-rw .item-tile-name,.item-tile.it-r-rune .item-tile-name,.item-tile.it-r-crafted .item-tile-name{color:var(--q-orange);text-shadow:0 0 7px rgba(255,168,0,.4);font-weight:600}
-.item-tile.it-r-magic .item-tile-name{color:var(--q-magic);text-shadow:0 0 7px rgba(105,105,255,.45);font-weight:600}
-.item-tile.it-r-rare .item-tile-name{color:var(--q-rare);text-shadow:0 0 7px rgba(255,255,100,.4);font-weight:600}
-.item-tile.it-r-basic .item-tile-name{color:var(--q-normal);text-shadow:0 0 6px rgba(244,244,244,.25)}
-/* v329 — rarity GLOW everywhere: a soft same-colour (currentColor) halo so item names pop with depth,
-   in-game-realistic + UI/UX-tasteful. Works for class- AND inline-coloured names. Calc keeps its own. */
-.top-drop-name[class*="q-"],table.drops td.item-name[class*="q-"],table.ref-tbl td.item-name[class*="q-"],.hvf-name,.set-card-name,.vm-cell-name,.vj-chip,.cw-out-name,.arw-rune-n,.mw-rune-chip,.rec-chip{text-shadow:0 0 6px currentColor}
+.item-tile.it-r-unique .item-tile-name{color:var(--q-unique,#c7b377);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55);font-weight:700}
+.item-tile.it-r-set .item-tile-name{color:var(--q-set,#5fe85f);text-shadow:0 0 4px rgba(0,255,0,.5),0 0 10px rgba(0,255,0,.45),0 1px 1px rgba(0,0,0,.55);font-weight:700}
+.item-tile.it-r-rw .item-tile-name,.item-tile.it-r-rune .item-tile-name,.item-tile.it-r-crafted .item-tile-name{color:var(--q-orange);text-shadow:0 0 4px rgba(255,168,0,.55),0 0 10px rgba(255,168,0,.5),0 1px 1px rgba(0,0,0,.55);font-weight:700}
+.item-tile.it-r-magic .item-tile-name{color:var(--q-magic);text-shadow:0 0 4px rgba(105,105,255,.6),0 0 10px rgba(105,105,255,.55),0 1px 1px rgba(0,0,0,.55);font-weight:700}
+.item-tile.it-r-rare .item-tile-name{color:var(--q-rare);text-shadow:0 0 4px rgba(255,255,100,.55),0 0 10px rgba(255,255,100,.5),0 1px 1px rgba(0,0,0,.55);font-weight:700}
+.item-tile.it-r-basic .item-tile-name{color:var(--q-normal);text-shadow:0 0 4px rgba(244,244,244,.4),0 1px 1px rgba(0,0,0,.5);font-weight:600}
+/* v329 → v341.6 — rarity GLOW everywhere, CRANKED so every item POPS in its in-game colour: a
+   bright same-colour core + soft halo + a crisp dark base for legibility. Works for class- AND
+   inline-coloured names. Konyo's standing emphasis: "really popping, HD, synced to the game." */
+.top-drop-name[class*="q-"],table.drops td.item-name[class*="q-"],table.ref-tbl td.item-name[class*="q-"],.hvf-name,.set-card-name,.vm-cell-name,.vj-chip,.cw-out-name,.arw-rune-n,.arw-name,.mw-rune-chip,.rec-chip,.rs-name,.wishlist-item-name,.hero-pick-item,.gbc-grail-name,.gsearch-lab,.set-piece-name,.zd-hg-name strong,.vault-chip-name,.aid-name-txt{text-shadow:0 0 4px currentColor,0 0 9px currentColor,0 1px 1px rgba(0,0,0,.55)}
 .gic-name{text-shadow:0 0 12px currentColor,0 1px 2px rgba(0,0,0,.55)}
 .item-tile-grail::before,.item-tile-uber::before{position:absolute;top:6px;right:6px;font-size:7px;font-weight:600;letter-spacing:.5px}
 .item-tile-grail::before{content:"GRAIL";color:var(--grail)}
@@ -11983,7 +11984,7 @@ function renderAidCard(name, opts){
         <div class="aid-item-name">
           <span class="aid-star ${isStarred?'starred':''}" onclick="toggleStar('${escName}')" style="cursor:pointer;margin-right:6px;font-size:18px;color:${isStarred?'var(--star)':'var(--text-muted)'}">${isStarred?'★':'☆'}</span>
           ${artOr(name, '', 'sm')}
-          ${name}
+          <span class="aid-name-txt"${typeof _qStyle==='function'?_qStyle(name,'unique'):''}>${name}</span>
           ${isOwned?' <span style="color:var(--best);font-size:12px;font-family:var(--mono);background:rgba(102,255,136,.1);padding:2px 6px;border-radius:3px">✓ OWNED</span>':''}
         </div>
         <div class="aid-item-meta">
@@ -19592,7 +19593,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     renderVaultKeep();
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
-      return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span>'+esc(n)+'</span>'
+      return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span class="vault-chip-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'
         +'<button class="vc-unown" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="not mine — remove from ✓ owned (AI misread? this erases it)">✕</button></span>';
     }).join('');
     var byMule={};
