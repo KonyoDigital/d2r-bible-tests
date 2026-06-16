@@ -142,7 +142,7 @@ test('v341.19 Sigon set: per-piece affixes + partial bonuses (incl 30% IAS) + gr
     let glowSynced = false;
     for (const ss of Array.from(document.styleSheets)) {
       try { for (const rule of Array.from((ss as CSSStyleSheet).cssRules)) {
-        if (/\.gic-name\{/.test(rule.cssText) && /text-shadow/.test(rule.cssText) && /currentColor/i.test(rule.cssText)) glowSynced = true;
+        if (/\.gic-name\b/.test(rule.cssText) && /text-shadow/i.test(rule.cssText) && /currentcolor/i.test(rule.cssText)) glowSynced = true;
       } } catch (e) {}
     }
     return {
