@@ -72,7 +72,7 @@ test('v341.7 the preview picker has a 4th Jewels section', async ({ page }) => {
   });
   expect(r.hasJewelsSection).toBe(true);
   expect(r.groupCount).toBe(4);                 // Runes · Gems · Craft Bases · Jewels
-  expect(r.jewelOptArttip).toBe('any jewel');   // jewel row → rich card
+  expect(r.jewelOptArttip).toBe('magic jewel');   // jewel row → rich card (magic/rare distinct)
 });
 
 test('v341.10 Tools-tab cards get the premium themed treatment (accent --tc) — flagship feel carried outward', async ({ page }) => {
@@ -100,6 +100,37 @@ test('v341.16 the floating tooltip TITLE tints to the item rarity (magic base = 
   expect(r.jewel).toBe('#9fb0ff');  // jewel (magic) → blue
   expect(r.rune).toBe('#ffa800');   // rune → orange
   expect(r.gem).toBe('#e0556a');    // Perfect Ruby → ruby red
+});
+
+test('v341.17 jewel magic/rare distinction + picker name colours + gem-held craft sort', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    w.togglePreview(); w._pvMenuOpen = true;
+    w.previewAdd('Perfect Ruby', 'gem'); w.previewAdd('Nef', 'rune'); w.renderCreateNow();
+    const host = document.getElementById('create-now')!;
+    const opt = (re: RegExp) => [...host.querySelectorAll('.cn-pv-opt')].find((o) => re.test(o.textContent || ''));
+    const jwMagic = opt(/magic Jewel/), jwRare = opt(/rare Jewel/), rune = opt(/Sol rune/), gem = opt(/Perfect Amethyst/);
+    const nmCol = (el: any) => (el?.querySelector('.cn-pv-opt-nm')?.getAttribute('style') || '');
+    const closeCrafts = w._previewWrap(w.buildTopPicks).close.filter((x: any) => x.kind === 'craft');
+    return {
+      jwMagicImg: !!jwMagic?.querySelector('.jw-magic img'), jwRareImg: !!jwRare?.querySelector('.jw-rare img'),
+      jwMagicArttip: jwMagic?.getAttribute('data-arttip'), jwRareArttip: jwRare?.getAttribute('data-arttip'),
+      runeOrange: nmCol(rune).includes('#ffa800'), gemPurple: nmCol(gem).includes('#b48ce0'),
+      tipMagic: w._jewelTipHtml(false).includes('Magic Jewel'), tipRare: w._jewelTipHtml(true).includes('Rare Jewel'),
+      tintRare: w._tipTint('rare jewel'),
+      bloodFirst: closeCrafts.slice(0, 3).every((x: any) => x.craft === 'Blood'),  // gem-held (Ruby→Blood) ranks first
+    };
+  });
+  expect(r.jwMagicImg).toBe(true);                 // real jewel sprite, not a ◈ dot
+  expect(r.jwRareImg).toBe(true);
+  expect(r.jwMagicArttip).toBe('magic jewel');
+  expect(r.jwRareArttip).toBe('rare jewel');       // distinct tooltips
+  expect(r.runeOrange).toBe(true);                 // picker rune name = orange
+  expect(r.gemPurple).toBe(true);                  // picker gem name = its gem colour
+  expect(r.tipMagic).toBe(true);
+  expect(r.tipRare).toBe(true);
+  expect(r.tintRare).toBe('#ffff64');              // rare jewel title = yellow
+  expect(r.bloodFirst).toBe(true);                 // committed-gem crafts lead the list
 });
 
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {

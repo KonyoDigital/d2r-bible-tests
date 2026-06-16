@@ -13316,7 +13316,11 @@ window.buildTopPicks = function(){
       for(var ci=0;ci<CRAFTS.length && !craft;ci++){ var c=CRAFTS[ci]; for(var si=0;si<CRAFT_SLOTS.length;si++){ if(core===c.key+' '+CRAFT_SLOTS[si]){ craft=c; slot=CRAFT_SLOTS[si]; break; } } }
       if(!craft||!slot||!craft.slots[slot]) return;
       var st=_craftSlotReady(craft, slot), sl=craft.slots[slot];
-      var tile={kind:'craft', name:name, display:core, craft:craft.key, slot:slot, gem:craft.gem, rune:sl.rune, base:sl.base, beats:e.beats||'', val:e.val||''};
+      // v341.17 — the GEM locks the craft type (Ruby→Blood, Amethyst→Caster…). gemHeld = the player
+      // already holds this craft's Perfect gem → they're committed to this craft type, so these
+      // rank first; crafts needing a DIFFERENT gem are a craft-switch, shown after.
+      var gemHeld=(typeof _gemCount==='function' && _gemCount(craft.gem)>=1);
+      var tile={kind:'craft', name:name, display:core, craft:craft.key, slot:slot, gem:craft.gem, rune:sl.rune, base:sl.base, beats:e.beats||'', val:e.val||'', gemHeld:gemHeld};
       if(st.ready) out.makeNow.push(tile);
       else if(st.cube) out.afterCubing.push(tile);
       // v341.12 — show crafts up to TWO ingredients away (not just one) with an accurate count,
@@ -13324,7 +13328,9 @@ window.buildTopPicks = function(){
       else if(st.missing && st.missing.length>=1 && st.missing.length<=2){ tile.need=st.missing.join(' + '); tile.awayN=st.missing.length; out.close.push(tile); }
     });
   } }catch(e){}
-  out.close.sort(function(a,b){ return (a.awayN||1)-(b.awayN||1); });   // 1-away before 2-away
+  // recalibrate around the committed gem: crafts whose gem you HOLD first (same craft type),
+  // then by fewest items away. So with a Perfect Ruby in hand, Blood crafts lead the list.
+  out.close.sort(function(a,b){ return ((b.gemHeld?1:0)-(a.gemHeld?1:0)) || ((a.awayN||1)-(b.awayN||1)); });
   return out;
 };
 // v338 — 🧪 PREVIEW MODE. A sandbox overlay on the rune/gem tallies for the AI helper ONLY. When
@@ -13469,15 +13475,26 @@ window.renderCreateNow = function(){
     // the sandbox; the menu stays open (window._pvMenuOpen) so you can stack several.
     function pvArt(name, kind){
       if(kind==='base'){ var g=(typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[name])?CRAFT_SLOT_GLYPH[name]:'🔨'; return '<span class="cn-pv-glyph">'+g+'</span>'; }
-      if(kind==='jewel'){ return '<span class="cn-pv-glyph" style="color:#9fb6ff">◈</span>'; }
+      // v341.17 — jewels now use a real HD jewel sprite (was a ◈ "dot"), tinted magic-blue or rare-yellow.
+      if(kind==='jewel'){ var rare=/rare/i.test(name); return '<span class="cn-pv-jw '+(rare?'jw-rare':'jw-magic')+'"><img src="art/jewel04_graphic.png" alt="" loading="lazy"></span>'; }
       return (typeof artOr==='function') ? artOr(name,'','sm') : '';
+    }
+    // v341.17 — every picker name is coloured to its in-game rarity (synced like the hover cards):
+    // rune orange · gem its gem colour · magic base/jewel blue · rare jewel yellow.
+    function pvNmColor(name, kind){
+      if(kind==='rune') return '#ffa800';
+      if(kind==='gem') return (typeof _gemColor==='function') ? _gemColor(name) : '#ffa800';
+      if(kind==='base') return '#9fb0ff';
+      if(kind==='jewel') return /rare/i.test(name) ? '#ffff64' : '#9fb0ff';
+      return '';
     }
     function pvOpt(name, label, kind){
       // data-arttip → the rich #arttip card fires on hover: runes/gems resolve to their stat
-      // cards, a base → the golden "magic <slot> base" options card, a jewel → its magic card.
-      var at = kind==='base' ? ('magic '+name+' base') : (kind==='jewel' ? 'any jewel' : name);
+      // cards, a base → the golden "magic <slot> base" options card, a jewel → its magic/rare card.
+      var at = kind==='base' ? ('magic '+name+' base') : (kind==='jewel' ? (/rare/i.test(name)?'rare jewel':'magic jewel') : name);
+      var col = pvNmColor(name, kind);
       return '<div class="cn-pv-opt" role="button" tabindex="0" data-arttip="'+_askEsc(at)+'" onclick="window.previewAdd(\''+String(name).replace(/'/g,"\\'")+'\',\''+kind+'\')">'
-        +'<span class="cn-pv-opt-art">'+pvArt(name,kind)+'</span><span class="cn-pv-opt-nm">'+_askEsc(label)+'</span><span class="cn-pv-opt-plus">＋</span></div>';
+        +'<span class="cn-pv-opt-art">'+pvArt(name,kind)+'</span><span class="cn-pv-opt-nm" style="color:'+col+';text-shadow:0 0 5px '+col+'">'+_askEsc(label)+'</span><span class="cn-pv-opt-plus">＋</span></div>';
     }
     var runeRows=RUNES.map(function(r){return pvOpt(r, r+' rune', 'rune');}).join('');
     var gemRows=GEMS.map(function(g){return pvOpt(g, g, 'gem');}).join('');
@@ -13598,6 +13615,9 @@ window.dailyCreateAi = function(force){
       +'.cn-pv-opt-art{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}.cn-pv-opt-art img{max-width:24px;max-height:24px}'
       +'.cn-pv-opt-nm{font-size:11.5px;color:#e8dcff;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cn-pv-opt-plus{font-size:13px;color:#b48ce0;opacity:.65}.cn-pv-opt:hover .cn-pv-opt-plus{opacity:1}'
       +'.cn-pv-glyph{font-size:17px;line-height:1}'
+      +'.cn-pv-jw{display:inline-flex;align-items:center;justify-content:center}.cn-pv-jw img{max-width:22px;max-height:22px}'
+      +'.cn-pv-jw.jw-magic img{filter:drop-shadow(0 0 5px rgba(105,105,255,.9))}.cn-pv-jw.jw-rare img{filter:drop-shadow(0 0 5px rgba(255,255,100,.9)) hue-rotate(35deg) saturate(1.3)}'
+      +'.cn-pv-chip .cn-pv-jw img{max-width:15px;max-height:15px}'
       +'.cn-pv-empty{margin-top:8px;font-size:11px;color:var(--text-dim);font-style:italic}'+
       '#ask-bible-card .arw-count{background:rgba(127,212,255,.16);color:#8fd0ff;border-radius:8px;padding:1px 8px;font-size:9px;font-weight:800;letter-spacing:.05em}'
       +'.ask-quick{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 11px}'
@@ -14339,7 +14359,7 @@ function _arttipResolve(nm){
   if (typeof RUNEWORD_TIP !== 'undefined' && typeof findRuneword === 'function'){ var _rwk = findRuneword(nm); if (_rwk) return { artName: _rwk, desc: _rwTipHtml(RUNEWORD_TIP[_rwk]), rich: true }; }
   if (typeof findGem === 'function'){ var _gk = findGem(nm); if (_gk) return { artName: _gk, desc: _gemTipHtml(_GEM_INDEX[_gk.toLowerCase()]), rich: true }; }
   if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)){ return { artName: nm, desc: _runeTipHtml(RUNES[RUNE_INDEX[nm]]), rich: true }; }
-  if (/^(any |magic |rare )?jewel$/i.test(nm)) return { artName: '', desc: _jewelTipHtml(), rich: true };
+  if (/^(any |magic |rare )?jewel$/i.test(nm)) return { artName: '', desc: _jewelTipHtml(/rare/i.test(nm)), rich: true };
   var _mb = /^magic (.+) base$/.exec(nm); if (_mb && typeof CRAFT_SLOTS !== 'undefined' && CRAFT_SLOTS.indexOf(_mb[1]) >= 0) return { artName: '', desc: _craftBaseTipHtml(_mb[1]), rich: true };
   if (typeof ITEM_INFO !== 'undefined' && ITEM_INFO[nm]) return { artName: nm, desc: '<div class="att-info">'+ITEM_INFO[nm]+'</div>', rich: false };
   if (typeof findSetPiece === 'function'){ var _sp = findSetPiece(nm); if (_sp) return { artName: nm, desc: _setPieceTipHtml(_sp), rich: true }; }
@@ -14353,7 +14373,8 @@ window._arttipResolve = _arttipResolve;
 // unique gold / set green / rare yellow via _Q_HEX. Empty → keep the default gold card title.
 function _tipTint(nm){
   try {
-    if (/^(any |magic |rare )?jewel$/i.test(nm) || /^magic .+ base$/i.test(nm)) return '#9fb0ff';
+    if (/rare jewel$/i.test(nm)) return '#ffff64';   // rare jewel → yellow
+    if (/^(any |magic )?jewel$/i.test(nm) || /^magic .+ base$/i.test(nm)) return '#9fb0ff';
     if (typeof findGem === 'function'){ var gk = findGem(nm); if (gk && typeof _gemColor === 'function') return _gemColor(gk); }
     if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)) return '#ffa800';
     if (typeof findRuneword === 'function' && findRuneword(nm)) return '#ffa800';
@@ -14439,9 +14460,12 @@ function _craftBaseTipHtml(slot){
 }
 window._craftBaseTipHtml = _craftBaseTipHtml;
 // v341.7 — rich card for the "any jewel" recipe ingredient (the 4th craft item).
-function _jewelTipHtml(){
-  return '<div class="att-basecard"><div class="att-type" style="color:#9fb6ff">◈ Jewel — magic ingredient</div>'
-    + '<div class="att-basenote"><b>Any magic (blue) jewel</b> is the 4th item in every craft recipe. Jewels drop constantly, so this never holds a craft back — it is the one assumed-on-hand ingredient. A <b>rare</b> jewel works too (and adds its own random affixes).</div>'
+function _jewelTipHtml(isRare){
+  if (isRare) return '<div class="att-basecard"><div class="att-type" style="color:#ffff64;text-shadow:0 0 7px rgba(255,255,100,.5)">◈ Rare Jewel — extra ingredient</div>'
+    + '<div class="att-basenote">A <b>rare (yellow) jewel</b> works as the craft\'s 4th item AND carries its own 3–6 random affixes into the result — a god-roll rare jewel can add real power on top of the craft\'s guaranteed mods.</div>'
+    + '<div class="att-tag">magic base + Perfect gem + slot rune + <b>this rare jewel</b> → cube → crafted rare</div></div>';
+  return '<div class="att-basecard"><div class="att-type" style="color:#9fb0ff;text-shadow:0 0 7px rgba(105,105,255,.5)">◈ Magic Jewel — extra ingredient</div>'
+    + '<div class="att-basenote"><b>Any magic (blue) jewel</b> is the 4th item in every craft recipe. Jewels drop constantly, so this never holds a craft back — it is the one assumed-on-hand ingredient. A <b>rare</b> jewel works too (adds its own affixes).</div>'
     + '<div class="att-tag">magic base + Perfect gem + slot rune + <b>this jewel</b> → cube → crafted rare</div></div>';
 }
 window._jewelTipHtml = _jewelTipHtml;
