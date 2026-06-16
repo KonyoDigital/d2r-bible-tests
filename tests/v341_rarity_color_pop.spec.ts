@@ -133,6 +133,35 @@ test('v341.17 jewel magic/rare distinction + picker name colours + gem-held craf
   expect(r.bloodFirst).toBe(true);                 // committed-gem crafts lead the list
 });
 
+test('v341.19 Sigon set: per-piece affixes + partial bonuses (incl 30% IAS) + green glow synced', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    const card = w.setDetailHtml("Sigon's Complete Steel");
+    const tip = w._arttipResolve("Sigon's Gage");
+    // gic-name glow now follows the text colour (currentColor), not a fixed gold
+    let glowSynced = false;
+    for (const ss of Array.from(document.styleSheets)) {
+      try { for (const rule of Array.from((ss as CSSStyleSheet).cssRules)) {
+        if (/\.gic-name\{/.test(rule.cssText) && /text-shadow/.test(rule.cssText) && /currentColor/i.test(rule.cssText)) glowSynced = true;
+      } } catch (e) {}
+    }
+    return {
+      cardIAS: /30% Increased Attack Speed/.test(card),
+      cardPartials: /Partial set bonuses/.test(card),
+      cardLeech: /Life Stolen Per Hit/.test(card),
+      cardAffixList: /ct-affixes/.test(card),
+      tipIAS: /30% Increased Attack Speed/.test(tip.desc || ''),  // per-piece hover now shows real affixes
+      glowSynced,
+    };
+  });
+  expect(r.cardIAS).toBe(true);        // the famous +30% IAS now renders
+  expect(r.cardPartials).toBe(true);   // partial set bonuses section
+  expect(r.cardLeech).toBe(true);      // full set bonus expanded (life steal etc.)
+  expect(r.cardAffixList).toBe(true);  // per-piece affixes on each tile
+  expect(r.tipIAS).toBe(true);         // per-piece hover card shows individual affixes
+  expect(r.glowSynced).toBe(true);     // set-green glow follows the text colour (no matte/gold mismatch)
+});
+
 test('the universal rarity glow rule covers the name sites with a bright multi-layer shadow', async ({ page }) => {
   const r = await page.evaluate(() => {
     let txt = '';
