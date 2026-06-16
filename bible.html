@@ -8945,7 +8945,7 @@ function _itemCells(name){
       else if (/\b(helm|cap\b|crown|mask|circlet|coronet|tiara|diadem|sallet|armet|casque|basinet|shako|visor|bone visage|demonhead|helmet|barbed|winged|carved|grim helm|spired helm|corona)\b/.test(s)) cells = {w:2,h:2};
       else if (/\b(glove|gauntlet|grasp|bracer|vambrace|clutches|fist|hand)\b/.test(s)) cells = {w:2,h:2};
       else if (/\b(boot|greave|sabaton|tread|spur|myrmidon greaves|war boots)\b/.test(s)) cells = {w:2,h:2};
-      else if (/\b(belt|sash|cord|girdle|buckle|war belt|mesh belt|spiderweb sash|vampirefang belt|mithril coil|troll belt|colossus girdle)\b/.test(s)) cells = {w:2,h:2};
+      else if (/\b(belt|sash|cord|girdle|buckle|war belt|mesh belt|spiderweb sash|vampirefang belt|mithril coil|troll belt|colossus girdle)\b/.test(s)) cells = {w:2,h:1};  /* v333: belts are 2x1 in D2R, not 2x2 */
       else if (/\b(shield|buckler|rondache|defender|targe|scutum|heater|round shield|spiked shield|bone shield)\b/.test(s)) cells = {w:2,h:2};
       else if (/\b(dagger|dirk|kris|blade dagger|wand|stylus|throwing|javelin|jav\b|large charm)\b/.test(s)) cells = {w:1,h:2};
       else if (/\b(sword|saber|scimitar|falchion|axe|hatchet|cleaver|mace|club|hammer|flail|scepter|sceptre|morning star|crystal sword|phase blade|blade\b|claw|katar|grand charm)\b/.test(s)) cells = {w:1,h:3};
