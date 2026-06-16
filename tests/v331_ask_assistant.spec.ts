@@ -25,20 +25,38 @@ test('buildAskSnapshot returns the makeable-now snapshot shape from live tallies
   expect(snap).toHaveProperty('owned');
 });
 
-test('the #ask-bible-card injects after the Crafting Workshop with input + quick chips', async ({ page }) => {
+test('the #ask-bible-card injects at the TOP of the Tools tab (above the Vault) with input + chips', async ({ page }) => {
   const r = await page.evaluate(() => {
     const card = document.getElementById('ask-bible-card');
+    const tools = document.getElementById('tab-tools');
     return {
       present: !!card,
-      afterCraft: !!(card && card.previousElementSibling && card.previousElementSibling.id === 'craft-workshop-card'),
+      firstInTools: tools?.firstElementChild?.id === 'ask-bible-card',
       hasInput: !!document.getElementById('ask-input'),
+      hasScan: !!document.querySelector('#ask-bible-card .ask-chip-scan'),
       chips: document.querySelectorAll('#ask-bible-card .ask-chip').length,
     };
   });
   expect(r.present).toBe(true);
-  expect(r.afterCraft).toBe(true);
+  expect(r.firstInTools).toBe(true);   // v335: rides above the Vault
   expect(r.hasInput).toBe(true);
-  expect(r.chips).toBeGreaterThanOrEqual(4);
+  expect(r.hasScan).toBe(true);        // 🎯 scan button
+  expect(r.chips).toBeGreaterThanOrEqual(5);
+});
+
+test('buildTopPicks ranks top-tier makeable opportunities + scanTopPicks renders a panel', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const tp = (window as any).buildTopPicks();
+    (window as any).scanTopPicks({ localOnly: true });   // local render, no AI call
+    return {
+      shape: ['makeNow', 'afterCubing', 'close'].every((k) => Array.isArray(tp[k])),
+      panel: !!document.querySelector('#ask-thread .ask-toppicks'),
+      inSnapshot: !!(window as any).buildAskSnapshot().topPicks,
+    };
+  });
+  expect(r.shape).toBe(true);
+  expect(r.panel).toBe(true);
+  expect(r.inSnapshot).toBe(true);
 });
 
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
@@ -50,7 +68,7 @@ test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ 
   await page.evaluate(() => (window as any).askBible('what can I make?'));
   await page.waitForFunction(() => /Spirit/.test(document.getElementById('ask-thread')?.textContent || ''));
   const r = await page.evaluate(() => ({
-    answer: document.querySelector('#ask-thread .ask-a')?.innerHTML || '',
+    answer: document.querySelector('#ask-thread .ask-a:not(.ask-toppicks)')?.innerHTML || '',
     q: document.querySelector('#ask-thread .ask-q')?.textContent || '',
   }));
   expect(posted).not.toBeNull();
