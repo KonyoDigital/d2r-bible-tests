@@ -130,8 +130,9 @@ test('v341 HONEST base: a craft with gem+rune but no magic base is held back unt
     const tp1 = (window as any)._previewWrap((window as any).buildTopPicks);
     const closeNoBase = findBlood(tp1, 'close');
     const makeNoBase = findBlood(tp1, 'makeNow');
-    // add the magic base → now it's honestly craftable
+    // add the magic base + a jewel (the 4th item, which counts in preview) → now craftable
     (window as any).previewAdd('Gloves', 'base');
+    (window as any).previewAdd('Magic Jewel', 'jewel');
     const tp2 = (window as any)._previewWrap((window as any).buildTopPicks);
     const makeWithBase = findBlood(tp2, 'makeNow');
     (window as any).togglePreview();   // off — real stash untouched
@@ -256,27 +257,34 @@ test('v341.5 rich hover tooltips: golden base-options card + emphasized endgame-
   expect(r.craftGrailRoll).toBe(true);
 });
 
-test('v341.12 dashboard shows crafts up to 2-away with count + the crafted RESULT image', async ({ page }) => {
+test('v341.18 dashboard shows the full 4-item recipe with have/need + jewel-counted math', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
-    w.togglePreview(); w.previewAdd('Nef', 'rune'); w.previewAdd('Perfect Ruby', 'gem');  // Blood ingredients
+    w.togglePreview(); w.previewAdd('Nef', 'rune'); w.previewAdd('Perfect Ruby', 'gem');  // 2 of Blood Gloves' 4
     const tp = w._previewWrap(w.buildTopPicks);
     const closeCrafts = tp.close.filter((x: any) => x.kind === 'craft');
-    const oneAway = closeCrafts.filter((x: any) => x.awayN === 1).map((x: any) => x.display);
-    const twoAway = closeCrafts.filter((x: any) => x.awayN === 2).map((x: any) => x.display);
+    const bg = closeCrafts.find((x: any) => x.display === 'Blood Gloves');
     w.renderCreateNow();
     const host = document.getElementById('create-now')!;
-    const craftTileImg = !!host.querySelector('.cn-tile.cn-craft .cn-ic img');  // result image (not gem)
+    const craftTileImg = !!host.querySelector('.cn-tile.cn-craft .cn-ic img');
+    const recst = !!host.querySelector('.cn-recst .cn-rs-ing.cn-has') && !!host.querySelector('.cn-recst .cn-rs-ing.cn-needs');
     const countBadges = [...host.querySelectorAll('.cn-need-n')].map((e) => e.textContent);
     w.togglePreview();
-    return { oneAway, twoAwayCount: twoAway.length, sorted: (closeCrafts[0]?.awayN || 1) === 1, craftTileImg, countBadges };
+    return {
+      bgAwayN: bg?.awayN,                                  // base + jewel = 2 (NOT 1 — jewel counts)
+      bgHave: bg?.recipe?.map((i: any) => (i.have ? 1 : 0)).reduce((a: number, b: number) => a + b, 0),  // 2 of 4 held
+      bgRecipeLen: bg?.recipe?.length,                     // always 4 items
+      bloodFirst: closeCrafts.slice(0, 4).every((x: any) => x.craft === 'Blood'),
+      craftTileImg, recst, has3More: countBadges.some((c) => /3 more to go/.test(c || '')),
+    };
   });
-  expect(r.oneAway).toContain('Blood Gloves');        // 1-away (needs base)
-  expect(r.twoAwayCount).toBeGreaterThanOrEqual(2);   // Blood Ring/Amulet/Boots etc. now surface too
-  expect(r.sorted).toBe(true);                        // 1-away sorted before 2-away
-  expect(r.craftTileImg).toBe(true);                  // tile shows the crafted RESULT sprite
-  expect(r.countBadges.some((c) => /1 more to go/.test(c || ''))).toBe(true);
-  expect(r.countBadges.some((c) => /2 more to go/.test(c || ''))).toBe(true);
+  expect(r.bgAwayN).toBe(2);              // gem✓ rune✓ + base✗ jewel✗ = 2 more (the jewel is counted)
+  expect(r.bgHave).toBe(2);               // 2 of the 4 recipe items held
+  expect(r.bgRecipeLen).toBe(4);          // the recipe is always 4 items (no 4+2=6 inflation)
+  expect(r.bloodFirst).toBe(true);        // committed-gem (Ruby→Blood) crafts lead
+  expect(r.craftTileImg).toBe(true);      // crafted RESULT sprite
+  expect(r.recst).toBe(true);             // tile shows have (green ✓) AND need ingredients with art
+  expect(r.has3More).toBe(true);          // other Blood slots are 3-away (rune+base+jewel)
 });
 
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {

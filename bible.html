@@ -13265,22 +13265,33 @@ window.toggleCraftBase = toggleCraftBase;
 // Live cubeable check for one craft+slot — reads runeStash + gemStash (the same tallies
 // the Gem/Rune planners drive). ready = hold the Perfect gem AND the slot rune outright;
 // cube = could get the Perfect gem by cubing lower grades of its type up the 3→1 chain.
+// v341.18 — the jewel is the recipe's 4th item. In PREVIEW the player picks exact ingredients, so
+// the jewel COUNTS (Konyo: "I chose 2 → 2 more"). In real-live it's auto-assumed (jewels are
+// trivial), so it never gates the workshop/dashboard from real tallies.
+function _jewelHeld(){
+  if (window.previewStash){ var j = window.previewStash.jewels || {}; return Object.keys(j).some(function(k){ return j[k] > 0; }); }
+  return true;
+}
 function _craftSlotReady(craft, slot){
   var rune = craft.slots[slot].rune;
   var haveRune = (typeof _runeCount === 'function') ? _runeCount(rune) >= 1 : false;
   var haveGem = (typeof _gemCount === 'function') ? _gemCount(craft.gem) >= 1 : false;
   var haveGemCubed = (typeof gemCubeUpPotential === 'function') ? gemCubeUpPotential(craft.gemType, 4) >= 1 : false;
   var haveBase = _baseCount(slot) >= 1;            // v341 — honest: magic base is a real ingredient
+  var haveJewel = _jewelHeld();                    // v341.18 — counts in preview, assumed in real-live
   var baseName = _craftBaseName(craft, slot);
   var missing = [];
   if (!haveBase) missing.push('magic ' + slot + ' base (' + baseName + ')');
   if (!haveGem) missing.push(craft.gem);
   if (!haveRune) missing.push(rune + ' rune');
+  if (!haveJewel) missing.push('any jewel');
   var ingredientsReady = haveGem && haveRune;      // the cubeable runes+gem (the "consumables")
-  return { rune: rune, baseName: baseName, haveRune: haveRune, haveGem: haveGem, haveGemCubed: haveGemCubed, haveBase: haveBase,
+  var gatingMissingN = (haveBase?0:1) + (haveGem?0:1) + (haveRune?0:1);  // gem/rune/base only (the jewel is trivial — used to decide what's "close" without collapsing the list)
+  return { rune: rune, baseName: baseName, haveRune: haveRune, haveGem: haveGem, haveGemCubed: haveGemCubed, haveBase: haveBase, haveJewel: haveJewel,
            ingredientsReady: ingredientsReady,     // gem+rune in hand, regardless of base
-           ready: ingredientsReady && haveBase,    // ⭐ HONEST: can actually cube it right now
-           cube: !ingredientsReady && haveGemCubed && haveRune && haveBase, missing: missing };
+           gatingMissingN: gatingMissingN,
+           ready: ingredientsReady && haveBase && haveJewel,    // ⭐ HONEST: all 4 in hand → cube it now
+           cube: !ingredientsReady && haveGemCubed && haveRune && haveBase && haveJewel, missing: missing };
 }
 window._craftSlotReady = _craftSlotReady;
 
@@ -13320,12 +13331,15 @@ window.buildTopPicks = function(){
       // already holds this craft's Perfect gem → they're committed to this craft type, so these
       // rank first; crafts needing a DIFFERENT gem are a craft-switch, shown after.
       var gemHeld=(typeof _gemCount==='function' && _gemCount(craft.gem)>=1);
-      var tile={kind:'craft', name:name, display:core, craft:craft.key, slot:slot, gem:craft.gem, rune:sl.rune, base:sl.base, beats:e.beats||'', val:e.val||'', gemHeld:gemHeld};
+      // v341.18 — the full 4-item recipe with per-ingredient HAVE/need, so a tile reads as a
+      // complete recipe (Konyo: a recipe is 4 items; reused ones don't double-count to 6).
+      var recipe=[ {kind:'gem',name:craft.gem,have:st.haveGem}, {kind:'rune',name:sl.rune,have:st.haveRune}, {kind:'base',name:slot,have:st.haveBase}, {kind:'jewel',name:'jewel',have:st.haveJewel} ];
+      var tile={kind:'craft', name:name, display:core, craft:craft.key, slot:slot, gem:craft.gem, rune:sl.rune, base:sl.base, beats:e.beats||'', val:e.val||'', gemHeld:gemHeld, recipe:recipe};
       if(st.ready) out.makeNow.push(tile);
       else if(st.cube) out.afterCubing.push(tile);
-      // v341.12 — show crafts up to TWO ingredients away (not just one) with an accurate count,
-      // so the dashboard surfaces more top-tier options + an honest "N more to go" progression.
-      else if(st.missing && st.missing.length>=1 && st.missing.length<=2){ tile.need=st.missing.join(' + '); tile.awayN=st.missing.length; out.close.push(tile); }
+      // show crafts ≤2 GATING items away (gem/rune/base) — the jewel rides in the displayed count
+      // but doesn't shrink the list. So with a gem+rune in hand, the full Blood lineup still shows.
+      else if(st.gatingMissingN<=2){ tile.need=st.missing.join(' + '); tile.awayN=st.missing.length; out.close.push(tile); }
     });
   } }catch(e){}
   // recalibrate around the committed gem: crafts whose gem you HOLD first (same craft type),
@@ -13427,6 +13441,18 @@ window.renderCreateNow = function(){
     var disp=s.replace(/\s*\([^)]*\)\s*$/,'');  // drop the "(any Ring)" tail — keep the tile compact
     return ic+_askEsc(disp);
   }
+  // v341.18 — the close tile shows the FULL 4-item recipe with per-ingredient HAVE (green ✓) /
+  // need (dim amber) + image, so it reads as a complete recipe (4 items, X held, N to grab).
+  function cnRecipeStatus(p){
+    function ing(i){
+      var ic = i.kind==='base' ? '<span class="cn-rc-g">'+((typeof CRAFT_SLOT_GLYPH!=='undefined'&&CRAFT_SLOT_GLYPH[i.name])?CRAFT_SLOT_GLYPH[i.name]:'🔨')+'</span>'
+             : i.kind==='jewel' ? '<span class="cn-rc-jw"><img src="art/jewel04_graphic.png" alt="" loading="lazy"></span>'
+             : '<span class="cn-rc-i">'+((typeof artOr==='function')?artOr(i.name,'','sm'):'')+'</span>';
+      var lab = i.kind==='base' ? ('magic '+i.name) : i.kind==='jewel' ? 'any jewel' : i.name;
+      return '<span class="cn-rs-ing '+(i.have?'cn-has':'cn-needs')+'" title="'+(i.have?'have ':'need ')+_askEsc(lab)+'">'+ic+(i.have?'<span class="cn-rs-tick">✓</span>':'')+'</span>';
+    }
+    return '<span class="cn-need-n">'+(p.awayN||1)+' more to go</span><span class="cn-recst">'+p.recipe.map(ing).join('')+'</span>';
+  }
   function cnNeedHtml(need, awayN){
     var parts=String(need).split(' + ').map(_cnNeedItem);
     var n=awayN||parts.length;
@@ -13454,7 +13480,7 @@ window.renderCreateNow = function(){
       recipe='<span class="cn-rc">'+(p.runes||[]).map(function(r,i){return (i?'<span class="cn-rc-p">+</span>':'')+'<span class="cn-rc-i" title="'+_askEsc(r)+' rune">'+cnIcon(r)+'</span>';}).join('')+'</span>';
     }
     var beats = (p.beats && !p.need) ? ('<span class="cn-beats" title="rivals/beats '+_askEsc(p.beats)+'">⚔ beats '+_askEsc(p.beats)+'</span>') : '';
-    var sub = p.need ? ('<span class="cn-need">'+cnNeedHtml(p.need, p.awayN)+'</span>') : (recipe + beats);
+    var sub = p.need ? (p.recipe ? cnRecipeStatus(p) : ('<span class="cn-need">'+cnNeedHtml(p.need, p.awayN)+'</span>')) : (recipe + beats);
     return '<div class="cn-tile cn-'+p.kind+'" style="--cn-glow:'+glow+'" role="button" tabindex="0" data-arttip="'+_askEsc(p.name)+'" onclick="window.openDrop&&window.openDrop(\''+String(p.name).replace(/'/g,"\\'")+'\')" title="open '+_askEsc(p.name)+'">'
       +'<span class="cn-ic">'+icon+'</span><span class="cn-body"><span class="cn-name">'+_askEsc(p.display||p.name)+star+'</span>'+sub+'</span><span class="cn-badge">'+badge+'</span></div>';
   }
@@ -13585,6 +13611,12 @@ window.dailyCreateAi = function(force){
       +'.cn-recipe{font-size:10.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       +'.cn-need{display:flex;align-items:center;flex-wrap:wrap;gap:3px;font-size:10.5px;color:#ffb3b3;margin-top:2px}.cn-need img{max-width:16px;max-height:16px}'
       +'.cn-need-n{font-size:8.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#1a1207;background:#f0b86a;border-radius:4px;padding:1px 5px;margin-right:2px}'
+      +'.cn-recst{display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:3px;vertical-align:middle}'
+      +'.cn-rs-ing{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;padding:2px;border:1px solid transparent}'
+      +'.cn-rs-ing img{max-width:20px;max-height:20px;display:block}.cn-rs-ing .cn-rc-g{font-size:15px}.cn-rs-ing .cn-rc-jw img{max-width:18px;max-height:18px}'
+      +'.cn-rs-ing.cn-has{border-color:rgba(95,208,122,.55);background:rgba(95,208,122,.12)}'
+      +'.cn-rs-ing.cn-needs{border-color:rgba(240,176,80,.45);background:rgba(240,176,80,.07);opacity:.62;filter:grayscale(.35)}'
+      +'.cn-rs-tick{position:absolute;right:-3px;bottom:-3px;font-size:9px;color:#0a1a0e;background:#5fd07a;border-radius:50%;width:12px;height:12px;display:flex;align-items:center;justify-content:center;line-height:1}'
       +'.cn-rc{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;margin-top:2px}'
       +'.cn-rc-i{display:inline-flex;align-items:center}.cn-rc-i img{max-width:19px;max-height:19px;vertical-align:middle}'
       +'.cn-rc-g{font-size:15px;margin-right:1px}.cn-rc-p{color:var(--text-dim);font-size:10px;margin:0 1px}.cn-rc-j{color:#9fd0ff;font-size:11px;margin-left:2px;opacity:.8}'
