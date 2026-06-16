@@ -1470,13 +1470,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-ing-nm{color:var(--ing-c,#ffa800);text-shadow:0 0 5px var(--ing-c,#ffa800),0 1px 1px rgba(0,0,0,.5);font-weight:700}
 .cw-ing-badge{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:2px;flex:0 0 auto}
 .cw-bg-have{color:#0a1a0e;background:#5fd07a}.cw-bg-need{color:#1a1207;background:#f0b86a}.cw-bg-basic{color:#0c1018;background:#8fb0e0}
+/* v341.27 — the NEED⇄HAVE badge is its own clickable toggle (distinct from the routing chip body). */
+.cw-ing-badge.cw-toggle{cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.4);transition:filter .12s,transform .08s,box-shadow .12s}
+.cw-ing-badge.cw-toggle:hover{filter:brightness(1.14) saturate(1.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 0 7px currentColor}
+.cw-ing-badge.cw-toggle:active{transform:translateY(1px) scale(.96)}
+.cw-ing-badge.cw-toggle:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.cw-ing-badge.cw-toggle.cw-bg-have::after{content:"⇄";margin-left:3px;opacity:.5;font-size:7px}
+.cw-ing-badge.cw-toggle.cw-bg-need::after{content:"⇄";margin-left:3px;opacity:.5;font-size:7px}
 .cw-rec-out{grid-area:out;font-size:11.5px;line-height:1.45;color:var(--text-muted);padding:3px 0 1px;border-top:1px dashed var(--border)}
 .cw-out-arrow{color:var(--cw-c,#f0c060);font-weight:800;font-size:13px}
 .cw-out-name{color:var(--q-orange);font-weight:700}/* v321: crafted item = in-game orange */
 /* v323: crafted name-example chips — the real in-game rare-name pool per slot */
 .cw-rec-names{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px;font-size:10.5px;color:var(--text-dim)}
 .cw-names-lab{font-size:8.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim)}
-.cw-name-ex{font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;color:var(--q-orange);background:rgba(255,168,0,.08);border:1px solid rgba(255,168,0,.28);border-radius:6px;padding:1px 6px}
+.cw-name-ex{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;color:var(--q-orange);background:rgba(255,168,0,.08);border:1px solid rgba(255,168,0,.28);border-radius:6px;padding:1px 6px 1px 3px;cursor:help;transition:background .12s,box-shadow .12s;text-shadow:0 0 5px currentColor}
+.cw-name-ex:hover{background:rgba(255,168,0,.2);box-shadow:0 0 9px rgba(255,168,0,.45)}
+.cw-name-ex .d2art-wrap.sm{width:18px;height:18px;flex:0 0 auto}
+.cw-name-ex .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
+.cw-name-ex-t{line-height:1}
 .cw-names-note{font-size:10px;font-style:italic;color:var(--text-dim);flex:1 1 100%;opacity:.85}
 /* v323: Best Runeword Bases reference card */
 .rwb-list{display:flex;flex-direction:column;gap:4px;max-height:560px;overflow-y:auto}
@@ -13338,6 +13349,21 @@ function _craftBaseName(craft, slot){ try { return (craft.slots[slot] && craft.s
 window._craftBaseName = _craftBaseName;
 function toggleCraftBase(slot){ if (_baseCount(slot) >= 1) delete craftBaseStash[slot]; else craftBaseStash[slot] = 1; persist(); if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop(); if (typeof renderCreateNow === 'function') renderCreateNow(); }
 window.toggleCraftBase = toggleCraftBase;
+// v341.27 — the gem/rune NEED⇄HAVE badge is its own clickable toggle (the chip BODY still routes to
+// the item card). Marks the real stash: have→need deletes it, need→have sets 1. Re-renders the
+// workshop + the gem/rune stash tools so every dependent chip/count updates live.
+function toggleCraftIng(kind, name){
+  var stash = (kind === 'rune') ? runeStash : gemStash;
+  var cur = (kind === 'rune') ? _runeCount(name) : _gemCount(name);
+  if (cur >= 1) delete stash[name]; else stash[name] = 1;
+  persist();
+  if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop();
+  if (typeof renderCreateNow === 'function') renderCreateNow();
+  if (kind === 'rune' && typeof renderRuneStash === 'function') renderRuneStash();
+  if (kind === 'gem' && typeof renderGemStash === 'function') renderGemStash();
+  if (typeof renderHoradricRecipes === 'function') renderHoradricRecipes();
+}
+window.toggleCraftIng = toggleCraftIng;
 // Live cubeable check for one craft+slot — reads runeStash + gemStash (the same tallies
 // the Gem/Rune planners drive). ready = hold the Perfect gem AND the slot rune outright;
 // cube = could get the Perfect gem by cubing lower grades of its type up the 3→1 chain.
@@ -13800,8 +13826,13 @@ function _cwIngChip(name, have){
   var logo = (typeof nameLogo === 'function') ? nameLogo(name) : '';
   var isRune = (typeof RUNE_INDEX !== 'undefined' && (name in RUNE_INDEX));
   var col = isRune ? '#ffa800' : _gemColor(name);
-  var badge = have ? '<span class="cw-ing-badge cw-bg-have">✓</span>' : '<span class="cw-ing-badge cw-bg-need">need</span>';
-  return '<span class="cw-ing cw-ing-col ' + (have ? 'cw-ing-have' : 'cw-ing-miss') + '" style="--ing-c:' + col + '" data-arttip="' + name + '" onclick="event.stopPropagation();window.openDrop&&window.openDrop(\'' + esc + '\')" title="' + (have ? 'in your stash — ' : 'not in your stash — ') + 'open the ' + name + ' card">' + logo + '<span class="cw-ing-nm">' + name + '</span>' + badge + '</span>';
+  var kind = isRune ? 'rune' : 'gem';
+  // v341.27 — badge is an independent toggle: click it to flip NEED⇄HAVE without routing.
+  var badge = '<span class="cw-ing-badge cw-toggle ' + (have ? 'cw-bg-have' : 'cw-bg-need') + '" role="button" tabindex="0"'
+    + ' onclick="event.stopPropagation();window.toggleCraftIng(\'' + kind + '\',\'' + esc + '\')"'
+    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();event.stopPropagation();window.toggleCraftIng(\'' + kind + '\',\'' + esc + '\');}"'
+    + ' title="' + (have ? 'You have this — click to mark NEED' : 'You need this — click to mark HAVE') + '">' + (have ? '✓ have' : '＋ need') + '</span>';
+  return '<span class="cw-ing cw-ing-col ' + (have ? 'cw-ing-have' : 'cw-ing-miss') + '" style="--ing-c:' + col + '" data-arttip="' + name + '" onclick="event.stopPropagation();window.openDrop&&window.openDrop(\'' + esc + '\')" title="' + (have ? 'in your stash — ' : 'not in your stash — ') + 'open the ' + name + ' card (the ✓/＋ badge toggles have/need)">' + logo + '<span class="cw-ing-nm">' + name + '</span>' + badge + '</span>';
 }
 // Where the BASIC ingredients come from, by slot — vendor/gamble/find items you effectively
 // always have (so they never gate "cubeable": only the gem + rune do).
@@ -13862,7 +13893,14 @@ function _cwRecipeRow(craft, s, withStepper){
       + _cwBasicChip('any jewel', 'any jewel — magic jewels drop constantly') + _cwBaseChip(s, st.haveBase, rec.base) + '</div>'
     + '<div class="cw-rec-out"><span class="cw-out-arrow">→</span> creates <b class="cw-out-name">' + craft.key + ' ' + s + '</b> <span class="cw-out-rare">crafted rare</span> — <span class="cw-out-mods">' + craft.mods.join(' · ') + '</span> <span class="cw-out-extra">+ 1–4 random affixes</span></div>'
     + '<div class="cw-rec-base"><b>base options:</b> ' + rec.base + ' <span class="cw-base-src">· ' + (CRAFT_BASE_SOURCE[s] || '') + '</span></div>'
-    + (CRAFT_NAME_EXAMPLES[s] ? '<div class="cw-rec-names"><span class="cw-names-lab">shows in-game as</span> ' + CRAFT_NAME_EXAMPLES[s].map(function(nm){ return '<span class="cw-name-ex">' + nm + '</span>'; }).join('') + '<span class="cw-names-note">— a random 2-word rare name from this slot\'s pool; the GUARANTEED mods above are how you ID the craft</span></div>' : '')
+    + (CRAFT_NAME_EXAMPLES[s] ? '<div class="cw-rec-names"><span class="cw-names-lab">shows in-game as</span> ' + (function(){
+        var baseArt = String(rec.base || '').split(/[·,]/)[0].trim();   // first base option → HD art resembling the craft
+        var thumb = (typeof artOr === 'function') ? artOr(baseArt, CRAFT_SLOT_GLYPH[s] || '🔨', 'sm') : '';
+        return CRAFT_NAME_EXAMPLES[s].map(function(nm){
+          var enc = (craft.key + '|' + s + '|' + baseArt).replace(/"/g, '&quot;');
+          return '<span class="cw-name-ex" data-arttip="' + String(nm).replace(/"/g,'&quot;') + '" data-craftex="' + enc + '">' + thumb + '<span class="cw-name-ex-t">' + nm + '</span></span>';
+        }).join('');
+      })() + '<span class="cw-names-note">— a random 2-word rare name from this slot\'s pool; the GUARANTEED mods above are how you ID the craft (hover for the buff ranges)</span></div>' : '')
     + '<span class="cw-rec-stat ' + statusCls + '" title="cubeable = you hold the Perfect gem + the slot rune + a magic ' + s + ' base (mark the base ✓ when you have one). The jewel is the only assumed-on-hand item.">' + statusTxt + '</span>'
     + stepper
     + '</div>';
@@ -14577,6 +14615,17 @@ function _craftBuffsHtml(nm, e){
     +'<div class="att-result-h">🎁 result — buffs <span class="att-craft-fg">floor → <b class="att-godly">godly</b></span></div>'+g+chase+bis+grail+'</div>';
 }
 window._craftBuffsHtml = _craftBuffsHtml;
+// v341.28 — rich tooltip for a "shows in-game as" example NAME chip (e.g. "Brimstone Grip"): names
+// the craft it represents + reuses the floor→godly buff ranges so these read like every other item.
+function _craftExampleTipHtml(craftKey, slot, exName){
+  if (typeof CRAFTS === 'undefined') return '';
+  var ck=null; for (var i=0;i<CRAFTS.length;i++){ if (CRAFTS[i].key===craftKey){ ck=CRAFTS[i]; break; } }
+  if (!ck) return '';
+  var head = '<div class="att-type" style="color:var(--q-orange)">Crafted Rare &middot; ' + slot + '</div>'
+    + '<div class="att-meta">“' + exName + '” — one random 2-word name a <b style="color:var(--q-orange)">' + craftKey + ' ' + slot + '</b> craft can roll. The guaranteed mods below are how you ID it.</div>';
+  return head + _craftBuffsHtml(craftKey, { cat:'Crafted', base:slot });
+}
+window._craftExampleTipHtml = _craftExampleTipHtml;
 window._extraTipHtml = _extraTipHtml;
 // v341.5 — rich golden tooltip for a "magic <slot> base" picker row: shows the real base
 // OPTIONS per craft (with the craft's Perfect-gem icon), since magic bases have no single
@@ -14640,7 +14689,22 @@ window._jewelTipHtml = _jewelTipHtml;
     }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
-      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch'); if (!el) return;
+      var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
+      // v341.28 — "shows in-game as" craft example chips float the craft's RESULT card: the
+      // guaranteed mods + affix RANGES (floor→godly), same as every other item tooltip.
+      var cex = el.getAttribute && el.getAttribute('data-craftex');
+      if (cex){
+        var cp = cex.split('|'); var exn = el.getAttribute('data-arttip') || cp[0];
+        var caurl = (typeof artUrl==='function') ? (artUrl(cp[2]||'') || artUrl(cp[1]||'')) : '';
+        cur = el;
+        img.src = caurl || ''; img.style.display = caurl ? '' : 'none';
+        lab.textContent = exn; lab.style.color = 'var(--q-orange)';
+        desc.innerHTML = (typeof _craftExampleTipHtml==='function') ? _craftExampleTipHtml(cp[0], cp[1], exn) : '';
+        tip.classList.remove('tip-art','tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune','tip-r-basic');
+        tip.classList.add('tip-rich','tip-r-crafted');
+        move(e); tip.classList.add('on');
+        return;
+      }
       // context-aware: hovering the TINY art thumbnail itself (.d2art-wrap, which
       // closest() resolves before any ancestor name row) floats the ENLARGED image
       // only — no stat card. Hovering the item NAME floats the rich description card.
@@ -14708,7 +14772,7 @@ window._jewelTipHtml = _jewelTipHtml;
     // mouseover's (missing .colossal-tile/.top-drop-row/etc.), so hovering those never cleared it.
     // Now mousemove SELF-CORRECTS: if the cursor is no longer over the element that opened the
     // tip, hide it immediately. This is selector-agnostic and can't get stuck.
-    var ARTTIP_SEL = '.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch';
+    var ARTTIP_SEL = '.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]';
     document.addEventListener('mousemove', function(e){
       if (!cur) return;
       if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; }
