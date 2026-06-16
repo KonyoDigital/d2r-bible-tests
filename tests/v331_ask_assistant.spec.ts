@@ -176,6 +176,34 @@ test('v341.2 the preview picker is a custom ART-RICH menu (rune/gem HD icons, ba
   expect(r.chipArt).toBe(true);    // the sandbox chip shows art too
 });
 
+test('v341.3 dashboard tiles render with in-game rarity glow + icon-chip recipes + beats line', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    ['Tal','Thul','Ort','Amn'].forEach((n) => w.adjustRuneStash(n, 2));   // → Spirit (runeword, orange)
+    w.adjustGemStash('Perfect Ruby', 1); w.adjustRuneStash('Nef', 1); w.toggleCraftBase('Gloves'); // → Blood Gloves
+    w.renderCreateNow();
+    const host = document.getElementById('create-now')!;
+    const tiles = [...host.querySelectorAll('.cn-tile')] as HTMLElement[];
+    const rw = tiles.find((t) => /Spirit/.test(t.textContent || ''));
+    const craft = tiles.find((t) => /Blood Gloves/.test(t.textContent || ''));
+    const orange = (el: HTMLElement | undefined) => (el?.getAttribute('style') || '').includes('#ffa800');
+    return {
+      runewordOrange: orange(rw),                                  // runewords = orange tier
+      craftOrange: orange(craft),                                  // crafts = orange tier
+      runewordRuneIcons: (rw?.querySelectorAll('.cn-rc-i img').length || 0) >= 3,  // Tal+Thul+Ort+Amn icons
+      craftHasGemRuneIcons: (craft?.querySelectorAll('.cn-rc-i img').length || 0) >= 2,
+      craftBeats: !!craft?.querySelector('.cn-beats'),             // "⚔ beats Magefist + Frostburn"
+      noTruncatedText: !/Sharkskin · Vam/.test(host.textContent || ''),  // recipe is icons, not cut-off text
+    };
+  });
+  expect(r.runewordOrange).toBe(true);
+  expect(r.craftOrange).toBe(true);
+  expect(r.runewordRuneIcons).toBe(true);     // rune sequence shown as HD icons
+  expect(r.craftHasGemRuneIcons).toBe(true);
+  expect(r.craftBeats).toBe(true);
+  expect(r.noTruncatedText).toBe(true);
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {
