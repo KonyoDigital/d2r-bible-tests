@@ -1132,7 +1132,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cbt-gem{flex:0 0 auto;display:inline-flex}.cbt-gem img{max-width:18px;max-height:18px}
 .cbt-craft{font-size:10px;font-weight:800;color:var(--cw-c,#b48ce0);min-width:46px}
 .cbt-bases{display:flex;flex-wrap:wrap;gap:3px}
-.cbt-base{font-size:9.5px;color:#d8c8a0;background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.28);border-radius:4px;padding:1px 5px}
+.cbt-base{font-size:9.5px;color:#aebfff;background:rgba(105,105,255,.12);border:1px solid rgba(105,105,255,.34);border-radius:4px;padding:1px 5px}/* magic-blue: these are magic-quality bases */
 .rs-name{font-weight:600;font-size:12px;color:var(--q-orange);min-width:34px}/* v321: runes orange */
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -14415,7 +14415,7 @@ function _craftBaseTipHtml(slot){
     var bases=String(sl.base).split('·').map(function(b){ return '<span class="cbt-base">'+b.trim()+'</span>'; }).join('');
     return '<div class="cbt-row" style="--cw-c:'+c.color+'"><span class="cbt-gem" title="'+c.gem+'">'+gi+'</span><span class="cbt-craft">'+c.key+'</span><span class="cbt-bases">'+bases+'</span></div>';
   }).join('');
-  return '<div class="att-basecard"><div class="att-type">'+glyph+' Magic '+slot+' base</div>'
+  return '<div class="att-basecard"><div class="att-type att-magic" style="color:#9fb0ff;text-shadow:0 0 7px rgba(105,105,255,.5)">'+glyph+' Magic '+slot+' base</div>'
     +'<div class="att-basenote">A magic (blue) '+slot+' to craft onto — <b>any</b> of these bases works; higher tiers roll higher. Choose by the craft you want:</div>'
     +'<div class="att-baserule">⚠ Crafting <b>only</b> works on a <b>MAGIC</b> base — a rare, unique or normal '+slot.toLowerCase()+' can\'t be crafted on.</div>'
     +rows
