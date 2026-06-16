@@ -10,7 +10,7 @@
 export const BOSS_CHIPS_TOTAL = 13;
 
 // The calculator grid's full grail item count.
-export const CALC_ITEMS_TOTAL = 312;
+export const CALC_ITEMS_TOTAL = 322;
 
 // Collapsible .sec-h sections on the binds tab — bump in LOCKSTEP when adding
 // a binds section (the v109 memory rule).
