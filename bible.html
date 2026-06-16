@@ -1095,6 +1095,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #arttip .att-var{display:inline-block;color:#5fd35f;background:rgba(95,211,95,.1);border:1px solid rgba(95,211,95,.35);border-radius:4px;padding:0 4px;font-weight:700}
 #arttip .att-or{color:var(--gold-bright,#f0c060);font-weight:700;font-style:italic;padding:0 2px}
 #arttip .att-tag{color:#b58bd6;font-size:9px;margin-top:6px;letter-spacing:.4px}
+/* v340 — crafted buff ranges (floor → godly) in the floating tooltip + ID card */
+#arttip .att-craft,.gic-card .att-craft{margin:7px 0 2px;padding:7px 9px;border-radius:8px;background:color-mix(in srgb,var(--cw-c,#b48ce0) 9%,rgba(12,9,5,.35));border:1px solid color-mix(in srgb,var(--cw-c,#b48ce0) 32%,transparent)}
+.att-craft-h{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--cw-c,#b48ce0);margin-bottom:3px}
+.att-craft-fg{color:var(--text-dim);font-weight:600;text-transform:none;letter-spacing:0}
+.att-craft .att-aff{color:#d8d8d8;margin:3px 0 0;font-size:11.5px}
+.att-godly{color:#7fff7f;font-weight:800}
+.att-chase{margin-top:5px;font-size:10.5px;color:var(--text-muted);line-height:1.5}
 .rs-name{font-weight:600;font-size:12px;color:var(--q-orange);min-width:34px}/* v321: runes orange */
 .rs-count{font-family:ui-monospace,monospace;font-size:13px;color:var(--gold-bright);margin-left:auto;min-width:18px;text-align:right}
 .rs-btn{width:20px;height:20px;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text);border-radius:4px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .12s,border-color .12s}
@@ -1386,6 +1393,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-ing-basic{border-color:rgba(150,170,210,.34);background:rgba(150,170,210,.08);color:#bcc8e0;cursor:help}
 .cw-ing-basic:hover{background:rgba(150,170,210,.16)}
 .cw-basic-tag{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-left:1px}
+.cw-ing-base{cursor:pointer}
+.cw-ing.cw-ing-have:hover{background:rgba(63,191,106,.22)}
+.cw-ing-need{border-color:rgba(240,176,80,.5);background:rgba(240,176,80,.1);color:#f0b050}
+.cw-ing-need:hover{background:rgba(240,176,80,.2)}
+.cw-base-tag{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-left:1px}
 .cw-rec-out{grid-area:out;font-size:11.5px;line-height:1.45;color:var(--text-muted);padding:3px 0 1px;border-top:1px dashed var(--border)}
 .cw-out-arrow{color:var(--cw-c,#f0c060);font-weight:800;font-size:13px}
 .cw-out-name{color:var(--q-orange);font-weight:700}/* v321: crafted item = in-game orange */
@@ -9331,6 +9343,11 @@ let gemStash = _safeJsonParse(LS.getItem('d2r_gemStash'), {});
 // finished crafted rares the user owns. Ingredients are NOT stored here (cubeable status
 // reads live from runeStash + gemStash); this tracks only completed crafts (📸 AI intake).
 let craftStash = _safeJsonParse(LS.getItem('d2r_craftStash'), {});
+// v341 — magic BASE items the player actually has, keyed by slot ('Gloves','Amulet',…).
+// HONESTY: a craft needs a magic base of the right type; the bible NO LONGER auto-assumes
+// you own one. Default = empty (own nothing) → the dashboard/AI tells you the exact base
+// you still need. Konyo toggles a base owned per slot in the workshop / preview sandbox.
+let craftBaseStash = _safeJsonParse(LS.getItem('d2r_craftBaseStash'), {});
 
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
@@ -9383,6 +9400,7 @@ const persist = () => {
   LS.setItem('d2r_materialStash', JSON.stringify(materialStash));
   LS.setItem('d2r_gemStash', JSON.stringify(gemStash));
   LS.setItem('d2r_craftStash', JSON.stringify(craftStash));
+  LS.setItem('d2r_craftBaseStash', JSON.stringify(craftBaseStash));
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
 };
 
@@ -9638,7 +9656,8 @@ function extraItemDetailHtml(name){
     + '<div class="gic-meta-row"><span class="gic-meta-chip">reference card</span>' + sockChip + valChip + (isStar ? '<span class="gic-meta-chip gic-star-chip">★ beats ' + e.beats + '</span>' : '<span class="gic-meta-chip" style="color:' + col + ';border-color:' + col + '55">rivals runewords / uniques</span>') + '</div></div>'
     + '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div></header>'
     + beatsBanner
-    + '<section class="gic-section"><div class="gic-section-title">📜 ' + (rar === 'unique' ? 'In-game stats' : 'What makes it godly') + '</div>' + body + '</section>'
+    + '<section class="gic-section"><div class="gic-section-title">📜 ' + (rar === 'unique' ? 'In-game stats' : 'What makes it godly') + '</div>' + body
+    + (typeof _craftBuffsHtml === 'function' ? _craftBuffsHtml(key, e) : '') + '</section>'
     + _extraCraftRecipeHtml(key, e)
     + '<div class="zd-note">A best-of-the-best item that rivals runewords / uniques — shown as a reference card, outside the curated 312-item boss-drop grail (so no drop-odds row). The Vault logs your actual finds on intake. The list grows as we identify more.</div>'
     + '</div>';
@@ -13181,6 +13200,16 @@ function adjustCraftStash(craftKey, slot, delta){
 window.adjustCraftStash = adjustCraftStash;
 function clearCraftStash(){ if (Object.keys(craftStash).length && !confirm('Clear every crafted-item you\'ve logged as owned?')) return; craftStash = {}; persist(); renderCraftWorkshop(); }
 window.clearCraftStash = clearCraftStash;
+// v341 — HONEST base tracking. A craft needs a MAGIC base item of the slot type. We no
+// longer auto-assume you own one: _baseCount reads craftBaseStash (preview-overridable via
+// _previewWrap → previewStash.bases), keyed by slot. Konyo toggles "I have a magic <slot>"
+// per slot. _craftBaseName(craft,slot) is the human "what to grab" hint (the named tiers).
+function _baseCount(slot){ var real = parseInt(craftBaseStash[slot], 10); real = (isFinite(real) && real > 0) ? real : 0; var pv = (window.previewStash && window.previewStash.bases) ? parseInt(window.previewStash.bases[slot], 10) : 0; pv = (isFinite(pv) && pv > 0) ? pv : 0; return window.previewStash ? (real + pv) : real; }
+window._baseCount = _baseCount;
+function _craftBaseName(craft, slot){ try { return (craft.slots[slot] && craft.slots[slot].base) || ('magic ' + slot); } catch (e) { return 'magic ' + slot; } }
+window._craftBaseName = _craftBaseName;
+function toggleCraftBase(slot){ if (_baseCount(slot) >= 1) delete craftBaseStash[slot]; else craftBaseStash[slot] = 1; persist(); if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop(); if (typeof renderCreateNow === 'function') renderCreateNow(); }
+window.toggleCraftBase = toggleCraftBase;
 // Live cubeable check for one craft+slot — reads runeStash + gemStash (the same tallies
 // the Gem/Rune planners drive). ready = hold the Perfect gem AND the slot rune outright;
 // cube = could get the Perfect gem by cubing lower grades of its type up the 3→1 chain.
@@ -13189,11 +13218,17 @@ function _craftSlotReady(craft, slot){
   var haveRune = (typeof _runeCount === 'function') ? _runeCount(rune) >= 1 : false;
   var haveGem = (typeof _gemCount === 'function') ? _gemCount(craft.gem) >= 1 : false;
   var haveGemCubed = (typeof gemCubeUpPotential === 'function') ? gemCubeUpPotential(craft.gemType, 4) >= 1 : false;
+  var haveBase = _baseCount(slot) >= 1;            // v341 — honest: magic base is a real ingredient
+  var baseName = _craftBaseName(craft, slot);
   var missing = [];
+  if (!haveBase) missing.push('magic ' + slot + ' base (' + baseName + ')');
   if (!haveGem) missing.push(craft.gem);
   if (!haveRune) missing.push(rune + ' rune');
-  return { rune: rune, haveRune: haveRune, haveGem: haveGem, haveGemCubed: haveGemCubed,
-           ready: haveGem && haveRune, cube: !(haveGem && haveRune) && haveGemCubed && haveRune, missing: missing };
+  var ingredientsReady = haveGem && haveRune;      // the cubeable runes+gem (the "consumables")
+  return { rune: rune, baseName: baseName, haveRune: haveRune, haveGem: haveGem, haveGemCubed: haveGemCubed, haveBase: haveBase,
+           ingredientsReady: ingredientsReady,     // gem+rune in hand, regardless of base
+           ready: ingredientsReady && haveBase,    // ⭐ HONEST: can actually cube it right now
+           cube: !ingredientsReady && haveGemCubed && haveRune && haveBase, missing: missing };
 }
 window._craftSlotReady = _craftSlotReady;
 
@@ -13249,16 +13284,20 @@ window._previewWrap = function(fn){
   finally { runeStash=rR; gemStash=rG; }   // real tallies + localStorage never written
 };
 window.togglePreview = function(){
-  window.previewStash = window.previewStash ? null : { runes:{}, gems:{} };
+  window.previewStash = window.previewStash ? null : { runes:{}, gems:{}, bases:{} };
   window.renderCreateNow();
 };
-window.previewAdd = function(name, isGem){
-  if(!window.previewStash) window.previewStash={runes:{},gems:{}};
-  var bag = isGem ? window.previewStash.gems : window.previewStash.runes;
+// kind: 'gem' → gems · 'base' → magic base by slot · else (default) → runes. (Back-compat:
+// previewAdd(name, true) still means a gem.) Bases are keyed by SLOT name.
+window.previewAdd = function(name, kind){
+  if(!window.previewStash) window.previewStash={runes:{},gems:{},bases:{}};
+  if(!window.previewStash.bases) window.previewStash.bases={};
+  var k = (kind===true||kind==='gem') ? 'gems' : (kind==='base' ? 'bases' : 'runes');
+  var bag = window.previewStash[k];
   bag[name] = (parseInt(bag[name],10)||0) + 1;
   window.renderCreateNow();
 };
-window.previewClear = function(){ if(window.previewStash){ window.previewStash={runes:{},gems:{}}; window.renderCreateNow(); } };
+window.previewClear = function(){ if(window.previewStash){ window.previewStash={runes:{},gems:{},bases:{}}; window.renderCreateNow(); } };
 window.buildAskSnapshot = function(){
   function names(arr){ try{ return (arr||[]).map(function(x){ return x && (x.name||x.n||x); }).filter(Boolean); }catch(e){ return []; } }
   function nonzero(o){ var r={}; try{ Object.keys(o||{}).forEach(function(k){ var v=parseInt(o[k],10); if(v>0)r[k]=v; }); }catch(e){} return r; }
@@ -13273,6 +13312,7 @@ window.buildAskSnapshot = function(){
   try { snap.tally.runes = nonzero(typeof runeStash!=='undefined'?runeStash:{}); }catch(e){}
   try { snap.tally.gems = nonzero(typeof gemStash!=='undefined'?gemStash:{}); }catch(e){}
   try { snap.tally.materials = nonzero(typeof materialStash!=='undefined'?materialStash:{}); }catch(e){}
+  try { snap.tally.craftBasesOwned = nonzero(typeof craftBaseStash!=='undefined'?craftBaseStash:{}); }catch(e){}  // v341: magic bases the player has (by slot) — NOT auto-assumed
   try { snap.owned.count=(typeof owned!=='undefined')?owned.size:0; snap.owned.setPieces=(typeof setPieces!=='undefined')?setPieces.size:0; }catch(e){}
   try { snap.topPicks = window.buildTopPicks(); }catch(e){}  // v335: ranked top-tier opportunities
   return snap;
@@ -13339,12 +13379,15 @@ window.renderCreateNow = function(){
     var GEMS=['Perfect Amethyst','Perfect Topaz','Perfect Sapphire','Perfect Emerald','Perfect Ruby','Perfect Diamond','Perfect Skull','Flawless Amethyst','Flawless Topaz','Flawless Sapphire','Flawless Emerald','Flawless Ruby','Flawless Diamond','Flawless Skull'];
     var ropts=RUNES.map(function(r){return '<option value="r:'+r+'">'+r+' rune</option>';}).join('');
     var gopts=GEMS.map(function(g){return '<option value="g:'+g+'">'+g+'</option>';}).join('');
-    var chips=[]; Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(k+'×'+pv.runes[k]); }); Object.keys(pv.gems).forEach(function(k){ if(pv.gems[k]>0) chips.push(k+'×'+pv.gems[k]); });
-    pvBar='<div class="cn-preview"><div class="cn-pv-note">🧪 <b>Preview</b> — simulating extra runes/gems on a <b>sandbox</b>. Your real tallies &amp; every other section are <b>untouched</b>. Toggle off to return to your real stash.</div>'
-      +'<div class="cn-pv-row"><select id="cn-pv-pick" class="cn-pv-sel"><optgroup label="Runes">'+ropts+'</optgroup><optgroup label="Gems">'+gopts+'</optgroup></select>'
-      +'<button class="cn-pv-add" onclick="var s=document.getElementById(\'cn-pv-pick\').value;window.previewAdd(s.slice(2), s[0]===\'g\')">➕ add to sandbox</button>'
+    // v341 — magic BASE items (one per slot). A craft needs a magic base of the slot type; it
+    // is NOT auto-owned, so add it here to simulate "if I had the gloves base to craft on".
+    var bopts=(typeof CRAFT_SLOTS!=='undefined'?CRAFT_SLOTS:[]).map(function(sl){return '<option value="b:'+sl+'">magic '+sl+' base</option>';}).join('');
+    var chips=[]; Object.keys(pv.runes).forEach(function(k){ if(pv.runes[k]>0) chips.push(k+'×'+pv.runes[k]); }); Object.keys(pv.gems).forEach(function(k){ if(pv.gems[k]>0) chips.push(k+'×'+pv.gems[k]); }); Object.keys(pv.bases||{}).forEach(function(k){ if(pv.bases[k]>0) chips.push('magic '+k+' base'); });
+    pvBar='<div class="cn-preview"><div class="cn-pv-note">🧪 <b>Preview</b> — simulating extra runes, gems &amp; magic bases on a <b>sandbox</b>. Your real tallies &amp; every other section are <b>untouched</b>. Toggle off to return to your real stash.</div>'
+      +'<div class="cn-pv-row"><select id="cn-pv-pick" class="cn-pv-sel"><optgroup label="Runes">'+ropts+'</optgroup><optgroup label="Gems">'+gopts+'</optgroup><optgroup label="Craft Bases (magic)">'+bopts+'</optgroup></select>'
+      +'<button class="cn-pv-add" onclick="var s=document.getElementById(\'cn-pv-pick\').value;window.previewAdd(s.slice(2), s[0]===\'g\'?\'gem\':(s[0]===\'b\'?\'base\':\'rune\'))">➕ add to sandbox</button>'
       +(chips.length?'<button class="cn-pv-clear" onclick="window.previewClear()">✕ clear sandbox</button>':'')+'</div>'
-      +(chips.length?('<div class="cn-pv-chips"><span class="cn-pv-lab">sandbox:</span> '+chips.map(function(c){return '<span class="cn-pv-chip">'+_askEsc(c)+'</span>';}).join('')+'</div>'):'<div class="cn-pv-empty">add runes/gems above → the dashboard shows what they’d unlock</div>')
+      +(chips.length?('<div class="cn-pv-chips"><span class="cn-pv-lab">sandbox:</span> '+chips.map(function(c){return '<span class="cn-pv-chip">'+_askEsc(c)+'</span>';}).join('')+'</div>'):'<div class="cn-pv-empty">add runes, gems &amp; a magic base above → the dashboard shows what they’d unlock</div>')
       +'</div>';
   }
   host.innerHTML='<div class="cn-head"><span class="cn-title">✨ What you can create now'+(pv?' <span class="cn-pv-badge">PREVIEW</span>':'')+'</span><span class="cn-meta">'+pvToggle+' <span class="cn-when">auto-updated daily'+(when?(' · '+when):'')+'</span> <button class="cn-refresh" onclick="window.renderCreateNow();window.dailyCreateAi(true)" title="refresh + re-ask the AI now">🔄</button></span></div>'+pvBar+aiBanner+body;
@@ -13487,9 +13530,18 @@ const CRAFT_REROLL = {
   Safety:['+All Resistances','more Damage / Magic-Damage Reduced','+% Enhanced Defense','Faster Hit Recovery','+Life'],
   'Hit Power':['+Life','+Strength / Dexterity','+to Attack Rating','+Min/Max Damage','Faster Hit Recovery']
 };
-// A basic/vendor ingredient chip — styled as "you always have this" (jewel, magic base).
+// A basic/vendor ingredient chip — styled as "you always have this" (jewel only now).
 function _cwBasicChip(label, source){
   return '<span class="cw-ing cw-ing-basic" title="' + source + ' — a basic item, assumed on hand (never gates cubeable)">' + label + ' <span class="cw-basic-tag">basic ✓</span></span>';
+}
+// v341 — the magic BASE is NOT auto-owned. A real, click-to-toggle ingredient: green ✓ when
+// you've told the bible you have a magic base of this slot, amber ＋ "need" otherwise. Gates
+// the craft honestly (the dashboard/AI then says exactly which base you still need to grab).
+function _cwBaseChip(slot, have, baseHint){
+  var esc = slot.replace(/'/g, "\\'");
+  return '<button class="cw-ing cw-ing-base ' + (have ? 'cw-ing-have' : 'cw-ing-need') + '" onclick="event.stopPropagation();window.toggleCraftBase(\'' + esc + '\')" '
+    + 'title="' + (have ? 'You have a magic ' + slot + ' base — click to un-mark' : 'You need a magic (blue) ' + slot + ' base to craft onto (' + baseHint + '). Click when you have one.') + '">'
+    + 'magic ' + slot + ' base <span class="cw-base-tag">' + (have ? '✓ have' : '＋ need') + '</span></button>';
 }
 // One enriched recipe row: inputs (gem + rune gate cubeable; jewel + base are basic) → the
 // exact crafted item created, its guaranteed mods, base options, status, and (optional) owned stepper.
@@ -13510,11 +13562,11 @@ function _cwRecipeRow(craft, s, withStepper){
     + '<span class="cw-rec-glyph">' + (CRAFT_SLOT_GLYPH[s] || '🔨') + '</span>'
     + '<div class="cw-rec-head"><span class="cw-rec-slot">' + s + '</span>' + best + '</div>'
     + '<div class="cw-rec-ing"><span class="cw-ing-lab">cube</span>' + _cwIngChip(craft.gem, st.haveGem) + _cwIngChip(rec.rune, st.haveRune)
-      + _cwBasicChip('any jewel', 'any jewel — magic jewels drop constantly') + _cwBasicChip('magic ' + s, 'the blue (magic-quality) ' + s + ' you craft ONTO — it becomes the crafted item. ' + (CRAFT_BASE_SOURCE[s] || 'find or gamble a magic base') + '. See base options below.') + '</div>'
+      + _cwBasicChip('any jewel', 'any jewel — magic jewels drop constantly') + _cwBaseChip(s, st.haveBase, rec.base) + '</div>'
     + '<div class="cw-rec-out"><span class="cw-out-arrow">→</span> creates <b class="cw-out-name">' + craft.key + ' ' + s + '</b> <span class="cw-out-rare">crafted rare</span> — <span class="cw-out-mods">' + craft.mods.join(' · ') + '</span> <span class="cw-out-extra">+ 1–4 random affixes</span></div>'
     + '<div class="cw-rec-base"><b>base options:</b> ' + rec.base + ' <span class="cw-base-src">· ' + (CRAFT_BASE_SOURCE[s] || '') + '</span></div>'
     + (CRAFT_NAME_EXAMPLES[s] ? '<div class="cw-rec-names"><span class="cw-names-lab">shows in-game as</span> ' + CRAFT_NAME_EXAMPLES[s].map(function(nm){ return '<span class="cw-name-ex">' + nm + '</span>'; }).join('') + '<span class="cw-names-note">— a random 2-word rare name from this slot\'s pool; the GUARANTEED mods above are how you ID the craft</span></div>' : '')
-    + '<span class="cw-rec-stat ' + statusCls + '" title="cubeable = you hold the Perfect gem + the slot rune; the jewel &amp; magic base are basic vendor/find items, assumed on hand">' + statusTxt + '</span>'
+    + '<span class="cw-rec-stat ' + statusCls + '" title="cubeable = you hold the Perfect gem + the slot rune + a magic ' + s + ' base (mark the base ✓ when you have one). The jewel is the only assumed-on-hand item.">' + statusTxt + '</span>'
     + stepper
     + '</div>';
 }
@@ -13539,7 +13591,7 @@ function renderCraftWorkshop(){
   // ── selected craft: guaranteed mods + per-slot recipes ──
   var craft = _CRAFT_INDEX[_craftSel.toLowerCase()];
   var slotMode = _craftSlotSel !== 'all';
-  var basicLegend = '<div class="cw-basic-legend">🧰 <b>Basic items you always have</b> (these never block “cubeable”): <b>any jewel</b> + a <b>magic base</b> — rings &amp; amulets you gamble or vendor-buy, armour &amp; weapons you find or gamble. Crafting uses <b>no scrolls or potions</b>; only the <b>perfect gem + slot rune</b> are worth tracking, and this tool checks those against your stash.</div>';
+  var basicLegend = '<div class="cw-basic-legend">🧰 <b>Recipe ingredients:</b> the <b>Perfect gem</b> + <b>slot rune</b> are tracked from your stash, plus a <b>magic (blue) base</b> of the slot — <b>click the “magic … base” chip</b> on a row to mark you have one (it is <b>NOT</b> auto-assumed, so this tells you honestly what you still need). <b>Any jewel</b> is the only assumed-on-hand item (they drop constantly). No scrolls or potions.</div>';
   var guaranteed, rows, readyCount, recipesHtml;
   if (!slotMode){
     // ALL SLOTS — the selected craft's 9 recipes, with its guaranteed mods + reroll targets.
@@ -13554,7 +13606,7 @@ function renderCraftWorkshop(){
     if (_craftReadyOnly) slots = slots.filter(function(s){ return _craftSlotReady(craft, s).ready; });
     readyCount = CRAFT_SLOTS.filter(function(s){ return _craftSlotReady(craft, s).ready; }).length;
     rows = slots.map(function(s){ return _cwRecipeRow(craft, s, true); });
-    recipesHtml = rows.length ? rows.join('') : '<div class="rw-empty">No ' + craft.key + ' slot is cubeable from your current Gem + Rune Stash yet — tally a Perfect ' + craft.gemType + ' + the slot rune above (the jewel &amp; magic base are basic items you always have).</div>';
+    recipesHtml = rows.length ? rows.join('') : '<div class="rw-empty">No ' + craft.key + ' slot is cubeable from your current stash yet — tally a Perfect ' + craft.gemType + ' + the slot rune above, and mark the magic base you have on a row (the jewel is the only assumed item).</div>';
   } else {
     // ONE SLOT, ALL 4 CRAFTS — "every way to craft this slot" (the gem decides the craft).
     var slot = _craftSlotSel, glyph = CRAFT_SLOT_GLYPH[slot] || '🔨';
@@ -13632,7 +13684,7 @@ function craftDetailHtml(name){
     + reroll
     + (c.konyo ? '<div class="success" style="margin:0 0 14px">⭐ <strong>' + c.konyo + '</strong></div>' : '')
     + '<section class="gic-section"><div class="gic-section-title">🔨 Every slot — what it creates, recipe &amp; live cubeable status</div><div class="cw-recipes" style="max-height:none">' + rows + '</div></section>'
-    + '<div class="zd-note">Cube a <strong>magic (blue) base</strong> + <strong>' + c.gem + '</strong> + <strong>any jewel</strong> + the <strong>slot rune</strong> → a crafted <strong>' + c.key + '</strong> rare. The perfect gem decides the craft; the rune only varies by slot. The jewel &amp; magic base are basic vendor/find items (assumed on hand) — only the gem &amp; rune are tracked: green = you hold them. Full planner: the 🔨 Crafted Items Workshop in the Tools tab. Source: maxroll.gg — RotW may retune the random-affix pool, verify in-game.</div>'
+    + '<div class="zd-note">Cube a <strong>magic (blue) base</strong> + <strong>' + c.gem + '</strong> + <strong>any jewel</strong> + the <strong>slot rune</strong> → a crafted <strong>' + c.key + '</strong> rare. The perfect gem decides the craft; the rune only varies by slot. The gem, rune <strong>and a magic base</strong> are tracked (the base is NOT auto-assumed — mark it when you have one); only the jewel is assumed on hand. Full planner: the 🔨 Crafted Items Workshop in the Tools tab. Source: maxroll.gg — RotW may retune the random-affix pool, verify in-game.</div>'
     + '</div>';
 }
 window.craftDetailHtml = craftDetailHtml;
@@ -14143,9 +14195,24 @@ function _extraTipHtml(nm){
     + beatsLine
     + statLines
     + (e.desc && !statLines ? '<div class="att-aff">' + e.desc + '</div>' : '')
+    + _craftBuffsHtml(nm, e)
     + '<div class="att-tag">rolls: ' + roll + '</div>'
     + '<div class="att-info">Best-of-the-best — rivals runewords / uniques. Outside the 312 grail.</div>';
 }
+// v340 — crafted-item BUFF RANGES for the floating tooltip + card: the craft's guaranteed mods
+// shown floor→godly (the top % highlighted green) + the affixes to chase. Konyo: "the buffs, like
+// the item description in the floating cursor — from lowest to best top% so I know what I'm hunting."
+function _craftBuffsHtml(nm, e){
+  if (!e || String(e.cat||'') !== 'Crafted' || typeof CRAFTS === 'undefined') return '';
+  var ck=null;
+  for (var i=0;i<CRAFTS.length;i++){ if (new RegExp('\\b'+CRAFTS[i].key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(nm)){ ck=CRAFTS[i]; break; } }
+  if (!ck) return '';
+  function hi(m){ return String(m).replace(/(\d+)\s*[–-]\s*(\d+)/g, function(_m,a,b){ return a+'–<b class="att-godly">'+b+'</b>'; }); }
+  var g=(ck.mods||[]).map(function(m){ return '<div class="att-aff">• '+hi(m)+'</div>'; }).join('');
+  var chase=(typeof CRAFT_REROLL!=='undefined' && CRAFT_REROLL[ck.key]) ? '<div class="att-chase">🎲 chase: '+CRAFT_REROLL[ck.key].join(' · ')+'</div>' : '';
+  return '<div class="att-craft" style="--cw-c:'+ck.color+'"><div class="att-craft-h">⚒️ '+ck.key+' craft — buffs <span class="att-craft-fg">floor → <b class="att-godly">godly</b></span></div>'+g+chase+'</div>';
+}
+window._craftBuffsHtml = _craftBuffsHtml;
 window._extraTipHtml = _extraTipHtml;
 /* Floating art-hover popup (the diablo2.io "nice detail"). Delegated + scoped   */
 /* to elements carrying data-arttip OR the site-wide existing data-art-logo      */

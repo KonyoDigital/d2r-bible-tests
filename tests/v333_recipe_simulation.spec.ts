@@ -27,21 +27,29 @@ test('the full 36-cell craft rune matrix matches canonical D2R', async ({ page }
       expect(got[craft]?.[slot], `${craft} ${slot}`).toBe(CRAFT_MATRIX[craft][slot]);
 });
 
-test('craft cube-state machine: ready when holding gem+rune, cube when gem is cube-up-able', async ({ page }) => {
+test('craft cube-state machine: ready when holding gem+rune+base, cube when gem is cube-up-able', async ({ page }) => {
   const r = await page.evaluate(() => {
     const CRAFTS = (window as any).CRAFTS, sr = (window as any)._craftSlotReady;
     const caster = CRAFTS.find((c: any) => c.key === 'Caster');
-    // 1) ready: hold a Perfect Amethyst + the Amulet rune (Ral)
+    // 0) HONESTY (v341): hold the Perfect Amethyst + Ral rune but NO magic base → NOT ready
     (window as any).adjustGemStash('Perfect Amethyst', 1);
     (window as any).adjustRuneStash('Ral', 1);
+    const noBase = sr(caster, 'Amulet');
+    // 1) ready: now mark a magic Amulet base owned → cubeable for real
+    (window as any).toggleCraftBase('Amulet');
     const ready = sr(caster, 'Amulet');
-    // 2) cube: drop the Perfect, hold 3 Flawless (cube-up-able) + the rune
+    // 2) cube: drop the Perfect, hold 3 Flawless (cube-up-able) + the rune (+ base still on)
     (window as any).adjustGemStash('Perfect Amethyst', -1);
     (window as any).adjustGemStash('Flawless Amethyst', 3);
     const cube = sr(caster, 'Amulet');
-    return { ready, cube };
+    (window as any).toggleCraftBase('Amulet');   // clean up the toggle
+    return { noBase, ready, cube };
   });
-  expect(r.ready.ready).toBe(true);
+  expect(r.noBase.ingredientsReady).toBe(true);   // gem+rune in hand …
+  expect(r.noBase.haveBase).toBe(false);
+  expect(r.noBase.ready).toBe(false);             // … but NOT craftable — no magic base
+  expect(r.noBase.missing.some((m: string) => /magic Amulet base/.test(m))).toBe(true);
+  expect(r.ready.ready).toBe(true);               // base marked → honestly cubeable now
   expect(r.cube.ready).toBe(false);
   expect(r.cube.cube).toBe(true);          // ◆ after gem cube-up
   expect(r.cube.haveGemCubed).toBe(true);

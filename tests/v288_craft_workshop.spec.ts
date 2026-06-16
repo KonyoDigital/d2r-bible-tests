@@ -85,16 +85,16 @@ test.describe('v288 Crafted Items Workshop', () => {
       const w = window as any;
       // mutate via the REAL public mutators (they reassign the module-scoped stash objects
       // that _runeCount/_gemCount read — assigning window.runeStash would not).
-      // empty stash → Caster Amulet (Ral rune + Perfect Amethyst) not cubeable
+      // empty stash → Caster Amulet (Ral rune + Perfect Amethyst + magic base) not cubeable
       const before = w._craftSlotReady(w.CRAFTS[0], 'Amulet').ready;
-      // hold the exact ingredients → cubeable now
-      w.adjustRuneStash('Ral', 1); w.adjustGemStash('Perfect Amethyst', 1);
+      // v341: hold the exact consumables AND a magic Amulet base → cubeable now
+      w.adjustRuneStash('Ral', 1); w.adjustGemStash('Perfect Amethyst', 1); w.toggleCraftBase('Amulet');
       const after = w._craftSlotReady(w.CRAFTS[0], 'Amulet').ready;
-      // remove the rune → only the gem remains: not ready, gem half satisfied
+      // remove the rune → only the gem (+base) remains: not ready, gem half satisfied
       w.adjustRuneStash('Ral', -1);
       const gemOnly = w._craftSlotReady(w.CRAFTS[0], 'Amulet');
       // clean up
-      w.adjustGemStash('Perfect Amethyst', -1);
+      w.adjustGemStash('Perfect Amethyst', -1); w.toggleCraftBase('Amulet');
       return { before, after, gemOnlyReady: gemOnly.ready, gemOnlyHaveGem: gemOnly.haveGem, gemOnlyMissing: gemOnly.missing };
     });
     expect(r.before).toBe(false);
@@ -148,10 +148,13 @@ test.describe('v288 Crafted Items Workshop', () => {
     await expect(firstOut).toContainText('creates');
     await expect(firstOut.locator('.cw-out-name')).toContainText('Caster');
     await expect(firstOut).toContainText('1–4 random affixes');
-    // basic items (jewel + magic base) render as "basic ✓" chips, NOT as missing/blockers
+    // v341 honesty: the jewel is the only "basic ✓" chip; the magic base is a real
+    // click-to-toggle ingredient (defaults to "＋ need"), NOT auto-assumed.
     const row = page.locator('#craft-workshop .cw-recipe').first();
-    expect(await row.locator('.cw-ing-basic').count()).toBe(2); // any jewel + magic base
+    expect(await row.locator('.cw-ing-basic').count()).toBe(1); // any jewel only
     await expect(row.locator('.cw-ing-basic').first()).toContainText('basic');
+    expect(await row.locator('.cw-ing-base').count()).toBe(1);  // the magic base ingredient
+    await expect(row.locator('.cw-ing-base').first()).toContainText('need'); // default = not owned
     // the basic-items legend + reroll enrichment are present for the selected craft
     expect(await page.locator('#craft-workshop .cw-basic-legend').count()).toBe(1);
     expect(await page.locator('#craft-workshop .cw-reroll .cw-reroll-mod').count()).toBeGreaterThan(2);
@@ -191,7 +194,7 @@ test.describe('v288 Crafted Items Workshop', () => {
       const card = document.getElementById('craft-workshop-card');
       if (card && card.classList.contains('collapsed')) (window as any).toggleCardCollapse('craft-workshop-card');
       const w = window as any;
-      w.adjustRuneStash('Ral', 1); w.adjustGemStash('Perfect Amethyst', 1); // → Caster Amulet cubeable
+      w.adjustRuneStash('Ral', 1); w.adjustGemStash('Perfect Amethyst', 1); w.toggleCraftBase('Amulet'); // → Caster Amulet cubeable (v341: base too)
       w.renderCraftWorkshop();
     });
     await page.waitForTimeout(150);

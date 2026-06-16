@@ -100,6 +100,57 @@ test('🧪 Preview mode simulates against a sandbox — the REAL stash is never 
   expect(r.spiritGoneOff).toBe(true);             // dashboard reverts to real data
 });
 
+test('crafted items show buff RANGES (floor → godly top%) in the floating tooltip + card', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const tip = (window as any)._extraTipHtml('Crafted Caster Amulet (jackpot)');
+    const card = (window as any).extraItemDetailHtml('Crafted Blood Gloves (jackpot)');
+    const dire = (window as any)._extraTipHtml('Dire Hand (Crafted Blood Gloves)');
+    return {
+      tipCraft: /att-craft/.test(tip), tipGodly: /att-godly/.test(tip), tipChase: /att-chase/.test(tip),
+      tipRange: /\d+–<b class="att-godly">\d+<\/b>/.test(tip),  // a range with the top% highlighted
+      cardCraft: /att-craft/.test(card), direCraft: /att-craft/.test(dire),  // named example resolves its craft
+    };
+  });
+  expect(r.tipCraft).toBe(true);
+  expect(r.tipGodly).toBe(true);
+  expect(r.tipChase).toBe(true);
+  expect(r.tipRange).toBe(true);    // ⭐ shows "4–10" with the 10 (godly) highlighted
+  expect(r.cardCraft).toBe(true);
+  expect(r.direCraft).toBe(true);
+});
+
+test('v341 HONEST base: a craft with gem+rune but no magic base is held back until the base is added (preview + live)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const findBlood = (tp: any, bucket: string) =>
+      (tp[bucket] || []).find((x: any) => x.kind === 'craft' && x.craft === 'Blood' && x.slot === 'Gloves');
+    // PREVIEW: sandbox a Perfect Ruby + Nef rune (the Blood-Gloves consumables) — but NO base yet
+    (window as any).togglePreview();
+    (window as any).previewAdd('Perfect Ruby', 'gem');
+    (window as any).previewAdd('Nef', 'rune');
+    const tp1 = (window as any)._previewWrap((window as any).buildTopPicks);
+    const closeNoBase = findBlood(tp1, 'close');
+    const makeNoBase = findBlood(tp1, 'makeNow');
+    // add the magic base → now it's honestly craftable
+    (window as any).previewAdd('Gloves', 'base');
+    const tp2 = (window as any)._previewWrap((window as any).buildTopPicks);
+    const makeWithBase = findBlood(tp2, 'makeNow');
+    (window as any).togglePreview();   // off — real stash untouched
+    // LIVE workshop renders a clickable base ingredient (not an auto "basic ✓")
+    (window as any).switchTab && (window as any).switchTab('tools');
+    const row = (window as any)._cwRecipeRow((window as any).CRAFTS.find((c: any) => c.key === 'Blood'), 'Gloves', false);
+    return {
+      closeNeedsBase: !!closeNoBase && /magic Gloves base/.test(closeNoBase.need || ''),
+      notMakeableNoBase: !makeNoBase,
+      makeableWithBase: !!makeWithBase,
+      liveBaseToggle: /cw-ing-base/.test(row) && /toggleCraftBase\('Gloves'\)/.test(row) && /＋ need/.test(row),
+    };
+  });
+  expect(r.closeNeedsBase).toBe(true);     // 🔜 "need magic Gloves base (…)"
+  expect(r.notMakeableNoBase).toBe(true);  // ⛔ NOT in Make-now without the base
+  expect(r.makeableWithBase).toBe(true);   // ✅ add the base → Make-now
+  expect(r.liveBaseToggle).toBe(true);     // live row: base is a click-to-mark ingredient, defaults to "need"
+});
+
 test('askBible POSTs the snapshot to /api/ask and renders the answer', async ({ page }) => {
   let posted: any = null;
   await page.route('**/api/ask', (route) => {
