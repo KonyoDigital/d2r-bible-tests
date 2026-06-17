@@ -243,7 +243,7 @@ tr.wishlist-row td.item-name{background:linear-gradient(90deg,rgba(255,208,64,.0
 /* v329 → v341.6 — rarity GLOW everywhere, CRANKED so every item POPS in its in-game colour: a
    bright same-colour core + soft halo + a crisp dark base for legibility. Works for class- AND
    inline-coloured names. Konyo's standing emphasis: "really popping, HD, synced to the game." */
-.top-drop-name[class*="q-"],table.drops td.item-name[class*="q-"],table.ref-tbl td.item-name[class*="q-"],.hvf-name,.set-card-name,.vm-cell-name,.vj-chip,.cw-out-name,.arw-rune-n,.arw-name,.mw-rune-chip,.rec-chip,.rs-name,.wishlist-item-name,.hero-pick-item,.gbc-grail-name,.gsearch-lab,.set-piece-name,.zd-hg-name strong,.vault-chip-name,.aid-name-txt{text-shadow:0 0 4px currentColor,0 0 9px currentColor,0 1px 1px rgba(0,0,0,.55)}
+.dtp-name,.top-drop-name[class*="q-"],table.drops td.item-name[class*="q-"],table.ref-tbl td.item-name[class*="q-"],.hvf-name,.set-card-name,.vm-cell-name,.vj-chip,.cw-out-name,.arw-rune-n,.arw-name,.mw-rune-chip,.rec-chip,.rs-name,.wishlist-item-name,.hero-pick-item,.gbc-grail-name,.gsearch-lab,.set-piece-name,.zd-hg-name strong,.vault-chip-name,.aid-name-txt{text-shadow:0 0 4px currentColor,0 0 9px currentColor,0 1px 1px rgba(0,0,0,.55)}
 .gic-name{text-shadow:0 0 12px currentColor,0 1px 2px rgba(0,0,0,.55)}
 .item-tile-grail::before,.item-tile-uber::before{position:absolute;top:6px;right:6px;font-size:7px;font-weight:600;letter-spacing:.5px}
 .item-tile-grail::before{content:"GRAIL";color:var(--grail)}
@@ -9261,19 +9261,11 @@ window.uiConfirm = function(message, opts){
 //   conviction t4034, holy-freeze t4085, holy-fire t4084, holy-shock t4087,
 //   might t4121, blessed-aim t4006, concentration t4031, vigor t4187,
 //   thorns t4178). Zero fabricated URLs; each verified live (200 image/gif).
-const AURA_ART = {
-  "Fanaticism":  "art/aura_geASVE4.gif",
-  "Meditation":  "art/aura_qlL3lxn.gif",
-  "Conviction":  "art/aura_EflB9N4.gif",
-  "Holy Freeze": "art/aura_DXnRCP0.gif",
-  "Holy Fire":   "art/aura_CQCYZ9t.gif",
-  "Holy Shock":  "art/aura_9GMvWz7.gif",
-  "Might":       "art/aura_vVASShr.gif",
-  "Blessed Aim": "art/aura_hj5K54S.gif",
-  "Concentration":"art/aura_4ZcEnxr.gif",
-  "Vigor":       "art/aura_PJZ1klO.gif",
-  "Thorns":      "art/aura_JGRXNoQ.gif"
-};
+// v341.61 — the self-hosted aura GIFs turned out to be a CORRUPTED batch: they render as RGB
+// noise (confirmed on Concentration + Holy Shock — Konyo flagged the Concentration tile "bugging
+// out"). Emptied so EVERY aura falls back to its clean glyph (⚔️🔥🧘 etc.) instead of a noise
+// image, consistent across the whole Binds tab. Re-populate per-aura once valid HD art is re-sourced.
+const AURA_ART = {};
 window.AURA_ART = AURA_ART;
 function auraArt(name, glyph, size){
   const u = AURA_ART[name];
@@ -11163,7 +11155,7 @@ function renderBossDetailCard(bossId, focusDiff) {
             const esc = d.n.replace(/'/g,"\\'");
             const adjusted = (v, dk) => v == null ? '<span style="color:var(--text-muted)">—</span>' : fmt(effChance(v, boss.id, dk));
             return `<tr style="cursor:pointer" onclick="navigateToItem(\'${esc}\', {tab:\'bosses\', bossId:\'${boss.id}\'})">
-              <td data-arttip="${_d2artEsc(d.n)}">${nameLogo(d.n)}<strong${_qStyle(d.n,'unique')}>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
+              <td data-arttip="${_d2artEsc(d.n)}">${nameLogo(d.n)}<strong class="dtp-name"${_qStyle(d.n,'unique')}>${d.n}</strong> ${d.tier==='grail'?' <span style="color:var(--gold-bright);font-size:10px">[grail]</span>':d.tier==='uber'?' <span style="color:var(--hell);font-size:10px">[uber]</span>':''}</td>
               <td style="font-family:var(--mono);color:var(--text-muted);font-size:11px">TC${d.tc}</td>
               <td class="dcol-norm" style="text-align:right;font-family:var(--mono)">${adjusted(d.norm,'norm')}</td>
               <td class="dcol-nm" style="text-align:right;font-family:var(--mono)">${adjusted(d.nm,'nm')}</td>
