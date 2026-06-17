@@ -148,13 +148,14 @@ test.describe('v288 Crafted Items Workshop', () => {
     await expect(firstOut).toContainText('creates');
     await expect(firstOut.locator('.cw-out-name')).toContainText('Caster');
     await expect(firstOut).toContainText('1–4 random affixes');
-    // v341 honesty: the jewel is the only "basic ✓" chip; the magic base is a real
-    // click-to-toggle ingredient (defaults to "＋ need"), NOT auto-assumed.
+    // v341.44: the jewel is "basic ✓" and the magic base is vendor-buyable at will, so the base is
+    // a LOCKED, always-on-hand HAVE (not a toggleable need) — only the gem + rune gate the craft.
     const row = page.locator('#craft-workshop .cw-recipe').first();
     expect(await row.locator('.cw-ing-basic').count()).toBe(1); // any jewel only
     await expect(row.locator('.cw-ing-basic').first()).toContainText('basic');
     expect(await row.locator('.cw-ing-base').count()).toBe(1);  // the magic base ingredient
-    await expect(row.locator('.cw-ing-base').first()).toContainText('need'); // default = not owned
+    await expect(row.locator('.cw-ing-base').first()).toContainText('have');   // always on hand
+    expect(await row.locator('.cw-ing-base.cw-ing-locked').count()).toBe(1);   // locked, not toggleable
     // the basic-items legend + reroll enrichment are present for the selected craft
     expect(await page.locator('#craft-workshop .cw-basic-legend').count()).toBe(1);
     expect(await page.locator('#craft-workshop .cw-reroll .cw-reroll-mod').count()).toBeGreaterThan(2);

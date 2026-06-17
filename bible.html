@@ -1501,6 +1501,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-ing-basic:hover{background:rgba(150,170,210,.16)}
 .cw-basic-tag{font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-left:1px}
 .cw-ing-base{cursor:pointer}
+/* v341.44 — magic base always-on-hand, locked HAVE (not toggleable) */
+.cw-ing.cw-ing-locked{cursor:default}
+.cw-ing.cw-ing-locked:hover{background:rgba(63,191,106,.14)}
+.cw-lock{font-size:8px;opacity:.65;margin-left:1px}
 .cw-ing.cw-ing-have:hover{background:rgba(63,191,106,.22)}
 .cw-ing-need{border-color:rgba(240,176,80,.5);background:rgba(240,176,80,.1);color:#f0b050}
 .cw-ing-need:hover{background:rgba(240,176,80,.2)}
@@ -13589,7 +13593,7 @@ function _craftSlotReady(craft, slot){
   var haveRune = (typeof _runeCount === 'function') ? _runeCount(rune) >= 1 : false;
   var haveGem = (typeof _gemCount === 'function') ? _gemCount(craft.gem) >= 1 : false;
   var haveGemCubed = (typeof gemCubeUpPotential === 'function') ? gemCubeUpPotential(craft.gemType, 4) >= 1 : false;
-  var haveBase = _baseCount(slot) >= 1;            // v341 — honest: magic base is a real ingredient
+  var haveBase = true;                             // v341.44 — magic base is vendor-buyable at will → always on hand (locked HAVE)
   var haveJewel = _jewelHeld();                    // v341.18 — counts in preview, assumed in real-live
   var baseName = _craftBaseName(craft, slot);
   var missing = [];
@@ -14084,12 +14088,13 @@ function _cwBasicChip(label, source){
 // v341 — the magic BASE is NOT auto-owned. A real, click-to-toggle ingredient: green ✓ when
 // you've told the bible you have a magic base of this slot, amber ＋ "need" otherwise. Gates
 // the craft honestly (the dashboard/AI then says exactly which base you still need to grab).
+// v341.44 — a magic base is vendor-buyable / gamble-able at will (like the jewel), so it is ALWAYS
+// assumed on hand. The HAVE badge is LOCKED (not toggleable) — the recipe only truly gates on the
+// Perfect gem + slot rune. (toggleCraftBase still exists if we ever want to re-enable tracking.)
 function _cwBaseChip(slot, have, baseHint){
-  var esc = slot.replace(/'/g, "\\'");
-  var badge = have ? '<span class="cw-ing-badge cw-bg-have">✓ have</span>' : '<span class="cw-ing-badge cw-bg-need">＋ need</span>';
-  return '<button class="cw-ing cw-ing-base cw-ing-col ' + (have ? 'cw-ing-have' : 'cw-ing-need') + '" style="--ing-c:#6969ff" data-arttip="magic ' + slot + ' base" onclick="event.stopPropagation();window.toggleCraftBase(\'' + esc + '\')" '
-    + 'title="' + (have ? 'You have a magic ' + slot + ' base — click to un-mark' : 'You need a magic (blue) ' + slot + ' base to craft onto (' + baseHint + '). Click when you have one.') + '">'
-    + '<span class="cw-ing-nm">magic ' + slot + ' base</span> ' + badge + '</button>';
+  return '<span class="cw-ing cw-ing-base cw-ing-col cw-ing-have cw-ing-locked" style="--ing-c:#6969ff" data-arttip="magic ' + slot + ' base" '
+    + 'title="A magic (blue) ' + slot + ' base (' + baseHint + ') — buyable / gamble-able at will, so it is always assumed on hand (the gem + rune are what gate the craft).">'
+    + '<span class="cw-ing-nm">magic ' + slot + ' base</span> <span class="cw-ing-badge cw-bg-have">✓ have <span class="cw-lock" aria-label="always on hand">🔒</span></span></span>';
 }
 // One enriched recipe row: inputs (gem + rune gate cubeable; jewel + base are basic) → the
 // exact crafted item created, its guaranteed mods, base options, status, and (optional) owned stepper.

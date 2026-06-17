@@ -45,7 +45,7 @@ test('v341.7 craft recipe chips: rarity-coloured glowing name + separate have/ne
       gemHasName: /cw-ing-nm/.test(gemChip), gemColor: (gemChip.match(/--ing-c:([^";]+)/) || [])[1],
       runeOrange: /--ing-c:#ffa800/.test(runeChip), runeHaveBadge: /cw-bg-have/.test(runeChip),
       jewelBlue: /--ing-c:#6969ff/.test(jewelChip), jewelTip: jewelChip.includes('data-arttip="any jewel"'),
-      baseBlue: /--ing-c:#6969ff/.test(baseChip), baseNeedBadge: /cw-bg-need/.test(baseChip), baseTip: baseChip.includes('data-arttip="magic Gloves base"'),
+      baseBlue: /--ing-c:#6969ff/.test(baseChip), baseLockedHave: /cw-bg-have/.test(baseChip) && /cw-ing-locked/.test(baseChip), baseTip: baseChip.includes('data-arttip="magic Gloves base"'),
       jewelResolvesRich: w._arttipResolve('any jewel')?.rich === true,
     };
   });
@@ -56,7 +56,7 @@ test('v341.7 craft recipe chips: rarity-coloured glowing name + separate have/ne
   expect(r.jewelBlue).toBe(true);           // jewel = magic blue
   expect(r.jewelTip).toBe(true);            // rich hover card
   expect(r.baseBlue).toBe(true);            // magic base = magic blue
-  expect(r.baseNeedBadge).toBe(true);       // separate amber need badge
+  expect(r.baseLockedHave).toBe(true);      // v341.44 — base is vendor-buyable → locked HAVE (not a need toggle)
   expect(r.baseTip).toBe(true);             // base → golden options card
   expect(r.jewelResolvesRich).toBe(true);
 });
