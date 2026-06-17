@@ -9261,11 +9261,23 @@ window.uiConfirm = function(message, opts){
 //   conviction t4034, holy-freeze t4085, holy-fire t4084, holy-shock t4087,
 //   might t4121, blessed-aim t4006, concentration t4031, vigor t4187,
 //   thorns t4178). Zero fabricated URLs; each verified live (200 image/gif).
-// v341.61 — the self-hosted aura GIFs turned out to be a CORRUPTED batch: they render as RGB
-// noise (confirmed on Concentration + Holy Shock — Konyo flagged the Concentration tile "bugging
-// out"). Emptied so EVERY aura falls back to its clean glyph (⚔️🔥🧘 etc.) instead of a noise
-// image, consistent across the whole Binds tab. Re-populate per-aura once valid HD art is re-sourced.
-const AURA_ART = {};
+// v341.62 — 3 of the 11 self-hosted aura GIFs (Holy Shock, Blessed Aim, Concentration — Konyo
+// flagged Concentration "bugging out") had corrupted on save → rendered as RGB noise. Re-downloaded
+// the clean originals from imgur (the filenames are imgur hashes) + resized to 220×220, so all 11
+// are valid HD art again. Verified clean (first-frame stdev ~7, matching the other 8).
+const AURA_ART = {
+  "Fanaticism":  "art/aura_geASVE4.gif",
+  "Meditation":  "art/aura_qlL3lxn.gif",
+  "Conviction":  "art/aura_EflB9N4.gif",
+  "Holy Freeze": "art/aura_DXnRCP0.gif",
+  "Holy Fire":   "art/aura_CQCYZ9t.gif",
+  "Holy Shock":  "art/aura_9GMvWz7.gif",
+  "Might":       "art/aura_vVASShr.gif",
+  "Blessed Aim": "art/aura_hj5K54S.gif",
+  "Concentration":"art/aura_4ZcEnxr.gif",
+  "Vigor":       "art/aura_PJZ1klO.gif",
+  "Thorns":      "art/aura_JGRXNoQ.gif"
+};
 window.AURA_ART = AURA_ART;
 function auraArt(name, glyph, size){
   const u = AURA_ART[name];
