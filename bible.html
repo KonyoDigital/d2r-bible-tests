@@ -12818,6 +12818,10 @@ function renderRuneStash(){
   }
   renderRuneCraftable();
   if (typeof renderHoradricRecipes === 'function') renderHoradricRecipes();
+  // v341.64 — the rune stash gates craft recipes too; re-render the Craft Workshop + Create-Now
+  // dashboard so cubeable/owned status stays in sync the moment a rune is added (intake or ±).
+  if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop();
+  if (typeof renderCreateNow === 'function') renderCreateNow();
 }
 window.renderRuneStash = renderRuneStash;
 
@@ -13176,6 +13180,10 @@ function renderGemStash(){
   }
   renderGemCraftable();
   if (typeof renderHoradricRecipes === 'function') renderHoradricRecipes();
+  // v341.64 — the perfect gem decides each craft; re-render the Craft Workshop + Create-Now dashboard
+  // so cubeable/owned status syncs the moment a gem is added (intake or ±) — was stale before.
+  if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop();
+  if (typeof renderCreateNow === 'function') renderCreateNow();
 }
 window.renderGemStash = renderGemStash;
 function renderGemCraftable(){

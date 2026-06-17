@@ -181,12 +181,12 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // v341.62 — TALLY (gem/rune stack-count digits) → Opus 4.8 for max OCR accuracy on stylized
-      // digits; items (NAMES off tooltips) stay on Sonnet. The earlier Opus 502 (v341.50) was the
-      // masked-error bug (worker returned 5xx → Cloudflare overwrote it) — fixed in v341.52 to return
-      // a graceful 200; AND the tally image is now a TIGHT crop (small → fast), so Opus completes well
-      // within the worker limit. env.MODEL still overrides everything.
-      model: env.MODEL || (isTally ? 'claude-opus-4-8' : 'claude-sonnet-4-6'),
+      // v341.63 — REVERTED tally to Sonnet. Opus DID work (200, no 502) but at ~7.5s/pass — with the
+      // 2–5× majority vote that's 15–40s of spinning, which reads as "not loading" (Konyo). Sonnet is
+      // ~1–2s/pass → the whole intake finishes in a few seconds. The real accuracy win was the TIGHT
+      // gem crop (v341.59) + fixed-position ID + majority vote, which all work on Sonnet. env.MODEL
+      // still overrides if Opus is ever wanted for a one-off.
+      model: env.MODEL || 'claude-sonnet-4-6',
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
