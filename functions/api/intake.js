@@ -181,11 +181,12 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // Both modes read small/stylized text off screenshots (tally = stack-count digits; items = item
-      // NAMES off tooltips). v341.51 — REVERTED to Sonnet: Opus 4.8 (v341.50) made the Cloudflare
-      // worker 502 — Opus latency + the json_schema first-call compile cost exceeded the function's
-      // response limit. Sonnet is the reliable default. env.MODEL still overrides if Opus is wanted.
-      model: env.MODEL || 'claude-sonnet-4-6',
+      // v341.62 — TALLY (gem/rune stack-count digits) → Opus 4.8 for max OCR accuracy on stylized
+      // digits; items (NAMES off tooltips) stay on Sonnet. The earlier Opus 502 (v341.50) was the
+      // masked-error bug (worker returned 5xx → Cloudflare overwrote it) — fixed in v341.52 to return
+      // a graceful 200; AND the tally image is now a TIGHT crop (small → fast), so Opus completes well
+      // within the worker limit. env.MODEL still overrides everything.
+      model: env.MODEL || (isTally ? 'claude-opus-4-8' : 'claude-sonnet-4-6'),
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
