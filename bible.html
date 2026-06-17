@@ -88,6 +88,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .tool-premium > .boss-header .boss-emoji{filter:drop-shadow(0 0 9px color-mix(in srgb,var(--tc,#f0c060) 80%,transparent))}
 .tool-premium > .boss-header .boss-emoji img{filter:drop-shadow(0 0 8px color-mix(in srgb,var(--tc,#f0c060) 75%,transparent))!important}
 .tool-premium > .boss-header .boss-name{text-shadow:0 0 10px color-mix(in srgb,var(--tc,#f0c060) 45%,transparent)}
+/* v341.38 — symmetric Tools-tab title boxes: every collapsed section header is the SAME
+   height (matches the tallest 3-line card) so the rectangles align. Content stays vertically
+   centred via the flex align-items:center already on .boss-header. */
+#tab-tools .boss-card > .boss-header,#ask-bible-card > .boss-header{min-height:106px;box-sizing:border-box}
 .tool-premium:hover{border-color:color-mix(in srgb,var(--tc,#f0c060) 52%,var(--border))}
 .boss-title-block{flex:1;min-width:0}
 .boss-name{color:var(--gold-bright);font-family:var(--serif-display);font-size:22px;font-weight:600;margin:0;letter-spacing:.3px}
