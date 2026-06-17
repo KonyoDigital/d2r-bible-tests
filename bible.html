@@ -1366,6 +1366,26 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-ai-btn:hover{transform:translateY(-1px);background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.05));box-shadow:0 3px 14px rgba(0,0,0,.4),0 0 20px rgba(127,212,255,.22)}
 .rs-ai-btn:active{transform:translateY(0)}
 .rs-ai-report{margin:10px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55;color:var(--text,#f4e8d0)}
+/* v341.42 — flagship animated "AI is reading your screenshot" loader. Floats as a centred overlay
+   on the stash grid (top/middle of the image) while the AI reads; the results report stays at the
+   bottom. The grid gets position:relative inline so the overlay anchors to it. */
+.ai-load-ov{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at center,rgba(10,8,4,.55),rgba(8,6,3,.78));backdrop-filter:blur(2.5px);border-radius:inherit;animation:aiOvIn .22s ease}
+@keyframes aiOvIn{from{opacity:0}to{opacity:1}}
+.ai-load{position:relative;display:flex;align-items:center;gap:14px;padding:14px 18px;max-width:440px;border-radius:13px;overflow:hidden;border:1px solid rgba(127,212,255,.5);background:linear-gradient(120deg,rgba(20,28,40,.96),rgba(28,22,40,.95) 50%,rgba(34,28,18,.95));box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 26px -6px rgba(127,212,255,.6),inset 0 1px 0 rgba(255,255,255,.08)}
+.ai-load::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 32%,rgba(170,220,255,.28) 50%,transparent 68%);transform:translateX(-100%);animation:aiScan 1.9s ease-in-out infinite;pointer-events:none}
+@keyframes aiScan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.ai-load-orb{flex:0 0 auto;font-size:25px;line-height:1;filter:drop-shadow(0 0 9px rgba(127,212,255,.85));animation:aiOrb 1.5s ease-in-out infinite}
+@keyframes aiOrb{0%,100%{transform:scale(1) rotate(-5deg)}50%{transform:scale(1.15) rotate(5deg)}}
+.ai-load-body{flex:1 1 auto;min-width:0;position:relative;z-index:1}
+.ai-load-title{font-family:var(--serif-display,serif);font-weight:700;font-size:14.5px;color:#c7eaff;text-shadow:0 0 9px rgba(127,212,255,.55)}
+.ai-load-dots i{font-style:normal;opacity:.25;animation:aiDot 1.4s infinite}
+.ai-load-dots i:nth-child(2){animation-delay:.18s}.ai-load-dots i:nth-child(3){animation-delay:.36s}
+@keyframes aiDot{0%,60%,100%{opacity:.25}30%{opacity:1}}
+.ai-load-sub{font-size:11.5px;color:#d2c2ec;margin-top:1px}
+.ai-load-bar{margin-top:8px;height:4px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden}
+.ai-load-bar span{display:block;height:100%;width:42%;border-radius:3px;background:linear-gradient(90deg,#7fd4ff,#b48ce0,#ffd886);box-shadow:0 0 10px rgba(127,212,255,.7);animation:aiBar 1.25s ease-in-out infinite}
+@keyframes aiBar{0%{margin-left:-44%}100%{margin-left:102%}}
+@media(prefers-reduced-motion:reduce){.ai-load::after,.ai-load-orb,.ai-load-bar span,.ai-load-dots i{animation:none}}
 .rs-import-btn:hover{filter:brightness(1.08)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
 .rs-import-note{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
@@ -9169,6 +9189,25 @@ window.artOr = artOr;
 // Used by every drop-table / top-drops surface so a named item shows its in-game logo.
 function nameLogo(name){ return (typeof artUrl==='function' && artUrl(name)) ? artOr(name, '', 'sm')+' ' : ''; }
 window.nameLogo = nameLogo;
+// v341.42 — flagship animated loader for the 1-photo AI intakes: a centred scanning overlay
+// (sweep + pulsing lens + indeterminate bar) floated on the stash GRID while the AI reads the
+// screenshot. The results report stays at the bottom. _aiIntakeStop() removes it when done.
+window._aiIntakeStart = function(gridId, title, sub){
+  var grid = document.getElementById(gridId); if (!grid) return;
+  window._aiIntakeStop(gridId);                                   // never stack two
+  if (getComputedStyle(grid).position === 'static') grid.style.position = 'relative';
+  var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  var ov = document.createElement('div');
+  ov.className = 'ai-load-ov'; ov.setAttribute('data-ai-load', gridId);
+  ov.innerHTML = '<div class="ai-load"><div class="ai-load-orb">📸</div><div class="ai-load-body">'
+    + '<div class="ai-load-title">' + esc(title) + '<span class="ai-load-dots"><i>.</i><i>.</i><i>.</i></span></div>'
+    + '<div class="ai-load-sub">✨ ' + esc(sub) + '</div>'
+    + '<div class="ai-load-bar"><span></span></div></div></div>';
+  grid.appendChild(ov);
+};
+window._aiIntakeStop = function(gridId){
+  document.querySelectorAll('.ai-load-ov[data-ai-load="' + (gridId||'') + '"]').forEach(function(o){ o.remove(); });
+};
 // v341.41 — themed replacement for the OS-native confirm() white box. Returns a Promise<bool>.
 // Destructive by default (red OK). Esc/backdrop = cancel, Enter = OK.
 window.uiConfirm = function(message, opts){
@@ -12425,7 +12464,7 @@ window.toggleSetPiece = toggleSetPiece;
 window.setIntake = async function(files){
   var report = document.getElementById('set-intake-report');
   if (!files || !files.length) return;
-  if (report){ report.hidden=false; report.innerHTML='📸 reading your set items — the AI is checking the tracker…'; }
+  window._aiIntakeStart('set-tracker','reading your set items','the AI is checking the tracker');
   function downscale(file){
     return new Promise(function(resolve, reject){
       var img=new Image(), url=URL.createObjectURL(file);
@@ -12459,7 +12498,8 @@ window.setIntake = async function(files){
     }catch(e){ errors++; }
   }
   persist(); renderSetTracker();
-  if (report){
+  window._aiIntakeStop('set-tracker');
+  if (report){ report.hidden=false;
     if (marked.length){
       report.innerHTML='🪄 <strong>checked off '+marked.length+' set piece'+(marked.length===1?'':'s')+'</strong>: '
         + marked.sort().map(function(k){return '<span style="color:var(--best,#66ff88)">'+k+'</span>';}).join(' · ')
@@ -13151,8 +13191,9 @@ window.importGemTally = importGemTally;
 //     1568 long edge, so the small printed stack-count digits keep their real pixels instead of being
 //     blurred away by a whole-screen downscale (Sonnet read single digits fine but lost two-digit
 //     stacks like 11/23 at full-screen res). Already-cropped / non-landscape shots pass through whole.
-// (2) _tallyRead double-reads the SAME image (two model passes) and merges per-name by MAX — the failure
-//     mode is UNDER-reading a digit, so the higher of two independent reads is the better estimate.
+// (2) _tallyRead reads the SAME image 2–5× (independent Sonnet passes) and reconciles per-name by
+//     MAJORITY VOTE (mode; median tie-break), recounting only while stacks are still disputed. Max
+//     amplified a single over-read into the total; majority needs agreement, killing one-off miscounts.
 function _tallyPrepImage(file){
   return new Promise(function(resolve, reject){
     var img=new Image(), url=URL.createObjectURL(file);
@@ -13176,27 +13217,58 @@ function _tallyPrepImage(file){
   });
 }
 window._tallyPrepImage = _tallyPrepImage;
+// v341.43 — calibrated counting. Two independent Sonnet reads ALWAYS; a third tie-breaker read
+// whenever they disagree on any stack (or only one read succeeded). Reconcile each rune/gem by the
+// MEDIAN of the reads — robust to a single over- or under-count (the old Math.max amplified any
+// over-read into the final total; the median needs a majority to keep a count, which kills both
+// phantom stacks and one-off miscounts). "Counts 3 times if needed."
 async function _tallyRead(b64, vocab){
   var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
-  var merged = {}, ok = false;
-  for (var pass=0; pass<2; pass++){
+  async function onePass(){
     try{
       var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
-      if(!resp.ok) continue;
-      ok = true;
+      if(!resp.ok) return null;
       var data = await resp.json();
-      var t = data.tally || {};
-      Object.keys(t).forEach(function(k){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0) merged[k]=Math.max(merged[k]||0, c); });
-    }catch(e){ /* try the other pass */ }
+      var t = data.tally || {}, clean = {};
+      Object.keys(t).forEach(function(k){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0) clean[k]=c; });
+      return clean;
+    }catch(e){ return null; }
   }
-  return ok ? merged : null;   // null = both passes failed (network/server) → caller counts an error
+  function allKeys(reads){ var m={}; reads.forEach(function(r){ Object.keys(r).forEach(function(k){ m[k]=1; }); }); return Object.keys(m); }
+  // Per-rune MODE vote across the reads so far. `decided` = every count has a strict majority
+  // (>half the reads agree) — i.e. the disputed stacks have settled. Ties fall back to the median.
+  function vote(reads){
+    var merged={}, decided=true;
+    allKeys(reads).forEach(function(k){
+      var counts={}, vals=reads.map(function(r){ return r[k]||0; });
+      vals.forEach(function(v){ counts[v]=(counts[v]||0)+1; });
+      var best=0, bestN=-1;
+      Object.keys(counts).forEach(function(vs){ var v=+vs, n=counts[vs]; if(n>bestN || (n===bestN && v<best)){ best=v; bestN=n; } });
+      if (bestN <= reads.length/2){            // no strict majority yet → unsettled, and use the median for now
+        decided=false;
+        var s=vals.slice().sort(function(x,y){return x-y;}), mid=Math.floor(s.length/2);
+        best=(s.length%2)?s[mid]:Math.round((s[mid-1]+s[mid])/2);
+      }
+      if (best>0) merged[k]=best;
+    });
+    return { merged: merged, decided: decided };
+  }
+  // Two reads always; then keep recounting the disputed stacks (whole-image re-reads, the vote
+  // focuses on whatever hasn't settled) until every count wins a majority — capped at 5 reads.
+  var reads = [], MAXP = 5, res = null;
+  for (var p=0; p<MAXP; p++){
+    var r = await onePass(); if(r) reads.push(r);
+    if (reads.length >= 2){ res = vote(reads); if (res.decided) break; }
+  }
+  if(!reads.length) return null;   // every pass failed (network/server) → caller counts an error
+  return (res || vote(reads)).merged;
 }
 window._tallyRead = _tallyRead;
 
 window.gemIntake = async function(files){
   var report = document.getElementById('gem-intake-report');
   if (!files || !files.length) return;
-  if (report){ report.hidden=false; report.innerHTML='📸 reading your gems — the AI is counting by colour + cut…'; }
+  window._aiIntakeStart('gem-stash-grid','reading your gems','the AI is counting by colour + cut');
   function downscale(file){
     return new Promise(function(resolve, reject){
       var img=new Image(), url=URL.createObjectURL(file);
@@ -13226,7 +13298,8 @@ window.gemIntake = async function(files){
     }catch(e){ errors++; }
   }
   persist(); renderGemStash();
-  if (report){
+  window._aiIntakeStop('gem-stash-grid');
+  if (report){ report.hidden=false;
     var names=Object.keys(added);
     if (names.length){
       report.innerHTML='🪄 <strong>tallied '+total+' gem'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
@@ -14200,7 +14273,7 @@ async function _craftRead(b64, vocab){
 window.craftIntake = async function(files){
   var report = document.getElementById('craft-intake-report');
   if (!files || !files.length) return;
-  if (report){ report.hidden = false; report.innerHTML = '📸 reading your crafted items — the AI is classifying each by craft type + slot…'; }
+  window._aiIntakeStart('craft-workshop','reading your crafted items','the AI is classifying each by craft type + slot');
   var vocab = []; CRAFTS.forEach(function(c){ CRAFT_SLOTS.forEach(function(s){ vocab.push(c.key + ' ' + s); }); });
   var added = {}, total = 0, errors = 0;
   for (var i = 0; i < files.length; i++){
@@ -14216,7 +14289,8 @@ window.craftIntake = async function(files){
     } catch(e){ errors++; }
   }
   persist(); renderCraftWorkshop();
-  if (report){
+  window._aiIntakeStop('craft-workshop');
+  if (report){ report.hidden=false;
     var names = Object.keys(added);
     if (names.length){
       report.innerHTML = '🪄 <strong>logged ' + total + ' crafted item' + (total === 1 ? '' : 's') + '</strong> across ' + names.length + ' craft+slot type' + (names.length === 1 ? '' : 's') + ': '
@@ -14271,7 +14345,7 @@ window.importRuneTally = importRuneTally;
 window.runeIntake = async function(files){
   var report = document.getElementById('rune-intake-report');
   if (!files || !files.length) return;
-  if (report){ report.hidden=false; report.innerHTML='📸 reading your rune stash — the AI is counting your runes…'; }
+  window._aiIntakeStart('rune-stash-grid','reading your rune stash','the AI is counting your runes');
   function downscale(file){
     return new Promise(function(resolve, reject){
       var img=new Image(), url=URL.createObjectURL(file);
@@ -14299,13 +14373,14 @@ window.runeIntake = async function(files){
     }catch(e){ errors++; }
   }
   persist(); renderRuneStash();
-  if (report){
+  window._aiIntakeStop('rune-stash-grid');
+  if (report){ report.hidden=false;
     var names=Object.keys(added);
     if (names.length){
       report.innerHTML='🪄 <strong>tallied '+total+' rune'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
         + names.sort(function(a,b){return RUNE_INDEX[a]-RUNE_INDEX[b];}).map(function(k){return '<span style="color:var(--gold-bright,#f0c060)">'+k+' ×'+added[k]+'</span>';}).join(' · ')
         + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
-        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Auto-cropped to your left stash panel + enlarged, then double-read for accuracy — but still eyeball the grid and nudge any stack with the −/+ buttons. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Auto-cropped + enlarged, then read 2–5× and reconciled by majority vote (disputed stacks get extra recounts) — but still eyeball the grid and nudge any stack with the −/+ buttons. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
@@ -15252,7 +15327,7 @@ window.importMaterialTally = importMaterialTally;
 window.materialIntake = async function(files){
   var report = document.getElementById('material-intake-report');
   if (!files || !files.length) return;
-  if (report){ report.hidden=false; report.innerHTML='📸 reading your special materials — the AI is counting…'; }
+  window._aiIntakeStart('material-stash-grid','reading your special materials','the AI is counting keys, organs, essences & statues');
   function downscale(file){
     return new Promise(function(resolve, reject){
       var img=new Image(), url=URL.createObjectURL(file);
@@ -15286,7 +15361,8 @@ window.materialIntake = async function(files){
     }catch(e){ errors++; }
   }
   persist(); renderMaterialStash(); if (typeof renderStatueTracker==='function') renderStatueTracker();
-  if (report){
+  window._aiIntakeStop('material-stash-grid');
+  if (report){ report.hidden=false;
     var names=Object.keys(added);
     if (names.length || statuesAdded.length){
       var parts=[];

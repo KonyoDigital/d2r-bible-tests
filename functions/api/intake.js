@@ -83,6 +83,9 @@ export async function onRequestPost(context) {
     + '(7) Only report a vocabulary entry you can identify with CONFIDENCE; if two look too similar to tell apart, put your '
     + 'best transcription in "unrecognized" rather than guessing the wrong rune. '
     + '(8) Only names from the vocabulary. Ignore gold, potions, UI text, non-rune/non-gem items. Readable-but-not-in-vocab → "unrecognized". '
+    + '(9) DOUBLE-CHECK BEFORE RETURNING: re-read every stack number one more time, cell by cell. The single most common '
+    + 'error is misreading ONE digit — 5 vs 6, 11 vs 17, 22 vs 23, 3 vs 8. Transcribe exactly the digits printed; never '
+    + 'round, average, or estimate a stack you cannot read — leave it out rather than guess a number. '
     + 'VOCABULARY:\n' + names.join('\n');
 
   const craftText = 'You read Diablo 2 Resurrected screenshots to find CRAFTED ITEMS the player owns and classify each by its '
