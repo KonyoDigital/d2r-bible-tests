@@ -1369,22 +1369,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* v341.42 — flagship animated "AI is reading your screenshot" loader. Floats as a centred overlay
    on the stash grid (top/middle of the image) while the AI reads; the results report stays at the
    bottom. The grid gets position:relative inline so the overlay anchors to it. */
-.ai-load-ov{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:4%;background:radial-gradient(ellipse at center,rgba(10,8,4,.5),rgba(8,6,3,.8));backdrop-filter:blur(2.5px);border-radius:inherit;animation:aiOvIn .22s ease}
+.ai-load-ov{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:2%;background:radial-gradient(ellipse at center,rgba(10,8,4,.5),rgba(8,6,3,.8));backdrop-filter:blur(2.5px);border-radius:inherit;animation:aiOvIn .22s ease}
 @keyframes aiOvIn{from{opacity:0}to{opacity:1}}
 /* v341.45 — ENORMOUS: the loader fills the grid (clamped) while staying inside it */
-.ai-load{position:relative;display:flex;align-items:center;gap:clamp(16px,3vw,34px);padding:clamp(20px,3.2vw,40px) clamp(24px,4vw,52px);width:min(94%,860px);border-radius:20px;overflow:hidden;border:1px solid rgba(127,212,255,.55);background:linear-gradient(120deg,rgba(20,28,40,.97),rgba(28,22,40,.96) 50%,rgba(34,28,18,.96));box-shadow:0 22px 70px rgba(0,0,0,.7),0 0 50px -10px rgba(127,212,255,.65),inset 0 1px 0 rgba(255,255,255,.09)}
+.ai-load{position:relative;display:flex;align-items:center;gap:clamp(20px,3.4vw,42px);padding:clamp(28px,4vw,56px) clamp(32px,4.6vw,68px);width:min(97%,1120px);border-radius:24px;overflow:hidden;border:1px solid rgba(127,212,255,.55);background:linear-gradient(120deg,rgba(20,28,40,.97),rgba(28,22,40,.96) 50%,rgba(34,28,18,.96));box-shadow:0 26px 80px rgba(0,0,0,.72),0 0 60px -10px rgba(127,212,255,.7),inset 0 1px 0 rgba(255,255,255,.09)}
 .ai-load::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 32%,rgba(170,220,255,.26) 50%,transparent 68%);transform:translateX(-100%);animation:aiScan 1.9s ease-in-out infinite;pointer-events:none}
 @keyframes aiScan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-.ai-load-orb{flex:0 0 auto;font-size:clamp(44px,6vw,76px);line-height:1;filter:drop-shadow(0 0 16px rgba(127,212,255,.9));animation:aiOrb 1.5s ease-in-out infinite}
+.ai-load-orb{flex:0 0 auto;font-size:clamp(56px,7.2vw,100px);line-height:1;filter:drop-shadow(0 0 20px rgba(127,212,255,.92));animation:aiOrb 1.5s ease-in-out infinite}
 @keyframes aiOrb{0%,100%{transform:scale(1) rotate(-5deg)}50%{transform:scale(1.15) rotate(5deg)}}
 .ai-load-body{flex:1 1 auto;min-width:0;position:relative;z-index:1}
-.ai-load-title{font-family:var(--serif-display,serif);font-weight:700;font-size:clamp(24px,3.4vw,40px);line-height:1.15;color:#c7eaff;text-shadow:0 0 16px rgba(127,212,255,.6)}
+.ai-load-title{font-family:var(--serif-display,serif);font-weight:700;font-size:clamp(30px,4.4vw,56px);line-height:1.12;color:#c7eaff;text-shadow:0 0 20px rgba(127,212,255,.62)}
 .ai-load-dots i{font-style:normal;opacity:.25;animation:aiDot 1.4s infinite}
 .ai-load-dots i:nth-child(2){animation-delay:.18s}.ai-load-dots i:nth-child(3){animation-delay:.36s}
 @keyframes aiDot{0%,60%,100%{opacity:.25}30%{opacity:1}}
-.ai-load-sub{font-size:clamp(14px,1.5vw,20px);color:#d2c2ec;margin-top:6px}
-.ai-load-bar{margin-top:clamp(12px,1.6vw,20px);height:clamp(7px,.9vw,12px);border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden}
-.ai-load-bar span{display:block;height:100%;width:42%;border-radius:6px;background:linear-gradient(90deg,#7fd4ff,#b48ce0,#ffd886);box-shadow:0 0 16px rgba(127,212,255,.75);animation:aiBar 1.25s ease-in-out infinite}
+.ai-load-sub{font-size:clamp(16px,2vw,26px);color:#d2c2ec;margin-top:8px}
+.ai-load-bar{margin-top:clamp(16px,1.9vw,26px);height:clamp(9px,1.2vw,16px);border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden}
+.ai-load-bar span{display:block;height:100%;width:42%;border-radius:8px;background:linear-gradient(90deg,#7fd4ff,#b48ce0,#ffd886);box-shadow:0 0 16px rgba(127,212,255,.75);animation:aiBar 1.25s ease-in-out infinite}
 @keyframes aiBar{0%{margin-left:-44%}100%{margin-left:102%}}
 @media(prefers-reduced-motion:reduce){.ai-load::after,.ai-load-orb,.ai-load-bar span,.ai-load-dots i{animation:none}}
 .rs-import-btn:hover{filter:brightness(1.08)}
