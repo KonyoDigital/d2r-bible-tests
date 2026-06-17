@@ -1404,6 +1404,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 @keyframes rsVerify{0%,100%{box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(127,212,255,.6),0 0 11px rgba(127,212,255,.55)}50%{box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(255,210,90,.9),0 0 17px rgba(255,210,90,.75)}}
 .rune-stash-cell.rs-slot.rs-verify::after{content:"✓?";position:absolute;top:-3px;right:-3px;z-index:6;font-size:9px;font-weight:800;line-height:1;color:#0a0e16;background:linear-gradient(180deg,#ffe08a,#e0a838);border:1px solid #fff2cf;border-radius:6px;padding:1px 3px;box-shadow:0 1px 3px rgba(0,0,0,.6)}
 @media(prefers-reduced-motion:reduce){.rune-stash-cell.rs-slot.rs-verify{animation:none;box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(255,210,90,.85)}}
+/* v341.57 — same "double-check these" flag on the error-prone Perfect-grade gems after a 📸 tally intake */
+.gem-cell.gem-slot.gem-verify{z-index:4;animation:rsVerify 1.5s ease-in-out infinite}
+.gem-cell.gem-slot.gem-verify::after{content:"✓?";position:absolute;top:-3px;right:-3px;z-index:6;font-size:9px;font-weight:800;line-height:1;color:#0a0e16;background:linear-gradient(180deg,#ffe08a,#e0a838);border:1px solid #fff2cf;border-radius:6px;padding:1px 3px;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+@media(prefers-reduced-motion:reduce){.gem-cell.gem-slot.gem-verify{animation:none;box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(255,210,90,.85)}}
 .rune-stash-cell.rs-slot .d2art-wrap,.gem-cell.gem-slot .d2art-wrap{width:88%!important;height:88%!important}
 .rune-stash-cell.rs-slot .d2art-wrap .d2art-img,.gem-cell.gem-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
 .rune-stash-cell.rs-slot:not(.rs-has) .d2art-wrap,.gem-cell.gem-slot:not(.gem-has) .d2art-wrap{opacity:.3;filter:grayscale(.5)}
@@ -13341,6 +13345,21 @@ window._flagHighRunesVerify = function(){
     document.querySelectorAll('#rune-stash-grid .rs-verify').forEach(function(c){ c.classList.remove('rs-verify'); }); }, 20000); }
   return n;
 };
+// v341.57 — gem twin of the rune flag: after a gem tally, pulse the owned PERFECT-grade gems (the
+// "last row" — rarest + most likely misread by a digit) with a ✓? so Konyo eyeballs just those.
+window._flagPerfectGemsVerify = function(){
+  var grid = document.getElementById('gem-stash-grid'); if(!grid) return 0;
+  var PERFECT = ['Perfect Diamond','Perfect Emerald','Perfect Ruby','Perfect Topaz','Perfect Amethyst','Perfect Sapphire','Perfect Skull'];
+  grid.querySelectorAll('.gem-verify').forEach(function(c){ c.classList.remove('gem-verify'); });
+  var n = 0;
+  PERFECT.forEach(function(name){
+    var cell = grid.querySelector('.gem-cell[data-gem="'+name+'"]');
+    if (cell && cell.classList.contains('gem-has')){ cell.classList.add('gem-verify'); n++; }
+  });
+  if (n){ clearTimeout(window._gemVerifyTimer); window._gemVerifyTimer = setTimeout(function(){
+    document.querySelectorAll('#gem-stash-grid .gem-verify').forEach(function(c){ c.classList.remove('gem-verify'); }); }, 20000); }
+  return n;
+};
 
 window.gemIntake = async function(files){
   var report = document.getElementById('gem-intake-report');
@@ -13379,10 +13398,12 @@ window.gemIntake = async function(files){
   if (report){ report.hidden=false;
     var names=Object.keys(added);
     if (names.length){
+      var flaggedG = (typeof window._flagPerfectGemsVerify === 'function') ? window._flagPerfectGemsVerify() : 0;
       report.innerHTML='🪄 <strong>tallied '+total+' gem'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
         + names.sort().map(function(k){return '<span style="color:var(--gold-bright,#f0c060)">'+k+' ×'+added[k]+'</span>';}).join(' · ')
         + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
-        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Best-effort read — eyeball the grid below and nudge any with −/+. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
+        + (flaggedG?'<div style="color:#ffe08a;font-size:12px;margin-top:6px">👁 <b>Double-check the '+flaggedG+' glowing Perfect gem'+(flaggedG===1?'':'s')+'</b> (bottom row, ringed with <b>✓?</b>) — the rarest + most likely to be off by a digit. Tap −/+ to correct any.</div>':'')
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Auto-cropped + enlarged, read 2–5× and reconciled by majority vote, identified by fixed grid position. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
     } else {
       report.innerHTML='No gems read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot — gems filling the frame, good lighting.';
     }
