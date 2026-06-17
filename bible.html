@@ -12851,20 +12851,44 @@ var RW_BASE_INDEX = {};
 window.RW_BASE_INDEX = RW_BASE_INDEX;
 // the first concrete base name in a compound label ("Mage Plate / Archon Plate" → "Mage Plate") — used for art.
 function _rwBaseArtName(name){ return String(name).split(/\s*[\/·]\s*/)[0].trim(); }
+// v341.36 — sockets a given runeword needs = number of runes in it (RUNEWORD_TIP.rec). Used to
+// annotate each runeword on a base AND to derive the base's true socket requirement.
+function _rwSock(rwName){
+  try {
+    if (typeof findRuneword !== 'function' || typeof RUNEWORD_TIP === 'undefined') return null;
+    var k = findRuneword(rwName);
+    var e = k && RUNEWORD_TIP[k];
+    if (e && e.rec && e.rec.length) return e.rec.length;
+    if (e && e.b){ var m = String(e.b).match(/(\d+)\s*socket/i); if (m) return +m[1]; }
+  } catch(e){}
+  return null;
+}
+window._rwSock = _rwSock;
 function _rwBaseTipHtml(name){
   var b = RW_BASE_INDEX[name]; if (!b) return '';
   var meta = b.meta || '';
-  var sockM = meta.match(/(\d+)\s*sock/i);
   var strM  = meta.match(/(\d+(?:[–-]\d+)?)\s*str/i);
-  var sockLine = sockM ? sockM[1] + ' socket' + (sockM[1]==='1'?'':'s')
-                : /caster|low str|cheap|budget/i.test(meta) ? 'socketed runeword base' : 'runeword base';
-  var rws = (b.rw||'').split(' · ').map(function(r){ return '<span class="att-tag">'+r.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>'; }).join('');
+  var rwNames = (b.rw||'').split(' · ');
+  // socket counts the hosted runewords actually need → the honest socket line for this base.
+  var socks = rwNames.map(_rwSock).filter(function(s){ return s; });
+  var lo = socks.length ? Math.min.apply(null, socks) : null;
+  var hi = socks.length ? Math.max.apply(null, socks) : null;
+  var sockLine;
+  if (lo){ sockLine = (lo === hi ? lo : lo + '–' + hi) + ' socket' + (hi === 1 ? '' : 's'); }
+  else { var sockM = meta.match(/(\d+)\s*sock/i);
+         sockLine = sockM ? sockM[1] + ' socket' + (sockM[1]==='1'?'':'s')
+                  : /caster|low str|cheap|budget/i.test(meta) ? 'socketed runeword base' : 'runeword base'; }
+  var rws = rwNames.map(function(r){
+    var sk = _rwSock(r);
+    return '<span class="att-tag">'+r.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      + (sk ? '<span class="rwb-tip-sk">'+sk+'🔩</span>' : '')+'</span>';
+  }).join('');
   var note = meta.replace(/^\s*\d+(?:[–-]\d+)?\s*str\s*·?\s*/i,'').replace(/^\s*·\s*/,'').trim();
   return '<div class="att-type" style="color:var(--q-base,#a8adb8)">Base Item &middot; ' + b.slot + '</div>'
     + '<div class="att-meta">🔩 ' + sockLine + (strM ? ' &middot; ' + strM[1] + ' str' : '') + '</div>'
     + (note ? '<div class="att-aff">' + note.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>' : '')
-    + '<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base</div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">' + rws + '</div>'
-    + '<div class="att-info">A normal/superior <b>grey</b> base — socket it (Larzuk / cube / drops) and cube the runes in order. Click to open its top runeword.</div>';
+    + '<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base <span style="opacity:.6;font-weight:400">(🔩 = sockets needed)</span></div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">' + rws + '</div>'
+    + '<div class="att-info">A normal/superior <b>grey</b> base — socket it to the right count (Larzuk / cube / drops) and cube the runes in order. Click to open its top runeword.</div>';
 }
 window._rwBaseTipHtml = _rwBaseTipHtml;
 // v341.30 — each runeword's iconic / most-common (top-rated) base, so its floating tooltip can show
@@ -14738,10 +14762,13 @@ window._jewelTipHtml = _jewelTipHtml;
       tip.classList.remove('tip-r-unique','tip-r-set','tip-r-magic','tip-r-rare','tip-r-rw','tip-r-rune','tip-r-crafted','tip-r-basic');
       var rc = (typeof _artRarity==='function') ? _artRarity(name) : '';
       if (rc) tip.classList.add('tip-r-'+rc);
+      // v341.36 — runeword bases are grey/normal items → desaturate the popup art + white name.
+      tip.classList.toggle('tip-grey', (typeof RW_BASE_INDEX !== 'undefined') && !!RW_BASE_INDEX[name]);
     }
     function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
+      tip.classList.remove('tip-grey');   // v341.36 — clear grey state; setTipR re-adds for runeword bases
       // v341.28 — "shows in-game as" craft example chips float the craft's RESULT card: the
       // guaranteed mods + affix RANGES (floor→godly), same as every other item tooltip.
       var cex = el.getAttribute && el.getAttribute('data-craftex');
@@ -19290,6 +19317,12 @@ table.drops tbody tr:hover{ background:rgba(212,168,71,.045); }
 #arttip.tip-r-rune{border-color:rgba(255,150,50,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 27px rgba(255,150,50,.36)}
 #arttip.tip-r-crafted{border-color:rgba(255,168,0,.9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 26px rgba(255,168,0,.34)}
 #arttip.tip-r-basic{border-color:rgba(207,207,207,.7);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 22px rgba(207,207,207,.22)}
+/* v341.36 — runeword bases are GREY normal-quality items you socket yourself: render the
+   popup art desaturated + a white name so it reads as the bare grey base it is. */
+#arttip.tip-grey{border-color:rgba(190,190,190,.62);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 14px 40px rgba(0,0,0,.75),0 0 20px rgba(190,190,190,.2)}
+#arttip.tip-grey img{filter:grayscale(1) contrast(1.04) brightness(1.05)!important}
+#arttip.tip-grey .att-name{color:#cfcfcf!important;text-shadow:0 0 6px rgba(190,190,190,.45),0 1px 1px rgba(0,0,0,.55)}
+#arttip .rwb-tip-sk{display:inline-block;margin-left:4px;padding:0 4px;border-radius:4px;font-size:9px;font-weight:700;color:#cfe0ff;background:rgba(90,120,180,.22);border:1px solid rgba(120,150,210,.45)}
 /* v309: floating-tip item NAME painted in the EXACT in-game quality colour — synced with
    the ID-card name and the Vault chips so a rare reads yellow, a set green, a unique gold,
    a magic blue, a crafted orange, a base white. Same palette across the entire platform. */
