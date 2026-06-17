@@ -156,10 +156,10 @@ export async function onRequestPost(context) {
     },
     body: JSON.stringify({
       // Both modes read small/stylized text off screenshots (tally = stack-count digits; items = item
-      // NAMES off tooltips) → Haiku under-reads and misses most items ("3 of 10" calibration complaints).
-      // HARD-PIN Sonnet for both so item-intake actually catches every readable name. env.MODEL can still
-      // override item-intake to a cheaper model if cost ever matters more than recall.
-      model: isTally ? 'claude-sonnet-4-6' : (env.MODEL || 'claude-sonnet-4-6'),
+      // NAMES off tooltips). v341.50 — TALLY now uses OPUS 4.8 (Anthropic's most capable vision model)
+      // for the sharpest digit reading on dense rune/gem grids (Konyo: "make it opus"); item-intake
+      // stays on Sonnet. env.MODEL overrides either. Opus 4.8 supports vision + structured outputs.
+      model: env.MODEL || (isTally ? 'claude-opus-4-8' : 'claude-sonnet-4-6'),
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
