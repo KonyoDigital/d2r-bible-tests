@@ -13254,7 +13254,7 @@ window.importGemTally = importGemTally;
 // (2) _tallyRead reads the SAME image 2–5× (independent Sonnet passes) and reconciles per-name by
 //     MAJORITY VOTE (mode; median tie-break), recounting only while stacks are still disputed. Max
 //     amplified a single over-read into the total; majority needs agreement, killing one-off miscounts.
-function _tallyPrepImage(file){
+function _tallyPrepImage(file, layout){
   return new Promise(function(resolve, reject){
     var img=new Image(), url=URL.createObjectURL(file);
     img.onload=function(){
@@ -13262,11 +13262,14 @@ function _tallyPrepImage(file){
       var sx=0, sy=0, sw=W, sh=H;
       // D2R full-screen capture → the stash (Runes/Gems/Materials) is ALWAYS the left panel, same spot.
       if ((W/H) >= 1.3 && W >= 1200){
-        // left Stash grid (Runes/Gems/Materials all share this panel region). Box MEASURED from a real
-        // fullscreen capture so it bounds the grid TIGHTLY — top row through the bottom high-rune row —
-        // with no wasted frame/cube-panel margin, so the grid fills the upscaled canvas at max digit
-        // resolution. Includes all 5 rows (the bottom high runes Vex…Zod) — a loose box halved the res.
-        var x0=0.083, y0=0.20, x1=0.402, y1=0.468;
+        // v341.59 — LAYOUT-SPECIFIC crop. The grids differ in extent: the RUNE tab is 9-wide and its
+        // bottom two rows wrap around the central cube (so it runs wider + lower), while the GEM tab is
+        // a clean 7×5 block that ends higher and a touch narrower. Measured from real fullscreen
+        // captures (both 1.538 aspect). Using the rune box for gems left the 7×5 block small in-frame →
+        // misreads on the Perfect (bottom) row. Each layout now bounds its own grid TIGHTLY so it fills
+        // the upscaled canvas at max digit resolution.
+        var x0=0.083, y0=0.20, x1=0.402, y1=0.468;          // runes (9-wide, cube-wrapped bottom rows)
+        if (layout === 'gems'){ x0=0.105; y0=0.205; x1=0.388; y1=0.445; }   // gems (clean 7×5 block)
         sx=Math.round(x0*W); sy=Math.round(y0*H); sw=Math.round((x1-x0)*W); sh=Math.round((y1-y0)*H);
       }
       var MAX=1568, scale=Math.min(3.2, MAX/Math.max(sw,sh)); // enlarge the crop so digits are crisp (cap up-scale at 3.2×)
@@ -13383,7 +13386,7 @@ window.gemIntake = async function(files){
   var added={}, total=0, errors=0;
   for (var i=0;i<files.length;i++){
     try{
-      var b64=await _tallyPrepImage(files[i]);
+      var b64=await _tallyPrepImage(files[i], 'gems');   // v341.59 — gem-specific tight crop (7×5 block)
       var t=await _tallyRead(b64, vocab, 'gems');   // v341.55 — gems tab has a FIXED 7x5 layout → identify by position (column=type, row=grade)
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
@@ -14462,7 +14465,7 @@ window.runeIntake = async function(files){
   var added={}, total=0, errors=0;
   for (var i=0;i<files.length;i++){
     try{
-      var b64=await _tallyPrepImage(files[i]);
+      var b64=await _tallyPrepImage(files[i], 'runes');   // v341.59 — rune-specific crop (9-wide, cube-wrapped)
       var t=await _tallyRead(b64, vocab, 'runes');   // v341.54 — runes tab has a FIXED layout → identify by position, not glyph (kills Jah/Cham swaps)
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
