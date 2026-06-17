@@ -156,10 +156,10 @@ export async function onRequestPost(context) {
     },
     body: JSON.stringify({
       // Both modes read small/stylized text off screenshots (tally = stack-count digits; items = item
-      // NAMES off tooltips). v341.50 — TALLY now uses OPUS 4.8 (Anthropic's most capable vision model)
-      // for the sharpest digit reading on dense rune/gem grids (Konyo: "make it opus"); item-intake
-      // stays on Sonnet. env.MODEL overrides either. Opus 4.8 supports vision + structured outputs.
-      model: env.MODEL || (isTally ? 'claude-opus-4-8' : 'claude-sonnet-4-6'),
+      // NAMES off tooltips). v341.51 — REVERTED to Sonnet: Opus 4.8 (v341.50) made the Cloudflare
+      // worker 502 — Opus latency + the json_schema first-call compile cost exceeded the function's
+      // response limit. Sonnet is the reliable default. env.MODEL still overrides if Opus is wanted.
+      model: env.MODEL || 'claude-sonnet-4-6',
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
