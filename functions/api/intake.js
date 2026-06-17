@@ -22,6 +22,7 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
   const { image, media_type, names, kind } = body || {};
+  try {
   if (!image || typeof image !== 'string') return json({ error: 'missing image' }, 400);
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
   if (!Array.isArray(names) || names.length < 3 || names.length > 600) return json({ error: 'names vocabulary required' }, 400);
@@ -175,7 +176,10 @@ export async function onRequestPost(context) {
 
   if (!apiResp.ok) {
     const errText = await apiResp.text();
-    return json({ error: 'upstream', status: apiResp.status, detail: errText.slice(0, 300) }, 502);
+    // v341.52 — return 200 (NOT 5xx): Cloudflare overwrites any 5xx the worker returns with its own
+    // generic "error code: 502" page, which masks the real upstream reason and makes the upload look
+    // dead. A 200 with error fields passes straight through so the client can read + show the reason.
+    return json({ error: 'upstream', status: apiResp.status, detail: errText.slice(0, 300), tally: {}, items: [], unrecognized: [] }, 200);
   }
   const data = await apiResp.json();
   const usage = data.usage ? { in: data.usage.input_tokens, out: data.usage.output_tokens, cached: data.usage.cache_read_input_tokens } : null;
@@ -226,6 +230,10 @@ export async function onRequestPost(context) {
     unrecognized: [...new Set([...unrec, ...(parsed.unrecognized || [])])].slice(0, 40),
     usage,
   }, 200);
+  } catch (e) {
+    // graceful 200 (not 5xx, which Cloudflare masks) so the client sees the real failure
+    return json({ error: 'worker-exception', message: String((e && e.message) || e), tally: {}, items: [], unrecognized: [] }, 200);
+  }
 }
 
 function json(obj, status) {

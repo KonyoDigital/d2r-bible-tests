@@ -13237,6 +13237,7 @@ async function _tallyRead(b64, vocab){
       var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
       if(!resp.ok) return null;
       var data = await resp.json();
+      if(data && data.error) return null;   // v341.52 — upstream/worker error (200 + error field) → failed pass, not an empty read
       var t = data.tally || {}, clean = {};
       Object.keys(t).forEach(function(k){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0) clean[k]=c; });
       return clean;
