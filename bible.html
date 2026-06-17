@@ -13319,7 +13319,7 @@ window.gemIntake = async function(files){
   for (var i=0;i<files.length;i++){
     try{
       var b64=await _tallyPrepImage(files[i]);
-      var t=await _tallyRead(b64, vocab);
+      var t=await _tallyRead(b64, vocab, 'gems');   // v341.55 — gems tab has a FIXED 7x5 layout → identify by position (column=type, row=grade)
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         var key=findGem(k);

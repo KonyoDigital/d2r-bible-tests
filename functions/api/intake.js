@@ -110,6 +110,16 @@ export async function onRequestPost(context) {
         + 'So: the bottom-left lone rune is ALWAYS Cham; the bottom-right lone rune is ALWAYS Zod; the rightmost rune of '
         + 'row 4 is ALWAYS Jah. For each occupied cell, report the rune that owns that position + its stack number; skip '
         + 'empty/greyed cells. If the screenshot is clearly NOT this fixed runes-tab grid, fall back to glyph reading. '
+      : layout === 'gems'
+      ? '(10) FIXED LAYOUT — IDENTIFY BY POSITION: this is D2R\'s dedicated GEMS stash tab, a 7-COLUMN x 5-ROW grid. '
+        + 'COLUMNS are gem TYPES, left→right: Diamond, Emerald, Ruby, Topaz, Amethyst, Sapphire, Skull. ROWS are GRADES, '
+        + 'top→bottom: Chipped, Flawed, standard (NO grade word — e.g. just "Ruby"), Flawless, Perfect. So column 5 / '
+        + 'row 5 = "Perfect Amethyst"; column 3 / row 1 = "Chipped Ruby"; column 1 / row 3 = "Diamond". Use the COLUMN '
+        + 'to fix the type and the ROW to fix the grade — do NOT judge grade from the gem\'s cut/size, which makes '
+        + 'chipped/flawed/flawless easy to confuse; the row position is exact. Type colours: Diamond=clear/white, '
+        + 'Emerald=green, Ruby=red, Topaz=yellow, Amethyst=purple, Sapphire=blue, Skull=bone-grey. For each occupied '
+        + 'cell, report the vocabulary name for that type+grade + its stack number; skip empty cells. If the screenshot '
+        + 'is clearly NOT this fixed 7x5 gems grid, fall back to visual reading. '
       : '')
     + 'VOCABULARY:\n' + names.join('\n');
 
