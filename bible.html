@@ -1399,6 +1399,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rs-empty{cursor:default;background:linear-gradient(135deg,#120e09,#090705);box-shadow:inset 1px 1px 3px rgba(0,0,0,.92),inset -1px -1px 1px rgba(90,70,40,.07)}
 .rune-stash-cell.rs-slot.rs-has,.gem-cell.gem-slot.gem-has{background:linear-gradient(135deg,#2d2214,#17110a);border-color:#4a3a1d}
 .rune-stash-cell.rs-slot:hover,.gem-cell.gem-slot:hover{border-color:var(--gold-bright,#f0c060);box-shadow:inset 1px 1px 3px rgba(0,0,0,.6),0 0 10px rgba(212,168,71,.4);z-index:3}
+/* v341.53 — "double-check these" flag on the error-prone high runes after a 📸 tally intake */
+.rune-stash-cell.rs-slot.rs-verify{z-index:4;animation:rsVerify 1.5s ease-in-out infinite}
+@keyframes rsVerify{0%,100%{box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(127,212,255,.6),0 0 11px rgba(127,212,255,.55)}50%{box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(255,210,90,.9),0 0 17px rgba(255,210,90,.75)}}
+.rune-stash-cell.rs-slot.rs-verify::after{content:"✓?";position:absolute;top:-3px;right:-3px;z-index:6;font-size:9px;font-weight:800;line-height:1;color:#0a0e16;background:linear-gradient(180deg,#ffe08a,#e0a838);border:1px solid #fff2cf;border-radius:6px;padding:1px 3px;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+@media(prefers-reduced-motion:reduce){.rune-stash-cell.rs-slot.rs-verify{animation:none;box-shadow:inset 1px 1px 2px rgba(0,0,0,.85),0 0 0 2px rgba(255,210,90,.85)}}
 .rune-stash-cell.rs-slot .d2art-wrap,.gem-cell.gem-slot .d2art-wrap{width:88%!important;height:88%!important}
 .rune-stash-cell.rs-slot .d2art-wrap .d2art-img,.gem-cell.gem-slot .d2art-wrap .d2art-img{max-width:100%!important;max-height:100%!important}
 .rune-stash-cell.rs-slot:not(.rs-has) .d2art-wrap,.gem-cell.gem-slot:not(.gem-has) .d2art-wrap{opacity:.3;filter:grayscale(.5)}
@@ -13273,6 +13278,22 @@ async function _tallyRead(b64, vocab){
   return (res || vote(reads)).merged;
 }
 window._tallyRead = _tallyRead;
+// v341.53 — after a rune tally, flag the OWNED high runes (the error-prone, valuable ones the AI is
+// most likely to misread by a digit) with a pulsing "✓?" so Konyo can eyeball just those. Auto-clears
+// after 20s, or instantly on any −/+ (which re-renders the grid). Returns how many were flagged.
+window._flagHighRunesVerify = function(){
+  var grid = document.getElementById('rune-stash-grid'); if(!grid) return 0;
+  var HIGH = ['Gul','Vex','Ohm','Lo','Sur','Ber','Jah','Cham','Zod'];
+  grid.querySelectorAll('.rs-verify').forEach(function(c){ c.classList.remove('rs-verify'); });
+  var n = 0;
+  HIGH.forEach(function(name){
+    var cell = grid.querySelector('.rune-stash-cell[data-rune="'+name+'"]');
+    if (cell && cell.classList.contains('rs-has')){ cell.classList.add('rs-verify'); n++; }
+  });
+  if (n){ clearTimeout(window._rsVerifyTimer); window._rsVerifyTimer = setTimeout(function(){
+    document.querySelectorAll('#rune-stash-grid .rs-verify').forEach(function(c){ c.classList.remove('rs-verify'); }); }, 20000); }
+  return n;
+};
 
 window.gemIntake = async function(files){
   var report = document.getElementById('gem-intake-report');
@@ -14387,10 +14408,12 @@ window.runeIntake = async function(files){
   if (report){ report.hidden=false;
     var names=Object.keys(added);
     if (names.length){
+      var flaggedN = (typeof window._flagHighRunesVerify === 'function') ? window._flagHighRunesVerify() : 0;
       report.innerHTML='🪄 <strong>tallied '+total+' rune'+(total===1?'':'s')+'</strong> across '+names.length+' type'+(names.length===1?'':'s')+' — added to your stash: '
         + names.sort(function(a,b){return RUNE_INDEX[a]-RUNE_INDEX[b];}).map(function(k){return '<span style="color:var(--gold-bright,#f0c060)">'+k+' ×'+added[k]+'</span>';}).join(' · ')
         + (errors?' · <span style="color:var(--hell,#ff4040)">'+errors+' image error'+(errors===1?'':'s')+'</span>':'')
-        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Auto-cropped + enlarged, then read 2–5× and reconciled by majority vote (disputed stacks get extra recounts) — but still eyeball the grid and nudge any stack with the −/+ buttons. Re-run adds again, so use “clear stash” first for a fresh total.</div>';
+        + (flaggedN?'<div style="color:#ffe08a;font-size:12px;margin-top:6px">👁 <b>Double-check the '+flaggedN+' glowing high rune'+(flaggedN===1?'':'s')+'</b> (Gul→Zod, ringed with <b>✓?</b>) — these are the rarest + most likely to be off by a digit. Tap −/+ to correct any.</div>':'')
+        + '<div style="color:var(--text-dim);font-size:11px;margin-top:5px">Auto-cropped + enlarged, then read 2–5× and reconciled by majority vote (disputed stacks get extra recounts). Re-run adds again, so use “clear stash” first for a fresh total.</div>';
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
