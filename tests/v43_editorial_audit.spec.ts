@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
-import { BOSS_CHIPS_TOTAL } from './_data_locks';
+import { BOSS_CHIPS_TOTAL, CALC_ITEMS_TOTAL } from './_data_locks';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
@@ -11,7 +11,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
     await page.waitForTimeout(3000);
   });
 
-  test('boot integrity — all module symbols + 312 items + 13 boss chips', async ({ page }) => {
+  test(`boot integrity — all module symbols + ${CALC_ITEMS_TOTAL} items + 13 boss chips`, async ({ page }) => {
     const state = await page.evaluate(() => ({
       items: typeof ITEMS !== 'undefined' ? ITEMS.length : 0,
       bossChips: document.querySelectorAll('.boss-chip').length,
@@ -19,7 +19,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       navigateToItem: typeof window.navigateToItem === 'function',
       openBossDetail: typeof window.openBossDetail === 'function',
     }));
-    expect(state.items).toBe(312);
+    expect(state.items).toBe(CALC_ITEMS_TOTAL);
     expect(state.bossChips).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(state.jumpToBossItem).toBe(true);
     expect(state.navigateToItem).toBe(true);
@@ -121,7 +121,7 @@ test.describe('v43 editorial — regression check against v42 audit floor', () =
       bossChips: document.querySelectorAll('.boss-chip').length,
       wishlistSize: typeof wishlist !== 'undefined' ? wishlist.size : -1,
     }));
-    expect(state.itemTiles).toBe(312);
+    expect(state.itemTiles).toBe(CALC_ITEMS_TOTAL);
     expect(state.bossChips).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
     expect(state.wishlistSize).toBe(0);
   });
