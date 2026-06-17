@@ -21,7 +21,7 @@ test('every EXTRA_ITEM routes to a sensible mule (calibration audit)', async ({ 
   expect(dest('Crafted Caster Ring (jackpot)')).toBe('uni-small');
   expect(dest('Marshal\'s Amulet')).toBe('uni-small');
   expect(dest('Godly Rare Jewel (40 ED / 15 IAS)')).toBe('uni-small');
-  expect(dest('Arioc\'s Needle')).toBe('uni-weap');   // Hyperion SPEAR — not the shield (regex collision fixed)
+  // (Arioc's Needle moved into the grail in v341.33 — no longer an EXTRA_ITEM, so not audited here)
   // NAMED runeword bases route by SLOT (not the generic SOCKETED mule)
   expect(dest('Eth Giant Thresher (Infinity base)')).toBe('uni-weap'); // Polearm = weapon
   expect(dest('Eth Archon Plate (Enigma/CoH base)')).toBe('uni-armor');

@@ -27,7 +27,10 @@ test('Best Runeword Bases card renders rows with clickable orange runeword chips
   expect(r.rows).toBeGreaterThanOrEqual(15);     // 4 slots × several bases
   expect(r.chipText).toBeTruthy();
   expect(r.chipColor).toBe('rgb(255, 168, 0)');  // --q-orange runewords
-  expect(r.baseColor).toBe('rgb(244, 244, 244)'); // --q-normal white bases
+  // v341.29 — runeword base names now read GREY (normal/socket-it-yourself quality), no longer white
+  expect(r.baseColor).not.toBe('rgb(244, 244, 244)');
+  const bm = r.baseColor!.match(/\d+/g)!.map(Number);
+  expect(bm[0]).toBeLessThan(220); expect(Math.abs(bm[0] - bm[2])).toBeLessThan(40); // greyish, slightly cool
 });
 
 test('a runeword chip routes via openDrop to a real runeword card', async ({ page }) => {
