@@ -5,7 +5,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Verified anchor data (silospen/pairofdocs)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     // Set MF to 300 to match anchor reference (so cells show raw verified numbers)
     await page.locator('#mf').fill('300');
     await page.locator('#mf').dispatchEvent('input');

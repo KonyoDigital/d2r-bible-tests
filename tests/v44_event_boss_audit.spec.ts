@@ -9,6 +9,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette completeness', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(3000);
   });
 

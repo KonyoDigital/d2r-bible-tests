@@ -16,7 +16,7 @@ declare const ITEMS: any[];
 test.describe('v69 boss top-drop row → calc routing', () => {
   test('every boss top-drop row name resolves in ITEMS with a well-formed onclick (no silent dead clicks)', async ({ page }) => {
     await page.goto(URL);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     const bossIds: string[] = await page.evaluate(() => (BOSSES as any[]).map((b) => b.id));
     const failures: any[] = [];
@@ -49,7 +49,7 @@ test.describe('v69 boss top-drop row → calc routing', () => {
     page.on('pageerror', (e) => errs.push('PAGEERR: ' + e.message));
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(URL);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     const cases: { boss: string; text: string }[] = [
       { boss: 'mephisto', text: "The General's Tan Do Li Ga" }, // apostrophe escaping trap

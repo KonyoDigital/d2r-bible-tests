@@ -19,7 +19,7 @@ const nameCell = (page, boss: string, item: string) =>
 test.describe('v130 in-game item-quality name colors + Cinzel font', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(300);
     await openAll(page);
   });

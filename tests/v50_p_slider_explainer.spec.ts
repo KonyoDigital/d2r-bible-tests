@@ -13,7 +13,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v50 P# slider explainer + breakpoint math', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1000);
     await page.click('.tab[data-tab="ref"]');
     await page.waitForTimeout(150);

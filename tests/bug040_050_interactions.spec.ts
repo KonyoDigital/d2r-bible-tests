@@ -6,6 +6,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('BUG-040..050 — interaction probe sweep', () => {
   test('BUG-040 click item tile → calc detail renders', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     const firstTile = page.locator('#item-grid .item-tile:visible').first();
@@ -20,6 +21,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-041 source-chip click switches to bosses tab', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.locator('#item-search').fill('nagel');
@@ -35,6 +37,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-042 star toggle persists localStorage', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     // v47: boss-card bodies are display:none behind the TZ-style accordion, so per-row
     // star controls are in the DOM but not pointer-clickable. Fire the first star's onclick
@@ -50,6 +53,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-043 owned toggle persists localStorage', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     // v47: owned buttons live inside the now-hidden boss-body accordion. Fire the first
     // owned-btn's onclick directly (evaluate-click works on hidden nodes) → toggleOwned.
@@ -64,6 +68,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-044 MF slider live-updates boss-card drop chances', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(1200);
     // v47: boss-card drop tables live inside the hidden boss-body accordion; innerText
@@ -82,6 +87,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-045 Players slider live-updates label', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     const beforeLabel = await page.evaluate(() => document.getElementById('players-val')?.textContent);
     await page.evaluate(() => {
@@ -95,6 +101,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-046 search counter updates on filter', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.waitForTimeout(150);
@@ -108,6 +115,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-047 filter pill "grail" filters items', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.waitForTimeout(150);
@@ -123,6 +131,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-048 sort by column toggles direction class', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     // v44: the sortable drop table now lives inside the collapsed full-table disclosure
     // far down the card (y≈4600); a real .click() gets intercepted by sticky chrome, so
@@ -139,6 +148,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-049 keyboard "/" focuses search', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.keyboard.press('/');
     await page.waitForTimeout(150);
@@ -148,6 +158,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-049b Esc clears active item', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.locator('#item-search').fill('shako');
@@ -162,6 +173,7 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
 
   test('BUG-050 statue tracker toggles state', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.locator('.tab[data-tab="rotw"]').click();
     await page.waitForTimeout(200);

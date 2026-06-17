@@ -14,7 +14,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Item click routing — v38 (was v12 sharpness)', () => {
   test('clicking item in boss table jumps to calculator detail', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     // v47: boss-card bodies are collapsed (display:none) behind the TZ-style accordion, so the
     // drop-table row is in the DOM but not pointer-clickable. Fire its row click handler directly
@@ -31,7 +31,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
 
   test('detail panel shows multiple jump chips', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     await page.click('.tab[data-tab="calc"]');
     await page.fill('#item-search', 'shako');
@@ -45,7 +45,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
 
   test('clicking source chip jumps to boss + activates item bar', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     await page.click('.tab[data-tab="calc"]');
     await page.fill('#item-search', 'shako');
@@ -62,7 +62,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
 
   test('active item glows on bosses that drop it, dims others', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     await page.click('.tab[data-tab="calc"]');
     await page.fill('#item-search', 'tyrael');
@@ -82,7 +82,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
 
   test('Esc clears active item', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     await page.click('.tab[data-tab="calc"]');
     await page.fill('#item-search', 'stone of jordan');
@@ -102,7 +102,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
 
   test('aid-card "jump to boss" button jumps to bosses tab', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     await page.click('.tab[data-tab="calc"]');
     await page.fill('#item-search', 'shako');
@@ -117,7 +117,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
 
   test('hero card pick clicks open item detail', async ({ page }) => {
     await page.goto(BIBLE);
-    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     // v63: dropdown sections default-collapsed → expand Today's Best Grail Picks first
     await page.locator('.sec-h', { hasText: 'Best Grail Picks' }).click();
