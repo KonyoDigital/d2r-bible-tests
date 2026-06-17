@@ -1438,7 +1438,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .cw-recipe{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"glyph head own" "glyph ing stat" "glyph out out" "glyph base base";gap:3px 11px;align-items:center;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:linear-gradient(180deg,rgba(36,28,16,.4),rgba(16,12,7,.3));transition:border-color .14s,box-shadow .14s}
 .cw-recipe:hover{border-color:var(--gold-dim)}
 .cw-recipe.cw-rec-ready{border-color:#3fbf6a;background:linear-gradient(90deg,rgba(63,191,106,.10),rgba(16,12,7,.3))}
-.cw-rec-glyph{grid-area:glyph;font-size:22px;width:34px;text-align:center;opacity:.92}
+.cw-rec-glyph{grid-area:glyph;font-size:22px;width:34px;text-align:center;opacity:.92;display:flex;align-items:center;justify-content:center}
+/* v341.37 — slot icon is now HD base art (gloves for Gloves, shield for Shield, …) */
+.cw-rec-glyph .d2art-wrap{width:32px;height:32px;cursor:help}
+.cw-rec-glyph .d2art-wrap .d2art-img{max-width:32px;max-height:32px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
 .cw-rec-head{grid-area:head;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .cw-rec-slot{font-weight:700;font-size:13.5px;color:var(--text)}
 .cw-rec-best{font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--cw-c);border:1px solid color-mix(in srgb,var(--cw-c) 45%,transparent);border-radius:9px;padding:1px 6px}
@@ -3744,6 +3747,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
+  <div class="boss-card collapsible collapsed tool-premium" id="craft-workshop-card" style="--tc:#b48ce0">
+    <div class="boss-header" onclick="window.toggleCardCollapse('craft-workshop-card');window.renderCraftWorkshop&&window.renderCraftWorkshop()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/warhammer_graphic.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(240,192,96,.5))" decoding="async"></span>
+      <div class="boss-title-block">
+        <p class="boss-name">Crafted Items Workshop</p>
+        <p class="boss-subtitle">The 4 crafts &amp; every per-slot recipe · exactly what's needed, and what you can cube right now</p>
+        <p class="boss-loc">Reads your 💠 Gem + 🧮 Rune Stash for cubeable status · 📸 logs the crafted items you own · 💾 Backup &amp; Share</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="cw-wrap">
+        <div class="cw-intro">🔨 <b>Crafting</b> cubes a <b>magic (blue) base</b> + a <b>perfect gem</b> + <b>any jewel</b> + a <b>rune</b> into a crafted rare. The <b>perfect gem decides the craft</b> (and its 2 universal + 1 slot-specific guaranteed mods); the <b>rune only varies by slot</b>. Pick a craft below to see <b>exactly what each slot needs</b> — green means you already hold the gem &amp; rune in your stash. Log what you've made with 📸 AI intake.</div>
+        <div class="rs-ai-row">
+          <button class="rs-ai-btn" onclick="document.getElementById('craft-intake-file').click()" title="1 screenshot of your crafted items (tooltip open) → the AI reads each one's mods, decides its craft type + slot, and logs it as owned">📸 AI intake — 1 photo logs the crafted items you own</button>
+          <input type="file" id="craft-intake-file" accept="image/*" multiple style="display:none" onchange="window.craftIntake(this.files)">
+        </div>
+        <div id="craft-intake-report" hidden class="rs-ai-report"></div>
+        <div id="craft-workshop"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="boss-card collapsible collapsed tool-premium" id="rune-stash-card" style="--tc:#ffa800">
     <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/runeZod_icon.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,150,50,.5))" decoding="async"></span>
@@ -3921,29 +3947,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         </div>
       </div>
       <div class="ir-note">⚠ Colours follow the in-game name colour. Reign of the Warlock may add or retune affixes — verify in-game.</div>
-    </div>
-  </div>
-
-  <div class="boss-card collapsible collapsed tool-premium" id="craft-workshop-card" style="--tc:#b48ce0">
-    <div class="boss-header" onclick="window.toggleCardCollapse('craft-workshop-card');window.renderCraftWorkshop&&window.renderCraftWorkshop()" role="button" tabindex="0" aria-expanded="false">
-      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/warhammer_graphic.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 7px rgba(240,192,96,.5))" decoding="async"></span>
-      <div class="boss-title-block">
-        <p class="boss-name">Crafted Items Workshop</p>
-        <p class="boss-subtitle">The 4 crafts &amp; every per-slot recipe · exactly what's needed, and what you can cube right now</p>
-        <p class="boss-loc">Reads your 💠 Gem + 🧮 Rune Stash for cubeable status · 📸 logs the crafted items you own · 💾 Backup &amp; Share</p>
-      </div>
-      <span class="rs-chevron" aria-hidden="true">▾</span>
-    </div>
-    <div class="boss-body">
-      <div class="cw-wrap">
-        <div class="cw-intro">🔨 <b>Crafting</b> cubes a <b>magic (blue) base</b> + a <b>perfect gem</b> + <b>any jewel</b> + a <b>rune</b> into a crafted rare. The <b>perfect gem decides the craft</b> (and its 2 universal + 1 slot-specific guaranteed mods); the <b>rune only varies by slot</b>. Pick a craft below to see <b>exactly what each slot needs</b> — green means you already hold the gem &amp; rune in your stash. Log what you've made with 📸 AI intake.</div>
-        <div class="rs-ai-row">
-          <button class="rs-ai-btn" onclick="document.getElementById('craft-intake-file').click()" title="1 screenshot of your crafted items (tooltip open) → the AI reads each one's mods, decides its craft type + slot, and logs it as owned">📸 AI intake — 1 photo logs the crafted items you own</button>
-          <input type="file" id="craft-intake-file" accept="image/*" multiple style="display:none" onchange="window.craftIntake(this.files)">
-        </div>
-        <div id="craft-intake-report" hidden class="rs-ai-report"></div>
-        <div id="craft-workshop"></div>
-      </div>
     </div>
   </div>
 
@@ -9009,6 +9012,16 @@ Object.assign(D2IO_ART, {"Phase Blade":"art/base_phaseblade.png","Crystal Sword"
    covered grail uniques + set AGGREGATES but not individual set PIECES). maxroll HD, self-hosted. */
 Object.assign(D2IO_ART, {"Angelic Halo": "art/mr_angelichalo.png", "Angelic Wings": "art/mr_angelicwings.png", "Bul-Kathos' Tribal Guardian": "art/mr_bulkathostribalguardian.png", "Cathan's Rule": "art/mr_cathansrule.png", "Cathan's Seal": "art/mr_cathansseal.png", "Cathan's Sigil": "art/mr_cathanssigil.png", "Cathan's Visage": "art/mr_cathansvisage.png", "Iratha's Collar": "art/mr_irathascollar.png", "Iratha's Cord": "art/mr_irathascord.png", "Iratha's Cuff": "art/mr_irathascuff.png", "Cow King's Hooves": "art/mr_cowkingshooves.png"});
 window.D2IO_ART = D2IO_ART;
+// v341.37 — Crafted Workshop art: each craft SLOT (and the "any jewel" ingredient) gets HD
+// base-type art so the slot icons + every floating craft tooltip show a real item image
+// (Konyo: "HD art for the items — gloves for gloves, each section relevant to its own").
+// Reuses self-hosted generic base graphics; keys are synthetic ("magic <slot> base") so they
+// never collide with real item names.
+(function _wireCraftArt(){
+  var SLOT = {Weapon:'warhammer',Shield:'rondache',Helm:'hornedhelm','Body Armor':'fullplate',Gloves:'heavygloves',Belt:'belt',Boots:'heavyboots',Amulet:'amu1',Ring:'ring1'};
+  for (var s in SLOT){ if (Object.prototype.hasOwnProperty.call(SLOT,s)) D2IO_ART['magic '+s+' base'] = 'art/'+SLOT[s]+'_graphic.png'; }
+  D2IO_ART['any jewel'] = 'art/jewel02_graphic.png';
+})();
 function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
 window.artUrl = artUrl;
 function _d2artEsc(s){ return String(s).replace(/"/g, '&quot;'); }
@@ -13848,7 +13861,7 @@ window.dailyCreateAi = function(force){
       +'.ask-flagship::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,#b48ce0,#8fd0ff,#ffd040,#b48ce0);background-size:300% 100%;animation:askSheen 9s linear infinite;opacity:.9;z-index:2}'
       +'@keyframes askSheen{0%{background-position:0% 0}100%{background-position:300% 0}}'
       +'.ask-hero{background:linear-gradient(120deg,rgba(120,90,200,.16),rgba(127,212,255,.08) 45%,rgba(240,192,96,.08));border-bottom:1px solid rgba(150,120,220,.25)}'
-      +'.ask-hero-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:17px!important}'
+      +'.ask-hero-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-family:var(--serif-display,serif);font-size:22px!important;font-weight:600;letter-spacing:.3px}'/* v341.37 — match the standard .boss-name title size/structure */
       +'.ask-hero-d2{color:var(--gold-bright,#f0c060);font-family:var(--serif-display,serif)}'
       +'.ask-orb{font-size:19px;filter:drop-shadow(0 0 6px rgba(180,140,224,.9));animation:askOrb 3.2s ease-in-out infinite;display:inline-block}'
       +'@keyframes askOrb{0%,100%{transform:translateY(0) rotate(-4deg);filter:drop-shadow(0 0 5px rgba(180,140,224,.7))}50%{transform:translateY(-2px) rotate(4deg);filter:drop-shadow(0 0 11px rgba(143,208,255,.95))}}'
@@ -13960,16 +13973,18 @@ function _cwRecipeRow(craft, s, withStepper){
       + '<button class="rs-btn" onclick="event.stopPropagation();window.adjustCraftStash(\'' + escKey + '\',\'' + escSlot + '\',1)" title="log one owned ' + craft.key + ' ' + s + '" aria-label="plus">+</button>'
       + '<span class="cw-own-lbl">owned</span></span>'
     : '';
+  var slotArt = (typeof artOr === 'function') ? artOr('magic ' + s + ' base', CRAFT_SLOT_GLYPH[s] || '🔨', 'md') : (CRAFT_SLOT_GLYPH[s] || '🔨');
   return '<div class="cw-recipe' + (st.ready ? ' cw-rec-ready' : '') + '" style="--cw-c:' + craft.color + '">'
-    + '<span class="cw-rec-glyph">' + (CRAFT_SLOT_GLYPH[s] || '🔨') + '</span>'
+    + '<span class="cw-rec-glyph">' + slotArt + '</span>'
     + '<div class="cw-rec-head"><span class="cw-rec-slot">' + s + '</span>' + best + '</div>'
     + '<div class="cw-rec-ing"><span class="cw-ing-lab">cube</span>' + _cwIngChip(craft.gem, st.haveGem) + _cwIngChip(rec.rune, st.haveRune)
       + _cwBasicChip('any jewel', 'any jewel — magic jewels drop constantly') + _cwBaseChip(s, st.haveBase, rec.base) + '</div>'
     + '<div class="cw-rec-out"><span class="cw-out-arrow">→</span> creates <b class="cw-out-name">' + craft.key + ' ' + s + '</b> <span class="cw-out-rare">crafted rare</span> — <span class="cw-out-mods">' + craft.mods.join(' · ') + '</span> <span class="cw-out-extra">+ 1–4 random affixes</span></div>'
     + '<div class="cw-rec-base"><b>base options:</b> ' + rec.base + ' <span class="cw-base-src">· ' + (CRAFT_BASE_SOURCE[s] || '') + '</span></div>'
     + (CRAFT_NAME_EXAMPLES[s] ? '<div class="cw-rec-names"><span class="cw-names-lab">shows in-game as</span> ' + (function(){
-        var baseArt = String(rec.base || '').split(/[·,]/)[0].trim();   // first base option → HD art resembling the craft
-        var thumb = (typeof artOr === 'function') ? artOr(baseArt, CRAFT_SLOT_GLYPH[s] || '🔨', 'sm') : '';
+        var baseArt = String(rec.base || '').split(/[·,]/)[0].trim();   // first base option (for label)
+        // HD thumbnail = the slot's base art (gloves art for Gloves, etc.) so every example name carries a real item picture
+        var thumb = (typeof artOr === 'function') ? artOr('magic ' + s + ' base', CRAFT_SLOT_GLYPH[s] || '🔨', 'sm') : '';
         return CRAFT_NAME_EXAMPLES[s].map(function(nm){
           var enc = (craft.key + '|' + s + '|' + baseArt).replace(/"/g, '&quot;');
           return '<span class="cw-name-ex" data-arttip="' + String(nm).replace(/"/g,'&quot;') + '" data-craftex="' + enc + '">' + thumb + '<span class="cw-name-ex-t">' + nm + '</span></span>';
@@ -14774,7 +14789,8 @@ window._jewelTipHtml = _jewelTipHtml;
       var cex = el.getAttribute && el.getAttribute('data-craftex');
       if (cex){
         var cp = cex.split('|'); var exn = el.getAttribute('data-arttip') || cp[0];
-        var caurl = (typeof artUrl==='function') ? (artUrl(cp[2]||'') || artUrl(cp[1]||'')) : '';
+        // v341.37 — fall back to the slot's HD base art ("magic <slot> base") so every craft-name popup shows an item image
+        var caurl = (typeof artUrl==='function') ? (artUrl(cp[2]||'') || artUrl(cp[1]||'') || artUrl('magic '+(cp[1]||'')+' base')) : '';
         cur = el;
         img.src = caurl || ''; img.style.display = caurl ? '' : 'none';
         lab.textContent = exn; lab.style.color = 'var(--q-orange)';
