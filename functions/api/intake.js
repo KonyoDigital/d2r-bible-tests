@@ -181,12 +181,10 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // v341.63 — REVERTED tally to Sonnet. Opus DID work (200, no 502) but at ~7.5s/pass — with the
-      // 2–5× majority vote that's 15–40s of spinning, which reads as "not loading" (Konyo). Sonnet is
-      // ~1–2s/pass → the whole intake finishes in a few seconds. The real accuracy win was the TIGHT
-      // gem crop (v341.59) + fixed-position ID + majority vote, which all work on Sonnet. env.MODEL
-      // still overrides if Opus is ever wanted for a one-off.
-      model: env.MODEL || 'claude-sonnet-4-6',
+      // v341.65 — TALLY → Opus 4.8 (best stylized-digit OCR — Sonnet kept missing the Perfect/high
+      // rows). The earlier "not loading" was the 5× vote (~40s); the client now caps tally at 2 passes
+      // (≈15s) so Opus stays responsive. items (NAMES off tooltips) stay on Sonnet (fast, plenty good).
+      model: env.MODEL || (isTally ? 'claude-opus-4-8' : 'claude-sonnet-4-6'),
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },

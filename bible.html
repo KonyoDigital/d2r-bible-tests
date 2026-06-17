@@ -13332,9 +13332,11 @@ async function _tallyRead(b64, vocab, layout){
     });
     return { merged: merged, decided: decided };
   }
-  // Two reads always; then keep recounting the disputed stacks (whole-image re-reads, the vote
-  // focuses on whatever hasn't settled) until every count wins a majority — capped at 5 reads.
-  var reads = [], MAXP = 5, res = null;
+  // v341.65 — capped at 2 reads (was 5). The tally model is Opus 4.8 now (best stylized-digit OCR,
+  // esp. the Perfect/high rows) but ~7.5s/pass; 2 passes ≈ 15s keeps it responsive (5 passes was the
+  // ~40s "not loading"). Two Opus reads that agree = decided; on the rare disagreement the vote's
+  // median resolves it, and the verify-flag catches any straggler.
+  var reads = [], MAXP = 2, res = null;
   for (var p=0; p<MAXP; p++){
     var r = await onePass(); if(r) reads.push(r);
     if (reads.length >= 2){ res = vote(reads); if (res.decided) break; }
