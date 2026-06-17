@@ -481,6 +481,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .expected-row strong{color:var(--best);font-family:ui-monospace,monospace}
 .help-btn{position:fixed;bottom:18px;right:18px;background:var(--gold);color:#1a1208;width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;font-size:18px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;font-family:inherit}
 .help-btn:hover{background:var(--gold-bright);transform:scale(1.05)}
+/* v341.41 — themed confirm modal (replaces the OS-native white confirm() box) */
+.ui-confirm-ov{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(6,4,2,.74);backdrop-filter:blur(5px);opacity:0;transition:opacity .16s ease}
+.ui-confirm-ov.on{opacity:1}
+.ui-confirm{max-width:440px;width:100%;background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.82),0 0 32px -8px rgba(212,168,71,.45);padding:22px 24px 18px;text-align:center;transform:scale(.93) translateY(8px);transition:transform .2s cubic-bezier(.2,.85,.25,1)}
+.ui-confirm-ov.on .ui-confirm{transform:none}
+.ui-confirm-ic{font-size:30px;line-height:1;margin-bottom:9px;filter:drop-shadow(0 0 10px rgba(240,192,96,.5))}
+.ui-confirm-msg{font-size:14px;line-height:1.55;color:var(--text,#e8dcc0);margin-bottom:18px}
+.ui-confirm-msg b{color:var(--gold-bright,#f0c060)}
+.ui-confirm-row{display:flex;gap:10px;justify-content:center}
+.ui-confirm-btn{cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.03em;border-radius:9px;padding:9px 22px;transition:filter .14s,transform .1s,box-shadow .14s}
+.ui-confirm-btn:active{transform:translateY(1px)}
+.ui-confirm-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.ui-confirm-cancel{color:var(--text-dim,#a89878);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1c)}
+.ui-confirm-cancel:hover{color:var(--text,#e8dcc0);background:rgba(255,255,255,.1)}
+.ui-confirm-ok{color:#1a1207;background:linear-gradient(180deg,#ffd886,#e0a838);border:1px solid #e0a838}
+.ui-confirm-ok:hover{filter:brightness(1.08)}
+.ui-confirm-ok.danger{color:#fff;background:linear-gradient(180deg,#e0556a,#b83048);border:1px solid #e08090;box-shadow:0 0 16px -4px rgba(224,85,106,.6)}
+.ui-confirm-ok.danger:hover{filter:brightness(1.1)}
+@media(prefers-reduced-motion:reduce){.ui-confirm-ov,.ui-confirm{transition:none}}
 .help-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;align-items:center;justify-content:center;padding:20px}
 .help-modal.show{display:flex}
 .help-content{background:var(--surface);border:1px solid var(--gold);border-radius:12px;padding:24px;max-width:520px;max-height:80vh;overflow-y:auto}
@@ -5501,7 +5520,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <span style="font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.28em;color:var(--gold-bright,#f0c060);font-size:15px;text-shadow:0 0 12px rgba(240,192,96,.25);white-space:nowrap">⚒ Konyo ⚒</span>
     <span style="flex:0 1 120px;height:1px;background:linear-gradient(90deg,rgba(212,168,71,.55),transparent)"></span>
   </div>
-    <button class="reset-btn" onclick="if(confirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.')){localStorage.clear();location.reload()}">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
+    <button class="reset-btn" onclick="uiConfirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.').then(function(ok){if(ok){localStorage.clear();location.reload();}})">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
 </div>
 </div>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
@@ -9150,6 +9169,33 @@ window.artOr = artOr;
 // Used by every drop-table / top-drops surface so a named item shows its in-game logo.
 function nameLogo(name){ return (typeof artUrl==='function' && artUrl(name)) ? artOr(name, '', 'sm')+' ' : ''; }
 window.nameLogo = nameLogo;
+// v341.41 — themed replacement for the OS-native confirm() white box. Returns a Promise<bool>.
+// Destructive by default (red OK). Esc/backdrop = cancel, Enter = OK.
+window.uiConfirm = function(message, opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var ov = document.createElement('div');
+    ov.className = 'ui-confirm-ov';
+    var danger = opts.danger !== false;   // these confirms are destructive (clear/delete/erase)
+    ov.innerHTML = '<div class="ui-confirm" role="alertdialog" aria-modal="true">'
+      + '<div class="ui-confirm-ic">' + (opts.icon || '⚠️') + '</div>'
+      + '<div class="ui-confirm-msg">' + esc(message).replace(/\n/g,'<br>') + '</div>'
+      + '<div class="ui-confirm-row">'
+      + '<button class="ui-confirm-btn ui-confirm-cancel">' + esc(opts.cancel || 'Cancel') + '</button>'
+      + '<button class="ui-confirm-btn ui-confirm-ok' + (danger ? ' danger' : '') + '">' + esc(opts.ok || 'OK') + '</button>'
+      + '</div></div>';
+    var done = false;
+    function close(val){ if(done) return; done = true; ov.classList.remove('on'); document.removeEventListener('keydown', onKey); setTimeout(function(){ try{ ov.remove(); }catch(e){} }, 180); resolve(val); }
+    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); close(false); } else if(e.key === 'Enter'){ e.preventDefault(); close(true); } }
+    ov.addEventListener('click', function(e){ if(e.target === ov) close(false); });
+    ov.querySelector('.ui-confirm-cancel').onclick = function(){ close(false); };
+    ov.querySelector('.ui-confirm-ok').onclick = function(){ close(true); };
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.classList.add('on'); try{ ov.querySelector('.ui-confirm-ok').focus(); }catch(e){} });
+  });
+};
 
 // ═══ v113/v115 Warlock bind-aura logos — "what to look for" on a bound demon ═
 // v115: swapped the static PNGs for the ANIMATED aura gifs cryptography posted on
@@ -11643,12 +11689,12 @@ function downloadProgress(){
     _backupStatus("Downloaded snapshot file ✓", "ok");
   } catch(e){ _backupStatus("Download isn't available here — copy the text instead.", "warn"); }
 }
-function _applyProgress(raw){
+async function _applyProgress(raw){
   let parsed; try { parsed = JSON.parse(raw); } catch(e){ _backupStatus("That isn't a valid snapshot — expected the JSON from Export.", "err"); return false; }
   const data = (parsed && parsed.data && typeof parsed.data === "object") ? parsed.data : ((parsed && typeof parsed === "object") ? parsed : null);
   const keys = data ? Object.keys(data).filter(k => typeof data[k] === "string") : [];
   if (!keys.length){ _backupStatus("No saved progress found in that snapshot.", "err"); return false; }
-  if (!confirm("Restore " + keys.length + " saved settings from this snapshot? This OVERWRITES the grail / wishlist / settings currently in this browser.")) { _backupStatus("Restore cancelled — nothing changed.", "warn"); return false; }
+  if (!(await uiConfirm("Restore " + keys.length + " saved settings from this snapshot? This OVERWRITES the grail / wishlist / settings currently in this browser."))) { _backupStatus("Restore cancelled — nothing changed.", "warn"); return false; }
   keys.forEach(k => { try { LS.setItem(k, data[k]); } catch(e){} });
   _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
   setTimeout(() => location.reload(), 600);
@@ -12615,8 +12661,8 @@ function adjustRuneStash(name, delta){
   renderRuneStash();
 }
 window.adjustRuneStash = adjustRuneStash;
-function clearRuneStash(){
-  if (Object.keys(runeStash).length && !confirm('Clear your entire rune stash tally?')) return;
+async function clearRuneStash(){
+  if (Object.keys(runeStash).length && !(await uiConfirm('Clear your entire rune stash tally?'))) return;
   runeStash = {};
   persist();
   renderRuneStash();
@@ -12969,7 +13015,7 @@ const GEM_CRAFT_ROLE = {Amethyst:'feeds the Caster craft (FCR + mana)', Ruby:'fe
 function _gemCount(n){ var v = parseInt(gemStash[n], 10); return isFinite(v) && v > 0 ? v : 0; }
 function adjustGemStash(name, delta){ var next = _gemCount(name) + delta; if (next <= 0) delete gemStash[name]; else gemStash[name] = next; persist(); renderGemStash(); }
 window.adjustGemStash = adjustGemStash;
-function clearGemStash(){ if (Object.keys(gemStash).length && !confirm('Clear your entire gem stash tally?')) return; gemStash = {}; persist(); renderGemStash(); }
+async function clearGemStash(){ if (Object.keys(gemStash).length && !(await uiConfirm('Clear your entire gem stash tally?'))) return; gemStash = {}; persist(); renderGemStash(); }
 window.clearGemStash = clearGemStash;
 // Cube-up: 3 identical gems → 1 of the next grade. How many of GEM_TYPES[type][targetQi]
 // you could end with by cascading every lower grade of that type up the 3-to-1 chain.
@@ -13075,7 +13121,7 @@ function gemDetailHtml(name){
     + '</div>';
 }
 window.gemDetailHtml = gemDetailHtml;
-function importGemTally(){
+async function importGemTally(){
   var ta = document.getElementById('gem-import-box'); var status = document.getElementById('gem-import-status');
   var setStatus = function(m){ if (status) status.textContent = m; };
   if (!ta) return;
@@ -13091,7 +13137,7 @@ function importGemTally(){
   }
   var n = Object.keys(next).length;
   if (!n){ setStatus('No valid gems found — try "Perfect Amethyst: 4".'); return; }
-  if (Object.keys(gemStash).length && !confirm('Replace your current gem tally with this import?')){ setStatus('Import cancelled.'); return; }
+  if (Object.keys(gemStash).length && !(await uiConfirm('Replace your current gem tally with this import?'))){ setStatus('Import cancelled.'); return; }
   gemStash = next; persist(); renderGemStash();
   var total = Object.values(next).reduce(function(a, b){ return a + b; }, 0);
   setStatus('Loaded ' + n + ' gem types (' + total + ' gems).'); ta.value = '';
@@ -13428,7 +13474,7 @@ function adjustCraftStash(craftKey, slot, delta){
   persist(); renderCraftWorkshop();
 }
 window.adjustCraftStash = adjustCraftStash;
-function clearCraftStash(){ if (Object.keys(craftStash).length && !confirm('Clear every crafted-item you\'ve logged as owned?')) return; craftStash = {}; persist(); renderCraftWorkshop(); }
+async function clearCraftStash(){ if (Object.keys(craftStash).length && !(await uiConfirm('Clear every crafted-item you\'ve logged as owned?'))) return; craftStash = {}; persist(); renderCraftWorkshop(); }
 window.clearCraftStash = clearCraftStash;
 // v341 — HONEST base tracking. A craft needs a MAGIC base item of the slot type. We no
 // longer auto-assume you own one: _baseCount reads craftBaseStash (preview-overridable via
@@ -13833,8 +13879,11 @@ window.dailyCreateAi = function(force){
       +'.cn-pv-note{font-size:11px;color:var(--text-muted);line-height:1.5;margin-bottom:9px}.cn-pv-note b{color:#cfa8ff}'
       +'.cn-pv-row{display:flex;flex-wrap:wrap;gap:7px;align-items:center}'
       +'.cn-pv-sel{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:12px;font-family:inherit;max-width:220px}'
-      +'.cn-pv-add{cursor:pointer;font-weight:700;font-size:12px;color:#1a1207;background:linear-gradient(180deg,#d3b0f0,#b48ce0);border:1px solid #e0c8ff;border-radius:8px;padding:6px 12px}'
-      +'.cn-pv-add:hover{filter:brightness(1.07)}'
+      /* v341.40 — Add-item button is now IDENTICAL to the toggled-ON Preview button (green→cyan lit flagship) */
+      +'.cn-pv-add{cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#06281c;background:linear-gradient(120deg,#34d399 0%,#7fd4ff 50%,#34d399 100%);background-size:240% 100%;border:1px solid #bfffe0;border-radius:12px;padding:9px 18px;text-shadow:0 1px 1px rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 16px -3px rgba(52,211,153,.8),0 0 26px -5px rgba(127,212,255,.8);animation:cnPrevSheen 4s linear infinite;transition:transform .12s ease,filter .16s ease}'
+      +'.cn-pv-add:hover{transform:translateY(-2px) scale(1.05);filter:brightness(1.1) saturate(1.08)}'
+      +'.cn-pv-add:active{transform:translateY(0) scale(.97)}'
+      +'.cn-pv-add:focus-visible{outline:2px solid #fff;outline-offset:2px}'
       +'.cn-pv-clear{cursor:pointer;font-size:11.5px;color:#ff9e9e;background:rgba(255,64,64,.08);border:1px solid rgba(255,80,80,.4);border-radius:8px;padding:6px 11px}'
       +'.cn-pv-chips{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}.cn-pv-lab{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim)}'
       +'.cn-pv-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#e8d8ff;background:rgba(180,140,224,.15);border:1px solid rgba(180,140,224,.4);border-radius:6px;padding:2px 8px}'
@@ -14181,7 +14230,7 @@ window.craftIntake = async function(files){
 };
 
 // Import a pasted tally. Accepts JSON ({"El":3,…}) or "Name:count" pairs. Replaces stash.
-function importRuneTally(){
+async function importRuneTally(){
   const ta = document.getElementById('rune-import-box');
   const status = document.getElementById('rune-import-status');
   const setStatus = (msg) => { if (status) status.textContent = msg; };
@@ -14207,7 +14256,7 @@ function importRuneTally(){
   }
   const n = Object.keys(next).length;
   if (!n){ setStatus('No valid runes found — check the format.'); return; }
-  if (Object.keys(runeStash).length && !confirm('Replace your current rune tally with this import?')) { setStatus('Import cancelled.'); return; }
+  if (Object.keys(runeStash).length && !(await uiConfirm('Replace your current rune tally with this import?'))) { setStatus('Import cancelled.'); return; }
   runeStash = next;
   persist();
   renderRuneStash();
@@ -14327,8 +14376,8 @@ function adjustMaterialStash(name, delta){
   renderMaterialStash();
 }
 window.adjustMaterialStash = adjustMaterialStash;
-function clearMaterialStash(){
-  if (Object.keys(materialStash).length && !confirm('Clear your entire materials tally?')) return;
+async function clearMaterialStash(){
+  if (Object.keys(materialStash).length && !(await uiConfirm('Clear your entire materials tally?'))) return;
   materialStash = {};
   persist();
   renderMaterialStash();
@@ -15162,7 +15211,7 @@ function jumpToUberBoss(id){
 window.jumpToUberBoss = jumpToUberBoss;
 // Import a pasted tally. Accepts JSON ({"Key of Terror":3,…}) or "Full name: count"
 // lines. Full material names are matched case-insensitively; replaces the stash.
-function importMaterialTally(){
+async function importMaterialTally(){
   const ta = document.getElementById('material-import-box');
   const status = document.getElementById('material-import-status');
   const setStatus = (msg) => { if (status) status.textContent = msg; };
@@ -15188,7 +15237,7 @@ function importMaterialTally(){
   }
   const n = Object.keys(next).length;
   if (!n){ setStatus('No valid materials found — check the format.'); return; }
-  if (Object.keys(materialStash).length && !confirm('Replace your current materials tally with this import?')) { setStatus('Import cancelled.'); return; }
+  if (Object.keys(materialStash).length && !(await uiConfirm('Replace your current materials tally with this import?'))) { setStatus('Import cancelled.'); return; }
   materialStash = next;
   persist();
   renderMaterialStash();
@@ -20125,10 +20174,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
-  window.vaultClearUnsorted = function(){
+  window.vaultClearUnsorted = async function(){
     var unsorted = ownedPool().filter(function(name){ return !assign[name]; });
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
-    if (!confirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.')) return;
+    if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
     unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
@@ -20145,15 +20194,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var name=prompt('Rename mule:', m.name); if(!name) return;
     m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
   };
-  window.vaultDeleteMule = function(id){
+  window.vaultDeleteMule = async function(id){
     var m=muleById(id); if(!m) return;
-    if (!confirm('Delete locker '+m.name+'? Its items return to the unsorted dock.')) return;
+    if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
     roster=roster.filter(function(x){return x.id!==id;});
     Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });
     saveR(); saveA(); renderVault();
   };
-  window.vaultReset = function(){
-    if (!confirm('Clear ALL vault assignments? (The mule roster stays; every item returns to the unsorted dock.)')) return;
+  window.vaultReset = async function(){
+    if (!(await uiConfirm('Clear ALL vault assignments? (The mule roster stays; every item returns to the unsorted dock.)'))) return;
     assign={}; saveA(); renderVault();
   };
   window.vaultExport = function(){
@@ -20359,8 +20408,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v328: FULL RESET — a true blank start (Konyo: "delete history + unsorted should register
   // as a blank start"). Empties the log + scan-ledger AND every ✓ owned / vaulted item, set
   // pieces, and mule assignments. The mule ROSTER + rune/gem/material tallies are kept.
-  window.vaultClearHistory = function(){
-    if (!window.confirm('Clear intake history — FULL RESET to a blank start?\n\nThis empties the “Recently registered” log, forgets which screenshots were scanned, AND removes EVERY ✓ owned / vaulted item + mule assignments + set-piece checks. Your mule roster and rune/gem tallies stay. This cannot be undone.')) return;
+  window.vaultClearHistory = async function(){
+    if (!(await uiConfirm('Clear intake history — FULL RESET to a blank start?\n\nThis empties the “Recently registered” log, forgets which screenshots were scanned, AND removes EVERY ✓ owned / vaulted item + mule assignments + set-piece checks. Your mule roster and rune/gem tallies stay. This cannot be undone.'))) return;
     try { localStorage.removeItem(JOURNAL_KEY); } catch(e){}
     try { localStorage.removeItem('d2r_intakeSeen'); } catch(e){}
     try { owned.clear(); } catch(e){}
