@@ -24,6 +24,7 @@ const TAB_PANELS = ['bosses', 'calc', 'tz', 'runes', 'rotw', 'ancients', 'ref'];
 test.describe('v40 LOCKDOWN — engine integrity', () => {
   test('engine renders ≥19,000 droptable chance cells across all bosses+runes+rotw+ancients', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const stats = await page.evaluate(() => {
       // Walk every drops table on the page (boss-cards, runes, rotw, ancients)
@@ -45,6 +46,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('zero NaN / undefined / null leakage anywhere on page (all tabs)', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     // Render every tab to populate dynamic content
     for (const t of TAB_PANELS) {
@@ -76,6 +78,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('zero empty chance cells in any droptable', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const drill = await page.evaluate(() => {
       let total = 0;
@@ -106,6 +109,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('all 7 tab panels exist and reachable', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     for (const t of TAB_PANELS) {
       const button = page.locator(`.tab[data-tab="${t}"]`);
@@ -117,6 +121,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('all 11 boss-tier-val cells populated with non-empty content', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     const vals = await page.locator('.boss-card .boss-tier-val').allInnerTexts();
     expect(vals.length).toBeGreaterThanOrEqual(FLOORS.boss_tier_val);
@@ -127,6 +132,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('MF change re-syncs every droptable chance cell (not just summary)', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     // Take a snapshot of one chance cell value, change MF, re-read it
     const sample = await page.evaluate(() => {
@@ -163,6 +169,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('routing endpoints exist: boss-nav chips, TZ→boss, source-chips', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
 
     // Boss-nav chips: every chip's data-boss-id must point to an existing #<id> boss-card
@@ -196,6 +203,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
 
   test('global functions stable on window: switchTab, openBossDetail, clearActiveBoss, setActiveBoss, setActiveItem, clearActiveItem', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     const exposed = await page.evaluate(() => ({
       switchTab: typeof (window as any).switchTab === 'function',
@@ -227,6 +235,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
     });
 
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     for (const t of TAB_PANELS) {
       await page.evaluate((tab) => (window as any).switchTab(tab), t);
@@ -249,6 +258,7 @@ test.describe('v40 LOCKDOWN — engine integrity', () => {
     });
 
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     for (const id of ['mephisto', 'andariel', 'baal']) {
       await page.evaluate((bid) => (window as any).openBossDetail(bid), id);

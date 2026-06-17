@@ -305,6 +305,9 @@ test.describe('v42 UX — cross-routing integrity', () => {
     // Open Mephisto
     await page.evaluate(() => {
       if (typeof window.openBossDetail === 'function') window.openBossDetail('mephisto');
+      // v341.56 — boss drop rows are built lazily; open the "all drops" <details> so they exist
+      const det = document.querySelector('#mephisto .all-drops-details') as HTMLDetailsElement | null;
+      if (det) { det.open = true; det.dispatchEvent(new Event('toggle')); }
     });
     await page.waitForTimeout(200);
     

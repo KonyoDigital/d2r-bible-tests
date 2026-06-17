@@ -5,6 +5,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Each cell renders the correct state', () => {
   test('blocked-tc cells render with TC-overrun title', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     // Mephisto Norm-TZ TC57 caps below Vampire Gaze TC60 — TC block with overrun title.
     // (Was SoJ, but SoJ is a RING — jewelry is qlvl-gated, not TC-gated; the v187
@@ -18,6 +19,7 @@ test.describe('Each cell renders the correct state', () => {
 
   test('qlvl blocked cells show orange (block-mlvl) class', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     // Andariel NM can't drop Mara's (qlvl 67 > NM Andy mlvl 49)
     const row = page.locator('#andariel tr[data-item="Mara\'s Kaleidoscope"]');
     const nmCell = row.locator('td.diff-col').nth(2);
@@ -27,6 +29,7 @@ test.describe('Each cell renders the correct state', () => {
 
   test('best cells in each row are highlighted gold', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     // Pick first boss card, verify at least one cell is best-cell
     const bestCells = page.locator('#mephisto td.best-cell');
     const count = await bestCells.count();
@@ -35,6 +38,7 @@ test.describe('Each cell renders the correct state', () => {
 
   test('each visible chance cell shows 1:N format or %', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     const cells = page.locator('#mephisto td.diff-col:not(.blocked-tc):not(.blocked-mlvl):not(.cannot)');
     const count = await cells.count();
     expect(count).toBeGreaterThan(0);
@@ -47,6 +51,7 @@ test.describe('Each cell renders the correct state', () => {
 
   test('boss tier badges are present', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     const tiers = ['S+', 'S', 'A+', 'A', 'A-'];
     for (const tier of tiers) {
       const found = await page.locator(`.boss-tier-val:has-text("${tier}")`).count();
@@ -56,6 +61,7 @@ test.describe('Each cell renders the correct state', () => {
 
   test('every boss row has clickable item name with star + owned button', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     // v43: the full drop table is collapsed behind <details class="all-drops-details"> (Top Drops
     // feature). Expand mephisto's so the rows are visible before asserting on their controls.
@@ -70,6 +76,7 @@ test.describe('Each cell renders the correct state', () => {
 
   test('total item-rows across all bosses ≥ 200', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     const rows = page.locator('.boss-card tr.clickable');
     const count = await rows.count();
     expect(count).toBeGreaterThanOrEqual(200);

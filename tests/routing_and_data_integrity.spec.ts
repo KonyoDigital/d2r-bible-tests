@@ -44,6 +44,7 @@ const TZ_SUPERUNIQUE_ONLY: { match: string; wrongProxy: string }[] = [
 test.describe('boss-chip routing — each chip opens its OWN boss', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(2500);
   });
 
@@ -65,6 +66,7 @@ test.describe('boss-chip routing — each chip opens its OWN boss', () => {
 test.describe('TZ-zone routing — fidelity + correctness', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(2500);
   });
 
@@ -183,6 +185,7 @@ test.describe('drop-row navigation — clicking opens the EXACT item in the calc
   test.beforeEach(async ({ page }) => {
     await page.evaluate(() => { try { localStorage.clear(); } catch {} }).catch(() => {});
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(2500);
   });
 
@@ -231,6 +234,7 @@ test.describe('drop-row navigation — clicking opens the EXACT item in the calc
 test.describe('data integrity — every cell faithful to the model (NO fabrication)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(3000);
   });
 
@@ -299,6 +303,7 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
   test('search filters items correctly + clicking a tile opens that exact item', async ({ page }) => {
     await page.evaluate(() => { try { localStorage.clear(); } catch {} });
     await page.reload();
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(3000);
     await page.evaluate(() => (window as any).switchTab('calc'));
     await page.waitForTimeout(200);
@@ -335,6 +340,7 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
   test('command palette routes to the exact searched item in calc', async ({ page }) => {
     await page.evaluate(() => { try { localStorage.clear(); } catch {} });
     await page.reload();
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(3000);
     await page.evaluate(() => { if ((window as any)._v42_openPalette) (window as any)._v42_openPalette(); });
     await page.waitForTimeout(200);
@@ -353,6 +359,7 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
   test('calc source-chip routes to a boss that ACTUALLY drops the item (+ highlights it)', async ({ page }) => {
     await page.evaluate(() => { try { localStorage.clear(); } catch {} });
     await page.reload();
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(3000);
     await page.evaluate(() => (window as any).navigateToItem('Harlequin Crest (Shako)'));
     await page.waitForTimeout(600);

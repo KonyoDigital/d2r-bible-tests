@@ -9,6 +9,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('Holy Grail — Top Drops per boss', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(2500);
   });
 
@@ -74,6 +75,7 @@ test.describe('Holy Grail — Top Drops per boss', () => {
   test('clicking a top-drop row navigates to the item in the calculator', async ({ page }) => {
     await page.evaluate(() => { localStorage.clear(); });
     await page.reload();
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(2500);
     await page.evaluate(() => window.openBossDetail('mephisto'));
     await page.waitForTimeout(500);

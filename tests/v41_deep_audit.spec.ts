@@ -17,6 +17,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('master data model intact: 13 bosses + ≥300 items + 6 difficulty keys', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     const probe = await page.evaluate(() => {
       const B = eval('typeof BOSSES !== "undefined" ? BOSSES : null');
@@ -43,6 +44,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('every droptable item name exists in master ITEMS index (no fabricated items)', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const report = await page.evaluate(() => {
       const I = eval('typeof ITEMS !== "undefined" ? ITEMS : []');
@@ -66,6 +68,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('every ITEMS[].sources[] bossId actually exists in BOSSES (no fabricated drop sources)', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(400);
     const report = await page.evaluate(() => {
       const B = eval('typeof BOSSES !== "undefined" ? BOSSES : []');
@@ -102,6 +105,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('bidirectional: every droptable row item has a matching source in ITEMS[].sources for that boss', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const report = await page.evaluate(() => {
       const I = eval('typeof ITEMS !== "undefined" ? ITEMS : []');
@@ -129,6 +133,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('reverse: every ITEMS[].sources[bossId=X] is rendered in boss X droptable', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const report = await page.evaluate(() => {
       const I = eval('typeof ITEMS !== "undefined" ? ITEMS : []');
@@ -167,6 +172,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('no two bosses have identical droptables', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     const result = await page.evaluate(() => {
       const sigByBoss: Record<string, string> = {};
@@ -193,6 +199,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('chance cell format: every visible cell parses to a known format', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     // v43: drop tables are collapsed behind <details>; expand them and read via textContent so the
     // pattern census reflects real cell content (innerText returns "" for hidden nodes).
@@ -232,6 +239,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('no fabricated cells: every rendered (boss,item,diff) has declared ITEMS[].sources[] + ratio sanity', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     // v43: the full drop tables live inside collapsed <details>; expand them so every row is in
     // play. (We read via textContent below, but expanding keeps this robust either way.)
@@ -310,6 +318,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('calc tab: item search works, item-detail renders with source-chips', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     await page.locator('.tab[data-tab="calc"]').click();
     await page.waitForTimeout(300);
@@ -329,6 +338,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('boss-detail overlay opens cleanly for all 11 bosses, each with 6 diff cells + ≥1 droptable row', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     const bossIds = ['countess','andariel','duriel','mephisto','travincal','diablo','baal','pindle','nihl','cows','pit'];
     const result = await page.evaluate(async (ids) => {
@@ -356,6 +366,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('TZ tab: every ROUTED zone opens its OWN detail whose boss cross-link reaches the correct boss (honest-affordance)', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(300);
@@ -408,6 +419,7 @@ test.describe('v41 deep audit — cross-reference engine to data model', () => {
 
   test('every dropped row has data-item attribute (no row missing item key)', async ({ page }) => {
     await page.goto(BIBLE_URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(800);
     const report = await page.evaluate(() => {
       let totalRows = 0;

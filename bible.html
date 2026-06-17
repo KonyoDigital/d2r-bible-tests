@@ -11468,6 +11468,95 @@ function bossTopDropsHtml(boss, limit){
 }
 window.bossTopDropsHtml = bossTopDropsHtml;
 
+// v341.56 — PERF: the full per-boss drop table (~300 rows × 14 bosses ≈ 50k DOM nodes) is now built
+// LAZILY, only when its "Show all drops" <details> is opened. Cuts the Bosses tab from ~54k nodes to
+// ~6k on load. Open-state is preserved across MF/players/filter/sort re-renders.
+window._openDropBosses = window._openDropBosses || new Set();
+function _bossFilteredDrops(boss){
+  var filter = bossFilters[boss.id] || "all";
+  var dropTable = boss.dropTable.slice();
+  if (filter === "grail") dropTable = dropTable.filter(function(d){ return d.tier === "grail" || d.tier === "uber"; });
+  if (filter === "achievable") dropTable = dropTable.filter(function(d){ return ["norm","normTz","nm","nmTz","hell","hellTz"].some(function(k){ return d[k] !== null; }); });
+  if (filter === "starred") dropTable = dropTable.filter(function(d){ return wishlist.has(d.n); });
+  if (filter === "hideowned") dropTable = dropTable.filter(function(d){ return !owned.has(d.n); });
+  var sortKey = bossSorts[boss.id];
+  if (sortKey) {
+    var sp = sortKey.split(":"), col = sp[0], dir = sp[1];
+    dropTable.sort(function(a,b){ var av = a[col] || Infinity, bv = b[col] || Infinity; return dir === "asc" ? av - bv : bv - av; });
+  }
+  return dropTable;
+}
+window._bossFilteredDrops = _bossFilteredDrops;
+function _bossDropRowsHtml(bossId){
+  const boss = (typeof BOSSES !== 'undefined') ? BOSSES.find(b => b.id === bossId) : null;
+  if (!boss) return '';
+  const filter = bossFilters[boss.id] || "all";
+  const dropTable = _bossFilteredDrops(boss);
+  const rows = dropTable.map(d => {
+    const diffKeys = ["norm","normTz","nm","nmTz","hell","hellTz"];
+    const verifiedDiffs = d.v || [];
+    const adjusted = diffKeys.map(k => effChance(d[k], boss.id, k));
+    const valid = adjusted.filter(v => v !== null && v >= 100);
+    const minChance = valid.length ? Math.min(...valid) : null;
+    const cells = diffKeys.map((k,i) => {
+      const val = adjusted[i];
+      const diff = boss.diffs[i];
+      const isVerified = verifiedDiffs.includes(k);
+      const dcol = {norm:'dcol-norm',normTz:'dcol-normtz',nm:'dcol-nm',nmTz:'dcol-nmtz'}[k] || '';
+      if (val !== null && val !== undefined) {
+        if (val < 100) return `<td class="diff-col ${dcol} rare-5">${fmt(val)}</td>`;
+        const cls = getRarityClass(val);
+        const bestCls = (val === minChance) ? 'best-cell' : '';
+        const verCls = isVerified ? 'verified-cell' : '';
+        const verTitle = isVerified ? ' title="🔒 silospen-verified anchor"' : '';
+        return `<td class="diff-col ${dcol} ${cls} ${bestCls} ${verCls}"${verTitle}>${fmt(val)}</td>`;
+      }
+      const blocked = deriveBlocked(d, diff);
+      if (blocked) {
+        const cls = blocked.type === "mlvl" ? "blocked-mlvl" : "blocked-tc";
+        const short = blocked.reason.length > 22 ? blocked.reason.substring(0,22)+'…' : blocked.reason;
+        return `<td class="diff-col ${dcol} ${cls}" title="${blocked.reason}">${short}</td>`;
+      }
+      return `<td class="diff-col ${dcol} cannot">—</td>`;
+    }).join("");
+    const itemNameClass = "q-" + ((typeof _artRarity === 'function' && _artRarity(d.n)) || itemQuality(d));
+    const starred = wishlist.has(d.n);
+    const isOwned = owned.has(d.n);
+    const wishCls = starred ? 'wishlist-row' : '';
+    const ownedCls = isOwned ? 'owned-row' : '';
+    const escName = d.n.replace(/'/g,"\\'");
+    return `<tr class="clickable ${wishCls} ${ownedCls}" data-item="${d.n}">
+        <td class="item-name ${itemNameClass}" data-arttip="${_d2artEsc(d.n)}">
+          <span class="star-btn ${starred?'starred':''}" data-star="${d.n}" onclick="event.stopPropagation();toggleStar('${escName}')">${starred?'★':'☆'}</span>
+          ${nameLogo(d.n)}${d.n} ${tierPill(d.tier)}
+          <button class="owned-btn ${isOwned?'owned':''}" onclick="event.stopPropagation();toggleOwned('${escName}')" title="${isOwned?'mark as not owned':'mark as owned (will strikethrough)'}">${isOwned?'✓':'☐'}</button>
+        </td>
+        <td class="tc">${tcPill(d.tc)} ${d.qlvl?'q'+d.qlvl:''}</td>
+        ${cells}
+      </tr>`;
+  }).join("");
+  return rows || `<tr><td colspan="8" class="drops-empty-cell" style="text-align:center;padding:18px;opacity:.72;color:var(--text)">No items match the <strong>${filter === 'grail' ? 'grail / uber' : filter === 'achievable' ? 'achievable' : filter === 'starred' ? '⭐ wishlist' : filter === 'hideowned' ? 'hide ✓ owned' : filter}</strong> filter &mdash; <button class="boss-filter-pill" style="display:inline-block;margin-left:6px" onclick="setBossFilter('${bossId}','all')">show all ${boss.dropTable.length}</button></td></tr>`;
+}
+window._bossDropRowsHtml = _bossDropRowsHtml;
+// build a boss's drop <tbody> if it hasn't been filled yet (on <details> open + post-re-render for open ones)
+function _ensureBossRows(bossId){
+  var tb = document.querySelector('#boss-cards tbody[data-drops-for="' + bossId + '"]');
+  if (tb && tb.getAttribute('data-filled') !== '1'){ tb.innerHTML = _bossDropRowsHtml(bossId); tb.setAttribute('data-filled','1'); }
+}
+window._ensureBossRows = _ensureBossRows;
+// build (and optionally open) EVERY boss's drop table at once. Powers a future "expand all" and lets
+// tests that assert against the full drop tables opt back into eager rows after the v341.56 lazy split.
+function _buildAllBossDrops(open){
+  if (typeof BOSSES === 'undefined') return 0;
+  var n = 0;
+  BOSSES.forEach(function(b){
+    if (open){ var d = document.querySelector('#' + b.id + ' .all-drops-details'); if (d){ d.open = true; window._openDropBosses.add(b.id); } }
+    _ensureBossRows(b.id); n++;
+  });
+  return n;
+}
+window._buildAllBossDrops = _buildAllBossDrops;
+
 function renderBossCards() {
   var __cardOf = {};
   BOSSES.forEach(boss => {
@@ -11480,21 +11569,8 @@ function renderBossCards() {
     </div>`).join("");
 
     const filter = bossFilters[boss.id] || "all";
-    let dropTable = boss.dropTable.slice();
-    if (filter === "grail") dropTable = dropTable.filter(d => d.tier === "grail" || d.tier === "uber");
-    if (filter === "achievable") dropTable = dropTable.filter(d => ["norm","normTz","nm","nmTz","hell","hellTz"].some(k => d[k] !== null));
-    if (filter === "starred") dropTable = dropTable.filter(d => wishlist.has(d.n));
-    if (filter === "hideowned") dropTable = dropTable.filter(d => !owned.has(d.n));
-
+    const dropTable = _bossFilteredDrops(boss);   // v341.56 — filter/sort extracted; rows built lazily on <details> open
     const sortKey = bossSorts[boss.id];
-    if (sortKey) {
-      const [col, dir] = sortKey.split(":");
-      dropTable.sort((a,b) => {
-        const av = a[col] || Infinity;
-        const bv = b[col] || Infinity;
-        return dir === "asc" ? av - bv : bv - av;
-      });
-    }
 
     // Quick takeaway with hours
     let quickTake = '';
@@ -11524,52 +11600,6 @@ function renderBossCards() {
     // prestigious chase items lead; the full common-item tail lives in the dropdown below.
     const topDropsHtml = bossTopDropsHtml(boss, 20);
 
-    const rows = dropTable.map(d => {
-      const diffKeys = ["norm","normTz","nm","nmTz","hell","hellTz"];
-      const verifiedDiffs = d.v || [];
-      const adjusted = diffKeys.map(k => effChance(d[k], boss.id, k));
-      const valid = adjusted.filter(v => v !== null && v >= 100);
-      const minChance = valid.length ? Math.min(...valid) : null;
-      const cells = diffKeys.map((k,i) => {
-        const val = adjusted[i];
-        const diff = boss.diffs[i];
-        const isVerified = verifiedDiffs.includes(k);
-        const dcol = {norm:'dcol-norm',normTz:'dcol-normtz',nm:'dcol-nm',nmTz:'dcol-nmtz'}[k] || '';
-        if (val !== null && val !== undefined) {
-          if (val < 100) return `<td class="diff-col ${dcol} rare-5">${fmt(val)}</td>`;
-          const cls = getRarityClass(val);
-          const bestCls = (val === minChance) ? 'best-cell' : '';
-          const verCls = isVerified ? 'verified-cell' : '';
-          const verTitle = isVerified ? ' title="🔒 silospen-verified anchor"' : '';
-          return `<td class="diff-col ${dcol} ${cls} ${bestCls} ${verCls}"${verTitle}>${fmt(val)}</td>`;
-        }
-        const blocked = deriveBlocked(d, diff);
-        if (blocked) {
-          const cls = blocked.type === "mlvl" ? "blocked-mlvl" : "blocked-tc";
-          const short = blocked.reason.length > 22 ? blocked.reason.substring(0,22)+'…' : blocked.reason;
-          return `<td class="diff-col ${dcol} ${cls}" title="${blocked.reason}">${short}</td>`;
-        }
-        return `<td class="diff-col ${dcol} cannot">—</td>`;
-      }).join("");
-      // v330: prefer _artRarity (the ONE in-game-colour resolver) so the full drop table matches
-      // the grid in the same card; fall back to itemQuality for anything it can't resolve.
-      const itemNameClass = "q-" + ((typeof _artRarity === 'function' && _artRarity(d.n)) || itemQuality(d));
-      const starred = wishlist.has(d.n);
-      const isOwned = owned.has(d.n);
-      const wishCls = starred ? 'wishlist-row' : '';
-      const ownedCls = isOwned ? 'owned-row' : '';
-      const escName = d.n.replace(/'/g,"\\'");
-      return `<tr class="clickable ${wishCls} ${ownedCls}" data-item="${d.n}">
-        <td class="item-name ${itemNameClass}" data-arttip="${_d2artEsc(d.n)}">
-          <span class="star-btn ${starred?'starred':''}" data-star="${d.n}" onclick="event.stopPropagation();toggleStar('${escName}')">${starred?'★':'☆'}</span>
-          ${nameLogo(d.n)}${d.n} ${tierPill(d.tier)}
-          <button class="owned-btn ${isOwned?'owned':''}" onclick="event.stopPropagation();toggleOwned('${escName}')" title="${isOwned?'mark as not owned':'mark as owned (will strikethrough)'}">${isOwned?'✓':'☐'}</button>
-        </td>
-        <td class="tc">${tcPill(d.tc)} ${d.qlvl?'q'+d.qlvl:''}</td>
-        ${cells}
-      </tr>`;
-    }).join("");
-
     const sortCol = sortKey ? sortKey.split(":")[0] : null;
     const sortDir = sortKey ? sortKey.split(":")[1] : null;
     const hdrCls = k => sortCol !== k ? "sortable" : "sortable sort-" + sortDir;
@@ -11591,7 +11621,7 @@ function renderBossCards() {
         <div class="diff-grid">${diffsHtml}</div>
         ${quickTake}
         ${topDropsHtml}
-        <details class="all-drops-details">
+        <details class="all-drops-details" data-boss="${boss.id}"${window._openDropBosses.has(boss.id)?' open':''}>
         <summary class="all-drops-summary">&#9656; Show all ${dropTable.length} droppable items &mdash; full table (filter &amp; sort)</summary>
         <div class="boss-filter-bar">
           <span class="boss-filter-label">show:</span>
@@ -11613,7 +11643,7 @@ function renderBossCards() {
             <th class="diff-col ${hdrCls('hell')}" onclick="setBossSort('${boss.id}','hell')">HELL</th>
             <th class="diff-col ${hdrCls('hellTz')}" onclick="setBossSort('${boss.id}','hellTz')">HELL TZ</th>
           </tr></thead>
-          <tbody>${rows || `<tr><td colspan="8" class="drops-empty-cell" style="text-align:center;padding:18px;opacity:.72;color:var(--text)">No items match the <strong>${filter === 'grail' ? 'grail / uber' : filter === 'achievable' ? 'achievable' : filter === 'starred' ? '\u2b50 wishlist' : filter === 'hideowned' ? 'hide \u2713 owned' : filter}</strong> filter &mdash; <button class="boss-filter-pill" style="display:inline-block;margin-left:6px" onclick="setBossFilter('${boss.id}','all')">show all ${boss.dropTable.length}</button></td></tr>`}</tbody>
+          <tbody data-drops-for="${boss.id}"></tbody>
         </table></div>
         </details>
         <div class="success"><strong>Why farm:</strong> ${boss.why}</div>
@@ -11650,22 +11680,34 @@ function renderBossCards() {
     if (_activeCard) _activeCard.insertAdjacentElement('afterend', _bdOv);
   }
 
-  document.querySelectorAll("tr.clickable").forEach(tr => {
-    tr.onclick = e => {
+  // v341.56 — rows are built lazily, so wire #boss-cards ONCE with delegation: (a) build a boss's
+  // drop <tbody> when its <details> opens (+ track open state), (b) row click → navigate (works for
+  // rows added after render). Then re-fill any details left open across this re-render.
+  const _bc = $("boss-cards");
+  if (_bc && !_bc._dropsWired) {
+    _bc._dropsWired = true;
+    _bc.addEventListener('toggle', e => {
+      const det = e.target;
+      if (!det || !det.classList || !det.classList.contains('all-drops-details')) return;
+      const id = det.getAttribute('data-boss'); if (!id) return;
+      if (det.open) { window._openDropBosses.add(id); window._ensureBossRows(id); }
+      else window._openDropBosses.delete(id);
+    }, true);   // capture — the <details> 'toggle' event does not bubble
+    _bc.addEventListener('click', e => {
+      const tr = e.target.closest && e.target.closest('tr.clickable[data-item]');
+      if (!tr || !_bc.contains(tr)) return;
       if (e.target.classList.contains('star-btn') || e.target.classList.contains('owned-btn')) return;
-      // v42 UX (CC find): use canonical navigateToItem to keep selectedItem + activeItem
-      // + active-item-bar in sync (was setting only selectedItem, leaving top bar empty)
       if (typeof navigateToItem === 'function') {
         navigateToItem(tr.dataset.item);
       } else {
         selectedItem = tr.dataset.item;
         if (typeof setActiveItem === 'function') setActiveItem(tr.dataset.item);
-        switchTab("calc");
-        renderCalc();
+        switchTab("calc"); renderCalc();
         setTimeout(() => $("item-detail").scrollIntoView({behavior:"smooth",block:"start"}), 100);
       }
-    };
-  });
+    });
+  }
+  window._openDropBosses.forEach(id => window._ensureBossRows(id));
 }
 
 function setBossFilter(bossId, mode) { bossFilters[bossId] = mode; persist(); renderBossCards(); }
@@ -12104,6 +12146,11 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
     const [bid, dk] = activeSourceKey.split('|');
     const card = document.getElementById(bid);
     if (!card) return;
+    // v341.56 — drop rows are built lazily; open + build this boss's table so the row exists to pulse
+    const _fcDet = card.querySelector('.all-drops-details');
+    if (_fcDet && !_fcDet.open) _fcDet.open = true;
+    if (window._openDropBosses) window._openDropBosses.add(bid);
+    if (typeof window._ensureBossRows === 'function') window._ensureBossRows(bid);
     const row = card.querySelector(`tr[data-item="${name.replace(/"/g,'\\"')}"]`);
     if (!row) return;
     const diffIdx = DIFF_KEYS_ORDERED.indexOf(dk);
@@ -16011,6 +16058,13 @@ window.jumpToBossItem = (itemName, bossId) => {
   // (set by setActiveItem), and within that boss prefer a visible (non-collapsed) row.
   const bid = bossId || (activeSourceKey ? (activeSourceKey.includes('|') ? activeSourceKey.split('|')[0] : activeSourceKey) : null);
   const scope = bid ? document.getElementById(bid) : null;
+  // v341.56 — drop rows are lazy: build + open the target boss's table so its row exists and is visible to scroll to
+  if (bid && typeof window._ensureBossRows === 'function') {
+    if (window._openDropBosses) window._openDropBosses.add(bid);
+    window._ensureBossRows(bid);
+    const _jDet = scope && scope.querySelector('.all-drops-details');
+    if (_jDet && !_jDet.open) _jDet.open = true;
+  }
   const pick = (root) => {
     const rows = [...root.querySelectorAll("tr.clickable")].filter(tr => tr.dataset.item === itemName);
     if (!rows.length) return false;

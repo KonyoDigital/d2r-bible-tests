@@ -38,6 +38,7 @@ test.describe('platform routing audit — every route lands on a VISIBLE target'
   test.beforeEach(async ({ page }) => {
     await page.evaluate(() => { try { localStorage.clear(); } catch {} }).catch(() => {});
     await page.goto(URL);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(2500);
   });
 

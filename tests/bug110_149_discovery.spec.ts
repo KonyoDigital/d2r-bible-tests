@@ -7,6 +7,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
   test('BUG-110 rune drop table has ≥10 rows (mid-high runes)', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     await page.locator('.tab[data-tab="runes"]').click();
     await page.waitForTimeout(200);
@@ -16,6 +17,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-111 every boss has all 6 difficulty columns', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     const cards = await page.locator('#boss-cards .boss-card').count();
     for (let i = 0; i < cards; i++) {
@@ -26,6 +28,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-112 every boss card drops table has ≥1 row', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     const cards = await page.locator('#boss-cards .boss-card').count();
     for (let i = 0; i < cards; i++) {
@@ -36,6 +39,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-113 search-clear (empty fill) restores full grid', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     await page.locator('.tab[data-tab="calc"]').click();
     const before = await page.locator('#item-grid .item-tile:visible').count();
@@ -51,6 +55,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-114 set-piece toggle adds CSS class', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     // v82: the Item Set Tracker now lives in the dedicated 🧰 tools tab
     await page.locator('.tab[data-tab="tools"]').click();
@@ -71,6 +76,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-115 MF math: effective MF formula matches diminishing returns', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     // effMF(300, 250) = 300*100/(300+250) = 54.5%
     const eff = await page.evaluate(() => (window as any).effMF ? (window as any).effMF(300, 250) : null);
@@ -81,6 +87,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-116 reset button confirms and reloads (no auto-trigger)', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     // Set a wishlist item, hit reset (with cancel) — wishlist preserved
     await page.evaluate(() => {
@@ -98,6 +105,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-117 hero card updates after MF change', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     const before = await page.locator('.hero, #hero, [class*="hero"]').first().innerText();
     await page.evaluate(() => {
@@ -111,6 +119,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-118 filter pill "all" returns full grid', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     await page.locator('.tab[data-tab="calc"]').click();
     const total = await page.locator('#item-grid .item-tile').count();
@@ -130,6 +139,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-119 sort persists across renders', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     // v44: the sortable header is deep inside the collapsed full-table disclosure, so a
     // real .click() is intercepted — fire via evaluate-click (BUG-013 pattern).
@@ -159,6 +169,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     page.on('pageerror', e => { if (!isBenign(e.message)) errors.push(e.message); });
     page.on('console', m => { if (m.type() === 'error' && !isBenign(m.text())) errors.push(m.text()); });
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     const ids = ['countess','andariel','duriel','mephisto','travincal','diablo','baal','pindle','nihl','cows','pit'];
     for (const id of ids) {
@@ -174,6 +185,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-121 boss-nav has exactly 13 chips', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     const chips = await page.locator('#boss-nav .boss-chip').count();
     expect(chips).toBe(BOSS_CHIPS_TOTAL); // 11 farmable bosses + 2 event drops (Summoner=Key of Hate, Dclone=Annihilus)
@@ -181,6 +193,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-122 TZ tab has ≥10 zones', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     await page.locator('.tab[data-tab="tz"]').click();
     await page.waitForTimeout(200);
@@ -190,6 +203,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-123 RotW statues ≥5', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     await page.locator('.tab[data-tab="rotw"]').click();
     await page.waitForTimeout(200);
@@ -199,6 +213,7 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
 
   test('BUG-124 detail overlay closes when opening another boss', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
     await page.evaluate(() => (window as any).openBossDetail('pit'));
     await page.waitForTimeout(150);

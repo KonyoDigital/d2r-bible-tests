@@ -6,6 +6,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('BUG-010 — universal boss detail panel', () => {
   test('clicking boss-header opens overlay with correct boss name', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#pit .boss-header').click();
@@ -19,6 +20,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('detail card renders all 6 difficulty cells', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#mephisto .boss-header').click();
@@ -30,6 +32,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('Escape key closes overlay', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#andariel .boss-header').click();
@@ -42,6 +45,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('close button (×) closes overlay', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#countess .boss-header').click();
@@ -57,6 +61,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('clearActiveBoss() programmatic close hides overlay', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#diablo .boss-header').click();
@@ -70,6 +75,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('boss-nav chip click opens boss-detail overlay (v39 behavior)', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     // v39: boss-nav chip calls setActiveBoss() which opens the overlay
@@ -84,6 +90,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('top drops table renders ≥1 row', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#mephisto .boss-header').click();
@@ -95,6 +102,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
 
   test('detail "open full boss card" button closes overlay + scrolls', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     await page.locator('#baal .boss-header').click();
@@ -113,6 +121,7 @@ test.describe('BUG-010 — universal boss detail panel', () => {
     page.on('pageerror', e => errors.push('pageerror: ' + e.message));
     page.on('console', m => { if (m.type() === 'error' && !isBenign(m.text())) errors.push('console.error: ' + m.text()); });
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     await page.evaluate(() => window.switchTab('bosses'));
     await page.waitForTimeout(500);
     for (const id of ['pit', 'mephisto', 'andariel']) {

@@ -18,6 +18,7 @@ async function cell(page, bossId: string, item: string, idx: number) {
 test.describe('v129 TZ columns repulled from silospen RotW desecrated data', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(false); } catch (e) {} }).catch(() => {});
     // MF=300 matches the stored-base reference, so cells render the raw repulled numbers
     await page.locator('#mf').fill('300');
     await page.locator('#mf').dispatchEvent('input');
