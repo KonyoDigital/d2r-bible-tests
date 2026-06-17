@@ -14,6 +14,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v65 grail tier breakdown + backup/restore', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(1200);
   });
 
@@ -99,6 +100,7 @@ test.describe('v65 grail tier breakdown + backup/restore', () => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.evaluate(() => { (window as any).exportProgress(); });
     await page.waitForTimeout(150);

@@ -12,8 +12,10 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v67 rune stash + cube-up planner', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.evaluate(() => { try { localStorage.removeItem('d2r_runeStash'); } catch (e) {} });
     await page.reload();
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);
@@ -124,6 +126,7 @@ test.describe('v67 rune stash + cube-up planner', () => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);

@@ -5,9 +5,10 @@ import { test, expect } from '@playwright/test';
 test('Delete-unsorted button clears the dock but keeps filed items', async ({ page }) => {
   page.on('dialog', d => d.accept());
   await page.goto('file://' + process.cwd() + '/bible.html');
+  await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
   await page.waitForFunction(() => (window as any).vaultClearUnsorted && (window as any).suggestMule);
   await page.evaluate(() => { (window as any).switchTab && (window as any).switchTab('tools'); });
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate(async () => {
     const owned = (window as any).eval('owned');
     owned.add('Chance Guards');               // will get auto-filed
     owned.add('Socketed Body Armor');         // will get auto-filed
@@ -22,7 +23,7 @@ test('Delete-unsorted button clears the dock but keeps filed items', async ({ pa
     (window as any).renderVault();
     const barHasClear = !!document.querySelector('#vault-dock-bar .vault-clear-btn');
     const dockBefore = document.querySelectorAll('#vault-dock .vault-chip').length;
-    (window as any).vaultClearUnsorted();
+    await (window as any).vaultClearUnsorted();   // v341.60 — async (awaits uiConfirm); await before reading the dock
     const dockAfter = document.querySelectorAll('#vault-dock .vault-chip').length;
     const stillOwnedFiled = (window as any).eval('owned').has('Chance Guards');
     const unsortedGone = !(window as any).eval('owned').has('Bonesnap');

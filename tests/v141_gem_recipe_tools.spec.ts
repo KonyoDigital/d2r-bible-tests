@@ -18,6 +18,7 @@ const GEM_TYPE_NAMES = ['Amethyst', 'Diamond', 'Emerald', 'Ruby', 'Sapphire', 'T
 test.describe('v141 gem stash + cube-up planner + Horadric recipe browser', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(800);
   });
 

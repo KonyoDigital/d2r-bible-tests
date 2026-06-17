@@ -16,6 +16,7 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v142 recipe browser wired to the stash tallies', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BIBLE);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(800);
     await page.evaluate(() => { (window as any).clearRuneStash?.(); (window as any).clearGemStash?.(); });
   });

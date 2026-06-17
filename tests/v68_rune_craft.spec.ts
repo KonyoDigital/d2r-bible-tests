@@ -16,8 +16,10 @@ test.describe('v68 rune craft planner + collapse + import', () => {
   test.beforeEach(async ({ page }) => {
     page.on('dialog', (d) => d.accept());
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.evaluate(() => { try { localStorage.removeItem('d2r_runeStash'); } catch (e) {} });
     await page.reload();
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);
@@ -149,6 +151,7 @@ test.describe('v68 rune craft planner + collapse + import', () => {
     const errors: string[] = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(1200);
     await page.click('.tab[data-tab="tools"]');
     await page.waitForTimeout(150);

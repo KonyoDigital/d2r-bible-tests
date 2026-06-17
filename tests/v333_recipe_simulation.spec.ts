@@ -45,11 +45,12 @@ test('craft cube-state machine: ready when holding gem+rune+base, cube when gem 
     (window as any).toggleCraftBase('Amulet');   // clean up the toggle
     return { noBase, ready, cube };
   });
+  // v341.44 REVERT (Konyo): magic base is vendor-buyable at will → locked always-HAVE.
   expect(r.noBase.ingredientsReady).toBe(true);   // gem+rune in hand …
-  expect(r.noBase.haveBase).toBe(false);
-  expect(r.noBase.ready).toBe(false);             // … but NOT craftable — no magic base
-  expect(r.noBase.missing.some((m: string) => /magic Amulet base/.test(m))).toBe(true);
-  expect(r.ready.ready).toBe(true);               // base marked → honestly cubeable now
+  expect(r.noBase.haveBase).toBe(true);           // … and the magic base is always on hand (locked HAVE)
+  expect(r.noBase.ready).toBe(true);              // → cubeable now (gem+rune+always-on base+jewel)
+  expect(r.noBase.missing.some((m: string) => /magic Amulet base/.test(m))).toBe(false); // base is never "missing"
+  expect(r.ready.ready).toBe(true);
   expect(r.cube.ready).toBe(false);
   expect(r.cube.cube).toBe(true);          // ◆ after gem cube-up
   expect(r.cube.haveGemCubed).toBe(true);

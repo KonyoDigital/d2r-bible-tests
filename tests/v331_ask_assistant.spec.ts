@@ -119,7 +119,10 @@ test('crafted items show buff RANGES (floor → godly top%) in the floating tool
   expect(r.direCraft).toBe(true);
 });
 
-test('v341 HONEST base: a craft with gem+rune but no magic base is held back until the base is added (preview + live)', async ({ page }) => {
+// SKIPPED (v341.44 revert): Konyo reverted the "honest base" model — magic base + any jewel are
+// vendor-buyable at will, so they're now LOCKED always-HAVE (not a held-back/click-to-mark ingredient).
+// This test asserts the removed held-back behavior; re-author if the honest-base model ever returns.
+test.skip('v341 HONEST base: a craft with gem+rune but no magic base is held back until the base is added (preview + live)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const findBlood = (tp: any, bucket: string) =>
       (tp[bucket] || []).find((x: any) => x.kind === 'craft' && x.craft === 'Blood' && x.slot === 'Gloves');
@@ -257,7 +260,8 @@ test('v341.5 rich hover tooltips: golden base-options card + emphasized endgame-
   expect(r.craftGrailRoll).toBe(true);
 });
 
-test('v341.18 dashboard shows the full 4-item recipe with have/need + jewel-counted math', async ({ page }) => {
+// SKIPPED (v341.44 revert): asserts the honest-base "need" math that was reverted to always-HAVE. Re-author if it returns.
+test.skip('v341.18 dashboard shows the full 4-item recipe with have/need + jewel-counted math', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
     w.togglePreview(); w.previewAdd('Nef', 'rune'); w.previewAdd('Perfect Ruby', 'gem');  // 2 of Blood Gloves' 4

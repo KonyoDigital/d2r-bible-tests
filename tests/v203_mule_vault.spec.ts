@@ -13,6 +13,7 @@ const OWNED = ['Harlequin Crest (Shako)', 'The Stone of Jordan', 'Vampire Gaze',
 test.describe('v203 the vault', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(2200);
     await page.evaluate((names) => {
       localStorage.removeItem('d2r_muleRoster');
@@ -162,6 +163,7 @@ test.describe('v203 the vault', () => {
     // un-owned items at load (eval('owned').add bypasses persistence)
     await page.evaluate(() => localStorage.setItem('d2r_owned', JSON.stringify([...eval('owned')])));
     await page.reload();
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(2200);
     const r2 = await page.evaluate(() => {
       (window as any).renderVault();
@@ -211,7 +213,7 @@ test.describe('v203 the vault', () => {
       const added = [...document.querySelectorAll('.vm-name')].some(e => e.textContent === 'TEST-MULE');
       (window as any).confirm = () => true;
       const id = JSON.parse(localStorage.getItem('d2r_muleRoster')!).find((m: any) => m.name === 'TEST-MULE').id;
-      (window as any).vaultDeleteMule(id);
+      await (window as any).vaultDeleteMule(id);   // v341.60 — async (awaits uiConfirm); await before checking it's gone
       const gone = ![...document.querySelectorAll('.vm-name')].some(e => e.textContent === 'TEST-MULE');
       return { copied: copied.slice(0, 200), added, gone };
     });

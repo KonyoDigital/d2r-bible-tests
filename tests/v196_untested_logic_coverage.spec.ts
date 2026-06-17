@@ -12,6 +12,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v196 untested-logic coverage', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
+    await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.waitForTimeout(2200);
     await page.evaluate(() => localStorage.clear());
   });
@@ -139,20 +140,19 @@ test.describe('v196 untested-logic coverage', () => {
   });
 
   test('importGemTally parses "Name: N" lines and JSON tallies into gemStash', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(async () => {
       (window as any).switchTab('tools');
       const ta = document.getElementById('gem-import-box') as HTMLTextAreaElement;
       if (!ta) return { box: false };
       ta.value = 'Perfect Skull: 3\nChipped Amethyst = 2';
       const imp = (window as any).importGemTally || eval('importGemTally');
-      imp();
+      await imp();   // v341.60 — importGemTally is async (awaits uiConfirm); await so the stash is written before we read
       const _stash = eval('gemStash') as Record<string, number>;
       const lineParse = { pskull: _stash['Perfect Skull'], chipAme: _stash['Chipped Amethyst'] };
-      // importing over a NON-empty stash triggers a confirm() guard — headless
-      // confirm() returns false => "Import cancelled." Stub it to accept.
+      // importing over a NON-empty stash triggers a uiConfirm guard — auto-accepted via the stub above.
       (window as any).confirm = () => true;
       ta.value = JSON.stringify({ 'Perfect Topaz': 4 });
-      imp();
+      await imp();
       const _stash2 = eval('gemStash') as Record<string, number>;
       return { box: true, lineParse, jsonParse: _stash2['Perfect Topaz'], status: (document.getElementById('gem-import-status')?.textContent || '') };
     });
