@@ -181,10 +181,12 @@ export async function onRequestPost(context) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      // v341.65 — TALLY → Opus 4.8 (best stylized-digit OCR — Sonnet kept missing the Perfect/high
-      // rows). The earlier "not loading" was the 5× vote (~40s); the client now caps tally at 2 passes
-      // (≈15s) so Opus stays responsive. items (NAMES off tooltips) stay on Sonnet (fast, plenty good).
-      model: env.MODEL || (isTally ? 'claude-opus-4-8' : 'claude-sonnet-4-6'),
+      // v341.66 — back to Sonnet for good. Opus reads digits more accurately (verified) BUT keeps
+      // breaking the upload in this serverless worker — even capped at 2 passes it intermittently
+      // hangs/fails ("not working", reported repeatedly). Reliability wins: Sonnet loads fast every
+      // time. The Perfect/high row is handled by the tight crop + fixed-position ID + the ✓? verify-
+      // flag + a one-tap −/+ nudge. env.MODEL=claude-opus-4-8 if you ever want to force Opus.
+      model: env.MODEL || 'claude-sonnet-4-6',
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
