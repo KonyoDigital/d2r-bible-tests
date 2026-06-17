@@ -13235,11 +13235,11 @@ window._tallyPrepImage = _tallyPrepImage;
 // each rune/gem by MAJORITY VOTE (mode; median tie-break), recounting only while a stack is still
 // disputed and stopping as soon as every count wins a majority. The old Math.max amplified a single
 // over-read into the total; a majority needs agreement, killing phantom stacks and one-off miscounts.
-async function _tallyRead(b64, vocab){
+async function _tallyRead(b64, vocab, layout){
   var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   async function onePass(){
     try{
-      var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally'})});
+      var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally',layout:layout||undefined})});
       if(!resp.ok) return null;
       var data = await resp.json();
       if(data && data.error) return null;   // v341.52 — upstream/worker error (200 + error field) → failed pass, not an empty read
@@ -14396,7 +14396,7 @@ window.runeIntake = async function(files){
   for (var i=0;i<files.length;i++){
     try{
       var b64=await _tallyPrepImage(files[i]);
-      var t=await _tallyRead(b64, vocab);
+      var t=await _tallyRead(b64, vocab, 'runes');   // v341.54 — runes tab has a FIXED layout → identify by position, not glyph (kills Jah/Cham swaps)
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         if(k in RUNE_INDEX){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ runeStash[k]=(parseInt(runeStash[k],10)||0)+c; added[k]=(added[k]||0)+c; total+=c; } }

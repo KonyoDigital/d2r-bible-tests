@@ -21,7 +21,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-  const { image, media_type, names, kind } = body || {};
+  const { image, media_type, names, kind, layout } = body || {};
   try {
   if (!image || typeof image !== 'string') return json({ error: 'missing image' }, 400);
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
@@ -96,6 +96,21 @@ export async function onRequestPost(context) {
     + '(9) DOUBLE-CHECK BEFORE RETURNING: re-read every stack number one more time, cell by cell. The single most common '
     + 'error is misreading ONE digit — 5 vs 6, 11 vs 17, 22 vs 23, 3 vs 8. Transcribe exactly the digits printed; never '
     + 'round, average, or estimate a stack you cannot read — leave it out rather than guess a number. '
+    + (layout === 'runes'
+      ? '(10) FIXED LAYOUT — IDENTIFY BY POSITION, NOT GLYPH: this is D2R\'s dedicated RUNES stash tab, where the 33 '
+        + 'runes ALWAYS occupy these exact cells in this exact order (independent of which you own). Read each cell\'s '
+        + 'POSITION to know which rune it is — do NOT rely on glyph similarity (Jah/Cham, Vex/Lo, Sur/Ber, Ohm/Ist look '
+        + 'alike and are easily swapped by glyph, but NEVER by position):\n'
+        + '  Row 1 (9 cells, left→right): El, Eld, Tir, Nef, Eth, Ith, Tal, Ral, Ort\n'
+        + '  Row 2 (9 cells): Thul, Amn, Sol, Shael, Dol, Hel, Io, Lum, Ko\n'
+        + '  Row 3 (9 cells): Fal, Lem, Pul, Um, Mal, Ist, Gul, Vex, Ohm\n'
+        + '  Row 4: the central cube panel SPLITS this row. The two cells on the far LEFT are Lo then Sur. The two cells '
+        + 'on the far RIGHT are Ber then Jah.\n'
+        + '  Row 5: ONE lone cell on the far LEFT is Cham. ONE lone cell on the far RIGHT is Zod.\n'
+        + 'So: the bottom-left lone rune is ALWAYS Cham; the bottom-right lone rune is ALWAYS Zod; the rightmost rune of '
+        + 'row 4 is ALWAYS Jah. For each occupied cell, report the rune that owns that position + its stack number; skip '
+        + 'empty/greyed cells. If the screenshot is clearly NOT this fixed runes-tab grid, fall back to glyph reading. '
+      : '')
     + 'VOCABULARY:\n' + names.join('\n');
 
   const craftText = 'You read Diablo 2 Resurrected screenshots to find CRAFTED ITEMS the player owns and classify each by its '
