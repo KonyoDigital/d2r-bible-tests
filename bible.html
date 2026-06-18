@@ -20922,14 +20922,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v310: track results PER screenshot FILE — so the report names the exact file each
     // item came from (Konyo: "identify specific screenshot files, not just blindly seeing
     // the picture"). Each entry: {file, nw:[new], own:[already-owned], unr:[read-not-tracked], err}.
-    var perFile = [];
-    for (var i = 0; i < files.length; i++){
-      var fname = (files[i] && files[i].name) || ('screenshot ' + (i+1));
-      var fRec = { file: fname, nw: [], own: [], unr: [], mf: [], err: false };
-      perFile.push(fRec);
+    var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false }; });
+    var endpoint = localStorage.getItem('d2r_intakeUrl')
+      || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+    var doneCount = 0;
+    // v342.6 — process screenshots CONCURRENTLY via a small worker pool. Was strictly sequential, so
+    // 62 shots × 2 calls each (locate + read) crawled — painfully so when the tab is backgrounded and
+    // the browser throttles it. JS is single-threaded, so the shared accumulators (owned / magicFinds /
+    // logged / …) have no real races; we just keep ~CONC reads in flight at once.
+    async function processFile(i){
+      var fRec = perFile[i];
+      var fname = fRec.file;
       try {
-        var endpoint = localStorage.getItem('d2r_intakeUrl')
-          || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
         // v342 — calibrate like runes/gems: LOCATE the hovered description tooltip, crop GENEROUSLY to
         // it (never clip), and ENLARGE so its text reads crisp — then read the ONE hovered item.
         var b64, _box = null;
@@ -20952,7 +20956,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ image: b64, media_type: 'image/jpeg', names: vocab, file: fname }),
         });
-        if (!resp.ok) { errors++; fRec.err = true; continue; }
+        if (!resp.ok) { errors++; fRec.err = true; return; }
         var data = await resp.json();
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
@@ -20990,8 +20994,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         });
         if (data.usage) cost += (data.usage.in || 0) / 1e6 * 1.0 + (data.usage.out || 0) / 1e6 * 5.0;
       } catch(e){ errors++; fRec.err = true; }
-      report.innerHTML = _scanUI(i+1, files.length, logged.length);
+      doneCount++;
+      report.innerHTML = _scanUI(doneCount, files.length, logged.length);
     }
+    // worker pool — up to CONC screenshots read concurrently (huge speedup vs one-at-a-time)
+    var CONC = Math.min(5, files.length), _next = 0;
+    async function _worker(){ while (_next < files.length){ var _my = _next++; await processFile(_my); } }
+    var _pool = []; for (var _w = 0; _w < CONC; _w++) _pool.push(_worker());
+    await Promise.all(_pool);
     journalAdd(logged);
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
