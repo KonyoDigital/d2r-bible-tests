@@ -232,9 +232,15 @@ export async function onRequestPost(context) {
       // hangs/fails ("not working", reported repeatedly). Reliability wins: Sonnet loads fast every
       // time. The Perfect/high row is handled by the tight crop + fixed-position ID + the ✓? verify-
       // flag + a one-tap −/+ nudge. env.MODEL=claude-opus-4-8 if you ever want to force Opus.
-      // v342.1 — LOCATE is just box-finding (no text reading): run it on cheap Haiku to spare credits;
-      // the actual item READ stays on Sonnet. (Two passes/shot doubled spend on full-Sonnet otherwise.)
-      model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5') : (env.MODEL || 'claude-sonnet-4-6'),
+      // v342.2 — model per JOB:
+      //  • LOCATE  → Haiku (just box-finding, no text).
+      //  • ITEMS   → Haiku — the vault loot read is now an EASY task (we crop+enlarge to ONE clean tooltip),
+      //              so the cheap model reads it fine at 3× lower cost. Konyo: "do haiku, more logical for these."
+      //  • TALLY/CRAFT → Sonnet — digit COUNTING ("23" vs "2") is the error-prone job; keep the stronger,
+      //              already-calibrated model. (env overrides: LOCATE_MODEL / ITEMS_MODEL / MODEL.)
+      model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
+        : isTally ? (env.MODEL || 'claude-sonnet-4-6')
+        : (env.ITEMS_MODEL || 'claude-haiku-4-5'),
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isTally ? tallySchema : itemsSchema } },
