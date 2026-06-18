@@ -9648,7 +9648,7 @@ function _mfBase(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v=
 function _magicArtSrc(base){
   var b=String(base||'').toLowerCase();
   if(!b) return null;
-  if(/charm/.test(b)) return 'art/logo_charm.png';
+  if(/charm|skiller|\(gc\)|\(sc\)|\(lc\)/.test(b)) return 'art/logo_charm.png';
   if(/jewel/.test(b)) return 'art/jewel02_graphic.png';
   var BM={'circlet':'base_circlet.png','tiara':'base_tiara.png','diadem':'base_diadem.png','monarch':'base_monarch.png','phase blade':'base_phaseblade.png','cryptic axe':'base_crypticaxe.png','berserker axe':'base_berserkeraxe.png','colossus blade':'base_colossusblade.png','crystal sword':'base_crystalsword.png','flail':'base_flail.png','thresher':'base_thresher.png','bone visage':'base_bonevisage.png','demon head':'base_demonhead.png','archon plate':'base_archonplate.png','mage plate':'base_mageplate.png','dusk shroud':'base_duskshroud.png','wire fleece':'base_wirefleece.png','scarab husk':'base_scarabhusk.png','troll nest':'base_trollnest.png','sacred armor':'base_sacredarmor.png','sacred rondache':'base_sacredrondache.png','sacred targe':'base_sacredtarge.png','conqueror crown':'base_conquerorcrown.png'};
   for(var k in BM){ if(b.indexOf(k)>=0) return 'art/'+BM[k]; }
@@ -20530,7 +20530,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
           + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + '"'
           + ' onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">'
-          + '<span class="vm-cell-art">' + art(n, '◆', 'lg') + '</span>' + osTag
+          + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
           + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>';
       });
