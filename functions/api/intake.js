@@ -69,10 +69,17 @@ export async function onRequestPost(context) {
     + 'do NOT report the specific base name. A base with ZERO sockets is still non-reportable (rule 2). '
     + '(3) Ignore NPC name labels (Charsi, Kashya, Warriv, Akara, Gheed the NPC...), zone names, UI text, gold, potions. '
     + '(4) Item ART without readable name text is NOT enough — skip it. '
+    + '(5) MAGIC & RARE KEEPERS → the "finds" array (NOT "items", NOT "unrecognized"). If the hovered item is '
+    + 'a MAGIC (blue name), RARE (yellow name), or CRAFTED (orange name) item that is a CHARM (small/large/grand '
+    + 'charm), a JEWEL, a RING, an AMULET, OR a notably-affixed rare/crafted weapon or armour a player would keep, '
+    + 'add it to "finds" as {name:"<the full name text EXACTLY as printed>", q:"magic"|"rare"|"crafted"} (q from the '
+    + 'name COLOUR: blue=magic, yellow=rare, orange=crafted). Do NOT put white/grey/superior or normal base items, '
+    + 'potions, gold, gems, runes, or NPC names in "finds". A grail unique/set ALWAYS goes in "items", never "finds". '
+    + 'Never list the same name in both "finds" and "unrecognized". '
     + 'Put a string in "unrecognized" ONLY when it is a FULLY-LEGIBLE, COMPLETE item name you read '
-    + 'character-by-character that simply is not in the vocabulary — NEVER a partial read, an inferred/'
-    + 'autocompleted name, or a guess. If you are not certain a real item name is printed there, omit it '
-    + 'entirely. Inventing plausible-sounding names (fake set/unique names) is the worst possible error. '
+    + 'character-by-character that simply is not in the vocabulary AND is not a magic/rare keeper for "finds" — NEVER '
+    + 'a partial read, an inferred/autocompleted name, or a guess. If you are not certain a real item name is printed '
+    + 'there, omit it entirely. Inventing plausible-sounding names (fake set/unique names) is the worst possible error. '
     + 'VOCABULARY:\n' + names.join('\n');
 
   const tallyText = 'You read a Diablo 2 Resurrected screenshot showing RUNES and/or GEMS — usually a dedicated organized '
@@ -173,8 +180,19 @@ export async function onRequestPost(context) {
     properties: {
       items: { type: 'array', items: { type: 'string' } },
       unrecognized: { type: 'array', items: { type: 'string' } },
+      // v342.3 — magic/rare/crafted KEEPERS (charms, jewels, rings, amulets, notable rares). These have
+      // randomly-rolled names so they can't be grail-DB entries; tracked in their own Magic & Rare bucket.
+      finds: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { name: { type: 'string' }, q: { type: 'string', enum: ['magic', 'rare', 'crafted'] } },
+          required: ['name', 'q'],
+          additionalProperties: false,
+        },
+      },
     },
-    required: ['items', 'unrecognized'],
+    required: ['items', 'unrecognized', 'finds'],
     additionalProperties: false,
   };
   const tallySchema = {
@@ -311,9 +329,21 @@ export async function onRequestPost(context) {
     const nm = resolve(r);
     if (nm) items.push(nm); else unrec.push(r);
   }
+  // v342.3 — magic/rare/crafted keepers: sanitize, dedupe by name, drop any that resolve to a real grail item
+  // (those belong in items) or that are blank.
+  const finds = [];
+  const seenFind = new Set();
+  for (const f of (parsed.finds || [])) {
+    const nm = f && typeof f.name === 'string' ? f.name.trim() : '';
+    if (!nm || seenFind.has(nm.toLowerCase())) continue;
+    if (resolve(nm)) { if (!items.includes(resolve(nm))) items.push(resolve(nm)); continue; }
+    seenFind.add(nm.toLowerCase());
+    finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic' });
+  }
   return json({
     items: [...new Set(items)],
     unrecognized: [...new Set([...unrec, ...(parsed.unrecognized || [])])].slice(0, 40),
+    finds: finds.slice(0, 40),
     usage,
   }, 200);
   } catch (e) {
