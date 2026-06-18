@@ -9650,6 +9650,14 @@ function _magicArtSrc(base){
   if(!b) return null;
   if(/charm|skiller|\(gc\)|\(sc\)|\(lc\)/.test(b)) return 'art/logo_charm.png';
   if(/jewel/.test(b)) return 'art/jewel02_graphic.png';
+  // v342.11 — generic base sprites we already self-host (diablo2.io base set). Matches the AI-read base
+  // type ("Heavy Belt", "Ring", "Chain Gloves") AND the rolled rare-name TYPE-WORD (D2 rares are named
+  // "<prefix> <type-word>": Clasp/Sash=belt, Loop/Knot/Band=ring, Choker/Pendant=amulet, etc.).
+  if(/\b(ring|loop|knot|whorl|band|coil|gyre|spiral|turn|circle)\b/.test(b)) return 'art/ring1_graphic.png';
+  if(/\b(amulet|necklace|choker|locket|pendant|beads|collar|noose|talisman|scarab)\b/.test(b)) return 'art/amu1_graphic.png';
+  if(/\b(belt|sash|girdle|cord|clasp|strap|lock|snare|mesh|bind|wrap|string)\b/.test(b)) return 'art/belt_graphic.png';
+  if(/\b(glove|gloves|gauntlet|gauntlets|mitt|mitts|fist|claw|grasp|hand|knuckle|vambrace|bracer|clutches|fingers)\b/.test(b)) return 'art/chaingloves_graphic.png';
+  if(/\b(boot|boots|greave|greaves|sabaton|sabatons|tread|treads|slipper|slippers|track|trail|walk|hoof|spur|spurs|nails|shank)\b/.test(b)) return 'art/leatherboots_graphic.png';
   var BM={'circlet':'base_circlet.png','tiara':'base_tiara.png','diadem':'base_diadem.png','monarch':'base_monarch.png','phase blade':'base_phaseblade.png','cryptic axe':'base_crypticaxe.png','berserker axe':'base_berserkeraxe.png','colossus blade':'base_colossusblade.png','crystal sword':'base_crystalsword.png','flail':'base_flail.png','thresher':'base_thresher.png','bone visage':'base_bonevisage.png','demon head':'base_demonhead.png','archon plate':'base_archonplate.png','mage plate':'base_mageplate.png','dusk shroud':'base_duskshroud.png','wire fleece':'base_wirefleece.png','scarab husk':'base_scarabhusk.png','troll nest':'base_trollnest.png','sacred armor':'base_sacredarmor.png','sacred rondache':'base_sacredrondache.png','sacred targe':'base_sacredtarge.png','conqueror crown':'base_conquerorcrown.png'};
   for(var k in BM){ if(b.indexOf(k)>=0) return 'art/'+BM[k]; }
   return null;
