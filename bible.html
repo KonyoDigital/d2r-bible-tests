@@ -1386,6 +1386,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .ai-load-bar{margin-top:clamp(16px,1.9vw,26px);height:clamp(9px,1.2vw,16px);border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden}
 .ai-load-bar span{display:block;height:100%;width:42%;border-radius:8px;background:linear-gradient(90deg,#7fd4ff,#b48ce0,#ffd886);box-shadow:0 0 16px rgba(127,212,255,.75);animation:aiBar 1.25s ease-in-out infinite}
 @keyframes aiBar{0%{margin-left:-44%}100%{margin-left:102%}}
+/* vault loot-intake reuses the .ai-load loader look (orb + scan-sweep + glow bar) but sized for
+   the report column and with a DETERMINATE fill (it processes many screenshots with live count). */
+.vintake-ai{width:auto;gap:clamp(16px,2.4vw,30px);padding:clamp(18px,2.4vw,28px) clamp(22px,3.2vw,38px);border-radius:18px}
+.vintake-ai .ai-load-orb{font-size:clamp(40px,5vw,62px)}
+.vintake-ai .ai-load-title{font-size:clamp(20px,2.6vw,32px);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.vintake-ai-meta{font-family:var(--mono,monospace);font-size:13px;letter-spacing:.3px;color:#bfe6ff;font-variant-numeric:tabular-nums}
+.vintake-ai-meta b{color:#fff}
+.vintake-ai-new{color:var(--best,#66ff88)}
+.vintake-ai .ai-load-bar span{width:0;margin-left:0;animation:none;transition:width .35s ease}
 @media(prefers-reduced-motion:reduce){.ai-load::after,.ai-load-orb,.ai-load-bar span,.ai-load-dots i{animation:none}}
 .rs-import-btn:hover{filter:brightness(1.08)}
 .rs-import-status{font-size:11px;color:var(--text-muted)}
@@ -2966,26 +2975,49 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     background:linear-gradient(180deg,#ffe9b0,#d4a847 62%,#a9802f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
     text-shadow:0 2px 10px rgba(212,168,71,.18)}
   .tzt-sub{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:13px;color:var(--text-muted)}
-  .tzt-panel{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 2px}
-  @media(max-width:680px){.tzt-panel{grid-template-columns:1fr}.tzt-hero{gap:12px}.tzt-title{font-size:24px}}
+  /* ── flagship LIVE | NEXT duo — two huge symmetric half-tab cards, lively ── */
+  .tzt-panel{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:16px 0 4px;align-items:stretch}
+  @media(max-width:680px){.tzt-panel{grid-template-columns:1fr;gap:16px}.tzt-hero{gap:12px}.tzt-title{font-size:24px}}
   .tzt-loading,.tzt-offline{grid-column:1/-1;text-align:center;color:var(--text-muted);font-style:italic;padding:26px 14px;
     border:1px dashed var(--border);border-radius:12px;background:var(--surface-2)}
   .tzt-offline a{color:var(--gold-bright)}
-  .tzt-slot{border:1px solid var(--border);border-radius:12px;padding:13px 15px;background:linear-gradient(180deg,var(--surface),var(--surface-2))}
-  .tzt-now{border-left:3px solid var(--best);box-shadow:0 0 0 1px rgba(102,255,136,.08),0 6px 18px rgba(0,0,0,.22)}
-  .tzt-next{border-left:3px solid var(--nm)}
-  .tzt-slot-label{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--text-dim);margin-bottom:9px}
-  .tzt-now .tzt-slot-label{color:var(--best)}.tzt-next .tzt-slot-label{color:var(--nm)}
-  .tzt-zone{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px 10px;padding:10px 12px;border-radius:9px;background:rgba(0,0,0,.18);border:1px solid transparent}
-  .tzt-z-emoji{font-size:19px;grid-row:1/3;align-self:center}
-  .tzt-z-name{font-weight:600;font-size:15px;color:var(--text);min-width:0}
-  .tzt-z-go{font-family:ui-monospace,monospace;font-size:11.5px;font-weight:700;color:var(--gold-bright);text-align:right;white-space:nowrap}
-  .tzt-z-why{grid-column:2/4;font-size:11.5px;color:var(--text-muted);font-style:italic}
-  .tzt-z-skip{grid-column:2/4;font-size:11px;color:var(--text-dim);font-style:italic}
-  .tzt-hunt{cursor:pointer;border-color:rgba(240,192,96,.32);background:linear-gradient(180deg,rgba(240,192,96,.07),rgba(0,0,0,.16));transition:border-color .13s,transform .13s,box-shadow .13s}
-  .tzt-hunt:hover{border-color:var(--gold-bright);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.26)}
-  .tzt-hunt:hover .tzt-z-name{text-shadow:0 0 10px rgba(240,192,96,.35)}
-  .tzt-filler{opacity:.58}.tzt-filler .tzt-z-name{font-weight:500;color:var(--text-muted)}
+  .tzt-slot{position:relative;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:18px;
+    padding:20px 22px 26px;min-height:clamp(300px,40vh,440px);background:linear-gradient(180deg,var(--surface),var(--surface-2))}
+  .tzt-now{border-color:rgba(102,255,136,.34);box-shadow:0 0 0 1px rgba(102,255,136,.10),0 12px 34px rgba(0,0,0,.30);animation:tztNowBreath 3.8s ease-in-out infinite}
+  @keyframes tztNowBreath{0%,100%{box-shadow:0 0 0 1px rgba(102,255,136,.10),0 12px 34px rgba(0,0,0,.30)}
+    50%{box-shadow:0 0 0 1px rgba(102,255,136,.24),0 0 34px rgba(102,255,136,.17),0 12px 34px rgba(0,0,0,.30)}}
+  .tzt-next{border-color:rgba(240,168,0,.30);box-shadow:0 12px 34px rgba(0,0,0,.28)}
+  .tzt-slot::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.7}
+  .tzt-now::before{background:radial-gradient(130% 80% at 50% -12%,rgba(102,255,136,.15),transparent 60%)}
+  .tzt-next::before{background:radial-gradient(130% 80% at 50% -12%,rgba(240,168,0,.13),transparent 60%)}
+  .tzt-next::after{content:"";position:absolute;top:-40%;left:-60%;width:46%;height:180%;pointer-events:none;transform:rotate(18deg);
+    background:linear-gradient(90deg,transparent,rgba(240,192,96,.10),transparent);animation:tztSheen 5s ease-in-out infinite}
+  @keyframes tztSheen{0%{left:-60%}58%,100%{left:135%}}
+  .tzt-slot-label{position:relative;z-index:1;font-family:ui-monospace,monospace;font-size:13px;font-weight:800;letter-spacing:1.5px;
+    color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:9px}
+  .tzt-now .tzt-slot-label{color:var(--best)}
+  .tzt-next .tzt-slot-label{color:var(--nm)}
+  .tzt-live-dot{width:10px;height:10px;border-radius:50%;background:var(--best);box-shadow:0 0 0 0 rgba(102,255,136,.55);animation:tztPulse 1.5s ease-out infinite}
+  @keyframes tztPulse{0%{box-shadow:0 0 0 0 rgba(102,255,136,.5)}70%{box-shadow:0 0 0 10px rgba(102,255,136,0)}100%{box-shadow:0 0 0 0 rgba(102,255,136,0)}}
+  /* the big hero zone card filling each half */
+  .tzt-zone{position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:13px;padding:16px 12px;border-radius:14px;background:rgba(0,0,0,.18);border:1px solid transparent}
+  .tzt-z-emoji{font-size:clamp(48px,7vw,80px);line-height:1;filter:drop-shadow(0 5px 16px rgba(0,0,0,.5));animation:tztFloat 4.4s ease-in-out infinite}
+  @keyframes tztFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  .tzt-z-name{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:clamp(21px,2.7vw,32px);line-height:1.12;color:var(--text);letter-spacing:.01em}
+  .tzt-z-why{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:14.5px;color:var(--text-muted);max-width:36ch;line-height:1.4}
+  .tzt-z-go{font-family:ui-monospace,monospace;font-size:14px;font-weight:800;letter-spacing:.5px;color:#1a1206;
+    background:linear-gradient(180deg,#ffe09a,var(--gold-bright));padding:10px 20px;border-radius:999px;box-shadow:0 4px 14px rgba(240,192,96,.28);white-space:nowrap;margin-top:2px}
+  .tzt-z-skip{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-size:13.5px;color:var(--text-dim)}
+  .tzt-zone.tzt-hunt{cursor:pointer;border-color:rgba(240,192,96,.30);background:linear-gradient(180deg,rgba(240,192,96,.08),rgba(0,0,0,.20));transition:border-color .15s,transform .15s,box-shadow .15s}
+  .tzt-zone.tzt-hunt:hover{border-color:var(--gold-bright);transform:translateY(-3px);box-shadow:0 16px 36px rgba(0,0,0,.34)}
+  .tzt-zone.tzt-hunt:hover .tzt-z-name{text-shadow:0 0 16px rgba(240,192,96,.45)}
+  .tzt-zone.tzt-hunt:hover .tzt-z-go{box-shadow:0 7px 22px rgba(240,192,96,.5)}
+  .tzt-now .tzt-zone.tzt-hunt{border-color:rgba(102,255,136,.26);background:linear-gradient(180deg,rgba(102,255,136,.07),rgba(0,0,0,.22))}
+  .tzt-now .tzt-zone.tzt-hunt .tzt-z-name{color:#eafff0}
+  .tzt-filler{opacity:.6}
+  .tzt-zone.tzt-filler .tzt-z-name{font-weight:600;color:var(--text-muted);font-size:clamp(18px,2.3vw,25px)}
+  .tzt-zone.tzt-filler .tzt-z-emoji{animation:none;opacity:.72}
   .tzt-foot{display:flex;align-items:center;gap:14px;margin-top:12px}
   .tzt-refresh{background:var(--surface-2);border:1px solid var(--border-light);color:var(--gold-bright);font-family:ui-monospace,monospace;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;transition:border-color .12s,background .12s}
   .tzt-refresh:hover{border-color:var(--gold-bright);background:rgba(240,192,96,.08)}
@@ -4451,15 +4483,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-endgame .road-hero h1{font-family:var(--serif-display);font-size:30px;color:var(--gold-bright);margin:0 0 8px;letter-spacing:.5px}
 #tab-endgame .road-hero p{font-family:var(--serif-text,Georgia,serif);font-style:italic;color:var(--text-muted);max-width:72ch;margin:0 auto;font-size:14.5px;line-height:1.6}
 #tab-endgame .road-stage{margin:22px 0}
-#tab-endgame .road-step{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold)}
-#tab-endgame .road-step .road-n{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid var(--gold);border-radius:50%;font-size:12px;color:var(--gold-bright);flex:0 0 auto}
+#tab-endgame .road-step{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-family:var(--sans);font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--q-orange)}
+#tab-endgame .road-step .road-n{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid var(--q-orange);border-radius:50%;font-size:12px;color:var(--q-orange);flex:0 0 auto}
 #tab-endgame .road-nodes{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
 #tab-endgame .road-node{display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;cursor:pointer;
   padding:15px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);transition:border-color .18s,transform .18s,box-shadow .18s}
 #tab-endgame .road-node:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.4)}
 #tab-endgame .road-node .rn-art{width:52px;height:52px}
 #tab-endgame .road-node .rn-art .d2art-img{max-width:52px;max-height:52px}
-#tab-endgame .road-node .rn-name{font-weight:700;color:var(--gold-bright);font-size:14.5px}
+#tab-endgame .road-node .rn-name{font-weight:700;color:var(--q-orange);font-size:14.5px}
 #tab-endgame .road-node .rn-src{font-size:11.5px;color:var(--text-muted);line-height:1.4}
 #tab-endgame .road-node .rn-rate{font-size:10.5px;color:var(--gold);font-family:var(--mono);letter-spacing:.3px}
 #tab-endgame .road-cube{text-align:center;margin:13px 0 0;font-size:12.5px;color:var(--text-muted);line-height:1.5}
@@ -9122,6 +9154,14 @@ function _artRarity(name){
       var _iq = itemQuality(ITEM_REGISTRY[name]);
       r = (_iq === 'material') ? '' : _iq;
     }
+    // Pandemonium-chain + special quest items (keys / organs / essences / Token / Worldstone
+    // Shard) render in the in-game ORANGE — the same #ffa800 the crafted bucket uses — so the
+    // floating tip, calc-grid name + vault chip all sync to the game colour like every other item.
+    if (!r && (/^Key of (Terror|Hate|Destruction)$/.test(name)
+      || /^(Diablo's Horn|Mephisto's Brain|Baal's Eye)$/.test(name)
+      || /Essence of (Suffering|Hatred|Terror|Destruction)$/.test(name)
+      || /^Token of Absolution$/.test(name)
+      || /^Worldstone Shard/.test(name))) r = 'crafted';
     // last-resort name heuristic so set aggregates ("... (set)" / "(any piece)") read green
     if (!r && /\(set\)|\(set piece\)|\(any piece\)/i.test(name)) r = 'set';
   } catch(e){}
@@ -15589,9 +15629,9 @@ function tzZoneRowHtml(zoneName){
       + '<span class="tzt-z-go">'+_tzEsc(h.label)+' →</span>'
       + '<span class="tzt-z-why">'+_tzEsc(h.why)+'</span></div>';
   }
-  return '<div class="tzt-zone tzt-filler"><span class="tzt-z-emoji">·</span>'
+  return '<div class="tzt-zone tzt-filler"><span class="tzt-z-emoji">😴</span>'
     + '<span class="tzt-z-name">'+_tzEsc(zoneName)+'</span>'
-    + '<span class="tzt-z-skip">not a hunt zone — skip</span></div>';
+    + '<span class="tzt-z-skip">not a hunt zone — sit this one out</span></div>';
 }
 function renderTzTracker(data){
   const body = document.getElementById('tztracker-body');
@@ -15606,7 +15646,7 @@ function renderTzTracker(data){
     return;
   }
   body.innerHTML =
-    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label">🟢 LIVE NOW</div>'+tzZoneRowHtml(data.current)+'</div>'
+    '<div class="tzt-slot tzt-now"><div class="tzt-slot-label"><span class="tzt-live-dot"></span> LIVE NOW</div>'+tzZoneRowHtml(data.current)+'</div>'
     + '<div class="tzt-slot tzt-next"><div class="tzt-slot-label">⏭️ NEXT · ~30 MIN</div>'+tzZoneRowHtml(data.next)+'</div>';
   const u = document.getElementById('tzt-updated');
   if (u){ try { u.textContent = data.ts ? ('updated '+new Date(data.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) : ''; } catch(e){ u.textContent=''; } }
@@ -20672,12 +20712,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pct = total ? Math.round(done/total*100) : 0;
     var verbs = ['Reading','Scanning','Analyzing','Matching'];
     var verb = verbs[done % verbs.length];
-    return '<div class="vintake-scan">'
-      + '<div class="vintake-scan-top"><span class="vintake-scan-ico">🔍</span>'
-      + '<span class="vintake-scan-verb">' + verb + ' your loot… <b>' + done + '</b> / <b>' + total + '</b> screenshots</span>'
-      + '<span class="vintake-scan-new">' + nw + ' new</span></div>'
-      + '<div class="vintake-scan-bar"><div class="vintake-scan-fill" style="width:' + pct + '%"></div></div>'
-      + '<div class="vintake-scan-sub">' + verb.toLowerCase() + ' item names · matching the database…</div></div>';
+    return '<div class="ai-load vintake-ai">'
+      + '<div class="ai-load-orb">📸</div>'
+      + '<div class="ai-load-body">'
+      + '<div class="ai-load-title">' + verb + ' your loot'
+      + '<span class="ai-load-dots"><i>.</i><i>.</i><i>.</i></span>'
+      + '<span class="vintake-ai-meta"><b>' + done + '</b> / <b>' + total + '</b> screenshots · <span class="vintake-ai-new">' + nw + ' new</span></span></div>'
+      + '<div class="ai-load-sub">✨ ' + verb.toLowerCase() + ' item names · matching the database…</div>'
+      + '<div class="ai-load-bar"><span style="width:' + pct + '%"></span></div>'
+      + '</div></div>';
   }
   window.vaultIntake = async function(files){
     var report = document.getElementById('vault-intake-report');
