@@ -307,6 +307,17 @@ export async function onRequestPost(context) {
     const hit = sortedVocab.find(([k]) => nr === k || nr.startsWith(k + ' '));
     return hit ? hit[1] : null;
   };
+  // v342.7 — reject garbage strings (JSON/prompt fragments, mojibake) the model occasionally leaks,
+  // e.g. ">:", "FINDINGS ITEM=", "Defene([", "conce}},CKED (BONE". A real item name is mostly letters.
+  const nameOk = (s) => {
+    s = String(s == null ? '' : s).trim();
+    if (s.length < 2 || s.length > 60) return false;
+    if (!/[a-zA-Z]/.test(s)) return false;
+    if (/[{}\[\]=<>|\\]/.test(s)) return false;
+    const nonSpace = s.replace(/\s/g, '');
+    const letters = (s.match(/[a-zA-Z]/g) || []).length;
+    return nonSpace.length > 0 && letters >= nonSpace.length * 0.6;
+  };
 
   if (isTally) {
     const tally = {};
@@ -342,14 +353,18 @@ export async function onRequestPost(context) {
   const seenFind = new Set();
   for (const f of (parsed.finds || [])) {
     const nm = f && typeof f.name === 'string' ? f.name.trim() : '';
-    if (!nm || seenFind.has(nm.toLowerCase())) continue;
+    if (!nm || !nameOk(nm) || seenFind.has(nm.toLowerCase())) continue;
     if (resolve(nm)) { if (!items.includes(resolve(nm))) items.push(resolve(nm)); continue; }
     seenFind.add(nm.toLowerCase());
     finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic' });
   }
+  // v342.7 — clean unrecognized: drop garbage strings AND anything already captured as a Magic & Rare
+  // find (the model sometimes lists a keeper in BOTH finds and unrecognized).
+  const findLower = new Set(finds.map((f) => f.name.toLowerCase()));
+  const cleanUnrec = [...new Set(unrec)].filter((u) => nameOk(u) && !findLower.has(String(u).toLowerCase()));
   return json({
     items: [...new Set(items)],
-    unrecognized: [...new Set(unrec)].slice(0, 40),
+    unrecognized: cleanUnrec.slice(0, 40),
     finds: finds.slice(0, 40),
     usage,
   }, 200);
