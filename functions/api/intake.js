@@ -232,7 +232,9 @@ export async function onRequestPost(context) {
       // hangs/fails ("not working", reported repeatedly). Reliability wins: Sonnet loads fast every
       // time. The Perfect/high row is handled by the tight crop + fixed-position ID + the ✓? verify-
       // flag + a one-tap −/+ nudge. env.MODEL=claude-opus-4-8 if you ever want to force Opus.
-      model: env.MODEL || 'claude-sonnet-4-6',
+      // v342.1 — LOCATE is just box-finding (no text reading): run it on cheap Haiku to spare credits;
+      // the actual item READ stays on Sonnet. (Two passes/shot doubled spend on full-Sonnet otherwise.)
+      model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5') : (env.MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
       system,
       output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isTally ? tallySchema : itemsSchema } },

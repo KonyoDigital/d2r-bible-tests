@@ -20718,18 +20718,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       im.onerror = rej; im.src = u;
     });
   }
-  // enlarge a (sub)region to a 1568 long edge at high quality; box = [x0,y0,x1,y1] fractions, or null = whole image
-  function _vEnlarge(im, box){
+  // enlarge a (sub)region to a long edge at a given quality; box = [x0,y0,x1,y1] fractions, or null = whole image.
+  // maxEdge/q default to the high-fidelity READ settings (1568 @ 0.95); the cheap LOCATE pass passes small values.
+  function _vEnlarge(im, box, maxEdge, q){
+    maxEdge = maxEdge || 1568; q = q || 0.95;
     var W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
     var sx = 0, sy = 0, sw = W, sh = H;
     if (box){ sx = Math.round(box[0]*W); sy = Math.round(box[1]*H); sw = Math.round((box[2]-box[0])*W); sh = Math.round((box[3]-box[1])*H); }
     if (!(sw > 0) || !(sh > 0)){ sx = 0; sy = 0; sw = W; sh = H; }
-    var MAX = 1568, scale = Math.min(3.2, MAX / Math.max(sw, sh));   // enlarge the crop so tooltip text is crisp (cap up-scale 3.2×)
+    var scale = Math.min(box ? 3.2 : 1, maxEdge / Math.max(sw, sh));   // upscale only a crop (cap 3.2×); whole image only ever downscales
     var c = document.createElement('canvas');
     c.width = Math.max(1, Math.round(sw*scale)); c.height = Math.max(1, Math.round(sh*scale));
     var ctx = c.getContext('2d'); try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch(e){}
     ctx.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
-    return c.toDataURL('image/jpeg', 0.95).split(',')[1];
+    return c.toDataURL('image/jpeg', q).split(',')[1];
   }
   // GENEROUS box padding — bias BIG so the tooltip is NEVER clipped (Konyo: "as long as it's not cut").
   // Pads each side, clamps to the image, and enforces a sane MINIMUM span so a too-tight box can't shrink-clip.
@@ -20843,13 +20845,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var b64, _box = null;
         try {
           var _L = await _vLoadImg(files[i]);
-          var _whole = _vEnlarge(_L.im, null);   // enlarged full image — the locate input + the fallback
+          // CHEAP locate input — a small 860px JPEG is plenty to find WHERE the dark tooltip box is
+          // (Haiku reads it server-side); the real READ below uses the full-quality crop. Keeps credits sane.
+          var _small = _vEnlarge(_L.im, null, 860, 0.72);
           try {
             var _lr = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ image: _whole, media_type: 'image/jpeg', names: vocab, kind: 'locate', file: fname }) });
+              body: JSON.stringify({ image: _small, media_type: 'image/jpeg', names: vocab, kind: 'locate', file: fname }) });
             if (_lr.ok){ var _ld = await _lr.json(); if (_ld && _ld.found && _ld.box && _ld.box.length === 4) _box = _vPadBox(_ld.box.map(Number)); }
           } catch(e){}
-          b64 = _box ? _vEnlarge(_L.im, _box) : _whole;
+          b64 = _vEnlarge(_L.im, _box);   // full-quality READ: crop if a tooltip was found, else whole image
           try { URL.revokeObjectURL(_L.u); } catch(e){}
           try { console.log('[vault-intake] ' + fname + ' → tooltip ' + (_box ? 'cropped ['+_box.map(function(v){return v.toFixed(2);}).join(', ')+']' : 'not found → full image')); } catch(e){}
         } catch(e){ b64 = await downscale(files[i]); }
