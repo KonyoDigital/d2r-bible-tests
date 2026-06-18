@@ -9628,6 +9628,21 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
 // notable rares/crafts) that can't be grail-DB entries. Map name→quality ('magic'|'rare'|'crafted').
 // Tracked SEPARATELY from grail `owned` so it never pollutes the calculator / grail count.
 let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
+// v342.8 — value is {q,base}. Migrate older string-only values ({name:'magic'}) → {q,base:''}.
+try { Object.keys(magicFinds).forEach(function(k){ if (typeof magicFinds[k] === 'string') magicFinds[k] = { q: magicFinds[k], base: '' }; }); } catch(e){}
+function _mfQual(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.q||'magic'):(v||'magic'); }
+function _mfBase(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.base||''):''; }
+// rolled-name magic/rare items have no UNIQUE art — in-game they're the BASE sprite. Map base → a sprite
+// we self-host (charms + jewels + the elite bases); null falls back to a quality-coloured glyph.
+function _magicArtSrc(base){
+  var b=String(base||'').toLowerCase();
+  if(!b) return null;
+  if(/charm/.test(b)) return 'art/logo_charm.png';
+  if(/jewel/.test(b)) return 'art/jewel02_graphic.png';
+  var BM={'circlet':'base_circlet.png','tiara':'base_tiara.png','diadem':'base_diadem.png','monarch':'base_monarch.png','phase blade':'base_phaseblade.png','cryptic axe':'base_crypticaxe.png','berserker axe':'base_berserkeraxe.png','colossus blade':'base_colossusblade.png','crystal sword':'base_crystalsword.png','flail':'base_flail.png','thresher':'base_thresher.png','bone visage':'base_bonevisage.png','demon head':'base_demonhead.png','archon plate':'base_archonplate.png','mage plate':'base_mageplate.png','dusk shroud':'base_duskshroud.png','wire fleece':'base_wirefleece.png','scarab husk':'base_scarabhusk.png','troll nest':'base_trollnest.png','sacred armor':'base_sacredarmor.png','sacred rondache':'base_sacredrondache.png','sacred targe':'base_sacredtarge.png','conqueror crown':'base_conquerorcrown.png'};
+  for(var k in BM){ if(b.indexOf(k)>=0) return 'art/'+BM[k]; }
+  return null;
+}
 // v342.4 — unmatched reads: legible names the AI read that matched neither grail nor a keeper. Persisted
 // (not evaporated) so they're reviewable — promote to Magic & Rare, or dismiss. Set of name strings.
 let unknownReads = new Set(_safeJsonParse(LS.getItem('d2r_unknownReads'), []));
@@ -20407,8 +20422,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(findNames.length){
       var _qcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
       h+='<div class="vrg-gh vrg-gh-magic">🔮 Magic &amp; Rare · '+findNames.length+'</div>'+findNames.map(function(n){
-        var q=magicFinds[n]||'magic', col=_qcol[q]||_qcol.magic;
-        return '<div class="vrg-row" data-magic-find="'+esc(n)+'"><span class="vrg-mdot" style="background:'+col+'"></span>'
+        var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)):null;
+        var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
+        return '<div class="vrg-row" data-magic-find="'+esc(n)+'">'+_icon
           +'<span class="vrg-name" style="color:'+col+'">'+esc(n)+'</span>'
           +'<span class="vrg-tag" style="color:'+col+'">'+q+'</span>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare (AI misread / junk)">✕</button></div>';
@@ -20508,9 +20524,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (magicItems.length){
         var _mqcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
         itemRows = itemRows.concat(magicItems.map(function(n){
-          var q=magicFinds[n]||'magic', col=_mqcol[q]||_mqcol.magic;
-          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+'" data-magic-find="'+esc(n)+'" title="'+esc(n)+' ('+q+')">'
-            + '<span class="vm-cell-art" style="color:'+col+'">🔮</span>'
+          var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
+          var src=(typeof _magicArtSrc==='function')?_magicArtSrc(base):null;
+          var artHtml = src
+            ? '<span class="vm-cell-art d2art-wrap lg d2art-r-'+(q==='magic'?'magic':q==='rare'?'rare':'rw')+'" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+src+'" alt="" loading="lazy"></span>'
+            : '<span class="vm-cell-art" style="color:'+col+'">🔮</span>';
+          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+'" data-magic-find="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
+            + artHtml
             + '<span class="vm-item-name vm-cell-name" style="color:'+col+'">'+esc(n)+'</span>'
             + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
         }));
@@ -20565,7 +20585,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   // v342.4 — promote an unmatched read into the Magic & Rare bucket (it WAS a keeper after all)
   window.vaultKeepUnknown = function(name){
-    try { magicFinds[name] = magicFinds[name] || 'rare'; unknownReads.delete(name); } catch(e){}
+    try { magicFinds[name] = magicFinds[name] || { q: 'rare', base: '' }; unknownReads.delete(name); } catch(e){}
     persistOwned(); renderVault();
     status('🔮 "'+name+'" kept → Magic & Rare');
   };
@@ -21010,7 +21030,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v342.3 — magic/rare/crafted keepers → the Magic & Rare bucket (separate from grail `owned`)
         (data.finds || []).forEach(function(f){
           var nm = f && f.name; if (!nm) return;
-          if (!magicFinds[nm]){ magicFinds[nm] = (f.q || 'magic'); magicNew.push(nm); }
+          if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '' }; magicNew.push(nm); }
+          else if (typeof magicFinds[nm] === 'object' && !magicFinds[nm].base && f.base){ magicFinds[nm].base = f.base; }
           fRec.mf.push(nm);
         });
         if (data.usage) cost += (data.usage.in || 0) / 1e6 * 1.0 + (data.usage.out || 0) / 1e6 * 5.0;
@@ -21041,7 +21062,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             : '<span class="vir-k vir-dim">none</span> no readable tracked items in ' + files.length + ' screenshot' + (files.length===1?'':'s')))
       + '</div>';
     if (dupes.length) body += '<div class="vir-line"><span class="vir-k vir-k-own">already owned · ' + dupes.length + '</span> ' + _colorNames(dupes) + '</div>';
-    if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=magicFinds[n]||'magic'; var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
+    if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
     if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">❓ unmatched · ' + unrec.length + '</span> ' + unrec.map(esc).join(' · ') + ' <em>— review &amp; keep/dismiss in 📋 Registered</em></div>';
     if (!logged.length && !dupes.length && !unrec.length && !magicNew.length && !errors) body += '<div class="vir-line vir-dim">💡 the AI reads item NAMES, not icons — open a tooltip (hover) or hold Alt over loot, then screenshot.</div>';
     // per-file breakdown — name the exact screenshot each item came from

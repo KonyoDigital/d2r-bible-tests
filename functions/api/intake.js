@@ -72,8 +72,10 @@ export async function onRequestPost(context) {
     + '(5) MAGIC & RARE KEEPERS → the "finds" array (NOT "items", NOT "unrecognized"). If the hovered item is '
     + 'a MAGIC (blue name), RARE (yellow name), or CRAFTED (orange name) item that is a CHARM (small/large/grand '
     + 'charm), a JEWEL, a RING, an AMULET, OR a notably-affixed rare/crafted weapon or armour a player would keep, '
-    + 'add it to "finds" as {name:"<the full name text EXACTLY as printed>", q:"magic"|"rare"|"crafted"} (q from the '
-    + 'name COLOUR: blue=magic, yellow=rare, orange=crafted). Do NOT put white/grey/superior or normal base items, '
+    + 'add it to "finds" as {name:"<the full name text EXACTLY as printed>", q:"magic"|"rare"|"crafted", '
+    + 'base:"<the BASE TYPE printed under the name, e.g. Grand Charm, Small Charm, Ring, Amulet, Jewel, Cryptic Axe, '
+    + 'Circlet>"} (q from the name COLOUR: blue=magic, yellow=rare, orange=crafted; base = the grey base-type line). '
+    + 'Do NOT put white/grey/superior or normal base items, '
     + 'potions, gold, gems, runes, or NPC names in "finds". A grail unique/set ALWAYS goes in "items", never "finds". '
     + 'Never list the same name in both "finds" and "unrecognized". '
     + 'Put a string in "unrecognized" ONLY when it is a FULLY-LEGIBLE, COMPLETE item name you read '
@@ -186,8 +188,12 @@ export async function onRequestPost(context) {
         type: 'array',
         items: {
           type: 'object',
-          properties: { name: { type: 'string' }, q: { type: 'string', enum: ['magic', 'rare', 'crafted'] } },
-          required: ['name', 'q'],
+          properties: {
+            name: { type: 'string' },
+            q: { type: 'string', enum: ['magic', 'rare', 'crafted'] },
+            base: { type: 'string' },   // v342.8 — the base TYPE (Grand Charm, Ring, Cryptic Axe…) → drives the art sprite
+          },
+          required: ['name', 'q', 'base'],
           additionalProperties: false,
         },
       },
@@ -356,7 +362,7 @@ export async function onRequestPost(context) {
     if (!nm || !nameOk(nm) || seenFind.has(nm.toLowerCase())) continue;
     if (resolve(nm)) { if (!items.includes(resolve(nm))) items.push(resolve(nm)); continue; }
     seenFind.add(nm.toLowerCase());
-    finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic' });
+    finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic', base: typeof f.base === 'string' ? f.base.slice(0, 40) : '' });
   }
   // v342.7 — clean unrecognized: drop garbage strings AND anything already captured as a Magic & Rare
   // find (the model sometimes lists a keeper in BOTH finds and unrecognized).
