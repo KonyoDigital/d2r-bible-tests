@@ -123,9 +123,11 @@ export async function onRequestPost(context) {
         + 'chipped/flawed/flawless easy to confuse; the row position is exact. Type colours: Diamond=clear/white, '
         + 'Emerald=green, Ruby=red, Topaz=yellow, Amethyst=purple, Sapphire=blue, Skull=bone-grey. For each occupied '
         + 'cell, report the vocabulary name for that type+grade + its stack number; skip empty cells. '
-        + 'BOTTOM (PERFECT) ROW — the #1 mistake: Perfect gems are usually held ONE at a time, and D2R prints NO number for a '
-        + 'stack of 1 (rule 3). So each bright, full-colour Perfect-grade gem in Row 5 with no corner number = count 1. Read '
-        + 'ALL SEVEN Row-5 cells (Perfect Diamond → Perfect Skull): if you see the gem, it is at least 1 — never 0, never skipped. '
+        + 'BOTTOM (PERFECT) ROW — judge each of the 7 cells INDIVIDUALLY by BRIGHTNESS, this is the #1 mistake both ways: '
+        + 'a BRIGHT, vivid, full-colour Perfect gem = owned → count is its printed number, or 1 if no number is shown (D2R '
+        + 'hides the "1" for a single gem). A DIM, dark, washed-out GREYED placeholder gem = NOT owned → count 0, SKIP it '
+        + '(report nothing). Do NOT blanket-report all seven as 1 — an empty/greyed Perfect cell (e.g. you hold no Perfect '
+        + 'Diamond) must stay 0, never become 1. Look at the actual colour saturation of each Row-5 cell to decide. '
         + 'If the screenshot is clearly NOT this fixed 7x5 gems grid, fall back to visual reading. '
       : '')
     + 'VOCABULARY:\n' + names.join('\n');
