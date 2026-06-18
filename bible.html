@@ -9756,6 +9756,14 @@ const persist = () => {
 // 2026-06-15). Uniques pull fixed stats from ITEM_TIP; magic/rare/crafted carry a GENERAL
 // affix-pool description (their exact rolls live on the item, since they're random).
 const EXTRA_ITEMS = {
+  // ── Sunder charms (RoTW): unique grand charms that break the matching immunity. Account-shared
+  //    keepers you carry in inventory — NEVER muled (see SHARED_STASH_RE). v342.13. ──
+  "Cold Rupture":          { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — while carried, monster <b>Cold</b> immunity is sundered (Cold Resist −70%, fixed). Account-shared keeper; never mule. Latent → Renewed via cube upgrade." },
+  "Flame Rift":            { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Fire</b> immunity (Fire Resist −70%, fixed). Account-shared keeper; never mule." },
+  "Crack of the Heavens":  { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Lightning</b> immunity (Light Resist −70%, fixed). Account-shared keeper; never mule." },
+  "Rotting Fissure":       { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Poison</b> immunity (Poison Resist −70%, fixed). Account-shared keeper; never mule." },
+  "Bone Break":            { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Physical</b> immunity (Phys/Magic resist cut). Account-shared keeper; never mule." },
+  "Black Cleft":           { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Magic</b> immunity (Magic Resist −70%, fixed). Account-shared keeper; never mule." },
   // ── your specific finds (read off your screenshots) ──
   "Marshal's Amulet":  { rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — rares roll 3–6 random affixes. The <b>godly</b> caster combo is <b>+2 to your class skills + 20% Faster Cast Rate</b> plus life / all-res / mana — that pairing can out-class Mara's and trades around a <b>Jah rune</b>; even +2 / 10% FCR with life+res sells well. Your exact rolls are on the item — check them against that target." },
   "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). Chase <b>+2 skills / 20% FCR / life / res</b> — top rolls beat most unique amulets. Your exact rolls are on the item." },
@@ -20282,7 +20290,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // and the 5 Colossal statues all live in one infinite shared stash, so the
   // assembler must never route them. (They aren't in ITEMS either, so this is a
   // belt-and-suspenders guard that also documents the intent.)
-  var SHARED_STASH_RE = /\b(rune|essence|worldstone shard|colossal ancient statue)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
+  var SHARED_STASH_RE = /\b(rune|essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
   function suggestMule(name){
     if (isSharedStash(name)) return null;

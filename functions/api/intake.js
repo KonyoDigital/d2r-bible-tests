@@ -54,8 +54,10 @@ export async function onRequestPost(context) {
     + '"Bone Shield", "Tyrant Club") — base types are never items, do not report them anywhere. '
     + '(2b) SOCKETED BASES → the "sockets" array. A white/grey/SUPERIOR base whose tooltip shows legible "Socketed (N)" '
     + '/ "Sockets (N)" / "N Sockets" text is a tracked runeword/craft base. Add it to "sockets" as {base:"<the base-type '
-    + 'name EXACTLY as printed, e.g. Breast Plate, Broad Sword, Ancient Armor, Grand Scepter, Monarch>", count:N}. Just '
-    + 'READ the base name and the socket NUMBER — do NOT classify the slot, the system does that. CRITICAL: only when the '
+    + 'name EXACTLY as printed, e.g. Breast Plate, Broad Sword, Ancient Armor, Grand Scepter, Monarch>", count:N, '
+    + 'q:"normal"|"superior"|"magic", eth:true/false}. q = the name COLOUR / prefix: white or grey = "normal", a '
+    + '"Superior" prefix = "superior", a BLUE name = "magic". eth = true only if the tooltip says "Ethereal". '
+    + 'READ the base name, socket NUMBER, colour, and ethereal flag — do NOT classify the slot, the system does that. CRITICAL: only when the '
     + '"Socketed (N)" TEXT is genuinely legible (normally the ONE hovered tooltip) — NEVER infer sockets from holes drawn '
     + 'on an inventory ICON, and NEVER emit several from a grid of bare icons. A base with ZERO sockets is not reported. '
     + 'Do NOT also put a socketed base\'s name in "unrecognized". '
@@ -193,8 +195,13 @@ export async function onRequestPost(context) {
         type: 'array',
         items: {
           type: 'object',
-          properties: { base: { type: 'string' }, count: { type: 'integer' } },
-          required: ['base', 'count'],
+          properties: {
+            base: { type: 'string' },
+            count: { type: 'integer' },
+            q: { type: 'string', enum: ['normal', 'superior', 'magic'] },   // v342.13 — name colour
+            eth: { type: 'boolean' },                                       // v342.13 — Ethereal?
+          },
+          required: ['base', 'count', 'q', 'eth'],
           additionalProperties: false,
         },
       },
@@ -350,6 +357,12 @@ export async function onRequestPost(context) {
     // prefer the count-specific vocab entry, else the count-less generic
     return resolve(kind + os) || resolve(kind);
   };
+  // v342.13 — sunder charms are account-shared keepers (NOT muled, NOT rolled-name rares). Detect by type.
+  const SUNDER_TYPES = ['Cold Rupture', 'Flame Rift', 'Crack of the Heavens', 'Rotting Fissure', 'Bone Break', 'Black Cleft'];
+  const sunderOf = (s) => { const l = String(s || '').toLowerCase(); return SUNDER_TYPES.find((t) => l.includes(t.toLowerCase())) || null; };
+  // v342.13 — only WORTHWHILE socketed bases register: elite / high-defense / notable runeword bases.
+  // Low white junk (Breast Plate, Broad Sword, Ring Mail…) is skipped → goes to the unmatched review list.
+  const GOOD_BASE = /archon plate|sacred armor|kraken shell|hellforge plate|lacquered plate|shadow plate|dusk shroud|wyrmhide|scarab husk|wire fleece|diamond mail|loricated mail|boneweave|great hauberk|balrog skin|mage plate|ornate plate|chaos armor|\bdiadem\b|\btiara\b|corona|spired helm|\barmet\b|giant conch|demon ?head|bone visage|conqueror crown|circlet|\bmonarch\b|\baegis\b|\bward\b|troll nest|grim shield|blade barrier|sacred targe|sacred rondache|\bhyperion\b|\bluna\b|phase blade|colossus blade|colossus sword|cryptic sword|mythical sword|legend sword|highland blade|balrog blade|champion sword|conquest sword|cryptic axe|berserker axe|feral axe|silver.?edged axe|decapitator|champion axe|glorious axe|thunder maul|ogre maul|great poleaxe|giant thresher|\bthresher\b|colossus voulge|war pike|ghost spear|stygian pike|mancatcher|caduceus|mighty scepter|elder staff|archon staff/i;
 
   if (isTally) {
     const tally = {};
@@ -386,6 +399,9 @@ export async function onRequestPost(context) {
   for (const f of (parsed.finds || [])) {
     const nm = f && typeof f.name === 'string' ? f.name.trim() : '';
     if (!nm || !nameOk(nm) || seenFind.has(nm.toLowerCase())) continue;
+    // v342.13 — sunder charms → items as their canonical type (shared-stash, never muled), NOT a magic find
+    const sun = sunderOf(nm);
+    if (sun) { if (!items.includes(sun)) items.push(sun); seenFind.add(nm.toLowerCase()); continue; }
     if (resolve(nm)) { if (!items.includes(resolve(nm))) items.push(resolve(nm)); continue; }
     seenFind.add(nm.toLowerCase());
     finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic', base: typeof f.base === 'string' ? f.base.slice(0, 40) : '' });
@@ -396,6 +412,10 @@ export async function onRequestPost(context) {
   for (const s of (parsed.sockets || [])) {
     const base = s && typeof s.base === 'string' ? s.base.trim() : '';
     if (!base) continue;
+    // v342.13 — only register WORTHWHILE bases: magic (affixes, for gemming) OR ethereal OR an elite/notable
+    // runeword base (Archon Plate, Monarch, Cryptic Axe, Grim Shield…). Low white junk → unmatched review.
+    const worth = s.q === 'magic' || s.eth === true || GOOD_BASE.test(base);
+    if (!worth) { unrec.push(base + ' (' + (s.count || '?') + 'os low base)'); continue; }
     socketBaseLower.add(base.toLowerCase());
     const gen = socketGeneric(base, s.count);
     if (gen && !items.includes(gen)) items.push(gen);
