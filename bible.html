@@ -3808,6 +3808,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
       <div id="vault-keep" class="vault-keep" hidden></div>
+      <div id="vault-registered" class="vault-registered" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
       <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
@@ -19857,6 +19858,31 @@ body{
 .vault-chip.vc-r-rw:hover,.vault-chip.vc-r-rune:hover{border-color:rgba(255,170,70,.7);box-shadow:0 0 14px rgba(255,170,70,.2)}
 .vault-chip.vc-r-magic:hover{border-color:rgba(122,162,255,.7);box-shadow:0 0 14px rgba(122,162,255,.2)}
 .vault-chip.vc-selected{border-color:var(--best,#66ff88);box-shadow:0 0 0 1px rgba(102,255,136,.4),0 0 16px rgba(102,255,136,.18)}
+/* scrollable "Registered" triage panel — observe what the AI read + its muled/not-muled disposition */
+.vault-registered{margin:0 0 14px}
+.vrg-det{border:1px solid rgba(127,212,255,.26);border-radius:12px;background:linear-gradient(180deg,rgba(18,26,34,.5),rgba(8,11,15,.42));overflow:hidden}
+.vrg-det[open]{border-color:rgba(127,212,255,.4)}
+.vrg-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;user-select:none}
+.vrg-sum::-webkit-details-marker{display:none}
+.vrg-st{font-family:ui-monospace,monospace;font-size:12.5px;font-weight:800;letter-spacing:.6px;color:#bfe6ff}
+.vrg-count{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:#bfe6ff;background:rgba(127,212,255,.14);border:1px solid rgba(127,212,255,.3);border-radius:9px;padding:1px 8px}
+.vrg-subt{flex:1;min-width:0;font-size:11px;font-style:italic;color:#7fb9d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vrg-chev{color:#7fd4ff;font-size:12px;transition:transform .2s}
+.vrg-det[open] .vrg-chev{transform:rotate(180deg)}
+.vrg-body{max-height:360px;overflow-y:auto;padding:4px 12px 12px}
+.vrg-gh{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin:11px 0 4px;padding-bottom:3px;border-bottom:1px solid var(--border)}
+.vrg-gh-mule{color:var(--best,#66ff88)}
+.vrg-gh-loose{color:var(--gold-bright,#f0c060)}
+.vrg-gh-shared{color:#7fd4ff}
+.vrg-row{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:7px}
+.vrg-row:hover{background:rgba(255,255,255,.04)}
+.vrg-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text)}
+.vrg-tag{margin-left:auto;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;white-space:nowrap}
+.vrg-tag-mule{color:var(--best,#66ff88)}
+.vrg-tag-loose{color:var(--gold-dim,#caa24a)}
+.vrg-tag-shared{color:#7fb9d8}
+.vrg-x{flex:0 0 auto;margin-left:8px;width:18px;height:18px;line-height:1;border:1px solid rgba(255,80,80,.4);background:rgba(255,60,60,.1);color:#ff9a9a;border-radius:5px;cursor:pointer;font-size:10px}
+.vrg-x:hover{background:rgba(255,60,60,.25);border-color:rgba(255,80,80,.7)}
 .vault-chip:active{cursor:grabbing}
 /* shelf: symmetric locker grid */
 .vault-shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
@@ -20305,10 +20331,41 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + '<div class="vk-items">'+r.items.map(function(s){return '<span class="vk-chip'+(r.count?' vk-chip-count':'')+'">'+esc(s)+'</span>';}).join('')+'</div>'
         + '<div class="vk-reason">'+esc(r.r)+'</div></div>'; }).join('');
   }
+  // scrollable "Registered" triage panel — every ✓owned item tagged muled / unsorted / not-muled
+  // (account-shared stash), each with a ✕ throw-out, so the AI read is observable and the intake
+  // count reconciles (Konyo: "scrollbar for registered · muled / not muled · throw out").
+  function renderVaultRegistered(){
+    var el=document.getElementById('vault-registered'); if(!el) return;
+    var poolM=ownedPool();
+    var all=Array.from(owned).filter(function(n){ return !isAggregate(n) && (isSharedStash(n) || poolM.indexOf(n)>=0); }).sort();
+    if(!all.length){ el.hidden=true; el.innerHTML=''; return; }
+    el.hidden=false;
+    var muled=[], notMuled=[], loose=[];
+    all.forEach(function(n){
+      if(isSharedStash(n)){ notMuled.push(n); return; }
+      var m=assign[n]?muleById(assign[n]):null;
+      if(m) muled.push([n,m]); else loose.push(n);
+    });
+    function row(n, tag){
+      var s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
+      return '<div class="vrg-row" data-vault-item="'+esc(n)+'">'+art(n)
+        +'<span class="vrg-name"'+s+'>'+esc(n)+'</span>'+tag
+        +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="throw out — remove from ✓ owned (AI misread / junk)">✕</button></div>';
+    }
+    var h='';
+    if(muled.length){ h+='<div class="vrg-gh vrg-gh-mule">🏦 Muled · '+muled.length+'</div>'+muled.map(function(p){ return row(p[0],'<span class="vrg-tag vrg-tag-mule">→ '+esc(p[1].name)+'</span>'); }).join(''); }
+    if(loose.length){ h+='<div class="vrg-gh vrg-gh-loose">🎒 Unsorted · '+loose.length+'</div>'+loose.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-loose">in the dock</span>'); }).join(''); }
+    if(notMuled.length){ h+='<div class="vrg-gh vrg-gh-shared">📦 Not muled · shared stash · '+notMuled.length+'</div>'+notMuled.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-shared">account-wide</span>'); }).join(''); }
+    el.innerHTML='<details class="vrg-det" open><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+all.length+'</span><span class="vrg-subt">muled · not-muled · throw out — verify the AI read</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+  }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
-    var pool=ownedPool();
+    var poolAll=ownedPool();
+    // account-shared-stash items (runes/essences/shards/statues) are recorded but NEVER muled —
+    // keep them OUT of the dock/mules (they live in the Registered panel's "not muled" group).
+    var pool=poolAll.filter(function(n){ return !isSharedStash(n); });
+    renderVaultRegistered();
     // prune assignments of items no longer owned or mules deleted
     Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
     var unsorted = pool.filter(function(n){ return !assign[n]; });
@@ -20422,7 +20479,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
   window.vaultClearUnsorted = async function(){
-    var unsorted = ownedPool().filter(function(name){ return !assign[name]; });
+    var unsorted = ownedPool().filter(function(name){ return !assign[name] && !isSharedStash(name); });
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
     if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
     unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });
