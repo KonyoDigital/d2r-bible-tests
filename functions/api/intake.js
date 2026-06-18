@@ -306,10 +306,18 @@ export async function onRequestPost(context) {
   const normMap = new Map(names.map((n) => [norm(n), n]));
   const sortedVocab = names.map((n) => [norm(n), n]).filter(([k]) => k.length >= 6)
     .sort((a, b) => b[0].length - a[0].length);
+  // v342.10 — vocab names with a trailing "(base)" suffix ("Gull (dagger)", "Harlequin Crest (Shako)")
+  // keyed by the SUFFIX-STRIPPED form, so a read of just "Gull" / "Harlequin Crest" resolves. First wins.
+  const baseStripMap = new Map();
+  names.forEach((n) => {
+    const stripped = norm(n.replace(/\s*\([^)]*\)\s*$/, ''));
+    if (stripped && stripped !== norm(n) && stripped.length >= 4 && !baseStripMap.has(stripped)) baseStripMap.set(stripped, n);
+  });
   const resolve = (r) => {
     if (vocab.has(r)) return r;
     const nr = norm(r);
     if (normMap.has(nr)) return normMap.get(nr);
+    if (baseStripMap.has(nr)) return baseStripMap.get(nr);
     const hit = sortedVocab.find(([k]) => nr === k || nr.startsWith(k + ' '));
     return hit ? hit[1] : null;
   };
