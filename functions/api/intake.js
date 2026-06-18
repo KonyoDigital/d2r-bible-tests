@@ -329,6 +329,13 @@ export async function onRequestPost(context) {
     const nm = resolve(r);
     if (nm) items.push(nm); else unrec.push(r);
   }
+  // v342.4 — also resolve the AI's OWN "unrecognized" strings: a "name + base type" read
+  // ("Spectral Shard Blade") recovers into the real grail item (Spectral Shard) via the same
+  // word-boundary prefix matcher, instead of being silently lost. No match → stays unrecognized.
+  for (const r of (parsed.unrecognized || [])) {
+    const nm = resolve(r);
+    if (nm) { if (!items.includes(nm)) items.push(nm); } else unrec.push(r);
+  }
   // v342.3 — magic/rare/crafted keepers: sanitize, dedupe by name, drop any that resolve to a real grail item
   // (those belong in items) or that are blank.
   const finds = [];
@@ -342,7 +349,7 @@ export async function onRequestPost(context) {
   }
   return json({
     items: [...new Set(items)],
-    unrecognized: [...new Set([...unrec, ...(parsed.unrecognized || [])])].slice(0, 40),
+    unrecognized: [...new Set(unrec)].slice(0, 40),
     finds: finds.slice(0, 40),
     usage,
   }, 200);

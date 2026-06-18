@@ -9628,6 +9628,9 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
 // notable rares/crafts) that can't be grail-DB entries. Map name→quality ('magic'|'rare'|'crafted').
 // Tracked SEPARATELY from grail `owned` so it never pollutes the calculator / grail count.
 let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
+// v342.4 — unmatched reads: legible names the AI read that matched neither grail nor a keeper. Persisted
+// (not evaporated) so they're reviewable — promote to Magic & Rare, or dismiss. Set of name strings.
+let unknownReads = new Set(_safeJsonParse(LS.getItem('d2r_unknownReads'), []));
 let statues = new Set(_safeJsonParse(LS.getItem('d2r_statues'), []));
 let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
 let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
@@ -9695,6 +9698,7 @@ const persist = () => {
   LS.setItem('d2r_wishlist', JSON.stringify([...wishlist]));
   LS.setItem('d2r_owned', JSON.stringify([...owned]));
   LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds));
+  LS.setItem('d2r_unknownReads', JSON.stringify([...unknownReads]));
   LS.setItem('d2r_statues', JSON.stringify([...statues]));
   LS.setItem('d2r_bossFilters', JSON.stringify(bossFilters));
   LS.setItem('d2r_bossSorts', JSON.stringify(bossSorts));
@@ -19880,7 +19884,11 @@ body{
 .vrg-gh-loose{color:var(--gold-bright,#f0c060)}
 .vrg-gh-shared{color:#7fd4ff}
 .vrg-gh-magic{color:#b58cff}
+.vrg-gh-unknown{color:#9aa6b2}
 .vrg-mdot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;box-shadow:0 0 6px currentColor}
+.vrg-keep{flex:0 0 auto;margin-left:auto;padding:1px 8px;border:1px solid rgba(181,140,255,.45);background:rgba(181,140,255,.12);color:#cdb4ff;border-radius:6px;cursor:pointer;font-size:10.5px;white-space:nowrap}
+.vrg-keep:hover{background:rgba(181,140,255,.26);border-color:rgba(181,140,255,.7)}
+.vrg-keep+.vrg-x{margin-left:6px}
 .vrg-row{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:7px}
 .vrg-row:hover{background:rgba(255,255,255,.04)}
 .vrg-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text)}
@@ -20346,7 +20354,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var poolM=ownedPool();
     var all=Array.from(owned).filter(function(n){ return !isAggregate(n) && (isSharedStash(n) || poolM.indexOf(n)>=0); }).sort();
     var findNames=(typeof magicFinds==='object'&&magicFinds)?Object.keys(magicFinds).sort():[];
-    if(!all.length && !findNames.length){ el.hidden=true; el.innerHTML=''; return; }
+    var _unkCount=(typeof unknownReads!=='undefined'&&unknownReads)?unknownReads.size:0;
+    if(!all.length && !findNames.length && !_unkCount){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false;
     var muled=[], notMuled=[], loose=[];
     all.forEach(function(n){
@@ -20376,8 +20385,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare (AI misread / junk)">✕</button></div>';
       }).join('');
     }
+    // v342.4 — unmatched reads: legible names that matched neither grail nor a keeper. Kept (not lost)
+    // and reviewable — 🔮 promote to Magic & Rare, or ✕ dismiss.
+    var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort():[];
+    if(unkNames.length){
+      h+='<div class="vrg-gh vrg-gh-unknown">❓ Unmatched reads · '+unkNames.length+'</div>'+unkNames.map(function(n){
+        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'"><span class="vrg-mdot" style="background:#9aa6b2"></span>'
+          +'<span class="vrg-name" style="color:#aeb8c4">'+esc(n)+'</span>'
+          +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
+          +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕</button></div>';
+      }).join('');
+    }
     var _regTot=all.length+findNames.length;
-    el.innerHTML='<details class="vrg-det" open><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">muled · not-muled · magic &amp; rare · throw out — verify the AI read</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+    el.innerHTML='<details class="vrg-det" open><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">muled · not-muled · magic &amp; rare · review unmatched — verify the AI read</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
@@ -20497,6 +20517,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { delete magicFinds[name]; } catch(e){}
     persistOwned(); renderVault();
     status('🗑 "'+name+'" removed from Magic & Rare');
+  };
+  // v342.4 — promote an unmatched read into the Magic & Rare bucket (it WAS a keeper after all)
+  window.vaultKeepUnknown = function(name){
+    try { magicFinds[name] = magicFinds[name] || 'rare'; unknownReads.delete(name); } catch(e){}
+    persistOwned(); renderVault();
+    status('🔮 "'+name+'" kept → Magic & Rare');
+  };
+  // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
+  window.vaultDismissUnknown = function(name){
+    try { unknownReads.delete(name); } catch(e){}
+    persistOwned(); renderVault();
+    status('🗑 "'+name+'" dismissed');
   };
   window.vaultAutoAssign = function(){
     var n=0;
@@ -20785,6 +20817,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { localStorage.removeItem('d2r_intakeSeen'); } catch(e){}
     try { owned.clear(); } catch(e){}
     try { magicFinds = {}; localStorage.removeItem('d2r_magicFinds'); } catch(e){}
+    try { unknownReads.clear(); localStorage.removeItem('d2r_unknownReads'); } catch(e){}
     try { if (typeof setPieces !== 'undefined') setPieces.clear(); } catch(e){}
     try { Object.keys(assign).forEach(function(k){ delete assign[k]; }); } catch(e){}
     try { if (typeof persist === 'function') persist(); else persistOwned(); } catch(e){ try{ persistOwned(); }catch(e2){} }
@@ -20831,6 +20864,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function persistOwned(){
     try { localStorage.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
     try { localStorage.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
+    try { localStorage.setItem('d2r_unknownReads', JSON.stringify(Array.from(unknownReads))); } catch(e){}
   }
   // v323: a cooler scanning/loading UI — animated progress bar + sweeping scan-line + rotating
   // verb (reading→scanning→analyzing→matching) so it's visibly WORKING, not a static text line.
@@ -20917,7 +20951,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             fRec.own.push(n);
           }
         });
-        (data.unrecognized || []).forEach(function(n){ if (unrec.indexOf(n) < 0) unrec.push(n); fRec.unr.push(n); });
+        (data.unrecognized || []).forEach(function(n){ if (unrec.indexOf(n) < 0) unrec.push(n); fRec.unr.push(n);
+          // v342.4 — persist unmatched reads so they're reviewable (not evaporated). Skip ones already
+          // tracked as grail or a Magic & Rare keeper.
+          try { if (!owned.has(n) && !(magicFinds && magicFinds[n])) unknownReads.add(n); } catch(e){} });
         // v342.3 — magic/rare/crafted keepers → the Magic & Rare bucket (separate from grail `owned`)
         (data.finds || []).forEach(function(f){
           var nm = f && f.name; if (!nm) return;
