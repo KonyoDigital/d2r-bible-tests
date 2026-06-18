@@ -9634,6 +9634,9 @@ function _mfQual(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v=
 function _mfBase(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.base||''):''; }
 // rolled-name magic/rare items have no UNIQUE art — in-game they're the BASE sprite. Map base → a sprite
 // we self-host (charms + jewels + the elite bases); null falls back to a quality-coloured glyph.
+// Pass the base type OR the full rolled name — the rolled name usually ENDS with its base
+// ("Flame Rift Grand Charm", "Sander's Riprap Heavy Boots", "Bone Visage"), so keyword-scanning the
+// name recovers a sprite even for finds recorded before the base field existed.
 function _magicArtSrc(base){
   var b=String(base||'').toLowerCase();
   if(!b) return null;
@@ -20422,7 +20425,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(findNames.length){
       var _qcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
       h+='<div class="vrg-gh vrg-gh-magic">🔮 Magic &amp; Rare · '+findNames.length+'</div>'+findNames.map(function(n){
-        var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)):null;
+        var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
         return '<div class="vrg-row" data-magic-find="'+esc(n)+'">'+_icon
           +'<span class="vrg-name" style="color:'+col+'">'+esc(n)+'</span>'
@@ -20525,7 +20528,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _mqcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
         itemRows = itemRows.concat(magicItems.map(function(n){
           var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
-          var src=(typeof _magicArtSrc==='function')?_magicArtSrc(base):null;
+          var src=(typeof _magicArtSrc==='function')?_magicArtSrc(base||n):null;
           var artHtml = src
             ? '<span class="vm-cell-art d2art-wrap lg d2art-r-'+(q==='magic'?'magic':q==='rare'?'rare':'rw')+'" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+src+'" alt="" loading="lazy"></span>'
             : '<span class="vm-cell-art" style="color:'+col+'">🔮</span>';
