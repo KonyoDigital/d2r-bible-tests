@@ -3872,42 +3872,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="all-runewords-card" style="--tc:#ffa800">
-    <div class="boss-header" onclick="window.toggleCardCollapse('all-runewords-card')" role="button" tabindex="0" aria-expanded="false">
-      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_scroll.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
-      <div class="boss-title-block">
-        <p class="boss-name">All Runewords <span id="all-rw-count" class="arw-count"></span></p>
-        <p class="boss-subtitle">Every runeword &amp; recipe · click any to open its verified ID card</p>
-        <p class="boss-loc">Reign of the Warlock recipes &amp; in-game stats · transcribed from diablo2.io · hover for a popup, click to route</p>
-      </div>
-      <span class="rs-chevron" aria-hidden="true">▾</span>
-    </div>
-    <div class="boss-body">
-      <div class="arw-wrap">
-        <input id="all-rw-filter" class="arw-filter" type="text" placeholder="filter by name, rune, or base… (try 'enigma', 'jah', 'aura', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderAllRunewords&&window.renderAllRunewords()">
-        <div class="arw-list" id="all-rw-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="boss-card collapsible collapsed tool-premium" id="rw-bases-card" style="--tc:#a8adb8">
-    <div class="boss-header" onclick="window.toggleCardCollapse('rw-bases-card')" role="button" tabindex="0" aria-expanded="false">
-      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:24px">🔩</span>
-      <div class="boss-title-block">
-        <p class="boss-name">Best Runeword Bases</p>
-        <p class="boss-subtitle">Which white / superior base to socket for each runeword</p>
-        <p class="boss-loc">Lowest-strength &amp; highest-value base per slot · click a runeword to open its ID card · hover for stats</p>
-      </div>
-      <span class="rs-chevron" aria-hidden="true">▾</span>
-    </div>
-    <div class="boss-body">
-      <div class="arw-wrap">
-        <input id="rw-bases-filter" class="arw-filter" type="text" placeholder="filter by base, slot, or runeword… (try 'archon', 'spirit', 'caster', 'insight')" autocomplete="off" spellcheck="false" oninput="window.renderRwBases&&window.renderRwBases()">
-        <div class="rwb-list" id="rw-bases-list"></div>
-      </div>
-    </div>
-  </div>
-
   <div class="boss-card collapsible collapsed tool-premium" id="gem-stash-card" style="--tc:#6fd0e0">
     <div class="boss-header" onclick="window.toggleCardCollapse('gem-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/gem_perfect_amethyst.png" alt="" style="width:42px;height:42px;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 0 7px rgba(180,140,224,.55))" decoding="async"></span>
@@ -3950,6 +3914,42 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
         </div>
         <div class="rw-make" id="gem-craftable"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed tool-premium" id="all-runewords-card" style="--tc:#ffa800">
+    <div class="boss-header" onclick="window.toggleCardCollapse('all-runewords-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_scroll.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
+      <div class="boss-title-block">
+        <p class="boss-name">All Runewords <span id="all-rw-count" class="arw-count"></span></p>
+        <p class="boss-subtitle">Every runeword &amp; recipe · click any to open its verified ID card</p>
+        <p class="boss-loc">Reign of the Warlock recipes &amp; in-game stats · transcribed from diablo2.io · hover for a popup, click to route</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="arw-wrap">
+        <input id="all-rw-filter" class="arw-filter" type="text" placeholder="filter by name, rune, or base… (try 'enigma', 'jah', 'aura', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderAllRunewords&&window.renderAllRunewords()">
+        <div class="arw-list" id="all-rw-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boss-card collapsible collapsed tool-premium" id="rw-bases-card" style="--tc:#a8adb8">
+    <div class="boss-header" onclick="window.toggleCardCollapse('rw-bases-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:24px">🔩</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Best Runeword Bases</p>
+        <p class="boss-subtitle">Which white / superior base to socket for each runeword</p>
+        <p class="boss-loc">Lowest-strength &amp; highest-value base per slot · click a runeword to open its ID card · hover for stats</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="arw-wrap">
+        <input id="rw-bases-filter" class="arw-filter" type="text" placeholder="filter by base, slot, or runeword… (try 'archon', 'spirit', 'caster', 'insight')" autocomplete="off" spellcheck="false" oninput="window.renderRwBases&&window.renderRwBases()">
+        <div class="rwb-list" id="rw-bases-list"></div>
       </div>
     </div>
   </div>
