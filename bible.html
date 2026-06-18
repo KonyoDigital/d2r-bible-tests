@@ -20922,6 +20922,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v310: track results PER screenshot FILE — so the report names the exact file each
     // item came from (Konyo: "identify specific screenshot files, not just blindly seeing
     // the picture"). Each entry: {file, nw:[new], own:[already-owned], unr:[read-not-tracked], err}.
+    // `files` is a FileList (no .map) when it comes from the <input>; normalize to a real array so the
+    // worker pool + perFile init work whether called with a FileList or an array (folder-scan path).
+    files = Array.prototype.slice.call(files);
     var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false }; });
     var endpoint = localStorage.getItem('d2r_intakeUrl')
       || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
