@@ -20751,6 +20751,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         });
         if (!resp.ok) { errors++; fRec.err = true; continue; }
         var data = await resp.json();
+        // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
+        try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
         (data.items || []).forEach(function(n){
           if (!owned.has(n)) {
             owned.add(n);
@@ -20796,9 +20798,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (files.length > 1 || perFile.some(function(f){ return f.nw.length || f.own.length || f.unr.length || f.err; })){
       var pf = perFile.map(function(f){
         var bits = [];
-        if (f.nw.length) bits.push('<span style="color:var(--best,#66ff88)">+' + f.nw.length + ' new</span>');
-        if (f.own.length) bits.push('<span style="color:#7fd4ff">' + f.own.length + ' owned</span>');
-        if (f.unr.length) bits.push('<span style="color:var(--text-dim,#756657)">' + f.unr.length + ' unread</span>');
+        if (f.nw.length) bits.push('<span style="color:var(--best,#66ff88)">+' + f.nw.length + ' new</span> <span style="color:#cfe9d4">' + f.nw.map(esc).join(', ') + '</span>');
+        if (f.own.length) bits.push('<span style="color:#7fd4ff">' + f.own.length + ' owned</span> <span style="color:#a9d4ea">' + f.own.map(esc).join(', ') + '</span>');
+        if (f.unr.length) bits.push('<span style="color:var(--text-dim,#756657)">' + f.unr.length + ' unread</span> <span style="color:#9a8e78">' + f.unr.map(esc).join(', ') + '</span>');
         if (f.err) bits.push('<span style="color:var(--hell,#ff4040)">failed</span>');
         if (!bits.length) bits.push('<span style="color:var(--text-dim,#756657)">no readable names — open a tooltip / hold Alt</span>');
         return '<div style="margin:1px 0"><span style="color:#cdbf9a">📄 ' + esc(f.file) + '</span> — ' + bits.join(' · ') + '</div>';
