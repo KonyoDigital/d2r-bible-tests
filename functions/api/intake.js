@@ -52,21 +52,13 @@ export async function onRequestPost(context) {
     + 'worse than a miss — the user can re-screenshot. '
     + '(2) In a tooltip, the ITEM NAME is the TOP line; the line under it is the BASE TYPE (e.g. "Bearded Axe", '
     + '"Bone Shield", "Tyrant Club") — base types are never items, do not report them anywhere. '
-    + '(2b) SOCKETED-BASE EXCEPTION — a white/grey BASE that has sockets is reportable as a GENERIC slot entry. '
-    + 'Only FOUR slots can have sockets in D2: BODY ARMOR, HELM, SHIELD, and WEAPONS (gloves, belts, boots and '
-    + 'jewellery can NEVER be socketed — never report those as socketed). Read the SOCKET COUNT from the tooltip '
-    + '("Socketed (N)" / "Sockets (N)") or the listing title ("N Sockets <base>" / "Nos"). Report the COUNT-specific '
-    + 'vocabulary entry when you can read the number, else the count-less generic. CRITICAL — report a socketed base ONLY '
-    + 'when its "Socketed (N)" / "N Sockets" TEXT is genuinely legible (this is normally the ONE hovered tooltip): NEVER '
-    + 'infer "socketed" from socket-holes drawn on an inventory ICON, and NEVER emit several socketed bases from a grid of '
-    + 'bare icons. No readable socket TEXT = skip it. For body armor: "Socketed Body '
-    + 'Armor (3os)", "Socketed Body Armor (4os)", or "Socketed Body Armor". For helms: "Socketed Helm (2os)", '
-    + '"Socketed Helm (3os)", or "Socketed Helm". For shields: "Socketed Shield (3os)", "Socketed Shield (4os)", or '
-    + '"Socketed Shield". For WEAPONS you MUST also identify ONE vs TWO handed (1H = sword/axe/mace/scepter/wand/dagger '
-    + 'held in one hand; 2H = two-handed sword/polearm/staff/spear/bow/crossbow): report "Socketed 1H Weapon (4os)", '
-    + '"Socketed 1H Weapon (5os)", "Socketed 1H Weapon (6os)", "Socketed 1H Weapon", OR "Socketed 2H Weapon (4os)", '
-    + '"Socketed 2H Weapon (5os)", "Socketed 2H Weapon (6os)", "Socketed 2H Weapon". Map the base to its slot+count; '
-    + 'do NOT report the specific base name. A base with ZERO sockets is still non-reportable (rule 2). '
+    + '(2b) SOCKETED BASES → the "sockets" array. A white/grey/SUPERIOR base whose tooltip shows legible "Socketed (N)" '
+    + '/ "Sockets (N)" / "N Sockets" text is a tracked runeword/craft base. Add it to "sockets" as {base:"<the base-type '
+    + 'name EXACTLY as printed, e.g. Breast Plate, Broad Sword, Ancient Armor, Grand Scepter, Monarch>", count:N}. Just '
+    + 'READ the base name and the socket NUMBER — do NOT classify the slot, the system does that. CRITICAL: only when the '
+    + '"Socketed (N)" TEXT is genuinely legible (normally the ONE hovered tooltip) — NEVER infer sockets from holes drawn '
+    + 'on an inventory ICON, and NEVER emit several from a grid of bare icons. A base with ZERO sockets is not reported. '
+    + 'Do NOT also put a socketed base\'s name in "unrecognized". '
     + '(3) Ignore NPC name labels (Charsi, Kashya, Warriv, Akara, Gheed the NPC...), zone names, UI text, gold, potions. '
     + '(4) Item ART without readable name text is NOT enough — skip it. '
     + '(5) MAGIC & RARE KEEPERS → the "finds" array (NOT "items", NOT "unrecognized"). If the hovered item is '
@@ -197,8 +189,17 @@ export async function onRequestPost(context) {
           additionalProperties: false,
         },
       },
+      sockets: {   // v342.12 — white/superior runeword/craft bases with readable "Socketed (N)" text
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { base: { type: 'string' }, count: { type: 'integer' } },
+          required: ['base', 'count'],
+          additionalProperties: false,
+        },
+      },
     },
-    required: ['items', 'unrecognized', 'finds'],
+    required: ['items', 'unrecognized', 'finds', 'sockets'],
     additionalProperties: false,
   };
   const tallySchema = {
@@ -332,6 +333,23 @@ export async function onRequestPost(context) {
     const letters = (s.match(/[a-zA-Z]/g) || []).length;
     return nonSpace.length > 0 && letters >= nonSpace.length * 0.6;
   };
+  // v342.12 — deterministically classify a SOCKETED base name → the generic "Socketed <slot> (Nos)" vocab
+  // entry, so white/superior runeword bases register to the SOCKETED locker instead of dropping to unmatched.
+  const socketGeneric = (base, count) => {
+    const b = String(base || '').toLowerCase();
+    if (!b) return null;
+    const n = parseInt(count, 10);
+    const os = (n >= 1 && n <= 6) ? ' (' + n + 'os)' : '';
+    let kind = null;
+    if (/shield|buckler|rondache|targe|aegis|\bward\b|scutum|defender|heater|luna|pavise|monarch|\bnest\b|kite|tower|spiked club shield|gothic shield|barbed shield|dragon shield|bone shield|grim shield|ancient shield|round shield|small shield|large shield/.test(b)) kind = 'Socketed Shield';
+    else if (/helm|\bcap\b|crown|mask|circlet|coronet|tiara|diadem|casque|basinet|sallet|armet|visage|\bskull\b|shako|coif|cowl|\bhood\b|demon head|bone helm|war hat|sallet|winged helm|grand crown|spired helm/.test(b)) kind = 'Socketed Helm';
+    else if (/armor|plate|mail|hauberk|tunic|jupon|cuirass|shroud|\bhide\b|pelt|shell|carapace|fleece|husk|scale|splint|\bfield\b|kraken|lacquered|wyrmhide|\bdusk\b|trellised|linked|tigulated|russet|breast|chaos|sacred armor|wire fleece|scarab husk|diamond mail|loricated|boneweave|great hauberk|balrog skin/.test(b)) kind = 'Socketed Body Armor';
+    else if (/polearm|poleaxe|halberd|scythe|thresher|voulge|bardiche|partizan|\bbill\b|spear|pike|lance|trident|brandistock|spetum|fuscina|harpoon|stave|staff|\bbow\b|crossbow|maul|war hammer|two.?hand|great sword|zweihander|flamberge|colossus sword|colossus blade|tusk sword|espandon|great poleaxe|giant thresher|ogre axe|colossus voulge|war pike|ghost spear|stygian pike|mancatcher|war scythe|battle scythe|grim scythe|cryptic axe|great axe|glorious axe|ettin axe|small crescent|war spear/.test(b)) kind = 'Socketed 2H Weapon';
+    else if (/sword|axe|mace|scepter|sceptre|wand|dagger|knife|club|hammer|flail|blade|saber|sabre|falchion|tulwar|cutlass|baton|crowbill|hatchet|cleaver|\bclaw\b|katar|morning star|war club|flanged mace|jagged star|knout|tomahawk|naga|military pick|gladius|rune sword|ataghan|elegant blade|legend sword|highland blade/.test(b)) kind = 'Socketed 1H Weapon';
+    if (!kind) return null;
+    // prefer the count-specific vocab entry, else the count-less generic
+    return resolve(kind + os) || resolve(kind);
+  };
 
   if (isTally) {
     const tally = {};
@@ -372,10 +390,23 @@ export async function onRequestPost(context) {
     seenFind.add(nm.toLowerCase());
     finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic', base: typeof f.base === 'string' ? f.base.slice(0, 40) : '' });
   }
-  // v342.7 — clean unrecognized: drop garbage strings AND anything already captured as a Magic & Rare
-  // find (the model sometimes lists a keeper in BOTH finds and unrecognized).
+  // v342.12 — socketed runeword/craft bases → register the generic "Socketed <slot> (Nos)" entry (SOCKETED
+  // locker). The AI read base+count; we classify the slot. Track the base names to scrub from unrecognized.
+  const socketBaseLower = new Set();
+  for (const s of (parsed.sockets || [])) {
+    const base = s && typeof s.base === 'string' ? s.base.trim() : '';
+    if (!base) continue;
+    socketBaseLower.add(base.toLowerCase());
+    const gen = socketGeneric(base, s.count);
+    if (gen && !items.includes(gen)) items.push(gen);
+  }
+  // v342.7 — clean unrecognized: drop garbage strings, anything already captured as a Magic & Rare find,
+  // and any socketed-base name (the model sometimes echoes the base name into unrecognized too).
   const findLower = new Set(finds.map((f) => f.name.toLowerCase()));
-  const cleanUnrec = [...new Set(unrec)].filter((u) => nameOk(u) && !findLower.has(String(u).toLowerCase()));
+  const cleanUnrec = [...new Set(unrec)].filter((u) => {
+    const ul = String(u).toLowerCase();
+    return nameOk(u) && !findLower.has(ul) && !socketBaseLower.has(ul);
+  });
   return json({
     items: [...new Set(items)],
     unrecognized: cleanUnrec.slice(0, 40),
