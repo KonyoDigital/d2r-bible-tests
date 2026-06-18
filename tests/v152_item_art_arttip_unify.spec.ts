@@ -89,8 +89,10 @@ test.describe('v152 item/rune art + floating tooltip unification', () => {
       };
     });
     expect(r.headerAlign).toBe('flex-start');
-    // gold-bright title like .boss-name (not the muted cream default)
-    expect(r.titleColor).toBe('rgb(240, 192, 96)');
+    // v342: RoTW section headers are now CONTENT-themed (in-game parity) — the first header is the
+    // Herald of Terror, styled purple #b07cff like in-game; quest sections are orange, Sunder gold.
+    // The durable parity here is the TOP-anchored subtitle layout (flex-start); the title is themed.
+    expect(r.titleColor).toBe('rgb(176, 124, 255)');
   });
 
   test('no console errors across the restyled item surfaces', async ({ page }) => {
