@@ -19964,6 +19964,7 @@ body{
 .vault-mule.vm-a-uni{--acc:199,179,119}
 .vault-mule.vm-a-basic{--acc:206,206,206}
 .vault-mule.vm-a-dupe{--acc:0,255,255}
+.vault-mule.vm-a-magic{--acc:181,140,255}
 .vault-mule.vm-a-wip{--acc:212,168,71}
 .vault-mule[class*="vm-a-"]{border-top:2px solid rgba(var(--acc),.5)}
 .vault-mule[class*="vm-a-"] .vm-plate{background:linear-gradient(180deg,rgba(var(--acc),.17),rgba(var(--acc),.035));border-bottom-color:rgba(var(--acc),.32)}
@@ -20155,6 +20156,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'uni-armor',  name:'UNI-ARMOR',   icon:'🪖', note:'body armor · helms · shields · belts · boots · gloves'},
     {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
     {id:'bases',      name:'SOCKETED',    icon:'🔩', note:'socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)'},
+    {id:'magic-rare', name:'MAGIC & RARE',icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
@@ -20184,13 +20186,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
+  // v342.5 — ensure the MAGIC & RARE locker exists on rosters saved before it (holds the magicFinds keepers)
+  (function(){
+    if (!roster.some(function(m){ return m.id==='magic-rare'; })){
+      var mr={id:'magic-rare', name:'MAGIC & RARE', icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'};
+      var idx=roster.findIndex(function(m){ return m.id==='bases'; });
+      if (idx>=0) roster.splice(idx+1, 0, mr); else roster.push(mr);
+      try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+    }
+  })();
   function saveR(){ localStorage.setItem(RK, JSON.stringify(roster)); }
   function saveA(){ localStorage.setItem(AK, JSON.stringify(assign)); }
   var selectedChip = null;
   // v322 polish: each locker carries a rarity ACCENT (like the Crafted Workshop's per-craft gem
   // colours) — tinted plate + top stripe + gauge, keyed to what the locker HOLDS. Sets green,
   // uniques gold, SOCKETED white, dupes cyan, WIP muted — coherent with the in-game palette.
-  var MULE_ACCENT = { 'sets-major':'vm-a-set','sets-rest':'vm-a-set','uni-weap':'vm-a-uni','uni-armor':'vm-a-uni','uni-small':'vm-a-uni','bases':'vm-a-basic','dupes':'vm-a-dupe','wip':'vm-a-wip' };
+  var MULE_ACCENT = { 'sets-major':'vm-a-set','sets-rest':'vm-a-set','uni-weap':'vm-a-uni','uni-armor':'vm-a-uni','uni-small':'vm-a-uni','bases':'vm-a-basic','magic-rare':'vm-a-magic','dupes':'vm-a-dupe','wip':'vm-a-wip' };
   function _muleAccent(id){ return MULE_ACCENT[id] || ''; }
 
   // ── taxonomy brain ──
@@ -20435,7 +20446,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     Object.keys(assign).forEach(function(n){ (byMule[assign[n]]=byMule[assign[n]]||[]).push(n); });
     shelf.innerHTML = roster.map(function(m){
       var items=(byMule[m.id]||[]).sort();
-      var cap=40, pct=Math.min(100, Math.round(items.length/cap*100));
+      // v342.5 — the MAGIC & RARE locker also holds the magicFinds keepers (rolled-name items kept OUT
+      // of grail `owned`/`assign`, so they render straight from the magicFinds map, not from byMule).
+      var magicItems=(m.id==='magic-rare' && typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort() : [];
+      var total=items.length+magicItems.length;
+      var cap=40, pct=Math.min(100, Math.round(total/cap*100));
       // v230: runes + materials (essences/shards/keys/organs/statues) live in RoW's
       // infinite shared stash — they are no longer muled, so no linked-tally lockers.
       var linked='';
@@ -20470,9 +20485,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
           + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>';
       });
+      // v342.5 — append the Magic & Rare keepers as their own coloured cells (no art/openDrop — they're
+      // rolled-name items with no grail card; ✕ here = throw-out from magicFinds).
+      if (magicItems.length){
+        var _mqcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
+        itemRows = itemRows.concat(magicItems.map(function(n){
+          var q=magicFinds[n]||'magic', col=_mqcol[q]||_mqcol.magic;
+          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+'" data-magic-find="'+esc(n)+'" title="'+esc(n)+' ('+q+')">'
+            + '<span class="vm-cell-art" style="color:'+col+'">🔮</span>'
+            + '<span class="vm-item-name vm-cell-name" style="color:'+col+'">'+esc(n)+'</span>'
+            + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
+        }));
+      }
       function _gridWrap(arr){ return '<div class="vm-grid">' + arr.join('') + '</div>'; }
       var itemsHtml;
-      if (!items.length){ itemsHtml = (linked?'':'<div class="vm-empty">empty locker</div>'); }
+      if (!itemRows.length){ itemsHtml = (linked?'':'<div class="vm-empty">empty locker</div>'); }
       else if (itemRows.length > SHOWN){
         itemsHtml = _gridWrap(itemRows.slice(0,SHOWN))
           + '<details class="vm-more"><summary class="vm-more-sum"><span class="vmm-open">+ '+(itemRows.length-SHOWN)+' more ▾</span><span class="vmm-close">show less ▴</span></summary>'
@@ -20481,7 +20508,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<div class="vault-mule '+_muleAccent(m.id)+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="click: open the in-game ID card of this mule · with a chip selected: assign it here">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
-        + '<span class="vm-count">'+items.length+'</span>'
+        + '<span class="vm-count">'+total+'</span>'
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
         + '</div>'
         + '<div class="vm-gauge"><div class="vm-gauge-fill'+(pct>=85?' vg-hot':'')+'" style="width:'+pct+'%"></div></div>'
