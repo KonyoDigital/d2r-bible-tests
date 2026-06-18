@@ -1639,6 +1639,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .vj-head-sub{color:var(--text-dim);font-weight:400;font-size:11px;margin-left:4px}
 .vj-head-r{display:inline-flex;align-items:center;gap:9px}
 .vj-total{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9be8b4;background:rgba(102,255,136,.13);border-radius:8px;padding:2px 9px}
+/* v342.9 — polished grand-total in the Recently-registered header + a breakdown summary row */
+.vj-grandtotal{display:inline-flex;align-items:baseline;gap:5px;font-family:ui-monospace,monospace;font-weight:800;font-size:16px;color:#bdf5cf;background:rgba(102,255,136,.14);border:1px solid rgba(102,255,136,.4);border-radius:9px;padding:2px 11px}
+.vj-gt-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8fd9a6}
+.vj-summary{display:flex;flex-wrap:wrap;gap:7px;padding:0 12px 10px}
+.vj-sum-chip{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.03em;border-radius:8px;padding:2px 9px;border:1px solid currentColor}
+.vj-sum-grail{color:#c7b377;background:rgba(199,179,119,.1)}
+.vj-sum-magic{color:#b58cff;background:rgba(181,140,255,.1)}
+.vj-sum-sess{color:#7fb9d8;background:rgba(127,185,216,.1)}
 .vj-chev{font-size:11px;color:var(--best,#66ff88);transition:transform .2s ease}
 .vj-details[open] .vj-chev{transform:rotate(180deg)}
 .vj-scroll{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding:4px 12px 12px}
@@ -20923,9 +20931,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v328: collapsible by default + symmetric grid chips + scroll (Konyo: "droppeeable
     // expandable scrollable more symmetric and by default not expanded").
     var totalItems = j.reduce(function(a,e){ return a + (e.items?e.items.length:0); }, 0);
+    // v342.9 — authoritative GRAND TOTAL currently registered (same reconciliation as the 📋 Registered
+    // panel): grail owned + Magic & Rare keepers. The session count is the AI-intake history.
+    var _poolJ = ownedPool();
+    var _grailReg = Array.from(owned).filter(function(n){ return !isAggregate(n) && (isSharedStash(n) || _poolJ.indexOf(n)>=0); }).length;
+    var _magicReg = Object.keys(magicFinds||{}).length;
+    var _totalReg = _grailReg + _magicReg;
     el.innerHTML = '<details class="vj-details">'
-      + '<summary class="vj-head"><span class="vj-head-l">🕘 <strong>Recently registered</strong> <span class="vj-head-sub">your last intake sessions</span></span>'
-      + '<span class="vj-head-r"><span class="vj-total">' + totalItems + ' item' + (totalItems===1?'':'s') + ' · ' + j.length + ' session' + (j.length===1?'':'s') + '</span><span class="vj-chev">▾</span></span></summary>'
+      + '<summary class="vj-head">'
+      +   '<span class="vj-head-l">🕘 <strong>Recently registered</strong> <span class="vj-head-sub">AI-intake history</span></span>'
+      +   '<span class="vj-head-r"><span class="vj-grandtotal" title="total items currently registered — grail + Magic &amp; Rare">' + _totalReg + ' <span class="vj-gt-lbl">registered</span></span><span class="vj-chev">▾</span></span>'
+      + '</summary>'
+      + '<div class="vj-summary">'
+      +   '<span class="vj-sum-chip vj-sum-grail">' + _grailReg + ' grail</span>'
+      +   '<span class="vj-sum-chip vj-sum-magic">🔮 ' + _magicReg + ' magic &amp; rare</span>'
+      +   '<span class="vj-sum-chip vj-sum-sess">' + totalItems + ' logged · ' + j.length + ' session' + (j.length===1?'':'s') + '</span>'
+      + '</div>'
       + '<div class="vj-scroll">' + sessions + (j.length>8 ? '<div class="vj-more">… and ' + (j.length-8) + ' older session' + (j.length-8===1?'':'s') + '</div>' : '') + '</div>'
       + '</details>';
   }
