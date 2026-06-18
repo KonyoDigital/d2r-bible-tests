@@ -19910,6 +19910,7 @@ body{
 .vrg-gh-loose{color:var(--gold-bright,#f0c060)}
 .vrg-gh-shared{color:#7fd4ff}
 .vrg-gh-magic{color:#b58cff}
+.vmc-gemfallback{font-size:20px;display:flex;align-items:center;justify-content:center;text-shadow:0 0 9px currentColor;opacity:.9}
 .vrg-gh-unknown{color:#9aa6b2}
 .vrg-mdot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;box-shadow:0 0 6px currentColor}
 .vrg-keep{flex:0 0 auto;margin-left:auto;padding:1px 8px;border:1px solid rgba(181,140,255,.45);background:rgba(181,140,255,.12);color:#cdb4ff;border-radius:6px;cursor:pointer;font-size:10.5px;white-space:nowrap}
@@ -20543,7 +20544,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var src=(typeof _magicArtSrc==='function')?_magicArtSrc(base||n):null;
           var artHtml = src
             ? '<span class="vm-cell-art d2art-wrap lg d2art-r-'+(q==='magic'?'magic':q==='rare'?'rare':'rw')+'" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+src+'" alt="" loading="lazy"></span>'
-            : '<span class="vm-cell-art" style="color:'+col+'">🔮</span>';
+            : '<span class="vm-cell-art vmc-gemfallback" style="color:'+col+'">◆</span>';
           return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+'" data-magic-find="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
             + artHtml
             + '<span class="vm-item-name vm-cell-name" style="color:'+col+'">'+esc(n)+'</span>'
