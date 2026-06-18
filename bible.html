@@ -20705,6 +20705,44 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       img.src = url;
     });
   }
+  // ── v342: VAULT loot intake calibrated like the runes/gems tally (crop + enlarge for clarity).
+  // A loot screenshot is normally ONE item hovered → ONE floating description tooltip. We LOCATE that
+  // tooltip (server 'locate' pass), crop GENEROUSLY around it (Konyo: "10x10 or more, as long as it's
+  // not cut"), and ENLARGE it to a 1568 long edge at JPEG 0.95 with high smoothing — so the stat text
+  // reads crisp instead of being one small region of a downscaled full screen (the over-read / misread
+  // cause). The runes/gems grid has a FIXED crop; a tooltip floats, so the crop box comes from 'locate'.
+  function _vLoadImg(file){
+    return new Promise(function(res, rej){
+      var im = new Image(), u = URL.createObjectURL(file);
+      im.onload = function(){ res({ im: im, u: u }); };
+      im.onerror = rej; im.src = u;
+    });
+  }
+  // enlarge a (sub)region to a 1568 long edge at high quality; box = [x0,y0,x1,y1] fractions, or null = whole image
+  function _vEnlarge(im, box){
+    var W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
+    var sx = 0, sy = 0, sw = W, sh = H;
+    if (box){ sx = Math.round(box[0]*W); sy = Math.round(box[1]*H); sw = Math.round((box[2]-box[0])*W); sh = Math.round((box[3]-box[1])*H); }
+    if (!(sw > 0) || !(sh > 0)){ sx = 0; sy = 0; sw = W; sh = H; }
+    var MAX = 1568, scale = Math.min(3.2, MAX / Math.max(sw, sh));   // enlarge the crop so tooltip text is crisp (cap up-scale 3.2×)
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(sw*scale)); c.height = Math.max(1, Math.round(sh*scale));
+    var ctx = c.getContext('2d'); try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch(e){}
+    ctx.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.95).split(',')[1];
+  }
+  // GENEROUS box padding — bias BIG so the tooltip is NEVER clipped (Konyo: "as long as it's not cut").
+  // Pads each side, clamps to the image, and enforces a sane MINIMUM span so a too-tight box can't shrink-clip.
+  function _vPadBox(box){
+    if (!box || box.length !== 4) return null;
+    var x0 = +box[0], y0 = +box[1], x1 = +box[2], y1 = +box[3];
+    if (!(x1 > x0) || !(y1 > y0)) return null;
+    var padX = (x1-x0)*0.40 + 0.05, padY = (y1-y0)*0.32 + 0.05;   // generous margin around the located box
+    x0 = Math.max(0, x0-padX); y0 = Math.max(0, y0-padY); x1 = Math.min(1, x1+padX); y1 = Math.min(1, y1+padY);
+    if ((x1-x0) < 0.32){ var cx=(x0+x1)/2; x0=Math.max(0,cx-0.16); x1=Math.min(1,cx+0.16); }
+    if ((y1-y0) < 0.36){ var cy=(y0+y1)/2; y0=Math.max(0,cy-0.18); y1=Math.min(1,cy+0.18); }
+    return [x0, y0, x1, y1];
+  }
   // ── v215: intake journal — persists what was registered, when, across sessions
   var JOURNAL_KEY='d2r_intakeLog';
   function journal(){ try { return JSON.parse(localStorage.getItem(JOURNAL_KEY)||'[]'); } catch(e){ return []; } }
@@ -20798,9 +20836,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var fRec = { file: fname, nw: [], own: [], unr: [], err: false };
       perFile.push(fRec);
       try {
-        var b64 = await downscale(files[i]);
         var endpoint = localStorage.getItem('d2r_intakeUrl')
           || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+        // v342 — calibrate like runes/gems: LOCATE the hovered description tooltip, crop GENEROUSLY to
+        // it (never clip), and ENLARGE so its text reads crisp — then read the ONE hovered item.
+        var b64, _box = null;
+        try {
+          var _L = await _vLoadImg(files[i]);
+          var _whole = _vEnlarge(_L.im, null);   // enlarged full image — the locate input + the fallback
+          try {
+            var _lr = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ image: _whole, media_type: 'image/jpeg', names: vocab, kind: 'locate', file: fname }) });
+            if (_lr.ok){ var _ld = await _lr.json(); if (_ld && _ld.found && _ld.box && _ld.box.length === 4) _box = _vPadBox(_ld.box.map(Number)); }
+          } catch(e){}
+          b64 = _box ? _vEnlarge(_L.im, _box) : _whole;
+          try { URL.revokeObjectURL(_L.u); } catch(e){}
+          try { console.log('[vault-intake] ' + fname + ' → tooltip ' + (_box ? 'cropped ['+_box.map(function(v){return v.toFixed(2);}).join(', ')+']' : 'not found → full image')); } catch(e){}
+        } catch(e){ b64 = await downscale(files[i]); }
         var resp = await fetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },

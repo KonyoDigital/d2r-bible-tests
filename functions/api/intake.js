@@ -25,18 +25,27 @@ export async function onRequestPost(context) {
   try {
   if (!image || typeof image !== 'string') return json({ error: 'missing image' }, 400);
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
-  if (!Array.isArray(names) || names.length < 3 || names.length > 600) return json({ error: 'names vocabulary required' }, 400);
+  const isLocate = kind === 'locate';   // v342 — return the hovered tooltip's bounding box (no vocab needed)
+  if (!isLocate && (!Array.isArray(names) || names.length < 3 || names.length > 600)) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
-  const isTally = kind === 'tally' || isCraft;   // craft shares the {tally} count contract
+  const isTally = (kind === 'tally' || isCraft) && !isLocate;   // craft shares the {tally} count contract
 
   const itemsText = 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
     + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
-    + '(0) Report an item whenever its NAME is shown as clearly-readable TEXT anywhere in the image — a hover '
-    + 'tooltip, a stash/inventory/vendor/trade window label, a ground-loot label, OR a store/web listing line. You do '
-    + 'NOT need a hover tooltip; scan the WHOLE image for legible item-name text and report every vocabulary match you '
-    + 'can read with confidence. The ONE hard rule: NEVER report from item ARTWORK alone — if an item appears only as '
-    + 'an icon/graphic with no readable name text next to it, skip it (a wrong guess from art is far worse than a miss). '
+    + '(0) Report an item ONLY where its NAME is shown as clearly-readable TEXT — a hover tooltip, a '
+    + 'stash/inventory/vendor/trade window label, a ground-loot label, OR a store/web listing line. NEVER report from '
+    + 'item ARTWORK alone: if an item appears only as an icon/graphic with no readable name text next to it, skip it '
+    + '(a wrong guess from art is far worse than a miss). '
+    + '(0a) DEFAULT EXPECTATION — these screenshots are normally ONE hovered item: a single big tooltip floating over a '
+    + 'stash/inventory grid. In that case report EXACTLY ONE item: the hovered tooltip. The icons in the grid BEHIND '
+    + 'the tooltip are bare artwork with NO readable name — do NOT enumerate them, do NOT pad the list with them. '
+    + 'Report MORE than one item ONLY when MULTIPLE separate, COMPLETE, legible NAME-TEXT labels are genuinely present '
+    + '(e.g. a vendor/trade list that prints item names as text rows, or two tooltips fully shown at once). '
+    + '(0b) NEVER report the same item twice from one image; NEVER turn an affix/stat line ("+2 to Skills", "Lightning '
+    + 'Resist +30%") or a comparison/equipped tooltip\'s shared affixes into extra item names. If unsure whether two '
+    + 'reads are the same item, report it ONCE. When in doubt about a second/third name, OMIT it — under-reporting is '
+    + 'correct here, the user will re-screenshot anything missed. '
     + '(1) Report a vocabulary item ONLY if its name appears as readable text — NEVER fuzzy-match a similar-looking '
     + 'string (a base type like "Tyrant Club" is NOT "Tyrael\'s Might"). If text is too small or blurry to read with '
     + 'CERTAINTY, do not guess: omit it or put your literal best transcription in "unrecognized". A wrong match is far '
@@ -186,7 +195,28 @@ export async function onRequestPost(context) {
     additionalProperties: false,
   };
 
-  const sysText = isCraft ? craftText : isTally ? tallyText : itemsText;
+  // v342 — LOCATE mode: find the single hovered item DESCRIPTION TOOLTIP so the client can crop+enlarge
+  // it (the runes/gems calibration, adapted — the tooltip floats instead of sitting in a fixed grid).
+  const locateText = 'You are given ONE Diablo II Resurrected screenshot. The player is hovering the mouse '
+    + 'over a SINGLE item, so the game draws ONE floating DESCRIPTION TOOLTIP: a dark, semi-transparent stat '
+    + 'panel with the item NAME in a coloured header at the TOP and several stat lines below it. YOUR ONLY JOB '
+    + 'is to return the bounding box of that hovered tooltip so it can be cropped out and enlarged for reading. '
+    + 'Return found=true and x0,y0,x1,y1 as FRACTIONS of image width/height (0 = left/top, 1 = right/bottom) that '
+    + 'enclose the WHOLE tooltip panel — the coloured name header AND every stat line down to the bottom edge. '
+    + 'ERR GENEROUS: it is far better to include extra surrounding area than to clip ANY edge — never cut off the '
+    + 'name header or the bottom stat line. If there is NO single floating item tooltip (a plain grid with nothing '
+    + 'hovered, a vendor/trade list of text rows, or several tooltips at once), return found=false with zeros.';
+  const locateSchema = {
+    type: 'object',
+    properties: {
+      found: { type: 'boolean' },
+      x0: { type: 'number' }, y0: { type: 'number' }, x1: { type: 'number' }, y1: { type: 'number' },
+    },
+    required: ['found', 'x0', 'y0', 'x1', 'y1'],
+    additionalProperties: false,
+  };
+
+  const sysText = isLocate ? locateText : isCraft ? craftText : isTally ? tallyText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -205,12 +235,12 @@ export async function onRequestPost(context) {
       model: env.MODEL || 'claude-sonnet-4-6',
       max_tokens: 2048,
       system,
-      output_config: { format: { type: 'json_schema', schema: isTally ? tallySchema : itemsSchema } },
+      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isTally ? tallySchema : itemsSchema } },
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : 'Extract the item names from this screenshot.' },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : 'Extract the item names from this screenshot.' },
         ],
       }],
     }),
@@ -225,10 +255,16 @@ export async function onRequestPost(context) {
   }
   const data = await apiResp.json();
   const usage = data.usage ? { in: data.usage.input_tokens, out: data.usage.output_tokens, cached: data.usage.cache_read_input_tokens } : null;
-  if (data.stop_reason === 'refusal') return json(isTally ? { tally: {}, unrecognized: [], note: 'refused' } : { items: [], unrecognized: [], note: 'refused' }, 200);
+  if (data.stop_reason === 'refusal') return json(isLocate ? { found: false, box: [0, 0, 0, 0], note: 'refused' } : isTally ? { tally: {}, unrecognized: [], note: 'refused' } : { items: [], unrecognized: [], note: 'refused' }, 200);
   const textBlock = (data.content || []).find((b) => b.type === 'text');
   let parsed = {};
   try { parsed = JSON.parse(textBlock ? textBlock.text : '{}'); } catch {}
+
+  if (isLocate) {
+    const f = !!parsed.found;
+    const num = (v) => { const n = Number(v); return isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; };
+    return json({ found: f, box: f ? [num(parsed.x0), num(parsed.y0), num(parsed.x1), num(parsed.y1)] : [0, 0, 0, 0], usage }, 200);
+  }
 
   // Vocab matching — NEVER drop a read silently (the Frostburn lesson): resolve via
   // (1) exact, (2) normalized (case/punct-insensitive), (3) vocab-name-is-prefix at a
