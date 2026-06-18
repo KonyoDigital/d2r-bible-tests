@@ -50,7 +50,9 @@ test.describe('v130 in-game item-quality name colors + Cinzel font', () => {
 
   test('event tokens / shards render orange', async ({ page }) => {
     const c = nameCell(page, 'summoner', 'Key of Hate');
-    await expect(c).toHaveClass(/q-material/);
+    // v342: quest/event items (keys, organs, essences, Token, Worldstone Shard) now classify as the
+    // crafted-orange bucket in _artRarity — both q-material and q-crafted render --q-orange (#ffa800).
+    await expect(c).toHaveClass(/q-(material|crafted)/);
     await expect(c).toHaveCSS('color', ORANGE);
   });
 
