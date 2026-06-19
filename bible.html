@@ -20877,6 +20877,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       im.onerror = rej; im.src = u;
     });
   }
+  // v342.17 — fetch with a hard TIMEOUT so a stalled AI call can't freeze the whole intake (worker pool
+  // would otherwise await a hung request forever → "stuck"). Aborts after `ms` and rejects, caught per-shot.
+  function _vFetch(url, opts, ms){
+    var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    if (ac) opts = Object.assign({}, opts, { signal: ac.signal });
+    var t = ac ? setTimeout(function(){ try { ac.abort(); } catch(e){} }, ms || 75000) : null;
+    return fetch(url, opts).finally(function(){ if (t) clearTimeout(t); });
+  }
   // enlarge a (sub)region to a long edge at a given quality; box = [x0,y0,x1,y1] fractions, or null = whole image.
   // maxEdge/q default to the high-fidelity READ settings (1568 @ 0.95); the cheap LOCATE pass passes small values.
   function _vEnlarge(im, box, maxEdge, q){
@@ -21032,19 +21040,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // (Haiku reads it server-side); the real READ below uses the full-quality crop. Keeps credits sane.
           var _small = _vEnlarge(_L.im, null, 860, 0.72);
           try {
-            var _lr = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ image: _small, media_type: 'image/jpeg', names: vocab, kind: 'locate', file: fname }) });
+            var _lr = await _vFetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ image: _small, media_type: 'image/jpeg', names: vocab, kind: 'locate', file: fname }) }, 45000);
             if (_lr.ok){ var _ld = await _lr.json(); if (_ld && _ld.found && _ld.box && _ld.box.length === 4) _box = _vPadBox(_ld.box.map(Number)); }
           } catch(e){}
           b64 = _vEnlarge(_L.im, _box);   // full-quality READ: crop if a tooltip was found, else whole image
           try { URL.revokeObjectURL(_L.u); } catch(e){}
           try { console.log('[vault-intake] ' + fname + ' → tooltip ' + (_box ? 'cropped ['+_box.map(function(v){return v.toFixed(2);}).join(', ')+']' : 'not found → full image')); } catch(e){}
         } catch(e){ b64 = await downscale(files[i]); }
-        var resp = await fetch(endpoint, {
+        var resp = await _vFetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ image: b64, media_type: 'image/jpeg', names: vocab, file: fname }),
-        });
+        }, 75000);
         if (!resp.ok) { errors++; fRec.err = true; return; }
         var data = await resp.json();
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
