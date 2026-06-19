@@ -9651,16 +9651,22 @@ function _magicArtSrc(base){
   if(!b) return null;
   if(/charm|skiller|\(gc\)|\(sc\)|\(lc\)/.test(b)) return 'art/logo_charm.png';
   if(/jewel/.test(b)) return 'art/jewel02_graphic.png';
-  // v342.11 — generic base sprites we already self-host (diablo2.io base set). Matches the AI-read base
-  // type ("Heavy Belt", "Ring", "Chain Gloves") AND the rolled rare-name TYPE-WORD (D2 rares are named
-  // "<prefix> <type-word>": Clasp/Sash=belt, Loop/Knot/Band=ring, Choker/Pendant=amulet, etc.).
-  if(/\b(ring|loop|knot|whorl|band|coil|gyre|spiral|turn|circle)\b/.test(b)) return 'art/ring1_graphic.png';
-  if(/\b(amulet|necklace|choker|locket|pendant|beads|collar|noose|talisman|scarab)\b/.test(b)) return 'art/amu1_graphic.png';
-  if(/\b(belt|sash|girdle|cord|clasp|strap|lock|snare|mesh|bind|wrap|string)\b/.test(b)) return 'art/belt_graphic.png';
-  if(/\b(glove|gloves|gauntlet|gauntlets|mitt|mitts|fist|claw|grasp|hand|knuckle|vambrace|bracer|clutches|fingers)\b/.test(b)) return 'art/chaingloves_graphic.png';
-  if(/\b(boot|boots|greave|greaves|sabaton|sabatons|tread|treads|slipper|slippers|track|trail|walk|hoof|spur|spurs|nails|shank)\b/.test(b)) return 'art/leatherboots_graphic.png';
+  // v342.16 — ORDER MATTERS: specific elite bases, then slot-typed pieces (boots/gloves/belt, then BODY
+  // ARMOR), THEN jewelry rare-name words. "Ring Mail" is body armor, not a ring — body armor must win
+  // before the "ring" jewelry word, and "Plate Boots" must hit boots before the "plate" armor word.
   var BM={'circlet':'base_circlet.png','tiara':'base_tiara.png','diadem':'base_diadem.png','monarch':'base_monarch.png','phase blade':'base_phaseblade.png','cryptic axe':'base_crypticaxe.png','berserker axe':'base_berserkeraxe.png','colossus blade':'base_colossusblade.png','crystal sword':'base_crystalsword.png','flail':'base_flail.png','thresher':'base_thresher.png','bone visage':'base_bonevisage.png','demon head':'base_demonhead.png','archon plate':'base_archonplate.png','mage plate':'base_mageplate.png','dusk shroud':'base_duskshroud.png','wire fleece':'base_wirefleece.png','scarab husk':'base_scarabhusk.png','troll nest':'base_trollnest.png','sacred armor':'base_sacredarmor.png','sacred rondache':'base_sacredrondache.png','sacred targe':'base_sacredtarge.png','conqueror crown':'base_conquerorcrown.png'};
   for(var k in BM){ if(b.indexOf(k)>=0) return 'art/'+BM[k]; }
+  // slot-typed armor pieces (own sprites) — boots/gloves/belt BEFORE body-armor so "Plate Boots" → boots
+  if(/\b(boot|boots|greave|greaves|sabaton|sabatons|tread|treads|slipper|slippers|track|trail|hoof|spur|spurs|nails|shank)\b/.test(b)) return 'art/leatherboots_graphic.png';
+  if(/\b(glove|gloves|gauntlet|gauntlets|mitt|mitts|fist|claw|grasp|hand|knuckle|vambrace|bracer|clutches|fingers)\b/.test(b)) return 'art/chaingloves_graphic.png';
+  if(/\b(belt|sash|girdle|cord|clasp|strap|snare|mesh)\b/.test(b)) return 'art/belt_graphic.png';
+  // BODY ARMOR (wins over the "ring" jewelry word for "Ring Mail")
+  if(/\bmail\b/.test(b)) return 'art/chainmail_graphic.png';                 // ring/chain/scale/linked mail
+  if(/studded|hard leather|leather armor|quilted/.test(b)) return 'art/studdedleather_graphic.png';
+  if(/\b(plate|armor|hauberk|tunic|jupon|cuirass|shroud|hide|pelt|shell|carapace|fleece|husk|scale|splint)\b/.test(b)) return null; // body armor, no specific sprite → glyph (NOT a wrong ring)
+  // accessories — jewelry rare-name TYPE-WORDS (only reached if NOT armor above)
+  if(/\b(ring|loop|knot|whorl|band|coil|gyre|spiral|turn|circle)\b/.test(b)) return 'art/ring1_graphic.png';
+  if(/\b(amulet|necklace|choker|locket|pendant|beads|collar|noose|talisman|scarab)\b/.test(b)) return 'art/amu1_graphic.png';
   return null;
 }
 // v342.4 — unmatched reads: legible names the AI read that matched neither grail nor a keeper. Persisted
@@ -9757,14 +9763,6 @@ const persist = () => {
 // 2026-06-15). Uniques pull fixed stats from ITEM_TIP; magic/rare/crafted carry a GENERAL
 // affix-pool description (their exact rolls live on the item, since they're random).
 const EXTRA_ITEMS = {
-  // ── Sunder charms (RoTW): unique grand charms that break the matching immunity. Account-shared
-  //    keepers you carry in inventory — NEVER muled (see SHARED_STASH_RE). v342.13. ──
-  "Cold Rupture":          { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — while carried, monster <b>Cold</b> immunity is sundered (Cold Resist −70%, fixed). Account-shared keeper; never mule. Latent → Renewed via cube upgrade." },
-  "Flame Rift":            { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Fire</b> immunity (Fire Resist −70%, fixed). Account-shared keeper; never mule." },
-  "Crack of the Heavens":  { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Lightning</b> immunity (Light Resist −70%, fixed). Account-shared keeper; never mule." },
-  "Rotting Fissure":       { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Poison</b> immunity (Poison Resist −70%, fixed). Account-shared keeper; never mule." },
-  "Bone Break":            { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Physical</b> immunity (Phys/Magic resist cut). Account-shared keeper; never mule." },
-  "Black Cleft":           { rarity:'unique', base:'Grand Charm', cat:'Sunder charm', desc:"<b>Sunder charm</b> — sunders monster <b>Magic</b> immunity (Magic Resist −70%, fixed). Account-shared keeper; never mule." },
   // ── your specific finds (read off your screenshots) ──
   "Marshal's Amulet":  { rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — rares roll 3–6 random affixes. The <b>godly</b> caster combo is <b>+2 to your class skills + 20% Faster Cast Rate</b> plus life / all-res / mana — that pairing can out-class Mara's and trades around a <b>Jah rune</b>; even +2 / 10% FCR with life+res sells well. Your exact rolls are on the item — check them against that target." },
   "Plague Wing Amulet":{ rarity:'rare', base:'Amulet', cat:'Rare jewelry', desc:"A rare amulet — 3–6 random affixes from the amulet pool (skills, +skill-tab, FCR, all-res, life/mana, stats). Chase <b>+2 skills / 20% FCR / life / res</b> — top rolls beat most unique amulets. Your exact rolls are on the item." },
@@ -10081,7 +10079,11 @@ window.renderHighValueFinds = renderHighValueFinds;
   const beforeWish = wishlist.size;
   const beforeOwned = owned.size;
   wishlist = new Set([...wishlist].filter(n => typeof n === 'string' && n && ITEM_REGISTRY[n]));
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _EXTRA_ITEM_SET.has(_norm(n)))));
+  // v342.16 — keep account-shared trackables (runes / essences / Worldstone shards / Colossal statues /
+  // SUNDER CHARMS) that the vault registers as owned but that aren't calc ITEMS/EXTRA — so they survive a
+  // reload instead of being pruned. (Inlined here because SHARED_STASH_RE is defined later in the file.)
+  var _SHARED_KEEP = /\b(rune|essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b/i;
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _SHARED_KEEP.test(n))));
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
