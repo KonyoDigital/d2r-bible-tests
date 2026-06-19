@@ -6741,7 +6741,37 @@ window.__alignCard = function(sel){
   };
   setTimeout(go, 80); setTimeout(go, 420); setTimeout(go, 900);
 };
+// v342.18 — minimal detail card for a Magic & Rare keeper (rolled-name item; no fixed grail card).
+function _magicFindCardHtml(name){
+  var q = (typeof _mfQual === 'function') ? _mfQual(name) : 'magic';
+  var base = (typeof _mfBase === 'function') ? _mfBase(name) : '';
+  var col = q === 'rare' ? '#ffd54a' : (q === 'crafted' ? 'var(--q-orange,#ffa800)' : '#7aa2ff');
+  var src = (typeof _magicArtSrc === 'function') ? _magicArtSrc(base || name) : null;
+  var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="'+_d2artEsc(name)+'"><img class="d2art-img" src="'+src+'" alt=""></span>'
+    : '<span style="font-size:34px;line-height:1;color:'+col+';text-shadow:0 0 10px currentColor">◆</span>';
+  var blurb = q === 'magic' ? 'A <b>magic</b> item — 1–2 rolled affixes. Keep it for the affix(es) + any open sockets (gemming).'
+    : q === 'crafted' ? 'A <b>crafted</b> item — guaranteed mods + rolled affixes. Judge it by the mods on the actual item.'
+    : 'A <b>rare</b> item — 3–6 rolled affixes. The value is in the combo (skills / FCR / leech / res / life). Judge it by the stats on the item.';
+  return '<div class="material-card magicfind-card" style="border-color:'+col+'">'
+    + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
+    + artHtml
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:'+col+'">'+esc(name)+'</h2>'
+    + '<div class="gic-subtitle">'+(base?esc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare</div></div></header>'
+    + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'+blurb
+    + ' Tracked as a rolled-name keeper — there\'s no fixed drop card, so this is the summary.</div></section>'
+    + '</div>';
+}
 window.openDrop = function(name){
+  // v342.18 — Magic & Rare keeper (rolled-name): no boss/rune/material/item match → show its summary card.
+  if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]){
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = null; window.__activeRune = null; selectedItem = null;
+    switchTab('calc');
+    var _mp = document.getElementById('item-detail');
+    if (_mp){ _mp.classList.add('show'); _mp.innerHTML = _magicFindCardHtml(name); }
+    if (typeof __alignCard === 'function') __alignCard('#item-detail .magicfind-card');
+    return;
+  }
   if (!name) return;
   // Herald-tier first: the 5 ladder rungs (Fright→Terror) are exact-match monster
   // entities, disjoint from runes/materials/items — route them to their tier card.
@@ -20444,7 +20474,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     function row(n, tag){
       var s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
-      return '<div class="vrg-row" data-vault-item="'+esc(n)+'">'+art(n)
+      return '<div class="vrg-row" data-vault-item="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+art(n)
         +'<span class="vrg-name"'+s+'>'+esc(n)+'</span>'+tag
         +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="throw out — remove from ✓ owned (AI misread / junk)">✕</button></div>';
     }
@@ -20459,7 +20489,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       h+='<div class="vrg-gh vrg-gh-magic">🔮 Magic &amp; Rare · '+findNames.length+'</div>'+findNames.map(function(n){
         var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
-        return '<div class="vrg-row" data-magic-find="'+esc(n)+'">'+_icon
+        return '<div class="vrg-row" data-magic-find="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
           +'<span class="vrg-name" style="color:'+col+'">'+esc(n)+'</span>'
           +'<span class="vrg-tag" style="color:'+col+'">'+q+'</span>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare (AI misread / junk)">✕</button></div>';
@@ -20564,7 +20594,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var artHtml = src
             ? '<span class="vm-cell-art d2art-wrap lg d2art-r-'+(q==='magic'?'magic':q==='rare'?'rare':'rw')+'" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+src+'" alt="" loading="lazy"></span>'
             : '<span class="vm-cell-art vmc-gemfallback" style="color:'+col+'">◆</span>';
-          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+'" data-magic-find="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
+          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'
             + artHtml
             + '<span class="vm-item-name vm-cell-name" style="color:'+col+'">'+esc(n)+'</span>'
             + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
