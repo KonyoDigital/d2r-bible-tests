@@ -19944,9 +19944,9 @@ body{
 .vault-chip.vc-r-magic:hover{border-color:rgba(122,162,255,.7);box-shadow:0 0 14px rgba(122,162,255,.2)}
 .vault-chip.vc-selected{border-color:var(--best,#66ff88);box-shadow:0 0 0 1px rgba(102,255,136,.4),0 0 16px rgba(102,255,136,.18)}
 /* scrollable "Registered" triage panel — observe what the AI read + its muled/not-muled disposition */
-/* v342.22 — break out of the 1280px container so the Registered panel uses the page margins (Konyo:
-   "stretch it symmetric, use more of the page"). 94vw caps to viewport (no horizontal scroll). */
-.vault-registered{margin:0 auto 14px;width:min(1640px,94vw);position:relative;left:50%;transform:translateX(-50%)}
+/* v342.24 — keep the panel aligned within the card (the 94vw breakout clipped on the left due to an
+   ancestor overflow). Full width of the container; columns fill it. */
+.vault-registered{margin:0 0 14px;width:100%}
 .vrg-det{border:1px solid rgba(127,212,255,.26);border-radius:12px;background:linear-gradient(180deg,rgba(18,26,34,.5),rgba(8,11,15,.42));overflow:hidden}
 .vrg-det[open]{border-color:rgba(127,212,255,.4)}
 .vrg-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;user-select:none}
