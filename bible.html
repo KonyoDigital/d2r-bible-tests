@@ -19954,7 +19954,13 @@ body{
 .vrg-subt{flex:1;min-width:0;font-size:11px;font-style:italic;color:#7fb9d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vrg-chev{color:#7fd4ff;font-size:12px;transition:transform .2s}
 .vrg-det[open] .vrg-chev{transform:rotate(180deg)}
-.vrg-body{max-height:360px;overflow-y:auto;padding:4px 12px 12px}
+.vrg-body{padding:4px 12px 12px}
+/* v342.21 — side-by-side bucket columns, each with its own header + independent scrollbar */
+.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(218px,1fr));gap:10px}
+.vrg-col{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:rgba(255,255,255,.015);display:flex;flex-direction:column;min-width:0}
+.vrg-col-h{display:flex;align-items:center;gap:6px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03)}
+.vrg-col-ct{margin-left:auto;font-size:10px;font-weight:800;background:rgba(255,255,255,.1);border-radius:7px;padding:1px 8px;color:inherit}
+.vrg-col-body{max-height:300px;overflow-y:auto;padding:4px 6px}
 .vrg-gh{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin:11px 0 4px;padding-bottom:3px;border-bottom:1px solid var(--border)}
 .vrg-gh-mule{color:var(--best,#66ff88)}
 .vrg-gh-loose{color:var(--gold-bright,#f0c060)}
@@ -20495,38 +20501,37 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +'<span class="vrg-name"'+s+'>'+esc(n)+'</span>'+tag
         +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="throw out — remove from ✓ owned (AI misread / junk)">✕</button></div>';
     }
-    var h='';
-    if(muled.length){ h+='<div class="vrg-gh vrg-gh-mule">🏦 Muled · '+muled.length+'</div>'+muled.map(function(p){ return row(p[0],'<span class="vrg-tag vrg-tag-mule">→ '+esc(p[1].name)+'</span>'); }).join(''); }
-    if(loose.length){ h+='<div class="vrg-gh vrg-gh-loose">🎒 Unsorted · '+loose.length+'</div>'+loose.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-loose">in the dock</span>'); }).join(''); }
-    if(notMuled.length){ h+='<div class="vrg-gh vrg-gh-shared">📦 Not muled · shared stash · '+notMuled.length+'</div>'+notMuled.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-shared">account-wide</span>'); }).join(''); }
-    // v342.3 — Magic & Rare keepers: rolled-name items (skillers, magic/rare charms·jewels·rings·amulets,
-    // crafts). NOT grail — their own bucket, coloured by quality, with ✕ throw-out for any misread.
-    if(findNames.length){
-      var _qcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
-      h+='<div class="vrg-gh vrg-gh-magic">🔮 Magic &amp; Rare · '+findNames.length+'</div>'+findNames.map(function(n){
+    // v342.21 — render each bucket as its OWN COLUMN (header + independent scrollbar) so all sections are
+    // visible side-by-side at once, per Konyo. Responsive grid wraps on narrow screens.
+    var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort():[];
+    var _qcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
+    function _col(cls, title, count, rowsHtml){
+      return '<div class="vrg-col"><div class="vrg-col-h '+cls+'">'+title+'<span class="vrg-col-ct">'+count+'</span></div>'
+        +'<div class="vrg-col-body">'+rowsHtml+'</div></div>';
+    }
+    var cols=[];
+    if(muled.length) cols.push(_col('vrg-gh-mule','🏦 Muled',muled.length, muled.map(function(p){ return row(p[0],'<span class="vrg-tag vrg-tag-mule">→ '+esc(p[1].name)+'</span>'); }).join('')));
+    if(loose.length) cols.push(_col('vrg-gh-loose','🎒 Unsorted',loose.length, loose.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-loose">in dock</span>'); }).join('')));
+    if(notMuled.length) cols.push(_col('vrg-gh-shared','📦 Not muled',notMuled.length, notMuled.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-shared">shared</span>'); }).join('')));
+    if(findNames.length) cols.push(_col('vrg-gh-magic','🔮 Magic &amp; Rare',findNames.length, findNames.map(function(n){
         var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
         return '<div class="vrg-row" data-magic-find="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
           +'<span class="vrg-name" style="color:'+col+'">'+esc(n)+'</span>'
           +'<span class="vrg-tag" style="color:'+col+'">'+q+'</span>'
-          +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare (AI misread / junk)">✕</button></div>';
-      }).join('');
-    }
-    // v342.4 — unmatched reads: legible names that matched neither grail nor a keeper. Kept (not lost)
-    // and reviewable — 🔮 promote to Magic & Rare, or ✕ dismiss.
-    var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort():[];
-    if(unkNames.length){
-      h+='<div class="vrg-gh vrg-gh-unknown">🗑 Throw-out · not in grail · '+unkNames.length+'</div>'+unkNames.map(function(n){
+          +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
+      }).join('')));
+    if(unkNames.length) cols.push(_col('vrg-gh-unknown','🗑 Throw-out',unkNames.length, unkNames.map(function(n){
         return '<div class="vrg-row" data-unknown-read="'+esc(n)+'"><span class="vrg-mdot" style="background:#9aa6b2"></span>'
           +'<span class="vrg-name" style="color:#aeb8c4">'+esc(n)+'</span>'
-          +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
+          +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮</button>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕</button></div>';
-      }).join('');
-    }
+      }).join('')));
+    var h='<div class="vrg-cols">'+cols.join('')+'</div>';
     // v342.20 — the GRAND total counts EVERYTHING read (grail + magic + throw-out), distinguished into
     // sections below. Konyo: "register the item regardless… distinguished but still a total amount."
     var _regTot=all.length+findNames.length+unkNames.length;
-    el.innerHTML='<details class="vrg-det" open><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">grail · magic &amp; rare · throw-out — everything read, sorted</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">grail · magic &amp; rare · throw-out — everything read, sorted</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
