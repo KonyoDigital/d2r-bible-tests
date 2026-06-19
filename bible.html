@@ -46,7 +46,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .tab{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;transition:all .15s;white-space:nowrap}
 .tab:hover{background:var(--surface-2);color:var(--text)}
 .tab.active{background:var(--gold);color:#1a1208;border-color:var(--gold)}
-.container{max-width:1280px;margin:0 auto;padding:18px 14px 60px}
+.container{max-width:1500px;margin:0 auto;padding:18px 14px 60px}
 .tab-content{display:none}
 .tab-content.active{display:block}
 .hero{background:linear-gradient(135deg,rgba(212,168,71,.08) 0%,rgba(102,255,136,.04) 100%);border:1px solid var(--border-light);border-radius:12px;padding:18px 20px;margin-bottom:20px}
@@ -1661,6 +1661,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .vj-chip .d2art-wrap.sm{width:16px;height:16px}
 .vj-chip .d2art-wrap.sm .d2art-img{max-width:16px;max-height:16px}
 .vj-more{font-size:10.5px;color:var(--text-dim);font-style:italic;margin-top:6px}
+/* v342.24 — per-screenshot breakdown in history: a clear button + a hint when none stored yet */
+.vj-pf-hint{margin:2px 12px 8px;padding:7px 10px;border:1px dashed rgba(127,212,255,.32);border-radius:8px;font-size:11px;color:#9fc4dd;font-style:italic;line-height:1.45}
+.vj-pf{margin-top:8px}
+.vj-pf>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:800;color:#7fd4ff;background:rgba(127,212,255,.1);border:1px solid rgba(127,212,255,.34);border-radius:8px;padding:3px 10px;list-style:none}
+.vj-pf>summary::-webkit-details-marker{display:none}
+.vj-pf>summary:hover{background:rgba(127,212,255,.18)}
 /* v301: High-Value Finds browser rows */
 .hvf-row{display:flex;gap:10px;align-items:baseline;padding:6px 7px;border-bottom:1px dotted var(--border);cursor:pointer;transition:background .12s}
 .hvf-row:hover{background:rgba(240,192,96,.06)}
@@ -21064,6 +21070,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +   '<span class="vj-sum-chip vj-sum-magic">🔮 ' + _magicReg + ' magic &amp; rare</span>'
       +   '<span class="vj-sum-chip vj-sum-sess">' + totalItems + ' logged · ' + j.length + ' session' + (j.length===1?'':'s') + '</span>'
       + '</div>'
+      + ((!j.some(function(e){ return e.pf && e.pf.length; })) ? '<div class="vj-pf-hint">📂 the per-screenshot breakdown (which shot → which items) saves under each session after your <strong>next intake</strong> — older sessions above were logged before this was added</div>' : '')
       + '<div class="vj-scroll">' + sessions + (j.length>8 ? '<div class="vj-more">… and ' + (j.length-8) + ' older session' + (j.length-8===1?'':'s') + '</div>' : '') + '</div>'
       + '</details>';
   }
