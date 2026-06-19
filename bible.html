@@ -3815,7 +3815,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
-      <div id="vault-keep" class="vault-keep" hidden></div>
       <div id="vault-registered" class="vault-registered" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
@@ -3836,6 +3835,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         </div>
       </details>
       <div class="vault-shelf" id="vault-shelf"></div>
+      <!-- v342.15: shared-stash advisory ("don't mule these") moved down here with the bottom description/intake, per Konyo -->
+      <div id="vault-keep" class="vault-keep" hidden></div>
       <!-- v323: AI-intake report (a description of what was read) sits BELOW the lockers, per Konyo -->
       <div id="vault-intake-report" hidden style="margin:14px 0 12px;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <!-- v310: Recently-registered intake log moved BELOW the mule lockers + screenshot guide -->
