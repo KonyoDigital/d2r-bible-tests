@@ -19944,7 +19944,9 @@ body{
 .vault-chip.vc-r-magic:hover{border-color:rgba(122,162,255,.7);box-shadow:0 0 14px rgba(122,162,255,.2)}
 .vault-chip.vc-selected{border-color:var(--best,#66ff88);box-shadow:0 0 0 1px rgba(102,255,136,.4),0 0 16px rgba(102,255,136,.18)}
 /* scrollable "Registered" triage panel — observe what the AI read + its muled/not-muled disposition */
-.vault-registered{margin:0 0 14px}
+/* v342.22 — break out of the 1280px container so the Registered panel uses the page margins (Konyo:
+   "stretch it symmetric, use more of the page"). 94vw caps to viewport (no horizontal scroll). */
+.vault-registered{margin:0 auto 14px;width:min(1640px,94vw);position:relative;left:50%;transform:translateX(-50%)}
 .vrg-det{border:1px solid rgba(127,212,255,.26);border-radius:12px;background:linear-gradient(180deg,rgba(18,26,34,.5),rgba(8,11,15,.42));overflow:hidden}
 .vrg-det[open]{border-color:rgba(127,212,255,.4)}
 .vrg-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;user-select:none}
@@ -19956,7 +19958,7 @@ body{
 .vrg-det[open] .vrg-chev{transform:rotate(180deg)}
 .vrg-body{padding:4px 12px 12px}
 /* v342.21 — side-by-side bucket columns, each with its own header + independent scrollbar */
-.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(218px,1fr));gap:10px}
+.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}
 .vrg-col{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:rgba(255,255,255,.015);display:flex;flex-direction:column;min-width:0}
 .vrg-col-h{display:flex;align-items:center;gap:6px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03)}
 .vrg-col-ct{margin-left:auto;font-size:10px;font-weight:800;background:rgba(255,255,255,.1);border-radius:7px;padding:1px 8px;color:inherit}
@@ -20010,9 +20012,17 @@ body{
 .pf-err{color:var(--hell,#ff4040)}
 .pf-empty{color:#756657}
 .pf-dim{color:#756657}
-.vrg-row{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:7px}
-.vrg-row:hover{background:rgba(255,255,255,.04)}
-.vrg-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text)}
+.vrg-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:7px}
+.vrg-row:hover{background:rgba(255,255,255,.05)}
+.vrg-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text)}
+/* v342.22 — HD art thumbnail in each registered row, sized + rarity glow (matches the locker tiles) */
+.vrg-row .d2art-wrap{flex:0 0 auto;width:26px;height:26px}
+.vrg-row .d2art-wrap img,.vrg-row .d2art-img{width:26px;height:26px;object-fit:contain}
+.vrg-row .d2art-wrap.d2art-r-unique{filter:drop-shadow(0 0 4px rgba(199,179,119,.6))}
+.vrg-row .d2art-wrap.d2art-r-set{filter:drop-shadow(0 0 4px rgba(0,255,0,.5))}
+.vrg-row .d2art-wrap.d2art-r-rw,.vrg-row .d2art-wrap.d2art-r-rune{filter:drop-shadow(0 0 4px rgba(255,168,0,.55))}
+.vrg-row .d2art-wrap.d2art-r-magic{filter:drop-shadow(0 0 4px rgba(122,162,255,.6))}
+.vrg-row .d2art-wrap.d2art-r-rare{filter:drop-shadow(0 0 4px rgba(255,213,74,.55))}
 .vrg-tag{margin-left:auto;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;white-space:nowrap}
 .vrg-tag-mule{color:var(--best,#66ff88)}
 .vrg-tag-loose{color:var(--gold-dim,#caa24a)}
@@ -20497,7 +20507,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     function row(n, tag){
       var s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
-      return '<div class="vrg-row" data-vault-item="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+art(n)
+      return '<div class="vrg-row" data-vault-item="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+art(n)
         +'<span class="vrg-name"'+s+'>'+esc(n)+'</span>'+tag
         +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="throw out — remove from ✓ owned (AI misread / junk)">✕</button></div>';
     }
