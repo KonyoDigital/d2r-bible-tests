@@ -21000,11 +21000,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     status('🧹 full reset — 0 owned, blank start');
   };
-  function journalAdd(items){
-    if (!items.length) return;
+  // v342.23 — also persist the PER-SCREENSHOT breakdown (file → what it read) so the "Recently registered"
+  // history keeps the deep per-shot detail across reloads, not just the item chips. Compact + short filenames.
+  function journalAdd(items, perFile){
+    if (!items.length && !(perFile && perFile.length)) return;
     var j = journal();
-    j.unshift({ ts: Date.now(), items: items.slice(0, 30) });
-    localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20)));
+    var sf = function(s){ return String(s||'').replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
+    var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err }; });
+    j.unshift({ ts: Date.now(), items: items.slice(0, 30), pf: pf });
+    try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
+    catch(e){ try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 5))); } catch(e2){} }
   }
   function renderJournal(){
     var el = document.getElementById('vault-journal');
@@ -21022,7 +21027,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var logo = (typeof nameLogo === 'function') ? nameLogo(n) : '';
         return '<span class="vj-chip" data-arttip="' + esc(n) + '" style="color:' + col + '" onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')" title="open ' + esc(n) + '">' + logo + esc(n) + '</span>';
       }).join('');
-      return '<div class="vj-session"><div class="vj-meta"><span class="vj-when">' + when + '</span><span class="vj-count">' + e.items.length + ' item' + (e.items.length===1?'':'s') + '</span></div><div class="vj-items">' + chips + '</div></div>';
+      // v342.23 — persistent per-screenshot breakdown (collapsible), reconstructed from the stored pf
+      var pfHtml = '';
+      if (e.pf && e.pf.length){
+        var rows = e.pf.map(function(f){
+          var c = [];
+          if (f.nw && f.nw.length) c.push('<span class="pf-chip pf-new">✓ '+f.nw.length+'</span><span class="pf-names">'+f.nw.map(esc).join(', ')+'</span>');
+          if (f.mf && f.mf.length) c.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(esc).join(', ')+'</span>');
+          if (f.own && f.own.length) c.push('<span class="pf-chip pf-own">↻ '+f.own.length+'</span><span class="pf-names">'+f.own.map(esc).join(', ')+'</span>');
+          if (f.unr && f.unr.length) c.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+'</span><span class="pf-names">'+f.unr.map(esc).join(', ')+'</span>');
+          if (f.e) c.push('<span class="pf-chip pf-err">⚠ failed</span>');
+          var empty = !c.length; if (empty) c.push('<span class="pf-chip pf-empty">∅</span><span class="pf-names pf-dim">no tooltip text</span>');
+          return '<div class="pf-row'+(empty?' pf-row-dim':'')+'"><span class="pf-time">'+esc(f.f)+'</span><span class="pf-st">'+c.join('')+'</span></div>';
+        }).join('');
+        pfHtml = '<details class="vir-pf vj-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+e.pf.length+' file'+(e.pf.length===1?'':'s')+'</span></summary><div class="vir-pf-body">'+rows+'</div></details>';
+      }
+      return '<div class="vj-session"><div class="vj-meta"><span class="vj-when">' + when + '</span><span class="vj-count">' + e.items.length + ' item' + (e.items.length===1?'':'s') + '</span></div><div class="vj-items">' + chips + '</div>' + pfHtml + '</div>';
     }).join('');
     // v328: collapsible by default + symmetric grid chips + scroll (Konyo: "droppeeable
     // expandable scrollable more symmetric and by default not expanded").
@@ -21165,7 +21185,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     async function _worker(){ while (_next < files.length){ var _my = _next++; await processFile(_my); } }
     var _pool = []; for (var _w = 0; _w < CONC; _w++) _pool.push(_worker());
     await Promise.all(_pool);
-    journalAdd(logged);
+    journalAdd(logged, perFile);
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     // v342.7 — fixed-format, scrollable, ORGANIZED report card with a grand TOTAL (Konyo: "fixed format
