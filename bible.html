@@ -19986,8 +19986,24 @@ body{
 .vir-k-magic{color:#b58cff}
 .vir-k-unmatched{color:#9aa6b2}
 .vir-pf{margin-top:8px}
-.vir-pf>summary{cursor:pointer;color:#7fd4ff;font-size:12px}
-.vir-pf-body{margin-top:6px;font-size:12px;line-height:1.5;max-height:200px;overflow-y:auto;border-left:2px solid rgba(127,212,255,.2);padding-left:10px}
+.vir-pf>summary{cursor:pointer;color:#7fd4ff;font-size:12px;font-weight:700}
+.vir-pf-ct{font-family:ui-monospace,monospace;font-size:10px;color:#7fb9d8;background:rgba(127,212,255,.12);border-radius:7px;padding:1px 7px;margin-left:6px}
+.vir-pf-body{margin-top:6px;max-height:260px;overflow-y:auto;border:1px solid rgba(127,212,255,.12);border-radius:8px}
+.pf-row{display:flex;gap:9px;align-items:baseline;padding:3px 9px;border-bottom:1px solid rgba(255,255,255,.04)}
+.pf-row:last-child{border-bottom:0}
+.pf-row:hover{background:rgba(255,255,255,.035)}
+.pf-row-dim{opacity:.55}
+.pf-time{flex:0 0 58px;font-family:ui-monospace,monospace;font-size:10.5px;color:#8a9aa8;letter-spacing:.02em}
+.pf-st{flex:1;min-width:0;font-size:12px;line-height:1.5}
+.pf-chip{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:1px 6px;border-radius:6px;border:1px solid currentColor;margin-right:6px;white-space:nowrap}
+.pf-names{color:#cfe0ea}
+.pf-new{color:var(--best,#66ff88)}
+.pf-magic{color:#b58cff}
+.pf-own{color:#7fd4ff}
+.pf-throw{color:#9aa6b2}
+.pf-err{color:var(--hell,#ff4040)}
+.pf-empty{color:#756657}
+.pf-dim{color:#756657}
 .vrg-row{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:7px}
 .vrg-row:hover{background:rgba(255,255,255,.04)}
 .vrg-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text)}
@@ -20500,15 +20516,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // and reviewable — 🔮 promote to Magic & Rare, or ✕ dismiss.
     var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort():[];
     if(unkNames.length){
-      h+='<div class="vrg-gh vrg-gh-unknown">❓ Unmatched reads · '+unkNames.length+'</div>'+unkNames.map(function(n){
+      h+='<div class="vrg-gh vrg-gh-unknown">🗑 Throw-out · not in grail · '+unkNames.length+'</div>'+unkNames.map(function(n){
         return '<div class="vrg-row" data-unknown-read="'+esc(n)+'"><span class="vrg-mdot" style="background:#9aa6b2"></span>'
           +'<span class="vrg-name" style="color:#aeb8c4">'+esc(n)+'</span>'
           +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕</button></div>';
       }).join('');
     }
-    var _regTot=all.length+findNames.length;
-    el.innerHTML='<details class="vrg-det" open><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">muled · not-muled · magic &amp; rare · review unmatched — verify the AI read</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+    // v342.20 — the GRAND total counts EVERYTHING read (grail + magic + throw-out), distinguished into
+    // sections below. Konyo: "register the item regardless… distinguished but still a total amount."
+    var _regTot=all.length+findNames.length+unkNames.length;
+    el.innerHTML='<details class="vrg-det" open><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">grail · magic &amp; rare · throw-out — everything read, sorted</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
@@ -20999,11 +21017,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _poolJ = ownedPool();
     var _grailReg = Array.from(owned).filter(function(n){ return !isAggregate(n) && (isSharedStash(n) || _poolJ.indexOf(n)>=0); }).length;
     var _magicReg = Object.keys(magicFinds||{}).length;
-    var _totalReg = _grailReg + _magicReg;
+    var _throwReg = (typeof unknownReads!=='undefined' && unknownReads) ? unknownReads.size : 0;
+    var _totalReg = _grailReg + _magicReg + _throwReg;
     el.innerHTML = '<details class="vj-details">'
       + '<summary class="vj-head">'
       +   '<span class="vj-head-l">🕘 <strong>Recently registered</strong> <span class="vj-head-sub">AI-intake history</span></span>'
-      +   '<span class="vj-head-r"><span class="vj-grandtotal" title="total items currently registered — grail + Magic &amp; Rare">' + _totalReg + ' <span class="vj-gt-lbl">registered</span></span><span class="vj-chev">▾</span></span>'
+      +   '<span class="vj-head-r"><span class="vj-grandtotal" title="everything recorded — grail + Magic &amp; Rare + throw-out">' + _totalReg + ' <span class="vj-gt-lbl">registered</span></span><span class="vj-chev">▾</span></span>'
       + '</summary>'
       + '<div class="vj-summary">'
       +   '<span class="vj-sum-chip vj-sum-grail">' + _grailReg + ' grail</span>'
@@ -21140,7 +21159,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _poolM = ownedPool();
     var _grailReg = Array.from(owned).filter(function(n){ return !isAggregate(n) && (isSharedStash(n) || _poolM.indexOf(n)>=0); }).length;
     var _magicReg = Object.keys(magicFinds||{}).length;
-    var _totalReg = _grailReg + _magicReg;
+    var _throwReg = (typeof unknownReads!=='undefined' && unknownReads) ? unknownReads.size : 0;
+    var _totalReg = _grailReg + _magicReg + _throwReg;
     var body = '';
     body += '<div class="vir-line">'
       + (logged.length
@@ -21150,31 +21170,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '</div>';
     if (dupes.length) body += '<div class="vir-line"><span class="vir-k vir-k-own">already owned · ' + dupes.length + '</span> ' + _colorNames(dupes) + '</div>';
     if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
-    if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">❓ unmatched · ' + unrec.length + '</span> ' + unrec.map(esc).join(' · ') + ' <em>— review &amp; keep/dismiss in 📋 Registered</em></div>';
+    if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(esc).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
     if (!logged.length && !dupes.length && !unrec.length && !magicNew.length && !errors) body += '<div class="vir-line vir-dim">💡 the AI reads item NAMES, not icons — open a tooltip (hover) or hold Alt over loot, then screenshot.</div>';
-    // per-file breakdown — name the exact screenshot each item came from
+    // per-file breakdown — clean status-chip rows (short timestamp + coloured chip + names) instead of a text wall
     if (files.length > 1 || perFile.some(function(f){ return f.nw.length || f.own.length || f.unr.length || f.mf.length || f.err; })){
+      var _shortF = function(s){ return String(s).replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
       var pf = perFile.map(function(f){
-        var bits = [];
-        if (f.nw.length) bits.push('<span style="color:var(--best,#66ff88)">+' + f.nw.length + ' new</span> <span style="color:#cfe9d4">' + f.nw.map(esc).join(', ') + '</span>');
-        if (f.mf.length) bits.push('<span style="color:#b58cff">🔮 ' + f.mf.length + '</span> <span style="color:#cdb4ff">' + f.mf.map(esc).join(', ') + '</span>');
-        if (f.own.length) bits.push('<span style="color:#7fd4ff">' + f.own.length + ' owned</span> <span style="color:#a9d4ea">' + f.own.map(esc).join(', ') + '</span>');
-        if (f.unr.length) bits.push('<span style="color:var(--text-dim,#756657)">' + f.unr.length + ' unread</span> <span style="color:#9a8e78">' + f.unr.map(esc).join(', ') + '</span>');
-        if (f.err) bits.push('<span style="color:var(--hell,#ff4040)">failed</span>');
-        if (!bits.length) bits.push('<span style="color:var(--text-dim,#756657)">no readable names — open a tooltip / hold Alt</span>');
-        return '<div style="margin:1px 0"><span style="color:#cdbf9a">📄 ' + esc(f.file) + '</span> — ' + bits.join(' · ') + '</div>';
+        var chips = [];
+        if (f.nw.length) chips.push('<span class="pf-chip pf-new">✓ '+f.nw.length+' new</span><span class="pf-names">'+f.nw.map(esc).join(', ')+'</span>');
+        if (f.mf.length) chips.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(esc).join(', ')+'</span>');
+        if (f.own.length) chips.push('<span class="pf-chip pf-own">↻ '+f.own.length+' owned</span><span class="pf-names">'+f.own.map(esc).join(', ')+'</span>');
+        if (f.unr.length) chips.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+' throw-out</span><span class="pf-names">'+f.unr.map(esc).join(', ')+'</span>');
+        if (f.err) chips.push('<span class="pf-chip pf-err">⚠ failed</span>');
+        var empty = !chips.length;
+        if (empty) chips.push('<span class="pf-chip pf-empty">∅ empty</span><span class="pf-names pf-dim">no tooltip text — hover an item / hold Alt</span>');
+        return '<div class="pf-row'+(empty?' pf-row-dim':'')+'"><span class="pf-time">'+esc(_shortF(f.file))+'</span><span class="pf-st">'+chips.join('')+'</span></div>';
       }).join('');
-      body += '<details class="vir-pf"><summary>📂 per-screenshot breakdown (' + files.length + ' file' + (files.length===1?'':'s') + ')</summary><div class="vir-pf-body">' + pf + '</div></details>';
+      body += '<details class="vir-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+files.length+' file'+(files.length===1?'':'s')+'</span></summary><div class="vir-pf-body">' + pf + '</div></details>';
     }
     if (errors) body += '<div class="vir-line" style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</div>';
     // v342.10 — reconcile the SCREENSHOT count so it's clear 62 shots ≠ 62 items (dupes collapse,
     // bases/junk are unmatched). Header leads with shots → registered; a reconcile row sums the outcome.
     var html = '<div class="vir-card">'
       + '<div class="vir-head"><span class="vir-title">📸 AI intake done · ' + files.length + ' screenshot' + (files.length===1?'':'s') + '</span>'
-      + '<span class="vir-tot" title="total items registered across every locker + Magic &amp; Rare">' + _totalReg + ' registered</span>'
+      + '<span class="vir-tot" title="everything read &amp; recorded — grail + Magic &amp; Rare + throw-out">' + _totalReg + ' registered</span>'
       + '<span class="vir-sub">' + _grailReg + ' grail · ' + _magicReg + ' magic &amp; rare' + (cost?' · ≈$'+cost.toFixed(4):'') + '</span></div>'
-      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span><span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> unmatched</span>'
-      + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one, and white/superior bases (unmatched) don\'t register</span></div>'
+      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span><span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>'
+      + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
       + '<div class="vir-body">' + body + '</div></div>';
     report.innerHTML = html;
   };
