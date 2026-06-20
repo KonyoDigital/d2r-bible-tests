@@ -21118,7 +21118,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<div class="ai-load-bar"><span style="width:' + pct + '%"></span></div>'
       + '</div></div>';
   }
-  window.vaultIntake = async function(files){
+  window.vaultIntake = async function(files, opts){
+    opts = opts || {};
     var report = document.getElementById('vault-intake-report');
     if (!files || !files.length || !report) return;
     // v342.26 — snapshot the registered total BEFORE this batch so the report can show the running
@@ -21145,6 +21146,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // `files` is a FileList (no .map) when it comes from the <input>; normalize to a real array so the
     // worker pool + perFile init work whether called with a FileList or an array (folder-scan path).
     files = Array.prototype.slice.call(files);
+    // v342.27 — MANUAL intake now honours the seen-files ledger too (the folder watch already did).
+    // Re-dropping the EXACT same file is FREE: it's skipped, never re-sent to the AI — so the same
+    // file can never be re-read (no double-charge, and no chance a second read mis-assorts it).
+    // The FOLDER path (opts.fromFolder) already filtered + marked its files seen in vaultOfferMenu,
+    // so it must NOT be re-filtered here (that would skip everything it just offered).
+    var _seenSkip = 0;
+    if (!opts.fromFolder){
+      var _seenL = (function(){ try { return seenLedger(); } catch(e){ return {}; } })();
+      files = files.filter(function(f){
+        if (!f || !f.name) return true;
+        if (_seenL[f.name] || _seenL[f.name + '|' + f.lastModified]) { _seenSkip++; return false; }
+        return true;
+      });
+      if (!files.length){
+        report.hidden = false;
+        report.innerHTML = '<div class="vir-card"><div class="vir-head"><span class="vir-title">📸 Nothing new to read</span>'
+          + '<span class="vir-tot">' + _preReg + ' registered</span></div>'
+          + '<div class="vir-reconcile"><span class="vir-rc"><b>' + _seenSkip + '</b> file' + (_seenSkip===1?'':'s') + ' already read — skipped (free, no AI call)</span>'
+          + '<span class="vir-rc-note">these exact files were scanned before, so nothing was sent to the AI. Drop NEW screenshots, or use 🧽 Clear scan history to force a re-read.</span></div></div>';
+        return;
+      }
+    }
     var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false }; });
     var endpoint = localStorage.getItem('d2r_intakeUrl')
       || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
@@ -21226,6 +21249,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     async function _worker(){ while (_next < files.length){ var _my = _next++; await processFile(_my); } }
     var _pool = []; for (var _w = 0; _w < CONC; _w++) _pool.push(_worker());
     await Promise.all(_pool);
+    // v342.27 — remember the files we just read so re-dropping them later is skipped for free. Mark
+    // only SUCCESSFUL reads as seen, so a file that errored can still be retried. (Folder path already
+    // marks its files seen in vaultOfferMenu, so only the manual path needs this.)
+    if (!opts.fromFolder){
+      try {
+        var _sNow = seenLedger();
+        files.forEach(function(f, i){ var fr = perFile[i]; if (f && f.name && fr && !fr.err){ _sNow[f.name] = 1; _sNow[f.name + '|' + f.lastModified] = 1; } });
+        localStorage.setItem(SEEN_KEY, JSON.stringify(_sNow));
+      } catch(e){}
+    }
     journalAdd(logged, perFile);
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
@@ -21274,7 +21307,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + (_preReg > 0
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')
-      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span><span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>'
+      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span><span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>' + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
       + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
       + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
     report.innerHTML = html;
@@ -21311,7 +21344,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
     _pendingAll = all; _pendingFresh = fresh;
     var rep = document.getElementById('vault-intake-report');
-    if (!rep){ if (fresh.length) window.vaultIntake(fresh); return; }
+    if (!rep){ if (fresh.length) window.vaultIntake(fresh, {fromFolder:true}); return; }
     rep.hidden = false;
     var html = '📂 folder scanned: <strong style="color:var(--best,#66ff88)">' + fresh.length + ' new</strong> · ' + all.length + ' screenshots total — read which?<br>';
     if (fresh.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'new\')" style="border-color:rgba(102,255,136,.5);color:var(--best,#66ff88)">✨ New ' + fresh.length + '</button> ';
@@ -21331,7 +21364,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return;
     }
     status('📂 reading ' + pick.length + ' screenshot' + (pick.length===1?'':'s') + ' — already-owned items are skipped automatically…');
-    window.vaultIntake(pick);
+    window.vaultIntake(pick, {fromFolder:true});
   };
   var liveHandle = null; // session fallback when IndexedDB can't persist the handle
   window.vaultConnectFolder = async function(){
@@ -21373,7 +21406,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
           fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
           status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…');
-          window.vaultIntake(fresh);
+          window.vaultIntake(fresh, {fromFolder:true});
         } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch');
         return;
       }

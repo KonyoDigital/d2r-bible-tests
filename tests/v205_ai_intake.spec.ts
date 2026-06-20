@@ -75,6 +75,35 @@ test.describe('v205 AI intake', () => {
     expect(r.report).toContain('≈$');  // v342: cost shown in the card header (was "of API budget used")
   });
 
+  test('re-uploading the SAME file is skipped for free — zero second AI read (v342.27 manual seen-ledger)', async ({ page }) => {
+    let calls = 0;
+    await page.unroute('**/api/intake');
+    await page.route('**/api/intake', (route) => {
+      calls++;
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ items: ['Harlequin Crest (Shako)'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }),
+      });
+    });
+    // first upload reads normally
+    await page.setInputFiles('#vault-intake-file', { name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(
+      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'),
+      undefined, { timeout: 10000 }
+    );
+    const after1 = calls;
+    expect(after1).toBeGreaterThan(0);
+    // SAME filename again → manual seen-ledger skips it: "Nothing new to read", and NO new AI call
+    await page.setInputFiles('#vault-intake-file', { name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(
+      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Nothing new to read'),
+      undefined, { timeout: 10000 }
+    );
+    const report = await page.evaluate(() => document.getElementById('vault-intake-report')!.textContent!);
+    expect(report).toContain('already read');
+    expect(calls).toBe(after1); // zero additional reads — the repeat was free
+  });
+
   test('endpoint failure reports an error instead of silently dropping', async ({ page }) => {
     await page.unroute('**/api/intake');
     await page.route('**/api/intake', (route) => route.fulfill({ status: 502, body: '{"error":"upstream"}' }));
