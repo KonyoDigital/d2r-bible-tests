@@ -3807,6 +3807,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <button class="vault-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('vault-intake-file').click()" title="drop stash/loot screenshots — AI reads the items, checks them ✓ owned, and assigns them to lockers">📸 AI intake</button>
         <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
         <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
+        <button class="vault-btn" id="vault-clear-scan-btn" style="display:none;border-color:rgba(240,192,96,.45);color:var(--gold-bright,#f0c060)" onclick="window.vaultClearScanHistory()" title="WIPE THE SCAN SLATE — forget which screenshot files were already read, so the next folder scan treats every file as fresh and re-reads them. Does NOT touch your ✓ owned items, mules, Magic &amp; Rare, or the registered vault — only the seen-files ledger.">🧽 Clear scan history</button>
         <span id="vault-watcher" class="vault-watcher" style="display:none" title="your screenshots folder is linked — the vault watches it and auto-reads new captures. Click to re-pick the folder.">
           <span class="vw-eye"><span class="vw-iris"><span class="vw-pupil"></span></span><span class="vw-lid"></span></span>
           <span class="vw-txt"><span class="vw-t1">FOLDER LINKED</span><span class="vw-t2">watching for new shots…</span></span>
@@ -19991,6 +19992,12 @@ body{
 .vir-rc b{color:#fff;font-weight:800}
 .vir-rc-note{flex-basis:100%;font-size:10.5px;font-style:italic;color:#8a9aa8}
 .vir-body{max-height:300px;overflow-y:auto;padding:8px 14px 12px;font-size:12.5px;line-height:1.6}
+/* v342.25 — fold the verbose item-dump behind a collapsed toggle; header + reconcile counts stay visible (de-clutter, per Konyo) */
+.vir-fold{border-top:1px solid rgba(127,212,255,.12)}
+.vir-fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:11.5px;font-weight:700;color:#7fb9d8;user-select:none}
+.vir-fold>summary::-webkit-details-marker{display:none}
+.vir-fold-chev{margin-left:auto;color:#7fd4ff;transition:transform .2s}
+.vir-fold[open] .vir-fold-chev{transform:rotate(180deg)}
 .vir-line{margin:4px 0;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.05)}
 .vir-line:last-child{border-bottom:0}
 .vir-dim{color:var(--text-dim,#9a8e78)}
@@ -21006,6 +21013,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     status('🧹 full reset — 0 owned, blank start');
   };
+  // v342.25 — LIGHT reset: wipe ONLY the seen-files scan ledger (d2r_intakeSeen) so the folder
+  // watch re-reads every screenshot as fresh. Does NOT touch owned items, mules, Magic & Rare,
+  // or the registered vault — the safeguard Konyo built is "don't re-scan a seen file"; this is
+  // the dedicated wipe-slate for that safeguard alone (the 🧹 full reset clears it too, but nukes
+  // everything else with it).
+  window.vaultClearScanHistory = async function(){
+    var seenN = 0; try { seenN = Object.keys(seenLedger()).length; } catch(e){}
+    if (!seenN){ status('🧽 scan slate already empty — nothing to clear'); return; }
+    if (!(await uiConfirm('Clear scan history (wipe the slate)?\n\nThis forgets the '+seenN+' screenshot file'+(seenN===1?'':'s')+' the vault has already read, so the NEXT folder scan treats every file as fresh and re-reads them.\n\nYour ✓ owned items, mules, Magic & Rare, and the registered vault are NOT touched — only the seen-files ledger.'))) return;
+    try { localStorage.removeItem(SEEN_KEY); } catch(e){}
+    status('🧽 scan slate wiped — '+seenN+' file'+(seenN===1?'':'s')+' forgotten; next scan re-reads everything');
+  };
   // v342.23 — also persist the PER-SCREENSHOT breakdown (file → what it read) so the "Recently registered"
   // history keeps the deep per-shot detail across reloads, not just the item chips. Compact + short filenames.
   function journalAdd(items, perFile){
@@ -21239,7 +21258,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<span class="vir-sub">' + _grailReg + ' grail · ' + _magicReg + ' magic &amp; rare' + (cost?' · ≈$'+cost.toFixed(4):'') + '</span></div>'
       + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span><span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>'
       + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
-      + '<div class="vir-body">' + body + '</div></div>';
+      + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
     report.innerHTML = html;
   };
 
@@ -21367,8 +21386,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var cb=document.getElementById('vault-folder-btn'),
           sb=document.getElementById('vault-scan-btn'),
           wch=document.getElementById('vault-watcher');
+      var csb=document.getElementById('vault-clear-scan-btn');
       if (cb)  cb.style.display  = connected ? 'none' : '';
       if (sb)  sb.style.display  = connected ? '' : 'none';
+      if (csb) csb.style.display = connected ? '' : 'none';
       if (wch) wch.style.display = connected ? 'inline-flex' : 'none';
     } catch(e){}
   }
