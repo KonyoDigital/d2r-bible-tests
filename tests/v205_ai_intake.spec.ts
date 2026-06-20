@@ -104,6 +104,30 @@ test.describe('v205 AI intake', () => {
     expect(calls).toBe(after1); // zero additional reads — the repeat was free
   });
 
+  test('re-reading a MULTI-KEEP staple under target keeps an extra copy, not a discard (v342.28)', async ({ page }) => {
+    await page.unroute('**/api/intake');
+    await page.route('**/api/intake', (route) =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ items: ['Raven Frost'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }),
+      })
+    );
+    // first file → NEW (1 copy)
+    await page.setInputFiles('#vault-intake-file', { name: 'raven1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    // DIFFERENT filename, SAME item → already-owned but under Raven Frost's default target (4) → extra copy
+    await page.setInputFiles('#vault-intake-file', { name: 'raven2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('extra copies'), undefined, { timeout: 10000 });
+    const r = await page.evaluate(() => ({
+      count: eval('copies')['Raven Frost'],
+      report: document.getElementById('vault-intake-report')!.textContent!,
+      persisted: JSON.parse(localStorage.getItem('d2r_copies') || '{}'),
+    }));
+    expect(r.count).toBe(2);
+    expect(r.persisted['Raven Frost']).toBe(2);
+    expect(r.report).toContain('extra copies');
+  });
+
   test('endpoint failure reports an error instead of silently dropping', async ({ page }) => {
     await page.unroute('**/api/intake');
     await page.route('**/api/intake', (route) => route.fulfill({ status: 502, body: '{"error":"upstream"}' }));
