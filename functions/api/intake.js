@@ -276,6 +276,12 @@ export async function onRequestPost(context) {
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
         : (env.ITEMS_MODEL || 'claude-haiku-4-5'),
       max_tokens: 2048,
+      // v342.26 — temperature 0 (greedy decode) so the SAME screenshot reads the SAME way run-to-run.
+      // The old default (1.0) sampled, so re-scanning a batch could re-assort borderline items
+      // (e.g. a rare flipping magic&rare↔grail) differently each pass. For "read what's in this image"
+      // we want the single most-likely answer, not a varied one. Not 100% bit-identical (inference-layer
+      // non-determinism remains) but it removes the run-to-run wobble.
+      temperature: 0,
       system,
       output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isTally ? tallySchema : itemsSchema } },
       messages: [{
