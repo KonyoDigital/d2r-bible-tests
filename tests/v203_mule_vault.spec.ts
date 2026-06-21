@@ -24,15 +24,16 @@ test.describe('v203 the vault', () => {
     }, OWNED);
   });
 
-  test('default roster renders 9 lockers (v342: + MAGIC & RARE; v230 retired RUNES-HIGH + MATS); owned items appear as dock chips', async ({ page }) => {
+  test('default roster renders 10 lockers (v360: + SHARED STASH; v342: + MAGIC & RARE); owned items appear as dock chips', async ({ page }) => {
     const r = await page.evaluate(() => ({
       mules: document.querySelectorAll('.vault-mule').length,
       chips: document.querySelectorAll('.vault-dock .vault-chip').length,
       names: [...document.querySelectorAll('.vm-name')].map(e => e.textContent),
     }));
-    // v230: runes / essences / Worldstone shards / statues live in RoW's infinite shared stash, so
-    // RUNES-HIGH and MATS were removed (10 → 8). v342: added the MAGIC & RARE locker (8 → 9).
-    expect(r.mules).toBe(9);
+    // v230: runes/essences/shards/statues → shared stash (RUNES-HIGH + MATS removed, 10→8).
+    // v342: + MAGIC & RARE (8→9). v360: + SHARED STASH locker for the never-muled items (9→10).
+    expect(r.mules).toBe(10);
+    expect(r.names).toContain('SHARED STASH');
     expect(r.names).toContain('MAGIC & RARE');
     expect(r.names).not.toContain('RUNES-HIGH');
     expect(r.names).not.toContain('MATS');

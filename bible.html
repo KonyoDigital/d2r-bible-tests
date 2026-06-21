@@ -20851,6 +20851,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
     {id:'bases',      name:'SOCKETED',    icon:'🔩', note:'socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)'},
     {id:'magic-rare', name:'MAGIC & RARE',icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'},
+    {id:'shared',     name:'SHARED STASH',icon:'📦', note:'runes · essences · Worldstone shards · Colossal statues · sunders — never muled, infinite shared stash'},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
@@ -20886,6 +20887,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var mr={id:'magic-rare', name:'MAGIC & RARE', icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'};
       var idx=roster.findIndex(function(m){ return m.id==='bases'; });
       if (idx>=0) roster.splice(idx+1, 0, mr); else roster.push(mr);
+      try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+    }
+    // v360 — ensure the SHARED STASH locker exists on rosters saved before it (holds the never-muled items)
+    if (!roster.some(function(m){ return m.id==='shared'; })){
+      var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:'runes · essences · Worldstone shards · Colossal statues · sunders — never muled, infinite shared stash'};
+      var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
+      if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
       try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
@@ -20964,13 +20972,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       // cat 'Uniques' falls through to the slot routing below (uses ex.base).
     }
-    var base = (tip && tip.base) || (ex && ex.base) || '';
+    // v362 — prefer the AUTHORITATIVE ITEM_TIP base (verified per-item) over tipOf(), which mis-resolves
+    // some names via loose matching (Jalal's Mane → "Dream Spirit" runeword collision → mis-filed to weapons).
+    var itip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[name] : null;
+    var base = (itip && itip.b) || (tip && tip.base) || (ex && ex.base) || '';
     var probe = base + ' ' + name;
     // v322: socketed bases (generic "Socketed <Slot>" buckets, or any item literally named with
     // sockets) get their own home — the SOCKETED mule — BEFORE the jewelry/armor/weapon fallbacks.
     if (/\bsocket(ed|s)?\b/i.test(name)) return {id:'bases', why:'socketed base'};
-    if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
+    // v362 — ARMOR before JEWELRY: body armor like "Ring Mail" contains the word "ring", so it must be
+    // caught as armor (via "mail") FIRST, or it mis-files to UNI-SMALL (Konyo: Darkglow Ring Mail → jewelry).
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
+    if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
     return {id:'uni-weap', why: base ? 'weapon — base: '+base : 'default: weapons'};
   }
 
@@ -21171,7 +21184,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     renderVaultRegistered();
     // prune assignments of items no longer owned or mules deleted
     Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
-    var unsorted = pool.filter(function(n){ return !assign[n]; });
+    // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
+    // NEVER muled, so they don't belong in the draggable "unsorted" dock — they live in the SHARED STASH locker.
+    var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });
     // v251: the dock's own "Auto-Sort" widget — appears only when items are unsorted,
     // sends every loose item back to its proper mule/alt in one click (vaultAutoAssign).
     var dbar=document.getElementById('vault-dock-bar');
@@ -21197,6 +21212,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     Object.keys(assign).forEach(function(n){ (byMule[assign[n]]=byMule[assign[n]]||[]).push(n); });
     shelf.innerHTML = roster.map(function(m){
       var items=(byMule[m.id]||[]).sort();
+      // v360 — the SHARED STASH locker holds every owned never-muled item (runes/essences/shards/statues/
+      // sunders), pulled straight from `owned` by isSharedStash (they're never assigned to a mule).
+      if (m.id==='shared'){ try { items = Array.from(owned).filter(function(n){ return isSharedStash(n); }).sort(); } catch(e){ items=[]; } }
       // v342.5 — the MAGIC & RARE locker also holds the magicFinds keepers (rolled-name items kept OUT
       // of grail `owned`/`assign`, so they render straight from the magicFinds map, not from byMule).
       var magicItems=(m.id==='magic-rare' && typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort() : [];
@@ -21237,7 +21255,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + ' onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">'
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
-          + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>';
+          // v360 — shared-stash items aren't mule-assigned, so ✕ removes from owned; muled items ✕ = unassign.
+          + (m.id==='shared'
+             ? '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnown(\'' + jsArg(n) + '\')" title="remove from ✓ owned">✕</button></div>'
+             : '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>');
       });
       // v342.5 — append the Magic & Rare keepers as their own coloured cells (no art/openDrop — they're
       // rolled-name items with no grail card; ✕ here = throw-out from magicFinds).
@@ -21426,7 +21447,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (box.parentElement !== document.body) document.body.appendChild(box);
     box.classList.add('vd-fs');
     document.documentElement.classList.add('vd-lock');
-    var names=Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
+    // v361 — the SHARED STASH locker holds never-muled items (pulled from owned by isSharedStash), not
+    // mule assignments — so its fullscreen replica draws from owned, like the grid tile does.
+    var names = (muleId==='shared')
+      ? (function(){ try { return Array.from(owned).filter(function(n){ return isSharedStash(n); }).sort(); } catch(e){ return []; } })()
+      : Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     // v211: same-set pieces pack as NEIGHBORS — sort groups sets together first
     // (first-fit places consecutive items adjacently), then big-first within a group
     var sized=names.map(function(n){ var s=vaultSize(n); var t=tipOf(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1],set:(t&&t.setName)||''}; })
