@@ -21800,8 +21800,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_isEmpty(data) && _box && _imRef){
           try {
             var _full = _vEnlarge(_imRef, null);
+            // v357 — the retry is still ONE hovered shot (the crop just clipped it), so send cropped:true
+            // so the backend caps to the single best read. Was cropped:false (no cap) → the retry could
+            // pull background-grid items too, re-inflating the count past the screenshot total.
             var _r2 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
-              body: JSON.stringify({ image:_full, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
+              body: JSON.stringify({ image:_full, media_type:'image/jpeg', names:vocab, file:fname, cropped:true }) }, 75000);
             if (_r2.ok){ var _d2 = await _r2.json(); if (!_isEmpty(_d2)){ data = _d2;
               try { console.log('[vault-intake] ' + fname + ' → empty crop → full-image retry recovered', _d2.items || _d2.unrecognized); } catch(e){} } }
           } catch(e){}

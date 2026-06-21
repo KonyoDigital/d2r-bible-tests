@@ -192,17 +192,19 @@ test.describe('v205 AI intake', () => {
 
   test('v346 — an EMPTY cropped read auto-retries on the full image and recovers the item', async ({ page }) => {
     await page.unroute('**/api/intake');
+    let reads = 0;
     await page.route('**/api/intake', (route) => {
       const body = JSON.parse(route.request().postData() || '{}');
       if (body.kind === 'locate') {
-        // locate succeeds → client crops → first READ is on the crop (cropped:true)
+        // locate succeeds → client crops → first READ is on the crop
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ found: true, box: [0.2, 0.2, 0.6, 0.6] }) });
       }
-      if (body.cropped === true) {
-        // the crop clipped the tooltip → nothing read
+      // v357: both the primary read AND the retry now send cropped:true (single-item cap), so distinguish
+      // by call order: first read = empty crop, second read (full-image retry) = recovers the item.
+      reads++;
+      if (reads === 1) {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], unrecognized: [], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
       }
-      // full-image retry (cropped:false) → recovers the real item
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: ['The Stone of Jordan'], unrecognized: [], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
     await page.setInputFiles('#vault-intake-file', { name: 'clipped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
