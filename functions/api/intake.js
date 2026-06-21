@@ -21,7 +21,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-  const { image, media_type, names, kind, layout } = body || {};
+  const { image, media_type, names, kind, layout, cropped } = body || {};
   try {
   if (!image || typeof image !== 'string') return json({ error: 'missing image' }, 400);
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
@@ -291,7 +291,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : 'Extract the item names from this screenshot.' },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
@@ -438,10 +438,24 @@ export async function onRequestPost(context) {
     const ul = String(u).toLowerCase();
     return nameOk(u) && !findLower.has(ul) && !socketBaseLower.has(ul);
   });
+  let outItems = [...new Set(items)];
+  let outFinds = finds.slice(0, 40);
+  let outUnrec = cleanUnrec.slice(0, 40);
+  // v343 — SINGLE-TOOLTIP DISCIPLINE: when the client cropped the image to ONE located tooltip
+  // (cropped=true), the screenshot shows exactly ONE hovered item, so it must register exactly ONE
+  // thing. Keep the single best read and discard the rest as background-grid noise — this is the
+  // chronic over-count (62 single-item shots registering 65+ via phantom throw-out reads). Priority:
+  // grail item > magic/rare find > socketed/unrecognized. NOT applied to full-image reads (cropped
+  // false: LOCATE returns found=false for a vendor/trade list, which can legitimately hold many rows).
+  if (cropped) {
+    if (outItems.length) { outItems = outItems.slice(0, 1); outFinds = []; outUnrec = []; }
+    else if (outFinds.length) { outFinds = outFinds.slice(0, 1); outUnrec = []; }
+    else { outUnrec = outUnrec.slice(0, 1); }
+  }
   return json({
-    items: [...new Set(items)],
-    unrecognized: cleanUnrec.slice(0, 40),
-    finds: finds.slice(0, 40),
+    items: outItems,
+    unrecognized: outUnrec,
+    finds: outFinds,
     usage,
   }, 200);
   } catch (e) {

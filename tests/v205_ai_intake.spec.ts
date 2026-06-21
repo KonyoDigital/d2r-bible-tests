@@ -128,6 +128,47 @@ test.describe('v205 AI intake', () => {
     expect(r.report).toContain('extra copies');
   });
 
+  test('v343 — the READ request carries the cropped flag: true when a tooltip was located, false when not', async ({ page }) => {
+    // The locate pass (kind:'locate') decides whether the image gets cropped to ONE tooltip; the
+    // follow-up READ must tell the backend so it can enforce single-item discipline (one hovered
+    // item = one registered thing). Capture both request bodies and assert the wiring.
+    const reads: any[] = [];
+    await page.unroute('**/api/intake');
+    await page.route('**/api/intake', (route) => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      if (body.kind === 'locate') {
+        // locate succeeds → a box is returned → client crops → read should be cropped:true
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ found: true, box: [0.2, 0.2, 0.6, 0.6] }) });
+      }
+      reads.push(body);
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ items: ['The Stone of Jordan'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }) });
+    });
+    await page.setInputFiles('#vault-intake-file', { name: 'cropped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    expect(reads.length).toBe(1);
+    expect(reads[0].cropped).toBe(true);
+
+    // now locate FAILS (no single tooltip) → full image → read should be cropped:false (no hard cap)
+    const reads2: any[] = [];
+    await page.unroute('**/api/intake');
+    await page.route('**/api/intake', (route) => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      if (body.kind === 'locate') {
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ found: false, box: [0, 0, 0, 0] }) });
+      }
+      reads2.push(body);
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ items: ['Manald Heal'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }) });
+    });
+    await page.setInputFiles('#vault-intake-file', { name: 'fullimg.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(() => (eval('owned') as Set<string>).has('Manald Heal'), undefined, { timeout: 10000 });
+    expect(reads2.length).toBe(1);
+    expect(reads2[0].cropped).toBe(false);
+  });
+
   test('endpoint failure reports an error instead of silently dropping', async ({ page }) => {
     await page.unroute('**/api/intake');
     await page.route('**/api/intake', (route) => route.fulfill({ status: 502, body: '{"error":"upstream"}' }));

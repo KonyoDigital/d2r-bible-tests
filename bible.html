@@ -21289,7 +21289,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var resp = await _vFetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ image: b64, media_type: 'image/jpeg', names: vocab, file: fname }),
+          // v343 — tell the backend this image was cropped to ONE located tooltip, so it enforces
+          // single-item discipline (one hovered item = one registered thing; background grid = noise).
+          body: JSON.stringify({ image: b64, media_type: 'image/jpeg', names: vocab, file: fname, cropped: !!_box }),
         }, 75000);
         if (!resp.ok) { errors++; fRec.err = true; return; }
         var data = await resp.json();
