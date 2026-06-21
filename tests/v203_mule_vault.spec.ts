@@ -83,12 +83,13 @@ test.describe('v203 the vault', () => {
       };
     });
     expect(r.tal).toBe('sets-major');
-    expect(r.soj).toBe('uni-small');
-    expect(r.gaze).toBe('uni-armor');
-    expect(r.storm).toBe('uni-armor');
-    // Annihilus is a Small Charm — routes to UNI-SMALL now that MATS is gone
-    expect(r.anni).toBe('uni-small');
-    expect(r.wf).toBe('uni-weap');
+    // v364: high trade-value items ("worth keeping close") auto-route to the SHARED cross-account stash
+    // instead of their slot mule. SoJ + Annihilus are both 'high' value → shared.
+    expect(r.soj).toBe('shared');
+    expect(r.gaze).toBe('uni-armor');   // med value → its slot mule
+    expect(r.storm).toBe('uni-armor');  // low value → its slot mule
+    expect(r.anni).toBe('shared');      // high value → shared
+    expect(r.wf).toBe('uni-weap');      // med value → its slot mule
     // shared-stash items are explicitly excluded from muling
     expect(r.rune).toBeNull();
     expect(r.essence).toBeNull();
@@ -160,7 +161,8 @@ test.describe('v203 the vault', () => {
       stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'),
     }));
     expect(r1.chips).toBe(0);
-    expect(r1.stored['The Stone of Jordan']).toBe('uni-small');
+    // v364: SoJ is high trade value → auto-routes to the SHARED cross-account stash, not uni-small.
+    expect(r1.stored['The Stone of Jordan']).toBe('shared');
     // persist owned BEFORE reloading — the vault prunes assignments of
     // un-owned items at load (eval('owned').add bypasses persistence)
     await page.evaluate(() => localStorage.setItem('d2r_owned', JSON.stringify([...eval('owned')])));
@@ -169,10 +171,11 @@ test.describe('v203 the vault', () => {
     await page.waitForTimeout(2200);
     const r2 = await page.evaluate(() => {
       (window as any).renderVault();
-      const card = document.querySelector('[data-vault-mule="uni-small"]')!;
-      return { count: card.querySelector('.vm-count')!.textContent };
+      const shared = document.querySelector('[data-vault-mule="shared"]')!;
+      return { sharedCount: shared.querySelector('.vm-count')!.textContent, stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')['The Stone of Jordan'] };
     });
-    expect(Number(r2.count)).toBeGreaterThanOrEqual(2); // SoJ + Raven Frost
+    expect(r2.stored).toBe('shared');                  // assignment persisted across reload
+    expect(Number(r2.sharedCount)).toBeGreaterThanOrEqual(1); // SoJ in the SHARED locker
   });
 
   test('click-assign (chip → locker) and unassign round-trip', async ({ page }) => {

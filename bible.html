@@ -20945,6 +20945,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var sn = (tip && tip.setName) || name;
       return MAJOR_SETS.test(sn) ? {id:'sets-major', why:'major set: '+sn} : {id:'sets-rest', why:'set: '+sn};
     }
+    // v364 — AUTO-SORT to the SHARED cross-account stash: items "worth keeping close" (High / Very-High
+    // trade value, from the maxroll tier data) route to SHARED — accessible by every character, trade-ready —
+    // simultaneously with the rest going to their mule by slot. Runes/gems/materials are NOT here (own planners).
+    var _tv = (typeof _itemValue === 'function') ? _itemValue(name) : '';
+    if (_tv === 'high' || _tv === 'vhigh') return {id:'shared', why:'high trade value — keep close in the shared stash'};
     // v325: EXTRA_ITEMS (reference finds) carry an authoritative CATEGORY — route by it so the
     // keyword fallback below can't mis-file them. Konyo caught skillers ("...Skiller (GC)") landing
     // in UNI-WEAPONS: a Grand Charm has no "charm" in its name, so JEWELRY_RE missed it. Now charms/
@@ -21212,9 +21217,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     Object.keys(assign).forEach(function(n){ (byMule[assign[n]]=byMule[assign[n]]||[]).push(n); });
     shelf.innerHTML = roster.map(function(m){
       var items=(byMule[m.id]||[]).sort();
-      // v360 — the SHARED STASH locker holds every owned never-muled item (runes/essences/shards/statues/
-      // sunders), pulled straight from `owned` by isSharedStash (they're never assigned to a mule).
-      if (m.id==='shared'){ try { items = Array.from(owned).filter(function(n){ return isSharedStash(n); }).sort(); } catch(e){ items=[]; } }
+      // v364 — SHARED STASH = general cross-account storage (5 in-game shared tabs) you fill MANUALLY by
+      // assigning items here; it's a normal assignable locker (runes/gems/materials are NOT synced here —
+      // they have their own planners). Items come from byMule['shared'] like any other locker.
       // v342.5 — the MAGIC & RARE locker also holds the magicFinds keepers (rolled-name items kept OUT
       // of grail `owned`/`assign`, so they render straight from the magicFinds map, not from byMule).
       var magicItems=(m.id==='magic-rare' && typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort() : [];
@@ -21255,10 +21260,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + ' onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">'
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
-          // v360 — shared-stash items aren't mule-assigned, so ✕ removes from owned; muled items ✕ = unassign.
-          + (m.id==='shared'
-             ? '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnown(\'' + jsArg(n) + '\')" title="remove from ✓ owned">✕</button></div>'
-             : '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>');
+          + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\')" title="send back to the unsorted dock">✕</button></div>';
       });
       // v342.5 — append the Magic & Rare keepers as their own coloured cells (no art/openDrop — they're
       // rolled-name items with no grail card; ✕ here = throw-out from magicFinds).
@@ -21435,6 +21437,70 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }).join('');
     return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px">'+cells+blocks+'</div>';
   }
+  // v363 — SHARED STASH = D2R's 5 shared-stash tabs, AUTO-ASSORTED (Konyo's scheme):
+  //   Pg1 💎 Trade (high runes Vex+ + any high/very-high trade-value item), Pg2 🔮 Runes (the rest, El→Zod),
+  //   Pg3 🧪 Materials (essences · Worldstone shards · Colossal statues · sunders), Pg4+Pg5 📦 Spare (looting room).
+  var _sharedPage = 0;
+  var _HIGH_RUNE_RE = /\b(vex|ohm|lo|sur|ber|jah|cham|zod)\b/i;
+  var _MAT_RE = /\b(essence|worldstone shard|colossal ancient statue|statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft|sunder)\b/i;
+  function _runeOrder(n){
+    var m = String(n).match(/^([a-z]+)\b/i);
+    if (m && typeof RUNE_INDEX !== 'undefined'){ var k = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(); if (k in RUNE_INDEX) return RUNE_INDEX[k]; }
+    return (typeof RUNE_INDEX !== 'undefined' && (n in RUNE_INDEX)) ? RUNE_INDEX[n] : 999;
+  }
+  function _isRuneName(n){ return /\brune\b/i.test(n) || (typeof RUNE_INDEX !== 'undefined' && (n in RUNE_INDEX)); }
+  // v364 — the 5 SHARED tabs = general cross-account storage. Auto-sorted items (high/very-high trade
+  // value, "worth keeping close") distribute best-first: Pg1 💎 Trade = Very-High, Pg2 ⭐ High, Pg3 📦 Keep
+  // = anything else assigned here, Pg4+Pg5 📦 Spare = left empty as looting room. Runes/gems/mats live in
+  // their own planners — never here.
+  function _sharedStashPages(names){
+    // Pg1 holds the auto-sorted keep-close items (value-sorted vhigh→high→rest); Pg2-5 are spare
+    // looting room. (Item value tiers from the maxroll data: uniques top out at 'high'.)
+    var rank = { vhigh: 0, high: 1, med: 2, low: 3, none: 4, trash: 5 };
+    var sorted = names.slice().sort(function(a, b){
+      var ra = rank[(typeof _itemValue === 'function' ? _itemValue(a) : '') || 'none'];
+      var rb = rank[(typeof _itemValue === 'function' ? _itemValue(b) : '') || 'none'];
+      return (ra == null ? 9 : ra) - (rb == null ? 9 : rb) || a.localeCompare(b);
+    });
+    return [
+      { icon: '💎', label: 'Trade', items: sorted },
+      { icon: '📦', label: 'Spare', items: [] },
+      { icon: '📦', label: 'Spare', items: [] },
+      { icon: '📦', label: 'Spare', items: [] },
+      { icon: '📦', label: 'Spare', items: [] },
+    ];
+  }
+  window._sharedSetPage = function(i){ _sharedPage = Math.max(0, Math.min(4, i | 0)); window.openMuleCard('shared'); };
+  function _renderSharedStash(box){
+    // v364 — SHARED holds items ASSIGNED here (auto-sorted by value during intake, or dragged manually).
+    var names = (function(){ try { return Object.keys(assign).filter(function(n){ return assign[n] === 'shared'; }).sort(); } catch(e){ return []; } })();
+    var pages = _sharedStashPages(names);
+    var pg = pages[_sharedPage] || pages[0];
+    var sized = pg.items.map(function(n){ var s = vaultSize(n); return { n: n, w: s[0], h: s[1], area: s[0] * s[1] }; })
+                        .sort(function(a, b){ return b.area - a.area || b.h - a.h; });
+    var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
+    var cell = Math.max(28, Math.min(64, Math.floor(Math.min((vw * 0.46) / 10, (vh - 300) / 10))));
+    var packed = packGrid(sized, 10, 10);
+    var slotName = function(p){ return 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
+    var tabs = pages.map(function(p, i){ return '<div class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" onclick="window._sharedSetPage(' + i + ')">' + p.icon + ' ' + p.label + '</div>'; }).join('');
+    var list = packed.placed.map(function(p){ return '<div>' + esc(p.n) + ' → <span class="vl-slot">' + esc(pg.label.toUpperCase()) + ' ' + slotName(p) + '</span></div>'; }).join('');
+    var totalAll = names.length;
+    box.hidden = false; box.scrollTop = 0;
+    box.innerHTML = '<div class="vd-head"><span class="vd-icon">📦</span><span class="vd-name">SHARED STASH</span>'
+      + '<span class="vd-sub" style="margin:0 14px 0 6px">' + totalAll + ' never-muled item' + (totalAll === 1 ? '' : 's') + ' · auto-assorted across the 5 shared tabs</span>'
+      + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
+      + '<div class="vd-game-row">'
+      +   '<div class="vd-panel" style="margin:0 auto"><div class="vd-panel-title">Shared Stash</div>'
+      +     '<div class="vd-tabs">' + tabs + '</div>'
+      +     gridHtml(packed.placed, 10, 10, cell).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
+      +     '<div class="vd-pagebar"><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 4) % 5) + ')">◄</span><span>' + pg.icon + ' ' + pg.label + ' · Page ' + (_sharedPage + 1) + ' / 5</span><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 1) % 5) + ')">►</span></div>'
+      +     '<div class="vd-goldbox">' + pg.icon + ' ' + pg.items.length + ' on this page · ' + totalAll + ' total</div>'
+      +   '</div>'
+      + '</div>'
+      + (packed.left.length ? '<div class="vd-overflow">⚠ <strong>' + packed.left.length + ' item' + (packed.left.length === 1 ? '' : 's') + ' overflow this page</strong> — D2R shared tabs hold 100 slots; this is the 10×10 preview: ' + packed.left.map(function(i){ return esc(i.n); }).join(' · ') + '</div>' : '')
+      + (pg.items.length ? '<div class="vd-list">' + list + '</div>'
+         : '<div class="vm-empty" style="padding:8px 2px">' + (_sharedPage >= 3 ? '📦 spare page — kept empty as room for fresh loot while hunting' : 'nothing on this page yet') + '</div>');
+  }
   var openMuleId = null, _muleReturnTab = null;
   window.openMuleCard = function(muleId){
     var m=muleById(muleId); var box=document.getElementById('vault-detail');
@@ -21447,11 +21513,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (box.parentElement !== document.body) document.body.appendChild(box);
     box.classList.add('vd-fs');
     document.documentElement.classList.add('vd-lock');
-    // v361 — the SHARED STASH locker holds never-muled items (pulled from owned by isSharedStash), not
-    // mule assignments — so its fullscreen replica draws from owned, like the grid tile does.
-    var names = (muleId==='shared')
-      ? (function(){ try { return Array.from(owned).filter(function(n){ return isSharedStash(n); }).sort(); } catch(e){ return []; } })()
-      : Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
+    // v363 — SHARED STASH gets its own 5-page auto-assorted view (not the mule stash+inventory layout).
+    if (muleId === 'shared'){ _renderSharedStash(box); return; }
+    var names = Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     // v211: same-set pieces pack as NEIGHBORS — sort groups sets together first
     // (first-fit places consecutive items adjacently), then big-first within a group
     var sized=names.map(function(n){ var s=vaultSize(n); var t=tipOf(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1],set:(t&&t.setName)||''}; })

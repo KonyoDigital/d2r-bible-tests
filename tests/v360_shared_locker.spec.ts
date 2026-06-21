@@ -1,15 +1,17 @@
 import { test, expect } from '@playwright/test';
 
-// v360 — never-muled items (runes/essences/Worldstone shards/Colossal statues/sunders) get a dedicated
-// SHARED STASH locker tile + stay out of the draggable "unsorted" dock.
+// v360/v364 — SHARED STASH = general cross-account storage (the 5 in-game shared tabs). It's a normal
+// assignable locker filled by AUTO-SORT during intake (high-value "worth keeping close" items) — NOT
+// runes/gems/materials (those have their own planners). Runes/sunders stay out of the draggable dock.
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('shared-stash items land in the SHARED STASH locker, not the dock', async ({ page }) => {
+test('SHARED STASH locker exists; holds items assigned to it (not runes/mats)', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
-    localStorage.setItem('d2r_owned', JSON.stringify(['Ber Rune', 'Twisted Essence of Suffering', 'Cold Rupture', 'Windforce']));
+    localStorage.setItem('d2r_owned', JSON.stringify(['Annihilus', 'Windforce', 'Ber Rune']));
+    localStorage.setItem('d2r_muleAssign', JSON.stringify({ Annihilus: 'shared', Windforce: 'uni-weap' }));
   });
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
@@ -18,13 +20,12 @@ test('shared-stash items land in the SHARED STASH locker, not the dock', async (
   const r = await page.evaluate(() => {
     const shared = document.querySelector('.vault-mule[data-vault-mule="shared"]');
     const cells = shared ? Array.from(shared.querySelectorAll('.vm-cell')).map((c) => c.getAttribute('data-vault-item')) : [];
-    const dock = Array.from(document.querySelectorAll('#vault-dock .vault-chip, .vault-chip')).map((c) => c.getAttribute('data-vault-item'));
-    return { hasSharedLocker: !!shared, cells, dockHasBer: dock.includes('Ber Rune'), dockHasWindforce: dock.includes('Windforce') };
+    const dock = Array.from(document.querySelectorAll('.vault-chip')).map((c) => c.getAttribute('data-vault-item'));
+    return { hasSharedLocker: !!shared, cells, dockHasBer: dock.includes('Ber Rune') };
   });
   expect(errs).toEqual([]);
   expect(r.hasSharedLocker).toBe(true);
-  expect(r.cells).toContain('Ber Rune');
-  expect(r.cells).toContain('Cold Rupture');           // sunder
-  expect(r.cells).toContain('Twisted Essence of Suffering');
-  expect(r.dockHasBer).toBe(false);                    // NOT in the unsorted dock anymore
+  expect(r.cells).toContain('Annihilus');   // assigned here → shows in the SHARED locker
+  expect(r.cells).not.toContain('Windforce'); // assigned to a mule, not shared
+  expect(r.dockHasBer).toBe(false);          // runes (shared-stash type) stay OUT of the mule dock
 });
