@@ -33,8 +33,10 @@ test.describe('v348 throw-out art', () => {
       };
     });
     expect(r.count).toBe(3);
-    expect(r.flailArttip).toBe('Flail');          // "(4os low base)" stripped for resolution
-    expect(r.flailImg).toContain('flail');         // base sprite resolved
+    // v349: data-arttip carries the FULL name (resolves to the rich throw-out card); the IMG still
+    // resolves art from the suffix-stripped base.
+    expect(r.flailArttip).toBe('Flail (4os low base)');
+    expect(r.flailImg).toContain('flail');         // base sprite resolved from the stripped name
     expect(r.voulgeImg).toContain('voulge');
   });
 });

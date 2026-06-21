@@ -6788,7 +6788,52 @@ function _mfTipHtml(name){
     + '<div class="att-tag">rolls: ' + roll + '</div>'
     + '<div class="att-info">Rolled-name item — no fixed drop card. Click for the full keeper card.</div>';
 }
+// v349 — strip the throw-out suffix " (Nos low base)" / "(rare)" to a clean base/name for art + resolution.
+function _throwClean(name){
+  return String(name).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i, '').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i, '').trim();
+}
+// v349 — floating #arttip card for a throw-out (unmatched read) item, SAME att-* format as the others.
+function _throwTipHtml(name){
+  var clean = _throwClean(name);
+  var isBase = /low base\)\s*$/i.test(name);
+  var sock = /\((\d+)os/i.exec(name);
+  var out = '<div class="att-type">' + (isBase ? 'Base item' : 'Unmatched read') + (clean ? ' &middot; ' + _d2artEsc(clean) : '') + '</div>';
+  if (sock) out += '<div class="att-meta">🔩 ' + sock[1] + ' socket' + (sock[1] === '1' ? '' : 's') + '</div>';
+  out += '<div class="att-aff">' + (isBase
+    ? 'A white/grey socketed base the AI read in your stash. Low bases are filtered out of grail — keep it only if it’s a runeword/craft base.'
+    : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.') + '</div>';
+  out += '<div class="att-tag">🗑 Throw-out — review</div>';
+  out += '<div class="att-info">🔮 Keep → Magic &amp; Rare, or ✕ dismiss. Click for the full card.</div>';
+  return out;
+}
+// v349 — full detail card for a throw-out item (mirrors the Magic & Rare keeper card).
+function _throwCardHtml(name){
+  var clean = _throwClean(name);
+  var isBase = /low base\)\s*$/i.test(name);
+  var sock = /\((\d+)os/i.exec(name);
+  var src = (typeof artUrl === 'function' ? artUrl(clean) : '') || (typeof _magicArtSrc === 'function' ? _magicArtSrc(clean) : '') || null;
+  var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="' + _d2artEsc(clean) + '"><img class="d2art-img" src="' + src + '" alt=""></span>'
+    : '<span style="font-size:34px;line-height:1;color:#9aa6b2;text-shadow:0 0 10px currentColor">🗑</span>';
+  return '<div class="material-card magicfind-card" style="border-color:#9aa6b2">'
+    + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">' + artHtml
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:#cdd6e0">' + _d2artEsc(name) + '</h2>'
+    + '<div class="gic-subtitle">' + (isBase ? 'socketed base' : 'unmatched read') + (sock ? ' · ' + sock[1] + ' sockets' : '') + ' · 🗑 Throw-out</div></div></header>'
+    + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'
+    + (isBase ? 'A white/grey socketed base. Low bases are filtered out of the grail — keep it only if it’s a runeword/craft base, otherwise discard.'
+              : 'This name was read but isn’t in your tracked grail. It may be a non-grail unique/rare, or a misread. Review it: keep → Magic &amp; Rare, or dismiss.')
+    + '</div></section></div>';
+}
 window.openDrop = function(name){
+  // v349 — throw-out (unmatched read): no grail/magic match → show its review card.
+  if (typeof unknownReads !== 'undefined' && unknownReads && unknownReads.has && unknownReads.has(name) && !(magicFinds && magicFinds[name]) && !(typeof owned !== 'undefined' && owned.has && owned.has(name))){
+    if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+    window.__activeMaterial = null; window.__activeRune = null; selectedItem = null;
+    switchTab('calc');
+    var _tp = document.getElementById('item-detail');
+    if (_tp){ _tp.classList.add('show'); _tp.innerHTML = _throwCardHtml(name); }
+    if (typeof __alignCard === 'function') __alignCard('#item-detail .magicfind-card');
+    return;
+  }
   // v342.18 — Magic & Rare keeper (rolled-name): no boss/rune/material/item match → show its summary card.
   if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]){
     if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
@@ -9310,6 +9355,14 @@ window.artOr = artOr;
 // Used by every drop-table / top-drops surface so a named item shows its in-game logo.
 function nameLogo(name){ return (typeof artUrl==='function' && artUrl(name)) ? artOr(name, '', 'sm')+' ' : ''; }
 window.nameLogo = nameLogo;
+// v349 — a name rendered in its in-game RARITY COLOUR + the floating #arttip hover (image+description),
+// for the intake report + journal breakdown so every item name reads/behaves like the rest of the app.
+// For throw-out names the " (Nos low base)" suffix stays visible but data-arttip resolves it.
+function _vColorName(n){
+  var s = (typeof _qStyle === 'function') ? _qStyle(n, '') : '';
+  return '<span class="pf-name-i"' + s + ' data-arttip="' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>';
+}
+window._vColorName = _vColorName;
 // v341.42 — flagship animated loader for the 1-photo AI intakes: a centred scanning overlay
 // (sweep + pulsing lens + indeterminate bar) floated on the stash GRID while the AI reads the
 // screenshot. The results report stays at the bottom. _aiIntakeStop() removes it when done.
@@ -15075,6 +15128,13 @@ function _arttipResolve(nm){
     var _mfb = (typeof _mfBase === 'function') ? _mfBase(nm) : '';
     return { artName: '', artSrc: (typeof _magicArtSrc === 'function') ? _magicArtSrc(_mfb || nm) : null, desc: _mfTipHtml(nm), rich: true };
   }
+  // v349 — throw-out (unmatched read) item: rich review card + base-type art (so text-hover shows a
+  // description, not just the image — matches every other section).
+  if (typeof unknownReads !== 'undefined' && unknownReads && unknownReads.has && unknownReads.has(nm)) {
+    var _tc = (typeof _throwClean === 'function') ? _throwClean(nm) : nm;
+    var _ts = (typeof artUrl === 'function' ? artUrl(_tc) : '') || (typeof _magicArtSrc === 'function' ? _magicArtSrc(_tc) : '') || null;
+    return { artName: '', artSrc: _ts, desc: (typeof _throwTipHtml === 'function') ? _throwTipHtml(nm) : '', rich: true };
+  }
   return { artName: nm, desc: '', rich: false };
 }
 window._arttipResolve = _arttipResolve;
@@ -20088,6 +20148,8 @@ body{
 .pf-st{flex:1;min-width:0;font-size:12px;line-height:1.5}
 .pf-chip{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:1px 6px;border-radius:6px;border:1px solid currentColor;margin-right:6px;white-space:nowrap}
 .pf-names{color:#cfe0ea}
+/* v349 — rarity-coloured, hoverable item name inside the breakdown / report lines */
+.pf-name-i{cursor:pointer}.pf-name-i:hover{text-decoration:underline;text-decoration-style:dotted}
 .pf-new{color:var(--best,#66ff88)}
 .pf-magic{color:#b58cff}
 .pf-own{color:#7fd4ff}
@@ -20700,8 +20762,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _clean=String(n).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i,'').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i,'').trim();
         var _src=(typeof artUrl==='function'?artUrl(_clean):'')||(typeof _magicArtSrc==='function'?_magicArtSrc(_clean):'')||'';
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(_clean)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:#9aa6b2"></span>';
-        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'" data-arttip="'+esc(_clean)+'" title="'+esc(n)+'">'+_icon
-          +'<span class="vrg-name" style="color:#aeb8c4" data-arttip="'+esc(_clean)+'">'+esc(n)+'</span>'
+        // v349 — data-arttip uses the FULL name (resolves to the rich throw-out card); whole row is
+        // clickable → opens the review card, like every other section.
+        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
+          +'<span class="vrg-name" style="color:#aeb8c4" data-arttip="'+esc(n)+'">'+esc(n)+'</span>'
           +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮</button>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕</button></div>';
       }).join('')));
@@ -21217,10 +21281,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (e.pf && e.pf.length){
         var rows = e.pf.map(function(f){
           var c = [];
-          if (f.nw && f.nw.length) c.push('<span class="pf-chip pf-new">✓ '+f.nw.length+'</span><span class="pf-names">'+f.nw.map(esc).join(', ')+'</span>');
-          if (f.mf && f.mf.length) c.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(esc).join(', ')+'</span>');
-          if (f.own && f.own.length) c.push('<span class="pf-chip pf-own">↻ '+f.own.length+'</span><span class="pf-names">'+f.own.map(esc).join(', ')+'</span>');
-          if (f.unr && f.unr.length) c.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+'</span><span class="pf-names">'+f.unr.map(esc).join(', ')+'</span>');
+          var _cn = function(x){ return (typeof _vColorName==='function') ? _vColorName(x) : esc(x); };   // v349 — rarity colour + hover
+          if (f.nw && f.nw.length) c.push('<span class="pf-chip pf-new">✓ '+f.nw.length+'</span><span class="pf-names">'+f.nw.map(_cn).join(', ')+'</span>');
+          if (f.mf && f.mf.length) c.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(_cn).join(', ')+'</span>');
+          if (f.own && f.own.length) c.push('<span class="pf-chip pf-own">↻ '+f.own.length+'</span><span class="pf-names">'+f.own.map(_cn).join(', ')+'</span>');
+          if (f.unr && f.unr.length) c.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+'</span><span class="pf-names">'+f.unr.map(_cn).join(', ')+'</span>');
           if (f.e) c.push('<span class="pf-chip pf-err">⚠ failed</span>');
           var empty = !c.length; if (empty) c.push('<span class="pf-chip pf-empty">∅</span><span class="pf-names pf-dim">no tooltip text</span>');
           return '<div class="pf-row'+(empty?' pf-row-dim':'')+'"><span class="pf-time">'+esc(f.f)+'</span><span class="pf-st">'+c.join('')+'</span></div>';
@@ -21454,7 +21519,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     // v342.7 — fixed-format, scrollable, ORGANIZED report card with a grand TOTAL (Konyo: "fixed format
     // on the bottom … scrollbar … total of registered items also not just each section").
-    var _colorNames = function(arr){ return arr.map(function(n){ var s=(typeof _qStyle==='function'?_qStyle(n,'unique'):''); return '<span'+s+'>'+esc(n)+'</span>'; }).join(' · '); };
+    // v349 — rarity colour + #arttip hover (image+description) on every name in the report body.
+    var _colorNames = function(arr){ return arr.map(function(n){ return (typeof _vColorName==='function') ? _vColorName(n) : ('<span'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'); }).join(' · '); };
     var _poolM = ownedPool();
     var _grailReg = Array.from(owned).filter(function(n){ return !isAggregate(n) && (isSharedStash(n) || _poolM.indexOf(n)>=0); }).length;
     var _magicReg = Object.keys(magicFinds||{}).length;
@@ -21470,17 +21536,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (extraCopies.length) body += '<div class="vir-line"><span class="vir-k" style="color:var(--gold-bright,#f0c060)">📦 extra copies · ' + extraCopies.length + '</span> ' + extraCopies.map(function(n){ return _colorNames([n]) + ' <span style="color:#b5a48a;font-size:11px">(now ×' + copyCount(n) + ' / ' + multiTarget(n) + ')</span>'; }).join(' · ') + ' <em>— wanted spares, kept (not discarded)</em></div>';
     if (dupes.length) body += '<div class="vir-line"><span class="vir-k vir-k-own">already owned · ' + dupes.length + '</span> ' + _colorNames(dupes) + '</div>';
     if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
-    if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(esc).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
+    if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(function(n){ return (typeof _vColorName==='function')?_vColorName(n):esc(n); }).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
     if (!logged.length && !dupes.length && !unrec.length && !magicNew.length && !errors) body += '<div class="vir-line vir-dim">💡 the AI reads item NAMES, not icons — open a tooltip (hover) or hold Alt over loot, then screenshot.</div>';
     // per-file breakdown — clean status-chip rows (short timestamp + coloured chip + names) instead of a text wall
     if (files.length > 1 || perFile.some(function(f){ return f.nw.length || f.own.length || f.unr.length || f.mf.length || f.err; })){
       var _shortF = function(s){ return String(s).replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
       var pf = perFile.map(function(f){
         var chips = [];
-        if (f.nw.length) chips.push('<span class="pf-chip pf-new">✓ '+f.nw.length+' new</span><span class="pf-names">'+f.nw.map(esc).join(', ')+'</span>');
-        if (f.mf.length) chips.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(esc).join(', ')+'</span>');
-        if (f.own.length) chips.push('<span class="pf-chip pf-own">↻ '+f.own.length+' owned</span><span class="pf-names">'+f.own.map(esc).join(', ')+'</span>');
-        if (f.unr.length) chips.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+' throw-out</span><span class="pf-names">'+f.unr.map(esc).join(', ')+'</span>');
+        var _cnp = function(x){ return (typeof _vColorName==='function') ? _vColorName(x) : esc(x); };   // v349 — rarity colour + hover
+        if (f.nw.length) chips.push('<span class="pf-chip pf-new">✓ '+f.nw.length+' new</span><span class="pf-names">'+f.nw.map(_cnp).join(', ')+'</span>');
+        if (f.mf.length) chips.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(_cnp).join(', ')+'</span>');
+        if (f.own.length) chips.push('<span class="pf-chip pf-own">↻ '+f.own.length+' owned</span><span class="pf-names">'+f.own.map(_cnp).join(', ')+'</span>');
+        if (f.unr.length) chips.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+' throw-out</span><span class="pf-names">'+f.unr.map(_cnp).join(', ')+'</span>');
         if (f.err) chips.push('<span class="pf-chip pf-err">⚠ failed</span>');
         var empty = !chips.length;
         if (empty) chips.push('<span class="pf-chip pf-empty">∅ empty</span><span class="pf-names pf-dim">no tooltip text — hover an item / hold Alt</span>');
