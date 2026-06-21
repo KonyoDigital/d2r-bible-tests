@@ -6900,13 +6900,18 @@ function _throwTipHtml(name){
   var clean = _throwClean(name);
   var isBase = /low base\)\s*$/i.test(name);
   var sock = /\((\d+)os/i.exec(name);
-  var out = '<div class="att-type">' + (isBase ? 'Base item' : 'Unmatched read') + (clean ? ' &middot; ' + _d2artEsc(clean) : '') + '</div>';
+  // v368 — recognise a known weapon/armor base TYPE even on a name-only read (no "low base" suffix), so a
+  // real runeword base (e.g. a sword like "Dimensional Blade") shows its runeword potential, not just "misread".
+  var _isKnownBase = (typeof _baseCats === 'function') && Object.keys(_baseCats(clean)).length > 0;
+  var out = '<div class="att-type">' + (isBase || _isKnownBase ? 'Base item' : 'Unmatched read') + (clean ? ' &middot; ' + _d2artEsc(clean) : '') + '</div>';
   if (sock) out += '<div class="att-meta">🔩 ' + sock[1] + ' socket' + (sock[1] === '1' ? '' : 's') + '</div>';
   out += '<div class="att-aff">' + (isBase
     ? 'A white/grey socketed base the AI read in your stash. Low bases are filtered out of grail — keep it only if it’s a runeword/craft base.'
-    : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.') + '</div>';
-  // v353 — if this base enables runewords, say which (and what socket count to chase) → keep vs vendor.
-  if (isBase) { var _rwl = _baseRWLine(clean); if (_rwl) out += _rwl; }
+    : (_isKnownBase
+      ? 'The AI read this as a base item (not a grail unique). If it has good sockets keep it as a runeword/craft base — 5-6 sockets are always worth keeping.'
+      : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.')) + '</div>';
+  // v353/v368 — if this base enables runewords, say which (and what socket count to chase) → keep vs vendor.
+  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean); if (_rwl) out += _rwl; }
   out += '<div class="att-tag">🗑 Throw-out — review</div>';
   out += '<div class="att-info">🔮 Keep → Magic &amp; Rare, or ✕ dismiss. Click for the full card.</div>';
   return out;
@@ -21277,10 +21282,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var shotH=sh
         ? '<img class="to-shot" src="'+esc(sh.th)+'" loading="lazy" data-shot="'+esc(sh.ff)+'" title="click to open this screenshot full-size — '+esc(sh.ff)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">'
         : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>';
+      // v368 — even when the AI read only the NAME (no socket text → not flagged a base), recognise a
+      // known weapon/armor base TYPE so a real runeword base (e.g. "Dimensional Blade", a sword) shows its
+      // runeword potential instead of a bare "non-grail/misread" — so Konyo doesn't dismiss a good base.
+      var _isKnownBase = (typeof _baseCats==='function') && Object.keys(_baseCats(clean)).length>0;
       var why=isBase
         ? 'A white/grey socketed base'+(sock?' ('+sock[1]+' sockets)':'')+' — low bases are filtered out of grail. Keep only if it’s a runeword / craft base.'
-        : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.';
-      var rwl=(isBase && typeof _baseRWLine==='function')?_baseRWLine(clean):'';
+        : (_isKnownBase
+            ? 'Read as a base item, not a grail unique — if it has good sockets, keep it as a runeword / craft base (5-6 sockets are always worth keeping).'
+            : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.');
+      var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(clean):'';
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'

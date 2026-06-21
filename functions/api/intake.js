@@ -384,7 +384,7 @@ export async function onRequestPost(context) {
   const sunderOf = (s) => { const l = String(s || '').toLowerCase(); return SUNDER_TYPES.find((t) => l.includes(t.toLowerCase())) || null; };
   // v342.13 — only WORTHWHILE socketed bases register: elite / high-defense / notable runeword bases.
   // Low white junk (Breast Plate, Broad Sword, Ring Mail…) is skipped → goes to the unmatched review list.
-  const GOOD_BASE = /archon plate|sacred armor|kraken shell|hellforge plate|lacquered plate|shadow plate|dusk shroud|wyrmhide|scarab husk|wire fleece|diamond mail|loricated mail|boneweave|great hauberk|balrog skin|mage plate|ornate plate|chaos armor|\bdiadem\b|\btiara\b|corona|spired helm|\barmet\b|giant conch|demon ?head|bone visage|conqueror crown|circlet|\bmonarch\b|\baegis\b|\bward\b|troll nest|grim shield|blade barrier|sacred targe|sacred rondache|\bhyperion\b|\bluna\b|phase blade|colossus blade|colossus sword|cryptic sword|mythical sword|legend sword|highland blade|balrog blade|champion sword|conquest sword|cryptic axe|berserker axe|feral axe|silver.?edged axe|decapitator|champion axe|glorious axe|thunder maul|ogre maul|great poleaxe|giant thresher|\bthresher\b|colossus voulge|war pike|ghost spear|stygian pike|mancatcher|caduceus|mighty scepter|elder staff|archon staff/i;
+  const GOOD_BASE = /archon plate|sacred armor|kraken shell|hellforge plate|lacquered plate|shadow plate|dusk shroud|wyrmhide|scarab husk|wire fleece|diamond mail|loricated mail|boneweave|great hauberk|balrog skin|mage plate|ornate plate|chaos armor|\bdiadem\b|\btiara\b|corona|spired helm|\barmet\b|giant conch|demon ?head|bone visage|conqueror crown|circlet|\bmonarch\b|\baegis\b|\bward\b|troll nest|grim shield|blade barrier|sacred targe|sacred rondache|\bhyperion\b|\bluna\b|phase blade|colossus blade|colossus sword|cryptic sword|mythical sword|legend sword|highland blade|balrog blade|champion sword|conquest sword|dimensional blade|cryptic axe|berserker axe|feral axe|silver.?edged axe|decapitator|champion axe|glorious axe|thunder maul|ogre maul|great poleaxe|giant thresher|\bthresher\b|colossus voulge|war pike|ghost spear|stygian pike|mancatcher|caduceus|mighty scepter|elder staff|archon staff/i;
 
   if (isTally) {
     const tally = {};
@@ -440,7 +440,12 @@ export async function onRequestPost(context) {
     if (!base) continue;
     // v342.13 — only register WORTHWHILE bases: magic (affixes, for gemming) OR ethereal OR an elite/notable
     // runeword base (Archon Plate, Monarch, Cryptic Axe, Grim Shield…). Low white junk → unmatched review.
-    const worth = s.q === 'magic' || s.eth === true || GOOD_BASE.test(base);
+    // v368 — ALSO keep any HIGH-SOCKET base (5-6 sockets): those are rare (need high ilvl / Larzuk) and
+    // enable top runewords regardless of base type — a 6os one-handed sword makes Breath of the Dying, etc.
+    // (Konyo: "isn't a 6-socket Dimensional Blade a good runeword base?" — yes; the type-only filter was
+    // discarding good high-socket bases. Socket count matters as much as base type.)
+    const _sc = parseInt(s.count, 10);
+    const worth = s.q === 'magic' || s.eth === true || GOOD_BASE.test(base) || (isFinite(_sc) && _sc >= 5);
     if (!worth) { unrec.push(base + ' (' + (s.count || '?') + 'os low base)'); continue; }
     socketBaseLower.add(base.toLowerCase());
     const gen = socketGeneric(base, s.count);
