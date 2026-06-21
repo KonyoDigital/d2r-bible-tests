@@ -1288,6 +1288,42 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .arw-plus{color:var(--text-dim);font-size:10px;margin:0 1px}
 .arw-rune-txt{color:var(--q-orange)}
 .arw-base{font-size:11px;color:var(--text-dim);margin-left:auto;white-space:nowrap}
+/* v369 — Chronicle: Runeword Maker */
+.rwc-wrap{display:flex;flex-direction:column;gap:10px}
+.rwc-progress{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid rgba(181,140,255,.3);border-radius:10px;background:rgba(181,140,255,.06)}
+.rwc-bar-row{display:flex;align-items:center;gap:10px}
+.rwc-bar-lbl{font-family:ui-monospace,monospace;font-size:11px;font-weight:800;letter-spacing:.4px;color:#c9b3ff;white-space:nowrap}
+.rwc-bar{flex:1;height:13px;border-radius:7px;background:rgba(0,0,0,.4);border:1px solid rgba(181,140,255,.3);overflow:hidden;position:relative}
+.rwc-bar>span{display:block;height:100%;background:linear-gradient(90deg,#7a5cff,#b58cff);box-shadow:0 0 10px rgba(181,140,255,.6);transition:width .4s ease}
+.rwc-bar-num{font-family:ui-monospace,monospace;font-size:12px;font-weight:800;color:#e6dcff;white-space:nowrap}
+.rwc-stats{display:flex;gap:8px;flex-wrap:wrap}
+.rwc-stat{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;padding:2px 9px;border-radius:7px;border:1px solid currentColor}
+.rwc-s-now{color:#66ff88}.rwc-s-cube{color:#7fd4ff}.rwc-s-todo{color:#c9b3ff}
+.rwc-filters{display:flex;gap:6px;flex-wrap:wrap}
+.rwc-chip{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;padding:4px 11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);cursor:pointer;transition:.12s}
+.rwc-chip:hover{border-color:#b58cff;color:#e6dcff}
+.rwc-chip.on{background:rgba(181,140,255,.18);border-color:#b58cff;color:#fff;box-shadow:0 0 8px rgba(181,140,255,.4)}
+.rwc-list{display:flex;flex-direction:column;max-height:560px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
+.rwc-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-bottom:1px dotted var(--border);cursor:pointer;transition:background .1s}
+.rwc-row:last-child{border-bottom:0}
+.rwc-row:hover{background:rgba(255,255,255,.04)}
+.rwc-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-bright);display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;flex:0 0 auto;min-width:108px;max-width:200px}
+.rwc-recipe .d2art-wrap.sm{width:18px;height:18px}.rwc-recipe .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
+.rwc-main{display:flex;flex-direction:column;gap:1px;min-width:128px;flex:1}
+.rwc-name{font-weight:800;color:var(--q-orange);font-size:13px}
+.rwc-base{font-size:10.5px;color:var(--text-dim)}
+.rwc-status{display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-left:auto;text-align:right;flex:0 0 auto;max-width:230px}
+.rwc-badge{font-family:ui-monospace,monospace;font-size:10px;font-weight:800;letter-spacing:.3px;padding:1px 7px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
+.rwc-b-made{color:#b58cff}.rwc-b-now{color:#66ff88}.rwc-b-cube{color:#7fd4ff}.rwc-b-need{color:#8a96a4}
+.rwc-date{font-size:9.5px;color:#9a86c8;font-family:ui-monospace,monospace}
+.rwc-need{font-size:9.5px;color:#8a96a4;font-family:ui-monospace,monospace;line-height:1.3}
+.rwc-toggle{flex:0 0 auto;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);cursor:pointer;transition:.12s;white-space:nowrap}
+.rwc-toggle:hover{border-color:#66ff88;color:#66ff88}
+.rwc-toggle.on{border-color:#b58cff;color:#b58cff;background:rgba(181,140,255,.14)}
+.rwc-row.rwc-made{background:rgba(181,140,255,.07)}
+.rwc-row.rwc-made .rwc-name{filter:saturate(.85)}
+.rwc-row.rwc-r-now{background:rgba(102,255,136,.05)}
+.rwc-row.rwc-r-now .rwc-name{text-shadow:0 0 7px rgba(102,255,136,.5)}
 /* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
 .rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
 /* v311: keep the name in runeword-orange; show craftable/cubeable as a GLOW, not a colour swap */
@@ -3968,6 +4004,27 @@ tr.owned-row{background:rgba(102,255,136,.03)}
           <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
         </div>
         <div class="rw-make" id="gem-craftable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v369 — Chronicle: Runeword Maker — what you can forge NOW (synced w/ Rune Stash) + what you've already created -->
+  <div class="boss-card collapsible collapsed tool-premium" id="rw-chronicle-card" style="--tc:#b58cff">
+    <div class="boss-header" onclick="window.toggleCardCollapse('rw-chronicle-card')" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:24px">📖</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Chronicle — Runeword Maker <span id="rwc-count" class="arw-count"></span></p>
+        <p class="boss-subtitle">What you can forge <strong>now</strong> · what you've <strong>already created</strong> · live-synced with your Rune Stash</p>
+        <p class="boss-loc">Mark each runeword once you forge it — track your full RotW Chronicle &amp; see exactly what's left · rides 💾 Backup &amp; Share</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="rwc-wrap">
+        <div class="rwc-progress" id="rwc-progress"></div>
+        <div class="rwc-filters" id="rwc-filters"></div>
+        <input id="rwc-search" class="arw-filter" type="text" placeholder="search a runeword, rune, or base… (try 'enigma', 'jah', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderRunewordChronicle&&window.renderRunewordChronicle()">
+        <div class="rwc-list" id="rwc-list"></div>
       </div>
     </div>
   </div>
@@ -9966,6 +10023,12 @@ let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
 let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
 // Rune Stash: { runeName: count } map. Pure user-owned tally; powers the cube-up planner.
 let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
+// v369 — Chronicle Runeword Maker: { runewordName: "first-made date string" } — which runewords the
+// user has already FORGED. First run seeds Konyo's in-game Chronicle (7/100 = 7%, from his screenshots);
+// after that it's user-controlled (toggle on each runeword). Rides Backup & Share (a d2r_ LS key).
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01"};
+let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
+if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
 // Materials Stash: { materialName: count } map. Pandemonium keys / uber organs / Token
 // essences the user holds; powers the uber & token readiness planner.
 let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
@@ -10034,6 +10097,7 @@ const persist = () => {
   LS.setItem('d2r_bossSorts', JSON.stringify(bossSorts));
   LS.setItem('d2r_setPieces', JSON.stringify([...setPieces]));
   LS.setItem('d2r_runeStash', JSON.stringify(runeStash));
+  LS.setItem('d2r_rwMade', JSON.stringify(rwMade));
   LS.setItem('d2r_materialStash', JSON.stringify(materialStash));
   LS.setItem('d2r_gemStash', JSON.stringify(gemStash));
   LS.setItem('d2r_craftStash', JSON.stringify(craftStash));
@@ -13387,6 +13451,7 @@ function renderRuneStash(){
   // dashboard so cubeable/owned status stays in sync the moment a rune is added (intake or ±).
   if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop();
   if (typeof renderCreateNow === 'function') renderCreateNow();
+  if (typeof renderRunewordChronicle === 'function') renderRunewordChronicle();   // v369 — keep the Chronicle's "can make now" live
 }
 window.renderRuneStash = renderRuneStash;
 
@@ -13519,6 +13584,95 @@ function renderAllRunewords(){
   box.innerHTML = rows || `<div class="rw-empty">No runeword matches “${esc(q)}”.</div>`;
 }
 window.renderAllRunewords = renderAllRunewords;
+// v369 — Chronicle Runeword Maker: forge-now (synced w/ Rune Stash) + already-created tracker.
+let _rwcFilter = 'all';
+window.rwcSetFilter = function(f){ _rwcFilter = f; renderRunewordChronicle(); };
+window.rwToggleMade = function(name){
+  if (!name) return;
+  if (rwMade[name]) { delete rwMade[name]; }
+  else {
+    var d = new Date();
+    var mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+    rwMade[name] = mon+' '+d.getDate()+', '+d.getFullYear()+' · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+  try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){}
+  renderRunewordChronicle();
+};
+function _rwCategory(b){
+  b = String(b||'').toLowerCase();
+  if (/shield|aegis|\bward\b|targe|rondache/.test(b)) return 'Offhand';
+  if (/body armor/.test(b)) return 'Body Armor';
+  if (/helm|circlet|\bcap\b/.test(b)) return 'Helmet';
+  if (/bow|crossbow|missile|javelin/.test(b)) return 'Missile';
+  if (/sword|axe|mace|hammer|polearm|scepter|sceptre|club|wand|staff|stave|spear|dagger|knife|orb|claw|katar|weapon/.test(b)) return 'Melee';
+  return 'Other';
+}
+function renderRunewordChronicle(){
+  var box = document.getElementById('rwc-list'); if (!box || typeof RUNEWORD_TIP === 'undefined') return;
+  var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var items = Object.keys(RUNEWORD_TIP).map(function(n){
+    var e = RUNEWORD_TIP[n] || {};
+    var rec = Array.isArray(e.rec) ? e.rec : [];
+    var req = {}; rec.forEach(function(r){ if (r in RUNE_INDEX) req[r] = (req[r]||0)+1; });
+    var has = Object.keys(req).length > 0;
+    var made = !!rwMade[n];
+    var now = !made && has && canMakeNow(req);
+    var cube = !made && !now && has && canMakeWithCubing(req);
+    var missing = Object.keys(req).filter(function(r){ return _runeCount(r) < req[r]; })
+      .sort(function(a,b){ return (RUNE_INDEX[b]||0)-(RUNE_INDEX[a]||0); })
+      .map(function(r){ return (req[r]-_runeCount(r))+'× '+r; });
+    return { n:n, e:e, rec:rec, made:made, now:now, cube:cube, missing:missing,
+             cat:_rwCategory(e.b), tier: rec.reduce(function(m,r){ return Math.max(m, RUNE_INDEX[r]||0); }, 0) };
+  });
+  var total = items.length;
+  var madeN = items.filter(function(x){return x.made;}).length;
+  var nowN  = items.filter(function(x){return x.now;}).length;
+  var cubeN = items.filter(function(x){return x.cube;}).length;
+  var pct = total ? Math.round(madeN/total*100) : 0;
+  var prog = document.getElementById('rwc-progress');
+  if (prog) prog.innerHTML =
+      '<div class="rwc-bar-row"><span class="rwc-bar-lbl">✨ Created</span>'
+    + '<div class="rwc-bar"><span style="width:'+pct+'%"></span></div>'
+    + '<span class="rwc-bar-num">'+madeN+' / '+total+' · '+pct+'%</span></div>'
+    + '<div class="rwc-stats">'
+    +   '<span class="rwc-stat rwc-s-now">✅ '+nowN+' can make now</span>'
+    +   '<span class="rwc-stat rwc-s-cube">🧪 '+cubeN+' cube-up</span>'
+    +   '<span class="rwc-stat rwc-s-todo">⏳ '+(total-madeN)+' left to make</span>'
+    + '</div>';
+  var fl = document.getElementById('rwc-filters');
+  if (fl){
+    var chips = [['all','All '+total],['now','✅ Now '+nowN],['cube','🧪 Cube-up '+cubeN],['made','✨ Created '+madeN],['todo','⏳ Left '+(total-madeN)]];
+    fl.innerHTML = chips.map(function(c){ return '<button class="rwc-chip'+(_rwcFilter===c[0]?' on':'')+'" onclick="window.rwcSetFilter(\''+c[0]+'\')">'+esc(c[1])+'</button>'; }).join('');
+  }
+  var sEl = document.getElementById('rwc-search'); var qf = (sEl && sEl.value || '').trim().toLowerCase();
+  var shown = items.filter(function(x){
+    if (_rwcFilter==='now'  && !x.now)  return false;
+    if (_rwcFilter==='cube' && !x.cube) return false;
+    if (_rwcFilter==='made' && !x.made) return false;
+    if (_rwcFilter==='todo' &&  x.made) return false;
+    if (qf){ var hay=(x.n+' '+x.rec.join(' ')+' '+(x.e.b||'')+' '+x.cat).toLowerCase(); if (hay.indexOf(qf)<0) return false; }
+    return true;
+  });
+  var rank = function(x){ return x.made?3 : x.now?0 : x.cube?1 : 2; };
+  shown.sort(function(a,b){ return rank(a)-rank(b) || a.tier-b.tier || a.n.localeCompare(b.n); });
+  var cntEl = document.getElementById('rwc-count'); if (cntEl) cntEl.textContent = '('+madeN+'/'+total+')';
+  box.innerHTML = shown.map(function(x){
+    var oc = x.n.replace(/'/g,"\\'");
+    var cls, badge;
+    if (x.made){ cls='rwc-made'; badge='<span class="rwc-badge rwc-b-made">✨ Created</span><span class="rwc-date">'+esc(typeof rwMade[x.n]==='string'?rwMade[x.n]:'')+'</span>'; }
+    else if (x.now){ cls='rwc-r-now'; badge='<span class="rwc-badge rwc-b-now">✅ Can make now</span>'; }
+    else if (x.cube){ cls='rwc-r-cube'; badge='<span class="rwc-badge rwc-b-cube">🧪 Cube-up</span><span class="rwc-need">need '+esc(x.missing.join(', '))+'</span>'; }
+    else { cls='rwc-r-need'; badge='<span class="rwc-badge rwc-b-need">⏳ Missing</span><span class="rwc-need">'+esc(x.missing.join(', '))+'</span>'; }
+    var toggle = '<button class="rwc-toggle'+(x.made?' on':'')+'" onclick="event.stopPropagation();window.rwToggleMade(\''+oc+'\')" title="'+(x.made?'un-mark (not yet created)':'mark as created')+'">'+(x.made?'↺':'✓ made')+'</button>';
+    return '<div class="rwc-row '+cls+'" data-arttip="'+esc(x.n)+'" onclick="window.openDrop&&window.openDrop(\''+oc+'\')" title="open the '+esc(x.n)+' ID card">'
+      + '<span class="rwc-recipe">'+(typeof _rwRecipeArt==='function'?_rwRecipeArt(x.rec.join(' + ')):esc(x.rec.join('+')))+'</span>'
+      + '<span class="rwc-main"><span class="rwc-name">'+esc(x.n)+'</span><span class="rwc-base">'+esc(x.e.b||'')+(x.e.r?' · lvl '+x.e.r:'')+'</span></span>'
+      + '<span class="rwc-status">'+badge+'</span>'
+      + toggle
+      + '</div>';
+  }).join('') || '<div class="rw-empty">Nothing matches this filter.</div>';
+}
+window.renderRunewordChronicle = renderRunewordChronicle;
 
 // v323: Best Runeword Bases — which white/superior base to socket per slot. The genuinely-new
 // reference Konyo asked for (itemnow socketable-bases). Base names read in-game white; the runeword
