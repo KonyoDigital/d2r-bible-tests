@@ -6785,13 +6785,21 @@ function _magicFindCardHtml(name){
   var blurb = q === 'magic' ? 'A <b>magic</b> item — 1–2 rolled affixes. Keep it for the affix(es) + any open sockets (gemming).'
     : q === 'crafted' ? 'A <b>crafted</b> item — guaranteed mods + rolled affixes. Judge it by the mods on the actual item.'
     : 'A <b>rare</b> item — 3–6 rolled affixes. The value is in the combo (skills / FCR / leech / res / life). Judge it by the stats on the item.';
+  // v356 — the verbatim stat lines read off the screenshot (skiller +skills, FCR, life, etc.).
+  var mods = (typeof _mfMods === 'function') ? _mfMods(name) : [];
+  var skiller = (typeof _isSkiller === 'function') && _isSkiller(name);
+  var modsHtml = mods.length
+    ? '<section class="gic-section"><div class="gic-sec-title">'+(skiller?'🎯 ':'📜 ')+'Stats read from your screenshot</div>'
+      + mods.map(function(m){ return '<div class="att-aff att-var" style="font-size:13px">'+_d2artEsc(m)+'</div>'; }).join('') + '</section>'
+    : '';
   return '<div class="material-card magicfind-card" style="border-color:'+col+'">'
     + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
     + artHtml
-    + '<div class="gic-id-block"><h2 class="gic-name" style="color:'+col+'">'+esc(name)+'</h2>'
-    + '<div class="gic-subtitle">'+(base?esc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare</div></div></header>'
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:'+col+'">'+_d2artEsc(name)+'</h2>'
+    + '<div class="gic-subtitle">'+(base?_d2artEsc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare'+(skiller?' · 🎯 Skiller':'')+'</div></div></header>'
+    + modsHtml
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'+blurb
-    + ' Tracked as a rolled-name keeper — there\'s no fixed drop card, so this is the summary.</div></section>'
+    + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div></section>'
     + '</div>';
 }
 // v345 — floating #arttip card for a Magic & Rare keeper, SAME format as the Socketed/EXTRA tooltips
@@ -6817,12 +6825,16 @@ function _mfTipHtml(name){
       + (tier ? ' · trade value <b>' + tier + '</b>' : '') + '</div>'
       + (vm && vm.d ? '<div class="att-aff">' + _d2artEsc(vm.d) + '</div>' : '');
   }
+  // v356 — the actual stat lines read off the screenshot tooltip (the real affixes, not a guess).
+  var mods = (typeof _mfMods === 'function') ? _mfMods(name) : [];
+  var modLine = mods.length ? mods.map(function(m){ return '<div class="att-aff att-var">' + _d2artEsc(m) + '</div>'; }).join('') : '';
   return '<div class="att-type">' + qLabel + (base ? ' &middot; ' + _d2artEsc(base) : '') + '</div>'
     + '<div class="att-meta">🔮 Magic &amp; Rare keeper</div>'
     + vLine
-    + '<div class="att-aff">' + blurb + '</div>'
+    + modLine
+    + (modLine ? '' : '<div class="att-aff">' + blurb + '</div>')
     + '<div class="att-tag">rolls: ' + roll + '</div>'
-    + '<div class="att-info">Rolled-name item — no fixed drop card. Click for the full keeper card.</div>';
+    + '<div class="att-info">' + (modLine ? 'Stats read from your screenshot.' : 'Rolled-name item — no fixed drop card.') + ' Click for the full keeper card.</div>';
 }
 // v349 — strip the throw-out suffix " (Nos low base)" / "(rare)" to a clean base/name for art + resolution.
 function _throwClean(name){
@@ -9847,6 +9859,7 @@ let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
 try { Object.keys(magicFinds).forEach(function(k){ if (typeof magicFinds[k] === 'string') magicFinds[k] = { q: magicFinds[k], base: '' }; }); } catch(e){}
 function _mfQual(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.q||'magic'):(v||'magic'); }
 function _mfBase(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.base||''):''; }
+function _mfMods(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object'&&Array.isArray(v.mods))?v.mods:[]; }
 // rolled-name magic/rare items have no UNIQUE art — in-game they're the BASE sprite. Map base → a sprite
 // we self-host (charms + jewels + the elite bases); null falls back to a quality-coloured glyph.
 // Pass the base type OR the full rolled name — the rolled name usually ENDS with its base
@@ -21838,8 +21851,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v342.3 — magic/rare/crafted keepers → the Magic & Rare bucket (separate from grail `owned`)
         (data.finds || []).forEach(function(f){
           var nm = f && f.name; if (!nm) return;
-          if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '' }; magicNew.push(nm); }
-          else if (typeof magicFinds[nm] === 'object' && !magicFinds[nm].base && f.base){ magicFinds[nm].base = f.base; }
+          var _mods = Array.isArray(f.mods) ? f.mods : [];   // v356 — verbatim stat lines off the tooltip
+          if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '', mods: _mods }; magicNew.push(nm); }
+          else if (typeof magicFinds[nm] === 'object'){
+            if (!magicFinds[nm].base && f.base) magicFinds[nm].base = f.base;
+            // fill mods if we didn't have them yet (a later/cleaner read of the same item)
+            if (_mods.length && !(magicFinds[nm].mods && magicFinds[nm].mods.length)) magicFinds[nm].mods = _mods;
+          }
           fRec.mf.push(nm);
         });
         if (data.usage) cost += (data.usage.in || 0) / 1e6 * 1.0 + (data.usage.out || 0) / 1e6 * 5.0;

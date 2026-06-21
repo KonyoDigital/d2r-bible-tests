@@ -73,7 +73,12 @@ export async function onRequestPost(context) {
     + 'charm), a JEWEL, a RING, an AMULET, OR a notably-affixed rare/crafted weapon or armour a player would keep, '
     + 'add it to "finds" as {name:"<the full name text EXACTLY as printed>", q:"magic"|"rare"|"crafted", '
     + 'base:"<the BASE TYPE printed under the name, e.g. Grand Charm, Small Charm, Ring, Amulet, Jewel, Cryptic Axe, '
-    + 'Circlet>"} (q from the name COLOUR: blue=magic, yellow=rare, orange=crafted; base = the grey base-type line). '
+    + 'Circlet>", mods:["<each KEY stat line read VERBATIM off the tooltip>"]} (q from the name COLOUR: '
+    + 'blue=magic, yellow=rare, orange=crafted; base = the grey base-type line). '
+    + 'For "mods": transcribe the item\'s VISIBLE blue/affix stat lines exactly as printed, in order — e.g. '
+    + '["+1 to Javelin and Spear Skills"], or ["+20% Faster Cast Rate","+45 to Life","All Resistances +12"]. '
+    + 'This is what makes a skiller / rare worth keeping, so capture it. Only lines ACTUALLY printed on the tooltip '
+    + '(never invent or infer a stat); if no stat lines are legible, use an empty array []. '
     + 'Do NOT put white/grey/superior or normal base items, '
     + 'potions, gold, gems, runes, or NPC names in "finds". A grail unique/set ALWAYS goes in "items", never "finds". '
     + 'EXTRA CARE for valuable uniques/sets: when a UNIQUE or SET name is legible, match it to "items" and never drop it '
@@ -194,8 +199,11 @@ export async function onRequestPost(context) {
             name: { type: 'string' },
             q: { type: 'string', enum: ['magic', 'rare', 'crafted'] },
             base: { type: 'string' },   // v342.8 — the base TYPE (Grand Charm, Ring, Cryptic Axe…) → drives the art sprite
+            // v356 — the item's KEY visible stat lines read VERBATIM off the tooltip (e.g. the +skills on a
+            // skiller). So a magic/rare keeper shows its real affixes, not a name-based guess.
+            mods: { type: 'array', items: { type: 'string' } },
           },
-          required: ['name', 'q', 'base'],
+          required: ['name', 'q', 'base', 'mods'],
           additionalProperties: false,
         },
       },
@@ -418,7 +426,11 @@ export async function onRequestPost(context) {
     if (sun) { if (!items.includes(sun)) items.push(sun); seenFind.add(nm.toLowerCase()); continue; }
     if (resolve(nm)) { if (!items.includes(resolve(nm))) items.push(resolve(nm)); continue; }
     seenFind.add(nm.toLowerCase());
-    finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic', base: typeof f.base === 'string' ? f.base.slice(0, 40) : '' });
+    // v356 — carry the verbatim stat lines (max 8, sanitized) so the keeper card shows the real affixes.
+    const mods = Array.isArray(f.mods)
+      ? f.mods.map((m) => String(m == null ? '' : m).trim()).filter((m) => m && m.length <= 80).slice(0, 8)
+      : [];
+    finds.push({ name: nm.slice(0, 80), q: ['magic', 'rare', 'crafted'].includes(f.q) ? f.q : 'magic', base: typeof f.base === 'string' ? f.base.slice(0, 40) : '', mods });
   }
   // v342.12 — socketed runeword/craft bases → register the generic "Socketed <slot> (Nos)" entry (SOCKETED
   // locker). The AI read base+count; we classify the slot. Track the base names to scrub from unrecognized.
