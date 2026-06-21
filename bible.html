@@ -3845,6 +3845,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div id="vault-multikeep" class="vault-multikeep" hidden></div>
       <!-- v342.19: Registered triage panel moved BELOW the lockers (with the bottom description/intake), per Konyo -->
       <div id="vault-registered" class="vault-registered" hidden></div>
+      <!-- v366: dedicated Throw-Out Review — each discarded read shown WITH its source screenshot + a description, per Konyo -->
+      <div id="vault-throwout" class="vault-throwout" hidden></div>
       <!-- v342.15: shared-stash advisory ("don't mule these") moved down here with the bottom description/intake, per Konyo -->
       <div id="vault-keep" class="vault-keep" hidden></div>
       <!-- v323: AI-intake report (a description of what was read) sits BELOW the lockers, per Konyo -->
@@ -16564,6 +16566,15 @@ renderCraftWorkshop();
     ['facet','jewel'], ['jewel','jewel']
   ];
   function resolve(n, e){
+    // v366 — GENERIC socketed/runeword-base placeholders ("Socketed 2H Weapon"…) must NOT borrow a
+    // specific weapon sprite (a 1H sword for a 2H base = the picture lies about the screenshot). Pick a
+    // slot/hand-correct neutral base sprite so a 2H entry reads 2H, a shield reads shield, etc.
+    if (e.cat === 'Socketed bases'){
+      if (e.base === 'Shield') return ART.shield;
+      if (e.base === 'Helm') return ART.helm;
+      if (e.base === 'Body Armor') return ART.body;
+      if (e.base === 'Weapon') return e.hand === '2h' ? ART.polearm : ART.sword;
+    }
     var b = (e.base || (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[n] && ITEM_TIP[n].b) || '');
     var hay = (b + ' ' + n).toLowerCase();
     for (var i=0;i<RULES.length;i++){ if (hay.indexOf(RULES[i][0]) >= 0) return ART[RULES[i][1]]; }
@@ -20435,6 +20446,30 @@ body{
 /* v342.24 — keep the panel aligned within the card (the 94vw breakout clipped on the left due to an
    ancestor overflow). Full width of the container; columns fill it. */
 .vault-registered{margin:0 0 14px;width:100%}
+/* v366 — dedicated Throw-Out Review gallery: screenshot-synced cards for discarded reads */
+.vault-throwout{margin:0 0 14px;width:100%}
+.to-det{border:1px solid rgba(154,166,178,.32);border-radius:10px;background:rgba(154,166,178,.05);overflow:hidden}
+.to-sum{display:flex;align-items:center;gap:9px;padding:9px 13px;cursor:pointer;list-style:none;user-select:none}
+.to-sum::-webkit-details-marker{display:none}
+.to-st{font-family:ui-monospace,monospace;font-weight:800;letter-spacing:.4px;color:#cdd6e0;font-size:13px}
+.to-ct{font-family:ui-monospace,monospace;font-weight:800;font-size:11.5px;color:#0c0e12;background:#9aa6b2;border-radius:9px;padding:1px 8px}
+.to-subt{flex:1;min-width:0;color:#8a96a4;font-size:11px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-chev{color:#9aa6b2;font-size:11px;transition:transform .15s}
+.to-det[open] .to-chev{transform:rotate(180deg)}
+.to-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:4px 13px 13px}
+.to-card{display:flex;gap:10px;padding:9px;border:1px solid rgba(154,166,178,.22);border-radius:9px;background:rgba(0,0,0,.22)}
+.to-shot{width:104px;height:74px;flex:0 0 auto;object-fit:cover;border-radius:6px;border:1px solid rgba(127,212,255,.3);cursor:zoom-in;transition:transform .1s,border-color .1s}
+.to-shot:hover{transform:scale(1.04);border-color:var(--gold-bright,#f0c060)}
+.to-noshot{display:flex;align-items:center;justify-content:center;font-size:10px;color:#6a7682;background:rgba(255,255,255,.03);cursor:default;font-family:ui-monospace,monospace}
+.to-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.to-top{display:flex;align-items:center;gap:7px}
+.to-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-name:hover{text-decoration:underline;text-decoration-style:dotted}
+.to-sock{font-family:ui-monospace,monospace;font-size:9.5px;color:#cdb988;border:1px solid rgba(205,185,136,.4);border-radius:5px;padding:0 5px;white-space:nowrap}
+.to-glyph{font-size:22px;line-height:1}
+.to-why{font-size:11px;line-height:1.45;color:#9aa6b2}
+.to-acts{display:flex;gap:6px;margin-top:auto;padding-top:3px}
+.to-acts .vrg-keep,.to-acts .vrg-x{position:static;font-size:11px;padding:2px 9px;border-radius:6px;cursor:pointer}
 .vrg-det{border:1px solid rgba(127,212,255,.26);border-radius:12px;background:linear-gradient(180deg,rgba(18,26,34,.5),rgba(8,11,15,.42));overflow:hidden}
 .vrg-det[open]{border-color:rgba(127,212,255,.4)}
 .vrg-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;user-select:none}
@@ -20484,6 +20519,8 @@ body{
 .vir-nl-files{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .vir-nl-fn{font-family:ui-monospace,monospace;font-size:10.5px;color:#c7b48a;background:rgba(255,176,64,.12);border:1px solid rgba(255,176,64,.22);border-radius:4px;padding:1px 6px}
 .vir-nl-more{color:#a89878;background:none;border-color:transparent}
+.vir-nl-clk{cursor:zoom-in;transition:background .1s,border-color .1s,transform .1s}
+.vir-nl-clk:hover,.vir-nl-clk:focus{background:rgba(255,176,64,.24);border-color:var(--gold-bright,#f0c060);transform:translateY(-1px);outline:none}
 .vir-body{max-height:300px;overflow-y:auto;padding:8px 14px 12px;font-size:12.5px;line-height:1.6}
 /* v342.25 — fold the verbose item-dump behind a collapsed toggle; header + reconcile counts stay visible (de-clutter, per Konyo) */
 .vir-fold{border-top:1px solid rgba(127,212,255,.12)}
@@ -21199,6 +21236,46 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _regTot=all.length+findNames.length+unkNames.length;
     el.innerHTML='<details class="vrg-det"><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">grail · magic &amp; rare · throw-out — everything read, sorted</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
+  // v366 — DEDICATED Throw-Out Review: its own section that VISUALLY shows each discarded read paired with
+  // the SOURCE SCREENSHOT it came from (synced from the per-screenshot breakdown) + a description, so Konyo
+  // can see exactly what's being thrown out and recover a misread (🔮 keep) or confirm a discard (✕).
+  function renderThrowoutReview(){
+    var el=document.getElementById('vault-throwout'); if(!el) return;
+    var names=(typeof unknownReads!=='undefined'&&unknownReads)
+      ? Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort()
+      : [];
+    if(!names.length){ el.hidden=true; el.innerHTML=''; return; }
+    el.hidden=false;
+    // map each throw-out name → the screenshot it was read from (newest stored thumb wins)
+    var shotOf={};
+    try { journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.th && f.unr && f.unr.length){ f.unr.forEach(function(u){ if(!shotOf[u]) shotOf[u]={th:f.th, ff:(f.ff||f.f||'')}; }); } }); }); } catch(e){}
+    var cards=names.map(function(n){
+      var clean=(typeof _throwClean==='function')?_throwClean(n):n;
+      var isBase=/low base\)\s*$/i.test(n);
+      var sock=/\((\d+)os/i.exec(n);
+      var src=(typeof artUrl==='function'?artUrl(clean):'')||(typeof _magicArtSrc==='function'?_magicArtSrc(clean):'')||'';
+      var artH=src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(clean)+'"><img class="d2art-img" src="'+esc(src)+'" alt="" loading="lazy"></span>':'<span class="to-glyph">🗑</span>';
+      var nm=(typeof _vColorName==='function')?_vColorName(n):('<span style="color:#aeb8c4">'+esc(n)+'</span>');
+      var sh=shotOf[n];
+      var shotH=sh
+        ? '<img class="to-shot" src="'+esc(sh.th)+'" loading="lazy" data-shot="'+esc(sh.ff)+'" title="click to open this screenshot full-size — '+esc(sh.ff)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">'
+        : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>';
+      var why=isBase
+        ? 'A white/grey socketed base'+(sock?' ('+sock[1]+' sockets)':'')+' — low bases are filtered out of grail. Keep only if it’s a runeword / craft base.'
+        : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.';
+      var rwl=(isBase && typeof _baseRWLine==='function')?_baseRWLine(clean):'';
+      return '<div class="to-card">'
+        + shotH
+        + '<div class="to-body">'
+        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+(sock?'<span class="to-sock">🔩 '+sock[1]+'os</span>':'')+'</div>'
+        +   '<div class="to-why">'+why+'</div>'+rwl
+        +   '<div class="to-acts"><button class="vrg-keep" onclick="window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
+        +     '<button class="vrg-x" onclick="window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕ dismiss</button></div>'
+        + '</div></div>';
+    }).join('');
+    el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-st">🗑 Throw-Out Review</span><span class="to-ct">'+names.length+'</span><span class="to-subt">what you’re discarding — each read shown with the screenshot it came from</span><span class="to-chev">▾</span></summary>'
+      + '<div class="to-grid">'+cards+'</div></details>';
+  }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
@@ -21208,6 +21285,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pool=poolAll.filter(function(n){ return !isSharedStash(n); });
     renderMultiKeep();
     renderVaultRegistered();
+    renderThrowoutReview();
     // prune assignments of items no longer owned or mules deleted
     Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
     // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
@@ -21987,7 +22065,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               // v347 — for a NORMAL grail item (target 1) a re-read is a DUPLICATE you own a 2nd of:
               // bump the count so the Registered panel badges it ×N (UX: "you have spares"). A multi-keep
               // AT/over target is a true discard — leave its count alone (don't exceed the target).
-              if (_tgt <= 1) copies[n] = _cur + 1;
+              // v366 — but ONLY when there was genuine PRIOR history (_preReg>0). In a FRESH batch (after a
+              // reset, vault empty at start) the same item in two screenshots is the SAME item photographed
+              // twice — a DUPLICATE SHOT, not a 2nd copy. Bumping it to ×2 there is a phantom over-count
+              // (Konyo: "when we reset how can it tell me owned for Chance Guards?"). Collapse to one instead.
+              if (_tgt <= 1 && _preReg > 0) copies[n] = _cur + 1;
               if (dupes.indexOf(n) < 0) dupes.push(n);
               fRec.own.push(n);
             }
@@ -22053,23 +22135,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
     if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(function(n){ return (typeof _vColorName==='function')?_vColorName(n):esc(n); }).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
     if (!logged.length && !dupes.length && !unrec.length && !magicNew.length && !errors) body += '<div class="vir-line vir-dim">💡 the AI reads item NAMES, not icons — open a tooltip (hover) or hold Alt over loot, then screenshot.</div>';
-    // per-file breakdown — clean status-chip rows (short timestamp + coloured chip + names) instead of a text wall
+    // v366 — the per-screenshot breakdown lived BOTH here and in the "Recently registered" history below,
+    // which read as two near-identical panels. Removed the duplicate copy from this transient scan card;
+    // the history owns the one canonical breakdown (📂 per-screenshot breakdown, with the same thumbnails).
     if (files.length > 1 || perFile.some(function(f){ return f.nw.length || f.own.length || f.unr.length || f.mf.length || f.err; })){
-      var _shortF = function(s){ return String(s).replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
-      var pf = perFile.map(function(f){
-        var chips = [];
-        var _cnp = function(x){ return (typeof _vColorName==='function') ? _vColorName(x) : esc(x); };   // v349 — rarity colour + hover
-        if (f.nw.length) chips.push('<span class="pf-chip pf-new">✓ '+f.nw.length+' new</span><span class="pf-names">'+f.nw.map(_cnp).join(', ')+'</span>');
-        if (f.mf.length) chips.push('<span class="pf-chip pf-magic">🔮 '+f.mf.length+'</span><span class="pf-names">'+f.mf.map(_cnp).join(', ')+'</span>');
-        if (f.own.length) chips.push('<span class="pf-chip pf-own">↻ '+f.own.length+' owned</span><span class="pf-names">'+f.own.map(_cnp).join(', ')+'</span>');
-        if (f.unr.length) chips.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+' throw-out</span><span class="pf-names">'+f.unr.map(_cnp).join(', ')+'</span>');
-        if (f.err) chips.push('<span class="pf-chip pf-err">⚠ failed</span>');
-        var empty = !chips.length;
-        if (empty) chips.push('<span class="pf-chip pf-empty">∅ empty</span><span class="pf-names pf-dim">no tooltip text — hover an item / hold Alt</span>');
-        var _th = f.thumb ? '<img class="pf-thumb" src="'+f.thumb+'" loading="lazy" title="click to enlarge the screenshot (full size)" data-shot="'+esc(f.file)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">' : '';
-        return '<div class="pf-row'+(empty?' pf-row-dim':'')+'">'+_th+'<span class="pf-time">'+esc(_shortF(f.file))+'</span><span class="pf-st">'+chips.join('')+'</span></div>';
-      }).join('');
-      body += '<details class="vir-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+files.length+' file'+(files.length===1?'':'s')+'</span></summary><div class="vir-pf-body">' + pf + '</div></details>';
+      body += '<div class="vir-line vir-dim" style="font-size:11px">📂 per-screenshot breakdown (which shot → which items) is in <strong>🕘 Recently registered</strong> just below ↓</div>';
     }
     if (errors) body += '<div class="vir-line" style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</div>';
     // v344 — surface the shots that need a human look at the TOP of the card (not buried in the expand):
@@ -22085,7 +22155,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _nlParts = [];
       if (_emptyShots.length) _nlParts.push('<b>' + _emptyShots.length + '</b> empty — no tooltip text read');
       if (_throwShots.length) _nlParts.push('<b>' + _throwShots.length + '</b> 🗑 throw-out only — read didn’t match grail (possible misread item)');
-      var _nlNames = _emptyShots.concat(_throwShots).map(function(f){ return '<span class="vir-nl-fn">' + esc(_shortNL(f.file)) + '</span>'; });
+      // v366 — each flagged shot is CLICKABLE → opens that exact screenshot full-res (IndexedDB), so
+      // Konyo can jump straight to the one of the 11 that needs a look instead of hunting the folder.
+      var _nlNames = _emptyShots.concat(_throwShots).map(function(f){
+        var _fb = f.thumb ? ' data-fb="'+esc(f.thumb)+'"' : '';
+        return '<span class="vir-nl-fn vir-nl-clk" role="button" tabindex="0" data-shot="'+esc(f.file)+'"'+_fb+' title="click to open this screenshot full-size — '+esc(f.file)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.dataset.fb||\'\')">🔍 ' + esc(_shortNL(f.file)) + '</span>';
+      });
       _needLook = '<div class="vir-needlook" title="these screenshots either read no item text or read something that did not match a grail item — confirm none is a real item you want. Re-screenshot with a clean hover, or reclassify in 📋 Registered.">'
         + '<div class="vir-nl-top"><span class="vir-nl-h">⚠ ' + _needN + ' screenshot' + (_needN === 1 ? '' : 's') + ' need a look</span><span class="vir-nl-d">' + _nlParts.join(' · ') + '</span></div>'
         + '<div class="vir-nl-files">' + _nlNames.slice(0, 14).join('') + (_nlNames.length > 14 ? '<span class="vir-nl-fn vir-nl-more">+' + (_nlNames.length - 14) + ' more</span>' : '') + '</div></div>';
