@@ -6805,8 +6805,21 @@ function _mfTipHtml(name){
   var blurb = q === 'magic' ? 'Keep for the affix(es) + any open sockets (gemming).'
     : q === 'crafted' ? 'Guaranteed mods + rolled affixes — judge it by the mods on the actual item.'
     : 'Value is in the affix combo (skills / FCR / leech / resist / life). Judge it by the stats on the item.';
+  // v355 — recognise skillers + known valuable magic items, so a +skills grand charm reads as a
+  // SKILLER (with its trade tier) instead of a generic "rare".
+  var skiller = (typeof _isSkiller === 'function') && _isSkiller(name);
+  var vm = (typeof _magicValue === 'function') ? _magicValue(name) : null;
+  var vLine = '';
+  if (skiller || vm) {
+    var tier = vm ? ((_VAL_LABEL && _VAL_LABEL[vm.v]) || vm.v) : '';
+    vLine = '<div class="att-meta" style="color:#cdb988">'
+      + (skiller ? '🎯 <b>Skiller</b> — a +to-Skills Grand Charm' : '⭐ <b>Valuable magic</b>')
+      + (tier ? ' · trade value <b>' + tier + '</b>' : '') + '</div>'
+      + (vm && vm.d ? '<div class="att-aff">' + _d2artEsc(vm.d) + '</div>' : '');
+  }
   return '<div class="att-type">' + qLabel + (base ? ' &middot; ' + _d2artEsc(base) : '') + '</div>'
     + '<div class="att-meta">🔮 Magic &amp; Rare keeper</div>'
+    + vLine
     + '<div class="att-aff">' + blurb + '</div>'
     + '<div class="att-tag">rolls: ' + roll + '</div>'
     + '<div class="att-info">Rolled-name item — no fixed drop card. Click for the full keeper card.</div>';
@@ -10289,6 +10302,22 @@ function _itemValue(name){
 window._itemValue=_itemValue;
 var _VAL_LABEL={high:'High',med:'Med',low:'Low',none:'None',trash:'Trash',vhigh:'Very High'};
 window._VAL_LABEL=_VAL_LABEL;
+// v355 — recognise VALUABLE MAGIC items (skill grand charms, etc.) on a rolled-name find. Diacritic-
+// folded + suffix-stripped match against D2_VAL_MAGIC (the AI often OCRs "Harpoönist's" w/ an umlaut).
+// Returns {v,d,t} (value tier / details / type) or null. Skill GC prefix → flagged as a skiller.
+var _VM_NORM=null;
+function _vmFold(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function _magicValue(name){
+  if(!name||typeof D2_VAL_MAGIC==='undefined') return null;
+  if(!_VM_NORM){ _VM_NORM={}; D2_VAL_MAGIC.forEach(function(e){ _VM_NORM[_vmFold(e.n)]=e; }); }
+  var f=_vmFold(name); if(_VM_NORM[f]) return _VM_NORM[f];
+  var s=_vmFold(String(name).replace(/\s*\([^)]*\)\s*$/,'').replace(/\s+of\s+\w+$/i,''));   // drop "(rare)"/"of Vita"
+  return _VM_NORM[s]||null;
+}
+window._magicValue=_magicValue;
+var _SKILLER_RE=/^(harpoonist|fletcher|acrobat|gymnast|preserver|burning|sparking|chilling|hexing|fungal|entrapping|expert|captain|lion branded|sanctuary|sounding|trainer|natural|spiritual|lance|stinging|blank|jagged|forked|snake|serpent|knave|bashing|cunning|mentalist|gravedigger|graverobber|hibernal|emblazon|psychic|shogukusha|summoner|fervent)('?s)?\b/i;
+function _isSkiller(name){ return /grand charm/i.test(name||'') && _SKILLER_RE.test(String(name||'').normalize('NFD').replace(/[̀-ͯ]/g,'')); }
+window._isSkiller=_isSkiller;
 
 window.EXTRA_UNIQUES = EXTRA_UNIQUES;
 const _EXTRA_ITEM_SET = new Set(Object.keys(EXTRA_ITEMS).map(function(n){ return _norm(n); }));
