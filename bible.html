@@ -9468,9 +9468,22 @@ window.nameLogo = nameLogo;
 // For throw-out names the " (Nos low base)" suffix stays visible but data-arttip resolves it.
 function _vColorName(n){
   var s = (typeof _qStyle === 'function') ? _qStyle(n, '') : '';
-  return '<span class="pf-name-i"' + s + ' data-arttip="' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>';
+  // v359 — clickable + routable: each name opens its item card (openDrop). JS-string escape for onclick.
+  var js = String(n).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return '<span class="pf-name-i" role="button" tabindex="0"' + s + ' data-arttip="' + _d2artEsc(n) + '"'
+    + ' onclick="window.openDrop&&window.openDrop(\'' + js + '\')" title="open ' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>';
 }
 window._vColorName = _vColorName;
+// v359 — click a screenshot thumbnail to view it full-size (the shot that produced these item reads).
+window._shotLightbox = function(src){
+  if (!src) return;
+  var ex = document.getElementById('_shotlb'); if (ex) ex.remove();
+  var o = document.createElement('div'); o.id = '_shotlb'; o.className = 'shot-lightbox';
+  var im = document.createElement('img'); im.src = src; o.appendChild(im);
+  o.addEventListener('click', function(){ o.remove(); });
+  document.addEventListener('keydown', function _esc(ev){ if (ev.key === 'Escape'){ var x = document.getElementById('_shotlb'); if (x) x.remove(); document.removeEventListener('keydown', _esc); } });
+  document.body.appendChild(o);
+};
 // v341.42 — flagship animated loader for the 1-photo AI intakes: a centred scanning overlay
 // (sweep + pulsing lens + indeterminate bar) floated on the stash GRID while the AI reads the
 // screenshot. The results report stays at the bottom. _aiIntakeStop() removes it when done.
@@ -20491,6 +20504,12 @@ body{
 .pf-names{color:#cfe0ea}
 /* v349 — rarity-coloured, hoverable item name inside the breakdown / report lines */
 .pf-name-i{cursor:pointer}.pf-name-i:hover{text-decoration:underline;text-decoration-style:dotted}
+/* v359 — per-screenshot thumbnail (the uploaded shot, linked to what it read) + click-to-enlarge lightbox */
+.pf-thumb{width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid rgba(127,212,255,.3);margin-right:8px;cursor:zoom-in;flex:0 0 auto;vertical-align:middle;transition:transform .1s,border-color .1s}
+.pf-thumb:hover{transform:scale(1.08);border-color:var(--gold-bright,#f0c060)}
+.pf-row{display:flex;align-items:center}
+.shot-lightbox{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(3px)}
+.shot-lightbox img{max-width:92vw;max-height:92vh;border:2px solid rgba(240,192,96,.5);border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.7)}
 .pf-new{color:var(--best,#66ff88)}
 .pf-magic{color:#b58cff}
 .pf-own{color:#7fd4ff}
@@ -21621,10 +21640,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!items.length && !(perFile && perFile.length)) return;
     var j = journal();
     var sf = function(s){ return String(s||'').replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
-    var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err }; });
+    var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err, th:(f.thumb||'') }; });
     j.unshift({ ts: Date.now(), items: items.slice(0, 30), pf: pf });
+    // v359 — thumbnails are heavy: keep them ONLY on the newest session; strip from older ones to bound storage.
+    for (var _k = 1; _k < j.length; _k++){ if (j[_k] && j[_k].pf){ j[_k].pf.forEach(function(p){ if (p) delete p.th; }); } }
     try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
-    catch(e){ try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 5))); } catch(e2){} }
+    catch(e){
+      // quota hit — drop thumbnails from the newest entry too, then retry smaller
+      try { (j[0].pf||[]).forEach(function(p){ if (p) delete p.th; }); localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
+      catch(e2){ try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 5))); } catch(e3){} }
+    }
   }
   function renderJournal(){
     var el = document.getElementById('vault-journal');
@@ -21654,7 +21679,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (f.unr && f.unr.length) c.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+'</span><span class="pf-names">'+f.unr.map(_cn).join(', ')+'</span>');
           if (f.e) c.push('<span class="pf-chip pf-err">⚠ failed</span>');
           var empty = !c.length; if (empty) c.push('<span class="pf-chip pf-empty">∅</span><span class="pf-names pf-dim">no tooltip text</span>');
-          return '<div class="pf-row'+(empty?' pf-row-dim':'')+'"><span class="pf-time">'+esc(f.f)+'</span><span class="pf-st">'+c.join('')+'</span></div>';
+          var _th = f.th ? '<img class="pf-thumb" src="'+f.th+'" loading="lazy" title="click to enlarge the screenshot" onclick="window._shotLightbox&&window._shotLightbox(this.src)">' : '';
+          return '<div class="pf-row'+(empty?' pf-row-dim':'')+'">'+_th+'<span class="pf-time">'+esc(f.f)+'</span><span class="pf-st">'+c.join('')+'</span></div>';
         }).join('');
         pfHtml = '<details class="vir-pf vj-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+e.pf.length+' file'+(e.pf.length===1?'':'s')+'</span></summary><div class="vir-pf-body">'+rows+'</div></details>';
       }
@@ -21775,6 +21801,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try {
           var _L = await _vLoadImg(files[i]);
           _imRef = _L.im;   // v346 — kept for the empty-read full-image retry below
+          try { fRec.thumb = 'data:image/jpeg;base64,' + _vEnlarge(_L.im, null, 220, 0.5); } catch(e){}   // v359 — small thumbnail of the uploaded shot, linked to what it read
           // CHEAP locate input — a small 860px JPEG is plenty to find WHERE the dark tooltip box is
           // (Haiku reads it server-side); the real READ below uses the full-quality crop. Keeps credits sane.
           var _small = _vEnlarge(_L.im, null, 860, 0.72);
@@ -21925,7 +21952,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (f.err) chips.push('<span class="pf-chip pf-err">⚠ failed</span>');
         var empty = !chips.length;
         if (empty) chips.push('<span class="pf-chip pf-empty">∅ empty</span><span class="pf-names pf-dim">no tooltip text — hover an item / hold Alt</span>');
-        return '<div class="pf-row'+(empty?' pf-row-dim':'')+'"><span class="pf-time">'+esc(_shortF(f.file))+'</span><span class="pf-st">'+chips.join('')+'</span></div>';
+        var _th = f.thumb ? '<img class="pf-thumb" src="'+f.thumb+'" loading="lazy" title="click to enlarge the screenshot" onclick="window._shotLightbox&&window._shotLightbox(this.src)">' : '';
+        return '<div class="pf-row'+(empty?' pf-row-dim':'')+'">'+_th+'<span class="pf-time">'+esc(_shortF(f.file))+'</span><span class="pf-st">'+chips.join('')+'</span></div>';
       }).join('');
       body += '<details class="vir-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+files.length+' file'+(files.length===1?'':'s')+'</span></summary><div class="vir-pf-body">' + pf + '</div></details>';
     }
