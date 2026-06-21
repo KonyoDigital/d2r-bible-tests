@@ -13592,7 +13592,7 @@ function renderAllRunewords(){
 }
 window.renderAllRunewords = renderAllRunewords;
 // v369 — Chronicle Runeword Maker: forge-now (synced w/ Rune Stash) + already-created tracker.
-let _rwcFilter = 'all';
+let _rwcFilter = 'todo';   // v372 — default to "⏳ Left" so the working list shows only what's NOT yet created (Konyo: "see what's left, created shouldn't clutter it"); ✨ Created / All 100 are a click away
 window.rwcSetFilter = function(f){ _rwcFilter = f; renderRunewordChronicle(); };
 window.rwToggleMade = function(name){
   if (!name) return;

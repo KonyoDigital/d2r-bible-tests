@@ -18,7 +18,8 @@ test('Chronicle seeds 7 created, lists all 100, syncs makeable, toggles persist'
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1400);
   await page.evaluate(() => (window as any).switchTab('tools'));
-  await page.evaluate(() => { const c = document.getElementById('rw-chronicle-card'); if (c) c.classList.remove('collapsed'); (window as any).renderRunewordChronicle(); });
+  // v372 — default filter is now "⏳ Left"; switch to "All 100" so this test can see every row incl. created.
+  await page.evaluate(() => { const c = document.getElementById('rw-chronicle-card'); if (c) c.classList.remove('collapsed'); (window as any).rwcSetFilter('all'); });
   await page.waitForTimeout(300);
 
   const r = await page.evaluate(() => {
