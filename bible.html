@@ -20688,14 +20688,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(findNames.length) cols.push(_col('vrg-gh-magic','🔮 Magic &amp; Rare',findNames.length, findNames.map(function(n){
         var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
-        return '<div class="vrg-row" data-magic-find="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
-          +'<span class="vrg-name" style="color:'+col+'">'+esc(n)+'</span>'
+        return '<div class="vrg-row" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
+          +'<span class="vrg-name" style="color:'+col+'" data-arttip="'+esc(n)+'">'+esc(n)+'</span>'
           +'<span class="vrg-tag" style="color:'+col+'">'+q+'</span>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
       }).join('')));
     if(unkNames.length) cols.push(_col('vrg-gh-unknown','🗑 Throw-out',unkNames.length, unkNames.map(function(n){
-        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'"><span class="vrg-mdot" style="background:#9aa6b2"></span>'
-          +'<span class="vrg-name" style="color:#aeb8c4">'+esc(n)+'</span>'
+        // v348 — show HD art + hover for throw-out items so you can SEE what's being discarded (a real
+        // unique vs a junk base). Strip the " (Nos low base)" / "(rare)" suffix to a clean name, then
+        // resolve grail art (real unique) → base sprite. data-arttip floats the in-game card on hover.
+        var _clean=String(n).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i,'').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i,'').trim();
+        var _src=(typeof artUrl==='function'?artUrl(_clean):'')||(typeof _magicArtSrc==='function'?_magicArtSrc(_clean):'')||'';
+        var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(_clean)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:#9aa6b2"></span>';
+        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'" data-arttip="'+esc(_clean)+'" title="'+esc(n)+'">'+_icon
+          +'<span class="vrg-name" style="color:#aeb8c4" data-arttip="'+esc(_clean)+'">'+esc(n)+'</span>'
           +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮</button>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕</button></div>';
       }).join('')));
