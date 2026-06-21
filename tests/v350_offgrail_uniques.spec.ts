@@ -20,13 +20,14 @@ test('off-grail uniques: matched, unique-coloured, art-backed, real stats', asyn
     vocab = Array.from(new Set(vocab.concat(Object.keys(E))));
     const vset = new Set(vocab);
     const offgrail = Object.keys(E).filter((n) => E[n].cat === 'Off-grail unique');
-    const withArt = offgrail.filter((n) => !!(w.artUrl && w.artUrl(n)));
+    const hdArt = offgrail.filter((n) => { const u = w.artUrl && w.artUrl(n); return u && /mr_/.test(u); });
     return {
       count: offgrail.length,
       fechmarMatched: vset.has('Axe of Fechmar'),
       fechmarRarity: w._artRarity('Axe of Fechmar'),
       fechmarStats: (E['Axe of Fechmar'] || {}).stats || [],
-      artCoverage: withArt.length,
+      fechmarArt: w.artUrl('Axe of Fechmar') || '',
+      hdArtCoverage: hdArt.length,
     };
   });
   expect(errs).toEqual([]);
@@ -34,5 +35,6 @@ test('off-grail uniques: matched, unique-coloured, art-backed, real stats', asyn
   expect(r.fechmarMatched).toBe(true);            // now in the intake vocab → no throw-out
   expect(r.fechmarRarity).toBe('unique');         // in-game gold colour
   expect(r.fechmarStats.join(' ')).toContain('Enhanced Damage');  // real game stats
-  expect(r.artCoverage).toBeGreaterThan(r.count * 0.6);  // most have base-type art now
+  expect(r.fechmarArt).toContain('mr_axeoffechmar');   // HD per-item art (maxroll), self-hosted
+  expect(r.hdArtCoverage).toBeGreaterThanOrEqual(105);  // (nearly) all have HD art now
 });
