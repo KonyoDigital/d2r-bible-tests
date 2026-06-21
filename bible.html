@@ -8430,7 +8430,14 @@ const SET_PIECES_EXTRA = [
   {name:"Cow King's Leathers (set)", pieces:["Cow King's Horns (war bonnet)","Cow King's Hide (studded leather)","Cow King's Hooves (heavy boots)"]},
   {name:"Sazabi's Grand Tribute", pieces:["Sazabi's Cobalt Redeemer (cryptic sword)","Sazabi's Ghost Liberator (balrog skin)","Sazabi's Mental Sheath (basinet)"]},
   {name:"Naj's Ancient Vestige", pieces:["Naj's Puzzler (elder staff)","Naj's Light Plate (hellforge plate)","Naj's Circlet (circlet)"]},
-  {name:"Orphan's Call (set)", pieces:["Guillaume's Face (winged helm)","Whitstan's Guard (round shield)","Magnus' Skin (sharkskin gloves)","Wilhelm's Pride (battle belt)"]}
+  {name:"Orphan's Call (set)", pieces:["Guillaume's Face (winged helm)","Whitstan's Guard (round shield)","Magnus' Skin (sharkskin gloves)","Wilhelm's Pride (battle belt)"]},
+  // v367 — Sander's Folly + Tancred's Battlegear: Konyo's screenshots read "Sander's Riprap" /
+  // "Tancred's Spine" as Magic & Rare because these low sets weren't in the set data, so they
+  // missed the grail vocab. Pieces verified against blizzhackers/d2data setitems.json (internal
+  // "McAuley's" == English "Sander's"). Now findSetPiece resolves them → set-green + set-locker route,
+  // and they enter the intake vocab via __setPieceNames() → AI reads them as grail, not magic.
+  {name:"Sander's Folly (set)", pieces:["Sander's Paragon (cap)","Sander's Riprap (heavy boots)","Sander's Superstition (bone wand)","Sander's Taboo (heavy gloves)"]},
+  {name:"Tancred's Battlegear (set)", pieces:["Tancred's Crowbill (military pick)","Tancred's Hobnails (light plated boots)","Tancred's Skull (bone helm)","Tancred's Spine (full plate mail)","Tancred's Weird (amulet)"]}
 ];
 function __allSets(){ return (typeof ITEM_SETS!=='undefined'?ITEM_SETS:[]).concat(SET_PIECES_EXTRA); }
 function __pieceBase(pc){ return String(pc).replace(/\s*\([^)]*\)\s*$/,''); }
@@ -16585,6 +16592,16 @@ renderCraftWorkshop();
     var u = resolve(n, EXTRA_ITEMS[n]);
     if (u) D2IO_ART[n] = u;
   }); } catch(e){}
+  // v367 — interim base-type art for the newly-added Sander's Folly + Tancred's Battlegear set pieces so
+  // they show a real base sprite (verified present in art/), not a bare glyph. Explicit map because the
+  // keyword resolver misses "cap"/"bone wand"/"military pick". Real HD art (maxroll) overrides later.
+  try { var _setArt = {
+    "Sander's Paragon":'art/cap_graphic.png', "Sander's Riprap":'art/heavyboots_graphic.png',
+    "Sander's Superstition":'art/grimwand_graphic.png', "Sander's Taboo":'art/heavygloves_graphic.png',
+    "Tancred's Crowbill":'art/broadaxe_graphic.png', "Tancred's Hobnails":'art/lightplateboots_graphic.png',
+    "Tancred's Skull":'art/fangedhelm_graphic.png', "Tancred's Spine":'art/fullplate_graphic.png',
+    "Tancred's Weird":'art/amu1_graphic.png'
+  }; Object.keys(_setArt).forEach(function(n){ if (!D2IO_ART[n]) D2IO_ART[n] = _setArt[n]; }); } catch(e){}
 })();
 // v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
 // colour. These spans carry data-arttip with the item name but no rarity class; table.ref-tbl had
@@ -20909,7 +20926,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
     {id:'bases',      name:'SOCKETED',    icon:'🔩', note:'socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)'},
     {id:'magic-rare', name:'MAGIC & RARE',icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'},
-    {id:'shared',     name:'SHARED STASH',icon:'📦', note:'runes · essences · Worldstone shards · Colossal statues · sunders — never muled, infinite shared stash'},
+    {id:'shared',     name:'SHARED STASH',icon:'📦', note:'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs'},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
@@ -20949,7 +20966,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // v360 — ensure the SHARED STASH locker exists on rosters saved before it (holds the never-muled items)
     if (!roster.some(function(m){ return m.id==='shared'; })){
-      var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:'runes · essences · Worldstone shards · Colossal statues · sunders — never muled, infinite shared stash'};
+      var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs'};
       var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
       if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
       try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
@@ -21538,18 +21555,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }).join('');
     return '<div class="vd-grid" style="grid-template-columns:repeat('+gw+','+cell+'px);grid-auto-rows:'+cell+'px">'+cells+blocks+'</div>';
   }
-  // v363 — SHARED STASH = D2R's 5 shared-stash tabs, AUTO-ASSORTED (Konyo's scheme):
-  //   Pg1 💎 Trade (high runes Vex+ + any high/very-high trade-value item), Pg2 🔮 Runes (the rest, El→Zod),
-  //   Pg3 🧪 Materials (essences · Worldstone shards · Colossal statues · sunders), Pg4+Pg5 📦 Spare (looting room).
+  // v364/v367 — SHARED STASH = D2R's 5 shared-stash tabs = GENERAL cross-account storage for high-value
+  // "worth keeping close" keepers (Konyo's corrected scheme): Pg1 💎 Trade = the auto-sorted keepers,
+  // value-sorted; Pg2-5 📦 Spare = empty looting room. Runes/gems/materials are NOT here — they live in
+  // their own dedicated planners (already individually synced). (v363's runes/materials pages were wrong.)
   var _sharedPage = 0;
-  var _HIGH_RUNE_RE = /\b(vex|ohm|lo|sur|ber|jah|cham|zod)\b/i;
-  var _MAT_RE = /\b(essence|worldstone shard|colossal ancient statue|statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft|sunder)\b/i;
-  function _runeOrder(n){
-    var m = String(n).match(/^([a-z]+)\b/i);
-    if (m && typeof RUNE_INDEX !== 'undefined'){ var k = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(); if (k in RUNE_INDEX) return RUNE_INDEX[k]; }
-    return (typeof RUNE_INDEX !== 'undefined' && (n in RUNE_INDEX)) ? RUNE_INDEX[n] : 999;
-  }
-  function _isRuneName(n){ return /\brune\b/i.test(n) || (typeof RUNE_INDEX !== 'undefined' && (n in RUNE_INDEX)); }
+  // v367 — removed dead _HIGH_RUNE_RE / _MAT_RE / _runeOrder / _isRuneName helpers (leftover from v363's
+  // runes/materials pages, never referenced after v364 made SHARED general high-value storage).
   // v364 — the 5 SHARED tabs = general cross-account storage. Auto-sorted items (high/very-high trade
   // value, "worth keeping close") distribute best-first: Pg1 💎 Trade = Very-High, Pg2 ⭐ High, Pg3 📦 Keep
   // = anything else assigned here, Pg4+Pg5 📦 Spare = left empty as looting room. Runes/gems/mats live in
