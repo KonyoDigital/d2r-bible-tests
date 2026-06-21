@@ -15,9 +15,12 @@ test.describe('v204 mule ID card', () => {
     await page.evaluate(() => {
       localStorage.removeItem('d2r_muleRoster');
       localStorage.removeItem('d2r_muleAssign');
+      // v364 auto-routes HIGH-value items (Harlequin, War Traveler, SoJ, Anni…) to the SHARED stash, so
+      // uni-armor keeps only the lower-value armor. Seed two low-value armor uniques (Hawkmail/Greyform →
+      // uni-armor, value 'none') so the locker reliably holds ≥3 for the packing/overlap assertions.
       ['Harlequin Crest (Shako)', 'Stormshield', 'Vampire Gaze', 'War Traveler',
        'The Stone of Jordan', 'Annihilus', 'Hellfire Torch', "Gheed's Fortune",
-       'Windforce'].forEach(n => eval('owned').add(n));
+       'Windforce', 'Hawkmail', 'Greyform'].forEach(n => eval('owned').add(n));
       (window as any).switchTab('tools');
       (window as any).renderVault();
       (window as any).vaultAutoAssign();

@@ -64,7 +64,10 @@ export async function onRequestPost(context) {
     + '"Superior" prefix = "superior", a BLUE name = "magic". eth = true only if the tooltip says "Ethereal". '
     + 'READ the base name, socket NUMBER, colour, and ethereal flag — do NOT classify the slot, the system does that. CRITICAL: only when the '
     + '"Socketed (N)" TEXT is genuinely legible (normally the ONE hovered tooltip) — NEVER infer sockets from holes drawn '
-    + 'on an inventory ICON, and NEVER emit several from a grid of bare icons. A base with ZERO sockets is not reported. '
+    + 'on an inventory ICON, and NEVER emit several from a grid of bare icons. v371 — if the ONE hovered tooltip is a '
+    + 'white/grey/SUPERIOR/magic BASE that shows NO socket text, STILL report it in "sockets" with count:0 (the system '
+    + 'keeps only worthwhile elite runeword bases to Larzuk later and ignores common junk) — but ONLY that single hovered '
+    + 'tooltip, NEVER zero-socket bare grid icons. '
     + 'Do NOT also put a socketed base\'s name in "unrecognized". '
     + '(3) Ignore NPC name labels (Charsi, Kashya, Warriv, Akara, Gheed the NPC...), zone names, UI text, gold, potions. '
     + '(4) Item ART without readable name text is NOT enough — skip it. '
@@ -379,6 +382,14 @@ export async function onRequestPost(context) {
     // prefer the count-specific vocab entry, else the count-less generic
     return resolve(kind + os) || resolve(kind);
   };
+  // v371 — a worthwhile base hovered with ZERO sockets = a LARZUK CANDIDATE (keep it, socket it later).
+  // Reuse socketGeneric's slot classification, but emit a distinct "Larzuk <slot> Base" label so it reads
+  // as UNSOCKETED in the SOCKETED locker. (Konyo's calibration: track elite 0-socket bases, ignore junk.)
+  const larzukGeneric = (base) => {
+    const g = socketGeneric(base, 0);   // → "Socketed Shield" / "Socketed 2H Weapon" / … (count-less)
+    if (!g) return null;
+    return g.replace(/^Socketed (.+)$/, 'Larzuk $1 Base');
+  };
   // v342.13 — sunder charms are account-shared keepers (NOT muled, NOT rolled-name rares). Detect by type.
   const SUNDER_TYPES = ['Cold Rupture', 'Flame Rift', 'Crack of the Heavens', 'Rotting Fissure', 'Bone Break', 'Black Cleft'];
   const sunderOf = (s) => { const l = String(s || '').toLowerCase(); return SUNDER_TYPES.find((t) => l.includes(t.toLowerCase())) || null; };
@@ -445,7 +456,19 @@ export async function onRequestPost(context) {
     // (Konyo: "isn't a 6-socket Dimensional Blade a good runeword base?" — yes; the type-only filter was
     // discarding good high-socket bases. Socket count matters as much as base type.)
     const _sc = parseInt(s.count, 10);
-    const worth = s.q === 'magic' || s.eth === true || GOOD_BASE.test(base) || (isFinite(_sc) && _sc >= 5);
+    const cnt = isFinite(_sc) ? _sc : 0;
+    const eliteOrMagic = s.q === 'magic' || s.eth === true || GOOD_BASE.test(base);
+    // v371 — ZERO-socket base: keep ONLY an elite/magic/eth one as a LARZUK CANDIDATE (you'd socket it
+    // later); ignore common 0-socket junk entirely (don't even surface it in throw-out review). Konyo's
+    // "track elite, ignore junk" calibration. (Junk WITH sockets still goes to the low-base review below.)
+    if (cnt <= 0) {
+      if (!eliteOrMagic) continue;
+      socketBaseLower.add(base.toLowerCase());
+      const lg = larzukGeneric(base);
+      if (lg && !items.includes(lg)) items.push(lg);
+      continue;
+    }
+    const worth = eliteOrMagic || cnt >= 5;
     if (!worth) { unrec.push(base + ' (' + (s.count || '?') + 'os low base)'); continue; }
     socketBaseLower.add(base.toLowerCase());
     const gen = socketGeneric(base, s.count);

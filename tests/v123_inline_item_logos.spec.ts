@@ -17,7 +17,7 @@ test.describe('v123 inline item logos (decorateItemLogos)', () => {
   });
 
   const EXPECT: Record<string, string> = {
-    'Hellfire Torch': 'hellfiretorch_graphic.png',
+    'Hellfire Torch': 'mr_hellfiretorch.png',
     'Key of Terror': 'questkey_graphic.png',
     'Key of Hate': 'questkey_graphic.png',
     'Key of Destruction': 'questkey_graphic.png',
@@ -92,7 +92,7 @@ test.describe('v123 inline item logos (decorateItemLogos)', () => {
       const img = card?.querySelector('.material-card .d2art-img') as HTMLImageElement | null;
       return img?.getAttribute('src') || '';
     });
-    expect(src).toContain('hellfiretorch_graphic.png');
+    expect(src).toContain('hellfiretorch');   // v350.1 swapped to HD art/mr_hellfiretorch.png; routing intact
   });
 
   test('no console errors decorating + opening the tagged items', async ({ page }) => {
