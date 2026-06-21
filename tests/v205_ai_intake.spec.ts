@@ -169,6 +169,27 @@ test.describe('v205 AI intake', () => {
     expect(reads2[0].cropped).toBe(false);
   });
 
+  test('v344 — "needs a look" banner surfaces throw-out-only + empty shots with filenames', async ({ page }) => {
+    await page.unroute('**/api/intake');
+    await page.route('**/api/intake', (route) => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      if (body.kind === 'locate') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ found: false, box: [0, 0, 0, 0] }) });
+      // read returns ONLY a throw-out string (nothing matched grail) → this shot needs a look
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ items: [], unrecognized: ['Glarbfaxe of Nonsense'], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
+    });
+    await page.setInputFiles('#vault-intake-file', { name: 'needs_look.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    const r = await page.evaluate(() => {
+      const nl = document.querySelector('#vault-intake-report .vir-needlook');
+      return { present: !!nl, text: nl?.textContent || '' };
+    });
+    expect(r.present).toBe(true);
+    expect(r.text).toContain('need a look');
+    expect(r.text).toContain('throw-out only');
+    expect(r.text).toContain('needs_look');  // the offending filename is listed
+  });
+
   test('endpoint failure reports an error instead of silently dropping', async ({ page }) => {
     await page.unroute('**/api/intake');
     await page.route('**/api/intake', (route) => route.fulfill({ status: 502, body: '{"error":"upstream"}' }));

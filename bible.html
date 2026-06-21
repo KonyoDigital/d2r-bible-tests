@@ -20009,6 +20009,14 @@ body{
 .vir-rc{font-family:ui-monospace,monospace;font-size:11px;color:#c7d6e2}
 .vir-rc b{color:#fff;font-weight:800}
 .vir-rc-note{flex-basis:100%;font-size:10.5px;font-style:italic;color:#8a9aa8}
+/* v344 — "needs a look" banner: empty + throw-out-only shots surfaced at the top so misses aren't buried */
+.vir-needlook{padding:8px 14px;border-bottom:1px solid rgba(255,176,64,.28);background:rgba(255,160,48,.08)}
+.vir-nl-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.vir-nl-h{font-weight:800;color:var(--q-orange,#ffa800);font-size:12.5px}
+.vir-nl-d{font-family:ui-monospace,monospace;font-size:11px;color:#d8c4a0}.vir-nl-d b{color:#fff;font-weight:800}
+.vir-nl-files{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.vir-nl-fn{font-family:ui-monospace,monospace;font-size:10.5px;color:#c7b48a;background:rgba(255,176,64,.12);border:1px solid rgba(255,176,64,.22);border-radius:4px;padding:1px 6px}
+.vir-nl-more{color:#a89878;background:none;border-color:transparent}
 .vir-body{max-height:300px;overflow-y:auto;padding:8px 14px 12px;font-size:12.5px;line-height:1.6}
 /* v342.25 — fold the verbose item-dump behind a collapsed toggle; header + reconcile counts stay visible (de-clutter, per Konyo) */
 .vir-fold{border-top:1px solid rgba(127,212,255,.12)}
@@ -21400,6 +21408,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       body += '<details class="vir-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+files.length+' file'+(files.length===1?'':'s')+'</span></summary><div class="vir-pf-body">' + pf + '</div></details>';
     }
     if (errors) body += '<div class="vir-line" style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</div>';
+    // v344 — surface the shots that need a human look at the TOP of the card (not buried in the expand):
+    // EMPTY reads (no tooltip text found → maybe a real item the AI couldn't read) and THROW-OUT-ONLY
+    // shots (the only thing read didn't match grail → could be a misread valuable). Filenames listed so
+    // Konyo can jump straight to them. Shots that DID register a real item are not flagged.
+    var _shortNL = function(s){ return String(s).replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
+    var _emptyShots = perFile.filter(function(f){ return !f.err && !f.nw.length && !f.mf.length && !f.own.length && !f.unr.length && !(f.xc && f.xc.length); });
+    var _throwShots = perFile.filter(function(f){ return f.unr.length && !f.nw.length && !f.mf.length && !f.own.length; });
+    var _needLook = '';
+    var _needN = _emptyShots.length + _throwShots.length;
+    if (_needN) {
+      var _nlParts = [];
+      if (_emptyShots.length) _nlParts.push('<b>' + _emptyShots.length + '</b> empty — no tooltip text read');
+      if (_throwShots.length) _nlParts.push('<b>' + _throwShots.length + '</b> 🗑 throw-out only — read didn’t match grail (possible misread item)');
+      var _nlNames = _emptyShots.concat(_throwShots).map(function(f){ return '<span class="vir-nl-fn">' + esc(_shortNL(f.file)) + '</span>'; });
+      _needLook = '<div class="vir-needlook" title="these screenshots either read no item text or read something that did not match a grail item — confirm none is a real item you want. Re-screenshot with a clean hover, or reclassify in 📋 Registered.">'
+        + '<div class="vir-nl-top"><span class="vir-nl-h">⚠ ' + _needN + ' screenshot' + (_needN === 1 ? '' : 's') + ' need a look</span><span class="vir-nl-d">' + _nlParts.join(' · ') + '</span></div>'
+        + '<div class="vir-nl-files">' + _nlNames.slice(0, 14).join('') + (_nlNames.length > 14 ? '<span class="vir-nl-fn vir-nl-more">+' + (_nlNames.length - 14) + ' more</span>' : '') + '</div></div>';
+    }
     // v342.10 — reconcile the SCREENSHOT count so it's clear 62 shots ≠ 62 items (dupes collapse,
     // bases/junk are unmatched). Header leads with shots → registered; a reconcile row sums the outcome.
     var html = '<div class="vir-card">'
@@ -21409,6 +21435,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + (_preReg > 0
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')
+      + _needLook
       + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>' + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
       + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
       + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
