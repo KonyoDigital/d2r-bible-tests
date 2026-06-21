@@ -9879,10 +9879,15 @@ function _magicArtSrc(base){
   if(/\b(boot|boots|greave|greaves|sabaton|sabatons|tread|treads|slipper|slippers|track|trail|hoof|spur|spurs|nails|shank)\b/.test(b)) return 'art/leatherboots_graphic.png';
   if(/\b(glove|gloves|gauntlet|gauntlets|mitt|mitts|fist|claw|grasp|hand|knuckle|vambrace|bracer|clutches|fingers)\b/.test(b)) return 'art/chaingloves_graphic.png';
   if(/\b(belt|sash|girdle|cord|clasp|strap|snare|mesh)\b/.test(b)) return 'art/belt_graphic.png';
+  // v358 — HELM + SHIELD generic fallbacks (before body-armor's broad words) so helm/shield bases get a
+  // sprite instead of the ◆ glyph. Specific elite helms/shields already hit BM above.
+  if(/\b(helm|helmet|cap|crown|mask|circlet|coronet|tiara|diadem|casque|basinet|sallet|armet|visage|coif|cowl|hood|war hat|skull cap)\b/.test(b)) return 'art/hornedhelm_graphic.png';
+  if(/\b(shield|buckler|rondache|targe|aegis|scutum|defender|heater|luna|pavise|kite|tower|gothic shield|barbed shield|dragon shield|bone shield|grim shield|ancient shield|round shield|large shield|spiked shield|monarch|ward)\b/.test(b)) return 'art/base_sacredrondache.png';
   // BODY ARMOR (wins over the "ring" jewelry word for "Ring Mail")
   if(/\bmail\b/.test(b)) return 'art/chainmail_graphic.png';                 // ring/chain/scale/linked mail
   if(/studded|hard leather|leather armor|quilted/.test(b)) return 'art/studdedleather_graphic.png';
-  if(/\b(plate|armor|hauberk|tunic|jupon|cuirass|shroud|hide|pelt|shell|carapace|fleece|husk|scale|splint)\b/.test(b)) return null; // body armor, no specific sprite → glyph (NOT a wrong ring)
+  // v358 — generic body-armor plate sprite (was null/glyph) so Breast Plate, Ancient Armor, etc. show art
+  if(/\b(plate|armor|hauberk|tunic|jupon|cuirass|shroud|hide|pelt|shell|carapace|fleece|husk|scale|splint)\b/.test(b)) return 'art/fullplate_graphic.png';
   // accessories — jewelry rare-name TYPE-WORDS (only reached if NOT armor above)
   if(/\b(ring|loop|knot|whorl|band|coil|gyre|spiral|turn|circle)\b/.test(b)) return 'art/ring1_graphic.png';
   if(/\b(amulet|necklace|choker|locket|pendant|beads|collar|noose|talisman|scarab)\b/.test(b)) return 'art/amu1_graphic.png';
