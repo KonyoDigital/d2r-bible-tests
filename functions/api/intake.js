@@ -26,7 +26,10 @@ export async function onRequestPost(context) {
   if (!image || typeof image !== 'string') return json({ error: 'missing image' }, 400);
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
   const isLocate = kind === 'locate';   // v342 — return the hovered tooltip's bounding box (no vocab needed)
-  if (!isLocate && (!Array.isArray(names) || names.length < 3 || names.length > 600)) return json({ error: 'names vocabulary required' }, 400);
+  // v354 — cap raised 600→2000: the grail vocab grew past 600 (off-grail uniques + RotW sets) which
+  // 400'd EVERY read and hung the intake at 0/62. The vocab rides in the cached system prompt, so a
+  // larger list is near-free; 2000 leaves ample headroom.
+  if (!isLocate && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
   const isTally = (kind === 'tally' || isCraft) && !isLocate;   // craft shares the {tally} count contract
