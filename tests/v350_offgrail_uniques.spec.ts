@@ -31,10 +31,14 @@ test('off-grail uniques: matched, unique-coloured, art-backed, real stats', asyn
     };
   });
   expect(errs).toEqual([]);
-  expect(r.count).toBeGreaterThanOrEqual(100);   // ~107 off-grail uniques added
+  // v369.3 — 5 entries (Gull, Harlequin Crest, The Cranium Basher, Crescent Moon, Hellfire Torch) were
+  // REMOVED: they collided with existing grail items / the Hellfire Torch material card and hijacked
+  // openDrop/navigateToItem routing (CI red). They still resolve via their grail "(base)" names. So the
+  // off-grail count is now ~102, not 107 — thresholds lowered to ≥100 accordingly.
+  expect(r.count).toBeGreaterThanOrEqual(100);   // ~102 off-grail uniques after removing 5 grail/material dupes
   expect(r.fechmarMatched).toBe(true);            // now in the intake vocab → no throw-out
   expect(r.fechmarRarity).toBe('unique');         // in-game gold colour
   expect(r.fechmarStats.join(' ')).toContain('Enhanced Damage');  // real game stats
   expect(r.fechmarArt).toContain('mr_axeoffechmar');   // HD per-item art (maxroll), self-hosted
-  expect(r.hdArtCoverage).toBeGreaterThanOrEqual(105);  // (nearly) all have HD art now
+  expect(r.hdArtCoverage).toBeGreaterThanOrEqual(100);  // (nearly) all have HD art now
 });
