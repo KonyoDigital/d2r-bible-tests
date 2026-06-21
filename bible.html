@@ -6815,6 +6815,59 @@ function _mfTipHtml(name){
 function _throwClean(name){
   return String(name).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i, '').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i, '').trim();
 }
+// v353 — base reverse-index: which item-TYPE categories a base belongs to, so we can list every
+// runeword that base enables (so a white base reads "keep for Spirit/Insight…" instead of "vendor?").
+function _baseCats(b){
+  b = String(b || '').toLowerCase(); var c = {};
+  if (/shield|buckler|rondache|targe|aegis|\bward\b|scutum|defender|heater|\bluna\b|pavise|monarch|\bnest\b|kite|tower|gothic shield|barbed shield|dragon shield|bone shield|grim shield|ancient shield|round shield|small shield|large shield|spiked shield|hyperion|blade barrier/.test(b)) c['shield'] = 1;
+  else if (/helm|\bcap\b|crown|mask|circlet|coronet|tiara|diadem|casque|basinet|sallet|armet|visage|\bskull\b|shako|coif|cowl|\bhood\b|demon head|bone helm|war hat|winged helm|grand crown|spired helm|bone visage|sallet/.test(b)) c['helm'] = 1;
+  else if (/armor|plate|\bmail\b|hauberk|tunic|jupon|cuirass|shroud|\bhide\b|pelt|shell|carapace|fleece|husk|scale|splint|\bfield\b|kraken|lacquered|wyrmhide|\bdusk\b|trellised|linked|tigulated|russet|breast|chaos|boneweave|great hauberk|balrog skin|quilted|leather|studded|serpentskin|demonhide/.test(b)) c['body armor'] = 1;
+  if (/\bbow\b|crossbow|arbalest|ballista/.test(b)) { c['missile weapon'] = 1; c['weapon'] = 1; }
+  else {
+    var w = false;
+    if (/sword|saber|sabre|scimitar|falchion|tulwar|cutlass|gladius|rapier|broad sword|long sword|bastard sword|claymore|espandon|flamberge|zweihander|colossus blade|colossus sword|tusk sword|legend sword|highland blade|champion sword|conquest sword|ataghan|elegant blade|crystal sword|phase blade|cinquedea|dimensional blade|\bblade\b/.test(b)) { c['sword'] = 1; w = true; }
+    if (/\baxe\b|hatchet|cleaver|tomahawk|tabar|\bnaga\b|chopper|crowbill|hacksaw|berserker axe|cryptic axe|feral axe|decapitator|champion axe|glorious axe|great axe|war axe|military pick|small crescent|ettin axe|twin axe|silver.?edged/.test(b)) { c['axe'] = 1; w = true; }
+    if (/mace|\bclub\b|mallet|morning star|war club|flanged mace|jagged star|knout|spiked club|\bbludgeon\b|cudgel|barbed club|tyrant club|truncheon/.test(b)) { c['mace'] = 1; w = true; }
+    if (/hammer|\bmaul\b|war hammer|battle hammer|legendary mallet|ogre maul|thunder maul/.test(b)) { c['hammer'] = 1; w = true; }
+    if (/scepter|sceptre|caduceus|grand scepter|war scepter|rune scepter|mighty scepter|holy water sprinkler|divine scepter/.test(b)) { c['scepter'] = 1; w = true; }
+    if (/\bwand\b|grim wand|burnt wand|petrified wand|tomb wand|grave wand|yew wand|bone wand|polished wand/.test(b)) { c['wand'] = 1; w = true; }
+    if (/staff|stave|long staff|battle staff|war staff|elder staff|archon staff|gnarled staff|cedar staff|\bjo staff\b|walking stick/.test(b)) { c['staff'] = 1; w = true; }
+    if (/polearm|poleaxe|halberd|bardiche|partizan|\bbill\b|voulge|lochaber|bec.de.corbin|great poleaxe|giant thresher|war scythe|battle scythe|grim scythe|\bthresher\b|scythe/.test(b)) { c['polearm'] = 1; w = true; }
+    if (/spear|pike|lance|trident|brandistock|spetum|fuscina|war fork|\byari\b|stygian pike|mancatcher|ghost spear|hyperion spear|war spear/.test(b)) { c['spear'] = 1; w = true; }
+    if (/dagger|dirk|\bkris\b|poniard|stiletto|bone knife|\bknife\b|fang/.test(b)) { c['dagger'] = 1; w = true; }
+    if (/katar|\bclaw\b|talon|scissors|quhab|wrist|fascia|cestus|suwayyah|hand scythe|greater talon|war fist|battle cestus|feral claw|runic talon/.test(b)) { c['katar'] = 1; w = true; }
+    if (/javelin|\bpilum\b|harpoon|\bdart\b|\bglaive\b/.test(b)) { c['javelin'] = 1; c['missile weapon'] = 1; w = true; }
+    if (w) { c['weapon'] = 1; c['melee weapon'] = 1; }
+  }
+  if (/grimoire|\btome\b|compendium|codex|\btext\b/.test(b)) c['grimoire'] = 1;
+  return c;
+}
+function _baseRunewords(name){
+  if (typeof RUNEWORD_TIP === 'undefined') return [];
+  var cats = _baseCats(name); if (!Object.keys(cats).length) return [];
+  var out = [];
+  for (var rw in RUNEWORD_TIP){
+    var e = RUNEWORD_TIP[rw]; if (!e || !e.b) continue;
+    var m = /(\d+)\s*socket\s*(.+)/i.exec(e.b); if (!m) continue;
+    var s = +m[1], bw = m[2].toLowerCase(), hit = false;
+    Object.keys(cats).forEach(function(k){ if (bw.indexOf(k) >= 0 || bw.indexOf(k + 's') >= 0) hit = true; });
+    if (!hit && /\bweapons?\b/.test(bw) && cats['weapon']) hit = true;
+    if (!hit && /melee weapons?/.test(bw) && cats['melee weapon']) hit = true;
+    if (!hit && /missile weapons?/.test(bw) && cats['missile weapon']) hit = true;
+    if (hit) out.push({ n: rw, s: s });
+  }
+  out.sort(function(a, b){ return a.s - b.s || a.n.localeCompare(b.n); });
+  return out;
+}
+window._baseRunewords = _baseRunewords;
+// v353 — the runeword line for a base hover-card: lists enablers + the max sockets to chase.
+function _baseRWLine(name){
+  var rws = _baseRunewords(name); if (!rws.length) return '';
+  var maxS = rws.reduce(function(m, r){ return Math.max(m, r.s); }, 0);
+  var show = rws.slice(0, 10).map(function(r){ return _d2artEsc(r.n) + ' <span style="opacity:.6">(' + r.s + 'os)</span>'; }).join(', ');
+  return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — ' + show + (rws.length > 10 ? ' +' + (rws.length - 10) + ' more' : '')
+    + '<div class="att-tag" style="margin-top:3px">aim for a <b>' + maxS + ' socket</b> base to cover the best ones</div></div>';
+}
 // v349 — floating #arttip card for a throw-out (unmatched read) item, SAME att-* format as the others.
 function _throwTipHtml(name){
   var clean = _throwClean(name);
@@ -6825,6 +6878,8 @@ function _throwTipHtml(name){
   out += '<div class="att-aff">' + (isBase
     ? 'A white/grey socketed base the AI read in your stash. Low bases are filtered out of grail — keep it only if it’s a runeword/craft base.'
     : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.') + '</div>';
+  // v353 — if this base enables runewords, say which (and what socket count to chase) → keep vs vendor.
+  if (isBase) { var _rwl = _baseRWLine(clean); if (_rwl) out += _rwl; }
   out += '<div class="att-tag">🗑 Throw-out — review</div>';
   out += '<div class="att-info">🔮 Keep → Magic &amp; Rare, or ✕ dismiss. Click for the full card.</div>';
   return out;
