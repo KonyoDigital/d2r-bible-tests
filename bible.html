@@ -21323,9 +21323,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try {
         // v342 — calibrate like runes/gems: LOCATE the hovered description tooltip, crop GENEROUSLY to
         // it (never clip), and ENLARGE so its text reads crisp — then read the ONE hovered item.
-        var b64, _box = null;
+        var b64, _box = null, _imRef = null;
         try {
           var _L = await _vLoadImg(files[i]);
+          _imRef = _L.im;   // v346 — kept for the empty-read full-image retry below
           // CHEAP locate input — a small 860px JPEG is plenty to find WHERE the dark tooltip box is
           // (Haiku reads it server-side); the real READ below uses the full-quality crop. Keeps credits sane.
           var _small = _vEnlarge(_L.im, null, 860, 0.72);
@@ -21347,6 +21348,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }, 75000);
         if (!resp.ok) { errors++; fRec.err = true; return; }
         var data = await resp.json();
+        // v346 — AUTO-RETRY EMPTIES on the FULL image. A cropped read that returns NOTHING (no items,
+        // finds, OR unrecognized) almost always means the LOCATE box clipped/missed the tooltip — the
+        // text simply wasn't in the crop. Re-read the whole uncropped image (cropped:false, so no
+        // single-item cap) to recover the item instead of logging a false "empty". One extra call only
+        // for shots that would otherwise be a total miss.
+        var _isEmpty = function(d){ return !d || !((d.items&&d.items.length)||(d.finds&&d.finds.length)||(d.unrecognized&&d.unrecognized.length)); };
+        if (_isEmpty(data) && _box && _imRef){
+          try {
+            var _full = _vEnlarge(_imRef, null);
+            var _r2 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+              body: JSON.stringify({ image:_full, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
+            if (_r2.ok){ var _d2 = await _r2.json(); if (!_isEmpty(_d2)){ data = _d2;
+              try { console.log('[vault-intake] ' + fname + ' → empty crop → full-image retry recovered', _d2.items || _d2.unrecognized); } catch(e){} } }
+          } catch(e){}
+        }
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
         (data.items || []).forEach(function(n){
