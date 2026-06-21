@@ -6771,6 +6771,23 @@ function _magicFindCardHtml(name){
     + ' Tracked as a rolled-name keeper — there\'s no fixed drop card, so this is the summary.</div></section>'
     + '</div>';
 }
+// v345 — floating #arttip card for a Magic & Rare keeper, SAME format as the Socketed/EXTRA tooltips
+// (att-type · att-meta · att-aff · att-tag · att-info). The enlarged base art is supplied by the tip's
+// top <img> (resolver returns artSrc); this is the text body below it.
+function _mfTipHtml(name){
+  var q = (typeof _mfQual === 'function') ? _mfQual(name) : 'magic';
+  var base = (typeof _mfBase === 'function') ? _mfBase(name) : '';
+  var qLabel = q === 'rare' ? 'Rare' : (q === 'crafted' ? 'Crafted' : 'Magic');
+  var roll = q === 'magic' ? '1–2 random affixes' : (q === 'crafted' ? '3 fixed mods + 1–4 random' : '3–6 random affixes');
+  var blurb = q === 'magic' ? 'Keep for the affix(es) + any open sockets (gemming).'
+    : q === 'crafted' ? 'Guaranteed mods + rolled affixes — judge it by the mods on the actual item.'
+    : 'Value is in the affix combo (skills / FCR / leech / resist / life). Judge it by the stats on the item.';
+  return '<div class="att-type">' + qLabel + (base ? ' &middot; ' + _d2artEsc(base) : '') + '</div>'
+    + '<div class="att-meta">🔮 Magic &amp; Rare keeper</div>'
+    + '<div class="att-aff">' + blurb + '</div>'
+    + '<div class="att-tag">rolls: ' + roll + '</div>'
+    + '<div class="att-info">Rolled-name item — no fixed drop card. Click for the full keeper card.</div>';
+}
 window.openDrop = function(name){
   // v342.18 — Magic & Rare keeper (rolled-name): no boss/rune/material/item match → show its summary card.
   if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]){
@@ -9707,6 +9724,23 @@ function _magicArtSrc(base){
   // accessories — jewelry rare-name TYPE-WORDS (only reached if NOT armor above)
   if(/\b(ring|loop|knot|whorl|band|coil|gyre|spiral|turn|circle)\b/.test(b)) return 'art/ring1_graphic.png';
   if(/\b(amulet|necklace|choker|locket|pendant|beads|collar|noose|talisman|scarab)\b/.test(b)) return 'art/amu1_graphic.png';
+  // v345 — generic WEAPON-CLASS fallback so rolled-name rare/magic WEAPONS (Cinquedeas, Voulge,
+  // Grand Matron Bow…) show a base sprite (we already self-host these class graphics) instead of the
+  // ◆ glyph. Specific elite weapon bases are handled by BM above; this catches the rest by class.
+  // Order = most-specific class first (polearm/scythe before the generic axe/sword words).
+  if(/crossbow|arbalest|ballista/.test(b)) return 'art/reflexbow_graphic.png';
+  if(/\bbow\b/.test(b)) return 'art/shortbow_graphic.png';
+  if(/voulge|poleaxe|halberd|bardiche|partizan|\bbill\b|lochaber|bec-de-corbin|ogre axe|colossus voulge|great poleaxe|giant thresher|\bglaive\b/.test(b)) return 'art/voulge_graphic.png';
+  if(/scythe|thresher/.test(b)) return 'art/warscythe_graphic.png';
+  if(/javelin|throwing spear|\bpilum\b|harpoon|\bdart\b/.test(b)) return 'art/maidenjavelin_graphic.png';
+  if(/\bspear\b|\bpike\b|\blance\b|trident|brandistock|spetum|fuscina|war fork|\byari\b|mancatcher/.test(b)) return 'art/pike_graphic.png';
+  if(/\bkatar\b|\bclaw\b|claws|talon|scissors|quhab|wrist|fascia|cestus|suwayyah/.test(b)) return 'art/claws_graphic.png';
+  if(/\bwand\b|grim wand|burnt wand|petrified wand|tomb wand|grave wand|yew wand|bone wand/.test(b)) return 'art/wand_graphic.png';
+  if(/\bstaff\b|stave|long staff|battle staff|war staff|elder staff|archon staff|gnarled staff|cedar staff/.test(b)) return 'art/shortstaff_graphic.png';
+  if(/scepter|sceptre|caduceus|\bmace\b|\bclub\b|mallet|hammer|\bmaul\b|flail|morning star|war club|flanged mace|jagged star|knout|spiked club|\bbludgeon\b/.test(b)) return 'art/maul_graphic.png';
+  if(/orb|sacred globe|smoked sphere|clasped orb|dimensional shard|heavenly stone|eldritch orb|demon heart|vortex orb|crystalline globe|stellar/.test(b)) return 'art/grimwand_graphic.png';
+  if(/\baxe\b|hatchet|cleaver|tomahawk|tabar|\bchopper\b|crowbill|hacksaw|\bberdiche\b|\bnaga\b/.test(b)) return 'art/broadaxe_graphic.png';
+  if(/cinquedea|\bsword\b|saber|sabre|scimitar|falchion|tulwar|cutlass|gladius|rapier|broad sword|long sword|bastard sword|claymore|espandon|flamberge|zweihander|colossus blade|colossus sword|tusk sword|legend sword|highland blade|champion sword|conquest sword|ataghan|elegant blade|crystal sword|phase blade|\bblade\b/.test(b)) return 'art/base_crystalsword.png';
   return null;
 }
 // v342.4 — unmatched reads: legible names the AI read that matched neither grail nor a keeper. Persisted
@@ -15035,6 +15069,12 @@ function _arttipResolve(nm){
   if (typeof RW_BASE_INDEX !== 'undefined' && RW_BASE_INDEX[nm]){ return { artName: _rwBaseArtName(nm), desc: _rwBaseTipHtml(nm), rich: true }; }
   // High-Value Finds reference profiles (non-unique; uniques already resolved via ITEM_TIP above)
   if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm]) return { artName: nm, desc: _extraTipHtml(nm), rich: true };
+  // v345 — Magic & Rare keeper (rolled-name): rich card + base-type art (artSrc, since artUrl can't
+  // resolve a rolled name). Last resort before the empty fallback so a real grail never lands here.
+  if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]) {
+    var _mfb = (typeof _mfBase === 'function') ? _mfBase(nm) : '';
+    return { artName: '', artSrc: (typeof _magicArtSrc === 'function') ? _magicArtSrc(_mfb || nm) : null, desc: _mfTipHtml(nm), rich: true };
+  }
   return { artName: nm, desc: '', rich: false };
 }
 window._arttipResolve = _arttipResolve;
@@ -15219,6 +15259,9 @@ window._jewelTipHtml = _jewelTipHtml;
           var vr = (typeof _arttipResolve==='function') ? _arttipResolve(wn) : null;
           if (vr && vr.rich && vr.desc){
             var vurl = (typeof artUrl==='function') ? (artUrl(wn) || artUrl(vr.artName)) : '';
+            // v345 — rolled-name keepers have no artUrl entry: fall back to the wrap's own <img> src
+            // (the base sprite) or the resolver's artSrc so the rich card still shows an image.
+            if (!vurl){ var _wi = el.querySelector('img'); vurl = (_wi && _wi.getAttribute('src')) || vr.artSrc || ''; }
             cur = el;
             img.src = vurl || ''; img.style.display = vurl ? '' : 'none';
             lab.textContent = wn; lab.style.color = (typeof _tipTint==='function' ? _tipTint(wn) : '') || '';
@@ -15259,6 +15302,7 @@ window._jewelTipHtml = _jewelTipHtml;
       var nm = nameOf(el); if (!nm) return;
       var r = (typeof _arttipResolve==='function') ? _arttipResolve(nm) : { artName:nm, desc:'', rich:false };
       var url = (typeof artUrl==='function') ? (artUrl(nm) || artUrl(r.artName)) : '';
+      if (!url && r.artSrc) url = r.artSrc;   // v345 — rolled-name keeper base sprite
       if (!url && !r.desc) return;
       cur = el;
       img.src = url || ''; img.style.display = url ? '' : 'none';
@@ -20739,9 +20783,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var artHtml = src
             ? '<span class="vm-cell-art d2art-wrap lg d2art-r-'+(q==='magic'?'magic':q==='rare'?'rare':'rw')+'" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+src+'" alt="" loading="lazy"></span>'
             : '<span class="vm-cell-art vmc-gemfallback" style="color:'+col+'">◆</span>';
-          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'
+          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'
             + artHtml
-            + '<span class="vm-item-name vm-cell-name" style="color:'+col+'">'+esc(n)+'</span>'
+            + '<span class="vm-item-name vm-cell-name" data-arttip="'+esc(n)+'" style="color:'+col+'">'+esc(n)+'</span>'
             + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
         }));
       }
@@ -21436,7 +21480,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')
       + _needLook
-      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc">+ <b>' + dupes.length + '</b> already-owned</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>' + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
+      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc" title="' + (_preReg > 0 ? 'these items were already ✓ in your vault BEFORE this scan' : 'the vault was EMPTY at the start of this scan, so these are DUPLICATE SHOTS — the same item appeared in an earlier screenshot of this same batch (first = new, this = the repeat). Collapsed to one, never double-counted — NOT based on any prior history.') + '">+ <b>' + dupes.length + '</b> ' + (_preReg > 0 ? 'already-owned' : 'duplicate shot' + (dupes.length === 1 ? '' : 's')) + '</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>' + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
       + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
       + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
     report.innerHTML = html;
