@@ -9474,15 +9474,24 @@ function _vColorName(n){
     + ' onclick="window.openDrop&&window.openDrop(\'' + js + '\')" title="open ' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>';
 }
 window._vColorName = _vColorName;
-// v359 — click a screenshot thumbnail to view it full-size (the shot that produced these item reads).
-window._shotLightbox = function(src){
-  if (!src) return;
-  var ex = document.getElementById('_shotlb'); if (ex) ex.remove();
-  var o = document.createElement('div'); o.id = '_shotlb'; o.className = 'shot-lightbox';
-  var im = document.createElement('img'); im.src = src; o.appendChild(im);
-  o.addEventListener('click', function(){ o.remove(); });
-  document.addEventListener('keydown', function _esc(ev){ if (ev.key === 'Escape'){ var x = document.getElementById('_shotlb'); if (x) x.remove(); document.removeEventListener('keydown', _esc); } });
-  document.body.appendChild(o);
+// v359/v365 — click a screenshot thumbnail → view the FULL-RES shot (1920px from IndexedDB), full-screen.
+// Args: (shotKey, fallbackSrc). shotKey = the filename → looked up in the full-res store; falls back to the
+// small thumb src if the full-res isn't available (older scan). A data: src is shown directly (back-compat).
+window._shotLightbox = function(shotKey, fallbackSrc){
+  if (!shotKey && !fallbackSrc) return;
+  var show = function(src){
+    if (!src) return;
+    var ex = document.getElementById('_shotlb'); if (ex) ex.remove();
+    var o = document.createElement('div'); o.id = '_shotlb'; o.className = 'shot-lightbox';
+    var im = document.createElement('img'); im.src = src; o.appendChild(im);
+    o.addEventListener('click', function(){ o.remove(); });
+    document.addEventListener('keydown', function _esc(ev){ if (ev.key === 'Escape'){ var x = document.getElementById('_shotlb'); if (x) x.remove(); document.removeEventListener('keydown', _esc); } });
+    document.body.appendChild(o);
+  };
+  if (shotKey && String(shotKey).indexOf('data:') === 0){ show(shotKey); return; }
+  if (shotKey && typeof window._vGetShot === 'function'){
+    window._vGetShot(shotKey).then(function(full){ show(full || fallbackSrc || ''); }).catch(function(){ show(fallbackSrc || ''); });
+  } else { show(fallbackSrc || ''); }
 };
 // v341.42 — flagship animated loader for the 1-photo AI intakes: a centred scanning overlay
 // (sweep + pulsing lens + indeterminate bar) floated on the stash GRID while the AI reads the
@@ -20508,8 +20517,10 @@ body{
 .pf-thumb{width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid rgba(127,212,255,.3);margin-right:8px;cursor:zoom-in;flex:0 0 auto;vertical-align:middle;transition:transform .1s,border-color .1s}
 .pf-thumb:hover{transform:scale(1.08);border-color:var(--gold-bright,#f0c060)}
 .pf-row{display:flex;align-items:center}
-.shot-lightbox{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(3px)}
-.shot-lightbox img{max-width:92vw;max-height:92vh;border:2px solid rgba(240,192,96,.5);border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+.shot-lightbox{position:fixed;inset:0;z-index:2147483600;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(4px)}
+/* v365 — fill the screen with the full-res shot (the stored image is 1920px); width+height auto so it
+   scales up to ~97vw/97vh at native aspect, image-rendering auto for a crisp full-size view. */
+.shot-lightbox img{width:auto;height:auto;max-width:97vw;max-height:97vh;object-fit:contain;image-rendering:auto;border:2px solid rgba(240,192,96,.5);border-radius:8px;box-shadow:0 10px 60px rgba(0,0,0,.85)}
 .pf-new{color:var(--best,#66ff88)}
 .pf-magic{color:#b58cff}
 .pf-own{color:#7fd4ff}
@@ -20667,6 +20678,16 @@ body{
 .vault-mule[class*="vm-a-"] .vm-count{color:rgb(var(--acc));background:rgba(var(--acc),.12);border:1px solid rgba(var(--acc),.3);border-radius:9px;padding:1px 8px;font-weight:700;line-height:1.5}
 .vault-mule[class*="vm-a-"] .vm-gauge-fill:not(.vg-hot){background:linear-gradient(90deg,rgba(var(--acc),.35),rgb(var(--acc)))}
 .vault-mule[class*="vm-a-"]:hover{border-color:rgba(var(--acc),.5);box-shadow:inset 0 0 0 1px rgba(var(--acc),.2),0 6px 20px rgba(0,0,0,.45),0 0 22px rgba(var(--acc),.13);transform:translateY(-2px)}
+/* v365 — SHARED STASH = its OWN emphasized section ABOVE the mules: full-width, first in the grid,
+   bigger plate/title + a distinct cyan-gold glow so it reads as the cross-account storage, not a mule. */
+.vault-mule.vm-shared{order:-1;grid-column:1/-1;border:2px solid rgba(127,212,255,.55);background:linear-gradient(180deg,rgba(127,212,255,.07),rgba(10,14,20,.5));box-shadow:inset 0 0 0 1px rgba(127,212,255,.18),0 8px 28px rgba(0,0,0,.5),0 0 30px rgba(127,212,255,.14);margin-bottom:6px}
+.vault-mule.vm-shared .vm-plate{background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.04));border-bottom:1px solid rgba(127,212,255,.34);padding:9px 12px}
+.vault-mule.vm-shared .vm-icon{font-size:24px;filter:drop-shadow(0 0 7px rgba(127,212,255,.6))}
+.vault-mule.vm-shared .vm-name{font-size:15px;letter-spacing:.12em;color:#aee4ff;text-shadow:0 1px 2px rgba(0,0,0,.8),0 0 12px rgba(127,212,255,.4)}
+.vault-mule.vm-shared .vm-name::after{content:" · shared by all characters";font-size:9.5px;letter-spacing:.04em;opacity:.6;font-weight:600}
+.vault-mule.vm-shared .vm-count{color:#0b1118;background:#7fd4ff;border:none}
+.vault-mule.vm-shared .vm-body{min-height:96px}
+.vault-mule.vm-shared:hover{border-color:rgba(127,212,255,.8);box-shadow:inset 0 0 0 1px rgba(127,212,255,.28),0 10px 32px rgba(0,0,0,.55),0 0 40px rgba(127,212,255,.22);transform:translateY(-2px)}
 /* mule ID card — FULLSCREEN in-game replica (v214, calibrated to Konyo's RotW shots) */
 .vault-detail.vd-fs{position:fixed;inset:0;z-index:99997;margin:0;border:none;border-radius:0;overflow:auto;background:radial-gradient(ellipse at 50% 30%,#15100a,#070503 75%);padding:14px 26px 30px;display:flex;flex-direction:column}
 html.vd-lock,html.vd-lock body{overflow:hidden}
@@ -21286,8 +21307,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + '<details class="vm-more"><summary class="vm-more-sum"><span class="vmm-open">+ '+(itemRows.length-SHOWN)+' more ▾</span><span class="vmm-close">show less ▴</span></summary>'
           + _gridWrap(itemRows.slice(SHOWN)) + '</details>';
       } else { itemsHtml = _gridWrap(itemRows); }
-      return '<div class="vault-mule '+_muleAccent(m.id)+'" data-vault-mule="'+esc(m.id)+'">'
-        + '<div class="vm-plate" title="click: open the in-game ID card of this mule · with a chip selected: assign it here">'
+      // v365 — SHARED STASH is its OWN emphasized section ABOVE the mules (full-width, bigger), so it's
+      // clearly distinguished as the cross-account storage — not just another mule.
+      return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+'" data-vault-mule="'+esc(m.id)+'">'
+        + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count">'+total+'</span>'
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
@@ -21729,7 +21752,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!items.length && !(perFile && perFile.length)) return;
     var j = journal();
     var sf = function(s){ return String(s||'').replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
-    var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err, th:(f.thumb||'') }; });
+    var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), ff:(f.file||''), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err, th:(f.thumb||'') }; });
     j.unshift({ ts: Date.now(), items: items.slice(0, 30), pf: pf });
     // v359 — thumbnails are heavy: keep them ONLY on the newest session; strip from older ones to bound storage.
     for (var _k = 1; _k < j.length; _k++){ if (j[_k] && j[_k].pf){ j[_k].pf.forEach(function(p){ if (p) delete p.th; }); } }
@@ -21768,7 +21791,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (f.unr && f.unr.length) c.push('<span class="pf-chip pf-throw">🗑 '+f.unr.length+'</span><span class="pf-names">'+f.unr.map(_cn).join(', ')+'</span>');
           if (f.e) c.push('<span class="pf-chip pf-err">⚠ failed</span>');
           var empty = !c.length; if (empty) c.push('<span class="pf-chip pf-empty">∅</span><span class="pf-names pf-dim">no tooltip text</span>');
-          var _th = f.th ? '<img class="pf-thumb" src="'+f.th+'" loading="lazy" title="click to enlarge the screenshot" onclick="window._shotLightbox&&window._shotLightbox(this.src)">' : '';
+          var _th = f.th ? '<img class="pf-thumb" src="'+f.th+'" loading="lazy" title="click to enlarge the screenshot (full size)" data-shot="'+esc(f.ff||f.f||'')+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">' : '';
           return '<div class="pf-row'+(empty?' pf-row-dim':'')+'">'+_th+'<span class="pf-time">'+esc(f.f)+'</span><span class="pf-st">'+c.join('')+'</span></div>';
         }).join('');
         pfHtml = '<details class="vir-pf vj-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+e.pf.length+' file'+(e.pf.length===1?'':'s')+'</span></summary><div class="vir-pf-body">'+rows+'</div></details>';
@@ -21873,6 +21896,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     }
     var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false }; });
+    try { _vClearShots(); } catch(e){}   // v365 — only the newest scan keeps full-res shots (bound IndexedDB)
     var endpoint = localStorage.getItem('d2r_intakeUrl')
       || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
     var doneCount = 0;
@@ -21891,6 +21915,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var _L = await _vLoadImg(files[i]);
           _imRef = _L.im;   // v346 — kept for the empty-read full-image retry below
           try { fRec.thumb = 'data:image/jpeg;base64,' + _vEnlarge(_L.im, null, 220, 0.5); } catch(e){}   // v359 — small thumbnail of the uploaded shot, linked to what it read
+          try { _vPutShot(fname, 'data:image/jpeg;base64,' + _vEnlarge(_L.im, null, 1920, 0.82)); } catch(e){}   // v365 — full-res shot in IndexedDB for click-to-enlarge (1920px)
           // CHEAP locate input — a small 860px JPEG is plenty to find WHERE the dark tooltip box is
           // (Haiku reads it server-side); the real READ below uses the full-quality crop. Keeps credits sane.
           var _small = _vEnlarge(_L.im, null, 860, 0.72);
@@ -22041,7 +22066,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (f.err) chips.push('<span class="pf-chip pf-err">⚠ failed</span>');
         var empty = !chips.length;
         if (empty) chips.push('<span class="pf-chip pf-empty">∅ empty</span><span class="pf-names pf-dim">no tooltip text — hover an item / hold Alt</span>');
-        var _th = f.thumb ? '<img class="pf-thumb" src="'+f.thumb+'" loading="lazy" title="click to enlarge the screenshot" onclick="window._shotLightbox&&window._shotLightbox(this.src)">' : '';
+        var _th = f.thumb ? '<img class="pf-thumb" src="'+f.thumb+'" loading="lazy" title="click to enlarge the screenshot (full size)" data-shot="'+esc(f.file)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">' : '';
         return '<div class="pf-row'+(empty?' pf-row-dim':'')+'">'+_th+'<span class="pf-time">'+esc(_shortF(f.file))+'</span><span class="pf-st">'+chips.join('')+'</span></div>';
       }).join('');
       body += '<details class="vir-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+files.length+' file'+(files.length===1?'':'s')+'</span></summary><div class="vir-pf-body">' + pf + '</div></details>';
@@ -22098,6 +22123,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var t=db.transaction('kv','readonly'); var q=t.objectStore('kv').get(k);
     q.onsuccess=function(){ res(q.result); }; q.onerror=function(){ rej(q.error); };
   }); }); }
+  // v365 — full-res screenshot store (IndexedDB, big quota) so click-to-enlarge shows the REAL 1920×1080
+  // shot, not the tiny 220px grid thumb. Keyed 'shot:<filename>'. Cleared each scan → only the latest
+  // batch is kept full-res (bounded). The small thumb stays in the journal for the grid icon.
+  function _vPutShot(f, dataUrl){ return idbSet('shot:' + f, dataUrl).catch(function(){}); }
+  function _vClearShots(){ return idb().then(function(db){ return new Promise(function(res){
+    var t = db.transaction('kv', 'readwrite'); var st = t.objectStore('kv'); var cur = st.openCursor();
+    cur.onsuccess = function(){ var c = cur.result; if (c){ if (String(c.key).indexOf('shot:') === 0) st.delete(c.key); c.continue(); } };
+    t.oncomplete = function(){ res(); }; t.onerror = function(){ res(); };
+  }); }).catch(function(){}); }
+  window._vGetShot = function(f){ return idbGet('shot:' + f).then(function(v){ return v || null; }).catch(function(){ return null; }); };
   function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
   // v224: ONE scan menu, rendered FULL-WIDTH in #vault-intake-report (the tiny
   // toolbar #vault-status span was invisible to Konyo — REG-class lesson:

@@ -68,8 +68,9 @@ test.describe('v205 AI intake', () => {
     expect(r.ownedShako).toBe(true);
     expect(r.ownedSoj).toBe(true);
     expect(r.persisted).toContain('Harlequin Crest (Shako)');
-    expect(r.assigned['The Stone of Jordan']).toBe('uni-small');
-    expect(r.assigned['Harlequin Crest (Shako)']).toBe('uni-armor');
+    // v364: SoJ + Shako are both high trade value → auto-route to the SHARED cross-account stash.
+    expect(r.assigned['The Stone of Jordan']).toBe('shared');
+    expect(r.assigned['Harlequin Crest (Shako)']).toBe('shared');
     expect(r.report).toContain('2 NEW logged');  // v342: report card "✓ 2 NEW logged + assigned"
     expect(r.report).toContain('Hephast⚒ The Armorer');
     expect(r.report).toContain('≈$');  // v342: cost shown in the card header (was "of API budget used")
