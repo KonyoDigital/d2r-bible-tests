@@ -1304,26 +1304,31 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwc-chip:hover{border-color:#b58cff;color:#e6dcff}
 .rwc-chip.on{background:rgba(181,140,255,.18);border-color:#b58cff;color:#fff;box-shadow:0 0 8px rgba(181,140,255,.4)}
 .rwc-list{display:flex;flex-direction:column;max-height:560px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
-.rwc-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-bottom:1px dotted var(--border);cursor:pointer;transition:background .1s}
+/* v369.2 — symmetric GRID rows: every row's art+name · recipe · status · toggle line up in fixed columns */
+.rwc-row{display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(150px,1.5fr) 134px 66px;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .1s}
 .rwc-row:last-child{border-bottom:0}
-.rwc-row:hover{background:rgba(255,255,255,.04)}
-.rwc-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-bright);display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;flex:0 0 auto;min-width:108px;max-width:200px}
+.rwc-row:hover{background:rgba(255,255,255,.045)}
+.rwc-head{display:flex;align-items:center;gap:9px;min-width:0}
+.rwc-head .d2art-wrap.sm{width:26px;height:26px;flex:0 0 auto}.rwc-head .d2art-wrap.sm .d2art-img{max-width:26px;max-height:26px}
+.rwc-glyph{font-size:18px;line-height:1;width:26px;text-align:center;flex:0 0 auto;opacity:.7}
+.rwc-title{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rwc-name{font-weight:800;color:var(--q-orange);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rwc-base{font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rwc-recipe{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-bright);display:flex;align-items:center;gap:3px;flex-wrap:wrap;min-width:0}
 .rwc-recipe .d2art-wrap.sm{width:18px;height:18px}.rwc-recipe .d2art-wrap.sm .d2art-img{max-width:18px;max-height:18px}
-.rwc-main{display:flex;flex-direction:column;gap:1px;min-width:128px;flex:1}
-.rwc-name{font-weight:800;color:var(--q-orange);font-size:13px}
-.rwc-base{font-size:10.5px;color:var(--text-dim)}
-.rwc-status{display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-left:auto;text-align:right;flex:0 0 auto;max-width:230px}
-.rwc-badge{font-family:ui-monospace,monospace;font-size:10px;font-weight:800;letter-spacing:.3px;padding:1px 7px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
+.rwc-status{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.rwc-badge{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
 .rwc-b-made{color:#b58cff}.rwc-b-now{color:#66ff88}.rwc-b-cube{color:#7fd4ff}.rwc-b-need{color:#8a96a4}
-.rwc-date{font-size:9.5px;color:#9a86c8;font-family:ui-monospace,monospace}
-.rwc-need{font-size:9.5px;color:#8a96a4;font-family:ui-monospace,monospace;line-height:1.3}
-.rwc-toggle{flex:0 0 auto;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);cursor:pointer;transition:.12s;white-space:nowrap}
+.rwc-date{font-size:9px;color:#9a86c8;font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.rwc-need{font-size:9px;color:#8a96a4;font-family:ui-monospace,monospace;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.rwc-toggle{justify-self:end;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;padding:5px 0;width:60px;text-align:center;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);cursor:pointer;transition:.12s;white-space:nowrap}
 .rwc-toggle:hover{border-color:#66ff88;color:#66ff88}
 .rwc-toggle.on{border-color:#b58cff;color:#b58cff;background:rgba(181,140,255,.14)}
-.rwc-row.rwc-made{background:rgba(181,140,255,.07)}
+.rwc-row.rwc-made{background:rgba(181,140,255,.06)}
 .rwc-row.rwc-made .rwc-name{filter:saturate(.85)}
-.rwc-row.rwc-r-now{background:rgba(102,255,136,.05)}
+.rwc-row.rwc-r-now{background:rgba(102,255,136,.045)}
 .rwc-row.rwc-r-now .rwc-name{text-shadow:0 0 7px rgba(102,255,136,.5)}
+@media(max-width:760px){.rwc-row{grid-template-columns:1fr auto;gap:6px 10px}.rwc-status{grid-column:1}.rwc-toggle{grid-row:1;grid-column:2}}
 /* v277: "What I can make" reuses the runeword-row style in a boxed scroll list */
 .rw-make-scroll{margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:2px 8px;background:var(--surface-2);max-height:340px}
 /* v311: keep the name in runeword-orange; show craftable/cubeable as a GLOW, not a colour swap */
@@ -13598,6 +13603,21 @@ window.rwToggleMade = function(name){
   try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){}
   renderRunewordChronicle();
 };
+// v369.2 — runeword base-string → a verified-present base sprite (same files as the EXTRA_ITEMS art map),
+// so every Chronicle row shows a slot-appropriate icon (shield/armor/helm/weapon) instead of a bare glyph.
+function _rwcCatArt(b){
+  b = String(b||'').toLowerCase();
+  if (/shield|aegis|\bward\b|targe|rondache/.test(b)) return 'art/rondache_graphic.png';
+  if (/body armor/.test(b)) return 'art/balrogskin_graphic.png';
+  if (/helm|circlet|\bcap\b|crown/.test(b)) return 'art/fangedhelm_graphic.png';
+  if (/bow|crossbow|missile/.test(b)) return 'art/longbattlebow_graphic.png';
+  if (/polearm|spear/.test(b)) return 'art/poleaxe_graphic.png';
+  if (/\baxe/.test(b)) return 'art/broadaxe_graphic.png';
+  if (/mace|hammer|club|scepter|sceptre/.test(b)) return 'art/maul_graphic.png';
+  if (/wand|staff|stave/.test(b)) return 'art/grimwand_graphic.png';
+  if (/sword|blade|dagger|knife|katar|claw|orb|weapon/.test(b)) return 'art/swordguard_graphic.png';
+  return '';
+}
 function _rwCategory(b){
   b = String(b||'').toLowerCase();
   if (/shield|aegis|\bward\b|targe|rondache/.test(b)) return 'Offhand';
@@ -13664,9 +13684,16 @@ function renderRunewordChronicle(){
     else if (x.cube){ cls='rwc-r-cube'; badge='<span class="rwc-badge rwc-b-cube">🧪 Cube-up</span><span class="rwc-need">need '+esc(x.missing.join(', '))+'</span>'; }
     else { cls='rwc-r-need'; badge='<span class="rwc-badge rwc-b-need">⏳ Missing</span><span class="rwc-need">'+esc(x.missing.join(', '))+'</span>'; }
     var toggle = '<button class="rwc-toggle'+(x.made?' on':'')+'" onclick="event.stopPropagation();window.rwToggleMade(\''+oc+'\')" title="'+(x.made?'un-mark (not yet created)':'mark as created')+'">'+(x.made?'↺':'✓ made')+'</button>';
-    return '<div class="rwc-row '+cls+'" data-arttip="'+esc(x.n)+'" onclick="window.openDrop&&window.openDrop(\''+oc+'\')" title="open the '+esc(x.n)+' ID card">'
-      + '<span class="rwc-recipe">'+(typeof _rwRecipeArt==='function'?_rwRecipeArt(x.rec.join(' + ')):esc(x.rec.join('+')))+'</span>'
-      + '<span class="rwc-main"><span class="rwc-name">'+esc(x.n)+'</span><span class="rwc-base">'+esc(x.e.b||'')+(x.e.r?' · lvl '+x.e.r:'')+'</span></span>'
+    // v369.2 — runeword icon = its base-item sprite (via _rwArtName); name carries data-arttip → the
+    // in-game runeword card floats on hover. Layout: art + NAME + base FIRST, then the recipe IN ORDER.
+    var _rwArt = (typeof _rwArtName==='function') ? _rwArtName(x.n) : x.n;
+    var _rwSrc = ((typeof artUrl==='function') ? (artUrl(_rwArt)||'') : '') || _rwcCatArt(x.e.b);   // base-type sprite from "N socket Shields/Body Armor/…"
+    var artH = _rwSrc
+      ? '<span class="d2art-wrap sm" role="img" aria-label="'+esc(x.n)+'"><img class="d2art-img" src="'+esc(_rwSrc)+'" alt="" loading="lazy"></span>'
+      : '<span class="rwc-glyph" aria-hidden="true">📜</span>';
+    return '<div class="rwc-row '+cls+'" onclick="window.openDrop&&window.openDrop(\''+oc+'\')" title="open the '+esc(x.n)+' ID card">'
+      + '<span class="rwc-head">'+artH+'<span class="rwc-title"><span class="rwc-name" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</span><span class="rwc-base">'+esc(x.e.b||'')+(x.e.r?' · lvl '+x.e.r:'')+'</span></span></span>'
+      + '<span class="rwc-recipe" title="recipe order — insert the runes left → right">'+(typeof _rwRecipeArt==='function'?_rwRecipeArt(x.rec.join(' + ')):esc(x.rec.join(' + ')))+'</span>'
       + '<span class="rwc-status">'+badge+'</span>'
       + toggle
       + '</div>';
