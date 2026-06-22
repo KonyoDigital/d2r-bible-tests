@@ -7040,9 +7040,14 @@ function _baseRWLine(name, knownSockets){
           : '<span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>')
       + '</div>';
   }
-  var show = rws.slice(0, 10).map(function(r){ return _d2artEsc(r.n) + ' <span style="opacity:.6">(' + r.s + 'os)</span>'; }).join(', ');
-  return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — ' + show + (rws.length > 10 ? ' +' + (rws.length - 10) + ' more' : '')
-    + '<div class="att-tag" style="margin-top:3px">aim for a <b>' + maxS + ' socket</b> base to cover the best ones</div></div>';
+  // v392 — name-only / unknown-socket read: the ACTIONABLE runewords are the best ones at this base's MAX
+  // sockets (what you'd Larzuk it to), NOT a confusing mix of 2os/3os/4os words. Show only the max-count
+  // runewords as the target (Konyo: a Grim Scythe shouldn't list 2os Strength/Wind as if they're relevant).
+  var best = rws.filter(function(r){ return r.s === maxS; });
+  var show = best.slice(0, 14).map(function(r){ return _d2artEsc(r.n); }).join(', ');
+  return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
+    + (show || '<span style="opacity:.7">—</span>') + (best.length > 14 ? ' +' + (best.length - 14) + ' more' : '')
+    + '<div class="att-tag" style="margin-top:3px">Larzuk → <b>' + maxS + ' sockets</b> (guaranteed max) unlocks these</div></div>';
 }
 window._baseRWLine = _baseRWLine;
 // v376 — VERIFIED per-base MAX socket counts (max at ilvl 41+), cross-checked Maxroll + D2Runewizard +
