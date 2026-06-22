@@ -69,6 +69,14 @@ export async function onRequestPost(context) {
     + 'keeps only worthwhile elite runeword bases to Larzuk later and ignores common junk) — but ONLY that single hovered '
     + 'tooltip, NEVER zero-socket bare grid icons. '
     + 'Do NOT also put a socketed base\'s name in "unrecognized". '
+    + '(2c) CRITICAL — COLOUR decides routing, NOT the socket text. "sockets" is ONLY for a WHITE / GREY / '
+    + 'SUPERIOR / MAGIC(blue) base. A UNIQUE (gold/tan/brown name) or SET (green name) item is STILL that '
+    + 'unique/set EVEN IF IT HAS SOCKETS — read the TOP coloured NAME line (e.g. "Black Hades", "Tyrael\'s '
+    + 'Might") and put THAT in "items"; NEVER route a unique/set to "sockets" and NEVER report its grey base '
+    + 'type ("Chaos Armor", "Sacred Armor") as a socketed base. A unique/set can NOT be a runeword, so a '
+    + 'socketed gold/green item must go to "items" by its unique/set NAME, never to "sockets". If the gold/green '
+    + 'name is too blurry to identify but you can see it is gold/green (a unique/set), put your best name read in '
+    + '"unrecognized" — do NOT downgrade it to its base type in "sockets". '
     + 'MANDATORY (v378): a readable base-item NAME that shows ANY sockets goes ONLY in "sockets" (with its count) — '
     + 'NEVER as a bare name in "items" or "unrecognized". This is REQUIRED for WEAPONS (a socketed Broad Sword, Crystal '
     + 'Sword, Phase Blade, bow, axe, polearm, flail, scepter) EXACTLY as for armour/helms/shields — do not treat a '
@@ -383,7 +391,7 @@ export async function onRequestPost(context) {
     else if (/helm|\bcap\b|crown|mask|circlet|coronet|tiara|diadem|casque|basinet|sallet|armet|visage|\bskull\b|shako|coif|cowl|\bhood\b|demon head|bone helm|war hat|sallet|winged helm|grand crown|spired helm/.test(b)) kind = 'Socketed Helm';
     else if (/armor|plate|mail|hauberk|tunic|jupon|cuirass|shroud|\bhide\b|pelt|shell|carapace|fleece|husk|scale|splint|\bfield\b|kraken|lacquered|wyrmhide|\bdusk\b|trellised|linked|tigulated|russet|breast|chaos|sacred armor|wire fleece|scarab husk|diamond mail|loricated|boneweave|great hauberk|balrog skin/.test(b)) kind = 'Socketed Body Armor';
     else if (/polearm|poleaxe|halberd|scythe|thresher|voulge|bardiche|partizan|\bbill\b|spear|pike|lance|trident|brandistock|spetum|fuscina|harpoon|stave|staff|\bbow\b|crossbow|maul|war hammer|two.?hand|great sword|zweihander|flamberge|colossus sword|colossus blade|tusk sword|espandon|great poleaxe|giant thresher|ogre axe|colossus voulge|war pike|ghost spear|stygian pike|mancatcher|war scythe|battle scythe|grim scythe|cryptic axe|great axe|glorious axe|ettin axe|small crescent|war spear/.test(b)) kind = 'Socketed 2H Weapon';
-    else if (/sword|axe|mace|scepter|sceptre|wand|dagger|knife|club|hammer|flail|blade|saber|sabre|falchion|tulwar|cutlass|baton|crowbill|hatchet|cleaver|\bclaw\b|katar|morning star|war club|flanged mace|jagged star|knout|tomahawk|naga|military pick|gladius|rune sword|ataghan|elegant blade|legend sword|highland blade/.test(b)) kind = 'Socketed 1H Weapon';
+    else if (/sword|axe|mace|scepter|sceptre|caduceus|seraph rod|holy water sprinkler|wand|dagger|knife|poignard|rondel|stiletto|dirk|kris|fang|club|hammer|flail|scourge|whip|blade|saber|sabre|falchion|tulwar|cutlass|baton|crowbill|hatchet|cleaver|claw|katar|suwayyah|quhab|cestus|talon|fascia|war fist|wrist|morning star|war club|flanged mace|jagged star|knout|tomahawk|naga|military pick|gladius|rune sword|ataghan|elegant blade|legend sword|highland blade/.test(b)) kind = 'Socketed 1H Weapon';
     if (!kind) return null;
     // prefer the count-specific vocab entry, else the count-less generic
     return resolve(kind + os) || resolve(kind);
