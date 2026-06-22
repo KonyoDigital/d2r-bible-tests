@@ -396,6 +396,17 @@ export async function onRequestPost(context) {
     if (!g) return null;
     return g.replace(/^Socketed (.+)$/, 'Larzuk $1 Base');
   };
+  // v379 — preserve the SPECIFIC base identity (Monarch, Colossus Voulge…) for worthwhile socketed/Larzuk
+  // bases, so the client shows that base's OWN art + EXACT max sockets instead of a generic bucket. Label
+  // forms: "<Base> (Nos)" (socketed) / "<Base> (Larzuk base)" (unsocketed elite). Returns null when the
+  // base isn't a recognizable socketable type → caller falls back to the generic bucket.
+  const titleCase = (s) => String(s || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const specificBaseLabel = (base, count, larzuk) => {
+    const b = titleCase(base);
+    if (!b || b.length < 3) return null;
+    if (!socketGeneric(base, count)) return null;   // not a known socketable weapon/armor type
+    return larzuk ? (b + ' (Larzuk base)') : (b + ' (' + count + 'os)');
+  };
   // v342.13 — sunder charms are account-shared keepers (NOT muled, NOT rolled-name rares). Detect by type.
   const SUNDER_TYPES = ['Cold Rupture', 'Flame Rift', 'Crack of the Heavens', 'Rotting Fissure', 'Bone Break', 'Black Cleft'];
   const sunderOf = (s) => { const l = String(s || '').toLowerCase(); return SUNDER_TYPES.find((t) => l.includes(t.toLowerCase())) || null; };
@@ -429,7 +440,7 @@ export async function onRequestPost(context) {
   const eliteBaseLabel = (r) => {
     const s = String(r == null ? '' : r).trim();
     if (!s || !nameOk(s) || !GOOD_BASE.test(s)) return null;
-    return larzukGeneric(s);
+    return specificBaseLabel(s, 0, true) || larzukGeneric(s);   // v379 — keep the specific base name
   };
   const items = [], unrec = [];
   for (const r of (parsed.items || [])) {
@@ -486,14 +497,14 @@ export async function onRequestPost(context) {
     if (cnt <= 0) {
       if (!eliteOrMagic) continue;
       socketBaseLower.add(base.toLowerCase());
-      const lg = larzukGeneric(base);
+      const lg = specificBaseLabel(base, 0, true) || larzukGeneric(base);   // v379 — specific base, generic fallback
       if (lg && !items.includes(lg)) items.push(lg);
       continue;
     }
     const worth = eliteOrMagic || cnt >= 5;
     if (!worth) { unrec.push(base + ' (' + (s.count || '?') + 'os low base)'); continue; }
     socketBaseLower.add(base.toLowerCase());
-    const gen = socketGeneric(base, s.count);
+    const gen = specificBaseLabel(base, cnt, false) || socketGeneric(base, s.count);   // v379 — specific base, generic fallback
     if (gen && !items.includes(gen)) items.push(gen);
   }
   // v342.7 — clean unrecognized: drop garbage strings, anything already captured as a Magic & Rare find,

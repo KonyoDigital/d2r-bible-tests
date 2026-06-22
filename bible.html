@@ -7058,6 +7058,34 @@ function _socketGuideLine(base, quality){
   return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔨 <b>Larzuk → ' + mx + ' sockets</b> (guaranteed max). Cube (' + cube + ') → <b>random 1–' + mx + '</b>.</div>';
 }
 window._socketGuideLine = _socketGuideLine;
+// v379 — register a per-base SOCKETED keeper at runtime so it shows its OWN art + EXACT max sockets
+// instead of a generic bucket. Handles intake labels "<Base> (Nos)" and "<Base> (Larzuk base)". Reuses
+// _baseCats / _socketMaxFor / _socketGuideLine / _baseRWLine, and routes via cat:'Socketed bases' exactly
+// like the generic entries (so vault routing/locker/backup are unchanged). Idempotent.
+function _ensureSocketBaseEntry(name){
+  try{
+    if (typeof EXTRA_ITEMS === 'undefined' || !name || EXTRA_ITEMS[name]) return;
+    var m = /^(.+?)\s*\((?:(\d+)os|Larzuk base)\)\s*$/.exec(name); if (!m) return;
+    var base = m[1].trim(); var sockets = m[2] ? parseInt(m[2], 10) : 0;
+    var cats = (typeof _baseCats === 'function') ? _baseCats(base) : {};
+    var slot = cats['body armor'] ? 'Body Armor' : (cats['shield'] ? 'Shield' : (cats['helm'] ? 'Helm' : (cats['weapon'] ? 'Weapon' : null)));
+    if (!slot) return;
+    var is2H = !!(cats['polearm'] || cats['spear'] || cats['staff'] || cats['missile weapon'])
+      || /colossus (blade|sword|voulge)|thunder maul|ogre maul|great maul|war pike|giant thresher|\bthresher\b|great poleaxe|\bmaul\b/i.test(base);
+    var cells = slot === 'Body Armor' ? {w:2,h:3} : (slot === 'Shield' ? {w:2,h:3} : (slot === 'Helm' ? {w:2,h:2} : (is2H ? {w:2,h:4} : {w:1,h:3})));
+    var mx = (typeof _socketMaxFor === 'function') ? _socketMaxFor(base) : null;
+    var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets > 0 ? sockets : (mx || 0)) : '';
+    var guide = (typeof _socketGuideLine === 'function') ? _socketGuideLine(base, 'normal') : '';
+    var head = sockets > 0
+      ? ('A <b>' + sockets + '-socket ' + _d2artEsc(base) + '</b> runeword / craft base.')
+      : ('An <b>unsocketed ' + _d2artEsc(base) + '</b> — Larzuk or cube it' + (mx != null ? (' to ' + mx + ' sockets') : '') + '.');
+    EXTRA_ITEMS[name] = { rarity:'basic', base:base, cat:'Socketed bases', val:'base', cells:cells,
+      sockets: sockets > 0 ? sockets : undefined, hand: (slot === 'Weapon' ? (is2H ? '2h' : '1h') : undefined),
+      desc: head + guide + rw };
+    if (typeof D2IO_ART !== 'undefined' && D2IO_ART[base] && !D2IO_ART[name]) D2IO_ART[name] = D2IO_ART[base];
+  }catch(e){}
+}
+window._ensureSocketBaseEntry = _ensureSocketBaseEntry;
 // v349 — floating #arttip card for a throw-out (unmatched read) item, SAME att-* format as the others.
 function _throwTipHtml(name){
   var clean = _throwClean(name);
@@ -16812,6 +16840,9 @@ function renderMostWanted(){
 }
 window.renderMostWanted = renderMostWanted;
 
+// v379 — re-register per-base socketed keepers ("Monarch (4os)", "Colossus Voulge (Larzuk base)"…) from the
+// persisted owned set, so after a reload they still resolve their own art + exact max-socket card (not generic).
+try { if (typeof owned !== 'undefined' && typeof _ensureSocketBaseEntry === 'function') Array.from(owned).forEach(function(n){ _ensureSocketBaseEntry(n); }); } catch(e){}
 updateEffMF();
 updatePlayers();
 renderHero();
@@ -22351,6 +22382,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
         (data.items || []).forEach(function(n){
+          if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(n);   // v379 — per-base socketed identity (art + exact max sockets)
           if (!owned.has(n)) {
             owned.add(n);
             // v227: an exact piece ✓s its set's grail aggregate row too (calc-only)
