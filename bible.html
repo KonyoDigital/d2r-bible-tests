@@ -7060,6 +7060,28 @@ function _socketGuideLine(base, quality){
   return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔨 <b>Larzuk → ' + mx + ' sockets</b> (guaranteed max). Cube (' + cube + ') → <b>random 1–' + mx + '</b>.</div>';
 }
 window._socketGuideLine = _socketGuideLine;
+// v382 — diablo2.io-style detail grid for a base item, straight from BASE_DB (the complete scrape):
+// 2H/1H dmg, defense, max sockets, req str/dex/lvl, qlvl, weight, class-only. Shown on the base ID card
+// + cursor tooltip so every base reads exactly like the diablo2.io base database.
+function _baseDetailRows(name){
+  var r = (typeof _baseRec === 'function') ? _baseRec(name) : null; if (!r) return '';
+  var rows = [];
+  if (r.twoH) rows.push(['2H Damage', r.twoH]);
+  if (r.oneH) rows.push(['1H Damage', r.oneH]);
+  if (r.defense) rows.push(['Defense', r.defense]);
+  if (r.maxSockets != null) rows.push(['Max Sockets', r.maxSockets]);
+  if (r.reqStr) rows.push(['Req Strength', r.reqStr]);
+  if (r.reqDex) rows.push(['Req Dexterity', r.reqDex]);
+  if (r.reqLvl) rows.push(['Req Level', r.reqLvl]);
+  if (r.qlvl) rows.push(['Quality Level', r.qlvl]);
+  if (r.weight) rows.push(['Weight', r.weight]);
+  if (r.classOnly) rows.push(['Class', r.classOnly + ' only']);
+  if (!rows.length) return '';
+  return '<div class="att-aff" style="display:grid;grid-template-columns:auto auto;gap:1px 14px;justify-content:start;margin:4px 0;font-size:12.5px">'
+    + rows.map(function(x){ return '<span style="color:#9c8d6b">' + x[0] + '</span><span style="color:#cdd6e0;text-align:right">' + _d2artEsc(String(x[1])) + '</span>'; }).join('')
+    + '</div>';
+}
+window._baseDetailRows = _baseDetailRows;
 // v381 — COMPLETE base-item database (508 bases, diablo2.io-current incl. RotW Warlock books): tier,
 // maxSockets, reqStr/Dex/Lvl, qlvl, tc, dmg, defense, weight, classOnly, rotw. Authoritative source
 // for _baseTier/_socketMaxFor + the base ID cards. (Game-file 491-socket table cross-checked it.)
@@ -7188,6 +7210,7 @@ function _throwTipHtml(name){
   var _tl = ((isBase || _isKnownBase) && typeof _itemTierLabel === 'function') ? _itemTierLabel(clean) : '';
   var out = '<div class="att-type">' + (_tl || (isBase || _isKnownBase ? 'Base item' : 'Unmatched read')) + (clean ? ' &middot; ' + _d2artEsc(clean) : '') + '</div>';
   if (sock) out += '<div class="att-meta">🔩 ' + sock[1] + ' socket' + (sock[1] === '1' ? '' : 's') + '</div>';
+  if (isBase || _isKnownBase) { var _bd = (typeof _baseDetailRows === 'function') ? _baseDetailRows(clean) : ''; if (_bd) out += _bd; }  // v382 — full BASE_DB stat grid
   out += '<div class="att-aff">' + (isBase
     ? 'A white/grey socketed base the AI read in your stash. Low bases are filtered out of grail — keep it only if it’s a runeword/craft base.'
     : (_isKnownBase
@@ -7204,6 +7227,7 @@ function _throwCardHtml(name){
   var clean = _throwClean(name);
   var isBase = /low base\)\s*$/i.test(name);
   var sock = /\((\d+)os/i.exec(name);
+  var _isKnownBase = (typeof _baseCats === 'function') && Object.keys(_baseCats(clean)).length > 0;
   var src = (typeof artUrl === 'function' ? artUrl(clean) : '') || (typeof _magicArtSrc === 'function' ? _magicArtSrc(clean) : '') || null;
   var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="' + _d2artEsc(clean) + '"><img class="d2art-img" src="' + src + '" alt=""></span>'
     : '<span style="font-size:34px;line-height:1;color:#9aa6b2;text-shadow:0 0 10px currentColor">🗑</span>';
@@ -7215,7 +7239,13 @@ function _throwCardHtml(name){
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'
     + (isBase ? 'A white/grey socketed base. Low bases are filtered out of the grail — keep it only if it’s a runeword/craft base, otherwise discard.'
               : 'This name was read but isn’t in your tracked grail. It may be a non-grail unique/rare, or a misread. Review it: keep → Magic &amp; Rare, or dismiss.')
-    + '</div></section></div>';
+    + '</div>'
+    + ((isBase || _isKnownBase) ? (   // v382 — full BASE_DB detail + runeword potential + Larzuk/cube guide
+        ((typeof _baseDetailRows === 'function') ? (_baseDetailRows(clean) || '') : '')
+      + ((typeof _baseRWLine === 'function') ? (_baseRWLine(clean, sock ? +sock[1] : 0) || '') : '')
+      + ((typeof _socketGuideLine === 'function') ? (_socketGuideLine(clean, 'normal') || '') : '')
+      ) : '')
+    + '</section></div>';
 }
 window.openDrop = function(name){
   // v349 — throw-out (unmatched read): no grail/magic match → show its review card.
@@ -8728,7 +8758,1209 @@ const SET_PIECES_EXTRA = [
   {name:"Sander's Folly (set)", pieces:["Sander's Paragon (cap)","Sander's Riprap (heavy boots)","Sander's Superstition (bone wand)","Sander's Taboo (heavy gloves)"]},
   {name:"Tancred's Battlegear (set)", pieces:["Tancred's Crowbill (military pick)","Tancred's Hobnails (light plated boots)","Tancred's Skull (bone helm)","Tancred's Spine (full plate mail)","Tancred's Weird (amulet)"]}
 ];
-function __allSets(){ return (typeof ITEM_SETS!=='undefined'?ITEM_SETS:[]).concat(SET_PIECES_EXTRA); }
+// v382 — the 13 classic + 2 RotW sets that weren't yet defined (identity → search/tracker/findSetPiece).
+const SET_PIECES_EXTRA2 = [
+ {
+  "name": "Arcanna's Tricks (set)",
+  "pieces": [
+   "Arcanna's Sign (amulet)",
+   "Arcanna's Deathwand (staff)",
+   "Arcanna's Head (helm)",
+   "Arcanna's Flesh (armor)"
+  ]
+ },
+ {
+  "name": "Arctic Gear (set)",
+  "pieces": [
+   "Arctic Horn (bow)",
+   "Arctic Furs (armor)",
+   "Arctic Binding (belt)",
+   "Arctic Mitts (gloves)"
+  ]
+ },
+ {
+  "name": "Berserker's Arsenal (set)",
+  "pieces": [
+   "Berserker's Headgear (helm)",
+   "Berserker's Hauberk (armor)",
+   "Berserker's Hatchet (axe)"
+  ]
+ },
+ {
+  "name": "Civerb's Vestments (set)",
+  "pieces": [
+   "Civerb's Ward (shield)",
+   "Civerb's Icon (amulet)",
+   "Civerb's Cudgel (scepter)"
+  ]
+ },
+ {
+  "name": "Cleglaw's Brace (set)",
+  "pieces": [
+   "Cleglaw's Tooth (sword)",
+   "Cleglaw's Claw (shield)",
+   "Cleglaw's Pincers (gloves)"
+  ]
+ },
+ {
+  "name": "Death's Disguise (set)",
+  "pieces": [
+   "Death's Hand (gloves)",
+   "Death's Guard (belt)",
+   "Death's Touch (sword)"
+  ]
+ },
+ {
+  "name": "Hsarus' Defense (set)",
+  "pieces": [
+   "Hsarus' Iron Heel (boots)",
+   "Hsarus' Iron Fist (shield)",
+   "Hsarus' Iron Stay (belt)"
+  ]
+ },
+ {
+  "name": "Infernal Tools (set)",
+  "pieces": [
+   "Infernal Cranium (helm)",
+   "Infernal Torch (wand)",
+   "Infernal Sign (belt)"
+  ]
+ },
+ {
+  "name": "Isenhart's Armory (set)",
+  "pieces": [
+   "Isenhart's Lightbrand (sword)",
+   "Isenhart's Parry (shield)",
+   "Isenhart's Case (armor)",
+   "Isenhart's Horns (helm)"
+  ]
+ },
+ {
+  "name": "Milabrega's Regalia (set)",
+  "pieces": [
+   "Milabrega's Orb (shield)",
+   "Milabrega's Rod (scepter)",
+   "Milabrega's Diadem (helm)",
+   "Milabrega's Robe (armor)"
+  ]
+ },
+ {
+  "name": "Vidala's Rig (set)",
+  "pieces": [
+   "Vidala's Barb (bow)",
+   "Vidala's Fetlock (boots)",
+   "Vidala's Ambush (armor)",
+   "Vidala's Snare (amulet)"
+  ]
+ },
+ {
+  "name": "Bane's Garments (set)",
+  "pieces": [
+   "Bane's Oathmaker (sword)",
+   "Bane's Wraithskin (armor)",
+   "Bane's Authority (belt)"
+  ]
+ },
+ {
+  "name": "Horazon's Splendor (set)",
+  "pieces": [
+   "Horazon's Countenance (helm)",
+   "Horazon's Dominion (armor)",
+   "Horazon's Hold (gloves)",
+   "Horazon's Legacy (boots)",
+   "Horazon's Secrets (grimoire)"
+  ]
+ }
+];
+// v382 — rich SET CODEX (per-piece affixes + partial + full bonuses) for ALL 19 newly-completed sets,
+// so each gets the golden detailed set card (setDetailHtml) identical to the original 13. Data: SetItems.txt
+// /Sets.txt + Arreat Summit + d2tomb (RotW Bane's & Horazon's). Merged into ITEM_CODEX as cat:'set' entries.
+try { Object.assign(ITEM_CODEX, {
+ "Angelic Raiment": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 12,
+  "setName": "Angelic Raiment",
+  "setMembers": [
+   {
+    "name": "Angelic Sickle",
+    "slot": "Sword",
+    "reqLvl": 12,
+    "affixes": [
+     "+75 to Attack Rating",
+     "+250 Damage to Undead",
+     "+75% Enhanced Damage",
+     "+30% Increased Attack Speed"
+    ]
+   },
+   {
+    "name": "Angelic Mantle",
+    "slot": "Armor",
+    "reqLvl": 12,
+    "affixes": [
+     "Damage Reduced by 3",
+     "+40% Enhanced Defense",
+     "+150 Defense",
+     "Fire Resist +50%"
+    ]
+   },
+   {
+    "name": "Angelic Halo",
+    "slot": "Ring",
+    "reqLvl": 12,
+    "affixes": [
+     "Replenish Life +6",
+     "+20 to Life",
+     "+24 to Attack Rating per Level",
+     "35% Better Chance of Getting Magic Items"
+    ]
+   },
+   {
+    "name": "Angelic Wings",
+    "slot": "Amulet",
+    "reqLvl": 12,
+    "affixes": [
+     "+3 to Light Radius",
+     "20% Damage Taken Goes to Mana",
+     "+75 to Life",
+     "+1 to All Skills"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+10 to Dexterity (2 items)",
+   "+50 to Mana (2 items)"
+  ],
+  "setBonuses": [
+   "All Resistances +25",
+   "Half Freeze Duration",
+   "40% Better Chance of Getting Magic Items",
+   "Regenerate Mana 8%"
+  ],
+  "note": null
+ },
+ "Arcanna's Tricks": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 15,
+  "setName": "Arcanna's Tricks",
+  "setMembers": [
+   {
+    "name": "Arcanna's Sign",
+    "slot": "Amulet",
+    "reqLvl": 15,
+    "affixes": [
+     "+15 to Mana",
+     "Regenerate Mana 20%",
+     "25% Better Chance of Getting Magic Items",
+     "Fire Resist +20%"
+    ]
+   },
+   {
+    "name": "Arcanna's Deathwand",
+    "slot": "Staff",
+    "reqLvl": 15,
+    "affixes": [
+     "+1 to Sorceress Skill Levels",
+     "25% Deadly Strike",
+     "+50 to Mana",
+     "Regenerate Mana 5%"
+    ]
+   },
+   {
+    "name": "Arcanna's Head",
+    "slot": "Helm",
+    "reqLvl": 15,
+    "affixes": [
+     "Replenish Life +4",
+     "Attacker Takes Damage of 2",
+     "+24 Defense per Level",
+     "Lightning Resist +15%"
+    ]
+   },
+   {
+    "name": "Arcanna's Flesh",
+    "slot": "Armor",
+    "reqLvl": 15,
+    "affixes": [
+     "+2 to Light Radius",
+     "Damage Reduced by 3",
+     "+100 Defense",
+     "+10 to Energy"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+25 to Mana (2 items)",
+   "+50 to Life (2 items)"
+  ],
+  "setBonuses": [
+   "+20% Faster Cast Rate",
+   "5% Mana Stolen per Hit",
+   "+25 to Mana"
+  ],
+  "note": null
+ },
+ "Arctic Gear": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 2,
+  "setName": "Arctic Gear",
+  "setMembers": [
+   {
+    "name": "Arctic Horn",
+    "slot": "Bow",
+    "reqLvl": 2,
+    "affixes": [
+     "+20% Bonus to Attack Rating",
+     "+50% Enhanced Damage",
+     "+16 to Attack Rating per Level",
+     "Adds 20-30 Cold Damage"
+    ]
+   },
+   {
+    "name": "Arctic Furs",
+    "slot": "Armor",
+    "reqLvl": 2,
+    "affixes": [
+     "+275-325% Enhanced Defense",
+     "All Resistances +10",
+     "+24 Defense per Level",
+     "Cold Resist +15%"
+    ]
+   },
+   {
+    "name": "Arctic Binding",
+    "slot": "Belt",
+    "reqLvl": 2,
+    "affixes": [
+     "Cold Resist +40%",
+     "+30 Defense",
+     "40% Better Chance of Getting Magic Items"
+    ]
+   },
+   {
+    "name": "Arctic Mitts",
+    "slot": "Gloves",
+    "reqLvl": 2,
+    "affixes": [
+     "+20 to Life",
+     "+10% Increased Attack Speed",
+     "+50 to Attack Rating",
+     "+10 to Dexterity"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+5 to Strength (2 items)",
+   "+50 to Life (2 items)"
+  ],
+  "setBonuses": [
+   "Adds 6-14 Cold Damage",
+   "Cannot Be Frozen"
+  ],
+  "note": null
+ },
+ "Berserker's Arsenal": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 3,
+  "setName": "Berserker's Arsenal",
+  "setMembers": [
+   {
+    "name": "Berserker's Headgear",
+    "slot": "Helm",
+    "reqLvl": 3,
+    "affixes": [
+     "+15 Defense",
+     "Fire Resist +25%",
+     "+16 to Attack Rating per Level"
+    ]
+   },
+   {
+    "name": "Berserker's Hauberk",
+    "slot": "Armor",
+    "reqLvl": 3,
+    "affixes": [
+     "Magic Damage Reduced by 2",
+     "+1 to Barbarian Skill Levels",
+     "+24 Defense per Level"
+    ]
+   },
+   {
+    "name": "Berserker's Hatchet",
+    "slot": "Axe",
+    "reqLvl": 3,
+    "affixes": [
+     "+20% Bonus to Attack Rating",
+     "5% Mana Stolen per Hit",
+     "+50% Enhanced Damage"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+50 to Life (2 items)"
+  ],
+  "setBonuses": [
+   "Poison Length Reduced by 75%",
+   "Adds 16-32 Poison Damage",
+   "+75 Defense"
+  ],
+  "note": null
+ },
+ "Bul-Kathos' Children": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 54,
+  "setName": "Bul-Kathos' Children",
+  "setMembers": [
+   {
+    "name": "Bul-Kathos' Sacred Charge",
+    "slot": "Sword",
+    "reqLvl": 61,
+    "affixes": [
+     "35% Chance of Crushing Blow",
+     "All Resistances +20",
+     "+20% Increased Attack Speed",
+     "Knockback",
+     "+200% Enhanced Damage"
+    ]
+   },
+   {
+    "name": "Bul-Kathos' Tribal Guardian",
+    "slot": "Sword",
+    "reqLvl": 54,
+    "affixes": [
+     "Fire Resist +50%",
+     "Adds 50-255 Poison Damage",
+     "+20% Increased Attack Speed",
+     "+20 to Strength",
+     "+200% Enhanced Damage"
+    ]
+   }
+  ],
+  "setPartials": [],
+  "setBonuses": [
+   "+2 to All Skills",
+   "+200 to Attack Rating",
+   "+25 Defense",
+   "+200 Damage to Undead",
+   "+200 Damage to Demons"
+  ],
+  "note": null
+ },
+ "Cathan's Traps": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 11,
+  "setName": "Cathan's Traps",
+  "setMembers": [
+   {
+    "name": "Cathan's Rule",
+    "slot": "Staff",
+    "reqLvl": 11,
+    "affixes": [
+     "+1 to Fire Skills",
+     "+50 to Mana",
+     "All Resistances +10"
+    ]
+   },
+   {
+    "name": "Cathan's Mesh",
+    "slot": "Armor",
+    "reqLvl": 11,
+    "affixes": [
+     "+15 Defense",
+     "Requirements -50%",
+     "Attacker Takes Damage of 5",
+     "Fire Resist +30%"
+    ]
+   },
+   {
+    "name": "Cathan's Visage",
+    "slot": "Helm",
+    "reqLvl": 11,
+    "affixes": [
+     "+20 to Mana",
+     "Cold Resist +25%",
+     "+16 Defense per Level"
+    ]
+   },
+   {
+    "name": "Cathan's Sigil",
+    "slot": "Amulet",
+    "reqLvl": 11,
+    "affixes": [
+     "+10% Faster Hit Recovery",
+     "Attacker Takes Lightning Damage of 5",
+     "+50 to Attack Rating",
+     "25% Better Chance of Getting Magic Items"
+    ]
+   },
+   {
+    "name": "Cathan's Seal",
+    "slot": "Ring",
+    "reqLvl": 11,
+    "affixes": [
+     "6% Life Stolen per Hit",
+     "Damage Reduced by 2",
+     "+10 to Strength"
+    ]
+   }
+  ],
+  "setPartials": [
+   "Adds 15-20 Fire Damage (2 items)",
+   "Lightning Resist +25% (2 items)"
+  ],
+  "setBonuses": [
+   "+60 to Attack Rating",
+   "Magic Damage Reduced by 3",
+   "All Resistances +25",
+   "+10% Faster Cast Rate",
+   "+20 to Mana"
+  ],
+  "note": null
+ },
+ "Civerb's Vestments": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 9,
+  "setName": "Civerb's Vestments",
+  "setMembers": [
+   {
+    "name": "Civerb's Ward",
+    "slot": "Shield",
+    "reqLvl": 9,
+    "affixes": [
+     "+15 Defense",
+     "15% Increased Chance of Blocking",
+     "+21-22 to Mana",
+     "Poison Resist +25-26%"
+    ]
+   },
+   {
+    "name": "Civerb's Icon",
+    "slot": "Amulet",
+    "reqLvl": 9,
+    "affixes": [
+     "Regenerate Mana 40%",
+     "Replenish Life +4",
+     "Cold Resist +25%",
+     "+25 Defense"
+    ]
+   },
+   {
+    "name": "Civerb's Cudgel",
+    "slot": "Scepter",
+    "reqLvl": 9,
+    "affixes": [
+     "+75 to Attack Rating",
+     "Adds 17-23 Maximum Damage",
+     "+8 to Maximum Damage per Level"
+    ]
+   }
+  ],
+  "setPartials": [
+   "Fire Resist +15% (2 items)"
+  ],
+  "setBonuses": [
+   "+15 to Strength",
+   "+200 Damage to Undead",
+   "Lightning Resist +25%"
+  ],
+  "note": null
+ },
+ "Cleglaw's Brace": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 4,
+  "setName": "Cleglaw's Brace",
+  "setMembers": [
+   {
+    "name": "Cleglaw's Tooth",
+    "slot": "Sword",
+    "reqLvl": 4,
+    "affixes": [
+     "+30% Bonus to Attack Rating",
+     "50% Deadly Strike",
+     "+10 to Maximum Damage per Level"
+    ]
+   },
+   {
+    "name": "Cleglaw's Claw",
+    "slot": "Shield",
+    "reqLvl": 4,
+    "affixes": [
+     "+17 Defense",
+     "Poison Length Reduced by 75%",
+     "All Resistances +15"
+    ]
+   },
+   {
+    "name": "Cleglaw's Pincers",
+    "slot": "Gloves",
+    "reqLvl": 4,
+    "affixes": [
+     "Knockback",
+     "Slows Target by 25%",
+     "+20 to Attack Rating per Level"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+50 Defense (2 items)"
+  ],
+  "setBonuses": [
+   "6% Mana Stolen per Hit",
+   "35% Chance of Crushing Blow",
+   "+20% Increased Attack Speed"
+  ],
+  "note": null
+ },
+ "Death's Disguise": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 6,
+  "setName": "Death's Disguise",
+  "setMembers": [
+   {
+    "name": "Death's Hand",
+    "slot": "Gloves",
+    "reqLvl": 6,
+    "affixes": [
+     "Poison Resist +50%",
+     "Poison Length Reduced by 75%",
+     "+30% Increased Attack Speed"
+    ]
+   },
+   {
+    "name": "Death's Guard",
+    "slot": "Belt",
+    "reqLvl": 6,
+    "affixes": [
+     "+20 Defense",
+     "Cannot Be Frozen",
+     "All Resistances +15"
+    ]
+   },
+   {
+    "name": "Death's Touch",
+    "slot": "Sword",
+    "reqLvl": 6,
+    "affixes": [
+     "+25% Enhanced Damage",
+     "4% Life Stolen per Hit",
+     "Adds 25-75 Cold Damage"
+    ]
+   }
+  ],
+  "setPartials": [
+   "8% Life Stolen per Hit (2 items)"
+  ],
+  "setBonuses": [
+   "+40% Bonus to Attack Rating",
+   "+10 to Minimum Damage",
+   "All Resistances +25"
+  ],
+  "note": null
+ },
+ "Hsarus' Defense": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 3,
+  "setName": "Hsarus' Defense",
+  "setMembers": [
+   {
+    "name": "Hsarus' Iron Heel",
+    "slot": "Boots",
+    "reqLvl": 3,
+    "affixes": [
+     "Fire Resist +25%",
+     "+20% Faster Run/Walk",
+     "+20 to Attack Rating per Level"
+    ]
+   },
+   {
+    "name": "Hsarus' Iron Fist",
+    "slot": "Shield",
+    "reqLvl": 3,
+    "affixes": [
+     "Damage Reduced by 2",
+     "+10 to Strength",
+     "+20 Defense per Level"
+    ]
+   },
+   {
+    "name": "Hsarus' Iron Stay",
+    "slot": "Belt",
+    "reqLvl": 3,
+    "affixes": [
+     "Cold Resist +20%",
+     "+20 to Life",
+     "+20 Defense per Level"
+    ]
+   }
+  ],
+  "setPartials": [
+   "Attacker Takes Damage of 5 (2 items)"
+  ],
+  "setBonuses": [
+   "+5 to Maximum Damage",
+   "Cannot Be Frozen",
+   "Lightning Resist +25%"
+  ],
+  "note": null
+ },
+ "Infernal Tools": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 5,
+  "setName": "Infernal Tools",
+  "setMembers": [
+   {
+    "name": "Infernal Cranium",
+    "slot": "Helm",
+    "reqLvl": 5,
+    "affixes": [
+     "All Resistances +10",
+     "20% Damage Taken Goes to Mana",
+     "+16 Defense per Level"
+    ]
+   },
+   {
+    "name": "Infernal Torch",
+    "slot": "Wand",
+    "reqLvl": 5,
+    "affixes": [
+     "+8 to Minimum Damage",
+     "+1 to Necromancer Skill Levels",
+     "+20 to Attack Rating per Level"
+    ]
+   },
+   {
+    "name": "Infernal Sign",
+    "slot": "Belt",
+    "reqLvl": 5,
+    "affixes": [
+     "+25 Defense",
+     "+20 to Life",
+     "Poison Resist +25%",
+     "Cannot Be Frozen"
+    ]
+   }
+  ],
+  "setPartials": [
+   "Adds 25 Poison Damage (2 items)",
+   "+10 to Mana (2 items)"
+  ],
+  "setBonuses": [
+   "+20% Bonus to Attack Rating",
+   "+1 to Necromancer Skill Levels",
+   "20% Chance of Open Wounds",
+   "6% Mana Stolen per Hit"
+  ],
+  "note": null
+ },
+ "Iratha's Finery": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 15,
+  "setName": "Iratha's Finery",
+  "setMembers": [
+   {
+    "name": "Iratha's Collar",
+    "slot": "Amulet",
+    "reqLvl": 15,
+    "affixes": [
+     "Poison Resist +30%",
+     "Poison Length Reduced by 75%",
+     "All Resistances +15"
+    ]
+   },
+   {
+    "name": "Iratha's Cuff",
+    "slot": "Gloves",
+    "reqLvl": 15,
+    "affixes": [
+     "Cold Resist +30%",
+     "Half Freeze Duration",
+     "+20% Increased Attack Speed"
+    ]
+   },
+   {
+    "name": "Iratha's Coil",
+    "slot": "Helm",
+    "reqLvl": 15,
+    "affixes": [
+     "Fire Resist +30%",
+     "Lightning Resist +30%",
+     "+16 Defense per Level"
+    ]
+   },
+   {
+    "name": "Iratha's Cord",
+    "slot": "Belt",
+    "reqLvl": 15,
+    "affixes": [
+     "+25 Defense",
+     "+5 to Minimum Damage",
+     "+10 to Dexterity"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+50 Defense (2 items)",
+   "+20% Faster Run/Walk (2 items)"
+  ],
+  "setBonuses": [
+   "All Resistances +20",
+   "+10% Maximum Resists (all)",
+   "+15 to Dexterity"
+  ],
+  "note": null
+ },
+ "Isenhart's Armory": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 8,
+  "setName": "Isenhart's Armory",
+  "setMembers": [
+   {
+    "name": "Isenhart's Lightbrand",
+    "slot": "Sword",
+    "reqLvl": 8,
+    "affixes": [
+     "+10 to Minimum Damage",
+     "+20% Increased Attack Speed",
+     "+10 to Attack Rating per Level"
+    ]
+   },
+   {
+    "name": "Isenhart's Parry",
+    "slot": "Shield",
+    "reqLvl": 8,
+    "affixes": [
+     "+40 Defense",
+     "Attacker Takes Lightning Damage of 4",
+     "All Resistances +8"
+    ]
+   },
+   {
+    "name": "Isenhart's Case",
+    "slot": "Armor",
+    "reqLvl": 8,
+    "affixes": [
+     "+40 Defense",
+     "Magic Damage Reduced by 2",
+     "+16 Defense per Level"
+    ]
+   },
+   {
+    "name": "Isenhart's Horns",
+    "slot": "Helm",
+    "reqLvl": 8,
+    "affixes": [
+     "+6 to Dexterity",
+     "Damage Reduced by 2",
+     "All Resistances +8"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+10 to Strength (2 items)",
+   "+10 to Dexterity (2 items)"
+  ],
+  "setBonuses": [
+   "5% Life Stolen per Hit",
+   "All Resistances +10",
+   "+35% Bonus to Attack Rating",
+   "30% Increased Chance of Blocking",
+   "+20% Faster Run/Walk"
+  ],
+  "note": null
+ },
+ "Milabrega's Regalia": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 17,
+  "setName": "Milabrega's Regalia",
+  "setMembers": [
+   {
+    "name": "Milabrega's Orb",
+    "slot": "Shield",
+    "reqLvl": 17,
+    "affixes": [
+     "20% Better Chance of Getting Magic Items",
+     "+25 Defense",
+     "+50 to Life",
+     "+50% Enhanced Defense"
+    ]
+   },
+   {
+    "name": "Milabrega's Rod",
+    "slot": "Scepter",
+    "reqLvl": 17,
+    "affixes": [
+     "+1 to Paladin Skill Levels",
+     "+50% Enhanced Damage",
+     "+2 to Light Radius"
+    ]
+   },
+   {
+    "name": "Milabrega's Diadem",
+    "slot": "Helm",
+    "reqLvl": 17,
+    "affixes": [
+     "+15 to Life",
+     "+15 to Mana",
+     "Cold Resist +40%"
+    ]
+   },
+   {
+    "name": "Milabrega's Robe",
+    "slot": "Armor",
+    "reqLvl": 17,
+    "affixes": [
+     "Attacker Takes Damage of 3",
+     "Damage Reduced by 2",
+     "+100% Enhanced Defense"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+75 to Attack Rating (2 items)",
+   "+125 to Attack Rating (3 items)"
+  ],
+  "setBonuses": [
+   "8% Life Stolen per Hit",
+   "+2 to Paladin Skill Levels",
+   "10% Mana Stolen per Hit",
+   "Poison Resist +15%"
+  ],
+  "note": null
+ },
+ "Sander's Folly": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 20,
+  "setName": "Sander's Folly",
+  "setMembers": [
+   {
+    "name": "Sander's Paragon",
+    "slot": "Helm",
+    "reqLvl": 25,
+    "affixes": [
+     "+1-99 Defense (Based on Character Level)",
+     "Attacker Takes Damage of 8",
+     "35% Better Chance of Getting Magic Items"
+    ]
+   },
+   {
+    "name": "Sander's Riprap",
+    "slot": "Boots",
+    "reqLvl": 20,
+    "affixes": [
+     "+40% Faster Run/Walk",
+     "+100 to Attack Rating",
+     "+5 to Strength",
+     "+10 to Dexterity"
+    ]
+   },
+   {
+    "name": "Sander's Taboo",
+    "slot": "Gloves",
+    "reqLvl": 28,
+    "affixes": [
+     "+20% Increased Attack Speed",
+     "Adds 9-11 Poison Damage",
+     "+20-25 Defense",
+     "+40 to Life"
+    ]
+   },
+   {
+    "name": "Sander's Superstition",
+    "slot": "Wand",
+    "reqLvl": 25,
+    "affixes": [
+     "+20% Faster Cast Rate",
+     "+75% Enhanced Damage",
+     "Adds 25-75 Cold Damage",
+     "8% Mana Stolen per Hit",
+     "+25 to Mana",
+     "+50% Damage to Undead"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+50 Defense (2 items)",
+   "+75 to Attack Rating (3 items)"
+  ],
+  "setBonuses": [
+   "+1 to All Skills",
+   "4% Life Stolen per Hit",
+   "+50 to Mana",
+   "50% Better Chance of Getting Magic Items"
+  ],
+  "note": null
+ },
+ "Tancred's Battlegear": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 20,
+  "setName": "Tancred's Battlegear",
+  "setMembers": [
+   {
+    "name": "Tancred's Crowbill",
+    "slot": "Axe",
+    "reqLvl": 20,
+    "affixes": [
+     "+75 to Attack Rating",
+     "+80% Enhanced Damage",
+     "+20 to Mana",
+     "+20% Increased Attack Speed"
+    ]
+   },
+   {
+    "name": "Tancred's Spine",
+    "slot": "Armor",
+    "reqLvl": 20,
+    "affixes": [
+     "+40 to Life",
+     "+15 to Strength",
+     "+16 Defense per Level"
+    ]
+   },
+   {
+    "name": "Tancred's Hobnails",
+    "slot": "Boots",
+    "reqLvl": 20,
+    "affixes": [
+     "Heal Stamina Plus 25%",
+     "+10 to Dexterity",
+     "+30% Faster Run/Walk",
+     "+10 to Strength"
+    ]
+   },
+   {
+    "name": "Tancred's Weird",
+    "slot": "Amulet",
+    "reqLvl": 20,
+    "affixes": [
+     "Damage Reduced by 2",
+     "Magic Damage Reduced by 1",
+     "78% Better Chance of Getting Magic Items",
+     "+60 to Attack Rating"
+    ]
+   },
+   {
+    "name": "Tancred's Skull",
+    "slot": "Helm",
+    "reqLvl": 20,
+    "affixes": [
+     "+10% Enhanced Damage",
+     "+40 to Attack Rating",
+     "All Resistances +10"
+    ]
+   }
+  ],
+  "setPartials": [
+   "Adds 15 Lightning Damage (2 items)",
+   "5% Life Stolen per Hit (2 items)"
+  ],
+  "setBonuses": [
+   "+75% Extra Gold from Monsters",
+   "All Resistances +10",
+   "Slows Target by 35%",
+   "5% Mana Stolen per Hit"
+  ],
+  "note": null
+ },
+ "Vidala's Rig": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 14,
+  "setName": "Vidala's Rig",
+  "setMembers": [
+   {
+    "name": "Vidala's Barb",
+    "slot": "Bow",
+    "reqLvl": 14,
+    "affixes": [
+     "Adds 1-20 Lightning Damage",
+     "+16 to Attack Rating per Level"
+    ]
+   },
+   {
+    "name": "Vidala's Fetlock",
+    "slot": "Boots",
+    "reqLvl": 14,
+    "affixes": [
+     "+150 Maximum Stamina",
+     "+30% Faster Run/Walk",
+     "All Resistances +8"
+    ]
+   },
+   {
+    "name": "Vidala's Ambush",
+    "slot": "Armor",
+    "reqLvl": 14,
+    "affixes": [
+     "+50 Defense",
+     "+11 to Dexterity",
+     "Fire Resist +24%",
+     "+20 Defense per Level"
+    ]
+   },
+   {
+    "name": "Vidala's Snare",
+    "slot": "Amulet",
+    "reqLvl": 14,
+    "affixes": [
+     "+15 to Life",
+     "Cold Resist +20%",
+     "50% Better Chance of Getting Magic Items"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+75 to Attack Rating (2 items)",
+   "+15 to Dexterity (2 items)"
+  ],
+  "setBonuses": [
+   "Adds 15-20 Cold Damage",
+   "Freezes Target",
+   "+10 to Strength"
+  ],
+  "note": null
+ },
+ "Bane's Garments": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 8,
+  "setName": "Bane's Garments",
+  "setMembers": [
+   {
+    "name": "Bane's Oathmaker",
+    "slot": "Sword",
+    "reqLvl": 8,
+    "affixes": [
+     "+20% Faster Run/Walk",
+     "+1-99 to Maximum Damage (Based on Character Level)"
+    ]
+   },
+   {
+    "name": "Bane's Wraithskin",
+    "slot": "Armor",
+    "reqLvl": 8,
+    "affixes": [
+     "+50 Defense",
+     "Magic Resist +30%",
+     "+to Attack Rating (Based on Character Level)"
+    ]
+   },
+   {
+    "name": "Bane's Authority",
+    "slot": "Belt",
+    "reqLvl": 8,
+    "affixes": [
+     "+10% Faster Cast Rate",
+     "+20 to Life"
+    ]
+   }
+  ],
+  "setPartials": [
+   "+3 to Mana after each Kill (2 items)",
+   "+25% Faster Hit Recovery (2 items)"
+  ],
+  "setBonuses": [
+   "+1 to All Skills",
+   "+25% Faster Cast Rate",
+   "+80% Enhanced Damage",
+   "+15 to Dexterity",
+   "40% Better Chance of Getting Magic Items"
+  ],
+  "note": null
+ },
+ "Horazon's Splendor": {
+  "cat": "set",
+  "rarity": "set",
+  "reqLvl": 48,
+  "setName": "Horazon's Splendor",
+  "setMembers": [
+   {
+    "name": "Horazon's Countenance",
+    "slot": "Helm",
+    "reqLvl": 62,
+    "affixes": [
+     "+1 to Warlock Skills",
+     "Magic Damage Reduced by 7-10",
+     "+10-20 to Strength"
+    ]
+   },
+   {
+    "name": "Horazon's Dominion",
+    "slot": "Armor",
+    "reqLvl": 55,
+    "affixes": [
+     "+1 to Demon Skills",
+     "75-100% Enhanced Defense",
+     "+75-100 to Mana",
+     "All Resistances +15-25%"
+    ]
+   },
+   {
+    "name": "Horazon's Hold",
+    "slot": "Gloves",
+    "reqLvl": 48,
+    "affixes": [
+     "+95-150 to Attack Rating",
+     "Adds 140-270 Fire Damage",
+     "+10% Chance of Crushing Blow"
+    ]
+   },
+   {
+    "name": "Horazon's Legacy",
+    "slot": "Boots",
+    "reqLvl": 67,
+    "affixes": [
+     "+30% Faster Run/Walk",
+     "Cannot Be Frozen",
+     "Requirements -30%"
+    ]
+   },
+   {
+    "name": "Horazon's Secrets",
+    "slot": "Grimoire",
+    "reqLvl": 57,
+    "affixes": [
+     "+2 to Eldritch Skills",
+     "+30% Faster Hit Recovery",
+     "+20-30 to Vitality"
+    ]
+   }
+  ],
+  "setPartials": [
+   "Poison Resist +25% (2 items)",
+   "Poison Length Reduced by 75% (2 items)",
+   "7% Mana Stolen per Hit (3 items)",
+   "-25% to Enemy Fire Resistance (3 items)",
+   "Increase Maximum Life 5% (4 items)",
+   "+15 to Str/Vit/Energy (4 items)",
+   "7% Life Stolen per Hit (4 items)"
+  ],
+  "setBonuses": [
+   "+3 to Warlock Skills",
+   "+350% Enhanced Damage",
+   "+300 Defense",
+   "+20 to Dexterity",
+   "+30 to Energy",
+   "All Resistances +50",
+   "100% Better Chance of Getting Magic Items"
+  ],
+  "note": "Warlock set"
+ }
+}); } catch(e){}
+function __allSets(){ return (typeof ITEM_SETS!=='undefined'?ITEM_SETS:[]).concat(SET_PIECES_EXTRA).concat(typeof SET_PIECES_EXTRA2!=='undefined'?SET_PIECES_EXTRA2:[]); }
 function __pieceBase(pc){ return String(pc).replace(/\s*\([^)]*\)\s*$/,''); }
 function __pieceSlot(pc){ var m=String(pc).match(/\(([^)]*)\)\s*$/); return m?m[1]:''; }
 function findSetPiece(name){
