@@ -18338,7 +18338,10 @@ try {
   if (typeof ITEM_CODEX !== 'undefined') Object.assign(ITEM_CODEX, _NEWUNI);
   for (var _nu in _NEWUNI){ if(!Object.prototype.hasOwnProperty.call(_NEWUNI,_nu)) continue;
     if (typeof EXTRA_ITEMS !== 'undefined' && !EXTRA_ITEMS[_nu]) EXTRA_ITEMS[_nu] = {rarity:'unique', base:_NEWUNI[_nu].base, cat:'Off-grail unique', stats:_NEWUNI[_nu].props};
-    if (typeof D2IO_ART !== 'undefined' && !D2IO_ART[_nu]){ var _a=(typeof artUrl==='function'&&artUrl(_NEWUNI[_nu].base))||(typeof _magicArtSrc==='function'&&_magicArtSrc(_NEWUNI[_nu].base)); if(_a) D2IO_ART[_nu]=_a; }
+    if (typeof D2IO_ART !== 'undefined' && !D2IO_ART[_nu]){ var _bs=_NEWUNI[_nu].base; var _a=(typeof artUrl==='function'&&artUrl(_bs))||null;
+      // avoid the bare base_*.png placeholder (v309 flags it) — prefer the HD/class graphic from _magicArtSrc
+      if((!_a || /\/base_/.test(_a)) && typeof _magicArtSrc==='function'){ var _m=_magicArtSrc(_bs); if(_m) _a=_m; }
+      if(_a) D2IO_ART[_nu]=_a; }
   }
 } catch(e){}
 // v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
