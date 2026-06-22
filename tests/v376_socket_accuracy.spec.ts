@@ -56,19 +56,27 @@ test.describe('v376 socket accuracy', () => {
     expect(r.rareArmor).toContain('exactly');             // rare → Larzuk gives 1
   });
 
-  test('#1 a known-socket base lists ONLY makeable-now runewords; other counts are separated', async ({ page }) => {
+  // v389 — a socketed item is FIXED at its socket count, so the line shows ONLY runewords that fit that
+  // EXACT count — no "other socket counts" cross-reference (a 2os Steel on a 5os Scourge is noise). The
+  // floating cursor tooltip and the throw-out card use _baseRWLine identically, so they stay in lock-step.
+  test('#1 a known-socket base lists ONLY its exact-socket-count runewords (no other-count noise)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const w = window as any;
-      // Grand Scepter read at 3 sockets — only 3-socket scepter runewords are makeable NOW
-      const line = w._baseRWLine('Grand Scepter', 3);
-      // the makeable-now segment is before "other socket counts"; 2os words must NOT be in it
-      const nowSeg = line.split('other socket counts')[0];
-      return { line, nowSeg };
+      const strip = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return {
+        scepter3: strip(w._baseRWLine('Grand Scepter', 3)),
+        scourge5: strip(w._baseRWLine('Scourge', 5)),
+      };
     });
-    expect(r.line).toContain('makeable in your 3os now');
-    // a 2-socket runeword (e.g. Strength/Wind/Zephyr) must NOT appear as makeable-now in a 3-socket base
-    expect(r.nowSeg).not.toContain('Strength');
-    expect(r.nowSeg).not.toContain('Zephyr');
+    expect(r.scepter3).toContain('makeable in your 3os now');
+    expect(r.scepter3).not.toContain('other socket counts');   // section removed
+    expect(r.scepter3).not.toContain('Strength');               // 2os word must not appear at all
+    expect(r.scepter3).not.toContain('Zephyr');                 // bow word must not appear
+    // the 5os Scourge shows only 5os runewords — NOT the 2os Steel that annoyed Konyo
+    expect(r.scourge5).toContain('makeable in your 5os now');
+    expect(r.scourge5).toContain('Call to Arms');               // a real 5os word
+    expect(r.scourge5).not.toContain('Steel');                  // 2os word — must be gone
+    expect(r.scourge5).not.toContain('other socket counts');
   });
 
   // v385 — a base can NEVER hold more sockets than its max, so NO runeword needing more than the base's

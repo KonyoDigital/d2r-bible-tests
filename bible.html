@@ -7029,21 +7029,16 @@ function _baseRWLine(name, knownSockets){
       + '</b>. Re-scan or rename this item.</div>';
   }
   if (ks >= 1 && ks <= 6){
+    // v389 — show ONLY runewords that fit the item's EXACT current socket count. A socketed item is fixed at
+    // its count (you can't add sockets to an already-socketed base), so listing other counts (a 2os Steel on
+    // a 5os Scourge) is misleading noise — Konyo: "only matching me 5 socket runeword options." The cursor
+    // tooltip and the throw-out card both call this, so they stay in lock-step.
     var now = rws.filter(function(r){ return r.s === ks; });
-    var other = rws.filter(function(r){ return r.s !== ks; });
-    var out = '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now: '
+    return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now: '
       + (now.length
-          ? now.slice(0, 12).map(function(r){ return _d2artEsc(r.n); }).join(', ') + (now.length > 12 ? ' +' + (now.length - 12) + ' more' : '')
+          ? now.slice(0, 14).map(function(r){ return _d2artEsc(r.n); }).join(', ') + (now.length > 14 ? ' +' + (now.length - 14) + ' more' : '')
           : '<span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>')
       + '</div>';
-    if (other.length){
-      var byS = {}; other.forEach(function(r){ (byS[r.s] = byS[r.s] || []).push(r.n); });
-      var hint = Object.keys(byS).map(Number).sort(function(a, b){ return a - b; }).map(function(s){
-        return '<b>' + s + 'os</b>: ' + byS[s].slice(0, 3).map(function(x){ return _d2artEsc(x); }).join(', ') + (byS[s].length > 3 ? '…' : '');
-      }).join(' · ');
-      out += '<div class="att-tag" style="margin-top:3px">other socket counts (re-roll / different base): ' + hint + '</div>';
-    }
-    return out;
   }
   var show = rws.slice(0, 10).map(function(r){ return _d2artEsc(r.n) + ' <span style="opacity:.6">(' + r.s + 'os)</span>'; }).join(', ');
   return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — ' + show + (rws.length > 10 ? ' +' + (rws.length - 10) + ' more' : '')
