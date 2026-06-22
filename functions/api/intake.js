@@ -413,17 +413,33 @@ export async function onRequestPost(context) {
     }, 200);
   }
 
+  // v374 — a NAME-ONLY read of a KNOWN elite runeword base (e.g. "Thresher", "Cryptic Axe", "Monarch")
+  // that doesn't resolve to a grail item: route it to the SAME "Larzuk <slot> Base" keeper a 0-socket
+  // base read produces (larzukGeneric), instead of dropping it to the 🗑 throw-out pile. Closes the gap
+  // where the AI reads an elite base by NAME (not via the sockets array) → the SAME item registered in a
+  // different bucket photo-to-photo (Konyo's two-Threshers test: one shot read "Socketed 2H Weapon (6os)",
+  // another the bare name "Thresher" → throw-out). Only fires when resolve() found no grail/vocab match AND
+  // GOOD_BASE recognises it as elite — common white junk still goes to the review list.
+  const eliteBaseLabel = (r) => {
+    const s = String(r == null ? '' : r).trim();
+    if (!s || !nameOk(s) || !GOOD_BASE.test(s)) return null;
+    return larzukGeneric(s);
+  };
   const items = [], unrec = [];
   for (const r of (parsed.items || [])) {
     const nm = resolve(r);
-    if (nm) items.push(nm); else unrec.push(r);
+    if (nm) { items.push(nm); continue; }
+    const lg = eliteBaseLabel(r);
+    if (lg) { if (!items.includes(lg)) items.push(lg); } else unrec.push(r);
   }
   // v342.4 — also resolve the AI's OWN "unrecognized" strings: a "name + base type" read
   // ("Spectral Shard Blade") recovers into the real grail item (Spectral Shard) via the same
   // word-boundary prefix matcher, instead of being silently lost. No match → stays unrecognized.
   for (const r of (parsed.unrecognized || [])) {
     const nm = resolve(r);
-    if (nm) { if (!items.includes(nm)) items.push(nm); } else unrec.push(r);
+    if (nm) { if (!items.includes(nm)) items.push(nm); continue; }
+    const lg = eliteBaseLabel(r);
+    if (lg) { if (!items.includes(lg)) items.push(lg); } else unrec.push(r);
   }
   // v342.3 — magic/rare/crafted keepers: sanitize, dedupe by name, drop any that resolve to a real grail item
   // (those belong in items) or that are blank.
