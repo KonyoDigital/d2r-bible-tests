@@ -7058,6 +7058,85 @@ function _socketGuideLine(base, quality){
   return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔨 <b>Larzuk → ' + mx + ' sockets</b> (guaranteed max). Cube (' + cube + ') → <b>random 1–' + mx + '</b>.</div>';
 }
 window._socketGuideLine = _socketGuideLine;
+// v380 — VERIFIED base-item TIER map (Normal / Exceptional / Elite), extracted from the game's own
+// Weapons.txt/Armor.txt normcode/ubercode/ultracode triads (fabd/diablo2 mirror), elite body-armor list
+// cross-checked vs Arreat Summit. Drives the "Elite Base Item" / "Elite Unique" / "Elite Set" label that
+// diablo2.io shows — and gives the engine a tier check. Full data + sources in CC memory.
+const BASE_TIER = (function(){
+  var T={};
+  var N=function(list){list.forEach(function(x){T[x.toLowerCase()]='normal';});};
+  var E=function(list){list.forEach(function(x){T[x.toLowerCase()]='exceptional';});};
+  var U=function(list){list.forEach(function(x){T[x.toLowerCase()]='elite';});};
+  // WEAPONS
+  N(["Hand Axe","Axe","Double Axe","Military Pick","War Axe","Large Axe","Broad Axe","Battle Axe","Great Axe","Giant Axe"]);
+  E(["Hatchet","Cleaver","Twin Axe","Crowbill","Naga","Military Axe","Bearded Axe","Tabar","Gothic Axe","Ancient Axe"]);
+  U(["Tomahawk","Small Crescent","Ettin Axe","War Spike","Berserker Axe","Feral Axe","Silver Edged Axe","Decapitator","Champion Axe","Glorious Axe"]);
+  N(["Wand","Yew Wand","Bone Wand","Grim Wand"]); E(["Burnt Wand","Petrified Wand","Tomb Wand","Grave Wand"]); U(["Polished Wand","Ghost Wand","Lich Wand","Unearthed Wand"]);
+  N(["Club","Spiked Club","Mace","Morning Star","Flail","War Hammer","Maul","Great Maul"]);
+  E(["Cudgel","Barbed Club","Flanged Mace","Jagged Star","Knout","Battle Hammer","War Club","Martel de Fer"]);
+  U(["Truncheon","Tyrant Club","Reinforced Mace","Devil Star","Scourge","Legendary Mallet","Ogre Maul","Thunder Maul"]);
+  N(["Scepter","Grand Scepter","War Scepter"]); E(["Rune Scepter","Holy Water Sprinkler","Divine Scepter"]); U(["Mighty Scepter","Seraph Rod","Caduceus"]);
+  N(["Short Sword","Scimitar","Saber","Falchion","Crystal Sword","Broad Sword","Long Sword","War Sword","Two-Handed Sword","Claymore","Giant Sword","Bastard Sword","Flamberge","Great Sword"]);
+  E(["Gladius","Cutlass","Shamshir","Tulwar","Dimensional Blade","Battle Sword","Rune Sword","Ancient Sword","Espadon","Dacian Falx","Tusk Sword","Gothic Sword","Zweihander","Executioner Sword"]);
+  U(["Falcata","Ataghan","Elegant Blade","Hydra Edge","Phase Blade","Conquest Sword","Cryptic Sword","Mythical Sword","Legend Sword","Highland Blade","Balrog Blade","Champion Sword","Colossus Sword","Colossus Blade"]);
+  N(["Dagger","Dirk","Kriss","Blade"]); E(["Poignard","Rondel","Cinquedeas","Stilleto"]); U(["Bone Knife","Mithral Point","Fanged Knife","Legend Spike"]);
+  N(["Throwing Knife","Throwing Axe","Balanced Knife","Balanced Axe"]); E(["Battle Dart","Francisca","War Dart","Hurlbat"]); U(["Flying Knife","Flying Axe","Winged Knife","Winged Axe"]);
+  N(["Javelin","Pilum","Short Spear","Glaive","Throwing Spear"]); E(["War Javelin","Great Pilum","Simbilan","Spiculum","Harpoon"]); U(["Hyperion Javelin","Stygian Pilum","Balrog Spear","Ghost Glaive","Winged Harpoon"]);
+  N(["Spear","Trident","Brandistock","Spetum","Pike"]); E(["War Spear","Fuscina","War Fork","Yari","Lance"]); U(["Hyperion Spear","Stygian Pike","Mancatcher","Ghost Spear","War Pike"]);
+  N(["Bardiche","Voulge","Scythe","Poleaxe","Halberd","War Scythe"]); E(["Lochaber Axe","Bill","Battle Scythe","Partizan","Bec-de-Corbin","Grim Scythe"]); U(["Ogre Axe","Colossus Voulge","Thresher","Cryptic Axe","Great Poleaxe","Giant Thresher"]);
+  N(["Short Staff","Long Staff","Gnarled Staff","Battle Staff","War Staff"]); E(["Jo Staff","Quarterstaff","Cedar Staff","Gothic Staff","Rune Staff"]); U(["Walking Stick","Stalagmite","Elder Staff","Shillelah","Archon Staff"]);
+  N(["Short Bow","Hunter's Bow","Long Bow","Composite Bow","Short Battle Bow","Long Battle Bow","Short War Bow","Long War Bow"]);
+  E(["Edge Bow","Razor Bow","Short Siege Bow","Long Siege Bow","Rune Bow","Gothic Bow","Cedar Bow","Double Bow"]);
+  U(["Spider Bow","Blade Bow","Shadow Bow","Great Bow","Diamond Bow","Crusader Bow","Ward Bow","Hydra Bow"]);
+  N(["Light Crossbow","Crossbow","Heavy Crossbow","Repeating Crossbow"]); E(["Arbalest","Siege Crossbow","Balista","Chu-Ko-Nu"]); U(["Pellet Bow","Gorgon Crossbow","Colossus Crossbow","Demon Crossbow"]);
+  N(["Stag Bow","Reflex Bow","Maiden Spear","Maiden Pike","Maiden Javelin"]); E(["Ashwood Bow","Ceremonial Bow","Ceremonial Spear","Ceremonial Pike","Ceremonial Javelin"]); U(["Matriarchal Bow","Grand Matron Bow","Matriarchal Spear","Matriarchal Pike","Matriarchal Javelin"]);
+  N(["Eagle Orb","Sacred Globe","Smoked Sphere","Clasped Orb","Dragon Stone"]); E(["Glowing Orb","Crystalline Globe","Cloudy Sphere","Sparkling Ball","Swirling Crystal"]); U(["Heavenly Stone","Eldritch Orb","Demon Heart","Vortex Orb","Dimensional Shard"]);
+  N(["Katar","Wrist Blade","Hatchet Hands","Cestus","Claws","Blade Talons","Scissors Katar"]); E(["Quhab","Wrist Spike","Fascia","Hand Scythe","Greater Claws","Greater Talons","Scissors Quhab"]); U(["Suwayyah","Wrist Sword","War Fist","Battle Cestus","Feral Claws","Runic Talons","Scissors Suwayyah"]);
+  // ARMOR
+  N(["Quilted Armor","Leather Armor","Hard Leather Armor","Studded Leather","Ring Mail","Scale Mail","Chain Mail","Breast Plate","Splint Mail","Light Plate","Plate Mail","Field Plate","Gothic Plate","Full Plate Mail","Ancient Armor"]);
+  E(["Ghost Armor","Serpentskin Armor","Demonhide Armor","Trellised Armor","Linked Mail","Tigulated Mail","Mesh Armor","Cuirass","Russet Armor","Mage Plate","Templar Coat","Sharktooth Armor","Embossed Plate","Chaos Armor","Ornate Armor"]);
+  U(["Dusk Shroud","Wyrmhide","Scarab Husk","Wire Fleece","Diamond Mail","Loricated Mail","Boneweave","Great Hauberk","Balrog Skin","Hellforged Plate","Kraken Shell","Lacquered Plate","Shadow Plate","Archon Plate","Sacred Armor"]);
+  N(["Cap","Skull Cap","Helm","Full Helm","Mask","Bone Helm","Great Helm","Crown"]); E(["War Hat","Sallet","Casque","Basinet","Death Mask","Grim Helm","Winged Helm","Grand Crown"]); U(["Shako","Hydraskull","Armet","Giant Conch","Demonhead","Bone Visage","Spired Helm","Corona"]);
+  N(["Buckler","Small Shield","Large Shield","Kite Shield","Tower Shield","Gothic Shield","Bone Shield","Spiked Shield"]); E(["Defender","Round Shield","Scutum","Dragon Shield","Pavise","Ancient Shield","Grim Shield","Barbed Shield"]); U(["Heater","Luna","Hyperion","Monarch","Aegis","Ward","Troll Nest","Blade Barrier"]);
+  N(["Leather Gloves","Heavy Gloves","Chain Gloves","Light Gauntlets","Gauntlets"]); E(["Demonhide Gloves","Sharkskin Gloves","Heavy Bracers","Battle Gauntlets","War Gauntlets"]); U(["Bramble Mitts","Vampirebone Gloves","Vambraces","Crusader Gauntlets","Ogre Gauntlets"]);
+  N(["Boots","Heavy Boots","Chain Boots","Light Plated Boots","Greaves"]); E(["Demonhide Boots","Sharkskin Boots","Mesh Boots","Battle Boots","War Boots"]); U(["Wyrmhide Boots","Scarabshell Boots","Boneweave Boots","Mirrored Boots","Myrmidon Greaves"]);
+  N(["Sash","Light Belt","Belt","Heavy Belt","Plated Belt"]); E(["Demonhide Sash","Sharkskin Belt","Mesh Belt","Battle Belt","War Belt"]); U(["Spiderweb Sash","Vampirefang Belt","Mithril Coil","Troll Belt","Colossus Girdle"]);
+  N(["Circlet","Coronet"]); E(["Tiara"]); U(["Diadem"]);
+  N(["Jawbone Cap","Fanged Helm","Horned Helm","Assault Helmet","Avenger Guard"]); E(["Jawbone Visor","Lion Helm","Rage Mask","Savage Helmet","Slayer Guard"]); U(["Carnage Helm","Fury Visor","Destroyer Helm","Conqueror Crown","Guardian Crown"]);
+  N(["Wolf Head","Hawk Helm","Antlers","Falcon Mask","Spirit Mask"]); E(["Alpha Helm","Griffon Headdress","Hunter's Guise","Sacred Feathers","Totemic Mask"]); U(["Blood Spirit","Sun Spirit","Earth Spirit","Sky Spirit","Dream Spirit"]);
+  N(["Preserved Head","Zombie Head","Unraveller Head","Gargoyle Head","Demon Head"]); E(["Mummified Trophy","Fetish Trophy","Sexton Trophy","Cantor Trophy","Hierophant Trophy"]); U(["Minion Skull","Hellspawn Skull","Overseer Skull","Succubus Skull","Bloodlord Skull"]);
+  N(["Targe","Rondache","Heraldic Shield","Aerin Shield","Crown Shield"]); E(["Akaran Targe","Akaran Rondache","Protector Shield","Gilded Shield","Royal Shield"]); U(["Sacred Targe","Sacred Rondache","Zakarum Shield","Vortex Shield"]);
+  return T;
+})();
+// item tier ('normal'|'exceptional'|'elite') from a base-type name; '' if unknown.
+function _baseTier(base){ var b=String(base||'').toLowerCase().trim(); return (b && BASE_TIER[b]) || ''; }
+window._baseTier = _baseTier;
+// v380 — the "Elite Base Item" / "Elite Unique" / "Elite Set" label for ANY item. Resolves the item's
+// base (socketed-label parse → ITEM_CODEX → EXTRA_ITEMS) and rarity, then prefixes the verified tier.
+// Returns '' when the base tier can't be verified (never a guessed/wrong label).
+function _itemTierLabel(name){
+  if (!name) return '';
+  var base='', rarity='';
+  try {
+    var sm = /^(.+?)\s*\((?:\d+os|Larzuk base|\d+os low base)\)\s*$/.exec(name);
+    if (sm) { base = sm[1].trim(); rarity = 'basic'; }
+    if (!base && typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[name]) { base = ITEM_CODEX[name].base||''; rarity = ITEM_CODEX[name].rarity||''; }
+    if (!base && typeof EXTRA_ITEMS!=='undefined' && EXTRA_ITEMS[name]) { base = EXTRA_ITEMS[name].base||''; rarity = rarity || EXTRA_ITEMS[name].rarity||''; }
+    if (!base && _baseTier(name)) { base = name; rarity = 'basic'; }   // the name itself IS a base type
+    if (!rarity) { if (typeof findSetPiece==='function' && findSetPiece(name)) rarity='set'; else if (typeof findRuneword==='function' && findRuneword(name)) rarity='runeword'; }
+  } catch(e) {}
+  var tier = _baseTier(base); if (!tier) return '';
+  var T = tier.charAt(0).toUpperCase()+tier.slice(1);
+  var r = String(rarity||'').toLowerCase();
+  if (r==='set') return T+' Set';
+  if (r==='unique') return T+' Unique';
+  if (r==='magic') return T+' Magic';
+  if (r==='rare') return T+' Rare';
+  if (r==='crafted') return T+' Crafted';
+  if (r==='runeword') return T+' Runeword Base';
+  return T+' Base Item';
+}
+window._itemTierLabel = _itemTierLabel;
 // v379 — register a per-base SOCKETED keeper at runtime so it shows its OWN art + EXACT max sockets
 // instead of a generic bucket. Handles intake labels "<Base> (Nos)" and "<Base> (Larzuk base)". Reuses
 // _baseCats / _socketMaxFor / _socketGuideLine / _baseRWLine, and routes via cat:'Socketed bases' exactly
@@ -7076,9 +7155,11 @@ function _ensureSocketBaseEntry(name){
     var mx = (typeof _socketMaxFor === 'function') ? _socketMaxFor(base) : null;
     var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets > 0 ? sockets : (mx || 0)) : '';
     var guide = (typeof _socketGuideLine === 'function') ? _socketGuideLine(base, 'normal') : '';
-    var head = sockets > 0
-      ? ('A <b>' + sockets + '-socket ' + _d2artEsc(base) + '</b> runeword / craft base.')
-      : ('An <b>unsocketed ' + _d2artEsc(base) + '</b> — Larzuk or cube it' + (mx != null ? (' to ' + mx + ' sockets') : '') + '.');
+    var tlbl = (typeof _itemTierLabel === 'function') ? _itemTierLabel(base) : '';
+    var head = (tlbl ? '<div class="att-meta" style="color:#9c8d6b">' + tlbl + '</div>' : '')
+      + (sockets > 0
+        ? ('A <b>' + sockets + '-socket ' + _d2artEsc(base) + '</b> runeword / craft base.')
+        : ('An <b>unsocketed ' + _d2artEsc(base) + '</b> — Larzuk or cube it' + (mx != null ? (' to ' + mx + ' sockets') : '') + '.'));
     EXTRA_ITEMS[name] = { rarity:'basic', base:base, cat:'Socketed bases', val:'base', cells:cells,
       sockets: sockets > 0 ? sockets : undefined, hand: (slot === 'Weapon' ? (is2H ? '2h' : '1h') : undefined),
       desc: head + guide + rw };
@@ -7094,7 +7175,8 @@ function _throwTipHtml(name){
   // v368 — recognise a known weapon/armor base TYPE even on a name-only read (no "low base" suffix), so a
   // real runeword base (e.g. a sword like "Dimensional Blade") shows its runeword potential, not just "misread".
   var _isKnownBase = (typeof _baseCats === 'function') && Object.keys(_baseCats(clean)).length > 0;
-  var out = '<div class="att-type">' + (isBase || _isKnownBase ? 'Base item' : 'Unmatched read') + (clean ? ' &middot; ' + _d2artEsc(clean) : '') + '</div>';
+  var _tl = ((isBase || _isKnownBase) && typeof _itemTierLabel === 'function') ? _itemTierLabel(clean) : '';
+  var out = '<div class="att-type">' + (_tl || (isBase || _isKnownBase ? 'Base item' : 'Unmatched read')) + (clean ? ' &middot; ' + _d2artEsc(clean) : '') + '</div>';
   if (sock) out += '<div class="att-meta">🔩 ' + sock[1] + ' socket' + (sock[1] === '1' ? '' : 's') + '</div>';
   out += '<div class="att-aff">' + (isBase
     ? 'A white/grey socketed base the AI read in your stash. Low bases are filtered out of grail — keep it only if it’s a runeword/craft base.'
@@ -7115,10 +7197,11 @@ function _throwCardHtml(name){
   var src = (typeof artUrl === 'function' ? artUrl(clean) : '') || (typeof _magicArtSrc === 'function' ? _magicArtSrc(clean) : '') || null;
   var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="' + _d2artEsc(clean) + '"><img class="d2art-img" src="' + src + '" alt=""></span>'
     : '<span style="font-size:34px;line-height:1;color:#9aa6b2;text-shadow:0 0 10px currentColor">🗑</span>';
+  var _tl = (typeof _itemTierLabel === 'function') ? _itemTierLabel(clean) : '';
   return '<div class="material-card magicfind-card" style="border-color:#9aa6b2">'
     + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">' + artHtml
     + '<div class="gic-id-block"><h2 class="gic-name" style="color:#cdd6e0">' + _d2artEsc(name) + '</h2>'
-    + '<div class="gic-subtitle">' + (isBase ? 'socketed base' : 'unmatched read') + (sock ? ' · ' + sock[1] + ' sockets' : '') + ' · 🗑 Throw-out</div></div></header>'
+    + '<div class="gic-subtitle">' + (_tl ? _tl + ' · ' : '') + (isBase ? 'socketed base' : 'unmatched read') + (sock ? ' · ' + sock[1] + ' sockets' : '') + ' · 🗑 Throw-out</div></div></header>'
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'
     + (isBase ? 'A white/grey socketed base. Low bases are filtered out of the grail — keep it only if it’s a runeword/craft base, otherwise discard.'
               : 'This name was read but isn’t in your tracked grail. It may be a non-grail unique/rare, or a misread. Review it: keep → Magic &amp; Rare, or dismiss.')
@@ -9538,6 +9621,16 @@ window.D2IO_ART = D2IO_ART;
 })();
 function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
 window.artUrl = artUrl;
+// v380 — self-hosted base sprites grabbed from diablo2.io (browser fetcher, v231 method). Keys are the
+// exact base names so artUrl(base) + the per-base socketed cards resolve their own icon.
+try { Object.assign(D2IO_ART, {
+  "Aerin Shield":"art/base_aerinshield.png","Buckler":"art/base_buckler.png","Cinquedeas":"art/base_cinquedeas.png",
+  "Coronet":"art/base_coronet.png","Crown Shield":"art/base_crownshield.png","Defender":"art/base_defender.png",
+  "Dimensional Blade":"art/base_dimensionalblade.png","Dimensional Shard":"art/base_dimensionalshard.png",
+  "Fanged Knife":"art/base_fangedknife.png","Fuscina":"art/base_fuscina.png","Gilded Shield":"art/base_gildedshield.png",
+  "Hyperion Javelin":"art/base_hyperionjavelin.png","Royal Shield":"art/base_royalshield.png","Trident":"art/base_trident.png",
+  "War Javelin":"art/base_warjavelin.png","Zakarum Shield":"art/base_zakarumshield.png"
+}); } catch(e){}
 function _d2artEsc(s){ return String(s).replace(/"/g, '&quot;'); }
 // artOr(name, fallbackHtml, size) -> <img> art when we have a verified URL, else the
 // fallback markup (usually the existing emoji span). On a runtime load error the img hides
@@ -12630,7 +12723,10 @@ function renderCodexCard(name){
   var RC = {unique:'var(--d2-unique)', set:'var(--d2-set)', special:'var(--d2-unique)'};
   var ac = RC[c.rarity] || 'var(--gold)';
   var title = (c.cat==='set' && c.setName) ? c.setName : name.replace(/\s*\([^)]*\)\s*$/,'');
-  var rarityLabel = c.rarity==='set' ? (c.cat==='setpiece'?'Set Item':'Set') : (c.rarity==='special' ? (c.cat||'Special') : 'Unique');
+  // v380 — prefix the verified base TIER (Normal/Exceptional/Elite) → "Elite Unique" / "Elite Set", like diablo2.io.
+  var _tier = (typeof _baseTier==='function' && c.base) ? _baseTier(c.base) : '';
+  var _tpfx = _tier ? (_tier.charAt(0).toUpperCase()+_tier.slice(1)+' ') : '';
+  var rarityLabel = c.rarity==='set' ? (_tpfx + (c.cat==='setpiece'?'Set Item':'Set')) : (c.rarity==='special' ? (c.cat||'Special') : (_tpfx + 'Unique'));
   var reqs = [
     c.reqLvl?('Req Level '+c.reqLvl):'',
     c.reqStr?('Req Str '+c.reqStr):'',
