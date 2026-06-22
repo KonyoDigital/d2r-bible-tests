@@ -54,14 +54,16 @@ test.describe('v380 item tier label', () => {
     expect(r.crystal4os).toBe('Normal Base Item');
   });
 
-  test('the 16 fetched base sprites are registered in D2IO_ART', async ({ page }) => {
+  test('these bases register real art (v384: exceptional bases use their normal base HD sprite via invfile)', async ({ page }) => {
     const r = await page.evaluate(() => ({
       dimBlade: (window as any).artUrl('Dimensional Blade'),
       gilded: (window as any).artUrl('Gilded Shield'),
       fuscina: (window as any).artUrl('Fuscina'),
     }));
-    expect(r.dimBlade).toContain('base_dimensionalblade');
-    expect(r.gilded).toContain('base_gildedshield');
-    expect(r.fuscina).toContain('base_fuscina');
+    // v384 — exceptional bases share their normal base's in-game inventory sprite (Dimensional Blade=Crystal
+    // Sword, Gilded Shield=Aerin Shield, Fuscina=Trident). HD wins over the base_ backup; either is valid art.
+    expect(r.dimBlade).toMatch(/hd_crystal_sword|base_dimensionalblade/);
+    expect(r.gilded).toMatch(/hd_aerin_shield|base_gildedshield/);
+    expect(r.fuscina).toMatch(/hd_trident|base_fuscina/);
   });
 });

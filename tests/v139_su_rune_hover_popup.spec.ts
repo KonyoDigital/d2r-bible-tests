@@ -101,8 +101,8 @@ test.describe('v139 super-unique + rune hover popups', () => {
     for (const n of ALL_RUNES) {
       expect(r[n], n).toBeTruthy();
     }
-    expect(r['Jah']).toContain('runeJo_icon.png');
-    expect(r['Shael']).toContain('runeShae_icon.png');
+    expect(r['Jah']).toMatch(/hd_jah_rune|runeJo_icon/);  // v384 HD rune sprite
+    expect(r['Shael']).toMatch(/hd_shael_rune|runeShae_icon/);  // v384 HD rune sprite
   });
 
   // v253: rune-stash cells now float the rune's DESCRIPTION CARD (rich, with the HD icon

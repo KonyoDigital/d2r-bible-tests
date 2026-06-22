@@ -28,7 +28,9 @@ test.describe('v379 per-base socketed identity', () => {
     expect(r.cat).toBe('Socketed bases');          // → SOCKETED locker (same routing as generic)
     expect(r.base).toBe('Monarch');                // specific identity, not "Shield"
     expect(r.desc).toContain('4 sockets');         // EXACT max from verified SOCKET_MAX (Monarch=4)
-    expect(r.art).toContain('base_monarch');       // its OWN sprite
+    // v384 — Monarch now resolves to its TRUE in-game HD sprite. Monarch (elite) shares Kite Shield's
+    // inventory graphic via the game's invfile field, so its own sprite IS hd_kite_shield.png.
+    expect(r.art).toMatch(/hd_kite_shield|base_monarch/); // its OWN sprite (HD wins)
     expect(r.genericKept).toBe(true);              // generic bucket preserved (v371 fallback safe)
   });
 
@@ -43,7 +45,7 @@ test.describe('v379 per-base socketed identity', () => {
     expect(r.base).toBe('Crystal Sword');
     expect(r.desc).toContain('makeable in your 4os now');  // socket-accurate runewords
     expect(r.desc).toContain('6 sockets');                  // Crystal Sword max=6
-    expect(r.art).toContain('base_crystalsword');
+    expect(r.art).toMatch(/hd_crystal_sword|base_crystalsword/);  // v384 — true in-game HD sprite
   });
 
   test('a base with no specific art still registers (generic fallback art, specific identity)', async ({ page }) => {

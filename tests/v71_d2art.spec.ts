@@ -45,7 +45,7 @@ test.describe('v71 d2art artwork layer', () => {
     expect(r.hasBoss).toBe(true);
     expect(r.fns.every((t) => t === 'function')).toBe(true);
     expect(r.unknownNull).toBe(true);
-    expect(r.knownUrl).toMatch(/runeIst_icon\.png$/);
+    expect(r.knownUrl).toMatch(/(hd_ist_rune|runeIst_icon)\.png$/);
   });
 
   test('artOr emits an <img> with onerror fallback for mapped names, raw fallback for unmapped', async ({ page }) => {
@@ -134,9 +134,9 @@ test.describe('v71 d2art artwork layer', () => {
       };
     });
     expect(r.istImg).toBe(true);
-    expect(r.istSrc).toMatch(/runeIst_icon\.png$/);
+    expect(r.istSrc).toMatch(/(hd_ist_rune|runeIst_icon)\.png$/);
     expect(r.jahImg).toBe(true);
-    expect(r.jahSrc).toMatch(/runeJo_icon\.png$/);
+    expect(r.jahSrc).toMatch(/(hd_jah_rune|runeJo_icon)\.png$/);
   });
 
   test('the material detail card renders artwork for a mapped sunder (Bone Break)', async ({ page }) => {
@@ -159,7 +159,7 @@ test.describe('v71 d2art artwork layer', () => {
       return { hasImg: !!img, src: img?.getAttribute('src') || '' };
     });
     expect(r.hasImg).toBe(true);
-    expect(r.src).toMatch(/runeIst_icon\.png$/);
+    expect(r.src).toMatch(/(hd_ist_rune|runeIst_icon)\.png$/);
   });
 
   test('the calc grid tiles show art thumbnails for mapped items', async ({ page }) => {

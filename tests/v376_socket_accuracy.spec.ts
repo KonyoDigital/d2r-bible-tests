@@ -70,4 +70,32 @@ test.describe('v376 socket accuracy', () => {
     expect(r.nowSeg).not.toContain('Strength');
     expect(r.nowSeg).not.toContain('Zephyr');
   });
+
+  // v385 — a base can NEVER hold more sockets than its max, so NO runeword needing more than the base's
+  // max-sockets may appear anywhere in the runeword line (not makeable-now, not as a re-roll target).
+  test('#5 runeword line is capped to the base max-sockets — impossible higher-count words removed', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w = window as any;
+      const strip = (s: string) => s.replace(/<[^>]+>/g, ' ');
+      const check = (base: string, read: number) => {
+        const max = w._socketMaxFor(base);
+        const line = strip(w._baseRWLine(base, read));
+        // every runeword that needs MORE than `max` sockets, by name
+        const over = w._baseRunewords(base).filter((x: any) => x.s > max).map((x: any) => x.n);
+        const leaked = over.filter((n: string) => line.indexOf(n) >= 0);
+        return { max, leaked };
+      };
+      return {
+        boneShield: check('Bone Shield', 2),   // max 2 — no 3os/4os (Exile, Phoenix, Spirit…)
+        breastPlate: check('Breast Plate', 3),  // max 3 — no 4os (Bramble, Chains of Honor, Fortitude)
+        broadSword: check('Broad Sword', 4),    // max 4 — no 5os/6os (Call to Arms, Breath of the Dying)
+        lightPlate: check('Light Plate', 3),
+      };
+    });
+    expect(r.boneShield.max).toBe(2);
+    expect(r.boneShield.leaked, 'Bone Shield (max 2) leaks higher-socket runewords').toEqual([]);
+    expect(r.breastPlate.leaked, 'Breast Plate (max 3) leaks 4os runewords').toEqual([]);
+    expect(r.broadSword.leaked, 'Broad Sword (max 4) leaks 5-6os runewords').toEqual([]);
+    expect(r.lightPlate.leaked, 'Light Plate (max 3) leaks 4os runewords').toEqual([]);
+  });
 });
