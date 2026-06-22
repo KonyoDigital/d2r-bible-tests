@@ -7007,6 +7007,27 @@ function _baseRWLine(name, knownSockets){
   if (baseMax >= 1 && baseMax <= 6){ rws = rws.filter(function(r){ return r.s <= baseMax; }); if (!rws.length) return ''; }
   var maxS = rws.reduce(function(m, r){ return Math.max(m, r.s); }, 0);
   var ks = parseInt(knownSockets, 10);
+  // v387 — IMPOSSIBLE socket count ⇒ the base NAME is wrong. If the read sockets exceed what this base can
+  // EVER hold ("Mace (5os)" — a Mace maxes at 2), it was misidentified: a 5-socket 1H weapon is a flail
+  // (Scourge/Knout), not a Mace. Flag it loudly + suggest the SAME-class bases that CAN hold this many,
+  // instead of self-contradicting "5os now: none / Larzuk → 2" guidance. Konyo's repeatedly-flagged case.
+  if (baseMax >= 1 && baseMax <= 6 && ks >= 1 && ks > baseMax){
+    var _prim = Object.keys(_baseCats(name)).filter(function(k){ return k !== 'weapon' && k !== 'melee weapon' && k !== 'missile weapon'; })[0] || '';
+    var _sug = [];
+    if (typeof BASE_DB !== 'undefined' && _prim){
+      for (var _bn in BASE_DB){
+        if (!Object.prototype.hasOwnProperty.call(BASE_DB, _bn) || _bn === name) continue;
+        if (!_baseCats(_bn)[_prim]) continue;
+        if ((parseInt(_socketMaxFor(_bn), 10) || 0) >= ks) _sug.push(_bn);
+      }
+    }
+    _sug = _sug.slice(0, 6);
+    return '<div class="att-aff" style="color:#e9b96e">⚠ <b>Likely misidentified</b> — a ' + _d2artEsc(name)
+      + ' holds at most <b>' + baseMax + ' socket' + (baseMax === 1 ? '' : 's') + '</b>, so a ' + ks
+      + '-socket read can\'t be a ' + _d2artEsc(name) + '. A ' + ks + '-socket ' + (_prim || 'base')
+      + ' is most likely: <b>' + (_sug.length ? _sug.map(function(s){ return _d2artEsc(s); }).join(', ') : 'a higher-tier base')
+      + '</b>. Re-scan or rename this item.</div>';
+  }
   if (ks >= 1 && ks <= 6){
     var now = rws.filter(function(r){ return r.s === ks; });
     var other = rws.filter(function(r){ return r.s !== ks; });

@@ -98,4 +98,26 @@ test.describe('v376 socket accuracy', () => {
     expect(r.broadSword.leaked, 'Broad Sword (max 4) leaks 5-6os runewords').toEqual([]);
     expect(r.lightPlate.leaked, 'Light Plate (max 3) leaks 4os runewords').toEqual([]);
   });
+
+  // v387 — a read with MORE sockets than the base can ever hold = misidentified base. "Mace (5os)" is
+  // impossible (a Mace maxes at 2), so it's flagged as a misread that suggests the same-class bases which
+  // CAN hold 5 sockets (the flails: Scourge/Flail/Knout). Konyo's repeatedly-flagged Mace/Scourge case.
+  test('#6 impossible socket count is flagged as a misread, suggesting same-class bases that fit', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w = window as any;
+      const strip = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return {
+        mace5: strip(w._baseRWLine('Mace', 5)),
+        mace2: strip(w._baseRWLine('Mace', 2)),
+        scourge5: strip(w._baseRWLine('Scourge', 5)),
+      };
+    });
+    expect(r.mace5).toContain('Likely misidentified');
+    expect(r.mace5).toContain('at most 2 sockets');
+    expect(r.mace5).toMatch(/Scourge|Flail|Knout/);   // suggests the 5os mace-class flails
+    expect(r.mace2).toContain('Keep for runewords');  // a VALID 2os Mace is normal
+    expect(r.mace2).not.toContain('misidentified');
+    expect(r.scourge5).toContain('Keep for runewords'); // the CORRECT base (Scourge max 5) is fine
+    expect(r.scourge5).not.toContain('misidentified');
+  });
 });
