@@ -26,6 +26,14 @@ test.describe('v384 CASC HD art overrides backups everywhere', () => {
         'Ith': 'art/hd_ith_rune.png',
         'Essence of Terror': 'art/hd_burning_essence_of_terror.png',
         'Emerald': 'art/hd_emerald.png',
+        // codename uniques (dedicated CASC sprites, in-game-typo filenames) + Diablo Clone organs
+        'Pus Spitter': 'art/hd_pus_spiter.png',
+        'The Chieftain': 'art/hd_the_chieftan.png',
+        'Skewer of Krintiz': 'art/hd_krintizs_skewer.png',
+        'Witchwild String': 'art/hd_whichwild_string.png',
+        "Mephisto's Brain": 'art/hd_brain.png',
+        "Baal's Eye": 'art/hd_eye.png',
+        "Diablo's Horn": 'art/hd_horn.png',
       };
       const out: Record<string, { got: string; ok: boolean }> = {};
       for (const [n, exp] of Object.entries(want)) out[n] = { got: t(n), ok: t(n) === exp };
