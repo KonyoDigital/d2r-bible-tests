@@ -6856,6 +6856,10 @@ function _magicFindCardHtml(name){
     ? '<section class="gic-section"><div class="gic-sec-title">'+(skiller?'🎯 ':'📜 ')+'Stats read from your screenshot</div>'
       + mods.map(function(m){ return '<div class="att-aff att-var" style="font-size:13px">'+_d2artEsc(m)+'</div>'; }).join('') + '</section>'
     : '';
+  // v376 — for a socketable magic/rare/etc item (weapon/armor/helm/shield), show the QUALITY-aware
+  // Larzuk/cube guidance: a magic item is GEM-only (NOT a runeword base — runewords need white/normal).
+  // Returns '' for charms/jewels/rings/amulets (not socketable), so this is a no-op there.
+  var _sg = (typeof _socketGuideLine === 'function') ? _socketGuideLine(base, q) : '';
   return '<div class="material-card magicfind-card" style="border-color:'+col+'">'
     + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
     + artHtml
@@ -6863,7 +6867,7 @@ function _magicFindCardHtml(name){
     + '<div class="gic-subtitle">'+(base?_d2artEsc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare'+(skiller?' · 🎯 Skiller':'')+'</div></div></header>'
     + modsHtml
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'+blurb
-    + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div></section>'
+    + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div>'+_sg+'</section>'
     + '</div>';
 }
 // v345 — floating #arttip card for a Magic & Rare keeper, SAME format as the Socketed/EXTRA tooltips
@@ -6898,6 +6902,7 @@ function _mfTipHtml(name){
     + modLine
     + (modLine ? '' : '<div class="att-aff">' + blurb + '</div>')
     + '<div class="att-tag">rolls: ' + roll + '</div>'
+    + ((typeof _socketGuideLine === 'function') ? _socketGuideLine(base, q) : '')
     + '<div class="att-info">' + (modLine ? 'Stats read from your screenshot.' : 'Rolled-name item — no fixed drop card.') + ' Click for the full keeper card.</div>';
 }
 // v349 — strip the throw-out suffix " (Nos low base)" / "(rare)" to a clean base/name for art + resolution.
@@ -6935,14 +6940,36 @@ function _baseRunewords(name){
   if (typeof RUNEWORD_TIP === 'undefined') return [];
   var cats = _baseCats(name); if (!Object.keys(cats).length) return [];
   var out = [];
+  // v377 — PRECISE base-type → runeword matching (was a substring bug: a melee item carries the generic
+  // category "weapon", and the old code did "missile weapons".indexOf("weapon")>=0 → true, so EVERY melee
+  // weapon falsely matched EVERY missile/bow runeword. That told Konyo a bow runeword (Edge/Zephyr) fit a
+  // Grand Scepter and he socketed real runes on it. Now: scoped phrases (missile/melee/generic Weapons)
+  // are matched ONLY by the item's specific weapon category, and explicit type words map to exact
+  // categories — no cross-type bleed. Mirrors D2 item classes; a phrase can mix scopes + types (Insight).
+  var _RW_TYPE = {
+    sword:'sword', swords:'sword', scepter:'scepter', scepters:'scepter', axe:'axe', axes:'axe',
+    mace:'mace', maces:'mace', club:'mace', clubs:'mace', hammer:'hammer', hammers:'hammer',
+    wand:'wand', wands:'wand', staff:'staff', staves:'staff', stave:'staff', polearm:'polearm', polearms:'polearm',
+    spear:'spear', spears:'spear', dagger:'dagger', daggers:'dagger', knife:'dagger', knives:'dagger',
+    bow:'missile weapon', bows:'missile weapon', crossbow:'missile weapon', crossbows:'missile weapon',
+    claw:'katar', claws:'katar', katar:'katar', katars:'katar', javelin:'javelin', javelins:'javelin',
+    shield:'shield', shields:'shield', helm:'helm', helms:'helm', circlet:'helm', circlets:'helm',
+    armor:'body armor', body:'body armor', grimoire:'grimoire'
+  };
   for (var rw in RUNEWORD_TIP){
     var e = RUNEWORD_TIP[rw]; if (!e || !e.b) continue;
     var m = /(\d+)\s*socket\s*(.+)/i.exec(e.b); if (!m) continue;
     var s = +m[1], bw = m[2].toLowerCase(), hit = false;
-    Object.keys(cats).forEach(function(k){ if (bw.indexOf(k) >= 0 || bw.indexOf(k + 's') >= 0) hit = true; });
-    if (!hit && /\bweapons?\b/.test(bw) && cats['weapon']) hit = true;
-    if (!hit && /melee weapons?/.test(bw) && cats['melee weapon']) hit = true;
-    if (!hit && /missile weapons?/.test(bw) && cats['missile weapon']) hit = true;
+    // scoped weapon phrases first — matched ONLY by the item's specific scope, never by bare "weapon"
+    if (/missile weapons?/.test(bw) && cats['missile weapon']) hit = true;
+    if (/melee weapons?/.test(bw) && cats['melee weapon']) hit = true;
+    // strip the scoped phrases; a leftover bare "weapon(s)" = GENERIC (any weapon)
+    var rest = bw.replace(/(?:missile|melee)\s+weapons?/g, ' ');
+    if (!hit && /\bweapons?\b/.test(rest) && cats['weapon']) hit = true;
+    if (!hit){
+      var toks = rest.split(/[^a-z]+/);
+      for (var ti = 0; ti < toks.length; ti++){ var ck = _RW_TYPE[toks[ti]]; if (ck && cats[ck]){ hit = true; break; } }
+    }
     if (hit) out.push({ n: rw, s: s });
   }
   out.sort(function(a, b){ return a.s - b.s || a.n.localeCompare(b.n); });
@@ -6950,13 +6977,87 @@ function _baseRunewords(name){
 }
 window._baseRunewords = _baseRunewords;
 // v353 — the runeword line for a base hover-card: lists enablers + the max sockets to chase.
-function _baseRWLine(name){
+// v376 — socket-count ACCURACY: a runeword needs an item with EXACTLY as many sockets as it has
+// runes (a 2-rune word needs a 2-socket item; it CANNOT go in a 3-socket item). When we KNOW this
+// base's socket count (knownSockets), show only the runewords that fit it RIGHT NOW as makeable, and
+// list the other socket counts separately as re-roll/different-base targets. A 0/unknown count
+// (a Larzuk candidate the AI read with no sockets yet) keeps the full "aim for the max" guidance.
+function _baseRWLine(name, knownSockets){
   var rws = _baseRunewords(name); if (!rws.length) return '';
   var maxS = rws.reduce(function(m, r){ return Math.max(m, r.s); }, 0);
+  var ks = parseInt(knownSockets, 10);
+  if (ks >= 1 && ks <= 6){
+    var now = rws.filter(function(r){ return r.s === ks; });
+    var other = rws.filter(function(r){ return r.s !== ks; });
+    var out = '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now: '
+      + (now.length
+          ? now.slice(0, 12).map(function(r){ return _d2artEsc(r.n); }).join(', ') + (now.length > 12 ? ' +' + (now.length - 12) + ' more' : '')
+          : '<span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>')
+      + '</div>';
+    if (other.length){
+      var byS = {}; other.forEach(function(r){ (byS[r.s] = byS[r.s] || []).push(r.n); });
+      var hint = Object.keys(byS).map(Number).sort(function(a, b){ return a - b; }).map(function(s){
+        return '<b>' + s + 'os</b>: ' + byS[s].slice(0, 3).map(function(x){ return _d2artEsc(x); }).join(', ') + (byS[s].length > 3 ? '…' : '');
+      }).join(' · ');
+      out += '<div class="att-tag" style="margin-top:3px">other socket counts (re-roll / different base): ' + hint + '</div>';
+    }
+    return out;
+  }
   var show = rws.slice(0, 10).map(function(r){ return _d2artEsc(r.n) + ' <span style="opacity:.6">(' + r.s + 'os)</span>'; }).join(', ');
   return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — ' + show + (rws.length > 10 ? ' +' + (rws.length - 10) + ' more' : '')
     + '<div class="att-tag" style="margin-top:3px">aim for a <b>' + maxS + ' socket</b> base to cover the best ones</div></div>';
 }
+window._baseRWLine = _baseRWLine;
+// v376 — VERIFIED per-base MAX socket counts (max at ilvl 41+), cross-checked Maxroll + D2Runewizard +
+// diablo2.io. Drives accurate Larzuk-guaranteed-max + Horadric-cube-random guidance on base cards. Full
+// data + sources locked in CC memory (d2r_socket_max_data.md). Cryptic Sword = 4 (Maxroll's "6" was a
+// parse error; two independent sources confirm 4); Mighty Scepter = 2 (medium-confidence, single source).
+const SOCKET_MAX = {
+  'crystal sword':6,'phase blade':6,'colossus blade':6,'cryptic sword':4,'berserker axe':6,'cryptic axe':5,
+  'thresher':5,'giant thresher':6,'great poleaxe':6,'colossus voulge':4,'war pike':6,'grand scepter':3,
+  'caduceus':5,'mighty scepter':2,'elder staff':4,'monarch':4,'archon plate':4,'sacred armor':4,
+  'dusk shroud':4,'wyrmhide':4,'ring mail':3,'diadem':3,'tiara':3,'circlet':2,'bone visage':3,
+  'spired helm':3,'flail':5,'ogre maul':6,'thunder maul':6
+};
+// max sockets Larzuk/the cube can reach for a base — EXACT when known, else a SLOT ceiling. Weapons +
+// unknowns return null (most weapons cap at 3, so we don't over-promise 6 for an unverified weapon base).
+function _socketMaxFor(base){
+  var b = String(base || '').toLowerCase().trim();
+  if (SOCKET_MAX[b] != null) return SOCKET_MAX[b];
+  var c = (typeof _baseCats === 'function') ? _baseCats(b) : {};
+  if (c['body armor']) return 4;
+  if (c['shield']) return /monarch|aegis|\bward\b|pavise/.test(b) ? 4 : 3;
+  if (c['helm']) return /circlet/.test(b) ? 2 : 3;
+  return null;   // weapons + unknowns: don't assert a max we haven't verified
+}
+window._socketMaxFor = _socketMaxFor;
+// v376 — Larzuk + Horadric-cube socketing guidance for a base card, QUALITY-aware:
+//   normal/superior → Larzuk = GUARANTEED max; cube = RANDOM 1→max (per-slot recipe)
+//   magic (blue)    → Larzuk random 1–2; cube CAN'T socket magic → GEM it, NOT a runeword base
+//   rare/etc        → Larzuk exactly 1 (rare: SoJ + 3 Perfect Skulls in cube = +1); not a runeword base
+const _CUBE_RECIPE = { 'weapon':'Ral + Amn + Perfect Amethyst', 'body armor':'Tal + Thul + Perfect Topaz', 'helm':'Ral + Thul + Perfect Sapphire', 'shield':'Tal + Amn + Perfect Ruby' };
+function _socketSlotOf(base){
+  var c = (typeof _baseCats === 'function') ? _baseCats(base) : {};
+  if (c['body armor']) return 'body armor'; if (c['shield']) return 'shield';
+  if (c['helm']) return 'helm'; if (c['weapon']) return 'weapon'; return null;
+}
+function _socketGuideLine(base, quality){
+  var slot = _socketSlotOf(base); if (!slot) return '';
+  var mx = _socketMaxFor(base);
+  var q = String(quality || 'normal').toLowerCase();
+  if (q === 'magic'){
+    return '<div class="att-tag" style="margin-top:3px;color:#7aa2ff">💎 <b>Magic item — gem it, NOT a runeword base</b> (runewords need white/normal). Larzuk gives a random <b>1–2</b> sockets' + (mx != null ? ' (max ' + mx + ' for this base)' : '') + '; the cube can’t socket magic items.</div>';
+  }
+  if (q === 'rare' || q === 'crafted' || q === 'set' || q === 'unique'){
+    return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔩 Larzuk adds exactly <b>1</b> socket' + (q === 'rare' ? ' (or SoJ + 3 Perfect Skulls in the cube → +1)' : '') + '. Not a runeword base.</div>';
+  }
+  var cube = _CUBE_RECIPE[slot];
+  if (mx == null){
+    return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔨 Larzuk → this base’s <b>max</b> sockets (guaranteed). Cube (' + cube + ') → random up to that max.</div>';
+  }
+  return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔨 <b>Larzuk → ' + mx + ' sockets</b> (guaranteed max). Cube (' + cube + ') → <b>random 1–' + mx + '</b>.</div>';
+}
+window._socketGuideLine = _socketGuideLine;
 // v349 — floating #arttip card for a throw-out (unmatched read) item, SAME att-* format as the others.
 function _throwTipHtml(name){
   var clean = _throwClean(name);
@@ -6973,7 +7074,7 @@ function _throwTipHtml(name){
       ? 'The AI read this as a base item (not a grail unique). If it has good sockets keep it as a runeword/craft base — 5-6 sockets are always worth keeping.'
       : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.')) + '</div>';
   // v353/v368 — if this base enables runewords, say which (and what socket count to chase) → keep vs vendor.
-  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean); if (_rwl) out += _rwl; }
+  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean, sock ? +sock[1] : 0); if (_rwl) out += _rwl; var _sg = (typeof _socketGuideLine === 'function') ? _socketGuideLine(clean, 'normal') : ''; if (_sg) out += _sg; }
   out += '<div class="att-tag">🗑 Throw-out — review</div>';
   out += '<div class="att-info">🔮 Keep → Magic &amp; Rare, or ✕ dismiss. Click for the full card.</div>';
   return out;
@@ -21481,7 +21582,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : (_isKnownBase
             ? 'Read as a base item, not a grail unique — if it has good sockets, keep it as a runeword / craft base (5-6 sockets are always worth keeping).'
             : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.');
-      var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(clean):'';
+      var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(clean, sock ? +sock[1] : 0):'';
+      if ((isBase||_isKnownBase) && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(clean, 'normal'); if(_sgl) rwl+=_sgl; }
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
