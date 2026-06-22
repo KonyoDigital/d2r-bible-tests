@@ -20,7 +20,9 @@ test('off-grail uniques: matched, unique-coloured, art-backed, real stats', asyn
     vocab = Array.from(new Set(vocab.concat(Object.keys(E))));
     const vset = new Set(vocab);
     const offgrail = Object.keys(E).filter((n) => E[n].cat === 'Off-grail unique');
-    const hdArt = offgrail.filter((n) => { const u = w.artUrl && w.artUrl(n); return u && /mr_/.test(u); });
+    // v384 — HD art is now EITHER maxroll mr_*.png OR the true in-game CASC hd_*.png (the latter wins for
+    // codename uniques like Pus Spitter/Skewer of Krintiz whose real sprite was extracted). Both count.
+    const hdArt = offgrail.filter((n) => { const u = w.artUrl && w.artUrl(n); return u && /(mr_|hd_)/.test(u); });
     return {
       count: offgrail.length,
       fechmarMatched: vset.has('Axe of Fechmar'),

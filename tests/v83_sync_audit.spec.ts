@@ -674,7 +674,7 @@ test.describe('v83 website synchronization audit', () => {
     expect(card.name).toMatch(/Token of Absolution/);
     expect(card.body).toMatch(/respec|reset/i);
     // the emblem is the real diablo2.io extracted art (artOr-resolved), not the emoji fallback
-    expect(card.artSrc).toMatch(/art\/.*tokenofabsolution/);
+    expect(card.artSrc).toMatch(/art\/.*token_?of_?absolution/i);  // v384 — HD sprite is hd_token_of_absolution.png
     expect(card.artLazy).toBe(true);
 
     // (4) it is searchable and picking the result opens the same card
