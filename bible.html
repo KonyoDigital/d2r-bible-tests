@@ -22269,7 +22269,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // target it falls through to the normal already-owned path.
             var _tgt = multiTarget(n);
             var _cur = (copies[n] && copies[n] > 0) ? copies[n] : 1;
-            if (_tgt > 1 && _cur < _tgt) {
+            // v375 — a generic SOCKETED / LARZUK BASE (cat 'Socketed bases') is a QUANTITY item: you
+            // own MANY, and each screenshot is a SEPARATE physical base. Two white Threshers read the
+            // SAME generic label ("Larzuk 2H Weapon Base") yet are different items (different files,
+            // different durability) — so count each distinct read as an extra copy instead of
+            // collapsing it to a phantom "duplicate shot". A grail UNIQUE stays presence-only (you
+            // don't own two Tyrael's) → still collapses. The SEEN ledger already skips re-reading the
+            // SAME file, so two reads here = two genuinely distinct screenshots (Konyo's two-Thresher test).
+            var _qtyBase = (function(){ try { return !!(window.EXTRA_ITEMS && window.EXTRA_ITEMS[n] && window.EXTRA_ITEMS[n].cat === 'Socketed bases'); } catch(e){ return false; } })();
+            if ((_tgt > 1 && _cur < _tgt) || _qtyBase) {
               copies[n] = _cur + 1;
               extraCopies.push(n); (fRec.xc || (fRec.xc = [])).push(n);
             } else {
@@ -22343,7 +22351,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          : (dupes.length ? '<span class="vir-k vir-k-own">no NEW</span> everything read was already ✓ owned'
             : '<span class="vir-k vir-dim">none</span> no readable tracked items in ' + files.length + ' screenshot' + (files.length===1?'':'s')))
       + '</div>';
-    if (extraCopies.length) body += '<div class="vir-line"><span class="vir-k" style="color:var(--gold-bright,#f0c060)">📦 extra copies · ' + extraCopies.length + '</span> ' + extraCopies.map(function(n){ return _colorNames([n]) + ' <span style="color:#b5a48a;font-size:11px">(now ×' + copyCount(n) + ' / ' + multiTarget(n) + ')</span>'; }).join(' · ') + ' <em>— wanted spares, kept (not discarded)</em></div>';
+    if (extraCopies.length) body += '<div class="vir-line"><span class="vir-k" style="color:var(--gold-bright,#f0c060)">📦 extra copies · ' + extraCopies.length + '</span> ' + extraCopies.map(function(n){ return _colorNames([n]) + ' <span style="color:#b5a48a;font-size:11px">(now ×' + copyCount(n) + (multiTarget(n) > 1 ? (' / ' + multiTarget(n)) : '') + ')</span>'; }).join(' · ') + ' <em>— extra copies, kept (not discarded)</em></div>';
     if (dupes.length) body += '<div class="vir-line"><span class="vir-k vir-k-own">already owned · ' + dupes.length + '</span> ' + _colorNames(dupes) + '</div>';
     if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
     if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(function(n){ return (typeof _vColorName==='function')?_vColorName(n):esc(n); }).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
