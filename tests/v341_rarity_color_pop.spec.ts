@@ -248,8 +248,9 @@ test('the universal rarity glow rule covers the name sites with a bright multi-l
   expect(r.multiLayer).toBe(true);   // bright core + halo (two currentColor layers) = it pops
 });
 
-// v341.26 — every set member (all 13 sets) must resolve its INDIVIDUAL affixes in the floating
+// v341.26 — every set member (all sets) must resolve its INDIVIDUAL affixes in the floating
 // tooltip, regardless of whether findSetPiece's older list knows the piece (codex-driven fallback).
+// v382 — set count grew 13 → 32 (added the 17 classic + 2 RotW sets as rich cat:'set' codex entries).
 test('every set piece resolves per-piece affixes via the floating tooltip', async ({ page }) => {
   await page.goto('file://' + process.cwd() + '/bible.html');
   await page.waitForFunction(() => (window as any)._arttipResolve);
@@ -263,6 +264,6 @@ test('every set piece resolves per-piece affixes via the floating tooltip', asyn
     }));
     return { setCount: sets.length, bad };
   });
-  expect(r.setCount).toBe(13);
+  expect(r.setCount).toBe(32);
   expect(r.bad, 'set pieces missing per-piece affixes: ' + r.bad.join(', ')).toEqual([]);
 });
