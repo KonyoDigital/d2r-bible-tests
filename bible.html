@@ -11057,8 +11057,11 @@ function _vColorName(n){
   var s = (typeof _qStyle === 'function') ? _qStyle(n, '') : '';
   // v359 — clickable + routable: each name opens its item card (openDrop). JS-string escape for onclick.
   var js = String(n).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  // v395 — ⊘ eth badge for items the AI flagged Ethereal (Cannot be Repaired)
+  var _eth = (typeof etherealItems !== 'undefined' && etherealItems.has(n))
+    ? '<span class="pf-eth" title="Ethereal (Cannot be Repaired)" style="margin-left:4px;font-size:9px;font-weight:700;color:#9fb4c8;border:1px solid rgba(159,180,200,.5);border-radius:3px;padding:0 3px;vertical-align:middle">⊘ ETH</span>' : '';
   return '<span class="pf-name-i" role="button" tabindex="0"' + s + ' data-arttip="' + _d2artEsc(n) + '"'
-    + ' onclick="window.openDrop&&window.openDrop(\'' + js + '\')" title="open ' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>';
+    + ' onclick="window.openDrop&&window.openDrop(\'' + js + '\')" title="open ' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>' + _eth;
 }
 window._vColorName = _vColorName;
 // v359/v365 — click a screenshot thumbnail → view the FULL-RES shot (1920px from IndexedDB), full-screen.
@@ -11464,6 +11467,9 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
 // notable rares/crafts) that can't be grail-DB entries. Map name→quality ('magic'|'rare'|'crafted').
 // Tracked SEPARATELY from grail `owned` so it never pollutes the calculator / grail count.
 let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
+// v395 — ETHEREAL items: names the AI flagged as Ethereal (Cannot be Repaired). Shown with an ⊘ eth badge.
+let etherealItems = new Set(_safeJsonParse(LS.getItem('d2r_ethereal'), []));
+window._isEthereal = function(n){ try { return etherealItems.has(n); } catch(e){ return false; } };
 // v342.8 — value is {q,base}. Migrate older string-only values ({name:'magic'}) → {q,base:''}.
 try { Object.keys(magicFinds).forEach(function(k){ if (typeof magicFinds[k] === 'string') magicFinds[k] = { q: magicFinds[k], base: '' }; }); } catch(e){}
 function _mfQual(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.q||'magic'):(v||'magic'); }
@@ -11605,6 +11611,7 @@ const persist = () => {
   LS.setItem('d2r_wishlist', JSON.stringify([...wishlist]));
   LS.setItem('d2r_owned', JSON.stringify([...owned]));
   LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds));
+  LS.setItem('d2r_ethereal', JSON.stringify([...etherealItems]));
   LS.setItem('d2r_unknownReads', JSON.stringify([...unknownReads]));
   LS.setItem('d2r_copies', JSON.stringify(copies));
   LS.setItem('d2r_multiKeep', JSON.stringify(multiKeep));
@@ -18344,6 +18351,9 @@ try {
       if(_a) D2IO_ART[_nu]=_a; }
   }
 } catch(e){}
+// v394 — fix a wrong crawled sprite: art/d2io_sandersriprap.png is a blue gem, NOT boots. Sander's Riprap is
+// Heavy Boots — point it at the correct HD boots sprite (Konyo: "sanders renders as an annihilus").
+try { if (typeof D2IO_ART !== 'undefined') D2IO_ART["Sander's Riprap"] = 'art/hd_heavy_boots.png'; } catch(e){}
 // v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
 // colour. These spans carry data-arttip with the item name but no rarity class; table.ref-tbl had
 // no q-* rules so they read plain cream. Skip any span with an intentional inline colour (uber).
@@ -22747,10 +22757,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
   function suggestMule(name){
     if (isSharedStash(name)) return null;
+    // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
+    // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
+    // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
+    // the grail then THROW THEM OUT. {id:'__throwout'} routes the piece to the throw-out pile, not a mule.
+    var _KEEP_SET = /Tal Rasha|Immortal King|Griswold|Aldur|Trang.?Oul|Natalya|M.?avina/i;
     try{
       var spm = window.findSetPiece && window.findSetPiece(name);
       if (spm){
         var psn = (spm.set && spm.set.name) || name;
+        if (!_KEEP_SET.test(psn)) return {id:'__throwout', why:'low set piece — track for grail, discard: '+psn};
         return MAJOR_SETS.test(psn) ? {id:'sets-major', why:'set piece: '+psn} : {id:'sets-rest', why:'set piece: '+psn};
       }
     }catch(e){}
@@ -22759,8 +22775,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var isSet = (tip && tip.rarity==='set') || (it && it.tier==='set') || /\bset\b|\(any/i.test(name);
     if (isSet){
       var sn = (tip && tip.setName) || name;
+      if (!_KEEP_SET.test(sn)) return {id:'__throwout', why:'low set — track for grail, discard: '+sn};
       return MAJOR_SETS.test(sn) ? {id:'sets-major', why:'major set: '+sn} : {id:'sets-rest', why:'set: '+sn};
     }
+    // v393 — a FORGED RUNEWORD (Enigma, Spirit, Call to Arms…) is real gear, not a misread — mule it by SLOT
+    // from its RUNEWORD_TIP base requirement: weapon-capable → UNI-WEAPONS, otherwise (body armor/shield/helm)
+    // → UNI-ARMOR. Konyo: runewords should be muled too.
+    try {
+      if (typeof findRuneword === 'function'){ var _rwk = findRuneword(name);
+        if (_rwk && typeof RUNEWORD_TIP !== 'undefined' && RUNEWORD_TIP[_rwk]){
+          var _rb = String(RUNEWORD_TIP[_rwk].b || '').toLowerCase();
+          var _wpn = /weapon|sword|axe|mace|hammer|scepter|wand|staff|polearm|spear|dagger|katar|\bbow\b|crossbow|club/.test(_rb);
+          return _wpn ? {id:'uni-weapons', why:'runeword: '+_rwk} : {id:'uni-armor', why:'runeword: '+_rwk};
+        }
+      }
+    } catch(e){}
     // v364 — AUTO-SORT to the SHARED cross-account stash: items "worth keeping close" (High / Very-High
     // trade value, from the maxroll tier data) route to SHARED — accessible by every character, trade-ready —
     // simultaneously with the rest going to their mule by slot. Runes/gems/materials are NOT here (own planners).
@@ -23022,11 +23051,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // known weapon/armor base TYPE so a real runeword base (e.g. "Dimensional Blade", a sword) shows its
       // runeword potential instead of a bare "non-grail/misread" — so Konyo doesn't dismiss a good base.
       var _isKnownBase = (typeof _baseCats==='function') && Object.keys(_baseCats(clean)).length>0;
-      var why=isBase
+      // v394 — a LOW set piece routed here on purpose (Sigon's/Sander's/etc.): it's tracked for the grail,
+      // just not worth muling. Show the right message instead of the generic "misread".
+      var _loSet = (typeof findSetPiece==='function') && findSetPiece(clean);
+      var why = _loSet
+        ? ('Low set piece — <b>'+esc(((_loSet.set&&_loSet.set.name)||'')||'set')+'</b>. Already ticked for your grail/set tracker; not worth muling — safe to <b>sell or throw out</b>.'
+            )
+        : (isBase
         ? 'A white/grey socketed base'+(sock?' ('+sock[1]+' sockets)':'')+' — low bases are filtered out of grail. Keep only if it’s a runeword / craft base.'
         : (_isKnownBase
             ? 'Read as a base item, not a grail unique — if it has good sockets, keep it as a runeword / craft base (5-6 sockets are always worth keeping).'
-            : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.');
+            : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.'));
       var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(clean, sock ? +sock[1] : 0):'';
       if ((isBase||_isKnownBase) && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(clean, 'normal'); if(_sgl) rwl+=_sgl; }
       return '<div class="to-card">'
@@ -23797,6 +23832,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
         (data.items || []).forEach(function(n){
           if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(n);   // v379 — per-base socketed identity (art + exact max sockets)
+          // v394 — LOW set pieces (Sigon's/Sander's/etc.): mark the SET's grail aggregate ✓ for the codex/
+          // tracker, then THROW OUT the physical piece — don't keep or mule it. Konyo: reverse low-set muling.
+          try {
+            var _lsm = suggestMule(n);
+            if (_lsm && _lsm.id === '__throwout'){
+              try { var _spX = window.findSetPiece && window.findSetPiece(n);
+                if (_spX && window.__setStemOf && typeof ITEMS!=='undefined'){ var _stX = window.__setStemOf((_spX.set && _spX.set.name) || '');
+                  var _agX = ITEMS.find(function(i4){ return /\((any piece|set)\)\s*$/i.test(i4.n) && _stX.indexOf(window.__setStemOf(i4.n)) === 0; });
+                  if (_agX) owned.add(_agX.n); } } catch(e){}
+              if (!owned.has(n)){ if (unrec.indexOf(n) < 0) unrec.push(n); fRec.unr.push(n); try { unknownReads.add(n); } catch(e){} }
+              return;   // low set — thrown out, not kept/muled
+            }
+          } catch(e){}
           if (!owned.has(n)) {
             owned.add(n);
             // v227: an exact piece ✓s its set's grail aggregate row too (calc-only)
@@ -23844,7 +23892,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             }
           }
         });
-        (data.unrecognized || []).forEach(function(n){ if (unrec.indexOf(n) < 0) unrec.push(n); fRec.unr.push(n);
+        (data.unrecognized || []).forEach(function(n){
+          // v393 — a READ RUNEWORD (Enigma, Spirit, Call to Arms…) is a FORGED keeper, NOT a misread throw-out.
+          // Recognize it: register (owned), mark it forged in the Chronicle (rwMade), and route it to a mule by
+          // slot. Konyo: "runewords need their own grail and should be muled — this isn't an error."
+          try {
+            var _rwk = (typeof findRuneword === 'function') ? findRuneword(n) : null;
+            if (_rwk){
+              if (!owned.has(_rwk)){
+                owned.add(_rwk);
+                try { if (typeof rwMade !== 'undefined' && !rwMade[_rwk]){ var _dd=new Date(); var _mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_dd.getMonth()];
+                  rwMade[_rwk]=_mo+' '+_dd.getDate()+', '+_dd.getFullYear(); LS.setItem('d2r_rwMade', JSON.stringify(rwMade));
+                  if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } } catch(e){}
+                var _rsg = suggestMule(_rwk);
+                if (_rsg && muleById(_rsg.id) && !assign[_rwk]) assign[_rwk] = _rsg.id;
+                logged.push(_rwk); fRec.nw.push(_rwk);
+              } else { if (dupes.indexOf(_rwk) < 0) dupes.push(_rwk); fRec.own.push(_rwk); }
+              return;   // recognized as a runeword — never throw-out
+            }
+          } catch(e){}
+          if (unrec.indexOf(n) < 0) unrec.push(n); fRec.unr.push(n);
           // v342.4 — persist unmatched reads so they're reviewable (not evaporated). Skip ones already
           // tracked as grail or a Magic & Rare keeper.
           try { if (!owned.has(n) && !(magicFinds && magicFinds[n])) unknownReads.add(n); } catch(e){} });
@@ -23859,6 +23926,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (_mods.length && !(magicFinds[nm].mods && magicFinds[nm].mods.length)) magicFinds[nm].mods = _mods;
           }
           fRec.mf.push(nm);
+        });
+        // v395 — record which reads are ETHEREAL (Cannot be Repaired). Match against the canonical name the
+        // runeword/grail lookups resolve to, so the ⊘ badge sticks to the registered item.
+        (data.ethereal || []).forEach(function(en){
+          if (!en) return;
+          var _cn = en;
+          try { if (typeof findRuneword==='function' && findRuneword(en)) _cn = findRuneword(en); } catch(e){}
+          try { etherealItems.add(_cn); } catch(e){}
         });
         if (data.usage) cost += (data.usage.in || 0) / 1e6 * 1.0 + (data.usage.out || 0) / 1e6 * 5.0;
       } catch(e){ errors++; fRec.err = true; }

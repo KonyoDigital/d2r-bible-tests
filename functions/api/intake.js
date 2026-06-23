@@ -80,6 +80,20 @@ export async function onRequestPost(context) {
     + 'NOT a base — it is a UNIQUE/SET/RARE/MAGIC item. Read the TOP coloured NAME and route by it (gold/green → "items"), '
     + 'NEVER as "<base> (Larzuk base)" in "sockets". Example: a tooltip titled "ICEBLINK" (gold) over "Splint Mail" with '
     + '"+72% Enhanced Defense / Freezes Target" is the UNIQUE Iceblink → "items", NOT "Splint Mail" in "sockets". '
+    + '(RUNEWORD GATE) A finished RUNEWORD looks like a socketed item but is NOT a white base: it has a special '
+    + 'gold/tan NAME on top (the runeword name, e.g. "Chains of Honor", "Enigma", "Spirit", "Call to Arms"), a '
+    + 'rune-letter sequence in quotes under it (e.g. \'DolUmBerIst\'), MANY blue stat lines, and "Socketed (N)". '
+    + 'READ THE RUNEWORD NAME (the top gold line) and put it in "items" — NEVER report its grey base type '
+    + '("Archon Plate", "Monarch", "Phase Blade") as a "(Larzuk base)" in "sockets". Example: a tooltip titled '
+    + '"Chains of Honor" over "Archon Plate" with \'DolUmBerIst\' and +2 Skills/+65 All Res is the runeword '
+    + 'Chains of Honor → "items", NOT "Archon Plate" in "sockets". A bare WHITE socketed base has NO name line, '
+    + 'NO rune sequence, and NO stat lines — only then is it a "sockets" base. '
+    + '(ETHEREAL) For EVERY item you report (in "items" OR "finds"), also check the tooltip for an "Ethereal" '
+    + 'line (often "Ethereal (Cannot be Repaired)"). It is a distinct stat line — read it like you read the '
+    + 'socket count. List the EXACT name of every ETHEREAL item in an "ethereal" array (use the same name you '
+    + 'put in "items"/"finds"). Example: a "Gull" Dagger tooltip showing "Ethereal (Cannot be Repaired)" → put '
+    + '"Gull" in BOTH "items" and "ethereal". Non-ethereal items are simply left out of the "ethereal" array. '
+    + '(For "sockets" bases keep using the per-entry eth:true/false flag as before.) '
     + 'Do NOT also put a socketed base\'s name in "unrecognized". '
     + '(2b-NAME) CRITICAL — the base NAME is the TOP TITLE line of the tooltip (e.g. "Scourge", "Colossus '
     + 'Blade", "Phase Blade", "Berserker Axe"). A weapon tooltip ALSO shows a WEAPON-CLASS descriptor line '
@@ -233,6 +247,8 @@ export async function onRequestPost(context) {
     properties: {
       items: { type: 'array', items: { type: 'string' } },
       unrecognized: { type: 'array', items: { type: 'string' } },
+      // v395 — names of any reported items (from items/finds) whose tooltip shows "Ethereal".
+      ethereal: { type: 'array', items: { type: 'string' } },
       // v342.3 — magic/rare/crafted KEEPERS (charms, jewels, rings, amulets, notable rares). These have
       // randomly-rolled names so they can't be grail-DB entries; tracked in their own Magic & Rare bucket.
       finds: {
@@ -567,6 +583,7 @@ export async function onRequestPost(context) {
     items: outItems,
     unrecognized: outUnrec,
     finds: outFinds,
+    ethereal: [...new Set((parsed.ethereal || []).filter(function(s){ return typeof s === 'string' && s.trim(); }))],   // v395
     usage,
   }, 200);
   } catch (e) {
