@@ -11488,6 +11488,16 @@ let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
 // v395 — ETHEREAL items: names the AI flagged as Ethereal (Cannot be Repaired). Shown with an ⊘ eth badge.
 let etherealItems = new Set(_safeJsonParse(LS.getItem('d2r_ethereal'), []));
 window._isEthereal = function(n){ try { return etherealItems.has(n); } catch(e){ return false; } };
+// v397 — per-user intake logging: which person is scanning (Konyo vs cousin). Each intake session is tagged
+// with this name so the "Recently registered" history shows who logged it. Click the 👤 badge to switch.
+let intakeLogger = (LS.getItem('d2r_logger') || 'Konyo');
+window.getIntakeLogger = function(){ return intakeLogger; };
+window.setIntakeLogger = function(name){ intakeLogger = (String(name == null ? '' : name).trim()) || 'Konyo'; try { LS.setItem('d2r_logger', intakeLogger); } catch(e){} try { if (typeof renderJournal === 'function') renderJournal(); } catch(e){} };
+window.cycleIntakeLogger = async function(){
+  var cur = intakeLogger;
+  var nm = (typeof uiPrompt === 'function') ? await uiPrompt('Who is logging these uploads? (e.g. Konyo, or your cousin’s name)', cur) : prompt('Who is logging?', cur);
+  if (nm != null) window.setIntakeLogger(nm);
+};
 // v342.8 — value is {q,base}. Migrate older string-only values ({name:'magic'}) → {q,base:''}.
 try { Object.keys(magicFinds).forEach(function(k){ if (typeof magicFinds[k] === 'string') magicFinds[k] = { q: magicFinds[k], base: '' }; }); } catch(e){}
 function _mfQual(name){ var v=magicFinds&&magicFinds[name]; return (v&&typeof v==='object')?(v.q||'magic'):(v||'magic'); }
@@ -23063,6 +23073,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // can see exactly what's being thrown out and recover a misread (🔮 keep) or confirm a discard (✕).
   function renderThrowoutReview(){
     var el=document.getElementById('vault-throwout'); if(!el) return;
+    // v396.2 — RESCUE any RUNEWORD that's sitting in the throw-out pile from an OLD read (before runewords
+    // were recognized). A runeword is NEVER junk: register it (owned), mark it forged in the Chronicle, mule
+    // it by slot, and drop it from unknownReads. Konyo: "most certainly not throw out an Enigma."
+    try {
+      if (typeof unknownReads !== 'undefined' && unknownReads && typeof findRuneword === 'function'){
+        var _migr = [];
+        unknownReads.forEach(function(n){ if (findRuneword(n)) _migr.push(n); });
+        if (_migr.length){
+          _migr.forEach(function(n){
+            var rw = findRuneword(n);
+            unknownReads.delete(n);
+            if (!owned.has(rw)){
+              owned.add(rw);
+              try { if (typeof rwMade!=='undefined' && !rwMade[rw]){ var _d=new Date(); var _mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_d.getMonth()];
+                rwMade[rw]=_mo+' '+_d.getDate()+', '+_d.getFullYear(); } } catch(e){}
+              try { var sg=suggestMule(rw); if (sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[rw]) assign[rw]=sg.id; } catch(e){}
+            }
+          });
+          try { persistOwned && persistOwned(); saveA && saveA(); } catch(e){}
+          try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){}
+        }
+      }
+    } catch(e){}
     var names=(typeof unknownReads!=='undefined'&&unknownReads)
       ? Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort()
       : [];
@@ -23661,7 +23694,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var j = journal();
     var sf = function(s){ return String(s||'').replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
     var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), ff:(f.file||''), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err, th:(f.thumb||'') }; });
-    j.unshift({ ts: Date.now(), items: items.slice(0, 30), pf: pf });
+    j.unshift({ ts: Date.now(), u: (typeof intakeLogger !== 'undefined' ? intakeLogger : 'Konyo'), items: items.slice(0, 30), pf: pf });   // v397 — tag the logger
     // v359 — thumbnails are heavy: keep them ONLY on the newest session; strip from older ones to bound storage.
     for (var _k = 1; _k < j.length; _k++){ if (j[_k] && j[_k].pf){ j[_k].pf.forEach(function(p){ if (p) delete p.th; }); } }
     try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
@@ -23704,7 +23737,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }).join('');
         pfHtml = '<details class="vir-pf vj-pf"><summary>📂 per-screenshot breakdown <span class="vir-pf-ct">'+e.pf.length+' file'+(e.pf.length===1?'':'s')+'</span></summary><div class="vir-pf-body">'+rows+'</div></details>';
       }
-      return '<div class="vj-session"><div class="vj-meta"><span class="vj-when">' + when + '</span><span class="vj-count">' + e.items.length + ' item' + (e.items.length===1?'':'s') + '</span></div><div class="vj-items">' + chips + '</div>' + pfHtml + '</div>';
+      var _uBadge = e.u ? '<span class="vj-user" title="logged by ' + esc(e.u) + '" style="font-size:9px;font-weight:700;color:#c9b88f;border:1px solid rgba(201,184,143,.45);border-radius:3px;padding:0 4px;margin-left:6px">👤 ' + esc(e.u) + '</span>' : '';
+      return '<div class="vj-session"><div class="vj-meta"><span class="vj-when">' + when + '</span><span class="vj-count">' + e.items.length + ' item' + (e.items.length===1?'':'s') + '</span>' + _uBadge + '</div><div class="vj-items">' + chips + '</div>' + pfHtml + '</div>';
     }).join('');
     // v328: collapsible by default + symmetric grid chips + scroll (Konyo: "droppeeable
     // expandable scrollable more symmetric and by default not expanded").
@@ -23718,13 +23752,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _totalReg = _grailReg + _magicReg + _throwReg;
     el.innerHTML = '<details class="vj-details">'
       + '<summary class="vj-head">'
-      +   '<span class="vj-head-l">🕘 <strong>Recently registered</strong> <span class="vj-head-sub">AI-intake history</span></span>'
+      +   '<span class="vj-head-l">🕘 <strong>Recently registered</strong> <span class="vj-head-sub">AI-intake history</span>'
+      +     ' <span class="vj-logger" onclick="event.preventDefault();event.stopPropagation();window.cycleIntakeLogger&&window.cycleIntakeLogger()" title="who is logging these uploads — click to switch (Konyo / your cousin). Each session is tagged with this name." style="cursor:pointer;font-size:10px;color:#c9b88f;border:1px solid rgba(201,184,143,.5);border-radius:4px;padding:1px 6px;margin-left:8px">👤 ' + esc(typeof intakeLogger!=='undefined'?intakeLogger:'Konyo') + ' ⇄</span></span>'
       +   '<span class="vj-head-r"><span class="vj-grandtotal" title="everything recorded — grail + Magic &amp; Rare + throw-out">' + _totalReg + ' <span class="vj-gt-lbl">registered</span></span><span class="vj-chev">▾</span></span>'
       + '</summary>'
       + '<div class="vj-summary">'
       +   '<span class="vj-sum-chip vj-sum-grail">' + _grailReg + ' grail</span>'
       +   '<span class="vj-sum-chip vj-sum-magic">🔮 ' + _magicReg + ' magic &amp; rare</span>'
       +   '<span class="vj-sum-chip vj-sum-sess">' + totalItems + ' logged · ' + j.length + ' session' + (j.length===1?'':'s') + '</span>'
+      +   (function(){ try { var by={}; j.forEach(function(e){ var u=e.u||'Konyo'; by[u]=(by[u]||0)+1; }); var ks=Object.keys(by); return (ks.length>1)?('<span class="vj-sum-chip" style="color:#c9b88f">'+ks.map(function(u){ return '👤 '+esc(u)+' ·'+by[u]; }).join('  ')+'</span>'):''; } catch(e){ return ''; } })()
       + '</div>'
       + ((!j.some(function(e){ return e.pf && e.pf.length; })) ? '<div class="vj-pf-hint">📂 the per-screenshot breakdown (which shot → which items) saves under each session after your <strong>next intake</strong> — older sessions above were logged before this was added</div>' : '')
       + '<div class="vj-scroll">' + sessions + (j.length>8 ? '<div class="vj-more">… and ' + (j.length-8) + ' older session' + (j.length-8===1?'':'s') + '</div>' : '') + '</div>'
@@ -23757,6 +23793,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     opts = opts || {};
     var report = document.getElementById('vault-intake-report');
     if (!files || !files.length || !report) return;
+    window._vIntakeBusy = true;   // v396.3 — folder poll skips while a read is in flight
     // v342.26 — snapshot the registered total BEFORE this batch so the report can show the running
     // accumulation ("N already in vault → +M new this scan → T total"). The vault persists `owned`
     // across sessions, so a NEW batch already dedups against everything registered — from the very
@@ -24067,6 +24104,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
       + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
     report.innerHTML = html;
+    window._vIntakeBusy = false;   // v396.3 — read finished; the folder poll may run again
   };
 
   // ── v212: 📂 folder watch — connect the D2R screenshots dir ONCE (File System
@@ -24141,8 +24179,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v235: folder is remembered now — swap the Connect button for the animated
       // "watcher" (eye) so it's clear the folder is linked + being watched, and show Scan.
       _setFolderConnectedUI(true);
-      status('📂 folder connected — scanning…');
+      status('📂 folder connected — scanning… new captures will auto-register from now on');
       window.vaultScanFolder();
+      _startAutoWatch();   // v396.3 — auto-read new screenshots going forward (poll + on-focus)
     } catch(e){ if (e && e.name!=='AbortError') status('folder connect failed: '+e.name); }
   };
   window.vaultScanFolder = async function(quiet){
@@ -24211,6 +24250,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){}
   }
   window._setFolderConnectedUI = _setFolderConnectedUI;
+  // v396.3 — AUTO-WATCH: the File System Access API has no file-change events, so we (a) re-scan whenever the
+  // tab regains focus / becomes visible (you alt-tab back from fullscreen D2R after a screenshot → it auto-
+  // reads it), and (b) poll the folder every ~12s while the tab is visible. Both use the QUIET scan, which
+  // dedups via the seen-ledger and only feeds genuinely NEW screenshots to the AI. Skips while a read is in
+  // flight (_vIntakeBusy) and when the tab is hidden (no wasted polling). Konyo: "it should auto-register."
+  var _autoWatchOn = false, _pollTimer = null;
+  function _autoScanTick(){
+    try {
+      if (document.visibilityState !== 'visible') return;
+      if (window._vIntakeBusy) return;
+      if (typeof window.vaultScanFolder === 'function') window.vaultScanFolder(true);
+    } catch(e){}
+  }
+  function _startAutoWatch(){
+    if (_autoWatchOn) return; _autoWatchOn = true;
+    try { document.addEventListener('visibilitychange', _autoScanTick); } catch(e){}
+    try { window.addEventListener('focus', _autoScanTick); } catch(e){}
+    try { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = setInterval(_autoScanTick, 12000); } catch(e){}
+  }
+  window._startFolderAutoWatch = _startAutoWatch;
   function initFolderWatch(){
     var cb=document.getElementById('vault-folder-btn'), sb=document.getElementById('vault-scan-btn');
     var di=document.getElementById('vault-dir-input');
@@ -24222,7 +24281,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var wch=document.getElementById('vault-watcher');
       if (wch) wch.onclick=function(){ window.vaultConnectFolder(); };
       idbGet(FOLDER_KEY).then(function(h){
-        if (h){ _setFolderConnectedUI(true); window.vaultScanFolder(true); }
+        if (h){ _setFolderConnectedUI(true); window.vaultScanFolder(true); _startAutoWatch(); }
         else  { _setFolderConnectedUI(false); }
       }).catch(function(){ _setFolderConnectedUI(false); });
       return;
