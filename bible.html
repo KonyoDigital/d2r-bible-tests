@@ -24124,7 +24124,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          : '')
       + _needLook
       + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc" title="' + (_preReg > 0 ? 'these items were already ✓ in your vault BEFORE this scan' : 'the vault was EMPTY at the start of this scan, so these are DUPLICATE SHOTS — the same item appeared in an earlier screenshot of this same batch (first = new, this = the repeat). Collapsed to one, never double-counted — NOT based on any prior history.') + '">+ <b>' + dupes.length + '</b> ' + (_preReg > 0 ? 'already-owned' : 'duplicate shot' + (dupes.length === 1 ? '' : 's')) + '</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>' + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
-      + '<span class="vir-rc-note">' + files.length + ' screenshots ≠ ' + files.length + ' items — duplicates collapse to one; everything read is recorded &amp; sorted (grail · magic · throw-out)</span></div>'
+      + '<span class="vir-rc-note">' + (function(){ var _it = logged.length + magicNew.length + unrec.length;
+          var parts = [files.length + ' shot' + (files.length===1?'':'s') + ' → ' + _it + ' item' + (_it===1?'':'s') + ' this scan'];
+          if (extraCopies.length) parts.push(extraCopies.length + ' extra cop' + (extraCopies.length===1?'y':'ies'));
+          if (dupes.length) parts.push(dupes.length + ' duplicate shot' + (dupes.length===1?'':'s') + (_preReg>0?' (already owned)':' (same item — collapsed, not lost)'));
+          if (_emptyShots.length) parts.push(_emptyShots.length + ' empty — no tooltip text, RE-SHOOT');
+          if (_seenSkip) parts.push(_seenSkip + ' already-read file' + (_seenSkip===1?'':'s') + ' skipped');
+          return parts.join(' · ') + ' — one shot can hold several items; duplicates never double-count.';
+        })() + '</span></div>'
       + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
     report.innerHTML = html;
     window._vIntakeBusy = false;   // v396.3 — read finished; the folder poll may run again
