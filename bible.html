@@ -22945,7 +22945,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var probe = base + ' ' + name;
     // v322: socketed bases (generic "Socketed <Slot>" buckets, or any item literally named with
     // sockets) get their own home — the SOCKETED mule — BEFORE the jewelry/armor/weapon fallbacks.
-    if (/\bsocket(ed|s)?\b/i.test(name)) return {id:'bases', why:'socketed base'};
+    // v413 — also catch the INTAKE LABEL format ("Grim Scythe (6os)", "Circlet (Larzuk base)", "Trident (3os low base)"):
+    // the word "socket" isn't in those, so without this a kept socketed base would mis-route to UNI-WEAPONS if
+    // _ensureSocketBaseEntry hadn't pre-filed it in EXTRA_ITEMS. Belt-and-suspenders → SOCKETED.
+    if (/\bsocket(ed|s)?\b/i.test(name) || /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i.test(name)) return {id:'bases', why:'socketed base'};
     // v362 — ARMOR before JEWELRY: body armor like "Ring Mail" contains the word "ring", so it must be
     // caught as armor (via "mail") FIRST, or it mis-files to UNI-SMALL (Konyo: Darkglow Ring Mail → jewelry).
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
@@ -24063,6 +24066,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               body: JSON.stringify({ image:_full, media_type:'image/jpeg', names:vocab, file:fname, cropped:true }) }, 75000);
             if (_r2.ok){ var _d2 = await _r2.json(); if (!_isEmpty(_d2)){ data = _d2;
               try { console.log('[vault-intake] ' + fname + ' → empty crop → full-image retry recovered', _d2.items || _d2.unrecognized); } catch(e){} } }
+          } catch(e){}
+        }
+        // v413 — LAST-RESORT recovery for a STILL-empty shot: read the full image with cropped:FALSE (no
+        // single-item cap), the widest net. Catches the "no tooltip text" miss where a tooltip IS clearly on
+        // screen but the single-item passes kept reading nothing (Konyo's Grim Scythe 18.18.35). Better to
+        // surface the item (dismiss any stray extra) than silently drop a real one. Only fires when the shot
+        // would otherwise be a total empty — never inflates a shot that already read something.
+        if (_isEmpty(data) && _imRef){
+          try {
+            var _full3 = _vEnlarge(_imRef, null);
+            var _r3 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+              body: JSON.stringify({ image:_full3, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
+            if (_r3.ok){ var _d3 = await _r3.json(); if (!_isEmpty(_d3)){ data = _d3;
+              try { console.log('[vault-intake] ' + fname + ' → still empty → wide-net (cropped:false) retry recovered', _d3.items || _d3.unrecognized); } catch(e){} } }
           } catch(e){}
         }
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
