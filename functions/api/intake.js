@@ -344,15 +344,18 @@ export async function onRequestPost(context) {
       // hangs/fails ("not working", reported repeatedly). Reliability wins: Sonnet loads fast every
       // time. The Perfect/high row is handled by the tight crop + fixed-position ID + the ✓? verify-
       // flag + a one-tap −/+ nudge. env.MODEL=claude-opus-4-8 if you ever want to force Opus.
-      // v342.2 — model per JOB:
-      //  • LOCATE  → Haiku (just box-finding, no text).
-      //  • ITEMS   → Haiku — the vault loot read is now an EASY task (we crop+enlarge to ONE clean tooltip),
-      //              so the cheap model reads it fine at 3× lower cost. Konyo: "do haiku, more logical for these."
-      //  • TALLY/CRAFT → Sonnet — digit COUNTING ("23" vs "2") is the error-prone job; keep the stronger,
-      //              already-calibrated model. (env overrides: LOCATE_MODEL / ITEMS_MODEL / MODEL.)
+      // v342.2 / v398 — model per JOB:
+      //  • LOCATE  → Haiku (just box-finding, no text — cheap is fine).
+      //  • ITEMS   → SONNET (v398). Haiku kept misreading the hard cases: the faint dim-blue "Socketed (N)"
+      //              line (Elder Staff/Trident/Wrist Sword), runeword-vs-base (Chains of Honor → Archon Plate),
+      //              unique-vs-base (Que-Hegan's/Iceblink), and socket digits (4→1). Sonnet reads dim/overlapping
+      //              text + the gold-name-vs-grey-base distinction far better. ~3-4× the cost (still pennies/batch).
+      //              Konyo opted in. (env ITEMS_MODEL=claude-haiku-4-5 reverts to cheap.)
+      //  • TALLY/CRAFT → Sonnet — digit COUNTING ("23" vs "2") is error-prone; keep the strong model.
+      //              (env overrides: LOCATE_MODEL / ITEMS_MODEL / MODEL.)
       model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
-        : (env.ITEMS_MODEL || 'claude-haiku-4-5'),
+        : (env.ITEMS_MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
       // v342.26 — temperature 0 (greedy decode) so the SAME screenshot reads the SAME way run-to-run.
       // The old default (1.0) sampled, so re-scanning a batch could re-assort borderline items

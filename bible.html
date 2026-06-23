@@ -24039,7 +24039,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           try { if (typeof findRuneword==='function' && findRuneword(en)) _cn = findRuneword(en); } catch(e){}
           try { etherealItems.add(_cn); } catch(e){}
         });
-        if (data.usage) cost += (data.usage.in || 0) / 1e6 * 1.0 + (data.usage.out || 0) / 1e6 * 5.0;
+        if (data.usage) cost += (data.usage.in || 0) / 1e6 * 3.0 + (data.usage.out || 0) / 1e6 * 15.0;   // v398 — items read now Sonnet 4.6 ($3/M in · $15/M out)
       } catch(e){ errors++; fRec.err = true; }
       doneCount++;
       report.innerHTML = _scanUI(doneCount, files.length, logged.length);
