@@ -24231,16 +24231,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     async function _worker(){ while (_next < files.length){ var _my = _next++; await processFile(_my); } }
     var _pool = []; for (var _w = 0; _w < CONC; _w++) _pool.push(_worker());
     await Promise.all(_pool);
-    // v342.27 — remember the files we just read so re-dropping them later is skipped for free. Mark
-    // only SUCCESSFUL reads as seen, so a file that errored can still be retried. (Folder path already
-    // marks its files seen in vaultOfferMenu, so only the manual path needs this.)
-    if (!opts.fromFolder){
-      try {
-        var _sNow = seenLedger();
-        files.forEach(function(f, i){ var fr = perFile[i]; if (f && f.name && fr && !fr.err){ _sNow[f.name] = 1; _sNow[f.name + '|' + f.lastModified] = 1; } });
-        localStorage.setItem(SEEN_KEY, JSON.stringify(_sNow));
-      } catch(e){}
-    }
+    // v342.27 / v413.1 — remember files we read so re-dropping them is free. CRITICAL: mark a file SEEN only
+    // if it actually READ SOMETHING (a grail item, magic/rare find, or throw-out). A file that errored OR came
+    // back TRULY EMPTY ("∅ no tooltip text") must stay re-scannable — otherwise it's silently skipped forever
+    // and a re-shoot / the wide-net retry never gets to recover it (Konyo's Grim Scythe 18.18.35). This runs
+    // for BOTH paths (the folder scan pre-marks files seen at discovery, so empties must be UN-marked here).
+    try {
+      var _sNow = seenLedger();
+      files.forEach(function(f, i){
+        var fr = perFile[i]; if (!f || !f.name || !fr) return;
+        var _readSomething = !fr.err && ((fr.nw && fr.nw.length) || (fr.own && fr.own.length) || (fr.unr && fr.unr.length) || (fr.mf && fr.mf.length));
+        if (_readSomething){ _sNow[f.name] = 1; _sNow[f.name + '|' + f.lastModified] = 1; }
+        else { delete _sNow[f.name]; delete _sNow[f.name + '|' + f.lastModified]; }   // err / truly-empty → keep re-scannable
+      });
+      localStorage.setItem(SEEN_KEY, JSON.stringify(_sNow));
+    } catch(e){}
     journalAdd(logged, perFile);
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
