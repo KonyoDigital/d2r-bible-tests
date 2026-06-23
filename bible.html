@@ -11064,6 +11064,24 @@ function _vColorName(n){
     + ' onclick="window.openDrop&&window.openDrop(\'' + js + '\')" title="open ' + _d2artEsc(n) + '">' + _d2artEsc(n) + '</span>' + _eth;
 }
 window._vColorName = _vColorName;
+// v396 — VALUABLE small-charm filter. A magic small charm is a KEEPER only if it rolled a genuinely good
+// affix (the ones D2 traders pay for): 5%+ Magic Find, any All-Resistances, a high single resist (10%+),
+// 10+ Life, or 5% Faster Hit Recovery — and 2+ of those together is an OP "perfect" charm. Everything else
+// (stamina / gold find / +1-2 stat / low single res / elemental dmg adds) is junk → thrown out. Returns
+// {keep, op, hi:[highlight strings]} or null if `mods` isn't an array. Konyo: "this is the filter."
+function _smallCharmKeep(mods){
+  if (!Array.isArray(mods)) return null;
+  var txt = mods.join(' | '), good = [], m;
+  if ((m = /(\d+)\s*%?\s*(?:Better Chance of Getting Magic Items|Magic Find|\bMF\b)/i.exec(txt)) && +m[1] >= 5) good.push(m[1] + '% MF');
+  if ((m = /All\s*Resist\w*\s*\+?\s*(\d+)/i.exec(txt)) && +m[1] >= 3) good.push('+' + m[1] + ' all res');
+  var sr = /(?:Fire|Cold|Lightning|Poison)\s*Resist\w*\s*\+?\s*(\d+)/ig, sm, bestSr = 0;
+  while ((sm = sr.exec(txt))) bestSr = Math.max(bestSr, +sm[1]);
+  if (bestSr >= 10) good.push('+' + bestSr + '% single res');
+  if ((m = /\+?\s*(\d+)\s*(?:to\s*)?Life\b/i.exec(txt)) && +m[1] >= 10) good.push('+' + m[1] + ' life');
+  if ((m = /(\d+)\s*%?\s*Faster\s*Hit\s*Recovery/i.exec(txt)) && +m[1] >= 5) good.push(m[1] + '% FHR');
+  return { keep: good.length > 0, op: good.length >= 2, hi: good };
+}
+window._smallCharmKeep = _smallCharmKeep;
 // v359/v365 — click a screenshot thumbnail → view the FULL-RES shot (1920px from IndexedDB), full-screen.
 // Args: (shotKey, fallbackSrc). shotKey = the filename → looked up in the full-res store; falls back to the
 // small thumb src if the full-res isn't available (older scan). A data: src is shown directly (back-compat).
@@ -18354,6 +18372,23 @@ try {
 // v394 — fix a wrong crawled sprite: art/d2io_sandersriprap.png is a blue gem, NOT boots. Sander's Riprap is
 // Heavy Boots — point it at the correct HD boots sprite (Konyo: "sanders renders as an annihilus").
 try { if (typeof D2IO_ART !== 'undefined') D2IO_ART["Sander's Riprap"] = 'art/hd_heavy_boots.png'; } catch(e){}
+// v396 — VALUABLE small-charm reference cards: the OP magic small charms D2 traders pay for (7% MF, 5%
+// all-res, 20 life, 5% FHR, and the perfect Shimmering+suffix combos). Ranges verified vs the local game
+// data (magicprefix/suffix.txt, scha itype). Registered in EXTRA_ITEMS → own ID card + #arttip hover +
+// search + UNI-SMALL mule routing; HD small-charm sprite. The intake _smallCharmKeep filter keeps these &
+// throws out junk charms. Konyo: 'the good ones only — noticed and muled, not junk.'
+try {
+  var _SC = {"Small Charm of Good Luck (7% MF)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["7% Better Chance of Getting Magic Items"],"note":"Max-roll MF small charm (6-7% via 'of Good Luck'). MF builds stack these — a staple keeper, always muled."},"Shimmering Small Charm (5% All Res)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5"],"note":"Max all-res small charm (3-5% via 'Shimmering'). Caps resistances cheaply in tiny slots — high demand."},"Small Charm of Vita (20 Life)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["+20 to Life"],"note":"Max life small charm (16-20 via 'of Vita'). Flat life in 1x1 — every build wants these."},"Small Charm of Balance (5% FHR)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["+5% Faster Hit Recovery"],"note":"5% Faster Hit Recovery small charm ('of Balance') — used to hit FHR breakpoints. Niche but valuable."},"Shimmering Small Charm of Good Luck (5 res + 7 MF)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5","7% Better Chance of Getting Magic Items"],"note":"OP perfect dual-roll: +5 all res AND 7% MF in one 1x1 charm. Top-tier trade value — never throw out."},"Shimmering Small Charm of Vita (5 res + 20 life)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5","+20 to Life"],"note":"OP perfect dual-roll: +5 all res AND +20 life. Best survivability small charm — top trade value."},"Shimmering Small Charm of Balance (5 res + 5 FHR)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["All Resistances +5","+5% Faster Hit Recovery"],"note":"OP perfect dual-roll: +5 all res AND 5% FHR. Res + a breakpoint in one slot."},"Sapphire Small Charm (11% Cold Res)":{"rarity":"magic","base":"Small Charm","cat":"charm","stats":["Cold Resist +11%"],"note":"Max single-resist small charm (10-11%). Single-element patch for a specific gap; the all-res 'Shimmering' is usually preferred."}};
+  if (typeof EXTRA_ITEMS !== 'undefined') Object.assign(EXTRA_ITEMS, _SC);
+  if (typeof D2IO_ART !== 'undefined'){ D2IO_ART['Small Charm'] = 'art/hd_charm_small.png';
+    for (var _sck in _SC){ if(Object.prototype.hasOwnProperty.call(_SC,_sck)) D2IO_ART[_sck] = 'art/hd_charm_small.png'; } }
+  // register the new keys so findExtraItem / search / card render find them (the const Set was built earlier)
+  try { if (typeof _EXTRA_ITEM_SET !== 'undefined' && typeof _norm === 'function')
+    for (var _sck3 in _SC){ if(Object.prototype.hasOwnProperty.call(_SC,_sck3)) _EXTRA_ITEM_SET.add(_norm(_sck3)); } } catch(e){}
+} catch(e){}
+// v396.1 — same fix for the v391 off-grail uniques (added to EXTRA_ITEMS at runtime after the Set was built)
+try { if (typeof EXTRA_ITEMS !== 'undefined' && typeof _EXTRA_ITEM_SET !== 'undefined' && typeof _norm === 'function')
+  Object.keys(EXTRA_ITEMS).forEach(function(_k){ _EXTRA_ITEM_SET.add(_norm(_k)); }); } catch(e){}
 // v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
 // colour. These spans carry data-arttip with the item name but no rarity class; table.ref-tbl had
 // no q-* rules so they read plain cream. Skip any span with an intentional inline colour (uber).
@@ -23919,6 +23954,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         (data.finds || []).forEach(function(f){
           var nm = f && f.name; if (!nm) return;
           var _mods = Array.isArray(f.mods) ? f.mods : [];   // v356 — verbatim stat lines off the tooltip
+          // v396 — small-charm FILTER: keep only valuable rolls (MF/res/life/FHR/combos); throw out junk charms.
+          try {
+            var _scb = String((f.base || '') + ' ' + nm).toLowerCase();
+            if (/small\s*charm/.test(_scb) && typeof _smallCharmKeep === 'function'){
+              var _sk = _smallCharmKeep(_mods);
+              if (_sk && !_sk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk → throw-out
+              if (_sk && _sk.keep && !assign[nm]) assign[nm] = 'uni-small';   // valuable → mule to UNI-SMALL
+            }
+          } catch(e){}
           if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '', mods: _mods }; magicNew.push(nm); }
           else if (typeof magicFinds[nm] === 'object'){
             if (!magicFinds[nm].base && f.base) magicFinds[nm].base = f.base;
