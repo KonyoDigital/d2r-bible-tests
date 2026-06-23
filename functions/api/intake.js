@@ -537,6 +537,8 @@ export async function onRequestPost(context) {
   // v342.12 — socketed runeword/craft bases → register the generic "Socketed <slot> (Nos)" entry (SOCKETED
   // locker). The AI read base+count; we classify the slot. Track the base names to scrub from unrecognized.
   const socketBaseLower = new Set();
+  const socketEth = [];   // v402 — registered labels of ETHEREAL socketed bases (their eth flag lives on the
+                          // sockets entry, not in parsed.ethereal — must be forwarded so the ⊘ badge sticks).
   for (const s of (parsed.sockets || [])) {
     const base = s && typeof s.base === 'string' ? s.base.trim() : '';
     if (!base) continue;
@@ -557,6 +559,7 @@ export async function onRequestPost(context) {
       socketBaseLower.add(base.toLowerCase());
       const lg = specificBaseLabel(base, 0, true) || larzukGeneric(base);   // v379 — specific base, generic fallback
       if (lg && !items.includes(lg)) items.push(lg);
+      if (s.eth === true && lg) socketEth.push(lg);                          // v402 — forward eth flag
       continue;
     }
     const worth = eliteOrMagic || cnt >= 5;
@@ -564,6 +567,7 @@ export async function onRequestPost(context) {
     socketBaseLower.add(base.toLowerCase());
     const gen = specificBaseLabel(base, cnt, false) || socketGeneric(base, s.count);   // v379 — specific base, generic fallback
     if (gen && !items.includes(gen)) items.push(gen);
+    if (s.eth === true && gen) socketEth.push(gen);                          // v402 — forward eth flag
   }
   // v342.7 — clean unrecognized: drop garbage strings, anything already captured as a Magic & Rare find,
   // and any socketed-base name (the model sometimes echoes the base name into unrecognized too).
@@ -590,7 +594,7 @@ export async function onRequestPost(context) {
     items: outItems,
     unrecognized: outUnrec,
     finds: outFinds,
-    ethereal: [...new Set((parsed.ethereal || []).filter(function(s){ return typeof s === 'string' && s.trim(); }))],   // v395
+    ethereal: [...new Set([...(parsed.ethereal || []), ...socketEth].filter(function(s){ return typeof s === 'string' && s.trim(); }))],   // v395 + v402 (socketed-base eth flag)
     usage,
   }, 200);
   } catch (e) {

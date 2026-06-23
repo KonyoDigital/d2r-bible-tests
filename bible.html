@@ -6909,6 +6909,14 @@ function _mfTipHtml(name){
 function _throwClean(name){
   return String(name).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i, '').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i, '').trim();
 }
+// v402 — normalize an item name down to its bare base by stripping the descriptor suffix the intake appends
+// ("(4os)", "(Larzuk base)", "(3os low base)" …). Used so the ETHEREAL flag matches the REGISTERED name no
+// matter which side carries the suffix — the AI may flag "War Scepter" while we register "War Scepter (4os)".
+function _etherNorm(s){
+  return String(s == null ? '' : s)
+    .replace(/\s*\((?:larzuk base|[?\d]+\s*os(?:\s+low base)?|low base|rare|magic|crafted|base)\)\s*$/i, '')
+    .trim().toLowerCase();
+}
 // v353 — base reverse-index: which item-TYPE categories a base belongs to, so we can list every
 // runeword that base enables (so a white base reads "keep for Spirit/Insight…" instead of "vendor?").
 // v386 — AUTHORITATIVE base→class map from the local D2R game data (weapons.txt/armor.txt `type`
@@ -11487,7 +11495,12 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
 let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
 // v395 — ETHEREAL items: names the AI flagged as Ethereal (Cannot be Repaired). Shown with an ⊘ eth badge.
 let etherealItems = new Set(_safeJsonParse(LS.getItem('d2r_ethereal'), []));
-window._isEthereal = function(n){ try { return etherealItems.has(n); } catch(e){ return false; } };
+window._isEthereal = function(n){ try {
+  if (etherealItems.has(n)) return true;                         // exact match (fast path)
+  var nn = _etherNorm(n); if (!nn) return false;                 // v402 — fall back to base-normalized match
+  for (var e of etherealItems){ if (_etherNorm(e) === nn) return true; }
+  return false;
+} catch(e){ return false; } };
 // v397 — per-user intake logging: which person is scanning (Konyo vs cousin). Each intake session is tagged
 // with this name so the "Recently registered" history shows who logged it. Click the 👤 badge to switch.
 let intakeLogger = (LS.getItem('d2r_logger') || 'Konyo');
