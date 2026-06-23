@@ -10318,7 +10318,7 @@ function runewordDetailHtml(name){
     + '<section class="gic-section"><div class="gic-section-title">🔤 Recipe (in order)</div><div class="rwd-recipe">'+recChips+'</div></section>'
     + '<section class="gic-section"><div class="gic-section-title">⚠️ Before you cube — or you waste the runes</div>'
     +   '<div class="zd-row rwd-stat"><span class="zd-v"><b style="color:var(--hell,#ff5555)">The base MUST be a NORMAL (white) or grey/low-quality item</b> — a <b>Superior</b>, magic, rare, set or unique base will <b>NOT</b> form a runeword (the runes just socket in as a "Gemmed" item and are wasted).</span></div>'
-    +   '<div class="zd-row rwd-stat"><span class="zd-v">It must be a <b>'+esc(o.b)+'</b> with <b>EXACTLY '+(o.rec||[]).length+' socket'+((o.rec||[]).length===1?'':'s')+'</b> — not more, not fewer.</span></div>'
+    +   '<div class="zd-row rwd-stat"><span class="zd-v">It must be a <b>'+_d2artEsc(o.b)+'</b> with <b>EXACTLY '+(o.rec||[]).length+' socket'+((o.rec||[]).length===1?'':'s')+'</b> — not more, not fewer.</span></div>'
     +   '<div class="zd-row rwd-stat"><span class="zd-v">Insert the runes <b>left-to-right in this EXACT order</b>: <b>'+(o.rec||[]).join(' → ')+'</b>.</span></div>'
     + '</section>'
     + '<section class="gic-section"><div class="gic-section-title">⚙️ In-game stats</div>'+rows+'</section>'
