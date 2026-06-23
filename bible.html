@@ -23417,6 +23417,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return [2,2];
   }
   // first-fit-decreasing packer over a w×h grid
+  var _MULE_COPY_CAP = 3;   // v403 — mule shows at most 3 of the same base, each in its own slot
   function packGrid(items, gw, gh){
     var grid=[], placed=[], left=[];
     for (var y=0;y<gh;y++){ grid.push(new Array(gw).fill(false)); }
@@ -23518,11 +23519,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var names = Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
     // v211: same-set pieces pack as NEIGHBORS — sort groups sets together first
     // (first-fit places consecutive items adjacently), then big-first within a group
-    var sized=names.map(function(n){ var s=vaultSize(n); var t=tipOf(n); return {n:n,w:s[0],h:s[1],area:s[0]*s[1],set:(t&&t.setName)||''}; })
-                   .sort(function(a,b){
-                     if (a.set !== b.set) return a.set ? (b.set ? (a.set<b.set?-1:1) : -1) : 1;
-                     return b.area-a.area || b.h-a.h;
-                   });
+    // v403 — a QUANTITY base owned ×N takes N SEPARATE grid slots: each physical copy packs on its own,
+    // assorted alongside the other units (Konyo's 3 Threshers = 3 cells). Expand by copyCount (mule cap 3).
+    var sized=[];
+    names.forEach(function(n){
+      var s=vaultSize(n); var t=tipOf(n); var cc=Math.max(1, Math.min(copyCount(n)||1, _MULE_COPY_CAP));
+      for (var _ci=0; _ci<cc; _ci++){ sized.push({n:n,w:s[0],h:s[1],area:s[0]*s[1],set:(t&&t.setName)||'',ct:cc}); }
+    });
+    sized.sort(function(a,b){
+      if (a.set !== b.set) return a.set ? (b.set ? (a.set<b.set?-1:1) : -1) : 1;
+      if (a.n !== b.n) return b.area-a.area || (a.n<b.n?-1:1);   // keep copies of the same base adjacent
+      return b.area-a.area || b.h-a.h;
+    });
+    var _physN = sized.length;   // total PHYSICAL items (copies counted) for the header/goldbox
     // v214: fullscreen game calibration — both panels sized like 1920×1080 D2R
     box.hidden = false;
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
@@ -23536,14 +23545,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var TABS=['Personal','Shared','Gems','Materials','Runes'];
     var EQ=[['eq-w1','🗡'],['eq-helm','⛑'],['eq-amu','📿'],['eq-body','🛡'],['eq-w2','🛡'],['eq-glove','🧤'],['eq-ring1','💍'],['eq-belt','〰'],['eq-ring2','💍'],['eq-boot','🥾']];
     box.innerHTML = '<div class="vd-head"><span class="vd-icon">'+(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+'</span>'
-      + '<span class="vd-sub" style="margin:0 14px 0 6px">'+names.length+' item'+(names.length===1?'':'s')+' · pack in-game EXACTLY like this (sizes approximated)</span>'
+      + '<span class="vd-sub" style="margin:0 14px 0 6px">'+_physN+' item'+(_physN===1?'':'s')+' · pack in-game EXACTLY like this (sizes approximated)</span>'
       + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
       + '<div class="vd-game-row">'
       +   '<div class="vd-panel"><div class="vd-panel-title">Stash</div>'
       +     '<div class="vd-tabs">' + TABS.map(function(t,i){ return '<div class="vd-tab'+(i===0?' vt-on':'')+'">'+t+'</div>'; }).join('') + '</div>'
       +     gridHtml(stash.placed,10,10,cell).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar"><span class="vp-arrow">◄</span><span>Page 1 / 1</span><span class="vp-arrow">►</span></div>'
-      +     '<div class="vd-goldbox">🪙 ' + names.length + ' items vaulted</div>'
+      +     '<div class="vd-goldbox">🪙 ' + _physN + ' items vaulted</div>'
       +   '</div>'
       +   '<div class="vd-panel"><div class="vd-panel-title">Inventory</div>'
       +     '<div class="vd-equip" style="--eqc:'+eqc+'px">' + EQ.map(function(e){ return '<div class="vd-eq '+e[0]+'"><span>'+e[1]+'</span></div>'; }).join('') + '</div>'
@@ -23847,7 +23856,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var vocab = (typeof ITEMS!=='undefined') ? ITEMS.map(function(i){return i.n;}).filter(function(n){ return !/\((any piece|any|set)\)\s*$/i.test(n); }) : [];
     try { if (window.__setPieceNames) vocab = Array.from(new Set(vocab.concat(window.__setPieceNames()))); } catch(e){}
     try { if (window.EXTRA_ITEMS) vocab = Array.from(new Set(vocab.concat(Object.keys(window.EXTRA_ITEMS)))); } catch(e){}
-    var logged = [], dupes = [], unrec = [], magicNew = [], extraCopies = [], errors = 0, cost = 0;
+    var logged = [], dupes = [], unrec = [], magicNew = [], extraCopies = [], cappedOut = [], errors = 0, cost = 0;
+    var _QTY_CAP = 3;   // v403 — mule AT MOST 3 of the same base; a 4th+ physical copy is thrown out
     // v310: track results PER screenshot FILE — so the report names the exact file each
     // item came from (Konyo: "identify specific screenshot files, not just blindly seeing
     // the picture"). Each entry: {file, nw:[new], own:[already-owned], unr:[read-not-tracked], err}.
@@ -23981,9 +23991,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // don't own two Tyrael's) → still collapses. The SEEN ledger already skips re-reading the
             // SAME file, so two reads here = two genuinely distinct screenshots (Konyo's two-Thresher test).
             var _qtyBase = (function(){ try { return !!(window.EXTRA_ITEMS && window.EXTRA_ITEMS[n] && window.EXTRA_ITEMS[n].cat === 'Socketed bases'); } catch(e){ return false; } })();
-            if ((_tgt > 1 && _cur < _tgt) || _qtyBase) {
+            if (_tgt > 1 && _cur < _tgt) {
               copies[n] = _cur + 1;
               extraCopies.push(n); (fRec.xc || (fRec.xc = [])).push(n);
+            } else if (_qtyBase && _cur < _QTY_CAP) {
+              // v403 — distinct physical base under the mule cap (3): keep as a separate copy
+              copies[n] = _cur + 1;
+              extraCopies.push(n); (fRec.xc || (fRec.xc = [])).push(n);
+            } else if (_qtyBase) {
+              // v403 — already muling the cap (3 of this base); a 4th+ physical copy is a THROW-OUT
+              // (Konyo: "3 is the max CAP — if we have 4, 3 muled and 1 thrown out").
+              cappedOut.push(n); (fRec.cap || (fRec.cap = [])).push(n);
             } else {
               // v310: the AI DID recognize it, but it's already ✓ owned (or at target) — count it so the
               // report shows "3 new + 6 already owned" instead of silently looking like 3/9.
@@ -24108,6 +24126,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (dupes.length) body += '<div class="vir-line"><span class="vir-k vir-k-own">already owned · ' + dupes.length + '</span> ' + _colorNames(dupes) + '</div>';
     if (magicNew.length) body += '<div class="vir-line"><span class="vir-k vir-k-magic">🔮 magic &amp; rare · ' + magicNew.length + '</span> ' + magicNew.map(function(n){ var q=_mfQual(n); var c=q==='rare'?'#ffd54a':(q==='crafted'?'var(--q-orange,#ffa800)':'#7aa2ff'); return '<span style="color:'+c+'">'+esc(n)+'</span>'; }).join(' · ') + '</div>';
     if (unrec.length) body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched">🗑 throw-out · ' + unrec.length + '</span> ' + unrec.map(function(n){ return (typeof _vColorName==='function')?_vColorName(n):esc(n); }).join(' · ') + ' <em>— not grail; review &amp; keep/dismiss in 📋 Registered</em></div>';
+    if (cappedOut.length) { var _capUniq = cappedOut.filter(function(n,i){ return cappedOut.indexOf(n)===i; });   // v403 — over the 3-copy mule cap → throw out the extras
+      body += '<div class="vir-line vir-dim"><span class="vir-k vir-k-unmatched" style="border-color:rgba(240,192,96,.5);color:#f0c060">🗑 over-cap · ' + cappedOut.length + '</span> ' + _capUniq.map(function(n){ return _colorNames([n]); }).join(' · ') + ' <em>— already muling ' + _QTY_CAP + ' of these; throw out the extra' + (cappedOut.length===1?'':'s') + '</em></div>'; }
     if (!logged.length && !dupes.length && !unrec.length && !magicNew.length && !errors) body += '<div class="vir-line vir-dim">💡 the AI reads item NAMES, not icons — open a tooltip (hover) or hold Alt over loot, then screenshot.</div>';
     // v366 — the per-screenshot breakdown lived BOTH here and in the "Recently registered" history below,
     // which read as two near-identical panels. Removed the duplicate copy from this transient scan card;
@@ -24149,10 +24169,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')
       + _needLook
-      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc" title="' + (_preReg > 0 ? 'these items were already ✓ in your vault BEFORE this scan' : 'the vault was EMPTY at the start of this scan, so these are DUPLICATE SHOTS — the same item appeared in an earlier screenshot of this same batch (first = new, this = the repeat). Collapsed to one, never double-counted — NOT based on any prior history.') + '">+ <b>' + dupes.length + '</b> ' + (_preReg > 0 ? 'already-owned' : 'duplicate shot' + (dupes.length === 1 ? '' : 's')) + '</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + unrec.length + '</b> 🗑 throw-out</span>' + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
-      + '<span class="vir-rc-note">' + (function(){ var _it = logged.length + magicNew.length + unrec.length;
+      + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc" title="' + (_preReg > 0 ? 'these items were already ✓ in your vault BEFORE this scan' : 'the vault was EMPTY at the start of this scan, so these are DUPLICATE SHOTS — the same item appeared in an earlier screenshot of this same batch (first = new, this = the repeat). Collapsed to one, never double-counted — NOT based on any prior history.') + '">+ <b>' + dupes.length + '</b> ' + (_preReg > 0 ? 'already-owned' : 'duplicate shot' + (dupes.length === 1 ? '' : 's')) + '</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + (unrec.length + cappedOut.length) + '</b> 🗑 throw-out</span>' + (cappedOut.length ? '<span class="vir-rc" style="color:#b5a48a" title="extra copies past the 3-per-base mule cap">(incl <b>' + cappedOut.length + '</b> over-cap)</span>' : '') + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
+      + '<span class="vir-rc-note">' + (function(){ var _it = logged.length + magicNew.length + unrec.length + cappedOut.length;
           var parts = [files.length + ' shot' + (files.length===1?'':'s') + ' → ' + _it + ' item' + (_it===1?'':'s') + ' this scan'];
           if (extraCopies.length) parts.push(extraCopies.length + ' extra cop' + (extraCopies.length===1?'y':'ies'));
+          if (cappedOut.length) parts.push(cappedOut.length + ' over the ' + _QTY_CAP + '-copy cap → thrown out');
           if (dupes.length) parts.push(dupes.length + ' duplicate shot' + (dupes.length===1?'':'s') + (_preReg>0?' (already owned)':' (same item — collapsed, not lost)'));
           if (_emptyShots.length) parts.push(_emptyShots.length + ' empty — no tooltip text, RE-SHOOT');
           if (_seenSkip) parts.push(_seenSkip + ' already-read file' + (_seenSkip===1?'':'s') + ' skipped');
