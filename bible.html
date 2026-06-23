@@ -7004,6 +7004,11 @@ window._baseRunewords = _baseRunewords;
 // list the other socket counts separately as re-roll/different-base targets. A 0/unknown count
 // (a Larzuk candidate the AI read with no sockets yet) keeps the full "aim for the max" guidance.
 function _baseRWLine(name, knownSockets){
+  // v412 — a SUPERIOR base can NEVER form a runeword (runewords need a normal/grey base). Warn + suppress the
+  // "keep for runewords" guidance entirely so it can't lead to wasted runes (base-quality edition of the Hustle fix).
+  try { if (window._isSuperior && window._isSuperior(name)) {
+    return '<div class="att-aff" style="color:#e9b96e">⚠ <b>SUPERIOR base — cannot make a runeword.</b> Runewords need a <b>NORMAL (white/grey)</b> base. A Superior base only takes <b>gems / jewels</b> (and keeps its small superior bonus) — <b>don\'t cube runes into it</b>, they won\'t form the runeword.</div>';
+  } } catch(e){}
   var rws = _baseRunewords(name); if (!rws.length) return '';
   // v385 — CAP to the base's physical socket ceiling. A base can NEVER hold more sockets than its
   // max (Larzuk caps at max; cube/drops can't exceed it), so a runeword needing MORE sockets than this
@@ -11506,6 +11511,15 @@ window._isEthereal = function(n){ try {
   for (var e of etherealItems){ if (_etherNorm(e) === nn) return true; }
   return false;
 } catch(e){ return false; } };
+// v412 — SUPERIOR socketed bases: a Superior base CANNOT form a runeword (needs a normal/grey base). Tracked
+// like ethereal so the base card warns + suppresses runeword guidance (don't waste runes — the Hustle lesson).
+let superiorBases = new Set(_safeJsonParse(LS.getItem('d2r_superiorBases'), []));
+window._isSuperior = function(n){ try {
+  if (superiorBases.has(n)) return true;
+  var nn = _etherNorm(n); if (!nn) return false;
+  for (var e of superiorBases){ if (_etherNorm(e) === nn) return true; }
+  return false;
+} catch(e){ return false; } };
 // v397 — per-user intake logging: which person is scanning (Konyo vs cousin). Each intake session is tagged
 // with this name so the "Recently registered" history shows who logged it. Click the 👤 badge to switch.
 let intakeLogger = (LS.getItem('d2r_logger') || 'Konyo');
@@ -11658,6 +11672,7 @@ const persist = () => {
   LS.setItem('d2r_owned', JSON.stringify([...owned]));
   LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds));
   LS.setItem('d2r_ethereal', JSON.stringify([...etherealItems]));
+  LS.setItem('d2r_superiorBases', JSON.stringify([...superiorBases]));
   LS.setItem('d2r_unknownReads', JSON.stringify([...unknownReads]));
   LS.setItem('d2r_copies', JSON.stringify(copies));
   LS.setItem('d2r_multiKeep', JSON.stringify(multiKeep));
@@ -24187,6 +24202,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           try { if (typeof findRuneword==='function' && findRuneword(en)) _cn = findRuneword(en); } catch(e){}
           try { etherealItems.add(_cn); } catch(e){}
         });
+        // v412 — record SUPERIOR socketed bases (can't runeword). Registered under the exact socket-base label.
+        (data.superior || []).forEach(function(sn){ if (sn) { try { superiorBases.add(sn); } catch(e){} } });
         if (data.usage) cost += (data.usage.in || 0) / 1e6 * 3.0 + (data.usage.out || 0) / 1e6 * 15.0;   // v398 — items read now Sonnet 4.6 ($3/M in · $15/M out)
       } catch(e){ errors++; fRec.err = true; }
       doneCount++;

@@ -377,6 +377,7 @@ export async function onRequestPost(context) {
 
   if (!apiResp.ok) {
     const errText = await apiResp.text();
+    try { console.error('[intake] upstream Anthropic FAIL', apiResp.status, errText.slice(0, 300)); } catch (e) {}
     // v341.52 — return 200 (NOT 5xx): Cloudflare overwrites any 5xx the worker returns with its own
     // generic "error code: 502" page, which masks the real upstream reason and makes the upload look
     // dead. A 200 with error fields passes straight through so the client can read + show the reason.
@@ -539,6 +540,9 @@ export async function onRequestPost(context) {
   const socketBaseLower = new Set();
   const socketEth = [];   // v402 — registered labels of ETHEREAL socketed bases (their eth flag lives on the
                           // sockets entry, not in parsed.ethereal — must be forwarded so the ⊘ badge sticks).
+  const socketSuperior = [];   // v412 — registered labels of SUPERIOR socketed bases. A Superior base CANNOT
+                               // form a runeword (needs a normal/grey base) — forwarded so the card warns and
+                               // never tells Konyo to waste runes on it (the Hustle lesson, base-quality edition).
   for (const s of (parsed.sockets || [])) {
     const base = s && typeof s.base === 'string' ? s.base.trim() : '';
     if (!base) continue;
@@ -560,6 +564,7 @@ export async function onRequestPost(context) {
       const lg = specificBaseLabel(base, 0, true) || larzukGeneric(base);   // v379 — specific base, generic fallback
       if (lg && !items.includes(lg)) items.push(lg);
       if (s.eth === true && lg) socketEth.push(lg);                          // v402 — forward eth flag
+      if (s.q === 'superior' && lg) socketSuperior.push(lg);                 // v412 — forward superior flag
       continue;
     }
     const worth = eliteOrMagic || cnt >= 5;
@@ -568,6 +573,7 @@ export async function onRequestPost(context) {
     const gen = specificBaseLabel(base, cnt, false) || socketGeneric(base, s.count);   // v379 — specific base, generic fallback
     if (gen && !items.includes(gen)) items.push(gen);
     if (s.eth === true && gen) socketEth.push(gen);                          // v402 — forward eth flag
+    if (s.q === 'superior' && gen) socketSuperior.push(gen);                 // v412 — forward superior flag
   }
   // v342.7 — clean unrecognized: drop garbage strings, anything already captured as a Magic & Rare find,
   // and any socketed-base name (the model sometimes echoes the base name into unrecognized too).
@@ -595,6 +601,7 @@ export async function onRequestPost(context) {
     unrecognized: outUnrec,
     finds: outFinds,
     ethereal: [...new Set([...(parsed.ethereal || []), ...socketEth].filter(function(s){ return typeof s === 'string' && s.trim(); }))],   // v395 + v402 (socketed-base eth flag)
+    superior: [...new Set(socketSuperior.filter(function(s){ return typeof s === 'string' && s.trim(); }))],   // v412 — superior socketed bases (can't runeword)
     usage,
   }, 200);
   } catch (e) {
