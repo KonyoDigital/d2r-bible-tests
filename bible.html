@@ -11100,6 +11100,83 @@ function _smallCharmKeep(mods){
   return { keep: good.length > 0, op: good.length >= 2, hi: good };
 }
 window._smallCharmKeep = _smallCharmKeep;
+// v416 — TOP-TIER gate for rolled-name JEWELRY & big charms (rings · amulets · jewels · large/grand charms).
+// Konyo: "RARE rings amulets charms all these need to be top tier not just any one" — a junk rare ring
+// (+AR · +energy · a sliver of single res, like Blood Grip) must be THROWN OUT, never muled. It only earns
+// a mule slot if it rivals SoJ / Raven-Frost tier: a RING needs DUAL LEECH (life% AND mana% stolen) or FCR or
+// a loaded stat/res cluster; an amulet needs +skills/FCR/leech; a grand charm needs to be a skiller, etc.
+// Mirrors _smallCharmKeep's shape → {keep, op (top-shelf), hi:[reasons]}. Returns null when `base` is NOT one
+// of these gated types (so the caller keeps weapons/armour rares untouched) or when no mods were read
+// (can't judge → keep for manual review, never blind-throw a possibly-godly item).
+function _jewelryKeep(mods, base){
+  if (!Array.isArray(mods) || !mods.length) return null;   // no readable affixes → don't judge, keep for review
+  var b = String(base||'').toLowerCase();
+  var isRing  = /\bring\b/.test(b);
+  var isAmu   = /\bamulet\b/.test(b);
+  var isJewel = /\bjewel\b/.test(b) && !/facet/.test(b);    // rainbow facets are always keepers (handled elsewhere)
+  var isGC    = /grand\s*charm/.test(b);
+  var isLC    = /large\s*charm/.test(b);
+  if (!(isRing||isAmu||isJewel||isGC||isLC)) return null;   // weapons / armour / small-charm rares aren't gated here
+
+  var txt = ' ' + mods.join(' | ').replace(/\s+/g,' ') + ' ';
+  var num = function(re){ var x=re.exec(txt); return x ? +(x[1]||0) : 0; };
+  // a +to-skills grand/large charm = skiller = always a keeper, no questions asked
+  var skillTab = /\+\s*[1-9]\s*to\s*[A-Za-z][A-Za-z ]*?\s*(?:Skills|Skill\s*Tab)\b/i.test(txt)
+              || /\+\s*[1-9]\s*to\s*All\s*Skills/i.test(txt);
+  if ((isGC||isLC) && skillTab) return { keep:true, op:true, hi:['+skills (skiller)'] };
+
+  var lifeL   = /Life\s*Stolen\s*per\s*Hit|Life\s*Leech/i.test(txt);
+  var manaL   = /Mana\s*Stolen\s*per\s*Hit|Mana\s*Leech/i.test(txt);
+  var dualLeech = lifeL && manaL;
+  var fcr     = num(/(\d+)\s*%?\s*Faster\s*Cast\s*Rate/i);
+  var frw     = num(/(\d+)\s*%?\s*Faster\s*Run\/?Walk/i);
+  var fhr     = num(/(\d+)\s*%?\s*Faster\s*Hit\s*Recovery/i);
+  var ias     = num(/(\d+)\s*%?\s*(?:Increased\s*Attack\s*Speed)/i);
+  var ed      = num(/(\d+)\s*%?\s*Enhanced\s*Damage/i);
+  var life    = num(/\+\s*(\d+)\s*(?:to\s*)?Life\b/i);
+  var mana    = num(/\+\s*(\d+)\s*(?:to\s*)?Mana\b/i);
+  var allStat = num(/\+\s*(\d+)\s*to\s*All\s*Attributes/i);
+  var str     = num(/\+\s*(\d+)\s*to\s*Strength/i);
+  var dex     = num(/\+\s*(\d+)\s*to\s*Dexterity/i);
+  var vit     = num(/\+\s*(\d+)\s*to\s*Vitality/i);
+  var mf      = num(/(\d+)\s*%?\s*(?:Better Chance of Getting Magic Items|Magic Find)/i);
+  var allRes  = num(/All\s*Resist\w*\s*\+?\s*(\d+)/i);
+  var sr = /(?:Fire|Cold|Lightning|Poison)\s*Resist\w*\s*\+?\s*(\d+)/ig, sm, bestSr=0;
+  while((sm=sr.exec(txt))) bestSr=Math.max(bestSr,+sm[1]);
+  var goldSkill = /\+\s*[2-9]\s*to\s*[A-Za-z].*\bSkill/i.test(txt) || /\+\s*[1-9]\s*to\s*All\s*Skills/i.test(txt);
+
+  var strong = [], medium = [];
+  if (dualLeech)      strong.push('dual leech');
+  if (fcr >= 10)      strong.push(fcr+'% FCR');
+  if (goldSkill)      strong.push('+skills');
+  if (allRes >= 15)   strong.push('+'+allRes+' all res');
+  if (mf >= 25)       strong.push(mf+'% MF');
+  if (allStat >= 8)   strong.push('+'+allStat+' all stats');
+  if (ed >= 30)       strong.push(ed+'% ED');
+
+  if (!dualLeech && (lifeL||manaL)) medium.push(lifeL?'life leech':'mana leech');
+  if (life >= 20)                medium.push('+'+life+' life');
+  if (mana >= 40)                medium.push('+'+mana+' mana');
+  if (allRes >= 8 && allRes < 15) medium.push('+'+allRes+' all res');
+  if (bestSr >= 25)              medium.push('+'+bestSr+'% res');
+  if (allStat >= 4 && allStat < 8) medium.push('+'+allStat+' all stats');
+  if (str >= 15)                 medium.push('+'+str+' str');
+  if (dex >= 15)                 medium.push('+'+dex+' dex');
+  if (vit >= 15)                 medium.push('+'+vit+' vit');
+  if (mf >= 12 && mf < 25)       medium.push(mf+'% MF');
+  if (fcr >= 5 && fcr < 10)      medium.push(fcr+'% FCR');
+  if (fhr >= 10)                 medium.push(fhr+'% FHR');
+  if (frw >= 20)                 medium.push(frw+'% FRW');
+  if (ias >= 15)                 medium.push(ias+'% IAS');
+  if (ed >= 15 && ed < 30)       medium.push(ed+'% ED');
+
+  // rings are held to the SoJ/Raven bar — strong roll, or a genuinely loaded one (3+ medium mods).
+  // amulets / jewels / large+grand charms keep on a strong roll or 2+ medium mods.
+  var keep = isRing ? (strong.length >= 1 || medium.length >= 3)
+                    : (strong.length >= 1 || medium.length >= 2);
+  return { keep: keep, op: strong.length >= 1, hi: strong.concat(medium) };
+}
+window._jewelryKeep = _jewelryKeep;
 // v359/v365 — click a screenshot thumbnail → view the FULL-RES shot (1920px from IndexedDB), full-screen.
 // Args: (shotKey, fallbackSrc). shotKey = the filename → looked up in the full-res store; falls back to the
 // small thumb src if the full-res isn't available (older scan). A data: src is shown directly (back-compat).
@@ -24217,6 +24294,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               var _sk = _smallCharmKeep(_mods);
               if (_sk && !_sk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk → throw-out
               if (_sk && _sk.keep && !assign[nm]) assign[nm] = 'uni-small';   // valuable → mule to UNI-SMALL
+            } else if (typeof _jewelryKeep === 'function'){
+              // v416 — TOP-TIER gate for rolled-name rings · amulets · jewels · large/grand charms. A junk
+              // rare ring (Blood Grip: +AR/+energy/sliver of res) gets THROWN OUT, not muled — only a roll
+              // that rivals SoJ/Raven (dual leech · FCR · +skills · loaded res/stat cluster · skiller) is kept.
+              var _jk = _jewelryKeep(_mods, f.base);
+              if (_jk && !_jk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk jewelry → throw-out
+              if (_jk && _jk.keep && !assign[nm]) assign[nm] = 'magic-rare';   // top-tier → MAGIC & RARE locker
             }
           } catch(e){}
           if (!magicFinds[nm]){ magicFinds[nm] = { q: f.q || 'magic', base: f.base || '', mods: _mods }; magicNew.push(nm); }
