@@ -23132,11 +23132,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             : 'Read but not in your tracked grail — a non-grail unique/rare, or a misread. Recover it or discard.'));
       var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(clean, sock ? +sock[1] : 0):'';
       if ((isBase||_isKnownBase) && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(clean, 'normal'); if(_sgl) rwl+=_sgl; }
+      // v397.2 — one-click socket fix: when a KNOWN base was read name-only (the AI missed the faint "Socketed
+      // (N)" line — Konyo's Elder Staff / Superior Trident / Wrist Sword), let him set the real count in one tap.
+      // It registers "<Base> (Nos)" as a socketed runeword/craft base + mules it. No re-scan needed.
+      var _setter = (_isKnownBase && !sock && !_loSet)
+        ? '<div class="to-sockset" style="margin-top:5px;font-size:10px;color:#b5a48a">🔩 AI missed the sockets? set the real count: '
+            + [1,2,3,4,5,6].map(function(s){ return '<button onclick="event.stopPropagation();window.vaultSetSockets(\''+jsArg(n)+'\','+s+')" title="register as a '+s+'-socket '+esc(clean)+'" style="margin:0 1px;padding:1px 6px;border:1px solid rgba(127,212,255,.45);background:rgba(127,212,255,.1);color:#9fd4ff;border-radius:4px;cursor:pointer;font-size:10px">'+s+'</button>'; }).join('')
+            + '</div>'
+        : '';
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
         +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+(sock?'<span class="to-sock">🔩 '+sock[1]+'os</span>':'')+'</div>'
-        +   '<div class="to-why">'+why+'</div>'+rwl
+        +   '<div class="to-why">'+why+'</div>'+rwl+_setter
         +   '<div class="to-acts"><button class="vrg-keep" onclick="window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
         +     '<button class="vrg-x" onclick="window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕ dismiss</button></div>'
         + '</div></div>';
@@ -23300,6 +23308,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { magicFinds[name] = magicFinds[name] || { q: 'rare', base: '' }; unknownReads.delete(name); } catch(e){}
     persistOwned(); renderVault();
     status('🔮 "'+name+'" kept → Magic & Rare');
+  };
+  // v397.2 — manual socket fix for a name-only base the AI missed sockets on: register "<Base> (Nos)" as a
+  // socketed runeword/craft base (own card + exact-count runewords) + auto-mule it, and drop the name-only read.
+  window.vaultSetSockets = function(name, n){
+    try {
+      n = parseInt(n, 10); if (!(n >= 1 && n <= 6)) return;
+      var clean = (typeof _throwClean === 'function') ? _throwClean(name) : name;
+      var label = clean + ' (' + n + 'os)';
+      if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
+      if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
+      owned.add(label);
+      var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label]) assign[label] = sg.id;
+      persistOwned(); saveA(); renderVault(); refreshOpenCard();
+      status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base');
+    } catch(e){}
   };
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
   window.vaultDismissUnknown = function(name){
