@@ -10311,6 +10311,11 @@ function runewordDetailHtml(name){
     + '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div>'
     + '</header>'
     + '<section class="gic-section"><div class="gic-section-title">🔤 Recipe (in order)</div><div class="rwd-recipe">'+recChips+'</div></section>'
+    + '<section class="gic-section"><div class="gic-section-title">⚠️ Before you cube — or you waste the runes</div>'
+    +   '<div class="zd-row rwd-stat"><span class="zd-v"><b style="color:var(--hell,#ff5555)">The base MUST be a NORMAL (white) or grey/low-quality item</b> — a <b>Superior</b>, magic, rare, set or unique base will <b>NOT</b> form a runeword (the runes just socket in as a "Gemmed" item and are wasted).</span></div>'
+    +   '<div class="zd-row rwd-stat"><span class="zd-v">It must be a <b>'+esc(o.b)+'</b> with <b>EXACTLY '+(o.rec||[]).length+' socket'+((o.rec||[]).length===1?'':'s')+'</b> — not more, not fewer.</span></div>'
+    +   '<div class="zd-row rwd-stat"><span class="zd-v">Insert the runes <b>left-to-right in this EXACT order</b>: <b>'+(o.rec||[]).join(' → ')+'</b>.</span></div>'
+    + '</section>'
     + '<section class="gic-section"><div class="gic-section-title">⚙️ In-game stats</div>'+rows+'</section>'
     + '<div class="zd-note">⚠ Stats transcribed verbatim from diablo2.io\'s Reign of the Warlock runeword tooltip for '+key+'. Variable ranges shown as [min–max]. Runewords are crafted (cube the runes into a socketed base), not dropped — they are not part of the 322-item grail count.</div>'
     + '</div>';
@@ -11589,7 +11594,7 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // v369 — Chronicle Runeword Maker: { runewordName: "first-made date string" } — which runewords the
 // user has already FORGED. First run seeds Konyo's in-game Chronicle (7/100 = 7%, from his screenshots);
 // after that it's user-controlled (toggle on each runeword). Rides Backup & Share (a d2r_ LS key).
-const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01"};
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Strength":"Jun 23, 2026 · 01:52"};
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
 // Materials Stash: { materialName: count } map. Pandemonium keys / uber organs / Token
@@ -18424,6 +18429,16 @@ try {
     if (!_cur || _cur.indexOf("art/hd_") !== 0) D2IO_ART[_hk] = _HDUS[_hk];
   }
 } catch(e){}
+// v408 — runeword tile art: every forged runeword (Enigma, Spirit, Insight…) gets a representative HD
+// sprite of its base type (from RUNEWORD_TIP base category) so the RUNEWORDS-locker chip shows real art
+// instead of a blank ◆ white dot. Additive: only sets art where none/placeholder exists.
+try {
+  var _HDRW = {"Ancients' Pledge":"art/hd_kite_shield.png","Authority":"art/hd_plate_mail.png","Beast":"art/hd_war_axe.png","Black":"art/hd_club.png","Bone":"art/hd_plate_mail.png","Bramble":"art/hd_plate_mail.png","Brand":"art/hd_long_war_bow.png","Breath of the Dying":"art/hd_crystal_sword.png","Bulwark":"art/hd_helm.png","Call to Arms":"art/hd_crystal_sword.png","Chains of Honor":"art/hd_plate_mail.png","Chaos":"art/hd_katar.png","Coven":"art/hd_helm.png","Crescent Moon":"art/hd_poleaxe.png","Cure":"art/hd_helm.png","Death":"art/hd_crystal_sword.png","Delirium":"art/hd_helm.png","Destruction":"art/hd_poleaxe.png","Doom":"art/hd_war_axe.png","Dragon":"art/hd_kite_shield.png","Dream":"art/hd_helm.png","Duress":"art/hd_plate_mail.png","Edge":"art/hd_long_war_bow.png","Enigma":"art/hd_plate_mail.png","Enlightenment":"art/hd_plate_mail.png","Eternity":"art/hd_crystal_sword.png","Exile":"art/hd_kite_shield.png","Faith":"art/hd_long_war_bow.png","Famine":"art/hd_war_axe.png","Flickering Flame":"art/hd_helm.png","Fortitude":"art/hd_crystal_sword.png","Fury":"art/hd_crystal_sword.png","Gloom":"art/hd_plate_mail.png","Grief":"art/hd_war_axe.png","Ground":"art/hd_helm.png","Hand of Justice":"art/hd_crystal_sword.png","Harmony":"art/hd_long_war_bow.png","Heart of the Oak":"art/hd_flail.png","Hearth":"art/hd_helm.png","Holy Thunder":"art/hd_war_scepter.png","Honor":"art/hd_crystal_sword.png","Hustle":"art/hd_crystal_sword.png","Hysteria":"art/hd_plate_mail.png","Ice":"art/hd_long_war_bow.png","Infinity":"art/hd_poleaxe.png","Insight":"art/hd_poleaxe.png","King's Grace":"art/hd_crystal_sword.png","Kingslayer":"art/hd_crystal_sword.png","Last Wish":"art/hd_crystal_sword.png","Lawbringer":"art/hd_crystal_sword.png","Leaf":"art/hd_war_staff.png","Lionheart":"art/hd_plate_mail.png","Lore":"art/hd_helm.png","Malice":"art/hd_crystal_sword.png","Mania":"art/hd_crystal_sword.png","Melody":"art/hd_long_war_bow.png","Memory":"art/hd_war_staff.png","Metamorphosis":"art/hd_helm.png","Mist":"art/hd_long_war_bow.png","Mosaic":"art/hd_katar.png","Myth":"art/hd_plate_mail.png","Nadir":"art/hd_helm.png","Oath":"art/hd_crystal_sword.png","Obedience":"art/hd_poleaxe.png","Obsession":"art/hd_war_staff.png","Passion":"art/hd_crystal_sword.png","Pattern":"art/hd_katar.png","Peace":"art/hd_plate_mail.png","Phoenix":"art/hd_crystal_sword.png","Plague":"art/hd_crystal_sword.png","Pride":"art/hd_poleaxe.png","Principle":"art/hd_plate_mail.png","Prudence":"art/hd_plate_mail.png","Radiance":"art/hd_helm.png","Rain":"art/hd_plate_mail.png","Rhyme":"art/hd_kite_shield.png","Rift":"art/hd_poleaxe.png","Ritual":"art/hd_dagger.png","Sanctuary":"art/hd_kite_shield.png","Silence":"art/hd_crystal_sword.png","Smoke":"art/hd_plate_mail.png","Spirit":"art/hd_crystal_sword.png","Splendor":"art/hd_kite_shield.png","Stealth":"art/hd_plate_mail.png","Steel":"art/hd_crystal_sword.png","Stone":"art/hd_plate_mail.png","Strength":"art/hd_crystal_sword.png","Temper":"art/hd_helm.png","Treachery":"art/hd_plate_mail.png","Unbending Will":"art/hd_crystal_sword.png","Venom":"art/hd_crystal_sword.png","Vigilance":"art/hd_grimoire.png","Voice of Reason":"art/hd_crystal_sword.png","Void":"art/hd_dagger.png","Wealth":"art/hd_plate_mail.png","White":"art/hd_bone_wand.png","Wind":"art/hd_crystal_sword.png","Wisdom":"art/hd_helm.png","Wrath":"art/hd_long_war_bow.png","Zephyr":"art/hd_long_war_bow.png"};
+  if (typeof D2IO_ART !== "undefined") for (var _rk in _HDRW){ if(!Object.prototype.hasOwnProperty.call(_HDRW,_rk)) continue;
+    var _rc = D2IO_ART[_rk];
+    if (!_rc || _rc.indexOf("art/hd_") !== 0) D2IO_ART[_rk] = _HDRW[_rk];
+  }
+} catch(e){}
 // v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
 // colour. These spans carry data-arttip with the item name but no rarity class; table.ref-tbl had
 // no q-* rules so they read plain cream. Skip any span with an intentional inline colour (uber).
@@ -22838,8 +22853,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // belt-and-suspenders guard that also documents the intent.)
   var SHARED_STASH_RE = /\b(rune|essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
+  // v409 — NEVER-MULE keepers: Annihilus, Hellfire Torch, Gheed's Fortune (the 6 Sunder charms are already
+  // caught by isSharedStash). These uniques ONLY function in the inventory of the character you're actively
+  // playing — a mule/alt can't use them. The "Don't mule to your alt" advisory flags them, so the auto-assign
+  // MUST match that and never route them to a mule. {id:'__keep'} → muleById() can't resolve it → the item is
+  // still registered/owned + shown in the keep advisory, but it is NOT assigned to any mule.
+  var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;
   function suggestMule(name){
     if (isSharedStash(name)) return null;
+    if (KEEP_IN_INVENTORY.test(String(name||'').trim())) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
     // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
     // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
@@ -23200,8 +23222,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     renderMultiKeep();
     renderVaultRegistered();
     renderThrowoutReview();
-    // prune assignments of items no longer owned or mules deleted
-    Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || !muleById(assign[n])) delete assign[n]; });
+    // prune assignments of items no longer owned or mules deleted (v409 — but KEEP the '__keep' sentinel:
+    // Anni/Torch/Gheed's are "kept in inventory", recorded as handled so they don't nag in the dock; muleById
+    // can't resolve '__keep', so without this guard the prune would wrongly delete it every render).
+    Object.keys(assign).forEach(function(n){ if(pool.indexOf(n)<0 || (assign[n]!=='__keep' && !muleById(assign[n]))) delete assign[n]; });
     // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
     // NEVER muled, so they don't belong in the draggable "unsorted" dock — they live in the SHARED STASH locker.
     var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });
@@ -23370,7 +23394,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   window.vaultAutoAssign = function(){
     var n=0;
-    ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } } });
+    ownedPool().forEach(function(name){ if(!assign[name]){ var sg=suggestMule(name); if(sg && muleById(sg.id)){ assign[name]=sg.id; n++; } else if(sg && sg.id==='__keep'){ assign[name]='__keep'; n++; } } });   // v409 — __keep items (Anni/Torch/Gheed's) are "handled" (kept in inventory), not left nagging in the dock
     saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s'));
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
@@ -23919,6 +23943,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (window.__setPieceNames) vocab = Array.from(new Set(vocab.concat(window.__setPieceNames()))); } catch(e){}
     try { if (window.EXTRA_ITEMS) vocab = Array.from(new Set(vocab.concat(Object.keys(window.EXTRA_ITEMS)))); } catch(e){}
     var logged = [], dupes = [], unrec = [], magicNew = [], extraCopies = [], cappedOut = [], errors = 0, cost = 0;
+    var _aiErr = '';   // v407 — first AI-service error detail (so a key/credit/rate failure shows the REAL reason, not a false "empty")
+    function _sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
     var _QTY_CAP = 3;   // v403 — mule AT MOST 3 of the same base; a 4th+ physical copy is thrown out
     // v310: track results PER screenshot FILE — so the report names the exact file each
     // item came from (Konyo: "identify specific screenshot files, not just blindly seeing
@@ -23957,7 +23983,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // 62 shots × 2 calls each (locate + read) crawled — painfully so when the tab is backgrounded and
     // the browser throttles it. JS is single-threaded, so the shared accumulators (owned / magicFinds /
     // logged / …) have no real races; we just keep ~CONC reads in flight at once.
-    async function processFile(i){
+    async function processFile(i, _retry){
+      _retry = _retry || 0;   // v407 — retry depth for transient AI-service failures (429 / 5xx)
       var fRec = perFile[i];
       var fname = fRec.file;
       try {
@@ -23988,8 +24015,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // single-item discipline (one hovered item = one registered thing; background grid = noise).
           body: JSON.stringify({ image: b64, media_type: 'image/jpeg', names: vocab, file: fname, cropped: !!_box }),
         }, 75000);
-        if (!resp.ok) { errors++; fRec.err = true; return; }
+        if (!resp.ok) { errors++; fRec.err = true; if (!_aiErr) _aiErr = 'AI service unreachable · HTTP ' + resp.status; doneCount++; report.innerHTML = _scanUI(doneCount, files.length, logged.length); return; }
         var data = await resp.json();
+        // v407 — the backend returns HTTP 200 with an {error,...} field when the Anthropic call itself failed
+        // (bad/expired key, no credits, 429 rate-limit on a big burst, model error). Previously the vault path
+        // ignored this and showed a FALSE "empty — no tooltip text" for every shot. Now: RETRY transient
+        // failures (429 / 5xx / 529) with backoff, and on a hard failure surface the REAL reason in the report.
+        if (data && data.error) {
+          var _st = +(data.status || 0);
+          var _transient = (_st === 429 || _st === 529 || _st >= 500 || _st === 0);
+          if (_transient && _retry < 2) { _retry++; await _sleep(1500 * _retry); return await processFile(i, _retry); }
+          errors++; fRec.err = true;
+          if (!_aiErr) _aiErr = (data.error === 'upstream')
+            ? ('AI service · HTTP ' + (_st || '?') + (data.detail ? ' · ' + String(data.detail).slice(0, 160) : ''))
+            : (data.message ? ('AI service · ' + String(data.message).slice(0, 160)) : ('AI service · ' + data.error));
+          try { console.error('[vault-intake] AI ERROR for ' + fname, data); } catch(e){}
+          doneCount++; report.innerHTML = _scanUI(doneCount, files.length, logged.length); return;
+        }
         // v346 — AUTO-RETRY EMPTIES on the FULL image. A cropped read that returns NOTHING (no items,
         // finds, OR unrecognized) almost always means the LOCATE box clipped/missed the tooltip — the
         // text simply wasn't in the crop. Re-read the whole uncropped image (cropped:false, so no
@@ -24038,6 +24080,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             } catch(e){}
             var sg = suggestMule(n);
             if (sg && muleById(sg.id) && !assign[n]) assign[n] = sg.id;
+            else if (sg && sg.id==='__keep' && !assign[n]) assign[n] = '__keep';   // v409 — never-mule keeper (kept in inventory, shown in advisory, not muled)
             logged.push(n); fRec.nw.push(n);
           } else {
             // v342.28 — a re-read of a MULTI-KEEP staple that's still UNDER its target is a WANTED
@@ -24198,6 +24241,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       body += '<div class="vir-line vir-dim" style="font-size:11px">📂 per-screenshot breakdown (which shot → which items) is in <strong>🕘 Recently registered</strong> just below ↓</div>';
     }
     if (errors) body += '<div class="vir-line" style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</div>';
+    if (_aiErr) body += '<div class="vir-line" style="color:var(--hell,#ff4040)"><strong>⚠ ' + esc(_aiErr) + '</strong> — this is an AI-service failure, NOT your screenshots. Likely the API key, credits, or a rate-limit on a big batch. Retry a smaller batch; if it persists the key/credits need attention.</div>';
     // v344 — surface the shots that need a human look at the TOP of the card (not buried in the expand):
     // EMPTY reads (no tooltip text found → maybe a real item the AI couldn't read) and THROW-OUT-ONLY
     // shots (the only thing read didn't match grail → could be a misread valuable). Filenames listed so
@@ -24230,6 +24274,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + (_preReg > 0
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')
+      + (_aiErr ? '<div class="vir-needlook" style="border-color:rgba(255,64,64,.6);background:rgba(255,64,64,.08)"><div class="vir-nl-top"><span class="vir-nl-h" style="color:var(--hell,#ff4040)">⚠ AI service error — nothing registered</span><span class="vir-nl-d">' + esc(_aiErr) + ' · NOT your screenshots — likely API key / credits / rate-limit. Retry a smaller batch.</span></div></div>' : '')
       + _needLook
       + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc" title="' + (_preReg > 0 ? 'these items were already ✓ in your vault BEFORE this scan' : 'the vault was EMPTY at the start of this scan, so these are DUPLICATE SHOTS — the same item appeared in an earlier screenshot of this same batch (first = new, this = the repeat). Collapsed to one, never double-counted — NOT based on any prior history.') + '">+ <b>' + dupes.length + '</b> ' + (_preReg > 0 ? 'already-owned' : 'duplicate shot' + (dupes.length === 1 ? '' : 's')) + '</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + (unrec.length + cappedOut.length) + '</b> 🗑 throw-out</span>' + (cappedOut.length ? '<span class="vir-rc" style="color:#b5a48a" title="extra copies past the 3-per-base mule cap">(incl <b>' + cappedOut.length + '</b> over-cap)</span>' : '') + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
       + '<span class="vir-rc-note">' + (function(){ var _it = logged.length + magicNew.length + unrec.length + cappedOut.length;

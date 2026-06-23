@@ -86,11 +86,13 @@ test.describe('v203 the vault', () => {
     });
     expect(r.tal).toBe('sets-major');
     // v364: high trade-value items ("worth keeping close") auto-route to the SHARED cross-account stash
-    // instead of their slot mule. SoJ + Annihilus are both 'high' value → shared.
+    // instead of their slot mule. SoJ is 'high' value → shared.
     expect(r.soj).toBe('shared');
     expect(r.gaze).toBe('uni-armor');   // med value → its slot mule
     expect(r.storm).toBe('uni-armor');  // low value → its slot mule
-    expect(r.anni).toBe('shared');      // high value → shared
+    // v409: Annihilus (like Hellfire Torch / Gheed's Fortune) only works in the ACTIVE character's
+    // inventory — never muled and not shared (a charm in shared stash does nothing). → __keep sentinel.
+    expect(r.anni).toBe('__keep');
     expect(r.wf).toBe('uni-weap');      // med value → its slot mule
     // shared-stash items are explicitly excluded from muling
     expect(r.rune).toBeNull();
