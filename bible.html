@@ -23859,6 +23859,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     ctx.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
     return c.toDataURL('image/jpeg', q).split(',')[1];
   }
+  // v417 — TEXT ISOLATION (the strongest OCR-rescue lever for a faint tooltip over a busy background, e.g.
+  // Konyo's Superior Grim Scythe sitting half-transparent over the stash grid). Unlike _vEnlarge's global
+  // contrast filter — which lifts the busy background as much as the text — this crops to the LOCATED tooltip,
+  // upscales hard (≤4×), then does a real per-pixel BINARIZE on the HSV *value* channel: every D2R text colour
+  // (white name · blue magic · gold unique · yellow rare) is BRIGHT on V, while the darkened see-through
+  // background is LOW. Crush V<floor to black, lift the rest → glyphs pop off a clean black field. Grayscale
+  // (rarity is recoverable from the base name); fires only as the last empty-read retry, so cost is one call.
+  function _vTextIso(im, box, maxEdge, floor){
+    maxEdge = maxEdge || 1568; floor = (floor == null ? 92 : floor);
+    var W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
+    var sx = 0, sy = 0, sw = W, sh = H;
+    if (box){ sx = Math.round(box[0]*W); sy = Math.round(box[1]*H); sw = Math.round((box[2]-box[0])*W); sh = Math.round((box[3]-box[1])*H); }
+    if (!(sw > 0) || !(sh > 0)){ sx = 0; sy = 0; sw = W; sh = H; }
+    var scale = Math.min(box ? 4 : 1, maxEdge / Math.max(sw, sh));   // a cropped tooltip gets a big upscale; whole image only downscales
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(sw*scale)); c.height = Math.max(1, Math.round(sh*scale));
+    var ctx = c.getContext('2d'); try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; } catch(e){}
+    ctx.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    try {
+      var id = ctx.getImageData(0, 0, c.width, c.height), d = id.data;
+      for (var p = 0; p < d.length; p += 4){
+        var v = d[p] > d[p+1] ? d[p] : d[p+1]; if (d[p+2] > v) v = d[p+2];   // V = max(R,G,B) — bright for ALL text colours
+        var o = (v - floor) * 2.6; o = o < 0 ? 0 : (o > 255 ? 255 : o);       // crush the see-through background, lift glyph pixels
+        d[p] = d[p+1] = d[p+2] = o;
+      }
+      ctx.putImageData(id, 0, 0);
+    } catch(e){}
+    return c.toDataURL('image/jpeg', 0.95).split(',')[1];
+  }
   // GENEROUS box padding — bias BIG so the tooltip is NEVER clipped (Konyo: "as long as it's not cut").
   // Pads each side, clamps to the image, and enforces a sane MINIMUM span so a too-tight box can't shrink-clip.
   function _vPadBox(box){
@@ -24174,6 +24203,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (_rB.ok){ var _dB = await _rB.json(); if (!_isEmpty(_dB)){ data = _dB;
               try { console.log('[vault-intake] ' + fname + ' → still empty → CONTRAST-BOOST retry recovered', _dB.items || _dB.unrecognized); } catch(e){} } }
           } catch(e){}
+        }
+        // v417 — ABSOLUTE last resort: TEXT-ISOLATION on the LOCATED tooltip crop (or whole image if locate
+        // missed). Binarizes on HSV-value so faint glyphs separate HARD from a busy see-through background —
+        // the one lever the boost tiers don't pull (they lift the background too). Two passes at different
+        // floors, because the right threshold depends on how transparent the tooltip is; first non-empty wins.
+        if (_isEmpty(data) && _imRef){
+          var _isoFloors = [92, 60];
+          for (var _fi = 0; _fi < _isoFloors.length && _isEmpty(data); _fi++){
+            try {
+              var _iso = _vTextIso(_imRef, _box || null, 1568, _isoFloors[_fi]);
+              var _rI = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+                body: JSON.stringify({ image:_iso, media_type:'image/jpeg', names:vocab, file:fname, cropped: !!_box }) }, 75000);
+              if (_rI.ok){ var _dI = await _rI.json(); if (!_isEmpty(_dI)){ data = _dI;
+                try { console.log('[vault-intake] ' + fname + ' → still empty → TEXT-ISOLATION (floor ' + _isoFloors[_fi] + ') recovered', _dI.items || _dI.unrecognized); } catch(e){} } }
+            } catch(e){}
+          }
         }
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
