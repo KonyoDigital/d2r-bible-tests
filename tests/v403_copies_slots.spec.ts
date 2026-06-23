@@ -29,7 +29,7 @@ test('v403 a base owned x3 renders 3 separate slots in the mule replica', async 
   expect(r.thresherSlots).toBe(3);
   expect(r.grimSlots).toBe(1);
   expect(r.sub).toContain('4 items');
-  expect(r.gold).toContain('4 items vaulted');
+  expect(r.gold).toContain('4 on this mule');   // v405 — goldbox now reports stash/mule counts
   expect(errs).toEqual([]);
 });
 
