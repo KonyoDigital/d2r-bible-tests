@@ -23143,7 +23143,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
-        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+(sock?'<span class="to-sock">🔩 '+sock[1]+'os</span>':'')+'</div>'
+        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+(sock?'<span class="to-sock">🔩 '+sock[1]+'os</span>':'')+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these — separate screenshots, each a distinct item">×'+copyCount(n)+'</span>':'')+'</div>'
         +   '<div class="to-why">'+why+'</div>'+rwl+_setter
         +   '<div class="to-acts"><button class="vrg-keep" onclick="window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
         +     '<button class="vrg-x" onclick="window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕ dismiss</button></div>'
@@ -24006,6 +24006,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               return;   // recognized as a runeword — never throw-out
             }
           } catch(e){}
+          // v400 — a SECOND distinct-FILE read of the same base is a 2nd PHYSICAL item, not a duplicate shot:
+          // the filename seen-ledger already guarantees the same file is never read twice, so a repeat name
+          // from a different screenshot = another copy you own. Count it (×N) instead of collapsing it in the
+          // Set. Konyo: "same item TYPE but a different one in my account — register the second too." Applies
+          // to socketed bases / known base TYPES (a pure misread string still just collapses).
+          var _cln = (typeof _throwClean==='function') ? _throwClean(n) : n;
+          var _baseLike = /\(\d+\s*os/i.test(n) || ((typeof _baseCats==='function') && Object.keys(_baseCats(_cln)).length > 0);
+          if (_baseLike && typeof unknownReads !== 'undefined' && unknownReads.has(n) && !owned.has(n)){
+            copies[n] = ((copies[n] && copies[n] > 0) ? copies[n] : 1) + 1;
+            if (extraCopies.indexOf(n) < 0) extraCopies.push(n); (fRec.xc || (fRec.xc = [])).push(n);
+            return;   // 2nd copy counted (×N); already shown in the throw-out list
+          }
           if (unrec.indexOf(n) < 0) unrec.push(n); fRec.unr.push(n);
           // v342.4 — persist unmatched reads so they're reviewable (not evaporated). Skip ones already
           // tracked as grail or a Magic & Rare keeper.
