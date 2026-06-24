@@ -11915,8 +11915,15 @@ if (rwUnmade === null || typeof rwUnmade !== 'object' || Array.isArray(rwUnmade)
 // mod runs server-side (no local runes.txt) the bible can't pre-verify recipes, so it now (1) flags ladder-only
 // runewords + a ladder/non-ladder mode, and (2) lets reality be the source of truth: mark a recipe ✅ worked or
 // ❌ failed from your own server, and ❌ ones show a RED "do not cube" guard. The 3 proven failures are seeded.
-// Known ladder-only runewords (post-2.4 + RotW additions) — these will NOT form on a non-ladder character.
-const _RW_LADDER_ONLY = {"Mania":1,"Hysteria":1,"Hustle":1,"Mosaic":1,"Pattern":1,"Plague":1,"Obsession":1,"Unbending Will":1,"Flickering Flame":1,"Wisdom":1,"Metamorphosis":1,"Authority":1,"Coven":1,"Temper":1,"Cure":1,"Ground":1,"Hearth":1,"Whirlwind":1};
+// v433 — Known ladder-only runewords, CROSS-REFERENCED against d2r.world (RotW v3.2 source of truth) on
+// 2026-06-24: diffed the full runeword list ladder=true vs ladder=false. d2r.world marks exactly 7 as
+// "Ladder Only" — Bulwark, Cure, Ground, Hearth, Metamorphosis, Temper, and the Shael-Ko-Eld runeword
+// (slug "hustle", shown as Hysteria) — so the bible's Hustle/Hysteria/Mania trio (Konyo's in-game siblings
+// of that Shael-Ko-Eld word) all stay ladder-only. Everything else d2r.world lists as available off-ladder.
+// FIXED: ADDED Bulwark (was missing); REMOVED the FALSE flags Authority, Coven, Mosaic, Pattern, Plague,
+// Obsession, Unbending Will, Flickering Flame, Wisdom (RotW makes these non-ladder, unlike base D2R 2.4) and
+// "Whirlwind" (not a runeword). Konyo flagged Authority's wrong "🪜 LADDER ONLY" stamp — this is the fix.
+const _RW_LADDER_ONLY = {"Bulwark":1,"Cure":1,"Ground":1,"Hearth":1,"Hustle":1,"Hysteria":1,"Mania":1,"Metamorphosis":1,"Temper":1};
 try { window._RW_LADDER_ONLY = _RW_LADDER_ONLY; } catch(e){}
 // per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
 // three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
