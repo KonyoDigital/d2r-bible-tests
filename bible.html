@@ -1305,6 +1305,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwc-chip.on{background:rgba(181,140,255,.18);border-color:#b58cff;color:#fff;box-shadow:0 0 8px rgba(181,140,255,.4)}
 .rwc-list{display:flex;flex-direction:column;max-height:560px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
 /* v369.2 — symmetric GRID rows: every row's art+name · recipe · status · toggle line up in fixed columns */
+/* v419 — LADDER stamp: an in-game-style ladder badge for ladder-only runewords (Konyo: "visual stamp of ladder") */
+.rw-ladder-stamp{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono,monospace);font-size:10px;font-weight:800;letter-spacing:.06em;color:#ffe08a;background:linear-gradient(180deg,rgba(255,196,80,.22),rgba(150,100,20,.14));border:1px solid rgba(255,196,80,.6);border-radius:5px;padding:1px 6px;text-transform:uppercase;text-shadow:0 0 6px rgba(255,196,80,.5);vertical-align:middle;white-space:nowrap}
+.rwc-ladder{font-size:9px;font-weight:800;letter-spacing:.04em;color:#ffe08a;border:1px solid rgba(255,196,80,.55);border-radius:4px;padding:0 4px;margin-left:5px;text-transform:uppercase;white-space:nowrap;vertical-align:middle}
+.rwc-fail{color:#ff8f8f;font-weight:700;margin-left:5px;font-size:10px}
 .rwc-row{display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(150px,1.5fr) 134px 66px;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .1s}
 .rwc-row:last-child{border-bottom:0}
 .rwc-row:hover{background:rgba(255,255,255,.045)}
@@ -10348,7 +10352,7 @@ function runewordDetailHtml(name){
     + '<header class="gic-header">'
     + '<span class="d2art-wrap lg"><span class="gic-emoji" style="font-family:serif;font-size:30px">⚒️</span></span>'
     + '<div class="gic-id-block">'
-    + '<h2 class="gic-name">'+key+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#3a5a8a,#12243a);color:#bcd6ff">Runeword</span></h2>'
+    + '<h2 class="gic-name">'+key+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#3a5a8a,#12243a);color:#bcd6ff">Runeword</span>'+( (typeof _RW_LADDER_ONLY!=='undefined' && _RW_LADDER_ONLY[key]) ? ' <span class="rw-ladder-stamp" title="Ladder-only runeword — only forms on a LADDER character">🪜 LADDER&nbsp;ONLY</span>' : '')+'</h2>'
     + '<div class="gic-subtitle">'+o.b+(o.r!=null?' · req level '+o.r:'')+'</div>'
     + '<div class="gic-meta-row"><span class="gic-meta-chip">'+(o.rec||[]).length+' runes</span><span class="gic-meta-chip" style="color:#bcd6ff;border-color:rgba(188,214,255,.4)">crafted</span></div>'
     + '</div>'
@@ -10356,6 +10360,20 @@ function runewordDetailHtml(name){
     + '</header>'
     + '<section class="gic-section"><div class="gic-section-title">🔤 Recipe (in order)</div><div class="rwd-recipe">'+recChips+'</div></section>'
     + '<section class="gic-section"><div class="gic-section-title">⚠️ Before you cube — or you waste the runes</div>'
+    +   (function(){ var g = (typeof window._rwGuard==='function') ? window._rwGuard(key) : null; if(!g) return '';
+         var bg = g.level==='block' ? 'linear-gradient(135deg,rgba(255,60,60,.18),rgba(120,0,0,.12))' : (g.level==='ok' ? 'linear-gradient(135deg,rgba(102,255,136,.15),rgba(0,80,30,.1))' : 'linear-gradient(135deg,rgba(240,192,96,.15),rgba(120,80,0,.1))');
+         var bc = g.level==='block' ? 'rgba(255,80,80,.6)' : (g.level==='ok' ? 'rgba(102,255,136,.5)' : 'rgba(240,192,96,.5)');
+         var ic = g.level==='block' ? '⛔' : (g.level==='ok' ? '✅' : '⚠️');
+         var hd = g.level==='block' ? 'DO NOT CUBE — this will waste your runes' : (g.level==='ok' ? 'Confirmed working on your server' : 'Verify before you commit high runes');
+         return '<div class="rw-guard" style="background:'+bg+';border:1px solid '+bc+';border-radius:8px;padding:10px 12px;margin-bottom:9px">'
+           + '<div style="font-weight:700;color:#fff;margin-bottom:3px">'+ic+' '+hd+'</div>'
+           + '<div style="font-size:12.5px;color:var(--text,#cfc4b0);line-height:1.5">'+g.why+'</div>'
+           + '<div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap;align-items:center"><span style="font-size:11px;color:var(--text-dim,#9a8c72)">From your game:</span>'
+           +   '<button onclick="window.rwSetVerify&&window.rwSetVerify(\''+key.replace(/'/g,"\\'")+'\',\'ok\')" style="cursor:pointer;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid rgba(102,255,136,.5);background:rgba(102,255,136,.1);color:#9effb9">✅ it formed</button>'
+           +   '<button onclick="window.rwSetVerify&&window.rwSetVerify(\''+key.replace(/'/g,"\\'")+'\',\'fail\')" style="cursor:pointer;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,80,80,.5);background:rgba(255,80,80,.1);color:#ff9b9b">❌ didn’t form</button>'
+           +   '<button onclick="window.rwSetVerify&&window.rwSetVerify(\''+key.replace(/'/g,"\\'")+'\',null)" style="cursor:pointer;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid var(--border,#3a2f1e);background:none;color:var(--text-dim,#9a8c72)">clear</button>'
+           + '</div></div>';
+       })()
     +   '<div class="zd-row rwd-stat"><span class="zd-v"><b style="color:var(--hell,#ff5555)">The base MUST be a NORMAL (white) or grey/low-quality item</b> — a <b>Superior</b>, magic, rare, set or unique base will <b>NOT</b> form a runeword (the runes just socket in as a "Gemmed" item and are wasted).</span></div>'
     +   '<div class="zd-row rwd-stat"><span class="zd-v">It must be a <b>'+_d2artEsc(o.b)+'</b> with <b>EXACTLY '+(o.rec||[]).length+' socket'+((o.rec||[]).length===1?'':'s')+'</b> — not more, not fewer.</span></div>'
     +   '<div class="zd-row rwd-stat"><span class="zd-v">Insert the runes <b>left-to-right in this EXACT order</b>: <b>'+(o.rec||[]).join(' → ')+'</b>.</span></div>'
@@ -11732,6 +11750,35 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Strength":"Jun 23, 2026 · 01:52"};
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
+// v419 — RUNE-SAVER GUARD. Konyo wasted runes 3× cubing Shael+Ko+Eld weapons expecting Mania, which
+// formed only a "Gemmed" base (raw rune stats, no runeword). Root cause: Mania/Hysteria/Hustle are
+// LADDER-ONLY — on a NON-LADDER character they do not form, exactly matching the in-game result. Since the
+// mod runs server-side (no local runes.txt) the bible can't pre-verify recipes, so it now (1) flags ladder-only
+// runewords + a ladder/non-ladder mode, and (2) lets reality be the source of truth: mark a recipe ✅ worked or
+// ❌ failed from your own server, and ❌ ones show a RED "do not cube" guard. The 3 proven failures are seeded.
+// Known ladder-only runewords (post-2.4 + RotW additions) — these will NOT form on a non-ladder character.
+const _RW_LADDER_ONLY = {"Mania":1,"Hysteria":1,"Hustle":1,"Mosaic":1,"Pattern":1,"Plague":1,"Obsession":1,"Unbending Will":1,"Flickering Flame":1,"Wisdom":1,"Metamorphosis":1,"Authority":1,"Coven":1,"Temper":1,"Cure":1,"Ground":1,"Hearth":1,"Whirlwind":1};
+try { window._RW_LADDER_ONLY = _RW_LADDER_ONLY; } catch(e){}
+// per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
+// three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
+let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
+if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = {"Mania":"fail","Hysteria":"fail","Hustle":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }
+// ladder mode: 'ladder' | 'nonladder' | 'unknown'. Konyo's evidence (ladder-only RWs failing) ⇒ default nonladder.
+let rwLadderMode = (function(){ var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
+window.rwSetVerify = function(name, state){ var k = (typeof findRuneword==='function' && findRuneword(name)) || name; if (state) rwVerify[k] = state; else delete rwVerify[k];
+  try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} try { if (typeof refreshOpenCard==='function') refreshOpenCard(); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){} };
+window.rwSetLadderMode = function(m){ rwLadderMode = (m==='ladder')?'ladder':'nonladder'; try { LS.setItem('d2r_ladderMode', rwLadderMode); } catch(e){}
+  try { if (typeof refreshOpenCard==='function') refreshOpenCard(); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){} };
+// the verdict for a runeword card: blocked (won't form for you) / caution (unverified) / ok.
+window._rwGuard = function(key){
+  if (!key) return null;
+  var v = rwVerify[key], ladderOnly = !!_RW_LADDER_ONLY[key], nonLadder = (rwLadderMode === 'nonladder');
+  if (v === 'fail') return { level:'block', why:'You marked this as <b>did-not-form</b> in your game.' + (ladderOnly?' It is a <b>ladder-only</b> runeword — it will not form on a non-ladder character.':'') };
+  if (v === 'ok') return { level:'ok', why:'You confirmed this <b>formed</b> in your game.' };   // explicit success = ground truth, overrides the ladder assumption
+  if (ladderOnly && nonLadder) return { level:'block', why:'<b>Ladder-only</b> runeword — it will <b>not form on a non-ladder character</b>. Set your mode to Ladder (top of the Chronicle) only if your character truly is ladder.' };
+  if (ladderOnly) return { level:'caution', why:'<b>Ladder-only</b> runeword — only forms on a <b>ladder</b> character. Confirm your character is ladder before cubing.' };
+  return { level:'caution', why:'Recipe not yet confirmed on your server — <b>test on a cheap base first</b> before committing high runes.' };
+};
 // Materials Stash: { materialName: count } map. Pandemonium keys / uber organs / Token
 // essences the user holds; powers the uber & token readiness planner.
 let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
@@ -15363,6 +15410,10 @@ function renderRunewordChronicle(){
     +   '<span class="rwc-stat rwc-s-now">✅ '+nowN+' can make now</span>'
     +   '<span class="rwc-stat rwc-s-cube">🧪 '+cubeN+' cube-up</span>'
     +   '<span class="rwc-stat rwc-s-todo">⏳ '+(total-madeN)+' left to make</span>'
+    +   '<span class="rwc-ladmode" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim,#9a8c72)" title="Ladder-only runewords (🪜 stamp) will NOT form on a non-ladder character. Set this to match your character.">my character:'
+    +     '<button onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'ladder\')" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid '+(rwLadderMode==='ladder'?'rgba(255,196,80,.7)':'var(--border,#3a2f1e)')+';background:'+(rwLadderMode==='ladder'?'rgba(255,196,80,.15)':'none')+';color:'+(rwLadderMode==='ladder'?'#ffe08a':'var(--text-dim,#9a8c72)')+'">🪜 Ladder</button>'
+    +     '<button onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'nonladder\')" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid '+(rwLadderMode==='nonladder'?'rgba(143,208,255,.7)':'var(--border,#3a2f1e)')+';background:'+(rwLadderMode==='nonladder'?'rgba(143,208,255,.15)':'none')+';color:'+(rwLadderMode==='nonladder'?'#bcd6ff':'var(--text-dim,#9a8c72)')+'">Non-Ladder</button>'
+    +   '</span>'
     + '</div>';
   var fl = document.getElementById('rwc-filters');
   if (fl){
@@ -15397,7 +15448,7 @@ function renderRunewordChronicle(){
       ? '<span class="d2art-wrap sm" role="img" aria-label="'+esc(x.n)+'"><img class="d2art-img" src="'+esc(_rwSrc)+'" alt="" loading="lazy"></span>'
       : '<span class="rwc-glyph" aria-hidden="true">📜</span>';
     return '<div class="rwc-row '+cls+'" onclick="window.openDrop&&window.openDrop(\''+oc+'\')" title="open the '+esc(x.n)+' ID card">'
-      + '<span class="rwc-head">'+artH+'<span class="rwc-title"><span class="rwc-name" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</span><span class="rwc-base">'+esc(x.e.b||'')+(x.e.r?' · lvl '+x.e.r:'')+'</span></span></span>'
+      + '<span class="rwc-head">'+artH+'<span class="rwc-title"><span class="rwc-name" data-arttip="'+esc(x.n)+'">'+esc(x.n)+( (typeof _RW_LADDER_ONLY!=='undefined'&&_RW_LADDER_ONLY[x.n]) ? '<span class="rwc-ladder" title="Ladder-only — only forms on a ladder character">🪜 LADDER</span>' : '')+( (typeof rwVerify!=='undefined'&&rwVerify[x.n]==='fail') ? '<span class="rwc-fail" title="You marked this as did-not-form in your game">❌ failed</span>' : '')+'</span><span class="rwc-base">'+esc(x.e.b||'')+(x.e.r?' · lvl '+x.e.r:'')+'</span></span></span>'
       + '<span class="rwc-recipe" title="recipe order — insert the runes left → right">'+(typeof _rwRecipeArt==='function'?_rwRecipeArt(x.rec.join(' + ')):esc(x.rec.join(' + ')))+'</span>'
       + '<span class="rwc-status">'+badge+'</span>'
       + toggle
