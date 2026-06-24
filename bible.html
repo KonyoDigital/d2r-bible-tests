@@ -11133,6 +11133,18 @@ function _artRarity(name){
       || /^Worldstone Shard/.test(name))) r = 'crafted';
     // last-resort name heuristic so set aggregates ("... (set)" / "(any piece)") read green
     if (!r && /\(set\)|\(set piece\)|\(any piece\)/i.test(name)) r = 'set';
+    // v428 — a recognised BASE ITEM (any of the 498 game-data bases, incl. a "(Nos)" / "(Larzuk base)"
+    // socket-suffixed read) that resolved nothing above reads as 'basic' = white/grey, the in-game base
+    // colour. Without this, raw bases fell through colourless, so the search row / vault chip / hover for
+    // "Cryptic Axe" etc. wasn't synced to white like socketed-base EXTRA_ITEMS already were. (Konyo: "label
+    // them as such so the mule vault manager and everything else is synced.") Runs LAST so it never
+    // overrides a unique/set/rune/runeword that happens to share a base word.
+    if (!r && typeof _baseCats === 'function'){
+      try {
+        var _bn = (typeof _artSlotClean === 'function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/, '');
+        if (_bn && Object.keys(_baseCats(_bn)).length) r = 'basic';
+      } catch(e){}
+    }
   } catch(e){}
   _ARTRARITY_CACHE[name] = r;
   return r;

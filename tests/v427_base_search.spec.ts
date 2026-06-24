@@ -30,6 +30,31 @@ test('every base item produces a valid base card via openDrop + baseDetailHtml',
   expect(errs).toEqual([]);
 });
 
+test('every base reads white/grey (basic) rarity — synced across search/vault/hover; no item downgraded', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const bases = Object.keys(w.BASE_CLASS || {});
+    const notBasic: string[] = [];
+    bases.forEach((b) => { if (w._artRarity(b) !== 'basic') notBasic.push(b + '=' + w._artRarity(b)); });
+    return {
+      total: bases.length, notBasic: notBasic.slice(0, 15), notBasicCount: notBasic.length,
+      basicHex: w._qHex('Cryptic Axe'),                 // → var(--q-normal) = #f4f4f4 white
+      suffixedBasic: w._artRarity('Cryptic Axe (5os)') === 'basic' && w._artRarity('Monarch (Larzuk base)') === 'basic',
+      // real items must NOT be downgraded to basic
+      windforce: w._artRarity('Windforce'), spirit: w._artRarity('Spirit'),
+      talRasha: w._artRarity("Tal Rasha's Adjudication"), istRune: w._artRarity('Ist rune'),
+    };
+  });
+  expect(r.notBasicCount).toBe(0);              // all 498 bases read basic (white/grey)
+  expect(r.basicHex).toContain('q-normal');     // basic → white var
+  expect(r.suffixedBasic).toBe(true);
+  expect(r.windforce).toBe('unique');           // not downgraded
+  expect(r.spirit).toBe('rw');
+  expect(r.talRasha).toBe('set');
+  expect(r.istRune).toBe('rune');
+});
+
 test('the global search bar surfaces base items by name', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   await page.fill('#gsearch-input', 'cryptic axe');
