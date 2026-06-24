@@ -6982,6 +6982,26 @@ function _mfTipHtml(name){
 function _throwClean(name){
   return String(name).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i, '').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i, '').trim();
 }
+// v439 — COMBINE near-duplicate throw-out reads into ONE (Konyo: "I don't need double registered, 1 combined").
+// Two shots of the SAME item often read with OCR drift — esp. a failed-runeword "Gemmed <base> 'ShaelKoEld'" vs
+// "'ShaelK@Eld'". Canon strips the quoted rune string + socket/base descriptors + punctuation so those collapse
+// to the same key, while genuinely different BASES stay distinct.
+function _unrecCanon(name){
+  var s = _throwClean(name).replace(/['"‘’“”][^'"‘’“”]*['"‘’“”]/g, '')
+    .replace(/\((?:larzuk base|\d+\s*os(?:\s+low base)?|low base|base)\)/ig, '');
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function _dedupCanon(names){
+  var seen = {}, out = [];
+  (names || []).forEach(function(n){
+    var k = _unrecCanon(n);
+    if (!k){ out.push(n); return; }
+    if (!(k in seen)){ seen[k] = out.length; out.push(n); }
+    else if (String(n).length > String(out[seen[k]]).length) out[seen[k]] = n;   // keep the most descriptive form
+  });
+  return out;
+}
+try { window._unrecCanon = _unrecCanon; window._dedupCanon = _dedupCanon; } catch(e){}
 // v402 — normalize an item name down to its bare base by stripping the descriptor suffix the intake appends
 // ("(4os)", "(Larzuk base)", "(3os low base)" …). Used so the ETHEREAL flag matches the REGISTERED name no
 // matter which side carries the suffix — the AI may flag "War Scepter" while we register "War Scepter (4os)".
@@ -23585,7 +23605,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // v342.21 — render each bucket as its OWN COLUMN (header + independent scrollbar) so all sections are
     // visible side-by-side at once, per Konyo. Responsive grid wraps on narrow screens.
-    var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort():[];
+    var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?_dedupCanon(Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort()):[];   // v439 — collapse OCR-variant dupes
     var _qcol={magic:'#7aa2ff',rare:'#ffd54a',crafted:'var(--q-orange,#ffa800)'};
     function _col(cls, title, count, rowsHtml){
       return '<div class="vrg-col"><div class="vrg-col-h '+cls+'">'+title+'<span class="vrg-col-ct">'+count+'</span></div>'
@@ -23653,7 +23673,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     } catch(e){}
     var names=(typeof unknownReads!=='undefined'&&unknownReads)
-      ? Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort()
+      ? _dedupCanon(Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort())   // v439 — collapse OCR-variant dupes
       : [];
     if(!names.length){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false;

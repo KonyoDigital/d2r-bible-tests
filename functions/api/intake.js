@@ -374,12 +374,14 @@ export async function onRequestPost(context) {
       //              Konyo opted in. (env ITEMS_MODEL=claude-haiku-4-5 reverts to cheap.)
       //  • TALLY/CRAFT → Sonnet — digit COUNTING ("23" vs "2") is error-prone; keep the strong model.
       //              (env overrides: LOCATE_MODEL / ITEMS_MODEL / MODEL.)
-      // v438 — items + rawname back to HAIKU (Konyo, cost: Sonnet was burning the monthly cap). Locate was
-      // always Haiku. Tally/craft stay Sonnet (digit COUNTING accuracy). Override with env ITEMS_MODEL=claude-sonnet-4-6.
+      // v439 — items + rawname back to SONNET for ACCURACY. Haiku (v438, for cost) misread base NAMES as the
+      // weapon-CLASS word ("Polearm (6os)" instead of "War Scythe (6os)", generic "Sword"/"Axe") — Konyo's
+      // 29-need-a-look / 61-of-76 scan. Sonnet reads the base name correctly (verified 100% earlier). Locate
+      // stays Haiku (cheap box-finding, no text). For CHEAP test runs only, set env ITEMS_MODEL=claude-haiku-4-5.
       model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
-        : isRaw ? (env.ITEMS_MODEL || 'claude-haiku-4-5')
+        : isRaw ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
-        : (env.ITEMS_MODEL || 'claude-haiku-4-5'),
+        : (env.ITEMS_MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
       // v342.26 — temperature 0 (greedy decode) so the SAME screenshot reads the SAME way run-to-run.
       // The old default (1.0) sampled, so re-scanning a batch could re-assort borderline items
