@@ -1314,6 +1314,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwc-row.rwc-r-block{opacity:.5;filter:grayscale(.35)}
 .rwc-badge.rwc-b-block{color:#bcd6ff;background:rgba(143,208,255,.12);border:1px solid rgba(143,208,255,.5);border-radius:4px;padding:0 5px;font-size:10px;font-weight:700}
 .rwc-fail{color:#ff8f8f;font-weight:700;margin-left:5px;font-size:10px}
+/* v447 — Ladder vs Non-Ladder section dividers in the Chronicle list */
+.rwc-grp-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px 6px;font-family:ui-monospace,monospace;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a96a4;border-top:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.015);position:sticky;top:0;z-index:1}
+.rwc-grp-hdr:first-child{border-top:none}
+.rwc-grp-hdr.rwc-grp-ladder{color:#ffd98a;background:linear-gradient(180deg,rgba(255,196,80,.1),rgba(255,196,80,.02));border-top-color:rgba(255,196,80,.35)}
+.rwc-grp-ct{margin-left:auto;font-weight:800;color:#0c0e12;background:#8a96a4;border-radius:9px;padding:1px 8px;font-size:10.5px}
+.rwc-grp-ladder .rwc-grp-ct{background:#ffce6a}
 .rwc-row{display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(150px,1.5fr) 134px 66px;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .1s}
 .rwc-row:last-child{border-bottom:0}
 .rwc-row:hover{background:rgba(255,255,255,.045)}
@@ -15735,7 +15741,7 @@ function renderRunewordChronicle(){
   var rank = function(x){ return x.made?3 : x.now?0 : x.cube?1 : 2; };
   shown.sort(function(a,b){ return rank(a)-rank(b) || a.tier-b.tier || a.n.localeCompare(b.n); });
   var cntEl = document.getElementById('rwc-count'); if (cntEl) cntEl.textContent = '('+madeN+'/'+total+')';
-  box.innerHTML = shown.map(function(x){
+  var rowHtml = function(x){
     var oc = x.n.replace(/'/g,"\\'");
     var cls, badge;
     if (x.made){ cls='rwc-made'; badge='<span class="rwc-badge rwc-b-made">✨ Created</span><span class="rwc-date">'+esc(typeof rwMade[x.n]==='string'?rwMade[x.n]:'')+'</span>'; }
@@ -15757,7 +15763,20 @@ function renderRunewordChronicle(){
       + '<span class="rwc-status">'+badge+'</span>'
       + toggle
       + '</div>';
-  }).join('') || '<div class="rw-empty">Nothing matches this filter.</div>';
+  };
+  // v447 — the Ladder/Non-Ladder toggle now SEPARATES the list into two labelled groups (Konyo: "really
+  // separate the non-ladder items from the ladder items"). The active character mode's group leads; the
+  // other follows under its own header (a ladder-only row in non-ladder mode is still dimmed/blocked).
+  var _ladList = shown.filter(function(x){ return x.ladderOnly; });
+  var _nonList = shown.filter(function(x){ return !x.ladderOnly; });
+  var _grp = function(label, arr, isLadder){
+    if (!arr.length) return '';
+    return '<div class="rwc-grp-hdr'+(isLadder?' rwc-grp-ladder':'')+'">'+(isLadder?'🪜 ':'')+esc(label)+'<span class="rwc-grp-ct">'+arr.length+'</span></div>'+arr.map(rowHtml).join('');
+  };
+  var _html = (rwLadderMode==='nonladder')
+    ? _grp('Non-Ladder — makeable on your character', _nonList, false) + _grp('Ladder-only — won’t form on a non-ladder character', _ladList, true)
+    : _grp('Ladder-only runewords', _ladList, true) + _grp('Non-Ladder runewords', _nonList, false);
+  box.innerHTML = _html || '<div class="rw-empty">Nothing matches this filter.</div>';
 }
 window.renderRunewordChronicle = renderRunewordChronicle;
 
