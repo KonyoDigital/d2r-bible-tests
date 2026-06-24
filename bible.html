@@ -24606,21 +24606,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // the backend for JUST the top coloured NAME line (no vocabulary, no single-item rule, mod names OK) so
         // any legible tooltip yields a name instead of "∅ no tooltip text". Resolves to a grail item if known,
         // else surfaces in the throw-out review (keepable) — never silently dropped.
-        // v432 — feed raw-name the FULL image (box=null), NOT the locate crop: the miss case is a tooltip
-        // DETACHED at the top-left corner (Konyo's Superior Grim Scythe 18.18.35), where locate boxes the wrong
-        // region so every crop-based pass reads nothing. The generalized rawText prompt now finds the floating
-        // tooltip anywhere on a full screen and reads its top NAME line first — so the name is captured instead
-        // of "∅ no tooltip text". Try plain full, then a CONTRAST-BOOST full for a faint/semi-transparent panel.
+        // v435 — REVERTED to the original CROPPED + ENLARGED raw-name read (the v432 full-frame experiment
+        // hurt accuracy: full-screen text is too small, so 10-15 of 47 shots stopped recognizing — WORSE than
+        // before). Konyo's switch-back: crop to the located tooltip box (or the whole crop if locate missed) and
+        // upscale ≤3.2× so the NAME is large and legible — the same enlargement the other passes use.
         if (_isEmpty(data) && _imRef){
-          var _rawTries = [ _vEnlarge(_imRef, null), _vEnlarge(_imRef, null, 1568, 0.95, true) ];
-          for (var _ri = 0; _ri < _rawTries.length && _isEmpty(data); _ri++){
-            try {
-              var _rN = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
-                body: JSON.stringify({ image:_rawTries[_ri], media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
-              if (_rN.ok){ var _dN = await _rN.json(); if (!_isEmpty(_dN)){ data = _dN;
-                try { console.log('[vault-intake] ' + fname + ' → still empty → RAW-NAME (try ' + (_ri+1) + ') recovered', _dN.items || _dN.unrecognized); } catch(e){} } }
-            } catch(e){}
-          }
+          try {
+            var _rawImg = _vEnlarge(_imRef, _box || null);
+            var _rN = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+              body: JSON.stringify({ image:_rawImg, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
+            if (_rN.ok){ var _dN = await _rN.json(); if (!_isEmpty(_dN)){ data = _dN;
+              try { console.log('[vault-intake] ' + fname + ' → still empty → RAW-NAME recovered', _dN.items || _dN.unrecognized); } catch(e){} } }
+          } catch(e){}
+        }
+        // v435 — the ONE tiny tweak (keeps the 95-99% accuracy of the cropped read above, adds a pinpoint for
+        // the rare miss): a DETACHED tooltip — the kind locate boxes wrong — is almost always pinned to the
+        // TOP-LEFT corner (D2R draws a stash-item tooltip there; Konyo's Superior Grim Scythe). So if everything
+        // above is STILL empty, crop JUST that corner region and upscale it hard (≤3.2×) → the floating NAME is
+        // large + legible, WITHOUT shrinking the whole screen (the full-frame v432 experiment that hurt accuracy).
+        if (_isEmpty(data) && _imRef){
+          try {
+            var _tl = _vEnlarge(_imRef, [0, 0, 0.5, 0.42]);   // top-left corner only, upscaled
+            var _rT = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+              body: JSON.stringify({ image:_tl, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
+            if (_rT.ok){ var _dT = await _rT.json(); if (!_isEmpty(_dT)){ data = _dT;
+              try { console.log('[vault-intake] ' + fname + ' → still empty → TOP-LEFT raw-name recovered', _dT.items || _dT.unrecognized); } catch(e){} } }
+          } catch(e){}
         }
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
