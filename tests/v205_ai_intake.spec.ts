@@ -55,7 +55,7 @@ test.describe('v205 AI intake', () => {
       name: 'stash.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG,
     });
     await page.waitForFunction(
-      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'),
+      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
     );
     const r = await page.evaluate(() => ({
@@ -89,7 +89,7 @@ test.describe('v205 AI intake', () => {
     // first upload reads normally
     await page.setInputFiles('#vault-intake-file', { name: 'dup.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
     await page.waitForFunction(
-      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'),
+      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
     );
     const after1 = calls;
@@ -115,7 +115,7 @@ test.describe('v205 AI intake', () => {
     );
     // first file → NEW (1 copy)
     await page.setInputFiles('#vault-intake-file', { name: 'raven1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     // DIFFERENT filename, SAME item → already-owned but under Raven Frost's default target (4) → extra copy
     await page.setInputFiles('#vault-intake-file', { name: 'raven2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('extra copies'), undefined, { timeout: 10000 });
@@ -147,7 +147,7 @@ test.describe('v205 AI intake', () => {
         body: JSON.stringify({ items: ['The Stone of Jordan'], unrecognized: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
     await page.setInputFiles('#vault-intake-file', { name: 'cropped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     expect(reads.length).toBe(1);
     expect(reads[0].cropped).toBe(true);
 
@@ -180,7 +180,7 @@ test.describe('v205 AI intake', () => {
         body: JSON.stringify({ items: [], unrecognized: ['Glarbfaxe of Nonsense'], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
     await page.setInputFiles('#vault-intake-file', { name: 'needs_look.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => {
       const nl = document.querySelector('#vault-intake-report .vir-needlook');
       return { present: !!nl, text: nl?.textContent || '' };
@@ -209,7 +209,7 @@ test.describe('v205 AI intake', () => {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: ['The Stone of Jordan'], unrecognized: [], finds: [], usage: { in: 800, out: 30, cached: 0 } }) });
     });
     await page.setInputFiles('#vault-intake-file', { name: 'clipped.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG });
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => ({
       owned: eval('owned').has('The Stone of Jordan'),
       report: document.getElementById('vault-intake-report')!.textContent!,
@@ -225,7 +225,7 @@ test.describe('v205 AI intake', () => {
       name: 'stash.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG,
     });
     await page.waitForFunction(
-      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'),
+      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
     );
     const report = await page.evaluate(() => document.getElementById('vault-intake-report')!.textContent!);
