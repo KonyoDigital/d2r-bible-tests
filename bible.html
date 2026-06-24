@@ -1682,8 +1682,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .ir-tie b{color:var(--ir)}
 .ir-note{font-size:11px;color:var(--text-dim);font-style:italic;margin-top:11px;line-height:1.5}
 /* v306/v328: Vault "Recently registered" — collapsible (default closed), symmetric grid chips, scroll */
-.vj-details{border:1px solid rgba(102,255,136,.16);border-radius:10px;background:rgba(102,255,136,.035);overflow:hidden}
-#vault-journal .vj-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--best,#66ff88);cursor:pointer;list-style:none;padding:10px 12px;user-select:none;transition:background .14s}
+/* v444 — journal neutralised to the unit's slate/blue (was green) so the 3 welded zones read as ONE engine */
+.vj-details{border:1px solid rgba(127,212,255,.14);border-radius:10px;background:rgba(127,212,255,.025);overflow:hidden}
+#vault-journal .vj-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11.5px;color:#8fb0c8;cursor:pointer;list-style:none;padding:8px 12px;user-select:none;transition:background .14s}
 #vault-journal .vj-head::-webkit-details-marker{display:none}
 #vault-journal .vj-head:hover{background:rgba(102,255,136,.07)}
 .vj-head-sub{color:var(--text-dim);font-weight:400;font-size:11px;margin-left:4px}
@@ -3903,7 +3904,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <!-- AI-intake report = the LAST-SCAN DELTA strip of the unified engine -->
       <div id="vault-intake-report" hidden style="margin:14px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <!-- Recently-registered intake history = the bottom zone of the unified engine -->
-      <div id="vault-journal" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(102,255,136,.3);border-radius:10px;background:rgba(102,255,136,.04);font-size:12px;line-height:1.6"></div>
+      <div id="vault-journal" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(127,212,255,.28);border-radius:10px;background:rgba(127,212,255,.03);font-size:12px;line-height:1.6"></div>
       <!-- v366: dedicated Throw-Out Review — standalone, LEFT AS-IS per Konyo -->
       <div id="vault-throwout" class="vault-throwout" hidden></div>
       <!-- v342.15: shared-stash advisory ("don't mule these") -->
@@ -22881,7 +22882,7 @@ body{
 /* v441/v442 — UNIFIED REGISTRY ENGINE: weld Registered triage (top) + Last-scan delta (mid) + history (bottom) into ONE panel */
 #vault-registered:not([hidden]) .vrg-det{border-bottom-left-radius:0 !important;border-bottom-right-radius:0 !important}
 #vault-registered:not([hidden]) + #vault-intake-report:not([hidden]){margin-top:0 !important;border-top-left-radius:0 !important;border-top-right-radius:0 !important;border-top:1px dashed rgba(127,212,255,.22) !important}
-#vault-registered:not([hidden]) + #vault-intake-report[hidden] + #vault-journal{margin-top:0 !important;border-top-left-radius:0 !important;border-top-right-radius:0 !important;border-top:1px dashed rgba(102,255,136,.22) !important}
+#vault-registered:not([hidden]) + #vault-intake-report[hidden] + #vault-journal{margin-top:0 !important;border-top-left-radius:0 !important;border-top-right-radius:0 !important;border-top:1px dashed rgba(127,212,255,.22) !important}
 #vault-intake-report:not([hidden]){border-bottom-left-radius:0 !important;border-bottom-right-radius:0 !important;border-bottom:none !important}
 #vault-intake-report:not([hidden]) + #vault-journal{margin-top:0 !important;border-top-left-radius:0 !important;border-top-right-radius:0 !important;border-top:1px dashed rgba(127,212,255,.22) !important}
 .vir-delta{background:rgba(102,255,136,.14) !important;color:#7dffa6 !important;border:1px solid rgba(102,255,136,.5) !important}
