@@ -6915,8 +6915,14 @@ function _throwClean(name){
 function _etherNorm(s){
   return String(s == null ? '' : s)
     .replace(/\s*\((?:larzuk base|[?\d]+\s*os(?:\s+low base)?|low base|rare|magic|crafted|base)\)\s*$/i, '')
+    // v418 — also strip a trailing slot/base parenthetical like "(dagger)" / "(boots)". The AI reports an
+    // ETHEREAL read by the literal tooltip name ("Gull"), but the grail item is registered with a slot
+    // disambiguator ("Gull (dagger)"), so the ⊘ badge never matched. A generic trailing "(…)" strip bridges
+    // both forms (used only for ethereal/superior base-name comparison, so over-stripping is harmless).
+    .replace(/\s*\([^)]*\)\s*$/i, '')
     .trim().toLowerCase();
 }
+try { window._etherNorm = _etherNorm; } catch(e){}
 // v353 — base reverse-index: which item-TYPE categories a base belongs to, so we can list every
 // runeword that base enables (so a white base reads "keep for Spirit/Insight…" instead of "vendor?").
 // v386 — AUTHORITATIVE base→class map from the local D2R game data (weapons.txt/armor.txt `type`
@@ -10287,6 +10293,39 @@ function findRuneword(name){
   return k || null;
 }
 window.findRuneword = findRuneword;
+// v418 — ROBUST runeword resolver. A runeword tooltip reads as the runeword name FOLLOWED (or preceded) by the
+// base type — "Spirit Monarch", "Chains of Honor Dusk Shroud", "Crystal Sword 'Spirit'". findRuneword only
+// strips "(4os)"-style suffixes, so those concatenated reads slip through to the THROW-OUT pile (Konyo's cousin:
+// "Chains of Honor / Spirit are runewords, mule them"). This peels a leading/trailing KNOWN BASE TYPE (or a
+// quoted segment) off the read and re-resolves the remainder, so the runeword is recognised + muled. Requires
+// the non-runeword part to be a real base (BASE_CLASS/_baseCats) → can't false-match a rare like "Spirit Caller".
+function _rwResolve(name){
+  if (!name || typeof RUNEWORD_TIP === 'undefined') return null;
+  var d = findRuneword(name); if (d) return d;                       // exact / normalized fast path
+  var s = String(name).replace(/\s+/g, ' ').trim();
+  // 1) a quoted runeword anywhere: Base 'Spirit'  ·  "Chains of Honor" Monarch
+  var qm = s.match(/[‘’'"]\s*([A-Za-z][A-Za-z' ]*?)\s*[‘’'"]/);
+  if (qm){ var q = findRuneword(qm[1].trim()); if (q) return q; }
+  // 2) runeword name with a KNOWN BASE TYPE glued to either end
+  if (typeof _baseCats === 'function'){
+    var clean = s.replace(/\(.*?\)/g, ' ').replace(/[‘’'"]/g, ' ').replace(/\s+/g, ' ').trim();
+    var cl = clean.toLowerCase(), best = null, bestLen = 0;
+    Object.keys(RUNEWORD_TIP).forEach(function(k){
+      var kl = k.toLowerCase();
+      if (k.length <= bestLen) return;
+      if (cl.indexOf(kl + ' ') === 0){                                // "<RW> <base>"  → tail must be a base
+        var tail = clean.slice(k.length).trim();
+        if (tail && Object.keys(_baseCats(tail)).length > 0){ best = k; bestLen = k.length; }
+      } else if (cl.length > kl.length && cl.slice(cl.length - kl.length) === kl && cl.charAt(cl.length - kl.length - 1) === ' '){
+        var head = clean.slice(0, clean.length - k.length).trim();   // "<base> <RW>" → head must be a base
+        if (head && Object.keys(_baseCats(head)).length > 0){ best = k; bestLen = k.length; }
+      }
+    });
+    if (best) return best;
+  }
+  return null;
+}
+window._rwResolve = _rwResolve;
 /* compact rich-hover card body: tier + base, recipe line, req, then verified stats  */
 function _rwTipHtml(o){
   var head = 'Runeword' + (o.b ? ' &middot; ' + o.b : '');
@@ -11053,8 +11092,13 @@ function _qStyle(name, fallback){
   return c ? (' style="color:' + c + ' !important"') : '';
 }
 window._qHex = _qHex; window._qStyle = _qStyle;
+// v418 — strip a trailing slot/base parenthetical so a set piece stored with its disambiguator
+// ("Sander's Riprap (heavy boots)", "Gull (dagger)") still resolves its art. The set vocab keeps the
+// "(slot)" suffix on purpose, but D2IO_ART is keyed by the clean name, so artUrl missed → wrong/blank art.
+function _artSlotClean(n){ return String(n == null ? '' : n).replace(/\s*\([^)]*\)\s*$/, '').trim(); }
+try { window._artSlotClean = _artSlotClean; } catch(e){}
 function artOr(name, fallbackHtml, size){
-  var u = artUrl(name);
+  var u = artUrl(name) || artUrl(_artSlotClean(name));
   var _rc = _artRarity(name); var _rcls = _rc ? ' d2art-r-' + _rc : '';
   if (!u) return `<span class="d2art-wrap ${size||'lg'}${_rcls} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
   // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
@@ -17544,7 +17588,7 @@ window._jewelTipHtml = _jewelTipHtml;
         if (wn){
           var vr = (typeof _arttipResolve==='function') ? _arttipResolve(wn) : null;
           if (vr && vr.rich && vr.desc){
-            var vurl = (typeof artUrl==='function') ? (artUrl(wn) || artUrl(vr.artName)) : '';
+            var vurl = (typeof artUrl==='function') ? (artUrl(wn) || artUrl(vr.artName) || artUrl((typeof _artSlotClean==='function')?_artSlotClean(wn):wn)) : '';
             // v345 — rolled-name keepers have no artUrl entry: fall back to the wrap's own <img> src
             // (the base sprite) or the resolver's artSrc so the rich card still shows an image.
             if (!vurl){ var _wi = el.querySelector('img'); vurl = (_wi && _wi.getAttribute('src')) || vr.artSrc || ''; }
@@ -23233,11 +23277,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // it by slot, and drop it from unknownReads. Konyo: "most certainly not throw out an Enigma."
     try {
       if (typeof unknownReads !== 'undefined' && unknownReads && typeof findRuneword === 'function'){
+        var _rwOf = (typeof _rwResolve === 'function') ? _rwResolve : findRuneword;
         var _migr = [];
-        unknownReads.forEach(function(n){ if (findRuneword(n)) _migr.push(n); });
+        unknownReads.forEach(function(n){ if (_rwOf(n)) _migr.push(n); });
         if (_migr.length){
           _migr.forEach(function(n){
-            var rw = findRuneword(n);
+            var rw = _rwOf(n);
             unknownReads.delete(n);
             if (!owned.has(rw)){
               owned.add(rw);
@@ -24298,7 +24343,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // Recognize it: register (owned), mark it forged in the Chronicle (rwMade), and route it to a mule by
           // slot. Konyo: "runewords need their own grail and should be muled — this isn't an error."
           try {
-            var _rwk = (typeof findRuneword === 'function') ? findRuneword(n) : null;
+            var _rwk = (typeof _rwResolve === 'function') ? _rwResolve(n) : ((typeof findRuneword === 'function') ? findRuneword(n) : null);
             if (_rwk){
               if (!owned.has(_rwk)){
                 owned.add(_rwk);
