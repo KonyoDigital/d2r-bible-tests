@@ -19,14 +19,17 @@ test('high-value items auto-route to SHARED Pg1; pages 2-5 are spare', async ({ 
   await page.evaluate(() => (window as any).switchTab('tools'));
   const r = await page.evaluate(() => {
     const w = window as any;
-    const routes = { anni: w.suggestMule('Annihilus').id, wf: w.suggestMule('Windforce').id };
+    // v409: Annihilus / Torch / Gheed's are NEVER-MULE keepers (__keep — kept on your active character), so the
+    // "high value auto-routes to SHARED" rule is verified with a genuine high-value SHARED item (Arachnid Mesh).
+    const routes = { anni: w.suggestMule('Annihilus').id, arachnid: w.suggestMule('Arachnid Mesh').id, wf: w.suggestMule('Windforce').id };
     w.openMuleCard('shared');
     const counts: number[] = [];
     for (let i = 0; i < 5; i++) { w._sharedSetPage(i); counts.push(document.querySelectorAll('#vault-detail .vd-item').length); }
     return { routes, counts };
   });
   expect(errs).toEqual([]);
-  expect(r.routes.anni).toBe('shared');
+  expect(r.routes.anni).toBe('__keep');        // never-mule keeper, not shared
+  expect(r.routes.arachnid).toBe('shared');    // high trade value → auto-routes to SHARED
   expect(r.routes.wf).not.toBe('shared');
   expect(r.counts[0]).toBe(3);
   expect(r.counts[1]).toBe(0);

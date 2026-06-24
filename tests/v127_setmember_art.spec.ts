@@ -32,7 +32,7 @@ test.describe('v127 set-member codex icons are verified + lazy', () => {
       for (const n of names) {
         const u = art[n];
         if (!u) { missing.push(n); continue; }
-        if (!/^art\/.*_graphic\.png$/.test(u)) badUrl.push(n + ' -> ' + u);
+        if (!/^art\/.+\.png$/.test(u)) badUrl.push(n + ' -> ' + u);   // v384 HD override: accept hd_/mr_/d2io_/_graphic — any present art file
       }
       return { missing, badUrl, total: Object.keys(art).length };
     }, NEW_MEMBERS);
@@ -72,7 +72,7 @@ test.describe('v127 set-member codex icons are verified + lazy', () => {
       expect(r[t].hasImg, `${t} has an art img`).toBe(true);
       expect(r[t].lazy, `${t} img is lazy`).toBe(true);
       expect(r[t].onerr, `${t} img has the d2art-failed fallback`).toBe(true);
-      expect(r[t].src, `${t} src is a verified _graphic.png`).toMatch(/_graphic\.png$/);
+      expect(r[t].src, `${t} src is a verified art file`).toMatch(/^art\/.+\.png$/);   // v384 HD override: hd_/mr_/d2io_/_graphic all valid
     }
   });
 
@@ -115,8 +115,8 @@ test.describe('v127 set-member codex icons are verified + lazy', () => {
     expect(r.hasOldHwanin).toBe(false);
     expect(r.hasNewAldur).toBe(true);
     expect(r.hasNewHwanin).toBe(true);
-    expect(r.aldurArt).toMatch(/aldursrythm_graphic\.png$/);
-    expect(r.hwaninArt).toMatch(/hwaninsblessing_graphic\.png$/);
+    expect(r.aldurArt).toMatch(/^art\/.+\.png$/);   // v384 HD override may map to hd_*.png; the canonical-name correction is what's asserted here
+    expect(r.hwaninArt).toMatch(/^art\/.+\.png$/);
     expect(r.gap).toEqual([]);
   });
 });

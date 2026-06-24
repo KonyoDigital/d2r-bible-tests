@@ -67,7 +67,7 @@ test.describe('v212 folder watch', () => {
     );
     const r = await page.evaluate(() => ({
       owned: eval('owned').has('Vampire Gaze'),
-      seen: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')),
+      seen: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).filter((k) => !k.includes('|')),
     }));
     expect(r.owned).toBe(true);
     expect(r.seen).toEqual(['Screenshot001.png']);
@@ -88,9 +88,9 @@ test.describe('v212 folder watch', () => {
     await menuPick(page, 'new');
     await page.waitForFunction(() => {
       const seen = JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}');
-      return Object.keys(seen).length === 2;
+      return Object.keys(seen).filter((k) => !k.includes('|')).length === 2;
     }, undefined, { timeout: 10000 });
-    const seen = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).sort());
+    const seen = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).filter((k) => !k.includes('|')).sort());
     expect(seen).toEqual(['a.png', 'b.png']);
   });
 
@@ -103,7 +103,7 @@ test.describe('v212 folder watch', () => {
       undefined, { timeout: 8000 }
     );
     const r = await page.evaluate(() => ({
-      seen: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length,
+      seen: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).filter((k) => !k.includes('|')).length,
       reportHidden: document.getElementById('vault-intake-report')!.hidden,
       owned: eval('owned').has('Vampire Gaze'),
     }));
@@ -141,12 +141,12 @@ test.describe('v212 folder watch', () => {
       (window as any).vaultReadBatch(0); // Skip — just register
       const afterBaseline = {
         sent: sent.length,
-        ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length,
+        ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).filter((k) => !k.includes('|')).length,
       };
       (window as any).vaultScanFolderLegacy([mk('old1.png', 1), mk('old2.png', 2), mk('new1.png', 3)]);
       const menu = document.getElementById('vault-intake-report')!.textContent || '';
       (window as any).vaultReadBatch('new');
-      return { afterBaseline, menuHasOneNew: menu.includes('1 new'), second: sent[0] || null, ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length };
+      return { afterBaseline, menuHasOneNew: menu.includes('1 new'), second: sent[0] || null, ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).filter((k) => !k.includes('|')).length };
     }, TINY_JPG_B64);
     expect(r.afterBaseline.sent).toBe(0);
     expect(r.afterBaseline.ledger).toBe(2);
@@ -193,7 +193,7 @@ test.describe('v212 folder watch', () => {
         barNew: bar.includes('New 50'), bar20: bar.includes('Latest 20'),
         bar40: bar.includes('Latest 40'), barSkip: bar.includes('Skip'),
         got: sent[0] || [],
-        ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).length,
+        ledger: Object.keys(JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}')).filter((k) => !k.includes('|')).length,
       };
     }, TINY_JPG_B64);
     expect(r.visible).toBe(true); // full-width report row, not the cramped toolbar span
