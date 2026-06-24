@@ -7089,6 +7089,12 @@ function _baseRWLine(name, knownSockets){
     return '<div class="att-aff" style="color:#e9b96e">⚠ <b>SUPERIOR base — cannot make a runeword.</b> Runewords need a <b>NORMAL (white/grey)</b> base. A Superior base only takes <b>gems / jewels</b> (and keeps its small superior bonus) — <b>don\'t cube runes into it</b>, they won\'t form the runeword.</div>';
   } } catch(e){}
   var rws = _baseRunewords(name); if (!rws.length) return '';
+  // v436 — CHRONICLE SYNC: a runeword you've ALREADY FORGED (rwMade, the Chronicle) is not something you
+  // still need to make — so exempt it from the "Keep for runewords" examples and show only what's LEFT to
+  // create (Konyo: "I know exactly what I have left to create"). Created ones are cancelled out + counted.
+  var _rwIsMade = function(n){ try { return typeof rwMade !== 'undefined' && rwMade && !!rwMade[n]; } catch(e){ return false; } };
+  var _rwNames = function(list){ return list.slice(0, 14).map(function(r){ return _d2artEsc(r.n); }).join(', ') + (list.length > 14 ? ' +' + (list.length - 14) + ' more' : ''); };
+  var _rwMadeTag = function(madeList){ return madeList.length ? ' <span style="opacity:.75;color:#8fd0a0">· ' + madeList.length + ' already created ✓</span>' : ''; };
   // v385 — CAP to the base's physical socket ceiling. A base can NEVER hold more sockets than its
   // max (Larzuk caps at max; cube/drops can't exceed it), so a runeword needing MORE sockets than this
   // base's max is impossible IN THIS BASE and must not be shown — not as "makeable now", not even as a
@@ -7126,19 +7132,27 @@ function _baseRWLine(name, knownSockets){
     // a 5os Scourge) is misleading noise — Konyo: "only matching me 5 socket runeword options." The cursor
     // tooltip and the throw-out card both call this, so they stay in lock-step.
     var now = rws.filter(function(r){ return r.s === ks; });
+    var nowTodo = now.filter(function(r){ return !_rwIsMade(r.n); });
+    var nowMade = now.filter(function(r){ return _rwIsMade(r.n); });
     return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now: '
-      + (now.length
-          ? now.slice(0, 14).map(function(r){ return _d2artEsc(r.n); }).join(', ') + (now.length > 14 ? ' +' + (now.length - 14) + ' more' : '')
-          : '<span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>')
+      + (nowTodo.length
+          ? _rwNames(nowTodo) + _rwMadeTag(nowMade)
+          : (nowMade.length
+              ? '<span style="color:#8fd0a0">✓ all ' + nowMade.length + ' that fit ' + ks + 'os are already created</span>'
+              : '<span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>'))
       + '</div>';
   }
   // v392 — name-only / unknown-socket read: the ACTIONABLE runewords are the best ones at this base's MAX
   // sockets (what you'd Larzuk it to), NOT a confusing mix of 2os/3os/4os words. Show only the max-count
   // runewords as the target (Konyo: a Grim Scythe shouldn't list 2os Strength/Wind as if they're relevant).
   var best = rws.filter(function(r){ return r.s === maxS; });
-  var show = best.slice(0, 14).map(function(r){ return _d2artEsc(r.n); }).join(', ');
+  var bestTodo = best.filter(function(r){ return !_rwIsMade(r.n); });
+  var bestMade = best.filter(function(r){ return _rwIsMade(r.n); });
+  var show = bestTodo.length
+    ? _rwNames(bestTodo) + _rwMadeTag(bestMade)
+    : (bestMade.length ? '<span style="color:#8fd0a0">✓ all ' + bestMade.length + ' ' + maxS + 'os runewords here are already created</span>' : '<span style="opacity:.7">—</span>');
   return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
-    + (show || '<span style="opacity:.7">—</span>') + (best.length > 14 ? ' +' + (best.length - 14) + ' more' : '')
+    + show
     + '<div class="att-tag" style="margin-top:3px">Larzuk → <b>' + maxS + ' sockets</b> (guaranteed max) unlocks these</div></div>';
 }
 window._baseRWLine = _baseRWLine;
@@ -11890,9 +11904,9 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // v369 — Chronicle Runeword Maker: { runewordName: "first-made date string" } — which runewords the
 // user has already FORGED. First run seeds Konyo's in-game Chronicle (7/100 = 7%, from his screenshots);
 // after that it's user-controlled (toggle on each runeword). Rides Backup & Share (a d2r_ LS key).
-// v420 — default Created seed = Konyo's actual 28 forged runewords (read off his Chronicle screenshots
-// 2026-06-24), so a fresh load / reset never drops back below 28. Only applied when d2r_rwMade is absent.
-const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52"};
+// v420 — default Created seed = Konyo's actual forged runewords (read off his Chronicle screenshots).
+// v436 — now 30 (added Authority + Melody, forged 2026-06-24), so a fresh load / reset never drops below 30.
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
@@ -11902,10 +11916,10 @@ if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rw
 // snaps back to ≥28, while un-marks still stick. This converges the stuck-at-19 save to 28 with no flag.
 let rwUnmade = _safeJsonParse(LS.getItem('d2r_rwUnmade'), null);
 if (rwUnmade === null || typeof rwUnmade !== 'object' || Array.isArray(rwUnmade)) rwUnmade = {};
-// v432 — HARD 28 FLOOR (Konyo's confirmed Chronicle, "make it 28 hardcoded"). The v424 floor still honoured
-// d2r_rwUnmade, so a save that had 9 of the 28 un-marked kept snapping the Chronicle back to 19. These 28
-// runewords are FORGED FACT — force them made on EVERY load UNCONDITIONALLY and purge any stale un-mark of a
-// seeded RW, so the count is always ≥28. (Un-marking still works for the other 72 non-seeded runewords.)
+// v432/v436 — HARD FLOOR of the confirmed Chronicle (now 30: + Authority + Melody). The v424 floor still
+// honoured d2r_rwUnmade, so a save with seeded RWs un-marked kept snapping back down. These runewords are
+// FORGED FACT — force them made on EVERY load UNCONDITIONALLY and purge any stale un-mark of a seeded RW, so
+// the count is always ≥30. (Un-marking still works for the non-seeded runewords.)
 (function(){ try {
   var _ch = false;
   Object.keys(_RWC_SEED).forEach(function(k){
