@@ -23372,7 +23372,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
     // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
     // the grail then THROW THEM OUT. {id:'__throwout'} routes the piece to the throw-out pile, not a mule.
-    var _KEEP_SET = /Tal Rasha|Immortal King|Griswold|Aldur|Trang.?Oul|Natalya|M.?avina/i;
+    // v440 — the class ENDGAME sets that ARE worth muling. Tal Rasha (sorc) · Immortal King (barb) · Griswold
+    // (pala) · Aldur (druid) · Trang-Oul (necro) · Natalya (sin) · M'avina (ama) — PLUS Horazon's Splendor, the
+    // RotW WARLOCK class set (was falling through to throw-out as "junk" — Konyo's 4 Horazon's pieces wrongly
+    // discarded; it's the Warlock's Tal-Rasha-tier set, so it MULES to SETS-REST now, not the throw-out pile).
+    var _KEEP_SET = /Tal Rasha|Immortal King|Griswold|Aldur|Trang.?Oul|Natalya|M.?avina|Horazon/i;
     try{
       var spm = window.findSetPiece && window.findSetPiece(name);
       if (spm){
