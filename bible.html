@@ -2957,6 +2957,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     transition:transform .18s ease,box-shadow .18s ease}
   .nav-fab:hover{transform:scale(1.07) rotate(-8deg);box-shadow:0 6px 24px rgba(0,0,0,.6),0 0 0 5px rgba(212,168,71,.18),0 0 30px rgba(240,192,96,.55)}
   .nav-fab:active{transform:scale(.96)}
+  /* v441 — orb shows the hovered item's HD art instead of the compass while an item tooltip is floating */
+  .nav-fab.nav-fab-art{padding:0;overflow:hidden;background:radial-gradient(circle at 35% 30%,#2e2616,#15100a 70%);border-color:var(--gold-bright,#f0c060)}
+  .nav-fab.nav-fab-art .nav-fab-img{width:100%;height:100%;object-fit:contain;padding:8px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6)) drop-shadow(0 0 5px rgba(240,192,96,.35))}
   .nav-widget.open .nav-fab{transform:rotate(45deg)}
   /* animated compass face inside the FAB: dark rose, gold ticks, a red/cream needle
      that slowly "searches" then settles, spinning faster on hover */
@@ -18003,6 +18006,26 @@ window._jewelTipHtml = _jewelTipHtml;
     // scrollIntoView fires a stream of scroll events) no longer suppresses the popup
     // while the hovered element is still on-screen, which previously blanked it.
     window.addEventListener('scroll', function(){ if (cur && (!cur.isConnected || cur.offsetParent===null)){ cur=null; tip.classList.remove('on'); } }, true);
+    // v441 — the bottom-right ORB MIRRORS the hovered item's HD art (Konyo: "the floating orb should
+    // replicate the floating image for that individual item — not a glove emoji"). When the arttip is showing
+    // an item image, the gold nav-FAB morphs into that exact HD art; it snaps back to the compass on mouse-out.
+    var _navFabDefault = null;
+    function _orbMirror(){
+      var fab = document.getElementById('nav-fab'); if (!fab) return;
+      if (_navFabDefault === null) _navFabDefault = fab.innerHTML;
+      var showing = tip.classList.contains('on') && img.style.display !== 'none' && img.src && !/^data:,?$/.test(img.src);
+      if (showing){
+        var _cur = fab.querySelector('.nav-fab-img');
+        if (!_cur || _cur.getAttribute('src') !== img.src){ fab.classList.add('nav-fab-art'); fab.innerHTML = '<img class="nav-fab-img" src="' + img.src.replace(/"/g,'&quot;') + '" alt="" draggable="false">'; }
+      } else if (fab.classList.contains('nav-fab-art')){
+        fab.classList.remove('nav-fab-art'); fab.innerHTML = _navFabDefault;
+      }
+    }
+    try {
+      var _orbMO = new MutationObserver(_orbMirror);
+      _orbMO.observe(tip, { attributes:true, attributeFilter:['class'] });
+      _orbMO.observe(img, { attributes:true, attributeFilter:['src','style'] });
+    } catch(e){}
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit); else arttipInit();
 })();
@@ -22853,6 +22876,10 @@ body{
 .vrg-keep+.vrg-x{margin-left:6px}
 /* v342.7 — AI intake report: fixed, scrollable, organized card with a grand total */
 .vir-card{border:1px solid rgba(127,212,255,.28);border-radius:12px;background:linear-gradient(180deg,rgba(18,26,34,.55),rgba(8,11,15,.45));overflow:hidden}
+/* v441 — WELD the last-scan delta card + the running-total history into ONE panel (no duplicate "39 registered") */
+#vault-intake-report:not([hidden]){margin:14px 0 0 !important;border-bottom-left-radius:0 !important;border-bottom-right-radius:0 !important;border-bottom:none !important}
+#vault-intake-report:not([hidden]) + #vault-journal{margin-top:0 !important;border-top-left-radius:0 !important;border-top-right-radius:0 !important;border-top:1px dashed rgba(127,212,255,.22) !important}
+.vir-delta{background:rgba(102,255,136,.14) !important;color:#7dffa6 !important;border:1px solid rgba(102,255,136,.5) !important}
 .vir-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid rgba(127,212,255,.18);background:rgba(127,212,255,.06)}
 .vir-title{font-weight:800;color:#7fd4ff;font-size:13px}
 .vir-tot{margin-left:auto;font-family:ui-monospace,monospace;font-weight:800;font-size:12px;color:#cfe9d4;background:rgba(102,255,136,.14);border:1px solid rgba(102,255,136,.36);border-radius:9px;padding:2px 10px}
@@ -24464,8 +24491,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +   '<span class="vj-head-r"><span class="vj-grandtotal" title="everything recorded — grail + Magic &amp; Rare + throw-out">' + _totalReg + ' <span class="vj-gt-lbl">registered</span></span><span class="vj-chev">▾</span></span>'
       + '</summary>'
       + '<div class="vj-summary">'
-      +   '<span class="vj-sum-chip vj-sum-grail">' + _grailReg + ' grail</span>'
+      +   '<span class="vj-sum-chip vj-sum-grail">🏦 ' + _grailReg + ' muled</span>'
       +   '<span class="vj-sum-chip vj-sum-magic">🔮 ' + _magicReg + ' magic &amp; rare</span>'
+      +   '<span class="vj-sum-chip" style="color:#9aa6b2;border-color:rgba(154,166,178,.4)">🗑 ' + _throwReg + ' throw-out</span>'
       +   '<span class="vj-sum-chip vj-sum-sess">' + totalItems + ' logged · ' + j.length + ' session' + (j.length===1?'':'s') + '</span>'
       +   (function(){ try { var by={}; j.forEach(function(e){ var u=e.u||'Konyo'; by[u]=(by[u]||0)+1; }); var ks=Object.keys(by); return (ks.length>1)?('<span class="vj-sum-chip" style="color:#c9b88f">'+ks.map(function(u){ return '👤 '+esc(u)+' ·'+by[u]; }).join('  ')+'</span>'):''; } catch(e){ return ''; } })()
       + '</div>'
@@ -24949,10 +24977,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // v342.10 — reconcile the SCREENSHOT count so it's clear 62 shots ≠ 62 items (dupes collapse,
     // bases/junk are unmatched). Header leads with shots → registered; a reconcile row sums the outcome.
-    var html = '<div class="vir-card">'
-      + '<div class="vir-head"><span class="vir-title">📸 AI intake done · ' + files.length + ' screenshot' + (files.length===1?'':'s') + '</span>'
-      + '<span class="vir-tot" title="everything read &amp; recorded — grail + Magic &amp; Rare + throw-out">' + _totalReg + ' registered</span>'
-      + '<span class="vir-sub">' + _grailReg + ' 🏦 muled · ' + _magicReg + ' 🔮 magic &amp; rare · ' + _throwReg + ' 🗑 throw-out' + (cost?' · ≈$'+cost.toFixed(4):'') + '</span></div>'
+    // v441 — this card is the LAST-SCAN DELTA only (what THIS batch added). The canonical TOTAL + history live
+    // in the joined "Recently registered" panel right below (CSS welds them into one). Konyo: stop showing "39
+    // registered" twice — show the additive "+N new" on top, the running total below.
+    var _newThis = Math.max(0, _totalReg - _preReg);
+    var html = '<div class="vir-card vir-card-scan">'
+      + '<div class="vir-head"><span class="vir-title">📸 Last scan · ' + files.length + ' screenshot' + (files.length===1?'':'s') + '</span>'
+      + '<span class="vir-tot vir-delta" title="items this scan ADDED to your vault — folded into the running total below">+' + _newThis + ' new</span>'
+      + '<span class="vir-sub">this scan: ' + logged.length + ' 🏦 muled · ' + magicNew.length + ' 🔮 magic · ' + (unrec.length+cappedOut.length) + ' 🗑 throw-out' + (cost?' · ≈$'+cost.toFixed(4):'') + '</span></div>'
       + (_preReg > 0
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')
