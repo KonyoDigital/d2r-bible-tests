@@ -24383,6 +24383,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             } catch(e){}
           }
         }
+        // v421 — RAW-NAME escape hatch: a crisp, clearly-readable tooltip that the vocab-matching read still
+        // returned empty on (Konyo's Ghoul Aegis — a Reign-of-the-Warlock UNIQUE on a tooltip-only crop). Ask
+        // the backend for JUST the top coloured NAME line (no vocabulary, no single-item rule, mod names OK) so
+        // any legible tooltip yields a name instead of "∅ no tooltip text". Resolves to a grail item if known,
+        // else surfaces in the throw-out review (keepable) — never silently dropped.
+        if (_isEmpty(data) && _imRef){
+          try {
+            var _rawImg = _vEnlarge(_imRef, _box || null);
+            var _rN = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+              body: JSON.stringify({ image:_rawImg, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
+            if (_rN.ok){ var _dN = await _rN.json(); if (!_isEmpty(_dN)){ data = _dN;
+              try { console.log('[vault-intake] ' + fname + ' → still empty → RAW-NAME recovered', _dN.items || _dN.unrecognized); } catch(e){} } }
+          } catch(e){}
+        }
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
         (data.items || []).forEach(function(n){

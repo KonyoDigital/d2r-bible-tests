@@ -26,10 +26,11 @@ export async function onRequestPost(context) {
   if (!image || typeof image !== 'string') return json({ error: 'missing image' }, 400);
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
   const isLocate = kind === 'locate';   // v342 — return the hovered tooltip's bounding box (no vocab needed)
+  const isRaw = kind === 'rawname';     // v421 — LAST-RESORT: force the top tooltip NAME out of any readable image
   // v354 — cap raised 600→2000: the grail vocab grew past 600 (off-grail uniques + RotW sets) which
   // 400'd EVERY read and hung the intake at 0/62. The vocab rides in the cached system prompt, so a
   // larger list is near-free; 2000 leaves ample headroom.
-  if (!isLocate && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
+  if (!isLocate && !isRaw && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
   const isTally = (kind === 'tally' || isCraft) && !isLocate;   // craft shares the {tally} count contract
@@ -328,7 +329,24 @@ export async function onRequestPost(context) {
     additionalProperties: false,
   };
 
-  const sysText = isLocate ? locateText : isCraft ? craftText : isTally ? tallyText : itemsText;
+  // v421 — RAWNAME mode: the empty-read escape hatch. After the normal read + every enhancement retry comes
+  // back empty on a clearly-readable tooltip (Konyo's Ghoul Aegis — a crisp Reign-of-the-Warlock UNIQUE on a
+  // tooltip-only crop the vocab-matching read kept dropping), this asks ONLY for the top coloured NAME line,
+  // no vocabulary, no single-item discipline — so any legible tooltip yields a name instead of "∅ no text".
+  const rawText = 'You are shown ONE Diablo II item description tooltip (it may be from a MOD — "Reign of the '
+    + 'Warlock" — so the NAME may be unfamiliar; that is expected and fine). Read the ITEM NAME printed on the '
+    + 'TOP TITLE line (the coloured header). Return it VERBATIM in "name". Also return its rarity from the name '
+    + 'COLOUR: gold/tan/orange-brown = "unique", green = "set", blue = "magic", yellow = "rare", orange = '
+    + '"crafted", white/grey = "base". If a runeword (gold name with a rune sequence in quotes like \'ShaelKoEld\' '
+    + 'under it), return the gold runeword name and colour "unique". Read the name even if you do not recognise '
+    + 'it. Only if there is genuinely NO readable title text at all, return name="" .';
+  const rawSchema = {
+    type: 'object',
+    properties: { name: { type: 'string' }, color: { type: 'string', enum: ['unique', 'set', 'magic', 'rare', 'crafted', 'base', 'unknown'] } },
+    required: ['name', 'color'],
+    additionalProperties: false,
+  };
+  const sysText = isLocate ? locateText : isRaw ? rawText : isCraft ? craftText : isTally ? tallyText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -354,6 +372,7 @@ export async function onRequestPost(context) {
       //  • TALLY/CRAFT → Sonnet — digit COUNTING ("23" vs "2") is error-prone; keep the strong model.
       //              (env overrides: LOCATE_MODEL / ITEMS_MODEL / MODEL.)
       model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
+        : isRaw ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
         : (env.ITEMS_MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
@@ -364,12 +383,12 @@ export async function onRequestPost(context) {
       // non-determinism remains) but it removes the run-to-run wobble.
       temperature: 0,
       system,
-      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isTally ? tallySchema : itemsSchema } },
+      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isTally ? tallySchema : itemsSchema } },
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
@@ -430,6 +449,16 @@ export async function onRequestPost(context) {
     const letters = (s.match(/[a-zA-Z]/g) || []).length;
     return nonSpace.length > 0 && letters >= nonSpace.length * 0.6;
   };
+  // v421 — RAWNAME response: return the one read name. If it resolves to a vocab/grail item → "items"
+  // (registers as owned); otherwise → "unrecognized" so it surfaces in the throw-out review (keepable),
+  // NEVER the silent "∅ no tooltip text". A gold/green colour hints a real find; either way it's not lost.
+  if (isRaw) {
+    const raw = parsed && typeof parsed.name === 'string' ? parsed.name.trim() : '';
+    if (!raw || !nameOk(raw)) return json({ items: [], unrecognized: [], note: 'raw-empty' }, 200);
+    const hit = resolve(raw);
+    if (hit) return json({ items: [hit], unrecognized: [], note: 'raw', usage }, 200);
+    return json({ items: [], unrecognized: [raw], note: 'raw', usage }, 200);
+  }
   // v342.12 — deterministically classify a SOCKETED base name → the generic "Socketed <slot> (Nos)" vocab
   // entry, so white/superior runeword bases register to the SOCKETED locker instead of dropping to unmatched.
   const socketGeneric = (base, count) => {
