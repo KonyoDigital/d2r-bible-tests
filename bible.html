@@ -25003,7 +25003,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (_seenSkip) parts.push(_seenSkip + ' already-read file' + (_seenSkip===1?'':'s') + ' skipped');
           return parts.join(' · ') + ' — one shot can hold several items; duplicates never double-count.';
         })() + '</span></div></details>'
-      + '<details class="vir-fold"><summary>📋 items read — tap to expand <span class="vir-fold-chev">▾</span></summary><div class="vir-body">' + body + '</div></details></div>';
+      // v443 — NO duplicate item list here: the Last-scan card is a pure SUMMARY (delta + need-a-look + scan
+      // details). The ONE item list (color chips + per-screenshot breakdown) lives in the welded history zone
+      // right below — Konyo: "why two sections showing the same items?". `body` (errors) folds in only if present.
+      + (((errors || _aiErr) ) ? '<div class="vir-scan-errs" style="padding:8px 14px;border-top:1px solid rgba(255,64,64,.18)">' + (errors ? '<div class="vir-line" style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</div>' : '') + '</div>' : '')
+      + '</div>';
     report.innerHTML = html;
     } finally { window._vIntakeBusy = false; }   // v405 — ALWAYS clear (early return / throw included) so the folder auto-watch never wedges
   };

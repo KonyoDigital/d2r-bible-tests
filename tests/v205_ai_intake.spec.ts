@@ -60,6 +60,8 @@ test.describe('v205 AI intake', () => {
     );
     const r = await page.evaluate(() => ({
       report: document.getElementById('vault-intake-report')!.textContent!,
+      journal: document.getElementById('vault-journal')!.textContent!,
+      registered: document.getElementById('vault-registered')!.textContent!,
       ownedShako: eval('owned').has('Harlequin Crest (Shako)'),
       ownedSoj: eval('owned').has('The Stone of Jordan'),
       persisted: JSON.parse(localStorage.getItem('d2r_owned') || '[]'),
@@ -71,9 +73,11 @@ test.describe('v205 AI intake', () => {
     // v364: SoJ + Shako are both high trade value → auto-route to the SHARED cross-account stash.
     expect(r.assigned['The Stone of Jordan']).toBe('shared');
     expect(r.assigned['Harlequin Crest (Shako)']).toBe('shared');
-    expect(r.report).toContain('2 NEW logged');  // v342: report card "✓ 2 NEW logged + assigned"
-    expect(r.report).toContain('Hephast⚒ The Armorer');
-    expect(r.report).toContain('≈$');  // v342: cost shown in the card header (was "of API budget used")
+    // v443: Last-scan card is a pure SUMMARY (delta + cost); the ONE item list lives in the welded history zone
+    expect(r.report).toMatch(/\+\d+ new/);                 // the "+N new" delta badge
+    expect(r.report).toContain('≈$');                      // cost still in the Last-scan header
+    expect(r.journal).toContain('Harlequin Crest');        // logged items now shown in the journal/history zone
+    expect(r.registered).toContain('Hephast');             // throw-out read surfaces in the Registered triage
   });
 
   test('re-uploading the SAME file is skipped for free — zero second AI read (v342.27 manual seen-ledger)', async ({ page }) => {
@@ -215,7 +219,7 @@ test.describe('v205 AI intake', () => {
       report: document.getElementById('vault-intake-report')!.textContent!,
     }));
     expect(r.owned).toBe(true);          // recovered via full-image retry
-    expect(r.report).toContain('1 NEW'); // logged as new, not a false "empty"
+    expect(r.report).toMatch(/\+1 new/); // v443: logged as new (delta badge), not a false "empty"
   });
 
   test('endpoint failure reports an error instead of silently dropping', async ({ page }) => {
