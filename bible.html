@@ -11743,7 +11743,46 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
 let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
 // v395 — ETHEREAL items: names the AI flagged as Ethereal (Cannot be Repaired). Shown with an ⊘ eth badge.
 let etherealItems = new Set(_safeJsonParse(LS.getItem('d2r_ethereal'), []));
+try { window.etherealItems = etherealItems; } catch(e){}   // v429 — exposed for the ethereal audit/debug
+// v429 — KNOWLEDGE of what CAN vs CAN'T be ethereal (D2 rules), so a mis-read never tags an impossible item.
+// CAN be ethereal: all armour (body/helm/shield/gloves/boots/belt/circlet), melee weapons, bows/crossbows,
+// and class off-hands (orbs, wands, staves, scepters, voodoo/shrunken heads, grimoires). CANNOT: rings,
+// amulets, jewels, charms, runes, gems (not equipment damage/defence), JAVELINS + THROWING weapons (they
+// stack/are thrown — ethereal needs durability). Returns true/false, or null when the type is unknown (then
+// we don't assert either way). Suffix-tolerant ("(Nos)", "(ethereal)").
+function _canBeEthereal(name){
+  if (!name) return null;
+  var n = String(name).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  // 1) BASE CLASS FIRST (authoritative) — so "Ring Mail"/"Chain Mail"/"Scale Mail" read as body armour (CAN be
+  // ethereal), NOT as jewelry from the word "ring". Same lesson as the \brune\b collision: trust the class map
+  // over a name substring.
+  var cats = (typeof _baseCats === 'function') ? _baseCats(n) : {};
+  var keys = Object.keys(cats);
+  if (keys.length){
+    if (cats['javelin']) return false;                 // javelins stack/throw — never ethereal
+    if (cats['weapon'] && !cats['melee weapon'] && !cats['missile weapon']) return false;  // throwing axe/knife/dart
+    return true;                                       // armour (all), melee weapons, bows/xbows, orbs, staves, heads…
+  }
+  // 2) not a base itself → resolve a UNIQUE / SET / off-grail name to its BASE type, judge that
+  // (Windforce→Hydra Bow→can, Gheed's→Grand Charm→cannot, Darkglow→Ring Mail→body armour→can).
+  var base = '';
+  try { if (typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[n] && ITEM_CODEX[n].base) base = ITEM_CODEX[n].base; } catch(e){}
+  try { if (!base && typeof EXTRA_ITEMS!=='undefined' && EXTRA_ITEMS[n] && EXTRA_ITEMS[n].base) base = EXTRA_ITEMS[n].base; } catch(e){}
+  try { if (!base && typeof ITEM_TIP!=='undefined' && ITEM_TIP[n] && ITEM_TIP[n].b) base = String(ITEM_TIP[n].b).replace(/^\d+\s*socket\s*/i,''); } catch(e){}
+  try { if (!base && typeof findSetPiece==='function'){ var _sp = findSetPiece(n); if (_sp && _sp.base) base = _sp.base; } } catch(e){}
+  if (base && _etherNorm(base) !== _etherNorm(n)) return _canBeEthereal(base);   // recurse on the resolved base (its class OR its name decides)
+  // 3) NO base class anywhere → fall back to the name kind. Jewelry/charm/rune/gem can't be ethereal; a unique
+  // ring/amulet (Raven Frost, Mara's) lands here with no class → its base type ('Ring'/'Amulet') also has no
+  // class in BASE_CLASS, so use the name. (Genuine armour/weapon bases never reach here — they matched step 1.)
+  var low = n.toLowerCase();
+  if (/\b(ring|amulet|jewel|charm|rainbow facet)\b/.test(low)) return false;
+  if (/\brune\b(?!\s+(?:sword|bow|staff|scepter|master))/.test(low)) return false;
+  if (/\b(chipped|flawed|flawless|perfect)\b/.test(low) && /\b(amethyst|topaz|sapphire|emerald|ruby|diamond|skull)\b/.test(low)) return false;
+  return null;                                         // truly unknown type → don't assert
+}
+window._canBeEthereal = _canBeEthereal;
 window._isEthereal = function(n){ try {
+  if (_canBeEthereal(n) === false) return false;                 // v429 — a type that CAN'T be ethereal never is (kills mis-flags)
   if (etherealItems.has(n)) return true;                         // exact match (fast path)
   var nn = _etherNorm(n); if (!nn) return false;                 // v402 — fall back to base-normalized match
   for (var e of etherealItems){ if (_etherNorm(e) === nn) return true; }
@@ -12390,12 +12429,16 @@ function baseDetailHtml(name){
   var sg = (typeof _socketGuideLine==='function') ? _socketGuideLine(name, 'normal') : '';
   var sockChip = (mx != null) ? '<span class="gic-meta-chip" style="color:#cdb988;border-color:rgba(205,185,136,.45)">🔩 max '+mx+' socket'+(String(mx)==='1'?'':'s')+'</span>' : '';
   var tierChip = tierLabel ? '<span class="gic-meta-chip" style="color:#a8c0e0;border-color:rgba(168,192,224,.4)">'+_d2artEsc(tierLabel)+' base</span>' : '';
+  // v429 — show whether this base type CAN be ethereal (a recognised D2 attribute of the item)
+  var canEth = (typeof _canBeEthereal === 'function') ? _canBeEthereal(name) : null;
+  var ethChip = (canEth === true) ? '<span class="gic-meta-chip" style="color:#b9a8e0;border-color:rgba(185,168,224,.4)" title="this base type can spawn Ethereal (Cannot be Repaired)">⊘ can be ethereal</span>'
+              : (canEth === false) ? '<span class="gic-meta-chip" style="color:#8a8f98;border-color:rgba(138,143,152,.35)" title="this item type can never be ethereal">cannot be ethereal</span>' : '';
   return '<div class="material-card base-item-card" style="border-color:#9aa0ad">'
     + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
     + artHtml
     + '<div class="gic-id-block"><h2 class="gic-name" style="color:#cdd2db">'+_d2artEsc(name)+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#3a3f48,#1c1f25);color:#cdd2db">Base Item</span></h2>'
     + '<div class="gic-subtitle">'+_d2artEsc(slotLabel)+' base</div>'
-    + '<div class="gic-meta-row">'+tierChip+sockChip+'</div></div>'
+    + '<div class="gic-meta-row">'+tierChip+sockChip+ethChip+'</div></div>'
     + '<div style="margin-left:auto"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div>'
     + '</header>'
     + '<section class="gic-section"><div class="gic-section-title">🔩 Sockets &amp; runewords</div>'
@@ -24669,6 +24712,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (!en) return;
           var _cn = en;
           try { if (typeof findRuneword==='function' && findRuneword(en)) _cn = findRuneword(en); } catch(e){}
+          // v429 — TYPE GUARD: never tag an item ethereal if its kind CAN'T be ethereal (rings/amulets/charms/
+          // jewels/runes/gems/javelins/throwing-weapons). A mis-read (or a misclassified find) can't earn a
+          // false ⊘ badge. Unknown types (null) still pass — only a definite "false" is blocked.
+          try { if (typeof _canBeEthereal==='function' && _canBeEthereal(_cn) === false) return; } catch(e){}
           try { etherealItems.add(_cn); } catch(e){}
         });
         // v412 — record SUPERIOR socketed bases (can't runeword). Registered under the exact socket-base label.
