@@ -374,10 +374,12 @@ export async function onRequestPost(context) {
       //              Konyo opted in. (env ITEMS_MODEL=claude-haiku-4-5 reverts to cheap.)
       //  • TALLY/CRAFT → Sonnet — digit COUNTING ("23" vs "2") is error-prone; keep the strong model.
       //              (env overrides: LOCATE_MODEL / ITEMS_MODEL / MODEL.)
+      // v438 — items + rawname back to HAIKU (Konyo, cost: Sonnet was burning the monthly cap). Locate was
+      // always Haiku. Tally/craft stay Sonnet (digit COUNTING accuracy). Override with env ITEMS_MODEL=claude-sonnet-4-6.
       model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
-        : isRaw ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
+        : isRaw ? (env.ITEMS_MODEL || 'claude-haiku-4-5')
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
-        : (env.ITEMS_MODEL || 'claude-sonnet-4-6'),
+        : (env.ITEMS_MODEL || 'claude-haiku-4-5'),
       max_tokens: 2048,
       // v342.26 — temperature 0 (greedy decode) so the SAME screenshot reads the SAME way run-to-run.
       // The old default (1.0) sampled, so re-scanning a batch could re-assort borderline items

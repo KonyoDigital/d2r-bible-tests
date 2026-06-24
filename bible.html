@@ -22884,6 +22884,12 @@ body{
 .pf-thumb-empty{display:flex;align-items:center;justify-content:center;font-size:18px;background:rgba(127,212,255,.06);color:#8a9aa8}
 .pf-thumb-empty:hover{color:var(--gold-bright,#f0c060);outline:none}
 .vd-mule-pg{font-size:11px;font-weight:800;color:#f0c060;border:1px solid rgba(240,192,96,.5);border-radius:6px;padding:2px 8px;margin-right:10px;white-space:nowrap}
+/* v437 — the top-right mule indicator is now a CLICKABLE prev/next stepper (Konyo couldn't find how to reach mules 2/3) */
+.vd-mule-nav{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:#f0c060;border:1px solid rgba(240,192,96,.5);border-radius:6px;padding:2px 4px 2px 6px;margin-right:10px;white-space:nowrap}
+.vd-mule-arrow{cursor:pointer;background:rgba(240,192,96,.16);border:1px solid rgba(240,192,96,.55);color:#f0c060;border-radius:4px;padding:1px 8px;font-weight:900;line-height:1.4;font-family:inherit;font-size:12px}
+.vd-mule-arrow:hover{background:rgba(240,192,96,.34);color:#fff0c8}
+.vd-pagebar span.vp-arrow[onclick]{color:#f0c060;cursor:pointer;font-size:16px;font-weight:900;padding:0 8px}
+.vd-pagebar span.vp-arrow[onclick]:hover{color:#ffe7a8}
 .pf-row{display:flex;align-items:center}
 .shot-lightbox{position:fixed;inset:0;z-index:2147483600;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(4px)}
 /* v365 — fill the screen with the full-res shot (the stored image is 1920px); width+height auto so it
@@ -24105,7 +24111,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var TABS=['Personal','Shared','Gems','Materials','Runes'];
     var EQ=[['eq-w1','🗡'],['eq-helm','⛑'],['eq-amu','📿'],['eq-body','🛡'],['eq-w2','🛡'],['eq-glove','🧤'],['eq-ring1','💍'],['eq-belt','〰'],['eq-ring2','💍'],['eq-boot','🥾']];
     var _muleLabel = _muleTotalPages > 1 ? (' #' + (_mulePage + 1)) : '';
-    var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-pg" title="this category spans '+_muleTotalPages+' mule characters — each holds a 100-cell stash + 40-cell inventory (140 cells). Items auto-spill onto the next mule.">🧍 Mule '+(_mulePage+1)+' / '+_muleTotalPages+'</span>' : '';
+    var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-nav" title="this category spans '+_muleTotalPages+' mule characters (each = 100-cell stash + 40-cell inventory = 140 cells). Click the arrows — or press ← → — to step through the mules.">'
+      + '<button class="vd-mule-arrow" onclick="window._muleSetPage('+(_mulePage-1)+')" title="previous mule (←)">◄</button>'
+      + '🧍 Mule '+(_mulePage+1)+' / '+_muleTotalPages
+      + '<button class="vd-mule-arrow" onclick="window._muleSetPage('+(_mulePage+1)+')" title="next mule (→)">►</button>'
+      + '</span>' : '';
     var _muleArrows = _muleTotalPages > 1
       ? '<span class="vp-arrow" style="cursor:pointer" onclick="window._muleSetPage('+(_mulePage-1)+')">◄</span><span>🧍 Mule '+(_mulePage+1)+' / '+_muleTotalPages+'</span><span class="vp-arrow" style="cursor:pointer" onclick="window._muleSetPage('+(_mulePage+1)+')">►</span>'
       : '<span class="vp-arrow">◄</span><span>Page 1 / 1</span><span class="vp-arrow">►</span>';
@@ -24141,6 +24151,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   document.addEventListener('keydown', function(e){
     if (e.key==='Escape' && openMuleId){ window.vaultCloseCard(); }
+    // v437 — ← / → step through a multi-mule locker (only when a non-shared mule card with >1 page is open)
+    else if (openMuleId && openMuleId!=='shared' && _muleTotalPages>1 && (e.key==='ArrowLeft'||e.key==='ArrowRight')){
+      e.preventDefault(); window._muleSetPage(_mulePage + (e.key==='ArrowRight'?1:-1));
+    }
   });
   // v210: live re-pack — any assignment change re-tetrises an OPEN mule card
   function refreshOpenCard(){
@@ -24467,6 +24481,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (window.EXTRA_ITEMS) vocab = Array.from(new Set(vocab.concat(Object.keys(window.EXTRA_ITEMS)))); } catch(e){}
     var logged = [], dupes = [], unrec = [], magicNew = [], extraCopies = [], cappedOut = [], errors = 0, cost = 0;
     var _aiErr = '';   // v407 — first AI-service error detail (so a key/credit/rate failure shows the REAL reason, not a false "empty")
+    // v438 — USAGE-LIMIT / billing detection. When the Anthropic key hits its monthly spend cap it returns a
+    // 400 "You have reached your specified API usage limits…" — which the recovery passes were SILENTLY
+    // treating as empty, so a whole batch read "∅ no tooltip text" (looked like an accuracy bug; it was billing).
+    // Now: detect it, set a clear banner, and ABORT the batch instead of hammering a capped API + faking empties.
+    var _aiLimitHit = false;
+    function _aiIsLimit(d){ return !!(d && d.error && (+d.status === 402 || /usage limit|credit balance|regain access|billing|insufficient|quota|reached your specified/i.test(String(d.detail || d.message || '')))); }
+    function _aiLimitMsg(d){ var det = String((d && (d.detail || d.message)) || ''); var m = /regain access on ([0-9A-Za-z :\-]+?)(?:\.|"|$)/i.exec(det); return '⚠ AI usage limit reached — the Anthropic API key hit its monthly cap' + (m ? ' (regains access ' + m[1].trim() + ')' : '') + '. Raise the limit / add credit in the Anthropic console to read now. This is NOT your screenshots — they are fine.'; }
+    function _aiReadJson(resp){ if (!resp || !resp.ok) return Promise.resolve(null); return resp.json().then(function(d){ if (_aiIsLimit(d)){ _aiLimitHit = true; if (!_aiErr) _aiErr = _aiLimitMsg(d); } return d; }).catch(function(){ return null; }); }
     function _sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
     var _QTY_CAP = 3;   // v403 — mule AT MOST 3 of the same base; a 4th+ physical copy is thrown out
     // v310: track results PER screenshot FILE — so the report names the exact file each
@@ -24509,6 +24531,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     async function processFile(i, _retry){
       _retry = _retry || 0;   // v407 — retry depth for transient AI-service failures (429 / 5xx)
       var fRec = perFile[i];
+      // v438 — API cap already hit this batch → don't make a doomed call (and don't fake an empty); mark skipped.
+      if (_aiLimitHit) { fRec.err = true; doneCount++; report.innerHTML = _scanUI(doneCount, files.length, logged.length); return; }
       var fname = fRec.file;
       try {
         // v342 — calibrate like runes/gems: LOCATE the hovered description tooltip, crop GENEROUSLY to
@@ -24546,6 +24570,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // failures (429 / 5xx / 529) with backoff, and on a hard failure surface the REAL reason in the report.
         if (data && data.error) {
           var _st = +(data.status || 0);
+          if (_aiIsLimit(data)) { _aiLimitHit = true; errors++; fRec.err = true; if (!_aiErr) _aiErr = _aiLimitMsg(data); try { console.error('[vault-intake] AI USAGE LIMIT for ' + fname, data); } catch(e){} doneCount++; report.innerHTML = _scanUI(doneCount, files.length, logged.length); return; }
           var _transient = (_st === 429 || _st === 529 || _st >= 500 || _st === 0);
           if (_transient && _retry < 2) { _retry++; await _sleep(1500 * _retry); return await processFile(i, _retry); }
           errors++; fRec.err = true;
@@ -24561,7 +24586,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // single-item cap) to recover the item instead of logging a false "empty". One extra call only
         // for shots that would otherwise be a total miss.
         var _isEmpty = function(d){ return !d || !((d.items&&d.items.length)||(d.finds&&d.finds.length)||(d.unrecognized&&d.unrecognized.length)); };
-        if (_isEmpty(data) && _box && _imRef){
+        if (_isEmpty(data) && !_aiLimitHit && _box && _imRef){
           try {
             var _full = _vEnlarge(_imRef, null);
             // v357 — the retry is still ONE hovered shot (the crop just clipped it), so send cropped:true
@@ -24569,7 +24594,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // pull background-grid items too, re-inflating the count past the screenshot total.
             var _r2 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_full, media_type:'image/jpeg', names:vocab, file:fname, cropped:true }) }, 75000);
-            if (_r2.ok){ var _d2 = await _r2.json(); if (!_isEmpty(_d2)){ data = _d2;
+            if (_r2.ok){ var _d2 = await _r2.json(); if (_aiIsLimit(_d2)) _aiLimitHit = true; else if (!_isEmpty(_d2)){ data = _d2;
               try { console.log('[vault-intake] ' + fname + ' → empty crop → full-image retry recovered', _d2.items || _d2.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -24578,24 +24603,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // screen but the single-item passes kept reading nothing (Konyo's Grim Scythe 18.18.35). Better to
         // surface the item (dismiss any stray extra) than silently drop a real one. Only fires when the shot
         // would otherwise be a total empty — never inflates a shot that already read something.
-        if (_isEmpty(data) && _imRef){
+        if (_isEmpty(data) && !_aiLimitHit && _imRef){
           try {
             var _full3 = _vEnlarge(_imRef, null);
             var _r3 = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_full3, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
-            if (_r3.ok){ var _d3 = await _r3.json(); if (!_isEmpty(_d3)){ data = _d3;
+            if (_r3.ok){ var _d3 = await _r3.json(); if (_aiIsLimit(_d3)) _aiLimitHit = true; else if (!_isEmpty(_d3)){ data = _d3;
               try { console.log('[vault-intake] ' + fname + ' → still empty → wide-net (cropped:false) retry recovered', _d3.items || _d3.unrecognized); } catch(e){} } }
           } catch(e){}
         }
         // v415 — FINAL fallback for a still-empty shot: re-read the full image with a CONTRAST BOOST. Recovers
         // a faint / semi-transparent tooltip overlapping the UI (Konyo's Superior Grim Scythe) where the text is
         // legible to a human but too low-contrast for the model at normal exposure. One last call, empties only.
-        if (_isEmpty(data) && _imRef){
+        if (_isEmpty(data) && !_aiLimitHit && _imRef){
           try {
             var _fullB = _vEnlarge(_imRef, null, 1568, 0.95, true);   // boost = true
             var _rB = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_fullB, media_type:'image/jpeg', names:vocab, file:fname, cropped:false }) }, 75000);
-            if (_rB.ok){ var _dB = await _rB.json(); if (!_isEmpty(_dB)){ data = _dB;
+            if (_rB.ok){ var _dB = await _rB.json(); if (_aiIsLimit(_dB)) _aiLimitHit = true; else if (!_isEmpty(_dB)){ data = _dB;
               try { console.log('[vault-intake] ' + fname + ' → still empty → CONTRAST-BOOST retry recovered', _dB.items || _dB.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -24603,14 +24628,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // missed). Binarizes on HSV-value so faint glyphs separate HARD from a busy see-through background —
         // the one lever the boost tiers don't pull (they lift the background too). Two passes at different
         // floors, because the right threshold depends on how transparent the tooltip is; first non-empty wins.
-        if (_isEmpty(data) && _imRef){
+        if (_isEmpty(data) && !_aiLimitHit && _imRef){
           var _isoFloors = [92, 60];
           for (var _fi = 0; _fi < _isoFloors.length && _isEmpty(data); _fi++){
             try {
               var _iso = _vTextIso(_imRef, _box || null, 1568, _isoFloors[_fi]);
               var _rI = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
                 body: JSON.stringify({ image:_iso, media_type:'image/jpeg', names:vocab, file:fname, cropped: !!_box }) }, 75000);
-              if (_rI.ok){ var _dI = await _rI.json(); if (!_isEmpty(_dI)){ data = _dI;
+              if (_rI.ok){ var _dI = await _rI.json(); if (_aiIsLimit(_dI)) _aiLimitHit = true; else if (!_isEmpty(_dI)){ data = _dI;
                 try { console.log('[vault-intake] ' + fname + ' → still empty → TEXT-ISOLATION (floor ' + _isoFloors[_fi] + ') recovered', _dI.items || _dI.unrecognized); } catch(e){} } }
             } catch(e){}
           }
@@ -24624,12 +24649,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // hurt accuracy: full-screen text is too small, so 10-15 of 47 shots stopped recognizing — WORSE than
         // before). Konyo's switch-back: crop to the located tooltip box (or the whole crop if locate missed) and
         // upscale ≤3.2× so the NAME is large and legible — the same enlargement the other passes use.
-        if (_isEmpty(data) && _imRef){
+        if (_isEmpty(data) && !_aiLimitHit && _imRef){
           try {
             var _rawImg = _vEnlarge(_imRef, _box || null);
             var _rN = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_rawImg, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
-            if (_rN.ok){ var _dN = await _rN.json(); if (!_isEmpty(_dN)){ data = _dN;
+            if (_rN.ok){ var _dN = await _rN.json(); if (_aiIsLimit(_dN)) _aiLimitHit = true; else if (!_isEmpty(_dN)){ data = _dN;
               try { console.log('[vault-intake] ' + fname + ' → still empty → RAW-NAME recovered', _dN.items || _dN.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -24638,12 +24663,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // TOP-LEFT corner (D2R draws a stash-item tooltip there; Konyo's Superior Grim Scythe). So if everything
         // above is STILL empty, crop JUST that corner region and upscale it hard (≤3.2×) → the floating NAME is
         // large + legible, WITHOUT shrinking the whole screen (the full-frame v432 experiment that hurt accuracy).
-        if (_isEmpty(data) && _imRef){
+        if (_isEmpty(data) && !_aiLimitHit && _imRef){
           try {
             var _tl = _vEnlarge(_imRef, [0, 0, 0.5, 0.42]);   // top-left corner only, upscaled
             var _rT = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
               body: JSON.stringify({ image:_tl, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
-            if (_rT.ok){ var _dT = await _rT.json(); if (!_isEmpty(_dT)){ data = _dT;
+            if (_rT.ok){ var _dT = await _rT.json(); if (_aiIsLimit(_dT)) _aiLimitHit = true; else if (!_isEmpty(_dT)){ data = _dT;
               try { console.log('[vault-intake] ' + fname + ' → still empty → TOP-LEFT raw-name recovered', _dT.items || _dT.unrecognized); } catch(e){} } }
           } catch(e){}
         }
@@ -24804,7 +24829,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // worker pool — up to CONC screenshots read concurrently (huge speedup vs one-at-a-time)
     var CONC = Math.min(5, files.length), _next = 0;
-    async function _worker(){ while (_next < files.length){ var _my = _next++; await processFile(_my); } }
+    async function _worker(){ while (_next < files.length){ if (_aiLimitHit) break; var _my = _next++; await processFile(_my); } }   // v438 — stop pulling new shots once the API cap is hit
     var _pool = []; for (var _w = 0; _w < CONC; _w++) _pool.push(_worker());
     await Promise.all(_pool);
     // v342.27 / v413.1 — remember files we read so re-dropping them is free. CRITICAL: mark a file SEEN only
