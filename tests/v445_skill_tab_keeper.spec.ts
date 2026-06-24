@@ -28,3 +28,23 @@ test('skill-tab amulets/charms are kept (incl. tabs without the word "Skill")', 
   expect(r.allSkills).toBe(true);
   expect(r.junkAmu).toBeFalsy();
 });
+
+// v446 — rare RINGS held to the endgame bar (diablo2.io / trade): FCR-10 caster OR dual-leech melee = strong
+// keep; Attack Rating + Str + Life (3 suffixes) = keep; a junk +AR/+energy/sliver-res ring is thrown out.
+test('rare rings: top-tier kept (FCR / dual-leech / AR+str+life), junk thrown out', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1200);
+  const r = await page.evaluate(() => {
+    const w:any = window;
+    const k = (mods:string[]) => { const j = w._jewelryKeep(mods, 'Ring'); return j && j.keep; };
+    return {
+      caster:   k(['+10% Faster Cast Rate', '+62 to Mana', '+18 to Life']),          // FCR strong
+      leech:    k(['8% Life Stolen per Hit', '6% Mana Stolen per Hit', '+90 to Attack Rating']), // dual leech strong
+      meleeAR:  k(['+118 to Attack Rating', '+16 to Strength', '+24 to Life']),       // 3 suffixes (AR+str+life)
+      junkRing: k(['+12 to Attack Rating', '+9 to Energy', 'Fire Resist +6%']),       // Blood-Grip-tier → throw out
+    };
+  });
+  expect(r.caster).toBe(true);
+  expect(r.leech).toBe(true);
+  expect(r.meleeAR).toBe(true);
+  expect(r.junkRing).toBeFalsy();
+});

@@ -11347,6 +11347,8 @@ function _jewelryKeep(mods, base){
   var fhr     = num(/(\d+)\s*%?\s*Faster\s*Hit\s*Recovery/i);
   var ias     = num(/(\d+)\s*%?\s*(?:Increased\s*Attack\s*Speed)/i);
   var ed      = num(/(\d+)\s*%?\s*Enhanced\s*Damage/i);
+  var ar      = num(/\+?\s*(\d+)\s*(?:to\s*)?Attack\s*Rating\b/i);   // v446 — key MELEE/bow ring stat (perfect ≈120 AR)
+  var maxd    = num(/\+\s*(\d+)\s*to\s*Maximum\s*Damage\b/i);        // v446 — small but real melee ring roll (perfect 4)
   var life    = num(/\+\s*(\d+)\s*(?:to\s*)?Life\b/i);
   var mana    = num(/\+\s*(\d+)\s*(?:to\s*)?Mana\b/i);
   var allStat = num(/\+\s*(\d+)\s*to\s*All\s*Attributes/i);
@@ -11383,6 +11385,8 @@ function _jewelryKeep(mods, base){
   if (frw >= 20)                 medium.push(frw+'% FRW');
   if (ias >= 15)                 medium.push(ias+'% IAS');
   if (ed >= 15 && ed < 30)       medium.push(ed+'% ED');
+  if (ar >= 80)                  medium.push('+'+ar+' AR');         // v446 — melee/bow ring stat (diablo2.io "perfect" ≈120)
+  if (maxd >= 3)                 medium.push('+'+maxd+' max dmg');  // v446 — small melee roll, completes a 3-suffix ring
 
   // rings are held to the SoJ/Raven bar — strong roll, or a genuinely loaded one (3+ medium mods).
   // amulets / jewels / large+grand charms keep on a strong roll or 2+ medium mods.
