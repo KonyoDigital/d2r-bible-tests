@@ -336,13 +336,23 @@ export async function onRequestPost(context) {
   // back empty on a clearly-readable tooltip (Konyo's Ghoul Aegis — a crisp Reign-of-the-Warlock UNIQUE on a
   // tooltip-only crop the vocab-matching read kept dropping), this asks ONLY for the top coloured NAME line,
   // no vocabulary, no single-item discipline — so any legible tooltip yields a name instead of "∅ no text".
-  const rawText = 'You are shown ONE Diablo II item description tooltip (it may be from a MOD — "Reign of the '
-    + 'Warlock" — so the NAME may be unfamiliar; that is expected and fine). Read the ITEM NAME printed on the '
-    + 'TOP TITLE line (the coloured header). Return it VERBATIM in "name". Also return its rarity from the name '
-    + 'COLOUR: gold/tan/orange-brown = "unique", green = "set", blue = "magic", yellow = "rare", orange = '
-    + '"crafted", white/grey = "base". If a runeword (gold name with a rune sequence in quotes like \'ShaelKoEld\' '
-    + 'under it), return the gold runeword name and colour "unique". Read the name even if you do not recognise '
-    + 'it. Only if there is genuinely NO readable title text at all, return name="" .';
+  const rawText = 'YOUR ONE JOB: capture the ITEM NAME. You are shown a Diablo II Resurrected screenshot — it may '
+    + 'be a CROPPED tooltip OR a FULL game screen with stash/inventory panels and a grid of item icons. The player '
+    + 'has ONE item hovered, so the game draws a single floating DESCRIPTION TOOLTIP: a dark, often SEMI-TRANSPARENT '
+    + 'panel whose FIRST/TOP line is the item NAME in a coloured header, with stat lines below it. '
+    + 'STEP 1 — FIND THE TOOLTIP: it can sit ANYWHERE on screen, and frequently floats in the TOP-LEFT corner, '
+    + 'DETACHED and far from the item icon, partly overlapping the stash/inventory frame; its light text may be '
+    + 'faint over a busy see-through background. The big block of coloured text near the top edge IS the tooltip — '
+    + 'look there first. '
+    + 'STEP 2 — READ ITS TOP TITLE LINE (the coloured header) and return that ITEM NAME VERBATIM in "name" '
+    + '(it may be from a MOD — "Reign of the Warlock" — so the name may be unfamiliar; read it anyway. Include a '
+    + '"Superior" / "Inferior" prefix if printed). IGNORE everything else on screen — NPC labels (Charsi, Kashya, '
+    + 'Warriv…), panel titles (STASH, INVENTORY, MATERIALS, RUNES), gold counts, and every bare grid icon. '
+    + 'Also return rarity from the name COLOUR: gold/tan/orange-brown = "unique", green = "set", blue = "magic", '
+    + 'yellow = "rare", orange = "crafted", white/grey (incl. a grey "Superior" base) = "base". If a runeword '
+    + '(gold name with a rune sequence in quotes like \'ShaelKoEld\' under it), return the gold runeword name and '
+    + 'colour "unique". Read the name even if you do not recognise it. Only if there is genuinely NO floating item '
+    + 'tooltip with readable title text anywhere in the image, return name="" .';
   const rawSchema = {
     type: 'object',
     properties: { name: { type: 'string' }, color: { type: 'string', enum: ['unique', 'set', 'magic', 'rare', 'crafted', 'base', 'unknown'] } },
@@ -391,7 +401,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isRaw ? 'Find the floating item tooltip in this image (it may be a full game screen — the tooltip often floats in the top-left corner, detached from the item) and read the ITEM NAME on its top title line. Return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
