@@ -6842,6 +6842,68 @@ window.__alignCard = function(sel){
   };
   setTimeout(go, 80); setTimeout(go, 420); setTimeout(go, 900);
 };
+// v420 — POSSIBLE-ROLLS reference. Konyo: "show the other options — ranges for affixes that can roll, more
+// in-depth." A rolled item has no fixed card, so the keeper card now shows the whole AFFIX POOL + realistic
+// ceilings for that slot, so a read item can be judged against its best case (not just the one stat read).
+// Curated from standard D2 affix tables; jewelry/charms (the slots Konyo keeps) are detailed, gear is generic.
+var _AFFIX_POOL = {
+  ring: { lab:'Ring', best:'Dual leech + FCR + stats/resist — rivals SoJ / Raven Frost', rolls:[
+    'Life Stolen per Hit: 1–10%   ·   Mana Stolen per Hit: 1–8%   (dual leech = godly)',
+    'Faster Cast Rate: up to 10%',
+    '+to All Attributes: up to 5   ·   +Strength / +Dexterity: up to ~15 each',
+    '+to Life: up to ~40   ·   +to Mana: up to ~90',
+    'All Resistances: up to ~15   ·   single resist: up to ~30%',
+    'Magic Find: up to ~35%   ·   +to Attack Rating: up to ~120',
+    '+X–Y Fire/Cold/Lightning damage   ·   Mana / Life after each Kill' ]},
+  amulet: { lab:'Amulet', best:'+2–3 class skills (or +1 all skills) + FCR / leech / resist', rolls:[
+    '+1 to All Skills   (magic prefix — rare & valuable)',
+    '+2–3 to a Class Skill Tab   ·   +3 to a single skill',
+    'Faster Cast Rate: up to 10%   ·   dual leech (life% + mana%)',
+    '+to All Attributes: up to 5   ·   +to Life / +to Mana',
+    'All Resistances: up to ~20   ·   single resist: up to ~40%',
+    'Magic Find: up to ~40%   ·   Faster Hit Recovery / Faster Run-Walk' ]},
+  jewel: { lab:'Jewel', best:'40% ED + 15% IAS, or ED + max-damage, or a high single resist', rolls:[
+    '+X% Enhanced Damage: up to 40%   ·   Increased Attack Speed: up to 15%',
+    '+to Maximum Damage   ·   +X–Y Fire/Cold/Lightning/Poison damage',
+    'single Resistance: up to ~30%   ·   +to All Attributes',
+    '+to Life / +to Mana   ·   Faster Hit Recovery',
+    '(a Rainbow Facet is a UNIQUE jewel — element skill damage + −enemy resist)' ]},
+  'small charm': { lab:'Small Charm', best:'7% MF, or +life + a resist, or +X–Y damage + AR', rolls:[
+    '+to Life: up to 20   ·   +to Mana: up to 17',
+    'single Resistance: up to 11%   ·   Magic Find: up to 7%',
+    '+X–Y elemental / poison damage   ·   +to Attack Rating',
+    'Faster Hit Recovery: up to 5%   ·   +to min / max damage' ]},
+  'large charm': { lab:'Large Charm', best:'+life + resist, or +damage + AR (mostly filler)', rolls:[
+    '+to Life: up to ~30   ·   single Resistance',
+    '+X–Y elemental damage   ·   +to Attack Rating',
+    'Faster Hit Recovery   ·   Magic Find' ]},
+  'grand charm': { lab:'Grand Charm', best:'+1 to a class SKILL TAB (skiller) — the endgame charm', rolls:[
+    '+1 to a Class Skill Tab   (SKILLER — by far the top value)',
+    '+to Life: up to ~45   ·   Faster Hit Recovery',
+    'single Resistance   ·   Magic Find',
+    '+X–Y elemental damage   ·   +to Attack Rating' ]},
+};
+try { window._AFFIX_POOL = _AFFIX_POOL; } catch(e){}
+function _affixPoolKey(base){
+  var b = String(base||'').toLowerCase();
+  if (/grand\s*charm/.test(b)) return 'grand charm';
+  if (/large\s*charm/.test(b)) return 'large charm';
+  if (/small\s*charm/.test(b) || /\bcharm\b/.test(b)) return 'small charm';
+  if (/\bamulet\b/.test(b)) return 'amulet';
+  if (/\bring\b/.test(b)) return 'ring';
+  if (/\bjewel\b/.test(b) && !/facet/.test(b)) return 'jewel';
+  return null;
+}
+function _affixPoolHtml(base, q){
+  if (q === 'crafted') return '';   // crafted has guaranteed mods — the pool is less informative
+  var key = _affixPoolKey(base); if (!key || !_AFFIX_POOL[key]) return '';
+  var p = _AFFIX_POOL[key];
+  return '<section class="gic-section"><div class="gic-sec-title">🎲 What a '+(q==='rare'?'rare':'magic')+' '+p.lab+' can roll</div>'
+    + '<div style="font-size:12.5px;color:#9effb9;margin-bottom:7px">⭐ <b>Best-case:</b> '+p.best+'</div>'
+    + p.rolls.map(function(r){ return '<div class="att-aff att-var" style="font-size:12.5px;opacity:.93;margin:2px 0">'+_d2artEsc(r)+'</div>'; }).join('')
+    + '<div class="att-info" style="margin-top:7px">Realistic ceilings for this slot — compare your item\'s actual rolls (above) against them to judge how good it is.</div></section>';
+}
+try { window._affixPoolHtml = _affixPoolHtml; } catch(e){}
 // v342.18 — minimal detail card for a Magic & Rare keeper (rolled-name item; no fixed grail card).
 function _magicFindCardHtml(name){
   var q = (typeof _mfQual === 'function') ? _mfQual(name) : 'magic';
@@ -6864,6 +6926,7 @@ function _magicFindCardHtml(name){
   // Larzuk/cube guidance: a magic item is GEM-only (NOT a runeword base — runewords need white/normal).
   // Returns '' for charms/jewels/rings/amulets (not socketable), so this is a no-op there.
   var _sg = (typeof _socketGuideLine === 'function') ? _socketGuideLine(base, q) : '';
+  var _pool = (typeof _affixPoolHtml === 'function') ? _affixPoolHtml(base, q) : '';   // v420 — possible-rolls + ranges
   return '<div class="material-card magicfind-card" style="border-color:'+col+'">'
     + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
     + artHtml
@@ -6872,6 +6935,7 @@ function _magicFindCardHtml(name){
     + modsHtml
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'+blurb
     + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div>'+_sg+'</section>'
+    + _pool
     + '</div>';
 }
 // v345 — floating #arttip card for a Magic & Rare keeper, SAME format as the Socketed/EXTRA tooltips
@@ -11747,7 +11811,10 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // v369 — Chronicle Runeword Maker: { runewordName: "first-made date string" } — which runewords the
 // user has already FORGED. First run seeds Konyo's in-game Chronicle (7/100 = 7%, from his screenshots);
 // after that it's user-controlled (toggle on each runeword). Rides Backup & Share (a d2r_ LS key).
-const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Strength":"Jun 23, 2026 · 01:52"};
+// v420 — default Created seed = Konyo's actual 28 forged runewords (read off his Chronicle screenshots
+// 2026-06-24), so a fresh load / reset never drops back below 28. Only applied when d2r_rwMade is absent.
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52"};
+try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
 // v419 — RUNE-SAVER GUARD. Konyo wasted runes 3× cubing Shael+Ko+Eld weapons expecting Mania, which
