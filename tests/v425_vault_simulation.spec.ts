@@ -38,7 +38,7 @@ test('every item routes to a valid destination — no nulls, no unknown mules, n
   }, VALID_MULES);
   console.log(`simulated ${r.total} items — routed:${r.routed} kept:${r.kept} shared:${r.shared}`);
   if (r.anomalies.length) console.log('ANOMALIES:', JSON.stringify(r.anomalies.slice(0, 30), null, 1));
-  expect(r.total).toBeGreaterThan(700);
+  expect(r.total).toBeGreaterThanOrEqual(1200);   // v430 — the FULL catalog (grail + off-grail + set pieces + runewords + all 498 bases), not just 799
   expect(r.anomalies).toEqual([]);
   expect(consoleErrors).toEqual([]);
 });

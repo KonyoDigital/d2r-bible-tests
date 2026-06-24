@@ -12301,6 +12301,7 @@ window.__allItemNames = function(){
   try { Object.keys(EXTRA_ITEMS||{}).forEach(function(n){ out.push(n); }); } catch(e){}
   try { (typeof __allSets==='function'?__allSets():[]).forEach(function(s){ (s.pieces||[]).forEach(function(p){ if (p) out.push(typeof __pieceBase==='function'?__pieceBase(p):p); }); }); } catch(e){}
   try { Object.keys(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP:{}).forEach(function(n){ out.push(n); }); } catch(e){}
+  try { Object.keys(typeof BASE_CLASS!=='undefined'?BASE_CLASS:{}).forEach(function(n){ out.push(n); }); } catch(e){}   // v430 — the 498 game-data bases (were excluded → audits only saw 799 of ~1297)
   var seen = Object.create(null), uniq = [];
   out.forEach(function(n){ if (n && !seen[n]){ seen[n] = 1; uniq.push(n); } });
   return uniq;
@@ -23361,6 +23362,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // the word "socket" isn't in those, so without this a kept socketed base would mis-route to UNI-WEAPONS if
     // _ensureSocketBaseEntry hadn't pre-filed it in EXTRA_ITEMS. Belt-and-suspenders → SOCKETED.
     if (/\bsocket(ed|s)?\b/i.test(name) || /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i.test(name)) return {id:'bases', why:'socketed base'};
+    // v430 — a BARE BASE: an exact game-data base name (BASE_CLASS) that matched NO unique/set/runeword/EXTRA
+    // above is a plain WHITE base → the SOCKETED locker (runeword/craft base), NOT uni-weap. Without this,
+    // "Cryptic Axe"/"Monarch"/"Quilted Armor" etc. fell through to the uni-weap default — correct for a unique
+    // weapon, wrong for a white base. (Surfaced when the full 1297-catalog audit included all 498 bases.)
+    var _bareBaseClean = (typeof _artSlotClean==='function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
+    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean]) && !it && !ex && !itip) return {id:'bases', why:'white base → socketed / craft'};
     // v362 — ARMOR before JEWELRY: body armor like "Ring Mail" contains the word "ring", so it must be
     // caught as armor (via "mail") FIRST, or it mis-files to UNI-SMALL (Konyo: Darkglow Ring Mail → jewelry).
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
