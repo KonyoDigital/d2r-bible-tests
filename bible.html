@@ -7591,6 +7591,21 @@ window.openDrop = function(name){
   }
   // Genuine grail item → calc golden card.
   if (typeof ITEMS !== 'undefined' && ITEMS.find(i => i.n === name)) { window.navigateToItem(name, null); return; }
+  // v427 — bare BASE ITEM (any of the 498 game-data bases, e.g. "Cryptic Axe", "Monarch", "Quilted Armor"):
+  // no grail/unique/set/rune/material match, but it IS a recognised base type → show its base card (class,
+  // max sockets, runewords it enables). Makes every base searchable + clickable + routable. Last resort.
+  if (typeof _baseCats === 'function' && Object.keys(_baseCats(name)).length && typeof baseDetailHtml === 'function'){
+    var _bc = baseDetailHtml(name);
+    if (_bc){
+      if (typeof clearActiveBoss === 'function') clearActiveBoss({noScroll:true});
+      window.__activeMaterial = null; window.__activeRune = null; selectedItem = null;
+      switchTab('calc');
+      var _bp = document.getElementById('item-detail');
+      if (_bp){ _bp.classList.add('show'); _bp.innerHTML = _bc; }
+      if (typeof __alignCard === 'function') __alignCard('#item-detail .base-item-card');
+      return;
+    }
+  }
 };
 window.closeDrop = function(){
   window.__activeMaterial = null;
@@ -12341,6 +12356,43 @@ function _extraCraftRecipeHtml(name, e){
 window._extraCraftRecipeHtml = _extraCraftRecipeHtml;
 // Self-contained reference ID card (gic-card). Uniques show fixed ITEM_TIP stats; magic/rare/
 // crafted show a general affix-pool description (rolls are random, so judge the actual item).
+// v427 — BASE ITEM card. Every one of the 498 game-data bases (BASE_CLASS) is now searchable + clickable;
+// this is the golden card a base routes to. Shows its class/slot, exact max-socket ceiling, and the
+// runewords it enables (via _baseRWLine) — reusing the verified SOCKET_MAX + runeword data, no fabrication.
+function baseDetailHtml(name){
+  if (!name) return '';
+  var cats = (typeof _baseCats==='function') ? _baseCats(name) : {};
+  if (!Object.keys(cats).length) return '';
+  // human slot label from the class map (prefer the specific class over generic weapon tags)
+  var order = ['body armor','helm','shield','gloves','boots','belt','sword','axe','mace','hammer','polearm','spear','javelin','dagger','katar','scepter','wand','staff','bow','missile weapon','orb','grimoire','voodoo head'];
+  var slot = order.find(function(k){ return cats[k]; }) || Object.keys(cats)[0] || 'base';
+  var slotLabel = slot.replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  var mx = (typeof _socketMaxFor==='function') ? _socketMaxFor(name) : null;
+  var tier = (typeof _baseTier==='function') ? _baseTier(name) : '';
+  var tierLabel = tier ? ({ normal:'Normal', exceptional:'Exceptional', elite:'Elite' }[String(tier).toLowerCase()] || tier) : '';
+  var artNm = name;
+  var src = (typeof artUrl==='function') ? (artUrl(artNm) || (typeof _artSlotClean==='function' ? artUrl(_artSlotClean(artNm)) : '')) : '';
+  var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="'+_d2artEsc(name)+'"><img class="d2art-img" src="'+src+'" alt=""></span>'
+    : '<span style="font-size:32px;line-height:1;color:#a8adb8">🔩</span>';
+  var rwLine = (typeof _baseRWLine==='function') ? _baseRWLine(name, 0) : '';
+  var sg = (typeof _socketGuideLine==='function') ? _socketGuideLine(name, 'normal') : '';
+  var sockChip = (mx != null) ? '<span class="gic-meta-chip" style="color:#cdb988;border-color:rgba(205,185,136,.45)">🔩 max '+mx+' socket'+(String(mx)==='1'?'':'s')+'</span>' : '';
+  var tierChip = tierLabel ? '<span class="gic-meta-chip" style="color:#a8c0e0;border-color:rgba(168,192,224,.4)">'+_d2artEsc(tierLabel)+' base</span>' : '';
+  return '<div class="material-card base-item-card" style="border-color:#9aa0ad">'
+    + '<header class="gic-header" style="display:flex;align-items:center;gap:12px">'
+    + artHtml
+    + '<div class="gic-id-block"><h2 class="gic-name" style="color:#cdd2db">'+_d2artEsc(name)+' <span class="gic-grail-badge" style="background:linear-gradient(135deg,#3a3f48,#1c1f25);color:#cdd2db">Base Item</span></h2>'
+    + '<div class="gic-subtitle">'+_d2artEsc(slotLabel)+' base</div>'
+    + '<div class="gic-meta-row">'+tierChip+sockChip+'</div></div>'
+    + '<div style="margin-left:auto"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">✕ close</button></div>'
+    + '</header>'
+    + '<section class="gic-section"><div class="gic-section-title">🔩 Sockets &amp; runewords</div>'
+    + (rwLine || '<div class="att-aff" style="opacity:.7">No known runewords use this base type — keep only for crafting / gemming or a low-level twink.</div>')
+    + sg + '</section>'
+    + '<div class="zd-note">A <b>white/grey '+_d2artEsc(slotLabel)+' base</b>. Socket it to the right count (Larzuk = guaranteed max, the cube = random) and cube runes <b>in order</b> for a runeword — runewords need a <b>normal</b> base (never superior/magic/rare).</div>'
+    + '</div>';
+}
+window.baseDetailHtml = baseDetailHtml;
 function extraItemDetailHtml(name){
   var key = findExtraItem(name); if (!key) return '';
   var e = EXTRA_ITEMS[key]; var rar = e.rarity || 'rare';
@@ -20199,6 +20251,28 @@ _v41_whenReady(() => {
       });
     });
 
+    // --- v427 search index: ALL 498 game-data BASE ITEMS (BASE_CLASS) — every white base is now searchable
+    // + clickable, routing to its base card (class · max sockets · runewords it enables). Skips names already
+    // indexed above (grail uniques/sets, off-grail) so there's no duplicate row. (Konyo: "search all 1200+
+    // items by name… I don't see them all rendering.") ---
+    try {
+      const _seenLabels = new Set(cmds.map((c) => c.label));
+      const BC = (typeof BASE_CLASS !== 'undefined') ? BASE_CLASS : {};
+      Object.keys(BC).forEach((bn) => {
+        if (_seenLabels.has(bn)) return;   // already an item/unique/set row — don't double-list
+        const cls = (BC[bn] || [])[0] || 'base';
+        const mx = (typeof _socketMaxFor === 'function') ? _socketMaxFor(bn) : null;
+        cmds.push({
+          icon: '🔩',
+          label: bn,
+          sub: cls.replace(/\b\w/g, (c) => c.toUpperCase()) + ' base' + (mx != null ? ' · max ' + mx + 'os' : ''),
+          cat: 'base',
+          keywords: 'base item white grey socket runeword craft ' + bn.toLowerCase() + ' ' + (BC[bn] || []).join(' ').toLowerCase(),
+          action: () => { if (window.openDrop) window.openDrop(bn); }
+        });
+      });
+    } catch (e) {}
+
 
     // --- v61 search index: Terror Zones + Super-Uniques (acts/zones/gold-names jumpable) ---
     const TZ_DATA = (typeof TZ_ZONES !== 'undefined') ? TZ_ZONES : [];
@@ -20474,7 +20548,7 @@ _v41_whenReady(() => {
     }
     let html = '';
     let lastCat = null;
-    const catLabels = { recent:'Recently viewed', tab:'Tabs', boss:'Bosses', item:'Items', runeword:'Runewords', mf:'MF Presets', action:'Actions' };
+    const catLabels = { recent:'Recently viewed', tab:'Tabs', boss:'Bosses', item:'Items', base:'Base items', runeword:'Runewords', mf:'MF Presets', action:'Actions' };
     const query = document.getElementById('v42-palette-input').value || '';
     v42Filtered.slice(0, 100).forEach((c, i) => {
       const effectiveCat = c._recent ? 'recent' : c.cat;
