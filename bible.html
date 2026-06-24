@@ -10095,11 +10095,16 @@ function __pieceSlot(pc){ var m=String(pc).match(/\(([^)]*)\)\s*$/); return m?m[
 function findSetPiece(name){
   if(!name) return null;
   var q=_norm(name);
+  // v425 — also match the slot-suffixed form ("Tal Rasha's Adjudication (amulet)" → strip "(amulet)"), so a
+  // set piece carrying its disambiguator still resolves its set identity + green rarity + card (same class as
+  // the v418 art / _etherNorm suffix fixes). The app registers the un-suffixed base, but be tolerant of both.
+  var qStripped=_norm(String(name).replace(/\s*\([^)]*\)\s*$/,''));
   var sets=__allSets();
   for(var i=0;i<sets.length;i++){
     var ps=sets[i].pieces||[];
     for(var k=0;k<ps.length;k++){
-      if(_norm(__pieceBase(ps[k]))===q) return {set:sets[i], piece:ps[k], base:__pieceBase(ps[k]), slot:__pieceSlot(ps[k])};
+      var pb=_norm(__pieceBase(ps[k]));
+      if(pb===q || (qStripped && pb===qStripped)) return {set:sets[i], piece:ps[k], base:__pieceBase(ps[k]), slot:__pieceSlot(ps[k])};
     }
   }
   return null;
@@ -11089,7 +11094,10 @@ function _artRarity(name){
       r = (ex === 'crafted') ? 'crafted' : (ex === 'basic') ? 'basic' : ex;
     }
     if (!r && typeof findRuneword === 'function' && findRuneword(name)) r = 'rw';
-    if (!r && /\bRune\b/.test(name)) r = 'rune';
+    // v425 — "rune" rarity (orange) ONLY for an actual rune ("Ist rune"), never a base whose NAME starts with
+    // "Rune" (Rune Sword / Rune Bow / Rune Staff / Rune Scepter / Rune Master) — same trailing-word guard as
+    // SHARED_STASH_RE, so those bases keep their proper basic/set/unique colour instead of an orange rune glow.
+    if (!r && /\brunes?\b(?!\s+[a-z])/i.test(name)) r = 'rune';
     if (!r && typeof findSetPiece === 'function' && findSetPiece(name)) r = 'set';
     // v311 — THE ONE SWITCH: _artRarity is the single source of truth for an item's in-game
     // quality colour. Any KNOWN grail/registry item that didn't resolve above falls through to
@@ -12225,7 +12233,7 @@ window.__allItemNames = function(){
   var out = [];
   try { (typeof ITEMS!=='undefined'?ITEMS:[]).forEach(function(i){ if (i && i.n) out.push(i.n); }); } catch(e){}
   try { Object.keys(EXTRA_ITEMS||{}).forEach(function(n){ out.push(n); }); } catch(e){}
-  try { (typeof __allSets==='function'?__allSets():[]).forEach(function(s){ (s.pieces||[]).forEach(function(p){ if (p) out.push(p); }); }); } catch(e){}
+  try { (typeof __allSets==='function'?__allSets():[]).forEach(function(s){ (s.pieces||[]).forEach(function(p){ if (p) out.push(typeof __pieceBase==='function'?__pieceBase(p):p); }); }); } catch(e){}
   try { Object.keys(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP:{}).forEach(function(n){ out.push(n); }); } catch(e){}
   var seen = Object.create(null), uniq = [];
   out.forEach(function(n){ if (n && !seen[n]){ seen[n] = 1; uniq.push(n); } });

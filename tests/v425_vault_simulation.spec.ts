@@ -79,6 +79,32 @@ test('rune-named BASES route to SOCKETED, not shared-stash (the \\brune\\b colli
   expect(r.sharedSword).toBe(false);
 });
 
+test('identifier coverage — every item resolves a rarity/tier + class; set pieces are green', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const all: string[] = w.__allItemNames();
+    const noRarity: string[] = [];
+    all.forEach((n) => { if (!w._artRarity(n)) noRarity.push(n); });
+    const bases = w.BASE_CLASS ? Object.keys(w.BASE_CLASS) : [];
+    const noClass = bases.filter((b: string) => { try { return !Object.keys(w._baseCats(b) || {}).length; } catch (e) { return true; } });
+    return {
+      total: all.length, noRarity: noRarity.length, noRaritySample: noRarity.slice(0, 10),
+      baseCount: bases.length, noClass: noClass.length,
+      setPieceGreen: w._artRarity("Tal Rasha's Adjudication") === 'set' && w._artRarity("Immortal King's Will") === 'set',
+      runeSwordNotRune: w._artRarity('Rune Sword (5os)') !== 'rune',
+      istRune: w._artRarity('Ist rune') === 'rune',
+    };
+  });
+  console.log(`rarity coverage — ${r.total} items, ${r.noRarity} without rarity; ${r.baseCount} bases, ${r.noClass} without class`);
+  if (r.noRarity) console.log('NO-RARITY:', JSON.stringify(r.noRaritySample));
+  expect(r.noRarity).toBe(0);          // every item has a tier/rarity identifier
+  expect(r.noClass).toBe(0);           // every base resolves a class
+  expect(r.setPieceGreen).toBe(true);  // set pieces resolve green rarity
+  expect(r.runeSwordNotRune).toBe(true);
+  expect(r.istRune).toBe(true);
+});
+
 test('LOAD/CAPACITY — 450 owned items register, render, and persist without crashing', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
