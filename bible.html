@@ -11326,9 +11326,17 @@ function _jewelryKeep(mods, base){
 
   var txt = ' ' + mods.join(' | ').replace(/\s+/g,' ') + ' ';
   var num = function(re){ var x=re.exec(txt); return x ? +(x[1]||0) : 0; };
+  // v445 — a +skills detector that ALSO catches skill TABS with no "Skill" word in the name (Shadow
+  // Disciplines, Traps, Martial Arts, Warcries, Masteries, Auras, Curses) AND any class-restricted
+  // "+N to X (Class Only)" bonus — Konyo's +3 Shadow Disciplines amulet was being missed entirely.
+  var _isSkillBonus = function(minN){
+    var n = '[' + minN + '-9]';
+    return new RegExp('\\+\\s*' + n + '\\s*to\\s+[^|()]*?\\((?:Amazon|Assassin|Necromancer|Barbarian|Paladin|Druid|Sorceress)\\s*Only\\)', 'i').test(txt)
+        || new RegExp('\\+\\s*' + n + "\\s*to\\s+[A-Za-z][A-Za-z '/]*?(?:Skills?|Skill\\s*Tab|Disciplines|Martial\\s*Arts|Traps|Curses|Masteries|Warcries|Auras)\\b", 'i').test(txt)
+        || /\+\s*[1-9]\s*to\s*All\s*Skills/i.test(txt);
+  };
   // a +to-skills grand/large charm = skiller = always a keeper, no questions asked
-  var skillTab = /\+\s*[1-9]\s*to\s*[A-Za-z][A-Za-z ]*?\s*(?:Skills|Skill\s*Tab)\b/i.test(txt)
-              || /\+\s*[1-9]\s*to\s*All\s*Skills/i.test(txt);
+  var skillTab = _isSkillBonus(1);
   if ((isGC||isLC) && skillTab) return { keep:true, op:true, hi:['+skills (skiller)'] };
 
   var lifeL   = /Life\s*Stolen\s*per\s*Hit|Life\s*Leech/i.test(txt);
@@ -11349,7 +11357,7 @@ function _jewelryKeep(mods, base){
   var allRes  = num(/All\s*Resist\w*\s*\+?\s*(\d+)/i);
   var sr = /(?:Fire|Cold|Lightning|Poison)\s*Resist\w*\s*\+?\s*(\d+)/ig, sm, bestSr=0;
   while((sm=sr.exec(txt))) bestSr=Math.max(bestSr,+sm[1]);
-  var goldSkill = /\+\s*[2-9]\s*to\s*[A-Za-z].*\bSkill/i.test(txt) || /\+\s*[1-9]\s*to\s*All\s*Skills/i.test(txt);
+  var goldSkill = _isSkillBonus(2);   // v445 — +2+ to a class skill/TAB (incl. Shadow Disciplines/Traps/etc.) or any +All Skills
 
   var strong = [], medium = [];
   if (dualLeech)      strong.push('dual leech');
