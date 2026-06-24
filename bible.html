@@ -12217,6 +12217,20 @@ const EXTRA_ITEMS = {
   "Horazon's Secrets": {"rarity":"set","base":"Occult Codex","cat":"Horazon's Splendor (set)","req":0,"desc":"<b>Reign of the Warlock</b> set item — Occult Codex (req Horazon's Splendor +3 to Warlock Skills +350% Enhanced Damage +30 to Enchant +300 Defense +20 to Dexterity +30 to Energy All Resistances +50 100% Better Chance of Getting Magic Items). +2 to Eldritch Skills (Warlock Only) +30% Faster Hit Recovery 20% Increased Chance of Blocking 20–30 to Vitality 30–50 to Life +15 to Energy (4 Items) -25% to Enemy Fire Resistance (3 Items) Poison Length Reduced by 75% (2 Items)"},
 };
 window.EXTRA_ITEMS = EXTRA_ITEMS;
+try { window.ITEMS = ITEMS; } catch(e){}   // v425 — expose for the vault simulation / per-item audit
+// v425 — full item enumerator for the vault-manager simulation & nightly audit: every grail unique/set/base
+// (ITEMS), every off-grail reference item (EXTRA_ITEMS), every set PIECE, and every runeword. Lazy (called
+// after load) + deduped. This is the canonical "all 1200+ items" list the audit walks.
+window.__allItemNames = function(){
+  var out = [];
+  try { (typeof ITEMS!=='undefined'?ITEMS:[]).forEach(function(i){ if (i && i.n) out.push(i.n); }); } catch(e){}
+  try { Object.keys(EXTRA_ITEMS||{}).forEach(function(n){ out.push(n); }); } catch(e){}
+  try { (typeof __allSets==='function'?__allSets():[]).forEach(function(s){ (s.pieces||[]).forEach(function(p){ if (p) out.push(p); }); }); } catch(e){}
+  try { Object.keys(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP:{}).forEach(function(n){ out.push(n); }); } catch(e){}
+  var seen = Object.create(null), uniq = [];
+  out.forEach(function(n){ if (n && !seen[n]){ seen[n] = 1; uniq.push(n); } });
+  return uniq;
+};
 // v350 — interim base-type art for off-grail uniques with no dedicated icon yet: map name → its base
 // sprite so they show real base art (not a bare ◆ glyph) everywhere artUrl is used — registered rows,
 // lockers, calc, the #arttip hover. Only fills names with NO existing D2IO_ART; real per-item HD art
@@ -23122,8 +23136,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // and the 5 Colossal statues all live in one infinite shared stash, so the
   // assembler must never route them. (They aren't in ITEMS either, so this is a
   // belt-and-suspenders guard that also documents the intent.)
-  var SHARED_STASH_RE = /\b(rune|essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
+  // v425 — "rune" must match ONLY as a trailing type word ("Ist rune", "Jah/Ber/Sur rune"), NEVER as a
+  // base-NAME prefix: "Rune Sword / Rune Bow / Rune Staff / Rune Scepter" (real socketable runeword bases) and
+  // "Rune Master" were wrongly flagged shared-stash (never-muled) by the old bare \brune\b. The (?!\s+[a-z])
+  // lookahead drops the match when another word follows, so those bases route to SOCKETED/uni-* as intended.
+  var SHARED_STASH_RE = /\brunes?\b(?!\s+[a-z])|\b(essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
+  try { window.isSharedStash = isSharedStash; } catch(e){}   // v425 — expose for the vault audit (null route = shared, not a bug)
   // v409 — NEVER-MULE keepers: Annihilus, Hellfire Torch, Gheed's Fortune (the 6 Sunder charms are already
   // caught by isSharedStash). These uniques ONLY function in the inventory of the character you're actively
   // playing — a mule/alt can't use them. The "Don't mule to your alt" advisory flags them, so the auto-assign
