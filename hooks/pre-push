@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
-# pre-push — fast critical-path Playwright smoke before a push is allowed.
+# pre-push — fast critical-path Playwright smoke before a push is allowed, then
+# (on a green push to main) AUTO-DEPLOY the site live to Cloudflare Pages.
 #
 # This hook is VERSION-CONTROLLED (repo-root hooks/) and activated via
 # `core.hooksPath = hooks`. On a fresh clone run `bash hooks/install` once to
 # enable it (git config is per-clone and cannot travel in the repo itself).
 #
-# Why: commits sometimes land on main without the suite being run (see REG-001 in
-# BUGS.md — a central artOr() edit load-stormed the calc grid and broke 3 specs,
-# only caught by CI after the fact). This gate runs a ~1-2 min subset that covers
-# the three central helpers (artOr / openDrop / switchTab) + the lazy-load
-# invariant, so that class of breakage is caught BEFORE it reaches the remote.
+# Why the smoke gate: commits sometimes land on main without the suite being run
+# (see REG-001 in BUGS.md — a central artOr() edit load-stormed the calc grid and
+# broke 3 specs, only caught by CI after the fact). This gate runs a ~1-2 min
+# subset covering the three central helpers (artOr / openDrop / switchTab) + the
+# lazy-load invariant, so that class of breakage is caught BEFORE the remote.
 #
-# Scope: only runs when the push touches bible.html or a *.spec.ts (docs-only
-# pushes skip straight through).
+# Why the auto-deploy: deploys are Mac-only and were a manual step. After the smoke
+# gate passes, a push to main that touches bible.html / art / functions publishes
+# live via deploy.sh. Ordering note: this runs in pre-push (just before the ref
+# reaches the remote), so "live" is the exact state being pushed; if the network
+# push were to fail afterward, the next push simply re-deploys the merged state.
+# Deploy failure WARNS but never blocks the push — the remote is the source of
+# truth for code; going live is a convenience on top.
+#
+# Scope: smoke only runs when the push touches bible.html or a *.spec.ts; deploy
+# only runs for refs/heads/main touching bible.html / art / functions. Docs-only
+# pushes skip both.
 #
 # Emergency bypass (use sparingly):  git push --no-verify
 set -u
@@ -28,42 +38,73 @@ SMOKE_SPECS=(
 )
 
 ZERO="0000000000000000000000000000000000000000"
-run=0
+run=0       # 1 = run the smoke gate
+deploy=0    # 1 = auto-deploy after a green push
 
-# stdin lines: <local_ref> <local_sha> <remote_ref> <remote_sha>
+# stdin lines (single pass — bash 3.2 has no mapfile): set BOTH run and deploy,
+# never break early so every ref is considered.
+# Each line: <local_ref> <local_sha> <remote_ref> <remote_sha>
 while read -r local_ref local_sha remote_ref remote_sha; do
-  [ "$local_sha" = "$ZERO" ] && continue          # branch deletion — nothing to test
+  [ -z "$local_sha" ] && continue
+  [ "$local_sha" = "$ZERO" ] && continue          # branch deletion — nothing to do
+
   if [ "$remote_sha" = "$ZERO" ]; then
-    run=1; break                                   # new remote branch — test to be safe
+    changed=""                                     # new remote branch — no base to diff
+    new_branch=1
+  else
+    changed="$(git diff --name-only "$remote_sha".."$local_sha" 2>/dev/null)"
+    new_branch=0
   fi
-  changed="$(git diff --name-only "$remote_sha".."$local_sha" 2>/dev/null)"
-  if printf '%s\n' "$changed" | grep -Eq '^(bible\.html|tests/.*\.spec\.ts)$'; then
-    run=1; break
+
+  # smoke trigger: bible.html or any spec changed (or a brand-new branch)
+  if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|tests/.*\.spec\.ts)$'; then
+    run=1
+  fi
+
+  # deploy trigger: pushing main, and a deployable asset changed
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|art/.*|functions/.*)$'; then
+      deploy=1
+    fi
   fi
 done
 
+# ── 1. Smoke gate (blocks the push on failure) ───────────────────────────────
 if [ "$run" -eq 0 ]; then
   echo "pre-push: no bible.html / spec changes in this push — skipping smoke."
-  exit 0
-fi
-
-if ! command -v npx >/dev/null 2>&1; then
+elif ! command -v npx >/dev/null 2>&1; then
   echo "pre-push: WARNING — npx not found on PATH; cannot run the smoke gate."
   echo "          Allowing the push, but please run 'npx playwright test' manually."
-  exit 0
-fi
-
-echo "pre-push: running critical-path Playwright smoke (~1-2 min)…"
-echo "          (emergency bypass: git push --no-verify)"
-echo ""
-if npx playwright test "${SMOKE_SPECS[@]}" --workers=2 --reporter=line; then
+else
+  echo "pre-push: running critical-path Playwright smoke (~1-2 min)…"
+  echo "          (emergency bypass: git push --no-verify)"
   echo ""
-  echo "pre-push: smoke GREEN — push allowed."
-  exit 0
+  if npx playwright test "${SMOKE_SPECS[@]}" --workers=2 --reporter=line; then
+    echo ""
+    echo "pre-push: smoke GREEN — push allowed."
+  else
+    echo ""
+    echo "pre-push: smoke FAILED — push BLOCKED."
+    echo "          Fix the failing spec(s), then push again. Full suite: npx playwright test"
+    echo "          Emergency override (NOT recommended): git push --no-verify"
+    exit 1
+  fi
 fi
 
-echo ""
-echo "pre-push: smoke FAILED — push BLOCKED."
-echo "          Fix the failing spec(s), then push again. Full suite: npx playwright test"
-echo "          Emergency override (NOT recommended): git push --no-verify"
-exit 1
+# ── 2. Auto-deploy (after green; warns but never blocks) ─────────────────────
+if [ "$deploy" -eq 1 ]; then
+  echo ""
+  echo "pre-push: main + deployable change — publishing live…"
+  if bash "$REPO/deploy.sh"; then
+    : # deploy.sh prints its own success line
+  else
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      echo "pre-push: deploy SKIPPED (missing token/npx) — push still allowed; deploy by hand: bash deploy.sh"
+    else
+      echo "pre-push: deploy FAILED — push still allowed; re-run by hand: bash deploy.sh"
+    fi
+  fi
+fi
+
+exit 0

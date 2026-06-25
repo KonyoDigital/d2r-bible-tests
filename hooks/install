@@ -5,6 +5,8 @@ set -e
 REPO="$(git rev-parse --show-toplevel)"
 cd "$REPO"
 git config core.hooksPath hooks
-chmod +x hooks/pre-push hooks/install 2>/dev/null || true
+chmod +x hooks/pre-push hooks/install deploy.sh 2>/dev/null || true
 echo "git hooks enabled (core.hooksPath = hooks)."
-echo "pre-push will run a ~1-2 min Playwright smoke before pushes that touch bible.html / specs."
+echo "pre-push will run a ~1-2 min Playwright smoke before pushes that touch bible.html / specs,"
+echo "then AUTO-DEPLOY live (Cloudflare Pages) on a green push to main that touches bible.html / art / functions."
+echo "Deploy auth = CLOUDFLARE_API_TOKEN in ~/.zshenv (Mac only). Manual deploy anytime: bash deploy.sh"
