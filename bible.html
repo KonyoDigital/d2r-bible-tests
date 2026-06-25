@@ -20362,6 +20362,56 @@ _v41_whenReady(() => {
       action: () => { if (typeof setMFPreset === 'function') setMFPreset(p.v); }
     }));
 
+    // Charm affixes (v449) — the magic-charm reference cards (FHR / resist / MF / life /
+    // FRW small charms + class skillers) live in EXTRA_ITEMS and route via openDrop, but
+    // EXTRA_ITEMS was never folded into this index, so "FHR charm" / "faster hit recovery"
+    // found nothing. Index the charm cards here, keyed by what they ROLL: fold each card's
+    // affixes + common shorthand (fhr/mf/frw/res/skiller) into keywords so a roll-name query
+    // surfaces the right card. score() matches label+keywords. (openDrop already handles them.)
+    try {
+      const EI = (typeof window.EXTRA_ITEMS !== 'undefined' && window.EXTRA_ITEMS)
+        ? window.EXTRA_ITEMS : (typeof EXTRA_ITEMS !== 'undefined' ? EXTRA_ITEMS : {});
+      const AFFIX_KW = {
+        'faster hit recovery': ' fhr faster hit recovery breakpoint',
+        'faster run': ' frw faster run walk run/walk',
+        'better chance of getting magic items': ' mf magic find better chance',
+        'all resistances': ' res resist resistance all-res all res',
+        'resist': ' res resist resistance',
+        'to life': ' life vita hp',
+        'to mana': ' mana',
+        'attack rating': ' ar attack rating',
+        'skill': ' skiller skill tab +1 skills',
+        'maximum damage': ' max damage'
+      };
+      Object.keys(EI).forEach(nm => {
+        const e = EI[nm]; if (!e) return;
+        if (!/charm/.test(String(e.base || '').toLowerCase())) return;
+        if (seenItems.has(nm)) return; seenItems.add(nm);
+        const stats = Array.isArray(e.stats) ? e.stats.join(' ') : '';
+        const hay = (nm + ' ' + stats + ' ' + (e.desc || e.note || '')).toLowerCase();
+        let extra = '';
+        Object.keys(AFFIX_KW).forEach(p => { if (hay.indexOf(p) >= 0) extra += AFFIX_KW[p]; });
+        cmds.push({
+          icon: '🔹',
+          label: nm,
+          sub: e.val ? String(e.val) : 'magic charm',
+          cat: 'charm',
+          keywords: 'charm small grand large charm affix roll keeper ' + hay + extra,
+          action: () => { if (typeof window.openDrop === 'function') window.openDrop(nm); }
+        });
+      });
+      // FCR clarifier — charms genuinely cannot roll Faster Cast Rate (a common mis-search);
+      // point it at where FCR actually lives so the query isn't a dead end.
+      cmds.push({
+        icon: 'ℹ️',
+        label: 'Faster Cast Rate (FCR) — not a charm affix',
+        sub: "charms can't roll FCR — it's on amulets / rings / jewels",
+        cat: 'charm',
+        keywords: 'fcr faster cast rate charm small charm grand charm not available where amulet ring jewel',
+        action: () => { if (typeof window.openDrop === 'function') window.openDrop('Godly Caster Amulet (rare)'); }
+      });
+    } catch(e){}
+
     // Actions
     cmds.push({
       icon: '⌨️',
