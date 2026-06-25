@@ -5,17 +5,19 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v436 — Chronicle sync: a runeword you've ALREADY FORGED (rwMade) is exempted from the "Keep for
 // runewords" examples (throw-out review + base hover + mule cards), so you only see what's LEFT to make.
 // Also: seed is now 30 (Authority + Melody added).
-test('seed is 30 (Authority + Melody added)', async ({ page }) => {
+test("seed is 31 (Authority + Melody + Ancients' Pledge added)", async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window;
     return { count: w._RWC_SEED ? Object.keys(w._RWC_SEED).length : 0,
              hasAuthority: !!(w._RWC_SEED && w._RWC_SEED['Authority']),
-             hasMelody: !!(w._RWC_SEED && w._RWC_SEED['Melody']) };
+             hasMelody: !!(w._RWC_SEED && w._RWC_SEED['Melody']),
+             hasAncients: !!(w._RWC_SEED && w._RWC_SEED["Ancients' Pledge"]) };
   });
-  expect(r.count).toBe(30);
+  expect(r.count).toBe(31);
   expect(r.hasAuthority).toBe(true);
   expect(r.hasMelody).toBe(true);
+  expect(r.hasAncients).toBe(true);
 });
 
 test('an already-created runeword is exempted from the Keep-for-runewords list', async ({ page }) => {

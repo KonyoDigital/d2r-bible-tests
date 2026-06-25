@@ -11950,7 +11950,8 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // after that it's user-controlled (toggle on each runeword). Rides Backup & Share (a d2r_ LS key).
 // v420 — default Created seed = Konyo's actual forged runewords (read off his Chronicle screenshots).
 // v436 — now 30 (added Authority + Melody, forged 2026-06-24), so a fresh load / reset never drops below 30.
-const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05"};
+  // v448 — now 31 (added Ancients' Pledge, forged 2026-06-25), so the durable floor is 31.
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05","Ancients' Pledge":"Jun 25, 2026 · 12:00"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
@@ -11960,7 +11961,7 @@ if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rw
 // snaps back to ≥28, while un-marks still stick. This converges the stuck-at-19 save to 28 with no flag.
 let rwUnmade = _safeJsonParse(LS.getItem('d2r_rwUnmade'), null);
 if (rwUnmade === null || typeof rwUnmade !== 'object' || Array.isArray(rwUnmade)) rwUnmade = {};
-// v432/v436 — HARD FLOOR of the confirmed Chronicle (now 30: + Authority + Melody). The v424 floor still
+// v432/v436/v448 — HARD FLOOR of the confirmed Chronicle (now 31: + Ancients' Pledge). The v424 floor still
 // honoured d2r_rwUnmade, so a save with seeded RWs un-marked kept snapping back down. These runewords are
 // FORGED FACT — force them made on EVERY load UNCONDITIONALLY and purge any stale un-mark of a seeded RW, so
 // the count is always ≥30. (Un-marking still works for the non-seeded runewords.)

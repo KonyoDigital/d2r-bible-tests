@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('Chronicle seeds 30 created, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
+test('Chronicle seeds 31 created, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
@@ -40,23 +40,23 @@ test('Chronicle seeds 30 created, lists all 100, syncs makeable, toggles persist
   });
 
   expect(errs).toEqual([]);
-  // seeded the 30-runeword durable floor (Konyo's actual created list)
-  expect(r.madeCount).toBe(30);
-  ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction'].forEach((n) =>
+  // seeded the 31-runeword durable floor (Konyo's actual created list)
+  expect(r.madeCount).toBe(31);
+  ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge"].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(100);                 // all 100 runewords listed
-  expect(r.prog).toContain('30 / 100');         // 30% created, matches the Chronicle
+  expect(r.prog).toContain('31 / 100');         // 31% created, matches the Chronicle
   expect(r.spirit?.badge).toContain('Can make now');   // not seeded, makeable from the rune stash
   expect(r.beast?.made).toBe(true);             // a seeded one reads Created
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.enigma?.badge).toContain('Missing'); // Jah+Ith+Ber not owned, not seeded
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 30 → 31
+  // toggling an UN-seeded runeword to created persists and bumps the count 31 → 32
   const after = await page.evaluate(() => {
     (window as any).rwToggleMade('Enigma');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return { enigma: !!made['Enigma'], count: Object.keys(made).length };
   });
   expect(after.enigma).toBe(true);
-  expect(after.count).toBe(31);
+  expect(after.count).toBe(32);
 });
