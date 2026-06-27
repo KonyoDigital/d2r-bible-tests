@@ -496,11 +496,16 @@ export async function onRequestPost(context) {
   // forms: "<Base> (Nos)" (socketed) / "<Base> (Larzuk base)" (unsocketed elite). Returns null when the
   // base isn't a recognizable socketable type → caller falls back to the generic bucket.
   const titleCase = (s) => String(s || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  const specificBaseLabel = (base, count, larzuk) => {
+  const specificBaseLabel = (base, count, larzuk, q) => {
     const b = titleCase(base);
     if (!b || b.length < 3) return null;
     if (!socketGeneric(base, count)) return null;   // not a known socketable weapon/armor type
-    return larzuk ? (b + ' (Larzuk base)') : (b + ' (' + count + 'os)');
+    // v450 — keep SUPERIOR in the registered identity so a superior base registers as its OWN tile (not
+    // merged with the white one) and the card can note it keeps its superior bonus. Superior is still a
+    // NORMAL-quality item, so it DOES make runewords (the v412 "can't runeword" rule was wrong) — the
+    // prefix is an identity/dedup distinction, NOT a disqualifier. The client strips it for art/socket lookup.
+    const pre = (q === 'superior' && !/^superior\b/i.test(b)) ? 'Superior ' : '';
+    return larzuk ? (pre + b + ' (Larzuk base)') : (pre + b + ' (' + count + 'os)');
   };
   // v342.13 — sunder charms are account-shared keepers (NOT muled, NOT rolled-name rares). Detect by type.
   const SUNDER_TYPES = ['Cold Rupture', 'Flame Rift', 'Crack of the Heavens', 'Rotting Fissure', 'Bone Break', 'Black Cleft'];
@@ -576,9 +581,11 @@ export async function onRequestPost(context) {
   const socketBaseLower = new Set();
   const socketEth = [];   // v402 — registered labels of ETHEREAL socketed bases (their eth flag lives on the
                           // sockets entry, not in parsed.ethereal — must be forwarded so the ⊘ badge sticks).
-  const socketSuperior = [];   // v412 — registered labels of SUPERIOR socketed bases. A Superior base CANNOT
-                               // form a runeword (needs a normal/grey base) — forwarded so the card warns and
-                               // never tells Konyo to waste runes on it (the Hustle lesson, base-quality edition).
+  const socketSuperior = [];   // v450 — registered labels of SUPERIOR socketed bases. CORRECTION of v412: a
+                               // Superior base IS a normal-quality (white) item and DOES form runewords like
+                               // any white base — and keeps its superior bonus on top. Forwarded so the card
+                               // shows the "valid superior base (keeps its bonus)" note, NOT a "can't runeword"
+                               // warning. (Superior Phase Blades for Grief are a premium PvP base for this.)
   for (const s of (parsed.sockets || [])) {
     const base = s && typeof s.base === 'string' ? s.base.trim() : '';
     if (!base) continue;
@@ -597,7 +604,7 @@ export async function onRequestPost(context) {
     if (cnt <= 0) {
       if (!eliteOrMagic) continue;
       socketBaseLower.add(base.toLowerCase());
-      const lg = specificBaseLabel(base, 0, true) || larzukGeneric(base);   // v379 — specific base, generic fallback
+      const lg = specificBaseLabel(base, 0, true, s.q) || larzukGeneric(base);   // v379/v450 — specific base (+Superior prefix), generic fallback
       if (lg && !items.includes(lg)) items.push(lg);
       if (s.eth === true && lg) socketEth.push(lg);                          // v402 — forward eth flag
       if (s.q === 'superior' && lg) socketSuperior.push(lg);                 // v412 — forward superior flag
@@ -606,7 +613,7 @@ export async function onRequestPost(context) {
     const worth = eliteOrMagic || cnt >= 5;
     if (!worth) { unrec.push(base + ' (' + (s.count || '?') + 'os low base)'); continue; }
     socketBaseLower.add(base.toLowerCase());
-    const gen = specificBaseLabel(base, cnt, false) || socketGeneric(base, s.count);   // v379 — specific base, generic fallback
+    const gen = specificBaseLabel(base, cnt, false, s.q) || socketGeneric(base, s.count);   // v379/v450 — specific base (+Superior prefix), generic fallback
     if (gen && !items.includes(gen)) items.push(gen);
     if (s.eth === true && gen) socketEth.push(gen);                          // v402 — forward eth flag
     if (s.q === 'superior' && gen) socketSuperior.push(gen);                 // v412 — forward superior flag

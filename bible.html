@@ -7114,13 +7114,18 @@ window._baseRunewords = _baseRunewords;
 // base's socket count (knownSockets), show only the runewords that fit it RIGHT NOW as makeable, and
 // list the other socket counts separately as re-roll/different-base targets. A 0/unknown count
 // (a Larzuk candidate the AI read with no sockets yet) keeps the full "aim for the max" guidance.
-function _baseRWLine(name, knownSockets){
-  // v412 — a SUPERIOR base can NEVER form a runeword (runewords need a normal/grey base). Warn + suppress the
-  // "keep for runewords" guidance entirely so it can't lead to wasted runes (base-quality edition of the Hustle fix).
-  try { if (window._isSuperior && window._isSuperior(name)) {
-    return '<div class="att-aff" style="color:#e9b96e">⚠ <b>SUPERIOR base — cannot make a runeword.</b> Runewords need a <b>NORMAL (white/grey)</b> base. A Superior base only takes <b>gems / jewels</b> (and keeps its small superior bonus) — <b>don\'t cube runes into it</b>, they won\'t form the runeword.</div>';
-  } } catch(e){}
-  var rws = _baseRunewords(name); if (!rws.length) return '';
+function _baseRWLine(name, knownSockets, forceSuperior){
+  // v450 — CORRECTION of the v412 rule: a SUPERIOR base IS a normal-quality (white) item and DOES form
+  // runewords exactly like a plain white base — and it KEEPS its superior bonus (+ED / +max-dmg / +AR /
+  // +durability) on top of the runeword. (Superior Phase Blades for Grief are a premium PvP base precisely
+  // for this.) So we no longer suppress runeword guidance for superiors — we show it, with a short note that
+  // it's a valid base that keeps its bonus. Only magic/rare/set/unique/crafted bases truly can't runeword.
+  var _supNote = '', _isSup = !!forceSuperior;
+  try { if (!_isSup && window._isSuperior && window._isSuperior(name)) _isSup = true; } catch(e){}
+  if (_isSup) {
+    _supNote = '<div class="att-aff" style="color:#8fd0a0">✔ <b>Superior base — a valid runeword base.</b> Superior is still normal quality: socket it and cube the runes in order like any white base — it even <b>keeps its small superior bonus</b> (e.g. +ED / +durability) on top of the runeword.</div>';
+  }
+  var rws = _baseRunewords(name); if (!rws.length) return _supNote;
   // v436 — CHRONICLE SYNC: a runeword you've ALREADY FORGED (rwMade, the Chronicle) is not something you
   // still need to make — so exempt it from the "Keep for runewords" examples and show only what's LEFT to
   // create (Konyo: "I know exactly what I have left to create"). Created ones are cancelled out + counted.
@@ -7166,7 +7171,7 @@ function _baseRWLine(name, knownSockets){
     var now = rws.filter(function(r){ return r.s === ks; });
     var nowTodo = now.filter(function(r){ return !_rwIsMade(r.n); });
     var nowMade = now.filter(function(r){ return _rwIsMade(r.n); });
-    return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now: '
+    return _supNote + '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now: '
       + (nowTodo.length
           ? _rwNames(nowTodo) + _rwMadeTag(nowMade)
           : (nowMade.length
@@ -7183,7 +7188,7 @@ function _baseRWLine(name, knownSockets){
   var show = bestTodo.length
     ? _rwNames(bestTodo) + _rwMadeTag(bestMade)
     : (bestMade.length ? '<span style="color:#8fd0a0">✓ all ' + bestMade.length + ' ' + maxS + 'os runewords here are already created</span>' : '<span style="opacity:.7">—</span>');
-  return '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
+  return _supNote + '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
     + show
     + '<div class="att-tag" style="margin-top:3px">Larzuk → <b>' + maxS + ' sockets</b> (guaranteed max) unlocks these</div></div>';
 }
@@ -7202,8 +7207,8 @@ const SOCKET_MAX = {
 // max sockets Larzuk/the cube can reach for a base — EXACT when known, else a SLOT ceiling. Weapons +
 // unknowns return null (most weapons cap at 3, so we don't over-promise 6 for an unverified weapon base).
 function _socketMaxFor(base){
-  var b = String(base || '').toLowerCase().trim();
-  var _r = (typeof _baseRec === 'function') ? _baseRec(base) : null;   // v381 — complete BASE_DB first
+  var b = (typeof _qualStrip === 'function' ? _qualStrip(base) : String(base || '')).toLowerCase().trim();   // v450 — strip "Superior " etc.
+  var _r = (typeof _baseRec === 'function') ? _baseRec(b) : null;   // v381 — complete BASE_DB first
   if (_r && _r.maxSockets != null) return _r.maxSockets;
   if (SOCKET_MAX[b] != null) return SOCKET_MAX[b];
   var c = (typeof _baseCats === 'function') ? _baseCats(b) : {};
@@ -7321,7 +7326,12 @@ const BASE_TIER = (function(){
   return T;
 })();
 // item tier ('normal'|'exceptional'|'elite') from a base-type name; '' if unknown.
-function _baseTier(base){ var b=String(base||'').toLowerCase().trim(); if(!b) return ''; var _r=(typeof _baseRec==='function')?_baseRec(base):null; if(_r&&_r.tier) return _r.tier; return BASE_TIER[b]||''; }
+// v450 — strip a leading item-QUALITY word so a "Superior <Base>" (or low-quality) name resolves to its
+// bare base for art / tier / socket-max / runeword lookups, while the registered NAME keeps "Superior" as
+// its display identity. Superior is normal quality (it makes runewords) — the prefix is identity, not type.
+function _qualStrip(s){ return String(s==null?'':s).replace(/^\s*(?:superior|inferior|low quality|damaged|cracked|crude)\s+/i,'').trim(); }
+window._qualStrip = _qualStrip;
+function _baseTier(base){ var b=_qualStrip(base).toLowerCase().trim(); if(!b) return ''; var _r=(typeof _baseRec==='function')?_baseRec(b):null; if(_r&&_r.tier) return _r.tier; return BASE_TIER[b]||''; }
 window._baseTier = _baseTier;
 // v380 — the "Elite Base Item" / "Elite Unique" / "Elite Set" label for ANY item. Resolves the item's
 // base (socketed-label parse → ITEM_CODEX → EXTRA_ITEMS) and rarity, then prefixes the verified tier.
@@ -7357,7 +7367,12 @@ function _ensureSocketBaseEntry(name){
   try{
     if (typeof EXTRA_ITEMS === 'undefined' || !name || EXTRA_ITEMS[name]) return;
     var m = /^(.+?)\s*\((?:(\d+)os|Larzuk base)\)\s*$/.exec(name); if (!m) return;
-    var base = m[1].trim(); var sockets = m[2] ? parseInt(m[2], 10) : 0;
+    var rawBase = m[1].trim();
+    // v450 — a "Superior <Base>" keeper: strip the quality word so art / cats / socket-max resolve to the
+    // bare base, but keep "Superior" in the registered NAME (the tile title) and flag it for the RW note.
+    var nameSup = /^\s*superior\b/i.test(rawBase) || (typeof window._isSuperior === 'function' && window._isSuperior(name));
+    var base = (typeof _qualStrip === 'function' ? _qualStrip(rawBase) : rawBase) || rawBase;
+    var sockets = m[2] ? parseInt(m[2], 10) : 0;
     var cats = (typeof _baseCats === 'function') ? _baseCats(base) : {};
     var slot = cats['body armor'] ? 'Body Armor' : (cats['shield'] ? 'Shield' : (cats['helm'] ? 'Helm' : (cats['weapon'] ? 'Weapon' : null)));
     if (!slot) return;
@@ -7365,7 +7380,7 @@ function _ensureSocketBaseEntry(name){
       || /colossus (blade|sword|voulge)|thunder maul|ogre maul|great maul|war pike|giant thresher|\bthresher\b|great poleaxe|\bmaul\b/i.test(base);
     var cells = slot === 'Body Armor' ? {w:2,h:3} : (slot === 'Shield' ? {w:2,h:3} : (slot === 'Helm' ? {w:2,h:2} : (is2H ? {w:2,h:4} : {w:1,h:3})));
     var mx = (typeof _socketMaxFor === 'function') ? _socketMaxFor(base) : null;
-    var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets > 0 ? sockets : (mx || 0)) : '';
+    var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets > 0 ? sockets : (mx || 0), nameSup) : '';
     var guide = (typeof _socketGuideLine === 'function') ? _socketGuideLine(base, 'normal') : '';
     var tlbl = (typeof _itemTierLabel === 'function') ? _itemTierLabel(base) : '';
     var head = (tlbl ? '<div class="att-meta" style="color:#9c8d6b">' + tlbl + '</div>' : '')
@@ -10509,7 +10524,7 @@ function runewordDetailHtml(name){
            +   '<button onclick="window.rwSetVerify&&window.rwSetVerify(\''+key.replace(/'/g,"\\'")+'\',null)" style="cursor:pointer;font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid var(--border,#3a2f1e);background:none;color:var(--text-dim,#9a8c72)">clear</button>'
            + '</div></div>';
        })()
-    +   '<div class="zd-row rwd-stat"><span class="zd-v"><b style="color:var(--hell,#ff5555)">The base MUST be a NORMAL (white) or grey/low-quality item</b> — a <b>Superior</b>, magic, rare, set or unique base will <b>NOT</b> form a runeword (the runes just socket in as a "Gemmed" item and are wasted).</span></div>'
+    +   '<div class="zd-row rwd-stat"><span class="zd-v"><b style="color:var(--hell,#ff5555)">The base must be a non-magical item</b> — <b>white/grey, low-quality, OR Superior</b> all work (a Superior base even keeps its bonus); only a <b>magic, rare, set, crafted or unique</b> base will <b>NOT</b> form a runeword (the runes just socket in as a "Gemmed" item and are wasted).</span></div>'
     +   '<div class="zd-row rwd-stat"><span class="zd-v">It must be a <b>'+_d2artEsc(o.b)+'</b> with <b>EXACTLY '+(o.rec||[]).length+' socket'+((o.rec||[]).length===1?'':'s')+'</b> — not more, not fewer.</span></div>'
     +   '<div class="zd-row rwd-stat"><span class="zd-v">Insert the runes <b>left-to-right in this EXACT order</b>: <b>'+(o.rec||[]).join(' → ')+'</b>.</span></div>'
     + '</section>'
@@ -11851,8 +11866,9 @@ window._isEthereal = function(n){ try {
   for (var e of etherealItems){ if (_etherNorm(e) === nn) return true; }
   return false;
 } catch(e){ return false; } };
-// v412 — SUPERIOR socketed bases: a Superior base CANNOT form a runeword (needs a normal/grey base). Tracked
-// like ethereal so the base card warns + suppresses runeword guidance (don't waste runes — the Hustle lesson).
+// v450 (CORRECTS v412) — SUPERIOR socketed bases. A Superior base IS a normal-quality (white) item and DOES
+// form runewords like any white base — and keeps its superior bonus on top. Tracked like ethereal so the base
+// card shows the "valid superior base (keeps its bonus)" note (NOT the old wrong "can't runeword" warning).
 let superiorBases = new Set(_safeJsonParse(LS.getItem('d2r_superiorBases'), []));
 window._isSuperior = function(n){ try {
   if (superiorBases.has(n)) return true;
@@ -12536,7 +12552,7 @@ function baseDetailHtml(name){
     + '<section class="gic-section"><div class="gic-section-title">🔩 Sockets &amp; runewords</div>'
     + (rwLine || '<div class="att-aff" style="opacity:.7">No known runewords use this base type — keep only for crafting / gemming or a low-level twink.</div>')
     + sg + '</section>'
-    + '<div class="zd-note">A <b>white/grey '+_d2artEsc(slotLabel)+' base</b>. Socket it to the right count (Larzuk = guaranteed max, the cube = random) and cube runes <b>in order</b> for a runeword — runewords need a <b>normal</b> base (never superior/magic/rare).</div>'
+    + '<div class="zd-note">A <b>white/grey '+_d2artEsc(slotLabel)+' base</b>. Socket it to the right count (Larzuk = guaranteed max, the cube = random) and cube runes <b>in order</b> for a runeword — any non-magical base works (white/grey/low-quality/<b>Superior</b>); only magic/rare/set/unique can\'t.</div>'
     + '</div>';
 }
 window.baseDetailHtml = baseDetailHtml;
