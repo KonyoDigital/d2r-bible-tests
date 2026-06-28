@@ -4,7 +4,7 @@ const fs = require('fs');
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  await page.goto('file://' + path.resolve(__dirname, 'bible.html'));
+  await page.goto('file://' + (process.argv[2] || path.resolve(__dirname, 'bible.html')));
   await page.waitForTimeout(800);
   const data = await page.evaluate(() => {
     const probe = (name, bid) => {
