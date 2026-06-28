@@ -32,7 +32,7 @@ test('a usage-limit error shows a clear banner and aborts (no false empties)', a
   // drop 3 files — once the cap is detected, the rest must be skipped, not faked as empty
   await page.setInputFiles('#vault-intake-file', [0,1,2].map(i => ({ name:`s${i}.jpg`, mimeType:'image/jpeg', buffer: TINY_JPG })));
   await page.waitForFunction(
-    () => /usage limit|AI intake done|registered/i.test(document.getElementById('vault-intake-report')?.textContent || ''),
+    () => /usage limit|Last scan|registered/i.test(document.getElementById('vault-intake-report')?.textContent || ''),
     undefined, { timeout: 10000 }
   );
   const report = await page.evaluate(() => document.getElementById('vault-intake-report')!.textContent!);

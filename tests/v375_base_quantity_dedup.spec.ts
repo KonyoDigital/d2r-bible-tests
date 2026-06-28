@@ -37,7 +37,7 @@ test.describe('v375 base quantity dedup', () => {
       { name: 'thresher1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
       { name: 'thresher2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
     ]);
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => ({
       count: eval('copies')['Larzuk 2H Weapon Base'],
       persisted: JSON.parse(localStorage.getItem('d2r_copies') || '{}'),
@@ -61,7 +61,7 @@ test.describe('v375 base quantity dedup', () => {
       { name: 'wf1.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
       { name: 'wf2.jpg', mimeType: 'image/jpeg', buffer: TINY_JPG },
     ]);
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     const r = await page.evaluate(() => ({
       count: eval('copies')['Windforce'] || 1,
       report: document.getElementById('vault-intake-report')!.textContent!,

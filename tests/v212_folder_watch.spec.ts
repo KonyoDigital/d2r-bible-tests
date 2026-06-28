@@ -62,7 +62,7 @@ test.describe('v212 folder watch', () => {
     await page.evaluate(() => (window as any).vaultConnectFolder());
     await menuPick(page, 'new');
     await page.waitForFunction(
-      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'),
+      () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
     );
     const r = await page.evaluate(() => ({
@@ -77,7 +77,7 @@ test.describe('v212 folder watch', () => {
     await stubFolder(page, [{ name: 'a.png', mtime: 1 }]);
     await page.evaluate(() => (window as any).vaultConnectFolder());
     await menuPick(page, 'new');
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('AI intake done'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
     // same folder again → menu reports 0 new
     await page.evaluate(() => (window as any).vaultScanFolder());
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('0 new'), undefined, { timeout: 8000 });
