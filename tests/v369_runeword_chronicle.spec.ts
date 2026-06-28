@@ -12,8 +12,9 @@ test('Chronicle seeds 31 created, lists all 100, syncs makeable, toggles persist
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
-    // enough runes to make Spirit (Tal+Thul+Ort+Amn) now; leave d2r_rwMade unset → seeds the 30-floor
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ort: 2, Sol: 1, Tal: 1, Thul: 1, Amn: 1 }));
+    // enough runes to make Zephyr (Ort+Eth) now — an UN-seeded word for the "Can make now" check;
+    // leave d2r_rwMade unset → seeds the durable floor (Spirit + Grief are now seeded → read Created)
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ort: 2, Sol: 1, Tal: 1, Thul: 1, Amn: 1, Eth: 1 }));
   });
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1400);
@@ -34,29 +35,30 @@ test('Chronicle seeds 31 created, lists all 100, syncs makeable, toggles persist
       madeCount: Object.keys(made).length,
       rowCount: rows.length,
       prog: (document.getElementById('rwc-progress') || {}).textContent || '',
-      spirit: find('Spirit'),
+      spirit: find('Spirit'), zephyr: find('Zephyr'),
       beast: find('Beast'), death: find('Death'), enigma: find('Enigma'),
     };
   });
 
   expect(errs).toEqual([]);
-  // seeded the 31-runeword durable floor (Konyo's actual created list)
-  expect(r.madeCount).toBe(31);
-  ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge"].forEach((n) =>
+  // seeded the 34-runeword durable floor (Konyo's actual created list)
+  expect(r.madeCount).toBe(34);
+  ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(100);                 // all 100 runewords listed
-  expect(r.prog).toContain('31 / 100');         // 31% created, matches the Chronicle
-  expect(r.spirit?.badge).toContain('Can make now');   // not seeded, makeable from the rune stash
+  expect(r.prog).toContain('34 / 100');         // 34% created, matches the Chronicle
+  expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
+  expect(r.zephyr?.badge).toContain('Can make now');   // un-seeded, makeable (Ort+Eth) from the rune stash
   expect(r.beast?.made).toBe(true);             // a seeded one reads Created
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.enigma?.badge).toContain('Missing'); // Jah+Ith+Ber not owned, not seeded
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 31 → 32
+  // toggling an UN-seeded runeword to created persists and bumps the count 34 → 35
   const after = await page.evaluate(() => {
     (window as any).rwToggleMade('Enigma');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return { enigma: !!made['Enigma'], count: Object.keys(made).length };
   });
   expect(after.enigma).toBe(true);
-  expect(after.count).toBe(32);
+  expect(after.count).toBe(35);
 });
