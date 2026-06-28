@@ -71,12 +71,12 @@ test.describe('v405 runeword mule + capacity overflow', () => {
       }
       w.openMuleCard('bases');
       const box = document.getElementById('vault-detail');
-      const tag = box?.querySelector('.vd-mule-pg')?.textContent || '';
+      const tag = box?.querySelector('.vd-mule-nav')?.textContent || '';
       const page1Items = box ? box.querySelectorAll('.vd-item').length : 0;
       // step to mule 2 via the pager and confirm the page changes
       w._muleSetPage(1);
       const box2 = document.getElementById('vault-detail');
-      const tag2 = box2?.querySelector('.vd-mule-pg')?.textContent || '';
+      const tag2 = box2?.querySelector('.vd-mule-nav')?.textContent || '';
       const page2Items = box2 ? box2.querySelectorAll('.vd-item').length : 0;
       w.vaultCloseCard && w.vaultCloseCard();
       return { tag, page1Items, tag2, page2Items };
