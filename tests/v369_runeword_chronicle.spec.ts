@@ -41,24 +41,24 @@ test('Chronicle seeds 36 created, lists all 100, syncs makeable, toggles persist
   });
 
   expect(errs).toEqual([]);
-  // seeded the 36-runeword durable floor (Konyo's actual created list)
-  expect(r.madeCount).toBe(36);
-  ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom'].forEach((n) =>
+  // seeded the 37-runeword durable floor (Konyo's actual created list)
+  expect(r.madeCount).toBe(37);
+  ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom', 'Plague'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(100);                 // all 100 runewords listed
-  expect(r.prog).toContain('36 / 100');         // 36% created, matches the Chronicle
+  expect(r.prog).toContain('37 / 100');         // 37% created, matches the Chronicle
   expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
   expect(r.zephyr?.badge).toContain('Can make now');   // un-seeded, makeable (Ort+Eth) from the rune stash
   expect(r.beast?.made).toBe(true);             // a seeded one reads Created
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.faith?.badge).toContain('Missing');  // Ohm+Jah+Lem+Eld not owned, not seeded
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 36 → 37
+  // toggling an UN-seeded runeword to created persists and bumps the count 37 → 38
   const after = await page.evaluate(() => {
     (window as any).rwToggleMade('Faith');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return { faith: !!made['Faith'], count: Object.keys(made).length };
   });
   expect(after.faith).toBe(true);
-  expect(after.count).toBe(37);
+  expect(after.count).toBe(38);
 });
