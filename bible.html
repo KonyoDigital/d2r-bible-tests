@@ -12297,7 +12297,7 @@ const EXTRA_ITEMS = {
   "Eth Great Poleaxe (Insight base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'mid (eth)', desc:"A high-damage 4-socket <b>Insight</b> polearm base; eth for the merc's Meditation aura weapon." },
   "Eth Giant Thresher (Infinity base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'high (eth)', desc:"Top-tier <b>Infinity / Insight</b> base — elite 4-socket polearm; eth = max damage for a Conviction merc." },
   "Eth War Pike (Infinity base)": { rarity:'basic', base:'Polearm', cat:'Runeword bases', val:'mid (eth)', desc:"Highest-damage 4-socket spear-class <b>Infinity</b> base; eth for the lightning/javazon merc." },
-  "Flail (Heart of the Oak base)": { rarity:'basic', base:'Mace', cat:'Runeword bases', val:'mid', desc:"The classic low-requirement 4-socket <b>Heart of the Oak</b> base (also Crystal Sword) — the caster's +3-skills/40-res weapon." },
+  "Flail (Heart of the Oak base)": { rarity:'basic', base:'Flail', cat:'Runeword bases', val:'mid', desc:"The classic low-requirement <b>Heart of the Oak</b> base (also Crystal Sword) — the caster's +3-skills/40-res weapon. A Flail's max is <b>5 sockets</b>, but HotO needs exactly <b>4</b> — so <b>cube it</b> for a random 1–5 roll (or find a 4os). <b>Don't Larzuk it</b>: Larzuk gives the max (5), which overshoots the 4 HotO needs." },
   "Eth Sacred Armor (Fortitude base)": { rarity:'basic', base:'Body Armor', cat:'Runeword bases', val:'high (eth)', desc:"Highest-defense elite body — the <b>Fortitude</b> base; ethereal pushes defense over the top for a tank." },
   "Eth Balrog Skin (caster base)": { rarity:'basic', base:'Body Armor', cat:'Runeword bases', val:'mid (eth)', desc:"Low-strength elite caster body — <b>Bramble / Treachery / Enigma</b> base; eth for defense." },
   "Eth Hyperion / Aegis (Pala shield base)": { rarity:'basic', base:'Shield', cat:'Runeword bases', val:'mid (eth)', desc:"Paladin-only elite shield — the <b>Exile / Spirit / Dragon</b> base; high block + low strength." },
@@ -12756,7 +12756,13 @@ window.renderHighValueFinds = renderHighValueFinds;
   // SUNDER CHARMS) that the vault registers as owned but that aren't calc ITEMS/EXTRA — so they survive a
   // reload instead of being pruned. (Inlined here because SHARED_STASH_RE is defined later in the file.)
   var _SHARED_KEEP = /\b(rune|essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b/i;
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _SHARED_KEEP.test(n))));
+  // v465 — KEEP per-base socketed / Larzuk bases (e.g. "Champion Axe (5os)", "Monarch (4os)", "Crystal Sword
+  // (Larzuk base)"). These are registered at RUNTIME by _ensureSocketBaseEntry (after this prune), so they are
+  // NOT yet in _EXTRA_ITEM_SET here — without this guard every reload silently DROPPED them, so a later intake
+  // batch looked like it "didn't build on top" of the earlier one (Konyo's accumulation bug). Match the label
+  // suffix so they survive; _ensureSocketBaseEntry then rebuilds their cards on the same load.
+  var _SOCKET_KEEP = /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i;
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
