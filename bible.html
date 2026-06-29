@@ -12092,7 +12092,7 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // v436 — now 30 (added Authority + Melody, forged 2026-06-24), so a fresh load / reset never drops below 30.
   // v448 — now 31 (added Ancients' Pledge, forged 2026-06-25). v451 — 34: + Spirit + Grief + Stone.
   // v452 — 36 (+Enigma+Doom). v453 — 37 (+Plague). v454 — now 38: + Treachery (forged 2026-06-28). Floor is 38.
-const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05","Ancients' Pledge":"Jun 25, 2026 · 12:00","Spirit":"Jun 28, 2026 · 12:00","Grief":"Jun 28, 2026 · 12:05","Stone":"Jun 28, 2026 · 12:10","Enigma":"Jun 28, 2026 · 12:15","Doom":"Jun 28, 2026 · 12:20","Plague":"Jun 28, 2026 · 23:30","Treachery":"Jun 28, 2026 · 23:45","Zephyr":"Jun 29, 2026 · 19:30","Memory":"Jun 29, 2026 · 19:35","Rift":"Jun 29, 2026 · 20:05","Void":"Jun 29, 2026 · 20:10"};
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05","Ancients' Pledge":"Jun 25, 2026 · 12:00","Spirit":"Jun 28, 2026 · 12:00","Grief":"Jun 28, 2026 · 12:05","Stone":"Jun 28, 2026 · 12:10","Enigma":"Jun 28, 2026 · 12:15","Doom":"Jun 28, 2026 · 12:20","Plague":"Jun 28, 2026 · 23:30","Treachery":"Jun 28, 2026 · 23:45","Zephyr":"Jun 29, 2026 · 19:30","Memory":"Jun 29, 2026 · 19:35","Rift":"Jun 29, 2026 · 20:05","Void":"Jun 29, 2026 · 20:10","Fury":"Jun 29, 2026 · 23:50","Gloom":"Jun 29, 2026 · 23:55"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
@@ -24416,27 +24416,45 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
   };
   function _aicMsg(html, show){ var el=document.getElementById('aic-msg'); if(el){ el.innerHTML=html; el.style.display=(show===false?'none':'block'); } try{ status(String(html).replace(/<[^>]+>/g,'')); }catch(e){} }
+  // v468 — testable response handler: takes the parsed /api/intake JSON, fills the draft from the RICHEST
+  // magic/rare find (most affixes = almost always the hovered tooltip, not a bare grid icon). Falls back to a
+  // name from unrecognized/items. Returns {ok, msg/counts} so aicUpload can render the right feedback.
+  function _aicApplyIntake(data){
+    data = data || {};
+    var finds = Array.isArray(data.finds) ? data.finds : [];
+    var f = finds.slice().sort(function(a,b){ return (b&&b.mods?b.mods.length:0) - (a&&a.mods?a.mods.length:0); })[0];
+    if(f){ _aicItem={ name:f.name||'', base:f.base||'', q:f.q||'magic', mods:(f.mods||[]).map(String) }; _aicSave(); return { ok:true, name:(_aicItem.name||_aicItem.base||'item'), extra:Math.max(0, finds.length-1) }; }
+    var alt = (data.unrecognized||[])[0] || (data.items||[])[0];
+    if(alt){ _aicItem={ name:String(alt), base:'', q:'rare', mods:[] }; _aicSave(); return { ok:true, nameOnly:true, name:String(alt) }; }
+    return { ok:false, counts:{ items:(data.items||[]).length, finds:0, unrec:(data.unrecognized||[]).length, sockets:(data.sockets||[]).length } };
+  }
+  window._aicApplyIntake = _aicApplyIntake;   // exposed for tests
   window.aicUpload = async function(file){
-    if(!file){ return; }
-    _aicMsg('🔬 reading the item… (this takes a few seconds)');
+    var fi=document.getElementById('aic-file');
+    if(!file){ if(fi) fi.value=''; return; }
+    _aicMsg('🔬 reading the item… (a few seconds — talking to the AI)');
     try {
-      // v467 — resize like the main intake (downscale: max 1568px, JPEG 0.85). The earlier version sent the RAW
-      // full-res file, which made the payload huge → the request failed silently and the tool "did nothing".
+      // resize like the main intake (downscale: max 1568px, JPEG 0.85) so the payload isn't huge.
       var b64 = (typeof downscale === 'function')
         ? await downscale(file)
         : await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
       var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
       var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
-      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false })});
-      if(!resp || !resp.ok){ _aicMsg('🔬 read failed (server ' + (resp?resp.status:'?') + ') — enter the item by hand below.'); return; }
-      var data=await resp.json();
-      var f=(data.finds||[])[0];
-      if(f){ _aicItem={ name:f.name||'', base:f.base||'', q:f.q||'magic', mods:(f.mods||[]).map(String) }; _aicSave(); renderAIItemChecker(); _aicMsg('🔬 read <b>'+esc(_aicItem.name||_aicItem.base||'item')+'</b> — check/edit the affixes, then judge it.'); return; }
-      // fallback: a rare can come back in unrecognized / items if the AI didn't classify it as a "find"
-      var alt=(data.unrecognized||[])[0] || (data.items||[])[0];
-      if(alt){ _aicItem={ name:String(alt), base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker(); _aicMsg('🔬 read the name <b>'+esc(String(alt))+'</b> — set its base + affixes below.'); return; }
-      _aicMsg('🔬 no item detected in that screenshot — make sure the tooltip is hovered/visible, or enter it by hand below.');
-    } catch(e){ _aicMsg('🔬 read failed (network/parse) — enter the item by hand below.'); }
+      var resp;
+      try { resp=await fetch(endpoint,{ method:'POST', headers:{'content-type':'application/json'}, credentials:'same-origin', body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false }) }); }
+      catch(netErr){ _aicMsg('🔬 couldn’t reach the AI (network). Check your connection and try again — or enter the item by hand below.'); if(fi) fi.value=''; return; }
+      if(!resp.ok){
+        var hint = resp.status===401 ? ' — you may be signed out of the site; reload the page, sign in, then retry.' : (resp.status>=500 ? ' — the AI server hiccuped; try again in a moment.' : '');
+        _aicMsg('🔬 read failed (server '+resp.status+')'+hint+' You can still enter the item by hand below.'); if(fi) fi.value=''; return;
+      }
+      var data; try { data=await resp.json(); } catch(e){ _aicMsg('🔬 the AI reply was unreadable — try again, or enter by hand.'); if(fi) fi.value=''; return; }
+      try { console.log('[aic] intake response:', data); } catch(e){}
+      var r=_aicApplyIntake(data);
+      if(r.ok){ renderAIItemChecker(); _aicMsg('🔬 read <b>'+esc(r.name)+'</b>'+(r.nameOnly?' — set its base + affixes below.':((r.extra?' (+'+r.extra+' other magic/rare in the shot — showing the most detailed)':'')+'. Check/edit the affixes, then judge it.'))); if(fi) fi.value=''; return; }
+      var c=r.counts;
+      _aicMsg('🔬 the AI read the shot but found no magic/rare item (items:'+c.items+' · finds:0 · unrec:'+c.unrec+' · sockets:'+c.sockets+'). Tip: hover the item so its TOOLTIP shows, screenshot THAT, and re-upload — or enter it by hand below.');
+      if(fi) fi.value='';
+    } catch(e){ _aicMsg('🔬 read failed ('+(e&&e.message?esc(String(e.message)):'unknown')+') — enter the item by hand below.'); if(fi) fi.value=''; }
   };
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
   window.vaultDismissUnknown = function(name){

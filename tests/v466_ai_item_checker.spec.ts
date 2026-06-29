@@ -82,6 +82,39 @@ test.describe('v466 AI Item Checker', () => {
     expect(r.cleared).toBe(true);
   });
 
+  test('_aicApplyIntake fills the draft from the RICHEST find (hovered tooltip)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w = window as any;
+      const ok = w._aicApplyIntake({ finds: [
+        { name: 'Bare Icon', q: 'magic', base: 'Ring', mods: [] },
+        { name: 'Hovered Rare', q: 'rare', base: 'Crystal Sword', mods: ['+2 to All Skills', '+40% Faster Cast Rate', '+12 All Attr'] },
+      ] });
+      const d = w._aicGetDraft();
+      return { ok: ok.ok, extra: ok.extra, name: d.name, mods: d.mods.length };
+    });
+    expect(r.ok).toBe(true);
+    expect(r.name).toBe('Hovered Rare');   // picked the one with the most affixes, not finds[0]
+    expect(r.mods).toBe(3);
+    expect(r.extra).toBe(1);
+  });
+
+  test('_aicApplyIntake reports a clean miss (truly nothing read) with counts', async ({ page }) => {
+    const r = await page.evaluate(() => (window as any)._aicApplyIntake({ items: [], finds: [], unrecognized: [], sockets: [] }));
+    expect(r.ok).toBe(false);
+    expect(r.counts.items).toBe(0);
+    expect(r.counts.unrec).toBe(0);
+  });
+
+  test('_aicApplyIntake falls back to an unrecognized name when finds is empty', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const ok = (window as any)._aicApplyIntake({ items: [], finds: [], unrecognized: ['Weird Rare Name'], sockets: [] });
+      return { ok: ok.ok, nameOnly: ok.nameOnly, name: ok.name };
+    });
+    expect(r.ok).toBe(true);
+    expect(r.nameOnly).toBe(true);
+    expect(r.name).toBe('Weird Rare Name');
+  });
+
   test('the section renders (drop zone + editor + actions)', async ({ page }) => {
     const html = await page.evaluate(() => {
       const w = window as any;
