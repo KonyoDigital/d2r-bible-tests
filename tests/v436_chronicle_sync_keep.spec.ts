@@ -5,7 +5,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v436 — Chronicle sync: a runeword you've ALREADY FORGED (rwMade) is exempted from the "Keep for
 // runewords" examples (throw-out review + base hover + mule cards), so you only see what's LEFT to make.
 // Also: seed is now 30 (Authority + Melody added).
-test("seed is 40 (+ Spirit + Grief + Stone + Enigma + Doom + Plague + Treachery + Zephyr + Memory added to the floor)", async ({ page }) => {
+test("seed is 41 (+ Spirit + Grief + Stone + Enigma + Doom + Plague + Treachery + Zephyr + Memory + Rift added to the floor)", async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window;
@@ -14,7 +14,7 @@ test("seed is 40 (+ Spirit + Grief + Stone + Enigma + Doom + Plague + Treachery 
              hasMelody: !!(w._RWC_SEED && w._RWC_SEED['Melody']),
              hasAncients: !!(w._RWC_SEED && w._RWC_SEED["Ancients' Pledge"]) };
   });
-  expect(r.count).toBe(40);
+  expect(r.count).toBe(41);
   expect(r.hasAuthority).toBe(true);
   expect(r.hasMelody).toBe(true);
   expect(r.hasAncients).toBe(true);
