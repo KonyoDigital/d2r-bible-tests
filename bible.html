@@ -7119,6 +7119,22 @@ window._baseRunewords = _baseRunewords;
 // base's socket count (knownSockets), show only the runewords that fit it RIGHT NOW as makeable, and
 // list the other socket counts separately as re-roll/different-base targets. A 0/unknown count
 // (a Larzuk candidate the AI read with no sockets yet) keeps the full "aim for the max" guidance.
+// v460 — ETH-WORTHY HIGHLIGHT: when a base is ethereal, call out WHY it's worth keeping eth (Konyo: eth matters
+// a lot for specific bases). Ethereal gives +50% damage/defense but can't be repaired — so it shines where
+// durability doesn't matter (a MERCENARY weapon, or a static armor piece). Type-aware via _baseCats.
+function _ethWorthyNote(base){
+  try{
+    var c = (typeof _baseCats === 'function') ? _baseCats(base) : {};
+    var msg = '';
+    if (c['polearm'] || c['spear']) msg = 'a top <b>merc</b> base — eth <b>Insight</b> / <b>Infinity</b> / <b>Pride</b> / <b>Obedience</b>. A merc ignores durability, so you keep the free <b>+50% eth damage</b>.';
+    else if (c['body armor']) msg = 'eth body armor keeps its <b>+50% defense</b> on top of the runeword — premium for eth <b>Fortitude</b> / <b>Chains of Honor</b> / <b>Treachery</b> (best on a merc / static piece; can’t be repaired).';
+    else if (c['weapon']) msg = 'best on a <b>merc</b> weapon — no durability loss, so you keep the free <b>+50% eth damage</b> (eth Insight / Obedience / Doom).';
+    else if (c['shield'] || c['helm']) msg = 'eth keeps its <b>+50% defense</b> (can’t be repaired — fine on a merc / static piece).';
+    if (!msg) return '';
+    return '<div class="att-tag" style="margin-top:3px;color:#9fd4ff">⊘ <b>Ethereal — worth keeping:</b> ' + msg + '</div>';
+  }catch(e){ return ''; }
+}
+window._ethWorthyNote = _ethWorthyNote;
 function _baseRWLine(name, knownSockets, forceSuperior){
   // v450 — CORRECTION of the v412 rule: a SUPERIOR base IS a normal-quality (white) item and DOES form
   // runewords exactly like a plain white base — and it KEEPS its superior bonus (+ED / +max-dmg / +AR /
@@ -7130,6 +7146,9 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   if (_isSup) {
     _supNote = '<div class="att-aff" style="color:#8fd0a0">✔ <b>Superior base — a valid runeword base.</b> Superior is still normal quality: socket it and cube the runes in order like any white base — it even <b>keeps its small superior bonus</b> (e.g. +ED / +durability) on top of the runeword.</div>';
   }
+  // v460 — prepend the eth-worthy highlight (only fires for ethereal items) so it rides along with every place
+  // that renders this guidance: the Socketed Review, throw-out card, detail card, and cursor tooltip.
+  try { if (window._isEthereal && window._isEthereal(name)) _supNote = _ethWorthyNote(name) + _supNote; } catch(e){}
   var rws = _baseRunewords(name); if (!rws.length) return _supNote;
   // v436 — CHRONICLE SYNC: a runeword you've ALREADY FORGED (rwMade, the Chronicle) is not something you
   // still need to make — so exempt it from the "Keep for runewords" examples and show only what's LEFT to
@@ -23957,13 +23976,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var m=(typeof assign!=='undefined'&&assign[n]&&typeof muleById==='function')?muleById(assign[n]):null;
       var muleTag=m?'<span class="to-sock" style="border-color:rgba(127,212,255,.5);color:#9fd4ff" title="muled to '+esc(m.name)+'">🏦 '+esc(m.name)+'</span>':'';
       var sockBadge=sockets?('<span class="to-sock">🔩 '+sockets+'os</span>'):'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="unsocketed elite base — Larzuk/cube it">⚒ Larzuk</span>';
+      var ethBadge=((typeof window._isEthereal==='function')&&window._isEthereal(n))?'<span class="to-sock" style="border-color:rgba(127,212,255,.5);color:#9fd4ff" title="ethereal — +50% damage/defense, can’t be repaired (best on a merc / static piece)">⊘ ETH</span>':'';
       var why=sockets
         ? 'A <b>'+sockets+'-socket '+esc(base)+'</b> — kept &amp; muled. Runewords it can hold right now:'
         : 'An <b>unsocketed '+esc(base)+'</b> base — kept &amp; muled. Socket it to its max for:';
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
-        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+sockBadge+muleTag+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these">×'+copyCount(n)+'</span>':'')+'</div>'
+        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+sockBadge+ethBadge+muleTag+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these">×'+copyCount(n)+'</span>':'')+'</div>'
         +   '<div class="to-why">'+why+'</div>'+rwl
         + '</div></div>';
     };
