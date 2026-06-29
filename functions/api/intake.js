@@ -597,12 +597,19 @@ export async function onRequestPost(context) {
     // discarding good high-socket bases. Socket count matters as much as base type.)
     const _sc = parseInt(s.count, 10);
     const cnt = isFinite(_sc) ? _sc : 0;
-    const eliteOrMagic = s.q === 'magic' || s.eth === true || GOOD_BASE.test(base);
-    // v371 — ZERO-socket base: keep ONLY an elite/magic/eth one as a LARZUK CANDIDATE (you'd socket it
-    // later); ignore common 0-socket junk entirely (don't even surface it in throw-out review). Konyo's
-    // "track elite, ignore junk" calibration. (Junk WITH sockets still goes to the low-base review below.)
+    // v455.1 — RUNEWORD-QUALITY GATE (Konyo's blue MAGIC Thresher): ONLY a WHITE (normal) or SUPERIOR base can
+    // hold a runeword or be a craft base. A MAGIC (blue) / rare / set / unique base CANNOT be runeworded and
+    // isn't a socketed keeper — drop it entirely (the client already labels magic "gem-only, NOT a runeword
+    // base", so keeping it polluted the SOCKETED locker with junk). Superior STAYS: it's normal-quality and
+    // keeps its bonus on top of the runeword. (A genuinely worthwhile magic/rare item is read into the finds
+    // array by the AI and handled by the Magic & Rare flow — not here.)
+    const _q = (s.q || 'normal').toString().toLowerCase();
+    if (_q !== 'normal' && _q !== 'superior' && _q !== '') continue;
+    const eliteBase = GOOD_BASE.test(base);
+    // v371 — ZERO-socket base: keep ONLY an elite (or ethereal) white/superior one as a LARZUK CANDIDATE (you'd
+    // socket it later); ignore common 0-socket junk entirely. Konyo's "track elite, ignore junk" calibration.
     if (cnt <= 0) {
-      if (!eliteOrMagic) continue;
+      if (!eliteBase && s.eth !== true) continue;
       socketBaseLower.add(base.toLowerCase());
       const lg = specificBaseLabel(base, 0, true, s.q) || larzukGeneric(base);   // v379/v450 — specific base (+Superior prefix), generic fallback
       if (lg && !items.includes(lg)) items.push(lg);
@@ -610,7 +617,9 @@ export async function onRequestPost(context) {
       if (s.q === 'superior' && lg) socketSuperior.push(lg);                 // v412 — forward superior flag
       continue;
     }
-    const worth = eliteOrMagic || cnt >= 5;
+    // a worthwhile runeword base: an elite/notable base, OR any HIGH-socket (5-6) base, OR ethereal (eth white
+    // bases make premium runewords). Magic/rare already filtered out above.
+    const worth = eliteBase || cnt >= 5 || s.eth === true;
     if (!worth) { unrec.push(base + ' (' + (s.count || '?') + 'os low base)'); continue; }
     socketBaseLower.add(base.toLowerCase());
     const gen = specificBaseLabel(base, cnt, false, s.q) || socketGeneric(base, s.count);   // v379/v450 — specific base (+Superior prefix), generic fallback

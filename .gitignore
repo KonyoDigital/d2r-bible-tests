@@ -15,3 +15,6 @@ mobile_v42_*.png
 audit_v36_report.json
 .autosnap.log
 .autosnap.launchd.log
+
+# never commit the bible edit lock
+bible.html.EDIT_LOCK
