@@ -1339,6 +1339,37 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwc-toggle{justify-self:end;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;padding:5px 0;width:60px;text-align:center;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);cursor:pointer;transition:.12s;white-space:nowrap}
 .rwc-toggle:hover{border-color:#66ff88;color:#66ff88}
 .rwc-toggle.on{border-color:#b58cff;color:#b58cff;background:rgba(181,140,255,.14)}
+/* v466 — 🔬 AI Item Checker (flagship) */
+.aic-wrap{display:flex;flex-direction:column;gap:12px}
+.aic-drop{border:2px dashed rgba(127,212,255,.45);border-radius:12px;padding:16px;text-align:center;color:#9fd4ff;background:rgba(127,212,255,.05);cursor:pointer;transition:.15s;font-size:12.5px;line-height:1.5}
+.aic-drop:hover,.aic-drop.drag{border-color:#7fd4ff;background:rgba(127,212,255,.14)}
+.aic-drop b{color:#cfe7ff}
+.aic-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:720px){.aic-grid{grid-template-columns:1fr}}
+.aic-panel{border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}
+.aic-panel h4{margin:0;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#9fd4ff}
+.aic-field{display:flex;gap:8px;align-items:center}
+.aic-field label{font-size:11px;color:var(--text-dim);min-width:56px}
+.aic-input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:6px 8px;font-size:12px;font-family:inherit}
+.aic-affix-row{display:flex;gap:6px;align-items:center}
+.aic-x{flex:0 0 auto;border:1px solid rgba(255,90,90,.4);background:rgba(255,90,90,.08);color:#ff7a7a;border-radius:6px;cursor:pointer;font-size:11px;padding:5px 9px}
+.aic-add{align-self:flex-start;border:1px solid rgba(127,212,255,.4);background:rgba(127,212,255,.08);color:#9fd4ff;border-radius:7px;cursor:pointer;font-size:11px;padding:6px 11px}
+.aic-verdict{border-radius:10px;padding:13px;border:1px solid var(--border);background:var(--surface-2)}
+.aic-verdict.keep{border-color:rgba(102,255,136,.5);background:rgba(102,255,136,.07)}
+.aic-verdict.border{border-color:rgba(240,192,96,.5);background:rgba(240,192,96,.07)}
+.aic-verdict.toss{border-color:rgba(255,90,90,.45);background:rgba(255,90,90,.07)}
+.aic-vhead{font-size:16px;font-weight:800;margin-bottom:2px}
+.aic-vhead.keep{color:#66ff88}.aic-vhead.border{color:#f0c060}.aic-vhead.toss{color:#ff7a7a}
+.aic-vctx{font-size:11.5px;color:var(--text-dim);line-height:1.55;margin:7px 0}
+.aic-break{display:flex;flex-direction:column;gap:3px;margin-top:7px;border-top:1px solid rgba(255,255,255,.06);padding-top:7px}
+.aic-bk{display:flex;justify-content:space-between;gap:10px;font-size:11px;font-family:ui-monospace,monospace;color:var(--text-dim)}
+.aic-bk .w{color:#9fd4ff;font-weight:700;white-space:nowrap}
+.aic-acts{display:flex;gap:10px;margin-top:2px}
+.aic-btn{flex:1;padding:10px;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;border:1px solid;transition:.12s}
+.aic-btn.mule{border-color:rgba(127,212,255,.6);background:rgba(127,212,255,.12);color:#9fd4ff}
+.aic-btn.toss{border-color:rgba(255,90,90,.5);background:rgba(255,90,90,.1);color:#ff7a7a}
+.aic-btn:hover{filter:brightness(1.25)}
+.aic-art{width:54px;height:54px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:var(--surface);align-self:flex-start}
 .rwc-row.rwc-made{background:rgba(181,140,255,.06)}
 .rwc-row.rwc-made .rwc-name{filter:saturate(.85)}
 .rwc-row.rwc-r-now{background:rgba(102,255,136,.045)}
@@ -4057,6 +4088,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <input id="rwc-search" class="arw-filter" type="text" placeholder="search a runeword, rune, or base… (try 'enigma', 'jah', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderRunewordChronicle&&window.renderRunewordChronicle()">
         <div class="rwc-list" id="rwc-list"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- v466 — 🔬 AI Item Checker: isolated flagship tool to judge a MAGIC/RARE item (keep vs toss). -->
+  <div class="boss-card collapsible collapsed tool-premium" id="ai-item-checker-card" style="--tc:#7fd4ff">
+    <div class="boss-header" onclick="window.toggleCardCollapse('ai-item-checker-card');window.renderAIItemChecker&&window.renderAIItemChecker()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:24px">🔬</span>
+      <div class="boss-title-block">
+        <p class="boss-name">AI Item Checker</p>
+        <p class="boss-subtitle">Drop a <strong>magic / rare</strong> item — read or edit its affixes, then get a <strong>keep-or-toss</strong> verdict</p>
+        <p class="boss-loc">Magic/Rare only — cross-references the slot's runeword &amp; value bar · keeps the regular cards clean</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body">
+      <div class="aic-wrap" id="aic-wrap"></div>
     </div>
   </div>
 
@@ -24233,6 +24280,136 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('🔩 ' + stem + ' → ' + (n >= 1 ? n + ' sockets' : 'Larzuk base') + ' — fixed');
     } catch(e){}
+  };
+  // ============================================================================================
+  // v466 — 🔬 AI ITEM CHECKER (flagship): a dedicated, ISOLATED tool to judge a MAGIC/RARE item.
+  // Drop a screenshot (the AI reads what it can of the affixes) OR enter/edit by hand, then get a
+  // TRANSPARENT keep / borderline / toss verdict that cross-references the slot's runeword/value bar.
+  // Magic/Rare ONLY (the items that actually need affix judgement). All the verdict logic lives HERE,
+  // so the regular cards stay clean (Konyo). Actions: 🏦 Mule it (keep) · 🗑 Cancel out (toss).
+  // ============================================================================================
+  var _aicItem = (function(){ try { var d=_safeJsonParse(LS.getItem('d2r_aicDraft'), null); return (d && typeof d==='object' && !Array.isArray(d)) ? d : null; }catch(e){ return null; } })()
+    || { name:'', base:'', q:'rare', mods:[] };
+  function _aicSave(){ try { LS.setItem('d2r_aicDraft', JSON.stringify(_aicItem)); }catch(e){} }
+  // transparent affix value table — each affix line scores its HIGHEST matching weight (no double-count)
+  var _AIC_W = [
+    {re:/\+\s*\d+\s+to all skills/i, w:10, label:'+X All Skills'},
+    {re:/-\s*\d+%?\s*(to )?(enemy|target)[^.]{0,16}resist/i, w:8, label:'− Enemy Resist'},
+    {re:/faster cast rate|\bfcr\b/i, w:7, label:'Faster Cast Rate'},
+    {re:/\+\s*\d+\s+to [a-z' ]*\bskills?\b/i, w:6, label:'+X Class/Tree Skills'},
+    {re:/all resist|to all resistances|resist all/i, w:6, label:'All Resistances'},
+    {re:/(life|mana) stolen|life leech|mana leech/i, w:5, label:'Leech'},
+    {re:/deadly strike|crushing blow|open wounds/i, w:4, label:'Deadly Strike / CB / OW'},
+    {re:/\d+%\s*chance to cast/i, w:4, label:'Chance to Cast'},
+    {re:/faster hit recovery|\bfhr\b/i, w:4, label:'Faster Hit Recovery'},
+    {re:/replenish life|\+\s*\d+\s+(to )?(maximum )?life\b/i, w:4, label:'+ Life'},
+    {re:/magic find|better chance of getting magic/i, w:3, label:'Magic Find'},
+    {re:/all attributes/i, w:3, label:'+ All Attributes'},
+    {re:/\bresist(ance)?s?\b|cannot be frozen/i, w:2, label:'Resist / CBF'},
+    {re:/faster run|\bfrw\b/i, w:2, label:'Faster Run/Walk'},
+    {re:/increase maximum mana|\+\s*\d+\s+(to )?mana\b/i, w:2, label:'+ Mana'},
+    {re:/enhanced damage/i, w:1, label:'Enhanced Damage'},
+    {re:/attack rating|to (minimum|maximum) damage|adds \d+\s*[-–]\s*\d+/i, w:1, label:'Damage / AR'},
+  ];
+  function _aicScoreAffix(s){ s=String(s||''); var best=null; for(var i=0;i<_AIC_W.length;i++){ if(_AIC_W[i].re.test(s)){ if(!best || _AIC_W[i].w>best.w) best=_AIC_W[i]; } } return best; }
+  function _aicBench(base){
+    var c=(typeof _baseCats==='function')?_baseCats(base):{};
+    if(c['body armor']) return 'Enigma / Fortitude / Chains of Honor / Treachery';
+    if(c['shield']) return 'Spirit / Exile / Dragon';
+    if(c['helm']) return 'Lore / Delirium / Dream';
+    if(c['weapon']) return 'Spirit / Grief / Heart of the Oak (caster)';
+    return '';
+  }
+  function _aicVerdict(it){
+    it = it || {};
+    var mods=(it.mods||[]).filter(function(m){ return String(m||'').trim(); });
+    var bk=[], score=0;
+    mods.forEach(function(m){ var b=_aicScoreAffix(m); if(b){ score+=b.w; bk.push({label:b.label, w:b.w, src:m}); } });
+    var tier = score>=14 ? 'keep' : (score>=7 ? 'border' : 'toss');
+    var ctx=[];
+    var qn=(it.q==='rare'?'Rare':it.q==='crafted'?'Crafted':'Magic');
+    ctx.push('<b>'+qn+'</b> — <b>cannot be a runeword base</b> (Larzuk gives '+(it.q==='magic'?'1–2 sockets':'1 socket')+', gems only).');
+    var bench=_aicBench(it.base);
+    if(bench) ctx.push('Slot benchmark to beat: <b>'+bench+'</b> — keep only if your roll out-values it.');
+    var bt=(typeof _baseTier==='function')?_baseTier(it.base):'';
+    if(bt==='normal'||bt==='exceptional') ctx.push('⬆ '+bt.charAt(0).toUpperCase()+bt.slice(1)+' base — cube-up KEEPS affixes (but never adds sockets / runeword ability).');
+    return { tier:tier, score:score, breakdown:bk, ctx:ctx };
+  }
+  window._aicVerdict = _aicVerdict;   // exposed for tests
+  function _aicVerdictHtml(){
+    var it=_aicItem;
+    var hasMods=(it.mods||[]).some(function(m){ return String(m).trim(); });
+    if(!String(it.base||'').trim() && !hasMods){ return '<div class="aic-verdict" style="opacity:.7">Drop a magic/rare screenshot or fill the item above to get a verdict.</div>'; }
+    var v=_aicVerdict(it);
+    var head=v.tier==='keep'?'✅ WORTH KEEPING':(v.tier==='border'?'🤔 BORDERLINE':'🗑 NOT WORTH IT');
+    var bk=v.breakdown.length
+      ? '<div class="aic-break">'+v.breakdown.map(function(b){ return '<div class="aic-bk"><span>'+esc(b.src)+'</span><span class="w">+'+b.w+'</span></div>'; }).join('')+'</div>'
+      : '<div class="aic-vctx" style="opacity:.8">No valued affixes detected — almost certainly a toss.</div>';
+    return '<div class="aic-verdict '+v.tier+'"><div class="aic-vhead '+v.tier+'">'+head+' <span style="opacity:.65;font-size:12px;font-weight:600">· score '+v.score+'</span></div>'
+      + '<div class="aic-vctx">'+v.ctx.join('<br>')+'</div>' + bk + '</div>';
+  }
+  function _aicRenderVerdict(){ var el=document.getElementById('aic-verdict'); if(el) el.innerHTML=_aicVerdictHtml(); }
+  function renderAIItemChecker(){
+    var wrap=document.getElementById('aic-wrap'); if(!wrap) return;
+    var it=_aicItem;
+    var affixRows=(it.mods||[]).map(function(m,i){ return '<div class="aic-affix-row"><input class="aic-input" value="'+esc(m)+'" oninput="window.aicSetAffix('+i+',this.value)" placeholder="e.g. +2 to All Skills"><button class="aic-x" onclick="window.aicDelAffix('+i+')" title="remove">✕</button></div>'; }).join('');
+    var artSrc=(typeof _magicArtSrc==='function')?(_magicArtSrc(it.base||it.name||'')||''):'';
+    wrap.innerHTML=''
+      + '<div class="aic-drop" id="aic-drop" onclick="var f=document.getElementById(\'aic-file\');f&&f.click()">📥 <b>Drop a magic/rare item screenshot</b> here, or click to pick a file — the AI reads what it can; edit anything below.</div>'
+      + '<input type="file" id="aic-file" accept="image/*" style="display:none" onchange="window.aicUpload(this.files&&this.files[0])">'
+      + '<div class="aic-grid">'
+      +   '<div class="aic-panel"><h4>Item</h4>'
+      +     (artSrc?'<img class="aic-art" src="'+esc(artSrc)+'" alt="" loading="lazy">':'')
+      +     '<div class="aic-field"><label>Name</label><input class="aic-input" value="'+esc(it.name||'')+'" oninput="window.aicSetField(\'name\',this.value)" placeholder="rolled name (optional)"></div>'
+      +     '<div class="aic-field"><label>Base</label><input class="aic-input" value="'+esc(it.base||'')+'" oninput="window.aicSetField(\'base\',this.value)" placeholder="e.g. Crystal Sword"></div>'
+      +     '<div class="aic-field"><label>Quality</label><select class="aic-input" onchange="window.aicSetField(\'q\',this.value)">'
+      +        ['magic','rare','crafted'].map(function(q){ return '<option value="'+q+'"'+(it.q===q?' selected':'')+'>'+q+'</option>'; }).join('')
+      +     '</select></div>'
+      +   '</div>'
+      +   '<div class="aic-panel"><h4>Affixes</h4>'+affixRows+'<button class="aic-add" onclick="window.aicAddAffix()">+ add affix</button></div>'
+      + '</div>'
+      + '<div id="aic-verdict"></div>'
+      + '<div class="aic-acts"><button class="aic-btn mule" onclick="window.aicMule()">🏦 Mule it (keep)</button><button class="aic-btn toss" onclick="window.aicToss()">🗑 Cancel out (toss)</button></div>';
+    _aicRenderVerdict();
+    try { var dz=document.getElementById('aic-drop');
+      if(dz){ dz.ondragover=function(e){ e.preventDefault(); dz.classList.add('drag'); }; dz.ondragleave=function(){ dz.classList.remove('drag'); };
+        dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove('drag'); var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) window.aicUpload(f); }; } } catch(e){}
+  }
+  window.renderAIItemChecker = renderAIItemChecker;
+  window.aicSetField = function(f,v){ _aicItem[f]=v; _aicSave(); _aicRenderVerdict(); };
+  window.aicSetAffix = function(i,v){ if(!_aicItem.mods) _aicItem.mods=[]; _aicItem.mods[i]=v; _aicSave(); _aicRenderVerdict(); };
+  window.aicAddAffix = function(){ if(!_aicItem.mods) _aicItem.mods=[]; _aicItem.mods.push(''); _aicSave(); renderAIItemChecker(); };
+  window.aicDelAffix = function(i){ if(_aicItem.mods) _aicItem.mods.splice(i,1); _aicSave(); renderAIItemChecker(); };
+  window.aicToss = function(){ _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker(); status('🗑 cleared — not kept'); };
+  window._aicSetDraft = function(o){ _aicItem = o || { name:'', base:'', q:'rare', mods:[] }; _aicSave(); };   // exposed for tests
+  window._aicGetDraft = function(){ return _aicItem; };
+  window.aicMule = function(){
+    var it=_aicItem; var base=String(it.base||'').trim();
+    var hasMods=(it.mods||[]).some(function(m){ return String(m).trim(); });
+    if(!base && !hasMods){ status('🔬 nothing to keep — drop or enter an item first'); return; }
+    var nm=String(it.name||'').trim() || ((it.q==='rare'?'Rare ':it.q==='crafted'?'Crafted ':'Magic ')+(base||'Item'));
+    var mods=(it.mods||[]).map(function(m){ return String(m).trim(); }).filter(Boolean);
+    try { magicFinds[nm]={ q:it.q||'magic', base:base, mods:mods }; } catch(e){}
+    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm]) assign[nm]=sg.id; } catch(e){}
+    try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
+    persistOwned(); saveA(); renderVault(); refreshOpenCard();
+    var mu=(assign[nm]&&muleById(assign[nm]))?(' → '+muleById(assign[nm]).name):'';
+    status('🏦 '+nm+' kept in 🔮 Magic & Rare'+mu);
+    _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
+  };
+  window.aicUpload = async function(file){
+    if(!file) return;
+    try {
+      status('🔬 reading item…');
+      var b64=await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
+      var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
+      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ image:b64, media_type:(file.type||'image/jpeg'), names:vocab, cropped:false })});
+      var data=await resp.json();
+      var f=(data.finds||[])[0];
+      if(f){ _aicItem={ name:f.name||'', base:f.base||'', q:f.q||'magic', mods:(f.mods||[]).map(String) }; _aicSave(); renderAIItemChecker(); status('🔬 read: '+((_aicItem.name||_aicItem.base)||'item')); }
+      else { status('🔬 no magic/rare item detected — enter it manually below'); }
+    } catch(e){ status('🔬 read failed — enter the item manually below'); }
   };
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
   window.vaultDismissUnknown = function(name){
