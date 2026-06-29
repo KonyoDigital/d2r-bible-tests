@@ -16961,7 +16961,15 @@ window.renderCreateNow = function(){
   // v370 — each group is a COLLAPSIBLE <details> (Konyo: "make these collapsed, click to open what can be made").
   // Collapsed by default so the helper opens clean; the summary shows the count so you know what's inside.
   function group(t, arr, badge, cls, open){ return arr.length ? ('<details class="cn-group '+cls+'"'+(open?' open':'')+'><summary class="cn-gh"><span class="cn-gh-t">'+t+' <span class="cn-ct">'+arr.length+'</span></span><span class="cn-gh-chev" aria-hidden="true">▾</span></summary><div class="cn-grid">'+arr.map(function(p){return tile(p,badge);}).join('')+'</div></details>') : ''; }
-  var body = group('✅ Make now', tp.makeNow,'✅','cn-now') + group('◆ After cubing gems/runes up', tp.afterCubing,'◆','cn-cube') + group('🔜 Almost there — what to grab next', tp.close,'🔜','cn-close');
+  // v469 — SANDBOX FOCUS MODE (Konyo): when the preview sandbox is active AND it already completes a recipe
+  // (something in Make now), HIDE the "Almost there — what to grab next" list. In a single-recipe what-if, those
+  // near-misses re-use the same simulated ingredients and just add noise — focus on what these ingredients make.
+  // (Non-preview dashboard is unchanged; clear the sandbox to see "what to grab next" again.)
+  var _cnFocus = !!(window.previewStash && tp.makeNow.length);
+  var body = group('✅ Make now', tp.makeNow,'✅','cn-now') + group('◆ After cubing gems/runes up', tp.afterCubing,'◆','cn-cube')
+    + (_cnFocus
+        ? (tp.close.length ? '<div class="cn-focusnote">🎯 <b>Sandbox focus</b> — showing only what these ingredients make. <span style="opacity:.72">'+tp.close.length+' near-miss'+(tp.close.length===1?'':'es')+' hidden · clear the sandbox to see “what to grab next”.</span></div>' : '')
+        : group('🔜 Almost there — what to grab next', tp.close,'🔜','cn-close'));
   if(!body) body='<div class="cn-empty">Nothing top-tier craftable yet — tally more runes &amp; gems with 📸 intake and this dashboard updates itself.</div>';
   var when=''; try{ when=localStorage.getItem('d2r_createNowDate')||''; }catch(e){}
   var ai=''; try{ ai=localStorage.getItem('d2r_createNowAi')||''; }catch(e){}
@@ -17074,6 +17082,7 @@ window.dailyCreateAi = function(force){
       +'.cn-meta{font-size:10px;color:var(--text-dim);font-style:italic;display:inline-flex;align-items:center;gap:6px}'
       +'.cn-refresh{cursor:pointer;background:none;border:none;font-size:12px;padding:0;opacity:.7}.cn-refresh:hover{opacity:1}'
       +'.cn-ai{font-size:12px;color:var(--text);background:rgba(127,212,255,.07);border:1px solid rgba(127,212,255,.22);border-radius:8px;padding:7px 11px;margin-bottom:10px;line-height:1.5}.cn-ai b{color:#8fd0ff}'
+      +'.cn-focusnote{font-size:11.5px;color:var(--text-dim);background:rgba(240,192,96,.06);border:1px dashed rgba(240,192,96,.3);border-radius:8px;padding:7px 11px;margin-top:7px;line-height:1.5}.cn-focusnote b{color:#f0c060}'
       +'.cn-group{margin-bottom:7px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(255,255,255,.018);overflow:hidden}'
       +'.cn-gh{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);padding:9px 11px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;user-select:none}'
       +'.cn-gh::-webkit-details-marker{display:none}.cn-gh:hover{color:var(--text)}'
