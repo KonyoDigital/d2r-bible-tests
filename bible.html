@@ -6926,6 +6926,29 @@ function _affixPoolHtml(base, q){
     + '<div class="att-info" style="margin-top:7px">Realistic ceilings for this slot — compare your item\'s actual rolls (above) against them to judge how good it is.</div></section>';
 }
 try { window._affixPoolHtml = _affixPoolHtml; } catch(e){}
+// v464 — CUBE-UP CANDIDATE: a magic/rare/crafted item on a Normal or Exceptional base can be upgraded a tier in
+// the Horadric Cube (Normal→Exceptional→Elite) and — critically — KEEPS all its rolled affixes (unlike the gem
+// reroll recipes, which wipe them). So flag it as worth upgrading and show the exact recipe. Elite bases (already
+// top) and non-gear (charm/jewel/ring/amulet — no base tier) get no note.
+function _cubeUpNote(name){
+  try{
+    var q = (typeof _mfQual === 'function') ? _mfQual(name) : '';
+    if (!/^(magic|rare|crafted)$/.test(String(q))) return '';          // only items with affixes worth keeping
+    var base = (typeof _mfBase === 'function') ? (_mfBase(name) || name) : name;
+    var tier = (typeof _baseTier === 'function') ? _baseTier(base) : '';
+    if (tier !== 'normal' && tier !== 'exceptional') return '';          // elite = already top; unknown = skip
+    var cats = (typeof _baseCats === 'function') ? _baseCats(base) : {};
+    if (!Object.keys(cats).length) return '';                           // can't tell weapon vs armor → skip
+    var isWeapon = !!cats['weapon'];
+    var next = tier === 'normal' ? 'Exceptional' : 'Elite';
+    var recipe = tier === 'normal'
+      ? (isWeapon ? 'Ral + Sol + Perfect Emerald' : 'Tal + Shael + Perfect Diamond')
+      : (isWeapon ? 'Lum + Pul + Perfect Emerald' : 'Ko + Lem + Perfect Diamond');
+    return '<div class="att-tag" style="margin-top:3px;color:#e0b96a">⬆ <b>Cube-up candidate</b> — ' + tier.charAt(0).toUpperCase() + tier.slice(1)
+      + ' base → upgrade to <b>' + next + '</b> in the cube (<b>KEEPS all affixes</b>): <b>' + recipe + '</b>.</div>';
+  }catch(e){ return ''; }
+}
+window._cubeUpNote = _cubeUpNote;
 // v342.18 — minimal detail card for a Magic & Rare keeper (rolled-name item; no fixed grail card).
 function _magicFindCardHtml(name){
   var q = (typeof _mfQual === 'function') ? _mfQual(name) : 'magic';
@@ -6956,7 +6979,7 @@ function _magicFindCardHtml(name){
     + '<div class="gic-subtitle">'+(base?_d2artEsc(base)+' · ':'')+q+' keeper · 🔮 Magic &amp; Rare'+(skiller?' · 🎯 Skiller':'')+'</div></div></header>'
     + modsHtml
     + '<section class="gic-section"><div style="font-size:13.5px;line-height:1.6">'+blurb
-    + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div>'+_sg+'</section>'
+    + ' Tracked as a rolled-name keeper'+(mods.length?' — stats above were read from your screenshot.':' — there\'s no fixed drop card, so this is the summary.')+'</div>'+_sg+_cubeUpNote(name)+'</section>'
     + _pool
     + '</div>';
 }
@@ -6993,6 +7016,7 @@ function _mfTipHtml(name){
     + (modLine ? '' : '<div class="att-aff">' + blurb + '</div>')
     + '<div class="att-tag">rolls: ' + roll + '</div>'
     + ((typeof _socketGuideLine === 'function') ? _socketGuideLine(base, q) : '')
+    + _cubeUpNote(name)
     + '<div class="att-info">' + (modLine ? 'Stats read from your screenshot.' : 'Rolled-name item — no fixed drop card.') + ' Click for the full keeper card.</div>';
 }
 // v349 — strip the throw-out suffix " (Nos low base)" / "(rare)" to a clean base/name for art + resolution.
