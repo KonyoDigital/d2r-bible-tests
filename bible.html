@@ -1339,6 +1339,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .rwc-toggle{justify-self:end;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:800;padding:5px 0;width:60px;text-align:center;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);cursor:pointer;transition:.12s;white-space:nowrap}
 .rwc-toggle:hover{border-color:#66ff88;color:#66ff88}
 .rwc-toggle.on{border-color:#b58cff;color:#b58cff;background:rgba(181,140,255,.14)}
+.rwc-hand{display:inline-block;font-family:ui-monospace,monospace;font-size:9px;font-weight:800;letter-spacing:.04em;padding:1px 5px;margin-left:5px;border-radius:5px;border:1px solid rgba(240,192,96,.45);color:#f0c060;background:rgba(240,192,96,.08);vertical-align:middle;white-space:nowrap}
 /* v466 — 🔬 AI Item Checker (flagship) */
 .aic-wrap{display:flex;flex-direction:column;gap:12px}
 .aic-drop{border:2px dashed rgba(127,212,255,.45);border-radius:12px;padding:16px;text-align:center;color:#9fd4ff;background:rgba(127,212,255,.05);cursor:pointer;transition:.15s;font-size:12.5px;line-height:1.5}
@@ -15836,6 +15837,22 @@ function _rwCategory(b){
   if (/sword|axe|mace|hammer|polearm|scepter|sceptre|club|wand|staff|stave|spear|dagger|knife|orb|claw|katar|weapon/.test(b)) return 'Melee';
   return 'Other';
 }
+// v467 — 1H vs 2H for a WEAPON runeword, derived from its base-type string ("N socket <types>"). Konyo: knowing
+// the hand is crucial. Missile (bows/xbows) + polearms/spears/staves = 2H; scepters/wands/maces/daggers/katars/
+// clubs/javelins = 1H; swords/axes/hammers/(generic or melee) Weapons exist as BOTH → "1H/2H". Armor/shield = ''.
+function _rwHand(b){
+  b = String(b||'').toLowerCase();
+  var bw = b.replace(/missile weapons?/g, ' ').replace(/melee weapons?/g, ' MELEE ');   // strip scoped phrases so a bare "Weapons" isn't faked by "missile/melee weapons"
+  var twoH = /polearm|spear|stave|staff|\bbow|crossbow/.test(b) || /missile weapons?/.test(b);
+  var oneH = /scepter|sceptre|wand|dagger|katar|club|javelin|\bmace/.test(bw);
+  var both = /\bsword|\baxe|hammer|MELEE|(^|\s)weapons?(\s|$)/.test(bw);
+  if (!twoH && !oneH && !both) return '';                 // body armor / helm / shield → no weapon hand
+  if (both || (oneH && twoH)) return '1H/2H';
+  if (twoH) return '2H';
+  if (oneH) return '1H';
+  return '';
+}
+window._rwHand = _rwHand;
 function renderRunewordChronicle(){
   var box = document.getElementById('rwc-list'); if (!box || typeof RUNEWORD_TIP === 'undefined') return;
   var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
@@ -15888,7 +15905,7 @@ function renderRunewordChronicle(){
     if (_rwcFilter==='cube' && !x.cube) return false;
     if (_rwcFilter==='made' && !x.made) return false;
     if (_rwcFilter==='todo' &&  x.made) return false;
-    if (qf){ var hay=(x.n+' '+x.rec.join(' ')+' '+(x.e.b||'')+' '+x.cat).toLowerCase(); if (hay.indexOf(qf)<0) return false; }
+    if (qf){ var hay=(x.n+' '+x.rec.join(' ')+' '+(x.e.b||'')+' '+x.cat+' '+_rwHand(x.e.b)).toLowerCase(); if (hay.indexOf(qf)<0) return false; }
     return true;
   });
   var rank = function(x){ return x.made?3 : x.now?0 : x.cube?1 : 2; };
@@ -15911,7 +15928,7 @@ function renderRunewordChronicle(){
       ? '<span class="d2art-wrap sm" role="img" aria-label="'+esc(x.n)+'"><img class="d2art-img" src="'+esc(_rwSrc)+'" alt="" loading="lazy"></span>'
       : '<span class="rwc-glyph" aria-hidden="true">📜</span>';
     return '<div class="rwc-row '+cls+'" onclick="window.openDrop&&window.openDrop(\''+oc+'\')" title="open the '+esc(x.n)+' ID card">'
-      + '<span class="rwc-head">'+artH+'<span class="rwc-title"><span class="rwc-name" data-arttip="'+esc(x.n)+'">'+esc(x.n)+( (typeof _RW_LADDER_ONLY!=='undefined'&&_RW_LADDER_ONLY[x.n]) ? '<span class="rwc-ladder" title="Ladder-only — only forms on a ladder character">🪜 LADDER</span>' : '')+( (typeof rwVerify!=='undefined'&&rwVerify[x.n]==='fail') ? '<span class="rwc-fail" title="You marked this as did-not-form in your game">❌ failed</span>' : '')+'</span><span class="rwc-base">'+esc(x.e.b||'')+(x.e.r?' · lvl '+x.e.r:'')+'</span></span></span>'
+      + '<span class="rwc-head">'+artH+'<span class="rwc-title"><span class="rwc-name" data-arttip="'+esc(x.n)+'">'+esc(x.n)+( (typeof _RW_LADDER_ONLY!=='undefined'&&_RW_LADDER_ONLY[x.n]) ? '<span class="rwc-ladder" title="Ladder-only — only forms on a ladder character">🪜 LADDER</span>' : '')+( (typeof rwVerify!=='undefined'&&rwVerify[x.n]==='fail') ? '<span class="rwc-fail" title="You marked this as did-not-form in your game">❌ failed</span>' : '')+'</span><span class="rwc-base">'+esc(x.e.b||'')+(function(){ var h=_rwHand(x.e.b); return h?' <span class="rwc-hand" title="'+(h==='1H/2H'?'one- OR two-handed — depends on the base you use':h==='2H'?'two-handed weapon':'one-handed weapon')+'">'+h+'</span>':''; })()+(x.e.r?' · lvl '+x.e.r:'')+'</span></span></span>'
       + '<span class="rwc-recipe" title="recipe order — insert the runes left → right">'+(typeof _rwRecipeArt==='function'?_rwRecipeArt(x.rec.join(' + ')):esc(x.rec.join(' + ')))+'</span>'
       + '<span class="rwc-status">'+badge+'</span>'
       + toggle
@@ -24357,6 +24374,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     wrap.innerHTML=''
       + '<div class="aic-drop" id="aic-drop" onclick="var f=document.getElementById(\'aic-file\');f&&f.click()">📥 <b>Drop a magic/rare item screenshot</b> here, or click to pick a file — the AI reads what it can; edit anything below.</div>'
       + '<input type="file" id="aic-file" accept="image/*" style="display:none" onchange="window.aicUpload(this.files&&this.files[0])">'
+      + '<div id="aic-msg" class="aic-vctx" style="display:none;margin:0"></div>'
       + '<div class="aic-grid">'
       +   '<div class="aic-panel"><h4>Item</h4>'
       +     (artSrc?'<img class="aic-art" src="'+esc(artSrc)+'" alt="" loading="lazy">':'')
@@ -24397,19 +24415,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     status('🏦 '+nm+' kept in 🔮 Magic & Rare'+mu);
     _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
   };
+  function _aicMsg(html, show){ var el=document.getElementById('aic-msg'); if(el){ el.innerHTML=html; el.style.display=(show===false?'none':'block'); } try{ status(String(html).replace(/<[^>]+>/g,'')); }catch(e){} }
   window.aicUpload = async function(file){
-    if(!file) return;
+    if(!file){ return; }
+    _aicMsg('🔬 reading the item… (this takes a few seconds)');
     try {
-      status('🔬 reading item…');
-      var b64=await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
+      // v467 — resize like the main intake (downscale: max 1568px, JPEG 0.85). The earlier version sent the RAW
+      // full-res file, which made the payload huge → the request failed silently and the tool "did nothing".
+      var b64 = (typeof downscale === 'function')
+        ? await downscale(file)
+        : await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
       var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
       var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
-      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ image:b64, media_type:(file.type||'image/jpeg'), names:vocab, cropped:false })});
+      var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false })});
+      if(!resp || !resp.ok){ _aicMsg('🔬 read failed (server ' + (resp?resp.status:'?') + ') — enter the item by hand below.'); return; }
       var data=await resp.json();
       var f=(data.finds||[])[0];
-      if(f){ _aicItem={ name:f.name||'', base:f.base||'', q:f.q||'magic', mods:(f.mods||[]).map(String) }; _aicSave(); renderAIItemChecker(); status('🔬 read: '+((_aicItem.name||_aicItem.base)||'item')); }
-      else { status('🔬 no magic/rare item detected — enter it manually below'); }
-    } catch(e){ status('🔬 read failed — enter the item manually below'); }
+      if(f){ _aicItem={ name:f.name||'', base:f.base||'', q:f.q||'magic', mods:(f.mods||[]).map(String) }; _aicSave(); renderAIItemChecker(); _aicMsg('🔬 read <b>'+esc(_aicItem.name||_aicItem.base||'item')+'</b> — check/edit the affixes, then judge it.'); return; }
+      // fallback: a rare can come back in unrecognized / items if the AI didn't classify it as a "find"
+      var alt=(data.unrecognized||[])[0] || (data.items||[])[0];
+      if(alt){ _aicItem={ name:String(alt), base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker(); _aicMsg('🔬 read the name <b>'+esc(String(alt))+'</b> — set its base + affixes below.'); return; }
+      _aicMsg('🔬 no item detected in that screenshot — make sure the tooltip is hovered/visible, or enter it by hand below.');
+    } catch(e){ _aicMsg('🔬 read failed (network/parse) — enter the item by hand below.'); }
   };
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
   window.vaultDismissUnknown = function(name){
