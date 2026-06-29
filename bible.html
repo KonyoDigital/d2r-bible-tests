@@ -12020,7 +12020,7 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // v436 — now 30 (added Authority + Melody, forged 2026-06-24), so a fresh load / reset never drops below 30.
   // v448 — now 31 (added Ancients' Pledge, forged 2026-06-25). v451 — 34: + Spirit + Grief + Stone.
   // v452 — 36 (+Enigma+Doom). v453 — 37 (+Plague). v454 — now 38: + Treachery (forged 2026-06-28). Floor is 38.
-const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05","Ancients' Pledge":"Jun 25, 2026 · 12:00","Spirit":"Jun 28, 2026 · 12:00","Grief":"Jun 28, 2026 · 12:05","Stone":"Jun 28, 2026 · 12:10","Enigma":"Jun 28, 2026 · 12:15","Doom":"Jun 28, 2026 · 12:20","Plague":"Jun 28, 2026 · 23:30","Treachery":"Jun 28, 2026 · 23:45","Zephyr":"Jun 29, 2026 · 19:30","Memory":"Jun 29, 2026 · 19:35","Rift":"Jun 29, 2026 · 20:05"};
+const _RWC_SEED = {"Beast":"Jun 18, 2026 · 20:00","Dream":"Jun 18, 2026 · 20:03","Fortitude":"Jun 18, 2026 · 20:06","Rhyme":"Jun 19, 2026 · 22:35","Chains of Honor":"Jun 19, 2026 · 22:48","Infinity":"Jun 21, 2026 · 01:37","Duress":"Jun 21, 2026 · 18:01","Steel":"Jun 22, 2026 · 12:53","Nadir":"Jun 22, 2026 · 14:44","Stealth":"Jun 22, 2026 · 14:46","Smoke":"Jun 24, 2026 · 00:59","Mosaic":"Jun 24, 2026 · 01:03","Harmony":"Jun 24, 2026 · 01:07","Venom":"Jun 24, 2026 · 01:09","Pride":"Jun 24, 2026 · 01:17","Destruction":"Jun 24, 2026 · 01:21","Death":"Jun 24, 2026 · 01:24","Malice":"Jun 23, 2026 · 00:09","Holy Thunder":"Jun 23, 2026 · 00:12","Passion":"Jun 23, 2026 · 00:15","Call to Arms":"Jun 23, 2026 · 00:23","Splendor":"Jun 23, 2026 · 00:25","Bone":"Jun 23, 2026 · 00:28","Crescent Moon":"Jun 23, 2026 · 00:28","Dragon":"Jun 23, 2026 · 00:30","Edge":"Jun 24, 2026 · 03:00","Lore":"Jun 24, 2026 · 03:01","Strength":"Jun 23, 2026 · 01:52","Authority":"Jun 24, 2026 · 18:00","Melody":"Jun 24, 2026 · 18:05","Ancients' Pledge":"Jun 25, 2026 · 12:00","Spirit":"Jun 28, 2026 · 12:00","Grief":"Jun 28, 2026 · 12:05","Stone":"Jun 28, 2026 · 12:10","Enigma":"Jun 28, 2026 · 12:15","Doom":"Jun 28, 2026 · 12:20","Plague":"Jun 28, 2026 · 23:30","Treachery":"Jun 28, 2026 · 23:45","Zephyr":"Jun 29, 2026 · 19:30","Memory":"Jun 29, 2026 · 19:35","Rift":"Jun 29, 2026 · 20:05","Void":"Jun 29, 2026 · 20:10"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
@@ -23977,14 +23977,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var muleTag=m?'<span class="to-sock" style="border-color:rgba(127,212,255,.5);color:#9fd4ff" title="muled to '+esc(m.name)+'">🏦 '+esc(m.name)+'</span>':'';
       var sockBadge=sockets?('<span class="to-sock">🔩 '+sockets+'os</span>'):'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="unsocketed elite base — Larzuk/cube it">⚒ Larzuk</span>';
       var ethBadge=((typeof window._isEthereal==='function')&&window._isEthereal(n))?'<span class="to-sock" style="border-color:rgba(127,212,255,.5);color:#9fd4ff" title="ethereal — +50% damage/defense, can’t be repaired (best on a merc / static piece)">⊘ ETH</span>':'';
+      // v463 — show the base TIER (Normal / Exceptional / Elite) right on the card. Konyo: "how do I know if it's
+      // normal/exceptional/elite already?" — now it's answered at a glance, no need to open the detail card.
+      var tlbl=(typeof _itemTierLabel==='function')?_itemTierLabel(n):'';
+      var tierH=tlbl?'<div class="att-meta" style="font-size:10px;color:#9c8d6b;margin-bottom:3px">'+esc(tlbl)+'</div>':'';
       var why=sockets
         ? 'A <b>'+sockets+'-socket '+esc(base)+'</b> — kept &amp; muled. Runewords it can hold right now:'
         : 'An <b>unsocketed '+esc(base)+'</b> base — kept &amp; muled. Socket it to its max for:';
+      // v462 — one-tap socket-count FIX: the AI sometimes misreads a faint "Socketed (N)" as 0 (Konyo's Superior
+      // Champion Axe). Let him correct an already-registered base in place without re-uploading.
+      var fixRow='<div class="to-sockset" style="margin-top:6px;font-size:10px;color:#b5a48a">🔩 wrong count? set the real sockets: '
+        + [1,2,3,4,5,6].map(function(s){ return '<button onclick="event.stopPropagation();window.vaultFixSockets(\''+jsArg(n)+'\','+s+')" title="re-register '+esc(base)+' as a '+s+'-socket base" style="margin:0 1px;padding:1px 6px;border:1px solid rgba(127,212,255,.45);background:rgba(127,212,255,.1);color:#9fd4ff;border-radius:4px;cursor:pointer;font-size:10px">'+s+'</button>'; }).join('')
+        + '</div>';
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
         +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+sockBadge+ethBadge+muleTag+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these">×'+copyCount(n)+'</span>':'')+'</div>'
-        +   '<div class="to-why">'+why+'</div>'+rwl
+        +   tierH+'<div class="to-why">'+why+'</div>'+rwl+fixRow
         + '</div></div>';
     };
     var cards=names.map(cardFor).join('');
@@ -24164,6 +24173,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label]) assign[label] = sg.id;
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base');
+    } catch(e){}
+  };
+  // v462 — FIX the socket count of an ALREADY-REGISTERED socketed / Larzuk base (Konyo's Superior Champion Axe
+  // that the AI read as 0-socket). A prompt fix only helps a NEW read; this RENAMES the existing entry in place
+  // → "<Base> (Nos)" (or "(Larzuk base)" for 0), preserving the Superior prefix, the ethereal flag, and the mule
+  // assignment, and removes the stale entry so there's no duplicate. One-tap from the Socketed Review card.
+  window.vaultFixSockets = function(name, n){
+    try {
+      n = parseInt(n, 10); if (!(n >= 0 && n <= 6)) return;
+      var stem = String(name).replace(/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i, '').trim();
+      var newLabel = stem + ' (' + (n >= 1 ? (n + 'os') : 'Larzuk base') + ')';
+      if (newLabel === name && owned.has(name)) {
+        if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
+        renderVault(); refreshOpenCard(); status('🔩 ' + newLabel + ' — already set'); return;
+      }
+      var wasEth = (typeof etherealItems !== 'undefined') && etherealItems.has(name);
+      var oldMule = assign[name];
+      try { owned.delete(name); } catch(e){}
+      delete assign[name];
+      try { if (typeof etherealItems !== 'undefined') { etherealItems.delete(name); if (wasEth) etherealItems.add(newLabel); } } catch(e){}
+      try { if (typeof superiorBases !== 'undefined' && superiorBases.has(name)) { superiorBases.delete(name); superiorBases.add(newLabel); } } catch(e){}
+      if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
+      owned.add(newLabel);
+      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) assign[newLabel] = oldMule;
+      else { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) assign[newLabel] = sg.id; }
+      try { LS.setItem('d2r_ethereal', JSON.stringify([...etherealItems])); } catch(e){}
+      try { LS.setItem('d2r_superiorBases', JSON.stringify([...superiorBases])); } catch(e){}
+      persistOwned(); saveA(); renderVault(); refreshOpenCard();
+      status('🔩 ' + stem + ' → ' + (n >= 1 ? n + ' sockets' : 'Larzuk base') + ' — fixed');
     } catch(e){}
   };
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
