@@ -3264,7 +3264,6 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="main">🏠 main</button>
-    <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="bosses">🗺️ bosses</button>
     <button class="tab" data-tab="calc">🔍 calculator</button>
     <button class="tab" data-tab="tz">🔥 TZ zones</button>
@@ -3276,6 +3275,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="binds">🔱 binds</button>
     <button class="tab" data-tab="ref">📐 reference</button>
     <button class="tab" data-tab="tools">🧰 tools</button>
+    <button class="tab" data-tab="forge">🔨 Forge</button>
   </div>
 </div>
 
@@ -5764,16 +5764,27 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 <div class="tab-content" id="tab-forge">
 <style>
-#tab-forge .forge-head{margin:2px 0 16px}
-#tab-forge .forge-title{font-size:26px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878)}
-#tab-forge .forge-sub{font-size:12.5px;color:var(--text-dim,#9a8c72);margin-top:3px;max-width:760px;line-height:1.45}
-#tab-forge .forge-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-#tab-forge .fs-pill{font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03)}
-#tab-forge .fs-now{color:#8fe0a0;border-color:rgba(143,224,160,.45)}
-#tab-forge .fs-pipe{color:#9fd4ff;border-color:rgba(159,212,255,.4)}
-#tab-forge .fs-step{color:#e9d07a;border-color:rgba(233,208,122,.4)}
-#tab-forge .fs-craft{color:#c79ce6;border-color:rgba(199,156,230,.4)}
-#tab-forge .forge-empty{margin-top:20px;padding:22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
+#tab-forge .forge-head{margin:2px 0 4px}
+#tab-forge .forge-title{font-size:42px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878);line-height:1.1}
+#tab-forge .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
+/* toggle sub-tab bar — equal-width, stretched symmetric across the row */
+#tab-forge .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
+#tab-forge .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:72px;padding:14px 8px;border-radius:13px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.025);color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease}
+#tab-forge .forge-tab:hover{background:rgba(255,255,255,.06);color:var(--text,#e8dcc0);transform:translateY(-1px)}
+#tab-forge .forge-tab:active{transform:translateY(0)}
+#tab-forge .ft-emoji{font-size:22px;line-height:1}
+#tab-forge .ft-lbl{font-size:14px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+#tab-forge .ft-ct{font-size:12.5px;font-weight:800;padding:1px 10px;border-radius:11px;background:rgba(255,255,255,.08)}
+#tab-forge .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
+#tab-forge .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
+#tab-forge .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
+#tab-forge .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
+#tab-forge .forge-tab.ft-craft.on{border-color:rgba(199,156,230,.65);background:rgba(199,156,230,.14);color:#c79ce6}
+#tab-forge .forge-tab.on .ft-ct{background:rgba(0,0,0,.32)}
+#tab-forge .forge-sec-craft .forge-sec-h{color:#c79ce6}
+#tab-forge .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
+#tab-forge .forge-empty-sm{padding:18px;font-size:13px;margin-top:0}
+@media (max-width:760px){#tab-forge .forge-tabs{flex-wrap:wrap}#tab-forge .forge-tab{flex:1 1 40%}#tab-forge .forge-title{font-size:34px}}
 #tab-forge .forge-sec{margin:20px 0 6px}
 #tab-forge .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:800;padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
 #tab-forge .forge-sec-ct{font-size:12px;font-weight:700;padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
@@ -25979,56 +25990,62 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '<b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>'+(t.base.eth?' <span class="f-eth">⊘ eth</span>':'')+(t.base.sup?' <span class="f-sup">superior</span>':'')+' '+idl;
   }
 
+  var _forgeFilter='all';   // mutually-exclusive sub-tab filter: all | now | pipeline | onestep | crafts
+  window.forgeSetFilter=function(f){ _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge(); };
+
   function renderForge(){
     var box=document.getElementById('forge-body'); if(!box) return;
     var s=forgeScan(); var H=[];
     var liveNow=s.now.filter(function(t){return !t.deferred;});
-    H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div><div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div>'
-      +'<div class="forge-strip">'
-      +'<span class="fs-pill fs-now">⚒ '+liveNow.length+' make now</span>'
-      +'<span class="fs-pill fs-pipe">🔧 '+s.pipeline.length+' pipeline</span>'
-      +'<span class="fs-pill fs-step">🟡 '+s.onestep.length+' one step away</span>'
-      +'<span class="fs-pill fs-craft">⚗️ '+s.crafts.length+' crafts</span>'
-      +'</div></div>');
-    if (!(liveNow.length||s.now.length||s.pipeline.length||s.onestep.length||s.crafts.length)){
+    var deferred=s.now.filter(function(t){return t.deferred;});
+    var total=liveNow.length+s.pipeline.length+s.onestep.length+s.crafts.length;
+    var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
+    H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
+      +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
+    // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
+    var tab=function(key,emoji,label,cls,n){
+      return '<button class="forge-tab '+cls+(F===key?' on':'')+'" onclick="window.forgeSetFilter(\''+key+'\')" title="show only '+label+'">'
+        +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+label+'</span><span class="ft-ct">'+n+'</span></button>';
+    };
+    H.push('<div class="forge-tabs">'
+      + tab('all','▦','All','ft-all',total)
+      + tab('now','⚒','Make now','ft-now',liveNow.length)
+      + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length)
+      + tab('onestep','🟡','One step','ft-step',s.onestep.length)
+      + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
+      +'</div>');
+    if (!total){
       H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
       box.innerHTML=H.join(''); return;
     }
-    // MAKE NOW
-    if (liveNow.length || s.crafts.length){
-      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+(liveNow.length+s.crafts.length)+'</span><span class="forge-sec-sub">everything in hand — go build it</span></div>');
-      liveNow.forEach(function(t){
-        H.push('<div class="f-card f-now"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+'</div>'
-          +'<div class="f-cardmeta">In your '+_baseLine(t)+' + runes in hand.</div>'
-          +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
-          +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button>'
-          +'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ mark created</button></div>'
-          +'</div></div>');
-      });
-      s.crafts.forEach(function(c){
-        H.push('<div class="f-card f-now f-craft" style="border-left-color:'+_fEsc(c.color||'#b48ce0')+'"><div class="f-cardart"><span class="f-glyph">⚗️</span></div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Craft <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.star?' <span class="f-star">⭐ your craft</span>':'')+'</div>'
-          +'<div class="f-cardmeta">You hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>. Add a <b>magic '+_fEsc(c.base)+'</b> + any jewel → cube.</div>'
-          +'<div class="f-cardtell">'+_fEsc(c.tell||'')+'</div>'
-          +'</div></div>');
-      });
-      H.push('</div>');
-    }
-    // DEFERRED (shared-rune conflict)
-    var deferred=s.now.filter(function(t){return t.deferred;});
-    if (deferred.length){
-      H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — but a higher-value forge claims the shared rune first</span></div>');
-      deferred.forEach(function(t){
-        H.push('<div class="f-card f-defer"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">'+_fEsc(t.rw)+' '+_handTag(t.hand)+'</div>'
-          +'<div class="f-cardmeta">Ready — but your <b>'+_fEsc((t.blockedBy||[]).join(', '))+'</b> is spent by a higher-value forge above.'+(t.blockedBase?' Also shares your '+_fEsc(t.blockedBase)+'.':'')+' Frees up after you make that one.</div>'
-          +'</div></div>');
-      });
-      H.push('</div>');
+    // MAKE NOW (runewords) + its deferred contention sub-section
+    if (show('now') && (liveNow.length||deferred.length)){
+      if (liveNow.length){
+        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+liveNow.length+'</span><span class="forge-sec-sub">everything in hand — go build it</span></div>');
+        liveNow.forEach(function(t){
+          H.push('<div class="f-card f-now"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+            +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+'</div>'
+            +'<div class="f-cardmeta">In your '+_baseLine(t)+' + runes in hand.</div>'
+            +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
+            +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button>'
+            +'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ mark created</button></div>'
+            +'</div></div>');
+        });
+        H.push('</div>');
+      }
+      if (deferred.length){
+        H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — but a higher-value forge claims the shared rune first</span></div>');
+        deferred.forEach(function(t){
+          H.push('<div class="f-card f-defer"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+            +'<div class="f-cardtitle">'+_fEsc(t.rw)+' '+_handTag(t.hand)+'</div>'
+            +'<div class="f-cardmeta">Ready — but your <b>'+_fEsc((t.blockedBy||[]).join(', '))+'</b> is spent by a higher-value forge above.'+(t.blockedBase?' Also shares your '+_fEsc(t.blockedBase)+'.':'')+' Frees up after you make that one.</div>'
+            +'</div></div>');
+        });
+        H.push('</div>');
+      }
     }
     // PIPELINE
-    if (s.pipeline.length){
+    if (show('pipeline') && s.pipeline.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🔧 Forge pipeline <span class="forge-sec-ct">'+s.pipeline.length+'</span><span class="forge-sec-sub">socket the base, then forge</span></div>');
       s.pipeline.forEach(function(t){
         var slot=(typeof _socketSlotOf==='function')?_socketSlotOf(t.base.base):null;
@@ -26044,7 +26061,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div>');
     }
     // ONE STEP AWAY
-    if (s.onestep.length){
+    if (show('onestep') && s.onestep.length){
       H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🟡 One step away <span class="forge-sec-ct">'+s.onestep.length+'</span><span class="forge-sec-sub">close the single gap and it’s yours</span></div>');
       s.onestep.forEach(function(t){
         var body;
@@ -26059,6 +26076,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'</div></div>');
       });
       H.push('</div>');
+    }
+    // CRAFTS (own section)
+    if (show('crafts') && s.crafts.length){
+      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">perfect gem + rune in hand — add a magic base + a jewel</span></div>');
+      s.crafts.forEach(function(c){
+        H.push('<div class="f-card f-craft" style="border-left-color:'+_fEsc(c.color||'#b48ce0')+'"><div class="f-cardart"><span class="f-glyph">⚗️</span></div><div class="f-cardbody">'
+          +'<div class="f-cardtitle">Craft <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.star?' <span class="f-star">⭐ your craft</span>':'')+'</div>'
+          +'<div class="f-cardmeta">You hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>. Add a <b>magic '+_fEsc(c.base)+'</b> + any jewel → cube.</div>'
+          +'<div class="f-cardtell">'+_fEsc(c.tell||'')+'</div>'
+          +'</div></div>');
+      });
+      H.push('</div>');
+    }
+    // per-filter empty hint (a bucket the user filtered to that has nothing in it)
+    var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?s.pipeline.length:F==='onestep'?s.onestep.length:F==='crafts'?s.crafts.length:total;
+    if (F!=='all' && !bc){
+      H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — tap <b>▦ All</b>, or tally more runes / gems / bases.</div>');
     }
     box.innerHTML=H.join('');
   }
