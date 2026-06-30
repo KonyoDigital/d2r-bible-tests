@@ -5888,6 +5888,17 @@ body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
 #tab-forge .f-get-cube{color:#9fd4ff;background:rgba(159,212,255,.15)}
 #tab-forge .f-getchip{font-size:12.5px;font-weight:700;color:var(--text,#e8dcc0);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);padding:2px 9px;border-radius:7px;cursor:help}
 #tab-forge .f-getchip-base{color:#cdb988;border-color:rgba(205,185,136,.4)}
+/* v519 — role badges inside a base chip: ideal / 1H / merc / caster / endgame. Compact, colour-coded. */
+#tab-forge .f-getchip-base{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+#tab-forge .f-rbwrap{display:inline-flex;gap:3px;align-items:center}
+#tab-forge .f-rb{font-size:8.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:1px 4px;border-radius:4px;line-height:1.35;border:1px solid transparent}
+#tab-forge .f-rb-ideal{color:#ffe08a;background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.5)}
+#tab-forge .f-rb-1h{color:#8fe6a0;background:rgba(95,200,110,.14);border-color:rgba(95,200,110,.45)}
+#tab-forge .f-rb-merc{color:#7fb0ff;background:rgba(90,150,255,.16);border-color:rgba(120,160,255,.5)}
+#tab-forge .f-rb-cast{color:#c79bff;background:rgba(160,120,230,.16);border-color:rgba(160,120,230,.5)}
+#tab-forge .f-rb-2h{color:#d2b48c;background:rgba(180,140,90,.14);border-color:rgba(180,140,90,.45)}
+#tab-forge .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
+#tab-forge .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
 #tab-forge .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
 #tab-forge .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
 #tab-forge .f-getsub b{color:#cdb988;font-style:normal}
@@ -26006,6 +26017,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // ingame for each individual item reference" — so every forge card title / base chip uses it.
   function _qC(n){ try { return (typeof _qHex==='function') ? (_qHex(n)||'') : ''; } catch(e){ return ''; } }
   function _qName(n){ var c=_qC(n); return c ? '<span style="color:'+c+'">'+_fEsc(n)+'</span>' : _fEsc(n); }
+  // v519 — role badges on a base option (Konyo: "say what's ideal, what's MERCenary gear, what's end-game"):
+  //   ★ ideal (the top recommended pick) · 1H = your player weapon · merc = a 2H polearm/spear/bow (merc gear)
+  //   · caster = staff · ⬆ endgame = elite-tier base. Derived from _baseHandClass + BASE_DB tier (real game data).
+  function _baseRoleBadge(base, isFirst){
+    var t=[]; var hc=(typeof _baseHandClass==='function')?_baseHandClass(base):'?';
+    var tier=(typeof BASE_DB!=='undefined'&&BASE_DB[base])?BASE_DB[base].tier:'';
+    if (isFirst) t.push('<span class="f-rb f-rb-ideal" title="the recommended base — grab this one">★ ideal</span>');
+    if (hc==='1H') t.push('<span class="f-rb f-rb-1h" title="one-handed — YOUR player weapon">1H</span>');
+    else if (hc==='merc') t.push('<span class="f-rb f-rb-merc" title="two-handed polearm/spear/bow — MERCENARY gear">merc</span>');
+    else if (hc==='caster') t.push('<span class="f-rb f-rb-cast" title="staff — a caster two-hander">caster</span>');
+    else if (hc==='2H') t.push('<span class="f-rb f-rb-2h" title="two-handed weapon">2H</span>');
+    if (tier==='elite') t.push('<span class="f-rb f-rb-end" title="elite tier — best-stat endgame base">⬆ endgame</span>');
+    else if (tier==='exceptional') t.push('<span class="f-rb f-rb-exc" title="exceptional tier — can cube-upgrade to its elite version">exc</span>');
+    return t.length?'<span class="f-rbwrap">'+t.join('')+'</span>':'';
+  }
 
   // ---- best-base reverse index (built once from RW_BASES) ----
   var _FORGE_BEST = (function(){
@@ -26676,7 +26702,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
         if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
         else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
-        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
+        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
         var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
         var _osBase=String(t.bestStr||'').split(/\s*\/\s*/)[0].trim();   // the FIRST recommended base — what this card actually tells you to get (1H-correct), NOT RW_BEST_BASE (which can be a 2H best-damage base)
         H.push('<div class="f-card f-step"><div class="f-cardart" data-arttip="'+_fEsc(_osBase||t.rw)+'">'+((_osBase && typeof _fArt==='function' && _fArt(_osBase))?'<img class="f-art" src="'+_fEsc(_fArt(_osBase))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
