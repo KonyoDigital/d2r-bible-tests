@@ -23957,7 +23957,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // "Cryptic Axe"/"Monarch"/"Quilted Armor" etc. fell through to the uni-weap default — correct for a unique
     // weapon, wrong for a white base. (Surfaced when the full 1297-catalog audit included all 498 bases.)
     var _bareBaseClean = (typeof _artSlotClean==='function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
-    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean]) && !it && !ex && !itip) return {id:'bases', why:'white base → socketed / craft'};
+    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean]) && !it && !ex && !itip){
+      // v502 — a white base that CANNOT be socketed has no runeword/craft/socket value → it's vendor trash,
+      // NOT a "socketed / craft base". Orbs can't be socketed; throwing weapons + javelins can't be socketed
+      // (same fact behind the v500 runeword fix). Route those to throw-out, not the SOCKETED locker.
+      var _mc=(typeof _baseCats==='function')?_baseCats(_bareBaseClean):{};
+      var _mwt=_mc['axe']||_mc['dagger']||_mc['sword']||_mc['mace']||_mc['hammer']||_mc['polearm']||_mc['spear']||_mc['scepter']||_mc['staff']||_mc['wand']||_mc['katar'];
+      if (_mc['orb'] || _mc['javelin'] || (_mwt && _mc['weapon'] && !_mc['melee weapon'] && !_mc['missile weapon']))
+        return {id:'__throwout', why:'white '+(_mc['orb']?'orb':'throwing weapon')+' — can’t be socketed (no runeword/craft) → vendor it'};
+      return {id:'bases', why:'white base → socketed / craft'};
+    }
     // v362 — ARMOR before JEWELRY: body armor like "Ring Mail" contains the word "ring", so it must be
     // caught as armor (via "mail") FIRST, or it mis-files to UNI-SMALL (Konyo: Darkglow Ring Mail → jewelry).
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
