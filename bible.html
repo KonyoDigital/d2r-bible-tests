@@ -5863,8 +5863,20 @@ body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
 #tab-forge .f-craftrow.ready{border-left:3px solid #6fbf6f}
 #tab-forge .f-craftrow.locked{opacity:.55}
 #tab-forge .f-craftrow-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0);min-width:62px;flex:none}
-#tab-forge .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:1.4}
+#tab-forge .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:1.5;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
 #tab-forge .f-craftrow-rec b{color:var(--rune,#e0b96a)}
+/* v516 — craft ingredient chips: each ingredient (rune · base · jewel) carries its own HD art + a
+   floating cursor tooltip. Hover any of them for the rich card (rune stats / base options / jewel). */
+#tab-forge .f-cing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);cursor:help;white-space:nowrap;max-width:100%}
+#tab-forge .f-cing-img{width:18px;height:18px;object-fit:contain;flex:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+#tab-forge .f-cing-gl{width:18px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+#tab-forge .f-cing-gl-r{color:var(--rune,#e0b96a)} #tab-forge .f-cing-gl-j{color:#9fb0ff}
+#tab-forge .f-cing-rune{border-color:rgba(224,168,42,.4)} #tab-forge .f-cing-rune b{color:#ffa800;font-weight:700}
+#tab-forge .f-cing-base{border-color:rgba(159,176,255,.32);flex-wrap:wrap}
+#tab-forge .f-cing-base .f-cbnames{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px}
+#tab-forge .f-cing-base .f-cbn{color:#b9c4ff} #tab-forge .f-cing-base .f-cdot{color:var(--text-dim,#6f6450);opacity:.7}
+#tab-forge .f-cing-jewel{border-color:rgba(159,176,255,.32);color:#b9c4ff}
+#tab-forge .f-craftrow-rec .f-cplus{color:var(--text-dim,#6f6450);font-weight:700;margin:0 1px}
 #tab-forge .f-craftrow-st{font-size:10.5px;font-weight:700;flex:none;white-space:nowrap}
 #tab-forge .f-craftrow.ready .f-craftrow-st{color:#9fe6a0}
 #tab-forge .f-craftrow.locked .f-craftrow-st{color:var(--text-dim,#9a8c72)}
@@ -26465,6 +26477,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // color = the craft type's colour (Caster=amethyst, Blood=ruby, Safety=emerald, Hit Power=sapphire) so the
   // slot art glows in that "caster colour" (Konyo: sync each craft slot to its gem colour).
   function _slotArtImg(slot,color){ var src=_SLOT_REP[slot]; if(!src) return ''; return '<span class="f-slotart" data-arttip="'+_fEsc(_SLOT_TIP[slot]||slot)+'"'+(color?' style="--sc:'+_fEsc(color)+'"':'')+'><img src="'+src+'" alt="" loading="lazy"></span>'; }
+  // v516 — EVERY craft ingredient (rune · base options · jewel) gets its own HD art icon + a floating
+  // cursor tooltip (Konyo: "all ingredients need image art0r HD and image floating cursor tooltips").
+  // Bases reuse the GOOD slot HD sprite + a "magic <slot> base" rich tooltip (the corrupt base_*.png
+  // blue-gem placeholders are never touched). Rune art = hd_<rune>_rune.png, resolves its rich rune card.
+  function _cingRune(rune){
+    var a=_fArt(rune);   // hd_<rune>_rune.png — good art
+    var img = a ? '<img class="f-cing-img" src="'+a+'" alt="" loading="lazy">' : '<span class="f-cing-gl f-cing-gl-r">ᚱ</span>';
+    return '<span class="f-cing f-cing-rune" data-arttip="'+_fEsc(rune)+'">'+img+'<b>'+_fEsc(rune)+'</b></span>';
+  }
+  function _cingBase(baseStr, slot){
+    var src=_SLOT_REP[slot]||'';   // representative GOOD HD slot sprite (never a corrupt base_)
+    var img = src ? '<img class="f-cing-img" src="'+src+'" alt="" loading="lazy">' : '';
+    var names = String(baseStr).split('·').map(function(b){ return '<span class="f-cbn">'+_fEsc(b.trim())+'</span>'; }).join('<span class="f-cdot">·</span>');
+    // data-arttip resolves to the rich "magic <slot> base" card (all options + gem icons), no corrupt art
+    return '<span class="f-cing f-cing-base" data-arttip="'+_fEsc('magic '+slot+' base')+'">'+img+'<span class="f-cbnames">'+names+'</span></span>';
+  }
+  function _cingJewel(){
+    return '<span class="f-cing f-cing-jewel" data-arttip="a jewel"><span class="f-cing-gl f-cing-gl-j">◈</span>a jewel</span>';
+  }
   // one collapsible craft card (header always shown; body only when open).
   function _craftAccHtml(ck, col){
     var d=_craftSlots(ck); if(!d) return '';
@@ -26482,8 +26513,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       d.rows.forEach(function(r){
         h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
           +_slotArtImg(r.slot, cc)
-          +'<span class="f-craftrow-slot">'+_fEsc(r.slot)+'</span>'
-          +'<span class="f-craftrow-rec"><b>'+_fEsc(r.rune)+'</b> + magic '+_fEsc(r.base)+' + a jewel</span>'
+          +'<span class="f-craftrow-slot" style="color:'+cc+'">'+_fEsc(r.slot)+'</span>'
+          +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
           +'<span class="f-craftrow-st">'+(r.ready?'✓ make now':'need '+_fEsc(r.rune))+'</span>'
           +'</div>';
       });
