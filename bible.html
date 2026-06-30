@@ -15858,7 +15858,16 @@ function renderAllRunewords(){
   const shown = q ? sorted.filter((rw) =>
     (rw.n + ' ' + rw.runes + ' ' + rw.base + ' ' + (rw.notes || '')).toLowerCase().includes(q)
   ) : sorted;
-  if (cntEl) cntEl.textContent = q ? `(${shown.length}/${list.length})` : `(${list.length})`;
+  // v477 — CALIBRATION: show the canonical DISTINCT-runeword count (matches the Chronicle's 100), not the raw
+  // row count. The browser has extra rows on purpose — Spirit is shown as its 2 bases (sword/shield) and
+  // Death's Web is a unique listed for reference — so list.length (102) ≠ the real number of runewords (100).
+  const _canon = (n) => String(n).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const _real = {}; list.forEach((x) => { const c = _canon(x.n); if (typeof RUNEWORD_TIP !== 'undefined' && RUNEWORD_TIP[c]) _real[c] = 1; });
+  const realCount = Object.keys(_real).length;
+  if (cntEl) {
+    cntEl.textContent = q ? `(${shown.length}/${realCount})` : `(${realCount})`;
+    cntEl.title = realCount + ' distinct runewords — same count as the Chronicle. (The list shows ' + list.length + ' rows: Spirit appears as its 2 bases, and Death’s Web is a unique listed for reference.)';
+  }
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const rows = shown.map((rw) => {
     const oc = rw.n.replace(/'/g, "\\'");
