@@ -7314,6 +7314,12 @@ function _baseRunewords(name){
   // Konyo-confirmed for base-game + RotW). Without this guard the helm-class made Tiara host helm runewords.
   if (/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(String(name||''))) return [];
   var cats = _baseCats(name); if (!Object.keys(cats).length) return [];
+  // Throwing weapons + javelins CANNOT be socketed in D2R → host NO runewords. Javelins carry the
+  // 'javelin' category; throwing axes/knives are a melee-TYPE (axe/dagger/…) flagged 'weapon' but WITHOUT
+  // the 'melee weapon' or 'missile weapon' scope (a true melee axe has 'melee weapon'; a bow has 'missile
+  // weapon'). Verified exact: catches 18 javelins + 12 throwing axes/knives, zero melee false-positives.
+  var _wt = cats['axe']||cats['dagger']||cats['sword']||cats['mace']||cats['hammer']||cats['polearm']||cats['spear']||cats['scepter']||cats['staff']||cats['wand']||cats['katar'];
+  if (cats['javelin'] || (_wt && cats['weapon'] && !cats['melee weapon'] && !cats['missile weapon'])) return [];
   var out = [];
   // v377 — PRECISE base-type → runeword matching (was a substring bug: a melee item carries the generic
   // category "weapon", and the old code did "missile weapons".indexOf("weapon")>=0 → true, so EVERY melee

@@ -68,6 +68,27 @@ test.describe('v377 runeword base matching', () => {
     expect(r.boneVisage.length).toBeGreaterThan(0);   // ✅ a true helm is unaffected
   });
 
+  test('THROWING weapons + javelins host NO runewords — they can\'t be socketed in D2R', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const n = (x: string) => (window as any)._baseRunewords(x).length;
+      return {
+        javelin: n('Javelin'), warJavelin: n('War Javelin'), maidenJavelin: n('Maiden Javelin'),
+        glaive: n('Glaive'), harpoon: n('Harpoon'),
+        throwingAxe: n('Throwing Axe'), hurlbat: n('Hurlbat'), wingedAxe: n('Winged Axe'),
+        throwingKnife: n('Throwing Knife'), balancedKnife: n('Balanced Knife'),
+        // ✅ regression guards — real socketable weapons keep their runewords
+        crystalSword: n('Crystal Sword'), berserkerAxe: n('Berserker Axe'), longBow: n('Long Bow'),
+      };
+    });
+    // throwing / javelins → 0
+    ['javelin','warJavelin','maidenJavelin','glaive','harpoon','throwingAxe','hurlbat','wingedAxe','throwingKnife','balancedKnife']
+      .forEach((k) => expect((r as any)[k]).toBe(0));
+    // socketable weapons unaffected
+    expect(r.crystalSword).toBeGreaterThan(0);
+    expect(r.berserkerAxe).toBeGreaterThan(0);
+    expect(r.longBow).toBeGreaterThan(0);   // bows ARE socketable
+  });
+
   test('a helm runeword\'s RECOMMENDED bases (bestStr) never list circlets', async ({ page }) => {
     const r = await page.evaluate(() => {
       const w: any = window;
