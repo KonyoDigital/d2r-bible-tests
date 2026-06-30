@@ -26081,6 +26081,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_auricOnly && _AS && !_AS.test(x)) return;                        // Exile etc. → auric shields only
         if (names.indexOf(x)<0) names.push(x); if (!note) note=r.meta||'';
       }); });
+      // v514 — FALLBACK: many RotW armour/helm/shield words have no curated meta base, so the card showed the
+      // bare spec ("3 socket Helms"). Pick the socket-correct ENDGAME base from BASE_DB instead (Bone Visage,
+      // Troll Nest, Archon Plate…): type-matched, prefer socket-exact + elite, lowest str. So it names a base.
+      if (!names.length && typeof BASE_DB!=='undefined'){
+        var _need=(/(\d+)\s*socket/.exec(b)||[])[1]; _need=_need?+_need:0;
+        var _wc=[];
+        if(/helm|\bcap\b|crown/.test(b))_wc.push('helm');
+        if(/body armor/.test(b))_wc.push('body armor');
+        if(/shield|aegis|\bward\b|targe|rondache/.test(b))_wc.push('shield');
+        if(/grimoire/.test(b))_wc.push('grimoire');
+        if(/shrunken head|voodoo head/.test(b))_wc.push('voodoo head');
+        if(_need && _wc.length){
+          var _hh=[];
+          for(var _nm in BASE_DB){ if(!Object.prototype.hasOwnProperty.call(BASE_DB,_nm))continue;
+            var _d=BASE_DB[_nm], _c2=(typeof _baseCats==='function')?_baseCats(_nm):{};
+            if(!_wc.some(function(k){return _c2[k];})) continue;
+            if(/^(?:Circlet|Coronet|Tiara|Diadem)$/i.test(_nm)) continue;
+            if(_auricOnly && _AS && !_AS.test(_nm)) continue;
+            var _mx=parseInt((typeof _socketMaxFor==='function')?_socketMaxFor(_nm):0,10)||0;
+            if(_mx<_need) continue;                                   // can't even reach the socket count → skip
+            _hh.push({name:_nm, str:_d.reqStr||0, score:((_mx===_need)?2:0)+((_d.tier==='elite')?1:0)});
+          }
+          _hh.sort(function(a,c){ return c.score-a.score || a.str-c.str; });   // socket-exact + elite first, then lowest str
+          names=_hh.slice(0,4).map(function(h){return h.name;});
+          if(!note && names.length){ var _top=_hh[0]; note=(_top && _top.score>=2)?('socket-correct '+_wc[0]+' — Larzuk → exactly '+_need):('elite '+_wc[0]+' — find one with '+_need+' sockets'); }
+        }
+      }
       return { names:names.slice(0,4), note:note, merc:false, hand:'' };
     }
     // WEAPON — prefer the SOCKET-CORRECT elite base (max === rune count, right hand → clean Larzuk).
