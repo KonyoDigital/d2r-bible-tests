@@ -5839,7 +5839,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .f-getchip{font-size:12.5px;font-weight:700;color:var(--text,#e8dcc0);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);padding:2px 9px;border-radius:7px;cursor:help}
 #tab-forge .f-getchip-base{color:#cdb988;border-color:rgba(205,185,136,.4)}
 #tab-forge .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
-#tab-forge .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;width:100%;margin-top:3px}
+#tab-forge .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
+#tab-forge .f-getsub b{color:#cdb988;font-style:normal}
+/* One-step full-journey arc: do-this-now segment lit, downstream dimmed */
+#tab-forge .f-journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:5px}
+#tab-forge .f-jseg{font-size:12.5px;color:var(--text-dim,#9a8c72);background:rgba(255,255,255,.03);border:1px solid var(--border,#3a2f1e);padding:3px 9px;border-radius:7px;display:inline-flex;align-items:center;gap:5px}
+#tab-forge .f-jseg b{color:var(--text,#d8cba8)}
+#tab-forge .f-jseg-now{color:var(--best,#e8c878);background:rgba(232,200,120,.14);border-color:rgba(232,200,120,.5);font-weight:700}
+#tab-forge .f-jseg-now b{color:var(--best,#e8c878)}
+#tab-forge .f-jarrow{color:var(--text-dim,#7a6f55);font-size:13px}
 #tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
@@ -26423,13 +26431,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🟡 One step away <span class="forge-sec-ct">'+s.onestep.length+'</span><span class="forge-sec-sub">do one → it jumps straight to ⚒ Make now</span></div>');
       var _missChips=function(arr){ return (arr||[]).map(function(m){ var nm=String(m).replace(/^\d+×\s*/,'').trim(); return '<span class="f-getchip" data-arttip="'+_fEsc(nm)+'" title="'+_fEsc(nm)+' rune">'+_fEsc(m)+'</span>'; }).join(''); };
       s.onestep.forEach(function(t){
-        var body;
-        if (t.sub==='cube') body='<span class="f-getlead f-get-cube">🧪 Cube up</span>'+_missChips(t.missing)+'<span class="f-getsub">base ready ('+_baseLine(t)+') → then forge</span>';
-        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; body='<span class="f-getlead f-get-rune">🔨 Get</span>'+_missChips(t.missing)+'<span class="f-getsub">'+_fEsc(_runeSource(top))+' · base ready → then forge</span>'; }
-        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn){ var b=bn.trim(); if(!b) return ''; return '<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+'</span>'; }).join(''); body='<span class="f-getlead f-get-base">🛒 Get a base</span>'+chips+'<span class="f-getsub">'+(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand · Larzuk-socket → forge</span>'; }
+        // FULL JOURNEY: the whole remaining arc, first step highlighted (do this now) → downstream dimmed.
+        var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
+        if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
+        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
+        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
+        var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
         H.push('<div class="f-card f-step"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help">'+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
-          +'<div class="f-cardmeta f-getrow">'+body+'</div>'
+          +'<div class="f-journey">'+journey+'</div>'
+          +'<div class="f-getsub">'+note+' · <b>'+segs.length+' step'+(segs.length>1?'s':'')+' to go</b></div>'
           +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
