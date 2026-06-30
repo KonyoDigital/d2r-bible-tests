@@ -5794,6 +5794,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .forge-tab.ft-empty.on{opacity:.72}
 #tab-forge .forge-sec-craft .forge-sec-h{color:#c79ce6}
 #tab-forge .f-upgrade{border-left-color:#e0b96a}
+#tab-forge .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
+#tab-forge .f-unlock b{color:#e0b96a}
 #tab-forge .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
 /* DO NOW — the login orientation feed */
 #tab-forge .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
@@ -26300,10 +26302,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var isW=!!cats['weapon'];
       var REC=isW?{exc:'Ral + Sol + Perfect Emerald',elite:'Lum + Pul + Perfect Emerald'}
                  :{exc:'Tal + Shael + Perfect Diamond',elite:'Ko + Lem + Perfect Diamond'};
+      // v506 — NAME the target tiers via the tier chain (Bone Helm → Grim Helm → Bone Visage) instead of a
+      // bare "Exceptional/Elite", and split the runewords into what the CURRENT base already makes vs what the
+      // ELITE twin UNLOCKS. The elite tier often has a HIGHER socket-max, so a white base upgraded + socketed
+      // to that max can form runewords the current base's max can't (Konyo's Bone Helm 2os → Bone Visage 3os).
+      var _chain=(window._TIER_CHAIN||{})[String(b.base).toLowerCase()]||{};
+      var _eliteName=_chain.elite||'', _excName=_chain.exc||'';
+      var _curMax=b.max||0, _eliteMax=_eliteName?(parseInt(_socketMaxFor(_eliteName),10)||_curMax):_curMax;
       var steps=(tier==='normal')
-        ? [ {to:'Exceptional',recipe:REC.exc}, {to:'Elite',recipe:REC.elite} ]
-        : [ {to:'Elite',recipe:REC.elite} ];
+        ? [ {to:(_excName||'Exceptional'),recipe:REC.exc}, {to:(_eliteName||'Elite'),recipe:REC.elite} ]
+        : [ {to:(_eliteName||'Elite'),recipe:REC.elite} ];
+      var _nowMake=todo.filter(function(r){ return r.s<=_curMax; }).sort(function(a,c){return c.s-a.s;}).map(function(r){return r.n;});
+      // unlocks only apply to a WHITE (0-socket) base — cube-up keeps sockets, so an already-socketed base
+      // can't reach a higher count; a white one can be upgraded then Larzuk'd to the elite max.
+      var _unlocks=(b.sockets===0)?todo.filter(function(r){ return r.s>_curMax && r.s<=_eliteMax; }).sort(function(a,c){return c.s-a.s;}).map(function(r){return r.n;}):[];
       out.upgrades.push({ base:b, tier:tier, isWeapon:isW, steps:steps,
+        eliteName:_eliteName, eliteMax:_eliteMax, curMax:_curMax, white:(b.sockets===0),
+        nowMake:_nowMake.slice(0,6), unlocks:_unlocks.slice(0,6),
         rws: todo.sort(function(a,c){ return c.s-a.s; }).slice(0,8).map(function(r){ return r.n; }) });
     }); } catch(e){}
     // 5b) DE-DUP upgrades against the actionable buckets (Konyo: don't re-list what's already going).
@@ -26576,13 +26591,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       s.upgrades.forEach(function(u){
         var bart=_fArt(u.base.base);
         var artH=bart?'<img class="f-art" src="'+_fEsc(bart)+'" alt="" loading="lazy">':'<span class="f-glyph">⬆</span>';
-        var stepsH=u.steps.map(function(st,i){ return '<div class="f-step"><span class="f-stepn">'+(i+1)+'</span> Cube <span class="f-cube">'+_fEsc(st.recipe)+'</span> → <b>'+st.to+'</b> tier.</div>'; }).join('');
+        var stepsH=u.steps.map(function(st,i){ var named=!/^(Exceptional|Elite)$/.test(st.to); return '<div class="f-step"><span class="f-stepn">'+(i+1)+'</span> Cube <span class="f-cube">'+_fEsc(st.recipe)+'</span> → <b>'+_fEsc(st.to)+'</b>'+(named?'':' tier')+'.</div>'; }).join('');
         var lastN=u.steps.length+1;
+        var titleH='Upgrade <b>'+_fEsc(u.base.base)+'</b>'+(u.eliteName?' → <b>'+_fEsc(u.eliteName)+'</b>':'')+' <span class="f-tier">'+(u.tier==='normal'?'Normal':'Exceptional')+' base</span>';
+        // v506 — lead with the UNLOCK (the reason to upgrade) when the elite tier opens higher runewords; else
+        // the standard "better stats" framing. A white base can be socketed to the elite max after upgrading.
+        var finalH = (u.white && u.unlocks && u.unlocks.length)
+          ? '<div class="f-step f-unlock"><span class="f-stepn">'+lastN+'</span> 🔓 <b>'+_fEsc(u.eliteName||'Elite')+'</b> ('+u.eliteMax+'os max) unlocks runewords your '+u.curMax+'os <b>'+_fEsc(u.base.base)+'</b> can\'t form — Larzuk to the count &amp; forge: <b>'+_fEsc(u.unlocks.join(', '))+'</b>.</div>'
+          : '<div class="f-step"><span class="f-stepn">'+lastN+'</span> Then socket &amp; forge'+(u.eliteName?' your <b>'+_fEsc(u.eliteName)+'</b>':'')+': <b>'+_fEsc((u.nowMake&&u.nowMake.length?u.nowMake:u.rws).join(', '))+'</b>.</div>';
+        var metaH = (u.white && u.unlocks && u.unlocks.length)
+          ? 'The <b>'+_fEsc(u.eliteName||'elite')+'</b> tier has more sockets — upgrade a <b>white</b> base, then Larzuk it for the bigger runewords.'
+          : 'Runewords work at any tier — upgrade for the <b>elite base stats</b>. Cube-upgrading <b>keeps existing sockets</b>.';
         H.push('<div class="f-card f-pipe f-upgrade"><div class="f-cardart">'+artH+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Upgrade <b>'+_fEsc(u.base.base)+'</b> <span class="f-tier">'+(u.tier==='normal'?'Normal':'Exceptional')+' base</span></div>'
-          +'<div class="f-cardmeta">Runewords work at any tier — upgrade for the <b>elite base stats</b>. Cube-upgrading <b>keeps existing sockets</b>.</div>'
-          +'<div class="f-steps">'+stepsH
-          +'<div class="f-step"><span class="f-stepn">'+lastN+'</span> Then socket to the elite max &amp; forge: <b>'+_fEsc(u.rws.join(', '))+'</b>.</div></div>'
+          +'<div class="f-cardtitle">'+titleH+'</div>'
+          +'<div class="f-cardmeta">'+metaH+'</div>'
+          +'<div class="f-steps">'+stepsH+finalH+'</div>'
           +'</div></div>');
       });
       H.push('</div>');
