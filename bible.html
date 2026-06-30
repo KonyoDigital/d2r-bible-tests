@@ -25901,6 +25901,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return out;
   }
 
+  // ── SAFEGUARD SOCKET RULES — the cross-reference that auto-cancels illogical socketing ──
+  // A runeword needs EXACTLY `need` sockets (= its rune count). Larzuk gives a base's single fixed MAX,
+  // guaranteed; and you can only socket an UNSOCKETED white base (an existing socket count is permanent).
+  //   cur === need            → 'have'   the base already holds exactly the right count
+  //   cur  >  0  (and ≠ need)  → null     socketed at a different count — FIXED, can't change  → CANCEL
+  //   cur === 0  & need === mx → 'larzuk' Larzuk guarantees the max = exactly what's needed → clean path
+  //   else (need≠mx, mx unknown, need>mx) → null  Larzuk would overshoot and the cube is a one-shot random
+  //                                               gamble (consumes the base) → NOT a directive path → CANCEL.
+  // This is why a 6-socket-max Crystal Sword no longer shows "Larzuk → 4os": Larzuk only ever gives 6 here,
+  // so a 4-socket word must use a base whose MAX is 4 (surfaced as a "need a base" task instead).
+  function _socketRule(cur, need, mx){
+    if (cur === need) return 'have';
+    if (cur > 0) return null;
+    if (mx && need === mx) return 'larzuk';
+    return null;
+  }
+
   function forgeScan(){
     var out={ now:[], pipeline:[], onestep:[], crafts:[], upgrades:[], counts:{} };
     if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
@@ -25919,12 +25936,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var req=_runeReq(name); if (!Object.keys(req).length) return;
         var runesNow=canMakeNow(req);
         var runesCube=!runesNow && (typeof canMakeWithCubing==='function') && canMakeWithCubing(req);
+        var rule=_socketRule(b.sockets, need, b.max);
+        if (!rule) return;                              // SAFEGUARD: not a legitimate path for this base → auto-cancelled
         var t=null;
-        if (b.sockets===need){
+        if (rule==='have'){                             // base already has EXACTLY the needed sockets
           if (runesNow) t={kind:'now', rw:name, base:b, need:need, req:req};
           else if (runesCube) t={kind:'onestep', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
           else t={kind:'onestep', sub:'runes', rw:name, base:b, need:need, req:req, missing:_missing(req)};
-        } else if (b.sockets<need && b.max && need<=b.max){
+        } else {                                        // 'larzuk' — unsocketed base whose MAX === need
           if (runesNow) t={kind:'pipeline', rw:name, base:b, need:need, req:req};
           else if (runesCube) t={kind:'pipeline', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
           // no runes + needs socket = 2 gaps → skip (lives in the Vault's Socketed Review)
@@ -26056,11 +26075,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         H.push('</div>');
       }
       if (deferred.length){
-        H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — but a higher-value forge claims the shared rune first</span></div>');
+        H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — but a higher-value forge claims the shared resource first</span></div>');
         deferred.forEach(function(t){
+          var bits=[];
+          if ((t.blockedBy||[]).length) bits.push('your <b>'+_fEsc(t.blockedBy.join(', '))+'</b> '+(t.blockedBy.length>1?'are':'is')+' claimed by a higher-value forge above');
+          if (t.blockedBase) bits.push('your <b>'+_fEsc(t.blockedBase)+'</b> base (you own '+(t.base&&t.base.count||1)+') is claimed by a higher-value forge above');
+          var dmsg = bits.length ? ('Ready — but '+bits.join(', and ')+'. Frees up once you make that one.') : 'Ready — deferred behind a higher-value forge above that needs the same resource.';
           H.push('<div class="f-card f-defer"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+_fEsc(t.rw)+' '+_handTag(t.hand)+'</div>'
-            +'<div class="f-cardmeta">Ready — but your <b>'+_fEsc((t.blockedBy||[]).join(', '))+'</b> is spent by a higher-value forge above.'+(t.blockedBase?' Also shares your '+_fEsc(t.blockedBase)+'.':'')+' Frees up after you make that one.</div>'
+            +'<div class="f-cardmeta">'+dmsg+'</div>'
             +'</div></div>');
         });
         H.push('</div>');
@@ -26070,12 +26093,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (show('pipeline') && s.pipeline.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🔧 Forge pipeline <span class="forge-sec-ct">'+s.pipeline.length+'</span><span class="forge-sec-sub">socket the base, then forge</span></div>');
       s.pipeline.forEach(function(t){
-        var slot=(typeof _socketSlotOf==='function')?_socketSlotOf(t.base.base):null;
-        var recipe=(slot&&typeof _CUBE_RECIPE!=='undefined'&&_CUBE_RECIPE[slot])?_CUBE_RECIPE[slot]:'';
+        // SAFEGUARD: pipeline only exists when need === base max, so Larzuk's guaranteed max IS the needed
+        // count — one coherent socket target (never the old "Larzuk → 4os" on a 6-max base contradiction).
         var runeLine=(t.sub==='cube')?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand';
         H.push('<div class="f-card f-pipe"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
-          +'<div class="f-steps"><div class="f-step"><span class="f-stepn">1</span> Socket your <b>'+(t.base.sockets?t.base.sockets+'os ':'')+_fEsc(t.base.base)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b>: <b>Larzuk</b> = guaranteed max'+(recipe?(', or cube <span class="f-cube">'+_fEsc(recipe)+'</span> for a random roll'):'')+'.</div>'
+          +'<div class="f-steps"><div class="f-step"><span class="f-stepn">1</span> Socket your unsocketed <b>'+_fEsc(t.base.base)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> via <b>Larzuk</b> (this base’s guaranteed max — exactly '+t.need+').</div>'
           +'<div class="f-step"><span class="f-stepn">2</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+runeLine+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div></div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');

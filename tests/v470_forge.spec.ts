@@ -57,7 +57,7 @@ test('MAKE NOW — runes in hand + an exact-socket base → ready, with the idea
 });
 
 test('PIPELINE — an unsocketed base + runes in hand → socket-then-forge, not "make now"', async ({ page }) => {
-  const s = await scan(page, { owned: ['Thresher (Larzuk base)'], runes: { Ral: 1, Tir: 1, Tal: 1, Sol: 1 } });
+  const s = await scan(page, { owned: ['Colossus Voulge (Larzuk base)'], runes: { Ral: 1, Tir: 1, Tal: 1, Sol: 1 } });
   const p = find(s.pipeline, 'Insight');
   expect(p).toBeTruthy();
   expect(p.need).toBe(4);
@@ -118,7 +118,7 @@ test('CRAFTS — a Perfect Amethyst + Ral surfaces a Caster Amulet task', async 
 });
 
 test('PIPELINE (cube) — base needs sockets AND the runes need cubing up', async ({ page }) => {
-  const s = await scan(page, { owned: ['Thresher (Larzuk base)'], runes: { Ral: 1, Tir: 1, Tal: 1, Amn: 3 } });  // 3 Amn → cube to Sol
+  const s = await scan(page, { owned: ['Colossus Voulge (Larzuk base)'], runes: { Ral: 1, Tir: 1, Tal: 1, Amn: 3 } });  // 3 Amn → cube to Sol
   const p = find(s.pipeline, 'Insight');
   expect(p).toBeTruthy();
   expect(p.sub).toBe('cube');
@@ -149,4 +149,12 @@ test('BASE UPGRADE — a Normal runeword base surfaces a cube-up-to-elite pipeli
   expect(u.steps.length).toBe(2);                          // Normal → Exceptional → Elite
   expect(u.steps[0].recipe).toContain('Perfect Emerald');  // weapon recipe
   expect(u.rws.length).toBeGreaterThan(0);
+});
+
+test('SAFEGUARD — Larzuk gives only a base\'s MAX, so a sub-max word is NOT pipelined on a too-big base', async ({ page }) => {
+  // Spirit = 4os; a Crystal Sword maxes at 6, so Larzuk always gives 6 → it can NOT make a 4os Spirit.
+  const s = await scan(page, { owned: ['Crystal Sword (Larzuk base)'], runes: { Tal: 1, Thul: 1, Ort: 1, Amn: 1 } });
+  expect((s.pipeline || []).find((t: any) => t.rw === 'Spirit')).toBeFalsy();   // the old "Larzuk → 4os" bug — gone
+  // invariant: a pipeline task NEVER targets fewer sockets than its base's verified max
+  (s.pipeline || []).forEach((t: any) => { if (t.base && t.base.max) expect(t.need).toBe(t.base.max); });
 });

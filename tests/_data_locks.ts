@@ -20,7 +20,7 @@ export const BINDS_SECTIONS_TOTAL = 16;
 export const ENDGAME_RELICS_TOTAL = 15;
 
 // Nav tab bar entries (v158 dock spec). v232: +TZ tracker → 12.
-export const NAV_TABS_TOTAL = 12;
+export const NAV_TABS_TOTAL = 13;  // v470: + Forge (the task-doer motherboard)
 
 // Horadric cube recipe browser rows (v177).
 export const HORADRIC_RECIPES_TOTAL = 36;
