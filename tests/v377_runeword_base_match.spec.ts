@@ -68,6 +68,17 @@ test.describe('v377 runeword base matching', () => {
     expect(r.boneVisage.length).toBeGreaterThan(0);   // ✅ a true helm is unaffected
   });
 
+  test('a helm runeword\'s RECOMMENDED bases (bestStr) never list circlets', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      // _forgeMetaBase = the engine's recommended-base picker that feeds the "Get a <X> base" prompt
+      const names = (w._forgeMetaBase ? w._forgeMetaBase('Delirium').names : []) as string[];
+      return names;
+    });
+    expect(r.length).toBeGreaterThan(0);                 // still recommends real helms
+    ['Circlet', 'Coronet', 'Tiara', 'Diadem'].forEach((c) => expect(r).not.toContain(c));
+  });
+
   test('body armor / shield matching is unchanged (no regression)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const names = (a: any[]) => a.map((x) => x.n);

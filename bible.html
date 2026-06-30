@@ -26030,7 +26030,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var names=[], note='';
       _bestFor(rw).forEach(function(r){ r.bases.forEach(function(x){
         var c=(typeof _baseCats==='function')?_baseCats(x):{};
-        if (!c['weapon']){ if (names.indexOf(x)<0) names.push(x); if (!note) note=r.meta||''; }
+        // exclude weapon bases AND circlets (Circlet/Coronet/Tiara/Diadem can't host runewords — see _baseRunewords)
+        if (!c['weapon'] && !/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(x)){ if (names.indexOf(x)<0) names.push(x); if (!note) note=r.meta||''; }
       }); });
       return { names:names.slice(0,4), note:note, merc:false, hand:'' };
     }
