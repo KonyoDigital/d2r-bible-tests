@@ -5818,6 +5818,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
 #tab-forge .f-restore{margin-top:8px;text-align:center}
 #tab-forge .forge-craftnow-lbl{font-size:12.5px;font-weight:700;color:#c79ce6;margin:14px 0 8px;letter-spacing:.2px}
+/* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
+#tab-forge .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
+#tab-forge .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
+#tab-forge .craftcol-h{display:flex;align-items:center;gap:9px;cursor:pointer;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06)}
+#tab-forge .craftcol-h:hover .craftcol-name{text-decoration:underline}
+#tab-forge .craftcol-h-t{display:flex;flex-direction:column;min-width:0}
+#tab-forge .craftcol-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
+#tab-forge .craftcol-gem{font-size:10.5px;color:var(--text-dim,#9a8c72);line-height:1.3}
+#tab-forge .craftcol-tile{display:block;padding:7px 10px;background:rgba(0,0,0,.25);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:8px}
+#tab-forge .craftcol-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0)}
+#tab-forge .craftcol-rec{font-size:11px;color:var(--text-dim,#9a8c72);margin-top:2px;line-height:1.4}
+#tab-forge .craftcol-rec b{color:var(--rune,#e0b96a)}
 #tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
@@ -26433,16 +26445,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // CRAFTS (own section) — v481: styled like the Crafted Item Workshop (HD gem art grid, .cw-crafts/.cw-tile).
     // The magic base is NPC-buyable (always on hand), so a craft is "ready" on gem + rune alone.
     if (show('crafts') && s.crafts.length){
-      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">perfect gem + rune in hand — buy a magic base + a jewel, then cube</span></div>');
-      H.push('<div class="cw-crafts">');
-      s.crafts.forEach(function(c){
-        var col=_fEsc(c.color||'#b48ce0'); var ek=String(c.craft).replace(/'/g,"\\'");
-        var art=(typeof artOr==='function')?artOr(c.gem,'<span style="font-size:24px;color:'+col+'">💎</span>','lg'):'<span style="font-size:24px;color:'+col+'">💎</span>';
-        H.push('<div class="cw-tile" style="--cw-c:'+col+'" role="button" tabindex="0" data-arttip="'+_fEsc(c.gem)+'" title="open the '+_fEsc(c.craft)+' recipes in the Workshop" onclick="window.selectCraft&&window.selectCraft(\''+ek+'\');window.switchTab&&window.switchTab(\'tools\')">'
-          +(c.star?'<span class="cw-tile-star">★ YOURS</span>':'')
-          +'<div class="cw-tile-head">'+art+'<div><div class="cw-tile-name">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</div><div class="cw-tile-gem">'+_fEsc(c.gem)+' + '+_fEsc(c.rune)+'</div></div></div>'
-          +'<div class="cw-tile-tell">'+_fEsc(c.tell||'')+'</div>'
-          +'<div class="cw-tile-foot"><span class="cw-tile-ready">✓ gem + rune in hand</span><span class="cw-tile-own">+ magic '+_fEsc(c.base)+'</span></div></div>');
+      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">a column per craft type — each slot stacked under its title</span></div>');
+      // COLUMN per craft TYPE (Caster/Blood/Safety/Hit Power); the type's slots stack VERTICALLY beneath its title.
+      var byType={}; s.crafts.forEach(function(c){ (byType[c.craft]=byType[c.craft]||[]).push(c); });
+      H.push('<div class="forge-craftcols">');
+      Object.keys(byType).forEach(function(ck){
+        var grp=byType[ck], c0=grp[0], col=_fEsc(c0.color||'#b48ce0'), ek=String(ck).replace(/'/g,"\\'");
+        var hart=(typeof artOr==='function')?artOr(c0.gem,'<span style="font-size:20px;color:'+col+'">💎</span>','sm'):'<span style="font-size:20px;color:'+col+'">💎</span>';
+        H.push('<div class="craftcol" style="--cw-c:'+col+'">');
+        H.push('<div class="craftcol-h" role="button" tabindex="0" data-arttip="'+_fEsc(c0.gem)+'" title="open the '+_fEsc(ck)+' recipes in the Workshop" onclick="window.selectCraft&&window.selectCraft(\''+ek+'\');window.switchTab&&window.switchTab(\'tools\')">'
+          +hart+'<div class="craftcol-h-t"><span class="craftcol-name">'+_fEsc(ck)+(c0.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</span><span class="craftcol-gem">'+_fEsc(c0.gem)+' · '+_fEsc(c0.tell||'')+'</span></div></div>');
+        grp.forEach(function(c){
+          H.push('<div class="craftcol-tile cw-tile" style="--cw-c:'+col+'" title="'+_fEsc(c.craft+' '+c.slot)+'">'
+            +'<div class="craftcol-slot">'+_fEsc(c.slot)+'</div>'
+            +'<div class="craftcol-rec"><b>'+_fEsc(c.rune)+'</b> + magic '+_fEsc(c.base)+' + a jewel</div></div>');
+        });
+        H.push('</div>');
       });
       H.push('</div></div>');
     }
