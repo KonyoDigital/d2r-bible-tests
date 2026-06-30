@@ -26629,7 +26629,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need,t0.base.eth), target=t0.base.base, atoms=[];
         if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b style="color:'+(_qC(target)||'var(--q-normal)')+'">'+_fEsc(target)+'</b> → <b style="color:'+(_qC(st.to)||'var(--q-normal)')+'">'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
-        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t upgrade to an elite base, so socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
+        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qName(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t upgrade to an elite base, so socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
@@ -26681,10 +26681,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // socket the elite, then forge — the full endgame chain, step by step.
         var uc=_upgradeChainFor(t.base.base, t.need, t.base.eth), target=t.base.base, n=1, steps='';
         if (uc){
-          uc.steps.forEach(function(st){ steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Cube-upgrade your <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b>: <span class="f-cube">'+_fEsc(st.recipe)+'</span>.</div>'; target=st.to; });
+          uc.steps.forEach(function(st){ steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Cube-upgrade your <b>'+_qName(target)+'</b> → <b>'+_qName(st.to)+'</b>: <span class="f-cube">'+_fEsc(st.recipe)+'</span>.</div>'; target=st.to; });
         }
-        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_fEsc(target)+'</b>'+(uc?' <span class="f-ideal">✓ elite endgame base</span>':(t.ideal?' <span class="f-ideal">✓ ideal base</span>':''))+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
-        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
+        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(uc?' <span class="f-ideal">✓ elite endgame base</span>':(t.ideal?' <span class="f-ideal">✓ ideal base</span>':''))+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qName(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(uc?' <span class="f-tier">via '+_qName(uc.targetBase)+'</span>':'')+'</div>'
           +'<div class="f-steps">'+steps+'</div>'
@@ -26700,8 +26700,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       s.onestep.forEach(function(t){
         // FULL JOURNEY: the whole remaining arc, first step highlighted (do this now) → downstream dimmed.
         var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
-        if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
-        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
+        if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
+        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
         else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
         var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
         var _osBase=String(t.bestStr||'').split(/\s*\/\s*/)[0].trim();   // the FIRST recommended base — what this card actually tells you to get (1H-correct), NOT RW_BEST_BASE (which can be a 2H best-damage base)
@@ -26721,14 +26721,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       s.upgrades.forEach(function(u){
         var bart=_fArt(u.base.base);
         var artH=bart?'<img class="f-art" src="'+_fEsc(bart)+'" alt="" loading="lazy">':'<span class="f-glyph">⬆</span>';
-        var stepsH=u.steps.map(function(st,i){ var named=!/^(Exceptional|Elite)$/.test(st.to); return '<div class="f-step"><span class="f-stepn">'+(i+1)+'</span> Cube <span class="f-cube">'+_fEsc(st.recipe)+'</span> → <b>'+_fEsc(st.to)+'</b>'+(named?'':' tier')+'.</div>'; }).join('');
+        var stepsH=u.steps.map(function(st,i){ var named=!/^(Exceptional|Elite)$/.test(st.to); return '<div class="f-step"><span class="f-stepn">'+(i+1)+'</span> Cube <span class="f-cube">'+_fEsc(st.recipe)+'</span> → <b>'+(named?_qName(st.to):_fEsc(st.to))+'</b>'+(named?'':' tier')+'.</div>'; }).join('');
         var lastN=u.steps.length+1;
-        var titleH='Upgrade <b>'+_fEsc(u.base.base)+'</b>'+(u.eliteName?' → <b>'+_fEsc(u.eliteName)+'</b>':'')+' <span class="f-tier">'+(u.tier==='normal'?'Normal':'Exceptional')+' base</span>';
+        var titleH='Upgrade <b>'+_qName(u.base.base)+'</b>'+(u.eliteName?' → <b>'+_qName(u.eliteName)+'</b>':'')+' <span class="f-tier">'+(u.tier==='normal'?'Normal':'Exceptional')+' base</span>';
         // v506 — lead with the UNLOCK (the reason to upgrade) when the elite tier opens higher runewords; else
         // the standard "better stats" framing. A white base can be socketed to the elite max after upgrading.
         var finalH = (u.white && u.unlocks && u.unlocks.length)
-          ? '<div class="f-step f-unlock"><span class="f-stepn">'+lastN+'</span> 🔓 <b>'+_fEsc(u.eliteName||'Elite')+'</b> ('+u.eliteMax+'os max) unlocks runewords your '+u.curMax+'os <b>'+_fEsc(u.base.base)+'</b> can\'t form — Larzuk to the count &amp; forge: <b>'+_fEsc(u.unlocks.join(', '))+'</b>.</div>'
-          : '<div class="f-step"><span class="f-stepn">'+lastN+'</span> Then socket &amp; forge'+(u.eliteName?' your <b>'+_fEsc(u.eliteName)+'</b>':'')+': <b>'+_fEsc((u.nowMake&&u.nowMake.length?u.nowMake:u.rws).join(', '))+'</b>.</div>';
+          ? '<div class="f-step f-unlock"><span class="f-stepn">'+lastN+'</span> 🔓 <b>'+_qName(u.eliteName||'Elite')+'</b> ('+u.eliteMax+'os max) unlocks runewords your '+u.curMax+'os <b>'+_qName(u.base.base)+'</b> can\'t form — Larzuk to the count &amp; forge: <b style="color:var(--q-orange)">'+_fEsc(u.unlocks.join(', '))+'</b>.</div>'
+          : '<div class="f-step"><span class="f-stepn">'+lastN+'</span> Then socket &amp; forge'+(u.eliteName?' your <b>'+_qName(u.eliteName)+'</b>':'')+': <b style="color:var(--q-orange)">'+_fEsc((u.nowMake&&u.nowMake.length?u.nowMake:u.rws).join(', '))+'</b>.</div>';
         var metaH = (u.white && u.unlocks && u.unlocks.length)
           ? 'The <b>'+_fEsc(u.eliteName||'elite')+'</b> tier has more sockets — upgrade a <b>white</b> base, then Larzuk it for the bigger runewords.'
           : 'Runewords work at any tier — upgrade for the <b>elite base stats</b>. Cube-upgrading <b>keeps existing sockets</b>.';
