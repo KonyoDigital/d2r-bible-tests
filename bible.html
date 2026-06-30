@@ -26322,7 +26322,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (typeof CRAFTS==='undefined' || !CRAFTS) return null;
     var c=null; CRAFTS.forEach(function(x){ if(x.key===ck) c=x; });
     if (!c || !c.slots) return null;
-    var rows=Object.keys(c.slots).map(function(slot){
+    // Konyo: curate to the recommended/jackpot slots (c.best) — the crafts actually worth making —
+    // not every possible slot. Falls back to all slots only if a craft has no curated list.
+    var slotKeys=(c.best && c.best.length) ? c.best.filter(function(sl){ return c.slots[sl]; }) : Object.keys(c.slots);
+    var rows=slotKeys.map(function(slot){
       var rec=c.slots[slot]||{}, has=(typeof _runeCount==='function'?_runeCount(rec.rune):0)>=1;
       return { slot:slot, rune:rec.rune, base:rec.base, ready:has };
     });
