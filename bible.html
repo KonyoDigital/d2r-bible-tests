@@ -26302,10 +26302,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       liveNow.forEach(function(t){ atomic.push({icon:'⚒', cls:'now',
         atoms:[ 'Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>' ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
-      s.crafts.forEach(function(c){ atomic.push({icon:'⚗️', cls:'craft',
-        atoms:[ 'Create a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> <span class="f-atomsub">— buy a magic '+_fEsc(c.base)+' + a jewel</span>' ],
-        btn:'<button class="f-btn" onclick="window.selectCraft&&window.selectCraft(\''+_fJs(c.craft)+'\');window.switchTab&&window.switchTab(\'tools\')">→ recipe</button>' }); });
-      // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step
+      // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
+      // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
       var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
       Object.keys(byBase).forEach(function(bn){
         var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need), target=t0.base.base, atoms=[];
@@ -26315,6 +26313,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         atoms.push('Forge '+(words.length>1?'one of':'')+' <b>'+_fEsc(words.join(' · '))+'</b>');
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms});
       });
+      s.crafts.forEach(function(c){ atomic.push({icon:'⚗️', cls:'craft',
+        atoms:[ 'Create a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> <span class="f-atomsub">— buy a magic '+_fEsc(c.base)+' + a jewel</span>' ],
+        btn:'<button class="f-btn" onclick="window.selectCraft&&window.selectCraft(\''+_fJs(c.craft)+'\');window.switchTab&&window.switchTab(\'tools\')">→ recipe</button>' }); });
       if (atomic.length){
         H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+atomic.length+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears</span></div>');
         atomic.forEach(function(a){
