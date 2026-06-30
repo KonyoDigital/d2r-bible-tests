@@ -5845,7 +5845,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .f-craftacc-badge{font-size:11px;font-weight:700;color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
 #tab-forge .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
 #tab-forge .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
-#tab-forge .f-craftrow{display:flex;align-items:baseline;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
+#tab-forge .f-craftrow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
+#tab-forge .f-slotart{flex:none;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:6px}
+#tab-forge .f-slotart img{max-width:24px;max-height:24px;object-fit:contain}
 #tab-forge .f-craftrow.ready{border-left:3px solid #6fbf6f}
 #tab-forge .f-craftrow.locked{opacity:.55}
 #tab-forge .f-craftrow-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0);min-width:62px;flex:none}
@@ -26411,6 +26413,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     rows.sort(function(a,b){ return (b.ready?1:0)-(a.ready?1:0) || a.slot.localeCompare(b.slot); });
     return { c:c, rows:rows, readyN:rows.filter(function(r){return r.ready;}).length, total:rows.length };
   }
+  // v510 — HD item art per craft slot (Konyo: "HD art like in-game for Amulet/Belt/Gloves/Ring + all").
+  // Representative HD sprite per slot type + a tooltip name that resolves to that art. Map the jewelry
+  // slot names into D2IO_ART (additive) so their floating data-arttip tooltips resolve too.
+  try { if (typeof D2IO_ART!=='undefined'){ if(!D2IO_ART['Amulet'])D2IO_ART['Amulet']='art/hd_amulet.png'; if(!D2IO_ART['Ring'])D2IO_ART['Ring']='art/hd_ring.png'; if(!D2IO_ART['Gloves'])D2IO_ART['Gloves']='art/hd_gloves_l.png'; } } catch(e){}
+  var _SLOT_REP={Amulet:'art/hd_amulet.png',Ring:'art/hd_ring.png',Gloves:'art/hd_gloves_l.png',Belt:'art/hd_light_belt.png',Boots:'art/base_boots.png',Helm:'art/hd_helm.png',Shield:'art/hd_kite_shield.png','Body Armor':'art/hd_light_plate.png',Weapon:'art/hd_crystal_sword.png'};
+  var _SLOT_TIP={Amulet:'Amulet',Ring:'Ring',Gloves:'Gloves',Belt:'Belt',Boots:'Boots',Helm:'Helm',Shield:'Kite Shield','Body Armor':'Light Plate',Weapon:'Crystal Sword'};
+  function _slotArtImg(slot){ var src=_SLOT_REP[slot]; if(!src) return ''; return '<span class="f-slotart" data-arttip="'+_fEsc(_SLOT_TIP[slot]||slot)+'"><img src="'+src+'" alt="" loading="lazy"></span>'; }
   // one collapsible craft card (header always shown; body only when open).
   function _craftAccHtml(ck, col){
     var d=_craftSlots(ck); if(!d) return '';
@@ -26427,6 +26436,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       h+='<div class="f-craftacc-body">';
       d.rows.forEach(function(r){
         h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
+          +_slotArtImg(r.slot)
           +'<span class="f-craftrow-slot">'+_fEsc(r.slot)+'</span>'
           +'<span class="f-craftrow-rec"><b>'+_fEsc(r.rune)+'</b> + magic '+_fEsc(r.base)+' + a jewel</span>'
           +'<span class="f-craftrow-st">'+(r.ready?'✓ make now':'need '+_fEsc(r.rune))+'</span>'
