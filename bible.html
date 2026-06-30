@@ -26561,7 +26561,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_fEsc(target)+'</b>'+(uc?' <span class="f-ideal">✓ elite endgame base</span>':(t.ideal?' <span class="f-ideal">✓ ideal base</span>':''))+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
-        H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc((typeof _rwArtName==='function'?_rwArtName(t.rw):t.rw))+'">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+        H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(uc?' <span class="f-tier">via '+_fEsc(uc.targetBase)+'</span>':'')+'</div>'
           +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
@@ -26607,7 +26607,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var metaH = (u.white && u.unlocks && u.unlocks.length)
           ? 'The <b>'+_fEsc(u.eliteName||'elite')+'</b> tier has more sockets — upgrade a <b>white</b> base, then Larzuk it for the bigger runewords.'
           : 'Runewords work at any tier — upgrade for the <b>elite base stats</b>. Cube-upgrading <b>keeps existing sockets</b>.';
-        H.push('<div class="f-card f-pipe f-upgrade"><div class="f-cardart" data-arttip="'+_fEsc(u.eliteName||u.base.base)+'">'+artH+'</div><div class="f-cardbody">'
+        H.push('<div class="f-card f-pipe f-upgrade"><div class="f-cardart" data-arttip="'+_fEsc(u.base.base)+'">'+artH+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle">'+titleH+'</div>'
           +'<div class="f-cardmeta">'+metaH+'</div>'
           +'<div class="f-steps">'+stepsH+finalH+'</div>'
