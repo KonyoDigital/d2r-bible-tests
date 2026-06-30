@@ -18835,12 +18835,16 @@ function toggleStatue(name) {
 window.toggleStatue = toggleStatue;
 
 function switchTab(name) {
+  // v504 — guard an UNKNOWN tab id (a stale/typo'd URL hash like #calculator vs #calc) so we no-op
+  // gracefully instead of throwing "Cannot read null.classList" and breaking the render.
+  var _tabBtn = document.querySelector(`.tab[data-tab="${name}"]`), _tabEl = $("tab-"+name);
+  if (!_tabBtn || !_tabEl) return;
   document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
   if (name === "bosses" && activeItem) setTimeout(() => setActiveItem(activeItem), 50);
 
   document.querySelectorAll(".tab-content").forEach(x => x.classList.remove("active"));
-  document.querySelector(`.tab[data-tab="${name}"]`).classList.add("active");
-  $("tab-"+name).classList.add("active");
+  _tabBtn.classList.add("active");
+  _tabEl.classList.add("active");
   // v28: ensure data-boss-id is set on TZ zones when tab becomes visible
   if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId();
   if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow();
