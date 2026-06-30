@@ -5813,7 +5813,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .fd-steps .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
 #tab-forge .fd-more{font-size:12px;color:var(--text-dim,#9a8c72);padding:9px 0 2px;border-top:1px solid rgba(255,255,255,.05);font-style:italic}
 /* atomic Make-now cards — big, single, "boom" tasks */
-#tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5}
+#tab-forge .f-atom{position:relative}
+#tab-forge .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:1;opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
+#tab-forge .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
+#tab-forge .f-restore{margin-top:8px;text-align:center}
+#tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
 #tab-forge .f-atomprog{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
@@ -26241,6 +26245,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _stepGet(k){ try{ return (JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
   function _stepSet(k,v){ try{ var o=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; localStorage.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
   window.forgeAdvance=function(k,total){ var s=_stepGet(k)+1; _stepSet(k, s>=total?0:s); if(typeof renderForge==='function') renderForge(); };
+  // skip / dismiss: ✕ a task you don't want now. Persisted in d2r_forgeSkip. Skipping a chain's forge-step word
+  // (key 'rw|<word>') reveals the next word on that base; skipping a whole task hides it. Restorable.
+  function _skipSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeSkip')||'[]')); }catch(e){ return new Set(); } }
+  window.forgeSkip=function(key){ var s=_skipSet(); s.add(key); try{ localStorage.setItem('d2r_forgeSkip', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeUnskipAll=function(){ try{ localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
 
   // DO-NOW feed: flatten the plan into an ordered, atomic next-move list (the login orientation).
   function _doNowItems(s){
@@ -26298,36 +26307,44 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // ── MAKE NOW — atomic, one-at-a-time tasks. A multi-step chain shows ONLY its current step; tick "✓ did it"
     // and the next step replaces it. Crafts & ready forges are single "boom" tasks. Full chains live in 🔧 Pipeline.
     if (show('now')){
-      var atomic=[];
-      liveNow.forEach(function(t){ atomic.push({icon:'⚒', cls:'now',
+      var atomic=[], skip=_skipSet();
+      liveNow.forEach(function(t){ if(skip.has('rw|'+t.rw)) return; atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
         atoms:[ 'Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>' ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
       var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
       Object.keys(byBase).forEach(function(bn){
+        if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need), target=t0.base.base, atoms=[];
         if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
         atoms.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>');
-        var words=grp.map(function(t){return t.rw;});
-        atoms.push('Forge '+(words.length>1?'one of':'')+' <b>'+_fEsc(words.join(' · '))+'</b>');
-        atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms});
+        // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
+        var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
+        if(!words.length) return;   // every word for this base skipped → drop the chain
+        var topWord=words[0];
+        atoms.push('Forge <b>'+_fEsc(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
+        atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord});
       });
-      s.crafts.forEach(function(c){ atomic.push({icon:'⚗️', cls:'craft',
+      s.crafts.forEach(function(c){ var ck='craft|'+c.craft+'|'+c.slot; if(skip.has(ck)) return; atomic.push({icon:'⚗️', cls:'craft', skipKey:ck,
         atoms:[ 'Create a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> <span class="f-atomsub">— buy a magic '+_fEsc(c.base)+' + a jewel</span>' ],
         btn:'<button class="f-btn" onclick="window.selectCraft&&window.selectCraft(\''+_fJs(c.craft)+'\');window.switchTab&&window.switchTab(\'tools\')">→ recipe</button>' }); });
       if (atomic.length){
-        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+atomic.length+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears</span></div>');
+        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+atomic.length+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears · ✕ to skip</span></div>');
         atomic.forEach(function(a){
           var total=a.atoms.length, step=a.chainKey?Math.min(_stepGet(a.chainKey),total-1):0, isLast=step>=total-1;
           var prog = total>1 ? '<span class="f-atomprog">step '+(step+1)+' / '+total+'</span>' : '';
           var btn = a.chainKey
             ? '<button class="f-btn f-btn-go" onclick="window.forgeAdvance(\''+a.chainKey+'\','+total+')">'+(isLast?'✓ done — restart':'✓ did it → next')+'</button>'
             : a.btn;
-          H.push('<div class="f-card f-'+a.cls+' f-atom"><div class="f-cardart"><span class="f-atomic-ic">'+a.icon+'</span></div><div class="f-cardbody">'
+          // ✕ skip: at a chain's FORGE step it skips just that word (cycles to the next); otherwise skips the whole task
+          var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
+          var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkip(\''+_fJs(sk)+'\')">✕</button>' : '';
+          H.push('<div class="f-card f-'+a.cls+' f-atom">'+skipBtn+'<div class="f-cardart"><span class="f-atomic-ic">'+a.icon+'</span></div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
             +'<div class="f-cta">'+btn+'</div></div></div>');
         });
+        if (skip.size) H.push('<div class="f-restore"><button class="f-btn" onclick="window.forgeUnskipAll()">↺ restore '+skip.size+' skipped task'+(skip.size>1?'s':'')+'</button></div>');
         H.push('</div>');
       }
       if (deferred.length){
