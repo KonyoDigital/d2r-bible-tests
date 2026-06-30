@@ -43,3 +43,12 @@ test('shield/armor/wand upgrades surface the right unlocks', async ({ page }) =>
   expect(yewWand?.eliteName).toBe('Ghost Wand');
   expect(yewWand?.unlocks.length).toBeGreaterThan(0);   // White/Wind (2os) — Yew Wand maxes at 1
 });
+
+test('endgame gate: upgrade tasks exclude leveling junk (Lore/Nadir) but keep endgame unlocks', async ({ page }) => {
+  const u = await upgradeOf(page, 'Bone Helm (Larzuk base)');
+  expect(u).not.toBeNull();
+  const allListed = [...(u.rws||[]), ...(u.unlocks||[]), ...(u.nowMake||[])];
+  expect(allListed).not.toContain('Lore');    // 2os leveling helm word — gated out
+  expect(allListed).not.toContain('Nadir');   // 2os leveling helm word — gated out
+  expect(u.unlocks).toContain('Delirium');    // endgame unlock kept
+});

@@ -26296,8 +26296,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var tier=(typeof _baseTier==='function')?_baseTier(b.base):'';
       if (tier!=='normal' && tier!=='exceptional') return;
       var rws=(typeof _baseRunewords==='function')?_baseRunewords(b.base):[];
-      var todo=rws.filter(function(rw){ return !_rwBlocked(rw.n); });
-      if (!todo.length) return;                       // base hosts nothing still to make → don't nag
+      // v507 — ENDGAME GATE (Konyo: "it needs to be end game gear, not create Lore for the hell of it").
+      // Only suggest a base upgrade when it serves a worthwhile runeword — value floor = the Io rune
+      // (his good examples bottom out at White/Io; junk like Lore/Nadir/Steel sit below). System still
+      // UNDERSTANDS every chain; it just won't NAG you to upgrade a base for a leveling runeword.
+      var _IO=(typeof RUNE_INDEX!=='undefined' && RUNE_INDEX['Io']!=null)?RUNE_INDEX['Io']:15;
+      var todo=rws.filter(function(rw){ return !_rwBlocked(rw.n) && _rwVal(rw.n)>=_IO; });
+      if (!todo.length) return;                       // hosts only leveling junk (or all made) → stay silent
       var cats=(typeof _baseCats==='function')?_baseCats(b.base):{};
       var isW=!!cats['weapon'];
       var REC=isW?{exc:'Ral + Sol + Perfect Emerald',elite:'Lum + Pul + Perfect Emerald'}
