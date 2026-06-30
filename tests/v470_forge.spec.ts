@@ -158,3 +158,19 @@ test('SAFEGUARD — Larzuk gives only a base\'s MAX, so a sub-max word is NOT pi
   // invariant: a pipeline task NEVER targets fewer sockets than its base's verified max
   (s.pipeline || []).forEach((t: any) => { if (t.base && t.base.max) expect(t.need).toBe(t.base.max); });
 });
+
+test('OPTIMAL ASSIGNMENT — two 6os bases let two 6os words BOTH be make-now (no false defer)', async ({ page }) => {
+  // Konyo's real case: two 6os polearms (Grim Scythe + Spetum) + runes for two 6os words. Both should
+  // be "make now" (one per base), NOT one deferred because the engine only tried a single base.
+  const s = await scan(page, {
+    owned: ['Grim Scythe (6os)', 'Spetum (6os)'],
+    runes: { Vex: 2, Hel: 2, El: 2, Eld: 2, Zod: 2, Eth: 2, Dol: 2, Ist: 2, Tir: 2 },  // BotD + Silence runes
+  });
+  const live = s.now.filter((t: any) => !t.deferred).map((t: any) => t.rw);
+  expect(live).toContain('Breath of the Dying');
+  expect(live).toContain('Silence');               // the previously-deferred word now uses the free 2nd base
+  // and the two live words used two DIFFERENT bases
+  const botd = s.now.find((t: any) => t.rw === 'Breath of the Dying');
+  const sil = s.now.find((t: any) => t.rw === 'Silence');
+  expect(botd.base.name).not.toBe(sil.base.name);
+});

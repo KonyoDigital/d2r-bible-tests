@@ -25923,7 +25923,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
     var bases=_ownedBases();
     var kindRank=function(t){ return t.kind==='now'?0:t.kind==='pipeline'?1:2; };
-    var byRw={};
+    var byRw={}, _nowCands={};   // _nowCands: rw → ALL owned exact-socket bases that can host it now (so allocation can use every base, not just one)
     // 1) cross owned bases × the runewords they can hold
     bases.forEach(function(b){
       var rws=(typeof _baseRunewords==='function')?_baseRunewords(b.base):[];
@@ -25940,7 +25940,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (!rule) return;                              // SAFEGUARD: not a legitimate path for this base → auto-cancelled
         var t=null;
         if (rule==='have'){                             // base already has EXACTLY the needed sockets
-          if (runesNow) t={kind:'now', rw:name, base:b, need:need, req:req};
+          if (runesNow){ t={kind:'now', rw:name, base:b, need:need, req:req}; (_nowCands[name]=_nowCands[name]||[]).push(b); }
           else if (runesCube) t={kind:'onestep', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
           else t={kind:'onestep', sub:'runes', rw:name, base:b, need:need, req:req, missing:_missing(req)};
         } else {                                        // 'larzuk' — unsocketed base whose MAX === need
@@ -25971,12 +25971,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // 3) conflict / auto-prioritise: value-sort, greedily allocate the shared rune + base pool
     out.now.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
     var pool={}; (typeof RUNES!=='undefined'?RUNES:[]).forEach(function(r){ pool[r.n]=_runeCount(r.n); });
-    var baseLeft={}; bases.forEach(function(b){ baseLeft[b.name]=b.count; });
+    var baseUsed={};   // base item-name → copies already consumed this pass
     out.now.forEach(function(t){
       var runeOk=Object.keys(t.req).every(function(r){ return (pool[r]||0)>=t.req[r]; });
-      var baseOk=!t.base || (baseLeft[t.base.name]||0)>=1;
-      if (runeOk && baseOk){ Object.keys(t.req).forEach(function(r){ pool[r]-=t.req[r]; }); if(t.base) baseLeft[t.base.name]--; t.deferred=false; }
-      else { t.deferred=true; t.blockedBy=Object.keys(t.req).filter(function(r){ return (pool[r]||0)<t.req[r]; }); if(!baseOk&&t.base) t.blockedBase=t.base.base; }
+      // pick an AVAILABLE base from EVERY owned base that can host this word (ideal/meta base first),
+      // not just the one pre-chosen — so a 2nd 6os base lets a 2nd 6os word be made now (Konyo's Spetum case).
+      var cands=(_nowCands[t.rw]||(t.base?[t.base]:[])).slice()
+        .sort(function(a,c){ return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0); });
+      var chosen=null;
+      for (var i=0;i<cands.length;i++){ var c=cands[i]; if (c && (baseUsed[c.name]||0) < (c.count||1)){ chosen=c; break; } }
+      if (runeOk && chosen){
+        Object.keys(t.req).forEach(function(r){ pool[r]-=t.req[r]; });
+        baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1;
+        t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); t.deferred=false;
+      } else {
+        t.deferred=true;
+        t.blockedBy=Object.keys(t.req).filter(function(r){ return (pool[r]||0)<t.req[r]; });
+        if(!chosen && t.base) t.blockedBase=t.base.base;
+      }
     });
     // 4) crafts you can cube now (have the perfect gem + the slot rune)
     try { if (typeof CRAFTS!=='undefined' && CRAFTS) CRAFTS.forEach(function(c){
