@@ -7308,6 +7308,11 @@ function _baseCats(b){
 }
 function _baseRunewords(name){
   if (typeof RUNEWORD_TIP === 'undefined') return [];
+  // D2R does NOT allow runewords in circlets (Circlet/Coronet/Tiara/Diadem). They are classed as 'helm'
+  // for slot/craft/mule purposes, but they socket gems/jewels ONLY — never runewords. No runeword in the
+  // data is flagged for a circlet base, so excluding the whole class drops nothing intended (verified;
+  // Konyo-confirmed for base-game + RotW). Without this guard the helm-class made Tiara host helm runewords.
+  if (/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(String(name||''))) return [];
   var cats = _baseCats(name); if (!Object.keys(cats).length) return [];
   var out = [];
   // v377 — PRECISE base-type → runeword matching (was a substring bug: a melee item carries the generic

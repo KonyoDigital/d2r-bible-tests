@@ -48,6 +48,26 @@ test.describe('v377 runeword base matching', () => {
     expect(r).not.toContain('Edge');     // Missile Weapons — a sword is not missile
   });
 
+  test('CIRCLETS (Circlet/Coronet/Tiara/Diadem) host NO runewords — D2R sockets them for gems/jewels only', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const names = (a: any[]) => a.map((x) => x.n);
+      const w: any = window;
+      return {
+        tiara: names(w._baseRunewords('Tiara')),
+        circlet: names(w._baseRunewords('Circlet')),
+        coronet: names(w._baseRunewords('Coronet')),
+        diadem: names(w._baseRunewords('Diadem')),
+        // a REAL helm must still host helm runewords (regression guard — circlets are classed 'helm')
+        boneVisage: names(w._baseRunewords('Bone Visage')),
+      };
+    });
+    expect(r.tiara).toEqual([]);     // ⛔ no runewords in a Tiara
+    expect(r.circlet).toEqual([]);
+    expect(r.coronet).toEqual([]);
+    expect(r.diadem).toEqual([]);
+    expect(r.boneVisage.length).toBeGreaterThan(0);   // ✅ a true helm is unaffected
+  });
+
   test('body armor / shield matching is unchanged (no regression)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const names = (a: any[]) => a.map((x) => x.n);
