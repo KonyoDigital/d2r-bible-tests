@@ -3264,6 +3264,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="main">🏠 main</button>
+    <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="bosses">🗺️ bosses</button>
     <button class="tab" data-tab="calc">🔍 calculator</button>
     <button class="tab" data-tab="tz">🔥 TZ zones</button>
@@ -5760,6 +5761,63 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   <div class="lead"><code>runs = log(1 - confidence) / log(1 - 1/dropChance)</code></div>
   <p style="font-size:13px;color:var(--text-muted)">Practical: chance 1:X → <strong>50% conf ≈ 0.693 × X</strong>, <strong>95% ≈ 3 × X</strong>, <strong>99% ≈ 4.6 × X</strong>.</p>
   </div>
+</div>
+<div class="tab-content" id="tab-forge">
+<style>
+#tab-forge .forge-head{margin:2px 0 16px}
+#tab-forge .forge-title{font-size:26px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878)}
+#tab-forge .forge-sub{font-size:12.5px;color:var(--text-dim,#9a8c72);margin-top:3px;max-width:760px;line-height:1.45}
+#tab-forge .forge-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#tab-forge .fs-pill{font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03)}
+#tab-forge .fs-now{color:#8fe0a0;border-color:rgba(143,224,160,.45)}
+#tab-forge .fs-pipe{color:#9fd4ff;border-color:rgba(159,212,255,.4)}
+#tab-forge .fs-step{color:#e9d07a;border-color:rgba(233,208,122,.4)}
+#tab-forge .fs-craft{color:#c79ce6;border-color:rgba(199,156,230,.4)}
+#tab-forge .forge-empty{margin-top:20px;padding:22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
+#tab-forge .forge-sec{margin:20px 0 6px}
+#tab-forge .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:800;padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
+#tab-forge .forge-sec-ct{font-size:12px;font-weight:700;padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
+#tab-forge .forge-sec-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);margin-left:auto}
+#tab-forge .forge-sec-now .forge-sec-h{color:#8fe0a0}
+#tab-forge .forge-sec-pipe .forge-sec-h{color:#9fd4ff}
+#tab-forge .forge-sec-step .forge-sec-h{color:#e9d07a}
+#tab-forge .forge-sec-defer .forge-sec-h{color:#b9a98a}
+#tab-forge .forge-note{font-size:12px;color:var(--text-dim,#9a8c72);margin:-4px 0 12px;font-style:italic}
+#tab-forge .f-card{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;margin-bottom:9px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:10px;background:rgba(255,255,255,.022)}
+#tab-forge .f-now{border-left-color:#5fc97a}
+#tab-forge .f-pipe{border-left-color:#5b9fd0}
+#tab-forge .f-step{border-left-color:#cdb157}
+#tab-forge .f-defer{border-left-color:#6b5f48;opacity:.62}
+#tab-forge .f-cardart{flex:0 0 42px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:8px;overflow:hidden}
+#tab-forge .f-art{max-width:40px;max-height:40px;object-fit:contain}
+#tab-forge .f-glyph{font-size:22px}
+#tab-forge .f-cardbody{flex:1;min-width:0}
+#tab-forge .f-cardtitle{font-size:15px;font-weight:700;color:var(--text,#e8dcc0)}
+#tab-forge .f-cardtitle b{color:var(--best,#e8c878)}
+#tab-forge .f-cardmeta{font-size:12.5px;color:var(--text-dim,#a89a80);margin-top:3px;line-height:1.5}
+#tab-forge .f-cardmeta b{color:var(--text,#d8cba8)}
+#tab-forge .f-cardtell{font-size:11.5px;color:var(--text-dim,#9a8c72);margin-top:3px;font-style:italic}
+#tab-forge .f-recipe,#tab-forge .f-recipe-inline{margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:2px}
+#tab-forge .f-recipe-inline{display:inline-flex;margin-top:0}
+#tab-forge .f-hand{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;vertical-align:middle;margin-left:4px}
+#tab-forge .f-eth{font-size:10px;font-weight:700;color:#9fd4ff}
+#tab-forge .f-sup{font-size:10px;font-weight:700;color:#8fe0a0}
+#tab-forge .f-ideal{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:rgba(143,224,160,.14);color:#8fe0a0;margin-left:4px}
+#tab-forge .f-alt{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:rgba(233,208,122,.12);color:#e9d07a;margin-left:4px}
+#tab-forge .f-star{font-size:10px;font-weight:800;color:#e9d07a;margin-left:4px}
+#tab-forge .f-need{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;margin-left:4px}
+#tab-forge .f-steps{margin-top:6px}
+#tab-forge .f-step{font-size:12.5px;color:var(--text-dim,#a89a80);line-height:1.55;margin:3px 0;padding-left:4px}
+#tab-forge .f-step b{color:var(--text,#d8cba8)}
+#tab-forge .f-stepn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(159,212,255,.18);color:#9fd4ff;font-size:10px;font-weight:800;margin-right:6px}
+#tab-forge .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
+#tab-forge .f-cta{margin-top:9px;display:flex;gap:7px}
+#tab-forge .f-btn{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:7px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.04);color:var(--text-dim,#b3a486);cursor:pointer}
+#tab-forge .f-btn:hover{background:rgba(255,255,255,.09);color:var(--text,#e8dcc0)}
+#tab-forge .f-btn-go{border-color:rgba(95,201,122,.5);color:#8fe0a0;background:rgba(95,201,122,.1)}
+#tab-forge .f-btn-go:hover{background:rgba(95,201,122,.2)}
+</style>
+<div id="forge-body"></div>
 </div>
 <div class="footer">
   <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px">
@@ -15947,6 +16005,7 @@ function renderRunewordChronicle(){
     ? _grp('Non-Ladder — makeable on your character', _nonList, false) + _grp('Ladder-only — won’t form on a non-ladder character', _ladList, true)
     : _grp('Ladder-only runewords', _ladList, true) + _grp('Non-Ladder runewords', _nonList, false);
   box.innerHTML = _html || '<div class="rw-empty">Nothing matches this filter.</div>';
+  try { if (typeof renderForge === 'function') renderForge(); } catch(e){}   // v470 — keep Forge's task plan live (fires on mark-created + rune-stash changes, which both re-render the Chronicle)
 }
 window.renderRunewordChronicle = renderRunewordChronicle;
 
@@ -18637,6 +18696,7 @@ function switchTab(name) {
   // v28: ensure data-boss-id is set on TZ zones when tab becomes visible
   if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId();
   if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow();
+  if (name === "forge" && typeof renderForge === "function") renderForge();   // v470 — recompute the task plan every time the Forge tab opens
 }
 
 // ===== TZ TRACKER (live terror-zone tab) =====
@@ -25728,6 +25788,283 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); renderJournal(); initShotExample(); initFolderWatch(); });
   else { renderVault(); renderJournal(); initShotExample(); initFolderWatch(); }
+})();
+</script>
+<script id="v470-forge-js">
+/* ============================================================================
+   v470 — FORGE: the AI Organizer / task-doer motherboard.
+   Reads the SAME live state the four tools write — Runes (runeStash), Gems
+   (gemStash), Vault (owned + EXTRA_ITEMS socketed bases), Chronicle (rwMade) —
+   and produces ONE ranked, directive task plan: what to forge now, what's one
+   step away, and the socket→forge pipelines. No new state of its own; pure
+   orchestration of the existing matchers (_baseRunewords, canMakeNow/WithCubing,
+   _socketMaxFor, RW_BASES best-base data, CRAFTS). Synced to the Chronicle:
+   anything ✓ created drops out automatically. Auto-prioritised by value AND by
+   the bible's best-base knowledge (BotD → 1H Berserker Axe, Grief → Phase Blade,
+   Enigma → Archon Plate), honest about shared-rune conflicts.
+   ========================================================================== */
+(function(){
+  function _fEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function _fJs(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function _fArt(n){ try { return (typeof artUrl==='function') ? (artUrl(n)||'') : ''; } catch(e){ return ''; } }
+  function _has(g){ try { return typeof window[g]!=='undefined'; } catch(e){ return false; } }
+
+  // ---- best-base reverse index (built once from RW_BASES) ----
+  var _FORGE_BEST = (function(){
+    var m = {};
+    try {
+      (typeof RW_BASES!=='undefined'?RW_BASES:[]).forEach(function(grp){
+        var slot = String(grp.slot||'').replace(/^[^A-Za-z]+/,'').trim();
+        (grp.items||[]).forEach(function(it){
+          var bases = String(it.n).split(/\s*[\/·]\s*/).map(function(s){return s.trim();}).filter(Boolean);
+          String(it.rw||'').split('·').forEach(function(rw){
+            var name = rw.trim(); if (!name) return;
+            var rec = { bases:bases, meta:it.meta||'', slot:slot };
+            (m[name]=m[name]||[]).push(rec);
+            var nk = name.replace(/['’]/g,''); if (nk!==name) (m[nk]=m[nk]||[]).push(rec);
+          });
+        });
+      });
+    } catch(e){}
+    return m;
+  })();
+  function _bestFor(rw){ return _FORGE_BEST[rw] || _FORGE_BEST[String(rw||'').replace(/['’]/g,'')] || []; }
+  function _isIdealBase(rw, base){
+    var recs=_bestFor(rw); if(!recs.length) return false;
+    var b=String(base||'').toLowerCase();
+    return recs.some(function(r){ return r.bases.some(function(x){ var xl=x.toLowerCase(); return b===xl||b.indexOf(xl)>=0||xl.indexOf(b)>=0; }); });
+  }
+  function _bestBaseStr(rw){
+    var recs=_bestFor(rw); if(!recs.length) return '';
+    var names=[]; recs.forEach(function(r){ r.bases.forEach(function(x){ if(names.indexOf(x)<0) names.push(x); }); });
+    return names.slice(0,4).join(' / ');
+  }
+  function _bestMeta(rw){ var recs=_bestFor(rw); return recs.length?recs[0].meta:''; }
+
+  // ---- runeword helpers ----
+  function _runeReq(rw){
+    var e=(typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}; var rec=Array.isArray(e.rec)?e.rec:[];
+    var req={}; rec.forEach(function(r){ if(typeof RUNE_INDEX!=='undefined'&&(r in RUNE_INDEX)) req[r]=(req[r]||0)+1; });
+    return req;
+  }
+  function _rwVal(rw){
+    var e=(typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}; var rec=Array.isArray(e.rec)?e.rec:[];
+    return rec.reduce(function(m,r){ return Math.max(m,(RUNE_INDEX[r]||0)); },0);
+  }
+  function _rwBlocked(rw){
+    try { if (typeof rwMade!=='undefined'&&rwMade&&rwMade[rw]) return 'made'; } catch(e){}
+    var lo=(typeof _rwIsLadderOnly==='function')?_rwIsLadderOnly(rw):false;
+    if (lo && typeof rwLadderMode!=='undefined' && rwLadderMode==='nonladder') return 'ladder';
+    return '';
+  }
+  function _missing(req){
+    return Object.keys(req).filter(function(r){ return _runeCount(r)<req[r]; })
+      .sort(function(a,b){ return (RUNE_INDEX[b]||0)-(RUNE_INDEX[a]||0); })
+      .map(function(r){ return (req[r]-_runeCount(r))+'× '+r; });
+  }
+  // full-coaching: cheapest way to get a missing rune (cube recipe + farm hint)
+  function _runeSource(rn){
+    if (!rn || typeof RUNE_INDEX==='undefined' || !(rn in RUNE_INDEX)) return 'farm Countess / Hellforge / TZ';
+    var idx=RUNE_INDEX[rn], parts=[];
+    if (idx>0 && RUNES[idx-1] && RUNES[idx-1].up) parts.push('cube '+RUNES[idx-1].up);
+    parts.push(idx>=24?'or farm Hell Countess / TZ / Hellforge (rare)':idx>=16?'or Countess (Hell) / Travincal / TZ':'or Countess / Hellforge / any Hell run');
+    return parts.join(' ');
+  }
+  function _hand(rw){ try { return (typeof _rwHand==='function')?_rwHand(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}).b):''; } catch(e){ return ''; } }
+
+  function _ownedBases(){
+    var out=[];
+    try { Array.from(owned).forEach(function(n){
+      var e=(window.EXTRA_ITEMS&&EXTRA_ITEMS[n])||null;
+      if (e && e.cat==='Socketed bases') out.push({
+        name:n, base:e.base||n,
+        sockets:(typeof e.sockets==='number')?e.sockets:0,
+        max:(typeof _socketMaxFor==='function')?(parseInt(_socketMaxFor(e.base||n),10)||0):0,
+        eth:(typeof window._isEthereal==='function')?!!window._isEthereal(n):false,
+        sup:(typeof window._isSuperior==='function')?!!window._isSuperior(n):false,
+        count:(typeof copyCount==='function')?copyCount(n):1
+      });
+    }); } catch(e){}
+    return out;
+  }
+
+  function forgeScan(){
+    var out={ now:[], pipeline:[], onestep:[], crafts:[], counts:{} };
+    if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
+    var bases=_ownedBases();
+    var kindRank=function(t){ return t.kind==='now'?0:t.kind==='pipeline'?1:2; };
+    var byRw={};
+    // 1) cross owned bases × the runewords they can hold
+    bases.forEach(function(b){
+      var rws=(typeof _baseRunewords==='function')?_baseRunewords(b.base):[];
+      rws.forEach(function(rw){
+        var name=rw.n, need=rw.s;
+        if (_rwBlocked(name)) return;
+        // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
+        // them, even when our max estimate is low (e.g. Wand reports max 1 but a 2os Wand is real). The max
+        // guard belongs only on the socket-UP pipeline branch below, where reachability genuinely matters.
+        var req=_runeReq(name); if (!Object.keys(req).length) return;
+        var runesNow=canMakeNow(req);
+        var runesCube=!runesNow && (typeof canMakeWithCubing==='function') && canMakeWithCubing(req);
+        var t=null;
+        if (b.sockets===need){
+          if (runesNow) t={kind:'now', rw:name, base:b, need:need, req:req};
+          else if (runesCube) t={kind:'onestep', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
+          else t={kind:'onestep', sub:'runes', rw:name, base:b, need:need, req:req, missing:_missing(req)};
+        } else if (b.sockets<need && b.max && need<=b.max){
+          if (runesNow) t={kind:'pipeline', rw:name, base:b, need:need, req:req};
+          else if (runesCube) t={kind:'pipeline', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
+          // no runes + needs socket = 2 gaps → skip (lives in the Vault's Socketed Review)
+        }
+        if (!t) return;
+        t.hand=_hand(name); t.val=_rwVal(name); t.ideal=_isIdealBase(name,b.base); t.bestStr=_bestBaseStr(name); t.bestMeta=_bestMeta(name);
+        var cur=byRw[name];
+        if (!cur){ byRw[name]=t; }
+        else {
+          var r1=kindRank(t), r0=kindRank(cur);
+          if (r1<r0) byRw[name]=t;                          // better kind wins (now > pipeline > onestep)
+          else if (r1===r0 && t.ideal && !cur.ideal) byRw[name]=t;  // tie → prefer the meta base
+        }
+      });
+    });
+    // 2) runeword-driven: runes fully in hand but NO matching base owned → "find a base"
+    try { Object.keys(RUNEWORD_TIP).forEach(function(name){
+      if (byRw[name] || _rwBlocked(name)) return;
+      var req=_runeReq(name); if (!Object.keys(req).length || !canMakeNow(req)) return;
+      var e=RUNEWORD_TIP[name]||{};
+      byRw[name]={ kind:'onestep', sub:'base', rw:name, base:null, need:0, req:req, baseReq:e.b||'', hand:_hand(name), val:_rwVal(name), bestStr:_bestBaseStr(name), bestMeta:_bestMeta(name) };
+    }); } catch(e){}
+    // bucket
+    Object.keys(byRw).forEach(function(k){ var t=byRw[k]; (t.kind==='now'?out.now:t.kind==='pipeline'?out.pipeline:out.onestep).push(t); });
+    // 3) conflict / auto-prioritise: value-sort, greedily allocate the shared rune + base pool
+    out.now.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
+    var pool={}; (typeof RUNES!=='undefined'?RUNES:[]).forEach(function(r){ pool[r.n]=_runeCount(r.n); });
+    var baseLeft={}; bases.forEach(function(b){ baseLeft[b.name]=b.count; });
+    out.now.forEach(function(t){
+      var runeOk=Object.keys(t.req).every(function(r){ return (pool[r]||0)>=t.req[r]; });
+      var baseOk=!t.base || (baseLeft[t.base.name]||0)>=1;
+      if (runeOk && baseOk){ Object.keys(t.req).forEach(function(r){ pool[r]-=t.req[r]; }); if(t.base) baseLeft[t.base.name]--; t.deferred=false; }
+      else { t.deferred=true; t.blockedBy=Object.keys(t.req).filter(function(r){ return (pool[r]||0)<t.req[r]; }); if(!baseOk&&t.base) t.blockedBase=t.base.base; }
+    });
+    // 4) crafts you can cube now (have the perfect gem + the slot rune)
+    try { if (typeof CRAFTS!=='undefined' && CRAFTS) CRAFTS.forEach(function(c){
+      if ((typeof _gemCount==='function'?_gemCount(c.gem):0)<1) return;
+      var slots=(c.best&&c.best.length)?c.best:Object.keys(c.slots||{});
+      slots.forEach(function(slot){
+        var rec=c.slots&&c.slots[slot]; if(!rec) return;
+        if ((typeof _runeCount==='function'?_runeCount(rec.rune):0)<1) return;
+        out.crafts.push({ craft:c.key, slot:slot, rune:rec.rune, gem:c.gem, base:rec.base, color:c.color, star:!!c.star, tell:c.tell, bis:c.bis });
+      });
+    }); } catch(e){}
+    // rank the slower buckets
+    out.pipeline.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
+    out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
+    out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
+    return out;
+  }
+
+  function _rwArt(rw){
+    var a=(typeof _rwArtName==='function')?_rwArtName(rw):rw;
+    var src=_fArt(a) || ((typeof _rwcCatArt==='function')?_rwcCatArt(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}).b):'');
+    return src?'<img class="f-art" src="'+_fEsc(src)+'" alt="" loading="lazy">':'<span class="f-glyph">📜</span>';
+  }
+  function _recipe(rw){
+    var e=(typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}; var rec=Array.isArray(e.rec)?e.rec:[];
+    return (typeof _rwRecipeArt==='function')?_rwRecipeArt(rec.join(' + ')):_fEsc(rec.join(' + '));
+  }
+  function _handTag(h){ return h?'<span class="f-hand" title="'+(h==='1H/2H'?'one- or two-handed depending on base':h==='2H'?'two-handed':'one-handed')+'">'+_fEsc(h)+'</span>':''; }
+  function _baseLine(t){
+    var idl = t.ideal ? '<span class="f-ideal" title="'+_fEsc(t.bestMeta)+'">✓ ideal base</span>'
+              : (t.bestStr ? '<span class="f-alt" title="'+_fEsc(t.bestMeta)+'">meta base: '+_fEsc(t.bestStr)+'</span>' : '');
+    return '<b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>'+(t.base.eth?' <span class="f-eth">⊘ eth</span>':'')+(t.base.sup?' <span class="f-sup">superior</span>':'')+' '+idl;
+  }
+
+  function renderForge(){
+    var box=document.getElementById('forge-body'); if(!box) return;
+    var s=forgeScan(); var H=[];
+    var liveNow=s.now.filter(function(t){return !t.deferred;});
+    H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div><div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div>'
+      +'<div class="forge-strip">'
+      +'<span class="fs-pill fs-now">⚒ '+liveNow.length+' make now</span>'
+      +'<span class="fs-pill fs-pipe">🔧 '+s.pipeline.length+' pipeline</span>'
+      +'<span class="fs-pill fs-step">🟡 '+s.onestep.length+' one step away</span>'
+      +'<span class="fs-pill fs-craft">⚗️ '+s.crafts.length+' crafts</span>'
+      +'</div></div>');
+    if (!(liveNow.length||s.now.length||s.pipeline.length||s.onestep.length||s.crafts.length)){
+      H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
+      box.innerHTML=H.join(''); return;
+    }
+    // MAKE NOW
+    if (liveNow.length || s.crafts.length){
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+(liveNow.length+s.crafts.length)+'</span><span class="forge-sec-sub">everything in hand — go build it</span></div>');
+      liveNow.forEach(function(t){
+        H.push('<div class="f-card f-now"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+          +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+'</div>'
+          +'<div class="f-cardmeta">In your '+_baseLine(t)+' + runes in hand.</div>'
+          +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
+          +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button>'
+          +'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ mark created</button></div>'
+          +'</div></div>');
+      });
+      s.crafts.forEach(function(c){
+        H.push('<div class="f-card f-now f-craft" style="border-left-color:'+_fEsc(c.color||'#b48ce0')+'"><div class="f-cardart"><span class="f-glyph">⚗️</span></div><div class="f-cardbody">'
+          +'<div class="f-cardtitle">Craft <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.star?' <span class="f-star">⭐ your craft</span>':'')+'</div>'
+          +'<div class="f-cardmeta">You hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>. Add a <b>magic '+_fEsc(c.base)+'</b> + any jewel → cube.</div>'
+          +'<div class="f-cardtell">'+_fEsc(c.tell||'')+'</div>'
+          +'</div></div>');
+      });
+      H.push('</div>');
+    }
+    // DEFERRED (shared-rune conflict)
+    var deferred=s.now.filter(function(t){return t.deferred;});
+    if (deferred.length){
+      H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — but a higher-value forge claims the shared rune first</span></div>');
+      deferred.forEach(function(t){
+        H.push('<div class="f-card f-defer"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+          +'<div class="f-cardtitle">'+_fEsc(t.rw)+' '+_handTag(t.hand)+'</div>'
+          +'<div class="f-cardmeta">Ready — but your <b>'+_fEsc((t.blockedBy||[]).join(', '))+'</b> is spent by a higher-value forge above.'+(t.blockedBase?' Also shares your '+_fEsc(t.blockedBase)+'.':'')+' Frees up after you make that one.</div>'
+          +'</div></div>');
+      });
+      H.push('</div>');
+    }
+    // PIPELINE
+    if (s.pipeline.length){
+      H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🔧 Forge pipeline <span class="forge-sec-ct">'+s.pipeline.length+'</span><span class="forge-sec-sub">socket the base, then forge</span></div>');
+      s.pipeline.forEach(function(t){
+        var slot=(typeof _socketSlotOf==='function')?_socketSlotOf(t.base.base):null;
+        var recipe=(slot&&typeof _CUBE_RECIPE!=='undefined'&&_CUBE_RECIPE[slot])?_CUBE_RECIPE[slot]:'';
+        var runeLine=(t.sub==='cube')?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand';
+        H.push('<div class="f-card f-pipe"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+          +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
+          +'<div class="f-steps"><div class="f-step"><span class="f-stepn">1</span> Socket your <b>'+(t.base.sockets?t.base.sockets+'os ':'')+_fEsc(t.base.base)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b>: <b>Larzuk</b> = guaranteed max'+(recipe?(', or cube <span class="f-cube">'+_fEsc(recipe)+'</span> for a random roll'):'')+'.</div>'
+          +'<div class="f-step"><span class="f-stepn">2</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+runeLine+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div></div>'
+          +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
+          +'</div></div>');
+      });
+      H.push('</div>');
+    }
+    // ONE STEP AWAY
+    if (s.onestep.length){
+      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🟡 One step away <span class="forge-sec-ct">'+s.onestep.length+'</span><span class="forge-sec-sub">close the single gap and it’s yours</span></div>');
+      s.onestep.forEach(function(t){
+        var body;
+        if (t.sub==='cube') body='Base ready ('+_baseLine(t)+'). Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge.';
+        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; body='Base ready ('+_baseLine(t)+'). Need <b>'+_fEsc((t.missing||[]).join(', '))+'</b> — '+_fEsc(_runeSource(top))+'.'; }
+        else body='Runes in hand. Need a <b>'+_fEsc(t.bestStr||t.baseReq)+'</b> base'+(t.bestMeta?' ('+_fEsc(t.bestMeta)+')':'')+' — find a white/superior one and socket it.';
+        H.push('<div class="f-card f-step"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+          +'<div class="f-cardtitle">'+_fEsc(t.rw)+' '+_handTag(t.hand)+'</div>'
+          +'<div class="f-cardmeta">'+body+'</div>'
+          +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
+          +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
+          +'</div></div>');
+      });
+      H.push('</div>');
+    }
+    box.innerHTML=H.join('');
+  }
+
+  window.forgeScan=forgeScan;
+  window.renderForge=renderForge;
 })();
 </script>
 </body>
