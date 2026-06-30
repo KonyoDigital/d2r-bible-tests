@@ -26177,7 +26177,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       rws.forEach(function(rw){
         var name=rw.n, need=rw.s;
         if (_rwBlocked(name)) return;
-        if (!_handOk(name, b.base)) return;   // HAND GATE: a 1H player word won't match a 2H base; a merc word needs a merc 2H base
+        // HAND GATE. Fresh-base recommendations stay strict (1H player / 2H merc, via _metaBaseFor). But a base
+        // you ALREADY OWN that type-matches the word CAN host it — a 2H/merc owned base just makes it a MERCENARY
+        // weapon (Konyo's "2H = merc" rule), so surface it tagged instead of dropping it. Genuinely-wrong hands
+        // (e.g. a caster-staff word on a non-staff) still drop.
+        var _mercOwn=false;
+        if (!_handOk(name, b.base)){
+          var _obh=_baseHandClass(b.base), _owant=_metaBaseFor(name).hand;
+          if ((_obh==='2H'||_obh==='merc') && (_owant==='1H'||_owant==='')) _mercOwn=true; else return;
+        }
         // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
         // them, even when our max estimate is low (e.g. Wand reports max 1 but a 2os Wand is real). The max
         // guard belongs only on the socket-UP pipeline branch below, where reachability genuinely matters.
@@ -26197,7 +26205,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // no runes + needs socket = 2 gaps → skip (lives in the Vault's Socketed Review)
         }
         if (!t) return;
-        t.hand=_hand(name); t.val=_rwVal(name); t.ideal=_isIdealBase(name,b.base); t.bestStr=_bestBaseStr(name); t.bestMeta=_bestMeta(name);
+        t.hand=_mercOwn?'2H merc':_hand(name); t.mercOwn=_mercOwn; t.val=_rwVal(name); t.ideal=_isIdealBase(name,b.base); t.bestStr=_bestBaseStr(name); t.bestMeta=_bestMeta(name);
         var cur=byRw[name];
         if (!cur){ byRw[name]=t; }
         else {
@@ -26295,7 +26303,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var e=(typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}; var rec=Array.isArray(e.rec)?e.rec:[];
     return (typeof _rwRecipeArt==='function')?_rwRecipeArt(rec.join(' + ')):_fEsc(rec.join(' + '));
   }
-  function _handTag(h){ return h?'<span class="f-hand" title="'+(h==='1H/2H'?'one- or two-handed depending on base':h==='2H'?'two-handed':'one-handed')+'">'+_fEsc(h)+'</span>':''; }
+  function _handTag(h){ if(!h) return ''; var ti=h==='1H/2H'?'one- or two-handed depending on base':/2H merc/.test(h)?'two-handed → a mercenary weapon':/2H caster/.test(h)?'two-handed caster staff (your weapon)':h==='2H'?'two-handed':'one-handed'; return '<span class="f-hand" title="'+ti+'">'+_fEsc(h)+'</span>'; }
   function _baseLine(t){
     var idl = t.ideal ? '<span class="f-ideal" title="'+_fEsc(t.bestMeta)+'">✓ ideal base</span>'
               : (t.bestStr ? '<span class="f-alt" title="'+_fEsc(t.bestMeta)+'">meta base: '+_fEsc(t.bestStr)+'</span>' : '');
@@ -26438,7 +26446,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (show('now')){
       var atomic=[], skip=_skipSet();
       liveNow.forEach(function(t){ if(skip.has('rw|'+t.rw)) return; atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
-        atoms:[ 'Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>' ],
+        atoms:[ 'Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'') ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
