@@ -5772,15 +5772,26 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:72px;padding:14px 8px;border-radius:13px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.025);color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease}
 #tab-forge .forge-tab:hover{background:rgba(255,255,255,.06);color:var(--text,#e8dcc0);transform:translateY(-1px)}
 #tab-forge .forge-tab:active{transform:translateY(0)}
-#tab-forge .ft-emoji{font-size:22px;line-height:1}
+#tab-forge .ft-emoji{font-size:22px;line-height:1;filter:saturate(1.15)}
 #tab-forge .ft-lbl{font-size:14px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
-#tab-forge .ft-ct{font-size:12.5px;font-weight:800;padding:1px 10px;border-radius:11px;background:rgba(255,255,255,.08)}
+#tab-forge .ft-ct{font-size:13px;font-weight:800;padding:2px 11px;border-radius:11px;background:rgba(255,255,255,.08);line-height:1.2}
+/* persistent per-bucket accent so the tabs are scannable at a glance even when inactive */
+#tab-forge .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
+#tab-forge .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
+#tab-forge .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
+#tab-forge .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
+#tab-forge .forge-tab.ft-craft .ft-ct{color:#c79ce6;background:rgba(199,156,230,.12)}
+/* active = filled capsule + a top accent rail in the bucket colour */
+#tab-forge .forge-tab.on{box-shadow:inset 0 3px 0 -1px currentColor}
 #tab-forge .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
 #tab-forge .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
 #tab-forge .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
 #tab-forge .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
 #tab-forge .forge-tab.ft-craft.on{border-color:rgba(199,156,230,.65);background:rgba(199,156,230,.14);color:#c79ce6}
-#tab-forge .forge-tab.on .ft-ct{background:rgba(0,0,0,.32)}
+#tab-forge .forge-tab.on .ft-lbl{color:inherit}
+/* an empty bucket recedes so the eye lands on what actually has tasks */
+#tab-forge .forge-tab.ft-empty{opacity:.42}
+#tab-forge .forge-tab.ft-empty.on{opacity:.72}
 #tab-forge .forge-sec-craft .forge-sec-h{color:#c79ce6}
 #tab-forge .f-upgrade{border-left-color:#e0b96a}
 #tab-forge .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
@@ -26018,8 +26029,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         ? [ {to:'Exceptional',recipe:REC.exc}, {to:'Elite',recipe:REC.elite} ]
         : [ {to:'Elite',recipe:REC.elite} ];
       out.upgrades.push({ base:b, tier:tier, isWeapon:isW, steps:steps,
-        rws: todo.sort(function(a,c){ return c.s-a.s; }).slice(0,6).map(function(r){ return r.n; }) });
+        rws: todo.sort(function(a,c){ return c.s-a.s; }).slice(0,8).map(function(r){ return r.n; }) });
     }); } catch(e){}
+    // 5b) DE-DUP upgrades against the actionable buckets (Konyo: don't re-list what's already going).
+    // Drop a card whose base is already serving a make-now / pipeline task, and strip words already
+    // actionable elsewhere — so upgrades surface only GENUINELY-new value (a base whose elite tier
+    // would unlock something you can't already do). On a vault where every base is in use → 0, correctly.
+    var _handled={}; out.now.concat(out.pipeline, out.onestep).forEach(function(t){ _handled[t.rw]=1; });
+    var _busyBase={}; out.now.filter(function(t){ return !t.deferred; }).concat(out.pipeline).forEach(function(t){ if(t.base) _busyBase[t.base.name]=1; });
+    out.upgrades = out.upgrades.filter(function(u){
+      if (_busyBase[u.base.name]) return false;
+      u.rws = u.rws.filter(function(rw){ return !_handled[rw]; });
+      return u.rws.length > 0;
+    });
     // rank the slower buckets
     out.pipeline.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
@@ -26057,7 +26079,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
     var tab=function(key,emoji,label,cls,n){
-      return '<button class="forge-tab '+cls+(F===key?' on':'')+'" onclick="window.forgeSetFilter(\''+key+'\')" title="show only '+label+'">'
+      return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="window.forgeSetFilter(\''+key+'\')" title="show only '+label+'">'
         +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+label+'</span><span class="ft-ct">'+n+'</span></button>';
     };
     H.push('<div class="forge-tabs">'
