@@ -18208,6 +18208,7 @@ function _tipTint(nm){
     var rar = (typeof _artRarity === 'function') ? _artRarity(nm) : '';
     if (rar === 'unique' || rar === 'set' || rar === 'rare' || rar === 'crafted') return (typeof _Q_HEX !== 'undefined' && _Q_HEX[rar]) ? _Q_HEX[rar] : '';
     if (rar === 'magic') return '#9fb0ff';   // lighten magic for title legibility on dark
+    if (rar === 'basic') return '#f4f4f4';   // v518 — white base items get a WHITE floating-card title (in-game synced)
     if (typeof findGem === 'function'){ var gk = findGem(nm); if (gk && typeof _gemColor === 'function') return _gemColor(gk); }
     if (rar === 'rune' || rar === 'rw') return '#ffa800';
     if (typeof RUNE_INDEX !== 'undefined' && (nm in RUNE_INDEX)) return '#ffa800';
@@ -26000,6 +26001,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _fJs(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
   function _fArt(n){ try { return (typeof artUrl==='function') ? (artUrl(n)||'') : ''; } catch(e){ return ''; } }
   function _has(g){ try { return typeof window[g]!=='undefined'; } catch(e){ return false; } }
+  // v518 — in-game RARITY colour for any item reference (the SINGLE source of truth, _qHex):
+  // runeword → orange · white base → white · unique gold · set green · magic blue. Konyo: "synced
+  // ingame for each individual item reference" — so every forge card title / base chip uses it.
+  function _qC(n){ try { return (typeof _qHex==='function') ? (_qHex(n)||'') : ''; } catch(e){ return ''; } }
+  function _qName(n){ var c=_qC(n); return c ? '<span style="color:'+c+'">'+_fEsc(n)+'</span>' : _fEsc(n); }
 
   // ---- best-base reverse index (built once from RW_BASES) ----
   var _FORGE_BEST = (function(){
@@ -26469,7 +26475,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v510 — HD item art per craft slot (Konyo: "HD art like in-game for Amulet/Belt/Gloves/Ring + all").
   // Representative HD sprite per slot type + a tooltip name that resolves to that art. Map the jewelry
   // slot names into D2IO_ART (additive) so their floating data-arttip tooltips resolve too.
-  try { if (typeof D2IO_ART!=='undefined'){ if(!D2IO_ART['Amulet'])D2IO_ART['Amulet']='art/hd_amulet.png'; if(!D2IO_ART['Ring'])D2IO_ART['Ring']='art/hd_ring.png'; if(!D2IO_ART['Gloves'])D2IO_ART['Gloves']='art/hd_gloves_l.png'; } } catch(e){}
+  try { if (typeof D2IO_ART!=='undefined'){ if(!D2IO_ART['Amulet'])D2IO_ART['Amulet']='art/hd_amulet.png'; if(!D2IO_ART['Ring'])D2IO_ART['Ring']='art/hd_ring.png'; if(!D2IO_ART['Gloves'])D2IO_ART['Gloves']='art/hd_gloves_l.png';
+    // v518 — jewel art (a magic-blue jewel sprite) so the craft "a jewel" ingredient shows an HD icon +
+    // a magic-blue floating tooltip image, exactly like the Amulet/Ring slots. _tipTint already → magic blue.
+    if(!D2IO_ART['any jewel'])D2IO_ART['any jewel']='art/jewel02_graphic.png'; if(!D2IO_ART['Jewel'])D2IO_ART['Jewel']='art/jewel02_graphic.png'; } } catch(e){}
+  var _JEWEL_ART='art/jewel02_graphic.png';
   // v513 — all GOOD hd_ files (base_boots/base_belt were the v497 corrupt blue-gem placeholders). Tooltip
   // names point at the SAME good art so the floating cursor card matches the row image (not a blue gem).
   var _SLOT_REP={Amulet:'art/hd_amulet.png',Ring:'art/hd_ring.png',Gloves:'art/hd_gloves_l.png',Belt:'art/hd_light_belt.png',Boots:'art/hd_chain_boots.png',Helm:'art/hd_helm.png',Shield:'art/hd_kite_shield.png','Body Armor':'art/hd_light_plate.png',Weapon:'art/hd_crystal_sword.png'};
@@ -26494,8 +26504,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '<span class="f-cing f-cing-base" data-arttip="'+_fEsc('magic '+slot+' base')+'">'+img+'<span class="f-cbnames">'+names+'</span></span>';
   }
   function _cingJewel(){
-    // data-arttip "any jewel" matches _arttipResolve's jewel regex → rich jewel card (NOT "a jewel", which misses it)
-    return '<span class="f-cing f-cing-jewel" data-arttip="any jewel"><span class="f-cing-gl f-cing-gl-j">◈</span>a jewel</span>';
+    // data-arttip "any jewel" → rich jewel card (magic-blue title via _tipTint) + HD jewel art image.
+    var jimg = _JEWEL_ART ? '<img class="f-cing-img" src="'+_JEWEL_ART+'" alt="" loading="lazy">' : '<span class="f-cing-gl f-cing-gl-j">◈</span>';
+    return '<span class="f-cing f-cing-jewel" data-arttip="any jewel">'+jimg+'a jewel</span>';
   }
   // one collapsible craft card (header always shown; body only when open).
   function _craftAccHtml(ck, col){
@@ -26583,7 +26594,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (show('now')){
       var atomic=[], skip=_skipSet();
       liveNow.forEach(function(t){ if(skip.has('rw|'+t.rw)) return; atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
-        atoms:[ 'Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'') ],
+        atoms:[ 'Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qName(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'') ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
@@ -26591,13 +26602,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       Object.keys(byBase).forEach(function(bn){
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need,t0.base.eth), target=t0.base.base, atoms=[];
-        if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
+        if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b style="color:'+(_qC(target)||'var(--q-normal)')+'">'+_fEsc(target)+'</b> → <b style="color:'+(_qC(st.to)||'var(--q-normal)')+'">'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
         atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t upgrade to an elite base, so socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
         var topWord=words[0];
-        atoms.push('Forge <b>'+_fEsc(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
+        atoms.push('Forge <b style="color:'+(_qC(topWord)||'')+'">'+_fEsc(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord});
       });
       // crafts → grouped into ~4 gem-titled tiles (Caster/Blood/Safety/Hit Power), Workshop .cw-tile style.
@@ -26627,7 +26638,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       if (deferred.length){
         H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — frees up once a shared base/rune above is used</span></div>');
-        deferred.forEach(function(t){ H.push('<div class="f-card f-defer"><div class="f-cardbody"><div class="f-cardtitle">'+_fEsc(t.rw)+'</div><div class="f-cardmeta">Shares your <b>'+_fEsc(t.blockedBase||(t.blockedBy||[]).join(', ')||'resource')+'</b> with a higher-value forge above.</div></div></div>'); });
+        deferred.forEach(function(t){ H.push('<div class="f-card f-defer"><div class="f-cardbody"><div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</span></div><div class="f-cardmeta">Shares your <b>'+_qName(t.blockedBase||(t.blockedBy||[]).join(', ')||'resource')+'</b> with a higher-value forge above.</div></div></div>'); });
         H.push('</div>');
       }
     }
@@ -26649,7 +26660,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_fEsc(target)+'</b>'+(uc?' <span class="f-ideal">✓ elite endgame base</span>':(t.ideal?' <span class="f-ideal">✓ ideal base</span>':''))+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(uc?' <span class="f-tier">via '+_fEsc(uc.targetBase)+'</span>':'')+'</div>'
+          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(uc?' <span class="f-tier">via '+_qName(uc.targetBase)+'</span>':'')+'</div>'
           +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
@@ -26665,11 +26676,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
         if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
         else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
-        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
+        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
         var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
         var _osBase=String(t.bestStr||'').split(/\s*\/\s*/)[0].trim();   // the FIRST recommended base — what this card actually tells you to get (1H-correct), NOT RW_BEST_BASE (which can be a 2H best-damage base)
         H.push('<div class="f-card f-step"><div class="f-cardart" data-arttip="'+_fEsc(_osBase||t.rw)+'">'+((_osBase && typeof _fArt==='function' && _fArt(_osBase))?'<img class="f-art" src="'+_fEsc(_fArt(_osBase))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help">'+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
+          +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
           +'<div class="f-journey">'+journey+'</div>'
           +'<div class="f-getsub">'+note+' · <b>'+segs.length+' step'+(segs.length>1?'s':'')+' to go</b></div>'
           +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
