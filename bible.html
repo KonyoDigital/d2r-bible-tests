@@ -26322,7 +26322,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need,t0.base.eth), target=t0.base.base, atoms=[];
         if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
-        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t be upgraded, socket it as-is (eth = great on a merc, but a self-used weapon can\'t be repaired)</span>':''));
+        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t upgrade to an elite base, so socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
