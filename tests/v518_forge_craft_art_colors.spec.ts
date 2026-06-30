@@ -114,3 +114,32 @@ test('base option chips carry ideal / merc / endgame role badges (Insight → me
   // the first recommended option is flagged ideal
   expect(r.firstBadges.join(' ')).toContain('ideal');
 });
+
+test('pipeline card body colours the forged runeword orange and the base white (v522)', async ({ page }) => {
+  // an unsocketed owned base + runes in hand → a PIPELINE card (socket-then-forge). Insight on a
+  // Larzuk-base Colossus Voulge: title + step text should colour the runeword orange, the base white.
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (Larzuk base)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    (['Colossus Voulge (Larzuk base)']).forEach((n) => w._ensureSocketBaseEntry && w._ensureSocketBaseEntry(n));
+    try { w.switchTab && w.switchTab('forge'); } catch (e) {}
+    try { w.forgeSetFilter && w.forgeSetFilter('pipeline'); } catch (e) {}
+    const card = document.querySelector('#tab-forge .f-pipe');
+    if (!card) return { hasCard: false };
+    // the title's runeword <b> should be orange
+    const titleRW = card.querySelector('.f-cardtitle b[data-arttip]') as HTMLElement;
+    const titleColor = titleRW ? getComputedStyle(titleRW).color : '';
+    // a base name in the step body should be white (q-normal)
+    const baseSpan = card.querySelector('.f-step b span[style*="color"]') as HTMLElement;
+    const baseColor = baseSpan ? getComputedStyle(baseSpan).color : '';
+    return { hasCard: true, titleRW: titleRW ? titleRW.textContent : '', titleColor, baseSpanText: baseSpan ? baseSpan.textContent : '', baseColor };
+  });
+  expect(r.hasCard).toBe(true);
+  expect(r.titleColor).toBe('rgb(255, 168, 0)');   // runeword orange
+  expect(r.baseColor).toBe('rgb(244, 244, 244)');  // base white
+});
