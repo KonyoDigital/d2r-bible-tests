@@ -5794,6 +5794,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .forge-tab.ft-empty.on{opacity:.72}
 #tab-forge .forge-sec-craft .forge-sec-h{color:#c79ce6}
 #tab-forge .f-upgrade{border-left-color:#e0b96a}
+/* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
+.forge-legend-fab{position:fixed;bottom:230px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune,#e0b96a);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
+.forge-legend-fab:hover{transform:scale(1.08);border-color:#fff}
+.forge-legend-fab img{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 4px rgba(224,185,106,.5))}
+.forge-legend-pop{position:fixed;bottom:230px;right:88px;z-index:9001;width:342px;max-height:72vh;overflow:auto;background:rgba(16,13,9,.985);border:1px solid var(--rune,#e0b96a);border-radius:12px;padding:14px 16px;display:none;font-size:12px;line-height:1.5;box-shadow:0 6px 26px rgba(0,0,0,.65)}
+.forge-legend-pop.open{display:block}
+.forge-legend-pop .flp-h{font-family:var(--serif-display,serif);font-weight:800;font-size:17px;color:var(--rune,#e0b96a);margin-bottom:9px}
+.forge-legend-pop .flp-sec{margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.07)}
+.forge-legend-pop .flp-sec>b{color:#e8dcc0;display:block;margin-bottom:3px;font-size:12.5px}
+.forge-legend-pop .flp-sec>div{color:#9a8c72;margin:3px 0}
+.forge-legend-pop .f-ideal,.forge-legend-pop .f-alt,.forge-legend-pop .f-hand,.forge-legend-pop .f-need,.forge-legend-pop .f-eth,.forge-legend-pop .f-sup,.forge-legend-pop .f-tier{display:inline-block;margin-right:4px}
 #tab-forge .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
 #tab-forge .f-unlock b{color:#e0b96a}
 #tab-forge .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
@@ -26398,6 +26409,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // each marked ✓ make-now (gem + rune in hand) or "need <rune>". Never routes to the Workshop.
   var _craftOpen={};
   window.forgeCraftToggle=function(ck){ _craftOpen[ck]=!_craftOpen[ck]; if(typeof renderForge==='function') renderForge(); };
+  window.forgeLegendToggle=function(){ var p=document.getElementById('forge-legend-pop'); if(p) p.classList.toggle('open'); };
   // full slot list for a craft type (from the CRAFTS table), with ready-now status per slot.
   function _craftSlots(ck){
     if (typeof CRAFTS==='undefined' || !CRAFTS) return null;
@@ -26643,6 +26655,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (F!=='all' && !bc){
       H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — tap <b>▦ All</b>, or tally more runes / gems / bases.</div>');
     }
+    // v511 — FORGE LEGEND: a floating hammer FAB → a key explaining every badge/symbol (Konyo's ask:
+    // "what other options besides ideal base + a legend map for the Forge"). Forge-tab-only (it lives
+    // inside #tab-forge, hidden with the tab). Re-rendered each scan; toggle just adds an .open class.
+    H.push('<button class="forge-legend-fab" title="Forge legend — what the badges mean" onclick="window.forgeLegendToggle&&window.forgeLegendToggle()"><img src="art/hd_hellforge_hammer.png" alt="Forge legend" loading="lazy"></button>'
+      +'<div class="forge-legend-pop" id="forge-legend-pop">'
+      +'<div class="flp-h">🔨 Forge — legend</div>'
+      +'<div class="flp-sec"><b>The 5 sub-tabs</b><div>⚒ <b>Make now</b> — forge it right now (base + sockets + runes all in hand)</div><div>🟡 <b>One step</b> — one action away (go get a base, or cube runes up)</div><div>🔧 <b>Pipeline</b> — socket the base you own, then forge</div><div>⬆ <b>Base upgrades</b> — cube a Normal/Exc base up to its elite tier</div><div>⚗️ <b>Crafts</b> — gem crafts, every slot + recipe</div></div>'
+      +'<div class="flp-sec"><b>Which base — the badges</b><div><span class="f-ideal">✓ ideal base</span> the socket-correct best base for this word (elite, Larzuk hits the exact count)</div><div><span class="f-alt">meta base: X</span> a valid alternative when you don\'t have the ideal one</div><div><span class="f-ideal">✓ elite endgame base</span> the elite tier reached by the upgrade chain</div></div>'
+      +'<div class="flp-sec"><b>Hand (Konyo\'s rule)</b><div><span class="f-hand">1H</span> a one-handed <b>player</b> weapon · <span class="f-hand">2H merc</span> a two-handed <b>mercenary</b> weapon · <span class="f-hand">2H caster</span> a caster staff</div></div>'
+      +'<div class="flp-sec"><b>Sockets &amp; quality</b><div><span class="f-need">needs Nos</span> the exact socket count the word needs — Larzuk gives a base\'s max</div><div><span class="f-eth">⊘ eth</span> ethereal: socket &amp; forge <b>as-is</b>, can\'t be cube-upgraded</div><div><span class="f-sup">superior</span> still a valid runeword base — keeps its small bonus</div></div>'
+      +'<div class="flp-sec" style="border:none"><b>Upgrades</b><div><span class="f-tier">via X</span> the cube-up path to the elite base · 🔓 <b>unlocks</b> the higher-socket runewords the elite tier opens that the current base can\'t make</div></div>'
+      +'</div>');
     box.innerHTML=H.join('');
   }
 
