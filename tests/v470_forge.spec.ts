@@ -198,3 +198,16 @@ test('META-BASE RULE — 1H for player weapons, 2H only for merc, armour never g
   expect(r.coh).not.toMatch(/Colossus|Blade|Axe|Sword/);      // Chains of Honor is body armor → no weapon
   expect(r.insight).toMatch(/Thresher|Cryptic Axe|Colossus Voulge/);  // merc polearm → 2H is correct here
 });
+
+test('ETHEREAL — an ethereal base is NOT cube-upgradeable (socket & forge as-is)', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1300);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    return {
+      normalChain: !!w._upgradeChainFor('Crystal Sword', 6, false),   // normal Crystal Sword → upgrade chain exists
+      ethChain:    w._upgradeChainFor('Crystal Sword', 6, true),       // ethereal → must be null (can't upgrade)
+    };
+  });
+  expect(r.normalChain).toBe(true);
+  expect(r.ethChain).toBeNull();
+});

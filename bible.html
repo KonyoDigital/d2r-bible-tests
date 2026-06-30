@@ -26228,7 +26228,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // upgrade chain for an owned Normal/Exceptional base → its ELITE counterpart (via the tier triplets), but ONLY
   // when that elite Larzuk-sockets to exactly `need` (so the chain ends at a clean endgame base). Crystal Sword
   // (normal, 6os) → Dimensional Blade → Phase Blade (elite, 6os) for a 6-socket word.
-  function _upgradeChainFor(baseName, need){
+  function _upgradeChainFor(baseName, need, isEth){
+    if (isEth) return null;   // HARDCODED: ETHEREAL items cannot be cube-upgraded (Konyo verified in-game) — socket & forge the eth base as-is
     var tier=(typeof _baseTier==='function')?_baseTier(baseName):'';
     if (tier!=='normal' && tier!=='exceptional') return null;
     var chain=(window._TIER_CHAIN||{})[String(baseName).toLowerCase()];
@@ -26242,6 +26243,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     steps.push({to:chain.elite, recipe:REC.elite});
     return { targetBase:chain.elite, steps:steps };
   }
+  try { window._upgradeChainFor=_upgradeChainFor; } catch(e){}
   // step progress for multi-step chains (persisted): the current atomic step shown in Make Now.
   function _stepGet(k){ try{ return (JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
   function _stepSet(k,v){ try{ var o=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; localStorage.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
@@ -26259,7 +26261,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       items.push({kind:'now', cta:t.rw, steps:['Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b> — runes in hand.']});
     });
     s.pipeline.forEach(function(t){
-      var steps=[], uc=_upgradeChainFor(t.base.base, t.need), target=t.base.base;
+      var steps=[], uc=_upgradeChainFor(t.base.base, t.need, t.base.eth), target=t.base.base;
       if (uc){ uc.steps.forEach(function(st){ steps.push('Cube-upgrade → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); }); target=uc.targetBase; }
       steps.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
       steps.push((t.sub==='cube'?'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge ':'Forge ')+'<b>'+_fEsc(t.rw)+'</b>');
@@ -26318,9 +26320,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
       Object.keys(byBase).forEach(function(bn){
         if (skip.has('chain|'+bn)) return;
-        var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need), target=t0.base.base, atoms=[];
+        var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need,t0.base.eth), target=t0.base.base, atoms=[];
         if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
-        atoms.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>');
+        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_fEsc(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t be upgraded, socket it as-is (eth = great on a merc, but a self-used weapon can\'t be repaired)</span>':''));
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
@@ -26380,7 +26382,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // SAFEGUARD: pipeline only exists when need === base max. If the owned base is a Normal/Exceptional that
         // upgrades to a clean-max ELITE (e.g. Crystal Sword → Phase Blade), chain the cube-upgrades FIRST, then
         // socket the elite, then forge — the full endgame chain, step by step.
-        var uc=_upgradeChainFor(t.base.base, t.need), target=t.base.base, n=1, steps='';
+        var uc=_upgradeChainFor(t.base.base, t.need, t.base.eth), target=t.base.base, n=1, steps='';
         if (uc){
           uc.steps.forEach(function(st){ steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Cube-upgrade your <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b>: <span class="f-cube">'+_fEsc(st.recipe)+'</span>.</div>'; target=st.to; });
         }
