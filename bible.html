@@ -11574,7 +11574,16 @@ window._qHex = _qHex; window._qStyle = _qStyle;
 function _artSlotClean(n){ return String(n == null ? '' : n).replace(/\s*\([^)]*\)\s*$/, '').trim(); }
 try { window._artSlotClean = _artSlotClean; } catch(e){}
 function artOr(name, fallbackHtml, size){
-  var u = artUrl(name) || artUrl(_artSlotClean(name));
+  // Resolve art robustly for vault item names that carry a socket/Larzuk SUFFIX ("Grim Scythe (6os)",
+  // "Crystal Sword (Larzuk base)") or a quality PREFIX ("Superior …", "Ethereal …"). A failed v381 batch
+  // fetch left ~487 base_*.png as an identical placeholder gem; a suffixed name can land on one of those
+  // corrupt base_ keys. So: strip suffix (via _artSlotClean) AND quality prefixes, and whenever the raw
+  // name resolves to a base_ file but the cleaned name has real HD/class art, prefer the clean art.
+  var _clean = _artSlotClean(name);
+  var _cleanP = _clean.replace(/^(?:Superior|Ethereal|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+  var _raw = artUrl(name);
+  var _cu = artUrl(_clean) || artUrl(_cleanP);
+  var u = (_raw && /\/base_/.test(_raw) && _cu && !/\/base_/.test(_cu)) ? _cu : (_raw || _cu);
   var _rc = _artRarity(name); var _rcls = _rc ? ' d2art-r-' + _rc : '';
   if (!u) return `<span class="d2art-wrap ${size||'lg'}${_rcls} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
   // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
