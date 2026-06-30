@@ -26287,6 +26287,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // base stats (the elite version the meta build wants), not to "enable" the word. Exact recipes mirror
     // _cubeUpNote (the bible's verified upgrade recipes). Fires only for a base that still hosts a to-make word.
     try { bases.forEach(function(b){
+      // v505 — ETHEREAL items CANNOT be cube-upgraded (Konyo's hardcoded rule, v486). An ethereal
+      // Normal/Exceptional base can't be tier-upgraded, so it must NOT appear in the upgrade bucket —
+      // it stays a socket-&-forge-as-is base in the runeword pipeline. Same fact as the v486/v487 guard.
+      if (b.eth) return;
       var tier=(typeof _baseTier==='function')?_baseTier(b.base):'';
       if (tier!=='normal' && tier!=='exceptional') return;
       var rws=(typeof _baseRunewords==='function')?_baseRunewords(b.base):[];
