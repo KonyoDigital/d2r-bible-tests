@@ -174,3 +174,26 @@ test('OPTIMAL ASSIGNMENT — two 6os bases let two 6os words BOTH be make-now (n
   const sil = s.now.find((t: any) => t.rw === 'Silence');
   expect(botd.base.name).not.toBe(sil.base.name);
 });
+
+test('META-BASE RULE — 1H for player weapons, 2H only for merc, armour never gets a weapon base', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1300);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const isWeaponBase = (n: string) => { const c = w._baseCats ? w._baseCats(n) : {}; return !!c['weapon']; };
+    const bad: string[] = [];
+    Object.keys(w.RUNEWORD_TIP).forEach((rw: string) => {
+      const b = String((w.RUNEWORD_TIP[rw] || {}).b || '').toLowerCase();
+      const nonWeapon = /body armor|shield|aegis|\bward\b|targe|rondache|helm|circlet|\bcap\b|crown|diadem|tiara/.test(b);
+      const names = (w._forgeMetaBase(rw).names) || [];
+      if (nonWeapon) names.forEach((n: string) => { if (isWeaponBase(n)) bad.push('ARMOUR/SHIELD/HELM ' + rw + ' → weapon base ' + n); });
+    });
+    return { bad, botd: w._forgeMetaBase('Breath of the Dying').names.join(' / '),
+             coh: w._forgeMetaBase('Chains of Honor').names.join(' / '),
+             insight: w._forgeMetaBase('Insight').names.join(' / ') };
+  });
+  expect(r.bad).toEqual([]);                                  // SAFEGUARD: no armour/shield/helm word recommends a weapon base
+  expect(r.botd).toMatch(/Berserker Axe|Phase Blade/);        // player weapon → 1H
+  expect(r.botd).not.toContain('Colossus Blade');             // not the 2H sword
+  expect(r.coh).not.toMatch(/Colossus|Blade|Axe|Sword/);      // Chains of Honor is body armor → no weapon
+  expect(r.insight).toMatch(/Thresher|Cryptic Axe|Colossus Voulge/);  // merc polearm → 2H is correct here
+});

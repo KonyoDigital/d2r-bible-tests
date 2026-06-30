@@ -7267,6 +7267,7 @@ function _baseRunewords(name){
   return out;
 }
 window._baseRunewords = _baseRunewords;
+try { window._baseCats = _baseCats; } catch(e){}   // v476 — exposed for the Forge meta-base type-match safeguard + tests
 // v353 — the runeword line for a base hover-card: lists enablers + the max sockets to chase.
 // v376 — socket-count ACCURACY: a runeword needs an item with EXACTLY as many sockets as it has
 // runes (a 2-rune word needs a 2-socket item; it CANNOT go in a 3-socket item). When we KNOW this
@@ -16040,7 +16041,7 @@ const RW_BASES = [
   { slot:'⚔️ Weapons', items:[
     { n:'Phase Blade', meta:'~25 str · INDESTRUCTIBLE (no eth needed) · fast', rw:'Grief · Spirit · Plague · Phoenix' },
     { n:'Crystal Sword', meta:'low str · cheap budget base', rw:'Spirit · Plague · Lawbringer' },
-    { n:'Colossus Blade', meta:'189 str · 2-handed · top damage', rw:'Breath of the Dying · Chains of Honor' },
+    { n:'Colossus Blade', meta:'189 str · 2-handed · top damage', rw:'Breath of the Dying' },
     { n:'Berserker Axe', meta:'138 str · 1-handed · fastest elite axe', rw:'Grief · Oath · Beast · Death' },
     { n:'Cryptic Axe / Thresher / Colossus Voulge', meta:'4 sock polearm · merc weapon · low str', rw:'Insight · Infinity · Pride' },
     { n:'Flail / Crystal Sword', meta:'caster — fast, low str', rw:'Heart of the Oak · Call to Arms' },
@@ -25853,17 +25854,54 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return m;
   })();
   function _bestFor(rw){ return _FORGE_BEST[rw] || _FORGE_BEST[String(rw||'').replace(/['’]/g,'')] || []; }
+  // ── KONYO'S RULE: meta bases are 1-HANDED for the player's own weapons; 2-HANDED only for MERCENARY
+  // weapons (Act-2 polearms/spears, Act-1 bows/xbows). No 2H player-weapon recommendations. Plus a TYPE-MATCH
+  // safeguard so an armour/shield/helm word can NEVER recommend a weapon base (kills the Chains-of-Honor →
+  // Colossus-Blade bug structurally). _baseCats backs the safeguard; a simulate test enforces it across all 100.
+  var _BEST_1H=[
+    {re:/\bsword|\bblade/,        base:'Phase Blade',   note:'1-handed · indestructible — your weapon'},
+    {re:/\baxe/,                  base:'Berserker Axe', note:'1-handed · fastest elite axe — your weapon'},
+    {re:/scepter|sceptre/,        base:'Caduceus',      note:'1-handed scepter — your weapon'},
+    {re:/mace|hammer|club|flail/, base:'Flail',         note:'1-handed mace — your weapon'},
+    {re:/dagger|knife/,           base:'Fanged Knife',  note:'1-handed dagger — your weapon'},
+    {re:/katar|claw/,             base:'Runic Talons',  note:'1-handed claw — assassin'}
+  ];
+  var _MERC_BASE=[
+    {re:/polearm/,       names:['Cryptic Axe','Thresher','Colossus Voulge'], note:'2-handed polearm — Act 2 mercenary'},
+    {re:/spear/,         names:['War Pike','Ghost Spear'],                    note:'2-handed spear — mercenary'},
+    {re:/crossbow/,      names:['Colossus Crossbow'],                         note:'2-handed crossbow — Act 1 mercenary'},
+    {re:/\bbow|missile/, names:['Matriarchal Bow','Grand Matron Bow'],        note:'2-handed bow — Act 1 (Rogue) mercenary'}
+  ];
+  function _metaBaseFor(rw){
+    var e=(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP[rw]:null)||{}; var b=String(e.b||'').toLowerCase();
+    var nonWeapon=/body armor|shield|aegis|\bward\b|targe|rondache|helm|circlet|\bcap\b|crown|diadem|tiara/.test(b);
+    if (nonWeapon){
+      // armour / shield / helm → use the curated RW_BASES list, TYPE-MATCHED (never a weapon base)
+      var names=[]; _bestFor(rw).forEach(function(r){ r.bases.forEach(function(x){
+        var c=(typeof _baseCats==='function')?_baseCats(x):{};
+        if (!c['weapon'] && names.indexOf(x)<0) names.push(x);
+      }); });
+      var rec0=_bestFor(rw)[0];
+      return { names:names.slice(0,4), note:rec0?rec0.meta:'', merc:false, hand:'' };
+    }
+    // WEAPON — strip the scoped phrases ("missile/melee weapons") so a bare "Weapons" isn't faked by them.
+    var bw=b.replace(/missile weapons?/g,' missilew ').replace(/melee weapons?/g,' meleew ');
+    var has1H=/\bsword|\bblade|\baxe|scepter|sceptre|mace|hammer|club|flail|dagger|knife|katar|claw/.test(b);
+    var generic1H=/\bweapon|meleew/.test(bw);    // bare "Weapons" / "melee weapons" → any melee → the player's 1H
+    if (!has1H && !generic1H){                    // merc-only word (polearm / spear / bow / crossbow) → 2H merc base
+      for (var i=0;i<_MERC_BASE.length;i++){ if(_MERC_BASE[i].re.test(b)) return {names:_MERC_BASE[i].names.slice(),note:_MERC_BASE[i].note,merc:true,hand:'2H merc'}; }
+      return {names:[],note:'2-handed mercenary weapon',merc:true,hand:'2H merc'};
+    }
+    for (var j=0;j<_BEST_1H.length;j++){ if(_BEST_1H[j].re.test(b)) return {names:[_BEST_1H[j].base],note:_BEST_1H[j].note,merc:false,hand:'1H'}; }
+    return {names:['Phase Blade','Berserker Axe'],note:'1-handed — Phase Blade (sword) or Berserker Axe (axe)',merc:false,hand:'1H'};
+  }
   function _isIdealBase(rw, base){
-    var recs=_bestFor(rw); if(!recs.length) return false;
-    var b=String(base||'').toLowerCase();
-    return recs.some(function(r){ return r.bases.some(function(x){ var xl=x.toLowerCase(); return b===xl||b.indexOf(xl)>=0||xl.indexOf(b)>=0; }); });
+    var m=_metaBaseFor(rw); var b=String(base||'').toLowerCase();
+    return (m.names||[]).some(function(x){ var xl=x.toLowerCase(); return b===xl||b.indexOf(xl)>=0||xl.indexOf(b)>=0; });
   }
-  function _bestBaseStr(rw){
-    var recs=_bestFor(rw); if(!recs.length) return '';
-    var names=[]; recs.forEach(function(r){ r.bases.forEach(function(x){ if(names.indexOf(x)<0) names.push(x); }); });
-    return names.slice(0,4).join(' / ');
-  }
-  function _bestMeta(rw){ var recs=_bestFor(rw); return recs.length?recs[0].meta:''; }
+  function _bestBaseStr(rw){ return (_metaBaseFor(rw).names||[]).slice(0,4).join(' / '); }
+  function _bestMeta(rw){ return _metaBaseFor(rw).note||''; }
+  try { window._forgeMetaBase=_metaBaseFor; } catch(e){}
 
   // ---- runeword helpers ----
   function _runeReq(rw){
