@@ -7529,6 +7529,7 @@ const BASE_TIER = (function(){
   N(["Wolf Head","Hawk Helm","Antlers","Falcon Mask","Spirit Mask"]); E(["Alpha Helm","Griffon Headdress","Hunter's Guise","Sacred Feathers","Totemic Mask"]); U(["Blood Spirit","Sun Spirit","Earth Spirit","Sky Spirit","Dream Spirit"]);
   N(["Preserved Head","Zombie Head","Unraveller Head","Gargoyle Head","Demon Head"]); E(["Mummified Trophy","Fetish Trophy","Sexton Trophy","Cantor Trophy","Hierophant Trophy"]); U(["Minion Skull","Hellspawn Skull","Overseer Skull","Succubus Skull","Bloodlord Skull"]);
   N(["Targe","Rondache","Heraldic Shield","Aerin Shield","Crown Shield"]); E(["Akaran Targe","Akaran Rondache","Protector Shield","Gilded Shield","Royal Shield"]); U(["Sacred Targe","Sacred Rondache","Zakarum Shield","Vortex Shield"]);
+  try { window._TIER_CHAIN = CH; } catch(e){}   // v479 — export the N→E→U upgrade chain for the Forge pipeline
   return T;
 })();
 // item tier ('normal'|'exceptional'|'elite') from a base-type name; '' if unknown.
@@ -25933,7 +25934,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     for(var nm in BASE_DB){ if(!Object.prototype.hasOwnProperty.call(BASE_DB,nm)) continue;
       var d=BASE_DB[nm]; if(d.tier!=='elite'||d.maxSockets!==need) continue;
       var c=(typeof _baseCats==='function')?_baseCats(nm):{}; if(!cats.some(function(k){return c[k];})) continue;
-      if(!mercOnly && !d.oneH) continue;     // player word → 1-handed only
+      if(!mercOnly && (!d.oneH || d.twoH)) continue;     // player word → PURE 1-handed only (exclude either-hand 2H like Zweihander)
       hits.push({name:nm, str:d.reqStr||0});
     }
     if(!hits.length) return null;
@@ -26056,8 +26057,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (c['body armor']||c['shield']||c['helm']) return 'gear';
     if (c['polearm']||c['spear']||c['missile weapon']) return 'merc';
     var d=(typeof BASE_DB!=='undefined')?BASE_DB[base]:null;
-    if (d && d.oneH) return '1H';
+    // an "either-hand" base (oneH AND twoH — Zweihander, Bastard Sword…) counts as 2H: the endgame wants a
+    // PURE 1-handed base (Phase Blade/Berserker Axe have oneH only). twoH present → treat as 2H.
     if (d && d.twoH) return '2H';
+    if (d && d.oneH) return '1H';
     return '?';
   }
   // does an owned base's hand class satisfy what a runeword wants? (1H player word ⇒ 1H base; merc word ⇒ merc base)
