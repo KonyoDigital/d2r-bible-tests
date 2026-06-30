@@ -100,6 +100,44 @@ test.describe('v377 runeword base matching', () => {
     ['Circlet', 'Coronet', 'Tiara', 'Diadem'].forEach((c) => expect(r).not.toContain(c));
   });
 
+  test('EXILE is paladin AURIC-shield only — never on a regular shield', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const has = (b: string, rw: string) => (window as any)._baseRunewords(b).some((x: any) => x.n === rw);
+      return {
+        // ✅ auric (paladin) shields CAN host Exile
+        sacredRondache: has('Sacred Rondache', 'Exile'), targe: has('Targe', 'Exile'),
+        vortexShield: has('Vortex Shield', 'Exile'), crownShield: has('Crown Shield', 'Exile'),
+        // ⛔ regular shields can NOT
+        monarch: has('Monarch', 'Exile'), towerShield: has('Tower Shield', 'Exile'),
+        boneShield: has('Bone Shield', 'Exile'), aegis: has('Aegis', 'Exile'),
+        // regression: Phoenix/Spirit (any shield) still work on a Monarch
+        phoenixMonarch: has('Monarch', 'Phoenix'), spiritMonarch: has('Monarch', 'Spirit'),
+      };
+    });
+    expect(r.sacredRondache).toBe(true);
+    expect(r.targe).toBe(true);
+    expect(r.vortexShield).toBe(true);
+    expect(r.crownShield).toBe(true);
+    expect(r.monarch).toBe(false);
+    expect(r.towerShield).toBe(false);
+    expect(r.boneShield).toBe(false);
+    expect(r.aegis).toBe(false);
+    expect(r.phoenixMonarch).toBe(true);   // any-shield words unaffected
+    expect(r.spiritMonarch).toBe(true);
+  });
+
+  test('EXILE\'s RECOMMENDED bases (bestStr) are auric shields only — no Monarch', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const names = (w._forgeMetaBase ? w._forgeMetaBase('Exile').names : []) as string[];
+      const AURIC = /\b(?:targe|rondache|heraldic shield|aerin shield|crown shield|protector shield|gilded shield|royal shield|kurast shield|zakarum shield|vortex shield)\b/i;
+      return { names, allAuric: names.length > 0 && names.every((n) => AURIC.test(n)) };
+    });
+    expect(r.names.length).toBeGreaterThan(0);
+    expect(r.allAuric).toBe(true);
+    expect(r.names).not.toContain('Monarch');
+  });
+
   test('body armor / shield matching is unchanged (no regression)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const names = (a: any[]) => a.map((x) => x.n);
