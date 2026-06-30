@@ -5817,6 +5817,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:1;opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
 #tab-forge .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
 #tab-forge .f-restore{margin-top:8px;text-align:center}
+#tab-forge .forge-craftnow-lbl{font-size:12.5px;font-weight:700;color:#c79ce6;margin:14px 0 8px;letter-spacing:.2px}
 #tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
@@ -26284,7 +26285,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var total=liveNow.length+s.pipeline.length+s.onestep.length+s.crafts.length;
     // Make-now is now the ATOMIC feed: ready forges + crafts + ONE entry per pipeline base-group (the chain's current step)
     var _pipeBases={}; s.pipeline.forEach(function(t){ _pipeBases[t.base.name]=1; });
-    var nowCount = liveNow.length + s.crafts.length + Object.keys(_pipeBases).length;
+    var _craftTypes={}; s.crafts.forEach(function(c){ _craftTypes[c.craft]=1; });   // group crafts by TYPE (Caster/Blood/…), not slot
+    var nowCount = liveNow.length + Object.keys(_craftTypes).length + Object.keys(_pipeBases).length;
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
     H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
@@ -26326,25 +26328,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         atoms.push('Forge <b>'+_fEsc(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord});
       });
-      s.crafts.forEach(function(c){ var ck='craft|'+c.craft+'|'+c.slot; if(skip.has(ck)) return; atomic.push({icon:'⚗️', cls:'craft', skipKey:ck,
-        atoms:[ 'Create a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> <span class="f-atomsub">— buy a magic '+_fEsc(c.base)+' + a jewel</span>' ],
-        btn:'<button class="f-btn" onclick="window.selectCraft&&window.selectCraft(\''+_fJs(c.craft)+'\');window.switchTab&&window.switchTab(\'tools\')">→ recipe</button>' }); });
-      if (atomic.length){
-        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+atomic.length+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears · ✕ to skip</span></div>');
+      // crafts → grouped into ~4 gem-titled tiles (Caster/Blood/Safety/Hit Power), Workshop .cw-tile style.
+      var craftGroups={}; s.crafts.forEach(function(c){ (craftGroups[c.craft]=craftGroups[c.craft]||[]).push(c); });
+      var craftKeys=Object.keys(craftGroups).filter(function(ck){ return !skip.has('craft|'+ck); });
+      if (atomic.length || craftKeys.length){
+        H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">⚒ Make now <span class="forge-sec-ct">'+(atomic.length+craftKeys.length)+'</span><span class="forge-sec-sub">one task at a time — do it, tick it, the next appears · ✕ to skip</span></div>');
         atomic.forEach(function(a){
           var total=a.atoms.length, step=a.chainKey?Math.min(_stepGet(a.chainKey),total-1):0, isLast=step>=total-1;
           var prog = total>1 ? '<span class="f-atomprog">step '+(step+1)+' / '+total+'</span>' : '';
           var btn = a.chainKey
             ? '<button class="f-btn f-btn-go" onclick="window.forgeAdvance(\''+a.chainKey+'\','+total+')">'+(isLast?'✓ done — restart':'✓ did it → next')+'</button>'
             : a.btn;
-          // ✕ skip: at a chain's FORGE step it skips just that word (cycles to the next); otherwise skips the whole task
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkip(\''+_fJs(sk)+'\')">✕</button>' : '';
           H.push('<div class="f-card f-'+a.cls+' f-atom">'+skipBtn+'<div class="f-cardart"><span class="f-atomic-ic">'+a.icon+'</span></div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
             +'<div class="f-cta">'+btn+'</div></div></div>');
         });
-        if (skip.size) H.push('<div class="f-restore"><button class="f-btn" onclick="window.forgeUnskipAll()">↺ restore '+skip.size+' skipped task'+(skip.size>1?'s':'')+'</button></div>');
+        if (craftKeys.length){
+          var ct='';
+          craftKeys.forEach(function(ck){
+            var grp=craftGroups[ck], c0=grp[0], col=_fEsc(c0.color||'#b48ce0');
+            var art=(typeof artOr==='function')?artOr(c0.gem,'<span style="font-size:24px;color:'+col+'">💎</span>','lg'):'<span style="font-size:24px;color:'+col+'">💎</span>';
+            var slots=grp.map(function(c){return c.slot;});
+            ct+='<div class="cw-tile f-crafttile" style="--cw-c:'+col+'" role="button" tabindex="0" data-arttip="'+_fEsc(c0.gem)+'" title="open the '+_fEsc(ck)+' recipes in the Workshop" onclick="window.selectCraft&&window.selectCraft(\''+_fJs(ck)+'\');window.switchTab&&window.switchTab(\'tools\')">'
+              +'<button class="f-skip" title="skip '+_fEsc(ck)+' crafts" onclick="event.stopPropagation();window.forgeSkip(\'craft|'+_fJs(ck)+'\')">✕</button>'
+              +(c0.star?'<span class="cw-tile-star">★ YOURS</span>':'')
+              +'<div class="cw-tile-head">'+art+'<div><div class="cw-tile-name">Create '+_fEsc(ck)+'</div><div class="cw-tile-gem">'+_fEsc(c0.gem)+'</div></div></div>'
+              +'<div class="cw-tile-tell">'+_fEsc(c0.tell||'')+'</div>'
+              +'<div class="cw-tile-foot"><span class="cw-tile-ready">'+slots.length+' slot'+(slots.length>1?'s':'')+'</span><span class="cw-tile-own">'+_fEsc(slots.join(' · '))+'</span></div></div>';
+          });
+          H.push('<div class="forge-craftnow-lbl">⚗️ Crafts ready — gem + rune in hand (buy a magic base + a jewel)</div><div class="cw-crafts">'+ct+'</div>');
+        }
+        if (skip.size) H.push('<div class="f-restore"><button class="f-btn" onclick="window.forgeUnskipAll()">↺ restore '+skip.size+' skipped'+(skip.size>1?'s':'')+'</button></div>');
         H.push('</div>');
       }
       if (deferred.length){
@@ -26356,6 +26372,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // PIPELINE
     if (show('pipeline') && s.pipeline.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🔧 Forge pipeline <span class="forge-sec-ct">'+s.pipeline.length+'</span><span class="forge-sec-sub">socket the base, then forge</span></div>');
+      // CONTENTION NOTE: several runewords that upgrade/consume the SAME owned base — you can make one per base.
+      var _shareCount={}; s.pipeline.forEach(function(t){ _shareCount[t.base.name]=(_shareCount[t.base.name]||0)+1; });
+      Object.keys(_shareCount).forEach(function(bn){ if(_shareCount[bn]>1){ var b=(s.pipeline.filter(function(t){return t.base.name===bn;})[0]||{}).base||{};
+        H.push('<div class="forge-note">⚠ '+_shareCount[bn]+' of these consume your <b>'+_fEsc(b.base||bn)+'</b> (you own '+(b.count||1)+') — upgrading/socketing it makes <b>one</b> runeword. Grab another '+_fEsc(b.base||'base')+' (common white drop) for each extra.</div>'); } });
       s.pipeline.forEach(function(t){
         // SAFEGUARD: pipeline only exists when need === base max. If the owned base is a Normal/Exceptional that
         // upgrades to a clean-max ELITE (e.g. Crystal Sword → Phase Blade), chain the cube-upgrades FIRST, then
