@@ -32,7 +32,7 @@ test('base → runewords classifier + throw-out base tip line', async ({ page })
   expect(r.archon).toContain('Enigma');         // body armor
   expect(r.archon).toContain('Chains of Honor');
   expect(r.monarch).toContain('Spirit');         // shield
-  expect(r.monarch).toContain('Exile');
+  expect(r.monarch).not.toContain('Exile');      // Exile is paladin AURIC-shield only (a Monarch can't host it)
   expect(r.crystal).toContain('Spirit');         // sword
   expect(r.tipHas).toBe(true);                   // surfaced on the base hover card
 });
