@@ -26382,17 +26382,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       });
       H.push('</div>');
     }
-    // CRAFTS (own section)
+    // CRAFTS (own section) — v481: styled like the Crafted Item Workshop (HD gem art grid, .cw-crafts/.cw-tile).
+    // The magic base is NPC-buyable (always on hand), so a craft is "ready" on gem + rune alone.
     if (show('crafts') && s.crafts.length){
-      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">perfect gem + rune in hand — add a magic base + a jewel</span></div>');
+      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">perfect gem + rune in hand — buy a magic base + a jewel, then cube</span></div>');
+      H.push('<div class="cw-crafts">');
       s.crafts.forEach(function(c){
-        H.push('<div class="f-card f-craft" style="border-left-color:'+_fEsc(c.color||'#b48ce0')+'"><div class="f-cardart"><span class="f-glyph">⚗️</span></div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Craft <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.star?' <span class="f-star">⭐ your craft</span>':'')+'</div>'
-          +'<div class="f-cardmeta">You hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>. Add a <b>magic '+_fEsc(c.base)+'</b> + any jewel → cube.</div>'
-          +'<div class="f-cardtell">'+_fEsc(c.tell||'')+'</div>'
-          +'</div></div>');
+        var col=_fEsc(c.color||'#b48ce0'); var ek=String(c.craft).replace(/'/g,"\\'");
+        var art=(typeof artOr==='function')?artOr(c.gem,'<span style="font-size:24px;color:'+col+'">💎</span>','lg'):'<span style="font-size:24px;color:'+col+'">💎</span>';
+        H.push('<div class="cw-tile" style="--cw-c:'+col+'" role="button" tabindex="0" data-arttip="'+_fEsc(c.gem)+'" title="open the '+_fEsc(c.craft)+' recipes in the Workshop" onclick="window.selectCraft&&window.selectCraft(\''+ek+'\');window.switchTab&&window.switchTab(\'tools\')">'
+          +(c.star?'<span class="cw-tile-star">★ YOURS</span>':'')
+          +'<div class="cw-tile-head">'+art+'<div><div class="cw-tile-name">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</div><div class="cw-tile-gem">'+_fEsc(c.gem)+' + '+_fEsc(c.rune)+'</div></div></div>'
+          +'<div class="cw-tile-tell">'+_fEsc(c.tell||'')+'</div>'
+          +'<div class="cw-tile-foot"><span class="cw-tile-ready">✓ gem + rune in hand</span><span class="cw-tile-own">+ magic '+_fEsc(c.base)+'</span></div></div>');
       });
-      H.push('</div>');
+      H.push('</div></div>');
     }
     // per-filter empty hint (a bucket the user filtered to that has nothing in it)
     var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?(s.pipeline.length+s.upgrades.length):F==='onestep'?s.onestep.length:F==='crafts'?s.crafts.length:total;
