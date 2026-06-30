@@ -140,3 +140,13 @@ test('NEED A BASE — runes in hand but no matching base → names the meta base
   expect(t.sub).toBe('base');
   expect(t.bestStr).toContain('Thresher');   // RW_BASES meta merc base named for me
 });
+
+test('BASE UPGRADE — a Normal runeword base surfaces a cube-up-to-elite pipeline', async ({ page }) => {
+  const s = await scan(page, { owned: ['Wand (2os)'] });   // Wand = normal-tier weapon that hosts runewords
+  const u = (s.upgrades || []).find((x: any) => x.base.base === 'Wand');
+  expect(u).toBeTruthy();
+  expect(u.tier).toBe('normal');
+  expect(u.steps.length).toBe(2);                          // Normal → Exceptional → Elite
+  expect(u.steps[0].recipe).toContain('Perfect Emerald');  // weapon recipe
+  expect(u.rws.length).toBeGreaterThan(0);
+});
