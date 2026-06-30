@@ -26086,26 +26086,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // Troll Nest, Archon Plate…): type-matched, prefer socket-exact + elite, lowest str. So it names a base.
       if (!names.length && typeof BASE_DB!=='undefined'){
         var _need=(/(\d+)\s*socket/.exec(b)||[])[1]; _need=_need?+_need:0;
-        var _wc=[];
-        if(/helm|\bcap\b|crown/.test(b))_wc.push('helm');
-        if(/body armor/.test(b))_wc.push('body armor');
-        if(/shield|aegis|\bward\b|targe|rondache/.test(b))_wc.push('shield');
-        if(/grimoire/.test(b))_wc.push('grimoire');
-        if(/shrunken head|voodoo head/.test(b))_wc.push('voodoo head');
-        if(_need && _wc.length){
-          var _hh=[];
-          for(var _nm in BASE_DB){ if(!Object.prototype.hasOwnProperty.call(BASE_DB,_nm))continue;
-            var _d=BASE_DB[_nm], _c2=(typeof _baseCats==='function')?_baseCats(_nm):{};
-            if(!_wc.some(function(k){return _c2[k];})) continue;
-            if(/^(?:Circlet|Coronet|Tiara|Diadem)$/i.test(_nm)) continue;
-            if(_auricOnly && _AS && !_AS.test(_nm)) continue;
-            var _mx=parseInt((typeof _socketMaxFor==='function')?_socketMaxFor(_nm):0,10)||0;
-            if(_mx<_need) continue;                                   // can't even reach the socket count → skip
-            _hh.push({name:_nm, str:_d.reqStr||0, score:((_mx===_need)?2:0)+((_d.tier==='elite')?1:0)});
-          }
-          _hh.sort(function(a,c){ return c.score-a.score || a.str-c.str; });   // socket-exact + elite first, then lowest str
-          names=_hh.slice(0,4).map(function(h){return h.name;});
-          if(!note && names.length){ var _top=_hh[0]; note=(_top && _top.score>=2)?('socket-correct '+_wc[0]+' — Larzuk → exactly '+_need):('elite '+_wc[0]+' — find one with '+_need+' sockets'); }
+        // CURATED any-class endgame bases per slot (NO class-locked pelts/barb-helms — BASE_DB has no class
+        // field, so druid pelts look like generic helms; this list keeps it to bases ANY class can wear).
+        // Ordered best→worst; grimoire/voodoo-head (necro-only words like Vigilance) get their necro bases.
+        var _CUR={
+          helm:['Bone Visage','Spired Helm','Corona','Armet','Winged Helm','Great Helm','Casque','Basinet'],
+          'body armor':['Archon Plate','Dusk Shroud','Wire Fleece','Scarab Husk','Kraken Shell','Hellforge Plate','Sacred Armor','Wyrmhide'],
+          shield:['Monarch','Troll Nest','Aegis','Ward','Blade Barrier','Tower Shield','Gothic Shield','Luna'],
+          grimoire:['Blasphemous Grimoire','Possessed Grimoire','Occult Codex','Dark Tome'],
+          'voodoo head':['Bloodlord Skull','Hierophant Trophy','Succubus Skull','Cantor Trophy']
+        };
+        var _slot = /helm|\bcap\b|crown/.test(b)?'helm':/body armor/.test(b)?'body armor':/grimoire/.test(b)?'grimoire':/shrunken head|voodoo head/.test(b)?'voodoo head':/shield|aegis|\bward\b|targe|rondache/.test(b)?'shield':'';
+        if(_need && _slot && _CUR[_slot]){
+          var _cand=_CUR[_slot].filter(function(nm){
+            if(_auricOnly && _AS && !_AS.test(nm)) return false;
+            var d=BASE_DB[nm]; var mx=parseInt((typeof _socketMaxFor==='function')?_socketMaxFor(nm):0,10)||(d&&d.maxSockets)||0;
+            return mx>=_need;                                          // must be able to hold the count
+          });
+          // socket-exact (Larzuk hits it cleanly) sorts ahead of overshoot, otherwise keep curated order
+          _cand.sort(function(a,c){ var ea=((parseInt(_socketMaxFor(a),10)||0)===_need)?0:1, ec=((parseInt(_socketMaxFor(c),10)||0)===_need)?0:1; return ea-ec; });
+          names=_cand.slice(0,4);
+          if(!note && names.length){ var _ex=((parseInt(_socketMaxFor(names[0]),10)||0)===_need); note=_ex?('socket-correct '+_slot+' — Larzuk → exactly '+_need):('endgame '+_slot+' — find one with '+_need+' sockets'); }
         }
       }
       return { names:names.slice(0,4), note:note, merc:false, hand:'' };
