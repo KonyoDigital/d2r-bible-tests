@@ -5829,6 +5829,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .craftcol-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0)}
 #tab-forge .craftcol-rec{font-size:11px;color:var(--text-dim,#9a8c72);margin-top:2px;line-height:1.4}
 #tab-forge .craftcol-rec b{color:var(--rune,#e0b96a)}
+/* Craft accordion (v495) — collapsing dropdown of slots + recipes per craft type */
+#tab-forge .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+#tab-forge .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
+#tab-forge .f-craftacc.open{background:rgba(255,255,255,.03);border-color:var(--cw-c,#b48ce0)}
+#tab-forge .f-craftacc-h{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
+#tab-forge .f-craftacc-h:hover{background:rgba(255,255,255,.025)}
+#tab-forge .f-craftacc-chev{font-size:12px;color:var(--cw-c,#b48ce0);width:12px;flex:none;transition:transform .15s}
+#tab-forge .f-craftacc-h img,#tab-forge .f-craftacc-h>span:nth-child(2){width:34px;height:34px;object-fit:contain;flex:none}
+#tab-forge .f-craftacc-t{display:flex;flex-direction:column;min-width:0;flex:1}
+#tab-forge .f-craftacc-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
+#tab-forge .f-craftacc-sub{font-size:11px;color:var(--text-dim,#9a8c72);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tab-forge .f-craftacc-badge{font-size:11px;font-weight:700;color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
+#tab-forge .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
+#tab-forge .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
+#tab-forge .f-craftrow{display:flex;align-items:baseline;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
+#tab-forge .f-craftrow.ready{border-left:3px solid #6fbf6f}
+#tab-forge .f-craftrow.locked{opacity:.55}
+#tab-forge .f-craftrow-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0);min-width:62px;flex:none}
+#tab-forge .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:1.4}
+#tab-forge .f-craftrow-rec b{color:var(--rune,#e0b96a)}
+#tab-forge .f-craftrow-st{font-size:10.5px;font-weight:700;flex:none;white-space:nowrap}
+#tab-forge .f-craftrow.ready .f-craftrow-st{color:#9fe6a0}
+#tab-forge .f-craftrow.locked .f-craftrow-st{color:var(--text-dim,#9a8c72)}
 /* One-step directive chips + hover-tooltip items (flagship) */
 #tab-forge .f-getrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 #tab-forge .f-getlead{font-weight:800;font-size:12px;padding:2px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap}
@@ -26290,6 +26313,48 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.forgeSkip=function(key){ var s=_skipSet(); s.add(key); try{ localStorage.setItem('d2r_forgeSkip', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   window.forgeUnskipAll=function(){ try{ localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
 
+  // CRAFT ACCORDION (v495): a craft card opens an in-tab collapsing dropdown of its slots + recipes,
+  // each marked ✓ make-now (gem + rune in hand) or "need <rune>". Never routes to the Workshop.
+  var _craftOpen={};
+  window.forgeCraftToggle=function(ck){ _craftOpen[ck]=!_craftOpen[ck]; if(typeof renderForge==='function') renderForge(); };
+  // full slot list for a craft type (from the CRAFTS table), with ready-now status per slot.
+  function _craftSlots(ck){
+    if (typeof CRAFTS==='undefined' || !CRAFTS) return null;
+    var c=null; CRAFTS.forEach(function(x){ if(x.key===ck) c=x; });
+    if (!c || !c.slots) return null;
+    var rows=Object.keys(c.slots).map(function(slot){
+      var rec=c.slots[slot]||{}, has=(typeof _runeCount==='function'?_runeCount(rec.rune):0)>=1;
+      return { slot:slot, rune:rec.rune, base:rec.base, ready:has };
+    });
+    rows.sort(function(a,b){ return (b.ready?1:0)-(a.ready?1:0) || a.slot.localeCompare(b.slot); });
+    return { c:c, rows:rows, readyN:rows.filter(function(r){return r.ready;}).length, total:rows.length };
+  }
+  // one collapsible craft card (header always shown; body only when open).
+  function _craftAccHtml(ck, col){
+    var d=_craftSlots(ck); if(!d) return '';
+    var c=d.c, open=!!_craftOpen[ck], cc=_fEsc(col||c.color||'#b48ce0');
+    var art=(typeof artOr==='function')?artOr(c.gem,'<span style="font-size:22px;color:'+cc+'">💎</span>','lg'):'<span style="font-size:22px;color:'+cc+'">💎</span>';
+    var h='<div class="f-craftacc'+(open?' open':'')+'" style="--cw-c:'+cc+'">';
+    h+='<div class="f-craftacc-h" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'" data-arttip="'+_fEsc(c.gem)+'" title="'+_fEsc(ck)+' craft — tap to '+(open?'collapse':'see every slot + recipe')+'" onclick="window.forgeCraftToggle(\''+_fJs(ck)+'\')">';
+    h+='<span class="f-craftacc-chev">'+(open?'▾':'▸')+'</span>'+art;
+    h+='<div class="f-craftacc-t"><span class="f-craftacc-name">Create '+_fEsc(ck)+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</span><span class="f-craftacc-sub">'+_fEsc(c.gem)+' · '+_fEsc(c.tell||'')+'</span></div>';
+    h+='<span class="f-craftacc-badge'+(d.readyN?' has':'')+'">'+d.readyN+' / '+d.total+' make now</span>';
+    h+='<button class="f-skip" title="skip '+_fEsc(ck)+' crafts" onclick="event.stopPropagation();window.forgeSkip(\'craft|'+_fJs(ck)+'\')">✕</button>';
+    h+='</div>';
+    if (open){
+      h+='<div class="f-craftacc-body">';
+      d.rows.forEach(function(r){
+        h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
+          +'<span class="f-craftrow-slot">'+_fEsc(r.slot)+'</span>'
+          +'<span class="f-craftrow-rec"><b>'+_fEsc(r.rune)+'</b> + magic '+_fEsc(r.base)+' + a jewel</span>'
+          +'<span class="f-craftrow-st">'+(r.ready?'✓ make now':'need '+_fEsc(r.rune))+'</span>'
+          +'</div>';
+      });
+      h+='</div>';
+    }
+    return h+'</div>';
+  }
+
   // DO-NOW feed: flatten the plan into an ordered, atomic next-move list (the login orientation).
   function _doNowItems(s){
     var items=[];
@@ -26385,18 +26450,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         });
         if (craftKeys.length){
           var ct='';
-          craftKeys.forEach(function(ck){
-            var grp=craftGroups[ck], c0=grp[0], col=_fEsc(c0.color||'#b48ce0');
-            var art=(typeof artOr==='function')?artOr(c0.gem,'<span style="font-size:24px;color:'+col+'">💎</span>','lg'):'<span style="font-size:24px;color:'+col+'">💎</span>';
-            var slots=grp.map(function(c){return c.slot;});
-            ct+='<div class="cw-tile f-crafttile" style="--cw-c:'+col+'" role="button" tabindex="0" data-arttip="'+_fEsc(c0.gem)+'" title="see the full '+_fEsc(ck)+' recipes — Crafts tab" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\')">'
-              +'<button class="f-skip" title="skip '+_fEsc(ck)+' crafts" onclick="event.stopPropagation();window.forgeSkip(\'craft|'+_fJs(ck)+'\')">✕</button>'
-              +(c0.star?'<span class="cw-tile-star">★ YOURS</span>':'')
-              +'<div class="cw-tile-head">'+art+'<div><div class="cw-tile-name">Create '+_fEsc(ck)+'</div><div class="cw-tile-gem">'+_fEsc(c0.gem)+'</div></div></div>'
-              +'<div class="cw-tile-tell">'+_fEsc(c0.tell||'')+'</div>'
-              +'<div class="cw-tile-foot"><span class="cw-tile-ready">'+slots.length+' slot'+(slots.length>1?'s':'')+'</span><span class="cw-tile-own">'+_fEsc(slots.join(' · '))+'</span></div></div>';
-          });
-          H.push('<div class="forge-craftnow-lbl">⚗️ Crafts ready — gem + rune in hand (buy a magic base + a jewel)</div><div class="cw-crafts">'+ct+'</div>');
+          craftKeys.forEach(function(ck){ var c0=craftGroups[ck][0]; ct+=_craftAccHtml(ck, c0&&c0.color); });
+          H.push('<div class="forge-craftnow-lbl">⚗️ Crafts ready — tap one to see every slot + recipe (✓ = make now)</div><div class="forge-craftacc">'+ct+'</div>');
         }
         if (skip.size) H.push('<div class="f-restore"><button class="f-btn" onclick="window.forgeUnskipAll()">↺ restore '+skip.size+' skipped'+(skip.size>1?'s':'')+'</button></div>');
         H.push('</div>');
@@ -26470,25 +26525,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       });
       H.push('</div>');
     }
-    // CRAFTS (own section) — v481: styled like the Crafted Item Workshop (HD gem art grid, .cw-crafts/.cw-tile).
-    // The magic base is NPC-buyable (always on hand), so a craft is "ready" on gem + rune alone.
+    // CRAFTS (own section) — v495: a collapsing accordion per craft TYPE. Click a card → drops down its
+    // slots + recipes, each marked ✓ make-now (gem + rune in hand) or "need <rune>". Stays in-tab.
     if (show('crafts') && s.crafts.length){
-      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">a column per craft type — each slot stacked under its title</span></div>');
-      // COLUMN per craft TYPE (Caster/Blood/Safety/Hit Power); the type's slots stack VERTICALLY beneath its title.
-      var byType={}; s.crafts.forEach(function(c){ (byType[c.craft]=byType[c.craft]||[]).push(c); });
-      H.push('<div class="forge-craftcols">');
-      Object.keys(byType).forEach(function(ck){
-        var grp=byType[ck], c0=grp[0], col=_fEsc(c0.color||'#b48ce0'), ek=String(ck).replace(/'/g,"\\'");
-        var hart=(typeof artOr==='function')?artOr(c0.gem,'<span style="font-size:20px;color:'+col+'">💎</span>','sm'):'<span style="font-size:20px;color:'+col+'">💎</span>';
-        H.push('<div class="craftcol" style="--cw-c:'+col+'">');
-        H.push('<div class="craftcol-h" data-arttip="'+_fEsc(c0.gem)+'" title="'+_fEsc(ck)+' craft — '+_fEsc(c0.gem)+'">'
-          +hart+'<div class="craftcol-h-t"><span class="craftcol-name">'+_fEsc(ck)+(c0.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</span><span class="craftcol-gem">'+_fEsc(c0.gem)+' · '+_fEsc(c0.tell||'')+'</span></div></div>');
-        grp.forEach(function(c){
-          H.push('<div class="craftcol-tile cw-tile" style="--cw-c:'+col+'" title="'+_fEsc(c.craft+' '+c.slot)+'">'
-            +'<div class="craftcol-slot">'+_fEsc(c.slot)+'</div>'
-            +'<div class="craftcol-rec"><b>'+_fEsc(c.rune)+'</b> + magic '+_fEsc(c.base)+' + a jewel</div></div>');
-        });
-        H.push('</div>');
+      H.push('<div class="forge-sec forge-sec-craft"><div class="forge-sec-h">⚗️ Crafts <span class="forge-sec-ct">'+s.crafts.length+'</span><span class="forge-sec-sub">tap a craft → every slot + recipe, ✓ marks what you can make now</span></div>');
+      // one card per craft TYPE that has a ready slot; ordered by how many slots are make-now.
+      var seen={}, order=[]; s.crafts.forEach(function(c){ if(!seen[c.craft]){ seen[c.craft]=1; order.push(c.craft); } });
+      H.push('<div class="forge-craftacc">');
+      order.forEach(function(ck){
+        var c0=null; s.crafts.forEach(function(c){ if(c.craft===ck && !c0) c0=c; });
+        H.push(_craftAccHtml(ck, c0&&c0.color));
       });
       H.push('</div></div>');
     }
