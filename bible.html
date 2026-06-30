@@ -26494,7 +26494,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '<span class="f-cing f-cing-base" data-arttip="'+_fEsc('magic '+slot+' base')+'">'+img+'<span class="f-cbnames">'+names+'</span></span>';
   }
   function _cingJewel(){
-    return '<span class="f-cing f-cing-jewel" data-arttip="a jewel"><span class="f-cing-gl f-cing-gl-j">◈</span>a jewel</span>';
+    // data-arttip "any jewel" matches _arttipResolve's jewel regex → rich jewel card (NOT "a jewel", which misses it)
+    return '<span class="f-cing f-cing-jewel" data-arttip="any jewel"><span class="f-cing-gl f-cing-gl-j">◈</span>a jewel</span>';
   }
   // one collapsible craft card (header always shown; body only when open).
   function _craftAccHtml(ck, col){
@@ -26513,7 +26514,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       d.rows.forEach(function(r){
         h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
           +_slotArtImg(r.slot, cc)
-          +'<span class="f-craftrow-slot" style="color:'+cc+'">'+_fEsc(r.slot)+'</span>'
+          +'<span class="f-craftrow-slot" style="color:var(--q-orange,#ffa800)">'+_fEsc(r.slot)+'</span>'
           +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
           +'<span class="f-craftrow-st">'+(r.ready?'✓ make now':'need '+_fEsc(r.rune))+'</span>'
           +'</div>';
