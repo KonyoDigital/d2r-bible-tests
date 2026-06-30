@@ -25960,6 +25960,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var has1H=/\bsword|\bblade|\baxe|scepter|sceptre|mace|hammer|club|flail|dagger|knife|katar|claw|wand|\borb/.test(b);
     var generic=/\bweapon|meleew/.test(bw);
     var mercOnly=!has1H && !generic && /polearm|spear|missilew|\bbow|crossbow|javelin/.test(bw);
+    var isCaster=!has1H && !generic && !mercOnly && /staff|stave/.test(b);   // a staff-only word = a 2-handed CASTER weapon (player-held, not a merc/1H)
     var cats=[];
     if(/\bsword|\bblade/.test(b))cats.push('sword'); if(/\baxe/.test(b))cats.push('axe');
     if(/scepter|sceptre/.test(b))cats.push('scepter'); if(/mace|hammer|club|flail/.test(b))cats.push('mace');
@@ -25975,12 +25976,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     for(var nm in BASE_DB){ if(!Object.prototype.hasOwnProperty.call(BASE_DB,nm)) continue;
       var d=BASE_DB[nm]; if(d.tier!=='elite'||d.maxSockets!==need) continue;
       var c=(typeof _baseCats==='function')?_baseCats(nm):{}; if(!cats.some(function(k){return c[k];})) continue;
-      if(!mercOnly && (!d.oneH || d.twoH)) continue;     // player word → PURE 1-handed only (exclude either-hand 2H like Zweihander)
+      if(!mercOnly && !isCaster && (!d.oneH || d.twoH)) continue;     // player 1H word → PURE 1-handed only (exclude either-hand 2H like Zweihander); caster words allow 2H staves
       hits.push({name:nm, str:d.reqStr||0});
     }
     if(!hits.length) return null;
     hits.sort(function(a,c){ return a.str-c.str; });   // lowest str = the meta / easiest base
-    return { names:hits.slice(0,3).map(function(h){return h.name;}), merc:mercOnly, hand:mercOnly?'2H merc':'1H', need:need };
+    return { names:hits.slice(0,3).map(function(h){return h.name;}), merc:mercOnly, hand:mercOnly?'2H merc':(isCaster?'2H caster':'1H'), need:need };
   }
   try { window._eliteBaseFor=_eliteBaseFor; } catch(e){}
   function _metaBaseFor(rw){
@@ -26006,6 +26007,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bw=b.replace(/missile weapons?/g,' missilew ').replace(/melee weapons?/g,' meleew ');
     var has1H=/\bsword|\bblade|\baxe|scepter|sceptre|mace|hammer|club|flail|dagger|knife|katar|claw|wand|\borb/.test(b);
     var generic1H=/\bweapon|meleew/.test(bw);    // bare "Weapons" / "melee weapons" → any melee → the player's 1H
+    // staff-only word = a 2-handed CASTER weapon (player-held — sorc/druid self-cast), NOT a merc weapon.
+    if (!has1H && !generic1H && /staff|stave/.test(b) && !/polearm|spear|missilew|\bbow|crossbow|javelin/.test(bw)){
+      return {names:['Archon Staff','Elder Staff'], note:'2-handed caster staff — your weapon', merc:false, hand:'2H caster'};
+    }
     if (!has1H && !generic1H){                    // merc-only word (polearm / spear / bow / crossbow) → 2H merc base
       for (var i=0;i<_MERC_BASE.length;i++){ if(_MERC_BASE[i].re.test(b)) return {names:_MERC_BASE[i].names.slice(),note:_MERC_BASE[i].note,merc:true,hand:'2H merc'}; }
       return {names:[],note:'2-handed mercenary weapon',merc:true,hand:'2H merc'};
@@ -26098,6 +26103,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var c=(typeof _baseCats==='function')?_baseCats(base):{};
     if (c['body armor']||c['shield']||c['helm']) return 'gear';
     if (c['polearm']||c['spear']||c['missile weapon']) return 'merc';
+    if (c['staff']) return 'caster';   // a staff is a player CASTER 2H weapon (not merc, not 1H)
     var d=(typeof BASE_DB!=='undefined')?BASE_DB[base]:null;
     // an "either-hand" base (oneH AND twoH — Zweihander, Bastard Sword…) counts as 2H: the endgame wants a
     // PURE 1-handed base (Phase Blade/Berserker Axe have oneH only). twoH present → treat as 2H.
@@ -26112,6 +26118,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bh=_baseHandClass(base);
     if (want==='1H') return bh==='1H';
     if (want==='2H merc') return bh==='merc';
+    if (want==='2H caster') return bh==='caster';
     return true;
   }
 
