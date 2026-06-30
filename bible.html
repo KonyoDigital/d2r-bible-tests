@@ -5821,7 +5821,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
 #tab-forge .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
 #tab-forge .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
-#tab-forge .craftcol-h{display:flex;align-items:center;gap:9px;cursor:pointer;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06)}
+#tab-forge .craftcol-h{display:flex;align-items:flex-start;gap:9px;cursor:pointer;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);min-height:64px;box-sizing:border-box}
 #tab-forge .craftcol-h:hover .craftcol-name{text-decoration:underline}
 #tab-forge .craftcol-h-t{display:flex;flex-direction:column;min-width:0}
 #tab-forge .craftcol-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
