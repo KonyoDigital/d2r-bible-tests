@@ -23473,6 +23473,9 @@ body{
 .vault-mule[class*="vm-a-"]:hover{border-color:rgba(var(--acc),.5);box-shadow:inset 0 0 0 1px rgba(var(--acc),.2),0 6px 20px rgba(0,0,0,.45),0 0 22px rgba(var(--acc),.13);transform:translateY(-2px)}
 /* v365 — SHARED STASH = its OWN emphasized section ABOVE the mules: full-width, first in the grid,
    bigger plate/title + a distinct cyan-gold glow so it reads as the cross-account storage, not a mule. */
+.vault-mule.vm-empty{opacity:.5}
+.vault-mule.vm-empty:hover,.vault-mule.vm-empty.vm-over{opacity:1}
+.vault-mule.vm-empty .vm-count{opacity:.6}
 .vault-mule.vm-shared{order:-1;grid-column:1/-1;border:2px solid rgba(127,212,255,.55);background:linear-gradient(180deg,rgba(127,212,255,.07),rgba(10,14,20,.5));box-shadow:inset 0 0 0 1px rgba(127,212,255,.18),0 8px 28px rgba(0,0,0,.5),0 0 30px rgba(127,212,255,.14);margin-bottom:6px}
 .vault-mule.vm-shared .vm-plate{background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.04));border-bottom:1px solid rgba(127,212,255,.34);padding:9px 12px}
 .vault-mule.vm-shared .vm-icon{font-size:24px;filter:drop-shadow(0 0 7px rgba(127,212,255,.6))}
@@ -24311,7 +24314,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } else { itemsHtml = _gridWrap(itemRows); }
       // v365 — SHARED STASH is its OWN emphasized section ABOVE the mules (full-width, bigger), so it's
       // clearly distinguished as the cross-account storage — not just another mule.
-      return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+'" data-vault-mule="'+esc(m.id)+'">'
+      return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+(total===0?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count">'+total+'</span>'
@@ -25886,12 +25889,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var nonWeapon=/body armor|shield|aegis|\bward\b|targe|rondache|helm|circlet|\bcap\b|crown|diadem|tiara/.test(b);
     if (nonWeapon){
       // armour / shield / helm → use the curated RW_BASES list, TYPE-MATCHED (never a weapon base)
-      var names=[]; _bestFor(rw).forEach(function(r){ r.bases.forEach(function(x){
+      // take the note from the FIRST rec that actually contributes a kept (non-weapon) base — not rec[0],
+      // which for a "weapons OR shields" word (Phoenix/Spirit) is the weapon entry and would show the wrong blurb.
+      var names=[], note='';
+      _bestFor(rw).forEach(function(r){ r.bases.forEach(function(x){
         var c=(typeof _baseCats==='function')?_baseCats(x):{};
-        if (!c['weapon'] && names.indexOf(x)<0) names.push(x);
+        if (!c['weapon']){ if (names.indexOf(x)<0) names.push(x); if (!note) note=r.meta||''; }
       }); });
-      var rec0=_bestFor(rw)[0];
-      return { names:names.slice(0,4), note:rec0?rec0.meta:'', merc:false, hand:'' };
+      return { names:names.slice(0,4), note:note, merc:false, hand:'' };
     }
     // WEAPON — strip the scoped phrases ("missile/melee weapons") so a bare "Weapons" isn't faked by them.
     var bw=b.replace(/missile weapons?/g,' missilew ').replace(/melee weapons?/g,' meleew ');
