@@ -5858,8 +5858,8 @@ body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
 #tab-forge .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
 #tab-forge .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
 #tab-forge .f-craftrow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
-#tab-forge .f-slotart{flex:none;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:6px}
-#tab-forge .f-slotart img{max-width:24px;max-height:24px;object-fit:contain}
+#tab-forge .f-slotart{flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);border-radius:6px;border:1px solid var(--sc,#3a2f1e);box-shadow:0 0 8px -2px var(--sc,transparent)}
+#tab-forge .f-slotart img{max-width:24px;max-height:24px;object-fit:contain;filter:drop-shadow(0 0 2px var(--sc,transparent))}
 #tab-forge .f-craftrow.ready{border-left:3px solid #6fbf6f}
 #tab-forge .f-craftrow.locked{opacity:.55}
 #tab-forge .f-craftrow-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0);min-width:62px;flex:none}
@@ -26430,9 +26430,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // Representative HD sprite per slot type + a tooltip name that resolves to that art. Map the jewelry
   // slot names into D2IO_ART (additive) so their floating data-arttip tooltips resolve too.
   try { if (typeof D2IO_ART!=='undefined'){ if(!D2IO_ART['Amulet'])D2IO_ART['Amulet']='art/hd_amulet.png'; if(!D2IO_ART['Ring'])D2IO_ART['Ring']='art/hd_ring.png'; if(!D2IO_ART['Gloves'])D2IO_ART['Gloves']='art/hd_gloves_l.png'; } } catch(e){}
-  var _SLOT_REP={Amulet:'art/hd_amulet.png',Ring:'art/hd_ring.png',Gloves:'art/hd_gloves_l.png',Belt:'art/hd_light_belt.png',Boots:'art/base_boots.png',Helm:'art/hd_helm.png',Shield:'art/hd_kite_shield.png','Body Armor':'art/hd_light_plate.png',Weapon:'art/hd_crystal_sword.png'};
-  var _SLOT_TIP={Amulet:'Amulet',Ring:'Ring',Gloves:'Gloves',Belt:'Belt',Boots:'Boots',Helm:'Helm',Shield:'Kite Shield','Body Armor':'Light Plate',Weapon:'Crystal Sword'};
-  function _slotArtImg(slot){ var src=_SLOT_REP[slot]; if(!src) return ''; return '<span class="f-slotart" data-arttip="'+_fEsc(_SLOT_TIP[slot]||slot)+'"><img src="'+src+'" alt="" loading="lazy"></span>'; }
+  // v513 — all GOOD hd_ files (base_boots/base_belt were the v497 corrupt blue-gem placeholders). Tooltip
+  // names point at the SAME good art so the floating cursor card matches the row image (not a blue gem).
+  var _SLOT_REP={Amulet:'art/hd_amulet.png',Ring:'art/hd_ring.png',Gloves:'art/hd_gloves_l.png',Belt:'art/hd_light_belt.png',Boots:'art/hd_chain_boots.png',Helm:'art/hd_helm.png',Shield:'art/hd_kite_shield.png','Body Armor':'art/hd_light_plate.png',Weapon:'art/hd_crystal_sword.png'};
+  var _SLOT_TIP={Amulet:'Amulet',Ring:'Ring',Gloves:'Gloves',Belt:'Light Belt',Boots:'Chain Boots',Helm:'Helm',Shield:'Kite Shield','Body Armor':'Light Plate',Weapon:'Crystal Sword'};
+  // color = the craft type's colour (Caster=amethyst, Blood=ruby, Safety=emerald, Hit Power=sapphire) so the
+  // slot art glows in that "caster colour" (Konyo: sync each craft slot to its gem colour).
+  function _slotArtImg(slot,color){ var src=_SLOT_REP[slot]; if(!src) return ''; return '<span class="f-slotart" data-arttip="'+_fEsc(_SLOT_TIP[slot]||slot)+'"'+(color?' style="--sc:'+_fEsc(color)+'"':'')+'><img src="'+src+'" alt="" loading="lazy"></span>'; }
   // one collapsible craft card (header always shown; body only when open).
   function _craftAccHtml(ck, col){
     var d=_craftSlots(ck); if(!d) return '';
@@ -26449,7 +26453,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       h+='<div class="f-craftacc-body">';
       d.rows.forEach(function(r){
         h+='<div class="f-craftrow'+(r.ready?' ready':' locked')+'">'
-          +_slotArtImg(r.slot)
+          +_slotArtImg(r.slot, cc)
           +'<span class="f-craftrow-slot">'+_fEsc(r.slot)+'</span>'
           +'<span class="f-craftrow-rec"><b>'+_fEsc(r.rune)+'</b> + magic '+_fEsc(r.base)+' + a jewel</span>'
           +'<span class="f-craftrow-st">'+(r.ready?'✓ make now':'need '+_fEsc(r.rune))+'</span>'
@@ -26603,7 +26607,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
         else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b>'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
         var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
-        H.push('<div class="f-card f-step"><div class="f-cardart" data-arttip="'+_fEsc((typeof _rwArtName==='function'?_rwArtName(t.rw):t.rw))+'">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
+        var _osBase=String(t.bestStr||'').split(/\s*\/\s*/)[0].trim();   // the FIRST recommended base — what this card actually tells you to get (1H-correct), NOT RW_BEST_BASE (which can be a 2H best-damage base)
+        H.push('<div class="f-card f-step"><div class="f-cardart" data-arttip="'+_fEsc(_osBase||t.rw)+'">'+((_osBase && typeof _fArt==='function' && _fArt(_osBase))?'<img class="f-art" src="'+_fEsc(_fArt(_osBase))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help">'+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
           +'<div class="f-journey">'+journey+'</div>'
           +'<div class="f-getsub">'+note+' · <b>'+segs.length+' step'+(segs.length>1?'s':'')+' to go</b></div>'
