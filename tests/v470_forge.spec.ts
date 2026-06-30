@@ -47,13 +47,13 @@ test('the Forge tab, button, and engine exist', async ({ page }) => {
 });
 
 test('MAKE NOW — runes in hand + an exact-socket base → ready, with the ideal-base flag', async ({ page }) => {
-  const s = await scan(page, { owned: ['Thresher (4os)'], runes: { Ral: 1, Tir: 1, Tal: 1, Sol: 1 } });
+  const s = await scan(page, { owned: ['Colossus Voulge (4os)'], runes: { Ral: 1, Tir: 1, Tal: 1, Sol: 1 } });
   const t = find(s.now, 'Insight');
   expect(t).toBeTruthy();
   expect(t.deferred).toBe(false);
-  expect(t.base.base).toBe('Thresher');
+  expect(t.base.base).toBe('Colossus Voulge');
   expect(t.base.sockets).toBe(4);
-  expect(t.ideal).toBe(true);   // Thresher is the bible's meta merc base for Insight (RW_BASES sync)
+  expect(t.ideal).toBe(true);   // Colossus Voulge (max 4) is the socket-correct merc polearm for Insight (4os)
 });
 
 test('PIPELINE — an unsocketed base + runes in hand → socket-then-forge, not "make now"', async ({ page }) => {
@@ -138,7 +138,7 @@ test('NEED A BASE — runes in hand but no matching base → names the meta base
   const t = find(s.onestep, 'Insight');
   expect(t).toBeTruthy();
   expect(t.sub).toBe('base');
-  expect(t.bestStr).toContain('Thresher');   // RW_BASES meta merc base named for me
+  expect(t.bestStr).toContain('Colossus Voulge');   // socket-correct merc polearm: Insight is 4os → Colossus Voulge (max 4), not the 5os Thresher
 });
 
 test('BASE UPGRADE — a Normal runeword base surfaces a cube-up-to-elite pipeline', async ({ page }) => {
@@ -160,10 +160,11 @@ test('SAFEGUARD — Larzuk gives only a base\'s MAX, so a sub-max word is NOT pi
 });
 
 test('OPTIMAL ASSIGNMENT — two 6os bases let two 6os words BOTH be make-now (no false defer)', async ({ page }) => {
-  // Konyo's real case: two 6os polearms (Grim Scythe + Spetum) + runes for two 6os words. Both should
-  // be "make now" (one per base), NOT one deferred because the engine only tried a single base.
+  // Two 6os 1-HANDED bases (Phase Blade + Berserker Axe) + runes for two 6os 1H words. Both should be
+  // "make now" (one per base), NOT one deferred because the engine only tried a single base. (1H per the
+  // hand rule — a 2H Grim Scythe would NOT satisfy a 1H player word.)
   const s = await scan(page, {
-    owned: ['Grim Scythe (6os)', 'Spetum (6os)'],
+    owned: ['Phase Blade (6os)', 'Berserker Axe (6os)'],
     runes: { Vex: 2, Hel: 2, El: 2, Eld: 2, Zod: 2, Eth: 2, Dol: 2, Ist: 2, Tir: 2 },  // BotD + Silence runes
   });
   const live = s.now.filter((t: any) => !t.deferred).map((t: any) => t.rw);

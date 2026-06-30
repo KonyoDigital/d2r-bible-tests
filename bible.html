@@ -5795,6 +5795,23 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .forge-sec-craft .forge-sec-h{color:#c79ce6}
 #tab-forge .f-upgrade{border-left-color:#e0b96a}
 #tab-forge .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
+/* DO NOW — the login orientation feed */
+#tab-forge .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
+#tab-forge .forge-donow-h{display:flex;align-items:baseline;gap:11px;font-size:18px;font-weight:800;color:var(--best,#e8c878);margin-bottom:12px}
+#tab-forge .fd-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);font-style:italic}
+#tab-forge .fd-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)}
+#tab-forge .fd-item:first-of-type{border-top:0}
+#tab-forge .fd-num{flex:0 0 26px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(232,200,120,.16);color:var(--best,#e8c878);font-weight:800;font-size:13px}
+#tab-forge .fd-now .fd-num{background:rgba(95,201,122,.18);color:#8fe0a0}
+#tab-forge .fd-pipe .fd-num{background:rgba(91,159,208,.18);color:#9fd4ff}
+#tab-forge .fd-craft .fd-num{background:rgba(199,156,230,.18);color:#c79ce6}
+#tab-forge .fd-body{flex:1;min-width:0;font-size:13.5px;color:var(--text,#e0d4b6);line-height:1.5}
+#tab-forge .fd-body b{color:var(--best,#e8c878)}
+#tab-forge .fd-one{padding-top:3px}
+#tab-forge .fd-steps{margin:0;padding-left:18px}
+#tab-forge .fd-steps li{margin:2px 0;padding-left:3px}
+#tab-forge .fd-steps .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
+#tab-forge .fd-more{font-size:12px;color:var(--text-dim,#9a8c72);padding:9px 0 2px;border-top:1px solid rgba(255,255,255,.05);font-style:italic}
 #tab-forge .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
 #tab-forge .forge-empty-sm{padding:18px;font-size:13px;margin-top:0}
 @media (max-width:760px){#tab-forge .forge-tabs{flex-wrap:wrap}#tab-forge .forge-tab{flex:1 1 40%}#tab-forge .forge-title{font-size:34px}}
@@ -7464,10 +7481,15 @@ window._baseRec = _baseRec; window.BASE_DB = BASE_DB;
 // cross-checked vs Arreat Summit. Drives the "Elite Base Item" / "Elite Unique" / "Elite Set" label that
 // diablo2.io shows — and gives the engine a tier check. Full data + sources in CC memory.
 const BASE_TIER = (function(){
-  var T={};
-  var N=function(list){list.forEach(function(x){T[x.toLowerCase()]='normal';});};
-  var E=function(list){list.forEach(function(x){T[x.toLowerCase()]='exceptional';});};
-  var U=function(list){list.forEach(function(x){T[x.toLowerCase()]='elite';});};
+  var T={}, CH={}, _n=null, _e=null;   // v479 — CH = the N→E→U tier-upgrade chain, paired POSITIONALLY within
+  // each group (Crystal Sword[4] → Dimensional Blade[4] → Phase Blade[4]). Drives the Forge upgrade pipeline.
+  var N=function(list){list.forEach(function(x){T[x.toLowerCase()]='normal';}); _n=list; _e=null;};
+  var E=function(list){list.forEach(function(x){T[x.toLowerCase()]='exceptional';}); _e=list;};
+  var U=function(list){list.forEach(function(x){T[x.toLowerCase()]='elite';});
+    if(_n){ for(var i=0;i<_n.length;i++){ var nn=_n[i], ee=_e&&_e[i], uu=list[i];
+      var rec={normal:nn||null, exc:ee||null, elite:uu||null};
+      if(nn) CH[nn.toLowerCase()]=rec; if(ee) CH[ee.toLowerCase()]=rec; if(uu) CH[uu.toLowerCase()]=rec; } }
+    _n=null; _e=null; };
   // WEAPONS
   N(["Hand Axe","Axe","Double Axe","Military Pick","War Axe","Large Axe","Broad Axe","Battle Axe","Great Axe","Giant Axe"]);
   E(["Hatchet","Cleaver","Twin Axe","Crowbill","Naga","Military Axe","Bearded Axe","Tabar","Gothic Axe","Ancient Axe"]);
@@ -25884,6 +25906,41 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {re:/crossbow/,      names:['Colossus Crossbow'],                         note:'2-handed crossbow — Act 1 mercenary'},
     {re:/\bbow|missile/, names:['Matriarchal Bow','Grand Matron Bow'],        note:'2-handed bow — Act 1 (Rogue) mercenary'}
   ];
+  // v479 — SOCKET-CORRECT elite base, data-driven from BASE_DB: an ELITE base of the right hand-class whose
+  // maxSockets === the runeword's socket count (so Larzuk gives EXACTLY the needed count — clean, no gamble),
+  // lowest str = the meta/easiest pick. This is why Hand of Justice (4os) → Cryptic Sword (4os 1H), NOT the
+  // 6os Phase Blade. Returns null when no clean-max elite exists (caller falls back to the popular base).
+  function _eliteBaseFor(rw){
+    if (typeof BASE_DB==='undefined') return null;
+    var e=(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP[rw]:null)||{}; var b=String(e.b||'').toLowerCase();
+    var need=(Array.isArray(e.rec)?e.rec.length:0); if(!need) return null;
+    var bw=b.replace(/missile weapons?/g,' missilew ').replace(/melee weapons?/g,' meleew ');
+    var has1H=/\bsword|\bblade|\baxe|scepter|sceptre|mace|hammer|club|flail|dagger|knife|katar|claw|wand|\borb/.test(b);
+    var generic=/\bweapon|meleew/.test(bw);
+    var mercOnly=!has1H && !generic && /polearm|spear|missilew|\bbow|crossbow|javelin/.test(bw);
+    var cats=[];
+    if(/\bsword|\bblade/.test(b))cats.push('sword'); if(/\baxe/.test(b))cats.push('axe');
+    if(/scepter|sceptre/.test(b))cats.push('scepter'); if(/mace|hammer|club|flail/.test(b))cats.push('mace');
+    if(/dagger|knife/.test(b))cats.push('dagger'); if(/katar|claw/.test(b))cats.push('katar'); if(/wand/.test(b))cats.push('wand'); if(/orb/.test(b))cats.push('orb');
+    if(/polearm/.test(b))cats.push('polearm'); if(/spear/.test(b))cats.push('spear');
+    if(/missile|\bbow|crossbow/.test(b))cats.push('missile weapon'); if(/staff|stave/.test(b))cats.push('staff');
+    if(generic && !cats.length) cats=['sword','axe','mace'];
+    if(mercOnly){ cats=cats.filter(function(k){return k!=='staff';});   // a merc holds the 2H weapon, not a caster staff
+      if(cats.indexOf('polearm')>=0||cats.indexOf('spear')>=0) cats=cats.filter(function(k){return k!=='missile weapon';});  // prefer the Act-2 polearm/spear over a bow when a word allows both (Insight = merc polearm, not a bow)
+      if(!cats.length) cats=['polearm']; }
+    if(!cats.length) return null;
+    var hits=[];
+    for(var nm in BASE_DB){ if(!Object.prototype.hasOwnProperty.call(BASE_DB,nm)) continue;
+      var d=BASE_DB[nm]; if(d.tier!=='elite'||d.maxSockets!==need) continue;
+      var c=(typeof _baseCats==='function')?_baseCats(nm):{}; if(!cats.some(function(k){return c[k];})) continue;
+      if(!mercOnly && !d.oneH) continue;     // player word → 1-handed only
+      hits.push({name:nm, str:d.reqStr||0});
+    }
+    if(!hits.length) return null;
+    hits.sort(function(a,c){ return a.str-c.str; });   // lowest str = the meta / easiest base
+    return { names:hits.slice(0,3).map(function(h){return h.name;}), merc:mercOnly, hand:mercOnly?'2H merc':'1H', need:need };
+  }
+  try { window._eliteBaseFor=_eliteBaseFor; } catch(e){}
   function _metaBaseFor(rw){
     var e=(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP[rw]:null)||{}; var b=String(e.b||'').toLowerCase();
     var nonWeapon=/body armor|shield|aegis|\bward\b|targe|rondache|helm|circlet|\bcap\b|crown|diadem|tiara/.test(b);
@@ -25898,9 +25955,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }); });
       return { names:names.slice(0,4), note:note, merc:false, hand:'' };
     }
-    // WEAPON — strip the scoped phrases ("missile/melee weapons") so a bare "Weapons" isn't faked by them.
+    // WEAPON — prefer the SOCKET-CORRECT elite base (max === rune count, right hand → clean Larzuk).
+    var eb=_eliteBaseFor(rw);
+    if (eb && eb.names.length){
+      return { names:eb.names, note:(eb.merc?'2-handed mercenary base':'1-handed — your weapon')+' · Larzuk → exactly '+eb.need+' sockets', merc:eb.merc, hand:eb.hand };
+    }
+    // fallback (no clean-max elite — e.g. a 5os word): the popular base, still hand-correct.
     var bw=b.replace(/missile weapons?/g,' missilew ').replace(/melee weapons?/g,' meleew ');
-    var has1H=/\bsword|\bblade|\baxe|scepter|sceptre|mace|hammer|club|flail|dagger|knife|katar|claw/.test(b);
+    var has1H=/\bsword|\bblade|\baxe|scepter|sceptre|mace|hammer|club|flail|dagger|knife|katar|claw|wand|\borb/.test(b);
     var generic1H=/\bweapon|meleew/.test(bw);    // bare "Weapons" / "melee weapons" → any melee → the player's 1H
     if (!has1H && !generic1H){                    // merc-only word (polearm / spear / bow / crossbow) → 2H merc base
       for (var i=0;i<_MERC_BASE.length;i++){ if(_MERC_BASE[i].re.test(b)) return {names:_MERC_BASE[i].names.slice(),note:_MERC_BASE[i].note,merc:true,hand:'2H merc'}; }
@@ -25946,7 +26008,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     parts.push(idx>=24?'or farm Hell Countess / TZ / Hellforge (rare)':idx>=16?'or Countess (Hell) / Travincal / TZ':'or Countess / Hellforge / any Hell run');
     return parts.join(' ');
   }
-  function _hand(rw){ try { return (typeof _rwHand==='function')?_rwHand(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}).b):''; } catch(e){ return ''; } }
+  // v479 — the badge follows KONYO'S RULE, not the raw game hand: a player weapon word → 1H, a merc word → 2H,
+  // armour/shield/helm → '' (no hand). So Breath of the Dying shows 1H (not the game's "1H/2H").
+  function _hand(rw){
+    try { var m=_metaBaseFor(rw); if (m && m.hand) return m.hand==='1H' ? '1H' : '2H'; } catch(e){}
+    try { return (typeof _rwHand==='function')?_rwHand(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}).b):''; } catch(e){}
+    return '';
+  }
 
   function _ownedBases(){
     var out=[];
@@ -25981,6 +26049,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return null;
   }
 
+  // hand class of an owned base for the 1H-player / 2H-merc gate: 'gear' (armour/shield/helm), 'merc'
+  // (polearm/spear/bow/xbow — a mercenary's 2H), '1H', '2H' (a 2H NON-merc weapon — forbidden for the player), '?'.
+  function _baseHandClass(base){
+    var c=(typeof _baseCats==='function')?_baseCats(base):{};
+    if (c['body armor']||c['shield']||c['helm']) return 'gear';
+    if (c['polearm']||c['spear']||c['missile weapon']) return 'merc';
+    var d=(typeof BASE_DB!=='undefined')?BASE_DB[base]:null;
+    if (d && d.oneH) return '1H';
+    if (d && d.twoH) return '2H';
+    return '?';
+  }
+  // does an owned base's hand class satisfy what a runeword wants? (1H player word ⇒ 1H base; merc word ⇒ merc base)
+  function _handOk(rw, base){
+    var want=_metaBaseFor(rw).hand;                 // '1H' | '2H merc' | ''
+    if (!want) return true;                         // armour/shield/helm word — no hand constraint
+    var bh=_baseHandClass(base);
+    if (want==='1H') return bh==='1H';
+    if (want==='2H merc') return bh==='merc';
+    return true;
+  }
+
   function forgeScan(){
     var out={ now:[], pipeline:[], onestep:[], crafts:[], upgrades:[], counts:{} };
     if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
@@ -25993,6 +26082,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       rws.forEach(function(rw){
         var name=rw.n, need=rw.s;
         if (_rwBlocked(name)) return;
+        if (!_handOk(name, b.base)) return;   // HAND GATE: a 1H player word won't match a 2H base; a merc word needs a merc 2H base
         // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
         // them, even when our max estimate is low (e.g. Wand reports max 1 but a 2os Wand is real). The max
         // guard belongs only on the socket-UP pipeline branch below, where reachability genuinely matters.
@@ -26120,6 +26210,48 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _forgeFilter='all';   // mutually-exclusive sub-tab filter: all | now | pipeline | onestep | crafts
   window.forgeSetFilter=function(f){ _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge(); };
 
+  // upgrade chain for an owned Normal/Exceptional base → its ELITE counterpart (via the tier triplets), but ONLY
+  // when that elite Larzuk-sockets to exactly `need` (so the chain ends at a clean endgame base). Crystal Sword
+  // (normal, 6os) → Dimensional Blade → Phase Blade (elite, 6os) for a 6-socket word.
+  function _upgradeChainFor(baseName, need){
+    var tier=(typeof _baseTier==='function')?_baseTier(baseName):'';
+    if (tier!=='normal' && tier!=='exceptional') return null;
+    var chain=(window._TIER_CHAIN||{})[String(baseName).toLowerCase()];
+    if (!chain || !chain.elite) return null;
+    if ((typeof _socketMaxFor==='function') && parseInt(_socketMaxFor(chain.elite),10)!==need) return null;
+    var c=(typeof _baseCats==='function')?_baseCats(baseName):{}; var isW=!!c['weapon'];
+    var REC=isW?{exc:'Ral + Sol + Perfect Emerald',elite:'Lum + Pul + Perfect Emerald'}
+               :{exc:'Tal + Shael + Perfect Diamond',elite:'Ko + Lem + Perfect Diamond'};
+    var steps=[];
+    if (tier==='normal' && chain.exc) steps.push({to:chain.exc, recipe:REC.exc});
+    steps.push({to:chain.elite, recipe:REC.elite});
+    return { targetBase:chain.elite, steps:steps };
+  }
+  // DO-NOW feed: flatten the plan into an ordered, atomic next-move list (the login orientation).
+  function _doNowItems(s){
+    var items=[];
+    s.now.filter(function(t){return !t.deferred;}).forEach(function(t){
+      items.push({kind:'now', cta:t.rw, steps:['Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b> — runes in hand.']});
+    });
+    s.pipeline.forEach(function(t){
+      var steps=[], uc=_upgradeChainFor(t.base.base, t.need), target=t.base.base;
+      if (uc){ uc.steps.forEach(function(st){ steps.push('Cube-upgrade → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); }); target=uc.targetBase; }
+      steps.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
+      steps.push((t.sub==='cube'?'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge ':'Forge ')+'<b>'+_fEsc(t.rw)+'</b>');
+      items.push({kind:'pipe', cta:t.rw, steps:steps});
+    });
+    s.crafts.slice(0,4).forEach(function(c){
+      items.push({kind:'craft', steps:['Craft a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> — you hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>; buy a magic '+_fEsc(c.base)+' from a vendor + add a jewel.']});
+    });
+    s.onestep.slice(0,3).forEach(function(t){
+      var txt = t.sub==='base' ? 'Get a <b>'+_fEsc(t.bestStr||t.baseReq)+'</b> base for <b>'+_fEsc(t.rw)+'</b> — runes already in hand'
+              : t.sub==='cube' ? 'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge <b>'+_fEsc(t.rw)+'</b>'
+              : 'Get <b>'+_fEsc((t.missing||[]).join(', '))+'</b> for <b>'+_fEsc(t.rw)+'</b>';
+      items.push({kind:'step', cta:t.rw, steps:[txt]});
+    });
+    return items;
+  }
+
   function renderForge(){
     var box=document.getElementById('forge-body'); if(!box) return;
     var s=forgeScan(); var H=[];
@@ -26144,6 +26276,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!total){
       H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
       box.innerHTML=H.join(''); return;
+    }
+    // ── DO NOW — ordered atomic task feed, shown at the top in the All view (your login orientation) ──
+    if (F==='all'){
+      var dn=_doNowItems(s);
+      if (dn.length){
+        var dnH='<div class="forge-donow"><div class="forge-donow-h">🎯 Do now<span class="fd-sub">start at the top — finish one task and the list re-orders itself</span></div>';
+        dn.slice(0,8).forEach(function(it,i){
+          var body = it.steps.length>1
+            ? '<ol class="fd-steps">'+it.steps.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ol>'
+            : '<div class="fd-one">'+it.steps[0]+'</div>';
+          var cta = it.cta ? '<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(it.cta)+'\')">📜 card</button>'+(it.kind==='now'?'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(it.cta)+'\')">✓ created</button>':'')+'</div>' : '';
+          dnH+='<div class="fd-item fd-'+it.kind+'"><div class="fd-num">'+(i+1)+'</div><div class="fd-body">'+body+cta+'</div></div>';
+        });
+        if (dn.length>8) dnH+='<div class="fd-more">+ '+(dn.length-8)+' more in the buckets below · '+s.onestep.length+' one-step-away in 🟡</div>';
+        dnH+='</div>';
+        H.push(dnH);
+      }
     }
     // MAKE NOW (runewords) + its deferred contention sub-section
     if (show('now') && (liveNow.length||deferred.length)){
@@ -26179,13 +26328,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (show('pipeline') && s.pipeline.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🔧 Forge pipeline <span class="forge-sec-ct">'+s.pipeline.length+'</span><span class="forge-sec-sub">socket the base, then forge</span></div>');
       s.pipeline.forEach(function(t){
-        // SAFEGUARD: pipeline only exists when need === base max, so Larzuk's guaranteed max IS the needed
-        // count — one coherent socket target (never the old "Larzuk → 4os" on a 6-max base contradiction).
-        var runeLine=(t.sub==='cube')?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand';
+        // SAFEGUARD: pipeline only exists when need === base max. If the owned base is a Normal/Exceptional that
+        // upgrades to a clean-max ELITE (e.g. Crystal Sword → Phase Blade), chain the cube-upgrades FIRST, then
+        // socket the elite, then forge — the full endgame chain, step by step.
+        var uc=_upgradeChainFor(t.base.base, t.need), target=t.base.base, n=1, steps='';
+        if (uc){
+          uc.steps.forEach(function(st){ steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Cube-upgrade your <b>'+_fEsc(target)+'</b> → <b>'+_fEsc(st.to)+'</b>: <span class="f-cube">'+_fEsc(st.recipe)+'</span>.</div>'; target=st.to; });
+        }
+        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_fEsc(target)+'</b>'+(uc?' <span class="f-ideal">✓ elite endgame base</span>':(t.ideal?' <span class="f-ideal">✓ ideal base</span>':''))+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart">'+_rwArt(t.rw)+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
-          +'<div class="f-steps"><div class="f-step"><span class="f-stepn">1</span> Socket your unsocketed <b>'+_fEsc(t.base.base)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> via <b>Larzuk</b> (this base’s guaranteed max — exactly '+t.need+').</div>'
-          +'<div class="f-step"><span class="f-stepn">2</span> Forge <b>'+_fEsc(t.rw)+'</b> — '+runeLine+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div></div>'
+          +'<div class="f-cardtitle">Forge <b>'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(uc?' <span class="f-tier">via '+_fEsc(uc.targetBase)+'</span>':'')+'</div>'
+          +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
       });
