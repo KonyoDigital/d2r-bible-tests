@@ -26001,7 +26001,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // WEAPON — prefer the SOCKET-CORRECT elite base (max === rune count, right hand → clean Larzuk).
     var eb=_eliteBaseFor(rw);
     if (eb && eb.names.length){
-      return { names:eb.names, note:(eb.merc?'2-handed mercenary base':'1-handed — your weapon')+' · Larzuk → exactly '+eb.need+' sockets', merc:eb.merc, hand:eb.hand };
+      return { names:eb.names, note:(eb.merc?'2-handed mercenary base':eb.hand==='2H caster'?'2-handed caster staff — your weapon':'1-handed — your weapon')+' · Larzuk → exactly '+eb.need+' sockets', merc:eb.merc, hand:eb.hand };
     }
     // fallback (no clean-max elite — e.g. a 5os word): the popular base, still hand-correct.
     var bw=b.replace(/missile weapons?/g,' missilew ').replace(/melee weapons?/g,' meleew ');
