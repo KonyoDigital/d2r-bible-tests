@@ -24476,13 +24476,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             unknownReads.delete(n);
             if (!owned.has(rw)){
               owned.add(rw);
-              try { if (typeof rwMade!=='undefined' && !rwMade[rw]){ var _d=new Date(); var _mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_d.getMonth()];
-                rwMade[rw]=_mo+' '+_d.getDate()+', '+_d.getFullYear(); } } catch(e){}
+              // v538 — DO NOT auto-mark the runeword as FORGED in the Chronicle from an OCR read. A read
+              // runeword NAME is ambiguous — it can come from UI text, a base's "can-make" list, or a Forge-tab
+              // screenshot. Auto-ticking rwMade produced false "created" entries (Konyo fed the Forge screenshot
+              // to intake → Breath of the Dying / Eternity / Silence / Honor / Insight all marked forged though
+              // he never made them). We still RESCUE it from the throw-out pile + mule it ("don't throw out an
+              // Enigma"), but whether it's CREATED is now left to the manual ✓ in the Forge/Chronicle (with undo).
               try { var sg=suggestMule(rw); if (sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[rw]) assign[rw]=sg.id; } catch(e){}
             }
           });
-          try { persistOwned && persistOwned(); saveA && saveA(); } catch(e){}
-          try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){}
+          try { persistOwned && persistOwned(); saveA && saveA(); } catch(e){}   // rwMade intentionally NOT written here (v538)
         }
       }
     } catch(e){}
@@ -25840,9 +25843,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (_rwk){
               if (!owned.has(_rwk)){
                 owned.add(_rwk);
-                try { if (typeof rwMade !== 'undefined' && !rwMade[_rwk]){ var _dd=new Date(); var _mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_dd.getMonth()];
-                  rwMade[_rwk]=_mo+' '+_dd.getDate()+', '+_dd.getFullYear(); LS.setItem('d2r_rwMade', JSON.stringify(rwMade));
-                  if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } } catch(e){}
+                // v538 — recognize the read runeword (never throw it out) + mule it, but DO NOT auto-mark it
+                // FORGED in the Chronicle. An OCR'd runeword NAME is ambiguous — it can come from UI text, a
+                // base's "can-make" list, or a Forge-tab screenshot — and auto-ticking rwMade produced false
+                // "created" entries (Konyo fed the Forge screenshot to intake → Breath of the Dying / Eternity /
+                // Silence / Honor / Insight marked forged though never made). Chronicle stays MANUAL (✓, has undo).
                 var _rsg = suggestMule(_rwk);
                 if (_rsg && muleById(_rsg.id) && !assign[_rwk]) assign[_rwk] = _rsg.id;
                 logged.push(_rwk); fRec.nw.push(_rwk);
