@@ -3167,6 +3167,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .lf-copy-btn{font-family:var(--mono,monospace);font-size:12.5px;font-weight:700;color:#1a140a;background:linear-gradient(180deg,#f0c060,#d4a849);border:none;border-radius:8px;padding:8px 15px;cursor:pointer;box-shadow:0 2px 8px -2px rgba(224,168,74,.6)}
 #tab-tools .lf-copy-btn:hover{filter:brightness(1.08)}
 #tab-tools .lf-status{font-size:11.5px;margin-left:10px;font-family:var(--mono,monospace)}
+/* v544 — Quick-upload shortcut bar */
+#tab-tools .tools-quickup{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 14px;padding:10px 12px;background:linear-gradient(180deg,rgba(157,123,216,.1),rgba(157,123,216,.04));border:1px solid rgba(157,123,216,.28);border-radius:11px}
+#tab-tools .tqu-lbl{font-size:12.5px;font-weight:700;color:#c3a6f0}
+#tab-tools .tqu-btn{font-size:12.5px;font-weight:700;color:#f2ead8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:7px 13px;cursor:pointer;transition:filter .12s,transform .06s}
+#tab-tools .tqu-btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+#tab-tools .tqu-btn:active{transform:translateY(0)}
+#tab-tools .tqu-vault{border-color:rgba(224,120,120,.5)}
+#tab-tools .tqu-rune{border-color:rgba(224,168,74,.5)}
+#tab-tools .tqu-gem{border-color:rgba(120,180,224,.5)}
+#tab-tools .tqu-mat{border-color:rgba(157,123,216,.5)}
 /* v543 — Smart Insights card */
 #tab-tools .si-body{display:flex;flex-direction:column;gap:14px}
 #tab-tools .si-panel{padding:0 0 12px;border-bottom:1px solid rgba(157,123,216,.18)}
@@ -3912,6 +3922,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 
 <div class="tab-content" id="tab-tools">
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
+  <div class="tools-quickup" id="tools-quickup">
+    <span class="tqu-lbl">📸 Quick upload a screenshot →</span>
+    <button class="tqu-btn tqu-vault" onclick="window.quickIntake&&window.quickIntake('vault')" title="AI-read a Vault / stash screenshot — items auto-file to their mules">🎒 Vault items</button>
+    <button class="tqu-btn tqu-rune" onclick="window.quickIntake&&window.quickIntake('rune')" title="AI-tally a Rune stash screenshot">ᛦ Runes</button>
+    <button class="tqu-btn tqu-gem" onclick="window.quickIntake&&window.quickIntake('gem')" title="AI-tally a Gem stash screenshot">💎 Gems</button>
+    <button class="tqu-btn tqu-mat" onclick="window.quickIntake&&window.quickIntake('material')" title="AI-tally a Materials (uber / Sunder) screenshot">✦ Materials</button>
+  </div>
 
   <div class="boss-card collapsible collapsed tool-premium" id="mule-vault-card" style="--tc:#f0c060">
     <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
@@ -4361,6 +4378,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       H+='</div>';
       box.innerHTML=H;
     }catch(e){ box.innerHTML='<div class="si-dim">insights unavailable</div>'; }
+  };
+  // v544 — QUICK UPLOAD shortcut: one always-visible bar at the top of Tools → tap a stash → expands its card
+  // (so the read result is visible) and opens the file picker straight into that section's AI intake. Same
+  // intake each section already has; this just routes another easy entry point (Konyo's ask).
+  window.quickIntake = function(which){
+    var map={ vault:{file:'vault-intake-file', card:'mule-vault-card', render:'renderVault'},
+              rune:{file:'rune-intake-file', card:'rune-stash-card', render:'renderRuneStash'},
+              gem:{file:'gem-intake-file', card:'gem-stash-card', render:'renderGemStash'},
+              material:{file:'material-intake-file', card:'material-stash-card', render:null} };
+    var m=map[which]; if(!m) return;
+    try{ var card=document.getElementById(m.card); if(card&&card.classList.contains('collapsed')){ if(window.toggleCardCollapse)window.toggleCardCollapse(m.card); if(m.render&&typeof window[m.render]==='function')window[m.render](); } }catch(e){}
+    try{ var f=document.getElementById(m.file); if(f){ f.click(); } }catch(e){}
   };
   </script>
 
