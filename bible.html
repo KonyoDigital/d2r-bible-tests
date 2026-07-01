@@ -6056,7 +6056,19 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 <div class="help-modal" id="help-modal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="help-content">
     <h3>🎯 How to use this bible</h3>
-    <p>Live MF/players slider at the top — all numbers recalculate instantly when you drag.</p>
+    <p>Live <strong>MF / Players dock at the bottom</strong> of the screen — drag it and every number recalculates instantly. Press <span class="kbd">D</span> to slide it away and reclaim space.</p>
+    <h3>🧭 The tabs — and two floating maps</h3>
+    <p>The nav runs <strong>🏠 main · 🗺️ bosses · 🔍 calculator · 🔥 TZ zones · 📡 TZ tracker · 🪨 runes · 👑 RotW special · 🔥 events · ⛓️ endgame · 🔱 binds · 📐 reference · 🧰 tools · 🔨 Forge</strong>. On the <strong>🔨 Forge</strong> and <strong>🧰 Tools</strong> tabs a floating button (bottom-right) pops a <strong>clickable map</strong> of everything inside — tap a row to jump straight to it.</p>
+    <h3>📸 The Vault — screenshot your loot</h3>
+    <p>In <strong>🧰 Tools → The Vault</strong>: drop a stash screenshot and the AI reads it, auto-files every item onto its mule, and tallies your runes &amp; gems. Everything else on the site reads from this.</p>
+    <h3>🔨 Forge — your live task plan</h3>
+    <p>The Forge reads your runes · gems · vault · Chronicle and tells you exactly what to do: <strong>Make now</strong> (forge it), <strong>One step</strong> (go get a base / cube runes), <strong>Pipeline</strong> (socket then forge), <strong>Base upgrades</strong> (cube a white base up to its elite tier), and <strong>Crafts</strong>. Mark anything ✓ created and it drops off the list.</p>
+    <h3>📜 Chronicle · 🎯 Loot Filters · 🔬 AI Item Checker</h3>
+    <ul>
+      <li><strong>Chronicle</strong> — your 100-runeword progress; ✓ the ones you've made.</li>
+      <li><strong>Loot Filters</strong> — one-tap copy of an in-game filter that shows exactly the bases to farm for the runewords you still need.</li>
+      <li><strong>AI Item Checker</strong> — paste a magic/rare item, get a keep-or-toss verdict.</li>
+    </ul>
     <h3>⭐ Wishlist vs ✓ Owned</h3>
     <ul>
       <li><strong>⭐ Star</strong> = "I want this" → bumps to top of hero card</li>
@@ -6076,7 +6088,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
     <h3>⌨️ Keyboard shortcuts</h3>
     <ul>
       <li><span class="kbd">/</span> jump to the calculator and focus its item search</li>
-      <li><span class="kbd">1</span>–<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ zones · 4=runes · 5=RotW special · 6=events · 7=endgame · 8=binds · 9=reference · 0=tools <span style="color:var(--text-dim)">(home + TZ tracker are click-only)</span></li>
+      <li><span class="kbd">1</span>–<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ zones · 4=runes · 5=RotW special · 6=events · 7=endgame · 8=binds · 9=reference · 0=tools <span style="color:var(--text-dim)">(home · TZ tracker · 🔨 Forge are click-only)</span></li>
       <li><span class="kbd">Shift</span>+<span class="kbd">1</span>–<span class="kbd">6</span> MF presets — 250 · 400 · 553 (Shako) · 699 (MF swap) · 800 · 1000%</li>
       <li><span class="kbd">↑↓←→</span> in the calculator: navigate the item grid · <span class="kbd">Enter</span> open its detail panel</li>
       <li><span class="kbd">B</span> with an item active — from ANY tab: jump to bosses + highlight every drop source</li>
@@ -6107,29 +6119,39 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
   <div class="tlg-content">
     <header class="tlg-hero">
       <span class="tlg-hero-ic">🧰</span>
-      <div class="tlg-hero-tt"><h3 class="tlg-hero-t">The Tools Tab — Field Guide</h3><p class="tlg-hero-sub">Your planners &amp; the AI Helper, explained</p></div>
+      <div class="tlg-hero-tt"><h3 class="tlg-hero-t">The Tools Tab — Field Guide</h3><p class="tlg-hero-sub">Feed the 🔨 Forge — your intake &amp; planners, explained</p></div>
       <button class="tlg-x" onclick="document.getElementById('tools-legend-modal').classList.remove('show')" aria-label="close">✕</button>
     </header>
     <div class="tlg-note">💾 Everything saves on <b>this device</b> + rides in <b>Backup &amp; Share</b>. Most tools take a 📸 <b>AI screenshot intake</b> — drop a stash photo, Sonnet reads it and fills the tally.</div>
+    <div class="tlg-note" style="margin-top:0">🔨 <b>The AI task-doer moved to its own tab — <span style="color:#e6c877">Forge</span>.</b> It reads everything below (runes · gems · vault · Chronicle) and hands you a ranked, do-this-now plan. This 🧰 Tools tab is where you <b>feed it</b> + browse the planners.</div>
     <div class="tlg-grid">
-      <div class="tlg-card tlg-feat" style="--tc:#b48ce0"><div class="tlg-card-h"><span class="tlg-card-ic">🔮</span><span class="tlg-card-t">Ask the AI — Diablo II Helper</span><span class="tlg-badge">flagship</span></div>
-        <ul><li><b>✨ What you can create now</b> — auto-daily board of the top-tier runewords + crafts you can make, ranked; each tile shows the <b>result item</b>, icon recipe, "⚔ beats &lt;unique&gt;" and "N more to go".</li>
-        <li><b>🧪 Preview</b> — a sandbox: add runes / gems / a magic base / a jewel → watch what unlocks, <i>without touching your real tallies</i>.</li>
-        <li><b>🎯 Scan &amp; chat</b> — ask anything; answers read your live stash. The held <b>gem locks the craft type</b>, so the list recalibrates around it.</li></ul></div>
-      <div class="tlg-card" style="--tc:#f0c060"><div class="tlg-card-h"><span class="tlg-card-ic">🏰</span><span class="tlg-card-t">The Vault — Mule Manager</span></div>
-        <p>Organise every ✓-owned item across alt "mules" in a real-stash cell grid. 📸 intake auto-files from screenshots; auto-sort, delete-unsorted, full-reset.</p></div>
+      <div class="tlg-card tlg-feat" style="--tc:#f0c060"><div class="tlg-card-h"><span class="tlg-card-ic">🎒</span><span class="tlg-card-t">The Vault — Mule Manager</span><span class="tlg-badge">start here</span></div>
+        <ul><li><b>📸 AI screenshot intake</b> — drop a stash photo, it reads every item and auto-files it onto the right "mule" in a real-stash cell grid.</li>
+        <li>Auto-sort · delete-unsorted · full-reset · find-across-mules. <b>Everything else on the site reads from this</b> — runes, gems, owned items, the Forge plan.</li></ul></div>
+      <div class="tlg-card" style="--tc:#66ff88"><div class="tlg-card-h"><span class="tlg-card-ic">🔬</span><span class="tlg-card-t">AI Item Checker</span></div>
+        <p>Paste (or screenshot) a magic / rare item → a <b>keep-or-toss verdict</b> with the reasoning, so you're not vendoring a god-roll.</p></div>
+      <div class="tlg-card" style="--tc:#b58cff"><div class="tlg-card-h"><span class="tlg-card-ic">📜</span><span class="tlg-card-t">Chronicle</span></div>
+        <p>Your <b>100-runeword progress</b> — ✓ the ones you've made, live-synced with your rune stash so "can make now" is always current. Feeds the Forge + Loot Filters.</p></div>
+      <div class="tlg-card" style="--tc:#e0a84a"><div class="tlg-card-h"><span class="tlg-card-ic">🎯</span><span class="tlg-card-t">Loot Filters</span></div>
+        <p>One-tap copy of an <b>in-game loot filter</b> that shows exactly the bases to farm for the runewords you still need — including the low white bases you cube up. Import in D2R.</p></div>
       <div class="tlg-card" style="--tc:#ffa800"><div class="tlg-card-h"><span class="tlg-card-ic">⟐</span><span class="tlg-card-t">Rune Stash · Cube-Up</span></div>
-        <p>Tally runes → see what you can <b>cube up</b> (3→1) and which runewords/crafts it unlocks. One source of truth for the Helper + Workshop.</p></div>
+        <p>Tally runes → what you can <b>cube up</b> (3→1) and which runewords/crafts it unlocks. One source of truth for the Forge + Workshop.</p></div>
       <div class="tlg-card" style="--tc:#6fd0e0"><div class="tlg-card-h"><span class="tlg-card-ic">◆</span><span class="tlg-card-t">Gem Stash · Cube-Up</span></div>
         <p>Tally gems → cube-up chains + the Perfect gems your crafts need, live.</p></div>
+      <div class="tlg-card" style="--tc:#8ad0ff"><div class="tlg-card-h"><span class="tlg-card-ic">🎲</span><span class="tlg-card-t">Materials Stash · Uber Planner</span></div>
+        <p>Tally essences · organs · keys · Worldstone Shards → what ubers / Sunders / respecs you can build now.</p></div>
       <div class="tlg-card" style="--tc:#e0556a"><div class="tlg-card-h"><span class="tlg-card-ic">🔨</span><span class="tlg-card-t">Crafted Items Workshop</span></div>
-        <p>4 crafts × 9 slots = 36 recipes. Each: gem + slot rune + a <b>click-to-toggle magic base</b> + any jewel → the crafted rare, with floor→<b style="color:#7fff7f">godly</b> ranges + the ★ BiS pick. Magic base ONLY.</p></div>
+        <p>4 crafts × 9 slots. Each: gem + slot rune + a <b>click-to-toggle magic base</b> + any jewel → the crafted rare, with floor→<b style="color:#7fff7f">godly</b> ranges + the ★ BiS pick.</p></div>
       <div class="tlg-card" style="--tc:#d0a050"><div class="tlg-card-h"><span class="tlg-card-ic">🧊</span><span class="tlg-card-t">Horadric Cube Recipes</span></div>
         <p>Every cube recipe, filterable, live-checked vs your tallies (✓ cubeable now).</p></div>
-      <div class="tlg-card" style="--tc:#ffa800"><div class="tlg-card-h"><span class="tlg-card-ic">📜</span><span class="tlg-card-t">All Runewords + Best Bases</span></div>
-        <p>The full 100-runeword DB (rune order · base · level) + the best base per runeword. Click any → its card.</p></div>
-      <div class="tlg-card" style="--tc:#c7b377"><div class="tlg-card-h"><span class="tlg-card-ic">💎</span><span class="tlg-card-t">High-Value Finds</span></div>
-        <p>121 reference items <i>beyond the 322 grail</i> — godly crafted jackpots, top uniques &amp; god-rolled rares — each a golden ID card (also via the top search).</p></div>
+      <div class="tlg-card" style="--tc:#a8adb8"><div class="tlg-card-h"><span class="tlg-card-ic">📖</span><span class="tlg-card-t">All Runewords + Best Bases</span></div>
+        <p>The full 100-runeword DB (rune order · base · level) + the socket-correct best base per runeword. Click any → its card.</p></div>
+      <div class="tlg-card" style="--tc:#66ff88"><div class="tlg-card-h"><span class="tlg-card-ic">💠</span><span class="tlg-card-t">Trade Values</span></div>
+        <p>Every unique/set + valuable magic item rated <b>High → Trash</b> (maxroll / DarkHumility). Owned items show the badge in 📋 Registered too.</p></div>
+      <div class="tlg-card" style="--tc:#00e676"><div class="tlg-card-h"><span class="tlg-card-ic">🎽</span><span class="tlg-card-t">Item Set Tracker</span></div>
+        <p>Every set + its pieces, per-piece affixes &amp; partial bonuses — track completion across your mules.</p></div>
+      <div class="tlg-card" style="--tc:#c7b377"><div class="tlg-card-h"><span class="tlg-card-ic">⭐</span><span class="tlg-card-t">High-Value Finds</span></div>
+        <p>Reference items <i>beyond the grail</i> — godly crafted jackpots, top uniques &amp; god-rolled rares — each a golden ID card (also via the top search).</p></div>
     </div>
     <div class="tlg-legend">
       <div class="tlg-legend-t">🎨 In-game item colours — used everywhere</div>
