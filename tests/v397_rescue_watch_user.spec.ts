@@ -3,19 +3,21 @@ import * as path from 'path';
 
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-// v396.2/v396.3/v397 — (1) any runeword stuck in the throw-out pile from an old read is RESCUED on render
-// (recognized → owned, dropped from unknownReads) — "never throw out an Enigma"; (2) the folder auto-watch
-// (poll + on-focus quiet scan) is wired so new screenshots auto-register; (3) per-user intake logging.
+// v396.2/v396.3/v397 → v539 — (1) any runeword stuck in the throw-out pile is RECOGNIZED on render so it's
+// never thrown out (dropped from unknownReads), BUT — v539 — it is NO LONGER auto-registered to `owned` (the
+// RUNEWORDS locker) or the Chronicle. An OCR'd runeword NAME is too ambiguous (UI text / a base's can-make
+// list / a Forge-tab screenshot) and kept injecting phantom runewords (Konyo). Forged runewords are managed
+// only via the Chronicle ✓. (2) folder auto-watch wired; (3) per-user intake logging.
 test.describe('v397 runeword rescue + folder auto-watch + per-user logging', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(1500);
   });
 
-  test('a runeword stranded in throw-out is rescued (recognized, removed from unknownReads)', async ({ page }) => {
+  test('a runeword stranded in throw-out is recognized (removed from throw-out) but NOT auto-owned (v539)', async ({ page }) => {
     const r = await page.evaluate(() => {
       eval("unknownReads.add('Enigma'); unknownReads.add('Spirit'); unknownReads.add('Broad Sword (4os)')");
-      (window as any).renderVault && (window as any).renderVault();   // triggers renderThrowoutReview's rescue
+      (window as any).renderVault && (window as any).renderVault();   // triggers renderThrowoutReview's recognition
       return {
         enigmaInThrowout: eval("unknownReads.has('Enigma')"),
         enigmaOwned: eval("owned.has('Enigma')"),
@@ -23,10 +25,10 @@ test.describe('v397 runeword rescue + folder auto-watch + per-user logging', () 
         baseStillThrowout: eval("unknownReads.has('Broad Sword (4os)')"),  // a real base stays
       };
     });
-    expect(r.enigmaInThrowout).toBe(false);
-    expect(r.enigmaOwned).toBe(true);
-    expect(r.spiritOwned).toBe(true);
-    expect(r.baseStillThrowout).toBe(true);
+    expect(r.enigmaInThrowout).toBe(false);   // recognized → never thrown out
+    expect(r.enigmaOwned).toBe(false);        // v539 — NOT auto-registered to owned (was true pre-v539)
+    expect(r.spiritOwned).toBe(false);        // v539 — same
+    expect(r.baseStillThrowout).toBe(true);   // a real base still needs review
   });
 
   test('folder auto-watch helpers are wired (poll + on-focus quiet scan)', async ({ page }) => {
