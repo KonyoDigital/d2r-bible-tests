@@ -7735,9 +7735,22 @@ function _ensureSocketBaseEntry(name, force){
       + (sockets > 0
         ? ('A <b>' + sockets + '-socket ' + _d2artEsc(base) + '</b> runeword / craft base.')
         : ('An <b>unsocketed ' + _d2artEsc(base) + '</b> — Larzuk or cube it' + (mx != null ? (' to ' + mx + ' sockets') : '') + '.'));
+    // v525 — UPGRADEABLE label: a Normal/Exceptional runeword base that cube-upgrades to an ELITE endgame base
+    // (keeps its sockets) → surface the whole path so a lower-tier drop reads as "keep, cube it up". Hardcoded
+    // tier data (_TIER_CHAIN), same source the Forge upgrade pipeline uses → no mismatch.
+    var upg = '';
+    try {
+      var _tc = (typeof _TIER_CHAIN !== 'undefined') ? _TIER_CHAIN[String(base).toLowerCase()] : null;
+      if (_tc && _tc.elite && _tc.elite !== base){
+        var _chain = [_tc.normal, _tc.exc, _tc.elite].filter(Boolean);
+        var _ix = _chain.indexOf(base), _ahead = _ix >= 0 ? _chain.slice(_ix) : _chain;
+        if (_ahead.length > 1)
+          upg = '<div class="att-aff" style="color:#ffc14d">⬆ Upgrades to <b>' + _d2artEsc(_tc.elite) + '</b> (elite endgame base) — cube <b>' + _ahead.map(function(x){ return _d2artEsc(x); }).join(' → ') + '</b>, keeps sockets.</div>';
+      }
+    } catch(e){}
     EXTRA_ITEMS[name] = { rarity:'basic', base:base, cat:'Socketed bases', val:'base', cells:cells,
       sockets: sockets > 0 ? sockets : undefined, hand: (slot === 'Weapon' ? (is2H ? '2h' : '1h') : undefined),
-      desc: head + guide + rw };
+      desc: head + guide + rw + upg };
     if (typeof D2IO_ART !== 'undefined' && D2IO_ART[base] && !D2IO_ART[name]) D2IO_ART[name] = D2IO_ART[base];
   }catch(e){}
 }
