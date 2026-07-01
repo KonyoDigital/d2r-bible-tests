@@ -22,12 +22,14 @@ async function upgradesFor(page: any, base: string, ethereal: boolean) {
   }, base);
 }
 
-test('a NON-ethereal Normal base appears in the upgrade bucket (control)', async ({ page }) => {
+// v534 — the upgrade bucket is GONE: NO white base (normal, superior, OR ethereal) can be cube-upgraded to a
+// higher tier (game-file cubemain.txt: unique/rare/set only). Both now produce zero upgrade entries.
+test('a NON-ethereal Normal white base produces NO upgrade entry (v534 — bucket removed)', async ({ page }) => {
   const n = await upgradesFor(page, 'Broad Sword (Larzuk base)', false);
-  expect(n).toBeGreaterThan(0);
+  expect(n).toBe(0);
 });
 
-test('an ETHEREAL Normal base is EXCLUDED from the upgrade bucket (can\'t cube-upgrade ethereal)', async ({ page }) => {
+test('an ETHEREAL Normal base also produces NO upgrade entry', async ({ page }) => {
   const n = await upgradesFor(page, 'Broad Sword (Larzuk base)', true);
   expect(n).toBe(0);
 });

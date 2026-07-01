@@ -141,14 +141,10 @@ test('NEED A BASE — runes in hand but no matching base → names the meta base
   expect(t.bestStr).toContain('Colossus Voulge');   // socket-correct merc polearm: Insight is 4os → Colossus Voulge (max 4), not the 5os Thresher
 });
 
-test('BASE UPGRADE — a Normal runeword base surfaces a cube-up-to-elite pipeline', async ({ page }) => {
-  const s = await scan(page, { owned: ['Wand (2os)'] });   // Wand = normal-tier weapon that hosts runewords
-  const u = (s.upgrades || []).find((x: any) => x.base.base === 'Wand');
-  expect(u).toBeTruthy();
-  expect(u.tier).toBe('normal');
-  expect(u.steps.length).toBe(2);                          // Normal → Exceptional → Elite
-  expect(u.steps[0].recipe).toContain('Perfect Emerald');  // weapon recipe
-  expect(u.rws.length).toBeGreaterThan(0);
+test('NO BASE-UPGRADE bucket — white/normal bases cannot be cube-upgraded (v534, game-file confirmed)', async ({ page }) => {
+  // cubemain.txt: tier-upgrade recipes accept unique/rare/set only — never a normal/superior/magic white base.
+  const s = await scan(page, { owned: ['Wand (2os)', 'Crystal Sword (Larzuk base)', 'Bone Helm (Larzuk base)'] });
+  expect(s.upgrades.length).toBe(0);   // the whole "Base upgrades" bucket is gone
 });
 
 test('SAFEGUARD — Larzuk gives only a base\'s MAX, so a sub-max word is NOT pipelined on a too-big base', async ({ page }) => {
@@ -199,15 +195,15 @@ test('META-BASE RULE — 1H for player weapons, 2H only for merc, armour never g
   expect(r.insight).toMatch(/Thresher|Cryptic Axe|Colossus Voulge/);  // merc polearm → 2H is correct here
 });
 
-test('ETHEREAL — an ethereal base is NOT cube-upgradeable (socket & forge as-is)', async ({ page }) => {
+test('_upgradeChainFor is a null stub — NO white base is cube-upgradeable (eth or not) (v534)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w: any = window;
     return {
-      normalChain: !!w._upgradeChainFor('Crystal Sword', 6, false),   // normal Crystal Sword → upgrade chain exists
-      ethChain:    w._upgradeChainFor('Crystal Sword', 6, true),       // ethereal → must be null (can't upgrade)
+      normal: w._upgradeChainFor('Crystal Sword', 6, false),   // was an upgrade chain — now null (can't upgrade white)
+      eth:    w._upgradeChainFor('Crystal Sword', 6, true),    // ethereal → null
     };
   });
-  expect(r.normalChain).toBe(true);
-  expect(r.ethChain).toBeNull();
+  expect(r.normal).toBeNull();
+  expect(r.eth).toBeNull();
 });
