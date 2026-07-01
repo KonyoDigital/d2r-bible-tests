@@ -26872,8 +26872,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // and the next step replaces it. Crafts & ready forges are single "boom" tasks. Full chains live in 🔧 Pipeline.
     if (show('now')){
       var atomic=[];   // v532 — reuse the outer `skip` set (computed once, powers the Completed-tab restore too)
-      liveNow.forEach(function(t){ if(skip.has('rw|'+t.rw)) return; atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
-        atoms:[ 'Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qName(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'') ],
+      liveNow.forEach(function(t){ if(skip.has('rw|'+t.rw)) return;
+        // v540 — surface the BEST/ideal base per runeword even on an OWNED-base make-now, so the endgame isn't
+        // framed as "only merc gear". You can still forge it now on the base you own; the card ALSO names the
+        // ideal base (a 1H PLAYER weapon for merc-owned words, or the best armor base) — Konyo: "we had ideal /
+        // what's best for each runeword". Hidden only when the base you own IS already the ideal.
+        var _ownIsBest = t.ideal || (t.bestStr && t.bestStr.split(/\s*\/\s*/).some(function(b){ return b.trim().toLowerCase()===String(t.base.base).toLowerCase(); }));
+        var _bestHint = (t.bestStr && !_ownIsBest) ? ' <span class="f-atomsub">· 🏆 best base for <b>'+_fEsc(t.rw)+'</b>: <b>'+_fEsc(t.bestStr)+'</b>'+(t.bestMeta?' <span style="opacity:.7">('+_fEsc(t.bestMeta)+')</span>':'')+(t.mercOwn?' — you own the <b>2H merc</b> version; the ideal is a <b>1H player</b> weapon':'')+'</span>' : '';
+        atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
+        atoms:[ 'Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qName(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
