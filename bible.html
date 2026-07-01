@@ -7317,6 +7317,9 @@ var BASE_CLASS = {"Aegis":["shield"],"Aerin Shield":["shield"],"Akaran Rondache"
 try { window.BASE_CLASS = BASE_CLASS; } catch(e){}
 function _baseCats(b){
   var _raw = String(b || '');
+  // v526 — normalise the few game-internal base spellings to the display names the rest of the data uses,
+  // so an intake read of either spelling resolves (robustness; the app canon is Kris/Stiletto/Mithril Point).
+  _raw = _raw.replace(/\bKriss\b/g, 'Kris').replace(/\bStilleto\b/g, 'Stiletto').replace(/\bMithral Point\b/g, 'Mithril Point');
   // v386 — exact base name → authoritative game-data class wins (covers the regex's gaps: flails, daggers,
   // orbs, pelts, shrunken heads, barb helms, claws, Templar Coat…). Fall through to the regex for variants
   // ("Superior Monarch", RotW custom names) the data map doesn't key verbatim.
@@ -7635,7 +7638,7 @@ const BASE_TIER = (function(){
   N(["Short Sword","Scimitar","Saber","Falchion","Crystal Sword","Broad Sword","Long Sword","War Sword","Two-Handed Sword","Claymore","Giant Sword","Bastard Sword","Flamberge","Great Sword"]);
   E(["Gladius","Cutlass","Shamshir","Tulwar","Dimensional Blade","Battle Sword","Rune Sword","Ancient Sword","Espadon","Dacian Falx","Tusk Sword","Gothic Sword","Zweihander","Executioner Sword"]);
   U(["Falcata","Ataghan","Elegant Blade","Hydra Edge","Phase Blade","Conquest Sword","Cryptic Sword","Mythical Sword","Legend Sword","Highland Blade","Balrog Blade","Champion Sword","Colossus Sword","Colossus Blade"]);
-  N(["Dagger","Dirk","Kriss","Blade"]); E(["Poignard","Rondel","Cinquedeas","Stilleto"]); U(["Bone Knife","Mithral Point","Fanged Knife","Legend Spike"]);
+  N(["Dagger","Dirk","Kris","Blade"]); E(["Poignard","Rondel","Cinquedeas","Stiletto"]); U(["Bone Knife","Mithril Point","Fanged Knife","Legend Spike"]);   // v526 — display names (Kris/Stiletto/Mithril Point), NOT the game-internal "Kriss"/"Stilleto"/"Mithral" — so _TIER_CHAIN matches what _baseCats/_baseRunewords recognise
   N(["Throwing Knife","Throwing Axe","Balanced Knife","Balanced Axe"]); E(["Battle Dart","Francisca","War Dart","Hurlbat"]); U(["Flying Knife","Flying Axe","Winged Knife","Winged Axe"]);
   N(["Javelin","Pilum","Short Spear","Glaive","Throwing Spear"]); E(["War Javelin","Great Pilum","Simbilan","Spiculum","Harpoon"]); U(["Hyperion Javelin","Stygian Pilum","Balrog Spear","Ghost Glaive","Winged Harpoon"]);
   N(["Spear","Trident","Brandistock","Spetum","Pike"]); E(["War Spear","Fuscina","War Fork","Yari","Lance"]); U(["Hyperion Spear","Stygian Pike","Mancatcher","Ghost Spear","War Pike"]);
@@ -7716,6 +7719,9 @@ function _ensureSocketBaseEntry(name, force){
     // bare base, but keep "Superior" in the registered NAME (the tile title) and flag it for the RW note.
     var nameSup = /^\s*superior\b/i.test(rawBase) || (typeof window._isSuperior === 'function' && window._isSuperior(name));
     var base = (typeof _qualStrip === 'function' ? _qualStrip(rawBase) : rawBase) || rawBase;
+    // v526 — canonicalise the few game-internal base spellings to the display names the rest of the app uses
+    // (BASE_DB / _baseTier / _TIER_CHAIN key on these), so an intake read of either spelling works end-to-end.
+    base = base.replace(/\bKriss\b/g, 'Kris').replace(/\bStilleto\b/g, 'Stiletto').replace(/\bMithral Point\b/g, 'Mithril Point');
     var sockets = m[2] ? parseInt(m[2], 10) : 0;
     var cats = (typeof _baseCats === 'function') ? _baseCats(base) : {};
     var slot = cats['body armor'] ? 'Body Armor' : (cats['shield'] ? 'Shield' : (cats['helm'] ? 'Helm' : (cats['weapon'] ? 'Weapon' : null)));

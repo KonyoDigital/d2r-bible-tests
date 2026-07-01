@@ -88,3 +88,33 @@ test('a RARE circlet is a keeper (MAGIC & RARE locker); white/magic circlet is n
   expect(r.rare).toBe('magic-rare');   // RARE circlet → keeper
   expect(r.magic).toBe('__throwout');  // MAGIC circlet → vendor (Konyo: only rare)
 });
+
+test('v526 — game-internal base spelling (Kriss) normalizes to canonical (Kris) → Forge recognises it', async ({ page }) => {
+  // the game files / an intake read may spell the dagger "Kriss"; the app canon is "Kris". A mismatch made
+  // Ritual show "get a base" even when the dagger was owned. Normalisation resolves it end-to-end.
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Kriss (Larzuk base)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 1, Shael: 1, Ohm: 1 })); // Ritual runes
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    w._ensureSocketBaseEntry('Kriss (Larzuk base)');
+    const s = w.forgeScan();
+    const ritual = s.now.concat(s.pipeline, s.onestep).find((t: any) => t.rw === 'Ritual');
+    return {
+      krissRecognized: Object.keys(w._baseCats('Kriss')).includes('dagger'),   // alias resolves
+      krissRW: (w._baseRunewords('Kriss') || []).length > 0,
+      tierChainKris: !!(w._TIER_CHAIN && w._TIER_CHAIN['kris']),                 // line-7638 fix → key exists
+      ritualBase: ritual ? (ritual.base && ritual.base.base) : null,
+      ritualKind: ritual ? ritual.kind : null,
+    };
+  });
+  expect(r.krissRecognized).toBe(true);   // "Kriss" resolves to dagger cats
+  expect(r.krissRW).toBe(true);           // and hosts runewords (was 0 before)
+  expect(r.tierChainKris).toBe(true);     // _TIER_CHAIN keyed on the canonical "kris"
+  expect(r.ritualBase).toBe('Kris');      // an owned "Kriss" surfaces Ritual with the recognised base
+  expect(r.ritualKind).toBe('pipeline');
+});
