@@ -59,3 +59,35 @@ test('completing a Make-now task shows "Undo last" ON the Make-now view, and it 
   expect(afterUndo.insightBackNow).toBe(true);   // restored into Make-now, right from the Make-now view
   expect(afterUndo.made).toBe(false);            // no longer marked created
 });
+
+// v537.3 — the Undo bar is SESSION-scoped: it must NOT hover over your genuinely-last-created runeword on load;
+// it appears ONLY after you create something in this session (Konyo: "make it only show after I complete something").
+test('the Undo-last bar is hidden on load (pre-existing creations) and appears only after a session completion', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({ 'Enigma': 'Jun 28, 2026 · 20:13' }));  // a past creation
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const onLoad = await page.evaluate(() => {
+    const w: any = window;
+    w._ensureSocketBaseEntry('Colossus Voulge (4os)');
+    w.switchTab('forge'); w.forgeSetFilter('now'); w.renderForge();
+    const f = document.getElementById('tab-forge')!;
+    return { bar: !!f.querySelector('.forge-restore-top'), madeCount: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length };
+  });
+  expect(onLoad.madeCount).toBeGreaterThan(1);   // floor + Enigma are created…
+  expect(onLoad.bar).toBe(false);                // …but the bar does NOT show for them (nothing done THIS session)
+
+  const afterComplete = await page.evaluate(() => {
+    const w: any = window;
+    w.rwToggleMade('Insight'); w.forgeSetFilter('now'); w.renderForge();
+    const f = document.getElementById('tab-forge')!;
+    const bar = f.querySelector('.forge-restore-top');
+    const undo = bar ? [...bar.querySelectorAll('button')].find((b) => /Undo last/i.test(b.textContent || '')) : null;
+    return { bar: !!bar, undo: undo ? undo.textContent!.replace(/\s+/g, ' ').trim() : '' };
+  });
+  expect(afterComplete.bar).toBe(true);                        // now it appears
+  expect(afterComplete.undo).toMatch(/Undo last:\s*Insight/i); // …naming the thing you just did (not Enigma)
+});

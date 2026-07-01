@@ -16264,6 +16264,9 @@ window.rwToggleMade = function(name){
     try { if (typeof rwUnmade!=='undefined' && rwUnmade[name]){ delete rwUnmade[name]; LS.setItem('d2r_rwUnmade', JSON.stringify(rwUnmade)); } } catch(e){}
   }
   try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){}
+  // v537.3 — tell the Forge's session tracker what just happened, so its "↩ Undo last" bar only appears right
+  // AFTER you create something this session (not permanently over your genuine last-created runeword).
+  try { if (window._noteForgeDone) window._noteForgeDone(name, !!rwMade[name]); } catch(e){}
   renderRunewordChronicle();
   // v455 — push the create/un-create through to the socketed bases: re-sync their cached descriptions to the
   // Chronicle, then re-render the vault (locker cards + Socketed Review) and any open detail card, so the
@@ -26691,13 +26694,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.forgeClearCompleted=function(){ try{ localStorage.setItem('d2r_forgeDone', JSON.stringify(_madeRw())); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   window.forgeRestoreCompleted=function(){ try{ localStorage.removeItem('d2r_forgeDone'); localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   function _forgeDate(s){ try{ return Date.parse(String(s||'').replace(/\s*·\s*/,' ').replace(/,/,'')) || 0; }catch(e){ return 0; } }
-  // v537 — the MOST-RECENTLY created runeword (top of the Completed list). Powers the "↩ Undo last" button that
-  // rides on the always-visible restore bar, so right after you tick "✓ created" in Make now you can put it back
-  // WITHOUT hunting through the Completed tab (Konyo's ask: the restore has to be reachable from Make now).
-  function _lastDone(){ try{ var h=_doneSet(); var rm=(typeof rwMade!=='undefined'&&rwMade)||{};
-    var list=_madeRw().filter(function(n){ return !h.has(n); }).map(function(n){ return {n:n, d:_forgeDate(rm[n])}; }).sort(function(a,b){ return b.d-a.d || a.n.localeCompare(b.n); });
-    return list.length?list[0].n:null; }catch(e){ return null; } }
-  window.forgeUndoLastDone=function(){ var n=_lastDone(); if(n && window.rwToggleMade) window.rwToggleMade(n); };   // un-marks it made → back into the task list + re-renders
+  // v537.3 — the "↩ Undo last" button is now SESSION-scoped: it names only what you've created THIS SESSION,
+  // and disappears on reload. _sessDone is an in-memory stack of runewords marked created this session (via the
+  // Forge "✓ created" / "✓ forged" buttons or the Chronicle toggle — all route through rwToggleMade → _noteForgeDone).
+  // So the bar is a fresh "you just did that → undo it" prompt, NOT a permanent affordance hovering over your
+  // genuinely-last-created runeword (Konyo: "make it only show after I complete something").
+  var _sessDone=[];
+  function _noteForgeDone(name, made){ if(!name) return; var i=_sessDone.indexOf(name); if(i>=0) _sessDone.splice(i,1); if(made) _sessDone.push(name); if(typeof renderForge==='function') renderForge(); }
+  try{ window._noteForgeDone=_noteForgeDone; }catch(e){}
+  function _lastDone(){ try{ var rm=(typeof rwMade!=='undefined'&&rwMade)||{};
+    for(var i=_sessDone.length-1;i>=0;i--){ if(rm[_sessDone[i]]) return _sessDone[i]; }   // newest still-created this session
+  }catch(e){} return null; }
+  window.forgeUndoLastDone=function(){ var n=_lastDone(); if(n && window.rwToggleMade) window.rwToggleMade(n); };   // un-marks it → back into tasks (rwToggleMade → _noteForgeDone pops it off the stack) + re-renders
 
   // CRAFT ACCORDION (v495): a craft card opens an in-tab collapsing dropdown of its slots + recipes,
   // each marked ✓ make-now (gem + rune in hand) or "need <rune>". Never routes to the Workshop.
