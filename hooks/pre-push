@@ -35,6 +35,9 @@ SMOKE_SPECS=(
   tests/v71_d2art.spec.ts
   tests/v74_material_search.spec.ts
   tests/v80_endgame_relics.spec.ts
+  tests/v535_ux_simulation.spec.ts   # v535 — USER-EXPERIENCE sims: drive the rendered UI (tabs/cards/buttons),
+                                     # catch render-vs-logic drift + cross-tab platform sync. Konyo's ask to
+                                     # bake UX simulations into the autonomous-loop workflow, not just CI.
 )
 
 ZERO="0000000000000000000000000000000000000000"
