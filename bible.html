@@ -5911,6 +5911,16 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:1;opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
 #tab-forge .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
 #tab-forge .f-restore{margin-top:8px;text-align:center}
+/* v532 — ✅ Completed tab: the "done" list + clear/restore tools */
+#tab-forge .f-btn-mini{font-size:11.5px;padding:5px 11px;border-radius:8px}
+#tab-forge .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
+#tab-forge .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid #6fbf6f;border-radius:8px;margin-bottom:6px}
+#tab-forge .f-doneck{color:#6fbf6f;font-weight:800;flex:none}
+#tab-forge .f-donename{font-weight:700;font-size:13.5px;flex:none}
+#tab-forge .f-donedate{font-size:10.5px;color:var(--text-dim,#7a6f58);font-family:var(--mono,monospace);flex:1}
+#tab-forge .f-donebtn{font-size:10.5px;font-weight:700;color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
+#tab-forge .f-donebtn:hover{color:#fff;border-color:#8fe6a0}
+#tab-forge .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
 #tab-forge .forge-craftnow-lbl{font-size:12.5px;font-weight:700;color:#c79ce6;margin:14px 0 8px;letter-spacing:.2px}
 /* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
 #tab-forge .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
@@ -26643,6 +26653,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _skipSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeSkip')||'[]')); }catch(e){ return new Set(); } }
   window.forgeSkip=function(key){ var s=_skipSet(); s.add(key); try{ localStorage.setItem('d2r_forgeSkip', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   window.forgeUnskipAll=function(){ try{ localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  // v532 — ✓ COMPLETED tab. Created runewords live in the Chronicle (rwMade); the Completed tab mirrors them
+  // as an end-of-storyline "done" list. "Clear" DISMISSES them from this view (d2r_forgeDone — NON-destructive,
+  // they stay created in the Chronicle); "Restore" un-dismisses + un-skips. Per-row ↺ un-marks (back to tasks).
+  function _doneSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeDone')||'[]')); }catch(e){ return new Set(); } }
+  function _madeRw(){ try{ return Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){ return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n]; }); }catch(e){ return []; } }
+  window.forgeDismissDone=function(name){ var s=_doneSet(); s.add(name); try{ localStorage.setItem('d2r_forgeDone', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeClearCompleted=function(){ try{ localStorage.setItem('d2r_forgeDone', JSON.stringify(_madeRw())); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeRestoreCompleted=function(){ try{ localStorage.removeItem('d2r_forgeDone'); localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  function _forgeDate(s){ try{ return Date.parse(String(s||'').replace(/\s*·\s*/,' ').replace(/,/,'')) || 0; }catch(e){ return 0; } }
 
   // CRAFT ACCORDION (v495): a craft card opens an in-tab collapsing dropdown of its slots + recipes,
   // each marked ✓ make-now (gem + rune in hand) or "need <rune>". Never routes to the Workshop.
@@ -26763,6 +26782,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _craftTypes={}; s.crafts.forEach(function(c){ _craftTypes[c.craft]=1; });   // group crafts by TYPE (Caster/Blood/…), not slot
     var nowCount = liveNow.length + Object.keys(_craftTypes).length + Object.keys(_pipeBases).length;
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
+    var skip=_skipSet();   // v532 — computed once so the restore bar shows on EVERY sub-tab, not just Make now
     H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
@@ -26770,13 +26790,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="window.forgeSetFilter(\''+key+'\')" title="show only '+label+'">'
         +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+label+'</span><span class="ft-ct">'+n+'</span></button>';
     };
+    var _doneHidden=_doneSet(), _doneN=_madeRw().filter(function(n){ return !_doneHidden.has(n); }).length;   // v532
     H.push('<div class="forge-tabs">'
       + tab('all','▦','All','ft-all',total)
       + tab('onestep','🟡','One step','ft-step',s.onestep.length)   // v531 — storyline order: one step →
       + tab('now','⚒','Make now','ft-now',nowCount)                 //   make now → pipeline (Konyo)
       + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length+s.upgrades.length)
       + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
+      + tab('completed','✅','Completed','ft-done',_doneN)          // v532 — end of the storyline
       +'</div>');
+    // v532 — COMPLETED is a dedicated view (never mixed into 'all'): the done list + clear/restore.
+    if (F==='completed'){
+      var made=_madeRw().filter(function(n){ return !_doneHidden.has(n); })
+        .map(function(n){ return {n:n, d:(rwMade&&rwMade[n])||''}; })
+        .sort(function(a,b){ return _forgeDate(b.d)-_forgeDate(a.d) || a.n.localeCompare(b.n); });
+      H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">✅ Completed <span class="forge-sec-ct">'+made.length+'</span><span class="forge-sec-sub">runewords you\'ve created — the end of the line</span></div>');
+      if (skip.size) H.push('<div class="forge-note">↩ You have <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+' — <button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ restore skipped</button></div>');
+      H.push('<div class="f-donetools"><button class="f-btn f-btn-mini" onclick="window.forgeClearCompleted()">✕ Clear list</button><button class="f-btn f-btn-mini" onclick="window.forgeRestoreCompleted()">↺ Restore all</button></div>');
+      if (!made.length){
+        H.push('<div class="forge-empty">Nothing here yet — forge a runeword and tick <b>✓ created</b>, or hit <b>↺ Restore all</b> to bring back a cleared list.</div>');
+      } else {
+        made.forEach(function(m){
+          H.push('<div class="f-donerow"><span class="f-doneck">✓</span><span class="f-donename" style="color:'+(_qC(m.n)||'')+'">'+_fEsc(m.n)+'</span><span class="f-donedate">'+_fEsc(m.d||'')+'</span>'
+            +'<button class="f-donebtn" title="restore '+_fEsc(m.n)+' to your active tasks (un-mark created)" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(m.n)+'\')">↺ restore</button>'
+            +'<button class="f-skip" title="clear from this list (stays created in the Chronicle)" onclick="window.forgeDismissDone(\''+_fJs(m.n)+'\')">✕</button></div>');
+        });
+      }
+      H.push('</div>');
+      box.innerHTML=H.join(''); return;
+    }
     if (!total){
       H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
       box.innerHTML=H.join(''); return;
@@ -26784,7 +26826,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // ── MAKE NOW — atomic, one-at-a-time tasks. A multi-step chain shows ONLY its current step; tick "✓ did it"
     // and the next step replaces it. Crafts & ready forges are single "boom" tasks. Full chains live in 🔧 Pipeline.
     if (show('now')){
-      var atomic=[], skip=_skipSet();
+      var atomic=[];   // v532 — reuse the outer `skip` set (computed once, powers the Completed-tab restore too)
       liveNow.forEach(function(t){ if(skip.has('rw|'+t.rw)) return; atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
         atoms:[ 'Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qName(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'') ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });

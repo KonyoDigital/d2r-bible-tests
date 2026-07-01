@@ -207,8 +207,8 @@ test('v341.21 the 🧰 Tools field-guide widget opens a premium structured legen
   expect(r.btn).toBe(true);
   expect(r.helpStillThere).toBe(true);   // additive — the ? help is untouched
   expect(r.shown).toBe(true);
-  expect(r.cards).toBe(8);               // one card per tool
-  expect(r.featured).toBe(true);         // AI Helper featured with a badge
+  expect(r.cards).toBe(14);              // v529 field-guide rebuild — one card per current tool
+  expect(r.featured).toBe(true);         // flagship AI tools featured with a badge
   expect(r.chips).toBe(6);               // the 6-rarity colour legend
   expect(r.hero).toBe(true);             // hero header
 });
