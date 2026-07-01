@@ -6059,8 +6059,8 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
     <p>Live <strong>MF / Players dock at the bottom</strong> of the screen — drag it and every number recalculates instantly. Press <span class="kbd">D</span> to slide it away and reclaim space.</p>
     <h3>🧭 The tabs — and two floating maps</h3>
     <p>The nav runs <strong>🏠 main · 🗺️ bosses · 🔍 calculator · 🔥 TZ zones · 📡 TZ tracker · 🪨 runes · 👑 RotW special · 🔥 events · ⛓️ endgame · 🔱 binds · 📐 reference · 🧰 tools · 🔨 Forge</strong>. On the <strong>🔨 Forge</strong> and <strong>🧰 Tools</strong> tabs a floating button (bottom-right) pops a <strong>clickable map</strong> of everything inside — tap a row to jump straight to it.</p>
-    <h3>📸 The Vault — screenshot your loot</h3>
-    <p>In <strong>🧰 Tools → The Vault</strong>: drop a stash screenshot and the AI reads it, auto-files every item onto its mule, and tallies your runes &amp; gems. Everything else on the site reads from this.</p>
+    <h3>📸 Feed the engine — 3 photo-intake stashes</h3>
+    <p>The whole site runs on <strong>three screenshot intakes</strong> in <strong>🧰 Tools</strong>: <strong>The Vault</strong> (items → auto-filed to mules), <strong>Rune Stash</strong>, and <strong>Gem Stash</strong>. Drop a photo of each — the AI reads it and fills the tally. The <strong>Forge reads all three together</strong> to build your plan, so keep them current.</p>
     <h3>🔨 Forge — your live task plan</h3>
     <p>The Forge reads your runes · gems · vault · Chronicle and tells you exactly what to do: <strong>Make now</strong> (forge it), <strong>One step</strong> (go get a base / cube runes), <strong>Pipeline</strong> (socket then forge), <strong>Base upgrades</strong> (cube a white base up to its elite tier), and <strong>Crafts</strong>. Mark anything ✓ created and it drops off the list.</p>
     <h3>📜 Chronicle · 🎯 Loot Filters · 🔬 AI Item Checker</h3>
@@ -6122,14 +6122,16 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
       <div class="tlg-hero-tt"><h3 class="tlg-hero-t">The Tools Tab — Field Guide</h3><p class="tlg-hero-sub">Feed the 🔨 Forge — your intake &amp; planners, explained</p></div>
       <button class="tlg-x" onclick="document.getElementById('tools-legend-modal').classList.remove('show')" aria-label="close">✕</button>
     </header>
-    <div class="tlg-note">💾 Everything saves on <b>this device</b> + rides in <b>Backup &amp; Share</b>. Most tools take a 📸 <b>AI screenshot intake</b> — drop a stash photo, Sonnet reads it and fills the tally.</div>
-    <div class="tlg-note" style="margin-top:0">🔨 <b>The AI task-doer moved to its own tab — <span style="color:#e6c877">Forge</span>.</b> It reads everything below (runes · gems · vault · Chronicle) and hands you a ranked, do-this-now plan. This 🧰 Tools tab is where you <b>feed it</b> + browse the planners.</div>
+    <div class="tlg-note">🧩 <b>The engine runs on 3 photo-intake stashes:</b> 🎒 <b>Vault</b> (items) · ᛝ <b>Rune Stash</b> · ◆ <b>Gem Stash</b>. 📸 Screenshot each, the AI fills the tally, and the 🔨 Forge reads all three <b>together</b>. 💾 Everything saves on this device + rides in Backup &amp; Share.</div>
+    <div class="tlg-note" style="margin-top:0">🔨 <b>The AI task-planner is the <span style="color:#e6c877">Forge</span></b> (its own tab) — it reads everything below and hands you a ranked do-this-now plan. <b>Two flagship AI tools live here in Tools</b>: 🔮 Ask the AI + 🔬 AI Item Checker. This 🧰 tab is where you <b>feed the engine</b> + browse the data.</div>
     <div class="tlg-grid">
-      <div class="tlg-card tlg-feat" style="--tc:#f0c060"><div class="tlg-card-h"><span class="tlg-card-ic">🎒</span><span class="tlg-card-t">The Vault — Mule Manager</span><span class="tlg-badge">start here</span></div>
-        <ul><li><b>📸 AI screenshot intake</b> — drop a stash photo, it reads every item and auto-files it onto the right "mule" in a real-stash cell grid.</li>
-        <li>Auto-sort · delete-unsorted · full-reset · find-across-mules. <b>Everything else on the site reads from this</b> — runes, gems, owned items, the Forge plan.</li></ul></div>
-      <div class="tlg-card" style="--tc:#66ff88"><div class="tlg-card-h"><span class="tlg-card-ic">🔬</span><span class="tlg-card-t">AI Item Checker</span></div>
+      <div class="tlg-card tlg-feat" style="--tc:#8fd0ff"><div class="tlg-card-h"><span class="tlg-card-ic">🔮</span><span class="tlg-card-t">Ask the AI — Diablo II Helper</span><span class="tlg-badge">flagship</span></div>
+        <p>A Sonnet-powered chat that <b>reads your live stash</b> — ask "can I make Spirit?", "what am I close to?", anything. Answers use your real runes/gems/owned.</p></div>
+      <div class="tlg-card tlg-feat" style="--tc:#66ff88"><div class="tlg-card-h"><span class="tlg-card-ic">🔬</span><span class="tlg-card-t">AI Item Checker</span><span class="tlg-badge">flagship</span></div>
         <p>Paste (or screenshot) a magic / rare item → a <b>keep-or-toss verdict</b> with the reasoning, so you're not vendoring a god-roll.</p></div>
+      <div class="tlg-card" style="--tc:#f0c060"><div class="tlg-card-h"><span class="tlg-card-ic">🎒</span><span class="tlg-card-t">The Vault — Mule Manager</span><span class="tlg-badge">start here</span></div>
+        <ul><li><b>📸 AI screenshot intake</b> — drop a stash photo, it reads every item and auto-files it onto the right "mule" in a real-stash cell grid.</li>
+        <li>One of the <b>3 stashes</b> (Vault · Runes · Gems) that feed the engine. Auto-sort · delete-unsorted · full-reset · find-across-mules.</li></ul></div>
       <div class="tlg-card" style="--tc:#b58cff"><div class="tlg-card-h"><span class="tlg-card-ic">📜</span><span class="tlg-card-t">Chronicle</span></div>
         <p>Your <b>100-runeword progress</b> — ✓ the ones you've made, live-synced with your rune stash so "can make now" is always current. Feeds the Forge + Loot Filters.</p></div>
       <div class="tlg-card" style="--tc:#e0a84a"><div class="tlg-card-h"><span class="tlg-card-ic">🎯</span><span class="tlg-card-t">Loot Filters</span></div>
@@ -26949,27 +26951,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pop='<div class="tools-legend-pop" id="tools-legend-pop">'
       +'<span class="tlp-close" title="close" onclick="window.toolsLegendToggle()">✕</span>'
       +'<div class="tlp-h">🧭 Tools — map</div><div class="tlp-sub">Everything in this tab, grouped by what you\'re doing. Tap any row to jump to it.</div>'
-      +'<div class="tlp-start" role="button" tabindex="0" onclick="window.toolsLegendJump(\'mule-vault-card\')">👉 <b>New here? Start with The Vault</b> — screenshot your loot, it auto-sorts to mules &amp; feeds everything below.</div>'
-      +'<div class="tlp-grp">📸 Track what you own</div>'
-      + I('mule-vault-card','🎒','The Vault','AI intake → mules')
-      + I('rune-stash-card','ᛝ','Rune Stash','tally + cube-up planner')
-      + I('gem-stash-card','💎','Gem Stash','tally + cube-up planner')
-      + I('material-stash-card','🎲','Materials Stash','uber / Sunder planner')
+      +'<div class="tlp-start" role="button" tabindex="0" onclick="window.toolsLegendJump(\'mule-vault-card\')">👉 <b>Start here — feed the engine.</b> 📸 Screenshot your loot into the <b>3 stashes</b>: Vault (items) · Runes · Gems. The Forge &amp; the AI tools read all three together.</div>'
+      +'<div class="tlp-grp">📸 Feed the engine — the 3 stashes</div>'
+      + I('mule-vault-card','🎒','The Vault — items','📸 photo → auto-files to mules')
+      + I('rune-stash-card','ᛝ','Rune Stash','📸 photo → tally + cube-up')
+      + I('gem-stash-card','💎','Gem Stash','📸 photo → tally + cube-up')
+      + I('material-stash-card','🎲','Materials Stash','📸 uber / Sunder mats')
+      +'<div class="tlp-grp">🤖 AI tools — flagship</div>'
+      + I('ask-bible-card','🔮','Ask the AI — Diablo II Helper','Sonnet · reads your live stash')
       + I('ai-item-checker-card','🔬','AI Item Checker','magic/rare — keep or toss?')
-      +'<div class="tlp-grp">🔨 Plan what to make</div>'
-      + I('rw-chronicle-card','📜','Chronicle','your 100-runeword progress')
+      +'<div class="tlp-grp">🏆 The endgame — make it &amp; farm it</div>'
+      + I('rw-chronicle-card','📜','Chronicle','the 100-runeword endgame goal · ✓ progress')
+      + I('loot-filters-card','🎯','Loot Filters','copy → D2R · farm the bases you still need')
+      +'<div class="tlp-grp">📊 Data &amp; reference</div>'
       + I('rw-bases-card','🔩','Best Runeword Bases','which base per word')
       + I('craft-workshop-card','🔨','Crafted Workshop','gem crafts by slot')
-      + I('all-runewords-card','📖','All Runewords','the full list')
-      +'<div class="tlp-grp">🎯 Go farm it</div>'
-      + I('loot-filters-card','🎯','Loot Filters','import to D2R — grab the right bases')
-      + I('item-values-card','💠','Trade Values','High → Trash ratings')
-      + I('hvf-card','⭐','High-Value Finds','best-of-the-best off-grail')
-      +'<div class="tlp-grp">📖 Reference</div>'
-      + I('item-rarity-card','🎨','Item Rarity &amp; Colours','')
-      + I('horadric-recipe-card','🧊','Horadric Cube Recipes','')
-      + I('sunder-recipe-card','⚡','Sunder Renewal','')
-      + I('set-tracker-card','🎽','Item Set Tracker','')
+      + I('all-runewords-card','📖','All Runewords','the full DB')
+      + I('horadric-recipe-card','🧊','Horadric Cube Recipes','filter · ✓ cubeable now')
+      + I('item-values-card','💠','Trade Values','High → Trash')
+      + I('hvf-card','⭐','High-Value Finds','off-grail best-of-best')
+      + I('sunder-recipe-card','⚡','Sunder Renewal','recipe per charm')
+      + I('item-rarity-card','🎨','Item Rarity &amp; Colours','what each colour means')
+      + I('set-tracker-card','🎽','Item Set Tracker','set completion')
       +'</div>';
     var w=document.createElement('div');
     w.innerHTML='<button class="tools-legend-fab" id="tools-legend-fab" title="Tools map — what\'s here + where to start" onclick="window.toolsLegendToggle()">🧭</button>'+pop;
