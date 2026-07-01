@@ -16196,6 +16196,10 @@ window.rwToggleMade = function(name){
   try { _resyncSocketedDescs(); } catch(e){}
   try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
   try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch(e){}
+  // v531 — a runeword created/un-created must also refresh the FORGE: a "✓ created" tick from the Make-now
+  // feed marks it done → it should LEAVE the list and the next task appear immediately (was only refreshing
+  // the Chronicle + vault, so the finished task lingered on the Forge until you left and came back).
+  try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
 };
 // v369.2 — runeword base-string → a verified-present base sprite (same files as the EXTRA_ITEMS art map),
 // so every Chronicle row shows a slot-appropriate icon (shield/armor/helm/weapon) instead of a bare glyph.
@@ -26630,6 +26634,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _stepGet(k){ try{ return (JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
   function _stepSet(k,v){ try{ var o=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; localStorage.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
   window.forgeAdvance=function(k,total){ var s=_stepGet(k)+1; _stepSet(k, s>=total?0:s); if(typeof renderForge==='function') renderForge(); };
+  // v531 — the FINAL step of a chain is "Forge <word>". Ticking it = the runeword is CREATED: mark it in the
+  // Chronicle (so it leaves the Forge for good), reset the chain's step, and re-render. Was calling forgeAdvance
+  // which just looped back to step 1 — a finished chain never actually completed (Konyo caught this).
+  window.forgeForged=function(chainKey, word){ try{ _stepSet(chainKey,0); }catch(e){} if(window.rwToggleMade){ window.rwToggleMade(word); } else if(typeof renderForge==='function'){ renderForge(); } };
   // skip / dismiss: ✕ a task you don't want now. Persisted in d2r_forgeSkip. Skipping a chain's forge-step word
   // (key 'rw|<word>') reveals the next word on that base; skipping a whole task hides it. Restorable.
   function _skipSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeSkip')||'[]')); }catch(e){ return new Set(); } }
@@ -26764,8 +26772,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     };
     H.push('<div class="forge-tabs">'
       + tab('all','▦','All','ft-all',total)
-      + tab('now','⚒','Make now','ft-now',nowCount)
-      + tab('onestep','🟡','One step','ft-step',s.onestep.length)
+      + tab('onestep','🟡','One step','ft-step',s.onestep.length)   // v531 — storyline order: one step →
+      + tab('now','⚒','Make now','ft-now',nowCount)                 //   make now → pipeline (Konyo)
       + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length+s.upgrades.length)
       + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
       +'</div>');
@@ -26803,9 +26811,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         atomic.forEach(function(a){
           var total=a.atoms.length, step=a.chainKey?Math.min(_stepGet(a.chainKey),total-1):0, isLast=step>=total-1;
           var prog = total>1 ? '<span class="f-atomprog">step '+(step+1)+' / '+total+'</span>' : '';
-          var btn = a.chainKey
-            ? '<button class="f-btn f-btn-go" onclick="window.forgeAdvance(\''+a.chainKey+'\','+total+')">'+(isLast?'✓ done — restart':'✓ did it → next')+'</button>'
-            : a.btn;
+          var btn;
+          if (a.chainKey){
+            if (isLast && a.forgeWordKey){
+              // last step = "Forge <word>" → ticking it CREATES the runeword (marks it made, it leaves the list)
+              var _fw = a.forgeWordKey.replace(/^rw\|/,'');
+              btn = '<button class="f-btn f-btn-go" onclick="window.forgeForged(\''+a.chainKey+'\',\''+_fJs(_fw)+'\')">✓ forged — done</button>';
+            } else {
+              btn = '<button class="f-btn f-btn-go" onclick="window.forgeAdvance(\''+a.chainKey+'\','+total+')">✓ did it → next</button>';
+            }
+          } else { btn = a.btn; }
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkip(\''+_fJs(sk)+'\')">✕</button>' : '';
           H.push('<div class="f-card f-'+a.cls+' f-atom">'+skipBtn+'<div class="f-cardart"><span class="f-atomic-ic">'+a.icon+'</span></div><div class="f-cardbody">'
