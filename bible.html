@@ -26505,7 +26505,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
     var bases=_ownedBases();
     var kindRank=function(t){ return t.kind==='now'?0:t.kind==='pipeline'?1:2; };
-    var byRw={}, _nowCands={};   // _nowCands: rw → ALL owned exact-socket bases that can host it now (so allocation can use every base, not just one)
+    var byRw={}, _nowCands={}, _pipeCands={};   // _nowCands / _pipeCands: rw → ALL owned bases (socketed / Larzuk) that can host it, so allocation can spread across every base, not just one
     // 1) cross owned bases × the runewords they can hold
     bases.forEach(function(b){
       var rws=(typeof _baseRunewords==='function')?_baseRunewords(b.base):[];
@@ -26538,6 +26538,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (runesNow) t={kind:'pipeline', rw:name, base:b, need:need, req:req};
           else if (runesCube) t={kind:'pipeline', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
           // no runes + needs socket = 2 gaps → skip (lives in the Vault's Socketed Review)
+          if (t && t.kind==='pipeline') (_pipeCands[name]=_pipeCands[name]||[]).push(b);   // v536 — every owned Larzuk base that can host it (spread allocation below)
         }
         if (!t) return;
         t.hand=_mercOwn?'2H merc':_hand(name); t.mercOwn=_mercOwn; t.val=_rwVal(name); t.ideal=_isIdealBase(name,b.base); t.bestStr=_bestBaseStr(name); t.bestMeta=_bestMeta(name);
@@ -26599,6 +26600,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // out.upgrades stays empty; _socketRule already cancels a base whose max ≠ need.
     // rank the slower buckets
     out.pipeline.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
+    // v536 — SPREAD pipeline words across your DISTINCT owned Larzuk bases (shares the baseUsed pool with the
+    // make-now pass above). Fixes: owning e.g. a Thresher AND a Cryptic Axe (both 5os merc) but the Forge piling
+    // two 5os words onto ONE, leaving the other base idle. Value-sorted so the top word claims the ideal base
+    // first; a word with no free base left keeps its base and groups as an alternative under it (prior behaviour).
+    out.pipeline.forEach(function(t){
+      var cands=(_pipeCands[t.rw]||(t.base?[t.base]:[])).slice()
+        .sort(function(a,c){ return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0); });
+      for (var i=0;i<cands.length;i++){ var c=cands[i];
+        if (c && (baseUsed[c.name]||0) < (c.count||1)){ t.base=c; t.ideal=_isIdealBase(t.rw,c.base); baseUsed[c.name]=(baseUsed[c.name]||0)+1; break; } }
+    });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length, upgrades:out.upgrades.length };
     return out;
