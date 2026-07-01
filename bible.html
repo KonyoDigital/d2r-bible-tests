@@ -3167,6 +3167,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .lf-copy-btn{font-family:var(--mono,monospace);font-size:12.5px;font-weight:700;color:#1a140a;background:linear-gradient(180deg,#f0c060,#d4a849);border:none;border-radius:8px;padding:8px 15px;cursor:pointer;box-shadow:0 2px 8px -2px rgba(224,168,74,.6)}
 #tab-tools .lf-copy-btn:hover{filter:brightness(1.08)}
 #tab-tools .lf-status{font-size:11.5px;margin-left:10px;font-family:var(--mono,monospace)}
+/* v543 — Smart Insights card */
+#tab-tools .si-body{display:flex;flex-direction:column;gap:14px}
+#tab-tools .si-panel{padding:0 0 12px;border-bottom:1px solid rgba(157,123,216,.18)}
+#tab-tools .si-h{font-size:13px;font-weight:800;color:#c3a6f0;letter-spacing:.3px;margin-bottom:8px}
+#tab-tools .si-bar{position:relative;height:22px;background:rgba(157,123,216,.12);border:1px solid rgba(157,123,216,.3);border-radius:8px;overflow:hidden;margin-bottom:8px}
+#tab-tools .si-fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#7d5bb8,#b48be0);border-radius:8px 0 0 8px}
+#tab-tools .si-barlbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+#tab-tools .si-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--text,#d8cdb8);padding:2px 0}
+#tab-tools .si-row b{color:#e8ddc6}
+#tab-tools .si-dim{font-size:11.5px;color:var(--text-dim,#9a8f7a)}
+#tab-tools .si-tip{font-size:12px;color:#d8cdb8;margin-top:6px;padding:5px 9px;background:rgba(157,123,216,.1);border-radius:7px}
+#tab-tools .si-fp{padding:5px 0;border-top:1px dashed rgba(157,123,216,.14)}
+#tab-tools .si-fp:first-of-type{border-top:none}
+#tab-tools .si-fpn{font-weight:700;color:#e8ddc6;font-size:12.5px}
+#tab-tools .si-fpc{float:right;font-size:11px;font-weight:800;color:#1a140a;background:linear-gradient(180deg,#c3a6f0,#a883dd);border-radius:6px;padding:1px 8px}
+#tab-tools .si-fpw{font-size:11px;color:var(--text-dim,#9a8f7a);margin-top:1px}
+#tab-tools .si-rg{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:3px 0}
+#tab-tools .si-rgn{font-weight:800;color:#e8c878;min-width:44px}
+#tab-tools .si-rgs{color:#e8a0a0;font-size:11.5px}
 #tab-tools .lf-status.lf-ok{color:#8fe6a0} #tab-tools .lf-status.lf-no{color:#e08a8a}
 #tab-tools .lf-howto{font-size:11.5px;color:#cdb377;line-height:1.55;margin-top:6px;padding:9px 11px;background:rgba(255,170,40,.07);border-left:3px solid rgba(224,168,74,.5);border-radius:0 6px 6px 0}
 </style>
@@ -4277,7 +4296,86 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       }
     } catch(e){ no(); }
   };
+
+  // v543 — SMART CHRONICLE INSIGHTS. All read your live Chronicle (d2r_rwMade) + owned bases + rune stash, the
+  // same way the loot filter does, recomputed on demand. No AI / no server — pure derivation from your progress.
+  window._smartUnmadeNeedingBase = function(){
+    var out=[];
+    try{
+      var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
+      var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
+      var ownedBaseWord={};
+      try{var sc=(typeof window.forgeScan==='function')?window.forgeScan():null; if(sc){[].concat(sc.now||[],sc.pipeline||[]).forEach(function(t){if(t&&t.base)ownedBaseWord[t.rw]=1;});(sc.onestep||[]).forEach(function(t){if(t&&t.base&&t.sub!=='base')ownedBaseWord[t.rw]=1;});}}catch(e){}
+      out=Object.keys(tips).filter(function(rw){return !made[rw] && !ownedBaseWord[rw];});
+    }catch(e){}
+    return out;
+  };
+  window._smartFarmPriority = function(){
+    var unmade=window._smartUnmadeNeedingBase(); var meta=window._forgeMetaBase; var byBase={};
+    unmade.forEach(function(rw){ var names=(typeof meta==='function')?((meta(rw)||{}).names||[]):[];
+      names.forEach(function(nm){ if(!nm)return; if(/^\s*(Circlet|Coronet|Tiara|Diadem)\s*$/i.test(nm))return; (byBase[nm]=byBase[nm]||[]).push(rw); }); });
+    return Object.keys(byBase).map(function(b){return {base:b, count:byBase[b].length, runewords:byBase[b]};}).sort(function(a,b){return b.count-a.count || a.base.localeCompare(b.base);});
+  };
+  window._smartRuneGating = function(){
+    var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
+    var stash={}; try{stash=JSON.parse(localStorage.getItem('d2r_runeStash')||'{}');}catch(e){}
+    var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
+    var demand={}, byRune={};
+    Object.keys(tips).forEach(function(rw){ if(made[rw])return; var rec=(tips[rw]||{}).rec||[]; rec.forEach(function(r){ demand[r]=(demand[r]||0)+1; byRune[r]=byRune[r]||{}; byRune[r][rw]=1; }); });
+    return Object.keys(demand).map(function(r){var owned=stash[r]||0; return {rune:r, demand:demand[r], owned:owned, short:demand[r]-owned, words:Object.keys(byRune[r])};}).filter(function(x){return x.short>0;}).sort(function(a,b){return b.short-a.short || b.demand-a.demand;});
+  };
+  window._smartProgress = function(){
+    var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
+    var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
+    var total=Object.keys(tips).length; var madeN=Object.keys(tips).filter(function(n){return made[n];}).length;
+    var s=(typeof window.forgeScan==='function')?window.forgeScan():{now:[],pipeline:[],onestep:[],crafts:[]};
+    var now=(s.now||[]).filter(function(t){return !t.deferred;});
+    var baseOnly=(s.onestep||[]).filter(function(t){return t.sub==='base';}).length;
+    var runeOnly=(s.onestep||[]).filter(function(t){return t.sub==='runes'||t.sub==='cube';}).length;
+    var best=now.slice().sort(function(a,b){return (b.val||0)-(a.val||0);})[0];
+    var fp=window._smartFarmPriority(); var nx=fp[0];
+    return {total:total, made:madeN, remaining:total-madeN, makeNow:now.length, pipeline:(s.pipeline||[]).length, oneStep:(s.onestep||[]).length,
+      blockedByBase:baseOnly, blockedByRunes:runeOnly, bestNow:best?best.rw:null, nextUnlockBase:nx?nx.base:null, nextUnlockCount:nx?nx.count:0};
+  };
+  window.renderSmartInsights = function(){
+    var box=document.getElementById('smart-insights-body'); if(!box) return;
+    try{
+      var p=window._smartProgress(), fp=window._smartFarmPriority(), rg=window._smartRuneGating();
+      var esc=function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+      var pct=p.total?Math.round(p.made/p.total*100):0, H='';
+      H+='<div class="si-panel"><div class="si-h">📊 Progress</div>'
+        +'<div class="si-bar"><div class="si-fill" style="width:'+pct+'%"></div><span class="si-barlbl">'+p.made+' / '+p.total+' · '+pct+'%</span></div>'
+        +'<div class="si-row"><span>⚒ Make now</span><b>'+p.makeNow+'</b></div>'
+        +'<div class="si-row"><span>🔧 Pipeline</span><b>'+p.pipeline+'</b></div>'
+        +'<div class="si-row"><span>🟡 One step</span><b>'+p.oneStep+'</b> <span class="si-dim">('+p.blockedByBase+' need a base · '+p.blockedByRunes+' need runes)</span></div>'
+        +(p.bestNow?'<div class="si-tip">⭐ Best you can make now: <b>'+esc(p.bestNow)+'</b></div>':'')
+        +(p.nextUnlockBase?'<div class="si-tip">💡 Highest-leverage base to find: <b>'+esc(p.nextUnlockBase)+'</b> → unlocks '+p.nextUnlockCount+' runeword'+(p.nextUnlockCount>1?'s':'')+'</div>':'')
+        +'</div>';
+      H+='<div class="si-panel"><div class="si-h">🎯 Farm priority — bases by leverage</div>';
+      if(!fp.length){ H+='<div class="si-dim">Nothing to farm — you own a base for every remaining runeword. 🎉</div>'; }
+      else { fp.slice(0,12).forEach(function(x){ H+='<div class="si-fp"><span class="si-fpn">'+esc(x.base)+'</span><span class="si-fpc">'+x.count+' word'+(x.count>1?'s':'')+'</span><div class="si-fpw">'+x.runewords.slice(0,5).map(esc).join(' · ')+(x.runewords.length>5?' …':'')+'</div></div>'; }); if(fp.length>12)H+='<div class="si-dim">+ '+(fp.length-12)+' more single-word bases</div>'; }
+      H+='</div>';
+      H+='<div class="si-panel" style="border:none"><div class="si-h">🔑 Rune radar — what you\'re short on</div>';
+      if(!rg.length){ H+='<div class="si-dim">You have every rune your remaining runewords need — just farm the bases. 🎉</div>'; }
+      else { rg.slice(0,14).forEach(function(x){ H+='<div class="si-rg"><span class="si-rgn">'+esc(x.rune)+'</span><span class="si-rgs">short <b>'+x.short+'</b></span><span class="si-dim">need '+x.demand+' · have '+x.owned+'</span></div>'; }); }
+      H+='</div>';
+      box.innerHTML=H;
+    }catch(e){ box.innerHTML='<div class="si-dim">insights unavailable</div>'; }
+  };
   </script>
+
+  <div class="boss-card collapsible collapsed tool-premium" id="smart-insights-card" style="--tc:#9d7bd8">
+    <div class="boss-header" onclick="window.toggleCardCollapse('smart-insights-card'); window.renderSmartInsights&&window.renderSmartInsights();" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="font-size:30px">🧠</span>
+      <div class="boss-title-block">
+        <p class="boss-name">Smart Insights</p>
+        <p class="boss-subtitle">Reads your Chronicle → what to make, which base unlocks the most, which runes you're short on</p>
+        <p class="boss-loc">Recomputed live from your Chronicle · owned bases · rune stash — same brain as the loot filter</p>
+      </div>
+      <span class="rs-chevron" aria-hidden="true">▾</span>
+    </div>
+    <div class="boss-body"><div id="smart-insights-body" class="si-body">…</div></div>
+  </div>
 
   <div class="boss-card collapsible collapsed tool-premium" id="item-rarity-card" style="--tc:#c7b377">
     <div class="boss-header" onclick="window.toggleCardCollapse('item-rarity-card')" role="button" tabindex="0" aria-expanded="false">
@@ -19111,6 +19209,7 @@ function switchTab(name) {
   if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow();
   if (name === "forge" && typeof renderForge === "function") renderForge();   // v470 — recompute the task plan every time the Forge tab opens
   if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount();   // v535 — live loot-filter base count
+  if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights();          // v543 — smart Chronicle insights
 }
 
 // ===== TZ TRACKER (live terror-zone tab) =====
