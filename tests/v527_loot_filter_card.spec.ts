@@ -2,31 +2,71 @@ import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-// v527 — the Tools "Loot Filters" card embeds both Chronicle filters as importable JSON with a one-tap
-// copy-to-clipboard. Guards: card exists, copy fn exists, both filters parse, and no WHITE circlets leak
-// into the embedded base-show rules (rare-only circlets, mirroring the app's runeword-worthiness rule).
+// v527 / v535 — the Tools "Loot Filters" card now serves ONE filter that is REBUILT LIVE from the Chronicle:
+// unmade runeword -> its socket-correct meta base(s) (window._forgeMetaBase) -> base item code. No "cube up a
+// white base" premise (v534: white bases can't be tier-upgraded). Guards: card exists, the dynamic builder
+// works, the output parses, is circlet-clean, and shrinks as words are marked made. The old static all-tier
+// "KonyoChron" embed is GONE.
 
-test('Tools loot-filter card: both filters embedded as valid, circlet-clean, importable JSON', async ({ page }) => {
+test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean, importable JSON', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
-    const parse = (id: string) => { const el = document.getElementById(id); try { return el ? JSON.parse(el.textContent!.trim()) : null; } catch (e) { return null; } };
-    const c = parse('lf-data-chron'), e = parse('lf-data-endgame');
-    const whiteCircletLeak = (f: any) => !f ? true : f.rules
+    const tplEl = document.getElementById('lf-data-endgame');
+    const tpl = tplEl ? JSON.parse(tplEl.textContent!.trim()) : null;
+    const built = w.buildEndgameFilter ? w.buildEndgameFilter() : null;
+    let out: any = null;
+    try { out = built ? JSON.parse(built.text) : null; } catch (e) {}
+    const circletLeak = (f: any) => !f ? true : f.rules
       .filter((r: any) => ['3. Show ETH and Socket bases', 'Show Base Items'].includes(r.name))
       .some((r: any) => (r.equipmentCategory || []).includes('circl') || (r.equipmentItemCode || []).some((x: string) => ['ci0', 'ci1', 'ci2', 'ci3'].includes(x)));
     return {
       card: !!document.getElementById('loot-filters-card'),
       copyFn: typeof w.copyLootFilter,
-      chronName: c && c.name, chronRules: c && c.rules.length,
-      endgameName: e && e.name, endgameRules: e && e.rules.length,
-      chronLeak: whiteCircletLeak(c), endgameLeak: whiteCircletLeak(e),
+      buildFn: typeof w.buildEndgameFilter,
+      chronGone: !document.getElementById('lf-data-chron'),
+      tplName: tpl && tpl.name, tplRules: tpl && tpl.rules.length,
+      outName: out && out.name, outRules: out && out.rules.length,
+      baseCount: built && built.baseCount,
+      outLeak: circletLeak(out),
     };
   });
   expect(r.card).toBe(true);
   expect(r.copyFn).toBe('function');
-  expect(r.chronName).toBe('KonyoChron');   expect(r.chronRules).toBe(13);
-  expect(r.endgameName).toBe('KonyoEndgame'); expect(r.endgameRules).toBe(13);
-  expect(r.chronLeak).toBe(false);          // no white circlets in the embedded filter
-  expect(r.endgameLeak).toBe(false);
+  expect(r.buildFn).toBe('function');
+  expect(r.chronGone).toBe(true);              // old all-tier "cube these up" filter removed
+  expect(r.tplName).toBe('KonyoEndgame');      expect(r.tplRules).toBe(13);
+  expect(r.outName).toBe('KonyoEndgame');      expect(r.outRules).toBe(13);
+  expect(r.baseCount).toBeGreaterThan(20);     // a real set of socket-correct bases
+  expect(r.outLeak).toBe(false);               // no white circlets leak in
+});
+
+test('the filter shrinks when runewords are marked made (live-synced to the Chronicle)', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const nAll = w._endgameFilterBases().codes.length;   // nothing made yet
+    // Mark EVERY runeword made -> nothing left to farm -> zero bases (proves it's driven by the Chronicle).
+    const made: Record<string, boolean> = {};
+    Object.keys(w.RUNEWORD_TIP || {}).forEach((rw) => { made[rw] = true; });
+    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    const nNone = w._endgameFilterBases().codes.length;
+    return { nAll, nNone };
+  });
+  expect(r.nAll).toBeGreaterThan(0);
+  expect(r.nNone).toBe(0);                      // all words made -> filter empties (live-synced to the Chronicle)
+});
+
+test('every base code emitted maps to a real base name in the embedded code map', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const CODE = JSON.parse(document.getElementById('lf-base-codes')!.textContent!.trim());
+    const valid = new Set(Object.values(CODE));
+    const eb = w._endgameFilterBases();
+    const orphan = eb.codes.filter((c: string) => !valid.has(c));
+    return { total: eb.codes.length, orphan, names: eb.names.length };
+  });
+  expect(r.orphan).toEqual([]);                // no code without a source base name
+  expect(r.names).toBeGreaterThan(0);
 });
