@@ -26607,8 +26607,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     out.pipeline.forEach(function(t){
       var cands=(_pipeCands[t.rw]||(t.base?[t.base]:[])).slice()
         .sort(function(a,c){ return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0); });
-      for (var i=0;i<cands.length;i++){ var c=cands[i];
-        if (c && (baseUsed[c.name]||0) < (c.count||1)){ t.base=c; t.ideal=_isIdealBase(t.rw,c.base); baseUsed[c.name]=(baseUsed[c.name]||0)+1; break; } }
+      // v536.1 — prefer a base TYPE not yet used this pass over burning a 2nd COPY of an already-used base. So
+      // owning 3× Thresher + 1 Cryptic Axe and needing two 5os words → Thresher + Cryptic Axe (each card names a
+      // distinct base, no "Larzuk your Thresher ×2" confusion), instead of two Threshers. Falls back to a spare
+      // copy only when no fresh base type is available.
+      var pick=null, spare=null;
+      for (var i=0;i<cands.length;i++){ var c=cands[i]; if(!c) continue;
+        var u=baseUsed[c.name]||0, cap=c.count||1; if (u>=cap) continue;
+        if (u===0){ pick=c; break; }          // a base type not yet touched → clearest + uses your other bases
+        if (!spare) spare=c;                    // else a base you own MORE than one of (copies to spare)
+      }
+      var chosen=pick||spare;
+      if (chosen){ t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1; }
     });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length, upgrades:out.upgrades.length };

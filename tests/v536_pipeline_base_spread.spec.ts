@@ -29,6 +29,29 @@ test('two 5os merc words + two owned 5os Larzuk bases → each word gets its OWN
   expect(r.distinct).toBe(2);                       // …on TWO DIFFERENT bases (not both on Thresher)
 });
 
+test('own 3× Thresher + 1 Cryptic Axe + two 5os words → uses DISTINCT base types (Thresher + Cryptic Axe), not two Threshers', async ({ page }) => {
+  // Konyo's real case: d2r_copies says he owns 3 Threshers. Both 5os words COULD both sit on Threshers (he has
+  // 3), but that reads as "Larzuk your Thresher ×2" and leaves the Cryptic Axe idle. v536.1 prefers a fresh base
+  // TYPE before burning a 2nd copy → Thresher + Cryptic Axe, one clear card each.
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Thresher (Larzuk base)', 'Cryptic Axe (Larzuk base)']));
+    localStorage.setItem('d2r_copies', JSON.stringify({ 'Thresher (Larzuk base)': 3 }));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 2, Ber: 1, Ist: 1, Sol: 2, Sur: 1, El: 1, Ith: 1, Tir: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    ['Thresher (Larzuk base)', 'Cryptic Axe (Larzuk base)'].forEach((o) => { try { w._ensureSocketBaseEntry(o); } catch (e) {} });
+    const s = w.forgeScan();
+    const bases = s.pipeline.filter((t: any) => t.rw === 'Eternity' || t.rw === 'Honor').map((t: any) => t.base && t.base.base);
+    return { bases: bases.sort(), distinct: new Set(bases).size };
+  });
+  expect(r.distinct).toBe(2);                       // two distinct base TYPES despite owning 3 Threshers
+  expect(r.bases).toContain('Cryptic Axe');         // the Cryptic Axe is used, not a 2nd Thresher
+});
+
 test('one 5os base + two 5os words → they group on the single base (fallback preserved, no phantom 2nd base)', async ({ page }) => {
   // Only a Thresher owned: both words must share it (you can only make one at a time). Spread must NOT invent a base.
   await page.addInitScript(() => {
