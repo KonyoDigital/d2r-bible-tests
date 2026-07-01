@@ -18,10 +18,13 @@ test('the intake runeword-rescue paths no longer auto-stamp rwMade (no-time date
   expect(SRC).not.toContain("rwMade[_rwk]=_mo+' '+_dd.getDate()+', '+_dd.getFullYear()");
 });
 
-test('both intake runeword blocks carry the v538 "do not auto-mark forged" note', () => {
-  // both recognition paths (render-time throw-out rescue + intake-time recognition) document the Chronicle stays manual
-  const notes = (SRC.match(/DO NOT auto-mark/gi) || []).length;
-  expect(notes).toBeGreaterThanOrEqual(2);
+test('v539 — the intake no longer auto-registers a read runeword to owned (the RUNEWORDS locker)', () => {
+  // render-time throw-out rescue: no longer owns + mules an OCR'd runeword
+  expect(SRC).not.toContain("try { var sg=suggestMule(rw); if (sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[rw]) assign[rw]=sg.id; }");
+  // intake-time recognition: no longer registers it as a new owned runeword
+  expect(SRC).not.toContain('logged.push(_rwk); fRec.nw.push(_rwk);');
+  // both paths carry the v539 rationale
+  expect((SRC.match(/v539 —/g) || []).length).toBeGreaterThanOrEqual(2);
 });
 
 test('the MANUAL Chronicle toggle still stamps with a time (unchanged)', () => {

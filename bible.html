@@ -24472,18 +24472,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         unknownReads.forEach(function(n){ if (_rwOf(n)) _migr.push(n); });
         if (_migr.length){
           _migr.forEach(function(n){
-            var rw = _rwOf(n);
+            // v539 — a read that resolves to a runeword is recognized so it's NEVER thrown out, but it is NOT
+            // auto-registered to owned (the RUNEWORDS locker) OR the Chronicle. OCR'd runeword NAMES are too
+            // ambiguous — they come from UI text, a base's "can-make" list, or a Forge-tab screenshot — and kept
+            // injecting phantom runewords into the RUNEWORDS locker + false "created" ticks (Konyo: "I didn't
+            // upload these runewords"). Forged runewords are managed ONLY via the Chronicle ✓ (which has undo).
             unknownReads.delete(n);
-            if (!owned.has(rw)){
-              owned.add(rw);
-              // v538 — DO NOT auto-mark the runeword as FORGED in the Chronicle from an OCR read. A read
-              // runeword NAME is ambiguous — it can come from UI text, a base's "can-make" list, or a Forge-tab
-              // screenshot. Auto-ticking rwMade produced false "created" entries (Konyo fed the Forge screenshot
-              // to intake → Breath of the Dying / Eternity / Silence / Honor / Insight all marked forged though
-              // he never made them). We still RESCUE it from the throw-out pile + mule it ("don't throw out an
-              // Enigma"), but whether it's CREATED is now left to the manual ✓ in the Forge/Chronicle (with undo).
-              try { var sg=suggestMule(rw); if (sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[rw]) assign[rw]=sg.id; } catch(e){}
-            }
           });
           try { persistOwned && persistOwned(); saveA && saveA(); } catch(e){}   // rwMade intentionally NOT written here (v538)
         }
@@ -25841,18 +25835,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           try {
             var _rwk = (typeof _rwResolve === 'function') ? _rwResolve(n) : ((typeof findRuneword === 'function') ? findRuneword(n) : null);
             if (_rwk){
-              if (!owned.has(_rwk)){
-                owned.add(_rwk);
-                // v538 — recognize the read runeword (never throw it out) + mule it, but DO NOT auto-mark it
-                // FORGED in the Chronicle. An OCR'd runeword NAME is ambiguous — it can come from UI text, a
-                // base's "can-make" list, or a Forge-tab screenshot — and auto-ticking rwMade produced false
-                // "created" entries (Konyo fed the Forge screenshot to intake → Breath of the Dying / Eternity /
-                // Silence / Honor / Insight marked forged though never made). Chronicle stays MANUAL (✓, has undo).
-                var _rsg = suggestMule(_rwk);
-                if (_rsg && muleById(_rsg.id) && !assign[_rwk]) assign[_rwk] = _rsg.id;
-                logged.push(_rwk); fRec.nw.push(_rwk);
-              } else { if (dupes.indexOf(_rwk) < 0) dupes.push(_rwk); fRec.own.push(_rwk); }
-              return;   // recognized as a runeword — never throw-out
+              // v539 — a read that resolves to a runeword is recognized so it's NEVER thrown out, but it is NOT
+              // auto-registered to owned (the RUNEWORDS locker) OR the Chronicle. OCR'd runeword NAMES are too
+              // ambiguous — UI text, a base's "can-make" list, a Forge-tab screenshot — and kept injecting phantom
+              // runewords into the RUNEWORDS locker + false "created" ticks (Konyo: "I didn't upload these
+              // runewords"). Forged runewords are managed ONLY via the Chronicle ✓ (which has undo). Just skip it.
+              return;   // recognized → never throw-out; not registered anywhere
             }
           } catch(e){}
           // v400 — a SECOND distinct-FILE read of the same base is a 2nd PHYSICAL item, not a duplicate shot:
