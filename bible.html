@@ -5869,6 +5869,26 @@ body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
 #tab-forge .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
 #tab-forge .f-unlock b{color:#e0b96a}
 #tab-forge .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
+/* v528 — TOOLS legend map: a floating compass FAB (mirrors the Forge legend) that appears only on the
+   Tools tab and pops a clickable map of every section — a head-start on where to click first. */
+.tools-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid #d9b25a;background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:25px;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(217,178,90,.28);transition:transform .15s,border-color .15s;animation:tlpop .4s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes tlpop{0%{transform:scale(0) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+body:has(#tab-tools.active) .tools-legend-fab{display:flex}
+.tools-legend-fab:hover{transform:scale(1.08);border-color:#fff}
+.tools-legend-pop{position:fixed;bottom:172px;right:88px;z-index:9001;width:322px;max-height:74vh;overflow:auto;background:rgba(16,13,9,.985);border:1px solid #d9b25a;border-radius:12px;padding:14px 16px;display:none;font-size:12px;line-height:1.5;box-shadow:0 6px 26px rgba(0,0,0,.65)}
+body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
+.tools-legend-pop .tlp-h{font-family:var(--serif-display,serif);font-weight:800;font-size:17px;color:#e6c877;margin-bottom:2px}
+.tools-legend-pop .tlp-sub{color:#9a8c72;font-size:11px;margin-bottom:9px}
+.tools-legend-pop .tlp-grp{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#d9b25a;margin:11px 0 4px}
+.tools-legend-pop .tlp-item{display:flex;align-items:baseline;gap:8px;padding:5px 8px;border-radius:7px;color:#cdbf9f;cursor:pointer;transition:background .12s}
+.tools-legend-pop .tlp-item:hover{background:rgba(217,178,90,.12);color:#fff}
+.tools-legend-pop .tlp-item .tlp-ico{font-size:14px;width:19px;text-align:center;flex:none}
+.tools-legend-pop .tlp-item b{font-weight:700;color:inherit}
+.tools-legend-pop .tlp-item small{color:#8a7d64;font-size:10px}
+.tools-legend-pop .tlp-start{background:rgba(217,178,90,.1);border:1px solid rgba(217,178,90,.4);border-radius:8px;padding:8px 10px;margin-bottom:6px;color:#e6c877;font-size:11.5px;cursor:pointer}
+.tools-legend-pop .tlp-start:hover{background:rgba(217,178,90,.18)}
+.tools-legend-pop .tlp-close{position:absolute;top:9px;right:12px;color:#8a7d64;cursor:pointer;font-size:16px;line-height:1}
+.tools-legend-pop .tlp-close:hover{color:#fff}
 /* DO NOW — the login orientation feed */
 #tab-forge .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
 #tab-forge .forge-donow-h{display:flex;align-items:baseline;gap:11px;font-size:18px;font-weight:800;color:var(--best,#e8c878);margin-bottom:12px}
@@ -26893,6 +26913,54 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   window.forgeScan=forgeScan;
   window.renderForge=renderForge;
+})();
+</script>
+<script>
+/* v528 — Tools legend map: same delightful pattern as the Forge legend. A compass FAB appears (with a little
+   pop animation) whenever the Tools tab is active; tapping it opens a clickable map of every section grouped
+   by workflow. Each row jumps straight to that card (opens + scrolls) — a head-start on where to click. */
+(function(){
+  function I(id,ico,name,note){ return '<div class="tlp-item" role="button" tabindex="0" onclick="window.toolsLegendJump(\''+id+'\')"><span class="tlp-ico">'+ico+'</span><span><b>'+name+'</b>'+(note?' <small>'+note+'</small>':'')+'</span></div>'; }
+  function build(){
+    if(document.getElementById('tools-legend-fab')) return;
+    if(!document.getElementById('tab-tools')) return;
+    var pop='<div class="tools-legend-pop" id="tools-legend-pop">'
+      +'<span class="tlp-close" title="close" onclick="window.toolsLegendToggle()">✕</span>'
+      +'<div class="tlp-h">🧭 Tools — map</div><div class="tlp-sub">Everything in this tab, grouped by what you\'re doing. Tap any row to jump to it.</div>'
+      +'<div class="tlp-start" role="button" tabindex="0" onclick="window.toolsLegendJump(\'mule-vault-card\')">👉 <b>New here? Start with The Vault</b> — screenshot your loot, it auto-sorts to mules &amp; feeds everything below.</div>'
+      +'<div class="tlp-grp">📸 Track what you own</div>'
+      + I('mule-vault-card','🎒','The Vault','AI intake → mules')
+      + I('rune-stash-card','ᛝ','Rune Stash','tally + cube-up planner')
+      + I('gem-stash-card','💎','Gem Stash','tally + cube-up planner')
+      + I('material-stash-card','🎲','Materials Stash','uber / Sunder planner')
+      + I('ai-item-checker-card','🔬','AI Item Checker','magic/rare — keep or toss?')
+      +'<div class="tlp-grp">🔨 Plan what to make</div>'
+      + I('rw-chronicle-card','📜','Chronicle','your 100-runeword progress')
+      + I('rw-bases-card','🔩','Best Runeword Bases','which base per word')
+      + I('craft-workshop-card','🔨','Crafted Workshop','gem crafts by slot')
+      + I('all-runewords-card','📖','All Runewords','the full list')
+      +'<div class="tlp-grp">🎯 Go farm it</div>'
+      + I('loot-filters-card','🎯','Loot Filters','import to D2R — grab the right bases')
+      + I('item-values-card','💠','Trade Values','High → Trash ratings')
+      + I('hvf-card','⭐','High-Value Finds','best-of-the-best off-grail')
+      +'<div class="tlp-grp">📖 Reference</div>'
+      + I('item-rarity-card','🎨','Item Rarity &amp; Colours','')
+      + I('horadric-recipe-card','🧊','Horadric Cube Recipes','')
+      + I('sunder-recipe-card','⚡','Sunder Renewal','')
+      + I('set-tracker-card','🎽','Item Set Tracker','')
+      +'</div>';
+    var w=document.createElement('div');
+    w.innerHTML='<button class="tools-legend-fab" id="tools-legend-fab" title="Tools map — what\'s here + where to start" onclick="window.toolsLegendToggle()">🧭</button>'+pop;
+    while(w.firstChild) document.body.appendChild(w.firstChild);
+  }
+  window.toolsLegendToggle=function(){ var p=document.getElementById('tools-legend-pop'); if(p) p.classList.toggle('open'); };
+  window.toolsLegendJump=function(id){
+    var c=document.getElementById(id); if(!c) return;
+    if(c.classList.contains('collapsed') && typeof window.toggleCardCollapse==='function') window.toggleCardCollapse(id);
+    try{ c.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){ c.scrollIntoView(); }
+    var p=document.getElementById('tools-legend-pop'); if(p) p.classList.remove('open');
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();
 })();
 </script>
 </body>
