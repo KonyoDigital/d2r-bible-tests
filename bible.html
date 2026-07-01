@@ -26683,6 +26683,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.forgeClearCompleted=function(){ try{ localStorage.setItem('d2r_forgeDone', JSON.stringify(_madeRw())); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   window.forgeRestoreCompleted=function(){ try{ localStorage.removeItem('d2r_forgeDone'); localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   function _forgeDate(s){ try{ return Date.parse(String(s||'').replace(/\s*·\s*/,' ').replace(/,/,'')) || 0; }catch(e){ return 0; } }
+  // v537 — the MOST-RECENTLY created runeword (top of the Completed list). Powers the "↩ Undo last" button that
+  // rides on the always-visible restore bar, so right after you tick "✓ created" in Make now you can put it back
+  // WITHOUT hunting through the Completed tab (Konyo's ask: the restore has to be reachable from Make now).
+  function _lastDone(){ try{ var h=_doneSet(); var rm=(typeof rwMade!=='undefined'&&rwMade)||{};
+    var list=_madeRw().filter(function(n){ return !h.has(n); }).map(function(n){ return {n:n, d:_forgeDate(rm[n])}; }).sort(function(a,b){ return b.d-a.d || a.n.localeCompare(b.n); });
+    return list.length?list[0].n:null; }catch(e){ return null; } }
+  window.forgeUndoLastDone=function(){ var n=_lastDone(); if(n && window.rwToggleMade) window.rwToggleMade(n); };   // un-marks it made → back into the task list + re-renders
 
   // CRAFT ACCORDION (v495): a craft card opens an in-tab collapsing dropdown of its slots + recipes,
   // each marked ✓ make-now (gem + rune in hand) or "need <rune>". Never routes to the Workshop.
@@ -26822,7 +26829,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'</div>');
     // v533 — ALWAYS-VISIBLE restore bar. Was buried inside the Make-now section, so skipping your last task
     // (which empties that section) "swallowed" the restore button too. Now it rides under the tabs on every view.
-    if (skip.size) H.push('<div class="forge-restore-top"><span>↩ <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+'</span><button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ Restore skipped</button></div>');
+    // v537 — the bar now carries BOTH restores so they're reachable from Make now (not just the Completed tab):
+    //   • skipped tasks → Restore skipped   • a just-created runeword → ↩ Undo last: <name> (one-click un-make)
+    var _rbits='';
+    if (skip.size) _rbits+='<span>↩ <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+'</span><button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ Restore skipped</button>';
+    if (F!=='completed'){ var _ld=_lastDone(); if (_ld) _rbits+='<span>✅ <b>'+_doneN+'</b> created</span><button class="f-btn f-btn-mini" title="put your most recently created runeword back into the task list" onclick="window.forgeUndoLastDone()">↩ Undo last: '+_fEsc(_ld)+'</button><button class="f-btn f-btn-mini" onclick="window.forgeSetFilter(\'completed\')" title="see every created runeword — restore or clear any">✅ see all</button>'; }
+    if (_rbits) H.push('<div class="forge-restore-top">'+_rbits+'</div>');
     // v532 — COMPLETED is a dedicated view (never mixed into 'all'): the done list + clear/restore.
     if (F==='completed'){
       var made=_madeRw().filter(function(n){ return !_doneHidden.has(n); })
