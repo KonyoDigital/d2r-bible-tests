@@ -57,6 +57,41 @@ test('the filter shrinks when runewords are marked made (live-synced to the Chro
   expect(r.nNone).toBe(0);                      // all words made -> filter empties (live-synced to the Chronicle)
 });
 
+// v536.2 — the loot filter must stay SYNCED with the Forge: don't tell you to FARM the ideal base for a word
+// you already own a socket-correct base for. Insight (Ral+Tir+Tal+Sol) → its meta base is Colossus Voulge, which
+// no other unmade word uses. (Konyo's live case: Eternity/Honor on his Thresher+Cryptic Axe → Scourge/Ettin Axe
+// correctly dropped.) Two scenarios, each seeded before load so the app reads the owned bases.
+test('v536.2 — with NO base owned, the word\'s meta base IS in the loot filter', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify([]));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const r = await page.evaluate(() => ({ names: (window as any)._endgameFilterBases().names }));
+  expect(r.names).toContain('Colossus Voulge');   // you need to farm the base for Insight
+});
+
+test('v536.2 — owning a socket-correct base for the word DROPS its base from the filter (synced with the Forge)', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    w._ensureSocketBaseEntry('Colossus Voulge (4os)');
+    const s = w.forgeScan();
+    const insight = [...s.now, ...s.pipeline].find((t: any) => t.rw === 'Insight');
+    return { insightHasBase: !!(insight && insight.base), names: w._endgameFilterBases().names };
+  });
+  expect(r.insightHasBase).toBe(true);              // Insight is a Forge make-now/pipeline task (base owned)
+  expect(r.names).not.toContain('Colossus Voulge'); // …so you don't farm its base → dropped from the filter
+});
+
 test('every base code emitted maps to a real base name in the embedded code map', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {

@@ -4217,9 +4217,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var made = {}; try { made = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}'); } catch(e){}
       var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
       var meta = window._forgeMetaBase;
+      // v536.2 — SYNC with the Forge: skip a word you ALREADY own a socket-correct base for (it's in the Forge's
+      // make-now / pipeline, or a "have base, need runes" one-step). No point farming the ideal base for a word
+      // you can already forge on a base you hold (e.g. Eternity/Honor on Konyo's Thresher+Cryptic Axe → don't
+      // keep flagging Scourge/Ettin Axe on the ground). Only words with NO owned base still show their bases.
+      var ownedBaseWord = {};
+      try { var sc = (typeof window.forgeScan==='function') ? window.forgeScan() : null;
+        if (sc){ [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if(t && t.base) ownedBaseWord[t.rw]=1; });
+                 (sc.onestep||[]).forEach(function(t){ if(t && t.base && t.sub!=='base') ownedBaseWord[t.rw]=1; }); } } catch(e){}
       var codeSet = {}, nameSet = {};
       Object.keys(tips).forEach(function(rw){
         if (made[rw]) return;                                  // already forged -> skip
+        if (ownedBaseWord[rw]) return;                         // you own a socket-correct base for it -> not a base to farm
         var names = (typeof meta==='function') ? ((meta(rw)||{}).names||[]) : [];
         names.forEach(function(nm){
           if (!nm) return;
