@@ -22,9 +22,9 @@ test('white bases produce NO upgrade tasks — they cannot be cube-upgraded (v53
   const r = await page.evaluate((bases: string[]) => {
     const w: any = window;
     bases.forEach((b) => { try { w._ensureSocketBaseEntry(b + ' (Larzuk base)'); } catch (e) {} });
-    return { upgrades: w.forgeScan().upgrades.length };
+    return { hasUpgradesBucket: ('upgrades' in w.forgeScan()) };
   }, WHITE);
-  expect(r.upgrades).toBe(0);   // no cube-upgrade tasks for any white base
+  expect(r.hasUpgradesBucket).toBe(false);   // v542 — the cube-upgrade bucket is GONE entirely (not just empty)
 });
 
 test('every elite endgame base is recognised as runeword-worthy and hosts an endgame runeword', async ({ page }) => {

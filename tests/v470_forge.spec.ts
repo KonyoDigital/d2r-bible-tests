@@ -141,10 +141,10 @@ test('NEED A BASE — runes in hand but no matching base → names the meta base
   expect(t.bestStr).toContain('Colossus Voulge');   // socket-correct merc polearm: Insight is 4os → Colossus Voulge (max 4), not the 5os Thresher
 });
 
-test('NO BASE-UPGRADE bucket — white/normal bases cannot be cube-upgraded (v534, game-file confirmed)', async ({ page }) => {
+test('NO BASE-UPGRADE bucket — white/normal bases cannot be cube-upgraded (v534/v542, game-file confirmed)', async ({ page }) => {
   // cubemain.txt: tier-upgrade recipes accept unique/rare/set only — never a normal/superior/magic white base.
   const s = await scan(page, { owned: ['Wand (2os)', 'Crystal Sword (Larzuk base)', 'Bone Helm (Larzuk base)'] });
-  expect(s.upgrades.length).toBe(0);   // the whole "Base upgrades" bucket is gone
+  expect('upgrades' in s).toBe(false);   // v542 — the whole "Base upgrades" bucket is REMOVED entirely
 });
 
 test('SAFEGUARD — Larzuk gives only a base\'s MAX, so a sub-max word is NOT pipelined on a too-big base', async ({ page }) => {
@@ -195,15 +195,11 @@ test('META-BASE RULE — 1H for player weapons, 2H only for merc, armour never g
   expect(r.insight).toMatch(/Thresher|Cryptic Axe|Colossus Voulge/);  // merc polearm → 2H is correct here
 });
 
-test('_upgradeChainFor is a null stub — NO white base is cube-upgradeable (eth or not) (v534)', async ({ page }) => {
+test('_upgradeChainFor is REMOVED entirely — the cube-upgrade concept no longer exists in code (v542)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w: any = window;
-    return {
-      normal: w._upgradeChainFor('Crystal Sword', 6, false),   // was an upgrade chain — now null (can't upgrade white)
-      eth:    w._upgradeChainFor('Crystal Sword', 6, true),    // ethereal → null
-    };
+    return { fnType: typeof w._upgradeChainFor };   // was a null stub (v534) → now the function is gone (v542)
   });
-  expect(r.normal).toBeNull();
-  expect(r.eth).toBeNull();
+  expect(r.fnType).toBe('undefined');
 });

@@ -7,7 +7,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // task. A low-tier white base whose max sockets can't reach an endgame word does NOT produce an upgrade — the
 // word surfaces as a "🛒 get the right base" one-step naming the elite base to find. These lock that in.
 
-test('a Normal white base produces NO upgrade task; _upgradeChainFor is a null stub', async ({ page }) => {
+test('a Normal white base produces NO upgrade task; the upgrade bucket + _upgradeChainFor are GONE (v542)', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Bone Helm (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({}));
@@ -20,12 +20,12 @@ test('a Normal white base produces NO upgrade task; _upgradeChainFor is a null s
     w._ensureSocketBaseEntry('Bone Helm (Larzuk base)');
     const s = w.forgeScan();
     return {
-      upgrades: s.upgrades.length,
-      chain: (typeof w._upgradeChainFor === 'function') ? w._upgradeChainFor('Bone Helm', 3, false) : 'no fn',
+      hasUpgradesBucket: ('upgrades' in s),
+      fnType: typeof w._upgradeChainFor,
     };
   });
-  expect(r.upgrades).toBe(0);     // no upgrade bucket exists anymore
-  expect(r.chain).toBeNull();     // white bases can't be cube-upgraded
+  expect(r.hasUpgradesBucket).toBe(false);   // v542 — no upgrade bucket exists at all
+  expect(r.fnType).toBe('undefined');        // v542 — the function is removed entirely
 });
 
 test('an endgame word needing a higher-socket ELITE base → "get the right base" one-step (Delirium → elite helm)', async ({ page }) => {

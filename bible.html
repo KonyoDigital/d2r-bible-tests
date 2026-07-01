@@ -4325,7 +4325,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         <div class="ir-tile" style="--ir:var(--q-unique)">
           <div class="ir-head"><span class="ir-swatch"></span><span class="ir-name">Unique <small>Gold / Brown</small></span><span class="ir-mods">fixed</span></div>
           <div class="ir-desc">Fixed base stats, fixed unique properties, fixed name &amp; its own graphic (e.g. <strong>The Stone of Jordan</strong>). Cannot be rerolled.</div>
-          <div class="ir-tie">🏆 The grail items the <b>Calculator</b> ranks by drop odds. Cube to <b>upgrade the tier</b> (normal → exceptional → elite).</div>
+          <div class="ir-tie">🏆 The grail items the <b>Calculator</b> ranks by drop odds. <b>Unique / set / rare only</b> can be cube tier-upgraded (normal → exc → elite, keeps affixes) — white bases can't.</div>
         </div>
       </div>
       <div class="ir-note">⚠ Colours follow the in-game name colour. Reign of the Warlock may add or retune affixes — verify in-game.</div>
@@ -24860,7 +24860,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bench=_aicBench(it.base);
     if(bench) ctx.push('Slot benchmark to beat: <b>'+bench+'</b> — keep only if your roll out-values it.');
     var bt=(typeof _baseTier==='function')?_baseTier(it.base):'';
-    if(bt==='normal'||bt==='exceptional') ctx.push('⬆ '+bt.charAt(0).toUpperCase()+bt.slice(1)+' base — cube-up KEEPS affixes (but never adds sockets / runeword ability).');
+    // v542 — cube tier-upgrade KEEPS affixes for RARE only (game-file cubemain.txt: unique/rare/set). Magic &
+    // crafted items CANNOT be tier-upgraded, so this note is gated to rare (was wrongly shown for magic/crafted).
+    if(it.q==='rare' && (bt==='normal'||bt==='exceptional')) ctx.push('⬆ <b>Rare</b> '+bt+' base — you CAN cube-up its tier and it KEEPS the affixes (weapon: Sapphire line · armor: Amethyst line). Never adds sockets / runeword ability.');
     return { tier:tier, score:score, breakdown:bk, ctx:ctx };
   }
   window._aicVerdict = _aicVerdict;   // exposed for tests
@@ -26253,7 +26255,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _qName(n){ var c=_qC(n); return c ? '<span style="color:'+c+'">'+_fEsc(n)+'</span>' : _fEsc(n); }
   // v519 — role badges on a base option (Konyo: "say what's ideal, what's MERCenary gear, what's end-game"):
   //   ★ ideal (the top recommended pick) · 1H = your player weapon · merc = a 2H polearm/spear/bow (merc gear)
-  //   · caster = staff · ⬆ endgame = elite-tier base. Derived from _baseHandClass + BASE_DB tier (real game data).
+  //   · caster = staff · ◆ endgame = elite-tier base (found as a white drop, NOT upgraded to). From _baseHandClass + BASE_DB tier.
   function _baseRoleBadge(base, isFirst){
     var t=[]; var hc=(typeof _baseHandClass==='function')?_baseHandClass(base):'?';
     var tier=(typeof BASE_DB!=='undefined'&&BASE_DB[base])?BASE_DB[base].tier:'';
@@ -26262,7 +26264,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     else if (hc==='merc') t.push('<span class="f-rb f-rb-merc" title="two-handed polearm/spear/bow — MERCENARY gear">merc</span>');
     else if (hc==='caster') t.push('<span class="f-rb f-rb-cast" title="staff — a caster two-hander">caster</span>');
     else if (hc==='2H') t.push('<span class="f-rb f-rb-2h" title="two-handed weapon">2H</span>');
-    if (tier==='elite') t.push('<span class="f-rb f-rb-end" title="elite tier — best-stat endgame base">⬆ endgame</span>');
+    if (tier==='elite') t.push('<span class="f-rb f-rb-end" title="elite tier — best-stat endgame base (find it as a white drop; you don’t upgrade to it)">◆ endgame</span>');
     else if (tier==='exceptional') t.push('<span class="f-rb f-rb-exc" title="exceptional tier — for a higher-socket word, find the elite version (white bases can’t be cube-upgraded)">exc</span>');
     return t.length?'<span class="f-rbwrap">'+t.join('')+'</span>':'';
   }
@@ -26514,7 +26516,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
 
   function forgeScan(){
-    var out={ now:[], pipeline:[], onestep:[], crafts:[], upgrades:[], counts:{} };
+    var out={ now:[], pipeline:[], onestep:[], crafts:[], counts:{} };
     if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
     var bases=_ownedBases();
     var kindRank=function(t){ return t.kind==='now'?0:t.kind==='pipeline'?1:2; };
@@ -26605,12 +26607,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         out.crafts.push({ craft:c.key, slot:slot, rune:rec.rune, gem:c.gem, base:rec.base, color:c.color, star:!!c.star, tell:c.tell, bis:c.bis });
       });
     }); } catch(e){}
-    // 5) [REMOVED v534] There is NO "base upgrade" task. Game-file cubemain.txt proves a white / normal /
-    // superior / magic base CANNOT be cube-upgraded to a higher tier — only unique/rare/set items can (Konyo
-    // confirmed in-game: a Superior Bone Helm won't cube up). A base is usable for a runeword ONLY if its OWN
-    // max sockets === the word's count (Larzuk gives that max). If your owned base can't reach the count, the
-    // word surfaces as a "🛒 get the right base" one-step (find the elite/right-tier base), not an upgrade.
-    // out.upgrades stays empty; _socketRule already cancels a base whose max ≠ need.
+    // NOTE (v542): there is NO "base upgrade" concept anywhere in the Forge. A white / normal / superior / magic
+    // base CANNOT be cube-upgraded to a higher tier — only unique/rare/set items can (game-file cubemain.txt;
+    // Konyo confirmed in-game a Superior Bone Helm won't cube up). A base is usable for a runeword ONLY if its OWN
+    // max sockets === the word's count (Larzuk gives that max). If your owned base can't reach the count, the word
+    // surfaces as a "🛒 get the right base" one-step (find the elite/right-tier base as a white drop), not an upgrade.
+    // _socketRule already cancels a base whose max ≠ need (no upgrade path exists).
     // rank the slower buckets
     out.pipeline.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
     // v536 — SPREAD pipeline words across your DISTINCT owned Larzuk bases (shares the baseUsed pool with the
@@ -26634,7 +26636,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (chosen){ t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1; }
     });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
-    out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length, upgrades:out.upgrades.length };
+    out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
     return out;
   }
 
@@ -26657,14 +26659,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _forgeFilter='all';   // mutually-exclusive sub-tab filter: all | now | pipeline | onestep | crafts
   window.forgeSetFilter=function(f){ _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge(); };
 
-  // upgrade chain for an owned Normal/Exceptional base → its ELITE counterpart (via the tier triplets), but ONLY
-  // when that elite Larzuk-sockets to exactly `need` (so the chain ends at a clean endgame base). Crystal Sword
-  // (normal, 6os) → Dimensional Blade → Phase Blade (elite, 6os) for a 6-socket word.
-  // v534 — ALWAYS null: white/normal/superior bases CANNOT be cube-upgraded (game-file cubemain.txt: only
-  // unique/rare/set tier-upgrade). Every caller falls through to a plain "Larzuk-socket → forge" chain (no
-  // cube-upgrade step). Kept as a stub so the callers don't need editing. See the step-5 removal note above.
-  function _upgradeChainFor(baseName, need, isEth){ return null; }
-  try { window._upgradeChainFor=_upgradeChainFor; } catch(e){}
+  // v542 — the "base upgrade chain" is GONE for good. White / normal / superior bases CANNOT be cube-upgraded to
+  // a higher tier — only unique / rare / set can (game-file cubemain.txt). The Forge only ever Larzuk-sockets the
+  // base you own (or names the right-tier base to FIND in a One-step). No _upgradeChainFor, no upgrade bucket.
   // step progress for multi-step chains (persisted): the current atomic step shown in Make Now.
   function _stepGet(k){ try{ return (JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
   function _stepSet(k,v){ try{ var o=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; localStorage.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
@@ -26790,8 +26787,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       items.push({kind:'now', cta:t.rw, steps:['Forge <b>'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b> — runes in hand.']});
     });
     s.pipeline.forEach(function(t){
-      var steps=[], uc=_upgradeChainFor(t.base.base, t.need, t.base.eth), target=t.base.base;
-      if (uc){ uc.steps.forEach(function(st){ steps.push('Cube-upgrade → <b>'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); }); target=uc.targetBase; }
+      var steps=[], target=t.base.base;
       steps.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
       steps.push((t.sub==='cube'?'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge ':'Forge ')+'<b>'+_fEsc(t.rw)+'</b>');
       items.push({kind:'pipe', cta:t.rw, steps:steps});
@@ -26887,9 +26883,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
       Object.keys(byBase).forEach(function(bn){
         if (skip.has('chain|'+bn)) return;
-        var grp=byBase[bn], t0=grp[0], uc=_upgradeChainFor(t0.base.base,t0.need,t0.base.eth), target=t0.base.base, atoms=[];
-        if(uc){ uc.steps.forEach(function(st){ atoms.push('Upgrade <b style="color:'+(_qC(target)||'var(--q-normal)')+'">'+_fEsc(target)+'</b> → <b style="color:'+(_qC(st.to)||'var(--q-normal)')+'">'+_fEsc(st.to)+'</b> <span class="f-cube">'+_fEsc(st.recipe)+'</span>'); target=st.to; }); }
-        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qName(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — can\'t upgrade to an elite base, so socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
+        var grp=byBase[bn], t0=grp[0], target=t0.base.base, atoms=[];
+        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qName(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
@@ -26941,19 +26936,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // CONTENTION NOTE: several runewords that upgrade/consume the SAME owned base — you can make one per base.
       var _shareCount={}; s.pipeline.forEach(function(t){ _shareCount[t.base.name]=(_shareCount[t.base.name]||0)+1; });
       Object.keys(_shareCount).forEach(function(bn){ if(_shareCount[bn]>1){ var b=(s.pipeline.filter(function(t){return t.base.name===bn;})[0]||{}).base||{};
-        H.push('<div class="forge-note">⚠ '+_shareCount[bn]+' of these consume your <b>'+_fEsc(b.base||bn)+'</b> (you own '+(b.count||1)+') — upgrading/socketing it makes <b>one</b> runeword. Grab another '+_fEsc(b.base||'base')+' (common white drop) for each extra.</div>'); } });
+        H.push('<div class="forge-note">⚠ '+_shareCount[bn]+' of these consume your <b>'+_fEsc(b.base||bn)+'</b> (you own '+(b.count||1)+') — socketing it makes <b>one</b> runeword. Grab another '+_fEsc(b.base||'base')+' (common white drop) for each extra.</div>'); } });
       s.pipeline.forEach(function(t){
-        // SAFEGUARD: pipeline only exists when need === base max. If the owned base is a Normal/Exceptional that
-        // upgrades to a clean-max ELITE (e.g. Crystal Sword → Phase Blade), chain the cube-upgrades FIRST, then
-        // socket the elite, then forge — the full endgame chain, step by step.
-        var uc=_upgradeChainFor(t.base.base, t.need, t.base.eth), target=t.base.base, n=1, steps='';
-        if (uc){
-          uc.steps.forEach(function(st){ steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Cube-upgrade your <b>'+_qName(target)+'</b> → <b>'+_qName(st.to)+'</b>: <span class="f-cube">'+_fEsc(st.recipe)+'</span>.</div>'; target=st.to; });
-        }
-        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(uc?' <span class="f-ideal">✓ elite endgame base</span>':(t.ideal?' <span class="f-ideal">✓ ideal base</span>':''))+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+        // Pipeline = you own the socket-correct base; Larzuk it to max, then forge. (No cube-upgrade path exists —
+        // white/normal/superior bases can't be tier-upgraded; the base you own already has the right max.)
+        var target=t.base.base, n=1, steps='';
+        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qName(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(uc?' <span class="f-tier">via '+_qName(uc.targetBase)+'</span>':'')+'</div>'
+          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
           +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
@@ -26982,10 +26973,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       });
       H.push('</div>');
     }
-    // BASE UPGRADES (pipeline sub-type) — cube a Normal/Exceptional base up to its elite tier
-    /* v534 — the "⬆ Base upgrades" section is REMOVED. White/normal/superior bases can't be cube-upgraded
-       (game-file cubemain.txt: unique/rare/set only). out.upgrades is always empty; a base that can't reach a
-       word's socket count now surfaces as a "🛒 get the right base" one-step instead. */
+    /* v542 — there is no "base upgrades" section, bucket, or chain anywhere. White/normal/superior bases can't be
+       cube-upgraded (game-file cubemain.txt: unique/rare/set only); a base that can't reach a word's socket count
+       surfaces as a "🛒 get the right base" one-step (find the elite base as a white drop) instead. */
     // CRAFTS (own section) — v495: a collapsing accordion per craft TYPE. Click a card → drops down its
     // slots + recipes, each marked ✓ make-now (gem + rune in hand) or "need <rune>". Stays in-tab.
     if (show('crafts') && s.crafts.length){
@@ -27000,7 +26990,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div></div>');
     }
     // per-filter empty hint (a bucket the user filtered to that has nothing in it)
-    var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?(s.pipeline.length+s.upgrades.length):F==='onestep'?s.onestep.length:F==='crafts'?s.crafts.length:total;
+    var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?s.pipeline.length:F==='onestep'?s.onestep.length:F==='crafts'?s.crafts.length:total;
     if (F!=='all' && !bc){
       H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — tap <b>▦ All</b>, or tally more runes / gems / bases.</div>');
     }
