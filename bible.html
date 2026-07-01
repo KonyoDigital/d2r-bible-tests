@@ -7377,8 +7377,8 @@ function _baseRunewords(name){
     spear:'spear', spears:'spear', dagger:'dagger', daggers:'dagger', knife:'dagger', knives:'dagger',
     bow:'missile weapon', bows:'missile weapon', crossbow:'missile weapon', crossbows:'missile weapon',
     claw:'katar', claws:'katar', katar:'katar', katars:'katar', javelin:'javelin', javelins:'javelin',
-    shield:'shield', shields:'shield', helm:'helm', helms:'helm', circlet:'helm', circlets:'helm',
-    armor:'body armor', body:'body armor', grimoire:'grimoire'
+    shield:'shield', shields:'shield', targe:'shield', targes:'shield', helm:'helm', helms:'helm', circlet:'helm', circlets:'helm',
+    armor:'body armor', body:'body armor', grimoire:'grimoire', grimoires:'grimoire'
   };
   for (var rw in RUNEWORD_TIP){
     var e = RUNEWORD_TIP[rw]; if (!e || !e.b) continue;
@@ -7405,6 +7405,18 @@ function _baseRunewords(name){
   return out;
 }
 window._baseRunewords = _baseRunewords;
+// v524 — SINGLE SOURCE OF TRUTH for "is this white base worth keeping as a socket base?" = can it hold ANY
+// runeword? (circlets/orbs/throwing/javelins can't — they socket gems/jewels or nothing → NOT keepers).
+// Used by the vault routing (suggestMule) AND _ensureSocketBaseEntry so the 500+ bases are labelled ONE way,
+// synced platform-wide with the Forge (which already uses _baseRunewords). Konyo: "no mismatches."
+function _isRunewordBase(base){
+  try {
+    var clean = (typeof _artSlotClean === 'function') ? _artSlotClean(base) : String(base||'').replace(/\s*\([^)]*\)\s*$/,'');
+    clean = clean.replace(/^(?:Superior|Ethereal|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+    return ((typeof _baseRunewords === 'function') ? _baseRunewords(clean) : []).length > 0;
+  } catch(e){ return true; }   // fail-open: never wrongly discard on an error
+}
+window._isRunewordBase = _isRunewordBase;
 try { window._baseCats = _baseCats; } catch(e){}   // v476 — exposed for the Forge meta-base type-match safeguard + tests
 // v353 — the runeword line for a base hover-card: lists enablers + the max sockets to chase.
 // v376 — socket-count ACCURACY: a runeword needs an item with EXACTLY as many sockets as it has
@@ -7708,6 +7720,10 @@ function _ensureSocketBaseEntry(name, force){
     var cats = (typeof _baseCats === 'function') ? _baseCats(base) : {};
     var slot = cats['body armor'] ? 'Body Armor' : (cats['shield'] ? 'Shield' : (cats['helm'] ? 'Helm' : (cats['weapon'] ? 'Weapon' : null)));
     if (!slot) return;
+    // v524 — a base that can't hold ANY runeword (circlet/orb/throwing/javelin, and any other non-RW type
+    // among the 500+) is NOT a socketed keeper — do NOT register it as one (it routes to throw-out in the
+    // vault instead). Single source of truth = _baseRunewords, same as the Forge → no platform mismatch.
+    if (typeof _isRunewordBase === 'function' && !_isRunewordBase(base)) return;
     var is2H = !!(cats['polearm'] || cats['spear'] || cats['staff'] || cats['missile weapon'])
       || /colossus (blade|sword|voulge)|thunder maul|ogre maul|great maul|war pike|giant thresher|\bthresher\b|great poleaxe|\bmaul\b/i.test(base);
     var cells = slot === 'Body Armor' ? {w:2,h:3} : (slot === 'Shield' ? {w:2,h:3} : (slot === 'Helm' ? {w:2,h:2} : (is2H ? {w:2,h:4} : {w:1,h:3})));
@@ -23961,6 +23977,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_rwk) return {id:'runewords', why:'runeword: '+_rwk};
       }
     } catch(e){}
+    // v524 — CIRCLETS (Circlet/Coronet/Tiara/Diadem) are type 'circ' → they socket GEMS/JEWELS ONLY, they
+    // CANNOT hold a runeword (verified in game data). So a WHITE or MAGIC circlet base is vendor trash — the
+    // ONLY circlet worth keeping is a RARE one (rolls +skills / FCR / res / life + facet sockets). Konyo:
+    // "only rare circlets — no white, no magic." Catches both the bare base name and a rolled rare's base.
+    try {
+      var _CIRC = /^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i;
+      var _ccl = (typeof _artSlotClean === 'function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
+      var _cbase = (typeof _mfBase === 'function' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]) ? _mfBase(name) : '';
+      if (_CIRC.test(_ccl) || _CIRC.test(_cbase)){
+        var _cq = (typeof _mfQual === 'function' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]) ? _mfQual(name) : 'white';
+        if (_cq === 'rare') return {id:'magic-rare', why:'RARE circlet — keep (+skills/FCR/res + facet sockets)'};
+        return {id:'__throwout', why:'circlet — can’t hold runewords; only RARE circlets are keepers (this is '+_cq+') → vendor it'};
+      }
+    } catch(e){}
     // v364 — AUTO-SORT to the SHARED cross-account stash: items "worth keeping close" (High / Very-High
     // trade value, from the maxroll tier data) route to SHARED — accessible by every character, trade-ready —
     // simultaneously with the rest going to their mule by slot. Runes/gems/materials are NOT here (own planners).
@@ -24003,20 +24033,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v413 — also catch the INTAKE LABEL format ("Grim Scythe (6os)", "Circlet (Larzuk base)", "Trident (3os low base)"):
     // the word "socket" isn't in those, so without this a kept socketed base would mis-route to UNI-WEAPONS if
     // _ensureSocketBaseEntry hadn't pre-filed it in EXTRA_ITEMS. Belt-and-suspenders → SOCKETED.
-    if (/\bsocket(ed|s)?\b/i.test(name) || /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i.test(name)) return {id:'bases', why:'socketed base'};
+    if (/\bsocket(ed|s)?\b/i.test(name) || /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i.test(name)){
+      // v524 — a socketed/Larzuk-labelled base is only a keeper if it can hold a runeword (single source of
+      // truth). A non-RW base (circlet already handled above; any other 500+ base) → vendor, not SOCKETED.
+      var _sclean = (typeof _artSlotClean==='function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
+      if (typeof _isRunewordBase==='function' && !_isRunewordBase(_sclean)) return {id:'__throwout', why:'socketed '+_sclean+' — can’t hold a runeword → vendor it'};
+      return {id:'bases', why:'socketed base'};
+    }
     // v430 — a BARE BASE: an exact game-data base name (BASE_CLASS) that matched NO unique/set/runeword/EXTRA
     // above is a plain WHITE base → the SOCKETED locker (runeword/craft base), NOT uni-weap. Without this,
     // "Cryptic Axe"/"Monarch"/"Quilted Armor" etc. fell through to the uni-weap default — correct for a unique
     // weapon, wrong for a white base. (Surfaced when the full 1297-catalog audit included all 498 bases.)
     var _bareBaseClean = (typeof _artSlotClean==='function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
     if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean]) && !it && !ex && !itip){
-      // v502 — a white base that CANNOT be socketed has no runeword/craft/socket value → it's vendor trash,
-      // NOT a "socketed / craft base". Orbs can't be socketed; throwing weapons + javelins can't be socketed
-      // (same fact behind the v500 runeword fix). Route those to throw-out, not the SOCKETED locker.
-      var _mc=(typeof _baseCats==='function')?_baseCats(_bareBaseClean):{};
-      var _mwt=_mc['axe']||_mc['dagger']||_mc['sword']||_mc['mace']||_mc['hammer']||_mc['polearm']||_mc['spear']||_mc['scepter']||_mc['staff']||_mc['wand']||_mc['katar'];
-      if (_mc['orb'] || _mc['javelin'] || (_mwt && _mc['weapon'] && !_mc['melee weapon'] && !_mc['missile weapon']))
-        return {id:'__throwout', why:'white '+(_mc['orb']?'orb':'throwing weapon')+' — can’t be socketed (no runeword/craft) → vendor it'};
+      // v524 — GENERALISED (was v502 orb/throwing-only): a white base is a SOCKETED keeper ONLY if it can hold
+      // a runeword. The single source of truth _isRunewordBase (= _baseRunewords>0, same as the Forge) covers
+      // ALL 500+ bases — circlets (gems/jewels only), orbs, throwing weapons, javelins, and any other non-RW
+      // type → vendor trash, not the SOCKETED locker. No hardcoded type list, no platform mismatch.
+      if (typeof _isRunewordBase==='function' && !_isRunewordBase(_bareBaseClean))
+        return {id:'__throwout', why:'white '+_bareBaseClean+' — can’t hold a runeword (no runeword/craft value) → vendor it'};
       return {id:'bases', why:'white base → socketed / craft'};
     }
     // v362 — ARMOR before JEWELRY: body armor like "Ring Mail" contains the word "ring", so it must be

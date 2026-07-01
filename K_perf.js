@@ -4,7 +4,7 @@ async function measure() {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   const t0 = Date.now();
-  await page.goto('file://' + (process.argv[2] || path.resolve(__dirname, 'bible.html')));
+  await page.goto('file://' + path.resolve('/Users/konyo/d2r_bible_tests/bible_routes.html'));
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(500);
   const load_ms = Date.now() - t0;

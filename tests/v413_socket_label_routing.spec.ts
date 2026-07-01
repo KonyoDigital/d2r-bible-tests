@@ -16,7 +16,8 @@ test('socketed-base labels route to SOCKETED', async ({ page }) => {
     };
   });
   expect(r.grim).toBe('bases');
-  expect(r.circlet).toBe('bases');
+  // v524 — a CIRCLET can't hold a runeword (type=circ, gems/jewels only) → NOT a socketed keeper → throw-out.
+  expect(r.circlet).toBe('__throwout');
   expect(r.trident).toBe('bases');
   expect(r.monarch).toBe('bases');
   expect(r.windforce).not.toBe('bases');
