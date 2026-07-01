@@ -34,11 +34,15 @@ test.describe('convergence lock — canonical target is bible.html', () => {
     for (const f of sweeps) {
       const src = fs.readFileSync(path.join(REPO_ROOT, f), 'utf8');
       for (const line of src.split('\n')) {
-        if (/page\.goto/.test(line) && /bible_routes\.html/.test(line)) {
-          offenders.push(`${f}: ${line.trim()}`);
+        if (!/page\.goto/.test(line)) continue;
+        if (/bible_routes\.html/.test(line)) offenders.push(`${f} (stale fork): ${line.trim()}`);
+        // v533 — a hardcoded ABSOLUTE path (/Users/… , /home/… , C:\…) loads fine on Konyo's Mac but breaks
+        // on the CI runner (/home/runner/…) + Windows. The goto MUST be portable (path.resolve(__dirname, …)).
+        if (/['"]\/(Users|home|root)\//.test(line) || /['"][A-Za-z]:\\/.test(line)) {
+          offenders.push(`${f} (hardcoded absolute path — not portable): ${line.trim()}`);
         }
       }
     }
-    expect(offenders, `sweep scripts defaulting to the stale fork:\n${offenders.join('\n')}`).toEqual([]);
+    expect(offenders, `sweep scripts must target bible.html via a PORTABLE path:\n${offenders.join('\n')}`).toEqual([]);
   });
 });

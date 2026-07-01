@@ -5911,6 +5911,8 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:1;opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
 #tab-forge .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
 #tab-forge .f-restore{margin-top:8px;text-align:center}
+/* v533 — always-visible restore bar under the tabs (shows whenever you have skipped tasks) */
+#tab-forge .forge-restore-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 12px;padding:8px 12px;background:rgba(224,185,106,.08);border:1px solid rgba(224,185,106,.35);border-radius:9px;font-size:12px;color:#cdbf9f}
 /* v532 — ✅ Completed tab: the "done" list + clear/restore tools */
 #tab-forge .f-btn-mini{font-size:11.5px;padding:5px 11px;border-radius:8px}
 #tab-forge .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
@@ -26799,6 +26801,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
       + tab('completed','✅','Completed','ft-done',_doneN)          // v532 — end of the storyline
       +'</div>');
+    // v533 — ALWAYS-VISIBLE restore bar. Was buried inside the Make-now section, so skipping your last task
+    // (which empties that section) "swallowed" the restore button too. Now it rides under the tabs on every view.
+    if (skip.size) H.push('<div class="forge-restore-top"><span>↩ <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+'</span><button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ Restore skipped</button></div>');
     // v532 — COMPLETED is a dedicated view (never mixed into 'all'): the done list + clear/restore.
     if (F==='completed'){
       var made=_madeRw().filter(function(n){ return !_doneHidden.has(n); })
@@ -26874,7 +26879,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           craftKeys.forEach(function(ck){ var c0=craftGroups[ck][0]; ct+=_craftAccHtml(ck, c0&&c0.color); });
           H.push('<div class="forge-craftnow-lbl">⚗️ Crafts ready — tap one to see every slot + recipe (✓ = make now)</div><div class="forge-craftacc">'+ct+'</div>');
         }
-        if (skip.size) H.push('<div class="f-restore"><button class="f-btn" onclick="window.forgeUnskipAll()">↺ restore '+skip.size+' skipped'+(skip.size>1?'s':'')+'</button></div>');
+        /* v533 — restore moved to the always-visible bar under the tabs (was swallowed when this section emptied) */
         H.push('</div>');
       }
       if (deferred.length){
