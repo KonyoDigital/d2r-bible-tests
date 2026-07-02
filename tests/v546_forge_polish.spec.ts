@@ -89,6 +89,75 @@ test('A — Smart Insights farm-priority shows tier-accurate lvl-85 "where to fa
   expect(r.txt).toMatch(/Terror Zones/);
 });
 
+// ---- UX SIMULATIONS — drive the RENDERED UI by clicking, not just reading state (Konyo's standing rule) ----
+
+test('UX — clicking the hero "Make now →" CTA actually switches the Forge to the Make-now filter', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 2, Tir: 2, Tal: 2, Sol: 2 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  await page.evaluate(() => { const w: any = window; w._ensureSocketBaseEntry('Colossus Voulge (4os)'); w.switchTab('forge'); w.forgeSetFilter('all'); w.renderForge(); });
+  // real click on the rendered CTA button
+  await page.locator('#tab-forge .forge-hero .fh-cta').click();
+  await page.waitForTimeout(300);
+  const cls = await page.evaluate(() => document.querySelector('#tab-forge .forge-tabs .ft-now')?.className || '');
+  expect(cls).toMatch(/\bon\b/);   // Make-now tab is now the active filter
+});
+
+test('UX — clicking a Rune-radar cube-up chip expands the planner, pre-selects the rune, shows the count', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify([]));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ El: 400 }));   // a pile of El → cascades way up
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const w: any = window; w.switchTab('tools');
+    const c = document.getElementById('smart-insights-card');
+    if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('smart-insights-card');
+    w.renderSmartInsights();
+  });
+  const chip = page.locator('#smart-insights-body .si-cube').first();
+  await expect(chip).toBeVisible();
+  await chip.click();
+  await page.waitForTimeout(500);
+  const r = await page.evaluate(() => {
+    const card = document.getElementById('rune-stash-card');
+    const sel = document.getElementById('rune-cubeup-target') as HTMLSelectElement;
+    return { expanded: !!card && !card.classList.contains('collapsed'), result: (document.getElementById('cubeup-result')?.textContent || '').replace(/\s+/g, ' ').trim() };
+  });
+  expect(r.expanded).toBe(true);
+  expect(r.result).toMatch(/\d+×/);   // the planner shows a computed "N× <Rune>"
+});
+
+test('UX — clicking the "Jump to Terror Zones" tip switches to the TZ tab', async ({ page }) => {
+  await page.addInitScript((runes) => {
+    const stash: any = {}; (runes as string[]).forEach((x) => (stash[x] = 3));
+    localStorage.setItem('d2r_owned', JSON.stringify([]));
+    localStorage.setItem('d2r_runeStash', JSON.stringify(stash));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  }, ALL_RUNES);
+  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const w: any = window; w.switchTab('tools');
+    const c = document.getElementById('smart-insights-card');
+    if (c && c.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('smart-insights-card');
+    w.renderSmartInsights();
+  });
+  await page.locator('#smart-insights-body .si-tip', { hasText: 'Terror Zones' }).click();
+  await page.waitForTimeout(400);
+  const active = await page.evaluate(() => {
+    const tz = document.getElementById('tab-tz');
+    return tz ? getComputedStyle(tz).display !== 'none' : false;
+  });
+  expect(active).toBe(true);
+});
+
 test('C — Rune radar surfaces cube-up potential; _runeCubeUpTo cascades the stash', async ({ page }) => {
   await page.addInitScript(() => {
     // a pile of low runes → can cube up to a mid rune (Vex etc.)
