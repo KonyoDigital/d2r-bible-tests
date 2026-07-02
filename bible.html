@@ -3193,9 +3193,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .si-fpn{font-weight:700;color:#e8ddc6;font-size:12.5px}
 #tab-tools .si-fpc{float:right;font-size:11px;font-weight:800;color:#1a140a;background:linear-gradient(180deg,#c3a6f0,#a883dd);border-radius:6px;padding:1px 8px}
 #tab-tools .si-fpw{font-size:11px;color:var(--text-dim,#9a8f7a);margin-top:1px}
-#tab-tools .si-rg{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:3px 0}
+#tab-tools .si-fpwhere{font-size:11px;color:#b7cdb0;margin-top:3px;line-height:1.45}
+#tab-tools .si-fpwhere b{color:#d8e6cf}
+#tab-tools .si-tier{font-size:10px;font-weight:800;color:#e9d07a;background:rgba(233,208,122,.13);border-radius:5px;padding:0 5px;vertical-align:middle}
+#tab-tools .si-rg{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:3px 0;flex-wrap:wrap}
 #tab-tools .si-rgn{font-weight:800;color:#e8c878;min-width:44px}
 #tab-tools .si-rgs{color:#e8a0a0;font-size:11.5px}
+#tab-tools .si-cube{margin-left:auto;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);border:1px solid rgba(159,212,255,.3);border-radius:7px;padding:2px 9px;cursor:pointer}
+#tab-tools .si-cube:hover{background:rgba(159,212,255,.22)}
+#tab-tools .si-cube-full{color:#8fe6a0;background:rgba(143,230,160,.13);border-color:rgba(143,230,160,.4)}
 #tab-tools .lf-status.lf-ok{color:#8fe6a0} #tab-tools .lf-status.lf-no{color:#e08a8a}
 #tab-tools .lf-howto{font-size:11.5px;color:#cdb377;line-height:1.55;margin-top:6px;padding:9px 11px;background:rgba(255,170,40,.07);border-left:3px solid rgba(224,168,74,.5);border-radius:0 6px 6px 0}
 </style>
@@ -4354,6 +4360,34 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     return {total:total, made:madeN, remaining:total-madeN, makeNow:now.length, pipeline:(s.pipeline||[]).length, oneStep:(s.onestep||[]).length,
       blockedByBase:baseOnly, blockedByRunes:runeOnly, bestNow:best?best.rw:null, nextUnlockBase:nx?nx.base:null, nextUnlockCount:nx?nx.count:0};
   };
+  // v546 — how many of a rune you could END with by cascading your whole stash up the cube-up chain (reuses the
+  // Runes-tab cubeUpPotential engine). Lets the Rune radar say "you can cube up to N Sur from what you hold".
+  window._runeCubeUpTo = function(rune){
+    try { if (typeof RUNES==='undefined' || typeof window.cubeUpPotential!=='function') return 0;
+      var idx=RUNES.findIndex(function(r){return r.n===rune;}); return idx<0?0:(window.cubeUpPotential(idx)||0);
+    } catch(e){ return 0; }
+  };
+  // v546 — jump to the Runes-tab cube-up planner, pre-selected to this rune (same Tools tab → just expand + scroll).
+  window.smartJumpRuneCubeUp = function(rune){
+    try {
+      var idx=(typeof RUNES!=='undefined')?RUNES.findIndex(function(r){return r.n===rune;}):-1;
+      var card=document.getElementById('rune-stash-card');
+      if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse==='function') window.toggleCardCollapse('rune-stash-card');
+      setTimeout(function(){
+        var sel=document.getElementById('rune-cubeup-target');
+        if (sel && idx>=0){ sel.value=String(idx); if (typeof window.renderRuneStash==='function') window.renderRuneStash(); }
+        var p=document.querySelector('#rune-stash-card .cubeup-panel'); if (p) p.scrollIntoView({block:'center',behavior:'smooth'});
+      }, 130);
+    } catch(e){}
+  };
+  // v546 — accurate, tier-based "where to farm" (NOT fabricated boss/area precision). Elite bases only roll in
+  // high-level areas → point at today's lvl-85 Terror Zones; exceptional → NM/Hell mid or any 85; normal → broad.
+  window._baseFarmWhere = function(base){
+    var tier=(typeof window._baseTier==='function')?window._baseTier(base):'';
+    if (tier==='elite') return {tag:'◆ elite', where:'drops only in <b>lvl-85</b> areas — run today’s Terror Zones (they scale to 85) or a permanent 85 (The Pit, Ancient Tunnels, Maggot Lair)'};
+    if (tier==='exceptional') return {tag:'exc', where:'Nightmare/Hell mid areas, or any <b>lvl-85</b> zone'};
+    return {tag:'', where:'drops broadly across Hell — or gamble it from a vendor'};
+  };
   window.renderSmartInsights = function(){
     var box=document.getElementById('smart-insights-body'); if(!box) return;
     try{
@@ -4370,11 +4404,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         +'</div>';
       H+='<div class="si-panel"><div class="si-h">🎯 Farm priority — bases by leverage</div>';
       if(!fp.length){ H+='<div class="si-dim">Nothing to farm — you own a base for every remaining runeword. 🎉</div>'; }
-      else { fp.slice(0,12).forEach(function(x){ H+='<div class="si-fp"><span class="si-fpn">'+esc(x.base)+'</span><span class="si-fpc">'+x.count+' word'+(x.count>1?'s':'')+'</span><div class="si-fpw">'+x.runewords.slice(0,5).map(esc).join(' · ')+(x.runewords.length>5?' …':'')+'</div></div>'; }); if(fp.length>12)H+='<div class="si-dim">+ '+(fp.length-12)+' more single-word bases</div>'; }
+      else { fp.slice(0,12).forEach(function(x){ var fw=(typeof window._baseFarmWhere==='function')?window._baseFarmWhere(x.base):{tag:'',where:''}; H+='<div class="si-fp"><span class="si-fpn">'+esc(x.base)+(fw.tag?' <span class="si-tier">'+esc(fw.tag)+'</span>':'')+'</span><span class="si-fpc">'+x.count+' word'+(x.count>1?'s':'')+'</span><div class="si-fpw">'+x.runewords.slice(0,5).map(esc).join(' · ')+(x.runewords.length>5?' …':'')+'</div>'+(fw.where?'<div class="si-fpwhere">📍 '+fw.where+'</div>':'')+'</div>'; }); if(fp.length>12)H+='<div class="si-dim">+ '+(fp.length-12)+' more single-word bases</div>'; H+='<div class="si-tip" style="cursor:pointer" onclick="window.switchTab&&window.switchTab(\'tz\')">🔥 Jump to <b>Terror Zones</b> for today’s lvl-85 rotation →</div>'; }
       H+='</div>';
       H+='<div class="si-panel" style="border:none"><div class="si-h">🔑 Rune radar — what you\'re short on</div>';
       if(!rg.length){ H+='<div class="si-dim">You have every rune your remaining runewords need — just farm the bases. 🎉</div>'; }
-      else { rg.slice(0,14).forEach(function(x){ H+='<div class="si-rg"><span class="si-rgn">'+esc(x.rune)+'</span><span class="si-rgs">short <b>'+x.short+'</b></span><span class="si-dim">need '+x.demand+' · have '+x.owned+'</span></div>'; }); }
+      else { rg.slice(0,14).forEach(function(x){ var cu=(typeof window._runeCubeUpTo==='function')?window._runeCubeUpTo(x.rune):0; var cuNote=''; if(cu>x.owned){ var covers=cu>=x.demand; cuNote='<button class="si-cube'+(covers?' si-cube-full':'')+'" title="cascade your lower runes up the cube chain toward '+esc(x.rune)+'" onclick="window.smartJumpRuneCubeUp&&window.smartJumpRuneCubeUp(\''+esc(x.rune)+'\')">🧊 cube up to '+cu+(covers?' — covers it!':'')+'</button>'; } H+='<div class="si-rg"><span class="si-rgn">'+esc(x.rune)+'</span><span class="si-rgs">short <b>'+x.short+'</b></span><span class="si-dim">need '+x.demand+' · have '+x.owned+'</span>'+cuNote+'</div>'; }); }
       H+='</div>';
       box.innerHTML=H;
     }catch(e){ box.innerHTML='<div class="si-dim">insights unavailable</div>'; }
@@ -6189,6 +6223,13 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-atomprog{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
 #tab-forge .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
 #tab-forge .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
+/* v546 — "Do this one thing" hero banner */
+#tab-forge .forge-hero{display:flex;align-items:center;gap:13px;margin:10px 0 4px;padding:13px 16px;border:1px solid rgba(233,208,122,.34);border-radius:13px;background:linear-gradient(135deg,rgba(233,208,122,.13),rgba(233,208,122,.03));box-shadow:0 2px 14px rgba(0,0,0,.22)}
+#tab-forge .fh-ico{font-size:27px;line-height:1;flex:0 0 auto}
+#tab-forge .fh-main{flex:1 1 auto;min-width:0}
+#tab-forge .fh-lead{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#e9d07a;opacity:.9}
+#tab-forge .fh-body{font-size:15px;line-height:1.45;color:var(--text,#e8dcc2);margin-top:2px}
+#tab-forge .fh-cta{flex:0 0 auto;white-space:nowrap;background:rgba(233,208,122,.16);border-color:rgba(233,208,122,.4);color:#f0d898;font-weight:700}
 #tab-forge .forge-empty-sm{padding:18px;font-size:13px;margin-top:0}
 @media (max-width:760px){#tab-forge .forge-tabs{flex-wrap:wrap}#tab-forge .forge-tab{flex:1 1 40%}#tab-forge .forge-title{font-size:34px}}
 #tab-forge .forge-sec{margin:20px 0 6px}
@@ -26639,6 +26680,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (c['helm']) return 'Ral + Thul + Perfect Sapphire';
     return 'Ral + Amn + Perfect Amethyst';   // weapon (default)
   }
+  // v546 — the Perfect gem the cube-socket recipe for this base slot consumes (for the "how many tries can I
+  // afford" note). Mirrors _cubeGambleRecipe's slot logic.
+  function _cubeGambleGem(base){
+    var c={}; try { c=(typeof _baseCats==='function')?(_baseCats(base)||{}):{}; } catch(e){}
+    if (c['body armor']||c['armor']) return 'Perfect Topaz';
+    if (c['shield']) return 'Perfect Ruby';
+    if (c['helm']) return 'Perfect Sapphire';
+    return 'Perfect Amethyst';
+  }
+  // v546 — affordability note for a cube-socket gamble: how many attempts your gem stash covers (each try burns
+  // one Perfect gem + a fresh base). Honest framing — the cube rolls a RANDOM count 1→max, so a below-max target
+  // takes several tries on average. Factual on the gem count; soft on the odds.
+  function _gambleAfford(base, need, mx){
+    var gem=_cubeGambleGem(base); var have=(typeof _gemCount==='function')?_gemCount(gem):0;
+    var span=(mx>1)?('random 1–'+mx):'';
+    var afford = have>0 ? ('you hold <b>'+have+' '+_fEsc(gem)+'</b> → ~'+have+' tr'+(have===1?'y':'ies')) : ('no <b>'+_fEsc(gem)+'</b> in your gem stash yet');
+    return '<span class="f-atomsub">🎲 '+span+', so keep a few spare '+_fEsc(base)+'s + gems — '+afford+'</span>';
+  }
+  // v546 — "Do this one thing" hero: the single highest-leverage next move, chosen from the live plan. Priority:
+  // a Make-now (forge it) → a Pipeline (one socket/gamble away) → the top farm target → a one-step. Cuts the
+  // "where do I even start" paralysis by naming ONE action.
+  function _forgeHero(s){
+    var pick=null;
+    var live=(s.now||[]).filter(function(t){return !t.deferred;});
+    if (live.length){ var b=live.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0];
+      pick={icon:'⚒', lead:'forge it now', body:'<b style="color:'+(_qC(b.rw)||'')+'">'+_qName(b.rw)+'</b> — base, sockets &amp; runes all in hand', act:"window.forgeSetFilter('now')", cta:'Make now'};
+    } else if ((s.pipeline||[]).length){ var p=s.pipeline.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0]; var tgt=p.base?p.base.base:'';
+      pick={icon:p.cubeGamble?'🎲':'🔧', lead:p.cubeGamble?'one gamble away':'one socket away',
+        body:(p.cubeGamble?'Cube-socket your <b>'+_fEsc(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_fEsc(tgt)+'</b> → '+p.need+'os')+' → forge <b style="color:'+(_qC(p.rw)||'')+'">'+_qName(p.rw)+'</b>', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
+    } else {
+      var fp=[]; try { fp=(typeof window._smartFarmPriority==='function')?window._smartFarmPriority():[]; } catch(e){}
+      if (fp.length){ var f=fp[0]; pick={icon:'🎯', lead:'best thing to farm', body:'<b>'+_fEsc(f.base)+'</b> — unlocks <b>'+f.count+'</b> runeword'+(f.count>1?'s':''), act:"window.switchTab&&window.switchTab('tools');setTimeout(function(){window.renderSmartInsights&&window.renderSmartInsights();},80)", cta:'Smart Insights'};
+      } else { var os=(s.onestep||[])[0]; if (os) pick={icon:'🟡', lead:'one step away', body:'<b style="color:'+(_qC(os.rw)||'')+'">'+_qName(os.rw)+'</b> — do the one step to unlock it', act:"window.forgeSetFilter('onestep')", cta:'One step'}; }
+    }
+    if (!pick) return '';
+    return '<div class="forge-hero"><div class="fh-ico">'+pick.icon+'</div><div class="fh-main"><div class="fh-lead">👉 Do this one thing · '+pick.lead+'</div><div class="fh-body">'+pick.body+'</div></div><button class="f-btn fh-cta" onclick="'+pick.act+'">'+pick.cta+' →</button></div>';
+  }
 
   // hand class of an owned base for the 1H-player / 2H-merc gate: 'gear' (armour/shield/helm), 'merc'
   // (polearm/spear/bow/xbow — a mercenary's 2H), '1H', '2H' (a 2H NON-merc weapon — forbidden for the player), '?'.
@@ -27002,6 +27080,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (skip.size) _rbits+='<span>↩ <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+'</span><button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ Restore skipped</button>';
     if (F!=='completed'){ var _ld=_lastDone(); if (_ld) _rbits+='<span>✅ <b>'+_doneN+'</b> created</span><button class="f-btn f-btn-mini f-undo-last" title="put your most recently created runeword ('+_fEsc(_ld)+') back into the task list" onclick="window.forgeUndoLastDone()">↩ Undo last: '+_fEsc(_ld)+'</button><button class="f-btn f-btn-mini" onclick="window.forgeSetFilter(\'completed\')" title="see every created runeword — restore or clear any">✅ see all</button>'; }
     if (_rbits) H.push('<div class="forge-restore-top">'+_rbits+'</div>');
+    // v546 — "Do this one thing" hero banner: one highest-leverage move, above the cards (not on the Completed view).
+    if (F!=='completed'){ var _hero=_forgeHero(s); if (_hero) H.push(_hero); }
     // v532 — COMPLETED is a dedicated view (never mixed into 'all'): the done list + clear/restore.
     if (F==='completed'){
       var made=_madeRw().filter(function(n){ return !_doneHidden.has(n); })
@@ -27108,7 +27188,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // white/normal/superior bases can't be tier-upgraded; the base you own already has the right max.)
         var target=t.base.base, n=1, steps='';
         if (t.cubeGamble){
-          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> 🎲 <b>Cube-socket</b> your <b>'+_qName(target)+'</b> — <span class="f-cube">'+_cubeGambleRecipe(target)+'</span> gives a <b>random 1–'+t.base.max+'</b> sockets. Larzuk would overshoot to '+t.base.max+', so <b>re-roll the cube until it lands '+t.need+'os</b> (a gamble — each try consumes the base + a Perfect gem, so keep spares).</div>';
+          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> 🎲 <b>Cube-socket</b> your <b>'+_qName(target)+'</b> — <span class="f-cube">'+_cubeGambleRecipe(target)+'</span> gives a <b>random 1–'+t.base.max+'</b> sockets. Larzuk would overshoot to '+t.base.max+', so <b>re-roll the cube until it lands '+t.need+'os</b>. '+_gambleAfford(target, t.need, t.base.max)+'</div>';
         } else {
           steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
         }
@@ -27137,7 +27217,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // it — you either find a natural drop already at the right count, or cube-socket and gamble for it. Same
             // logic as the owned cube-gamble pipeline task, applied to the "go get a base" step.
             var _fb=(bases[0]||'').trim(); var _fbmax=_fb?(parseInt(_socketMaxFor(_fb),10)||0):0;
-            if(_fbmax && _fbmax>need) segs.push('🎲 find a <b>'+need+'os</b> drop, or cube-gamble for '+need+' <span class="f-atomsub">(Larzuk gives its max '+_fbmax+'os — too many)</span>');
+            if(_fbmax && _fbmax>need){ var _ghave=(typeof _gemCount==='function')?_gemCount(_cubeGambleGem(_fb)):0; segs.push('🎲 find a <b>'+need+'os</b> drop, or cube-gamble for '+need+' <span class="f-atomsub">(Larzuk gives its max '+_fbmax+'os — too many'+(_ghave>0?'; you hold '+_ghave+' '+_fEsc(_cubeGambleGem(_fb)):'')+')</span>'); }
             else segs.push('🔩 Larzuk → '+need+'os');
           }
           segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
@@ -27196,6 +27276,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.forgeScan=forgeScan;
   window.renderForge=renderForge;
   try { window._ownedBases=_ownedBases; } catch(e){}   // v545 — debug/spec hook for the tagged-base parser
+  try { window._baseTier=function(b){ return (typeof BASE_DB!=='undefined'&&BASE_DB[b])?(BASE_DB[b].tier||''):''; }; } catch(e){}  // v546 — tier lookup for Smart Insights farm-where
 })();
 </script>
 <script>
