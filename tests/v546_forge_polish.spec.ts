@@ -26,7 +26,7 @@ test('B — hero banner: a Make-now-ready vault shows "Do this one thing" with a
     return { present: !!hero, text: hero ? (hero.textContent || '').replace(/\s+/g, ' ') : '' };
   });
   expect(r.present).toBe(true);
-  expect(r.text).toMatch(/Do this one thing/);
+  expect(r.text).toMatch(/do this one thing/i);
   expect(r.text).toMatch(/Make now/);
 });
 
@@ -45,7 +45,7 @@ test('B — hero banner: with nothing to make, it names the top farm target', as
     return hero ? (hero.textContent || '').replace(/\s+/g, ' ') : '';
   });
   // no runes/bases → the only actionable thing is the one-step / farm target
-  expect(r).toMatch(/Do this one thing/);
+  expect(r).toMatch(/do this one thing/i);
   expect(r).toMatch(/farm|one step/i);
 });
 

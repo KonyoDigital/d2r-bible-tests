@@ -6070,20 +6070,21 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-forge .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
 #tab-forge .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
-#tab-forge .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:72px;padding:14px 8px;border-radius:13px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.025);color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease}
-#tab-forge .forge-tab:hover{background:rgba(255,255,255,.06);color:var(--text,#e8dcc0);transform:translateY(-1px)}
+#tab-forge .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:13px 8px;border-radius:14px;border:1px solid var(--border,#3a2f1e);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.008));color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}
+#tab-forge .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
 #tab-forge .forge-tab:active{transform:translateY(0)}
-#tab-forge .ft-emoji{font-size:22px;line-height:1;filter:saturate(1.15)}
-#tab-forge .ft-lbl{font-size:14px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
-#tab-forge .ft-ct{font-size:13px;font-weight:800;padding:2px 11px;border-radius:11px;background:rgba(255,255,255,.08);line-height:1.2}
+#tab-forge .ft-emoji{font-size:21px;line-height:1;filter:saturate(1.15)}
+#tab-forge .ft-lbl{font-size:12.5px;font-weight:800;letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
+#tab-forge .ft-ct{font-size:18px;font-weight:900;padding:1px 12px;border-radius:11px;background:rgba(255,255,255,.07);line-height:1.25;min-width:34px;text-align:center}
 /* persistent per-bucket accent so the tabs are scannable at a glance even when inactive */
 #tab-forge .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
 #tab-forge .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
 #tab-forge .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
 #tab-forge .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
 #tab-forge .forge-tab.ft-craft .ft-ct{color:#c79ce6;background:rgba(199,156,230,.12)}
-/* active = filled capsule + a top accent rail in the bucket colour */
-#tab-forge .forge-tab.on{box-shadow:inset 0 3px 0 -1px currentColor}
+/* active = filled capsule + a top accent rail in the bucket colour + a soft outer glow */
+#tab-forge .forge-tab.on{box-shadow:inset 0 3px 0 -1px currentColor,0 4px 20px -6px currentColor;transform:translateY(-1px)}
+#tab-forge .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
 #tab-forge .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
 #tab-forge .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
 #tab-forge .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
@@ -6256,12 +6257,29 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
 #tab-forge .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
 /* v546 — "Do this one thing" hero banner */
-#tab-forge .forge-hero{display:flex;align-items:center;gap:13px;margin:10px 0 4px;padding:13px 16px;border:1px solid rgba(233,208,122,.34);border-radius:13px;background:linear-gradient(135deg,rgba(233,208,122,.13),rgba(233,208,122,.03));box-shadow:0 2px 14px rgba(0,0,0,.22)}
-#tab-forge .fh-ico{font-size:27px;line-height:1;flex:0 0 auto}
-#tab-forge .fh-main{flex:1 1 auto;min-width:0}
-#tab-forge .fh-lead{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#e9d07a;opacity:.9}
-#tab-forge .fh-body{font-size:15px;line-height:1.45;color:var(--text,#e8dcc2);margin-top:2px}
-#tab-forge .fh-cta{flex:0 0 auto;white-space:nowrap;background:rgba(233,208,122,.16);border-color:rgba(233,208,122,.4);color:#f0d898;font-weight:700}
+/* v552 — FLAGSHIP HERO: the single "do this one thing" — big, HD art, animated, impossible to miss */
+#tab-forge .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
+#tab-forge .forge-hero::after{content:"";position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.10),transparent);transform:skewX(-18deg);animation:fhShine 6s ease-in-out 1.4s infinite;pointer-events:none}
+#tab-forge .forge-hero-now{--tone:rgba(95,201,122,.5);--tonec:#5fc97a}
+#tab-forge .forge-hero-pipe{--tone:rgba(91,159,208,.5);--tonec:#5b9fd0}
+#tab-forge .forge-hero-step{--tone:rgba(233,208,122,.5);--tonec:#e9d07a}
+#tab-forge .fh-artwrap{position:relative;flex:0 0 auto;width:58px;height:58px;border-radius:13px;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.09),rgba(0,0,0,.34));border:1px solid color-mix(in srgb,var(--tonec) 42%,transparent);display:flex;align-items:center;justify-content:center;animation:fhArtGlow 3.4s ease-in-out infinite}
+@keyframes fhArtGlow{0%,100%{box-shadow:0 0 16px -5px color-mix(in srgb,var(--tonec) 60%,transparent)}50%{box-shadow:0 0 24px -2px color-mix(in srgb,var(--tonec) 78%,transparent)}}
+#tab-forge .fh-art{display:flex;align-items:center;justify-content:center}
+#tab-forge .fh-art img{max-width:48px;max-height:48px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+#tab-forge .fh-art .f-glyph{font-size:32px}
+#tab-forge .fh-icobadge{position:absolute;bottom:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#140f09;border:1px solid color-mix(in srgb,var(--tonec) 60%,transparent);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.55)}
+#tab-forge .fh-main{flex:1 1 auto;min-width:0;position:relative;z-index:1}
+#tab-forge .fh-lead{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--tonec,#e9d07a)}
+#tab-forge .fh-name{font-family:var(--serif-display,serif);font-size:24px;font-weight:700;line-height:1.12;margin:2px 0 3px;color:var(--text,#e8dcc2)}
+#tab-forge .fh-name img{width:23px;height:23px;vertical-align:-4px;margin-right:5px}
+#tab-forge .fh-body{font-size:13px;line-height:1.4;color:var(--text-dim,#b6a888)}
+#tab-forge .fh-cta{flex:0 0 auto;white-space:nowrap;background:color-mix(in srgb,var(--tonec) 22%,transparent);border:1px solid color-mix(in srgb,var(--tonec) 55%,transparent);color:#fff;font-weight:800;font-size:13px;padding:10px 17px;position:relative;z-index:1;box-shadow:0 2px 12px -2px color-mix(in srgb,var(--tonec) 55%,transparent)}
+#tab-forge .fh-cta:hover{filter:brightness(1.13)}
+#tab-forge .fh-cta-arw{display:inline-block;transition:transform .15s}
+#tab-forge .fh-cta:hover .fh-cta-arw{transform:translateX(3px)}
+@keyframes fhIn{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes fhShine{0%{left:-60%}20%,100%{left:135%}}
 #tab-forge .forge-empty-sm{padding:18px;font-size:13px;margin-top:0}
 @media (max-width:760px){#tab-forge .forge-tabs{flex-wrap:wrap}#tab-forge .forge-tab{flex:1 1 40%}#tab-forge .forge-title{font-size:34px}}
 #tab-forge .forge-sec{margin:20px 0 6px}
@@ -6273,12 +6291,23 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .forge-sec-step .forge-sec-h{color:#e9d07a}
 #tab-forge .forge-sec-defer .forge-sec-h{color:#b9a98a}
 #tab-forge .forge-note{font-size:12px;color:var(--text-dim,#9a8c72);margin:-4px 0 12px;font-style:italic}
-#tab-forge .f-card{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;margin-bottom:9px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:10px;background:rgba(255,255,255,.022)}
+/* v552 — application-style task cards: HD art, hover lift, staggered entrance */
+#tab-forge .f-card{position:relative;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,.008));transition:transform .12s ease,box-shadow .16s ease,border-color .16s ease;animation:fCardIn .34s ease both}
+#tab-forge .f-card:hover{transform:translateY(-2px);box-shadow:0 7px 22px -8px rgba(0,0,0,.55)}
+@keyframes fCardIn{0%{opacity:0;transform:translateY(7px)}100%{opacity:1;transform:translateY(0)}}
+#tab-forge .f-card:nth-of-type(1){animation-delay:.01s}#tab-forge .f-card:nth-of-type(2){animation-delay:.05s}#tab-forge .f-card:nth-of-type(3){animation-delay:.09s}#tab-forge .f-card:nth-of-type(4){animation-delay:.13s}#tab-forge .f-card:nth-of-type(5){animation-delay:.17s}#tab-forge .f-card:nth-of-type(6){animation-delay:.21s}
 #tab-forge .f-now{border-left-color:#5fc97a}
+#tab-forge .f-now:hover{border-color:rgba(95,201,122,.5)}
 #tab-forge .f-pipe{border-left-color:#5b9fd0}
+#tab-forge .f-pipe:hover{border-color:rgba(91,159,208,.5)}
 #tab-forge .f-step{border-left-color:#cdb157}
+#tab-forge .f-step:hover{border-color:rgba(205,177,87,.5)}
 #tab-forge .f-defer{border-left-color:#6b5f48;opacity:.62}
-#tab-forge .f-cardart{flex:0 0 42px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:8px;overflow:hidden}
+#tab-forge .f-cardart{flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:9px;overflow:hidden}
+#tab-forge .f-cardart-hd{position:relative;flex:0 0 48px;width:48px;height:48px;overflow:visible;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.07),rgba(0,0,0,.32));border:1px solid rgba(255,255,255,.08);border-radius:11px}
+#tab-forge .f-cardart-hd .f-art{max-width:42px;max-height:42px}
+#tab-forge .f-cardart-hd .f-atomic-ic{font-size:26px}
+#tab-forge .f-cardart-badge{position:absolute;bottom:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#140f09;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.5)}
 #tab-forge .f-art{max-width:40px;max-height:40px;object-fit:contain}
 #tab-forge .f-glyph{font-size:22px}
 #tab-forge .f-cardbody{flex:1;min-width:0}
@@ -26841,21 +26870,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v546 — "Do this one thing" hero: the single highest-leverage next move, chosen from the live plan. Priority:
   // a Make-now (forge it) → a Pipeline (one socket/gamble away) → the top farm target → a one-step. Cuts the
   // "where do I even start" paralysis by naming ONE action.
+  function _heroArt(name, kind){
+    if (!name) return '<span class="f-glyph">📜</span>';
+    if (kind==='base'){ var u=(typeof _fArt==='function')?_fArt(name):''; return u?'<img class="f-art" src="'+_fEsc(u)+'" alt="" loading="lazy">':'<span class="f-glyph">🛡️</span>'; }
+    return _rwArt(name);
+  }
   function _forgeHero(s){
     var pick=null;
     var live=(s.now||[]).filter(function(t){return !t.deferred;});
     if (live.length){ var b=live.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0];
-      pick={icon:'⚒', lead:'forge it now', body:'<b style="color:'+(_qC(b.rw)||'')+'">'+_qName(b.rw)+'</b> — base, sockets &amp; runes all in hand', act:"window.forgeSetFilter('now')", cta:'Make now'};
+      pick={icon:'⚒', tone:'now', art:b.rw, artKind:'rw', lead:'forge it now', name:_qArt(b.rw), body:'base, sockets &amp; runes all in hand', act:"window.forgeSetFilter('now')", cta:'Make now'};
     } else if ((s.pipeline||[]).length){ var p=s.pipeline.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0]; var tgt=p.base?p.base.base:'';
-      pick={icon:p.cubeGamble?'🎲':'🔧', lead:p.cubeGamble?'one gamble away':'one socket away',
-        body:(p.cubeGamble?'Cube-socket your <b>'+_fEsc(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_fEsc(tgt)+'</b> → '+p.need+'os')+' → forge <b style="color:'+(_qC(p.rw)||'')+'">'+_qName(p.rw)+'</b>', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
+      pick={icon:p.cubeGamble?'🎲':'🔧', tone:'pipe', art:p.rw, artKind:'rw', lead:p.cubeGamble?'one gamble away':'one socket away', name:_qArt(p.rw),
+        body:(p.cubeGamble?'Cube-socket your <b>'+_qArt(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_qArt(tgt)+'</b> → '+p.need+'os')+' → forge it', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
     } else {
       var fp=[]; try { fp=(typeof window._smartFarmPriority==='function')?window._smartFarmPriority():[]; } catch(e){}
-      if (fp.length){ var f=fp[0]; pick={icon:'🎯', lead:'best thing to farm', body:'<b>'+_fEsc(f.base)+'</b> — unlocks <b>'+f.count+'</b> runeword'+(f.count>1?'s':''), act:"window.switchTab&&window.switchTab('tools');setTimeout(function(){window.renderSmartInsights&&window.renderSmartInsights();},80)", cta:'Smart Insights'};
-      } else { var os=(s.onestep||[])[0]; if (os) pick={icon:'🟡', lead:'one step away', body:'<b style="color:'+(_qC(os.rw)||'')+'">'+_qName(os.rw)+'</b> — do the one step to unlock it', act:"window.forgeSetFilter('onestep')", cta:'One step'}; }
+      if (fp.length){ var f=fp[0]; pick={icon:'🎯', tone:'step', art:f.base, artKind:'base', lead:'best thing to farm', name:_qArt(f.base), body:'unlocks <b>'+f.count+'</b> runeword'+(f.count>1?'s':''), act:"window.switchTab&&window.switchTab('tools');setTimeout(function(){window.renderSmartInsights&&window.renderSmartInsights();},80)", cta:'Smart Insights'};
+      } else { var os=(s.onestep||[])[0]; if (os) pick={icon:'🟡', tone:'step', art:os.rw, artKind:'rw', lead:'one step away', name:_qArt(os.rw), body:'do the one step to unlock it', act:"window.forgeSetFilter('onestep')", cta:'One step'}; }
     }
     if (!pick) return '';
-    return '<div class="forge-hero"><div class="fh-ico">'+pick.icon+'</div><div class="fh-main"><div class="fh-lead">👉 Do this one thing · '+pick.lead+'</div><div class="fh-body">'+pick.body+'</div></div><button class="f-btn fh-cta" onclick="'+pick.act+'">'+pick.cta+' →</button></div>';
+    return '<div class="forge-hero forge-hero-'+pick.tone+'">'
+      + '<div class="fh-artwrap"><div class="fh-art">'+_heroArt(pick.art, pick.artKind)+'</div><div class="fh-icobadge">'+pick.icon+'</div></div>'
+      + '<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · '+pick.lead+'</div>'
+      + '<div class="fh-name">'+pick.name+'</div><div class="fh-body">'+pick.body+'</div></div>'
+      + '<button class="f-btn fh-cta" onclick="'+pick.act+'">'+pick.cta+' <span class="fh-cta-arw">→</span></button></div>';
   }
 
   // hand class of an owned base for the 1H-player / 2H-merc gate: 'gear' (armour/shield/helm), 'merc'
@@ -27257,7 +27295,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // what's best for each runeword". Hidden only when the base you own IS already the ideal.
         var _ownIsBest = t.ideal || (t.bestStr && t.bestStr.split(/\s*\/\s*/).some(function(b){ return b.trim().toLowerCase()===String(t.base.base).toLowerCase(); }));
         var _bestHint = (t.bestStr && !_ownIsBest) ? ' <span class="f-atomsub">· 🏆 best base for <b>'+_qArt(t.rw)+'</b>: <b>'+_qArtList(t.bestStr)+'</b>'+(t.bestMeta?' <span style="opacity:.7">('+_fEsc(t.bestMeta)+')</span>':'')+(t.mercOwn?' — you own the <b>2H merc</b> version; the ideal is a <b>1H player</b> weapon':'')+'</span>' : '';
-        atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
+        atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw, artName:t.rw,
         atoms:[ 'Forge <b>'+_qArt(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
@@ -27276,7 +27314,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if(!words.length) return;   // every word for this base skipped → drop the chain
         var topWord=words[0];
         atoms.push('Forge <b>'+_qArt(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
-        atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord});
+        atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord, artName:topWord});
       });
       // crafts → grouped into ~4 gem-titled tiles (Caster/Blood/Safety/Hit Power), Workshop .cw-tile style.
       var craftGroups={}; s.crafts.forEach(function(c){ (craftGroups[c.craft]=craftGroups[c.craft]||[]).push(c); });
@@ -27298,7 +27336,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           } else { btn = a.btn; }
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkip(\''+_fJs(sk)+'\')">✕</button>' : '';
-          H.push('<div class="f-card f-'+a.cls+' f-atom">'+skipBtn+'<div class="f-cardart"><span class="f-atomic-ic">'+a.icon+'</span></div><div class="f-cardbody">'
+          var _atomArt = a.artName ? _rwArt(a.artName) : ('<span class="f-atomic-ic">'+a.icon+'</span>');
+          H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||'')+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'<span class="f-cardart-badge">'+a.icon+'</span></div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
             +'<div class="f-cta">'+btn+'</div></div></div>');
         });
