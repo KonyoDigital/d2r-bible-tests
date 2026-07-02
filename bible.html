@@ -6255,6 +6255,8 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-jseg-now b{color:var(--best,#e8c878)}
 #tab-forge .f-jarrow{color:var(--text-dim,#7a6f55);font-size:13px}
 #tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
+#tab-forge .f-rwbig{font-size:1.13em;font-weight:800;letter-spacing:.2px}
+#tab-forge .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
@@ -27310,7 +27312,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _ownIsBest = t.ideal || (t.bestStr && t.bestStr.split(/\s*\/\s*/).some(function(b){ return b.trim().toLowerCase()===String(t.base.base).toLowerCase(); }));
         var _bestHint = (t.bestStr && !_ownIsBest) ? ' <span class="f-atomsub">· 🏆 best base for <b>'+_qArt(t.rw)+'</b>: <b>'+_qArtList(t.bestStr)+'</b>'+(t.bestMeta?' <span style="opacity:.7">('+_fEsc(t.bestMeta)+')</span>':'')+(t.mercOwn?' — you own the <b>2H merc</b> version; the ideal is a <b>1H player</b> weapon':'')+'</span>' : '';
         atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw, artName:t.rw,
-        atoms:[ 'Forge <b>'+_qArt(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
+        atoms:[ 'Forge <b class="f-rwbig">'+_qArt(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
