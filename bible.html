@@ -6067,6 +6067,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <style>
 #tab-forge .forge-head{margin:2px 0 4px}
 #tab-forge .forge-title{font-size:42px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878);line-height:1.1}
+/* v552 — Chronicle progress meter */
+#tab-forge .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
+#tab-forge .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+#tab-forge .fp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#5fc97a,#8fe6a0);box-shadow:0 0 10px -1px rgba(95,201,122,.6);transition:width .6s cubic-bezier(.3,.9,.4,1)}
+#tab-forge .fp-lbl{flex:0 0 auto;font-size:12.5px;font-weight:700;color:var(--text-dim,#b6a888);white-space:nowrap}
+#tab-forge .fp-lbl b{color:#8fe6a0;font-size:14px}
+#tab-forge .fp-pct{margin-left:9px;font-size:11px;font-weight:800;color:#8fe6a0;background:rgba(95,201,122,.12);padding:1px 8px;border-radius:8px}
 #tab-forge .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
 #tab-forge .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
@@ -27236,6 +27243,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var skip=_skipSet();   // v532 — computed once so the restore bar shows on EVERY sub-tab, not just Make now
     H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
+    // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
+    try {
+      var _rwTotal=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100;
+      var _rwMadeN=_madeRw().length, _rwPct=_rwTotal?Math.round(_rwMadeN/_rwTotal*100):0;
+      H.push('<div class="forge-progress" title="'+_rwMadeN+' of '+_rwTotal+' runewords forged"><div class="fp-track"><div class="fp-fill" style="width:'+_rwPct+'%"></div></div>'
+        +'<div class="fp-lbl">📜 <b>'+_rwMadeN+'</b> / '+_rwTotal+' forged<span class="fp-pct">'+_rwPct+'%</span></div></div>');
+    } catch(e){}
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
     var tab=function(key,emoji,label,cls,n){
       return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="window.forgeSetFilter(\''+key+'\')" title="show only '+label+'">'
