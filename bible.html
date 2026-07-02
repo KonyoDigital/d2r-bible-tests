@@ -27276,7 +27276,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.forgeScan=forgeScan;
   window.renderForge=renderForge;
   try { window._ownedBases=_ownedBases; } catch(e){}   // v545 — debug/spec hook for the tagged-base parser
-  try { window._baseTier=function(b){ return (typeof BASE_DB!=='undefined'&&BASE_DB[b])?(BASE_DB[b].tier||''):''; }; } catch(e){}  // v546 — tier lookup for Smart Insights farm-where
+  // v546.1 — do NOT re-expose _baseTier here: the canonical window._baseTier already exists (defined ~L8022; it
+  // quality-strips + uses _baseRec, so it resolves Superior/unique bases correctly). An earlier v546 override
+  // clobbered it with a BASE_DB-only version and broke v380/v450. Smart Insights' _baseFarmWhere uses the good one.
 })();
 </script>
 <script>
