@@ -81,6 +81,33 @@ test('the gamble step renders in the Pipeline card (recipe + re-roll wording, no
   expect(r.recipe).toBe(true);
 });
 
+test('"go get a base" one-step: when the base overshoots (Larzuk max > word count) it shows find-drop/gamble, NOT "Larzuk → Nos"', async ({ page }) => {
+  // Lionheart = 3os body armor; the meta base (Archon Plate, max 4) Larzuks to 4, not 3. So the card must NOT
+  // claim "Larzuk → 3os" — it should say find a 3os drop or cube-gamble. A CLEAN word (Insight, 4os on a 4os-max
+  // Colossus Voulge) keeps the plain "Larzuk → 4os". Runes in hand, no base owned → both are base one-steps.
+  await page.addInitScript(() => {
+    const RUNES = 'El Eld Tir Nef Eth Ith Tal Ral Ort Thul Amn Sol Shael Dol Hel Io Lum Ko Fal Lem Pul Um Mal Ist Gul Vex Ohm Lo Sur Ber Jah Cham Zod'.split(' ');
+    const stash: any = {}; RUNES.forEach((r) => (stash[r] = 5));
+    localStorage.setItem('d2r_owned', JSON.stringify([]));
+    localStorage.setItem('d2r_runeStash', JSON.stringify(stash));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    w.switchTab('forge'); w.forgeSetFilter('onestep'); w.renderForge();
+    const cards = [...document.querySelectorAll('#tab-forge .f-card')];
+    const cardFor = (rw: string) => (cards.find((c) => new RegExp(rw).test(c.textContent || ''))?.textContent || '').replace(/\s+/g, ' ');
+    return { lion: cardFor('Lionheart'), insight: cardFor('Insight') };
+  });
+  // Lionheart (3os, Archon Plate max 4) — overshoot → gamble wording, no bare "Larzuk → 3os"
+  expect(r.lion).toMatch(/cube-gamble for 3|find a 3os drop/i);
+  expect(r.lion).not.toMatch(/Larzuk → 3os/);
+  // Insight (4os on 4os-max base) — clean → keeps the plain Larzuk step
+  if (r.insight) expect(r.insight).toMatch(/Larzuk → 4os/);
+});
+
 test('untagged white bases do NOT get a gamble task (scoped to tagged bases only)', async ({ page }) => {
   // A plain "Crystal Sword (Larzuk base)" (6os max) is NOT tagged for any word → for a 4os word it stays a
   // "go get the right base" one-step, never a gamble. Only tagged owned bases gamble.

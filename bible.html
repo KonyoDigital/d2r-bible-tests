@@ -27130,7 +27130,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
         if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
         else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
-        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips); if(need){ segs.push('🔩 Larzuk → '+need+'os'); } segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
+        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips);
+          if(need){
+            // v545 — SOCKET STEP. Larzuk always gives a base's MAX. If that max === the word's count, Larzuk is clean.
+            // If the max OVERSHOOTS (e.g. a Flail/Archon Plate maxes at 5/4 but the word needs 4/3), Larzuk can't hit
+            // it — you either find a natural drop already at the right count, or cube-socket and gamble for it. Same
+            // logic as the owned cube-gamble pipeline task, applied to the "go get a base" step.
+            var _fb=(bases[0]||'').trim(); var _fbmax=_fb?(parseInt(_socketMaxFor(_fb),10)||0):0;
+            if(_fbmax && _fbmax>need) segs.push('🎲 find a <b>'+need+'os</b> drop, or cube-gamble for '+need+' <span class="f-atomsub">(Larzuk gives its max '+_fbmax+'os — too many)</span>');
+            else segs.push('🔩 Larzuk → '+need+'os');
+          }
+          segs.push('⚒ Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b>'); note=(t.bestMeta?_fEsc(t.bestMeta)+' · ':'')+'runes in hand'; }
         var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
         var _osBase=String(t.bestStr||'').split(/\s*\/\s*/)[0].trim();   // the FIRST recommended base — what this card actually tells you to get (1H-correct), NOT RW_BEST_BASE (which can be a 2H best-damage base)
         H.push('<div class="f-card f-step"><div class="f-cardart" data-arttip="'+_fEsc(_osBase||t.rw)+'">'+((_osBase && typeof _fArt==='function' && _fArt(_osBase))?'<img class="f-art" src="'+_fEsc(_fArt(_osBase))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
