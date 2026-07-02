@@ -26589,14 +26589,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var out=[];
     try { Array.from(owned).forEach(function(n){
       var e=(window.EXTRA_ITEMS&&EXTRA_ITEMS[n])||null;
-      if (e && e.cat==='Socketed bases') out.push({
+      if (e && e.cat==='Socketed bases'){ out.push({
         name:n, base:e.base||n,
         sockets:(typeof e.sockets==='number')?e.sockets:0,
         max:(typeof _socketMaxFor==='function')?(parseInt(_socketMaxFor(e.base||n),10)||0):0,
         eth:(typeof window._isEthereal==='function')?!!window._isEthereal(n):false,
         sup:(typeof window._isSuperior==='function')?!!window._isSuperior(n):false,
         count:(typeof copyCount==='function')?copyCount(n):1
-      });
+      }); return; }
+      // v545 — a base TAGGED for a runeword, e.g. "Flail (Heart of the Oak base)" — an owned UNSOCKETED white base
+      // the user is keeping to make that word. Recognise it (was invisible → the word wrongly read "go get a base").
+      var m=String(n).match(/^(.+?)\s*\(([^()]+?)\s+base\)\s*$/i);
+      if (m && !/^larzuk$/i.test(m[2].trim())){
+        var baseName=m[1].trim(), tag=m[2].trim();
+        var mx=(typeof _socketMaxFor==='function')?(parseInt(_socketMaxFor(baseName),10)||0):0;
+        var isBase=mx>0 || (typeof _baseCats==='function' && Object.keys(_baseCats(baseName)||{}).length>0);
+        if (isBase){ var rw=(typeof findRuneword==='function')?(findRuneword(tag)||''):'';
+          out.push({ name:n, base:baseName, sockets:0, max:mx,
+            eth:(typeof window._isEthereal==='function')?!!window._isEthereal(n):false,
+            sup:(typeof window._isSuperior==='function')?!!window._isSuperior(n):false,
+            count:(typeof copyCount==='function')?copyCount(n):1, taggedRw:rw }); }
+      }
     }); } catch(e){}
     return out;
   }
@@ -26616,6 +26629,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (cur > 0) return null;
     if (mx && need === mx) return 'larzuk';
     return null;
+  }
+  // v545 — cube-socket recipe by base slot (Ral+Amn+P.gem = a RANDOM 1→max sockets). Used only for the cube-socket
+  // GAMBLE step on an owned, tagged, unsocketed base whose max overshoots the word (Larzuk can't hit the count).
+  function _cubeGambleRecipe(base){
+    var c={}; try { c=(typeof _baseCats==='function')?(_baseCats(base)||{}):{}; } catch(e){}
+    if (c['body armor']||c['armor']) return 'Tal + Thul + Perfect Topaz';
+    if (c['shield']) return 'Tal + Amn + Perfect Ruby';
+    if (c['helm']) return 'Ral + Thul + Perfect Sapphire';
+    return 'Ral + Amn + Perfect Amethyst';   // weapon (default)
   }
 
   // hand class of an owned base for the 1H-player / 2H-merc gate: 'gear' (armour/shield/helm), 'merc'
@@ -26671,15 +26693,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var runesNow=canMakeNow(req);
         var runesCube=!runesNow && (typeof canMakeWithCubing==='function') && canMakeWithCubing(req);
         var rule=_socketRule(b.sockets, need, b.max);
-        if (!rule) return;                              // SAFEGUARD: not a legitimate path for this base → auto-cancelled
+        // v545 — CUBE-SOCKET GAMBLE: a base you OWN + TAGGED for THIS word (e.g. "Flail (Heart of the Oak base)"),
+        // unsocketed, whose MAX overshoots the word's count (Larzuk can't hit it). Larzuk is out, but the cube
+        // socket recipe (Ral+Amn+P.gem = random 1→max) CAN land it — so offer it as a gamble instead of dropping
+        // the owned base to a "go get a base" one-step. Scoped to TAGGED bases only (b.taggedRw===name) so it never
+        // floods untagged white bases with gamble tasks. (Untagged bases keep the strict Larzuk-clean rule.)
+        var _cubeGamble = (!rule && b.sockets===0 && b.taggedRw===name && b.max && need>0 && need<b.max);
+        if (!rule && !_cubeGamble) return;              // SAFEGUARD: not a legitimate path for this base → auto-cancelled
         var t=null;
         if (rule==='have'){                             // base already has EXACTLY the needed sockets
           if (runesNow){ t={kind:'now', rw:name, base:b, need:need, req:req}; (_nowCands[name]=_nowCands[name]||[]).push(b); }
           else if (runesCube) t={kind:'onestep', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
           else t={kind:'onestep', sub:'runes', rw:name, base:b, need:need, req:req, missing:_missing(req)};
-        } else {                                        // 'larzuk' — unsocketed base whose MAX === need
-          if (runesNow) t={kind:'pipeline', rw:name, base:b, need:need, req:req};
-          else if (runesCube) t={kind:'pipeline', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req)};
+        } else {                                        // 'larzuk' (max===need) OR a cube-socket gamble (tagged, need<max)
+          if (runesNow) t={kind:'pipeline', rw:name, base:b, need:need, req:req, cubeGamble:_cubeGamble};
+          else if (runesCube) t={kind:'pipeline', sub:'cube', rw:name, base:b, need:need, req:req, missing:_missing(req), cubeGamble:_cubeGamble};
           // no runes + needs socket = 2 gaps → skip (lives in the Vault's Socketed Review)
           if (t && t.kind==='pipeline') (_pipeCands[name]=_pipeCands[name]||[]).push(b);   // v536 — every owned Larzuk base that can host it (spread allocation below)
         }
@@ -26761,7 +26789,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (!spare) spare=c;                    // else a base you own MORE than one of (copies to spare)
       }
       var chosen=pick||spare;
-      if (chosen){ t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1; }
+      if (chosen){ t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1;
+        // v545 — recompute the cube-gamble flag against the ACTUAL chosen base (a clean Larzuk base has max===need
+        // → false; a tagged unsocketed base whose max overshoots the count → true). Keeps flag ↔ base in sync even
+        // when byRw picked a different candidate than the spread allocator lands on.
+        t.cubeGamble = (chosen.sockets===0 && chosen.max && t.need>0 && t.need < chosen.max);
+      }
     });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
@@ -26916,7 +26949,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     s.pipeline.forEach(function(t){
       var steps=[], target=t.base.base;
-      steps.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
+      if (t.cubeGamble) steps.push('🎲 Cube-socket your <b>'+_fEsc(target)+'</b> — random 1–'+t.base.max+' sockets; re-roll until it hits <b>'+t.need+'os</b> (Larzuk overshoots to '+t.base.max+')');
+      else steps.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
       steps.push((t.sub==='cube'?'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge ':'Forge ')+'<b>'+_fEsc(t.rw)+'</b>');
       items.push({kind:'pipe', cta:t.rw, steps:steps});
     });
@@ -27012,7 +27046,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       Object.keys(byBase).forEach(function(bn){
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], target=t0.base.base, atoms=[];
-        atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qName(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
+        if (t0.cubeGamble){
+          atoms.push('🎲 Cube-socket your <b>'+_qName(target)+'</b> — random 1–'+t0.base.max+' sockets <span class="f-atomsub">gamble for '+t0.need+'os · Larzuk overshoots to '+t0.base.max+' · re-roll the cube until it hits '+t0.need+'</span>');
+        } else {
+          atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qName(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
+        }
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
@@ -27069,7 +27107,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // Pipeline = you own the socket-correct base; Larzuk it to max, then forge. (No cube-upgrade path exists —
         // white/normal/superior bases can't be tier-upgraded; the base you own already has the right max.)
         var target=t.base.base, n=1, steps='';
-        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+        if (t.cubeGamble){
+          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> 🎲 <b>Cube-socket</b> your <b>'+_qName(target)+'</b> — <span class="f-cube">'+_cubeGambleRecipe(target)+'</span> gives a <b>random 1–'+t.base.max+'</b> sockets. Larzuk would overshoot to '+t.base.max+', so <b>re-roll the cube until it lands '+t.need+'os</b> (a gamble — each try consumes the base + a Perfect gem, so keep spares).</div>';
+        } else {
+          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+        }
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qName(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
@@ -27143,6 +27185,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   window.forgeScan=forgeScan;
   window.renderForge=renderForge;
+  try { window._ownedBases=_ownedBases; } catch(e){}   // v545 — debug/spec hook for the tagged-base parser
 })();
 </script>
 <script>
