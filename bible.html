@@ -44,6 +44,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 @media(max-width:640px){.gsearch-input{font-size:12px}.gsearch-cat{display:none}.gsearch-wrap{margin:6px auto 2px}}
 
 .tab{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;transition:all .15s;white-space:nowrap}
+/* v551 — HD-art nav icons on tabs + compass chips */
+.tabs .tab img.tab-ic-img,.tabs .tab img.tab-hdico{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:5px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55))}
+.tabs .tab .tab-lbl{vertical-align:middle}
+.nav-chip img.nav-ic{width:21px;height:21px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
 .tab:hover{background:var(--surface-2);color:var(--text)}
 .tab.active{background:var(--gold);color:#1a1208;border-color:var(--gold)}
 .container{max-width:1500px;margin:0 auto;padding:18px 14px 60px}
@@ -19527,21 +19531,49 @@ document.querySelectorAll(".filter-pill").forEach(p => {
 });
 document.querySelectorAll(".tab").forEach(t => { t.onclick = () => navClean(t.dataset.tab); });
 
+// v551 — HD-ART NAV ICONS. Shiny in-game sprites replace the flat emoji on BOTH the main tabs AND the compass
+// navigator (Konyo: "fancy HD art replicating the title name"). Centralised map → swap any single icon in one place.
+// Each <img> keeps its original emoji in data-emoji and falls back to it if the art 404s, so the nav never breaks.
+var TAB_ICON = {
+  main:'logo_scroll.png', bosses:'hd_perfect_skull.png', calc:'hd_perfect_diamond.png',
+  tz:'essenceterror_graphic.png', tztracker:'d2io_infernalsign.png', runes:'hd_ber_rune.png',
+  rotw:'harlequincrest_graphic.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
+  binds:'mr_annihilus.png', ref:'hd_grimoire.png', tools:'horadric_cube_graphic.png', forge:'base_warhammer.png'
+};
+window._tabIcoFail = function(img){ try { var e=img.getAttribute('data-emoji')||'•'; var s=document.createElement('span'); s.className=(img.className||'').replace(/\btab-hdico\b/,'').trim(); s.textContent=e; img.replaceWith(s); } catch(err){} };
+function _tabIcoImg(tab, emoji, cls){
+  var f=TAB_ICON[tab];
+  if(!f) return '<span class="'+(cls||'')+'">'+(emoji||'•')+'</span>';
+  return '<img class="'+(cls||'')+' tab-hdico" src="art/'+f+'" alt="" loading="lazy" data-emoji="'+(emoji||'•')+'" onerror="window._tabIcoFail&&window._tabIcoFail(this)">';
+}
+function applyTabIcons(){
+  document.querySelectorAll('.tabs .tab').forEach(function(t){
+    var tab=t.dataset.tab; if(!TAB_ICON[tab]) return;
+    if(t.querySelector('img.tab-hdico')) return;   // idempotent
+    var parts=(t.textContent||'').trim().split(/\s+/);
+    var emoji=parts[0]||'•', label=parts.slice(1).join(' ')||tab;
+    t.dataset.emoji=emoji; t.dataset.label=label;
+    t.innerHTML=_tabIcoImg(tab, emoji, 'tab-ic-img')+'<span class="tab-lbl">'+label+'</span>';
+  });
+}
+window.applyTabIcons=applyTabIcons;
 // === v59: floating navigation compass widget ===
 // Persistent maneuvering control (bottom-right) so any tab / back-to-top is one
 // tap away regardless of scroll depth — no scrolling back up to the sticky tab bar.
 function buildNavWidget() {
   if (document.getElementById("nav-widget")) return;
+  try { applyTabIcons(); } catch(e){}   // v551 — HD icons on the main tabs before we read them for the compass
   const tabs = [...document.querySelectorAll(".tabs .tab")].map(t => {
-    const parts = (t.textContent || "").trim().split(/\s+/);
-    return { tab: t.dataset.tab, ic: parts[0] || "•", label: parts.slice(1).join(" ") || t.dataset.tab };
+    const emoji = t.dataset.emoji || (t.textContent || "").trim().split(/\s+/)[0] || "•";
+    const label = t.dataset.label || (t.textContent || "").trim().split(/\s+/).slice(1).join(" ") || t.dataset.tab;
+    return { tab: t.dataset.tab, ic: emoji, label };
   });
   const w = document.createElement("div");
   w.className = "nav-widget";
   w.id = "nav-widget";
   const chips = tabs.map(t =>
     `<div class="nav-chip" role="button" tabindex="0" data-nav="${t.tab}" onclick="navTo('${t.tab}')">`
-    + `<span class="nav-ic">${t.ic}</span><span>${t.label}</span></div>`).join("");
+    + `${_tabIcoImg(t.tab, t.ic, "nav-ic")}<span>${t.label}</span></div>`).join("");
   w.innerHTML =
     `<div class="nav-panel" id="nav-panel">`
     + `<div class="nav-panel-title">Navigate</div>`
