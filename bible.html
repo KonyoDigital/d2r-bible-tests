@@ -6245,6 +6245,9 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
+/* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
+#tab-forge .f-artname{white-space:nowrap}
+#tab-forge .f-artname img,#tab-forge .f-cardtitle img{vertical-align:middle;width:18px;height:18px;object-fit:contain;margin-right:3px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
 #tab-forge .f-atomprog{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
 #tab-forge .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
 #tab-forge .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
@@ -17798,6 +17801,8 @@ window.dailyCreateAi = function(force){
     tools.insertAdjacentHTML('afterbegin', html);   // v335: AI helper rides at the TOP of Tools, above the Vault
     // v336: the "Your personal planners" intro banner moves to the BOTTOM of the Tools tab.
     try { var _lead=tools.querySelector(':scope > .lead'); if(_lead) tools.appendChild(_lead); } catch(e){}
+    // v550 — Quick-upload bar rides ABOVE the AI helper (Konyo: first thing on the tab, right under the nav).
+    try { var _qu=document.getElementById('tools-quickup'); var _ai=document.getElementById('ask-bible-card'); if(_qu && _ai) tools.insertBefore(_qu, _ai); } catch(e){}
     var st=document.createElement('style'); st.textContent=
       '.ask-chip-scan{color:#06121c!important;background:linear-gradient(180deg,#9fdcff,#5fb4e8)!important;border-color:#bfe6ff!important;font-weight:800}'
       +'.ask-chip-scan:hover{filter:brightness(1.07)}'
@@ -26513,6 +26518,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // ingame for each individual item reference" — so every forge card title / base chip uses it.
   function _qC(n){ try { return (typeof _qHex==='function') ? (_qHex(n)||'') : ''; } catch(e){ return ''; } }
   function _qName(n){ var c=_qC(n); return c ? '<span style="color:'+c+'">'+_fEsc(n)+'</span>' : _fEsc(n); }
+  // v550 — name + INLINE HD art logo + floating HD-art hover tooltip (data-arttip), so every runeword & base name
+  // in the Forge shows exactly what to hunt for in-game. Konyo: "so I know what I'm searching for and how it looks
+  // exactly — it helps accuracy." Reuses the app-wide nameLogo() + #arttip system already active everywhere.
+  function _qArt(n){
+    if (!n) return '';
+    var c=_qC(n), logo='';
+    try { if (typeof window.nameLogo==='function') logo=window.nameLogo(n); } catch(e){}
+    var body = c ? '<span style="color:'+c+'">'+_fEsc(n)+'</span>' : _fEsc(n);
+    return '<span class="f-artname" data-arttip="'+_fEsc(n)+'" style="cursor:help">'+logo+body+'</span>';
+  }
+  // art-ify a "A / B / C" base list (the 🏆 best-base hints) — each base gets its own logo + hover art
+  function _qArtList(s){ return String(s||'').split(/\s*\/\s*/).map(function(b){ b=b.trim(); return b?_qArt(b):''; }).filter(Boolean).join(' <span style="opacity:.5">/</span> '); }
   // v519 — role badges on a base option (Konyo: "say what's ideal, what's MERCenary gear, what's end-game"):
   //   ★ ideal (the top recommended pick) · 1H = your player weapon · merc = a 2H polearm/spear/bow (merc gear)
   //   · caster = staff · ◆ endgame = elite-tier base (found as a white drop, NOT upgraded to). From _baseHandClass + BASE_DB tier.
@@ -27118,18 +27135,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     s.pipeline.forEach(function(t){
       var steps=[], target=t.base.base;
-      if (t.cubeGamble) steps.push('🎲 Cube-socket your <b>'+_fEsc(target)+'</b> — random 1–'+t.base.max+' sockets; re-roll until it hits <b>'+t.need+'os</b> (Larzuk overshoots to '+t.base.max+')');
-      else steps.push('Larzuk-socket your <b>'+_fEsc(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
-      steps.push((t.sub==='cube'?'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge ':'Forge ')+'<b>'+_fEsc(t.rw)+'</b>');
+      if (t.cubeGamble) steps.push('🎲 Cube-socket your <b>'+_qArt(target)+'</b> — random 1–'+t.base.max+' sockets; re-roll until it hits <b>'+t.need+'os</b> (Larzuk overshoots to '+t.base.max+')');
+      else steps.push('Larzuk-socket your <b>'+_qArt(target)+'</b> → <b>'+t.need+'os</b> (guaranteed max)');
+      steps.push((t.sub==='cube'?'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge ':'Forge ')+'<b>'+_qArt(t.rw)+'</b>');
       items.push({kind:'pipe', cta:t.rw, steps:steps});
     });
     s.crafts.slice(0,4).forEach(function(c){
-      items.push({kind:'craft', steps:['Craft a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> — you hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>; buy a magic '+_fEsc(c.base)+' from a vendor + add a jewel.']});
+      items.push({kind:'craft', steps:['Craft a <b>'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b> — you hold <b>'+_fEsc(c.gem)+'</b> + <b>'+_fEsc(c.rune)+'</b>; buy a magic '+_qArt(c.base)+' from a vendor + add a jewel.']});
     });
     s.onestep.slice(0,3).forEach(function(t){
-      var txt = t.sub==='base' ? 'Get a <b>'+_fEsc(t.bestStr||t.baseReq)+'</b> base for <b>'+_fEsc(t.rw)+'</b> — runes already in hand'
-              : t.sub==='cube' ? 'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge <b>'+_fEsc(t.rw)+'</b>'
-              : 'Get <b>'+_fEsc((t.missing||[]).join(', '))+'</b> for <b>'+_fEsc(t.rw)+'</b>';
+      var txt = t.sub==='base' ? 'Get a <b>'+_qArtList(t.bestStr||t.baseReq)+'</b> base for <b>'+_qArt(t.rw)+'</b> — runes already in hand'
+              : t.sub==='cube' ? 'Cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b>, then forge <b>'+_qArt(t.rw)+'</b>'
+              : 'Get <b>'+_fEsc((t.missing||[]).join(', '))+'</b> for <b>'+_qArt(t.rw)+'</b>';
       items.push({kind:'step', cta:t.rw, steps:[txt]});
     });
     return items;
@@ -27207,9 +27224,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // ideal base (a 1H PLAYER weapon for merc-owned words, or the best armor base) — Konyo: "we had ideal /
         // what's best for each runeword". Hidden only when the base you own IS already the ideal.
         var _ownIsBest = t.ideal || (t.bestStr && t.bestStr.split(/\s*\/\s*/).some(function(b){ return b.trim().toLowerCase()===String(t.base.base).toLowerCase(); }));
-        var _bestHint = (t.bestStr && !_ownIsBest) ? ' <span class="f-atomsub">· 🏆 best base for <b>'+_fEsc(t.rw)+'</b>: <b>'+_fEsc(t.bestStr)+'</b>'+(t.bestMeta?' <span style="opacity:.7">('+_fEsc(t.bestMeta)+')</span>':'')+(t.mercOwn?' — you own the <b>2H merc</b> version; the ideal is a <b>1H player</b> weapon':'')+'</span>' : '';
+        var _bestHint = (t.bestStr && !_ownIsBest) ? ' <span class="f-atomsub">· 🏆 best base for <b>'+_qArt(t.rw)+'</b>: <b>'+_qArtList(t.bestStr)+'</b>'+(t.bestMeta?' <span style="opacity:.7">('+_fEsc(t.bestMeta)+')</span>':'')+(t.mercOwn?' — you own the <b>2H merc</b> version; the ideal is a <b>1H player</b> weapon':'')+'</span>' : '';
         atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw,
-        atoms:[ 'Forge <b style="color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qName(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
+        atoms:[ 'Forge <b>'+_qArt(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
@@ -27218,15 +27235,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], target=t0.base.base, atoms=[];
         if (t0.cubeGamble){
-          atoms.push('🎲 Cube-socket your <b>'+_qName(target)+'</b> — random 1–'+t0.base.max+' sockets <span class="f-atomsub">gamble for '+t0.need+'os · Larzuk overshoots to '+t0.base.max+' · re-roll the cube until it hits '+t0.need+'</span>');
+          atoms.push('🎲 Cube-socket your <b>'+_qArt(target)+'</b> — random 1–'+t0.base.max+' sockets <span class="f-atomsub">gamble for '+t0.need+'os · Larzuk overshoots to '+t0.base.max+' · re-roll the cube until it hits '+t0.need+'</span>');
         } else {
-          atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qName(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
+          atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qArt(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
         }
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
         var topWord=words[0];
-        atoms.push('Forge <b style="color:'+(_qC(topWord)||'')+'">'+_fEsc(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
+        atoms.push('Forge <b>'+_qArt(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord});
       });
       // crafts → grouped into ~4 gem-titled tiles (Caster/Blood/Safety/Hit Power), Workshop .cw-tile style.
@@ -27279,13 +27296,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // white/normal/superior bases can't be tier-upgraded; the base you own already has the right max.)
         var target=t.base.base, n=1, steps='';
         if (t.cubeGamble){
-          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> 🎲 <b>Cube-socket</b> your <b>'+_qName(target)+'</b> — <span class="f-cube">'+_cubeGambleRecipe(target)+'</span> gives a <b>random 1–'+t.base.max+'</b> sockets. Larzuk would overshoot to '+t.base.max+', so <b>re-roll the cube until it lands '+t.need+'os</b>. '+_gambleAfford(target, t.need, t.base.max)+'</div>';
+          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> 🎲 <b>Cube-socket</b> your <b>'+_qArt(target)+'</b> — <span class="f-cube">'+_cubeGambleRecipe(target)+'</span> gives a <b>random 1–'+t.base.max+'</b> sockets. Larzuk would overshoot to '+t.base.max+', so <b>re-roll the cube until it lands '+t.need+'os</b>. '+_gambleAfford(target, t.need, t.base.max)+'</div>';
         } else {
-          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qName(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qArt(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
         }
-        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qName(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
+        steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qArt(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
+          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
           +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
@@ -27315,7 +27332,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var journey=segs.map(function(sg,i){ return '<span class="f-jseg'+(i===0?' f-jseg-now':'')+'">'+sg+'</span>'; }).join('<span class="f-jarrow">→</span>');
         var _osBase=String(t.bestStr||'').split(/\s*\/\s*/)[0].trim();   // the FIRST recommended base — what this card actually tells you to get (1H-correct), NOT RW_BEST_BASE (which can be a 2H best-damage base)
         H.push('<div class="f-card f-step"><div class="f-cardart" data-arttip="'+_fEsc(_osBase||t.rw)+'">'+((_osBase && typeof _fArt==='function' && _fArt(_osBase))?'<img class="f-art" src="'+_fEsc(_fArt(_osBase))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
+          +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
           +'<div class="f-journey">'+journey+'</div>'
           +'<div class="f-getsub">'+note+' · <b>'+segs.length+' step'+(segs.length>1?'s':'')+' to go</b></div>'
           +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
