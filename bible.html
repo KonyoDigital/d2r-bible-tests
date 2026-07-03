@@ -27715,9 +27715,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); return L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; }); }
   function _ownedNames(){ try { return new Set(JSON.parse(localStorage.getItem('d2r_owned')||'[]')); } catch(e){ return new Set(); } }
   function _bestSrc(it){
-    var best=null;
-    (it.sources||[]).forEach(function(s){ if(!s||s.blocked||s.chance==null) return; var rate=(s.kph||30)/s.chance; if(!best||rate>best._r){ s._r=rate; best=s; } });
-    return best;
+    var best=null, bestR=-1;
+    (it.sources||[]).forEach(function(s){ if(!s||s.blocked||s.chance==null) return; var rate=(s.kph||30)/s.chance; if(rate>bestR){ bestR=rate; best=s; } });
+    return best && { s:best, rate:bestR };
   }
   window.funiScan=function(){
     var own=_ownedNames(), items=_uniItems();
@@ -27725,10 +27725,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     items.forEach(function(x){ if(own.has(x.n)) found++; else missing.push(x); });
     var bySrc={};
     missing.forEach(function(x){
-      var b=_bestSrc(x); var key=b?b.boss:'Anywhere — no verified source yet';
-      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.bossId, items:[]}); g.items.push(x);
+      var b=_bestSrc(x); var key=b?b.s.boss:'Anywhere — no verified source yet';
+      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.s.bossId, items:[], ev:0}); g.items.push(x);
+      if(b){ g.ev+=b.rate; x._bs=b; }   // per-run expected missing-unique drops per HOUR (Σ kph/chance) — the true farm metric
     });
-    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return b.items.length-a.items.length || String(a.boss).localeCompare(String(b.boss)); });
+    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return b.ev-a.ev || b.items.length-a.items.length; });
+    // v559.2 — chips inside a run lead with the most-likely drops (best odds first)
+    runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?a._bs.s.chance:9e9), cb=(b._bs?b._bs.s.chance:9e9); return ca-cb; }); });
     var low=missing.filter(function(x){ return (x.qlvl||99)<=35; }).sort(function(a,b){ return (a.qlvl||0)-(b.qlvl||0); });
     return { total:items.length, found:found, missing:missing, runs:runs, low:low };
   };
@@ -27770,11 +27773,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
     return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd"><span class="f-atomic-ic">🎯</span><span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
-      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques</div>'
+      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+(r.ev>=1?(Math.round(10/r.ev)/10)+'h':Math.round(1/r.ev)+'h')+'</b> of running':'')+'</div>'
       +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
   }
   function _uniItemCard(x){
-    var b=_bestSrc(x);
+    var bb=_bestSrc(x); var b=bb&&bb.s;
     var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(b.chance)+'</span>'+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
              :'<div class="gf-note">no verified source — drops broadly</div>';
     return '<div class="f-card f-step f-atom" data-arttip="'+esc(x.n)+'"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
@@ -27797,7 +27800,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
         +'<div class="fh-artwrap"><div class="fh-art"><span class="f-glyph">🎯</span></div><div class="fh-icobadge">🏆</div></div>'
         +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(top.boss)+'</div>'
-        +'<div class="fh-body">drops <b>'+top.items.length+'</b> of your missing uniques — '+top.items.slice(0,4).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>4?' …':'')+'</div></div>'
+        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+(top.ev>=1?(Math.round(10/top.ev)/10)+'h':Math.round(1/top.ev)+'h')+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
         +'<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
     }
     var show=function(k){ return F==='all'||F===k; };

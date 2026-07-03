@@ -40,6 +40,18 @@ test('Forge·Uniques renders the full shell: meter, 4 KPI tiles, hero, run cards
   expect(r.scan.runs).toBeGreaterThan(10);        // grouped by best source
 });
 
+test('v559.2 — runs are ranked by EXPECTED YIELD per hour (Σ kph/odds), the true farming metric', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const runs = w.funiScan().runs.filter((x: any) => x.ev > 0);
+    let sorted = true;
+    for (let i = 1; i < runs.length; i++) if (runs[i - 1].ev < runs[i].ev - 1e-9) sorted = false;
+    return { sorted, top: runs[0]?.boss, topEv: runs[0]?.ev, n: runs.length };
+  });
+  expect(r.sorted).toBe(true);        // descending expected-drops-per-hour
+  expect(r.topEv).toBeGreaterThan(0);
+});
+
 test('Forge·Sets renders ALL set checklists (34 sets / 135 pieces) with tickable chips', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window; w.switchTab('fsets');
