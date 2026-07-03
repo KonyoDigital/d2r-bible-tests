@@ -66,11 +66,15 @@ test('ticking a runeword the cached "Today\'s pick" names invalidates + re-asks 
     localStorage.setItem('d2r_rwProfile', 'fresh');
     localStorage.setItem('d2r_rwMade', '{}');
     localStorage.setItem('d2r_createNowAi', "Today's pick: Make Enigma (Jah + Ith + Ber) — best in the game.");
-    localStorage.setItem('d2r_createNowAiDate', '2026-07-03');
+    localStorage.setItem('d2r_createNowAiDate', new Date().toISOString().slice(0, 10));
+    localStorage.setItem('d2r_createNowAiV', '2');   // current pick-logic version → the load-time auto-run stays idle (no real API call clobbering the staged cache)
   });
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w: any = window;
+    // re-stage in case the load-time run touched anything
+    localStorage.setItem('d2r_createNowAi', "Today's pick: Make Enigma (Jah + Ith + Ber) — best in the game.");
+    localStorage.setItem('d2r_createNowAiDate', new Date().toISOString().slice(0, 10));
     let reasked = false;
     w.dailyCreateAi = function () { reasked = true; };   // stub to avoid a real API call
     w.rwToggleMade('Enigma');                            // make the very word the cached pick recommends
@@ -78,4 +82,32 @@ test('ticking a runeword the cached "Today\'s pick" names invalidates + re-asks 
   });
   expect(r.dateCleared).toBe(true);   // stale daily cache invalidated
   expect(r.reasked).toBe(true);       // …and a fresh pick requested
+});
+
+test('v556 — a pick-logic version bump invalidates a same-day cached pick', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_rwMade', '{}');
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Jah: 2, Ith: 2, Ber: 2 }));
+    localStorage.setItem('d2r_createNowAi', 'OLD-LOGIC pick: Craft a Caster Amulet.');
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('d2r_createNowAiDate', today);   // same-day cache…
+    localStorage.setItem('d2r_createNowAiV', '2');        // idle at load; the mismatch is re-staged inside evaluate
+  });
+  await page.goto(URL); await page.waitForTimeout(1300);
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    // stage a SAME-DAY cache from OLD pick logic, with fetch stubbed BEFORE the call (no real API hit)
+    localStorage.setItem('d2r_createNowAi', 'OLD-LOGIC pick: Craft a Caster Amulet.');
+    localStorage.setItem('d2r_createNowAiDate', new Date().toISOString().slice(0, 10));
+    localStorage.setItem('d2r_createNowAiV', '1');
+    (w as any).__allowDailyAi = true;   // bypass the v556 automation guard — this spec tests the fn itself
+    let asked = false;
+    const origFetch = w.fetch; w.fetch = () => { asked = true; return Promise.resolve({ json: () => Promise.resolve({}) }); };
+    w.dailyCreateAi();                                    // NOT forced — must self-detect the version mismatch
+    w.fetch = origFetch;
+    return { asked, vNow: localStorage.getItem('d2r_createNowAiV') };
+  });
+  expect(r.asked).toBe(true);       // stale-version cache → re-asks despite same-day
+  expect(r.vNow).toBe('2');         // stamped with the current pick-logic version
 });

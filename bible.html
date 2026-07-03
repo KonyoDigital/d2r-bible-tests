@@ -17849,11 +17849,19 @@ window.renderCreateNow = function(){
 };
 // once-a-day (or forced) AI enrichment: name the single best pick, cache it, re-render.
 window.dailyCreateAi = function(force){
+  // v556 — never burn a real Sonnet call from an AUTOMATED run: Playwright/CI page-loads (navigator.webdriver)
+  // were POSTing /api/ask on every rune-seeded spec (cost + flake). A spec testing THIS fn sets __allowDailyAi.
+  try { if (navigator.webdriver && !window.__allowDailyAi) return; } catch(e){}
   var today; try{ today=new Date().toISOString().slice(0,10); }catch(e){ today=''; }
+  // v556 — PICK-LOGIC VERSION stamp. When the pick's question/priority changes (e.g. v555.5 runewords-over-crafts),
+  // a same-day cached blurb from the OLD logic must not survive until tomorrow — bump _PICK_V to auto-invalidate.
+  var _PICK_V='2';
+  try { if(!force && localStorage.getItem('d2r_createNowAiV')!==_PICK_V) force=true; } catch(e){}
   // v555.3 — even within the same day, if the cached pick NAMES a runeword the player has since made (Chronicle),
   // it's stale ("Make Enigma" after Enigma is done) → force a fresh pick that respects the Chronicle.
   try { if(!force){ var _c=localStorage.getItem('d2r_createNowAi')||''; if(_c && typeof rwMade!=='undefined' && rwMade){ for(var _k in rwMade){ if(rwMade[_k] && _k && _c.indexOf(_k)>=0){ force=true; break; } } } } } catch(e){}
   try{ if(!force && localStorage.getItem('d2r_createNowAiDate')===today) return; }catch(e){}
+  try{ localStorage.setItem('d2r_createNowAiV', _PICK_V); }catch(e){}
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
   try{ localStorage.setItem('d2r_createNowAiDate', today); }catch(e){}
   if(!(tp.makeNow.length||tp.afterCubing.length)){ try{ localStorage.removeItem('d2r_createNowAi'); }catch(e){} return; }
