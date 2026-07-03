@@ -6267,6 +6267,39 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-atomsubrow{margin-top:6px;font-size:12px;line-height:1.5;color:var(--text-dim,#9a8c72);border-left:2px solid rgba(255,255,255,.09);padding-left:9px}
 #tab-forge .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
 #tab-forge .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
+/* v558 — MOTION LAYER: living embers, completion celebration, action animations (all reduced-motion-safe) */
+.forge-hero .fh-ember{position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:var(--tonec,#e9d07a);opacity:0;pointer-events:none;filter:blur(.4px);animation:fhEmber 4.2s ease-in infinite}
+.forge-hero .fh-ember:nth-child(1){left:14%;animation-delay:.3s}
+.forge-hero .fh-ember:nth-child(2){left:38%;animation-delay:1.7s;animation-duration:5.1s}
+.forge-hero .fh-ember:nth-child(3){left:63%;animation-delay:2.6s;animation-duration:4.6s}
+.forge-hero .fh-ember:nth-child(4){left:86%;animation-delay:.9s;animation-duration:5.6s}
+@keyframes fhEmber{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:.75}100%{transform:translateY(-74px) scale(.4);opacity:0}}
+.f-card.f-anim-forged{animation:fForged .45s ease forwards;border-color:rgba(95,201,122,.8)!important;overflow:visible}
+@keyframes fForged{0%{transform:scale(1)}28%{transform:scale(1.018);box-shadow:0 0 26px -4px rgba(95,201,122,.7)}100%{transform:scale(.97) translateY(-6px);opacity:0}}
+.f-card.f-anim-skip{animation:fSkipOut .27s ease forwards}
+@keyframes fSkipOut{100%{transform:translateX(46px);opacity:0}}
+.f-card.f-anim-step{animation:fStepDone .24s ease}
+@keyframes fStepDone{40%{transform:scale(1.012);box-shadow:0 0 18px -4px rgba(159,212,255,.55)}}
+.f-spark{position:absolute;top:50%;left:56px;width:5px;height:5px;border-radius:50%;background:#ffe9a0;box-shadow:0 0 6px 1px rgba(255,220,120,.85);pointer-events:none;animation:fSpark .55s ease-out forwards}
+@keyframes fSpark{100%{transform:translate(var(--dx,40px),var(--dy,-50px)) scale(.2);opacity:0}}
+#tab-forge .fp-fill{position:relative;overflow:hidden}
+#tab-forge .fp-fill::after{content:"";position:absolute;top:0;left:-40%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:fpShine 4.6s ease-in-out 1s infinite}
+@keyframes fpShine{0%{left:-40%}30%,100%{left:120%}}
+#tab-forge .fp-track{background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),rgba(255,255,255,.13) calc(25% - 1px),rgba(255,255,255,.13) 25%)}
+#tab-forge .fp-fill.fp-celebrate{animation:fpCelebrate 1.2s ease}
+@keyframes fpCelebrate{0%,100%{filter:brightness(1)}30%{filter:brightness(1.6);box-shadow:0 0 18px 1px rgba(120,230,150,.9)}}
+.forge-toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9500;background:linear-gradient(135deg,#12351d,#0d1f12);border:1px solid rgba(95,201,122,.6);color:#c9f2d4;font-size:14.5px;padding:11px 20px;border-radius:12px;box-shadow:0 6px 26px rgba(0,0,0,.55),0 0 18px -4px rgba(95,201,122,.5);animation:ftIn .4s cubic-bezier(.2,.9,.3,1.3)}
+.forge-toast b{color:#8fe6a0}
+.forge-toast .ft-sub{opacity:.65;font-size:11.5px;margin-left:7px;font-style:italic}
+.forge-toast.out{animation:ftOut .45s ease forwards}
+@keyframes ftIn{0%{transform:translateX(-50%) translateY(18px);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
+@keyframes ftOut{100%{transform:translateX(-50%) translateY(14px);opacity:0}}
+#tab-forge .f-atomrecipe>*{animation:fRecIn .3s ease both}
+#tab-forge .f-atomrecipe>*:nth-child(2){animation-delay:.05s}#tab-forge .f-atomrecipe>*:nth-child(3){animation-delay:.1s}#tab-forge .f-atomrecipe>*:nth-child(4){animation-delay:.15s}#tab-forge .f-atomrecipe>*:nth-child(5){animation-delay:.2s}#tab-forge .f-atomrecipe>*:nth-child(6){animation-delay:.25s}#tab-forge .f-atomrecipe>*:nth-child(7){animation-delay:.3s}
+@keyframes fRecIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){
+  .forge-hero,.forge-hero::after,.forge-hero .fh-ember,#tab-forge .f-card,#tab-forge .fp-fill::after,#tab-forge .f-atomrecipe>*,.forge-hero .fh-artwrap{animation:none!important}
+}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
@@ -26979,6 +27012,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       pick.act += ";setTimeout(function(){var c=document.querySelector('#tab-forge .f-card');if(c)c.scrollIntoView({block:'center',behavior:'smooth'});},180)";
     }
     return '<div class="forge-hero forge-hero-'+pick.tone+'">'
+      + '<span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'   // v558 — living forge embers (decorative, reduced-motion-safe)
       + '<div class="fh-artwrap"><div class="fh-art">'+_heroArt(pick.art, pick.artKind)+'</div><div class="fh-icobadge">'+pick.icon+'</div></div>'
       + '<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · '+pick.lead+'</div>'
       + '<div class="fh-name">'+pick.name+'</div><div class="fh-body">'+pick.body+'</div></div>'
@@ -27175,6 +27209,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // step progress for multi-step chains (persisted): the current atomic step shown in Make Now.
   function _stepGet(k){ try{ return (JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
   function _stepSet(k,v){ try{ var o=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; localStorage.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
+  // v558 — MOTION LAYER (Fable-5 "lively" pass). All action buttons animate the card first, THEN act. Instant
+  // under automation (navigator.webdriver) so specs stay deterministic, and inert under prefers-reduced-motion.
+  function _motionOK(){ try { return !navigator.webdriver && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch(e){ return true; } }
+  function _animThen(el, cls, ms, fn){
+    if (!_motionOK()){ fn(); return; }
+    try {
+      var card = el && el.closest ? el.closest('.f-card') : null;
+      if (!card){ fn(); return; }
+      card.classList.add(cls);
+      if (cls==='f-anim-forged'){ // spark burst on completion
+        for (var i=0;i<7;i++){ var s=document.createElement('span'); s.className='f-spark'; s.style.setProperty('--dx',(Math.random()*140-70)+'px'); s.style.setProperty('--dy',(-30-Math.random()*70)+'px'); s.style.animationDelay=(Math.random()*90)+'ms'; card.appendChild(s); }
+      }
+      setTimeout(fn, ms);
+    } catch(e){ fn(); }
+  }
+  window.forgeDoneAnim=function(el,name){ _animThen(el,'f-anim-forged',430,function(){ if(window.rwToggleMade) window.rwToggleMade(name); }); };
+  window.forgeForgedAnim=function(el,chainKey,word){ _animThen(el,'f-anim-forged',430,function(){ window.forgeForged(chainKey,word); }); };
+  window.forgeSkipAnim=function(el,key){ _animThen(el,'f-anim-skip',260,function(){ window.forgeSkip(key); }); };
+  window.forgeAdvanceAnim=function(el,k,total){ _animThen(el,'f-anim-step',230,function(){ window.forgeAdvance(k,total); }); };
   window.forgeAdvance=function(k,total){ var s=_stepGet(k)+1; _stepSet(k, s>=total?0:s); if(typeof renderForge==='function') renderForge(); };
   // v531 — the FINAL step of a chain is "Forge <word>". Ticking it = the runeword is CREATED: mark it in the
   // Chronicle (so it leaves the Forge for good), reset the chain's step, and re-render. Was calling forgeAdvance
@@ -27401,7 +27454,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         atoms:[ '<div class="f-atomact">Forge <b class="f-rwbig">'+_qArt(t.rw)+'</b> <span class="f-in">in your</span> <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b></div>'
           +'<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(t.rw)+'</div>'
           +((t.mercOwn||_bestHint)?('<div class="f-atomsubrow">'+(t.mercOwn?'<span class="f-atomsub">2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint+'</div>'):'') ],
-        btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
+        btn:'<button class="f-btn f-btn-go" onclick="window.forgeDoneAnim(this,\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
       var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
@@ -27438,13 +27491,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (isLast && a.forgeWordKey){
               // last step = "Forge <word>" → ticking it CREATES the runeword (marks it made, it leaves the list)
               var _fw = a.forgeWordKey.replace(/^rw\|/,'');
-              btn = '<button class="f-btn f-btn-go" onclick="window.forgeForged(\''+a.chainKey+'\',\''+_fJs(_fw)+'\')">✓ forged — done</button>';
+              btn = '<button class="f-btn f-btn-go" onclick="window.forgeForgedAnim(this,\''+a.chainKey+'\',\''+_fJs(_fw)+'\')">✓ forged — done</button>';
             } else {
-              btn = '<button class="f-btn f-btn-go" onclick="window.forgeAdvance(\''+a.chainKey+'\','+total+')">✓ did it → next</button>';
+              btn = '<button class="f-btn f-btn-go" onclick="window.forgeAdvanceAnim(this,\''+a.chainKey+'\','+total+')">✓ did it → next</button>';
             }
           } else { btn = a.btn; }
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
-          var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkip(\''+_fJs(sk)+'\')">✕</button>' : '';
+          var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkipAnim(this,\''+_fJs(sk)+'\')">✕</button>' : '';
           var _atomArt = a.artName ? _rwArt(a.artName) : ('<span class="f-atomic-ic">'+a.icon+'</span>');
           H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||'')+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'<span class="f-cardart-badge">'+a.icon+'</span></div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
@@ -27559,6 +27612,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       while(_lw.firstChild) document.body.appendChild(_lw.firstChild);
     }
     box.innerHTML=H.join('');
+    // v558 — COMPLETION CELEBRATION: when the forged count RISES, pulse the meter fill and pop an "✨ Forged!"
+    // toast with the new N/100 (the dopamine tick for finishing a task). Silent under automation/reduced-motion.
+    try {
+      var _mN=_madeRw().length;
+      if (typeof window.__forgeMadeN==='number' && _mN>window.__forgeMadeN && _motionOK()){
+        var _fill=box.querySelector('.fp-fill'); if(_fill){ _fill.classList.remove('fp-celebrate'); void _fill.offsetWidth; _fill.classList.add('fp-celebrate'); }
+        var _t=document.createElement('div'); _t.className='forge-toast'; _t.innerHTML='✨ <b>Forged!</b> '+_mN+' / '+(typeof RUNEWORD_TIP!=='undefined'?Object.keys(RUNEWORD_TIP).length:100)+' <span class="ft-sub">the Chronicle grows</span>';
+        document.body.appendChild(_t); setTimeout(function(){ _t.classList.add('out'); setTimeout(function(){ _t.remove(); },450); }, 2400);
+      }
+      window.__forgeMadeN=_mN;
+    } catch(e){}
   }
 
   window.forgeScan=forgeScan;
