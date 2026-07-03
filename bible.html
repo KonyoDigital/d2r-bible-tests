@@ -16553,6 +16553,10 @@ window.rwToggleMade = function(name){
   try { _resyncSocketedDescs(); } catch(e){}
   try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
   try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch(e){}
+  // v555 — a Chronicle tick must ALSO refresh the AI-Helper "✨ what you can create now" dashboard + Top Picks
+  // LIVE, so a made runeword (Enigma) drops off immediately without a reload — automatic Chronicle↔create-now sync.
+  try { if (typeof renderCreateNow === 'function') renderCreateNow(); } catch(e){}
+  try { if (typeof renderRuneCraftable === 'function') renderRuneCraftable(); } catch(e){}
   // v531 — a runeword created/un-created must also refresh the FORGE: a "✓ created" tick from the Make-now
   // feed marks it done → it should LEAVE the list and the next task appear immediately (was only refreshing
   // the Chronicle + vault, so the finished task lingered on the Forge until you left and came back).

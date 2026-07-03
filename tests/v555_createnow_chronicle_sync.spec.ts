@@ -27,6 +27,25 @@ test('a fresh profile recommends Enigma; marking it created drops it', async ({ 
   expect(r.after).toBe(false);           // once created → no longer recommended
 });
 
+test('ticking the Chronicle LIVE-refreshes the create-now dashboard (no reload needed)', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_rwMade', '{}');
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Jah: 2, Ith: 2, Ber: 2 }));
+  });
+  await page.goto(URL); await page.waitForTimeout(1300);
+  const called = await page.evaluate(() => {
+    const w: any = window;
+    let hit = false;
+    const orig = w.renderCreateNow;
+    w.renderCreateNow = function () { hit = true; return orig && orig.apply(this, arguments); };
+    w.rwToggleMade('Enigma');           // a Chronicle tick
+    w.renderCreateNow = orig;
+    return hit;
+  });
+  expect(called).toBe(true);   // rwToggleMade re-renders the create-now dashboard automatically
+});
+
 test('the ask snapshot completableNow also excludes an already-made runeword', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('d2r_rwProfile', 'fresh');
