@@ -17860,7 +17860,7 @@ window.dailyCreateAi = function(force){
   var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
-  fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing I can make right now from my Top Picks and why.',snapshot:snap})})
+  fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing to make right now from my Top Picks and why. PRIORITISE an unmade RUNEWORD from snapshot.forge.makeNow — finishing runewords advances my Chronicle (snapshot.chronicle made/100) and a runeword outweighs a craft. Recommend a CRAFT (e.g. a caster amulet) ONLY if I have no makeable unmade runeword left. Once my Chronicle is complete it is naturally all crafts/items.',snapshot:snap})})
     .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ localStorage.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
 };
 (function(){
