@@ -29,16 +29,23 @@ test('the #ask-bible-card injects at the TOP of the Tools tab (above the Vault) 
   const r = await page.evaluate(() => {
     const card = document.getElementById('ask-bible-card');
     const tools = document.getElementById('tab-tools');
+    // v550 — the Quick-upload bar now rides FIRST (Konyo's ask); the AI card sits right below it, still ABOVE the
+    // Vault. So the real invariant is "near the top + above the Vault", not "literally firstElementChild".
+    const kids = [...(tools?.children || [])].map((e) => e.id);
+    const aiIdx = kids.indexOf('ask-bible-card');
+    const vaultIdx = kids.indexOf('mule-vault-card');
     return {
       present: !!card,
-      firstInTools: tools?.firstElementChild?.id === 'ask-bible-card',
+      aboveVault: aiIdx >= 0 && (vaultIdx === -1 || aiIdx < vaultIdx),
+      nearTop: aiIdx >= 0 && aiIdx <= 1,
       hasInput: !!document.getElementById('ask-input'),
       hasScan: !!document.querySelector('#ask-bible-card .ask-chip-scan'),
       chips: document.querySelectorAll('#ask-bible-card .ask-chip').length,
     };
   });
   expect(r.present).toBe(true);
-  expect(r.firstInTools).toBe(true);   // v335: rides above the Vault
+  expect(r.aboveVault).toBe(true);   // v335/v550: rides above the Vault (Quick-upload bar is first)
+  expect(r.nearTop).toBe(true);      // still at the top of Tools
   expect(r.hasInput).toBe(true);
   expect(r.hasScan).toBe(true);        // 🎯 scan button
   expect(r.chips).toBeGreaterThanOrEqual(5);
