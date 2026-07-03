@@ -7803,6 +7803,8 @@ function _baseRunewords(name){
     var s = +m[1], bw = m[2].toLowerCase(), hit = false;
     // scoped weapon phrases first — matched ONLY by the item's specific scope, never by bare "weapon"
     if (/missile weapons?/.test(bw) && cats['missile weapon']) hit = true;
+    // NOTE (v554, reverted): staves & wands ARE "melee weapons" in D2's type tree (only bows/crossbows/throwing are
+    // "missile"), so they correctly host Honor/Eternity/etc. A brief attempt to exclude them was WRONG — Konyo-confirmed.
     if (/melee weapons?/.test(bw) && cats['melee weapon']) hit = true;
     if (/shrunken heads?|voodoo heads?/.test(bw) && cats['voodoo head']) hit = true;  // v386 — necro heads
     // strip the scoped phrases; a leftover bare "weapon(s)" = GENERIC (any weapon)
@@ -17647,6 +17649,17 @@ window.buildAskSnapshot = function(){
   try { snap.tally.craftBasesOwned = nonzero(typeof craftBaseStash!=='undefined'?craftBaseStash:{}); }catch(e){}  // v341: magic bases the player has (by slot) — NOT auto-assumed
   try { snap.owned.count=(typeof owned!=='undefined')?owned.size:0; snap.owned.setPieces=(typeof setPieces!=='undefined')?setPieces.size:0; }catch(e){}
   try { snap.topPicks = window.buildTopPicks(); }catch(e){}  // v335: ranked top-tier opportunities
+  // v554 — SYNC THE AI HELPER WITH THE FORGE. The runewords/crafts above are the older rune-only view; the Forge
+  // (forgeScan) is owned-base-aware. Carry its plan + the Chronicle count so "what should I make/do next" answers
+  // match the flagship instead of over-promising words the player lacks a base for.
+  try { var _fs=(typeof window.forgeScan==='function')?window.forgeScan():null;
+    if(_fs){ snap.forge={
+      makeNow:(_fs.now||[]).filter(function(t){return !t.deferred;}).map(function(t){return t.rw+(t.base?' (in your '+t.base.sockets+'os '+t.base.base+')':'');}),
+      pipeline:(_fs.pipeline||[]).map(function(t){return t.rw+(t.base?' (Larzuk-socket your '+t.base.base+')':'');}),
+      oneStep:(_fs.onestep||[]).slice(0,12).map(function(t){return t.rw+(t.sub==='base'?' (go get: '+(t.bestStr||t.baseReq||'the base')+')':t.sub==='cube'?' (cube runes up)':' (get: '+((t.missing||[]).join(', '))+')');}),
+      counts:_fs.counts }; } }catch(e){}
+  try { var _made=Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n];}).length;
+    snap.chronicle={ made:_made, total:(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100 }; }catch(e){}
   return snap;
 };
 function _askEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
