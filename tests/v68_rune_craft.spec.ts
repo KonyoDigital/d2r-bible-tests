@@ -15,6 +15,9 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 test.describe('v68 rune craft planner + collapse + import', () => {
   test.beforeEach(async ({ page }) => {
     page.on('dialog', (d) => d.accept());
+    // v555 — the create-now planner now hides runewords already in the Chronicle (the owner seed marks Treachery /
+    // Spirit / etc. made). Use a FRESH profile so these tests exercise the pure tally logic with an empty Chronicle.
+    await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', '{}'); });
     await page.goto(URL);
     await page.evaluate(() => { (window as any).uiConfirm = () => Promise.resolve(true); }).catch(() => {});
     await page.evaluate(() => { try { localStorage.removeItem('d2r_runeStash'); } catch (e) {} });
