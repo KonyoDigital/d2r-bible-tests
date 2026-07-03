@@ -17665,7 +17665,8 @@ window.buildAskSnapshot = function(){
   try { var _fs=(typeof window.forgeScan==='function')?window.forgeScan():null;
     if(_fs){ snap.forge={
       makeNow:(_fs.now||[]).filter(function(t){return !t.deferred;}).map(function(t){return t.rw+(t.base?' (in your '+t.base.sockets+'os '+t.base.base+')':'');}),
-      pipeline:(_fs.pipeline||[]).map(function(t){return t.rw+(t.base?' (Larzuk-socket your '+t.base.base+')':'');}),
+      pipeline:(_fs.pipeline||[]).map(function(t){ var b=t.base?t.base.base:''; if(!b) return t.rw;
+        return t.rw+' ('+(t.cubeGamble?'cube-socket GAMBLE your '+b+' for '+t.need+'os — Larzuk overshoots to '+t.base.max:'Larzuk-socket your '+b+' → '+t.need+'os')+')'; }),
       oneStep:(_fs.onestep||[]).slice(0,12).map(function(t){return t.rw+(t.sub==='base'?' (go get: '+(t.bestStr||t.baseReq||'the base')+')':t.sub==='cube'?' (cube runes up)':' (get: '+((t.missing||[]).join(', '))+')');}),
       counts:_fs.counts }; } }catch(e){}
   try { var _made=Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n];}).length;

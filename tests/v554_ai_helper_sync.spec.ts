@@ -34,3 +34,18 @@ test('buildAskSnapshot carries the Forge plan + Chronicle progress', async ({ pa
   expect(r.total).toBe(100);
   expect(r.madeIsNumber).toBe(true);
 });
+
+test('the snapshot labels a cube-gamble pipeline task correctly (not "Larzuk-socket")', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Flail (Heart of the Oak base)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
+    localStorage.setItem('d2r_rwMade', '{}'); localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1400);
+  const hoto = await page.evaluate(() => {
+    const w: any = window; w._ensureSocketBaseEntry('Flail (Heart of the Oak base)');
+    return ((w.buildAskSnapshot().forge?.pipeline) || []).find((s: string) => /Heart of the Oak/.test(s)) || '';
+  });
+  expect(hoto).toMatch(/cube-socket GAMBLE/i);       // Flail overshoots (max 5 > need 4) → gamble, not Larzuk
+  expect(hoto).not.toMatch(/Larzuk-socket your Flail/);
+});
