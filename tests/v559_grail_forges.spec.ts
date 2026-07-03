@@ -52,27 +52,34 @@ test('v559.2 — runs are ranked by EXPECTED YIELD per hour (Σ kph/odds), the t
   expect(r.topEv).toBeGreaterThan(0);
 });
 
-test('Forge·Sets renders ALL set checklists (34 sets / 135 pieces) with tickable chips', async ({ page }) => {
+test('Forge·Sets is PIECE-centric with the F·Uniques logic + IDENTICAL unified sub-tab names', async ({ page }) => {
   const r = await page.evaluate(() => {
-    const w: any = window; w.switchTab('fsets');
+    const w: any = window;
+    w.switchTab('funi');
+    const uniLabels = [...document.querySelectorAll('#funi-body .forge-tabs .ft-lbl')].map((e) => e.textContent);
+    w.switchTab('fsets');
     const b = document.getElementById('fsets-body')!;
+    const setLabels = [...b.querySelectorAll('.forge-tabs .ft-lbl')].map((e) => e.textContent);
     const s = w.fsetsScan();
     return {
       active: document.getElementById('tab-fsets')!.classList.contains('active'),
       meter: !!b.querySelector('.forge-progress'),
-      tiles: b.querySelectorAll('.forge-tabs .forge-tab').length,
-      setCards: b.querySelectorAll('.f-card').length,
+      uniLabels, setLabels,
+      runCards: b.querySelectorAll('.f-card.f-pipe').length,   // run cards, like F·Uniques
       pieceChips: b.querySelectorAll('.gf-piece').length,
       sets: s.sets.length, pieces: s.totalPieces,
+      trackerNote: /Item Set Tracker/.test(b.textContent || ''),
     };
   });
   expect(r.active).toBe(true);
   expect(r.meter).toBe(true);
-  expect(r.tiles).toBe(4);
-  expect(r.sets).toBe(34);   // 32 base+mod +2 restored (Heaven's Brethren, Hwanin's Majesty — v559.1 audit fix)
-  expect(r.pieces).toBeGreaterThan(100);
-  expect(r.setCards).toBeGreaterThanOrEqual(34);
-  expect(r.pieceChips).toBeGreaterThan(100);
+  expect(r.setLabels).toEqual(['All missing', 'Best runs', 'Quick wins', 'Found']);
+  expect(r.setLabels).toEqual(r.uniLabels);       // Konyo: SAME exact sub-tab names — same logic, set or unique
+  expect(r.sets).toBe(34);
+  expect(r.pieces).toBeGreaterThan(130);          // 135 after the v559.1 restoration
+  expect(r.runCards).toBeGreaterThan(2);          // farm-run cards lead, F·Uniques style
+  expect(r.pieceChips).toBeGreaterThan(20);       // pieces are tickable chips inside run cards
+  expect(r.trackerNote).toBe(true);               // checklists stay home in the Item Set Tracker (synced)
 });
 
 test('SYNC — ticking found in Forge·Uniques writes the SAME d2r_owned the Calculator uses', async ({ page }) => {

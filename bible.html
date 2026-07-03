@@ -27771,7 +27771,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var chips=r.items.slice(0,10).map(function(x){ return _itemChip(x.n,x.qlvl); }).join('');
     var more=r.items.length>10?'<span class="gf-note">+ '+(r.items.length-10)+' more from this run</span>':'';
     var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
-    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd"><span class="f-atomic-ic">🎯</span><span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art(r.items[0]?r.items[0].n:'','🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
       +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+(r.ev>=1?(Math.round(10/r.ev)/10)+'h':Math.round(1/r.ev)+'h')+'</b> of running':'')+'</div>'
       +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
@@ -27788,17 +27788,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var box=document.getElementById('funi-body'); if(!box) return;
     var s=window.funiScan(); var F=_fuF; var H=[];
     H.push(_meter(s.found,s.total,''));
+    // v560 — UNIFIED sub-tabs across BOTH grail forges (Konyo: same names, same logic, set or unique):
+    // ▦ All missing · 🎯 Best runs · ⚡ Quick wins (low-level uniques / 1-piece sets) · ✅ Found
     H.push('<div class="forge-tabs">'
       +_tile('all','▦','All missing','ft-all',s.missing.length,F,'window.funiSetFilter')
       +_tile('runs','🎯','Best runs','ft-pipe',s.runs.length,F,'window.funiSetFilter')
-      +_tile('low','🌱','Low-level gap','ft-step',s.low.length,F,'window.funiSetFilter')
+      +_tile('low','⚡','Quick wins','ft-step',s.low.length,F,'window.funiSetFilter')
       +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter')
       +'</div>');
     // HERO: the single best run
     var top=s.runs[0];
     if(top&&F!=='found'){
       H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
-        +'<div class="fh-artwrap"><div class="fh-art"><span class="f-glyph">🎯</span></div><div class="fh-icobadge">🏆</div></div>'
+        +'<div class="fh-artwrap"><div class="fh-art">'+art(top.items[0]?top.items[0].n:'','🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
         +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(top.boss)+'</div>'
         +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+(top.ev>=1?(Math.round(10/top.ev)/10)+'h':Math.round(1/top.ev)+'h')+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
         +'<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
@@ -27811,9 +27813,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div>');
     }
     if(show('low')&&s.low.length){
-      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🌱 Low-level gap <span class="forge-sec-ct">'+s.low.length+'</span><span class="forge-sec-sub">qlvl ≤ 35 — the early uniques skipped on the way to Hell</span></div>');
+      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">⚡ Quick wins <span class="forge-sec-ct">'+s.low.length+'</span><span class="forge-sec-sub">qlvl ≤ 35 — the early uniques skipped on the way to Hell, fastest to cross off</span></div>');
       s.low.slice(0,F==='low'?60:6).forEach(function(x){ H.push(_uniItemCard(x)); });
-      if(F!=='low'&&s.low.length>6) H.push('<div class="forge-note">+ '+(s.low.length-6)+' more — open the 🌱 tile</div>');
+      if(F!=='low'&&s.low.length>6) H.push('<div class="forge-note">+ '+(s.low.length-6)+' more — open the ⚡ Quick wins tile</div>');
       H.push('</div>');
     }
     if(F==='found'){
@@ -27843,6 +27845,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       working:rows.filter(function(r){return r.left>0;}).sort(function(a,b){ return a.left-b.left || b.pieces.length-a.pieces.length; }),
       done:rows.filter(function(r){return r.left===0;}) };
   };
+  // v560 — a set's farm source comes from its AGGREGATE entry in ITEMS (tier 'set'), stem-matched by name.
+  function _setAggSrc(setName){
+    try {
+      var stem=String(setName).replace(/\s*\((set|Sorc|Necro|Barb|Ama|Sin|Pala|Druid)\)\s*$/i,'').trim().toLowerCase();
+      var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);
+      var agg=L.find(function(x){ return x.tier==='set' && String(x.n).toLowerCase().indexOf(stem.slice(0,12))===0; });
+      if(!agg) return null;
+      var best=null,bestR=-1; (agg.sources||[]).forEach(function(src){ if(!src||src.blocked||src.chance==null) return; var r=(src.kph||30)/src.chance; if(r>bestR){bestR=r;best=src;} });
+      return best;
+    } catch(e){ return null; }
+  }
   var _fsF='all';
   window.fsetsSetFilter=function(f){ _fsF=(_fsF===f&&f!=='all')?'all':f; window.renderForgeSets(); };
   window.grailTogglePiece=function(el,piece){
@@ -27856,8 +27869,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     window.renderForgeSets();
   };
-  function _setArt(name){
+  function _setArt(name, pieces){
     try { var rep=(typeof window._setRepArtName==='function')?window._setRepArtName(name):''; if(rep){ var u=(typeof artUrl==='function')?artUrl(rep):''; if(u) return '<img class="f-art" src="'+esc(u)+'" alt="" loading="lazy">'; } } catch(e){}
+    // v560 — HD fallback: the first PIECE's art (piece names resolve art even when the set aggregate doesn't)
+    try { var ps=pieces||[]; for(var i=0;i<ps.length;i++){ var pn=String(ps[i].name||ps[i]).replace(/\s*\([^)]+\)\s*$/,''); var pu=(typeof artUrl==='function')?artUrl(pn):''; if(pu) return '<img class="f-art" src="'+esc(pu)+'" alt="" loading="lazy">'; } } catch(e){}
     return '<span class="f-glyph">🧩</span>';
   }
   function _pieceChip(p){
@@ -27866,7 +27881,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _setCard(r,cls){
     var pct=r.pieces.length?Math.round(r.got/r.pieces.length*100):0;
-    return '<div class="f-card '+cls+'"><div class="f-cardart f-cardart-hd">'+_setArt(r.name)+'<span class="f-cardart-badge">'+(r.left===0?'✅':r.left)+'</span></div><div class="f-cardbody">'
+    return '<div class="f-card '+cls+'"><div class="f-cardart f-cardart-hd">'+_setArt(r.name,r.pieces)+'<span class="f-cardart-badge">'+(r.left===0?'✅':r.left)+'</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact"><b class="f-rwbig">'+esc(r.name)+'</b> <span class="f-need">'+r.got+' / '+r.pieces.length+'</span>'+(r.left===1?' <span class="f-ideal">1 piece left!</span>':'')+'</div>'
       +'<div class="gf-setbar"><i style="width:'+pct+'%"></i></div>'
       +'<div class="gf-chips">'+r.pieces.map(_pieceChip).join('')+'</div></div></div></div>';
@@ -27874,31 +27889,84 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.renderForgeSets=function(){
     var box=document.getElementById('fsets-body'); if(!box) return;
     var s=window.fsetsScan(); var F=_fsF; var H=[];
+    // v560.1 — Konyo: "I already have item trackers — F·Sets should be the F·Uniques coding logic." So this is
+    // PIECE-centric, identical to Forge·Uniques: every missing PIECE is a farm item (Find → best run → ✓ found),
+    // the tally syncs silently to the Item Set Tracker (d2r_setPieces), and the checklist wall stays in Tools.
+    var missingP=[];
+    s.sets.forEach(function(r){ var src=_setAggSrc(r.name);
+      r.pieces.forEach(function(p){ if(!p.have) missingP.push({ name:p.name, set:r.name, left:r.left, src:src }); }); });
     var pct=s.totalPieces?Math.round(s.havePieces/s.totalPieces*100):0;
     H.push('<div class="forge-progress" title="'+s.havePieces+' of '+s.totalPieces+' pieces"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%;background:linear-gradient(90deg,#4ade80,#86efac)"></div></div>'
       +'<div class="fp-lbl">🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets<span class="fp-pct">'+pct+'%</span></div></div>');
+    // group missing pieces by best run (same shape as Forge·Uniques)
+    var bySrc={};
+    missingP.forEach(function(mp){ var key=mp.src?mp.src.boss:'Drops broadly — no single best run';
+      var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0}); g.items.push(mp); if(mp.src)g.ev+=(mp.src.kph||30)/mp.src.chance; });
+    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){return b.ev-a.ev||b.items.length-a.items.length;});
+    var quick=missingP.filter(function(mp){return mp.left===1;}).sort(function(a,b){return String(a.set).localeCompare(String(b.set));});
+    // UNIFIED tiles — identical names to Forge·Uniques
     H.push('<div class="forge-tabs">'
-      +_tile('all','▦','All sets','ft-all',s.sets.length,F,'window.fsetsSetFilter')
-      +_tile('near','🔥','1 piece left','ft-step',s.oneAway.length,F,'window.fsetsSetFilter')
-      +_tile('working','🧩','In progress','ft-pipe',s.working.filter(function(r){return r.got>0;}).length,F,'window.fsetsSetFilter')
-      +_tile('done','✅','Complete','ft-done',s.done.length,F,'window.fsetsSetFilter')
+      +_tile('all','▦','All missing','ft-all',missingP.length,F,'window.fsetsSetFilter')
+      +_tile('runs','🎯','Best runs','ft-pipe',runs.length,F,'window.fsetsSetFilter')
+      +_tile('near','⚡','Quick wins','ft-step',quick.length,F,'window.fsetsSetFilter')
+      +_tile('done','✅','Found','ft-done',s.havePieces,F,'window.fsetsSetFilter')
       +'</div>');
-    var hero=s.oneAway[0];
-    if(hero&&F!=='done'){
-      var missP=hero.pieces.find(function(p){return !p.have;});
-      H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
-        +'<div class="fh-artwrap"><div class="fh-art">'+_setArt(hero.name)+'</div><div class="fh-icobadge">🔥</div></div>'
-        +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · finish the set</div><div class="fh-name">'+esc(hero.name)+'</div>'
-        +'<div class="fh-body">only <b>'+esc(missP?missP.name:'1 piece')+'</b> left to complete it</div></div>'
-        +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">1 left <span class="fh-cta-arw">→</span></button></div>');
+    // HERO — a quick-win piece if one exists, else the top run (same priority spirit as uniques)
+    if(F!=='done'){
+      if(quick.length){
+        var q0=quick[0], qClean=q0.name.replace(/\s*\([^)]+\)\s*$/,'');
+        H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
+          +'<div class="fh-artwrap"><div class="fh-art">'+art(qClean,'🧩')+'</div><div class="fh-icobadge">⚡</div></div>'
+          +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · quick win</div><div class="fh-name">'+esc(qClean)+'</div>'
+          +'<div class="fh-body">the LAST piece of <b>'+esc(q0.set.replace(/\s*\(set\)$/,''))+'</b>'+(q0.src?' · best run: <b>'+esc(q0.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(q0.src.chance)+'</span>':'')+'</div></div>'
+          +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">Quick wins <span class="fh-cta-arw">→</span></button></div>');
+      } else if(runs.length){
+        var t0=runs[0], tClean=(t0.items[0]?t0.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,'');
+        H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
+          +'<div class="fh-artwrap"><div class="fh-art">'+art(tClean,'🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
+          +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(t0.boss)+'</div>'
+          +'<div class="fh-body">drops <b>'+t0.items.length+'</b> of your missing set pieces</div></div>'
+          +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
+      }
     }
-    var list;
-    if(F==='near') list=s.oneAway;
-    else if(F==='working') list=s.working.filter(function(r){return r.got>0;});
-    else if(F==='done') list=s.done;
-    else list=s.working.concat(s.done);
-    if(!list.length) H.push('<div class="forge-empty">Nothing here yet — tick set pieces as they drop (piece chips are tappable; they sync with the Item Set Tracker).</div>');
-    else list.forEach(function(r){ H.push(_setCard(r, r.left===0?'f-now':(r.left===1?'f-step':'f-pipe'))); });
+    var show=function(k){ return F==='all'||F===k; };
+    // BEST RUNS — run cards listing the missing pieces they can drop (chips tick on click)
+    if(show('runs')&&runs.length){
+      H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🎯 Best runs <span class="forge-sec-ct">'+runs.length+'</span><span class="forge-sec-sub">where your missing set pieces actually drop</span></div>');
+      runs.slice(0,F==='runs'?99:6).forEach(function(g,i){
+        var chips=g.items.slice(0,12).map(function(mp){ return _pieceChip({name:mp.name,have:false}); }).join('');
+        var more=g.items.length>12?'<span class="gf-note">+ '+(g.items.length-12)+' more pieces</span>':'';
+        var bossBtn=g.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(g.bossId)+'\')">📜 boss card</button></div>':'';
+        H.push('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+          +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(g.boss)+'</b></div>'
+          +'<div class="f-atomsubrow">can drop <b>'+g.items.length+'</b> of your missing pieces — tap a piece the moment it drops</div>'
+          +'<div class="gf-chips">'+chips+more+'</div></div>'+bossBtn+'</div></div>');
+      });
+      if(F!=='runs'&&runs.length>6) H.push('<div class="forge-note">+ '+(runs.length-6)+' more runs — open the 🎯 Best runs tile</div>');
+      H.push('</div>');
+    }
+    // QUICK WINS — piece cards, F·Uniques style ("Find X → ✓ found it")
+    if(show('near')&&quick.length){
+      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">⚡ Quick wins <span class="forge-sec-ct">'+quick.length+'</span><span class="forge-sec-sub">one piece finishes the whole set</span></div>');
+      quick.slice(0,F==='near'?99:6).forEach(function(mp){
+        var clean=mp.name.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(mp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
+        var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(mp.src.chance)+'</span></div>'):'<div class="gf-note">drops broadly — any high-MF run</div>';
+        H.push('<div class="f-card f-step f-atom" data-arttip="'+esc(clean)+'"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
+          +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
+          +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
+          +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailTogglePiece(this,\''+jsq(mp.name)+'\')">✓ found it</button></div></div></div>');
+      });
+      if(F!=='near'&&quick.length>6) H.push('<div class="forge-note">+ '+(quick.length-6)+' more — open the ⚡ Quick wins tile</div>');
+      H.push('</div>');
+    }
+    // FOUND — green chips (tap to un-mark), synced to the Item Set Tracker
+    if(F==='done'){
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.havePieces+'</span><span class="forge-sec-sub">synced with the Item Set Tracker — tap to un-mark</span></div><div class="gf-chips">');
+      s.sets.forEach(function(r){ r.pieces.forEach(function(pp){ if(pp.have) H.push(_pieceChip(pp)); }); });
+      H.push('</div></div>');
+      if(!s.havePieces) H.push('<div class="forge-empty">Nothing marked found yet — tick pieces here or in the Item Set Tracker (they sync).</div>');
+    }
+    if(F==='all') H.push('<div class="forge-note">full per-set checklists live in 🧰 Tools → Item Set Tracker (same tally, always in sync)</div>');
     box.innerHTML=H.join('');
   };
 
