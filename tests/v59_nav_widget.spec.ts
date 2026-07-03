@@ -35,8 +35,9 @@ test.describe('v59 nav compass widget', () => {
         tabNames, chipNames,
         chipsMatchTabs: JSON.stringify(tabNames) === JSON.stringify(chipNames),
         hasBackToTop: !!document.querySelector('#nav-widget .nav-chip.nav-top'),
-        // chips keep the tab emojis (Konyo likes them)
-        firstChipKeepsIcon: (document.querySelector('#nav-widget .nav-chip .nav-ic')?.textContent || '').length > 0,
+        // v551 — chips now carry an HD-art icon (img.nav-ic) with an emoji-span fallback; either counts as "keeps an icon"
+        firstChipKeepsIcon: !!(document.querySelector('#nav-widget .nav-chip img.nav-ic')
+          || (document.querySelector('#nav-widget .nav-chip .nav-ic')?.textContent || '').length > 0),
         noUndef: !/undefined/.test(w?.innerHTML || 'undefined'),
       };
     });

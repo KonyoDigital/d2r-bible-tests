@@ -21235,8 +21235,11 @@ _v41_whenReady(() => {
       .forEach((btn, i) => {
         const id = btn.dataset.tab;
         const parts = (btn.textContent || '').trim().split(/\s+/);
-        const icon = parts[0] || '•';
-        const label = (parts.slice(1).join(' ') || id).replace(/\b\w/g, c => c.toUpperCase());
+        // v551 — the HD-art tab rewrite (applyTabIcons) strips the emoji from textContent and stashes the real
+        // label/emoji in dataset. Prefer those so the palette label stays "Switch to Reference" (not "Switch to Ref").
+        const icon = btn.dataset.emoji || parts[0] || '•';
+        const rawLabel = btn.dataset.label || (parts.slice(1).join(' ') || id);
+        const label = rawLabel.replace(/\b\w/g, c => c.toUpperCase());
         cmds.push({
           icon,
           label: `Switch to ${label}`,
