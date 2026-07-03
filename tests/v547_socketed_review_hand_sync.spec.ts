@@ -23,11 +23,20 @@ test('_baseHandClass is exposed and agrees with the Forge for known bases', asyn
   expect(r.phaseBlade).toBe('1H');
 });
 
-test('a 2H base (Champion Axe) review line says 2-handed → mercenary weapon', async ({ page }) => {
+test('a 2H-SWORD base (Champion Axe) review line says 2-handed → PLAYER weapon (a merc cannot wield it)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const html = await page.evaluate(() => (window as any)._baseRWLine('Champion Axe', 5));
   expect(html).toMatch(/2-handed/);
-  expect(html).toMatch(/mercenary/i);
+  expect(html).toMatch(/player/i);
+  expect(html).not.toMatch(/mercenary/i);   // v553 — a 2H sword/axe is player gear, not merc (only polearms/spears are merc)
+});
+
+test('a true MERC base (Grim Scythe, a polearm) review line says 2-handed → mercenary weapon', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1300);
+  const r = await page.evaluate(() => ({ hc: (window as any)._baseHandClass('Grim Scythe'), html: (window as any)._baseRWLine('Grim Scythe', 6) }));
+  expect(r.hc).toBe('merc');           // polearm → merc
+  expect(r.html).toMatch(/2-handed/);
+  expect(r.html).toMatch(/mercenary/i);
 });
 
 test('a 1H base (Phase Blade) review line says 1-handed → your (player) weapon', async ({ page }) => {

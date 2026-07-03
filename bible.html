@@ -4299,6 +4299,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var codeSet = {}, nameSet = {};
       Object.keys(tips).forEach(function(rw){
         if (made[rw]) return;                                  // already forged -> skip
+        if (typeof window._rwLadderBlocked==='function' && window._rwLadderBlocked(rw)) return;  // v553 — don't farm bases for ladder-only words you can't make off-ladder
         if (ownedBaseWord[rw]) return;                         // you own a socket-correct base for it -> not a base to farm
         var names = (typeof meta==='function') ? ((meta(rw)||{}).names||[]) : [];
         names.forEach(function(nm){
@@ -4317,11 +4318,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     var tplEl = document.getElementById('lf-data-endgame');
     var tpl = JSON.parse(tplEl.textContent);
     var eb = window._endgameFilterBases();
-    if (eb.codes.length){
-      tpl.rules.forEach(function(r){
-        if (r.name==='3. Show ETH and Socket bases' || r.name==='Show Base Items'){ r.equipmentItemCode = eb.codes.slice(); }
-      });
-    }
+    // v553 — ALWAYS sync the two base-show rules to the live set (was guarded by `if (eb.codes.length)`, which left
+    // the template's ~50 hardcoded codes in place when nothing needs farming — contradicting the "0 bases" label).
+    // Empty = show no bases, consistent with the count + the "shrinks to match your Chronicle" promise.
+    tpl.rules.forEach(function(r){
+      if (r.name==='3. Show ETH and Socket bases' || r.name==='Show Base Items'){ r.equipmentItemCode = eb.codes.slice(); }
+    });
     tpl.name = 'KonyoEndgame';
     return { text: JSON.stringify(tpl), baseCount: eb.codes.length };
   };
@@ -4358,7 +4360,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
       var ownedBaseWord={};
       try{var sc=(typeof window.forgeScan==='function')?window.forgeScan():null; if(sc){[].concat(sc.now||[],sc.pipeline||[]).forEach(function(t){if(t&&t.base)ownedBaseWord[t.rw]=1;});(sc.onestep||[]).forEach(function(t){if(t&&t.base&&t.sub!=='base')ownedBaseWord[t.rw]=1;});}}catch(e){}
-      out=Object.keys(tips).filter(function(rw){return !made[rw] && !ownedBaseWord[rw];});
+      out=Object.keys(tips).filter(function(rw){return !made[rw] && !ownedBaseWord[rw] && !(window._rwLadderBlocked&&window._rwLadderBlocked(rw));});  // v553 — skip ladder-only words off-ladder
     }catch(e){}
     return out;
   };
@@ -4373,7 +4375,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     var stash={}; try{stash=JSON.parse(localStorage.getItem('d2r_runeStash')||'{}');}catch(e){}
     var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
     var demand={}, byRune={};
-    Object.keys(tips).forEach(function(rw){ if(made[rw])return; var rec=(tips[rw]||{}).rec||[]; rec.forEach(function(r){ demand[r]=(demand[r]||0)+1; byRune[r]=byRune[r]||{}; byRune[r][rw]=1; }); });
+    Object.keys(tips).forEach(function(rw){ if(made[rw])return; if(window._rwLadderBlocked&&window._rwLadderBlocked(rw))return; var rec=(tips[rw]||{}).rec||[]; rec.forEach(function(r){ demand[r]=(demand[r]||0)+1; byRune[r]=byRune[r]||{}; byRune[r][rw]=1; }); });  // v553 — don't report short on runes only ladder words need
     return Object.keys(demand).map(function(r){var owned=stash[r]||0; return {rune:r, demand:demand[r], owned:owned, short:demand[r]-owned, words:Object.keys(byRune[r])};}).filter(function(x){return x.short>0;}).sort(function(a,b){return b.short-a.short || b.demand-a.demand;});
   };
   window._smartProgress = function(){
@@ -7895,7 +7897,11 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   var _handNote = (function(){
     var hc = (typeof window._baseHandClass === 'function') ? window._baseHandClass(name) : '';
     var tier = (typeof window._baseTier === 'function') ? window._baseTier(name) : '';
-    var hand = (hc === 'merc' || hc === '2H') ? '🗡 <b>2-handed</b> → a <b>mercenary</b> weapon'
+    // v553 — a '2H' base is a two-handed SWORD/axe (Zweihander, Champion Axe) = a PLAYER 2H weapon; only 'merc'
+    // (polearm/spear/bow) is Act-2-mercenary gear. Was wrongly lumping both as "mercenary weapon" (a merc can't
+    // wield a 2H sword) — this now matches the Forge's _handOk, which only assigns merc words to 'merc' bases.
+    var hand = hc === 'merc' ? '🗡 <b>2-handed</b> → a <b>mercenary</b> weapon (polearm/spear)'
+             : hc === '2H' ? '🗡 <b>2-handed</b> → a <b>player</b> 2H weapon'
              : hc === '1H' ? '🗡 <b>1-handed</b> → <b>your</b> (player) weapon'
              : hc === 'caster' ? '🪄 <b>caster staff</b> → your weapon'
              : '';   // 'gear' (shield/armour/helm) has no hand
@@ -12854,6 +12860,10 @@ function _rwLadderTag(name){
   return _rwIsLadderOnly(name) ? ' <span class="rw-ladder-tag" title="Ladder-only runeword — only forms on a LADDER character">🪜 Ladder</span>' : '';
 }
 try { window._rwIsLadderOnly = _rwIsLadderOnly; window._rwLadderTag = _rwLadderTag; } catch(e){}
+// v553 — is a runeword unmakeable RIGHT NOW because it's ladder-only and the user is in non-ladder mode? Shared
+// by the Loot filter + Smart Insights (farm-priority / rune-radar) so they stop farming/short-listing bases &
+// runes for the 9 ladder words the Chronicle + Forge already correctly hide off-ladder.
+try { window._rwLadderBlocked = function(rw){ try { return !!(window._rwIsLadderOnly && window._rwIsLadderOnly(rw)) && (localStorage.getItem('d2r_ladderMode')||'nonladder')!=='ladder'; } catch(e){ return false; } }; } catch(e){}
 // per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
 // three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
@@ -25158,19 +25168,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     || { name:'', base:'', q:'rare', mods:[] };
   function _aicSave(){ try { LS.setItem('d2r_aicDraft', JSON.stringify(_aicItem)); }catch(e){} }
   // transparent affix value table — each affix line scores its HIGHEST matching weight (no double-count)
+  // v553 — magic/rare affix value table, reordered around what magic/RARE items actually roll (an expert's keep
+  // bar). Each affix line scores its HIGHEST matching weight (no double-count). NOTE: +All Skills / −Enemy Resist /
+  // Chance-to-Cast / +All Attributes never roll on magic/rare — kept only as high-weight "you mislabeled a
+  // unique/set as rare" catches (they contribute 0 when they don't match). The real prime affixes are IAS, +skills,
+  // FCR, all-res, leech, life.
   var _AIC_W = [
     {re:/\+\s*\d+\s+to all skills/i, w:10, label:'+X All Skills'},
     {re:/-\s*\d+%?\s*(to )?(enemy|target)[^.]{0,16}resist/i, w:8, label:'− Enemy Resist'},
+    {re:/\+\s*\d+\s+to [a-z' ]*\bskills?\b/i, w:8, label:'+X Class/Tree Skills'},   // v553 6→8: the top caster magic/rare affix
+    {re:/increased attack speed|\bias\b/i, w:7, label:'Increased Attack Speed'},      // v553 NEW — was entirely unscored (P0: tossed good gloves/weapons)
     {re:/faster cast rate|\bfcr\b/i, w:7, label:'Faster Cast Rate'},
-    {re:/\+\s*\d+\s+to [a-z' ]*\bskills?\b/i, w:6, label:'+X Class/Tree Skills'},
     {re:/all resist|to all resistances|resist all/i, w:6, label:'All Resistances'},
     {re:/(life|mana) stolen|life leech|mana leech/i, w:5, label:'Leech'},
+    {re:/\+\s*\d+\s+(to )?(maximum )?life\b/i, w:5, label:'+ Life'},                  // v553 4→5, split from replenish
     {re:/deadly strike|crushing blow|open wounds/i, w:4, label:'Deadly Strike / CB / OW'},
     {re:/\d+%\s*chance to cast/i, w:4, label:'Chance to Cast'},
     {re:/faster hit recovery|\bfhr\b/i, w:4, label:'Faster Hit Recovery'},
-    {re:/replenish life|\+\s*\d+\s+(to )?(maximum )?life\b/i, w:4, label:'+ Life'},
+    {re:/faster block rate|\bfbr\b/i, w:3, label:'Faster Block Rate'},               // v553 NEW — a prime shield affix
     {re:/magic find|better chance of getting magic/i, w:3, label:'Magic Find'},
     {re:/all attributes/i, w:3, label:'+ All Attributes'},
+    {re:/replenish life/i, w:2, label:'Replenish Life'},                             // v553 downweighted vs +max life
+    {re:/\+\s*\d+\s+to (strength|dexterity|vitality|energy)\b/i, w:2, label:'+ Stat'}, // v553 NEW — individual attributes
     {re:/\bresist(ance)?s?\b|cannot be frozen/i, w:2, label:'Resist / CBF'},
     {re:/faster run|\bfrw\b/i, w:2, label:'Faster Run/Walk'},
     {re:/increase maximum mana|\+\s*\d+\s+(to )?mana\b/i, w:2, label:'+ Mana'},
@@ -25191,10 +25210,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var mods=(it.mods||[]).filter(function(m){ return String(m||'').trim(); });
     var bk=[], score=0;
     mods.forEach(function(m){ var b=_aicScoreAffix(m); if(b){ score+=b.w; bk.push({label:b.label, w:b.w, src:m}); } });
-    var tier = score>=14 ? 'keep' : (score>=7 ? 'border' : 'toss');
+    // v553 — PREMIUM-AFFIX FLOOR: a single elite affix (skills / IAS / FCR / all-res, w≥6) is never an auto-toss —
+    // an expert always takes a second look at a lone +2 class-skills or 20% IAS roll. Floor those to at least borderline.
+    var _hasPremium = bk.some(function(x){ return x.w>=6; });
+    var tier = score>=14 ? 'keep' : ((score>=7 || _hasPremium) ? 'border' : 'toss');
     var ctx=[];
     var qn=(it.q==='rare'?'Rare':it.q==='crafted'?'Crafted':'Magic');
-    ctx.push('<b>'+qn+'</b> — <b>cannot be a runeword base</b> (Larzuk gives '+(it.q==='magic'?'1–2 sockets':'1 socket')+', gems only).');
+    ctx.push('<b>'+qn+'</b> — <b>cannot be a runeword base</b> (Larzuk gives '+(it.q==='magic'?'1–2 sockets':'1 socket')+', gems / jewels only).');
     var bench=_aicBench(it.base);
     if(bench) ctx.push('Slot benchmark to beat: <b>'+bench+'</b> — keep only if your roll out-values it.');
     var bt=(typeof _baseTier==='function')?_baseTier(it.base):'';
@@ -26952,6 +26974,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _mercOwn=false;
         if (!_handOk(name, b.base)){
           var _obh=_baseHandClass(b.base), _owant=_metaBaseFor(name).hand;
+          // NOTE (v553 audit): a broad "accept owned caster staves" rescue was tried + REVERTED — _baseRunewords is
+          // over-permissive for staves (it lists melee-only words like Honor / Hand of Justice for a staff), so
+          // rescuing all caster staves would surface WRONG tasks (Honor-in-a-staff). The narrow, correct fix needs
+          // reliable "which weapon words the RotW mod allows in a staff" data — deferred + flagged rather than guessed.
           if ((_obh==='2H'||_obh==='merc') && (_owant==='1H'||_owant==='')) _mercOwn=true; else return;
         }
         // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
