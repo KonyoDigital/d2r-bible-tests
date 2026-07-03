@@ -16432,6 +16432,12 @@ function runeCraftStatus(){
   const list = (typeof RUNEWORDS !== 'undefined') ? RUNEWORDS : [];
   const ready = [], cube = [];
   list.forEach((rw) => {
+    // v555 — SYNC WITH THE CHRONICLE. Don't recommend a runeword the player has ALREADY forged (rwMade), and don't
+    // recommend a ladder-only word off-ladder. So Enigma stays on a fresh profile (cousin) but drops for Konyo once
+    // he's ticked it created. Feeds the AI-helper "✨ create now" dashboard, Top Picks, and the ask snapshot.
+    const nm = rw && (rw.name || rw.n);
+    if (nm && typeof rwMade !== 'undefined' && rwMade && rwMade[nm]) return;
+    if (nm && typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(nm)) return;
     const req = runewordReq(rw);
     if (!req) return;
     if (canMakeNow(req)) ready.push(rw);
