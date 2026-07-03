@@ -6,6 +6,11 @@ test('socketed-base labels route to SOCKETED', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window; const sm = w.suggestMule;
+    // v562 — routing is now CHRONICLE-AWARE (a base whose every word is ✓ forged → throw-out) and a fresh
+    // profile seeds Konyo's real 45-word Chronicle, under which a 3os Trident genuinely has no job left.
+    // Pin an EMPTY Chronicle so this spec keeps testing the label-detection baseline; the sync behavior has
+    // its own spec (v562_chronicle_sync_filter_throwout).
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     return {
       grim: sm('Grim Scythe (6os)').id,
       circlet: sm('Circlet (Larzuk base)').id,

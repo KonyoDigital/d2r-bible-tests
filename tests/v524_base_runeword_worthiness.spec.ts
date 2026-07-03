@@ -12,6 +12,10 @@ test.beforeEach(async ({ page }) => { await page.goto(URL); await page.waitForTi
 test('_isRunewordBase + suggestMule agree across the whole base batch (no false discards)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window;
+    // v562 — routing also reads the Chronicle now (all hostable words ✓ forged → throw-out), and a fresh
+    // profile seeds Konyo's real 45-word Chronicle. Pin an EMPTY Chronicle so this audit keeps checking the
+    // capability agreement (_isRunewordBase ⇄ route); Chronicle-driven throw-outs are specced in v562.
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     const bases: string[] = (typeof w.BASE_CLASS !== 'undefined') ? Object.keys(w.BASE_CLASS) : [];
     let kept = 0, thrown = 0, mismatch: string[] = [];
     bases.forEach((b) => {
