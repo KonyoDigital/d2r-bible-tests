@@ -9,8 +9,13 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('d2r_owned', '[]');
-    localStorage.setItem('d2r_setPieces', '[]');
+    // seed ONCE per tab — init scripts re-run on every navigation, and the v561 grail-import flow RELOADS
+    // the page after writing the stores; without this guard the seed would wipe the just-imported data.
+    if (!sessionStorage.getItem('__v559seeded')) {
+      sessionStorage.setItem('__v559seeded', '1');
+      localStorage.setItem('d2r_owned', '[]');
+      localStorage.setItem('d2r_setPieces', '[]');
+    }
   });
   await page.goto(URL); await page.waitForTimeout(1500);
 });
@@ -140,4 +145,37 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
   expect(r.order).toEqual(['forge', 'funi', 'fsets']);
   expect(r.funiIco).toBe(true);
   expect(r.fsetsIco).toBe(true);
+});
+
+test('v561 — grail bulk-import: AI-read FOUND names batch-tick into d2r_owned + d2r_setPieces', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  // fire the intake with a stubbed AI endpoint; the flow writes the stores then RELOADS to resync every view
+  await page.evaluate(async () => {
+    const w: any = window;
+    w.fetch = () => Promise.resolve({ json: () => Promise.resolve({ items: ['The Stone of Jordan', 'Windforce', "Cow King's Horns", 'Totally Fake Item'], unrecognized: [] }) });
+    const c = document.createElement('canvas'); c.width = 4; c.height = 4;
+    const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg'));
+    w.grailIntake([new File([blob], 'g.jpg', { type: 'image/jpeg' })]);   // not awaited — it will navigate
+  });
+  await page.waitForLoadState('load'); await page.waitForTimeout(2600);   // post-reload boot + import toast window
+  const r = await page.evaluate(() => {
+    const owned = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
+    const pieces = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]');
+    const toast = document.querySelector('.forge-toast');
+    const scan = (window as any).funiScan();
+    return {
+      soj: owned.includes('The Stone of Jordan'), wf: owned.includes('Windforce'),
+      cow: pieces.includes("Cow King's Horns (war bonnet)"),
+      fakeNotOwned: !owned.includes('Totally Fake Item'),
+      toast: toast ? (toast.textContent || '') : '',
+      foundNow: scan.found,
+    };
+  });
+  expect(r.soj).toBe(true);
+  expect(r.wf).toBe(true);
+  expect(r.cow).toBe(true);            // clean name mapped back to the full "(war bonnet)" piece
+  expect(r.fakeNotOwned).toBe(true);   // junk never enters the stores
+  expect(r.toast).toMatch(/Grail imported/);
+  expect(r.toast).toMatch(/\+2 uniques/);
+  expect(r.foundNow).toBeGreaterThanOrEqual(2);   // the Uniques Forge sees them immediately post-reload
 });

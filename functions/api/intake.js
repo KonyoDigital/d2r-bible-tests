@@ -33,8 +33,23 @@ export async function onRequestPost(context) {
   if (!isLocate && !isRaw && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
+  const isGrail = kind === 'grail';   // v561 — bulk grail import: a grail/collection UI listing many item names with found-state
   const isTally = (kind === 'tally' || isCraft) && !isLocate;   // craft shares the {tally} count contract
 
+  // v561 — GRAIL IMPORT. The player photographs their grail/collection tracker UI (in-game mod tab or an
+  // external grail tool): a long LIST/GRID of unique + set item names where each row/cell shows a FOUND state
+  // (checkmark, colored vs grayed-out text, highlight, count, or a "found" column). Return ONLY the items that
+  // are visibly marked FOUND, matched to the vocabulary. This powers "photograph my grail → auto-tick".
+  const grailText = 'You read a Diablo 2 (Resurrected / modded) GRAIL or COLLECTION TRACKER screenshot: a list or '
+    + 'grid of many unique/set item NAMES, each with a visible FOUND indicator — a checkmark, a tick column, '
+    + 'bright/colored text vs grayed/dimmed text, a highlight, or a found-count. Rules: '
+    + '(1) Return in "items" ONLY the names that are clearly marked as FOUND/collected/owned. '
+    + '(2) A grayed-out, dimmed, locked, or unchecked entry is NOT found — skip it. '
+    + '(3) If the UI shows NO found-state at all (a plain list), treat EVERY readable name as found — a player '
+    + 'photographs their grail to import what they have; but prefer explicit indicators when present. '
+    + '(4) Match each found name to the closest VOCABULARY entry (the vocabulary may carry suffixes like '
+    + '"Harlequin Crest (Shako)" — match on the item name part). Truly unmatched readable names go to "unrecognized". '
+    + '(5) Read the WHOLE image including partially-scrolled rows whose names are still legible. Never invent names.';
   const itemsText = 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
     + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
     + '(0) Report an item ONLY where its NAME is shown as clearly-readable TEXT — a hover tooltip, a '
@@ -369,7 +384,7 @@ export async function onRequestPost(context) {
     required: ['name', 'color'],
     additionalProperties: false,
   };
-  const sysText = isLocate ? locateText : isRaw ? rawText : isCraft ? craftText : isTally ? tallyText : itemsText;
+  const sysText = isLocate ? locateText : isRaw ? rawText : isCraft ? craftText : isTally ? tallyText : isGrail ? grailText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -415,7 +430,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
