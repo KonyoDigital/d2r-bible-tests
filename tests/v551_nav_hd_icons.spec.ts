@@ -26,7 +26,7 @@ test('every mapped tab gets an HD icon; each carries an emoji fallback', async (
     const imgs = [...document.querySelectorAll('.tabs .tab img.tab-hdico')] as HTMLImageElement[];
     return { count: imgs.length, allHaveEmoji: imgs.every((i) => !!i.getAttribute('data-emoji')), allHaveOnerror: imgs.every((i) => !!i.getAttribute('onerror')) };
   });
-  expect(r.count).toBe(13);            // all 13 nav tabs mapped
+  expect(r.count).toBe(15);            // all 15 nav tabs mapped (v559: + funi + fsets)
   expect(r.allHaveEmoji).toBe(true);
   expect(r.allHaveOnerror).toBe(true);
 });

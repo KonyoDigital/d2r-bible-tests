@@ -3342,6 +3342,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <button class="tab" data-tab="ref">📐 reference</button>
     <button class="tab" data-tab="tools">🧰 tools</button>
     <button class="tab" data-tab="forge">🔨 Forge</button>
+    <button class="tab" data-tab="funi">🏆 F·uniques</button>
+    <button class="tab" data-tab="fsets">🧩 F·sets</button>
   </div>
 </div>
 
@@ -6067,44 +6069,44 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 </div>
 <div class="tab-content" id="tab-forge">
 <style>
-#tab-forge .forge-head{margin:2px 0 4px}
-#tab-forge .forge-title{font-size:42px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878);line-height:1.1}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head{margin:2px 0 4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:42px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878);line-height:1.1}
 /* v552 — Chronicle progress meter */
-#tab-forge .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
-#tab-forge .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
-#tab-forge .fp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#5fc97a,#8fe6a0);box-shadow:0 0 10px -1px rgba(95,201,122,.6);transition:width .6s cubic-bezier(.3,.9,.4,1)}
-#tab-forge .fp-lbl{flex:0 0 auto;font-size:12.5px;font-weight:700;color:var(--text-dim,#b6a888);white-space:nowrap}
-#tab-forge .fp-lbl b{color:#8fe6a0;font-size:14px}
-#tab-forge .fp-pct{margin-left:9px;font-size:11px;font-weight:800;color:#8fe6a0;background:rgba(95,201,122,.12);padding:1px 8px;border-radius:8px}
-#tab-forge .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#5fc97a,#8fe6a0);box-shadow:0 0 10px -1px rgba(95,201,122,.6);transition:width .6s cubic-bezier(.3,.9,.4,1)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl{flex:0 0 auto;font-size:12.5px;font-weight:700;color:var(--text-dim,#b6a888);white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl b{color:#8fe6a0;font-size:14px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-size:11px;font-weight:800;color:#8fe6a0;background:rgba(95,201,122,.12);padding:1px 8px;border-radius:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
-#tab-forge .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
-#tab-forge .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:13px 8px;border-radius:14px;border:1px solid var(--border,#3a2f1e);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.008));color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}
-#tab-forge .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
-#tab-forge .forge-tab:active{transform:translateY(0)}
-#tab-forge .ft-emoji{font-size:21px;line-height:1;filter:saturate(1.15)}
-#tab-forge .ft-lbl{font-size:12.5px;font-weight:800;letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
-#tab-forge .ft-ct{font-size:18px;font-weight:900;padding:1px 12px;border-radius:11px;background:rgba(255,255,255,.07);line-height:1.25;min-width:34px;text-align:center}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:13px 8px;border-radius:14px;border:1px solid var(--border,#3a2f1e);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.008));color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:active{transform:translateY(0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-emoji{font-size:21px;line-height:1;filter:saturate(1.15)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-lbl{font-size:12.5px;font-weight:800;letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-ct{font-size:18px;font-weight:900;padding:1px 12px;border-radius:11px;background:rgba(255,255,255,.07);line-height:1.25;min-width:34px;text-align:center}
 /* persistent per-bucket accent so the tabs are scannable at a glance even when inactive */
-#tab-forge .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
-#tab-forge .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
-#tab-forge .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
-#tab-forge .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
-#tab-forge .forge-tab.ft-craft .ft-ct{color:#c79ce6;background:rgba(199,156,230,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-ct{color:#c79ce6;background:rgba(199,156,230,.12)}
 /* active = filled capsule + a top accent rail in the bucket colour + a soft outer glow */
-#tab-forge .forge-tab.on{box-shadow:inset 0 3px 0 -1px currentColor,0 4px 20px -6px currentColor;transform:translateY(-1px)}
-#tab-forge .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
-#tab-forge .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
-#tab-forge .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
-#tab-forge .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
-#tab-forge .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
-#tab-forge .forge-tab.ft-craft.on{border-color:rgba(199,156,230,.65);background:rgba(199,156,230,.14);color:#c79ce6}
-#tab-forge .forge-tab.on .ft-lbl{color:inherit}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on{box-shadow:inset 0 3px 0 -1px currentColor,0 4px 20px -6px currentColor;transform:translateY(-1px)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(199,156,230,.65);background:rgba(199,156,230,.14);color:#c79ce6}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-lbl{color:inherit}
 /* an empty bucket recedes so the eye lands on what actually has tasks */
-#tab-forge .forge-tab.ft-empty{opacity:.42}
-#tab-forge .forge-tab.ft-empty.on{opacity:.72}
-#tab-forge .forge-sec-craft .forge-sec-h{color:#c79ce6}
-#tab-forge .f-upgrade{border-left-color:#e0b96a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty{opacity:.42}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:#c79ce6}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
 /* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
 .forge-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid var(--rune,#e0b96a);background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(224,185,106,.25);transition:transform .15s,border-color .15s}
 body:has(#tab-forge.active) .forge-legend-fab{display:flex}
@@ -6117,9 +6119,9 @@ body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
 .forge-legend-pop .flp-sec>b{color:#e8dcc0;display:block;margin-bottom:3px;font-size:12.5px}
 .forge-legend-pop .flp-sec>div{color:#9a8c72;margin:3px 0}
 .forge-legend-pop .f-ideal,.forge-legend-pop .f-alt,.forge-legend-pop .f-hand,.forge-legend-pop .f-need,.forge-legend-pop .f-eth,.forge-legend-pop .f-sup,.forge-legend-pop .f-tier{display:inline-block;margin-right:4px}
-#tab-forge .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
-#tab-forge .f-unlock b{color:#e0b96a}
-#tab-forge .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-unlock b{color:#e0b96a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-tier{font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
 /* v528 — TOOLS legend map: a floating compass FAB (mirrors the Forge legend) that appears only on the
    Tools tab and pops a clickable map of every section — a head-start on where to click first. */
 .tools-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid #d9b25a;background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:25px;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(217,178,90,.28);transition:transform .15s,border-color .15s;animation:tlpop .4s cubic-bezier(.2,.9,.3,1.4)}
@@ -6141,132 +6143,132 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .tools-legend-pop .tlp-close{position:absolute;top:9px;right:12px;color:#8a7d64;cursor:pointer;font-size:16px;line-height:1}
 .tools-legend-pop .tlp-close:hover{color:#fff}
 /* DO NOW — the login orientation feed */
-#tab-forge .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
-#tab-forge .forge-donow-h{display:flex;align-items:baseline;gap:11px;font-size:18px;font-weight:800;color:var(--best,#e8c878);margin-bottom:12px}
-#tab-forge .fd-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);font-style:italic}
-#tab-forge .fd-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)}
-#tab-forge .fd-item:first-of-type{border-top:0}
-#tab-forge .fd-num{flex:0 0 26px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(232,200,120,.16);color:var(--best,#e8c878);font-weight:800;font-size:13px}
-#tab-forge .fd-now .fd-num{background:rgba(95,201,122,.18);color:#8fe0a0}
-#tab-forge .fd-pipe .fd-num{background:rgba(91,159,208,.18);color:#9fd4ff}
-#tab-forge .fd-craft .fd-num{background:rgba(199,156,230,.18);color:#c79ce6}
-#tab-forge .fd-body{flex:1;min-width:0;font-size:13.5px;color:var(--text,#e0d4b6);line-height:1.5}
-#tab-forge .fd-body b{color:var(--best,#e8c878)}
-#tab-forge .fd-one{padding-top:3px}
-#tab-forge .fd-steps{margin:0;padding-left:18px}
-#tab-forge .fd-steps li{margin:2px 0;padding-left:3px}
-#tab-forge .fd-steps .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
-#tab-forge .fd-more{font-size:12px;color:var(--text-dim,#9a8c72);padding:9px 0 2px;border-top:1px solid rgba(255,255,255,.05);font-style:italic}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-donow-h{display:flex;align-items:baseline;gap:11px;font-size:18px;font-weight:800;color:var(--best,#e8c878);margin-bottom:12px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);font-style:italic}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-item:first-of-type{border-top:0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-num{flex:0 0 26px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(232,200,120,.16);color:var(--best,#e8c878);font-weight:800;font-size:13px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-now .fd-num{background:rgba(95,201,122,.18);color:#8fe0a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-pipe .fd-num{background:rgba(91,159,208,.18);color:#9fd4ff}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-craft .fd-num{background:rgba(199,156,230,.18);color:#c79ce6}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-body{flex:1;min-width:0;font-size:13.5px;color:var(--text,#e0d4b6);line-height:1.5}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-body b{color:var(--best,#e8c878)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-one{padding-top:3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-steps{margin:0;padding-left:18px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-steps li{margin:2px 0;padding-left:3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-steps .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fd-more{font-size:12px;color:var(--text-dim,#9a8c72);padding:9px 0 2px;border-top:1px solid rgba(255,255,255,.05);font-style:italic}
 /* atomic Make-now cards — big, single, "boom" tasks */
-#tab-forge .f-atom{position:relative}
-#tab-forge .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:1;opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
-#tab-forge .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
-#tab-forge .f-restore{margin-top:8px;text-align:center}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atom{position:relative}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:1;opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-restore{margin-top:8px;text-align:center}
 /* v533 — always-visible restore bar under the tabs (shows whenever you have skipped tasks) */
-#tab-forge .forge-restore-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 12px;padding:8px 12px;background:rgba(224,185,106,.08);border:1px solid rgba(224,185,106,.35);border-radius:9px;font-size:12px;color:#cdbf9f}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 12px;padding:8px 12px;background:rgba(224,185,106,.08);border:1px solid rgba(224,185,106,.35);border-radius:9px;font-size:12px;color:#cdbf9f}
 /* v532 — ✅ Completed tab: the "done" list + clear/restore tools */
-#tab-forge .f-btn-mini{font-size:11.5px;padding:5px 11px;border-radius:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-mini{font-size:11.5px;padding:5px 11px;border-radius:8px}
 /* v537.2 — make the one-click undo unmistakable: amber CTA + a brief pulse when it appears */
-#tab-forge .forge-restore-top .f-undo-last{background:linear-gradient(180deg,#f2c664,#d9ac4c);color:#1a140a;font-weight:800;border:none;box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75);animation:fUndoPulse 1.5s ease-in-out 3}
-#tab-forge .forge-restore-top .f-undo-last:hover{filter:brightness(1.08)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last{background:linear-gradient(180deg,#f2c664,#d9ac4c);color:#1a140a;font-weight:800;border:none;box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75);animation:fUndoPulse 1.5s ease-in-out 3}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last:hover{filter:brightness(1.08)}
 @keyframes fUndoPulse{0%,100%{box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75)}50%{box-shadow:0 0 0 2px rgba(240,200,100,.9),0 2px 20px 2px rgba(240,200,100,.85)}}
-#tab-forge .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
-#tab-forge .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid #6fbf6f;border-radius:8px;margin-bottom:6px}
-#tab-forge .f-doneck{color:#6fbf6f;font-weight:800;flex:none}
-#tab-forge .f-donename{font-weight:700;font-size:13.5px;flex:none}
-#tab-forge .f-donedate{font-size:10.5px;color:var(--text-dim,#7a6f58);font-family:var(--mono,monospace);flex:1}
-#tab-forge .f-donebtn{font-size:10.5px;font-weight:700;color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
-#tab-forge .f-donebtn:hover{color:#fff;border-color:#8fe6a0}
-#tab-forge .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
-#tab-forge .forge-craftnow-lbl{font-size:12.5px;font-weight:700;color:#c79ce6;margin:14px 0 8px;letter-spacing:.2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid #6fbf6f;border-radius:8px;margin-bottom:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-doneck{color:#6fbf6f;font-weight:800;flex:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donename{font-weight:700;font-size:13.5px;flex:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donedate{font-size:10.5px;color:var(--text-dim,#7a6f58);font-family:var(--mono,monospace);flex:1}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn{font-size:10.5px;font-weight:700;color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn:hover{color:#fff;border-color:#8fe6a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftnow-lbl{font-size:12.5px;font-weight:700;color:#c79ce6;margin:14px 0 8px;letter-spacing:.2px}
 /* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
-#tab-forge .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
-#tab-forge .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
-#tab-forge .craftcol-h{display:flex;align-items:flex-start;gap:9px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);min-height:64px;box-sizing:border-box}
-#tab-forge .craftcol-h-t{display:flex;flex-direction:column;min-width:0}
-#tab-forge .craftcol-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
-#tab-forge .craftcol-gem{font-size:10.5px;color:var(--text-dim,#9a8c72);line-height:1.3}
-#tab-forge .craftcol-tile{display:block;padding:7px 10px;background:rgba(0,0,0,.25);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:8px}
-#tab-forge .craftcol-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0)}
-#tab-forge .craftcol-rec{font-size:11px;color:var(--text-dim,#9a8c72);margin-top:2px;line-height:1.4}
-#tab-forge .craftcol-rec b{color:var(--rune,#e0b96a)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-h{display:flex;align-items:flex-start;gap:9px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);min-height:64px;box-sizing:border-box}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-h-t{display:flex;flex-direction:column;min-width:0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-gem{font-size:10.5px;color:var(--text-dim,#9a8c72);line-height:1.3}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-tile{display:block;padding:7px 10px;background:rgba(0,0,0,.25);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec{font-size:11px;color:var(--text-dim,#9a8c72);margin-top:2px;line-height:1.4}
+:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec b{color:var(--rune,#e0b96a)}
 /* Craft accordion (v495) — collapsing dropdown of slots + recipes per craft type */
-#tab-forge .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-#tab-forge .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
-#tab-forge .f-craftacc.open{background:rgba(255,255,255,.03);border-color:var(--cw-c,#b48ce0)}
-#tab-forge .f-craftacc-h{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
-#tab-forge .f-craftacc-h:hover{background:rgba(255,255,255,.025)}
-#tab-forge .f-craftacc-chev{font-size:12px;color:var(--cw-c,#b48ce0);width:12px;flex:none;transition:transform .15s}
-#tab-forge .f-craftacc-h img,#tab-forge .f-craftacc-h>span:nth-child(2){width:34px;height:34px;object-fit:contain;flex:none}
-#tab-forge .f-craftacc-t{display:flex;flex-direction:column;min-width:0;flex:1}
-#tab-forge .f-craftacc-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
-#tab-forge .f-craftacc-sub{font-size:11px;color:var(--text-dim,#9a8c72);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#tab-forge .f-craftacc-badge{font-size:11px;font-weight:700;color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
-#tab-forge .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
-#tab-forge .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
-#tab-forge .f-craftrow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
-#tab-forge .f-slotart{flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);border-radius:6px;border:1px solid var(--sc,#3a2f1e);box-shadow:0 0 8px -2px var(--sc,transparent)}
-#tab-forge .f-slotart img{max-width:24px;max-height:24px;object-fit:contain;filter:drop-shadow(0 0 2px var(--sc,transparent))}
-#tab-forge .f-craftrow.ready{border-left:3px solid #6fbf6f}
-#tab-forge .f-craftrow.locked{opacity:.55}
-#tab-forge .f-craftrow-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0);min-width:62px;flex:none}
-#tab-forge .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:1.5;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
-#tab-forge .f-craftrow-rec b{color:var(--rune,#e0b96a)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc.open{background:rgba(255,255,255,.03);border-color:var(--cw-c,#b48ce0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h:hover{background:rgba(255,255,255,.025)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-chev{font-size:12px;color:var(--cw-c,#b48ce0);width:12px;flex:none;transition:transform .15s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h img,:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h>span:nth-child(2){width:34px;height:34px;object-fit:contain;flex:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-t{display:flex;flex-direction:column;min-width:0;flex:1}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-name{font-family:var(--serif-display,serif);font-weight:800;font-size:16px;color:var(--cw-c,#b48ce0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-sub{font-size:11px;color:var(--text-dim,#9a8c72);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-badge{font-size:11px;font-weight:700;color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-slotart{flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);border-radius:6px;border:1px solid var(--sc,#3a2f1e);box-shadow:0 0 8px -2px var(--sc,transparent)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-slotart img{max-width:24px;max-height:24px;object-fit:contain;filter:drop-shadow(0 0 2px var(--sc,transparent))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.ready{border-left:3px solid #6fbf6f}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked{opacity:.55}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-slot{font-size:13px;font-weight:700;color:var(--text,#e8dcc0);min-width:62px;flex:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:1.5;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec b{color:var(--rune,#e0b96a)}
 /* v516 — craft ingredient chips: each ingredient (rune · base · jewel) carries its own HD art + a
    floating cursor tooltip. Hover any of them for the rich card (rune stats / base options / jewel). */
-#tab-forge .f-cing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);cursor:help;white-space:nowrap;max-width:100%}
-#tab-forge .f-cing-img{width:18px;height:18px;object-fit:contain;flex:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
-#tab-forge .f-cing-gl{width:18px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
-#tab-forge .f-cing-gl-r{color:var(--rune,#e0b96a)} #tab-forge .f-cing-gl-j{color:#9fb0ff}
-#tab-forge .f-cing-rune{border-color:rgba(224,168,42,.4)} #tab-forge .f-cing-rune b{color:#ffa800;font-weight:700}
-#tab-forge .f-cing-base{border-color:rgba(159,176,255,.32);flex-wrap:wrap}
-#tab-forge .f-cing-base .f-cbnames{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px}
-#tab-forge .f-cing-base .f-cbn{color:#b9c4ff} #tab-forge .f-cing-base .f-cdot{color:var(--text-dim,#6f6450);opacity:.7}
-#tab-forge .f-cing-jewel{border-color:rgba(159,176,255,.32);color:#b9c4ff}
-#tab-forge .f-craftrow-rec .f-cplus{color:var(--text-dim,#6f6450);font-weight:700;margin:0 1px}
-#tab-forge .f-craftrow-st{font-size:10.5px;font-weight:700;flex:none;white-space:nowrap}
-#tab-forge .f-craftrow.ready .f-craftrow-st{color:#9fe6a0}
-#tab-forge .f-craftrow.locked .f-craftrow-st{color:var(--text-dim,#9a8c72)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);cursor:help;white-space:nowrap;max-width:100%}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-img{width:18px;height:18px;object-fit:contain;flex:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl{width:18px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-r{color:var(--rune,#e0b96a)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-j{color:#9fb0ff}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune{border-color:rgba(224,168,42,.4)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune b{color:#ffa800;font-weight:700}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base{border-color:rgba(159,176,255,.32);flex-wrap:wrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cbnames{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cbn{color:#b9c4ff} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cdot{color:var(--text-dim,#6f6450);opacity:.7}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-jewel{border-color:rgba(159,176,255,.32);color:#b9c4ff}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec .f-cplus{color:var(--text-dim,#6f6450);font-weight:700;margin:0 1px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-st{font-size:10.5px;font-weight:700;flex:none;white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.ready .f-craftrow-st{color:#9fe6a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craftrow-st{color:var(--text-dim,#9a8c72)}
 /* One-step directive chips + hover-tooltip items (flagship) */
-#tab-forge .f-getrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-#tab-forge .f-getlead{font-weight:800;font-size:12px;padding:2px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap}
-#tab-forge .f-get-base{color:#e9d07a;background:rgba(233,208,122,.15)}
-#tab-forge .f-get-rune{color:#e0b96a;background:rgba(224,185,106,.15)}
-#tab-forge .f-get-cube{color:#9fd4ff;background:rgba(159,212,255,.15)}
-#tab-forge .f-getchip{font-size:12.5px;font-weight:700;color:var(--text,#e8dcc0);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);padding:2px 9px;border-radius:7px;cursor:help}
-#tab-forge .f-getchip-base{color:#cdb988;border-color:rgba(205,185,136,.4)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getlead{font-weight:800;font-size:12px;padding:2px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-get-base{color:#e9d07a;background:rgba(233,208,122,.15)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-get-rune{color:#e0b96a;background:rgba(224,185,106,.15)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-get-cube{color:#9fd4ff;background:rgba(159,212,255,.15)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip{font-size:12.5px;font-weight:700;color:var(--text,#e8dcc0);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);padding:2px 9px;border-radius:7px;cursor:help}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-base{color:#cdb988;border-color:rgba(205,185,136,.4)}
 /* v519 — role badges inside a base chip: ideal / 1H / merc / caster / endgame. Compact, colour-coded. */
-#tab-forge .f-getchip-base{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
-#tab-forge .f-rbwrap{display:inline-flex;gap:3px;align-items:center}
-#tab-forge .f-rb{font-size:8.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:1px 4px;border-radius:4px;line-height:1.35;border:1px solid transparent}
-#tab-forge .f-rb-ideal{color:#ffe08a;background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.5)}
-#tab-forge .f-rb-1h{color:#8fe6a0;background:rgba(95,200,110,.14);border-color:rgba(95,200,110,.45)}
-#tab-forge .f-rb-merc{color:#7fb0ff;background:rgba(90,150,255,.16);border-color:rgba(120,160,255,.5)}
-#tab-forge .f-rb-cast{color:#c79bff;background:rgba(160,120,230,.16);border-color:rgba(160,120,230,.5)}
-#tab-forge .f-rb-2h{color:#d2b48c;background:rgba(180,140,90,.14);border-color:rgba(180,140,90,.45)}
-#tab-forge .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
-#tab-forge .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
-#tab-forge .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
-#tab-forge .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
-#tab-forge .f-getsub b{color:#cdb988;font-style:normal}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-base{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rbwrap{display:inline-flex;gap:3px;align-items:center}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb{font-size:8.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;padding:1px 4px;border-radius:4px;line-height:1.35;border:1px solid transparent}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-ideal{color:#ffe08a;background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-1h{color:#8fe6a0;background:rgba(95,200,110,.14);border-color:rgba(95,200,110,.45)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-merc{color:#7fb0ff;background:rgba(90,150,255,.16);border-color:rgba(120,160,255,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-cast{color:#c79bff;background:rgba(160,120,230,.16);border-color:rgba(160,120,230,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-2h{color:#d2b48c;background:rgba(180,140,90,.14);border-color:rgba(180,140,90,.45)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getsub b{color:#cdb988;font-style:normal}
 /* One-step full-journey arc: do-this-now segment lit, downstream dimmed */
-#tab-forge .f-journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:5px}
-#tab-forge .f-jseg{font-size:12.5px;color:var(--text-dim,#9a8c72);background:rgba(255,255,255,.03);border:1px solid var(--border,#3a2f1e);padding:3px 9px;border-radius:7px;display:inline-flex;align-items:center;gap:5px}
-#tab-forge .f-jseg b{color:var(--text,#d8cba8)}
-#tab-forge .f-jseg-now{color:var(--best,#e8c878);background:rgba(232,200,120,.14);border-color:rgba(232,200,120,.5);font-weight:700}
-#tab-forge .f-jseg-now b{color:var(--best,#e8c878)}
-#tab-forge .f-jarrow{color:var(--text-dim,#7a6f55);font-size:13px}
-#tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
-#tab-forge .f-rwbig{font-size:1.13em;font-weight:800;letter-spacing:.2px}
-#tab-forge .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg{font-size:12.5px;color:var(--text-dim,#9a8c72);background:rgba(255,255,255,.03);border:1px solid var(--border,#3a2f1e);padding:3px 9px;border-radius:7px;display:inline-flex;align-items:center;gap:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg b{color:var(--text,#d8cba8)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg-now{color:var(--best,#e8c878);background:rgba(232,200,120,.14);border-color:rgba(232,200,120,.5);font-weight:700}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg-now b{color:var(--best,#e8c878)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-jarrow{color:var(--text-dim,#7a6f55);font-size:13px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rwbig{font-size:1.13em;font-weight:800;letter-spacing:.2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
 /* v557 — layered make-now card: action line → recipe row → dim sub-row (Fable-5 clarity pass) */
-#tab-forge .f-atomact{font-size:16px;line-height:1.45}
-#tab-forge .f-atomact .f-in{font-size:12.5px;color:var(--text-dim,#9a8c72);font-weight:400;margin:0 2px}
-#tab-forge .f-atomrecipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:7px 0 2px;padding:6px 10px;background:rgba(0,0,0,.22);border:1px solid rgba(233,208,122,.14);border-radius:9px;width:fit-content;max-width:100%}
-#tab-forge .f-reclbl{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#b7a476;margin-right:7px}
-#tab-forge .f-atomsubrow{margin-top:6px;font-size:12px;line-height:1.5;color:var(--text-dim,#9a8c72);border-left:2px solid rgba(255,255,255,.09);padding-left:9px}
-#tab-forge .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
-#tab-forge .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomact{font-size:16px;line-height:1.45}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomact .f-in{font-size:12.5px;color:var(--text-dim,#9a8c72);font-weight:400;margin:0 2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:7px 0 2px;padding:6px 10px;background:rgba(0,0,0,.22);border:1px solid rgba(233,208,122,.14);border-radius:9px;width:fit-content;max-width:100%}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-reclbl{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#b7a476;margin-right:7px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsubrow{margin-top:6px;font-size:12px;line-height:1.5;color:var(--text-dim,#9a8c72);border-left:2px solid rgba(255,255,255,.09);padding-left:9px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
 /* v558 — MOTION LAYER: living embers, completion celebration, action animations (all reduced-motion-safe) */
 .forge-hero .fh-ember{position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:var(--tonec,#e9d07a);opacity:0;pointer-events:none;filter:blur(.4px);animation:fhEmber 4.2s ease-in infinite}
 .forge-hero .fh-ember:nth-child(1){left:14%;animation-delay:.3s}
@@ -6282,11 +6284,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 @keyframes fStepDone{40%{transform:scale(1.012);box-shadow:0 0 18px -4px rgba(159,212,255,.55)}}
 .f-spark{position:absolute;top:50%;left:56px;width:5px;height:5px;border-radius:50%;background:#ffe9a0;box-shadow:0 0 6px 1px rgba(255,220,120,.85);pointer-events:none;animation:fSpark .55s ease-out forwards}
 @keyframes fSpark{100%{transform:translate(var(--dx,40px),var(--dy,-50px)) scale(.2);opacity:0}}
-#tab-forge .fp-fill{position:relative;overflow:hidden}
-#tab-forge .fp-fill::after{content:"";position:absolute;top:0;left:-40%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:fpShine 4.6s ease-in-out 1s infinite}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill{position:relative;overflow:hidden}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::after{content:"";position:absolute;top:0;left:-40%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:fpShine 4.6s ease-in-out 1s infinite}
 @keyframes fpShine{0%{left:-40%}30%,100%{left:120%}}
-#tab-forge .fp-track{background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),rgba(255,255,255,.13) calc(25% - 1px),rgba(255,255,255,.13) 25%)}
-#tab-forge .fp-fill.fp-celebrate{animation:fpCelebrate 1.2s ease}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),rgba(255,255,255,.13) calc(25% - 1px),rgba(255,255,255,.13) 25%)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill.fp-celebrate{animation:fpCelebrate 1.2s ease}
 @keyframes fpCelebrate{0%,100%{filter:brightness(1)}30%{filter:brightness(1.6);box-shadow:0 0 18px 1px rgba(120,230,150,.9)}}
 .forge-toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9500;background:linear-gradient(135deg,#12351d,#0d1f12);border:1px solid rgba(95,201,122,.6);color:#c9f2d4;font-size:14.5px;padding:11px 20px;border-radius:12px;box-shadow:0 6px 26px rgba(0,0,0,.55),0 0 18px -4px rgba(95,201,122,.5);animation:ftIn .4s cubic-bezier(.2,.9,.3,1.3)}
 .forge-toast b{color:#8fe6a0}
@@ -6294,101 +6296,130 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .forge-toast.out{animation:ftOut .45s ease forwards}
 @keyframes ftIn{0%{transform:translateX(-50%) translateY(18px);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
 @keyframes ftOut{100%{transform:translateX(-50%) translateY(14px);opacity:0}}
-#tab-forge .f-atomrecipe>*{animation:fRecIn .3s ease both}
-#tab-forge .f-atomrecipe>*:nth-child(2){animation-delay:.05s}#tab-forge .f-atomrecipe>*:nth-child(3){animation-delay:.1s}#tab-forge .f-atomrecipe>*:nth-child(4){animation-delay:.15s}#tab-forge .f-atomrecipe>*:nth-child(5){animation-delay:.2s}#tab-forge .f-atomrecipe>*:nth-child(6){animation-delay:.25s}#tab-forge .f-atomrecipe>*:nth-child(7){animation-delay:.3s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*{animation:fRecIn .3s ease both}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(2){animation-delay:.05s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(3){animation-delay:.1s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(4){animation-delay:.15s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(5){animation-delay:.2s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(6){animation-delay:.25s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(7){animation-delay:.3s}
 @keyframes fRecIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:1;transform:translateY(0)}}
 @media (prefers-reduced-motion: reduce){
-  .forge-hero,.forge-hero::after,.forge-hero .fh-ember,#tab-forge .f-card,#tab-forge .fp-fill::after,#tab-forge .f-atomrecipe>*,.forge-hero .fh-artwrap{animation:none!important}
+  .forge-hero,.forge-hero::after,.forge-hero .fh-ember,:is(#tab-forge,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::after,:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*,.forge-hero .fh-artwrap{animation:none!important}
 }
-#tab-forge .f-atomic-ic{font-size:22px;line-height:1}
-#tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
+/* v559 — GRAIL FORGES (Uniques/Sets) — farm cards, piece chips, run lists (shell classes shared via :is()) */
+.gf-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.gf-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#e2d6ba;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:4px 10px;cursor:pointer;transition:filter .12s,transform .07s,border-color .12s}
+.gf-chip:hover{filter:brightness(1.2);transform:translateY(-1px)}
+.gf-chip img{width:16px;height:16px;object-fit:contain}
+.gf-chip .gq{font-size:9.5px;font-weight:800;color:#9a8c72;background:rgba(0,0,0,.3);border-radius:5px;padding:0 5px}
+.gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
+.gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
+.gf-piece.have{background:rgba(95,201,122,.14);border-color:rgba(95,201,122,.55);color:#a9edbb;text-decoration:none}
+.gf-piece.have .gp-ck{color:#5fc97a}
+.gf-piece .gp-ck{color:#6b6048;opacity:.8;font-weight:900}
+.gf-piece img{width:15px;height:15px}
+.gf-src{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:#b6a888}
+.gf-src b{color:#9fd4ff}
+.gf-odds{font-size:10.5px;font-weight:800;color:#9fd4ff;background:rgba(159,212,255,.1);border-radius:6px;padding:1px 7px}
+.gf-setbar{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:7px}
+.gf-setbar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4ade80,#86efac);box-shadow:0 0 8px -1px rgba(74,222,128,.7);transition:width .5s ease}
+.gf-note{font-size:11px;color:#8a7d64;font-style:italic;margin-top:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomic-ic{font-size:22px;line-height:1}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
-#tab-forge .f-artname{white-space:nowrap}
-#tab-forge .f-artname img,#tab-forge .f-cardtitle img{vertical-align:middle;width:18px;height:18px;object-fit:contain;margin-right:3px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
-#tab-forge .f-atomprog{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
-#tab-forge .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
-#tab-forge .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-artname{white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-artname img,:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle img{vertical-align:middle;width:18px;height:18px;object-fit:contain;margin-right:3px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomprog{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
 /* v546 — "Do this one thing" hero banner */
 /* v552 — FLAGSHIP HERO: the single "do this one thing" — big, HD art, animated, impossible to miss */
-#tab-forge .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
-#tab-forge .forge-hero::after{content:"";position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.10),transparent);transform:skewX(-18deg);animation:fhShine 6s ease-in-out 1.4s infinite;pointer-events:none}
-#tab-forge .forge-hero-now{--tone:rgba(95,201,122,.5);--tonec:#5fc97a}
-#tab-forge .forge-hero-pipe{--tone:rgba(91,159,208,.5);--tonec:#5b9fd0}
-#tab-forge .forge-hero-step{--tone:rgba(233,208,122,.5);--tonec:#e9d07a}
-#tab-forge .fh-artwrap{position:relative;flex:0 0 auto;width:58px;height:58px;border-radius:13px;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.09),rgba(0,0,0,.34));border:1px solid color-mix(in srgb,var(--tonec) 42%,transparent);display:flex;align-items:center;justify-content:center;animation:fhArtGlow 3.4s ease-in-out infinite}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero::after{content:"";position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.10),transparent);transform:skewX(-18deg);animation:fhShine 6s ease-in-out 1.4s infinite;pointer-events:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero-now{--tone:rgba(95,201,122,.5);--tonec:#5fc97a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero-pipe{--tone:rgba(91,159,208,.5);--tonec:#5b9fd0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero-step{--tone:rgba(233,208,122,.5);--tonec:#e9d07a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-artwrap{position:relative;flex:0 0 auto;width:58px;height:58px;border-radius:13px;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.09),rgba(0,0,0,.34));border:1px solid color-mix(in srgb,var(--tonec) 42%,transparent);display:flex;align-items:center;justify-content:center;animation:fhArtGlow 3.4s ease-in-out infinite}
 @keyframes fhArtGlow{0%,100%{box-shadow:0 0 16px -5px color-mix(in srgb,var(--tonec) 60%,transparent)}50%{box-shadow:0 0 24px -2px color-mix(in srgb,var(--tonec) 78%,transparent)}}
-#tab-forge .fh-art{display:flex;align-items:center;justify-content:center}
-#tab-forge .fh-art img{max-width:48px;max-height:48px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
-#tab-forge .fh-art .f-glyph{font-size:32px}
-#tab-forge .fh-icobadge{position:absolute;bottom:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#140f09;border:1px solid color-mix(in srgb,var(--tonec) 60%,transparent);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.55)}
-#tab-forge .fh-main{flex:1 1 auto;min-width:0;position:relative;z-index:1}
-#tab-forge .fh-lead{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--tonec,#e9d07a)}
-#tab-forge .fh-name{font-family:var(--serif-display,serif);font-size:24px;font-weight:700;line-height:1.12;margin:2px 0 3px;color:var(--text,#e8dcc2)}
-#tab-forge .fh-name img{width:23px;height:23px;vertical-align:-4px;margin-right:5px}
-#tab-forge .fh-body{font-size:13px;line-height:1.4;color:var(--text-dim,#b6a888)}
-#tab-forge .fh-cta{flex:0 0 auto;white-space:nowrap;background:color-mix(in srgb,var(--tonec) 22%,transparent);border:1px solid color-mix(in srgb,var(--tonec) 55%,transparent);color:#fff;font-weight:800;font-size:13px;padding:10px 17px;position:relative;z-index:1;box-shadow:0 2px 12px -2px color-mix(in srgb,var(--tonec) 55%,transparent)}
-#tab-forge .fh-cta:hover{filter:brightness(1.13)}
-#tab-forge .fh-cta-arw{display:inline-block;transition:transform .15s}
-#tab-forge .fh-cta:hover .fh-cta-arw{transform:translateX(3px)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-art{display:flex;align-items:center;justify-content:center}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-art img{max-width:48px;max-height:48px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-art .f-glyph{font-size:32px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-icobadge{position:absolute;bottom:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#140f09;border:1px solid color-mix(in srgb,var(--tonec) 60%,transparent);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.55)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-main{flex:1 1 auto;min-width:0;position:relative;z-index:1}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-lead{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--tonec,#e9d07a)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name{font-family:var(--serif-display,serif);font-size:24px;font-weight:700;line-height:1.12;margin:2px 0 3px;color:var(--text,#e8dcc2)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name img{width:23px;height:23px;vertical-align:-4px;margin-right:5px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-body{font-size:13px;line-height:1.4;color:var(--text-dim,#b6a888)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta{flex:0 0 auto;white-space:nowrap;background:color-mix(in srgb,var(--tonec) 22%,transparent);border:1px solid color-mix(in srgb,var(--tonec) 55%,transparent);color:#fff;font-weight:800;font-size:13px;padding:10px 17px;position:relative;z-index:1;box-shadow:0 2px 12px -2px color-mix(in srgb,var(--tonec) 55%,transparent)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta:hover{filter:brightness(1.13)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta-arw{display:inline-block;transition:transform .15s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta:hover .fh-cta-arw{transform:translateX(3px)}
 @keyframes fhIn{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes fhShine{0%{left:-60%}20%,100%{left:135%}}
-#tab-forge .forge-empty-sm{padding:18px;font-size:13px;margin-top:0}
-@media (max-width:760px){#tab-forge .forge-tabs{flex-wrap:wrap}#tab-forge .forge-tab{flex:1 1 40%}#tab-forge .forge-title{font-size:34px}}
-#tab-forge .forge-sec{margin:20px 0 6px}
-#tab-forge .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:800;padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
-#tab-forge .forge-sec-ct{font-size:12px;font-weight:700;padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
-#tab-forge .forge-sec-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);margin-left:auto}
-#tab-forge .forge-sec-now .forge-sec-h{color:#8fe0a0}
-#tab-forge .forge-sec-pipe .forge-sec-h{color:#9fd4ff}
-#tab-forge .forge-sec-step .forge-sec-h{color:#e9d07a}
-#tab-forge .forge-sec-defer .forge-sec-h{color:#b9a98a}
-#tab-forge .forge-note{font-size:12px;color:var(--text-dim,#9a8c72);margin:-4px 0 12px;font-style:italic}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-empty-sm{padding:18px;font-size:13px;margin-top:0}
+@media (max-width:760px){:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{flex-wrap:wrap}:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 40%}:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:34px}}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec{margin:20px 0 6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:800;padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-ct{font-size:12px;font-weight:700;padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);margin-left:auto}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-now .forge-sec-h{color:#8fe0a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-pipe .forge-sec-h{color:#9fd4ff}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-step .forge-sec-h{color:#e9d07a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-defer .forge-sec-h{color:#b9a98a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-note{font-size:12px;color:var(--text-dim,#9a8c72);margin:-4px 0 12px;font-style:italic}
 /* v552 — application-style task cards: HD art, hover lift, staggered entrance */
-#tab-forge .f-card{position:relative;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,.008));transition:transform .12s ease,box-shadow .16s ease,border-color .16s ease;animation:fCardIn .34s ease both}
-#tab-forge .f-card:hover{transform:translateY(-2px);box-shadow:0 7px 22px -8px rgba(0,0,0,.55)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-card{position:relative;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,.008));transition:transform .12s ease,box-shadow .16s ease,border-color .16s ease;animation:fCardIn .34s ease both}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:hover{transform:translateY(-2px);box-shadow:0 7px 22px -8px rgba(0,0,0,.55)}
 @keyframes fCardIn{0%{opacity:0;transform:translateY(7px)}100%{opacity:1;transform:translateY(0)}}
-#tab-forge .f-card:nth-of-type(1){animation-delay:.01s}#tab-forge .f-card:nth-of-type(2){animation-delay:.05s}#tab-forge .f-card:nth-of-type(3){animation-delay:.09s}#tab-forge .f-card:nth-of-type(4){animation-delay:.13s}#tab-forge .f-card:nth-of-type(5){animation-delay:.17s}#tab-forge .f-card:nth-of-type(6){animation-delay:.21s}
-#tab-forge .f-now{border-left-color:#5fc97a}
-#tab-forge .f-now:hover{border-color:rgba(95,201,122,.5)}
-#tab-forge .f-pipe{border-left-color:#5b9fd0}
-#tab-forge .f-pipe:hover{border-color:rgba(91,159,208,.5)}
-#tab-forge .f-step{border-left-color:#cdb157}
-#tab-forge .f-step:hover{border-color:rgba(205,177,87,.5)}
-#tab-forge .f-defer{border-left-color:#6b5f48;opacity:.62}
-#tab-forge .f-cardart{flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:9px;overflow:hidden}
-#tab-forge .f-cardart-hd{position:relative;flex:0 0 48px;width:48px;height:48px;overflow:visible;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.07),rgba(0,0,0,.32));border:1px solid rgba(255,255,255,.08);border-radius:11px}
-#tab-forge .f-cardart-hd .f-art{max-width:42px;max-height:42px}
-#tab-forge .f-cardart-hd .f-atomic-ic{font-size:26px}
-#tab-forge .f-cardart-badge{position:absolute;bottom:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#140f09;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.5)}
-#tab-forge .f-art{max-width:40px;max-height:40px;object-fit:contain}
-#tab-forge .f-glyph{font-size:22px}
-#tab-forge .f-cardbody{flex:1;min-width:0}
-#tab-forge .f-cardtitle{font-size:15px;font-weight:700;color:var(--text,#e8dcc0)}
-#tab-forge .f-cardtitle b{color:var(--best,#e8c878)}
-#tab-forge .f-cardmeta{font-size:12.5px;color:var(--text-dim,#a89a80);margin-top:3px;line-height:1.5}
-#tab-forge .f-cardmeta b{color:var(--text,#d8cba8)}
-#tab-forge .f-cardtell{font-size:11.5px;color:var(--text-dim,#9a8c72);margin-top:3px;font-style:italic}
-#tab-forge .f-recipe,#tab-forge .f-recipe-inline{margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:2px}
-#tab-forge .f-recipe-inline{display:inline-flex;margin-top:0}
-#tab-forge .f-hand{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;vertical-align:middle;margin-left:4px}
-#tab-forge .f-eth{font-size:10px;font-weight:700;color:#9fd4ff}
-#tab-forge .f-sup{font-size:10px;font-weight:700;color:#8fe0a0}
-#tab-forge .f-ideal{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:rgba(143,224,160,.14);color:#8fe0a0;margin-left:4px}
-#tab-forge .f-alt{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:rgba(233,208,122,.12);color:#e9d07a;margin-left:4px}
-#tab-forge .f-star{font-size:10px;font-weight:800;color:#e9d07a;margin-left:4px}
-#tab-forge .f-need{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;margin-left:4px}
-#tab-forge .f-steps{margin-top:6px}
-#tab-forge .f-step{font-size:12.5px;color:var(--text-dim,#a89a80);line-height:1.55;margin:3px 0;padding-left:4px}
-#tab-forge .f-step b{color:var(--text,#d8cba8)}
-#tab-forge .f-stepn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(159,212,255,.18);color:#9fd4ff;font-size:10px;font-weight:800;margin-right:6px}
-#tab-forge .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
-#tab-forge .f-cta{margin-top:9px;display:flex;gap:7px}
-#tab-forge .f-btn{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:7px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.04);color:var(--text-dim,#b3a486);cursor:pointer}
-#tab-forge .f-btn:hover{background:rgba(255,255,255,.09);color:var(--text,#e8dcc0)}
-#tab-forge .f-btn-go{border-color:rgba(95,201,122,.5);color:#8fe0a0;background:rgba(95,201,122,.1)}
-#tab-forge .f-btn-go:hover{background:rgba(95,201,122,.2)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(1){animation-delay:.01s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(2){animation-delay:.05s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(3){animation-delay:.09s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(4){animation-delay:.13s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(5){animation-delay:.17s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(6){animation-delay:.21s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-now{border-left-color:#5fc97a}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-now:hover{border-color:rgba(95,201,122,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe{border-left-color:#5b9fd0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe:hover{border-color:rgba(91,159,208,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-step{border-left-color:#cdb157}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-step:hover{border-color:rgba(205,177,87,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-defer{border-left-color:#6b5f48;opacity:.62}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart{flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:9px;overflow:hidden}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd{position:relative;flex:0 0 48px;width:48px;height:48px;overflow:visible;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.07),rgba(0,0,0,.32));border:1px solid rgba(255,255,255,.08);border-radius:11px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd .f-art{max-width:42px;max-height:42px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd .f-atomic-ic{font-size:26px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-badge{position:absolute;bottom:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#140f09;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-art{max-width:40px;max-height:40px;object-fit:contain}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-glyph{font-size:22px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardbody{flex:1;min-width:0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle{font-size:15px;font-weight:700;color:var(--text,#e8dcc0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle b{color:var(--best,#e8c878)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardmeta{font-size:12.5px;color:var(--text-dim,#a89a80);margin-top:3px;line-height:1.5}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardmeta b{color:var(--text,#d8cba8)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtell{font-size:11.5px;color:var(--text-dim,#9a8c72);margin-top:3px;font-style:italic}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-recipe,:is(#tab-forge,#tab-funi,#tab-fsets) .f-recipe-inline{margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-recipe-inline{display:inline-flex;margin-top:0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-hand{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;vertical-align:middle;margin-left:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-eth{font-size:10px;font-weight:700;color:#9fd4ff}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-sup{font-size:10px;font-weight:700;color:#8fe0a0}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-ideal{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:rgba(143,224,160,.14);color:#8fe0a0;margin-left:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-alt{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:rgba(233,208,122,.12);color:#e9d07a;margin-left:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-star{font-size:10px;font-weight:800;color:#e9d07a;margin-left:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-need{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;margin-left:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-steps{margin-top:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-step{font-size:12.5px;color:var(--text-dim,#a89a80);line-height:1.55;margin:3px 0;padding-left:4px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-step b{color:var(--text,#d8cba8)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-stepn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(159,212,255,.18);color:#9fd4ff;font-size:10px;font-weight:800;margin-right:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cube{font-family:monospace;font-size:11px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-cta{margin-top:9px;display:flex;gap:7px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:7px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.04);color:var(--text-dim,#b3a486);cursor:pointer}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn:hover{background:rgba(255,255,255,.09);color:var(--text,#e8dcc0)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-go{border-color:rgba(95,201,122,.5);color:#8fe0a0;background:rgba(95,201,122,.1)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-go:hover{background:rgba(95,201,122,.2)}
 </style>
 <div id="forge-body"></div>
+</div>
+<!-- v559 — GRAIL FORGES: two ADDITIVE pillars sharing the Forge shell. Forge itself untouched. -->
+<div class="tab-content" id="tab-funi">
+  <div class="forge-head"><div class="forge-title" style="color:#e8c878">🏆 Forge · Uniques</div>
+  <div class="forge-sub">Your unique-grail task plan — every missing unique mapped to its <b>best farm run</b> (real odds · kills/hr), synced to the Calculator ✓. Tick <b>✓ found</b> and it leaves the hunt.</div></div>
+  <div id="funi-body"></div>
+</div>
+<div class="tab-content" id="tab-fsets">
+  <div class="forge-head"><div class="forge-title" style="color:#4ade80">🧩 Forge · Sets</div>
+  <div class="forge-sub">Your set-grail task plan — all 32 sets as tickable piece checklists, <b>1-piece-left sets first</b>, synced to the Item Set Tracker. Tick a piece the moment it drops.</div></div>
+  <div id="fsets-body"></div>
 </div>
 <div class="footer">
   <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px">
@@ -19667,7 +19698,7 @@ document.querySelectorAll(".tab").forEach(t => { t.onclick = () => navClean(t.da
 var TAB_ICON = {
   main:'logo_scroll.png', bosses:'hd_perfect_skull.png', calc:'hd_perfect_diamond.png',
   tz:'essenceterror_graphic.png', tztracker:'d2io_infernalsign.png', runes:'hd_ber_rune.png',
-  rotw:'harlequincrest_graphic.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
+  rotw:'harlequincrest_graphic.png', funi:'crownofages_graphic.png', fsets:'d2io_talrashashoradriccrest.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
   binds:'mr_annihilus.png', ref:'hd_grimoire.png', tools:'horadric_cube_graphic.png', forge:'base_warhammer.png'
 };
 window._tabIcoFail = function(img){ try { var e=img.getAttribute('data-emoji')||'•'; var s=document.createElement('span'); s.className=(img.className||'').replace(/\btab-hdico\b/,'').trim(); s.textContent=e; img.replaceWith(s); } catch(err){} };
@@ -27009,7 +27040,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!pick) return '';
     // v557 — after a filter-switch CTA, glide to the first task card so the click lands ON the action
     if (pick.act.indexOf('forgeSetFilter')===0 || pick.act.indexOf("window.forgeSetFilter")===0){
-      pick.act += ";setTimeout(function(){var c=document.querySelector('#tab-forge .f-card');if(c)c.scrollIntoView({block:'center',behavior:'smooth'});},180)";
+      pick.act += ";setTimeout(function(){var c=document.querySelector(':is(#tab-forge,#tab-funi,#tab-fsets) .f-card');if(c)c.scrollIntoView({block:'center',behavior:'smooth'});},180)";
     }
     return '<div class="forge-hero forge-hero-'+pick.tone+'">'
       + '<span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'   // v558 — living forge embers (decorative, reduced-motion-safe)
@@ -27632,6 +27663,220 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v546.1 — do NOT re-expose _baseTier here: the canonical window._baseTier already exists (defined ~L8022; it
   // quality-strips + uses _baseRec, so it resolves Superior/unique bases correctly). An earlier v546 override
   // clobbered it with a BASE_DB-only version and broke v380/v450. Smart Insights' _baseFarmWhere uses the good one.
+})();
+</script>
+<script id="v559-grail-forges-js">
+/* ═══ v559 — GRAIL FORGES: Forge·Uniques + Forge·Sets ═══════════════════════════════════════════════
+   Two ADDITIVE pillars sharing the flagship Forge shell (hero / KPI tiles / meter / cards — CSS shared
+   via the :is(#tab-forge,#tab-funi,#tab-fsets) scope). The runeword Forge is UNTOUCHED.
+   • Uniques: ITEMS (tiers grail/high/common) — each missing unique mapped to its BEST farm source
+     (max kills-per-hour ÷ odds), grouped into RUN cards. Found-state = the SAME d2r_owned the
+     Calculator ✓ uses (toggleOwned) — tick anywhere, synced everywhere.
+   • Sets: __allSets() (32 sets / 127 pieces) as tickable piece checklists; found-state = the SAME
+     d2r_setPieces the Item Set Tracker uses (toggleSetPiece). "1 piece left" sets lead.
+   Per-browser stores → the cousin's fresh profile naturally starts at zero (no seed to suppress). */
+(function(){
+  function esc(x){ return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function jsq(x){ return String(x).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function motionOK(){ try { return !navigator.webdriver && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch(e){ return true; } }
+  function art(n, glyph){ try { var u=(typeof artUrl==='function')?artUrl(n):''; return u?'<img class="f-art" src="'+esc(u)+'" alt="" loading="lazy">':'<span class="f-glyph">'+glyph+'</span>'; } catch(e){ return '<span class="f-glyph">'+glyph+'</span>'; } }
+  function chipLogo(n){ try { return (typeof nameLogo==='function')?nameLogo(n):''; } catch(e){ return ''; } }
+  function fmtOdds(c){ if(c==null) return ''; return '1:'+(c>=1000?(Math.round(c/100)/10)+'k':c); }
+
+  /* ── UNIQUES ─────────────────────────────────────────── */
+  function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); return L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; }); }
+  function _ownedNames(){ try { return new Set(JSON.parse(localStorage.getItem('d2r_owned')||'[]')); } catch(e){ return new Set(); } }
+  function _bestSrc(it){
+    var best=null;
+    (it.sources||[]).forEach(function(s){ if(!s||s.blocked||s.chance==null) return; var rate=(s.kph||30)/s.chance; if(!best||rate>best._r){ s._r=rate; best=s; } });
+    return best;
+  }
+  window.funiScan=function(){
+    var own=_ownedNames(), items=_uniItems();
+    var missing=[], found=0;
+    items.forEach(function(x){ if(own.has(x.n)) found++; else missing.push(x); });
+    var bySrc={};
+    missing.forEach(function(x){
+      var b=_bestSrc(x); var key=b?b.boss:'Anywhere — no verified source yet';
+      var g=(bySrc[key]=bySrc[key]||{boss:key, bossId:b&&b.bossId, items:[]}); g.items.push(x);
+    });
+    var runs=Object.keys(bySrc).map(function(k){return bySrc[k];}).sort(function(a,b){ return b.items.length-a.items.length || String(a.boss).localeCompare(String(b.boss)); });
+    var low=missing.filter(function(x){ return (x.qlvl||99)<=35; }).sort(function(a,b){ return (a.qlvl||0)-(b.qlvl||0); });
+    return { total:items.length, found:found, missing:missing, runs:runs, low:low };
+  };
+  var _fuF='all';
+  window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni(); };
+  window.grailFoundUni=function(el,name){
+    var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name); } catch(e){} window.renderForgeUni(); _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique grail grows'); };
+    _cardAnim(el,'f-anim-forged',430,act);
+  };
+  function _cardAnim(el,cls,ms,fn){
+    if(!motionOK()){ fn(); return; }
+    try { var card=el&&el.closest?el.closest('.f-card'):null; if(!card){ fn(); return; }
+      card.classList.add(cls);
+      if(cls==='f-anim-forged'){ for(var i=0;i<7;i++){ var sp=document.createElement('span'); sp.className='f-spark'; sp.style.setProperty('--dx',(Math.random()*140-70)+'px'); sp.style.setProperty('--dy',(-30-Math.random()*70)+'px'); sp.style.animationDelay=(Math.random()*90)+'ms'; card.appendChild(sp); } }
+      setTimeout(fn,ms);
+    } catch(e){ fn(); }
+  }
+  function _grailToast(ico,main,sub){
+    if(!motionOK()) return;
+    try { var t=document.createElement('div'); t.className='forge-toast'; t.innerHTML=ico+' '+main+' <span class="ft-sub">'+sub+'</span>';
+      document.body.appendChild(t); setTimeout(function(){ t.classList.add('out'); setTimeout(function(){ t.remove(); },450); },2400); } catch(e){}
+  }
+  function _meter(found,total,color){
+    var pct=total?Math.round(found/total*100):0;
+    return '<div class="forge-progress" title="'+found+' of '+total+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
+      +'<div class="fp-lbl">🏆 <b>'+found+'</b> / '+total+' found<span class="fp-pct">'+pct+'%</span></div></div>';
+  }
+  function _tile(key,emoji,label,cls,n,F,setter){
+    return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="'+setter+'(\''+key+'\')" title="show '+esc(label)+'">'
+      +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+esc(label)+'</span><span class="ft-ct">'+n+'</span></button>';
+  }
+  function _itemChip(n,q){
+    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+chipLogo(n)+'<span>'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
+  }
+  function _runCard(r,i){
+    var chips=r.items.slice(0,10).map(function(x){ return _itemChip(x.n,x.qlvl); }).join('');
+    var more=r.items.length>10?'<span class="gf-note">+ '+(r.items.length-10)+' more from this run</span>':'';
+    var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
+    return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd"><span class="f-atomic-ic">🎯</span><span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+      +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
+      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques</div>'
+      +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
+  }
+  function _uniItemCard(x){
+    var b=_bestSrc(x);
+    var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(b.chance)+'</span>'+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
+             :'<div class="gf-note">no verified source — drops broadly</div>';
+    return '<div class="f-card f-step f-atom" data-arttip="'+esc(x.n)+'"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
+      +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
+      +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')">✓ found it</button></div></div></div>';
+  }
+  window.renderForgeUni=function(){
+    var box=document.getElementById('funi-body'); if(!box) return;
+    var s=window.funiScan(); var F=_fuF; var H=[];
+    H.push(_meter(s.found,s.total,''));
+    H.push('<div class="forge-tabs">'
+      +_tile('all','▦','All missing','ft-all',s.missing.length,F,'window.funiSetFilter')
+      +_tile('runs','🎯','Best runs','ft-pipe',s.runs.length,F,'window.funiSetFilter')
+      +_tile('low','🌱','Low-level gap','ft-step',s.low.length,F,'window.funiSetFilter')
+      +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter')
+      +'</div>');
+    // HERO: the single best run
+    var top=s.runs[0];
+    if(top&&F!=='found'){
+      H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
+        +'<div class="fh-artwrap"><div class="fh-art"><span class="f-glyph">🎯</span></div><div class="fh-icobadge">🏆</div></div>'
+        +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(top.boss)+'</div>'
+        +'<div class="fh-body">drops <b>'+top.items.length+'</b> of your missing uniques — '+top.items.slice(0,4).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>4?' …':'')+'</div></div>'
+        +'<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
+    }
+    var show=function(k){ return F==='all'||F===k; };
+    if(show('runs')&&s.runs.length){
+      H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🎯 Best runs <span class="forge-sec-ct">'+s.runs.length+'</span><span class="forge-sec-sub">each run ranked by how many missing uniques it can drop</span></div>');
+      s.runs.slice(0,F==='runs'?40:8).forEach(function(r,i){ H.push(_runCard(r,i)); });
+      if(F!=='runs'&&s.runs.length>8) H.push('<div class="forge-note">+ '+(s.runs.length-8)+' more runs — open the 🎯 Best runs tile</div>');
+      H.push('</div>');
+    }
+    if(show('low')&&s.low.length){
+      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🌱 Low-level gap <span class="forge-sec-ct">'+s.low.length+'</span><span class="forge-sec-sub">qlvl ≤ 35 — the early uniques skipped on the way to Hell</span></div>');
+      s.low.slice(0,F==='low'?60:6).forEach(function(x){ H.push(_uniItemCard(x)); });
+      if(F!=='low'&&s.low.length>6) H.push('<div class="forge-note">+ '+(s.low.length-6)+' more — open the 🌱 tile</div>');
+      H.push('</div>');
+    }
+    if(F==='found'){
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">synced with the Calculator ✓ — tap to un-mark</span></div><div class="gf-chips">');
+      var own=_ownedNames();
+      _uniItems().filter(function(x){return own.has(x.n);}).forEach(function(x){
+        H.push('<span class="gf-piece have" data-arttip="'+esc(x.n)+'" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')"><span class="gp-ck">✓</span>'+chipLogo(x.n)+esc(x.n)+'</span>');
+      });
+      H.push('</div></div>');
+      if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
+    }
+    box.innerHTML=H.join('');
+  };
+
+  /* ── SETS ────────────────────────────────────────────── */
+  function _setHave(){ try { return new Set(JSON.parse(localStorage.getItem('d2r_setPieces')||'[]')); } catch(e){ return new Set(); } }
+  window.fsetsScan=function(){
+    var have=_setHave(); var sets=(typeof window.__allSets==='function')?window.__allSets():[];
+    var totalP=0, haveP=0;
+    var rows=sets.map(function(st){
+      var pieces=(st.pieces||[]).map(function(pn){ return { name:pn, have:have.has(pn) }; });
+      totalP+=pieces.length; var got=pieces.filter(function(p){return p.have;}).length; haveP+=got;
+      return { name:st.name, pieces:pieces, got:got, left:pieces.length-got };
+    });
+    return { totalPieces:totalP, havePieces:haveP, sets:rows,
+      oneAway:rows.filter(function(r){return r.left===1;}),
+      working:rows.filter(function(r){return r.left>0;}).sort(function(a,b){ return a.left-b.left || b.pieces.length-a.pieces.length; }),
+      done:rows.filter(function(r){return r.left===0;}) };
+  };
+  var _fsF='all';
+  window.fsetsSetFilter=function(f){ _fsF=(_fsF===f&&f!=='all')?'all':f; window.renderForgeSets(); };
+  window.grailTogglePiece=function(el,piece){
+    var wasHave=_setHave().has(piece);
+    try { if(typeof window.toggleSetPiece==='function') window.toggleSetPiece(piece); } catch(e){}
+    if(!wasHave){
+      // did this COMPLETE a set? celebrate accordingly
+      var s=window.fsetsScan(); var doneSet=s.done.find(function(r){ return r.pieces.some(function(p){return p.name===piece;}); });
+      if(doneSet) _grailToast('🧩','<b>'+esc(doneSet.name)+'</b> COMPLETE!','full set assembled');
+      else _grailToast('🧩','<b>'+esc(piece)+'</b> found!','the set grail grows');
+    }
+    window.renderForgeSets();
+  };
+  function _setArt(name){
+    try { var rep=(typeof window._setRepArtName==='function')?window._setRepArtName(name):''; if(rep){ var u=(typeof artUrl==='function')?artUrl(rep):''; if(u) return '<img class="f-art" src="'+esc(u)+'" alt="" loading="lazy">'; } } catch(e){}
+    return '<span class="f-glyph">🧩</span>';
+  }
+  function _pieceChip(p){
+    var nm=p.name, clean=nm.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(nm.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
+    return '<span class="gf-piece'+(p.have?' have':'')+'" data-arttip="'+esc(clean)+'" onclick="window.grailTogglePiece(this,\''+jsq(nm)+'\')" title="'+(p.have?'un-mark':'mark found')+'"><span class="gp-ck">'+(p.have?'✓':'○')+'</span>'+chipLogo(clean)+esc(clean)+(slot?'<span class="gq">'+esc(slot)+'</span>':'')+'</span>';
+  }
+  function _setCard(r,cls){
+    var pct=r.pieces.length?Math.round(r.got/r.pieces.length*100):0;
+    return '<div class="f-card '+cls+'"><div class="f-cardart f-cardart-hd">'+_setArt(r.name)+'<span class="f-cardart-badge">'+(r.left===0?'✅':r.left)+'</span></div><div class="f-cardbody">'
+      +'<div class="f-cardtitle"><div class="f-atomact"><b class="f-rwbig">'+esc(r.name)+'</b> <span class="f-need">'+r.got+' / '+r.pieces.length+'</span>'+(r.left===1?' <span class="f-ideal">1 piece left!</span>':'')+'</div>'
+      +'<div class="gf-setbar"><i style="width:'+pct+'%"></i></div>'
+      +'<div class="gf-chips">'+r.pieces.map(_pieceChip).join('')+'</div></div></div></div>';
+  }
+  window.renderForgeSets=function(){
+    var box=document.getElementById('fsets-body'); if(!box) return;
+    var s=window.fsetsScan(); var F=_fsF; var H=[];
+    var pct=s.totalPieces?Math.round(s.havePieces/s.totalPieces*100):0;
+    H.push('<div class="forge-progress" title="'+s.havePieces+' of '+s.totalPieces+' pieces"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%;background:linear-gradient(90deg,#4ade80,#86efac)"></div></div>'
+      +'<div class="fp-lbl">🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets<span class="fp-pct">'+pct+'%</span></div></div>');
+    H.push('<div class="forge-tabs">'
+      +_tile('all','▦','All sets','ft-all',s.sets.length,F,'window.fsetsSetFilter')
+      +_tile('near','🔥','1 piece left','ft-step',s.oneAway.length,F,'window.fsetsSetFilter')
+      +_tile('working','🧩','In progress','ft-pipe',s.working.filter(function(r){return r.got>0;}).length,F,'window.fsetsSetFilter')
+      +_tile('done','✅','Complete','ft-done',s.done.length,F,'window.fsetsSetFilter')
+      +'</div>');
+    var hero=s.oneAway[0];
+    if(hero&&F!=='done'){
+      var missP=hero.pieces.find(function(p){return !p.have;});
+      H.push('<div class="forge-hero forge-hero-step"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
+        +'<div class="fh-artwrap"><div class="fh-art">'+_setArt(hero.name)+'</div><div class="fh-icobadge">🔥</div></div>'
+        +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · finish the set</div><div class="fh-name">'+esc(hero.name)+'</div>'
+        +'<div class="fh-body">only <b>'+esc(missP?missP.name:'1 piece')+'</b> left to complete it</div></div>'
+        +'<button class="f-btn fh-cta" onclick="window.fsetsSetFilter(\'near\')">1 left <span class="fh-cta-arw">→</span></button></div>');
+    }
+    var list;
+    if(F==='near') list=s.oneAway;
+    else if(F==='working') list=s.working.filter(function(r){return r.got>0;});
+    else if(F==='done') list=s.done;
+    else list=s.working.concat(s.done);
+    if(!list.length) H.push('<div class="forge-empty">Nothing here yet — tick set pieces as they drop (piece chips are tappable; they sync with the Item Set Tracker).</div>');
+    else list.forEach(function(r){ H.push(_setCard(r, r.left===0?'f-now':(r.left===1?'f-step':'f-pipe'))); });
+    box.innerHTML=H.join('');
+  };
+
+  /* ── wire into the tab system (additive wrap) ─────────── */
+  var _origSwitch=window.switchTab;
+  window.switchTab=function(name){
+    var r=_origSwitch.apply(this,arguments);
+    try { if(name==='funi') window.renderForgeUni(); if(name==='fsets') window.renderForgeSets(); } catch(e){}
+    return r;
+  };
 })();
 </script>
 <script>
