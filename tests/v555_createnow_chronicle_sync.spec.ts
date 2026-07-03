@@ -60,3 +60,22 @@ test('the ask snapshot completableNow also excludes an already-made runeword', a
   });
   expect(r).toBe(false);   // a made runeword never appears in "what you can create now"
 });
+
+test('ticking a runeword the cached "Today\'s pick" names invalidates + re-asks it', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_rwMade', '{}');
+    localStorage.setItem('d2r_createNowAi', "Today's pick: Make Enigma (Jah + Ith + Ber) — best in the game.");
+    localStorage.setItem('d2r_createNowAiDate', '2026-07-03');
+  });
+  await page.goto(URL); await page.waitForTimeout(1300);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    let reasked = false;
+    w.dailyCreateAi = function () { reasked = true; };   // stub to avoid a real API call
+    w.rwToggleMade('Enigma');                            // make the very word the cached pick recommends
+    return { dateCleared: localStorage.getItem('d2r_createNowAiDate') === null, reasked };
+  });
+  expect(r.dateCleared).toBe(true);   // stale daily cache invalidated
+  expect(r.reasked).toBe(true);       // …and a fresh pick requested
+});
