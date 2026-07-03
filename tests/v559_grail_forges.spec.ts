@@ -40,7 +40,7 @@ test('Forge·Uniques renders the full shell: meter, 4 KPI tiles, hero, run cards
   expect(r.scan.runs).toBeGreaterThan(10);        // grouped by best source
 });
 
-test('Forge·Sets renders 32 set checklists / 127 pieces with tickable chips', async ({ page }) => {
+test('Forge·Sets renders ALL set checklists (34 sets / 135 pieces) with tickable chips', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window; w.switchTab('fsets');
     const b = document.getElementById('fsets-body')!;
@@ -57,9 +57,9 @@ test('Forge·Sets renders 32 set checklists / 127 pieces with tickable chips', a
   expect(r.active).toBe(true);
   expect(r.meter).toBe(true);
   expect(r.tiles).toBe(4);
-  expect(r.sets).toBe(32);
+  expect(r.sets).toBe(34);   // 32 base+mod +2 restored (Heaven's Brethren, Hwanin's Majesty — v559.1 audit fix)
   expect(r.pieces).toBeGreaterThan(100);
-  expect(r.setCards).toBeGreaterThanOrEqual(32);
+  expect(r.setCards).toBeGreaterThanOrEqual(34);
   expect(r.pieceChips).toBeGreaterThan(100);
 });
 

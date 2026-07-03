@@ -6320,6 +6320,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-setbar{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:7px}
 .gf-setbar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4ade80,#86efac);box-shadow:0 0 8px -1px rgba(74,222,128,.7);transition:width .5s ease}
 .gf-note{font-size:11px;color:#8a7d64;font-style:italic;margin-top:5px}
+/* v559.1 — runeword-name chips in the Socketed Review / throw-out / intake lists (HD logo + arttip hover) */
+.rwn-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#e0d0a8;background:rgba(233,208,122,.08);border:1px solid rgba(233,208,122,.2);border-radius:7px;padding:1px 8px;margin:2px 3px 2px 0;cursor:help;transition:filter .12s}
+.rwn-chip:hover{filter:brightness(1.25)}
+.rwn-chip img{width:14px;height:14px;object-fit:contain}
+.rwn-more{font-size:11px;color:#8a7d64;font-style:italic}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomic-ic{font-size:22px;line-height:1}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
@@ -7950,7 +7955,9 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // still need to make — so exempt it from the "Keep for runewords" examples and show only what's LEFT to
   // create (Konyo: "I know exactly what I have left to create"). Created ones are cancelled out + counted.
   var _rwIsMade = function(n){ try { return typeof rwMade !== 'undefined' && rwMade && !!rwMade[n]; } catch(e){ return false; } };
-  var _rwNames = function(list){ return list.slice(0, 14).map(function(r){ return _d2artEsc(r.n); }).join(', ') + (list.length > 14 ? ' +' + (list.length - 14) + ' more' : ''); };
+  // v559.1 — Konyo: "keywords here HD art upgraded and image cursor floating" — every runeword NAME in these
+  // lists is now an inline chip with its HD logo + the floating #arttip hover card (was plain comma text).
+  var _rwNames = function(list){ return list.slice(0, 14).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n):''; return '<span class="rwn-chip" data-arttip="'+n+'">'+lg+n+'</span>'; }).join('') + (list.length > 14 ? ' <span class="rwn-more">+' + (list.length - 14) + ' more</span>' : ''); };
   // v455 — CLARITY: the count-only "· 6 already created ✓" left Konyo unsure WHICH were done vs still needed.
   // Now the made ones are NAMED on their own green line, and the to-do list is explicitly labelled "still to
   // create", so the split reads unambiguously: this many left (these), that many done (those).
@@ -9865,6 +9872,27 @@ const SET_PIECES_EXTRA = [
 ];
 // v382 — the 13 classic + 2 RotW sets that weren't yet defined (identity → search/tracker/findSetPiece).
 const SET_PIECES_EXTRA2 = [
+ /* v559.1 — AUDIT FIX (Konyo challenged the set roster): Heaven's Brethren + Hwanin's Majesty were MISSING from
+    the tracker since v82 (canonical D2R = 32 base sets / 127 pieces; we had 30 base + 2 RotW mod sets). Added —
+    feeds the Item Set Tracker AND Forge·Sets. Piece bases verified vs canonical LoD set data. */
+ {
+  "name": "Heaven's Brethren (set)",
+  "pieces": [
+   "Ondal's Almighty (spired helm)",
+   "Haemosu's Adamant (cuirass)",
+   "Taebaek's Glory (ward)",
+   "Dangoon's Teaching (reinforced mace)"
+  ]
+ },
+ {
+  "name": "Hwanin's Majesty (set)",
+  "pieces": [
+   "Hwanin's Splendor (grand crown)",
+   "Hwanin's Refuge (tigulated mail)",
+   "Hwanin's Blessing (belt)",
+   "Hwanin's Justice (bill)"
+  ]
+ },
  {
   "name": "Arcanna's Tricks (set)",
   "pieces": [
@@ -27707,8 +27735,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _fuF='all';
   window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni(); };
   window.grailFoundUni=function(el,name){
-    var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name); } catch(e){} window.renderForgeUni(); _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique grail grows'); };
-    _cardAnim(el,'f-anim-forged',430,act);
+    var wasOwned=_ownedNames().has(name);   // v559.1 — un-marking must not celebrate
+    var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name); } catch(e){} window.renderForgeUni(); if(!wasOwned) _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique grail grows'); };
+    _cardAnim(el, wasOwned?'':'f-anim-forged', wasOwned?0:430, act);
   };
   function _cardAnim(el,cls,ms,fn){
     if(!motionOK()){ fn(); return; }
