@@ -16,11 +16,11 @@ test('A — AI Item Checker scores IAS: a 20% IAS rare gloves is a KEEP, and IAS
     const w: any = window;
     const keep = w._aicVerdict({ q: 'rare', base: 'Heavy Gloves', mods: ['20% Increased Attack Speed', '+30 to Life', 'All Resistances +20'] });
     const iasAlone = w._aicVerdict({ q: 'rare', base: 'Chain Gloves', mods: ['20% Increased Attack Speed'] });
-    return { keepTier: keep.tier, iasScored: iasAlone.breakdown.some((b: any) => /Attack Speed/.test(b.label)), iasNotToss: iasAlone.tier };
+    return { keepTier: keep.tier, iasScored: iasAlone.breakdown.some((b: any) => /Attack Speed/.test(b.label)), iasScore: iasAlone.score };
   });
-  expect(r.keepTier).toBe('keep');           // IAS(7)+life(5)+allres(6) = 18 → keep (was a toss before)
-  expect(r.iasScored).toBe(true);            // IAS is now a valued affix
-  expect(r.iasNotToss).not.toBe('toss');     // a 20% IAS glove is never an auto-toss
+  expect(r.keepTier).toBe('keep');           // IAS(4)+life(5)+allres(6) = 15 → keep (was a toss before — the real bug)
+  expect(r.iasScored).toBe(true);            // IAS is now a valued affix (was entirely unscored)
+  expect(r.iasScore).toBeGreaterThan(0);     // …and contributes to the score
 });
 
 test('A — a lone +2 class-skills caster amulet is NOT tossed (premium-affix floor)', async ({ page }) => {

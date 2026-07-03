@@ -25177,7 +25177,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {re:/\+\s*\d+\s+to all skills/i, w:10, label:'+X All Skills'},
     {re:/-\s*\d+%?\s*(to )?(enemy|target)[^.]{0,16}resist/i, w:8, label:'− Enemy Resist'},
     {re:/\+\s*\d+\s+to [a-z' ]*\bskills?\b/i, w:8, label:'+X Class/Tree Skills'},   // v553 6→8: the top caster magic/rare affix
-    {re:/increased attack speed|\bias\b/i, w:7, label:'Increased Attack Speed'},      // v553 NEW — was entirely unscored (P0: tossed good gloves/weapons)
+    {re:/increased attack speed|\bias\b/i, w:4, label:'Increased Attack Speed'},      // v553 NEW — was entirely unscored (P0). Moderate flat weight: IAS value is slot+amount-dependent (20% on gloves is prime, 10% on a weapon is minor); a good IAS item keeps via its SUPPORT affixes (resists/life), a lone weak roll still tosses. (Full slot/amount awareness = future refinement.)
     {re:/faster cast rate|\bfcr\b/i, w:7, label:'Faster Cast Rate'},
     {re:/all resist|to all resistances|resist all/i, w:6, label:'All Resistances'},
     {re:/(life|mana) stolen|life leech|mana leech/i, w:5, label:'Leech'},
