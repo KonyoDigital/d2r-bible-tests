@@ -6259,6 +6259,14 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge .f-atom .f-cardtitle{font-size:15.5px;line-height:1.5;padding-right:26px}
 #tab-forge .f-rwbig{font-size:1.13em;font-weight:800;letter-spacing:.2px}
 #tab-forge .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
+/* v557 — layered make-now card: action line → recipe row → dim sub-row (Fable-5 clarity pass) */
+#tab-forge .f-atomact{font-size:16px;line-height:1.45}
+#tab-forge .f-atomact .f-in{font-size:12.5px;color:var(--text-dim,#9a8c72);font-weight:400;margin:0 2px}
+#tab-forge .f-atomrecipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:7px 0 2px;padding:6px 10px;background:rgba(0,0,0,.22);border:1px solid rgba(233,208,122,.14);border-radius:9px;width:fit-content;max-width:100%}
+#tab-forge .f-reclbl{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#b7a476;margin-right:7px}
+#tab-forge .f-atomsubrow{margin-top:6px;font-size:12px;line-height:1.5;color:var(--text-dim,#9a8c72);border-left:2px solid rgba(255,255,255,.09);padding-left:9px}
+#tab-forge .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
+#tab-forge .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
 #tab-forge .f-atomic-ic{font-size:22px;line-height:1}
 #tab-forge .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:400}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
@@ -26954,7 +26962,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pick=null;
     var live=(s.now||[]).filter(function(t){return !t.deferred;});
     if (live.length){ var b=live.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0];
-      pick={icon:'⚒', tone:'now', art:b.rw, artKind:'rw', lead:'forge it now', name:_qArt(b.rw), body:'base, sockets &amp; runes all in hand', act:"window.forgeSetFilter('now')", cta:'Make now'};
+      // v557 — SHOW the how, don't describe it: the hero carries the rune recipe chips + the exact owned base.
+      pick={icon:'⚒', tone:'now', art:b.rw, artKind:'rw', lead:'forge it now', name:_qArt(b.rw),
+        body:'in your <b>'+b.base.sockets+'os '+_fEsc(b.base.base)+'</b> · <span class="fh-recipe">'+_recipe(b.rw)+'</span>', act:"window.forgeSetFilter('now')", cta:'Make now'};
     } else if ((s.pipeline||[]).length){ var p=s.pipeline.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0]; var tgt=p.base?p.base.base:'';
       pick={icon:p.cubeGamble?'🎲':'🔧', tone:'pipe', art:p.rw, artKind:'rw', lead:p.cubeGamble?'one gamble away':'one socket away', name:_qArt(p.rw),
         body:(p.cubeGamble?'Cube-socket your <b>'+_qArt(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_qArt(tgt)+'</b> → '+p.need+'os')+' → forge it', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
@@ -26964,6 +26974,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } else { var os=(s.onestep||[])[0]; if (os) pick={icon:'🟡', tone:'step', art:os.rw, artKind:'rw', lead:'one step away', name:_qArt(os.rw), body:'do the one step to unlock it', act:"window.forgeSetFilter('onestep')", cta:'One step'}; }
     }
     if (!pick) return '';
+    // v557 — after a filter-switch CTA, glide to the first task card so the click lands ON the action
+    if (pick.act.indexOf('forgeSetFilter')===0 || pick.act.indexOf("window.forgeSetFilter")===0){
+      pick.act += ";setTimeout(function(){var c=document.querySelector('#tab-forge .f-card');if(c)c.scrollIntoView({block:'center',behavior:'smooth'});},180)";
+    }
     return '<div class="forge-hero forge-hero-'+pick.tone+'">'
       + '<div class="fh-artwrap"><div class="fh-art">'+_heroArt(pick.art, pick.artKind)+'</div><div class="fh-icobadge">'+pick.icon+'</div></div>'
       + '<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · '+pick.lead+'</div>'
@@ -27382,7 +27396,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _ownIsBest = t.ideal || (t.bestStr && t.bestStr.split(/\s*\/\s*/).some(function(b){ return b.trim().toLowerCase()===String(t.base.base).toLowerCase(); }));
         var _bestHint = (t.bestStr && !_ownIsBest) ? ' <span class="f-atomsub">· 🏆 best base for <b>'+_qArt(t.rw)+'</b>: <b>'+_qArtList(t.bestStr)+'</b>'+(t.bestMeta?' <span style="opacity:.7">('+_fEsc(t.bestMeta)+')</span>':'')+(t.mercOwn?' — you own the <b>2H merc</b> version; the ideal is a <b>1H player</b> weapon':'')+'</span>' : '';
         atomic.push({icon:'⚒', cls:'now', skipKey:'rw|'+t.rw, artName:t.rw,
-        atoms:[ 'Forge <b class="f-rwbig">'+_qArt(t.rw)+'</b> in your <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b>'+(t.mercOwn?' <span class="f-atomsub">— 2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint ],
+        // v557 — LAYERED card (Fable-5 clarity pass): big action line → the RUNE RECIPE in order (the actual
+        // in-game how, previously missing from the #1 action card) → dim sub-hints on their own row.
+        atoms:[ '<div class="f-atomact">Forge <b class="f-rwbig">'+_qArt(t.rw)+'</b> <span class="f-in">in your</span> <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b></div>'
+          +'<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(t.rw)+'</div>'
+          +((t.mercOwn||_bestHint)?('<div class="f-atomsubrow">'+(t.mercOwn?'<span class="f-atomsub">2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint+'</div>'):'') ],
         btn:'<button class="f-btn f-btn-go" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
@@ -27391,15 +27409,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], target=t0.base.base, atoms=[];
         if (t0.cubeGamble){
-          atoms.push('🎲 Cube-socket your <b>'+_qArt(target)+'</b> — random 1–'+t0.base.max+' sockets <span class="f-atomsub">gamble for '+t0.need+'os · Larzuk overshoots to '+t0.base.max+' · re-roll the cube until it hits '+t0.need+'</span>');
+          atoms.push('<div class="f-atomact">🎲 Cube-socket your <b>'+_qArt(target)+'</b> — random 1–'+t0.base.max+' sockets</div>'
+            +'<div class="f-atomrecipe"><span class="f-reclbl">cube recipe</span><span class="f-cube">'+_cubeGambleRecipe(target)+'</span></div>'
+            +'<div class="f-atomsubrow">gamble for <b>'+t0.need+'os</b> · Larzuk overshoots to '+t0.base.max+' · re-roll until it hits '+t0.need+'</div>');
         } else {
-          atoms.push('Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qArt(target)+'</b> → <b>'+t0.need+'os</b>'+(t0.base.eth?' <span class="f-atomsub">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</span>':''));
+          atoms.push('<div class="f-atomact">Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qArt(target)+'</b> → <b>'+t0.need+'os</b></div>'
+            +(t0.base.eth?'<div class="f-atomsubrow">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</div>':''));
         }
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
         var topWord=words[0];
-        atoms.push('Forge <b>'+_qArt(topWord)+'</b>'+(words.length>1?' <span class="f-atomsub">— '+(words.length-1)+' more 6os word'+(words.length>2?'s':'')+' on this base if you ✕ it</span>':''));
+        atoms.push('<div class="f-atomact">Forge <b class="f-rwbig">'+_qArt(topWord)+'</b></div>'
+          +'<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(topWord)+'</div>'
+          +(words.length>1?'<div class="f-atomsubrow">'+(words.length-1)+' more word'+(words.length>2?'s':'')+' fits this base — ✕ to see the next</div>':''));
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord, artName:topWord});
       });
       // crafts → grouped into ~4 gem-titled tiles (Caster/Blood/Safety/Hit Power), Workshop .cw-tile style.
