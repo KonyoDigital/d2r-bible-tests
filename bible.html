@@ -12161,7 +12161,24 @@ window.D2IO_ART = D2IO_ART;
   for (var s in SLOT){ if (Object.prototype.hasOwnProperty.call(SLOT,s)) D2IO_ART['magic '+s+' base'] = 'art/'+SLOT[s]+'_graphic.png'; }
   D2IO_ART['any jewel'] = 'art/jewel02_graphic.png';
 })();
-function artUrl(name){ return (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null; }
+function artUrl(name){
+  var direct = (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null;
+  // v570 — corrupt-base_ bypass (Konyo's "Colossus Voulge (Larzuk base)" rendered the blue-gem placeholder,
+  // "looks like an Annihilus"): ~487/526 base_*.png are ONE corrupt file (v381/v497). When a name resolves to
+  // a base_ file — or to nothing (socket/Larzuk-suffixed labels) — re-resolve the CLEAN base name and prefer
+  // its hd_/mr_/graphic art (elites inherit their tier's sprite, e.g. Colossus Voulge → hd_voulge).
+  try {
+    if (!direct || /\/base_[^/]+\.png$/.test(direct)){
+      var _cl = String(name || '').replace(/\s*\([^)]*\)\s*$/, '').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+      if (_cl && _cl !== name && Object.prototype.hasOwnProperty.call(D2IO_ART, _cl)){
+        var _alt = D2IO_ART[_cl];
+        if (_alt && !/\/base_[^/]+\.png$/.test(_alt)) return _alt;   // clean name has REAL art → use it
+        if (!direct) return _alt;                                     // nothing direct → any clean art beats none
+      }
+    }
+  } catch(e){}
+  return direct;
+}
 window.artUrl = artUrl;
 // v383.1 — ADDITIVE art register: only fill names that have NO art yet, so the existing HD
 // (mr_*.png, base_*.png — extracted from the local D2 install) is NEVER overwritten by diablo2.io icons.
@@ -26154,8 +26171,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var sf = function(s){ return String(s||'').replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
     var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), ff:(f.file||''), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err, th:(f.thumb||'') }; });
     j.unshift({ ts: Date.now(), u: (typeof intakeLogger !== 'undefined' ? intakeLogger : 'Konyo'), items: items.slice(0, 30), pf: pf });   // v397 — tag the logger
-    // v359 — thumbnails are heavy: keep them ONLY on the newest session; strip from older ones to bound storage.
-    for (var _k = 1; _k < j.length; _k++){ if (j[_k] && j[_k].pf){ j[_k].pf.forEach(function(p){ if (p) delete p.th; }); } }
+    // v359 — thumbnails are heavy: bound storage by stripping them from OLD sessions.
+    // v570 — but keep them on the newest SIX sessions, not just one: the auto-watch reads arrive as many
+    // small sessions (8 shots, then the late 9th on the next tick…), and stripping all-but-newest left every
+    // earlier card showing "no shot" (Konyo: cards need the expandable screenshot like the rest). ~6×5 thumbs
+    // ≈ a few hundred KB, far under quota; the quota-fallback below still sheds them if storage runs out.
+    for (var _k = 6; _k < j.length; _k++){ if (j[_k] && j[_k].pf){ j[_k].pf.forEach(function(p){ if (p) delete p.th; }); } }
     try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
     catch(e){
       // quota hit — drop thumbnails from the newest entry too, then retry smaller
@@ -26318,7 +26339,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     }
     var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false }; });
-    try { _vClearShots(); } catch(e){}   // v365 — only the newest scan keeps full-res shots (bound IndexedDB)
+    try { _vPruneShots(100); } catch(e){}   // v570 — keep the newest 100 full-res shots (was: wipe-all each scan → old cards lost their expandable screenshot)
     var endpoint = localStorage.getItem('d2r_intakeUrl')
       || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
     var doneCount = 0;
@@ -26767,6 +26788,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     cur.onsuccess = function(){ var c = cur.result; if (c){ if (String(c.key).indexOf('shot:') === 0) st.delete(c.key); c.continue(); } };
     t.oncomplete = function(){ res(); }; t.onerror = function(){ res(); };
   }); }).catch(function(){}); }
+  // v570 — PRUNE instead of wipe-each-scan: wiping killed click-to-enlarge for every card from an earlier
+  // session ("no shot" + thumb-only lightbox). Screenshot filenames carry their timestamp, so a descending
+  // name sort = newest first; keep the newest `keepN` full-res shots, delete the rest. IndexedDB quota is
+  // huge — 100 × ~300KB ≈ 30MB is nothing, and old cards keep their expandable HD screenshot.
+  function _vPruneShots(keepN){ return idb().then(function(db){ return new Promise(function(res){
+    var t = db.transaction('kv', 'readwrite'); var st = t.objectStore('kv'); var keys = [];
+    var cur = st.openCursor();
+    cur.onsuccess = function(){ var c = cur.result; if (c){ if (String(c.key).indexOf('shot:') === 0) keys.push(String(c.key)); c.continue(); }
+      else { keys.sort().reverse().slice(keepN || 100).forEach(function(k){ st.delete(k); }); } };
+    t.oncomplete = function(){ res(); }; t.onerror = function(){ res(); };
+  }); }).catch(function(){}); }
+  try { window._vPruneShots = _vPruneShots; } catch(e){}   // v570 — exposed for tests
   window._vGetShot = function(f){ return idbGet('shot:' + f).then(function(v){ return v || null; }).catch(function(){ return null; }); };
   function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
   // v224: ONE scan menu, rendered FULL-WIDTH in #vault-intake-report (the tiny
