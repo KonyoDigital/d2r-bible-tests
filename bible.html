@@ -26618,13 +26618,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // back TRULY EMPTY ("∅ no tooltip text") must stay re-scannable — otherwise it's silently skipped forever
     // and a re-shoot / the wide-net retry never gets to recover it (Konyo's Grim Scythe 18.18.35). This runs
     // for BOTH paths (the folder scan pre-marks files seen at discovery, so empties must be UN-marked here).
+    // v567 — but ONLY re-scannable by a MANUAL 🔄 Scan, never by the 12s auto-poll: the v413.1 hard-delete +
+    // the v396.3 auto-watch made every no-match screenshot an INFINITE re-read loop (Konyo's 3 stash shots
+    // were re-billed to the AI every 12 seconds for 10+ minutes, flooding the journal with blank sessions).
+    // A no-match file now gets a soft 'retry' mark: the quiet auto-scan treats it as seen; the manual Scan
+    // button treats it as fresh — the recovery intent survives, the money-burning loop cannot.
     try {
       var _sNow = seenLedger();
       files.forEach(function(f, i){
         var fr = perFile[i]; if (!f || !f.name || !fr) return;
         var _readSomething = !fr.err && ((fr.nw && fr.nw.length) || (fr.own && fr.own.length) || (fr.unr && fr.unr.length) || (fr.mf && fr.mf.length));
         if (_readSomething){ _sNow[f.name] = 1; _sNow[f.name + '|' + f.lastModified] = 1; }
-        else { delete _sNow[f.name]; delete _sNow[f.name + '|' + f.lastModified]; }   // err / truly-empty → keep re-scannable
+        else { _sNow[f.name] = 'retry'; delete _sNow[f.name + '|' + f.lastModified]; }   // err / no-match → manual-rescan only
       });
       localStorage.setItem(SEEN_KEY, JSON.stringify(_sNow));
     } catch(e){}
@@ -26798,7 +26803,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       _startAutoWatch();   // v396.3 — auto-read new screenshots going forward (poll + on-focus)
     } catch(e){ if (e && e.name!=='AbortError') status('folder connect failed: '+e.name); }
   };
+  var _vScanBusy = false;   // v567 — mutex: focus + visibilitychange + the 12s poll can fire within the same
+  // moment; two overlapping scans both read the ledger BEFORE either writes it → the SAME batch went to the
+  // AI twice (Konyo's journal: session pairs 1 second apart with contradictory reads of the same files).
   window.vaultScanFolder = async function(quiet){
+    if (_vScanBusy){ if(!quiet) status('📂 a scan is already running…'); return; }
+    _vScanBusy = true;
     try {
       var handle = liveHandle;
       if (!handle) { try { handle = await idbGet(FOLDER_KEY); } catch(e){} }
@@ -26809,7 +26819,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         perm = await handle.requestPermission({ mode:'read' });
         if (perm !== 'granted') { status('folder access declined'); return; }
       }
-      var seen = seenLedger(), fresh = [], all = [];
+      var seen = seenLedger(), fresh = [], all = [], retriable = 0;
       var firstConnect = Object.keys(seen).length === 0;
       for await (var entry of handle.values()){
         if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
@@ -26817,10 +26827,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         all.push(f);
         // v222: dedupe by FILE NAME — a name ever registered is NEVER read
         // again, even if the file is touched/re-saved (old name|mtime keys honored)
-        if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
+        // v567: a 'retry' soft mark (no-match read) counts as SEEN for the quiet auto-scan but as FRESH for
+        // a manual 🔄 Scan — recoverable by hand, never auto-re-billed in a loop.
+        var _mk = seen[f.name];
+        if (!_mk && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
+        else if (_mk === 'retry'){ retriable++; if (!quiet){ seen[f.name] = 1; fresh.push(f); } }
       }
       if (quiet){
-        if (!fresh.length) return;
+        if (!fresh.length){ if (retriable) status('📂 '+retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time — hit 🔄 Scan folder to retry them'); return; }
         if (fresh.length <= 12){
           localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
           fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
@@ -26831,6 +26845,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       vaultOfferMenu(all, fresh, seen);
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
+    finally { _vScanBusy = false; }
   };
   // v221: Safari/Firefox have no showDirectoryPicker — fall back to the classic
   // webkitdirectory picker. No persistent handle, so each scan re-picks the folder;
@@ -26845,7 +26860,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var rel = f.webkitRelativePath || f.name;
         if (rel.split('/').length > 2) return; // top-level only, like handle.values()
         all.push(f);
-        if (!seen[f.name] && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
+        var _mk = seen[f.name];
+        if (!_mk && !seen[f.name + '|' + f.lastModified]) { seen[f.name] = 1; fresh.push(f); }
+        else if (_mk === 'retry'){ seen[f.name] = 1; fresh.push(f); }   // v567 — legacy picker is manual → retry-able
       });
       vaultOfferMenu(all, fresh, seen);
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
