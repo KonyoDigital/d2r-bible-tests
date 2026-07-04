@@ -69,6 +69,7 @@ test('B — combined vault renders every task kind in the real Forge tab at once
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Thul: 1, Io: 1, Nef: 1, Ral: 2, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_gemStash', JSON.stringify({ 'Perfect Amethyst': 1 }));   // CRAFT — Caster
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578 — Black joined the durable seed; sims need it unmade
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);

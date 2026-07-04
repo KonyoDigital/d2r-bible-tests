@@ -4284,7 +4284,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   // FIND on the ground, then Larzuk it. Reuses the vetted lf-data-endgame template (uniques/sets/runes/gems/
   // charms/rare-circlet+ring+amulet shows + a trash-hide) and only swaps the base-show rules' codes.
   window._endgameFilterBases = function(){
-    var out = { codes: [], names: [] };
+    var out = { codes: [], names: [], gambleOnlyCodes: [] };
     try {
       var CODE = JSON.parse(document.getElementById('lf-base-codes').textContent);
       var made = {}; try { made = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}'); } catch(e){}
@@ -4298,21 +4298,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       try { var sc = (typeof window.forgeScan==='function') ? window.forgeScan() : null;
         if (sc){ [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if(t && t.base) ownedBaseWord[t.rw]=1; });
                  (sc.onestep||[]).forEach(function(t){ if(t && t.base && t.sub!=='base') ownedBaseWord[t.rw]=1; }); } } catch(e){}
-      var codeSet = {}, nameSet = {};
+      var codeSet = {}, nameSet = {}, supOkSet = {};
       Object.keys(tips).forEach(function(rw){
         if (made[rw]) return;                                  // already forged -> skip
         if (typeof window._rwLadderBlocked==='function' && window._rwLadderBlocked(rw)) return;  // v553 — don't farm bases for ladder-only words you can't make off-ladder
         if (ownedBaseWord[rw]) return;                         // you own a socket-correct base for it -> not a base to farm
         var names = (typeof meta==='function') ? ((meta(rw)||{}).names||[]) : [];
+        var _need = ((tips[rw]||{}).rec||[]).length;
         names.forEach(function(nm){
           if (!nm) return;
           if (/^\s*(Circlet|Coronet|Tiara|Diadem)\s*$/i.test(nm)) return;   // circlets can't host runewords
           var c = CODE[nm];
-          if (c){ codeSet[c]=1; nameSet[nm]=1; }
+          if (c){ codeSet[c]=1; nameSet[nm]=1;
+            // v575.2 — is a SUPERIOR drop of this base useful? Only if some unmade word needs exactly its
+            // MAX sockets (superior = Larzuk-max only; the cube gamble is plain-normal only). Unknown max →
+            // fail-open (superior allowed).
+            var _mx = null; try { _mx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
+            if (!(_mx >= 1 && _mx <= 6) || _need === _mx) supOkSet[c] = 1;
+          }
         });
       });
       out.codes = Object.keys(codeSet).sort();
       out.names = Object.keys(nameSet).sort();
+      out.gambleOnlyCodes = out.codes.filter(function(c){ return !supOkSet[c]; });   // superior drops useless here
     } catch(e){}
     return out;
   };
@@ -4353,6 +4361,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         if (r.name==='3. Show ETH and Socket bases'){ r.equipmentRarity = ['normal','hiQuality']; }
       });
       var TRASH_R = ['magic','rare','lowQuality'], CIRC_R = ['normal','lowQuality','magic','hiQuality'], Q3 = ['normal','exceptional','elite'];
+      // v575.2 — SUPERIOR drops of GAMBLE-ONLY bases are useless (superior = Larzuk-max only; the word
+      // needs LESS than max, reachable only by the plain-normal cube gamble) → hide their hiQuality drops.
+      // Socketed/eth superiors keep riding rule 3 (a pre-socketed superior at the right count is usable).
+      if ((eb.gambleOnlyCodes||[]).length){
+        tpl.rules.push({ name:'Hide Superior Gamble-Only Bases', enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:['hiQuality'], equipmentQuality:Q3.slice(), equipmentItemCode: eb.gambleOnlyCodes.slice() });
+      }
       tpl.rules.push(
         { name:'Hide Magic Wanted Bases',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: eb.codes.slice() },
         { name:'Hide Magic Wanted Bases ETH', enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: eb.codes.slice() },
@@ -7993,10 +8007,40 @@ function _baseUnmadeRunewords(base, knownSockets){
   var ks = parseInt(knownSockets, 10) || 0;
   // v563.1 — unsocketed cap via _keepSocketCeil (gear only; weapon maxes are understated — see _isRunewordBase)
   var baseMax = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(clean) : 0;
+  // v575.2 — SUPERIOR + UNSOCKETED = Larzuk-max ONLY (hardcoded game rule): the cube socket recipe works on
+  // PLAIN NORMAL (incl. ethereal) only, so a superior base can never reach a sub-max count. When the base's
+  // exact max is known, a superior unsocketed base serves ONLY words needing exactly that max.
+  var _supOnly = 0;
+  if (ks < 1 && /^\s*Superior\s+/i.test(String(base||''))){
+    // only gate on a max we TRUST: gear slot caps (_keepSocketCeil) or the VERIFIED SOCKET_MAX list —
+    // never the understated BASE_DB weapon maxes (the v553 'Wand reports max 1' trap).
+    try {
+      var _mx2 = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(clean) : 0;
+      if (!_mx2 && typeof SOCKET_MAX !== 'undefined' && SOCKET_MAX[clean.toLowerCase()] != null) _mx2 = parseInt(SOCKET_MAX[clean.toLowerCase()], 10);
+      if (_mx2 >= 1 && _mx2 <= 6) _supOnly = _mx2;
+    } catch(e){}
+  }
+  // v576 — ENDGAME-GEAR GATE (same rule as the Forge): an expensive word (top rune ≥ Ist) only counts
+  // toward KEEPING a base that is its ideal meta base or elite tier — a plain Flail is not "kept for
+  // Eternity". Cheap words keep counting for any base that fits.
+  var _egIst = 23; try { if (typeof RUNE_INDEX!=='undefined' && RUNE_INDEX['Ist']!=null) _egIst = RUNE_INDEX['Ist']; } catch(e){}
+  var _egOk = function(rw){
+    try {
+      var rec = ((RUNEWORD_TIP[rw]||{}).rec)||[]; var v = 0;
+      rec.forEach(function(x){ if (typeof RUNE_INDEX!=='undefined' && RUNE_INDEX[x]!=null && RUNE_INDEX[x]>v) v = RUNE_INDEX[x]; });
+      if (v < _egIst) return true;
+      var ideal = (typeof window._forgeMetaBase==='function') ? (((window._forgeMetaBase(rw)||{}).names)||[]) : [];
+      var cl = clean.toLowerCase();
+      if (ideal.some(function(x){ var xl=String(x).toLowerCase(); return cl===xl || cl.indexOf(xl)>=0 || xl.indexOf(cl)>=0; })) return true;
+      return (typeof window._baseTier==='function' ? window._baseTier(clean) : '') === 'elite';
+    } catch(e){ return true; }
+  };
   return rws.filter(function(r){
     if (made[r.n]) return false;
     try { if (typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(r.n)) return false; } catch(e){}
+    if (!_egOk(r.n)) return false;
     if (ks >= 1) return r.s === ks;
+    if (_supOnly) return r.s === _supOnly;
     if (baseMax) return r.s <= baseMax;
     return true;
   });
@@ -8090,6 +8134,14 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // including ones above the CURRENT read (legitimately reachable by socketing a better roll / Larzuk).
   var baseMax = (typeof _socketMaxFor === 'function') ? parseInt(_socketMaxFor(name), 10) : 0;
   if (baseMax >= 1 && baseMax <= 6){ rws = rws.filter(function(r){ return r.s <= baseMax; }); if (!rws.length) return ''; }
+  // v577 — LADDER FILTER at the DISPLAY layer too (Konyo plays NON-ladder: "it should not be giving me
+  // examples for it at all — just confusing"). Ladder-only words never appear as example chips while the
+  // Chronicle's ladder toggle is off; flip to ladder mode and they return everywhere. A small "+N ladder"
+  // tag keeps the hidden count honest instead of silently shrinking the list.
+  var _lbHid = 0;
+  try { if (typeof window._rwLadderBlocked === 'function'){ var _b4 = rws.length; rws = rws.filter(function(r){ return !window._rwLadderBlocked(r.n); }); _lbHid = _b4 - rws.length; } } catch(e){}
+  if (!rws.length) return _supNote;
+  var _lbTag = _lbHid > 0 ? ' <span class="rwn-more" title="ladder-only runeword' + (_lbHid===1?'':'s') + ' — hidden while you play non-ladder (flip the Chronicle ladder toggle to include them)">+' + _lbHid + ' ladder-only hidden</span>' : '';
   // v547 — SYNC WITH THE FORGE: word the base's hand-class (1H player / 2H merc / caster) + endgame tier here too,
   // using the SAME engine the Forge uses (window._baseHandClass / _baseTier). Konyo: the throw-out / Socketed
   // Review should tell me a Champion Axe holds a 2-handed *mercenary* weapon (Eternity/Honor), just like the Forge.
@@ -8108,6 +8160,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
     var bits = [hand, end].filter(Boolean).join(' · ');
     return bits ? '<div class="att-tag" style="margin-top:3px;color:#cdb988">' + bits + '</div>' : '';
   })();
+  _handNote = _handNote + _lbTag;   // v577 — the ladder-hidden count rides with the hand/tier tag on every path
   var maxS = rws.reduce(function(m, r){ return Math.max(m, r.s); }, 0);
   var ks = parseInt(knownSockets, 10);
   // v387 — IMPOSSIBLE socket count ⇒ the base NAME is wrong. If the read sockets exceed what this base can
@@ -8207,6 +8260,11 @@ function _socketGuideLine(base, quality){
   }
   if (q === 'rare' || q === 'crafted' || q === 'set' || q === 'unique'){
     return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔩 Larzuk adds exactly <b>1</b> socket' + (q === 'rare' ? ' (or SoJ + 3 Perfect Skulls in the cube → +1)' : '') + '. Not a runeword base.</div>';
+  }
+  // v575.1 — SUPERIOR items can NOT use the cube socket recipe (plain-normal only, game rule): their only
+  // socket path is Larzuk = guaranteed max. Was wrongly lumping superior with normal for the cube line.
+  if (q === 'superior'){
+    return '<div class="att-tag" style="margin-top:3px;color:#cdb988">🔨 Superior base: <b>Larzuk → ' + (mx != null ? mx + ' sockets' : 'this base’s max') + '</b> (guaranteed max) is the ONLY socket path — the cube socket recipe works on plain normal items only, not superior.</div>';
   }
   var cube = _CUBE_RECIPE[slot];
   if (mx == null){
@@ -8427,7 +8485,7 @@ function _throwTipHtml(name){
       ? 'The AI read this as a base item (not a grail unique). If it has good sockets keep it as a runeword/craft base — 5-6 sockets are always worth keeping.'
       : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.')) + '</div>';
   // v353/v368 — if this base enables runewords, say which (and what socket count to chase) → keep vs vendor.
-  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean, sock ? +sock[1] : 0); if (_rwl) out += _rwl; var _sg = (typeof _socketGuideLine === 'function') ? _socketGuideLine(clean, 'normal') : ''; if (_sg) out += _sg; }
+  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean, sock ? +sock[1] : 0); if (_rwl) out += _rwl; var _sg = (typeof _socketGuideLine === 'function') ? _socketGuideLine(clean, /^\s*Superior\s+/i.test(clean)?'superior':'normal') : ''; if (_sg) out += _sg; }
   out += '<div class="att-tag">🗑 Throw-out — review</div>';
   out += '<div class="att-info">🔮 Keep → Magic &amp; Rare, or ✕ dismiss. Click for the full card.</div>';
   return out;
@@ -8453,7 +8511,7 @@ function _throwCardHtml(name){
     + ((isBase || _isKnownBase) ? (   // v382 — full BASE_DB detail + runeword potential + Larzuk/cube guide
         ((typeof _baseDetailRows === 'function') ? (_baseDetailRows(clean) || '') : '')
       + ((typeof _baseRWLine === 'function') ? (_baseRWLine(clean, sock ? +sock[1] : 0) || '') : '')
-      + ((typeof _socketGuideLine === 'function') ? (_socketGuideLine(clean, 'normal') || '') : '')
+      + ((typeof _socketGuideLine === 'function') ? (_socketGuideLine(clean, /^\s*Superior\s+/i.test(clean)?'superior':'normal') || '') : '')
       ) : '')
     + '</section></div>';
 }
@@ -13046,9 +13104,9 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // from Konyo's full Chronicle screenshots (2026-07-01), replacing the earlier approximate seed times
 // (Steel 12:53→03:03, Doom 12:20→20:20, Grief 12:05→19:07, Spirit 12:00→00:42…). Names were already 1:1;
 // this fixed the times. Durable floor: re-asserted every load so a reset/restore snaps back to these 45.
-const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
+const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 00:45", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 00:55", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
-// v549 — MULTI-PLAYER PROFILE. The seed below is the OWNER's (Konyo's) 47 created runewords (v568: +White +Obedience), force-applied every
+// v549 — MULTI-PLAYER PROFILE. The seed below is the OWNER's (Konyo's) 49 created runewords (v568 +White +Obedience; v578 +Black +Famine), force-applied every
 // load as a durable floor. On a DIFFERENT player's browser (Konyo's cousin) that wrongly pre-fills 45 as "made".
 // A 'fresh' profile flag (set by the Chronicle "Reset" button) suppresses the seed entirely, so a new player
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
@@ -25289,7 +25347,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // SAME engine as the throw-out card: exact-socket (when known) + base-TYPE match + already-created split.
       // For a 0-socket Larzuk base _baseRWLine falls back to its "socket to max" guidance automatically.
       var rwl=(typeof _baseRWLine==='function')?_baseRWLine(base, sockets, isSup):'';
-      if (typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(base, 'normal'); if(_sgl) rwl+=_sgl; }
+      if (typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(base, isSup?'superior':'normal'); if(_sgl) rwl+=_sgl; }
       var src=(typeof artUrl==='function'?(artUrl(n)||artUrl(base)):'')||'';
       var artH=src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+esc(src)+'" alt="" loading="lazy"></span>':'<span class="to-glyph">🔩</span>';
       var nm=(typeof _vColorName==='function')?_vColorName(n):('<span style="color:#aeb8c4">'+esc(n)+'</span>');
@@ -27492,6 +27550,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // reliable "which weapon words the RotW mod allows in a staff" data — deferred + flagged rather than guessed.
           if ((_obh==='2H'||_obh==='merc') && (_owant==='1H'||_owant==='')) _mercOwn=true; else return;
         }
+        // v576 — ENDGAME-GEAR GATE (Konyo: "these runewords should not be in these white bases regardless of
+        // the Chronicle — after created I use it on characters"). An EXPENSIVE word (top rune ≥ Ist) is only
+        // planned on a base you'd actually WEAR: the word's IDEAL meta base (Crystal Sword for CtA counts) or
+        // an ELITE base — and NEVER parked on a 2H/merc-rescued base (no Hand of Justice in a Colossus Voulge,
+        // no Eternity in a plain Flail). Cheap words (Rhyme/Stealth/Honor…) keep using whatever you hold.
+        var _egIst = (typeof RUNE_INDEX!=='undefined' && RUNE_INDEX['Ist']!=null) ? RUNE_INDEX['Ist'] : 23;
+        if (_rwVal(name) >= _egIst){
+          if (_mercOwn) return;
+          if (!_isIdealBase(name, b.base) && ((typeof window._baseTier==='function'?window._baseTier(b.base):'')!=='elite')) return;
+        }
         // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
         // them, even when our max estimate is low (e.g. Wand reports max 1 but a 2os Wand is real). The max
         // guard belongs only on the socket-UP pipeline branch below, where reachability genuinely matters.
@@ -27507,7 +27575,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v575 — the gamble ALSO fires when the owned unsocketed base IS the word's IDEAL meta base (Konyo's
         // unsocketed Superior Flail must offer the HotO gamble: need 4 < max 5, Larzuk overshoots). Still no
         // flood — ideal-base matches only, arbitrary white bases keep the strict rule.
-        var _cubeGamble = (!rule && b.sockets===0 && (b.taggedRw===name || _isIdealBase(name, b.base)) && b.max && need>0 && need<b.max);
+        // v575.1 — SUPERIOR EXCLUSION: the cube socket recipe only works on PLAIN NORMAL items (superior and
+        // low-quality are excluded, game rule) — a superior base's ONLY socket path is Larzuk = guaranteed max.
+        // So a Superior Flail can never reach HotO's 4os; offering the gamble on it would waste his runes.
+        var _cubeGamble = (!rule && b.sockets===0 && !b.sup && (b.taggedRw===name || _isIdealBase(name, b.base)) && b.max && need>0 && need<b.max);
         if (!rule && !_cubeGamble) return;              // SAFEGUARD: not a legitimate path for this base → auto-cancelled
         var t=null;
         if (rule==='have'){                             // base already has EXACTLY the needed sockets
@@ -28032,7 +28103,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +'<div class="flp-sec"><b>The sub-tabs</b><div>🟡 <b>One step</b> — one action away: go FIND the right-tier base, or cube missing runes up</div><div>⚒ <b>Make now</b> — forge it right now (base + sockets + runes all in hand)</div><div>🔧 <b>Pipeline</b> — Larzuk-socket the base you own, then forge</div><div>⚗️ <b>Crafts</b> — gem crafts, every slot + recipe</div><div>✅ <b>Completed</b> — runewords you\'ve created · restore any</div></div>'
         +'<div class="flp-sec"><b>Which base — the badges</b><div><span class="f-ideal">✓ ideal base</span> the socket-correct best base for this word (Larzuk hits the exact count)</div><div><span class="f-alt">meta base: X</span> a valid alternative when you don\'t have the ideal one</div><div>🏆 <b>best base for &lt;word&gt;</b> — shown on a base you already OWN (e.g. a 2H merc base): names the base you\'d IDEALLY want (a 1H player weapon)</div></div>'
         +'<div class="flp-sec"><b>Hand (Konyo\'s rule)</b><div><span class="f-hand">1H</span> a one-handed <b>player</b> weapon · <span class="f-hand">2H merc</span> a two-handed <b>mercenary</b> weapon · <span class="f-hand">2H caster</span> a caster staff</div></div>'
-        +'<div class="flp-sec"><b>Sockets &amp; quality</b><div><span class="f-need">needs Nos</span> the exact socket count the word needs — Larzuk gives a base\'s MAX</div><div><span class="f-eth">⊘ eth</span> ethereal: socket &amp; forge <b>as-is</b></div><div><span class="f-sup">superior</span> still a valid runeword base — keeps its small bonus</div></div>'
+        +'<div class="flp-sec"><b>Sockets &amp; quality</b><div><span class="f-need">needs Nos</span> the exact socket count the word needs — Larzuk gives a base\'s MAX</div><div><span class="f-eth">⊘ eth</span> ethereal: Larzuk to max <b>or cube-socket</b> like a plain white base (eth works in the cube — superior doesn\'t)</div><div><span class="f-sup">superior</span> valid runeword base, keeps its bonus — but <b>Larzuk-max is its ONLY socket path</b> (no cube recipe on superior)</div></div>'
         +'<div class="flp-sec" style="border:none"><b>No cube-upgrades</b><div>White / normal / superior bases <b>can\'t</b> be cube-upgraded (only unique / rare / set can). If a base you own can\'t reach a word\'s socket count, <b>One step</b> names the right-tier base to <b>FIND</b> — you don\'t upgrade to it.</div></div>'
         +'</div>';
       while(_lw.firstChild) document.body.appendChild(_lw.firstChild);

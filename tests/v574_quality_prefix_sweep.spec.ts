@@ -60,9 +60,9 @@ test('non-runeword prefixed bases still vendor (orbs socket gems only), plain na
 // v575 — the SUPERIOR FLAIL chain, end to end: intake keeps 0-socket SUPERIOR bases as Larzuk candidates;
 // the Forge cube-gamble fires for an owned unsocketed base that IS the word's ideal meta base (not just
 // tagged ones); the throw-out card's "⚒ keep unsocketed" registers it into that flow.
-test('v575 — unsocketed Superior Flail: gamble task fires (HotO need 4 < max 5, ideal base)', async ({ page }) => {
+test('v575 — ideal-base cube gamble: PLAIN Flail gambles for HotO; SUPERIOR is Larzuk-only (no gamble)', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('d2r_owned', JSON.stringify(['Superior Flail (Larzuk base)']));
+    localStorage.setItem('d2r_owned', JSON.stringify(['Flail (Larzuk base)', 'Superior Flail (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 1, Vex: 1, Pul: 1, Thul: 1 }));  // HotO runes
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     localStorage.setItem('d2r_rwProfile', 'fresh');           // suppress the 47-seed so HotO is unmade
@@ -71,14 +71,17 @@ test('v575 — unsocketed Superior Flail: gamble task fires (HotO need 4 < max 5
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
+    w._ensureSocketBaseEntry('Flail (Larzuk base)');
     w._ensureSocketBaseEntry('Superior Flail (Larzuk base)');
     const s = w.forgeScan();
     const t = [...(s.pipeline || []), ...(s.now || [])].find((x: any) => x.rw === 'Heart of the Oak');
-    return { found: !!t, gamble: !!(t && t.cubeGamble), baseName: t && t.base && t.base.base };
+    return { found: !!t, gamble: !!(t && t.cubeGamble), baseName: t && t.base && t.base.name,
+             sup: !!(t && t.base && t.base.sup) };
   });
-  expect(r.found).toBe(true);                 // the owned Superior Flail is IN the plan, not "go get a base"
+  expect(r.found).toBe(true);                 // HotO planned on an owned base, not "go get a base"
   expect(r.gamble).toBe(true);                // …as a cube-socket GAMBLE (Larzuk 5 overshoots HotO's 4)
-  expect(String(r.baseName)).toMatch(/Flail/);
+  expect(r.sup).toBe(false);                  // v575.1 — the PLAIN Flail was chosen: superior can't use the
+  expect(String(r.baseName)).toMatch(/^Flail/);   // cube socket recipe (Larzuk-max is its only path)
 });
 
 test('v575 — vaultKeepAsBase registers an unsocketed keeper from the throw-out review', async ({ page }) => {
@@ -105,4 +108,62 @@ test('v575 — vaultKeepAsBase registers an unsocketed keeper from the throw-out
   expect(r.btn).toBe(true);
   expect(r.owned).toBe(true);
   expect(r.cleared).toBe(true);
+});
+
+// v576 — ENDGAME-GEAR GATE (Konyo: "im 1000% positive these runewords should not be in these white bases
+// regardless of the chronicle — after created I use it on characters"): an EXPENSIVE word (top rune ≥ Ist)
+// is only planned on its IDEAL meta base or an ELITE base, and never on a 2H/merc-rescued base. Cheap words
+// (Honor…) keep the v501 owned-base rescue. Same gate in _baseUnmadeRunewords so keep/throw advice agrees.
+test('v576 — Eternity refuses a plain Flail; HoJ refuses a merc-rescued Colossus Voulge; Honor keeps the rescue', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Flail (5os)', 'Colossus Voulge (Larzuk base)', 'Thresher (5os)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ber: 1, Ist: 1, Sol: 2, Sur: 2, Cham: 1, Amn: 1, Lo: 1, El: 1, Ith: 1, Tir: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    ['Flail (5os)', 'Colossus Voulge (Larzuk base)', 'Thresher (5os)'].forEach((n) => w._ensureSocketBaseEntry(n));
+    const s = w.forgeScan();
+    const all = [...(s.now || []), ...(s.pipeline || [])];
+    const eternityOnFlail = all.find((t: any) => t.rw === 'Eternity' && /Flail/.test(t.base && t.base.name || ''));
+    const hojOnCV = all.find((t: any) => t.rw === 'Hand of Justice' && /Voulge/.test(t.base && t.base.name || ''));
+    const honorRescued = all.find((t: any) => t.rw === 'Honor' && t.mercOwn);
+    // keep/throw agrees: a plain 5os Flail is NOT "kept for Eternity"
+    const flailKeeps = (w._baseUnmadeRunewords('Flail (5os)', 5) || []).map((x: any) => x.n);
+    return { eternityOnFlail: !!eternityOnFlail, hojOnCV: !!hojOnCV, honorRescued: !!honorRescued, flailKeeps };
+  });
+  expect(r.eternityOnFlail).toBe(false);      // endgame word → not in a normal-tier Flail
+  expect(r.hojOnCV).toBe(false);              // endgame word → never on a 2H/merc rescue
+  expect(r.honorRescued).toBe(true);          // cheap word keeps the v501 owned-2H rescue
+  expect(r.flailKeeps).not.toContain('Eternity');   // vault keep-advice uses the same gate
+});
+
+// v577 — LADDER words never appear as EXAMPLE CHIPS in non-ladder mode (Konyo: "I play non-ladder — mixing
+// isn't right; when I finish non-ladder I'll flip the toggle and get the last ones"). The engine already
+// gated tasks/keep-decisions (v553/v562); this locks the DISPLAY layer (_baseRWLine → throw-out cards,
+// Socketed Review, hover tooltips) + the honest "+N ladder-only hidden" tag + the toggle bringing them back.
+test('v577 — ladder-only chips hidden off-ladder (with an honest count), shown again in ladder mode', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const off = String(w._baseRWLine('Devil Star', 3));      // 3os mace: Black (non-ladder) + Mania (ladder)
+    localStorage.setItem('d2r_ladderMode', 'ladder');        // _rwLadderBlocked reads the store live
+    const on = String(w._baseRWLine('Devil Star', 3));
+    return {
+      offHasBlack: /Black/.test(off), offHasMania: /Mania/.test(off), offHasHiddenTag: /ladder-only hidden/.test(off),
+      onHasMania: /Mania/.test(on),
+    };
+  });
+  expect(r.offHasBlack).toBe(true);      // non-ladder examples stay
+  expect(r.offHasMania).toBe(false);     // ladder-only example GONE off-ladder
+  expect(r.offHasHiddenTag).toBe(true);  // …with an honest "+N ladder-only hidden" tag
+  expect(r.onHasMania).toBe(true);       // flip the toggle → it returns
 });
