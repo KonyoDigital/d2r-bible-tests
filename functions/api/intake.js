@@ -53,9 +53,18 @@ export async function onRequestPost(context) {
   const itemsText = 'You read Diablo 2 Resurrected screenshots (stash/inventory panels, ground loot, hover tooltips). '
     + 'Extract ITEM NAMES whose text is VISIBLE in the image and return vocabulary matches in "items". STRICT RULES: '
     + '(0) Report an item ONLY where its NAME is shown as clearly-readable TEXT — a hover tooltip, a '
-    + 'stash/inventory/vendor/trade window label, a ground-loot label, OR a store/web listing line. NEVER report from '
+    + 'stash/inventory/vendor/trade window label, or a ground-loot label. NEVER report from '
     + 'item ARTWORK alone: if an item appears only as an icon/graphic with no readable name text next to it, skip it '
     + '(a wrong guess from art is far worse than a miss). '
+    /* v572 — the user screenshotted his own tracker WEBSITE; the AI read item names off the web page's review
+       cards and re-registered them as fresh loot (phantom ×2 copies + wrong card photos). Non-game rejection: */
+    + '(0c) FIRST decide: is this the DIABLO II GAME CLIENT at all? If the image shows a BROWSER or desktop-app '
+    + 'window — browser tabs / an address bar, macOS or Windows window chrome, a dock/taskbar — or a dark-gold web '
+    + 'dashboard titled "D2R Farming Bible" (nav tabs like BOSSES / CALCULATOR / TOOLS / FORGE, item review cards, '
+    + 'progress meters), or any other random non-game photo, it is NOT Diablo II loot. Item names printed on such a '
+    + 'page are the tracker\'s own BOOKKEEPING text — reporting them would duplicate the user\'s records. For any '
+    + 'non-game screenshot return EMPTY arrays for EVERY field. The ONLY valid source is the Diablo II game client '
+    + 'itself (its stash / inventory / vendor / ground-loot / tooltip UI, fullscreen or windowed). '
     + '(0a) DEFAULT EXPECTATION — these screenshots are normally ONE hovered item: a single big tooltip floating over a '
     + 'stash/inventory grid. In that case report EXACTLY ONE thing TOTAL — the hovered tooltip — counting ACROSS every '
     + 'output array COMBINED (items + finds + sockets + unrecognized). The icons in the grid BEHIND the tooltip are bare '
@@ -377,7 +386,10 @@ export async function onRequestPost(context) {
     + 'COLOUR: gold/tan/orange-brown = "unique", green = "set", blue = "magic", yellow = "rare", orange = '
     + '"crafted", white/grey = "base". If a runeword (gold name with a rune sequence in quotes like \'ShaelKoEld\' '
     + 'under it), return the gold runeword name and colour "unique". Read the name even if you do not recognise '
-    + 'it. Only if there is genuinely NO readable title text at all, return name="" .';
+    + 'it. Only if there is genuinely NO readable title text at all, return name="" . '
+    + 'v572: if the image is NOT the Diablo II game client at all (a browser window, a web dashboard like the '
+    + '"D2R Farming Bible" tracker page, OS chrome, or any random non-game photo), return name="" — text printed '
+    + 'by a web page is bookkeeping, not an item.';
   const rawSchema = {
     type: 'object',
     properties: { name: { type: 'string' }, color: { type: 'string', enum: ['unique', 'set', 'magic', 'rare', 'crafted', 'base', 'unknown'] } },
