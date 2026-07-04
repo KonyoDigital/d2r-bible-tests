@@ -26028,6 +26028,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       im.onerror = rej; im.src = u;
     });
   }
+  // v569 — a File whose backing file was DELETED mid-batch (Konyo wiped the folder while 5 shots were
+  // queued) can hang the <img> blob load with NEITHER onload NOR onerror → every worker awaits a ghost →
+  // "reading 0/5" forever and _vIntakeBusy wedges the auto-watch until reload. Two guards:
+  //   _vPreflight — touch the first bytes; a deleted/moved file rejects instantly (NotFound/NotReadable);
+  //   _vTimed     — hard ceiling on any image-decode promise so nothing awaits forever.
+  function _vPreflight(file){ return file.slice(0, 16).arrayBuffer(); }
+  function _vTimed(p, ms, label){
+    return Promise.race([ p, new Promise(function(_, rej){ setTimeout(function(){ rej(new Error((label||'read') + ' timed out')); }, ms); }) ]);
+  }
   // v342.17 — fetch with a hard TIMEOUT so a stalled AI call can't freeze the whole intake (worker pool
   // would otherwise await a hung request forever → "stuck"). Aborts after `ms` and rejects, caught per-shot.
   function _vFetch(url, opts, ms){
@@ -26116,10 +26125,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof persist === 'function') persist(); else persistOwned(); } catch(e){ try{ persistOwned(); }catch(e2){} }
     try { saveA(); } catch(e){}
     var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
+    // v569 — Konyo: "if I reset, how come it still shows linked to folder?" A FULL reset now also UNLINKS
+    // the watched folder: forget the stored handle (IndexedDB), drop the session handle, stop the auto-watch
+    // poll, and flip the UI back to 📂 Connect. A blank start is genuinely blank.
+    try { if (typeof window._vUnlinkFolder === 'function') await window._vUnlinkFolder(); } catch(e){}
     try { renderJournal(); } catch(e){}
     try { renderVault(); } catch(e){}
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
-    status('🧹 full reset — 0 owned, blank start');
+    status('🧹 full reset — 0 owned, folder unlinked, blank start');
   };
   // v342.25 — LIGHT reset: wipe ONLY the seen-files scan ledger (d2r_intakeSeen) so the folder
   // watch re-reads every screenshot as fresh. Does NOT touch owned items, mules, Magic & Rare,
@@ -26323,8 +26336,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v342 — calibrate like runes/gems: LOCATE the hovered description tooltip, crop GENEROUSLY to
         // it (never clip), and ENLARGE so its text reads crisp — then read the ONE hovered item.
         var b64, _box = null, _imRef = null;
+        // v569 — fail FAST and BOUNDED on a file deleted/moved after the batch was queued (see _vPreflight/_vTimed)
+        await _vPreflight(files[i]);
         try {
-          var _L = await _vLoadImg(files[i]);
+          var _L = await _vTimed(_vLoadImg(files[i]), 30000, 'image decode');
           _imRef = _L.im;   // v346 — kept for the empty-read full-image retry below
           try { fRec.thumb = 'data:image/jpeg;base64,' + _vEnlarge(_L.im, null, 220, 0.5); } catch(e){}   // v359 — small thumbnail of the uploaded shot, linked to what it read
           try { _vPutShot(fname, 'data:image/jpeg;base64,' + _vEnlarge(_L.im, null, 1920, 0.82)); } catch(e){}   // v365 — full-res shot in IndexedDB for click-to-enlarge (1920px)
@@ -26339,7 +26354,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           b64 = _vEnlarge(_L.im, _box);   // full-quality READ: crop if a tooltip was found, else whole image
           try { URL.revokeObjectURL(_L.u); } catch(e){}
           try { console.log('[vault-intake] ' + fname + ' → tooltip ' + (_box ? 'cropped ['+_box.map(function(v){return v.toFixed(2);}).join(', ')+']' : 'not found → full image')); } catch(e){}
-        } catch(e){ b64 = await downscale(files[i]); }
+        } catch(e){ b64 = await _vTimed(downscale(files[i]), 30000, 'image decode'); }
         var resp = await _vFetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -26823,7 +26838,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var firstConnect = Object.keys(seen).length === 0;
       for await (var entry of handle.values()){
         if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
-        var f = await entry.getFile();
+        var f; try { f = await entry.getFile(); } catch(e){ continue; }   // v569 — deleted mid-enumeration → skip, don't abort the scan
         all.push(f);
         // v222: dedupe by FILE NAME — a name ever registered is NEVER read
         // again, even if the file is touched/re-saved (old name|mtime keys honored)
@@ -26881,6 +26896,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){}
   }
   window._setFolderConnectedUI = _setFolderConnectedUI;
+  // v569 — fully unlink the watched folder (used by the 🧹 full reset — Konyo: a reset should NOT stay
+  // "linked to folder"): forget the persisted handle, drop the session handle, stop the poll, reset the UI.
+  function idbDel(k){ return idb().then(function(db){ return new Promise(function(res,rej){
+    var tx = db.transaction('kv','readwrite'); tx.objectStore('kv').delete(k);
+    tx.oncomplete = function(){ res(); }; tx.onerror = function(){ rej(tx.error); };
+  }); }); }
+  window._vUnlinkFolder = async function(){
+    liveHandle = null;
+    try { await idbDel(FOLDER_KEY); } catch(e){}
+    try { if (_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; } _autoWatchOn = false; } catch(e){}
+    try { document.removeEventListener('visibilitychange', _autoScanTick); window.removeEventListener('focus', _autoScanTick); } catch(e){}
+    try { _setFolderConnectedUI(false); } catch(e){}
+  };
   // v396.3 — AUTO-WATCH: the File System Access API has no file-change events, so we (a) re-scan whenever the
   // tab regains focus / becomes visible (you alt-tab back from fullscreen D2R after a screenshot → it auto-
   // reads it), and (b) poll the folder every ~12s while the tab is visible. Both use the QUIET scan, which
