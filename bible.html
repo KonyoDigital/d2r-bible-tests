@@ -7949,12 +7949,25 @@ function _isRunewordBase(base){
     clean = clean.replace(/^(?:Superior|Ethereal|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
     var rws = (typeof _baseRunewords === 'function') ? _baseRunewords(clean) : [];
     // v562 — apply the v385 SOCKET CEILING here too: a base whose max sockets can't fit even the smallest
-    // word it type-matches (Buckler/Dagger/Burnt Wand… max 1) can NEVER host a runeword. _baseRWLine already
-    // knew this ("if (!rws.length) return ''") — the keep/discard test now agrees, so those stop being muled.
-    var mx = 0; try { mx = parseInt(_socketMaxFor(clean), 10) || 0; } catch(e){}
-    if (mx >= 1 && mx <= 6) rws = rws.filter(function(r){ return r.s <= mx; });
+    // word it type-matches (Buckler… max 1) can NEVER host a runeword, so it stops being muled.
+    // v563.1 — but ONLY for gear (shield/armor/helm — slot-based, verified maxes). WEAPON maxes in BASE_DB
+    // are known-understated (v553 audit: "Wand reports max 1 but a 2os Wand is real"); capping weapons made
+    // _ensureSocketBaseEntry REJECT the real 2os Wand at registration → Routine-I red (v470 contention spec).
+    var mx = _keepSocketCeil(clean);
+    if (mx) rws = rws.filter(function(r){ return r.s <= mx; });
     return rws.length > 0;
   } catch(e){ return true; }   // fail-open: never wrongly discard on an error
+}
+// v563.1 — the socket ceiling used for KEEP/DISCARD decisions (shared by _isRunewordBase +
+// _baseUnmadeRunewords so the v524 capability⇄route agreement holds): gear gets its verified slot cap,
+// weapons get NO cap (their BASE_DB maxes lie low — fail-open, never wrongly discard a real base).
+function _keepSocketCeil(clean){
+  try {
+    var c = (typeof _baseCats === 'function') ? _baseCats(clean) : {};
+    if (c['weapon']) return 0;
+    var mx = parseInt(_socketMaxFor(clean), 10) || 0;
+    return (mx >= 1 && mx <= 6) ? mx : 0;
+  } catch(e){ return 0; }
 }
 window._isRunewordBase = _isRunewordBase;
 // v562 — CHRONICLE-AWARE keeper test: which runewords does this base still SERVE? Same truth the Forge, the
@@ -7970,12 +7983,13 @@ function _baseUnmadeRunewords(base, knownSockets){
   if (!rws.length) return [];
   var made = {}; try { made = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}'); } catch(e){}
   var ks = parseInt(knownSockets, 10) || 0;
-  var baseMax = 0; try { baseMax = parseInt(_socketMaxFor(clean), 10) || 0; } catch(e){}
+  // v563.1 — unsocketed cap via _keepSocketCeil (gear only; weapon maxes are understated — see _isRunewordBase)
+  var baseMax = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(clean) : 0;
   return rws.filter(function(r){
     if (made[r.n]) return false;
     try { if (typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(r.n)) return false; } catch(e){}
     if (ks >= 1) return r.s === ks;
-    if (baseMax >= 1 && baseMax <= 6) return r.s <= baseMax;
+    if (baseMax) return r.s <= baseMax;
     return true;
   });
 }
