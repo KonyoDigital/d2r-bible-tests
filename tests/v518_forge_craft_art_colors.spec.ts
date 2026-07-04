@@ -92,6 +92,8 @@ test('base option chips carry ideal / merc / endgame role badges (Insight → me
   await page.addInitScript(() => {
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_owned', JSON.stringify([]));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v580.2 — Insight examples need an unmade Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1600);
@@ -121,6 +123,8 @@ test('pipeline card body colours the forged runeword orange and the base white (
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v580.2 — Insight examples need an unmade Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1600);

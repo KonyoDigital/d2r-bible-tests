@@ -12,6 +12,7 @@ test('a Normal white base produces NO upgrade task; the upgrade bucket + _upgrad
     localStorage.setItem('d2r_owned', JSON.stringify(['Bone Helm (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({}));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v580.2 — pin fresh (Insight/Wind joined the seed)
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -35,6 +36,7 @@ test('an endgame word needing a higher-socket ELITE base → "get the right base
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Lem: 1, Ist: 1, Io: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v580.2 — pin fresh (Insight/Wind joined the seed)
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -55,6 +57,7 @@ test('owning the ELITE base + runes → a real Make-now / Pipeline task (endgame
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));   // Insight base, exact 4os
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v580.2 — pin fresh (Insight/Wind joined the seed)
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);

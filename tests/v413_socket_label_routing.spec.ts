@@ -20,7 +20,7 @@ test('socketed-base labels route to SOCKETED', async ({ page }) => {
       windforce: sm('Windforce').id,
     };
   });
-  expect(r.grim).toBe('bases');
+  expect(r.grim).toBe('__throwout');   // v576 — its 6os words (BotD/Silence) are endgame-tier; an exceptional Grim Scythe isn't their home
   // v524 — a CIRCLET can't hold a runeword (type=circ, gems/jewels only) → NOT a socketed keeper → throw-out.
   expect(r.circlet).toBe('__throwout');
   expect(r.trident).toBe('bases');
@@ -34,6 +34,7 @@ test('non-socketable white bases route to throw-out, not SOCKETED', async ({ pag
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window; const sm = w.suggestMule;
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));   // v580.2 — pin: routing is Chronicle-aware
     return {
       throwingAxe: sm('Throwing Axe').id, hurlbat: sm('Hurlbat').id,
       javelin: sm('Javelin').id, glaive: sm('Glaive').id,

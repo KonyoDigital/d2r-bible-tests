@@ -65,6 +65,7 @@ test('rune-named BASES route to SOCKETED, not shared-stash (the \\brune\\b colli
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));   // v580.2 — pin: routing is Chronicle-aware
     const id = (n: string) => (w.suggestMule(n) || {}).id;
     return {
       runeSword: id('Rune Sword (5os)'), runeBow: id('Rune Bow (4os)'),

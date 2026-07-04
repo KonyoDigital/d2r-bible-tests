@@ -11,6 +11,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 2, Tir: 2, Tal: 2, Sol: 2 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v580.2 — pin fresh (Insight/Wind joined the seed)
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);

@@ -20,18 +20,21 @@ test('_isRunewordBase + suggestMule agree across the whole base batch (no false 
     let kept = 0, thrown = 0, mismatch: string[] = [];
     bases.forEach((b) => {
       const rw = w._isRunewordBase(b);
+      // v580.2 — the route's source of truth is the CHRONICLE-AWARE + endgame-gated keeper list
+      // (_baseUnmadeRunewords, v562/v576), not raw capability: a base whose every word is made/gated
+      // legitimately vendors even though it CAN host runewords.
+      const keeps = (w._baseUnmadeRunewords(b, 0) || []).length > 0;
       const route = (w.suggestMule(b) || {}).id;
       if (route === 'bases') kept++;
       if (route === '__throwout') thrown++;
-      // a WHITE base's route must agree with its runeword-worthiness (rw → bases, non-rw → throwout)
-      if (rw && route === '__throwout') mismatch.push(b + ' (rw but thrown)');
+      if (keeps && route === '__throwout') mismatch.push(b + ' (still-needed but thrown)');
       if (!rw && route === 'bases') mismatch.push(b + ' (non-rw but kept)');
     });
     return { total: bases.length, kept, thrown, mismatch };
   });
   expect(r.total).toBeGreaterThan(490);
   expect(r.mismatch).toEqual([]);           // ZERO mismatches — the whole platform is synced
-  expect(r.kept).toBeGreaterThan(390);      // ~404 runeword-worthy bases kept
+  expect(r.kept).toBeGreaterThan(370);      // ~387 kept (v576 endgame gate rightly vendors expensive-only bases)
   expect(r.thrown).toBeGreaterThan(80);     // ~94 non-runeword bases thrown out
 });
 
@@ -98,8 +101,11 @@ test('v526 — game-internal base spelling (Kriss) normalizes to canonical (Kris
   // Ritual show "get a base" even when the dagger was owned. Normalisation resolves it end-to-end.
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Kriss (Larzuk base)']));
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 1, Shael: 1, Ohm: 1 })); // Ritual runes
+    // v580.2 — Ritual (top rune Ohm) is now endgame-gated off a plain Kris (its ideal is Fanged Knife);
+    // the alias proof uses MALICE (cheap 3os melee word — a 3os-max Kris pipeline) instead.
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ith: 1, El: 1, Eth: 1 })); // Malice runes
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1600);
@@ -107,18 +113,18 @@ test('v526 — game-internal base spelling (Kriss) normalizes to canonical (Kris
     const w: any = window;
     w._ensureSocketBaseEntry('Kriss (Larzuk base)');
     const s = w.forgeScan();
-    const ritual = s.now.concat(s.pipeline, s.onestep).find((t: any) => t.rw === 'Ritual');
+    const ritual = s.now.concat(s.pipeline, s.onestep).find((t: any) => t.rw === 'Malice');
     return {
       krissRecognized: Object.keys(w._baseCats('Kriss')).includes('dagger'),   // alias resolves
       krissRW: (w._baseRunewords('Kriss') || []).length > 0,
       tierChainKris: !!(w._TIER_CHAIN && w._TIER_CHAIN['kris']),                 // line-7638 fix → key exists
-      ritualBase: ritual ? (ritual.base && ritual.base.base) : null,
+      ritualBase: ritual ? (ritual.base && ritual.base.base) : null,   // Malice task carries the canonical Kris
       ritualKind: ritual ? ritual.kind : null,
     };
   });
   expect(r.krissRecognized).toBe(true);   // "Kriss" resolves to dagger cats
   expect(r.krissRW).toBe(true);           // and hosts runewords (was 0 before)
   expect(r.tierChainKris).toBe(true);     // _TIER_CHAIN keyed on the canonical "kris"
-  expect(r.ritualBase).toBe('Kris');      // an owned "Kriss" surfaces Ritual with the recognised base
+  expect(r.ritualBase).toBe('Kris');      // an owned "Kriss" surfaces a task with the recognised base
   expect(r.ritualKind).toBe('pipeline');
 });
