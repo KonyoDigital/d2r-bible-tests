@@ -12490,9 +12490,16 @@ window._shotLightbox = function(shotKey, fallbackSrc){
     document.body.appendChild(o);
   };
   if (shotKey && String(shotKey).indexOf('data:') === 0){ show(shotKey); return; }
+  // v571 — fallback chain: stored full-res (IndexedDB) → the ORIGINAL file in the linked folder (native
+  // 1920×1080, always available while the screenshot exists on disk) → the small thumb.
+  var _fromFolder = function(){
+    if (typeof window._vShotFromFolder === 'function'){
+      window._vShotFromFolder(shotKey).then(function(u){ show(u || fallbackSrc || ''); }).catch(function(){ show(fallbackSrc || ''); });
+    } else show(fallbackSrc || '');
+  };
   if (shotKey && typeof window._vGetShot === 'function'){
-    window._vGetShot(shotKey).then(function(full){ show(full || fallbackSrc || ''); }).catch(function(){ show(fallbackSrc || ''); });
-  } else { show(fallbackSrc || ''); }
+    window._vGetShot(shotKey).then(function(full){ if (full) show(full); else _fromFolder(); }).catch(_fromFolder);
+  } else { _fromFolder(); }
 };
 // v341.42 — flagship animated loader for the 1-photo AI intakes: a centred scanning overlay
 // (sweep + pulsing lens + indeterminate bar) floated on the stash GRID while the AI reads the
@@ -25160,8 +25167,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(!names.length){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false;
     // map each throw-out name → the screenshot it was read from (newest stored thumb wins)
+    // v571 — keep the FILENAME even when the thumb was pruned: the card then loads the ORIGINAL file from
+    // the linked folder (native HD) via _vHydrateShots. "no shot" only remains when the filename is unknown.
     var shotOf={};
-    try { journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.th && f.unr && f.unr.length){ f.unr.forEach(function(u){ if(!shotOf[u]) shotOf[u]={th:f.th, ff:(f.ff||f.f||'')}; }); } }); }); } catch(e){}
+    try { journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.unr && f.unr.length){ f.unr.forEach(function(u){ if(!shotOf[u] || (!shotOf[u].th && f.th)) shotOf[u]={th:(f.th||''), ff:(f.ff||f.f||'')}; }); } }); }); } catch(e){}
     var cardFor=function(n){
       var clean=(typeof _throwClean==='function')?_throwClean(n):n;
       var isBase=/low base\)\s*$/i.test(n);
@@ -25170,8 +25179,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var artH=src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(clean)+'"><img class="d2art-img" src="'+esc(src)+'" alt="" loading="lazy"></span>':'<span class="to-glyph">🗑</span>';
       var nm=(typeof _vColorName==='function')?_vColorName(n):('<span style="color:#aeb8c4">'+esc(n)+'</span>');
       var sh=shotOf[n];
-      var shotH=sh
+      // v571 — three-way: stored thumb → img now; filename only → placeholder hydrated from the LINKED
+      // FOLDER's original file (native HD, _vHydrateShots); nothing known → "no shot".
+      var shotH=(sh && sh.th)
         ? '<img class="to-shot" src="'+esc(sh.th)+'" loading="lazy" data-shot="'+esc(sh.ff)+'" title="click to open this screenshot full-size — '+esc(sh.ff)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">'
+        : (sh && sh.ff)
+        ? '<div class="to-shot to-noshot" data-ffsrc="'+esc(sh.ff)+'" title="loading the screenshot from your linked folder — '+esc(sh.ff)+'">📂 …</div>'
         : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>';
       // v368 — even when the AI read only the NAME (no socket text → not flagged a base), recognise a
       // known weapon/armor base TYPE so a real runeword base (e.g. "Dimensional Blade", a sword) shows its
@@ -25230,6 +25243,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _loBlock=_loSetN.length?('<details class="to-subgroup"><summary class="to-subsum">🧩 Low set pieces — tracked for grail, safe to sell/throw <span class="to-ct">'+_loSetN.length+'</span><span class="to-chev">▾</span></summary><div class="to-grid">'+_loSetN.map(cardFor).join('')+'</div></details>'):'';
     el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-st">🗑 Throw-Out Review</span><span class="to-ct">'+names.length+'</span><span class="to-subt">what you’re discarding — each read shown with the screenshot it came from</span><span class="to-chev">▾</span></summary>'
       + (cards?'<div class="to-grid">'+cards+'</div>':'')+_loBlock+'</details>';
+    try { window._vHydrateShots(el); } catch(e){}   // v571 — pull pruned shots back from the linked folder
   }
   // v455 — SOCKETED / LARZUK REVIEW: the EXACT runeword tool from the throw-out review (_baseRWLine), now for the
   // MULED socketed + Larzuk bases. Konyo: socketed items got muled (good) but never showed their runeword potential
@@ -25247,7 +25261,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     el.hidden=false;
     // map each socketed read → the screenshot it was registered from (f.nw = newly-recognised reads; newest thumb wins)
     var shotOf={};
-    try { journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.th && f.nw && f.nw.length){ f.nw.forEach(function(u){ if(!shotOf[u]) shotOf[u]={th:f.th, ff:(f.ff||f.f||'')}; }); } }); }); } catch(e){}
+    try { journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.nw && f.nw.length){ f.nw.forEach(function(u){ if(!shotOf[u] || (!shotOf[u].th && f.th)) shotOf[u]={th:(f.th||''), ff:(f.ff||f.f||'')}; }); } }); }); } catch(e){}   // v571 — filename kept even when the thumb was pruned
     var cardFor=function(n){
       var ent=(window.EXTRA_ITEMS&&EXTRA_ITEMS[n])||{};
       var base=ent.base||n;
@@ -25261,8 +25275,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var artH=src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+esc(src)+'" alt="" loading="lazy"></span>':'<span class="to-glyph">🔩</span>';
       var nm=(typeof _vColorName==='function')?_vColorName(n):('<span style="color:#aeb8c4">'+esc(n)+'</span>');
       var sh=shotOf[n];
-      var shotH=sh
+      // v571 — three-way: stored thumb → img now; filename only → placeholder hydrated from the LINKED
+      // FOLDER's original file (native HD, _vHydrateShots); nothing known → "no shot".
+      var shotH=(sh && sh.th)
         ? '<img class="to-shot" src="'+esc(sh.th)+'" loading="lazy" data-shot="'+esc(sh.ff)+'" title="click to open this screenshot full-size — '+esc(sh.ff)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">'
+        : (sh && sh.ff)
+        ? '<div class="to-shot to-noshot" data-ffsrc="'+esc(sh.ff)+'" title="loading the screenshot from your linked folder — '+esc(sh.ff)+'">📂 …</div>'
         : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>';
       var m=(typeof assign!=='undefined'&&assign[n]&&typeof muleById==='function')?muleById(assign[n]):null;
       var muleTag=m?'<span class="to-sock" style="border-color:rgba(127,212,255,.5);color:#9fd4ff" title="muled to '+esc(m.name)+'">🏦 '+esc(m.name)+'</span>':'';
@@ -25309,7 +25327,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var cards=names.map(cardFor).join('');
     el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-st">🔩 Socketed &amp; Larzuk Review</span><span class="to-ct">'+names.length+'</span><span class="to-subt">muled socketed / Larzuk bases — what runewords each can still make (already-created ones ✓ cancelled out)</span><span class="to-chev">▾</span></summary>'
       + '<div class="to-grid">'+cards+'</div></details>';
+    try { window._vHydrateShots(el); } catch(e){}   // v571 — pull pruned shots back from the linked folder
   }
+  // v571 — swap "no shot" placeholders for the ORIGINAL screenshot file from the linked folder (object URL,
+  // native 1920×1080). Runs after the review grids render; a file no longer on disk keeps the plain box.
+  window._vHydrateShots = function(root){
+    try {
+      if (!root || typeof window._vShotFromFolder !== 'function') return;
+      root.querySelectorAll('.to-noshot[data-ffsrc]').forEach(function(ph){
+        var ff = ph.getAttribute('data-ffsrc');
+        window._vShotFromFolder(ff).then(function(u){
+          if (!u || !ph.parentNode) { if (ph.parentNode){ ph.textContent = 'no shot'; ph.removeAttribute('data-ffsrc'); } return; }
+          var img = document.createElement('img');
+          img.className = 'to-shot'; img.loading = 'lazy'; img.src = u;
+          img.setAttribute('data-shot', ff);
+          img.title = 'click to open this screenshot full-size — ' + ff;
+          img.onclick = function(){ if (window._shotLightbox) window._shotLightbox(ff, u); };
+          ph.parentNode.replaceChild(img, ph);
+        });
+      });
+    } catch(e){}
+  };
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
@@ -26801,6 +26839,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }); }).catch(function(){}); }
   try { window._vPruneShots = _vPruneShots; } catch(e){}   // v570 — exposed for tests
   window._vGetShot = function(f){ return idbGet('shot:' + f).then(function(v){ return v || null; }).catch(function(){ return null; }); };
+  // v571 — load the ORIGINAL screenshot straight from the linked folder by filename (object URL, native
+  // resolution, zero storage cost). Konyo: "no shot needs to be PHOTOS of the item screenshot like the file
+  // itself, rendering HD 1920×1080". Works whenever the folder is linked + the file still exists on disk —
+  // review cards stay pictured even after the journal thumb was pruned or the session rolled off.
+  window._vShotFromFolder = async function(fname){
+    try {
+      if (!fname) return null;
+      var h = liveHandle; if (!h) { try { h = await idbGet(FOLDER_KEY); } catch(e){} }
+      if (!h) return null;
+      if ((await h.queryPermission({ mode: 'read' })) !== 'granted') return null;
+      var fh = await h.getFileHandle(String(fname));
+      var f = await fh.getFile();
+      return URL.createObjectURL(f);
+    } catch(e){ return null; }
+  };
   function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
   // v224: ONE scan menu, rendered FULL-WIDTH in #vault-intake-report (the tiny
   // toolbar #vault-status span was invisible to Konyo — REG-class lesson:
