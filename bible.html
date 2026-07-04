@@ -25178,6 +25178,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }); } }); }); } catch(e){}
     var cardFor=function(n){
       var clean=(typeof _throwClean==='function')?_throwClean(n):n;
+      // v573 — Konyo's Superior Flail case: a name-only read of a QUALITY-PREFIXED base ("Superior Flail")
+      // must still be recognised as the base TYPE (Flail — the ideal HotO base!), not dismissed as a misread.
+      var cleanB=clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+      var _wasSup=/^Superior\s+/i.test(clean);
       var isBase=/low base\)\s*$/i.test(n);
       var sock=/\((\d+)os/i.exec(n);
       var src=(typeof artUrl==='function'?artUrl(clean):'')||(typeof _magicArtSrc==='function'?_magicArtSrc(clean):'')||'';
@@ -25194,7 +25198,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v368 — even when the AI read only the NAME (no socket text → not flagged a base), recognise a
       // known weapon/armor base TYPE so a real runeword base (e.g. "Dimensional Blade", a sword) shows its
       // runeword potential instead of a bare "non-grail/misread" — so Konyo doesn't dismiss a good base.
-      var _isKnownBase = (typeof _baseCats==='function') && Object.keys(_baseCats(clean)).length>0;
+      var _isKnownBase = (typeof _baseCats==='function') && Object.keys(_baseCats(cleanB)).length>0;
       // v394 — a LOW set piece routed here on purpose (Sigon's/Sander's/etc.): it's tracked for the grail,
       // just not worth muling. Show the right message instead of the generic "misread".
       var _loSet = (typeof findSetPiece==='function') && findSetPiece(clean);
@@ -25210,8 +25214,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // the same way the Forge/Smart AI does. All fitting words ✓ forged → say "throw it out" plainly;
       // words still unmade → name them, so the generic "keep if good sockets" hedge never contradicts the plan.
       try {
-        if ((isBase||_isKnownBase) && !_loSet && typeof _baseUnmadeRunewords==='function' && typeof _isRunewordBase==='function' && _isRunewordBase(clean)){
-          var _tun=_baseUnmadeRunewords(clean, sock ? +sock[1] : 0);
+        if ((isBase||_isKnownBase) && !_loSet && typeof _baseUnmadeRunewords==='function' && typeof _isRunewordBase==='function' && _isRunewordBase(cleanB)){
+          var _tun=_baseUnmadeRunewords(cleanB, sock ? +sock[1] : 0);
           // v563 — spare split: unmade words all covered by an owned base → "you already hold one" verdict
           var _tsp=(_tun.length && typeof _spareBaseInfo==='function') ? _spareBaseInfo(n, _tun) : null;
           why = !_tun.length
@@ -25221,8 +25225,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             : 'A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — <b>still needed</b>: it can host <b>'+esc(((_tsp&&_tsp.uncovered.length)?_tsp.uncovered:_tun.map(function(r){return r.n;})).slice(0,3).join(', '))+(_tun.length>3?' +'+(_tun.length-3)+' more':'')+'</b>, unmade in your Chronicle. Keep it if the sockets are right.';
         }
       } catch(e){}
-      var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(clean, sock ? +sock[1] : 0):'';
-      if ((isBase||_isKnownBase) && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(clean, 'normal'); if(_sgl) rwl+=_sgl; }
+      var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(cleanB, sock ? +sock[1] : 0, _wasSup):'';
+      if ((isBase||_isKnownBase) && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(cleanB, _wasSup?'superior':'normal'); if(_sgl) rwl+=_sgl; }
       // v397.2 — one-click socket fix: when a KNOWN base was read name-only (the AI missed the faint "Socketed
       // (N)" line — Konyo's Elder Staff / Superior Trident / Wrist Sword), let him set the real count in one tap.
       // It registers "<Base> (Nos)" as a socketed runeword/craft base + mules it. No re-scan needed.

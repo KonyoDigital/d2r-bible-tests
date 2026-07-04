@@ -62,3 +62,35 @@ test('the lightbox falls back IndexedDB → linked-folder file → thumb', async
   }, PNG_1PX);
   expect(r).toBe(PNG_1PX);                    // folder file wins over the tiny thumb
 });
+
+// v573 — a name-only read of a QUALITY-PREFIXED base ("Superior Flail") is recognised as its base TYPE:
+// the throw-out card shows the Chronicle-aware runeword guidance (Flail hosts HotO/Black…), the superior
+// valid-base note, and never the generic "a misread. Recover it or discard." dismissal.
+test('v573 — "Superior Flail" throw-out card recognises the Flail base + Chronicle guidance', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    localStorage.setItem('d2r_unknownReads', JSON.stringify(['Superior Flail']));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    location.reload();
+  });
+  await page.waitForTimeout(1800);
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    w._vShotFromFolder = async () => null;
+    w.switchTab('tools'); w.renderVault && w.renderVault();
+    await new Promise((res) => setTimeout(res, 300));
+    const card = Array.from(document.querySelectorAll('#vault-throwout .to-card'))
+      .find((c) => /Superior Flail/.test(c.textContent || ''));
+    const t = card ? card.textContent! : '';
+    return {
+      found: !!card,
+      dismissedAsMisread: /a misread\. Recover it or discard/.test(t),
+      hasRunewordGuidance: /Keep for runewords|still needed/.test(t),
+      hasSuperiorNote: /Superior base|valid runeword base/i.test(t),
+    };
+  });
+  expect(r.found).toBe(true);
+  expect(r.dismissedAsMisread).toBe(false);
+  expect(r.hasRunewordGuidance).toBe(true);
+  expect(r.hasSuperiorNote).toBe(true);
+});
