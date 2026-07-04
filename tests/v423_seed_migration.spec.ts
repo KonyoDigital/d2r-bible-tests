@@ -3,8 +3,8 @@ import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v432/v436/v448/v451/v452 — the seeded runewords (now 36, incl. Spirit/Grief/Stone/Enigma/Doom) are a HARD
 // FLOOR re-applied every load. Seeded RWs are FORGED FACT: their un-marks are purged on load (they snap back);
-// only NON-seeded un-marks stick. So a stuck-at-19 / reset / restored save always snaps back to the full 45.
-test('a stuck-at-19 save snaps up to 45 on load', async ({ page }) => {
+// only NON-seeded un-marks stick. So a stuck-at-19 / reset / restored save always snaps back to the full 47.
+test('a stuck-at-19 save snaps up to 47 on load', async ({ page }) => {
   await page.addInitScript(() => {
     const old19 = {"Beast":"x","Dream":"x","Fortitude":"x","Rhyme":"x","Chains of Honor":"x","Infinity":"x","Duress":"x","Steel":"x","Nadir":"x","Stealth":"x","Malice":"x","Holy Thunder":"x","Passion":"x","Call to Arms":"x","Splendor":"x","Bone":"x","Crescent Moon":"x","Dragon":"x","Strength":"x"};
     localStorage.setItem('d2r_rwMade', JSON.stringify(old19));
@@ -14,7 +14,7 @@ test('a stuck-at-19 save snaps up to 45 on load', async ({ page }) => {
     const s = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');
     return { count: Object.keys(s).length, hasDeath: !!s['Death'], hasEdge: !!s['Edge'] };
   });
-  expect(r.count).toBe(45);   // v503 added Obsession to the seed floor
+  expect(r.count).toBe(47);   // v568 added White + Obedience to the floor
   expect(r.hasDeath).toBe(true);
   expect(r.hasEdge).toBe(true);
 });
@@ -26,7 +26,7 @@ test('floor re-applies even after the stale one-time flag was set (the real stuc
   });
   await page.goto(URL); await page.waitForTimeout(1300);
   const n = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade')||'{}')).length);
-  expect(n).toBe(45);   // durable floor ignores the flag
+  expect(n).toBe(47);   // durable floor ignores the flag
 });
 test('un-marks: a seeded forged RW snaps back (purged), a non-seeded one stays un-marked', async ({ page }) => {
   await page.addInitScript(() => {
@@ -45,5 +45,5 @@ test('un-marks: a seeded forged RW snaps back (purged), a non-seeded one stays u
   expect(r.unmadeDeath).toBe(false);  // its stale un-mark purged
   expect(r.hasFaith).toBe(false);     // non-seeded → un-mark respected, NOT floored
   expect(r.unmadeFaith).toBe(true);   // non-seeded un-mark preserved across the reload
-  expect(r.count).toBe(45);           // exactly the 45 forged seeds
+  expect(r.count).toBe(47);           // exactly the 47 forged seeds
 });

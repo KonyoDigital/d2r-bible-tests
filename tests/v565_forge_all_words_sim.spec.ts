@@ -59,12 +59,14 @@ test('A — every runeword, given its ideal base + runes, surfaces a Forge task 
 
 test('B — combined vault renders every task kind in the real Forge tab at once', async ({ page }) => {
   await page.addInitScript(() => {
+    // v568 — White + Obedience joined the seeded Chronicle (created in-game), so this demo uses
+    // Black (make-now) and Honor (one-step) instead — both still unmade.
     localStorage.setItem('d2r_owned', JSON.stringify([
-      'Wand (2os)',                    // MAKE NOW    — White (Dol+Io in hand)
+      'Flail (3os)',                   // MAKE NOW    — Black (Thul+Io+Nef in hand)
       'Colossus Voulge (Larzuk base)', // PIPELINE    — Insight (runes in hand, needs Larzuk 4os)
-      'Thresher (5os)',                // ONE STEP    — Obedience (missing runes)
+      'Thresher (5os)',                // ONE STEP    — Honor (missing runes)
     ]));
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Dol: 1, Io: 1, Ral: 2, Tir: 1, Tal: 1, Sol: 1 }));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Thul: 1, Io: 1, Nef: 1, Ral: 2, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_gemStash', JSON.stringify({ 'Perfect Amethyst': 1 }));   // CRAFT — Caster
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     localStorage.setItem('d2r_ladderMode', 'nonladder');
@@ -78,14 +80,14 @@ test('B — combined vault renders every task kind in the real Forge tab at once
     const el = document.getElementById('tab-forge');
     const txt = el ? el.textContent! : '';
     return {
-      scan: { white: !!(s.now || []).find((t: any) => t.rw === 'White'),
+      scan: { black: !!(s.now || []).find((t: any) => t.rw === 'Black'),
               insightPipe: !!(s.pipeline || []).find((t: any) => t.rw === 'Insight'),
-              obedienceStep: !!(s.onestep || []).find((t: any) => t.rw === 'Obedience' && t.sub === 'runes'),
+              honorStep: !!(s.onestep || []).find((t: any) => t.rw === 'Honor' && t.sub === 'runes'),
               craft: !!(s.crafts || []).find((c: any) => c.craft === 'Caster') },
-      rendered: { white: txt.includes('White'), insight: txt.includes('Insight'),
-                  obedience: txt.includes('Obedience'), caster: /Caster/i.test(txt) },
+      rendered: { black: txt.includes('Black'), insight: txt.includes('Insight'),
+                  honor: txt.includes('Honor'), caster: /Caster/i.test(txt) },
     };
   });
-  expect(r.scan).toEqual({ white: true, insightPipe: true, obedienceStep: true, craft: true });
-  expect(r.rendered).toEqual({ white: true, insight: true, obedience: true, caster: true });
+  expect(r.scan).toEqual({ black: true, insightPipe: true, honorStep: true, craft: true });
+  expect(r.rendered).toEqual({ black: true, insight: true, honor: true, caster: true });
 });
