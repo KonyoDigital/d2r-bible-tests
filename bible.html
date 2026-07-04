@@ -13006,6 +13006,10 @@ window._isEthereal = function(n){ try {
 // card shows the "valid superior base (keeps its bonus)" note (NOT the old wrong "can't runeword" warning).
 let superiorBases = new Set(_safeJsonParse(LS.getItem('d2r_superiorBases'), []));
 window._isSuperior = function(n){ try {
+  // v580.1 — the NAME PREFIX is authoritative too: a base registered/labelled "Superior X (…)" is superior
+  // even when the intake's superiorBases flag-set never saw it (live bug: the cube gamble fired on Konyo's
+  // "Superior Flail (Larzuk base)" because only the flag-set was checked).
+  if (/^\s*Superior\s+/i.test(String(n || ''))) return true;
   if (superiorBases.has(n)) return true;
   var nn = _etherNorm(n); if (!nn) return false;
   for (var e of superiorBases){ if (_etherNorm(e) === nn) return true; }
