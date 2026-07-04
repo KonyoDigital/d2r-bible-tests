@@ -7853,6 +7853,14 @@ function _baseCats(b){
   // orbs, pelts, shrunken heads, barb helms, claws, Templar Coat…). Fall through to the regex for variants
   // ("Superior Monarch", RotW custom names) the data map doesn't key verbatim.
   if (typeof BASE_CLASS !== 'undefined' && BASE_CLASS[_raw]){ var _cc = {}; BASE_CLASS[_raw].forEach(function(k){ _cc[k] = 1; }); return _cc; }
+  // v574 — QUALITY-PREFIX / SUFFIX RETRY before the regex fallback (Konyo's Superior Flail sweep): the regex
+  // has known gaps (flails, daggers, orbs, pelts, heads, claws — the v386 reason for the exact map), so
+  // "Superior Flail" / "Ethereal Quhab" / "Eth Wolf Head (3os)" must strip to their exact base name and hit
+  // the authoritative map — NOT fall into the regex gap and read as "not a base".
+  if (typeof BASE_CLASS !== 'undefined'){
+    var _qs = _raw.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (_qs !== _raw && BASE_CLASS[_qs]){ var _cq = {}; BASE_CLASS[_qs].forEach(function(k){ _cq[k] = 1; }); return _cq; }
+  }
   b = _raw.toLowerCase(); var c = {};
   if (/shield|buckler|rondache|targe|aegis|\bward\b|scutum|defender|heater|\bluna\b|pavise|monarch|\bnest\b|kite|tower|gothic shield|barbed shield|dragon shield|bone shield|grim shield|ancient shield|round shield|small shield|large shield|spiked shield|hyperion|blade barrier/.test(b)) c['shield'] = 1;
   else if (/helm|\bcap\b|crown|mask|circlet|coronet|tiara|diadem|casque|basinet|sallet|armet|visage|\bskull\b|shako|coif|cowl|\bhood\b|demon head|bone helm|war hat|winged helm|grand crown|spired helm|bone visage|sallet/.test(b)) c['helm'] = 1;
@@ -24914,7 +24922,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // "Cryptic Axe"/"Monarch"/"Quilted Armor" etc. fell through to the uni-weap default — correct for a unique
     // weapon, wrong for a white base. (Surfaced when the full 1297-catalog audit included all 498 bases.)
     var _bareBaseClean = (typeof _artSlotClean==='function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
-    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean]) && !it && !ex && !itip){
+    var _bareQ = _bareBaseClean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();   // v574 — "Superior Flail" is a Flail
+    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean] || BASE_CLASS[_bareQ]) && !it && !ex && !itip){
       // v524 — GENERALISED (was v502 orb/throwing-only): a white base is a SOCKETED keeper ONLY if it can hold
       // a runeword. The single source of truth _isRunewordBase (= _baseRunewords>0, same as the Forge) covers
       // ALL 500+ bases — circlets (gems/jewels only), orbs, throwing weapons, javelins, and any other non-RW
@@ -25233,6 +25242,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _setter = (_isKnownBase && !sock && !_loSet)
         ? '<div class="to-sockset" style="margin-top:5px;font-size:10px;color:#b5a48a">🔩 AI missed the sockets? set the real count: '
             + [1,2,3,4,5,6].map(function(s){ return '<button onclick="event.stopPropagation();window.vaultSetSockets(\''+jsArg(n)+'\','+s+')" title="register as a '+s+'-socket '+esc(clean)+'" style="margin:0 1px;padding:1px 6px;border:1px solid rgba(127,212,255,.45);background:rgba(127,212,255,.1);color:#9fd4ff;border-radius:4px;cursor:pointer;font-size:10px">'+s+'</button>'; }).join('')
+            + ' <button onclick="event.stopPropagation();window.vaultKeepAsBase(\''+jsArg(n)+'\')" title="it really is UNSOCKETED — keep it as a Larzuk / cube-gamble base" style="margin-left:4px;padding:1px 7px;border:1px solid rgba(240,192,96,.5);background:rgba(240,192,96,.1);color:#f0c060;border-radius:4px;cursor:pointer;font-size:10px">⚒ keep unsocketed</button>'
             + '</div>'
         : '';
       return '<div class="to-card">'
@@ -25530,6 +25540,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label]) assign[label] = sg.id;
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base');
+    } catch(e){}
+  };
+  // v575 — keep an UNSOCKETED base from the throw-out review as a Larzuk/cube-gamble candidate (Konyo's
+  // unsocketed Superior Flail = the ideal HotO base). Registers "<Name> (Larzuk base)" → SOCKETED locker →
+  // the Forge picks it up (Larzuk-to-max words + the v575 ideal-base cube gamble).
+  window.vaultKeepAsBase = function(name){
+    try {
+      var clean = (typeof _throwClean === 'function') ? _throwClean(name) : name;
+      var label = clean + ' (Larzuk base)';
+      if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
+      if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
+      owned.add(label);
+      var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label]) assign[label] = sg.id;
+      persistOwned(); saveA(); renderVault(); refreshOpenCard();
+      status('⚒ ' + clean + ' kept UNSOCKETED — Larzuk / cube-gamble base, the Forge will plan around it');
     } catch(e){}
   };
   // v462 — FIX the socket count of an ALREADY-REGISTERED socketed / Larzuk base (Konyo's Superior Champion Axe
@@ -27479,7 +27504,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // socket recipe (Ral+Amn+P.gem = random 1→max) CAN land it — so offer it as a gamble instead of dropping
         // the owned base to a "go get a base" one-step. Scoped to TAGGED bases only (b.taggedRw===name) so it never
         // floods untagged white bases with gamble tasks. (Untagged bases keep the strict Larzuk-clean rule.)
-        var _cubeGamble = (!rule && b.sockets===0 && b.taggedRw===name && b.max && need>0 && need<b.max);
+        // v575 — the gamble ALSO fires when the owned unsocketed base IS the word's IDEAL meta base (Konyo's
+        // unsocketed Superior Flail must offer the HotO gamble: need 4 < max 5, Larzuk overshoots). Still no
+        // flood — ideal-base matches only, arbitrary white bases keep the strict rule.
+        var _cubeGamble = (!rule && b.sockets===0 && (b.taggedRw===name || _isIdealBase(name, b.base)) && b.max && need>0 && need<b.max);
         if (!rule && !_cubeGamble) return;              // SAFEGUARD: not a legitimate path for this base → auto-cancelled
         var t=null;
         if (rule==='have'){                             // base already has EXACTLY the needed sockets

@@ -15,6 +15,9 @@ async function scan(page: any, seed: Seed) {
     localStorage.setItem('d2r_runeStash', JSON.stringify(s.runes || {}));
     localStorage.setItem('d2r_gemStash', JSON.stringify(s.gems || {}));
     localStorage.setItem('d2r_rwMade', JSON.stringify(s.made || {}));
+    // v575 — v568 seeded White (a test word here) into the durable Chronicle floor, which re-applies on
+    // every load; these sims need a genuinely fresh Chronicle.
+    localStorage.setItem('d2r_rwProfile', 'fresh');
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   }, seed);
   await page.goto(URL);

@@ -655,8 +655,11 @@ export async function onRequestPost(context) {
     const eliteBase = GOOD_BASE.test(base);
     // v371 — ZERO-socket base: keep ONLY an elite (or ethereal) white/superior one as a LARZUK CANDIDATE (you'd
     // socket it later); ignore common 0-socket junk entirely. Konyo's "track elite, ignore junk" calibration.
+    // v575 — SUPERIOR joins the keeper list: a superior base is deliberate quality (keeps its bonus on top of
+    // a runeword) and is a prime Larzuk/cube-gamble candidate (Konyo's unsocketed Superior Flail = the ideal
+    // Heart of the Oak base, was dropped to the throw-out pile as a name-only read).
     if (cnt <= 0) {
-      if (!eliteBase && s.eth !== true) continue;
+      if (!eliteBase && s.eth !== true && _q !== 'superior') continue;
       socketBaseLower.add(base.toLowerCase());
       const lg = specificBaseLabel(base, 0, true, s.q) || larzukGeneric(base);   // v379/v450 — specific base (+Superior prefix), generic fallback
       if (lg && !items.includes(lg)) items.push(lg);
