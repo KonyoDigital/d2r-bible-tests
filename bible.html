@@ -25169,8 +25169,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // map each throw-out name → the screenshot it was read from (newest stored thumb wins)
     // v571 — keep the FILENAME even when the thumb was pruned: the card then loads the ORIGINAL file from
     // the linked folder (native HD) via _vHydrateShots. "no shot" only remains when the filename is unknown.
-    var shotOf={};
-    try { journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.unr && f.unr.length){ f.unr.forEach(function(u){ if(!shotOf[u] || (!shotOf[u].th && f.th)) shotOf[u]={th:(f.th||''), ff:(f.ff||f.f||'')}; }); } }); }); } catch(e){}
+    var shotOf={}, shotOfClean={};
+    try { var _sK=function(x){ return String(x||'').replace(/\s*\([^)]*\)\s*$/,'').toLowerCase().trim(); };
+      journal().forEach(function(s){ (s.pf||[]).forEach(function(f){ if(f.unr && f.unr.length){ f.unr.forEach(function(u){
+        var rec={th:(f.th||''), ff:(f.ff||f.f||'')};
+        if(!shotOf[u] || (!shotOf[u].th && f.th)) shotOf[u]=rec;
+        var ck=_sK(u); if(!shotOfClean[ck] || (!shotOfClean[ck].th && f.th)) shotOfClean[ck]=rec;   // v572.1 — OCR-variant names ("Blade Bow" vs "Blade Bow (4os low base)") still find their shot
+      }); } }); }); } catch(e){}
     var cardFor=function(n){
       var clean=(typeof _throwClean==='function')?_throwClean(n):n;
       var isBase=/low base\)\s*$/i.test(n);
@@ -25178,7 +25183,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var src=(typeof artUrl==='function'?artUrl(clean):'')||(typeof _magicArtSrc==='function'?_magicArtSrc(clean):'')||'';
       var artH=src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(clean)+'"><img class="d2art-img" src="'+esc(src)+'" alt="" loading="lazy"></span>':'<span class="to-glyph">🗑</span>';
       var nm=(typeof _vColorName==='function')?_vColorName(n):('<span style="color:#aeb8c4">'+esc(n)+'</span>');
-      var sh=shotOf[n];
+      var sh=shotOf[n] || shotOfClean[String(n||'').replace(/\s*\([^)]*\)\s*$/,'').toLowerCase().trim()];
       // v571 — three-way: stored thumb → img now; filename only → placeholder hydrated from the LINKED
       // FOLDER's original file (native HD, _vHydrateShots); nothing known → "no shot".
       var shotH=(sh && sh.th)
