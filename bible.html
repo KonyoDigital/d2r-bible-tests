@@ -8107,7 +8107,10 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   var _supNote = '', _isSup = !!forceSuperior;
   try { if (!_isSup && window._isSuperior && window._isSuperior(name)) _isSup = true; } catch(e){}
   if (_isSup) {
-    _supNote = '<div class="att-aff" style="color:#8fd0a0">✔ <b>Superior base — a valid runeword base.</b> Superior is still normal quality: socket it and cube the runes in order like any white base — it even <b>keeps its small superior bonus</b> (e.g. +ED / +durability) on top of the runeword.</div>';
+    // v579 — precise socket-path wording (Konyo: "it still recommends to socket it in cube — it isn't
+    // possible, it's a superior"): superior forms runewords fine and keeps its bonus, but its ONLY socket
+    // path is Larzuk = guaranteed max — the cube socket recipe works on plain white/eth bases only.
+    _supNote = '<div class="att-aff" style="color:#8fd0a0">✔ <b>Superior base — a valid runeword base</b> that <b>keeps its small superior bonus</b> (e.g. +ED / +durability) on top of the runeword. Socket path: <b>Larzuk ONLY → guaranteed max sockets</b> — the cube socket recipe does <b>NOT</b> work on superior items (plain white/eth only). Then insert the runes in order.</div>';
   }
   // v460 — prepend the eth-worthy highlight (only fires for ethereal items) so it rides along with every place
   // that renders this guidance: the Socketed Review, throw-out card, detail card, and cursor tooltip.

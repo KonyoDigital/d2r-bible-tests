@@ -171,3 +171,13 @@ test('v577 — ladder-only chips hidden off-ladder (with an honest count), shown
   expect(r.offHasHiddenTag).toBe(true);  // …with an honest "+N ladder-only hidden" tag
   expect(r.onHasMania).toBe(true);       // flip the toggle → it returns
 });
+
+// v579 — the SUPERIOR note itself must not suggest cube-socketing (Konyo's Socketed Review screenshot:
+// "socket it and cube the runes in order like any white base" — wrong, superior is Larzuk-only).
+test('v579 — the superior-base note says Larzuk-ONLY and explicitly rules out the cube socket recipe', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => String((window as any)._baseRWLine('Flail', 0, true)));
+  expect(r).toMatch(/Larzuk ONLY/i);
+  expect(r).toMatch(/does <b>NOT<\/b> work on superior/i);
+  expect(r).not.toMatch(/like any white base/);
+});
