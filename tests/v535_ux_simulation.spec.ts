@@ -15,6 +15,7 @@ async function seed(page: any, owned: string[], runes: Record<string, number>, m
     localStorage.setItem('d2r_owned', JSON.stringify(s.owned));
     localStorage.setItem('d2r_runeStash', JSON.stringify(s.runes));
     localStorage.setItem('d2r_rwMade', JSON.stringify(s.made));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   }, { owned, runes, made });
   await page.goto(URL);

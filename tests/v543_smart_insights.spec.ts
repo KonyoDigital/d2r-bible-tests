@@ -10,7 +10,8 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 5, Tir: 5, Tal: 5, Sol: 5, Amn: 3, Ber: 0, Jah: 1, Ith: 2 }));
-    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({ 'Enigma': 'x', 'Spirit': 'x', 'Rhyme': 'x' }));   // v578.1 — explicit small chronicle (fresh profile)
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);

@@ -50,6 +50,7 @@ test('the filter shrinks when runewords are marked made (live-synced to the Chro
     const made: Record<string, boolean> = {};
     Object.keys(w.RUNEWORD_TIP || {}).forEach((rw) => { made[rw] = true; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     const nNone = w._endgameFilterBases().codes.length;
     return { nAll, nNone };
   });
@@ -66,6 +67,7 @@ test('v536.2 — with NO base owned, the word\'s meta base IS in the loot filter
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -78,6 +80,7 @@ test('v536.2 — owning a socket-correct base for the word DROPS its base from t
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);

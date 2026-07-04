@@ -9,25 +9,27 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('a merc-owned Make-now card shows the "best base" (ideal 1H player) hint', async ({ page }) => {
   await page.addInitScript(() => {
-    // Grim Scythe (6os, 2H polearm → merc) + Breath of the Dying runes (Vex+Hel+El+Eld+Zod+Eth)
-    localStorage.setItem('d2r_owned', JSON.stringify(['Grim Scythe (6os)']));
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Vex: 1, Hel: 1, El: 1, Eld: 1, Zod: 1, Eth: 1 }));
+    // v576 gated BotD-on-Grim-Scythe (endgame word needs an elite/ideal base). The merc-own hint case now
+    // uses the CHEAP v501 classic: Honor in an owned 5os Zweihander (2H sword → merc-own rescue).
+    localStorage.setItem('d2r_owned', JSON.stringify(['Zweihander (5os)']));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 1, El: 1, Ith: 1, Tir: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window;
-    w._ensureSocketBaseEntry('Grim Scythe (6os)');
+    w._ensureSocketBaseEntry('Zweihander (5os)');
     w.switchTab('forge'); w.forgeSetFilter('now'); w.renderForge();
     const f = document.getElementById('tab-forge')!;
-    const card = [...f.querySelectorAll('.forge-sec-now .f-card.f-now')].find((c) => /Breath of the Dying/.test(c.textContent || ''));
+    const card = [...f.querySelectorAll('.forge-sec-now .f-card.f-now')].find((c) => /Honor/.test(c.textContent || ''));
     const txt = card ? (card.textContent || '').replace(/\s+/g, ' ') : '';
     return {
       hasCard: !!card,
       isMerc: /mercenary/i.test(txt),
       hasBestBase: /best base/i.test(txt),
-      namesPlayerBase: /Phase Blade|War Spike|Berserker Axe/.test(txt),
+      namesPlayerBase: /Scourge|Ettin Axe|Phase Blade|Berserker Axe|War Spike/.test(txt),   // 5os word → 5os-max 1H ideals
       says1HPlayer: /1H player|ideal is a .*player/i.test(txt),
     };
   });
@@ -44,6 +46,7 @@ test('when you own the IDEAL base, no redundant best-base hint is shown', async 
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);

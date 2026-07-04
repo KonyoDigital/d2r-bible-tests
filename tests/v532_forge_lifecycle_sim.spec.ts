@@ -13,6 +13,7 @@ test.describe('Forge task lifecycle simulation', () => {
       localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
       localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 })); // Insight
       localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
       localStorage.setItem('d2r_ladderMode', 'nonladder');
     });
     await page.goto(URL); await page.waitForTimeout(1600);
@@ -46,6 +47,7 @@ test.describe('Forge task lifecycle simulation', () => {
       localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
       localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
       localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
       localStorage.setItem('d2r_forgeSkip', JSON.stringify([]));
       localStorage.setItem('d2r_ladderMode', 'nonladder');
     });
@@ -71,6 +73,7 @@ test.describe('Forge task lifecycle simulation', () => {
   test('Completed tab: Clear hides the list (non-destructive), Restore brings it back', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('d2r_rwMade', JSON.stringify({ Spirit: 'Jun 28, 2026 · 12:00', Grief: 'Jun 29, 2026 · 10:00' }));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
       localStorage.setItem('d2r_forgeDone', JSON.stringify([]));
     });
     await page.goto(URL); await page.waitForTimeout(1400);

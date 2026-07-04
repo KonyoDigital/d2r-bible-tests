@@ -13,6 +13,7 @@ test('ready Make-now: ✓ created marks the word AND removes it from the Forge i
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1600);
@@ -38,11 +39,11 @@ test('forgeForged creates the runeword + resets the chain step (final "Forge" ti
     const w: any = window;
     return {
       hasFn: typeof w.forgeForged,
-      // exercise it: mark a non-seeded word made via the chain-complete path
+      // exercise it: mark a non-seeded word made via the chain-complete path (Silence — Insight joined the v578 seed)
       run: (() => {
         localStorage.setItem('d2r_forgeStep', JSON.stringify({ 'chain|TestBase': 2 }));
-        w.forgeForged('chain|TestBase', 'Insight');
-        const made = !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Insight'];
+        w.forgeForged('chain|TestBase', 'Silence');
+        const made = !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Silence'];
         const step = JSON.parse(localStorage.getItem('d2r_forgeStep') || '{}')['chain|TestBase'] || 0;
         return { made, step };
       })(),

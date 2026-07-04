@@ -15,6 +15,7 @@ test('B — hero banner: a Make-now-ready vault shows "Do this one thing" with a
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));   // Insight base, exact 4os
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 2, Tir: 2, Tal: 2, Sol: 2 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -35,6 +36,7 @@ test('B — hero banner: with nothing to make, it names the top farm target', as
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify({}));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -55,6 +57,7 @@ test('D — gamble card shows gem affordability from the gem stash', async ({ pa
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
     localStorage.setItem('d2r_gemStash', JSON.stringify({ 'Perfect Amethyst': 6 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -74,6 +77,7 @@ test('A — Smart Insights farm-priority shows tier-accurate lvl-85 "where to fa
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify(stash));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   }, ALL_RUNES);
   await page.goto(URL); await page.waitForTimeout(1500);
@@ -96,6 +100,7 @@ test('UX — clicking the hero "Make now →" CTA actually switches the Forge to
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 2, Tir: 2, Tal: 2, Sol: 2 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -112,6 +117,7 @@ test('UX — clicking a Rune-radar cube-up chip expands the planner, pre-selects
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ El: 400 }));   // a pile of El → cascades way up
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);
@@ -140,6 +146,7 @@ test('UX — clicking the "Jump to Terror Zones" tip switches to the TZ tab', as
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify(stash));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   }, ALL_RUNES);
   await page.goto(URL); await page.waitForTimeout(1500);
@@ -164,6 +171,7 @@ test('C — Rune radar surfaces cube-up potential; _runeCubeUpTo cascades the st
     localStorage.setItem('d2r_owned', JSON.stringify([]));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ El: 200, Eld: 50 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);

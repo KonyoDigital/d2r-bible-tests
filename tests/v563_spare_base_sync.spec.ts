@@ -11,18 +11,25 @@ test('spare base → __throwout ("you already hold a base for it"); the covering
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
-    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    // NOTE: rwMade is deliberately NOT set here — addInitScript re-runs on reload and would stomp the
+    // pinned Chronicle written below (the v578.1 lesson).
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);
-  await page.evaluate(() => { (window as any).switchTab && (window as any).switchTab('tools'); (window as any).renderVault && (window as any).renderVault(); });
-  const r = await page.evaluate(() => {
+  // v578.1 — pin the Chronicle BEFORE the scan-relevant load (forgeScan reads the BOOT-loaded chronicle,
+  // and Insight joined the durable seed): every word made EXCEPT Insight, fresh profile, then reload.
+  await page.evaluate(() => {
     const w: any = window;
-    w._ensureSocketBaseEntry('Colossus Voulge (4os)');
-    // pin the Chronicle: every word made EXCEPT Insight → Insight is the only unmade 4os polearm word,
-    // and the owned 4os Colossus Voulge covers it (a Forge make-now task, runes seeded).
     const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  });
+  await page.reload(); await page.waitForTimeout(1500);
+  await page.evaluate(() => { (window as any).switchTab && (window as any).switchTab('tools'); (window as any).renderVault && (window as any).renderVault(); });
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    w._ensureSocketBaseEntry('Colossus Voulge (4os)');
+    await new Promise((res) => setTimeout(res, 500));       // let the 400ms _spareBaseInfo forgeScan memo expire
     const dup = w.suggestMule('Thresher (4os)');            // different 4os polearm, same one unmade word
     const keeper = w.suggestMule('Colossus Voulge (4os)');  // the covering base itself (self-exclusion)
     return {

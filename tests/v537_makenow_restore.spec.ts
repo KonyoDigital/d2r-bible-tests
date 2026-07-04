@@ -12,6 +12,7 @@ test('completing a Make-now task shows "Undo last" ON the Make-now view, and it 
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -67,6 +68,7 @@ test('the Undo-last bar is hidden on load (pre-existing creations) and appears o
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({ 'Enigma': 'Jun 28, 2026 · 20:13' }));  // a past creation
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
@@ -77,7 +79,7 @@ test('the Undo-last bar is hidden on load (pre-existing creations) and appears o
     const f = document.getElementById('tab-forge')!;
     return { bar: !!f.querySelector('.forge-restore-top'), madeCount: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length };
   });
-  expect(onLoad.madeCount).toBeGreaterThan(1);   // floor + Enigma are created…
+  expect(onLoad.madeCount).toBeGreaterThanOrEqual(1);   // a past creation exists (fresh profile: Enigma)…
   expect(onLoad.bar).toBe(false);                // …but the bar does NOT show for them (nothing done THIS session)
 
   const afterComplete = await page.evaluate(() => {

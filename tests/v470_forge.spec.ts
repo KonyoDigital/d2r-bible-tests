@@ -81,6 +81,7 @@ test('CHRONICLE SYNC — marking it created removes it from Forge automatically'
     localStorage.setItem('d2r_owned', JSON.stringify(['Thresher (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight joined the durable seed
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1300);

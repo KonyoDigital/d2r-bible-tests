@@ -53,14 +53,14 @@ test('vault: keep-or-throw reads the Chronicle — all words forged → __throwo
   await page.evaluate(() => { (window as any).switchTab && (window as any).switchTab('tools'); (window as any).renderVault && (window as any).renderVault(); });
   const r = await page.evaluate(() => {
     const w: any = window;
-    // empty Chronicle → a 6os Grim Scythe still serves Breath of the Dying → keeper (pinned empty so the
-    // assertion doesn't drift with Konyo's real seeded Chronicle)
+    // empty Chronicle → a 6os COLOSSUS BLADE (elite — passes the v576 endgame-gear gate, unlike the
+    // exceptional Grim Scythe) still serves Breath of the Dying → keeper
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
-    const before = w.suggestMule('Grim Scythe (6os)');
+    const before = w.suggestMule('Colossus Blade (6os)');
     // mark EVERY runeword made → no base serves anything any more
     const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => (made[n] = 'x'));
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
-    const after = w.suggestMule('Grim Scythe (6os)');
+    const after = w.suggestMule('Colossus Blade (6os)');
     const helperAllMade = (w._baseUnmadeRunewords('Monarch', 4) || []).length;
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     const helperFresh = (w._baseUnmadeRunewords('Monarch', 4) || []).length;
