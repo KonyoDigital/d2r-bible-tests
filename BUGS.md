@@ -144,6 +144,32 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-012 — 2026-07-06 · v584 commit swept 672 untracked art deletions → 652 dangling refs failed CI (invisible locally)
+
+- **Symptom**: Routine I red on BOTH 59ae0af (v584-585) and 81002e4 (v586) — 7 art
+  "no console errors" specs (v75/v76/v81/v123/v127/v145/v427) with
+  `ERR_FILE_NOT_FOUND` ×2-4, plus 00_convergence_lock.
+- **Caught by**: CI only. Every local run was green because the deleted files still
+  sat on the Mac's disk — only a tracked-files checkout (CI / fresh clone) missed them.
+- **Root cause**: two independent riders on the v584-585 commit.
+  1. `git add -A` swept 503 corrupt blue-gem `base_*.png` + 169 `d2io_*` deletions
+     (a leftover corrupt-art purge in the working tree) along with the 11 intended
+     aura-gif deletions. Right files to delete — but D2IO_ART still referenced 652
+     of them, so every card whose art map hit a dead path threw a console error.
+  2. The recurring **stray dead-fork edit trap**: H/J/K/L sweep scripts were again
+     rewritten to `bible_routes.html` + hardcoded `/Users/...` path and rode into
+     the same commit; 00_convergence_lock (v533) caught it exactly as designed.
+- **Fix** (5e56196, v586.1): 146 refs re-pointed to existing hd_/mr_/graphic art
+  (Zakarum Shield → tier-shared hd_aerin_shield); 522 dead map entries dropped so
+  the v384/v570 tier-aware resolver + glyph fallback serve those names (strictly
+  better than the corrupt placeholder they used to show); sweep scripts restored
+  from 1b15f21. All 8 specs re-run green in a clean `git worktree`.
+- **Prevention**: (1) before `git add -A`, `git status --short | head` and READ the
+  D-list — deletions you didn't make this session are a red flag; (2) after any
+  art-file change, run the dangling-ref check (grep art/ refs in bible.html vs
+  `git ls-files art/`) — it's 3 lines of python; (3) reproduce CI-only failures in
+  a `git worktree` (tracked-files-only) FIRST — local disk state lies.
+
 ## REG-011 — 2026-06-13 · AI intake: art hallucination + silent vocab-filter drop (live, user-caught)
 - **Symptom**: Konyo's 3-shot test: a no-tooltip stash screenshot registered phantom items
   (runes, "Tal Rasha set (any piece)"; replay also produced "Tyrael's Might"), while a
