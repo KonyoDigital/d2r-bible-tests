@@ -177,6 +177,8 @@ test('v583 — Flail headlines CtA/HotO (its classic jobs); Grief is ideal in a 
       metaHoto: (w._forgeMetaBase('Heart of the Oak') || {}).names,
       metaGrief: (w._forgeMetaBase('Grief') || {}).names,
       metaBotd: (w._forgeMetaBase('Breath of the Dying') || {}).names,
+      metaUw: (w._forgeMetaBase('Unbending Will') || {}).names,
+      bisExecUw: w._isBisBaseFor('Executioner Sword', 'Unbending Will'),
       bisFlailCta: w._isBisBaseFor('Flail', 'Call to Arms'),
       bisFlailHonor: w._isBisBaseFor('Flail', 'Honor'),
       rwLine: String(w._baseRWLine('Flail', 5)),
@@ -187,6 +189,9 @@ test('v583 — Flail headlines CtA/HotO (its classic jobs); Grief is ideal in a 
   expect(r.metaHoto[0]).toBe('Flail');
   expect(r.metaGrief[0]).toBe('Phase Blade');
   expect(r.metaBotd).toContain('Colossus Blade');
+  expect(r.metaBotd).toContain('Berserker Axe');             // v583.1 — BiS is ADDITIVE, options stay open
+  expect(r.metaUw[0]).toBe('Phase Blade');                   // UW's true 1H home (Konyo's question)
+  expect(r.bisExecUw).toBe(false);                           // an exceptional Exec Sword is usable, NOT the home
   expect(r.bisFlailCta).toBe(true);
   expect(r.bisFlailHonor).toBe(false);
   expect(r.flailWhy).toMatch(/still needed for Call to Arms/); // CtA headlines, not Honor
