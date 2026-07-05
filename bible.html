@@ -24925,8 +24925,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var _xclean = (typeof _artSlotClean==='function') ? _artSlotClean(ex.base || name) : String(ex.base || name);
           if (!_xGeneric && typeof _isRunewordBase==='function' && typeof _baseUnmadeRunewords==='function' && _isRunewordBase(_xclean)){
             var _xs = (typeof ex.sockets==='number') ? ex.sockets : (function(){ var m2=/\((\d+)\s*os/i.exec(name); return m2?+m2[1]:0; })();
-            var _xUn = _baseUnmadeRunewords(_xclean, _xs);
-            if (!_xUn.length) return {id:'__throwout', why:'socketed '+_xclean+' — every runeword it can host is already ✓ forged in your Chronicle → vendor it'};
+            var _xUn = _baseUnmadeRunewords(name, _xs);   // v582.2 — FULL label: the Superior prefix must drive the Larzuk-max-only rule
+            if (!_xUn.length) return {id:'__throwout', why:'socketed '+_xclean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
             var _xsp = (typeof _spareBaseInfo==='function') ? _spareBaseInfo(name, _xUn) : null;
             if (_xsp && !_xsp.uncovered.length){
               var _xw = Object.keys(_xsp.covered);
@@ -24977,7 +24977,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _skM = /\((\d+)\s*os/i.exec(name);
         var _skN = _skM ? parseInt(_skM[1],10) : 0;   // "(Larzuk base)" / no tag → 0 = unsocketed
         var _sUn = (typeof _baseUnmadeRunewords==='function') ? _baseUnmadeRunewords(name, _skN) : null;
-        if (_sUn && !_sUn.length) return {id:'__throwout', why:'socketed '+_sclean+' — every runeword it can host is already ✓ forged in your Chronicle → vendor it'};
+        if (_sUn && !_sUn.length) return {id:'__throwout', why:'socketed '+_sclean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
         if (_sUn && _sUn.length){
           // v563 — SPARE: its unmade words are all covered by a DIFFERENT base you already hold → don't keep two
           var _ssp = (typeof _spareBaseInfo==='function') ? _spareBaseInfo(name, _sUn) : null;
@@ -25008,7 +25008,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // is already ✓ forged has no job left — vendor it instead of muling it to SOCKETED.
       try {
         var _bUn = (typeof _baseUnmadeRunewords==='function') ? _baseUnmadeRunewords(_bareBaseClean, 0) : null;
-        if (_bUn && !_bUn.length) return {id:'__throwout', why:'white '+_bareBaseClean+' — every runeword it can host is already ✓ forged in your Chronicle → vendor it'};
+        if (_bUn && !_bUn.length) return {id:'__throwout', why:'white '+_bareBaseClean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
         if (_bUn && _bUn.length){
           var _bsp = (typeof _spareBaseInfo==='function') ? _spareBaseInfo(name, _bUn) : null;
           if (_bsp && !_bsp.uncovered.length){
@@ -25302,7 +25302,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // v563 — spare split: unmade words all covered by an owned base → "you already hold one" verdict
           var _tsp=(_tun.length && typeof _spareBaseInfo==='function') ? _spareBaseInfo(n, _tun) : null;
           why = !_tun.length
-            ? '<span style="color:#f0c060">A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — every runeword it can host is already <span style="color:#8fd0a0">✓ forged</span> in your Chronicle → <b>safe to throw out</b>.</span>'
+            ? '<span style="color:#f0c060">A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — nothing left for it: its runewords are <span style="color:#8fd0a0">✓ forged</span> or belong in endgame bases → <b>safe to throw out</b>.</span>'
             : (_tsp && !_tsp.uncovered.length)
             ? '<span style="color:#f0c060">A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — <b>spare</b>: its runewords ('+esc(Object.keys(_tsp.covered).slice(0,3).join(', '))+') are already covered by <b>'+esc(_tsp.covered[Object.keys(_tsp.covered)[0]][0])+'</b>, a base you hold → safe to throw out.</span>'
             : 'A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — <b>still needed</b>: it can host <b>'+esc(((_tsp&&_tsp.uncovered.length)?_tsp.uncovered:_tun.map(function(r){return r.n;})).slice(0,3).join(', '))+(_tun.length>3?' +'+(_tun.length-3)+' more':'')+'</b>, unmade in your Chronicle. Keep it if the sockets are right.';
@@ -25393,8 +25393,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // means the assigned base itself never flags — with two Monarchs, exactly one stays, one flags spare.
       try {
         var _unm=(typeof _baseUnmadeRunewords==='function')?_baseUnmadeRunewords(base, sockets):null;
-        if (_unm && !_unm.length) why='<span style="color:#f0c060">🗑 <b>Free to throw out</b> — every runeword this '
-          + (sockets?sockets+'-socket ':'')+esc(base)+' can host is already <span style="color:#8fd0a0">✓ forged</span> in your Chronicle. It has no job left:</span>';
+        if (_unm && !_unm.length) why='<span style="color:#f0c060">🗑 <b>Free to throw out</b> — nothing left for this '
+          + (sockets?sockets+'-socket ':'')+esc(base)+' can host: its runewords are <span style="color:#8fd0a0">✓ forged</span> or belong in endgame bases. No job left:</span>';
         else if (_unm && _unm.length && typeof _spareBaseInfo==='function'){
           var _spv=_spareBaseInfo(n, _unm);
           if (!_spv.uncovered.length){

@@ -74,7 +74,7 @@ test('vault: keep-or-throw reads the Chronicle — all words forged → __throwo
   expect(r.beforeId).toBe('bases');
   expect(r.beforeWhy).toContain('still needed');        // the keep reason NAMES the unmade words
   expect(r.afterId).toBe('__throwout');                 // Chronicle-complete base → vendor, not mule
-  expect(r.afterWhy).toContain('forged');
+  expect(r.afterWhy).toMatch(/forged|nothing left/);
   expect(r.helperAllMade).toBe(0);                      // _baseUnmadeRunewords: all made → nothing left
   expect(r.helperFresh).toBeGreaterThan(0);             // fresh Chronicle → 4os Monarch words (Spirit…) pending
 });
