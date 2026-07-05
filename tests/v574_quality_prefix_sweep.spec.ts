@@ -181,3 +181,29 @@ test('v579 — the superior-base note says Larzuk-ONLY and explicitly rules out 
   expect(r).toMatch(/does <b>NOT<\/b> work on superior/i);
   expect(r).not.toMatch(/like any white base/);
 });
+
+// v585 — DISPLAY ⇄ VERDICT SYNC (Konyo's Tiara card recommended helm runewords; his Grim Scythe card
+// listed BotD chips while its own verdict said throw out): _baseRunewords normalizes suffixed labels
+// before the circlet guard, and _baseRWLine's chip list obeys the same endgame gate as the verdicts.
+test('v585 — a suffixed Tiara label hosts NOTHING; Grim Scythe chips agree with its vendor verdict', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    return {
+      tiaraSuffixed: (w._baseRunewords('Tiara (Larzuk base)') || []).length,
+      coronetSocketed: (w._baseRunewords('Superior Coronet (2os)') || []).length,
+      tiaraLine: String(w._baseRWLine('Tiara (Larzuk base)', 0)),
+      grimLine: String(w._baseRWLine('Grim Scythe', 6)),
+    };
+  });
+  expect(r.tiaraSuffixed).toBe(0);                   // circlet guard holds through any label form
+  expect(r.coronetSocketed).toBe(0);
+  expect(r.tiaraLine).not.toMatch(/Keep for runewords/);  // no runeword pitch on a circlet, ever
+  expect(r.grimLine).not.toMatch(/Breath of the Dying|Silence/);  // endgame words hidden on a non-home base
+  expect(r.grimLine).toMatch(/in endgame bases only|none takes exactly/);  // honest tag instead
+});

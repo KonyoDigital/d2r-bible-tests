@@ -7905,11 +7905,15 @@ function _baseCats(b){
 var _AURIC_SHIELD = /\b(?:targe|rondache|heraldic shield|aerin shield|crown shield|protector shield|gilded shield|royal shield|kurast shield|zakarum shield|vortex shield)\b/i;
 function _baseRunewords(name){
   if (typeof RUNEWORD_TIP === 'undefined') return [];
+  // v585 — normalize FIRST: strip quality prefixes + any "(…)" label suffix, so "Tiara (Larzuk base)" /
+  // "Superior Coronet (2os)" hit the guards below exactly like their bare names (Konyo's Tiara card was
+  // recommending helm runewords because the suffixed label slipped past the circlet guard).
+  name = String(name||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
   // D2R does NOT allow runewords in circlets (Circlet/Coronet/Tiara/Diadem). They are classed as 'helm'
   // for slot/craft/mule purposes, but they socket gems/jewels ONLY — never runewords. No runeword in the
   // data is flagged for a circlet base, so excluding the whole class drops nothing intended (verified;
   // Konyo-confirmed for base-game + RotW). Without this guard the helm-class made Tiara host helm runewords.
-  if (/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(String(name||''))) return [];
+  if (/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(name)) return [];
   var cats = _baseCats(name); if (!Object.keys(cats).length) return [];
   // Throwing weapons + javelins CANNOT be socketed in D2R → host NO runewords. Javelins carry the
   // 'javelin' category; throwing axes/knives are a melee-TYPE (axe/dagger/…) flagged 'weapon' but WITHOUT
@@ -8166,8 +8170,29 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // tag keeps the hidden count honest instead of silently shrinking the list.
   var _lbHid = 0;
   try { if (typeof window._rwLadderBlocked === 'function'){ var _b4 = rws.length; rws = rws.filter(function(r){ return !window._rwLadderBlocked(r.n); }); _lbHid = _b4 - rws.length; } } catch(e){}
+  // v585 — the DISPLAY list obeys the same v576 ENDGAME GATE the keep/throw verdicts use: an expensive
+  // word (top rune ≥ Ist) is only listed on its ideal/BiS home or an elite base — no more cards whose
+  // chips say "still to create: BotD" while the verdict says "safe to throw out". Honest "+N" tag below.
+  var _egHid = 0;
+  try {
+    var _egI = (typeof RUNE_INDEX!=='undefined' && RUNE_INDEX['Ist']!=null) ? RUNE_INDEX['Ist'] : 23;
+    var _cnm = String(name||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+    var _isElite = (typeof window._baseTier==='function') && window._baseTier(_cnm)==='elite';
+    var _b5 = rws.length;
+    rws = rws.filter(function(r){
+      var rec = ((RUNEWORD_TIP[r.n]||{}).rec)||[]; var v = 0;
+      rec.forEach(function(x){ if (typeof RUNE_INDEX!=='undefined' && RUNE_INDEX[x]!=null && RUNE_INDEX[x]>v) v = RUNE_INDEX[x]; });
+      if (v < _egI) return true;
+      if (_isElite) return true;
+      var ideal = (typeof window._forgeMetaBase==='function') ? (((window._forgeMetaBase(r.n)||{}).names)||[]) : [];
+      var cl = _cnm.toLowerCase();
+      return ideal.some(function(x){ var xl=String(x).toLowerCase(); return cl===xl || cl.indexOf(xl)>=0 || xl.indexOf(cl)>=0; });
+    });
+    _egHid = _b5 - rws.length;
+  } catch(e){}
   if (!rws.length) return _supNote;
   var _lbTag = _lbHid > 0 ? ' <span class="rwn-more" title="ladder-only runeword' + (_lbHid===1?'':'s') + ' — hidden while you play non-ladder (flip the Chronicle ladder toggle to include them)">+' + _lbHid + ' ladder-only hidden</span>' : '';
+  if (_egHid > 0) _lbTag += ' <span class="rwn-more" title="endgame word' + (_egHid===1?'':'s') + ' this base isn\'t the home of — they belong in their ideal/elite base">+' + _egHid + ' in endgame bases only</span>';
   // v583 — clarity: name the words this base is the COMMUNITY-STANDARD home of (Konyo: "these should be in
   // their Elite Item End Game gear" — a Flail isn't just 'a base', it's THE HotO/CtA stick).
   try {
@@ -12662,17 +12687,20 @@ window.uiConfirm = function(message, opts){
 // the clean originals from imgur (the filenames are imgur hashes) + resized to 220×220, so all 11
 // are valid HD art again. Verified clean (first-frame stdev ~7, matching the other 8).
 const AURA_ART = {
-  "Fanaticism":  "art/aura_geASVE4.gif",
-  "Meditation":  "art/aura_qlL3lxn.gif",
-  "Conviction":  "art/aura_EflB9N4.gif",
-  "Holy Freeze": "art/aura_DXnRCP0.gif",
-  "Holy Fire":   "art/aura_CQCYZ9t.gif",
-  "Holy Shock":  "art/aura_9GMvWz7.gif",
-  "Might":       "art/aura_vVASShr.gif",
-  "Blessed Aim": "art/aura_hj5K54S.gif",
-  "Concentration":"art/aura_4ZcEnxr.gif",
-  "Vigor":       "art/aura_PJZ1klO.gif",
-  "Thorns":      "art/aura_JGRXNoQ.gif"
+  // v584 — clean ANIMATED aura gifs (Amazon Basin wiki, self-hosted). The old imgur-hash gifs had
+  // corrupt later frames (broken per-frame palettes) that dissolved into rainbow static mid-animation
+  // in Chrome — Konyo's Holy Fire card bug. Every frame of these validated noise-free.
+  "Fanaticism":  "art/aura_fanaticism.gif",
+  "Meditation":  "art/aura_meditation.gif",
+  "Conviction":  "art/aura_conviction.gif",
+  "Holy Freeze": "art/aura_holy_freeze.gif",
+  "Holy Fire":   "art/aura_holy_fire.gif",
+  "Holy Shock":  "art/aura_holy_shock.gif",
+  "Might":       "art/aura_might.gif",
+  "Blessed Aim": "art/aura_blessed_aim.gif",
+  "Concentration":"art/aura_concentration.gif",
+  "Vigor":       "art/aura_vigor.gif",
+  "Thorns":      "art/aura_thorns.gif"
 };
 window.AURA_ART = AURA_ART;
 function auraArt(name, glyph, size){
@@ -19961,9 +19989,9 @@ document.querySelectorAll(".tab").forEach(t => { t.onclick = () => navClean(t.da
 // Each <img> keeps its original emoji in data-emoji and falls back to it if the art 404s, so the nav never breaks.
 var TAB_ICON = {
   main:'logo_scroll.png', bosses:'hd_perfect_skull.png', calc:'hd_perfect_diamond.png',
-  tz:'essenceterror_graphic.png', tztracker:'d2io_infernalsign.png', runes:'hd_ber_rune.png',
-  rotw:'harlequincrest_graphic.png', funi:'crownofages_graphic.png', fsets:'d2io_talrashashoradriccrest.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
-  binds:'mr_annihilus.png', ref:'hd_grimoire.png', tools:'horadric_cube_graphic.png', forge:'base_warhammer.png'
+  tz:'essenceterror_graphic.png', tztracker:'mr_hellfiretorch.png', runes:'hd_ber_rune.png',
+  rotw:'harlequincrest_graphic.png', funi:'crownofages_graphic.png', fsets:'talrashasguardianship_graphic.png', ancients:'flamerift_graphic.png', endgame:'mr_hellfiretorch.png',
+  binds:'mr_annihilus.png', ref:'hd_grimoire.png', tools:'horadric_cube_graphic.png', forge:'hd_war_hammer.png'
 };
 window._tabIcoFail = function(img){ try { var e=img.getAttribute('data-emoji')||'•'; var s=document.createElement('span'); s.className=(img.className||'').replace(/\btab-hdico\b/,'').trim(); s.textContent=e; img.replaceWith(s); } catch(err){} };
 function _tabIcoImg(tab, emoji, cls){
@@ -27080,6 +27108,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…');
           window.vaultIntake(fresh, {fromFolder:true});
         } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch');
+        return;
+      }
+      // v584.1 — MANUAL scan with a small fresh batch reads IMMEDIATELY, exactly like the auto-watch
+      // (Konyo's restart trap: the re-authorize click routed here, the offer menu pre-marked his new
+      // shots seen, no batch was picked → "linked folder doesn't work"). The pick-a-batch menu is only
+      // for BIG backlogs (>12) where the token guard genuinely matters.
+      if (fresh.length > 0 && fresh.length <= 12){
+        localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+        fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
+        status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…');
+        window.vaultIntake(fresh, {fromFolder:true});
         return;
       }
       vaultOfferMenu(all, fresh, seen);

@@ -23,7 +23,7 @@ test.describe('v113 aura-logo grid + The Smith bind card', () => {
       const m = (window as any).AURA_ART || {};
       return {
         keys: Object.keys(m).sort(),
-        allHttps: Object.values(m).every((u: any) => /^art\/aura_[A-Za-z0-9]+\.gif$/.test(u)),
+        allHttps: Object.values(m).every((u: any) => /^art\/aura_[A-Za-z0-9_]+\.gif$/.test(u)),
         artFn: typeof (window as any).auraArt === 'function',
         gridFn: typeof (window as any).auraGridHtml === 'function',
         poolLen: ((window as any).BIND_AURA_POOL || []).length,
@@ -74,7 +74,7 @@ test.describe('v113 aura-logo grid + The Smith bind card', () => {
     expect(r.targetTxt).toContain('Fanaticism');
     expect(r.targetTxt).toContain('TARGET');
     expect(r.imgCount).toBe(8);
-    expect(r.firstImgSrc).toMatch(/^art\/aura_[A-Za-z0-9]+\.gif$/);
+    expect(r.firstImgSrc).toMatch(/^art\/aura_[A-Za-z0-9_]+\.gif$/);
     expect(r.firstImgLazy).toBe('lazy');
   });
 

@@ -5,7 +5,7 @@ const path = require('path');
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message.substring(0,150)));
-  await page.goto('file://' + path.resolve(__dirname, 'bible.html'));
+  await page.goto('file://' + path.resolve('/Users/konyo/d2r_bible_tests/bible_routes.html'));
   await page.waitForTimeout(800);
   const items = await page.evaluate(() => ITEMS.map(i => i.n));
   const t0 = Date.now();

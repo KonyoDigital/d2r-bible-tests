@@ -3,7 +3,7 @@ const path = require('path');
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
-  await page.goto('file://' + path.resolve(__dirname, 'bible.html'));
+  await page.goto('file://' + path.resolve('/Users/konyo/d2r_bible_tests/bible_routes.html'));
   await page.waitForTimeout(800);
   const out = process.argv[2];
   await page.screenshot({ path: out + '/01_bosses.png', fullPage: false });

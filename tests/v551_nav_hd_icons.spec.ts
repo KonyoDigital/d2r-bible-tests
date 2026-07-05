@@ -16,7 +16,7 @@ test('main tabs render HD-art icons for mapped tabs (runes → Ber rune, tools �
   });
   expect(r.runes).toMatch(/hd_ber_rune/);
   expect(r.tools).toMatch(/horadric_cube/);
-  expect(r.forge).toMatch(/warhammer/);
+  expect(r.forge).toMatch(/war_?hammer/);   // v584 — hd_war_hammer.png (the old base_warhammer.png never existed)
   expect(r.label).toBe('runes');   // label preserved next to the icon
 });
 

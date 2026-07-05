@@ -73,3 +73,29 @@ test('C — Chronicle ✓ toggle propagates to Smart Insights + loot filter, and
   expect(r.after.filterBases).toBeLessThanOrEqual(r.before.filterBases);  // filter never grows on a ✓
   expect(r.restored).toEqual(r.before);                    // untick restores every surface
 });
+
+// v584 — the aura gifs are the clean ANIMATED Amazon Basin set (the old imgur-hash gifs dissolved into
+// rainbow static mid-animation — corrupt per-frame palettes). Every AURA_ART entry must resolve and load.
+test('D — every AURA_ART entry points at a clean self-hosted gif that actually loads', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    const entries = Object.entries(w.AURA_ART || {});
+    const results: any[] = [];
+    for (const [name, u] of entries) {
+      const ok = await new Promise((res) => {
+        const im = new Image();
+        im.onload = () => res(im.naturalWidth > 0);
+        im.onerror = () => res(false);
+        im.src = String(u);
+      });
+      results.push({ name, u, ok, named: /aura_[a-z_]+\.gif$/.test(String(u)) });
+    }
+    return results;
+  });
+  expect(r.length).toBeGreaterThanOrEqual(11);
+  for (const e of r) {
+    expect(e.ok, e.name + ' gif loads (' + e.u + ')').toBe(true);
+    expect(e.named, e.name + ' uses the clean named file').toBe(true);
+  }
+});

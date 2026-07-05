@@ -57,10 +57,10 @@ test.describe('v212 folder watch', () => {
     });
   });
 
-  test('connect → menu → ✨New reads through intake; ledger keyed by NAME; txt ignored', async ({ page }) => {
+  test('connect → small batch AUTO-READS through intake (v584.1); ledger keyed by NAME; txt ignored', async ({ page }) => {
     await stubFolder(page, [{ name: 'Screenshot001.png', mtime: 1000 }, { name: 'notes.txt', mtime: 1001 }]);
     await page.evaluate(() => (window as any).vaultConnectFolder());
-    await menuPick(page, 'new');
+    // v584.1 — ≤12 fresh files read IMMEDIATELY on a manual scan too (no pick-a-batch menu detour)
     await page.waitForFunction(
       () => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'),
       undefined, { timeout: 10000 }
@@ -76,8 +76,7 @@ test.describe('v212 folder watch', () => {
   test('re-scan shows 0 new (registered names skipped); a NEW file appears in the next menu', async ({ page }) => {
     await stubFolder(page, [{ name: 'a.png', mtime: 1 }]);
     await page.evaluate(() => (window as any).vaultConnectFolder());
-    await menuPick(page, 'new');
-    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });
+    await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('Last scan'), undefined, { timeout: 10000 });   // v584.1 auto-read
     // same folder again → menu reports 0 new
     await page.evaluate(() => (window as any).vaultScanFolder());
     await page.waitForFunction(() => (document.getElementById('vault-intake-report')?.textContent || '').includes('0 new'), undefined, { timeout: 8000 });
@@ -85,8 +84,7 @@ test.describe('v212 folder watch', () => {
     // add a new capture → menu offers exactly it
     await stubFolder(page, [{ name: 'a.png', mtime: 1 }, { name: 'b.png', mtime: 2 }]);
     await page.evaluate(() => (window as any).vaultConnectFolder());
-    await menuPick(page, 'new');
-    await page.waitForFunction(() => {
+    await page.waitForFunction(() => {   // v584.1 — the one new file auto-reads
       const seen = JSON.parse(localStorage.getItem('d2r_intakeSeen') || '{}');
       return Object.keys(seen).filter((k) => !k.includes('|')).length === 2;
     }, undefined, { timeout: 10000 });
@@ -94,8 +92,9 @@ test.describe('v212 folder watch', () => {
     expect(seen).toEqual(['a.png', 'b.png']);
   });
 
-  test('token guard: Skip registers old files WITHOUT reading them and re-hides the report row', async ({ page }) => {
-    await stubFolder(page, [{ name: 'old1.png', mtime: 1 }, { name: 'old2.png', mtime: 2 }]);
+  test('token guard: a >12 BACKLOG gets the menu; Skip registers WITHOUT reading and re-hides the row', async ({ page }) => {
+    // v584.1 — the pick-a-batch menu (and its token guard) is for BIG backlogs only; ≤12 auto-reads
+    await stubFolder(page, Array.from({ length: 13 }, (_, i) => ({ name: 'old' + (i + 1) + '.png', mtime: i + 1 })));
     await page.evaluate(() => (window as any).vaultConnectFolder());
     await menuPick(page, 0); // Skip — just register
     await page.waitForFunction(
@@ -107,7 +106,7 @@ test.describe('v212 folder watch', () => {
       reportHidden: document.getElementById('vault-intake-report')!.hidden,
       owned: eval('owned').has('Vampire Gaze'),
     }));
-    expect(r.seen).toBe(2);
+    expect(r.seen).toBe(13);
     expect(r.reportHidden).toBe(true); // no intake ran, row tucked away again
     expect(r.owned).toBe(false);
   });
