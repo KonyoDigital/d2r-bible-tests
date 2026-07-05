@@ -107,3 +107,39 @@ test('v580.1 — a "Superior X (…)" LABEL is superior everywhere, even without
   expect(r.byLabel).toBe(true);
   expect(r.plain).toBe(false);
 });
+
+// v582 — LIVE INCIDENT (Konyo's fresh re-scan): the Zweihander (5os) registered first, so when the 1H
+// Flail (5os) arrived the spare logic vendored IT ("Honor covered by your Zweihander") — backwards. A
+// hand-correct base is the player home; the 2H merc-rescue is the compromise. Now: the Forge's tie-break
+// prefers hand-correct bases, and a merc-rescued coverage can never spare a hand-correct candidate.
+test('v582 — 1H Flail beats the earlier-registered 2H Zweihander for Honor; the Zweihander is the spare', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_owned', JSON.stringify(['Zweihander (5os)', 'Flail (5os)']));   // Zwei FIRST
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 1, El: 1, Ith: 1, Tir: 1, Sol: 1 }));
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    localStorage.setItem('d2r_ladderMode', 'nonladder');
+  });
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    ['Zweihander (5os)', 'Flail (5os)'].forEach((n) => w._ensureSocketBaseEntry(n));
+    await new Promise((res) => setTimeout(res, 500));        // let the spare-scan memo expire
+    const s = w.forgeScan();
+    const honor = [...(s.now || []), ...(s.pipeline || [])].find((t: any) => t.rw === 'Honor');
+    const flail = w.suggestMule('Flail (5os)');
+    const zwei = w.suggestMule('Zweihander (5os)');
+    return {
+      honorBase: honor ? String(honor.base && honor.base.name) : 'none',
+      honorMercOwn: !!(honor && honor.mercOwn),
+      flailRoute: flail && flail.id, flailWhy: String((flail && flail.why) || ''),
+      zweiRoute: zwei && zwei.id, zweiWhy: String((zwei && zwei.why) || ''),
+    };
+  });
+  expect(r.honorBase).toMatch(/^Flail/);      // the Forge tasks Honor on the 1H player base
+  expect(r.honorMercOwn).toBe(false);         // …not as a merc compromise
+  expect(r.flailRoute).toBe('bases');         // the vault MULES the Flail (Konyo: "it should have muled it")
+  expect(r.flailWhy).toContain('Honor');
+  expect(r.zweiRoute).toBe('__throwout');     // the redundant 2H is the spare
+  expect(r.zweiWhy).toContain('spare');
+});

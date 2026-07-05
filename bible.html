@@ -8061,14 +8061,23 @@ function _spareBaseInfo(name, unmade){
       var sc = (typeof window.forgeScan === 'function') ? window.forgeScan() : null;
       var map = {};
       if (sc){
-        [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if (t && t.base && t.base.name) (map[t.rw]=map[t.rw]||[]).push(t.base.name); });
-        (sc.onestep||[]).forEach(function(t){ if (t && t.base && t.base.name && t.sub!=='base') (map[t.rw]=map[t.rw]||[]).push(t.base.name); });
+        [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if (t && t.base && t.base.name) (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
+        (sc.onestep||[]).forEach(function(t){ if (t && t.base && t.base.name && t.sub!=='base') (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
       }
       _spareScanCache = map; _spareScanAt = now;
     }
     var self = String(name||'');
+    // v582 — a MERC-RESCUED coverage (2H compromise) never spares a HAND-CORRECT candidate: Konyo's 1H
+    // Flail must not be vendored because a 2H Zweihander holds Honor — the reverse should happen.
+    var _candClean = self.replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+    var _candHand = (typeof window._baseHandClass === 'function') ? window._baseHandClass(_candClean) : '?';
+    var _candIs1H = (_candHand === '1H' || _candHand === 'gear' || _candHand === 'caster');
     (unmade||[]).forEach(function(r){
-      var labs = (_spareScanCache[r.n]||[]).filter(function(l){ return l !== self; });
+      var labs = (_spareScanCache[r.n]||[]).filter(function(e){
+        if (!e || e.l === self) return false;
+        if (e.m && _candIs1H) return false;   // merc-rescue can't spare a hand-correct base
+        return true;
+      }).map(function(e){ return e.l; });
       if (labs.length) covered[r.n] = labs; else uncovered.push(r.n);
     });
   } catch(e){ covered = {}; uncovered = (unmade||[]).map(function(r){ return r.n; }); }   // fail-open: keep
@@ -27605,7 +27614,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         else {
           var r1=kindRank(t), r0=kindRank(cur);
           if (r1<r0) byRw[name]=t;                          // better kind wins (now > pipeline > onestep)
-          else if (r1===r0 && t.ideal && !cur.ideal) byRw[name]=t;  // tie → prefer the meta base
+          // v582 — tie → a HAND-CORRECT base beats a merc-rescued one (Konyo's Flail-vs-Zweihander for
+          // Honor: the 1H Flail is the player home; the 2H rescue is the compromise), then the meta base.
+          else if (r1===r0 && !t.mercOwn && cur.mercOwn) byRw[name]=t;
+          else if (r1===r0 && !!t.mercOwn===!!cur.mercOwn && t.ideal && !cur.ideal) byRw[name]=t;
         }
       });
     });
@@ -27627,13 +27639,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // pick an AVAILABLE base from EVERY owned base that can host this word (ideal/meta base first),
       // not just the one pre-chosen — so a 2nd 6os base lets a 2nd 6os word be made now (Konyo's Spetum case).
       var cands=(_nowCands[t.rw]||(t.base?[t.base]:[])).slice()
-        .sort(function(a,c){ return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0); });
+        // v582 — HAND-CORRECT bases first (Konyo's Flail-vs-Zweihander: Honor belongs in the 1H player
+        // base; the 2H merc-rescue is the fallback), then the ideal/meta base among equals.
+        .sort(function(a,c){
+          var ha=_handOk(t.rw,a.base)?1:0, hc2=_handOk(t.rw,c.base)?1:0;
+          if (ha!==hc2) return hc2-ha;
+          return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0);
+        });
       var chosen=null;
       for (var i=0;i<cands.length;i++){ var c=cands[i]; if (c && (baseUsed[c.name]||0) < (c.count||1)){ chosen=c; break; } }
       if (runeOk && chosen){
         Object.keys(t.req).forEach(function(r){ pool[r]-=t.req[r]; });
         baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1;
         t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); t.deferred=false;
+        t.mercOwn=!_handOk(t.rw,chosen.base); t.hand=t.mercOwn?'2H merc':_hand(t.rw);   // v582 — flag follows the CHOSEN base
       } else {
         t.deferred=true;
         t.blockedBy=Object.keys(t.req).filter(function(r){ return (pool[r]||0)<t.req[r]; });
@@ -27664,7 +27683,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // first; a word with no free base left keeps its base and groups as an alternative under it (prior behaviour).
     out.pipeline.forEach(function(t){
       var cands=(_pipeCands[t.rw]||(t.base?[t.base]:[])).slice()
-        .sort(function(a,c){ return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0); });
+        // v582 — hand-correct first, then ideal (mirrors the make-now allocation)
+        .sort(function(a,c){
+          var ha=_handOk(t.rw,a.base)?1:0, hc2=_handOk(t.rw,c.base)?1:0;
+          if (ha!==hc2) return hc2-ha;
+          return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0);
+        });
       // v536.1 — prefer a base TYPE not yet used this pass over burning a 2nd COPY of an already-used base. So
       // owning 3× Thresher + 1 Cryptic Axe and needing two 5os words → Thresher + Cryptic Axe (each card names a
       // distinct base, no "Larzuk your Thresher ×2" confusion), instead of two Threshers. Falls back to a spare
@@ -27677,6 +27701,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       var chosen=pick||spare;
       if (chosen){ t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1;
+        t.mercOwn=!_handOk(t.rw,chosen.base); t.hand=t.mercOwn?'2H merc':_hand(t.rw);   // v582 — flag follows the CHOSEN base
         // v545 — recompute the cube-gamble flag against the ACTUAL chosen base (a clean Larzuk base has max===need
         // → false; a tagged unsocketed base whose max overshoots the count → true). Keeps flag ↔ base in sync even
         // when byRw picked a different candidate than the spread allocator lands on.
