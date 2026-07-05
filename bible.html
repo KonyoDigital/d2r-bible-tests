@@ -8046,6 +8046,20 @@ function _baseUnmadeRunewords(base, knownSockets){
   });
 }
 window._baseUnmadeRunewords = _baseUnmadeRunewords;
+// v583 — BiS-home helpers: is `base` the community-standard home for `rw`? and sort a word-list so the
+// words this base is the TRUE home of come first (Konyo: a 5os Flail should headline Call to Arms, not Honor).
+window._isBisBaseFor = function(base, rw){
+  try {
+    var m = (typeof window.RW_BIS !== 'undefined') ? window.RW_BIS[rw] : null; if (!m || !m.b) return false;
+    var cl = String(base||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim().toLowerCase();
+    return m.b.some(function(x){ return String(x).toLowerCase() === cl; });
+  } catch(e){ return false; }
+};
+window._bisSortFor = function(base, words){
+  try { return (words||[]).slice().sort(function(a,b){
+    return (window._isBisBaseFor(base,b)?1:0) - (window._isBisBaseFor(base,a)?1:0);
+  }); } catch(e){ return words; }
+};
 // v563 — SPARE-BASE check, the vault-side twin of the loot filter's v536.2 Forge sync: of this base's
 // still-unmade words, which are ALREADY COVERED by a socket-correct base you own (a Forge make-now /
 // pipeline / have-base-need-runes task)? The filter already stops farming those bases on the ground; now
@@ -8154,6 +8168,12 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   try { if (typeof window._rwLadderBlocked === 'function'){ var _b4 = rws.length; rws = rws.filter(function(r){ return !window._rwLadderBlocked(r.n); }); _lbHid = _b4 - rws.length; } } catch(e){}
   if (!rws.length) return _supNote;
   var _lbTag = _lbHid > 0 ? ' <span class="rwn-more" title="ladder-only runeword' + (_lbHid===1?'':'s') + ' — hidden while you play non-ladder (flip the Chronicle ladder toggle to include them)">+' + _lbHid + ' ladder-only hidden</span>' : '';
+  // v583 — clarity: name the words this base is the COMMUNITY-STANDARD home of (Konyo: "these should be in
+  // their Elite Item End Game gear" — a Flail isn't just 'a base', it's THE HotO/CtA stick).
+  try {
+    var _bisOf = rws.filter(function(r){ return window._isBisBaseFor && window._isBisBaseFor(name, r.n); }).map(function(r){ return r.n; });
+    if (_bisOf.length) _lbTag += '<div class="att-tag" style="margin-top:3px;color:#ffd27f">🏆 <b>THE classic base</b> for: ' + _rwNames(_bisOf.map(function(n){ return { n: n }; })) + '</div>';
+  } catch(e){}
   // v547 — SYNC WITH THE FORGE: word the base's hand-class (1H player / 2H merc / caster) + endgame tier here too,
   // using the SAME engine the Forge uses (window._baseHandClass / _baseTier). Konyo: the throw-out / Socketed
   // Review should tell me a Champion Axe holds a 2-handed *mercenary* weapon (Eternity/Honor), just like the Forge.
@@ -24933,7 +24953,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               return {id:'__throwout', why:'spare '+_xclean+' — you already hold a base for '+_xw.slice(0,2).join(', ')+(_xw.length>2?' +'+(_xw.length-2)+' more':'')+' (your '+_xsp.covered[_xw[0]][0]+') → vendor it'};
             }
             var _xk = (_xsp && _xsp.uncovered.length) ? _xsp.uncovered : _xUn.map(function(r){return r.n;});
-            return {id:'bases', why:'socketed base — still needed for '+_xk.slice(0,3).join(', ')+(_xk.length>3?' +'+(_xk.length-3)+' more':'')};
+            _xk = (typeof window._bisSortFor==='function') ? window._bisSortFor(_xclean, _xk) : _xk;   // v583
+            var _xkBis = (typeof window._isBisBaseFor==='function') && window._isBisBaseFor(_xclean, _xk[0]);
+            return {id:'bases', why:'socketed base — still needed for '+_xk.slice(0,3).join(', ')+(_xk.length>3?' +'+(_xk.length-3)+' more':'')+(_xkBis?' · 🏆 its classic '+_xk[0]+' base':'')};
           }
         } catch(e){}
         return {id:'bases', why:'generic socketed base'};
@@ -24986,7 +25008,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             return {id:'__throwout', why:'spare '+_sclean+' — you already hold a base for '+_sw.slice(0,2).join(', ')+(_sw.length>2?' +'+(_sw.length-2)+' more':'')+' (your '+_ssp.covered[_sw[0]][0]+') → vendor it'};
           }
           var _sk = (_ssp && _ssp.uncovered.length) ? _ssp.uncovered : _sUn.map(function(r){return r.n;});
-          return {id:'bases', why:'socketed base — still needed for '+_sk.slice(0,3).join(', ')+(_sk.length>3?' +'+(_sk.length-3)+' more':'')};
+          _sk = (typeof window._bisSortFor==='function') ? window._bisSortFor(_sclean, _sk) : _sk;   // v583 — this base's TRUE home word headlines
+          var _skBis = (typeof window._isBisBaseFor==='function') && window._isBisBaseFor(_sclean, _sk[0]);
+          return {id:'bases', why:'socketed base — still needed for '+_sk.slice(0,3).join(', ')+(_sk.length>3?' +'+(_sk.length-3)+' more':'')+(_skBis?' · 🏆 its classic '+_sk[0]+' base':'')};
         }
       } catch(e){}
       return {id:'bases', why:'socketed base'};
@@ -25016,7 +25040,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             return {id:'__throwout', why:'spare '+_bareBaseClean+' — you already hold a base for '+_bw.slice(0,2).join(', ')+(_bw.length>2?' +'+(_bw.length-2)+' more':'')+' (your '+_bsp.covered[_bw[0]][0]+') → vendor it'};
           }
           var _bk = (_bsp && _bsp.uncovered.length) ? _bsp.uncovered : _bUn.map(function(r){return r.n;});
-          return {id:'bases', why:'white base — still needed for '+_bk.slice(0,3).join(', ')+(_bk.length>3?' +'+(_bk.length-3)+' more':'')};
+          _bk = (typeof window._bisSortFor==='function') ? window._bisSortFor(_bareBaseClean, _bk) : _bk;   // v583
+          var _bkBis = (typeof window._isBisBaseFor==='function') && window._isBisBaseFor(_bareBaseClean, _bk[0]);
+          return {id:'bases', why:'white base — still needed for '+_bk.slice(0,3).join(', ')+(_bk.length>3?' +'+(_bk.length-3)+' more':'')+(_bkBis?' · 🏆 its classic '+_bk[0]+' base':'')};
         }
       } catch(e){}
       return {id:'bases', why:'white base → socketed / craft'};
@@ -27298,7 +27324,61 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return { names:hits.slice(0,3).map(function(h){return h.name;}), merc:mercOnly, hand:mercOnly?'2H merc':(isCaster?'2H caster':'1H'), need:need };
   }
   try { window._eliteBaseFor=_eliteBaseFor; } catch(e){}
+  // v583 — THE BiS-HOME LAYER (Konyo: "the goal isn't just to make a runeword — these should be in their
+  // Elite Item End Game gear"). Curated community-standard homes per word. The overlay PREPENDS these to the
+  // engine's socket-correct names, so every consumer — the v576 endgame gate (_isIdealBase), best-base hints,
+  // the loot filter's farm list, the spare logic, keep-reasons — inherits the true meta home automatically.
+  var RW_BIS = {
+    'Call to Arms':        { b:['Crystal Sword','Flail'],                n:'the classic switch stick — lightest 5os 1H' },
+    'Heart of the Oak':    { b:['Flail'],                                n:'THE 4os caster mace' },
+    'Grief':               { b:['Phase Blade','Berserker Axe'],          n:'PB never repairs · BA fastest axe' },
+    'Breath of the Dying': { b:['Colossus Blade','Berserker Axe'],       n:'eth for a merc stick · non-eth player' },
+    'Death':               { b:['Colossus Blade','Ettin Axe'],           n:'eth Ettin Axe is the budget king' },
+    'Oath':                { b:['Balrog Blade','Colossus Blade'],        n:'ethereal — Oath self-repairs' },
+    'Silence':             { b:['Phase Blade','Berserker Axe'],          n:'' },
+    'Kingslayer':          { b:['Phase Blade','Berserker Axe'],          n:'' },
+    'Hand of Justice':     { b:['Phase Blade','Berserker Axe'],          n:'' },
+    'Eternity':            { b:['Berserker Axe','Ettin Axe'],            n:'' },
+    'Famine':              { b:['Berserker Axe'],                        n:'' },
+    'Destruction':         { b:['Berserker Axe','Cryptic Axe'],          n:'' },
+    'Doom':                { b:['Berserker Axe','Cryptic Axe'],          n:'eth Cryptic Axe for the merc' },
+    'Voice of Reason':     { b:['Crystal Sword','Phase Blade'],          n:'' },
+    'Infinity':            { b:['Cryptic Axe','Thresher','Giant Thresher'], n:'ETHEREAL merc polearm' },
+    'Insight':             { b:['Colossus Voulge','Thresher'],           n:'merc polearm' },
+    'Pride':               { b:['War Pike','Thresher'],                  n:'ETHEREAL merc polearm' },
+    'Obedience':           { b:['Thresher','Cryptic Axe'],               n:'ETHEREAL merc polearm' },
+    'Rift':                { b:['War Scythe','Thresher'],                n:'merc polearm' },
+    'Spirit':              { b:['Monarch','Crystal Sword'],              n:'Monarch shield · CS weapon' },
+    'Phoenix':             { b:['Monarch'],                              n:'' },
+    'Exile':               { b:['Sacred Targe','Sacred Rondache'],       n:'ETHEREAL auric shield' },
+    'Dream':               { b:['Bone Visage','Troll Nest'],             n:'' },
+    'Delirium':            { b:['Bone Visage','Spired Helm'],            n:'' },
+    'Enigma':              { b:['Archon Plate','Mage Plate','Dusk Shroud'], n:'light elite armor' },
+    'Chains of Honor':     { b:['Archon Plate','Dusk Shroud'],           n:'' },
+    'Fortitude':           { b:['Archon Plate','Sacred Armor'],          n:'eth Sacred Armor for the merc' },
+    'Treachery':           { b:['Archon Plate','Dusk Shroud'],           n:'' },
+    'Stone':               { b:['Archon Plate','Sacred Armor'],          n:'' },
+    'Faith':               { b:['Grand Matron Bow'],                     n:'Act 1 merc / zon bow' },
+    'Ice':                 { b:['Grand Matron Bow'],                     n:'' },
+    'Brand':               { b:['Grand Matron Bow'],                     n:'' },
+    'Wrath':               { b:['Grand Matron Bow'],                     n:'' },
+    'Harmony':             { b:['Grand Matron Bow','Matriarchal Bow'],   n:'' },
+    'Mist':                { b:['Grand Matron Bow'],                     n:'' }
+  };
+  try { window.RW_BIS = RW_BIS; } catch(e){}
   function _metaBaseFor(rw){
+    var m = _metaBaseCore(rw);
+    var bis = RW_BIS[rw];
+    if (bis && bis.b && bis.b.length){
+      var seen = {}; var names = [];
+      bis.b.concat(m.names || []).forEach(function(n){ var k = String(n).toLowerCase(); if (!seen[k]){ seen[k] = 1; names.push(n); } });
+      m.names = names;
+      if (bis.n) m.note = bis.n + (m.note ? ' · ' + m.note : '');
+      m.bis = bis.b.slice();
+    }
+    return m;
+  }
+  function _metaBaseCore(rw){
     var e=(typeof RUNEWORD_TIP!=='undefined'?RUNEWORD_TIP[rw]:null)||{}; var b=String(e.b||'').toLowerCase();
     var nonWeapon=/body armor|shield|aegis|\bward\b|targe|rondache|helm|circlet|\bcap\b|crown|diadem|tiara/.test(b);
     if (nonWeapon){
@@ -27577,8 +27657,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // no Eternity in a plain Flail). Cheap words (Rhyme/Stealth/Honor…) keep using whatever you hold.
         var _egIst = (typeof RUNE_INDEX!=='undefined' && RUNE_INDEX['Ist']!=null) ? RUNE_INDEX['Ist'] : 23;
         if (_rwVal(name) >= _egIst){
-          if (_mercOwn) return;
-          if (!_isIdealBase(name, b.base) && ((typeof window._baseTier==='function'?window._baseTier(b.base):'')!=='elite')) return;
+          // v583 — the word's TRUE home (RW_BIS/ideal) always passes, even held as a 2H/merc stick (BotD in
+          // an eth Colossus Blade is the classic); otherwise: never a merc-rescue, and elite-tier required.
+          var _egIdeal = _isIdealBase(name, b.base);
+          if (!_egIdeal && _mercOwn) return;
+          if (!_egIdeal && ((typeof window._baseTier==='function'?window._baseTier(b.base):'')!=='elite')) return;
         }
         // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
         // them, even when our max estimate is low (e.g. Wand reports max 1 but a 2os Wand is real). The max

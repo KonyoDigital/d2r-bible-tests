@@ -46,7 +46,7 @@ test('the matrix: gamble/superior/make-now/pipeline/endgame-gate/ladder — one 
       const elite = w._baseTier && w._baseTier(t.base.base) === 'elite';
       const ideal = ((w._forgeMetaBase(t.rw) || {}).names || []).some((x: string) =>
         String(t.base.base).toLowerCase().includes(x.toLowerCase()) || x.toLowerCase().includes(String(t.base.base).toLowerCase()));
-      return t.mercOwn || (!elite && !ideal);
+      return !ideal && (t.mercOwn || !elite);   // v583 — a BiS/ideal home passes even held as a 2H/merc stick
     }).map((t: any) => t.rw + '@' + t.base.name);
     const ladderLeaks = all.filter((t: any) => w._rwIsLadderOnly && w._rwIsLadderOnly(t.rw)).map((t: any) => t.rw);
     return {
@@ -161,4 +161,35 @@ test('v582.1 — vaultSetSockets/vaultKeepAsBase strip existing suffixes (no "Fl
   expect(r.doubled).toEqual([]);
   expect(r.own).toContain('Flail (5os)');
   expect(r.own).toContain('Scourge (Larzuk base)');
+});
+
+// v583 — THE BiS-HOME LAYER: the platform knows WHERE each word belongs, not just where it fits.
+test('v583 — Flail headlines CtA/HotO (its classic jobs); Grief is ideal in a PB; BotD passes in an eth CB', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    const flailWhy = String((w.suggestMule('Flail (5os)') || {}).why || '');
+    return {
+      flailWhy,
+      ctaIdealFlail: w._isIdealBase ? undefined : undefined,
+      metaCta: (w._forgeMetaBase('Call to Arms') || {}).names,
+      metaHoto: (w._forgeMetaBase('Heart of the Oak') || {}).names,
+      metaGrief: (w._forgeMetaBase('Grief') || {}).names,
+      metaBotd: (w._forgeMetaBase('Breath of the Dying') || {}).names,
+      bisFlailCta: w._isBisBaseFor('Flail', 'Call to Arms'),
+      bisFlailHonor: w._isBisBaseFor('Flail', 'Honor'),
+      rwLine: String(w._baseRWLine('Flail', 5)),
+    };
+  });
+  expect(r.metaCta).toContain('Flail');                      // the BiS overlay feeds the meta engine…
+  expect(r.metaCta).toContain('Crystal Sword');
+  expect(r.metaHoto[0]).toBe('Flail');
+  expect(r.metaGrief[0]).toBe('Phase Blade');
+  expect(r.metaBotd).toContain('Colossus Blade');
+  expect(r.bisFlailCta).toBe(true);
+  expect(r.bisFlailHonor).toBe(false);
+  expect(r.flailWhy).toMatch(/still needed for Call to Arms/); // CtA headlines, not Honor
+  expect(r.flailWhy).toContain('classic');                     // …and says WHY
+  expect(r.rwLine).toContain('THE classic base');              // the review card teaches the meta home
 });

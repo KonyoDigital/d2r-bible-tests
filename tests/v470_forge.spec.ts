@@ -154,9 +154,12 @@ test('NO BASE-UPGRADE bucket — white/normal bases cannot be cube-upgraded (v53
 test('SAFEGUARD — Larzuk gives only a base\'s MAX, so a sub-max word is NOT pipelined on a too-big base', async ({ page }) => {
   // Spirit = 4os; a Crystal Sword maxes at 6, so Larzuk always gives 6 → it can NOT make a 4os Spirit.
   const s = await scan(page, { owned: ['Crystal Sword (Larzuk base)'], runes: { Tal: 1, Thul: 1, Ort: 1, Amn: 1 } });
-  expect((s.pipeline || []).find((t: any) => t.rw === 'Spirit')).toBeFalsy();   // the old "Larzuk → 4os" bug — gone
-  // invariant: a pipeline task NEVER targets fewer sockets than its base's verified max
-  (s.pipeline || []).forEach((t: any) => { if (t.base && t.base.max) expect(t.need).toBe(t.base.max); });
+  // v583 — a plain white CS is Spirit's CLASSIC sword base, so an honest CUBE GAMBLE is offered (random
+  // 1-6, want 4). What must NEVER return is the old false 'Larzuk → 4os' promise: a non-gamble pipeline
+  // task still always targets the base's exact max.
+  const spirit = (s.pipeline || []).find((t: any) => t.rw === 'Spirit');
+  if (spirit) expect(spirit.cubeGamble).toBe(true);
+  (s.pipeline || []).forEach((t: any) => { if (t.base && t.base.max && !t.cubeGamble) expect(t.need).toBe(t.base.max); });
 });
 
 test('OPTIMAL ASSIGNMENT — two 6os bases let two 6os words BOTH be make-now (no false defer)', async ({ page }) => {
@@ -186,15 +189,15 @@ test('META-BASE RULE — 1H for player weapons, 2H only for merc, armour never g
       const b = String((w.RUNEWORD_TIP[rw] || {}).b || '').toLowerCase();
       const nonWeapon = /body armor|shield|aegis|\bward\b|targe|rondache|helm|circlet|\bcap\b|crown|diadem|tiara/.test(b);
       const names = (w._forgeMetaBase(rw).names) || [];
-      if (nonWeapon) names.forEach((n: string) => { if (isWeaponBase(n)) bad.push('ARMOUR/SHIELD/HELM ' + rw + ' → weapon base ' + n); });
+      const alsoWeapon = /weapon|sword|axe|mace|scepter|staff|bow/.test(b);   // v583 — Spirit/Phoenix are "weapons OR shields"
+      if (nonWeapon && !alsoWeapon) names.forEach((n: string) => { if (isWeaponBase(n)) bad.push('ARMOUR/SHIELD/HELM ' + rw + ' → weapon base ' + n); });
     });
     return { bad, botd: w._forgeMetaBase('Breath of the Dying').names.join(' / '),
              coh: w._forgeMetaBase('Chains of Honor').names.join(' / '),
              insight: w._forgeMetaBase('Insight').names.join(' / ') };
   });
   expect(r.bad).toEqual([]);                                  // SAFEGUARD: no armour/shield/helm word recommends a weapon base
-  expect(r.botd).toMatch(/Berserker Axe|Phase Blade/);        // player weapon → 1H
-  expect(r.botd).not.toContain('Colossus Blade');             // not the 2H sword
+  expect(r.botd).toMatch(/Berserker Axe|Colossus Blade/);    // v583 — eth Colossus Blade IS the classic BotD home
   expect(r.coh).not.toMatch(/Colossus|Blade|Axe|Sword/);      // Chains of Honor is body armor → no weapon
   expect(r.insight).toMatch(/Thresher|Cryptic Axe|Colossus Voulge/);  // merc polearm → 2H is correct here
 });
