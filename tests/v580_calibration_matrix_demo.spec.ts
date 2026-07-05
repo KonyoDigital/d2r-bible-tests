@@ -143,3 +143,22 @@ test('v582 — 1H Flail beats the earlier-registered 2H Zweihander for Honor; th
   expect(r.zweiRoute).toBe('__throwout');     // the redundant 2H is the spare
   expect(r.zweiWhy).toContain('spare');
 });
+
+// v582.1 — re-registering an already-labelled read must not double the suffix ("Flail (5os) (5os)" —
+// live incident during the Flail rescue): all register/fix paths strip repeated socket/Larzuk suffixes.
+test('v582.1 — vaultSetSockets/vaultKeepAsBase strip existing suffixes (no "Flail (5os) (5os)")', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1600);
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    w.switchTab('tools'); w.renderVault && w.renderVault();
+    await new Promise((res) => setTimeout(res, 300));
+    w.vaultSetSockets('Flail (5os)', 5);                 // read already labelled → same clean label
+    w.vaultKeepAsBase('Scourge (Larzuk base)');          // same for the Larzuk path
+    await new Promise((res) => setTimeout(res, 300));
+    const own = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
+    return { own, doubled: own.filter((n: string) => /\(\d+os\)\s*\(\d+os\)|\(Larzuk base\)\s*\(Larzuk base\)/i.test(n)) };
+  });
+  expect(r.doubled).toEqual([]);
+  expect(r.own).toContain('Flail (5os)');
+  expect(r.own).toContain('Scourge (Larzuk base)');
+});

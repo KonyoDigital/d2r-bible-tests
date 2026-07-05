@@ -25607,6 +25607,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       n = parseInt(n, 10); if (!(n >= 1 && n <= 6)) return;
       var clean = (typeof _throwClean === 'function') ? _throwClean(name) : name;
+      // v582.1 — strip ANY existing socket/Larzuk suffixes (repeatedly) so re-registering an already-
+      // labelled read can't produce "Flail (5os) (5os)" (live incident during the Flail rescue).
+      while (/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i.test(clean)) clean = clean.replace(/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i, '').trim();
       var label = clean + ' (' + n + 'os)';
       if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
@@ -25622,6 +25625,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.vaultKeepAsBase = function(name){
     try {
       var clean = (typeof _throwClean === 'function') ? _throwClean(name) : name;
+      while (/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i.test(clean)) clean = clean.replace(/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i, '').trim();   // v582.1
       var label = clean + ' (Larzuk base)';
       if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
@@ -25638,7 +25642,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.vaultFixSockets = function(name, n){
     try {
       n = parseInt(n, 10); if (!(n >= 0 && n <= 6)) return;
-      var stem = String(name).replace(/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i, '').trim();
+      var stem = String(name); while (/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i.test(stem)) stem = stem.replace(/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i, '').trim();   // v582.1 — strip repeated suffixes
       var newLabel = stem + ' (' + (n >= 1 ? (n + 'os') : 'Larzuk base') + ')';
       if (newLabel === name && owned.has(name)) {
         if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
