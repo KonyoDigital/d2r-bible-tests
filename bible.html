@@ -26870,6 +26870,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               try { console.log('[vault-intake] ' + fname + ' → still empty → TOP-LEFT raw-name recovered', _dT.items || _dT.unrecognized); } catch(e){} } }
           } catch(e){}
         }
+        // v601 — SOCKET-COUNT VERIFY (Konyo's Superior Long Sword — third recurrence of this miss class,
+        // after the Superior Champion Axe and Grim Scythe): a read claiming an UNSOCKETED base
+        // ("<Base> (Larzuk base)" / "Larzuk <Slot> Base") gets ONE pinpoint follow-up on the same image —
+        // "does the tooltip say Socketed (N)?" (kind:'socketcheck'). N ≥ 1 → the main read missed the
+        // line; relabel to "<Base> (Nos)" before registration (eth/superior flags follow the label).
+        // Fires only when the shot produced exactly ONE Larzuk claim (the one-tooltip-per-shot flow) so a
+        // rare multi-tooltip shot can't cross-wire. The main read pipeline stays untouched (LOCKED).
+        try {
+          var _lz = (data.items || []).filter(function(x){ return /\(Larzuk base\)\s*$/i.test(x) || /^Larzuk .+ Base$/i.test(x); });
+          if (_lz.length === 1 && !_aiLimitHit){
+            var _vImg = b64 || (_imRef ? _vEnlarge(_imRef, null) : null);
+            if (_vImg){
+              var _vr = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+                body: JSON.stringify({ image:_vImg, media_type:'image/jpeg', file:fname, kind:'socketcheck' }) }, 45000);
+              if (_vr.ok){ var _vd = await _vr.json();
+                var _vn = _vd && isFinite(+_vd.sockets) ? +_vd.sockets : 0;
+                if (_vn >= 1 && _vn <= 6){
+                  var _oldL = _lz[0];
+                  var _newL = /\(Larzuk base\)\s*$/i.test(_oldL)
+                    ? _oldL.replace(/\s*\(Larzuk base\)\s*$/i, ' ('+_vn+'os)')
+                    : _oldL.replace(/^Larzuk (.+) Base$/i, 'Socketed $1 ('+_vn+'os)');
+                  data.items = data.items.map(function(x){ return x === _oldL ? _newL : x; });
+                  ['ethereal','superior'].forEach(function(k){ if (Array.isArray(data[k])) data[k] = data[k].map(function(x){ return x === _oldL ? _newL : x; }); });
+                  try { console.warn('[vault-intake] ' + fname + ' → SOCKET VERIFY corrected "' + _oldL + '" → "' + _newL + '" (main read missed the Socketed line)'); } catch(e){}
+                }
+              }
+            }
+          }
+        } catch(e){}
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
         (data.items || []).forEach(function(n){

@@ -27,10 +27,11 @@ export async function onRequestPost(context) {
   if (image.length > 1_800_000) return json({ error: 'image too large — downscale client-side' }, 413);
   const isLocate = kind === 'locate';   // v342 — return the hovered tooltip's bounding box (no vocab needed)
   const isRaw = kind === 'rawname';     // v421 — LAST-RESORT: force the top tooltip NAME out of any readable image
+  const isSock = kind === 'socketcheck'; // v601 — pinpoint VERIFY: does this tooltip contain a "Socketed (N)" line?
   // v354 — cap raised 600→2000: the grail vocab grew past 600 (off-grail uniques + RotW sets) which
   // 400'd EVERY read and hung the intake at 0/62. The vocab rides in the cached system prompt, so a
   // larger list is near-free; 2000 leaves ample headroom.
-  if (!isLocate && !isRaw && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
+  if (!isLocate && !isRaw && !isSock && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
   const isGrail = kind === 'grail';   // v561 — bulk grail import: a grail/collection UI listing many item names with found-state
@@ -390,13 +391,27 @@ export async function onRequestPost(context) {
     + 'v572: if the image is NOT the Diablo II game client at all (a browser window, a web dashboard like the '
     + '"D2R Farming Bible" tracker page, OS chrome, or any random non-game photo), return name="" — text printed '
     + 'by a web page is bookkeeping, not an item.';
+  // v601 — the socket-count VERIFY (Konyo's Superior Long Sword: the main read repeatedly returned a
+  // clearly-"Socketed (3)" tooltip as UNSOCKETED, planning impossible Larzuk advice). One tiny focused
+  // question beats re-reading everything: look ONLY for the Socketed line and return its number.
+  const sockText = 'You are shown ONE Diablo II Resurrected item tooltip (possibly modded). Answer ONE question '
+    + 'only: does the tooltip text contain a line reading "Socketed (N)" — usually a small light-blue line near '
+    + 'the bottom of the stat list? Look CAREFULLY at every line, including lines close to the tooltip border. '
+    + 'Return {"sockets": N} with the exact number from that line. If no "Socketed (N)" line exists anywhere in '
+    + 'the tooltip, return {"sockets": 0}. Ignore every other stat; ignore grid icons outside the tooltip.';
+  const sockSchema = {
+    type: 'object',
+    properties: { sockets: { type: 'integer' } },
+    required: ['sockets'],
+    additionalProperties: false,
+  };
   const rawSchema = {
     type: 'object',
     properties: { name: { type: 'string' }, color: { type: 'string', enum: ['unique', 'set', 'magic', 'rare', 'crafted', 'base', 'unknown'] } },
     required: ['name', 'color'],
     additionalProperties: false,
   };
-  const sysText = isLocate ? locateText : isRaw ? rawText : isCraft ? craftText : isTally ? tallyText : isGrail ? grailText : itemsText;
+  const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText : isCraft ? craftText : isTally ? tallyText : isGrail ? grailText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -427,6 +442,7 @@ export async function onRequestPost(context) {
       // stays Haiku (cheap box-finding, no text). For CHEAP test runs only, set env ITEMS_MODEL=claude-haiku-4-5.
       model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
         : isRaw ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
+        : isSock ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
         : (env.ITEMS_MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
@@ -437,12 +453,12 @@ export async function onRequestPost(context) {
       // non-determinism remains) but it removes the run-to-run wobble.
       temperature: 0,
       system,
-      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isTally ? tallySchema : itemsSchema } },
+      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isSock ? sockSchema : isTally ? tallySchema : itemsSchema } },
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
@@ -506,6 +522,10 @@ export async function onRequestPost(context) {
   // v421 — RAWNAME response: return the one read name. If it resolves to a vocab/grail item → "items"
   // (registers as owned); otherwise → "unrecognized" so it surfaces in the throw-out review (keepable),
   // NEVER the silent "∅ no tooltip text". A gold/green colour hints a real find; either way it's not lost.
+  if (isSock) {
+    const n = parsed && isFinite(+parsed.sockets) ? Math.max(0, Math.min(6, Math.round(+parsed.sockets))) : 0;
+    return json({ sockets: n, usage }, 200);
+  }
   if (isRaw) {
     const raw = parsed && typeof parsed.name === 'string' ? parsed.name.trim() : '';
     if (!raw || !nameOk(raw)) return json({ items: [], unrecognized: [], note: 'raw-empty' }, 200);
