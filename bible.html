@@ -26880,7 +26880,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try {
           var _lz = (data.items || []).filter(function(x){ return /\(Larzuk base\)\s*$/i.test(x) || /^Larzuk .+ Base$/i.test(x); });
           if (_lz.length === 1 && !_aiLimitHit){
-            var _vImg = b64 || (_imRef ? _vEnlarge(_imRef, null) : null);
+            // v601.3 — verify on the FULL FRAME, never the crop: the debug trace proved the locate box
+            // CLIPS the tooltip's bottom edge on tall tooltips — exactly where the "Socketed (N)" line
+            // sits — which is the root cause of the whole recurring miss class (the main read gets the
+            // name from the top of the crop, the sockets line is simply not in the image it saw).
+            var _vImg = _imRef ? _vEnlarge(_imRef, null) : b64;
             if (_vImg){
               var _vr = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
                 body: JSON.stringify({ image:_vImg, media_type:'image/jpeg', file:fname, kind:'socketcheck' }) }, 45000);
