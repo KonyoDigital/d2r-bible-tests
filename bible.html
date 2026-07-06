@@ -4268,7 +4268,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="lf-lead">One ready-to-import filter, <strong>rebuilt live from your Chronicle</strong> every time you copy it. Shows uniques · sets · runes · gems · charms · <strong>super/rejuv potions</strong> + <strong>only the socket-correct bases worth grabbing for the runewords you still need</strong> (rare circlets only — white circlets can't hold runewords). Tap <strong>Copy</strong>, then in D2R open the <strong>Loot Filter</strong> window → New/Import → paste.</div>
       <div class="lf-block">
         <div class="lf-b-head"><span class="lf-b-name">KonyoEndgame</span><span class="lf-b-tag lf-tag-elite" id="lf-endgame-count">bases</span></div>
-        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet — each one Larzuks to the socket count that word needs. As you tick words off in the Chronicle, the filter shrinks to match. <em>(White bases can't be cube-upgraded — you find the correct-tier base on the ground and Larzuk it.)</em> <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
+        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests; plain (unsocketed) whites light up <strong>only for the premium trade bases</strong> below. As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('endgame')">📋 Copy live KonyoEndgame filter</button>
         <span class="lf-status" id="lf-endgame-status"></span>
       </div>
@@ -4337,10 +4337,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       });
       // v588 — the premium trade floor joins LAST, unconditionally: no made[]/ownedBaseWord/ladder gate
       // touches it. supOk too — a SUPERIOR premium base is a better trade, never a gamble-only hide.
+      // v592 — plainCodes: ONLY these light up as PLAIN (unsocketed, non-eth) whites. Everything else in
+      // codes shows eth/socketed only — Konyo farms sockets instead of burning Larzuk quests.
+      var plainSet = {};
       (window._premiumTradeBases || []).forEach(function(nm){
         var pc = CODE[nm]; if (!pc) return;
-        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1;
+        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1; plainSet[pc] = 1;
       });
+      out.plainCodes = Object.keys(plainSet).sort();
       out.codes = Object.keys(codeSet).sort();
       out.names = Object.keys(nameSet).sort();
       out.gambleOnlyCodes = out.codes.filter(function(c){ return !supOkSet[c]; });   // superior drops useless here
@@ -4354,8 +4358,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     // v553 — ALWAYS sync the two base-show rules to the live set (was guarded by `if (eb.codes.length)`, which left
     // the template's ~50 hardcoded codes in place when nothing needs farming — contradicting the "0 bases" label).
     // Empty = show no bases, consistent with the count + the "shrinks to match your Chronicle" promise.
+    // v592 (Konyo) — SOCKETED-ONLY for common bases: Larzuk quests are a pain — he'd rather FARM the
+    // socketed drop. So the PLAIN-WHITE show rule ("Show Base Items") lights up ONLY the premium trade
+    // floor (Bone Visage class — rare/valuable enough to burn a Larzuk or trade as-is); every other
+    // wanted base appears eth/socketed ONLY (rule 3). No more plain War Spikes begging for a quest.
     tpl.rules.forEach(function(r){
-      if (r.name==='3. Show ETH and Socket bases' || r.name==='Show Base Items'){ r.equipmentItemCode = eb.codes.slice(); }
+      if (r.name==='3. Show ETH and Socket bases'){ r.equipmentItemCode = eb.codes.slice(); }
+      if (r.name==='Show Base Items'){ r.equipmentItemCode = (eb.plainCodes||[]).slice(); }
     });
     // v562 — PLUG THE BLUE-MAGIC LEAK (Konyo's cow-run screenshots: magic Gothic Shield + magic Coronet showing).
     // The template's hide lists are STATIC complements of the OLD ~50-base draft: 70 codes (the wanted bases,
@@ -4379,8 +4388,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       Object.keys(NEVER_HIDE).forEach(function(c){ delete hideSet[c]; });
       eb.codes.forEach(function(c){ delete hideSet[c]; });
       var hideCodes = Object.keys(hideSet).sort();
+      // v592 — a non-premium wanted base must be hidden as a PLAIN drop (it's only wanted eth/socketed):
+      // its code joins the flat-item hide (rule 1, filterEtherealSocketed:false) but stays OUT of the
+      // eth/socketed hide, so rule 3 keeps showing the drops actually worth picking up. Premium plains
+      // keep showing via "Show Base Items". Works under first- and last-match semantics alike (the plain
+      // drop matches ONLY a hide either way; the eth/socketed drop matches only the show).
+      var _plainIs = {}; (eb.plainCodes||[]).forEach(function(c){ _plainIs[c]=1; });
+      var plainHide = hideCodes.concat(eb.codes.filter(function(c){ return !_plainIs[c]; })).sort();
       tpl.rules.forEach(function(r){
-        if (r.name==='1. Hide Trash Gear' || r.name==='Hide ETH Sockets'){ r.equipmentItemCode = hideCodes.slice(); }
+        if (r.name==='1. Hide Trash Gear'){ r.equipmentItemCode = plainHide.slice(); }
+        if (r.name==='Hide ETH Sockets'){ r.equipmentItemCode = hideCodes.slice(); }
         if (r.name==='3. Show ETH and Socket bases'){ r.equipmentRarity = ['normal','hiQuality']; }
       });
       var TRASH_R = ['magic','rare','lowQuality'], CIRC_R = ['normal','lowQuality','magic','hiQuality'], Q3 = ['normal','exceptional','elite'];

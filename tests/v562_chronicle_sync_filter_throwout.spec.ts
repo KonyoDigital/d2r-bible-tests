@@ -24,23 +24,28 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
     });
     const leaks: string[] = [];
     Object.keys(CODE).forEach((nm) => { const c = CODE[nm]; if (!QUEST.has(c) && !magicHidden.has(c)) leaks.push(nm + '=' + c); });
-    const eb = w._endgameFilterBases().codes as string[];
+    const ebAll = w._endgameFilterBases();
+    const eb = ebAll.codes as string[];
     const trash = out.rules.find((x: any) => x.name === '1. Hide Trash Gear');
-    const wantedInTrash = eb.filter((c) => trash.equipmentItemCode.includes(c));
+    // v592 — non-premium wanted bases are DELIBERATELY in the trash hide as plain drops (they show
+    // eth/socketed only, via rule 3); only the premium floor may never be swallowed.
+    const wantedInTrash = (ebAll.plainCodes as string[]).filter((c) => trash.equipmentItemCode.includes(c));
+    const commonPlainHidden = eb.filter((c) => !ebAll.plainCodes.includes(c)).every((c) => trash.equipmentItemCode.includes(c));
     // rare circlets must survive (they show via "Show Rare Rings and Amulets"); no hide rule may catch them
     const rareCircHidden = out.rules.some((rl: any) => rl.enabled && rl.ruleType === 'hide'
       && (rl.equipmentRarity || []).includes('rare')
       && (rl.equipmentItemCode || []).some((c: string) => ['ci0', 'ci1', 'ci2', 'ci3'].includes(c)));
     const ethShow = out.rules.find((x: any) => x.name === '3. Show ETH and Socket bases');
     return {
-      leaks, wantedInTrash, rareCircHidden, ethRarity: ethShow.equipmentRarity,
+      leaks, wantedInTrash, commonPlainHidden, rareCircHidden, ethRarity: ethShow.equipmentRarity,
       ci1MagicHidden: magicHidden.has('ci1'),           // Konyo's blue Coronet
       gtsMagicHidden: magicHidden.has('gts'),           // Konyo's blue Gothic Shield
       uitMagicHidden: magicHidden.has('uit'),           // stale-draft Monarch, previously in NO rule
     };
   });
   expect(r.leaks).toEqual([]);                          // every non-quest base code hides its magic version
-  expect(r.wantedInTrash).toEqual([]);                  // white wanted bases NOT swallowed by the trash hide
+  expect(r.wantedInTrash).toEqual([]);                  // premium plains NOT swallowed by the trash hide
+  expect(r.commonPlainHidden).toBe(true);               // v592: every common wanted base hides its PLAIN drop
   expect(r.rareCircHidden).toBe(false);                 // rare circlets still show
   expect(r.ethRarity).toEqual(['normal', 'hiQuality']); // socketed MAGIC can't ride the eth/socket show rule
   expect(r.ci1MagicHidden).toBe(true);
