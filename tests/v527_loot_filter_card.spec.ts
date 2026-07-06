@@ -46,16 +46,17 @@ test('the filter shrinks when runewords are marked made (live-synced to the Chro
   const r = await page.evaluate(() => {
     const w: any = window;
     const nAll = w._endgameFilterBases().codes.length;   // nothing made yet
-    // Mark EVERY runeword made -> nothing left to farm -> zero bases (proves it's driven by the Chronicle).
+    // Mark EVERY runeword made -> nothing left to farm for WORDS -> the filter shrinks to exactly the
+    // v588 premium trade floor (bases worth keeping for TRADE regardless of the Chronicle).
     const made: Record<string, boolean> = {};
     Object.keys(w.RUNEWORD_TIP || {}).forEach((rw) => { made[rw] = true; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
     const nNone = w._endgameFilterBases().codes.length;
-    return { nAll, nNone };
+    return { nAll, nNone, nPremium: (w._premiumTradeBases || []).length };
   });
-  expect(r.nAll).toBeGreaterThan(0);
-  expect(r.nNone).toBe(0);                      // all words made -> filter empties (live-synced to the Chronicle)
+  expect(r.nAll).toBeGreaterThan(r.nPremium);   // word-driven bases on top of the floor
+  expect(r.nNone).toBe(r.nPremium);             // all words made -> shrinks to exactly the premium trade floor (v588)
 });
 
 // v536.2 — the loot filter must stay SYNCED with the Forge: don't tell you to FARM the ideal base for a word

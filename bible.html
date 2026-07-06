@@ -4268,7 +4268,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       <div class="lf-lead">One ready-to-import filter, <strong>rebuilt live from your Chronicle</strong> every time you copy it. Shows uniques · sets · runes · gems · charms + <strong>only the socket-correct bases worth grabbing for the runewords you still need</strong> (rare circlets only — white circlets can't hold runewords). Tap <strong>Copy</strong>, then in D2R open the <strong>Loot Filter</strong> window → New/Import → paste.</div>
       <div class="lf-block">
         <div class="lf-b-head"><span class="lf-b-name">KonyoEndgame</span><span class="lf-b-tag lf-tag-elite" id="lf-endgame-count">bases</span></div>
-        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet — each one Larzuks to the socket count that word needs. As you tick words off in the Chronicle, the filter shrinks to match. <em>(White bases can't be cube-upgraded — you find the correct-tier base on the ground and Larzuk it.)</em></div>
+        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet — each one Larzuks to the socket count that word needs. As you tick words off in the Chronicle, the filter shrinks to match. <em>(White bases can't be cube-upgraded — you find the correct-tier base on the ground and Larzuk it.)</em> <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('endgame')">📋 Copy live KonyoEndgame filter</button>
         <span class="lf-status" id="lf-endgame-status"></span>
       </div>
@@ -4283,6 +4283,19 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   // "cube up a white base" premise (v534: white bases can't be tier-upgraded) — it shows the RIGHT-TIER base to
   // FIND on the ground, then Larzuk it. Reuses the vetted lf-data-endgame template (uniques/sets/runes/gems/
   // charms/rare-circlet+ring+amulet shows + a trash-hide) and only swaps the base-show rules' codes.
+  // v588 — PREMIUM TRADE BASES (Konyo): bases the trade market ALWAYS asks for — each worth ≥ an Ist
+  // on its own as a clean white/eth/socketed drop (Archon Plate/Staff, Bone Visage, the 4os-Flail-for-
+  // HotO class). These must NEVER sync off the loot filter, regardless of the Chronicle or bases you
+  // already own — only ordinary bases keep the v535/v536.2 auto-shrink. Edit this list to taste.
+  window._premiumTradeBases = [
+    'Archon Plate', 'Mage Plate', 'Dusk Shroud', 'Wyrmhide', 'Sacred Armor',        // low-str / eth armor
+    'Archon Staff',                                                                  // 6os caster staff
+    'Bone Visage',                                                                   // rare helm (Dream/Delirium class)
+    'Monarch', 'Sacred Targe', 'Sacred Rondache', 'Troll Nest',                      // Spirit / pala-res / Phoenix shields
+    'Flail', 'Crystal Sword', 'Phase Blade', 'Berserker Axe', 'Colossus Blade',      // HotO / CtA / Grief / BotD weapons
+    'Thresher', 'Giant Thresher', 'Cryptic Axe',                                     // eth merc polearms (Insight/Infinity)
+    'Matriarchal Bow', 'Grand Matron Bow'                                            // Faith / Brand bows
+  ];
   window._endgameFilterBases = function(){
     var out = { codes: [], names: [], gambleOnlyCodes: [] };
     try {
@@ -4319,6 +4332,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
             if (!(_mx >= 1 && _mx <= 6) || _need === _mx) supOkSet[c] = 1;
           }
         });
+      });
+      // v588 — the premium trade floor joins LAST, unconditionally: no made[]/ownedBaseWord/ladder gate
+      // touches it. supOk too — a SUPERIOR premium base is a better trade, never a gamble-only hide.
+      (window._premiumTradeBases || []).forEach(function(nm){
+        var pc = CODE[nm]; if (!pc) return;
+        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1;
       });
       out.codes = Object.keys(codeSet).sort();
       out.names = Object.keys(nameSet).sort();
