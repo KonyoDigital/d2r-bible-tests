@@ -26858,6 +26858,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             var sg = suggestMule(n);
             if (sg && muleById(sg.id) && !assign[n]) assign[n] = sg.id;
             else if (sg && sg.id==='__keep' && !assign[n]) assign[n] = '__keep';   // v409 — never-mule keeper (kept in inventory, shown in advisory, not muled)
+            // v597 — a NEWLY-registered read is a FRESH physical item: any Forge chain-step memory for this
+            // label belongs to a previous copy (Konyo's post-reset Bone Visage greeted him at "step 2/2" —
+            // the OLD helm's Larzuk click had survived the vault reset). Reset it so the chain starts at 1.
+            try { var _fst=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}');
+              if (_fst['chain|'+n]!=null){ delete _fst['chain|'+n]; localStorage.setItem('d2r_forgeStep', JSON.stringify(_fst)); } } catch(e){}
             logged.push(n); fRec.nw.push(n);
           } else {
             // v342.28 — a re-read of a MULTI-KEEP staple that's still UNDER its target is a WANTED
@@ -28033,6 +28038,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.forgeSkipAnim=function(el,key){ _animThen(el,'f-anim-skip',260,function(){ window.forgeSkip(key); }); };
   window.forgeAdvanceAnim=function(el,k,total){ _animThen(el,'f-anim-step',230,function(){ window.forgeAdvance(k,total); }); };
   window.forgeAdvance=function(k,total){ var s=_stepGet(k)+1; _stepSet(k, s>=total?0:s); if(typeof renderForge==='function') renderForge(); };
+  window.forgeStepBack=function(k){ _stepSet(k, Math.max(0,_stepGet(k)-1)); if(typeof renderForge==='function') renderForge(); };   // v597 — undo a mis-clicked "did it"
   // v531 — the FINAL step of a chain is "Forge <word>". Ticking it = the runeword is CREATED: mark it in the
   // Chronicle (so it leaves the Forge for good), reset the chain's step, and re-render. Was calling forgeAdvance
   // which just looped back to step 1 — a finished chain never actually completed (Konyo caught this).
@@ -28277,7 +28283,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
         if(!words.length) return;   // every word for this base skipped → drop the chain
         var topWord=words[0];
-        atoms.push('<div class="f-atomact">Forge <b class="f-rwbig">'+_qArt(topWord)+'</b></div>'
+        // v597 — the final step NAMES ITS BASE ("which item is this exactly referencing?" — Konyo couldn't
+        // tell his step-2/2 "Forge Wisdom" card meant the Bone Visage; step 1 named it, step 2 didn't).
+        atoms.push('<div class="f-atomact">Forge <b class="f-rwbig">'+_qArt(topWord)+'</b> <span class="f-in">in your Larzuk’d '+t0.need+'os</span> <b>'+_qArt(target)+'</b></div>'
           +'<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(topWord)+'</div>'
           +(words.length>1?'<div class="f-atomsubrow">'+(words.length-1)+' more word'+(words.length>2?'s':'')+' fits this base — ✕ to see the next</div>':''));
         atomic.push({icon:'🔧', cls:'pipe', chainKey:'chain|'+bn, atoms:atoms, forgeWordKey:'rw|'+topWord, artName:topWord});
@@ -28302,10 +28310,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           } else { btn = a.btn; }
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkipAnim(this,\''+_fJs(sk)+'\')">✕</button>' : '';
+          // v597 — a mis-advanced chain was UNFIXABLE in the UI (a stale "did it" left Konyo stuck at step
+          // 2/2 with no way back). Any chain past step 1 gets a small ↺ to walk back one step.
+          var backBtn = (a.chainKey && step>0) ? ' <button class="f-btn f-btn-mini" title="go back a step — I didn’t actually do the previous one" onclick="window.forgeStepBack(\''+a.chainKey+'\')">↺ back</button>' : '';
           var _atomArt = a.artName ? _rwArt(a.artName) : ('<span class="f-atomic-ic">'+a.icon+'</span>');
           H.push('<div class="f-card f-'+a.cls+' f-atom" data-arttip="'+_fEsc(a.artName||'')+'">'+skipBtn+'<div class="f-cardart f-cardart-hd">'+_atomArt+'<span class="f-cardart-badge">'+a.icon+'</span></div><div class="f-cardbody">'
             +'<div class="f-cardtitle">'+a.atoms[step]+'</div>'+prog
-            +'<div class="f-cta">'+btn+'</div></div></div>');
+            +'<div class="f-cta">'+btn+backBtn+'</div></div></div>');
         });
         if (craftKeys.length){
           var ct='';
