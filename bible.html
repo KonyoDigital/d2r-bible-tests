@@ -13250,7 +13250,7 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // from Konyo's full Chronicle screenshots (2026-07-01), replacing the earlier approximate seed times
 // (Steel 12:53→03:03, Doom 12:20→20:20, Grief 12:05→19:07, Spirit 12:00→00:42…). Names were already 1:1;
 // this fixed the times. Durable floor: re-asserted every load so a reset/restore snaps back to these 45.
-const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 00:45", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Coven": "Jul 7, 2026 · 00:15", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 00:55", "Flickering Flame": "Jul 6, 2026 · 23:50", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:15", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Leaf": "Jul 5, 2026 · 02:30", "Insight": "Jul 5, 2026 · 01:05", "Wind": "Jul 5, 2026 · 01:05", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
+const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 00:45", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Coven": "Jul 7, 2026 · 00:15", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Delirium": "Jul 7, 2026 · 00:30", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 00:55", "Flickering Flame": "Jul 6, 2026 · 23:50", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:15", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Leaf": "Jul 5, 2026 · 02:30", "Insight": "Jul 5, 2026 · 01:05", "Wind": "Jul 5, 2026 · 01:05", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Principle": "Jul 7, 2026 · 00:30", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // v549 — MULTI-PLAYER PROFILE. The seed below is the OWNER's (Konyo's) 52 created runewords (v568-v581: +White +Obedience +Black +Famine +Insight +Wind +Leaf), force-applied every
 // load as a durable floor. On a DIFFERENT player's browser (Konyo's cousin) that wrongly pre-fills 45 as "made".
@@ -16982,13 +16982,55 @@ window.renderAllRunewords = renderAllRunewords;
 // v369 — Chronicle Runeword Maker: forge-now (synced w/ Rune Stash) + already-created tracker.
 let _rwcFilter = 'todo';   // v372 — default to "⏳ Left" so the working list shows only what's NOT yet created (Konyo: "see what's left, created shouldn't clutter it"); ✨ Created / All 100 are a click away
 window.rwcSetFilter = function(f){ _rwcFilter = f; renderRunewordChronicle(); };
+// v596 — FORGE→VAULT CONSUME SYNC (Konyo: "after i click created on forge it needs to automatically
+// get taken out of the vault — not showing again and again the same socketed base"). Marking a
+// runeword ✓ created CONSUMES the owned base the Forge planned it on: the base physically BECAME the
+// runeword, so its vault entry leaves (one copy of a ×N stack decrements; the last copy unowns the
+// label, exactly like the vault's ✕). d2r_rwBaseUsed remembers what was consumed per word, so
+// un-marking the word (↺ / Undo last) gives the base back. Must run BEFORE the word is flagged made —
+// forgeScan skips made words, so the task (and its chosen base) would already be gone.
+window._consumeForgeBase = function(rw){
+  try {
+    if (!rw || typeof window.forgeScan !== 'function') return;
+    var sc = window.forgeScan();
+    var t = [].concat(sc.now||[], sc.pipeline||[], sc.onestep||[]).filter(function(x){
+      return x && x.rw === rw && x.base && x.base.name && x.sub !== 'base' && !x.baseOver;
+    })[0];
+    if (!t || !owned.has(t.base.name)) return;
+    var label = t.base.name;
+    var used = _safeJsonParse(LS.getItem('d2r_rwBaseUsed'), {}) || {};
+    if (copyCount(label) > 1){
+      var nv = copyCount(label) - 1;
+      if (nv <= 1) delete copies[label]; else copies[label] = nv;
+      try { persist(); } catch(e){}
+      used[rw] = { l: label, copy: true };
+    } else {
+      try { if (window.vaultUnown) window.vaultUnown(label); else { owned.delete(label); persist(); } } catch(e){ try{ owned.delete(label); persist(); }catch(e2){} }
+      used[rw] = { l: label, copy: false };
+    }
+    LS.setItem('d2r_rwBaseUsed', JSON.stringify(used));
+  } catch(e){}
+};
+window._restoreForgeBase = function(rw){
+  try {
+    var used = _safeJsonParse(LS.getItem('d2r_rwBaseUsed'), {}) || {};
+    var u = used[rw]; if (!u || !u.l) return;
+    if (u.copy){ copies[u.l] = (copyCount(u.l) || 1) + 1; }
+    else { owned.add(u.l); try { if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(u.l); } catch(e){} }
+    delete used[rw];
+    LS.setItem('d2r_rwBaseUsed', JSON.stringify(used));
+    try { persist(); } catch(e){}
+  } catch(e){}
+};
 window.rwToggleMade = function(name){
   if (!name) return;
   if (rwMade[name]) { delete rwMade[name];
     // v424 — record an explicit un-mark of a FLOOR runeword so the durable-floor top-up doesn't re-add it.
     try { if (typeof rwUnmade!=='undefined' && _RWC_SEED && _RWC_SEED[name]){ rwUnmade[name] = 1; LS.setItem('d2r_rwUnmade', JSON.stringify(rwUnmade)); } } catch(e){}
+    try { window._restoreForgeBase(name); } catch(e){}   // v596 — give the consumed base back
   }
   else {
+    try { window._consumeForgeBase(name); } catch(e){}   // v596 — consume the planned base (BEFORE the made flag hides the task)
     var d = new Date();
     var mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
     rwMade[name] = mon+' '+d.getDate()+', '+d.getFullYear()+' · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
