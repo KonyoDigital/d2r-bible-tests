@@ -200,7 +200,7 @@ export async function onRequestPost(context) {
     + 'character-by-character that simply is not in the vocabulary AND is not a magic/rare keeper for "finds" — NEVER '
     + 'a partial read, an inferred/autocompleted name, or a guess. If you are not certain a real item name is printed '
     + 'there, omit it entirely. Inventing plausible-sounding names (fake set/unique names) is the worst possible error. '
-    + 'VOCABULARY:\n' + names.join('\n');
+    + 'VOCABULARY:\n' + (names || []).join('\n');
 
   const tallyText = 'You read a Diablo 2 Resurrected screenshot showing RUNES and/or GEMS — usually a dedicated organized '
     + 'stash tab (the Runes tab or Gems tab), or a stash/inventory grid. Return a "tally" array of {name, count} for '
@@ -273,7 +273,7 @@ export async function onRequestPost(context) {
         + 'while Perfect DIAMOND is a grey ghost with no number → report the six as 1 and DROP the Diamond (0). Never count a '
         + 'numberless grey placeholder as 1. If the screenshot is clearly NOT this fixed 7x5 gems grid, fall back to visual reading. '
       : '')
-    + 'VOCABULARY:\n' + names.join('\n');
+    + 'VOCABULARY:\n' + (names || []).join('\n');
 
   const craftText = 'You read Diablo 2 Resurrected screenshots to find CRAFTED ITEMS the player owns and classify each by its '
     + 'CRAFT TYPE and EQUIPMENT SLOT. A crafted item is a RARE item (yellow two-word random name) made in the Horadric '
@@ -293,7 +293,7 @@ export async function onRequestPost(context) {
     + 'Gloves (gloves/gauntlets/bracers), Belt (belt/sash/girdle), Boots (boots/greaves). '
     + 'COUNT: if several separate crafted items share the same Craft+Slot, ADD them (each tooltip/cell = the items it shows). '
     + 'Only emit names that exist in the vocabulary. A readable crafted item whose craft you cannot confidently classify → "unrecognized". '
-    + 'VOCABULARY:\n' + names.join('\n');
+    + 'VOCABULARY:\n' + (names || []).join('\n');
 
   const itemsSchema = {
     type: 'object',
