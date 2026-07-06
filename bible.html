@@ -25763,6 +25763,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     status('🏦 '+name+' → '+muleById(muleId).name);
   }
   window.vaultAssign = assignItem;
+  // v598 — auto-register a "<Base> (Nos low base)" intake read as a FULL vault entry — no clicks.
+  // Returns {label, mode:'new'|'copy'} when handled, null when it must stay a human call (not a
+  // runeword base, or the vault verdict already says vendor). The label keeps the read's quality
+  // prefix (Superior/Eth) and exact socket count; _ensureSocketBaseEntry builds the tier/art/RW
+  // description; the mule assignment + forge-step reset mirror the normal data.items path.
+  window._autoRegisterLowBase = function(n){
+    try {
+      var m = /^(.+?)\s*\((\d+)\s*os\s+low base\)\s*$/i.exec(String(n||'')); if (!m) return null;
+      var b = m[1].trim(), s = parseInt(m[2], 10);
+      var q = (typeof _qualStrip === 'function') ? (_qualStrip(b) || b) : b;
+      if (!(typeof _isRunewordBase === 'function' && _isRunewordBase(q))) return null;
+      var lbl = b + ' (' + s + 'os)';
+      var sg = suggestMule(lbl);
+      if (sg && sg.id === '__throwout') return null;   // nothing left for it → review, not auto-keep
+      if (owned.has(lbl)){
+        copies[lbl] = ((copies[lbl] && copies[lbl] > 0) ? copies[lbl] : 1) + 1;   // 2nd physical copy → ×N
+        persistOwned(); saveA();
+        return { label: lbl, mode: 'copy' };
+      }
+      owned.add(lbl);
+      if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(lbl, true);
+      if (sg && muleById(sg.id) && !assign[lbl]) assign[lbl] = sg.id;
+      try { var _st = JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}');
+        if (_st['chain|'+lbl] != null){ delete _st['chain|'+lbl]; localStorage.setItem('d2r_forgeStep', JSON.stringify(_st)); } } catch(e){}
+      persistOwned(); saveA();
+      return { label: lbl, mode: 'new' };
+    } catch(e){ return null; }
+  };
   window.vaultUnassign = function(name){ delete assign[name]; saveA(); renderVault(); refreshOpenCard(); };
   // v226: erase an AI misread in one click — removes the ✓ owned mark itself
   // (not just the locker assignment). Recoverable: re-✓ on the item's card.
@@ -26906,6 +26934,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           }
         });
         (data.unrecognized || []).forEach(function(n){
+          // v598 — FULLY-AUTOMATED low-base registration (Konyo: "this needs to be automated completely..
+          // no clicks"). A "<Base> (Nos low base)" read carries EVERYTHING registration needs: the base
+          // identity (quality prefix kept — Superior/Eth ride into the label), the EXACT socket count, and
+          // _isRunewordBase + the vault verdict as the keep gates (same sources of truth as the Forge).
+          // A runeword-capable keeper registers + mules automatically, exactly like a data.items read
+          // ("Gothic Shield (3os low base)" → owned "Gothic Shield (3os)" → Sanctuary make-now). Only
+          // genuine junk (can't host a word / verdict says vendor) still lands in the throw-out review.
+          try {
+            var _arl = window._autoRegisterLowBase ? window._autoRegisterLowBase(n) : null;
+            if (_arl){
+              if (_arl.mode === 'new'){ logged.push(_arl.label); fRec.nw.push(_arl.label); }
+              else { if (extraCopies.indexOf(_arl.label) < 0) extraCopies.push(_arl.label); (fRec.xc || (fRec.xc = [])).push(_arl.label); }
+              return;
+            }
+          } catch(e){}
           // v393 — a READ RUNEWORD (Enigma, Spirit, Call to Arms…) is a FORGED keeper, NOT a misread throw-out.
           // Recognize it: register (owned), mark it forged in the Chronicle (rwMade), and route it to a mule by
           // slot. Konyo: "runewords need their own grail and should be muled — this isn't an error."
