@@ -27,6 +27,7 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
       chronGone: !document.getElementById('lf-data-chron'),
       tplName: tpl && tpl.name, tplRules: tpl && tpl.rules.length,
       outName: out && out.name, outRules: out && out.rules.length,
+      madeCount: w._chronicleMadeCount ? w._chronicleMadeCount() : -1,
       baseCount: built && built.baseCount,
       outLeak: circletLeak(out),
     };
@@ -36,7 +37,10 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
   expect(r.buildFn).toBe('function');
   expect(r.chronGone).toBe(true);              // old all-tier "cube these up" filter removed
   expect(r.tplName).toBe('KonyoEndgame');      expect(r.tplRules).toBe(13);
-  expect(r.outName).toBe('KonyoEndgame');      expect([17, 18]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble hide when gamble-only codes exist
+  // v590 — the BUILT profile name carries the Chronicle count (KonyoEndgame53 at 53/100 forged)
+  expect(r.madeCount).toBeGreaterThan(0);
+  expect(r.outName).toBe('KonyoEndgame' + r.madeCount);
+  expect([17, 18]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble hide when gamble-only codes exist
   expect(r.baseCount).toBeGreaterThan(20);     // a real set of socket-correct bases
   expect(r.outLeak).toBe(false);               // no white circlets leak in
 });

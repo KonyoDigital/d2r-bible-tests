@@ -4397,22 +4397,35 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         { name:'Hide Non-Rare Circlets ETH',  enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:CIRC_R.slice(),  equipmentQuality:Q3.slice(), equipmentItemCode: CIRC.slice() }
       );
     } catch(e){}
-    tpl.name = 'KonyoEndgame';
-    return { text: JSON.stringify(tpl), baseCount: eb.codes.length };
+    // v590 (Konyo) — CHRONICLE-NUMBERED NAME: the exported profile is "KonyoEndgame<N>" where N = runewords
+    // forged (53/100 → KonyoEndgame53). Seeing the number in-game tells you at a glance whether the filter
+    // you're running is in sync with your Chronicle — re-import when it lags.
+    tpl.name = 'KonyoEndgame' + window._chronicleMadeCount();
+    return { text: JSON.stringify(tpl), baseCount: eb.codes.length, name: tpl.name };
   };
-  // Keep the "N bases" label in sync with the live Chronicle on tab open.
+  // v590 — the one Chronicle-progress counter every filter surface shares (same math as the Forge meter).
+  window._chronicleMadeCount = function(){
+    try {
+      var md = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');
+      var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
+      return Object.keys(tips).filter(function(n){ return md[n]; }).length;
+    } catch(e){ return 0; }
+  };
+  // Keep the "N bases" label + the numbered profile name in sync with the live Chronicle on tab open.
   window.refreshLootFilterCount = function(){
     try {
       var n = window._endgameFilterBases().codes.length;
       var el = document.getElementById('lf-endgame-count'); if (el) el.textContent = n + ' bases';
+      var nm = document.querySelector('.lf-b-name'); if (nm) nm.textContent = 'KonyoEndgame' + window._chronicleMadeCount();
     } catch(e){}
   };
   window.copyLootFilter = function(which){
     var st = document.getElementById('lf-endgame-status');
-    var ok = function(txt){ if(st){ st.textContent='\u2713 copied ('+txt.length+' chars) \u2014 paste into the Loot Filter'; st.className='lf-status lf-ok'; } };
+    var nm = '';
+    var ok = function(txt){ if(st){ st.textContent='\u2713 copied '+(nm?nm+' ':'')+'('+txt.length+' chars) \u2014 paste into the Loot Filter'; st.className='lf-status lf-ok'; } };
     var no = function(){ if(st){ st.textContent='clipboard blocked \u2014 long-press/select is off; try again'; st.className='lf-status lf-no'; } };
     var txt;
-    try { txt = window.buildEndgameFilter().text; }
+    try { var _bf = window.buildEndgameFilter(); txt = _bf.text; nm = _bf.name || ''; }
     catch(e){ var el=document.getElementById('lf-data-endgame'); txt = el?el.textContent.trim():''; }
     if(!txt){ if(st) st.textContent='data missing'; return; }
     try {
