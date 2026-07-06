@@ -63,7 +63,7 @@ test('B — a ladder-only word IS surfaced when ladder mode is on', async ({ pag
   expect(r.blocked).toBe(false);   // in ladder mode it's makeable → not blocked
 });
 
-test('C — loot filter shows NO base codes when nothing needs farming', async ({ page }) => {
+test('C — loot filter shrinks to exactly the premium floor when nothing needs farming', async ({ page }) => {
   await page.addInitScript(() => {
     // mark ALL runewords made → nothing to farm
     // (done post-load below since RUNEWORD_TIP isn't available in init script)
@@ -76,8 +76,12 @@ test('C — loot filter shows NO base codes when nothing needs farming', async (
     const f = w.buildEndgameFilter();
     const parsed = JSON.parse(f.text);
     const baseRule = parsed.rules.find((x: any) => x.name === 'Show Base Items');
-    return { baseCount: f.baseCount, ruleCodes: baseRule ? baseRule.equipmentItemCode.length : -1 };
+    return { baseCount: f.baseCount, ruleCodes: baseRule ? baseRule.equipmentItemCode.length : -1,
+             premium: (w._premiumTradeBases || []).length };
   });
-  expect(r.baseCount).toBe(0);
-  expect(r.ruleCodes).toBe(0);   // the base-show rule is emptied, not left at the ~50 template codes
+  // v588 — the premium trade floor never shrinks off: "nothing to farm" = exactly the floor, no
+  // word-driven bases, and the plain-white rule = the floor too (was: both 0 pre-v588).
+  expect(r.premium).toBeGreaterThan(0);
+  expect(r.baseCount).toBe(r.premium);
+  expect(r.ruleCodes).toBe(r.premium);
 });
