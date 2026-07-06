@@ -144,6 +144,36 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-013 — 2026-07-06 · v563 spare-base verdict ignored CAPACITY → 1 Bone Visage "covered" every helm word, vendoring keepers (live, user-caught)
+
+- **Symptom**: Throw-Out Review told Konyo to vendor his Demonhead AND Spired Helm as
+  "spare — runewords (Coven, Delirium, Flickering Flame…) already covered by Bone
+  Visage, a base you hold" — while he owns exactly ONE Bone Visage and had 7 helm
+  words still unmade. The same card even listed those words under "Keep for
+  runewords" (contradictory messaging).
+- **Caught by**: Konyo, live (2026-07-06 screenshots). No spec covered >1 unmade
+  word sharing one owned base — v563's spec used exactly one unmade word (Insight).
+- **Root cause**: `_spareBaseInfo` marked EVERY unmade word "covered" if ANY forgeScan
+  task planned it on another owned base — but forgeScan emits one task per WORD, and
+  when several words fit the same single copy they all name it (the v536 spread pass
+  lets a word with no free base "keep" its base; rune-blocked one-steps never
+  allocate at all). One physical base hosts ONE runeword, so N words "covered" by 1
+  copy over-counted coverage N-fold. Same over-count silently hit the v536.2 loot
+  filter (stopped farming bases for words that had NO real copy) and
+  `_smartUnmadeNeedingBase`.
+- **Fix** (v587): forgeScan runs a post-allocation CAPACITY LEDGER — every based task
+  in plan-priority order (make-now → deferred → pipeline → rune/cube one-steps)
+  claims one copy of its base (`t.base.count`); overflow tasks get `t.baseOver=true`.
+  `_spareBaseInfo`, `_endgameFilterBases`, and `_smartUnmadeNeedingBase` all skip
+  over-subscribed tasks. Repro (1 BV + 7 unmade helm words): OLD = both helms
+  "__throwout/spare"; NEW = both "still needed for …". New spec
+  `v587_spare_base_capacity`; v527's v536.2 test re-pinned to a 1-word Chronicle
+  (with 6 words on 1 Voulge the base now correctly STAYS in the filter).
+- **Prevention**: (1) any "already covered / already owned" verdict derived from
+  forgeScan tasks must respect `t.baseOver` — a task is a PLAN, not proof of a spare
+  copy; (2) when a resource (base copy, rune) is shared across recommendations,
+  spec the N-demands-vs-1-supply case, not just 1-vs-1.
+
 ## REG-012 — 2026-07-06 · v584 commit swept 672 untracked art deletions → 652 dangling refs failed CI (invisible locally)
 
 - **Symptom**: Routine I red on BOTH 59ae0af (v584-585) and 81002e4 (v586) — 7 art

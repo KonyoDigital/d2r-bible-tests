@@ -79,11 +79,22 @@ test('v536.2 — owning a socket-correct base for the word DROPS its base from t
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
-    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
-    localStorage.setItem('d2r_rwProfile', 'fresh');   // v578.1 — Insight/Wind joined the seed; specs pin a fresh Chronicle
+    // NOTE: rwMade deliberately NOT set here — addInitScript re-runs on reload and would stomp the
+    // pinned Chronicle written below (the v578.1 lesson).
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1400);
+  // v587 — CAPACITY: pin the Chronicle so Insight is the ONLY unmade word. With everything unmade, six
+  // 4os polearm words pile onto the ONE Voulge copy; Insight is out-valued, flags baseOver, and its base
+  // correctly STAYS farmable. The drop-from-filter promise only holds when the owned copy is genuinely
+  // planned for THIS word — so this spec pins exactly that scenario.
+  await page.evaluate(() => {
+    const w: any = window;
+    const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
+    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  });
+  await page.reload(); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window;
     w._ensureSocketBaseEntry('Colossus Voulge (4os)');

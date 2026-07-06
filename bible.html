@@ -4295,9 +4295,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       // you can already forge on a base you hold (e.g. Eternity/Honor on Konyo's Thresher+Cryptic Axe → don't
       // keep flagging Scourge/Ettin Axe on the ground). Only words with NO owned base still show their bases.
       var ownedBaseWord = {};
+      // v587 — CAPACITY: an over-subscribed task (t.baseOver — its base copy is already claimed by a
+      // higher-priority word) does NOT own a base → keep farming bases for that word.
       try { var sc = (typeof window.forgeScan==='function') ? window.forgeScan() : null;
-        if (sc){ [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if(t && t.base) ownedBaseWord[t.rw]=1; });
-                 (sc.onestep||[]).forEach(function(t){ if(t && t.base && t.sub!=='base') ownedBaseWord[t.rw]=1; }); } } catch(e){}
+        if (sc){ [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if(t && t.base && !t.baseOver) ownedBaseWord[t.rw]=1; });
+                 (sc.onestep||[]).forEach(function(t){ if(t && t.base && t.sub!=='base' && !t.baseOver) ownedBaseWord[t.rw]=1; }); } } catch(e){}
       var codeSet = {}, nameSet = {}, supOkSet = {};
       Object.keys(tips).forEach(function(rw){
         if (made[rw]) return;                                  // already forged -> skip
@@ -4409,7 +4411,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
       var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
       var ownedBaseWord={};
-      try{var sc=(typeof window.forgeScan==='function')?window.forgeScan():null; if(sc){[].concat(sc.now||[],sc.pipeline||[]).forEach(function(t){if(t&&t.base)ownedBaseWord[t.rw]=1;});(sc.onestep||[]).forEach(function(t){if(t&&t.base&&t.sub!=='base')ownedBaseWord[t.rw]=1;});}}catch(e){}
+      try{var sc=(typeof window.forgeScan==='function')?window.forgeScan():null; if(sc){[].concat(sc.now||[],sc.pipeline||[]).forEach(function(t){if(t&&t.base&&!t.baseOver)ownedBaseWord[t.rw]=1;});(sc.onestep||[]).forEach(function(t){if(t&&t.base&&t.sub!=='base'&&!t.baseOver)ownedBaseWord[t.rw]=1;});}}catch(e){}
       out=Object.keys(tips).filter(function(rw){return !made[rw] && !ownedBaseWord[rw] && !(window._rwLadderBlocked&&window._rwLadderBlocked(rw));});  // v553 — skip ladder-only words off-ladder
     }catch(e){}
     return out;
@@ -8079,8 +8081,11 @@ function _spareBaseInfo(name, unmade){
       var sc = (typeof window.forgeScan === 'function') ? window.forgeScan() : null;
       var map = {};
       if (sc){
-        [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if (t && t.base && t.base.name) (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
-        (sc.onestep||[]).forEach(function(t){ if (t && t.base && t.base.name && t.sub!=='base') (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
+        // v587 — CAPACITY: skip over-subscribed tasks (t.baseOver, forgeScan's ledger). One Bone Visage can
+        // host ONE word — it must not "cover" Coven AND Delirium AND Flickering Flame at once, vendoring the
+        // Demonhead the other two still need. Only the word the copy is actually planned for counts.
+        [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if (t && t.base && t.base.name && !t.baseOver) (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
+        (sc.onestep||[]).forEach(function(t){ if (t && t.base && t.base.name && t.sub!=='base' && !t.baseOver) (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
       }
       _spareScanCache = map; _spareScanAt = now;
     }
@@ -13168,7 +13173,7 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // from Konyo's full Chronicle screenshots (2026-07-01), replacing the earlier approximate seed times
 // (Steel 12:53→03:03, Doom 12:20→20:20, Grief 12:05→19:07, Spirit 12:00→00:42…). Names were already 1:1;
 // this fixed the times. Durable floor: re-asserted every load so a reset/restore snaps back to these 45.
-const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 00:45", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 00:55", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Leaf": "Jul 5, 2026 · 02:30", "Insight": "Jul 5, 2026 · 01:05", "Wind": "Jul 5, 2026 · 01:05", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
+const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 00:45", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 00:55", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:15", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Leaf": "Jul 5, 2026 · 02:30", "Insight": "Jul 5, 2026 · 01:05", "Wind": "Jul 5, 2026 · 01:05", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // v549 — MULTI-PLAYER PROFILE. The seed below is the OWNER's (Konyo's) 52 created runewords (v568-v581: +White +Obedience +Black +Famine +Insight +Wind +Leaf), force-applied every
 // load as a durable floor. On a DIFFERENT player's browser (Konyo's cousin) that wrongly pre-fills 45 as "made".
@@ -27842,6 +27847,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
+    // v587 — CAPACITY TRUTH (Konyo's 1× Bone Visage): one physical base hosts ONE runeword, ever. The passes
+    // above can still leave several words naming the SAME copy (a spread task with no free base "keeps its
+    // base"; rune-blocked one-steps never allocate at all) — so re-walk every based task in plan-priority
+    // order through a fresh ledger and flag the overflow (t.baseOver). Downstream, an over-subscribed task
+    // must NOT count as "you own a base for this word" (vault spare/throw-out verdicts, the loot filter's
+    // base-skip, smart insights) — else 3 unmade words all "covered by" one Bone Visage vendor the Demonhead
+    // that two of them still need.
+    try {
+      var _capUsed={};
+      var _capClaim=function(t){ if(!t||!t.base||!t.base.name) return;
+        var _cu=_capUsed[t.base.name]||0;
+        if (_cu >= (t.base.count||1)) t.baseOver=true; else { t.baseOver=false; _capUsed[t.base.name]=_cu+1; }
+      };
+      out.now.filter(function(t){return !t.deferred;}).forEach(_capClaim);   // real makes claim first (allocation already kept these within capacity)
+      out.now.filter(function(t){return t.deferred;}).forEach(_capClaim);    // a rune-blocked make still HOLDS its base — it's the plan once the rune drops
+      out.pipeline.forEach(_capClaim);
+      out.onestep.forEach(function(t){ if(t.sub!=='base') _capClaim(t); });
+    } catch(e){}
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
     return out;
   }
