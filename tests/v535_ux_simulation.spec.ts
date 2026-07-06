@@ -96,13 +96,15 @@ test('UX — cross-platform sync: the Forge\'s "find the base" set === the Tools
     const badge = (document.getElementById('lf-endgame-count')?.textContent || '').trim();
     return {
       forgeBases, filterBases,
+      premium: (w._premiumTradeBases || []).slice(),
       inFilterNotForge: filterBases.filter((n: string) => !forgeBases.includes(n)),
       inForgeNotFilter: forgeBases.filter((n: string) => !filterBases.includes(n)),
       badge, filterCount: filterBases.length,
     };
   });
-  expect(r.inFilterNotForge).toEqual([]);           // every filter base is a Forge task…
-  expect(r.inForgeNotFilter).toEqual([]);           // …and vice-versa — one source of truth
+  // v588 — the filter may exceed the Forge set ONLY by the premium trade floor (never shrinks off)
+  expect(r.inFilterNotForge.filter((n: string) => !r.premium.includes(n))).toEqual([]);
+  expect(r.inForgeNotFilter).toEqual([]);           // every Forge "find the base" IS in the filter — one source of truth
   expect(r.badge).toBe(r.filterCount + ' bases');   // the Tools card badge reflects the live set
 });
 
