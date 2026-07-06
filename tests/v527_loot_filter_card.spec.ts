@@ -40,7 +40,7 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
   // v590 — the BUILT profile name carries the Chronicle count (KonyoEndgame53 at 53/100 forged)
   expect(r.madeCount).toBeGreaterThan(0);
   expect(r.outName).toBe('KonyoEndgame' + r.madeCount);
-  expect([17, 18]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble hide when gamble-only codes exist
+  expect([19, 20]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble; v599 +2 magic-circlet splits
   expect(r.baseCount).toBeGreaterThan(20);     // a real set of socket-correct bases
   expect(r.outLeak).toBe(false);               // no white circlets leak in
 });

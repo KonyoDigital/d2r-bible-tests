@@ -23,7 +23,9 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
         (rl.equipmentItemCode || []).forEach((c: string) => magicHidden.add(c));
     });
     const leaks: string[] = [];
-    Object.keys(CODE).forEach((nm) => { const c = CODE[nm]; if (!QUEST.has(c) && !magicHidden.has(c)) leaks.push(nm + '=' + c); });
+    // v599 — ci3 (Diadem) is DELIBERATELY not magic-hidden: a blue Diadem is a chase item
+    // (Konyo's Torrid Diadem of Amicae — +3 class skills / MF rolls on the elite circlet).
+    Object.keys(CODE).forEach((nm) => { const c = CODE[nm]; if (!QUEST.has(c) && c !== 'ci3' && !magicHidden.has(c)) leaks.push(nm + '=' + c); });
     const ebAll = w._endgameFilterBases();
     const eb = ebAll.codes as string[];
     const trash = out.rules.find((x: any) => x.name === '1. Hide Trash Gear');
@@ -39,6 +41,7 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
     return {
       leaks, wantedInTrash, commonPlainHidden, rareCircHidden, ethRarity: ethShow.equipmentRarity,
       ci1MagicHidden: magicHidden.has('ci1'),           // Konyo's blue Coronet
+      ci3MagicShown: !magicHidden.has('ci3'),           // v599 — blue Diadem = chase item, must SHOW
       gtsMagicHidden: magicHidden.has('gts'),           // Konyo's blue Gothic Shield
       uitMagicHidden: magicHidden.has('uit'),           // stale-draft Monarch, previously in NO rule
     };
@@ -49,6 +52,7 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
   expect(r.rareCircHidden).toBe(false);                 // rare circlets still show
   expect(r.ethRarity).toEqual(['normal', 'hiQuality']); // socketed MAGIC can't ride the eth/socket show rule
   expect(r.ci1MagicHidden).toBe(true);
+  expect(r.ci3MagicShown).toBe(true);                   // v599 — blue Diadems surface (default-show, no rule matches)
   expect(r.gtsMagicHidden).toBe(true);
   expect(r.uitMagicHidden).toBe(true);
 });
