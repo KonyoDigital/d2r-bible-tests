@@ -4411,16 +4411,42 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       return Object.keys(tips).filter(function(n){ return md[n]; }).length;
     } catch(e){ return 0; }
   };
+  // v591.1 — BOOT-RACE GUARD: this page is ONE huge file — the runeword engine (RUNEWORD_TIP mid-file,
+  // forgeScan/_forgeMetaBase at the very end) comes alive SECONDS after this early block on a slow load.
+  // Copying during that window exported a degenerate filter (premium floor only, "KonyoEndgame0") that
+  // LOOKED valid. Every filter surface now checks readiness: Copy refuses with a "still loading" status,
+  // the badge shows "loading…" and retries itself until the engine lands.
+  window._lfEngineReady = function(){
+    try {
+      var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
+      return typeof window.forgeScan==='function' && typeof window._forgeMetaBase==='function' && Object.keys(tips).length>0;
+    } catch(e){ return false; }
+  };
   // Keep the "N bases" label + the numbered profile name in sync with the live Chronicle on tab open.
   window.refreshLootFilterCount = function(){
     try {
+      var el = document.getElementById('lf-endgame-count');
+      var nm = document.querySelector('.lf-b-name');
+      if (!window._lfEngineReady()){
+        if (el) el.textContent = 'loading…';
+        window._lfCountTries = (window._lfCountTries||0) + 1;
+        if (window._lfCountTries < 150) setTimeout(window.refreshLootFilterCount, 800);   // keep retrying (~2 min) until the engine lands
+        return;
+      }
+      window._lfCountTries = 0;
       var n = window._endgameFilterBases().codes.length;
-      var el = document.getElementById('lf-endgame-count'); if (el) el.textContent = n + ' bases';
-      var nm = document.querySelector('.lf-b-name'); if (nm) nm.textContent = 'KonyoEndgame' + window._chronicleMadeCount();
+      if (el) el.textContent = n + ' bases';
+      if (nm) nm.textContent = 'KonyoEndgame' + window._chronicleMadeCount();
     } catch(e){}
   };
   window.copyLootFilter = function(which){
     var st = document.getElementById('lf-endgame-status');
+    // v591.1 \u2014 refuse to copy a half-booted filter (see _lfEngineReady): better a 3-second wait than a
+    // silently-degenerate "KonyoEndgame0" profile imported into the game.
+    if (!window._lfEngineReady()){
+      if (st){ st.textContent='\u23f3 the page is still loading the runeword engine \u2014 try Copy again in a few seconds'; st.className='lf-status lf-no'; }
+      return;
+    }
     var nm = '';
     var ok = function(txt){ if(st){ st.textContent='\u2713 copied '+(nm?nm+' ':'')+'('+txt.length+' chars) \u2014 paste into the Loot Filter'; st.className='lf-status lf-ok'; } };
     var no = function(){ if(st){ st.textContent='clipboard blocked \u2014 long-press/select is off; try again'; st.className='lf-status lf-no'; } };

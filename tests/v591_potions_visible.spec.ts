@@ -43,3 +43,26 @@ test('sync sweep: no enabled show rule itemCode is also on an enabled hide rule 
   const unexpected = r.clashes.filter((c: string) => !c.startsWith('5. Show Gems:'));
   expect(unexpected).toEqual([]);
 });
+
+// v591.1 — BOOT-RACE GUARD: on a slow load the runeword engine (RUNEWORD_TIP / forgeScan /
+// _forgeMetaBase, defined far below the filter card's block) lands SECONDS after the card is clickable.
+// Copy must refuse (not export a degenerate premium-only "KonyoEndgame0") until the engine is ready.
+test('copy refuses while the runeword engine is still loading (boot-race guard)', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const readyBefore = w._lfEngineReady();
+    const saved = w.forgeScan;
+    delete w.forgeScan;                          // simulate the not-yet-parsed tail of the file
+    const readyDuringBoot = w._lfEngineReady();
+    w.copyLootFilter('endgame');
+    const status = (document.getElementById('lf-endgame-status')?.textContent || '');
+    w.forgeScan = saved;                         // restore
+    const readyAfter = w._lfEngineReady();
+    return { readyBefore, readyDuringBoot, status, readyAfter };
+  });
+  expect(r.readyBefore).toBe(true);
+  expect(r.readyDuringBoot).toBe(false);
+  expect(r.status).toContain('still loading');   // refused with a clear message, nothing copied
+  expect(r.readyAfter).toBe(true);
+});
