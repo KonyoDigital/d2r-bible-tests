@@ -6457,6 +6457,13 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-note{font-size:11px;color:#8a7d64;font-style:italic;margin-top:5px}
 /* v559.1 — runeword-name chips in the Socketed Review / throw-out / intake lists (HD logo + arttip hover) */
 .rwn-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#e0d0a8;background:rgba(233,208,122,.08);border:1px solid rgba(233,208,122,.2);border-radius:7px;padding:1px 8px;margin:2px 3px 2px 0;cursor:help;transition:filter .12s}
+/* v600 — ⚒ FORGED stamp (Konyo: "stamped done, creatively designed"). The all-created state reads as a
+   smith's seal pressed onto the card: double ring, letterpress green ink, slight press-skew, and an
+   SVG-noise mask that eats tiny flecks out of the ink like a real hand stamp. Falls back to a clean
+   seal where masks are unsupported. */
+.rw-stamp{display:inline-block;transform:rotate(-2.5deg);margin:5px 0 3px;padding:5px 14px 4px;border:2px solid rgba(143,208,160,.85);border-radius:9px;color:#a4e4b4;font-weight:900;font-size:13px;letter-spacing:.15em;text-transform:uppercase;line-height:1.4;background:rgba(143,208,160,.07);box-shadow:inset 0 0 0 2.5px rgba(10,16,11,.95),inset 0 0 0 4px rgba(143,208,160,.38),0 0 18px -7px rgba(143,208,160,.6);text-shadow:0 0 8px rgba(143,208,160,.4);-webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="70"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.55 0.55"/></filter><rect width="160" height="70" filter="url(%23n)"/></svg>');mask-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="70"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.55 0.55"/></filter><rect width="160" height="70" filter="url(%23n)"/></svg>')}
+.rw-stamp .rws-sub{display:block;font-size:9.5px;letter-spacing:.24em;opacity:.8;font-weight:700;margin-top:1px}
+.rw-stamp-mini{display:inline-block;transform:rotate(-2deg);padding:1px 8px;border:1.5px solid rgba(143,208,160,.7);border-radius:6px;color:#a4e4b4;font-weight:800;font-size:10px;letter-spacing:.13em;text-transform:uppercase;background:rgba(143,208,160,.06);box-shadow:inset 0 0 0 1.5px rgba(143,208,160,.28);margin-right:6px;vertical-align:1px}
 .rwn-chip:hover{filter:brightness(1.25)}
 .rwn-chip img{width:14px;height:14px;object-fit:contain}
 .rwn-more{font-size:11px;color:#8a7d64;font-style:italic}
@@ -8244,7 +8251,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // Now the made ones are NAMED on their own green line, and the to-do list is explicitly labelled "still to
   // create", so the split reads unambiguously: this many left (these), that many done (those).
   var _rwMadeTag = function(madeList){ return madeList.length
-    ? '<div class="att-tag" style="margin-top:2px;color:#8fd0a0;opacity:.9">✓ already created (' + madeList.length + '): ' + _rwNames(madeList) + '</div>'
+    ? '<div class="att-tag" style="margin-top:3px;color:#8fd0a0;opacity:.95"><span class="rw-stamp-mini">✓ already created</span>(' + madeList.length + '): ' + _rwNames(madeList) + '</div>'
     : ''; };
   // v385 — CAP to the base's physical socket ceiling. A base can NEVER hold more sockets than its
   // max (Larzuk caps at max; cube/drops can't exceed it), so a runeword needing MORE sockets than this
@@ -8343,7 +8350,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
       + (nowTodo.length
           ? ' <span style="opacity:.85">— still to create (' + nowTodo.length + '):</span> ' + _rwNames(nowTodo) + _rwMadeTag(nowMade)
           : (nowMade.length
-              ? ': <span style="color:#8fd0a0">✓ all ' + nowMade.length + ' that fit ' + ks + 'os are already created</span>' + _rwMadeTag(nowMade)
+              ? ': <span class="rw-stamp" title="every runeword this socket count can hold is already forged — nothing left to make in this base">⚒ Forged ✓<span class="rws-sub">all ' + nowMade.length + ' that fit ' + ks + 'os — already created</span></span>' + _rwMadeTag(nowMade)
               : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>'))
       + _handNote
       + '</div>';
@@ -8356,7 +8363,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   var bestMade = best.filter(function(r){ return _rwIsMade(r.n); });
   var show = bestTodo.length
     ? '<span style="opacity:.85">still to create (' + bestTodo.length + '):</span> ' + _rwNames(bestTodo) + _rwMadeTag(bestMade)
-    : (bestMade.length ? '<span style="color:#8fd0a0">✓ all ' + bestMade.length + ' ' + maxS + 'os runewords here are already created</span>' + _rwMadeTag(bestMade) : '<span style="opacity:.7">—</span>');
+    : (bestMade.length ? '<span class="rw-stamp" title="every runeword at this base\'s max socket count is already forged">⚒ Forged ✓<span class="rws-sub">all ' + bestMade.length + ' \u00b7 ' + maxS + 'os — already created</span></span>' + _rwMadeTag(bestMade) : '<span style="opacity:.7">—</span>');
   return _supNote + '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
     + show
     + '<div class="att-tag" style="margin-top:3px">Larzuk → <b>' + maxS + ' sockets</b> (guaranteed max) unlocks these</div>'
