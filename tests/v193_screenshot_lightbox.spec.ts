@@ -35,7 +35,10 @@ test.describe('v193 screenshot lightbox', () => {
       };
     });
     expect(r.img).toBe(true);
-    expect(r.cursor).toBe('zoom-in');
+    // v605 — the app-wide Konyonized gauntlet (one D2 hand for EVERYTHING, !important) correctly
+    // overrides the old zoom-in affordance; the thumb is still clickable — that's what the rest of
+    // this test proves. Accept either the gauntlet data-URI or a bare zoom-in (pre-v605 engines).
+    expect(r.cursor).toMatch(/data:image\/png|zoom-in/);
     expect(r.open).toBe(true);
     expect(r.srcMatch).toBe(true);
     expect(r.hasCaption).toBe(true);
