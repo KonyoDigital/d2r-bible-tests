@@ -82,6 +82,10 @@ test('⚒ Forged stamp only when EVERY word the base can ever hold is created', 
   expect(partial.ks).toContain(target!.n);
   expect(partial.noKs).not.toContain('⚒ Forged');
   expect(partial.noKs).toContain('still unmade below max');
+  // v603 — the '✓ already created' SEAL styling is also gated: words still open → plain label, no seal band
+  expect(partial.ks).toContain('already created');       // the created words are still LISTED…
+  expect(partial.ks).not.toContain('rw-stamp-mini');     // …but never with the done-seal styling
+  expect(partial.ks).not.toContain('base complete');
   // now close the hold-out too → the stamp returns, worded as the WHOLE base type being done
   await page.evaluate(() => {
     const w: any = window;
@@ -98,4 +102,8 @@ test('⚒ Forged stamp only when EVERY word the base can ever hold is created', 
   expect(full.ks).toContain('⚒ Forged');
   expect(full.ks).toContain('can ever hold');
   expect(full.noKs).toContain('⚒ Forged');
+  // v603 — base fully forged → the created list becomes the flat HORIZONTAL seal band (trade-keeper signal)
+  expect(full.ks).toContain('rw-band');
+  expect(full.ks).toContain('base complete');
+  expect(full.ks).toContain('save spares for trading');
 });
