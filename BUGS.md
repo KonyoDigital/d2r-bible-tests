@@ -144,6 +144,33 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-014 — 2026-07-07 · v562 empty exact-fit list read as "✓ forged" → 1os Suwayyah hid the unmade Pattern (live, user-caught)
+
+- **Symptom**: Throw-Out Review said a 1os Suwayyah's "runewords are ✓ forged or belong
+  in endgame bases → safe to throw out" while Pattern (the 3os claw word, Suwayyah = its
+  endgame base) was NEVER created. Same card also offered "Larzuk → 3 sockets" — impossible
+  on an already-socketed item. And the ⚒ FORGED stamp fired on "all N that fit THIS count"
+  (Grim Scythe 4os, Small Crescent 3os) even when the base type had other-count words open.
+- **Caught by**: Konyo, live screenshot 2026-07-07 ("big bug… it's supposed to recommend
+  Pattern, I still didn't create it").
+- **Root cause**: `_baseUnmadeRunewords(base, ks)` with a known socket count keeps ONLY
+  exact-fit words (v376/v389 rule — correct), but every consumer treated the resulting
+  EMPTY list as "everything is forged". Unmade words filtered out by the socket mismatch
+  (Pattern s=3 vs ks=1) were indistinguishable from actually-created ones. The FORGED
+  stamp had the same blind spot (gated per-count, not per-base-type), and the Larzuk/cube
+  socket guide rendered unconditionally on socketed copies.
+- **Fix (v602, `fca6914`)**: new `_baseUnmadeWrongSock(base, ks)` = the unmade words at
+  OTHER counts. All 3 empty-list verdicts (throw-out card + 2 suggestMule paths) now say
+  "Pattern (3os) is STILL UNMADE — this 1os copy can never host it (sockets are fixed) →
+  throw THIS copy, hunt a 3os/unsocketed one". Stamp only renders when EVERY word the base
+  can ever hold is created; partial state = plain ✓ + amber "base type NOT fully forged"
+  note naming the open words. Socket guide gated to unsocketed items at all 5 render sites.
+  Spec `v602_wrong_socket_honesty.spec.ts` (3 tests) + smoke/targeted 49 green.
+- **Prevention**: when a filtered list drives a "nothing left / all done" verdict, the
+  verdict must distinguish WHY it's empty — filtered-out ≠ completed. Any "done forever"
+  stamp must be gated on the FULL entity (base type), not the current view's slice
+  (socket count). Advice lines (Larzuk/cube) must check the item state they're impossible on.
+
 ## REG-013 — 2026-07-06 · v563 spare-base verdict ignored CAPACITY → 1 Bone Visage "covered" every helm word, vendoring keepers (live, user-caught)
 
 - **Symptom**: Throw-Out Review told Konyo to vendor his Demonhead AND Spired Helm as
