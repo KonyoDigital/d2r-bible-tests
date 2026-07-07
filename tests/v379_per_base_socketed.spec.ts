@@ -44,7 +44,10 @@ test.describe('v379 per-base socketed identity', () => {
     expect(r.sockets).toBe(4);
     expect(r.base).toBe('Crystal Sword');
     expect(r.desc).toContain('makeable in your 4os now');  // socket-accurate runewords
-    expect(r.desc).toContain('6 sockets');                  // Crystal Sword max=6
+    // v602 — an ALREADY-SOCKETED copy is fixed at its count: the "Larzuk → 6 sockets (guaranteed max)"
+    // guide must NOT render on it (Larzuk + the cube recipe require zero sockets — a 4os Crystal Sword
+    // can never reach 6). The guide belongs to unsocketed "(Larzuk base)" entries only (test above).
+    expect(r.desc).not.toContain('guaranteed max');
     expect(r.art).toMatch(/hd_crystal_sword|base_crystalsword/);  // v384 — true in-game HD sprite
   });
 
