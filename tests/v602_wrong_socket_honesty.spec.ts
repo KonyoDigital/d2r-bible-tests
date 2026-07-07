@@ -30,6 +30,9 @@ test('1os Suwayyah: Pattern-class unmade words at other counts are named, never 
   });
   expect(r.wsNames.length).toBeGreaterThan(0);            // claw words DO exist unmade — just not at 1os
   expect(r.wsSocks).not.toContain(1);                     // wrong-sock list = other counts only
+  // v603.1 — v385 max-socket cap: a claw maxes at 3os, so 4-6os words (Phoenix/BotD…) must NOT appear —
+  // the verdict may never tell Konyo to hunt an impossible 4os+ Suwayyah
+  expect(Math.max(...r.wsSocks)).toBeLessThanOrEqual(3);
   if (r.patternLive) expect(r.wsNames).toContain('Pattern');   // Konyo's exact case
   expect(r.smId).toBe('__throwout');                      // this copy still can't be fixed → vendor it
   expect(r.smWhy).toContain('still unmade');              // …but the verdict is HONEST about why

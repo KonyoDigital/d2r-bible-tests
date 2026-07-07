@@ -8156,7 +8156,15 @@ function _baseUnmadeWrongSock(base, knownSockets){
   try {
     var ks = parseInt(knownSockets, 10) || 0;
     if (ks < 1) return [];   // unsocketed reads already count every reachable word — no mismatch possible
-    return _baseUnmadeRunewords(base, 0).filter(function(r){ return r.s !== ks; });
+    var all = _baseUnmadeRunewords(base, 0);
+    // v603.1 (audit-caught) — apply the v385 MAX-SOCKET CAP here too, like _baseRWLine's display list:
+    // a Suwayyah maxes at 3 sockets, so Phoenix (4os)/BotD (6os) are NOT "still unmade for this base" —
+    // without the cap the verdict could tell Konyo to hunt an impossible 4os+ copy and inflate the +N count.
+    var clean = (typeof _artSlotClean === 'function') ? _artSlotClean(base) : String(base||'').replace(/\s*\([^)]*\)\s*$/,'');
+    clean = clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+    var mx = parseInt((typeof _socketMaxFor === 'function') ? _socketMaxFor(clean) : 0, 10) || 0;
+    if (mx >= 1 && mx <= 6) all = all.filter(function(r){ return r.s <= mx; });
+    return all.filter(function(r){ return r.s !== ks; });
   } catch(e){ return []; }
 }
 window._baseUnmadeWrongSock = _baseUnmadeWrongSock;
@@ -25660,7 +25668,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // means the assigned base itself never flags — with two Monarchs, exactly one stays, one flags spare.
       try {
         var _unm=(typeof _baseUnmadeRunewords==='function')?_baseUnmadeRunewords(base, sockets):null;
-        if (_unm && !_unm.length) why='<span style="color:#f0c060">🗑 <b>Free to throw out</b> — nothing left for this '
+        // v603.1 — audit sweep caught the SAME empty-list lie here (4th surface): a muled wrong-count copy
+        // (1os Suwayyah, Pattern unmade) must not claim "✓ forged" — name the word + the copy to hunt.
+        var _uws=(_unm && !_unm.length && sockets>=1 && typeof _baseUnmadeWrongSock==='function')?_baseUnmadeWrongSock(base, sockets):[];
+        if (_unm && !_unm.length) why=_uws.length
+          ? '<span style="color:#e9b96e">🗑 <b>Free to throw out</b> — <b>'+esc(_uws[0].n)+' ('+_uws[0].s+'os) is STILL UNMADE</b>'+(_uws.length>1?' (+'+(_uws.length-1)+' more)':'')+', but sockets are fixed once socketed: this '+sockets+'os copy can never host it. Free the mule space — hunt an <b>unsocketed or '+_uws[0].s+'os '+esc(base)+'</b> instead:</span>'
+          : '<span style="color:#f0c060">🗑 <b>Free to throw out</b> — nothing left for this '
           + (sockets?sockets+'-socket ':'')+esc(base)+' can host: its runewords are <span style="color:#8fd0a0">✓ forged</span> or belong in endgame bases. No job left:</span>';
         else if (_unm && _unm.length && typeof _spareBaseInfo==='function'){
           var _spv=_spareBaseInfo(n, _unm);
