@@ -23,3 +23,20 @@ test('gauntlet cursor applies app-wide, text inputs keep the I-beam', async ({ p
   expect(r.search).toBe('text');         // typing keeps the I-beam
   expect(errors).toEqual([]);
 });
+
+// v605.1 — the grab animation: pointerdown steps --kcur to the grab frame and HOLDS; release restores.
+test('gauntlet grabs on pointerdown and reopens on release', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1500);
+  const cur = () => page.evaluate(() => getComputedStyle(document.body).cursor.slice(0, 120));
+  const idle = await cur();
+  expect(idle).toContain('data:image/png');
+  await page.mouse.move(600, 400);
+  await page.mouse.down();
+  await page.waitForTimeout(220);                 // 3 steps × 38ms + slack → holding the grab frame
+  const held = await cur();
+  expect(held).toContain('data:image/png');
+  expect(held).not.toBe(idle);                    // a DIFFERENT gauntlet pose while the button is down
+  await page.mouse.up();
+  await page.waitForTimeout(220);
+  expect(await cur()).toBe(idle);                 // …and back to the open hand
+});
