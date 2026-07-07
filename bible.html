@@ -8144,6 +8144,19 @@ function _baseUnmadeRunewords(base, knownSockets){
   });
 }
 window._baseUnmadeRunewords = _baseUnmadeRunewords;
+// v602 — WHY is the unmade list empty? Konyo's 1os Suwayyah: Pattern (3os) is UNMADE, but the exact-fit
+// filter (ks=1) drops it → the verdict then lied "its runewords are ✓ forged". A fixed-socket copy that
+// filters out unmade words is NOT a forged-out base — the copy just can't host them (sockets are fixed
+// once an item is socketed). This returns those unmade-but-wrong-count words so every verdict can say the
+// honest thing: "Pattern still unmade — hunt a 3os/unsocketed copy; THIS one is safe to throw."
+function _baseUnmadeWrongSock(base, knownSockets){
+  try {
+    var ks = parseInt(knownSockets, 10) || 0;
+    if (ks < 1) return [];   // unsocketed reads already count every reachable word — no mismatch possible
+    return _baseUnmadeRunewords(base, 0).filter(function(r){ return r.s !== ks; });
+  } catch(e){ return []; }
+}
+window._baseUnmadeWrongSock = _baseUnmadeWrongSock;
 // v583 — BiS-home helpers: is `base` the community-standard home for `rw`? and sort a word-list so the
 // words this base is the TRUE home of come first (Konyo: a 5os Flail should headline Call to Arms, not Honor).
 window._isBisBaseFor = function(base, rw){
@@ -8338,6 +8351,12 @@ function _baseRWLine(name, knownSockets, forceSuperior){
       + ' is most likely: <b>' + (_sug.length ? _sug.map(function(s){ return _d2artEsc(s); }).join(', ') : 'a higher-tier base')
       + '</b>. Re-scan or rename this item.</div>';
   }
+  // v602 — the FULL to-do across ALL socket counts this base can host (post ladder/endgame/max filters).
+  // Konyo's rule: the ⚒ FORGED stamp means "ignore this base TYPE forever" — so it may ONLY appear when
+  // every word the base can EVER hold is created, not just the ones fitting this copy's current count.
+  var allTodo = rws.filter(function(r){ return !_rwIsMade(r.n); });
+  // other-count unmade words, rendered WITH their socket counts so the "hunt a 3os copy" action is obvious
+  var _rwNamesSock = function(list){ return list.slice(0, 8).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n):''; return '<span class="rwn-chip" data-arttip="'+n+'">'+lg+n+' <span style="opacity:.75">('+r.s+'os)</span></span>'; }).join('') + (list.length > 8 ? ' <span class="rwn-more">+' + (list.length - 8) + ' more</span>' : ''); };
   if (ks >= 1 && ks <= 6){
     // v389 — show ONLY runewords that fit the item's EXACT current socket count. A socketed item is fixed at
     // its count (you can't add sockets to an already-socketed base), so listing other counts (a 2os Steel on
@@ -8346,12 +8365,22 @@ function _baseRWLine(name, knownSockets, forceSuperior){
     var now = rws.filter(function(r){ return r.s === ks; });
     var nowTodo = now.filter(function(r){ return !_rwIsMade(r.n); });
     var nowMade = now.filter(function(r){ return _rwIsMade(r.n); });
+    var otherTodo = allTodo.filter(function(r){ return r.s !== ks; });
+    // v602 — words unmade at OTHER counts are named (in amber, with their os) whenever the card would
+    // otherwise read as DONE: a 1os Suwayyah must say "Pattern (3os) still unmade — needs a different
+    // copy", not pretend the base type is forged out. Only in the done-looking states though — a card with
+    // a live "still to create" list keeps the v389 exact-count-only rule (other counts there = noise).
+    var _otherNote = otherTodo.length
+      ? '<div class="att-tag" style="margin-top:3px;color:#e9b96e">⚠ base type NOT fully forged — still unmade at other socket counts: ' + _rwNamesSock(otherTodo) + ' <span style="opacity:.8">(this ' + ks + 'os copy can’t host ' + (otherTodo.length === 1 ? 'it' : 'them') + ' — sockets are fixed once socketed; needs a fresh copy at the right count)</span></div>'
+      : '';
     return _supNote + '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — makeable in your ' + ks + 'os now'
       + (nowTodo.length
           ? ' <span style="opacity:.85">— still to create (' + nowTodo.length + '):</span> ' + _rwNames(nowTodo) + _rwMadeTag(nowMade)
           : (nowMade.length
-              ? ': <span class="rw-stamp" title="every runeword this socket count can hold is already forged — nothing left to make in this base">⚒ Forged ✓<span class="rws-sub">all ' + nowMade.length + ' that fit ' + ks + 'os — already created</span></span>' + _rwMadeTag(nowMade)
-              : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>'))
+              ? (!allTodo.length
+                  ? ': <span class="rw-stamp" title="EVERY runeword this base type can host — at any socket count it can hold — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + rws.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(nowMade)
+                  : ': <span style="color:#8fd0a0">✓ all ' + nowMade.length + ' that fit ' + ks + 'os created</span>' + _rwMadeTag(nowMade) + _otherNote)
+              : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>' + _otherNote))
       + _handNote
       + '</div>';
   }
@@ -8361,9 +8390,16 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   var best = rws.filter(function(r){ return r.s === maxS; });
   var bestTodo = best.filter(function(r){ return !_rwIsMade(r.n); });
   var bestMade = best.filter(function(r){ return _rwIsMade(r.n); });
+  // v602 — same all-words gate as the exact-count branch: the stamp = the whole base TYPE is done. An
+  // unsocketed copy can cube-roll BELOW max, so sub-max unmade words are reachable and must block the stamp.
+  var subTodo = allTodo.filter(function(r){ return r.s !== maxS; });
   var show = bestTodo.length
     ? '<span style="opacity:.85">still to create (' + bestTodo.length + '):</span> ' + _rwNames(bestTodo) + _rwMadeTag(bestMade)
-    : (bestMade.length ? '<span class="rw-stamp" title="every runeword at this base\'s max socket count is already forged">⚒ Forged ✓<span class="rws-sub">all ' + bestMade.length + ' \u00b7 ' + maxS + 'os — already created</span></span>' + _rwMadeTag(bestMade) : '<span style="opacity:.7">—</span>');
+    : (bestMade.length
+        ? (!allTodo.length
+            ? '<span class="rw-stamp" title="EVERY runeword this base type can host — at any socket count it can hold — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + rws.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(bestMade)
+            : '<span style="color:#8fd0a0">✓ all ' + bestMade.length + ' at max ' + maxS + 'os created</span>' + _rwMadeTag(bestMade) + '<div class="att-tag" style="margin-top:3px;color:#e9b96e">⚠ base type NOT fully forged — still unmade below max: ' + _rwNamesSock(subTodo) + ' <span style="opacity:.8">(cube-roll can land these lower counts)</span></div>')
+        : '<span style="opacity:.7">—</span>');
   return _supNote + '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
     + show
     + '<div class="att-tag" style="margin-top:3px">Larzuk → <b>' + maxS + ' sockets</b> (guaranteed max) unlocks these</div>'
@@ -8582,7 +8618,10 @@ function _ensureSocketBaseEntry(name, force){
     var cells = slot === 'Body Armor' ? {w:2,h:3} : (slot === 'Shield' ? {w:2,h:3} : (slot === 'Helm' ? {w:2,h:2} : (is2H ? {w:2,h:4} : {w:1,h:3})));
     var mx = (typeof _socketMaxFor === 'function') ? _socketMaxFor(base) : null;
     var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets > 0 ? sockets : (mx || 0), nameSup) : '';
-    var guide = (typeof _socketGuideLine === 'function') ? _socketGuideLine(base, 'normal') : '';
+    // v602 — the Larzuk/cube socket guide only applies to an UNSOCKETED base: an already-socketed item is
+    // fixed at its count (Larzuk + the cube recipe both require zero sockets) — showing "Larzuk → max"
+    // on an (Nos) entry was misleading (Konyo's 1os Suwayyah card said "Larzuk → 3 sockets").
+    var guide = (sockets > 0) ? '' : ((typeof _socketGuideLine === 'function') ? _socketGuideLine(base, nameSup ? 'superior' : 'normal') : '');
     var tlbl = (typeof _itemTierLabel === 'function') ? _itemTierLabel(base) : '';
     var head = (tlbl ? '<div class="att-meta" style="color:#9c8d6b">' + tlbl + '</div>' : '')
       + (sockets > 0
@@ -8639,7 +8678,7 @@ function _throwTipHtml(name){
       ? 'The AI read this as a base item (not a grail unique). If it has good sockets keep it as a runeword/craft base — 5-6 sockets are always worth keeping.'
       : 'The AI read this name but it isn’t in your tracked grail — a non-grail unique/rare, or a misread.')) + '</div>';
   // v353/v368 — if this base enables runewords, say which (and what socket count to chase) → keep vs vendor.
-  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean, sock ? +sock[1] : 0); if (_rwl) out += _rwl; var _sg = (typeof _socketGuideLine === 'function') ? _socketGuideLine(clean, /^\s*Superior\s+/i.test(clean)?'superior':'normal') : ''; if (_sg) out += _sg; }
+  if (isBase || _isKnownBase) { var _rwl = _baseRWLine(clean, sock ? +sock[1] : 0); if (_rwl) out += _rwl; var _sg = (!sock && typeof _socketGuideLine === 'function') ? _socketGuideLine(clean, /^\s*Superior\s+/i.test(clean)?'superior':'normal') : ''; if (_sg) out += _sg; }   // v602 — socket guide = unsocketed only (sockets are fixed once socketed)
   out += '<div class="att-tag">🗑 Throw-out — review</div>';
   out += '<div class="att-info">🔮 Keep → Magic &amp; Rare, or ✕ dismiss. Click for the full card.</div>';
   return out;
@@ -8665,7 +8704,7 @@ function _throwCardHtml(name){
     + ((isBase || _isKnownBase) ? (   // v382 — full BASE_DB detail + runeword potential + Larzuk/cube guide
         ((typeof _baseDetailRows === 'function') ? (_baseDetailRows(clean) || '') : '')
       + ((typeof _baseRWLine === 'function') ? (_baseRWLine(clean, sock ? +sock[1] : 0) || '') : '')
-      + ((typeof _socketGuideLine === 'function') ? (_socketGuideLine(clean, /^\s*Superior\s+/i.test(clean)?'superior':'normal') || '') : '')
+      + ((!sock && typeof _socketGuideLine === 'function') ? (_socketGuideLine(clean, /^\s*Superior\s+/i.test(clean)?'superior':'normal') || '') : '')
       ) : '')
     + '</section></div>';
 }
@@ -25119,7 +25158,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (!_xGeneric && typeof _isRunewordBase==='function' && typeof _baseUnmadeRunewords==='function' && _isRunewordBase(_xclean)){
             var _xs = (typeof ex.sockets==='number') ? ex.sockets : (function(){ var m2=/\((\d+)\s*os/i.exec(name); return m2?+m2[1]:0; })();
             var _xUn = _baseUnmadeRunewords(name, _xs);   // v582.2 — FULL label: the Superior prefix must drive the Larzuk-max-only rule
-            if (!_xUn.length) return {id:'__throwout', why:'socketed '+_xclean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
+            if (!_xUn.length){
+              // v602 — honest empty-list verdict: unmade words at OTHER counts are "wrong sockets", not "✓ forged"
+              var _xWS = (_xs>=1 && typeof _baseUnmadeWrongSock==='function') ? _baseUnmadeWrongSock(name, _xs) : [];
+              return {id:'__throwout', why: _xWS.length
+                ? 'socketed '+_xclean+' — '+_xWS[0].n+' ('+_xWS[0].s+'os) is still unmade but this '+_xs+'os copy can never host it (sockets are fixed) → vendor it, hunt a '+_xWS[0].s+'os/unsocketed copy'
+                : 'socketed '+_xclean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
+            }
             var _xsp = (typeof _spareBaseInfo==='function') ? _spareBaseInfo(name, _xUn) : null;
             if (_xsp && !_xsp.uncovered.length){
               var _xw = Object.keys(_xsp.covered);
@@ -25172,7 +25217,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _skM = /\((\d+)\s*os/i.exec(name);
         var _skN = _skM ? parseInt(_skM[1],10) : 0;   // "(Larzuk base)" / no tag → 0 = unsocketed
         var _sUn = (typeof _baseUnmadeRunewords==='function') ? _baseUnmadeRunewords(name, _skN) : null;
-        if (_sUn && !_sUn.length) return {id:'__throwout', why:'socketed '+_sclean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
+        if (_sUn && !_sUn.length){
+          // v602 — honest empty-list verdict: unmade words at OTHER counts are "wrong sockets", not "✓ forged"
+          var _sWS = (_skN>=1 && typeof _baseUnmadeWrongSock==='function') ? _baseUnmadeWrongSock(name, _skN) : [];
+          return {id:'__throwout', why: _sWS.length
+            ? 'socketed '+_sclean+' — '+_sWS[0].n+' ('+_sWS[0].s+'os) is still unmade but this '+_skN+'os copy can never host it (sockets are fixed) → vendor it, hunt a '+_sWS[0].s+'os/unsocketed copy'
+            : 'socketed '+_sclean+' — nothing left for it: its runewords are ✓ forged or belong in endgame bases → vendor it'};
+        }
         if (_sUn && _sUn.length){
           // v563 — SPARE: its unmade words are all covered by a DIFFERENT base you already hold → don't keep two
           var _ssp = (typeof _spareBaseInfo==='function') ? _spareBaseInfo(name, _sUn) : null;
@@ -25498,17 +25549,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try {
         if ((isBase||_isKnownBase) && !_loSet && typeof _baseUnmadeRunewords==='function' && typeof _isRunewordBase==='function' && _isRunewordBase(cleanB)){
           var _tun=_baseUnmadeRunewords(cleanB, sock ? +sock[1] : 0);
+          // v602 — Konyo's 1os Suwayyah / Pattern bug: an empty exact-fit list does NOT mean "✓ forged" —
+          // unmade words may exist at OTHER socket counts (Pattern is 3os). Say the honest thing: the word
+          // is still to create, THIS copy just can't host it (sockets are fixed) — hunt the right-count copy.
+          var _tws=(sock && !_tun.length && typeof _baseUnmadeWrongSock==='function') ? _baseUnmadeWrongSock(cleanB, +sock[1]) : [];
           // v563 — spare split: unmade words all covered by an owned base → "you already hold one" verdict
           var _tsp=(_tun.length && typeof _spareBaseInfo==='function') ? _spareBaseInfo(n, _tun) : null;
           why = !_tun.length
-            ? '<span style="color:#f0c060">A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — nothing left for it: its runewords are <span style="color:#8fd0a0">✓ forged</span> or belong in endgame bases → <b>safe to throw out</b>.</span>'
+            ? (_tws.length
+                ? '<span style="color:#e9b96e">A '+esc(clean)+' ('+sock[1]+' socket'+(+sock[1]===1?'':'s')+') — <b>'+esc(_tws[0].n)+' ('+_tws[0].s+'os) is STILL UNMADE</b>'+(_tws.length>1?' (+'+(_tws.length-1)+' more)':'')+', but sockets are fixed once socketed: this '+sock[1]+'os copy can never host it → this copy is <b>safe to throw out</b> — hunt an <b>unsocketed or '+_tws[0].s+'os '+esc(clean)+'</b> instead.</span>'
+                : '<span style="color:#f0c060">A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — nothing left for it: its runewords are <span style="color:#8fd0a0">✓ forged</span> or belong in endgame bases → <b>safe to throw out</b>.</span>')
             : (_tsp && !_tsp.uncovered.length)
             ? '<span style="color:#f0c060">A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — <b>spare</b>: its runewords ('+esc(Object.keys(_tsp.covered).slice(0,3).join(', '))+') are already covered by <b>'+esc(_tsp.covered[Object.keys(_tsp.covered)[0]][0])+'</b>, a base you hold → safe to throw out.</span>'
             : 'A '+esc(clean)+(sock?' ('+sock[1]+' sockets)':'')+' — <b>still needed</b>: it can host <b>'+esc(((_tsp&&_tsp.uncovered.length)?_tsp.uncovered:_tun.map(function(r){return r.n;})).slice(0,3).join(', '))+(_tun.length>3?' +'+(_tun.length-3)+' more':'')+'</b>, unmade in your Chronicle. Keep it if the sockets are right.';
         }
       } catch(e){}
       var rwl=((isBase||_isKnownBase) && typeof _baseRWLine==='function')?_baseRWLine(cleanB, sock ? +sock[1] : 0, _wasSup):'';
-      if ((isBase||_isKnownBase) && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(cleanB, _wasSup?'superior':'normal'); if(_sgl) rwl+=_sgl; }
+      // v602 — Larzuk/cube guide = UNSOCKETED items only: an already-socketed copy is fixed at its count
+      if ((isBase||_isKnownBase) && !sock && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(cleanB, _wasSup?'superior':'normal'); if(_sgl) rwl+=_sgl; }
       // v397.2 — one-click socket fix: when a KNOWN base was read name-only (the AI missed the faint "Socketed
       // (N)" line — Konyo's Elder Staff / Superior Trident / Wrist Sword), let him set the real count in one tap.
       // It registers "<Base> (Nos)" as a socketed runeword/craft base + mules it. No re-scan needed.
@@ -25562,7 +25620,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // SAME engine as the throw-out card: exact-socket (when known) + base-TYPE match + already-created split.
       // For a 0-socket Larzuk base _baseRWLine falls back to its "socket to max" guidance automatically.
       var rwl=(typeof _baseRWLine==='function')?_baseRWLine(base, sockets, isSup):'';
-      if (typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(base, isSup?'superior':'normal'); if(_sgl) rwl+=_sgl; }
+      // v602 — Larzuk/cube guide = UNSOCKETED (Larzuk-candidate) entries only; a socketed copy is fixed
+      if (sockets<1 && typeof _socketGuideLine==='function'){ var _sgl=_socketGuideLine(base, isSup?'superior':'normal'); if(_sgl) rwl+=_sgl; }
       var src=(typeof artUrl==='function'?(artUrl(n)||artUrl(base)):'')||'';
       var artH=src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+esc(src)+'" alt="" loading="lazy"></span>':'<span class="to-glyph">🔩</span>';
       var nm=(typeof _vColorName==='function')?_vColorName(n):('<span style="color:#aeb8c4">'+esc(n)+'</span>');
