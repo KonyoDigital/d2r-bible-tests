@@ -28062,6 +28062,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var e=RUNEWORD_TIP[name]||{};
       byRw[name]={ kind:'onestep', sub:'base', rw:name, base:null, need:0, req:req, baseReq:e.b||'', hand:_hand(name), val:_rwVal(name), bestStr:_bestBaseStr(name), bestMeta:_bestMeta(name) };
     }); } catch(e){}
+    // 2b) v604 — COVERAGE CATCH-ALL (Konyo's Katar/Pattern incident: "why is it not tasking me"): a word
+    // with NO owned base AND runes not ready used to appear NOWHERE — silent. Every remaining unmade,
+    // unblocked word now lands in out.farm ("furthest out": what base to find + which runes are missing),
+    // so the Forge always answers "what's left" for the ENTIRE Chronicle. Invariant: unmade ∧ ¬blocked ⇒
+    // present in now ∪ pipeline ∪ onestep ∪ farm — locked by v604_forge_coverage_invariant.spec.ts.
+    out.farm=[];
+    try { Object.keys(RUNEWORD_TIP).forEach(function(name){
+      if (byRw[name] || _rwBlocked(name)) return;
+      var req=_runeReq(name); if (!Object.keys(req).length) return;
+      var e=RUNEWORD_TIP[name]||{};
+      out.farm.push({ kind:'farm', rw:name, base:null, need:0, req:req, baseReq:e.b||'', missing:_missing(req), hand:_hand(name), val:_rwVal(name), bestStr:_bestBaseStr(name), bestMeta:_bestMeta(name) });
+    }); out.farm.sort(function(a,b){ return b.val-a.val || a.rw.localeCompare(b.rw); }); } catch(e){}
     // bucket
     Object.keys(byRw).forEach(function(k){ var t=byRw[k]; (t.kind==='now'?out.now:t.kind==='pipeline'?out.pipeline:out.onestep).push(t); });
     // 3) conflict / auto-prioritise: value-sort, greedily allocate the shared rune + base pool
@@ -28415,9 +28427,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div>');
       box.innerHTML=H.join(''); return;
     }
-    if (!total){
+    if (!total && !(s.farm||[]).length){
       H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
       box.innerHTML=H.join(''); return;
+    }
+    // v604 — the empty state above is only TRUE when farm is empty too. With no actionable task but open
+    // words remaining (fresh tallies / no bases), saying "everything is ✓ created" was the same lie class
+    // as the throw-out "✓ forged" — fall through so 🌾 Furthest out still shows every remaining word.
+    if (!total){
+      H.push('<div class="forge-empty forge-empty-sm">No actionable task yet — no owned base or ready runes for the words below. Tally runes/gems or intake bases in the Vault; everything still open is listed under 🌾 Furthest out.</div>');
     }
     // ── MAKE NOW — atomic, one-at-a-time tasks. A multi-step chain shows ONLY its current step; tick "✓ did it"
     // and the next step replaces it. Crafts & ready forges are single "boom" tasks. Full chains live in 🔧 Pipeline.
@@ -28537,7 +28555,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // FULL JOURNEY: the whole remaining arc, first step highlighted (do this now) → downstream dimmed.
         var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
         if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
-        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready'; }
+        else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready ('+_baseLine(t)+')'; }   // v604 — NAME the ready base (the cube branch already did; Konyo must see WHICH item is waiting)
         else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips);
           if(need){
             // v545 — SOCKET STEP. Larzuk always gives a base's MAX. If that max === the word's count, Larzuk is clean.
@@ -28557,6 +28575,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="f-getsub">'+note+' · <b>'+segs.length+' step'+(segs.length>1?'s':'')+' to go</b></div>'
           +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
+          +'</div></div>');
+      });
+      H.push('</div>');
+    }
+    // v604 — 🌾 FURTHEST OUT: the coverage catch-all (see forgeScan 2b). Words with NO base owned AND
+    // runes not ready used to be SILENT — Konyo's "why is it not tasking me" class. Compact rows, not
+    // full cards: every remaining word names the base to find + the runes still missing. Nothing hides.
+    if (show('onestep') && (s.farm||[]).length){
+      H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">🌾 Furthest out <span class="forge-sec-ct">'+s.farm.length+'</span><span class="forge-sec-sub">need BOTH the base and runes — farm these last; nothing is ever hidden</span></div>');
+      var _missChips2=function(arr){ return (arr||[]).slice(0,4).map(function(m){ var nm=String(m).replace(/^\d+×\s*/,'').trim(); return '<span class="f-getchip" data-arttip="'+_fEsc(nm)+'" title="'+_fEsc(nm)+' rune">'+_fEsc(m)+'</span>'; }).join('')+((arr||[]).length>4?' <span class="f-atomsub">+'+((arr||[]).length-4)+' more</span>':''); };
+      s.farm.forEach(function(t){
+        var b1=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/)[0].trim();
+        H.push('<div class="f-card f-step" style="padding:7px 10px"><div class="f-cardbody">'
+          +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
+          +'<div class="f-getsub">🛒 base: <span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b1)+'" style="color:'+(_qC(b1)||'var(--q-normal)')+'">'+_fEsc(b1||t.baseReq||'?')+'</span> · 🔨 runes missing: '+_missChips2(t.missing)+'</div>'
           +'</div></div>');
       });
       H.push('</div>');

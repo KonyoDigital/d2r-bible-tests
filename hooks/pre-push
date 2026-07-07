@@ -38,6 +38,9 @@ SMOKE_SPECS=(
   tests/v535_ux_simulation.spec.ts   # v535 — USER-EXPERIENCE sims: drive the rendered UI (tabs/cards/buttons),
                                      # catch render-vs-logic drift + cross-tab platform sync. Konyo's ask to
                                      # bake UX simulations into the autonomous-loop workflow, not just CI.
+  tests/v604_forge_coverage_invariant.spec.ts   # v604 — NO SILENT WORDS: every unmade word tasked in
+                                     # forgeScan AND rendered in the Forge DOM + the Katar-scenario UX sim
+                                     # (register an exact-fit base -> its word lands ON that base, visibly).
 )
 
 ZERO="0000000000000000000000000000000000000000"
