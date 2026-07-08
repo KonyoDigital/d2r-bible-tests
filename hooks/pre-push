@@ -41,6 +41,9 @@ SMOKE_SPECS=(
   tests/v604_forge_coverage_invariant.spec.ts   # v604 — NO SILENT WORDS: every unmade word tasked in
                                      # forgeScan AND rendered in the Forge DOM + the Katar-scenario UX sim
                                      # (register an exact-fit base -> its word lands ON that base, visibly).
+  tests/v616_class_restriction_invariant.spec.ts   # v616 — GAME-RULE LOCK: full-catalog sweep — class-
+                                     # gated words (Exile=auric, Pattern/Chaos=claws, circlets host
+                                     # nothing) can never leak onto illegal bases; art homes stay legal.
 )
 
 ZERO="0000000000000000000000000000000000000000"
