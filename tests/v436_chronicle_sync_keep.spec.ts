@@ -5,7 +5,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v436 — Chronicle sync: a runeword you've ALREADY FORGED (rwMade) is exempted from the "Keep for
 // runewords" examples (throw-out review + base hover + mule cards), so you only see what's LEFT to make.
 // Also: seed is now 30 (Authority + Melody added).
-test("seed is 57 (…v568-v595: +Hand of Justice +Flickering Flame +Coven +Delirium +Principle)", async ({ page }) => {
+test("seed is 66 (v615: the owner's LIVE Chronicle snapshot 2026-07-08 — incl. the Jul 8 session)", async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window;
@@ -14,7 +14,7 @@ test("seed is 57 (…v568-v595: +Hand of Justice +Flickering Flame +Coven +Delir
              hasMelody: !!(w._RWC_SEED && w._RWC_SEED['Melody']),
              hasAncients: !!(w._RWC_SEED && w._RWC_SEED["Ancients' Pledge"]) };
   });
-  expect(r.count).toBe(57);   // v595: +Delirium +Principle
+  expect(r.count).toBe(66);   // v615: live-captured; Pattern/Oath/Chaos/HotO/… included
   expect(r.hasAuthority).toBe(true);
   expect(r.hasMelody).toBe(true);
   expect(r.hasAncients).toBe(true);

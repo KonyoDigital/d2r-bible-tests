@@ -43,9 +43,11 @@ test('every unmade non-ladder word is tasked in forgeScan AND rendered in the Fo
 
 test('Katar scenario: registering an owned exact-fit base moves its word onto that base, visibly', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
+  // v615 — Pattern is in the 66-word owner seed now; a fresh profile is the only way to have it unmade
+  await page.evaluate(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({})); });
+  await page.reload(); await page.waitForTimeout(1800);
   const before = await page.evaluate(() => {
     const w: any = window;
-    localStorage.setItem('d2r_rwMade', JSON.stringify({}));   // pin: Pattern unmade
     const sc = w.forgeScan();
     const pat = [].concat(sc.now || [], sc.pipeline || [], sc.onestep || [], sc.farm || []).find((t: any) => t.rw === 'Pattern');
     return { kind: pat && pat.kind, sub: pat && pat.sub, base: (pat && pat.base && pat.base.name) || null };
@@ -68,13 +70,12 @@ test('Katar scenario: registering an owned exact-fit base moves its word onto th
   await page.reload(); await page.waitForTimeout(1800);   // owned set re-inits from localStorage
   const r = await page.evaluate(() => {
     const w: any = window;
-    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     w.switchTab && w.switchTab('forge');
     try { w.renderForge && w.renderForge(); } catch (e) {}
     const sc = w.forgeScan();
     const pat = [].concat(sc.now || [], sc.pipeline || [], sc.onestep || [], sc.farm || []).find((t: any) => t.rw === 'Pattern');
     const dom = (document.getElementById('forge-body') || document.body).textContent || '';
-    localStorage.removeItem('d2r_rwMade'); localStorage.removeItem('d2r_owned');
+    localStorage.removeItem('d2r_rwMade'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_rwProfile');
     return {
       base: (pat && pat.base && pat.base.name) || null,
       kind: pat && pat.kind, sub: pat && pat.sub,

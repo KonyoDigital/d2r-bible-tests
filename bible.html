@@ -13489,9 +13489,11 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // from Konyo's full Chronicle screenshots (2026-07-01), replacing the earlier approximate seed times
 // (Steel 12:53→03:03, Doom 12:20→20:20, Grief 12:05→19:07, Spirit 12:00→00:42…). Names were already 1:1;
 // this fixed the times. Durable floor: re-asserted every load so a reset/restore snaps back to these 45.
-const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 00:45", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Coven": "Jul 7, 2026 · 00:15", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Delirium": "Jul 7, 2026 · 00:30", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 00:55", "Flickering Flame": "Jul 6, 2026 · 23:50", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:15", "Harmony": "Jun 24, 2026 · 01:06", "Holy Thunder": "Jun 23, 2026 · 00:11", "Infinity": "Jun 21, 2026 · 01:37", "Leaf": "Jul 5, 2026 · 02:30", "Insight": "Jul 5, 2026 · 01:05", "Wind": "Jul 5, 2026 · 01:05", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Principle": "Jul 7, 2026 · 00:30", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "White": "Jul 4, 2026 · 21:31", "Obedience": "Jul 4, 2026 · 21:31", "Void": "Jun 29, 2026 · 20:08", "Zephyr": "Jun 29, 2026 · 19:29"};
+const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 01:01", "Bone": "Jun 23, 2026 · 00:27", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Chaos": "Jul 8, 2026 · 19:43", "Coven": "Jul 7, 2026 · 00:17", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Delirium": "Jul 7, 2026 · 00:18", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 01:04", "Flickering Flame": "Jul 7, 2026 · 00:16", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:27", "Harmony": "Jun 24, 2026 · 01:06", "Heart of the Oak": "Jul 8, 2026 · 19:47", "Holy Thunder": "Jun 23, 2026 · 00:11", "Honor": "Jul 8, 2026 · 19:53", "Infinity": "Jun 21, 2026 · 01:37", "Insight": "Jul 5, 2026 · 01:06", "King's Grace": "Jul 8, 2026 · 20:18", "Lawbringer": "Jul 8, 2026 · 19:51", "Leaf": "Jul 5, 2026 · 18:02", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Oath": "Jul 8, 2026 · 20:21", "Obedience": "Jul 4, 2026 · 21:52", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Pattern": "Jul 8, 2026 · 20:20", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Principle": "Jul 7, 2026 · 00:21", "Prudence": "Jul 8, 2026 · 20:20", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Sanctuary": "Jul 8, 2026 · 19:49", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "Void": "Jun 29, 2026 · 20:08", "White": "Jul 4, 2026 · 21:31", "Wind": "Jul 5, 2026 · 01:10", "Zephyr": "Jun 29, 2026 · 19:29"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
-// v549 — MULTI-PLAYER PROFILE. The seed below is the OWNER's (Konyo's) 52 created runewords (v568-v581: +White +Obedience +Black +Famine +Insight +Wind +Leaf), force-applied every
+// v549/v615 — MULTI-PLAYER PROFILE. The seed above is the OWNER's (Konyo's) live Chronicle snapshot (66 words,
+// captured from his browser 2026-07-08 with his real forge dates — incl. the Jul 8 session: Chaos, HotO,
+// Sanctuary, Lawbringer, Honor, King's Grace, Pattern, Prudence, Oath), force-applied every
 // load as a durable floor. On a DIFFERENT player's browser (Konyo's cousin) that wrongly pre-fills 45 as "made".
 // A 'fresh' profile flag (set by the Chronicle "Reset" button) suppresses the seed entirely, so a new player
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
@@ -13513,10 +13515,15 @@ if (rwUnmade === null || typeof rwUnmade !== 'object' || Array.isArray(rwUnmade)
 if (!_rwFreshFlag) (function(){ try {
   var _ch = false;
   Object.keys(_RWC_SEED).forEach(function(k){
-    if (rwUnmade[k]){ delete rwUnmade[k]; _ch = true; }      // clear stale un-mark on a confirmed-forged RW
+    // v615 (lockdown) — the floor HONORS an explicit un-mark again (the original v424 contract).
+    // The v448 unconditional purge made the ↺ button a silent lie: rwToggleMade wrote rwUnmade[k]
+    // and this line deleted it on the next load, reverting the word (and NOT re-consuming its base —
+    // a Chronicle⇄vault desync). A deliberate un-mark is user truth; a wipe/restore still refloors
+    // because a wipe clears d2r_rwUnmade too.
+    if (rwUnmade[k]) return;
     if (!rwMade[k]){ rwMade[k] = _RWC_SEED[k]; _ch = true; }  // re-assert the forged date
   });
-  if (_ch){ LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); LS.setItem('d2r_rwUnmade', JSON.stringify(rwUnmade)); }
+  if (_ch){ LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); }
 } catch(e){} })();
 // v419 — RUNE-SAVER GUARD. Konyo wasted runes 3× cubing Shael+Ko+Eld weapons expecting Mania, which
 // formed only a "Gemmed" base (raw rune stats, no runeword). Root cause: Mania/Hysteria/Hustle are
@@ -17127,7 +17134,11 @@ function runeCraftStatus(){
     // recommend a ladder-only word off-ladder. So Enigma stays on a fresh profile (cousin) but drops for Konyo once
     // he's ticked it created. Feeds the AI-helper "✨ create now" dashboard, Top Picks, and the ask snapshot.
     const nm = rw && (rw.name || rw.n);
-    if (nm && typeof rwMade !== 'undefined' && rwMade && rwMade[nm]) return;
+    // v615 — resolve display aliases to the Chronicle key ("Spirit (sword)"→"Spirit", "…(CTA)"→"Call to
+    // Arms"): five aliased RUNEWORDS entries never matched rwMade, so Chronicle-created words kept
+    // showing '✅ Ready now' in the rune-stash panel / Create-Now dashboard / Top Picks / AI snapshot.
+    const _rwKey = nm && ((typeof findRuneword === 'function' && findRuneword(nm)) || String(nm).replace(/\s*\((?:sword|shield|CTA|HotO|BotD)\)\s*$/i, ''));
+    if (nm && typeof rwMade !== 'undefined' && rwMade && (rwMade[nm] || (_rwKey && rwMade[_rwKey]))) return;
     if (nm && typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(nm)) return;
     const req = runewordReq(rw);
     if (!req) return;
@@ -17232,10 +17243,43 @@ window._consumeForgeBase = function(rw){
   try {
     if (!rw || typeof window.forgeScan !== 'function') return;
     var sc = window.forgeScan();
+    // v615 (lockdown, Konyo's Katar/Pattern incident) — three consume gaps closed:
+    //  (a) baseOver tasks now CONSUME: the user just told us the base physically became this word —
+    //      the capacity ledger is a plan, not a fact; the winning word re-plans on the next scan.
+    //  (b) fallback: no planner task with a live base (the word sat in 🌾 farm because its owned base
+    //      never surfaced — hand-gate '?', label variant, understated max…) → scan the owned vault
+    //      directly for a socket-exact host of this word and consume THAT label.
+    //  (c) an undoable toast names what left the vault — a silent consume (or silent nothing) is the
+    //      same invisibility class as the rest of the lockdown.
     var t = [].concat(sc.now||[], sc.pipeline||[], sc.onestep||[]).filter(function(x){
       return x && x.rw === rw && x.base && x.base.name && x.sub !== 'base' && !x.baseOver;
     })[0];
-    if (!t || !owned.has(t.base.name)) return;
+    if (!t){
+      t = [].concat(sc.now||[], sc.pipeline||[], sc.onestep||[]).filter(function(x){
+        return x && x.rw === rw && x.base && x.base.name && x.sub !== 'base';
+      })[0];   // (a) baseOver fallback
+    }
+    if (!t || !owned.has(t.base.name)){
+      // (b) direct owned-vault match: an owned socketed entry whose base TYPE hosts rw at EXACTLY its count
+      try {
+        var _need = (((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[rw])||{}).rec||[]).length;
+        var _hit = null;
+        Array.from(owned).forEach(function(n){
+          if (_hit) return;
+          var mm = /^(.+?)\s*\(\s*(\d+)\s*os(?:\s+low base)?\s*\)\s*$/i.exec(String(n));
+          if (!mm || parseInt(mm[2],10)!==_need) return;
+          var bn = (typeof _qualStrip==='function') ? _qualStrip(mm[1].trim()) : mm[1].trim();
+          var fits = (typeof _baseRunewords==='function') && _baseRunewords(bn).some(function(r){ return r.n===rw && r.s===_need; });
+          if (fits) _hit = n;
+        });
+        if (_hit) t = { base: { name: _hit } };
+      } catch(e){}
+    }
+    if (!t || !owned.has(t.base.name)){
+      // (c) nothing consumable — say so instead of silence (the Katar class: label variant the planner can't see)
+      try { if (typeof window._grailToast==='function') window._grailToast('🧰','no vault base consumed for <b>'+rw+'</b>','if you forged it in a muled base, remove that item from the vault by hand'); } catch(e){}
+      return;
+    }
     var label = t.base.name;
     var used = _safeJsonParse(LS.getItem('d2r_rwBaseUsed'), {}) || {};
     if (copyCount(label) > 1){
@@ -17248,13 +17292,15 @@ window._consumeForgeBase = function(rw){
       used[rw] = { l: label, copy: false };
     }
     LS.setItem('d2r_rwBaseUsed', JSON.stringify(used));
+    // v615(c) — visible + undoable: name what left the vault (un-marking the word gives it back)
+    try { if (typeof window._grailToast==='function') window._grailToast('🧰','<b>'+label+'</b> left the vault','it became '+rw+' — un-mark the word to get it back'); } catch(e){}
   } catch(e){}
 };
 window._restoreForgeBase = function(rw){
   try {
     var used = _safeJsonParse(LS.getItem('d2r_rwBaseUsed'), {}) || {};
     var u = used[rw]; if (!u || !u.l) return;
-    if (u.copy){ copies[u.l] = (copyCount(u.l) || 1) + 1; }
+    if (u.copy){ if(!owned.has(u.l)){ owned.add(u.l); try{ if(typeof _ensureSocketBaseEntry==='function') _ensureSocketBaseEntry(u.l); }catch(e){} } copies[u.l] = (owned.has(u.l) ? (copyCount(u.l) || 1) + 1 : 2); }   // v615 — a copy-restore must re-own the label too (no phantom counts on unowned items)
     else { owned.add(u.l); try { if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(u.l); } catch(e){} }
     delete used[rw];
     LS.setItem('d2r_rwBaseUsed', JSON.stringify(used));
@@ -17279,6 +17325,13 @@ window.rwToggleMade = function(name){
   // v537.3 — tell the Forge's session tracker what just happened, so its "↩ Undo last" bar only appears right
   // AFTER you create something this session (not permanently over your genuine last-created runeword).
   try { if (window._noteForgeDone) window._noteForgeDone(name, !!rwMade[name]); } catch(e){}
+  window._rwChronicleChanged(name);
+};
+// v615 (lockdown) — ONE consolidated Chronicle-changed fan-out. rwToggleMade had grown the full list
+// while chronicleReset/chronicleLoadSeed refreshed only 2 of 9 consumers (stale Forge/vault/insights/
+// filter-badge after a bulk flip) and Smart Insights + the loot-filter badge were in NOBODY's list
+// despite sitting on the same Tools tab as the toggles. Every bulk or single mutation calls this.
+window._rwChronicleChanged = function(name){
   renderRunewordChronicle();
   // v455 — push the create/un-create through to the socketed bases: re-sync their cached descriptions to the
   // Chronicle, then re-render the vault (locker cards + Socketed Review) and any open detail card, so the
@@ -17286,6 +17339,8 @@ window.rwToggleMade = function(name){
   try { _resyncSocketedDescs(); } catch(e){}
   try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
   try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch(e){}
+  try { if (typeof window.renderSmartInsights === 'function') window.renderSmartInsights(); } catch(e){}
+  try { if (typeof window.refreshLootFilterCount === 'function') window.refreshLootFilterCount(); } catch(e){}
   // v555 — a Chronicle tick must ALSO refresh the AI-Helper "✨ what you can create now" dashboard + Top Picks
   // LIVE, so a made runeword (Enigma) drops off immediately without a reload — automatic Chronicle↔create-now sync.
   try { if (typeof renderCreateNow === 'function') renderCreateNow(); } catch(e){}
@@ -17454,11 +17509,11 @@ window.chronicleReset = async function(){
     rwMade = {}; if (typeof rwUnmade !== 'undefined') rwUnmade = {};
     localStorage.setItem('d2r_rwMade', '{}'); localStorage.setItem('d2r_rwUnmade', '{}');
   } catch(e){}
-  try { renderRunewordChronicle(); } catch(e){}
-  try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch(e){}
+  try { window._rwChronicleChanged(); } catch(e){}   // v615 — the FULL fan-out (was 2 of 9 consumers → stale Forge/vault/insights after a bulk flip)
 };
 window.chronicleLoadSeed = async function(){
-  var msg = 'Load the pre-filled Chronicle (the owner\'s 45 created runewords)?\n\nUse this on the OWNER\'s own device. It re-adds the seeded runewords as created.';
+  var _seedN = 0; try { _seedN = Object.keys(_RWC_SEED).length; } catch(e){}
+  var msg = 'Load the pre-filled Chronicle (the owner\'s ' + _seedN + ' created runewords)?\n\nUse this on the OWNER\'s own device. It re-adds the seeded runewords as created.';
   var ok = (typeof uiConfirm === 'function') ? await uiConfirm(msg) : confirm(msg);
   if (!ok) return;
   try {
@@ -17466,15 +17521,14 @@ window.chronicleLoadSeed = async function(){
     Object.keys(_RWC_SEED).forEach(function(k){ rwMade[k] = _RWC_SEED[k]; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(rwMade));
   } catch(e){}
-  try { renderRunewordChronicle(); } catch(e){}
-  try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch(e){}
+  try { window._rwChronicleChanged(); } catch(e){}   // v615 — full fan-out here too
 };
 window.renderChronicleProfile = function(){
   var el = document.getElementById('rwc-profile'); if (!el) return;
   if (window._rwIsFresh()){
     el.className = 'rwc-profile rwc-profile-fresh';
     el.innerHTML = '<span class="rwc-prof-badge">✦ Fresh profile — this Chronicle is yours, tracked from zero</span>'
-      + '<button class="rwc-prof-btn" onclick="window.chronicleLoadSeed&&window.chronicleLoadSeed()" title="load the pre-filled 45 created runewords (the owner\'s device)">↺ load the pre-filled set</button>';
+      + '<button class="rwc-prof-btn" onclick="window.chronicleLoadSeed&&window.chronicleLoadSeed()" title="load the pre-filled created runewords (the owner\'s device)">↺ load the pre-filled set</button>';
   } else {
     el.className = 'rwc-profile';
     el.innerHTML = '<span class="rwc-prof-note">📖 Pre-filled with the owner\'s created runewords. New player on this browser?</span>'
@@ -29012,6 +29066,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { var t=document.createElement('div'); t.className='forge-toast'; t.innerHTML=ico+' '+main+' <span class="ft-sub">'+sub+'</span>';
       document.body.appendChild(t); setTimeout(function(){ t.classList.add('out'); setTimeout(function(){ t.remove(); },450); },2400); } catch(e){}
   }
+  window._grailToast=_grailToast;   // v615 — the consume sync narrates vault exits through the same toast
   function _meter(found,total,color){
     var pct=total?Math.round(found/total*100):0;
     return '<div class="forge-progress" title="'+found+' of '+total+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
