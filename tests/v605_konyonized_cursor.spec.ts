@@ -44,12 +44,12 @@ test('gauntlet grabs on interactive elements, ignores blank space', async ({ pag
   await page.mouse.up();
   await page.waitForTimeout(220);
   expect(await cur()).toBe(idle);                 // …and back to the open hand
-  // 2) press verified BLANK space → the hand must NOT close
+  // 2) press verified BLANK space → the hand must NOT close (v613: judged by the live predicate)
   const blank = await page.evaluate(() => {
-    const SEL = 'a,button,input,select,textarea,summary,label,[onclick],[role=button],[tabindex],[data-arttip],[data-tab],.tab,.f-card,.f-btn,.f-getchip,.to-card,.to-shot,.rwn-chip,.item-tile,.boss-card,.su-link,.owned-btn,.rwc-toggle,.vrg-keep,.vrg-x,.forge-tab,.d2art-wrap';
+    const w: any = window;
     for (const [x, y] of [[720, 320], [400, 330], [1000, 330], [730, 165], [200, 700]] as Array<[number, number]>) {
       const el = document.elementFromPoint(x, y);
-      if (el && !el.closest(SEL)) return { x, y };
+      if (el && !w._kcurHit(el)) return { x, y };
     }
     return null;
   });
@@ -61,4 +61,39 @@ test('gauntlet grabs on interactive elements, ignores blank space', async ({ pag
   await page.mouse.up();
   await page.waitForTimeout(220);
   expect(await cur()).toBe(idle);
+});
+
+// v613 — FACTUAL CLICKABILITY: the grab/sparkle predicate must agree with reality (the wf_28c4af50
+// audit). Inert-but-decorated surfaces never grab; delegated/decorator surfaces (no onclick attr) DO.
+test('predicate truth: inert surfaces refuse, delegated surfaces grab', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const hit = (sel: string) => { const el = document.querySelector(sel); return el ? w._kcurHit(el) : null; };
+    const mk = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; document.body.appendChild(d); const el = d.firstElementChild!; const out = w._kcurHit(el); d.remove(); return out; };
+    return {
+      // INERT — must refuse: tooltip-only chip, decorative art wrap, count pill, card container
+      arttipOnly: mk('<span data-arttip="Oath">Oath</span>'),
+      artWrap: mk('<span class="d2art-wrap sm"><img alt=""></span>'),
+      countPill: mk('<span class="to-ct">5</span>'),
+      cardShell: mk('<div class="f-card"><div class="f-cardbody">text</div></div>'),
+      sockBadge: mk('<span class="to-sock">3os</span>'),
+      // CLICKABLE — must grab: nav tab (button+onclick prop), delegated data-route, vault chip
+      navTab: hit('.tab'),
+      dataRoute: mk('<span data-art-route="Shako">Shako</span>'),
+      vaultChip: mk('<span class="vault-chip" draggable="true" data-vault-item="X">X</span>'),
+      inlineOnclick: mk('<span onclick="void 0">go</span>'),
+      nestedInOnclick: (() => { const d = document.createElement('div'); d.innerHTML = '<div onclick="void 0"><span class="deep"><b>leaf</b></span></div>'; document.body.appendChild(d); const out = w._kcurHit(d.querySelector('b')); d.remove(); return out; })(),
+    };
+  });
+  expect(r.arttipOnly).toBe(false);
+  expect(r.artWrap).toBe(false);
+  expect(r.countPill).toBe(false);
+  expect(r.cardShell).toBe(false);
+  expect(r.sockBadge).toBe(false);
+  expect(r.navTab).toBe(true);
+  expect(r.dataRoute).toBe(true);
+  expect(r.vaultChip).toBe(true);
+  expect(r.inlineOnclick).toBe(true);
+  expect(r.nestedInOnclick).toBe(true);   // the 8-hop ancestor walk
 });
