@@ -16059,6 +16059,11 @@ function toggleOwned(name) {
   renderBossCards();
   renderCalc();
   renderGrailProgress();
+  // v619 — found-sync BOTH WAYS (Konyo: 'after the item is found it should sync to the platform back
+  // and forth'): if a grail forge tab is the active view, its lists + seal stamps re-scan immediately
+  // (tab entry already re-renders for every other path).
+  try { var _tf=document.getElementById('tab-funi'); if(_tf&&_tf.classList.contains('active')&&typeof window.renderForgeUni==='function') window.renderForgeUni(); } catch(e){}
+  try { var _ts=document.getElementById('tab-fsets'); if(_ts&&_ts.classList.contains('active')&&typeof window.renderForgeSets==='function') window.renderForgeSets(); } catch(e){}
 }
 /* ── Backup & Share Progress ──────────────────────────────────────────────────
    All grail/wishlist/statue/settings state lives in localStorage (see the footer
@@ -16829,6 +16834,9 @@ function toggleSetPiece(piece) {
   else setPieces.add(piece);
   persist();
   renderSetTracker();
+  // v619 — found-sync both ways: a tick from the Tools checklist wall re-scans an open F·Sets tab
+  // (and vice versa — fsets ticks already call renderSetTracker via toggleSetPiece).
+  try { var _ts=document.getElementById('tab-fsets'); if(_ts&&_ts.classList.contains('active')&&typeof window.renderForgeSets==='function') window.renderForgeSets(); } catch(e){}
 }
 window.toggleSetPiece = toggleSetPiece;
 
@@ -29115,7 +29123,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v559.2 — chips inside a run lead with the most-likely drops (best odds first)
     runs.forEach(function(r){ r.items.sort(function(a,b){ var ca=(a._bs?a._bs.s.chance:9e9), cb=(b._bs?b._bs.s.chance:9e9); return ca-cb; }); });
     var low=missing.filter(function(x){ return (x.qlvl||99)<=35; }).sort(function(a,b){ return (a.qlvl||0)-(b.qlvl||0); });
-    return { total:items.length, found:found, missing:missing, runs:runs, low:low };
+    // v619 (Konyo: F-Uniques gets the same smart sync + stamps) — SEALED GROUNDS: group EVERY verified-
+    // source item (found or not) by its best boss; a run whose whole pool is found earns the horizontal
+    // seal. Only fixed-pool runs can seal honestly — the run must have ≥2 verified items so a lone drop
+    // doesn't stamp a whole zone (the Hell TC85 caveat lives on the runs that never fill).
+    var byAll={};
+    items.forEach(function(x){ var b=_bestSrc(x); if(!b) return; var k=b.s.boss;
+      var g=(byAll[k]=byAll[k]||{boss:k, total:0, found:0, names:[]}); g.total++; if(own.has(x.n)) g.found++; else g.names.push(x.n); });
+    var sealed=Object.keys(byAll).map(function(k){return byAll[k];}).filter(function(g){ return g.total>=2 && g.found===g.total; })
+      .sort(function(a,b){ return b.total-a.total; });
+    var lowTotal=items.filter(function(x){ return (x.qlvl||99)<=35; }).length;
+    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal };
   };
   var _fuF='all';
   window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni(); };
@@ -29194,6 +29212,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       s.runs.slice(0,F==='runs'?40:8).forEach(function(r,i){ H.push(_runCard(r,i)); });
       if(F!=='runs'&&s.runs.length>8) H.push('<div class="forge-note">+ '+(s.runs.length-8)+' more runs — open the 🎯 Best runs tile</div>');
       H.push('</div>');
+    }
+    // v619 — 🏆 SEALED GROUNDS: runs whose ENTIRE verified pool is found wear the horizontal seal band
+    // (the vault's trade-keeper language) — farm these for trade/friends only, never for your grail.
+    if(show('runs')&&(s.sealed||[]).length){
+      H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">🏆 Sealed grounds <span class="forge-sec-ct">'+s.sealed.length+'</span><span class="forge-sec-sub">every verified unique from these runs is FOUND — nothing left here for your grail</span></div>');
+      s.sealed.slice(0,F==='runs'?24:6).forEach(function(g){
+        H.push('<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(g.boss)+' — grounds sealed</span><span class="rw-band-s">all '+g.total+' verified uniques found · runs here are trade loot now</span></div>');
+      });
+      H.push('</div>');
+    }
+    if(show('low')&&!s.low.length&&s.lowTotal>0){
+      // v619 — every quick-win (qlvl ≤35, the Normal/Nightmare hunts) found → the seal, not an empty tab
+      H.push('<div class="forge-sec forge-sec-done"><div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ quick wins complete</span><span class="rw-band-s">all '+s.lowTotal+' low-level (qlvl ≤35) uniques found — the early game is sealed</span></div></div>');
     }
     if(show('low')&&s.low.length){
       H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">⚡ Quick wins <span class="forge-sec-ct">'+s.low.length+'</span><span class="forge-sec-sub">qlvl ≤ 35 — the early uniques skipped on the way to Hell, fastest to cross off</span></div>');
@@ -29294,6 +29325,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +_tile('near','⚡','Quick wins','ft-step',quick.length,F,'window.fsetsSetFilter')
       +_tile('done','✅','Found','ft-done',s.havePieces,F,'window.fsetsSetFilter')
       +'</div>');
+    // v619 — ⚔ COMPLETED SETS wear the horizontal seal (the platform's done-forever language): a full
+    // set means its pieces stop being farm targets everywhere — the run lists above already exclude
+    // them (piece-centric missing scan), the seal makes the achievement readable.
+    if((F==='all'||F==='done')&&(s.done||[]).length){
+      H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">⚔ Completed sets <span class="forge-sec-ct">'+s.done.length+'</span><span class="forge-sec-sub">every piece found — these no longer appear in any farm list</span></div>');
+      s.done.slice(0,F==='done'?40:5).forEach(function(r){
+        H.push('<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(r.name.replace(/\s*\(set\)$/i,''))+' — set complete</span><span class="rw-band-s">all '+r.pieces.length+' pieces found · spares are trade loot</span></div>');
+      });
+      if(F!=='done'&&s.done.length>5) H.push('<div class="forge-note">+ '+(s.done.length-5)+' more — open the ✅ Found tile</div>');
+      H.push('</div>');
+    }
     // HERO — a quick-win piece if one exists, else the top run (same priority spirit as uniques)
     if(F!=='done'){
       if(quick.length){
