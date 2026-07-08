@@ -6455,6 +6455,8 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
 /* v558 — MOTION LAYER: living embers, completion celebration, action animations (all reduced-motion-safe) */
+.forge-hero .fh-done{margin-left:8px;border-color:rgba(95,201,122,.55);color:#8fe6a0;background:rgba(95,201,122,.08)}
+.forge-hero .fh-done:hover{background:rgba(95,201,122,.16)}
 .forge-hero .fh-ember{position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:var(--tonec,#e9d07a);opacity:0;pointer-events:none;filter:blur(.4px);animation:fhEmber 4.2s ease-in infinite}
 .forge-hero .fh-ember:nth-child(1){left:14%;animation-delay:.3s}
 .forge-hero .fh-ember:nth-child(2){left:38%;animation-delay:1.7s;animation-duration:5.1s}
@@ -6492,6 +6494,9 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .forge-epic{position:fixed;inset:0;z-index:9600;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden;animation:feFade 2.25s ease forwards;background:radial-gradient(circle at 50% 46%,rgba(255,205,90,.16),rgba(0,0,0,0) 55%)}
 .forge-epic .fe-txt{text-align:center;font-size:44px;font-weight:900;letter-spacing:.14em;color:#ffd97a;text-shadow:0 0 26px rgba(255,190,60,.8),0 2px 0 #5a3d00;animation:feTxt 2.25s cubic-bezier(.2,.9,.3,1) forwards}
 .forge-epic .fe-sub{font-size:14px;font-weight:600;letter-spacing:.3em;color:#e8cf9a;opacity:.9;margin-top:6px;text-transform:uppercase}
+.forge-epic-first{animation-duration:2.9s;background:radial-gradient(circle at 50% 46%,rgba(255,205,90,.2),rgba(120,60,220,.07) 46%,rgba(0,0,0,0) 62%)}
+.forge-epic-first .fe-txt{background:linear-gradient(90deg,#ffd97a,#ff9ecf,#9ecfff,#a4e4b4,#ffd97a);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:feTxt 2.9s cubic-bezier(.2,.9,.3,1) forwards,feRainbow 2.9s linear infinite;text-shadow:none;filter:drop-shadow(0 0 22px rgba(255,200,120,.55))}
+@keyframes feRainbow{0%{background-position:0% 0}100%{background-position:300% 0}}
 .forge-epic .fe-rune{position:absolute;top:-8%;color:#ffcf70;text-shadow:0 0 12px rgba(255,190,60,.75);animation:feRune 1.95s linear forwards;opacity:0}
 @keyframes feRune{0%{transform:translateY(0) rotate(0deg);opacity:0}12%{opacity:.95}100%{transform:translateY(115vh) rotate(55deg);opacity:.1}}
 @keyframes feFade{0%{opacity:0}10%{opacity:1}80%{opacity:1}100%{opacity:0}}
@@ -28303,7 +28308,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (live.length){ var b=live.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0];
       // v557 — SHOW the how, don't describe it: the hero carries the rune recipe chips + the exact owned base.
       pick={icon:'⚒', tone:'now', art:b.rw, artKind:'rw', lead:'forge it now', name:_qArt(b.rw),
-        body:'in your <b>'+b.base.sockets+'os '+_fEsc(b.base.base)+'</b> · <span class="fh-recipe">'+_recipe(b.rw)+'</span>', act:"window.forgeSetFilter('now')", cta:'Make now'};
+        body:'in your <b>'+b.base.sockets+'os '+_fEsc(b.base.base)+'</b> · <span class="fh-recipe">'+_recipe(b.rw)+'</span>', act:"window.forgeSetFilter('now')", cta:'Make now',
+        // v618 (Konyo: "the top one should also be able to be clicked on and created") — the hero
+        // carries the SAME one-click ✓ as the list cards: forgeDoneAnim → rwToggleMade → Chronicle
+        // tally + vault consume + celebration, identical sync path.
+        done:'<button class="f-btn fh-cta fh-done" onclick="window.forgeDoneAnim(this,\''+_fJs(b.rw)+'\')" title="I forged it — tick it created (tallies the Chronicle, consumes the base from the vault)">✓ created</button>'};
     } else if ((s.pipeline||[]).length){ var p=s.pipeline.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0]; var tgt=p.base?p.base.base:'';
       pick={icon:p.cubeGamble?'🎲':'🔧', tone:'pipe', art:p.rw, artKind:'rw', lead:p.cubeGamble?'one gamble away':'one socket away', name:_qArt(p.rw),
         body:(p.cubeGamble?'Cube-socket your <b>'+_qArt(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_qArt(tgt)+'</b> → '+p.need+'os')+' → forge it', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
@@ -28322,7 +28331,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<div class="fh-artwrap"><div class="fh-art">'+_heroArt(pick.art, pick.artKind)+'</div><div class="fh-icobadge">'+pick.icon+'</div></div>'
       + '<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · '+pick.lead+'</div>'
       + '<div class="fh-name">'+pick.name+'</div><div class="fh-body">'+pick.body+'</div></div>'
-      + '<button class="f-btn fh-cta" onclick="'+pick.act+'">'+pick.cta+' <span class="fh-cta-arw">→</span></button></div>';
+      + '<button class="f-btn fh-cta" onclick="'+pick.act+'">'+pick.cta+' <span class="fh-cta-arw">→</span></button>'+(pick.done||'')+'</div>';
   }
 
   // hand class of an owned base for the 1H-player / 2H-merc gate: 'gear' (armour/shield/helm), 'merc'
@@ -28593,7 +28602,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _animThen(el, cls, ms, fn){
     if (!_motionOK()){ fn(); return; }
     try {
-      var card = el && el.closest ? el.closest('.f-card') : null;
+      var card = el && el.closest ? (el.closest('.f-card') || el.closest('.forge-hero')) : null;   // v618 — the hero celebrates like a card
       if (!card){ fn(); return; }
       card.classList.add(cls);
       if (cls==='f-anim-forged'){ // v606 — spark burst + golden shockwave ring on completion
@@ -29029,6 +29038,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v606 — ASCEND: the next tasks rise to meet you (staggered, first card leads)
         try { var _asc=box.querySelectorAll('.forge-sec-now .f-card');
           for (var _ai=0;_ai<Math.min(3,_asc.length);_ai++){ _asc[_ai].classList.add('f-ascend'); if(_ai===1)_asc[_ai].classList.add('f-a2'); if(_ai===2)_asc[_ai].classList.add('f-a3'); }
+        } catch(e){}
+        // v618 — FIRST-FORGE epic (Konyo: "this logic also for the FIRST runeword, very colorful, so it
+        // paves the way… making clear what powers the Forge has"): count 0→1 gets its own, LOUDER moment —
+        // a rainbow-edged golden overlay that teaches what the tool does. Fires once (fresh profiles).
+        try {
+          if (_mN===1 && window.__forgeMadeN===0){
+            var _fe=document.createElement('div'); _fe.className='forge-epic forge-epic-first';
+            var _fg='✦✧★✶✷✸', _fin='';
+            for (var _fi=0;_fi<18;_fi++){ _fin+='<span class="fe-rune" style="left:'+(3+Math.random()*94)+'%;animation-delay:'+Math.round(Math.random()*700)+'ms;font-size:'+(14+Math.round(Math.random()*22))+'px;color:hsl('+Math.round(Math.random()*360)+',85%,72%)">'+_fg[_fi%_fg.length]+'</span>'; }
+            _fin+='<div class="fe-txt">⚒ YOUR FIRST RUNEWORD ⚒<div class="fe-sub">the Forge remembers every word you create — it plans your bases, runes and next steps from here</div></div>';
+            _fe.innerHTML=_fin; document.body.appendChild(_fe); setTimeout(function(){ try{_fe.remove();}catch(e){} }, 2900);
+          }
         } catch(e){}
         // v606 — MILESTONE EPIC: every 10th forge + the 100% finish get the full golden moment
         try { var _tot=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100;
