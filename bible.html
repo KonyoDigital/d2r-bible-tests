@@ -24597,6 +24597,9 @@ body{
 .to-shot{width:104px;height:74px;flex:0 0 auto;object-fit:cover;border-radius:6px;border:1px solid rgba(127,212,255,.3);cursor:zoom-in;transition:transform .1s,border-color .1s}
 .to-shot:hover{transform:scale(1.04);border-color:var(--gold-bright,#f0c060)}
 .to-noshot{display:flex;align-items:center;justify-content:center;font-size:10px;color:#6a7682;background:rgba(255,255,255,.03);cursor:default;font-family:ui-monospace,monospace}
+/* v609 — no screenshot stored → the slot shows THAT ITEM's own in-game HD sprite instead of a dead "no shot" box */
+.to-artshot{display:flex;align-items:center;justify-content:center;cursor:pointer;background:radial-gradient(circle at 50% 45%,rgba(212,168,71,.10),rgba(255,255,255,.02) 72%);border-color:rgba(212,168,71,.35)}
+.to-artshot img{max-width:78%;max-height:86%;object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,.65))}
 .to-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .to-top{display:flex;align-items:center;gap:7px}
 .to-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -25611,8 +25614,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var shotH=(sh && sh.th)
         ? '<img class="to-shot" src="'+esc(sh.th)+'" loading="lazy" data-shot="'+esc(sh.ff)+'" title="click to open this screenshot full-size — '+esc(sh.ff)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">'
         : (sh && sh.ff)
-        ? '<div class="to-shot to-noshot" data-ffsrc="'+esc(sh.ff)+'" title="loading the screenshot from your linked folder — '+esc(sh.ff)+'">📂 …</div>'
-        : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>';
+        ? '<div class="to-shot to-noshot" data-ffsrc="'+esc(sh.ff)+'" data-artfb="'+esc(src)+'" title="loading the screenshot from your linked folder — '+esc(sh.ff)+'">📂 …</div>'
+        : (src
+        ? '<div class="to-shot to-artshot" title="no screenshot exists for this item — showing its in-game HD art · click to enlarge" onclick="window._shotLightbox&&window._shotLightbox(\'\', this.querySelector(\'img\').src)"><img src="'+esc(src)+'" alt="" loading="lazy"></div>'
+        : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>');   // v609 — Konyo: "no shot where it should be HD photos of that specific item"
       // v368 — even when the AI read only the NAME (no socket text → not flagged a base), recognise a
       // known weapon/armor base TYPE so a real runeword base (e.g. "Dimensional Blade", a sword) shows its
       // runeword potential instead of a bare "non-grail/misread" — so Konyo doesn't dismiss a good base.
@@ -25716,8 +25721,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var shotH=(sh && sh.th)
         ? '<img class="to-shot" src="'+esc(sh.th)+'" loading="lazy" data-shot="'+esc(sh.ff)+'" title="click to open this screenshot full-size — '+esc(sh.ff)+'" onclick="window._shotLightbox&&window._shotLightbox(this.dataset.shot,this.src)">'
         : (sh && sh.ff)
-        ? '<div class="to-shot to-noshot" data-ffsrc="'+esc(sh.ff)+'" title="loading the screenshot from your linked folder — '+esc(sh.ff)+'">📂 …</div>'
-        : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>';
+        ? '<div class="to-shot to-noshot" data-ffsrc="'+esc(sh.ff)+'" data-artfb="'+esc(src)+'" title="loading the screenshot from your linked folder — '+esc(sh.ff)+'">📂 …</div>'
+        : (src
+        ? '<div class="to-shot to-artshot" title="no screenshot exists for this item — showing its in-game HD art · click to enlarge" onclick="window._shotLightbox&&window._shotLightbox(\'\', this.querySelector(\'img\').src)"><img src="'+esc(src)+'" alt="" loading="lazy"></div>'
+        : '<div class="to-shot to-noshot" title="no screenshot stored for this read (older scan)">no shot</div>');   // v609 — Konyo: "no shot where it should be HD photos of that specific item"
       var m=(typeof assign!=='undefined'&&assign[n]&&typeof muleById==='function')?muleById(assign[n]):null;
       var muleTag=m?'<span class="to-sock" style="border-color:rgba(127,212,255,.5);color:#9fd4ff" title="muled to '+esc(m.name)+'">🏦 '+esc(m.name)+'</span>':'';
       var sockBadge=sockets?('<span class="to-sock">🔩 '+sockets+'os</span>'):'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="unsocketed elite base — Larzuk/cube it">⚒ Larzuk</span>';
@@ -25778,13 +25785,45 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       root.querySelectorAll('.to-noshot[data-ffsrc]').forEach(function(ph){
         var ff = ph.getAttribute('data-ffsrc');
         window._vShotFromFolder(ff).then(function(u){
-          if (!u || !ph.parentNode) { if (ph.parentNode){ ph.textContent = 'no shot'; ph.removeAttribute('data-ffsrc'); } return; }
-          var img = document.createElement('img');
-          img.className = 'to-shot'; img.loading = 'lazy'; img.src = u;
-          img.setAttribute('data-shot', ff);
-          img.title = 'click to open this screenshot full-size — ' + ff;
-          img.onclick = function(){ if (window._shotLightbox) window._shotLightbox(ff, u); };
-          ph.parentNode.replaceChild(img, ph);
+          if (!ph.parentNode) return;
+          if (u){
+            var img = document.createElement('img');
+            img.className = 'to-shot'; img.loading = 'lazy'; img.src = u;
+            img.setAttribute('data-shot', ff);
+            img.title = 'click to open this screenshot full-size — ' + ff;
+            img.onclick = function(){ if (window._shotLightbox) window._shotLightbox(ff, u); };
+            ph.parentNode.replaceChild(img, ph);
+            return;
+          }
+          // v609.1 — hydration failed. Permission lapsed after a restart → ONE-TAP re-authorize that
+          // re-hydrates every card and opens the tapped screenshot (the exact one it's tagged to).
+          // Folder unlinked / file deleted → the item's own HD art (click-to-enlarge) — never a dead box.
+          var pfn = (typeof window._vFolderPerm === 'function') ? window._vFolderPerm() : Promise.resolve('none');
+          pfn.then(function(perm){
+            if (!ph.parentNode) return;
+            if (perm === 'prompt'){
+              ph.textContent = '📂 tap to load';
+              ph.title = 'browser restarted — one tap re-links your screenshot folder and opens this exact shot (' + ff + ')';
+              ph.style.cursor = 'pointer'; ph.style.color = '#7fd4ff';
+              ph.onclick = function(ev){ ev.stopPropagation();
+                window._vFolderReauth().then(function(ok){
+                  if (!ok) return;
+                  window._vHydrateShots(document);
+                  window._vShotFromFolder(ff).then(function(u2){ if (u2 && window._shotLightbox) window._shotLightbox(ff, u2); });
+                });
+              };
+              return;
+            }
+            var art = ph.getAttribute('data-artfb');
+            if (art){
+              var d = document.createElement('div');
+              d.className = 'to-shot to-artshot';
+              d.title = 'original screenshot unavailable (' + ff + ') — showing this item\'s in-game HD art · click to enlarge';
+              d.innerHTML = '<img src="' + art + '" alt="" loading="lazy">';
+              d.onclick = function(){ if (window._shotLightbox) window._shotLightbox('', art); };
+              ph.parentNode.replaceChild(d, ph);
+            } else { ph.textContent = 'no shot'; ph.removeAttribute('data-ffsrc'); }
+          });
         });
       });
     } catch(e){}
@@ -27397,6 +27436,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var f = await fh.getFile();
       return URL.createObjectURL(f);
     } catch(e){ return null; }
+  };
+  // v609.1 — WHY did hydration fail? Chrome downgrades the persisted folder handle to permission
+  // 'prompt' after a browser restart until a user GESTURE re-grants. Distinguish that from "no folder
+  // linked" / "file deleted" so the review cards can offer a one-tap re-authorize instead of silently
+  // degrading a TAGGED screenshot to a dead "no shot" (Konyo: "it should be tagged to folder like we coded").
+  window._vFolderPerm = async function(){
+    try { var h = liveHandle; if (!h){ try { h = await idbGet(FOLDER_KEY); } catch(e){} }
+      if (!h) return 'none';
+      return await h.queryPermission({ mode:'read' });
+    } catch(e){ return 'none'; }
+  };
+  window._vFolderReauth = async function(){
+    try { var h = liveHandle; if (!h){ try { h = await idbGet(FOLDER_KEY); } catch(e){} }
+      if (!h) return false;
+      var p = await h.queryPermission({ mode:'read' });
+      if (p !== 'granted') p = await h.requestPermission({ mode:'read' });
+      if (p === 'granted'){ liveHandle = h; _setFolderConnectedUI(true); return true; }
+      return false;
+    } catch(e){ return false; }
   };
   function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
   // v224: ONE scan menu, rendered FULL-WIDTH in #vault-intake-report (the tiny
