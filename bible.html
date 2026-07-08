@@ -24519,7 +24519,7 @@ body{
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
-.vdb-label{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.04em;color:var(--text-muted,#b5a48a)}
+.vdb-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#d9bd7d}   /* v610 — echoes the plate titles */
 .vdb-count{font-family:var(--mono,monospace);font-weight:700;font-size:11px;color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32);border-radius:20px;padding:1px 9px}
 .vdb-actions{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
 /* v327: danger button to wipe the unsorted dock — sits LEFT of the gold Auto-Sort, outlined red so it reads as destructive */
@@ -24578,19 +24578,47 @@ body{
 .vault-registered{margin:0 0 14px;width:100%}
 /* v366 — dedicated Throw-Out Review gallery: screenshot-synced cards for discarded reads */
 .vault-throwout{margin:0 0 14px;width:100%}
-.to-det{border:1px solid rgba(154,166,178,.32);border-radius:10px;background:rgba(154,166,178,.05);overflow:hidden}
-.to-sum{display:flex;align-items:center;gap:9px;padding:9px 13px;cursor:pointer;list-style:none;user-select:none}
+.to-det{border:1px solid rgba(212,168,71,.22);border-radius:12px;background:rgba(154,166,178,.05);overflow:hidden}
+/* v610 — FLAGSHIP section headers (Konyo: "i want to understand that it's a section… flagship it").
+   The review headers become ENGRAVED DIVIDER PLATES: ringed emblem medallion · Cinzel gold-gradient
+   small-caps title · forged coin counter · etched subtitle · a chiseled rule running out to a pommel
+   chevron. A slow sheen crosses the plate on hover (killed under reduced motion). Everything below
+   the plate is unchanged — the band's job is purely "a new section starts here". */
+.to-sum{display:flex;align-items:center;gap:13px;padding:13px 16px 12px;cursor:pointer;list-style:none;user-select:none;position:relative;overflow:hidden;background:linear-gradient(90deg,rgba(212,168,71,.11),rgba(212,168,71,.04) 36%,rgba(0,0,0,0) 74%);border-bottom:1px solid rgba(212,168,71,.18)}
+.to-sum::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,rgba(212,168,71,0),rgba(212,168,71,.8),rgba(212,168,71,0))}
+.to-sum::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 32%,rgba(255,226,150,.075) 47%,transparent 62%);transform:translateX(-130%);pointer-events:none}
+.to-sum:hover::after{transform:translateX(130%);transition:transform .9s ease}
 .to-sum::-webkit-details-marker{display:none}
-.to-st{font-family:ui-monospace,monospace;font-weight:800;letter-spacing:.4px;color:#cdd6e0;font-size:13px}
-.to-ct{font-family:ui-monospace,monospace;font-weight:800;font-size:11.5px;color:#0c0e12;background:#9aa6b2;border-radius:9px;padding:1px 8px}
-.to-subt{flex:1;min-width:0;color:#8a96a4;font-size:11px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-emblem{flex:0 0 auto;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3a2d16,#171104 72%);border:1px solid rgba(212,168,71,.55);box-shadow:inset 0 0 0 3px rgba(10,8,3,.9),inset 0 0 0 4px rgba(212,168,71,.3),0 0 16px -6px rgba(212,168,71,.75)}
+.to-hd{display:flex;flex-direction:column;gap:1px;min-width:0}
+.to-hd-top{display:flex;align-items:center;gap:10px}
+.to-st{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:19px;line-height:1.15;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;background:linear-gradient(180deg,#f6e3ab,#d4a849 56%,#a07a2a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55))}
+.to-ct{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:12.5px;color:#1a1206;background:linear-gradient(180deg,#f0d489,#c89a3e);border:1px solid rgba(255,234,175,.75);border-radius:50%;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(90,60,10,.55),0 1px 3px rgba(0,0,0,.6)}
+.to-subt{color:#a8946c;font-size:11.5px;font-style:italic;letter-spacing:.02em;max-width:64ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-rule{flex:1;min-width:40px;height:1px;margin:0 2px;background:linear-gradient(90deg,rgba(212,168,71,.55),rgba(212,168,71,.14) 62%,transparent);position:relative}
+.to-rule::before{content:'';position:absolute;left:-1px;top:-2.5px;width:6px;height:6px;transform:rotate(45deg);background:linear-gradient(135deg,#f0d489,#a87c28);box-shadow:0 0 7px rgba(212,168,71,.8)}
+@media (max-width:860px){.to-st{font-size:16px;white-space:normal}.to-subt{display:none}.to-rule{min-width:16px}}
+@media (prefers-reduced-motion:reduce){.to-sum::after{display:none}}
+details[open] > summary .to-chev{transform:rotate(180deg)}
+/* v610 — steel-blue accent plate: the AI-intake sections (Registered · intake history) keep the app's
+   blue=intake semantic while sharing the exact same plate anatomy — one system, two materials. */
+.to-sum.to-acc-blue{background:linear-gradient(90deg,rgba(127,212,255,.10),rgba(127,212,255,.035) 36%,rgba(0,0,0,0) 74%);border-bottom-color:rgba(127,212,255,.16)}
+.to-acc-blue::before{background:linear-gradient(180deg,rgba(127,212,255,0),rgba(127,212,255,.8),rgba(127,212,255,0))}
+.to-acc-blue .to-emblem{border-color:rgba(127,212,255,.55);background:radial-gradient(circle at 35% 30%,#16303e,#0a141c 72%);box-shadow:inset 0 0 0 3px rgba(4,8,12,.9),inset 0 0 0 4px rgba(127,212,255,.3),0 0 16px -6px rgba(127,212,255,.7)}
+.to-acc-blue .to-st{background:linear-gradient(180deg,#e2f4ff,#8fd0f2 56%,#4e88ad);-webkit-background-clip:text;background-clip:text}
+.to-acc-blue .to-ct{color:#08131c;background:linear-gradient(180deg,#bfe6ff,#6faed6);border-color:rgba(210,240,255,.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 3px rgba(20,60,90,.55),0 1px 3px rgba(0,0,0,.6)}
+.to-acc-blue .to-subt{color:#7fa8c4}
+.to-acc-blue .to-rule{background:linear-gradient(90deg,rgba(127,212,255,.5),rgba(127,212,255,.12) 62%,transparent)}
+.to-acc-blue .to-rule::before{background:linear-gradient(135deg,#bfe6ff,#4e88ad);box-shadow:0 0 7px rgba(127,212,255,.7)}
+.to-acc-blue .to-chev{color:#7fd4ff;border-color:rgba(127,212,255,.45);background:rgba(127,212,255,.07)}
 /* v440 — collapsed sub-group for the repetitive low-set throw-out cards */
 .to-subgroup{margin:8px 6px 4px;border:1px dashed rgba(154,166,178,.32);border-radius:8px;background:rgba(154,166,178,.04)}
-.to-subsum{display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;list-style:none;user-select:none;font-size:12px;font-weight:600;color:#9fb0a0}
+.to-subsum{display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;list-style:none;user-select:none;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:12.5px;font-weight:700;letter-spacing:.05em;color:#c9b072}
+.to-subsum .to-chev{width:20px;height:20px;font-size:10px}
 .to-subsum::-webkit-details-marker{display:none}
 .to-subgroup[open] .to-chev{transform:rotate(180deg)}
 .to-subgroup .to-grid{padding:4px 6px 8px}
-.to-chev{color:#9aa6b2;font-size:11px;transition:transform .15s}
+.to-chev{color:#d4a849;font-size:12px;transition:transform .18s;flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(212,168,71,.45);border-radius:50%;background:rgba(212,168,71,.07);box-shadow:inset 0 0 0 2px rgba(10,8,3,.8)}
 .to-det[open] .to-chev{transform:rotate(180deg)}
 .to-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:4px 13px 13px}
 .to-card{display:flex;gap:10px;padding:9px;border:1px solid rgba(154,166,178,.22);border-radius:9px;background:rgba(0,0,0,.22)}
@@ -24611,7 +24639,7 @@ body{
 .to-acts .vrg-keep,.to-acts .vrg-x{position:static;font-size:11px;padding:2px 9px;border-radius:6px;cursor:pointer}
 .vrg-det{border:1px solid rgba(127,212,255,.26);border-radius:12px;background:linear-gradient(180deg,rgba(18,26,34,.5),rgba(8,11,15,.42));overflow:hidden}
 .vrg-det[open]{border-color:rgba(127,212,255,.4)}
-.vrg-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;user-select:none}
+.vrg-sum{list-style:none}   /* v610 — plate anatomy comes from .to-sum */
 .vrg-sum::-webkit-details-marker{display:none}
 .vrg-st{font-family:ui-monospace,monospace;font-size:12.5px;font-weight:800;letter-spacing:.6px;color:#bfe6ff}
 .vrg-count{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:#bfe6ff;background:rgba(127,212,255,.14);border:1px solid rgba(127,212,255,.3);border-radius:9px;padding:1px 8px}
@@ -24761,7 +24789,7 @@ body{
 .vm-cell-cnt{position:absolute;top:1px;right:2px;font-size:8px;font-weight:800;line-height:1.2;color:#04202e;background:#7fd4ff;border-radius:3px;padding:0 3px;z-index:3;font-family:var(--mono,monospace);box-shadow:0 1px 2px rgba(0,0,0,.5)}
 .vmk-det{border:1px solid rgba(240,192,96,.26);border-radius:12px;background:linear-gradient(180deg,rgba(34,26,14,.5),rgba(12,9,5,.42));overflow:hidden;margin:0 0 14px}
 .vmk-det[open]{border-color:rgba(240,192,96,.42)}
-.vmk-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;user-select:none}
+.vmk-sum{list-style:none}   /* v610 — plate anatomy comes from .to-sum */
 .vmk-sum::-webkit-details-marker{display:none}
 .vmk-st{font-family:ui-monospace,monospace;font-size:12.5px;font-weight:800;letter-spacing:.6px;color:#f0d79a}
 .vmk-subt{flex:1;min-width:0;font-size:11px;font-style:italic;color:#b59b6a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -25476,7 +25504,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +'<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
         +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="remove from multi-copy keepers (back to single)">✕</button></div>';
     }).join('');
-    el.innerHTML='<details class="vmk-det"><summary class="vmk-sum"><span class="vmk-st">📦 Multi-copy keepers</span><span class="vmk-subt">staples you want several of — targets editable; a re-read under target is kept as a spare, not a discard</span><span class="vmk-chev">▾</span></summary><div class="vmk-body">'
+    el.innerHTML='<details class="vmk-det"><summary class="vmk-sum to-sum"><span class="to-emblem">📦</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Multi-copy Keepers</span></span><span class="to-subt">staples you want several of — targets editable; a re-read under target is kept as a spare, not a discard</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vmk-body">'
       +(rows||'<div style="padding:8px 4px;color:#8a9aa8;font-size:12px">No multi-copy items yet — add one below.</div>')
       +'<div class="vmk-add"><input id="vmk-add-input" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
   }
@@ -25554,7 +25582,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v342.20 — the GRAND total counts EVERYTHING read (grail + magic + throw-out), distinguished into
     // sections below. Konyo: "register the item regardless… distinguished but still a total amount."
     var _regTot=all.length+findNames.length+unkNames.length;
-    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum"><span class="vrg-st">📋 Registered</span><span class="vrg-count">'+_regTot+'</span><span class="vrg-subt">grail · magic &amp; rare · throw-out — everything read, sorted</span><span class="vrg-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum to-sum to-acc-blue"><span class="to-emblem">📋</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Registered</span><span class="to-ct">'+_regTot+'</span></span><span class="to-subt">grail · magic &amp; rare · throw-out — everything read, sorted</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
   // v366 — DEDICATED Throw-Out Review: its own section that VISUALLY shows each discarded read paired with
   // the SOURCE SCREENSHOT it came from (synced from the per-screenshot breakdown) + a description, so Konyo
@@ -25681,7 +25709,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     names.forEach(function(n){ var _c=(typeof _throwClean==='function')?_throwClean(n):n; if((typeof findSetPiece==='function')&&findSetPiece(_c)) _loSetN.push(n); else _otherN.push(n); });
     var cards=_otherN.map(cardFor).join('');
     var _loBlock=_loSetN.length?('<details class="to-subgroup"><summary class="to-subsum">🧩 Low set pieces — tracked for grail, safe to sell/throw <span class="to-ct">'+_loSetN.length+'</span><span class="to-chev">▾</span></summary><div class="to-grid">'+_loSetN.map(cardFor).join('')+'</div></details>'):'';
-    el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-st">🗑 Throw-Out Review</span><span class="to-ct">'+names.length+'</span><span class="to-subt">what you’re discarding — each read shown with the screenshot it came from</span><span class="to-chev">▾</span></summary>'
+    el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-emblem">🗑</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Throw-Out Review</span><span class="to-ct">'+names.length+'</span></span><span class="to-subt">what you’re discarding — each read shown with the screenshot it came from</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary>'
       + (cards?'<div class="to-grid">'+cards+'</div>':'')+_loBlock+'</details>';
     try { window._vHydrateShots(el); } catch(e){}   // v571 — pull pruned shots back from the linked folder
   }
@@ -25773,7 +25801,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + '</div></div>';
     };
     var cards=names.map(cardFor).join('');
-    el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-st">🔩 Socketed &amp; Larzuk Review</span><span class="to-ct">'+names.length+'</span><span class="to-subt">muled socketed / Larzuk bases — what runewords each can still make (already-created ones ✓ cancelled out)</span><span class="to-chev">▾</span></summary>'
+    el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-emblem">🔩</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Socketed &amp; Larzuk Review</span><span class="to-ct">'+names.length+'</span></span><span class="to-subt">muled socketed / Larzuk bases — what runewords each can still make (✓ created cancelled out)</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary>'
       + '<div class="to-grid">'+cards+'</div></details>';
     try { window._vHydrateShots(el); } catch(e){}   // v571 — pull pruned shots back from the linked folder
   }
@@ -26805,10 +26833,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _throwReg = (typeof unknownReads!=='undefined' && unknownReads) ? unknownReads.size : 0;
     var _totalReg = _grailReg + _magicReg + _throwReg;
     el.innerHTML = '<details class="vj-details">'
-      + '<summary class="vj-head">'
-      +   '<span class="vj-head-l">🕘 <strong>Recently registered</strong> <span class="vj-head-sub">AI-intake history</span>'
-      +     ' <span class="vj-logger" onclick="event.preventDefault();event.stopPropagation();window.cycleIntakeLogger&&window.cycleIntakeLogger()" title="who is logging these uploads — click to switch (Konyo / your cousin). Each session is tagged with this name." style="cursor:pointer;font-size:10px;color:#c9b88f;border:1px solid rgba(201,184,143,.5);border-radius:4px;padding:1px 6px;margin-left:8px">👤 ' + esc(typeof intakeLogger!=='undefined'?intakeLogger:'Konyo') + ' ⇄</span></span>'
-      +   '<span class="vj-head-r"><span class="vj-gt-lbl" style="opacity:.7;font-size:10.5px;letter-spacing:.05em">⌄ history &amp; per-shot</span><span class="vj-chev">▾</span></span>'
+      + '<summary class="vj-head to-sum to-acc-blue"><span class="to-emblem">🕘</span>'
+      +   '<span class="to-hd"><span class="to-hd-top"><span class="to-st">Recently Registered</span><span class="to-ct">' + totalItems + '</span>'
+      +     '<span class="vj-logger" onclick="event.preventDefault();event.stopPropagation();window.cycleIntakeLogger&&window.cycleIntakeLogger()" title="who is logging these uploads — click to switch (Konyo / your cousin). Each session is tagged with this name." style="cursor:pointer;font-size:10px;color:#9fc9e2;border:1px solid rgba(127,212,255,.4);border-radius:4px;padding:1px 6px">👤 ' + esc(typeof intakeLogger!=='undefined'?intakeLogger:'Konyo') + ' ⇄</span></span>'
+      +   '<span class="to-subt">AI-intake history — every session, and which screenshot produced which read</span></span>'
+      +   '<span class="to-rule"></span><span class="vj-gt-lbl" style="opacity:.7;font-size:10.5px;letter-spacing:.05em;color:#7fa8c4;flex:0 0 auto">history &amp; per-shot</span><span class="to-chev">▾</span>'
       + '</summary>'
       + '<div class="vj-summary">'
       +   '<span class="vj-sum-chip vj-sum-sess">🕘 ' + totalItems + ' logged · ' + j.length + ' session' + (j.length===1?'':'s') + '</span>'
