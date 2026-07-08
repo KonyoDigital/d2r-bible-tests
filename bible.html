@@ -543,6 +543,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 @media(max-width:700px){.help-btn{width:38px;height:38px;font-size:16px;bottom:14px;right:14px}.tools-legend-btn{width:38px;height:38px;font-size:16px;bottom:14px;right:60px}.tlg-grid{grid-template-columns:1fr}.mission-grid{grid-template-columns:1fr}}
 
 .grail-progress{background:linear-gradient(135deg,rgba(0,255,170,.06) 0%,rgba(212,168,71,.04) 100%);border:1px solid var(--border-light);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.gp-detail strong{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:15px;font-weight:700;background:linear-gradient(180deg,#c9ffe8,#59e6a8 56%,#1f8a5f);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.5))}   /* v620 — grail tallies join the Cinzel-counter family */
+.gp-circle-text{font-family:var(--serif-display,'Cinzel',Georgia,serif)}
 .gp-circle{position:relative;width:64px;height:64px;flex-shrink:0}
 .gp-circle svg{width:100%;height:100%;transform:rotate(-90deg)}
 .gp-circle-bg{fill:none;stroke:var(--surface-3);stroke-width:6}
@@ -6260,9 +6262,16 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#5fc97a,#8fe6a0);box-shadow:0 0 10px -1px rgba(95,201,122,.6);transition:width .6s cubic-bezier(.3,.9,.4,1)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl{flex:0 0 auto;font-size:12.5px;font-weight:700;color:var(--text-dim,#b6a888);white-space:nowrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl{flex:0 0 auto;font-size:13px;font-weight:700;color:var(--text-dim,#b6a888);white-space:nowrap;letter-spacing:.02em}
+/* v620 (Konyo: "tallies can be a lot nicer… HD style") — the NUMBERS are the heroes: Cinzel gold-
+   gradient counters, the label text stays quiet. One shared class across every meter tally. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl b{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:16px;font-weight:700;background:linear-gradient(180deg,#f6e3ab,#d4a849 56%,#a07a2a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55));letter-spacing:.02em}
+:is(#tab-fsets) .fp-lbl b{background:linear-gradient(180deg,#c9f2d4,#6fd68a 56%,#2f7a44);-webkit-background-clip:text;background-clip:text}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::before{content:'';position:absolute;right:0;top:0;bottom:0;width:7px;border-radius:6px;background:rgba(255,255,255,.55);filter:blur(3px);animation:fpTip 2.6s ease-in-out infinite}
+@keyframes fpTip{0%,100%{opacity:.25}50%{opacity:.85}}
+@media (prefers-reduced-motion:reduce){:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::before{animation:none}}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl b{color:#8fe6a0;font-size:14px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-size:11px;font-weight:800;color:#8fe6a0;background:rgba(95,201,122,.12);padding:1px 8px;border-radius:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:11.5px;font-weight:700;color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);padding:1px 9px;border-radius:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(20,70,35,.45),0 1px 3px rgba(0,0,0,.55)}   /* v620 — forged-coin percent */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
