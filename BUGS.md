@@ -144,6 +144,28 @@ Konyo split work: Claude Desktop = visuals/features (v23/v24), Claude Code = rou
 
 Format: what broke · how it was caught · root cause · fix · prevention.
 
+## REG-015 — 2026-07-09 · LOCKDOWN sweep: 20+ audited desyncs across Forge/Tools (multi-agent army, v613-v621)
+
+- **Symptom (user-caught trio)**: sparkles fired on dead UI; creating Pattern left the Katar in the
+  vault; Double Bow/Elegant Blade wore false FORGED seals (REG-014's class, wider).
+- **Caught by**: two multi-agent audit workflows (39 + 22 agents) + adversarial verifiers, plus
+  Konyo's live reports. CONFIRMED highs: seed-floor purged explicit un-marks on reload (the ↺ lie);
+  runeCraftStatus alias lookup leaked made words into 'ready now' forever; the SI hero CTA dead-ended
+  on a collapsed card; THREE formulas shipped under one '⚒ Make now' label; consume-sync searched only
+  planner tasks with live bases (farm-bucket words consumed nothing — the Katar); _isIdealBase
+  substring match let a plain Pike impersonate 'War Pike'; v603.1/v387/v385 exclusions trusted
+  understated BASE_DB weapon maxes; Exile→Monarch art home (class-illegal); superior rule skipped
+  review surfaces; eth-strip drift; '(Nos low base)' labels planner-invisible as phantom Larzuk
+  candidates.
+- **Fix**: v613 (factual clickability predicate) · v614 (trusted-max doctrine + game-rule batch) ·
+  v615 (consume fallback chain + Chronicle fan-out consolidation + 66-word live seed) · v616
+  (class-restriction full-catalog invariant — in the smoke gate) · v617 (SI flagship + honest counts)
+  · v618 (hero one-click + first-forge epic) · v619 (grail-forge found-sync + seals) · v620 (tally
+  flagship) · v621 (end-to-end journey sim).
+- **Prevention**: trusted-vs-advice data doctrine everywhere; ONE fan-out (_rwChronicleChanged);
+  consume narrates every outcome; invariant specs in the pre-push gate (v604 coverage, v616 class
+  rules); the v621 journey sim locks the whole arc as a rendered-UI demo.
+
 ## REG-014 — 2026-07-07 · v562 empty exact-fit list read as "✓ forged" → 1os Suwayyah hid the unmade Pattern (live, user-caught)
 
 - **Symptom**: Throw-Out Review said a 1os Suwayyah's "runewords are ✓ forged or belong
