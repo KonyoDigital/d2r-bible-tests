@@ -24,13 +24,18 @@ test('gauntlet cursor applies app-wide, text inputs keep the I-beam', async ({ p
   expect(errors).toEqual([]);
 });
 
-// v605.1 — the grab animation: pointerdown steps --kcur to the grab frame and HOLDS; release restores.
-test('gauntlet grabs on pointerdown and reopens on release', async ({ page }) => {
+// v605.1/.2 — the grab animation: pointerdown on something GRABBABLE steps --kcur to the grab frame
+// and HOLDS; release restores. Pressing empty background does NOTHING (Konyo: "if i click on just a
+// blank space it works too — it should be smarter than that").
+test('gauntlet grabs on interactive elements, ignores blank space', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   const cur = () => page.evaluate(() => getComputedStyle(document.body).cursor.slice(0, 120));
   const idle = await cur();
   expect(idle).toContain('data:image/png');
-  await page.mouse.move(600, 400);
+  // 1) press a nav tab (interactive) → the hand closes, and reopens on release
+  const tab = page.locator('.tab').first();
+  const bb = (await tab.boundingBox())!;
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(220);                 // 3 steps × 38ms + slack → holding the grab frame
   const held = await cur();
@@ -39,4 +44,21 @@ test('gauntlet grabs on pointerdown and reopens on release', async ({ page }) =>
   await page.mouse.up();
   await page.waitForTimeout(220);
   expect(await cur()).toBe(idle);                 // …and back to the open hand
+  // 2) press verified BLANK space → the hand must NOT close
+  const blank = await page.evaluate(() => {
+    const SEL = 'a,button,input,select,textarea,summary,label,[onclick],[role=button],[tabindex],[data-arttip],[data-tab],.tab,.f-card,.f-btn,.f-getchip,.to-card,.to-shot,.rwn-chip,.item-tile,.boss-card,.su-link,.owned-btn,.rwc-toggle,.vrg-keep,.vrg-x,.forge-tab,.d2art-wrap';
+    for (const [x, y] of [[720, 320], [400, 330], [1000, 330], [730, 165], [200, 700]] as Array<[number, number]>) {
+      const el = document.elementFromPoint(x, y);
+      if (el && !el.closest(SEL)) return { x, y };
+    }
+    return null;
+  });
+  expect(blank).not.toBeNull();
+  await page.mouse.move(blank!.x, blank!.y);
+  await page.mouse.down();
+  await page.waitForTimeout(220);
+  expect(await cur()).toBe(idle);                 // blank press → hand stays OPEN
+  await page.mouse.up();
+  await page.waitForTimeout(220);
+  expect(await cur()).toBe(idle);
 });
