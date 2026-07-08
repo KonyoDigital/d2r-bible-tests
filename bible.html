@@ -8103,7 +8103,7 @@ window._baseRunewords = _baseRunewords;
 function _isRunewordBase(base){
   try {
     var clean = (typeof _artSlotClean === 'function') ? _artSlotClean(base) : String(base||'').replace(/\s*\([^)]*\)\s*$/,'');
-    clean = clean.replace(/^(?:Superior|Ethereal|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+    clean = clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
     var rws = (typeof _baseRunewords === 'function') ? _baseRunewords(clean) : [];
     // v562 — apply the v385 SOCKET CEILING here too: a base whose max sockets can't fit even the smallest
     // word it type-matches (Buckler… max 1) can NEVER host a runeword, so it stops being muled.
@@ -8135,7 +8135,7 @@ window._isRunewordBase = _isRunewordBase;
 // Returns the unmade words ({n,s} like _baseRunewords); [] ⇒ everything it can host is already forged.
 function _baseUnmadeRunewords(base, knownSockets){
   var clean = (typeof _artSlotClean === 'function') ? _artSlotClean(base) : String(base||'').replace(/\s*\([^)]*\)\s*$/,'');
-  clean = clean.replace(/^(?:Superior|Ethereal|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+  clean = clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
   var rws = (typeof _baseRunewords === 'function') ? _baseRunewords(clean) : [];
   if (!rws.length) return [];
   var made = {}; try { made = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}'); } catch(e){}
@@ -8146,7 +8146,7 @@ function _baseUnmadeRunewords(base, knownSockets){
   // PLAIN NORMAL (incl. ethereal) only, so a superior base can never reach a sub-max count. When the base's
   // exact max is known, a superior unsocketed base serves ONLY words needing exactly that max.
   var _supOnly = 0;
-  if (ks < 1 && /^\s*Superior\s+/i.test(String(base||''))){
+  if (ks < 1 && (/^\s*Superior\s+/i.test(String(base||'')) || (typeof window._isSuperior==='function' && window._isSuperior(String(base||''))))){   // v614 — flag-set superiors count too (review surfaces pass stripped names)
     // only gate on a max we TRUST: gear slot caps (_keepSocketCeil) or the VERIFIED SOCKET_MAX list —
     // never the understated BASE_DB weapon maxes (the v553 'Wand reports max 1' trap).
     try {
@@ -8196,7 +8196,11 @@ function _baseUnmadeWrongSock(base, knownSockets){
     // without the cap the verdict could tell Konyo to hunt an impossible 4os+ copy and inflate the +N count.
     var clean = (typeof _artSlotClean === 'function') ? _artSlotClean(base) : String(base||'').replace(/\s*\([^)]*\)\s*$/,'');
     clean = clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
-    var mx = parseInt((typeof _socketMaxFor === 'function') ? _socketMaxFor(clean) : 0, 10) || 0;
+    // v614 (lockdown) — TRUSTED caps only, same rule as the v612 stamp universe: gear slot caps +
+    // the verified SOCKET_MAX list. BASE_DB weapon maxes are known-understated (Elegant Blade "2",
+    // Wand "1") — capping on them re-created the exact "✓ forged → vendor it" lie v602 fixed.
+    var mx = (typeof _keepSocketCeil === 'function') ? (_keepSocketCeil(clean) || 0) : 0;
+    if (!mx && typeof SOCKET_MAX !== 'undefined' && SOCKET_MAX[clean.toLowerCase()] != null) mx = parseInt(SOCKET_MAX[clean.toLowerCase()], 10) || 0;
     if (mx >= 1 && mx <= 6) all = all.filter(function(r){ return r.s <= mx; });
     return all.filter(function(r){ return r.s !== ks; });
   } catch(e){ return []; }
@@ -8324,7 +8328,22 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // listed 5-6os Call to Arms/Breath of the Dying. Konyo flagged this repeatedly.) Counts ≤ max stay,
   // including ones above the CURRENT read (legitimately reachable by socketing a better roll / Larzuk).
   var baseMax = (typeof _socketMaxFor === 'function') ? parseInt(_socketMaxFor(name), 10) : 0;
-  if (baseMax >= 1 && baseMax <= 6){ rws = rws.filter(function(r){ return r.s <= baseMax; }); if (!rws.length) return ''; }
+  // v614 — TRUST split (lockdown): is this max VERIFIED (gear slot cap / SOCKET_MAX) or only the
+  // known-understated BASE_DB weapon guess? Verified maxes may EXCLUDE (hide impossible words, call
+  // misreads); an untrusted weapon max is only ADVICE — and a real socket read above it is PROOF of
+  // capability (the Forge's 28251 principle), never grounds to suppress guidance.
+  var _cnm614 = String(name||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+  var _maxTrusted = false;
+  try {
+    _maxTrusted = ((typeof _keepSocketCeil==='function') && _keepSocketCeil(_cnm614) > 0)
+      || (typeof SOCKET_MAX !== 'undefined' && SOCKET_MAX[_cnm614.toLowerCase()] != null);
+  } catch(e){}
+  var _ksProof = parseInt(knownSockets, 10) || 0;
+  // Evidence-calibrated: every documented BASE_DB understatement is exactly max+1 (Wand 1→2,
+  // Elegant Blade 2→3, Katar 2→3). Off-by-ONE above an untrusted max = the read is proof;
+  // +2 or more (Mace '5os' vs max 2) = a different item — the v387 misread branch below fires.
+  if (!_maxTrusted && _ksProof > baseMax && _ksProof - baseMax <= 1) baseMax = _ksProof;
+  if (baseMax >= 1 && baseMax <= 6){ rws = rws.filter(function(r){ return r.s <= baseMax; }); if (!rws.length) return _supNote; }
   // v577 — LADDER FILTER at the DISPLAY layer too (Konyo plays NON-ladder: "it should not be giving me
   // examples for it at all — just confusing"). Ladder-only words never appear as example chips while the
   // Chronicle's ladder toggle is off; flip to ladder mode and they return everywhere. A small "+N ladder"
@@ -8385,7 +8404,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // EVER hold ("Mace (5os)" — a Mace maxes at 2), it was misidentified: a 5-socket 1H weapon is a flail
   // (Scourge/Knout), not a Mace. Flag it loudly + suggest the SAME-class bases that CAN hold this many,
   // instead of self-contradicting "5os now: none / Larzuk → 2" guidance. Konyo's repeatedly-flagged case.
-  if (baseMax >= 1 && baseMax <= 6 && ks >= 1 && ks > baseMax){
+  if (baseMax >= 1 && baseMax <= 6 && ks >= 1 && ks > baseMax && (_maxTrusted || ks - baseMax >= 2)){   // v614 — a VERIFIED max always flags; an untrusted one only at +2 or more (off-by-one = data noise, the read is proof)
     var _prim = Object.keys(_baseCats(name)).filter(function(k){ return k !== 'weapon' && k !== 'melee weapon' && k !== 'missile weapon'; })[0] || '';
     var _sug = [];
     if (typeof BASE_DB !== 'undefined' && _prim){
@@ -8490,15 +8509,20 @@ const SOCKET_MAX = {
   'thresher':5,'giant thresher':6,'great poleaxe':6,'colossus voulge':4,'war pike':6,'grand scepter':3,
   'caduceus':5,'mighty scepter':2,'elder staff':4,'monarch':4,'archon plate':4,'sacred armor':4,
   'dusk shroud':4,'wyrmhide':4,'ring mail':3,'diadem':3,'tiara':3,'circlet':2,'bone visage':3,
-  'spired helm':3,'flail':5,'ogre maul':6,'thunder maul':6
+  'spired helm':3,'flail':5,'ogre maul':6,'thunder maul':6,
+  // v614 — claw family (verified: every 3os-capable claw; corroborated by the app's own runeword data
+  // 'Pattern/Chaos = 3 socket Katars'). Katar-class NORMALS deliberately absent — their RotW maxes are
+  // unverified and an owned (Nos) read must stay proof, not a misread accusation.
+  'suwayyah':3,'wrist sword':3,'war fist':3,'battle cestus':3,'feral claws':3,'runic talons':3,
+  'scissors suwayyah':3,'greater talons':3,'greater claws':3,'scissors quhab':3,'scissors katar':3,'blade talons':3,'claws':3
 };
 // max sockets Larzuk/the cube can reach for a base — EXACT when known, else a SLOT ceiling. Weapons +
 // unknowns return null (most weapons cap at 3, so we don't over-promise 6 for an unverified weapon base).
 function _socketMaxFor(base){
   var b = (typeof _qualStrip === 'function' ? _qualStrip(base) : String(base || '')).toLowerCase().trim();   // v450 — strip "Superior " etc.
-  var _r = (typeof _baseRec === 'function') ? _baseRec(b) : null;   // v381 — complete BASE_DB first
+  if (SOCKET_MAX[b] != null) return SOCKET_MAX[b];   // v614 — the VERIFIED list can never be shadowed by a BASE_DB re-scrape
+  var _r = (typeof _baseRec === 'function') ? _baseRec(b) : null;   // v381 — complete BASE_DB second
   if (_r && _r.maxSockets != null) return _r.maxSockets;
-  if (SOCKET_MAX[b] != null) return SOCKET_MAX[b];
   var c = (typeof _baseCats === 'function') ? _baseCats(b) : {};
   if (c['body armor']) return 4;
   if (c['shield']) return /monarch|aegis|\bward\b|pavise/.test(b) ? 4 : 3;
@@ -8630,7 +8654,7 @@ const BASE_TIER = (function(){
 // v450 — strip a leading item-QUALITY word so a "Superior <Base>" (or low-quality) name resolves to its
 // bare base for art / tier / socket-max / runeword lookups, while the registered NAME keeps "Superior" as
 // its display identity. Superior is normal quality (it makes runewords) — the prefix is identity, not type.
-function _qualStrip(s){ return String(s==null?'':s).replace(/^\s*(?:superior|inferior|low quality|damaged|cracked|crude)\s+/i,'').trim(); }
+function _qualStrip(s){ return String(s==null?'':s).replace(/^\s*(?:superior|inferior|low quality|damaged|cracked|crude|ethereal|eth)\s+/i,'').trim(); }
 window._qualStrip = _qualStrip;
 function _baseTier(base){ var b=_qualStrip(base).toLowerCase().trim(); if(!b) return ''; var _r=(typeof _baseRec==='function')?_baseRec(b):null; if(_r&&_r.tier) return _r.tier; return BASE_TIER[b]||''; }
 window._baseTier = _baseTier;
@@ -8671,7 +8695,7 @@ function _ensureSocketBaseEntry(name, force){
     // so a runeword you just created/un-created must re-sync into the cached description). Build is deterministic
     // and only overwrites at the very end, so a forced rebuild that can't resolve a base leaves the old entry intact.
     if (EXTRA_ITEMS[name] && !force) return;
-    var m = /^(.+?)\s*\((?:(\d+)os|Larzuk base)\)\s*$/.exec(name); if (!m) return;
+    var m = /^(.+?)\s*\(\s*(?:(\d+)\s*os(?:\s+low base)?|Larzuk base)\s*\)\s*$/i.exec(name); if (!m) return;   // v614 — '(Nos low base)' + spaced variants register too (they were planner-invisible)
     var rawBase = m[1].trim();
     // v450 — a "Superior <Base>" keeper: strip the quality word so art / cats / socket-max resolve to the
     // bare base, but keep "Superior" in the registered NAME (the tile title) and flag it for the RW note.
@@ -8692,7 +8716,10 @@ function _ensureSocketBaseEntry(name, force){
       || /colossus (blade|sword|voulge)|thunder maul|ogre maul|great maul|war pike|giant thresher|\bthresher\b|great poleaxe|\bmaul\b/i.test(base);
     var cells = slot === 'Body Armor' ? {w:2,h:3} : (slot === 'Shield' ? {w:2,h:3} : (slot === 'Helm' ? {w:2,h:2} : (is2H ? {w:2,h:4} : {w:1,h:3})));
     var mx = (typeof _socketMaxFor === 'function') ? _socketMaxFor(base) : null;
-    var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets > 0 ? sockets : (mx || 0), nameSup) : '';
+    // v614 — pass the REAL socket state: 0 for an unsocketed Larzuk candidate (the v392 branch renders
+    // the correct 'socket it to max' guidance). Passing mx forced the exact-count branch, whose card
+    // claimed 'sockets are fixed — needs a fresh copy' about an item that ISN'T socketed yet.
+    var rw = (typeof _baseRWLine === 'function') ? _baseRWLine(base, sockets, nameSup) : '';
     // v602 — the Larzuk/cube socket guide only applies to an UNSOCKETED base: an already-socketed item is
     // fixed at its count (Larzuk + the cube recipe both require zero sockets) — showing "Larzuk → max"
     // on an (Nos) entry was misleading (Konyo's 1os Suwayyah card said "Larzuk → 3 sockets").
@@ -12754,7 +12781,7 @@ function artOr(name, fallbackHtml, size){
   // corrupt base_ keys. So: strip suffix (via _artSlotClean) AND quality prefixes, and whenever the raw
   // name resolves to a base_ file but the cleaned name has real HD/class art, prefer the clean art.
   var _clean = _artSlotClean(name);
-  var _cleanP = _clean.replace(/^(?:Superior|Ethereal|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+  var _cleanP = _clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
   var _raw = artUrl(name);
   var _cu = artUrl(_clean) || artUrl(_cleanP);
   var u = (_raw && /\/base_/.test(_raw) && _cu && !/\/base_/.test(_cu)) ? _cu : (_raw || _cu);
@@ -17568,13 +17595,13 @@ window._rwBaseTipHtml = _rwBaseTipHtml;
 var RW_BEST_BASE = {
   'Enigma':'Archon Plate','Fortitude':'Archon Plate','Chains of Honor':'Archon Plate','Bramble':'Archon Plate',
   'Treachery':'Dusk Shroud','Stone':'Wire Fleece','Duress':'Wire Fleece','Prudence':'Wire Fleece',
-  'Spirit':'Monarch','Exile':'Monarch','Dragon':'Monarch','Phoenix':'Monarch','Sanctuary':'Monarch',
+  'Spirit':'Monarch','Exile':'Sacred Targe','Dragon':'Monarch','Phoenix':'Monarch','Sanctuary':'Monarch',   // v614 — Exile is paladin-AURIC-only (the v503 gate); Monarch was a class-illegal art home
   "Ancient's Pledge":'Troll Nest','Splendor':'Monarch',
   'Grief':'Phase Blade','Plague':'Phase Blade','Death':'Phase Blade','Crescent Moon':'Phase Blade',
   'Lawbringer':'Crystal Sword','Heart of the Oak':'Flail','Call to Arms':'Crystal Sword','Insight':'Cryptic Axe',
   'Infinity':'Cryptic Axe','Pride':'Cryptic Axe','Obedience':'Cryptic Axe',
   'Breath of the Dying':'Colossus Blade','Oath':'Berserker Axe','Beast':'Berserker Axe','Fury':'Berserker Axe',
-  'Delirium':'Bone Visage','Dream':'Bone Visage','Lore':'Circlet','Nadir':'Circlet','Wisdom':'Circlet'
+  'Delirium':'Bone Visage','Dream':'Bone Visage','Lore':'Grim Helm','Nadir':'Grim Helm','Wisdom':'Grim Helm'   // v614 — circlets can NEVER host runewords (v585 guard); the art home must be a real helm
 };
 window.RW_BEST_BASE = RW_BEST_BASE;
 function _rwArtName(rwName){
@@ -25746,11 +25773,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // words still unmade → name them, so the generic "keep if good sockets" hedge never contradicts the plan.
       try {
         if ((isBase||_isKnownBase) && !_loSet && typeof _baseUnmadeRunewords==='function' && typeof _isRunewordBase==='function' && _isRunewordBase(cleanB)){
-          var _tun=_baseUnmadeRunewords(cleanB, sock ? +sock[1] : 0);
+          var _tun=_baseUnmadeRunewords(clean, sock ? +sock[1] : 0);   // v614 — FULL quality-carrying name: the Superior Larzuk-max-only rule must fire here like it does in routing
           // v602 — Konyo's 1os Suwayyah / Pattern bug: an empty exact-fit list does NOT mean "✓ forged" —
           // unmade words may exist at OTHER socket counts (Pattern is 3os). Say the honest thing: the word
           // is still to create, THIS copy just can't host it (sockets are fixed) — hunt the right-count copy.
-          var _tws=(sock && !_tun.length && typeof _baseUnmadeWrongSock==='function') ? _baseUnmadeWrongSock(cleanB, +sock[1]) : [];
+          var _tws=(sock && !_tun.length && typeof _baseUnmadeWrongSock==='function') ? _baseUnmadeWrongSock(clean, +sock[1]) : [];
           // v563 — spare split: unmade words all covered by an owned base → "you already hold one" verdict
           var _tsp=(_tun.length && typeof _spareBaseInfo==='function') ? _spareBaseInfo(n, _tun) : null;
           why = !_tun.length
@@ -25850,10 +25877,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // (the Forge already assigned it) → this copy is a spare, also free to go. Self-exclusion by label
       // means the assigned base itself never flags — with two Monarchs, exactly one stays, one flags spare.
       try {
-        var _unm=(typeof _baseUnmadeRunewords==='function')?_baseUnmadeRunewords(base, sockets):null;
+        var _unm=(typeof _baseUnmadeRunewords==='function')?_baseUnmadeRunewords(n, sockets):null;   // v614 — the owned LABEL (carries Superior/Ethereal) drives the quality rules; ent.base is stripped
         // v603.1 — audit sweep caught the SAME empty-list lie here (4th surface): a muled wrong-count copy
         // (1os Suwayyah, Pattern unmade) must not claim "✓ forged" — name the word + the copy to hunt.
-        var _uws=(_unm && !_unm.length && sockets>=1 && typeof _baseUnmadeWrongSock==='function')?_baseUnmadeWrongSock(base, sockets):[];
+        var _uws=(_unm && !_unm.length && sockets>=1 && typeof _baseUnmadeWrongSock==='function')?_baseUnmadeWrongSock(n, sockets):[];
         if (_unm && !_unm.length) why=_uws.length
           ? '<span style="color:#e9b96e">🗑 <b>Free to throw out</b> — <b>'+esc(_uws[0].n)+' ('+_uws[0].s+'os) is STILL UNMADE</b>'+(_uws.length>1?' (+'+(_uws.length-1)+' more)':'')+', but sockets are fixed once socketed: this '+sockets+'os copy can never host it. Free the mule space — hunt an <b>unsocketed or '+_uws[0].s+'os '+esc(base)+'</b> instead:</span>'
           : '<span style="color:#f0c060">🗑 <b>Free to throw out</b> — nothing left for this '
@@ -28032,8 +28059,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return {names:['Phase Blade','Berserker Axe'],note:'1-handed — Phase Blade (sword) or Berserker Axe (axe)',merc:false,hand:'1H'};
   }
   function _isIdealBase(rw, base){
-    var m=_metaBaseFor(rw); var b=String(base||'').toLowerCase();
-    return (m.names||[]).some(function(x){ var xl=x.toLowerCase(); return b===xl||b.indexOf(xl)>=0||xl.indexOf(b)>=0; });
+    // v614 (lockdown) — EXACT name match after quality-strip. The old bidirectional substring let a
+    // plain Pike impersonate 'War Pike' (and Scythe→'War Scythe', Targe→'Sacred Targe'), bypassing the
+    // v576 endgame gate and firing the ideal-base cube gamble on normal-tier bases. Owned labels can
+    // carry a quality prefix ('Superior Flail'), so strip that side; meta names are already clean.
+    var m=_metaBaseFor(rw);
+    var b=String(base||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim().toLowerCase();
+    return (m.names||[]).some(function(x){ return String(x).toLowerCase()===b; });
   }
   function _bestBaseStr(rw){ return (_metaBaseFor(rw).names||[]).slice(0,4).join(' / '); }
   function _bestMeta(rw){ return _metaBaseFor(rw).note||''; }
@@ -28096,8 +28128,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var baseName=m[1].trim(), tag=m[2].trim();
         var mx=(typeof _socketMaxFor==='function')?(parseInt(_socketMaxFor(baseName),10)||0):0;
         var isBase=mx>0 || (typeof _baseCats==='function' && Object.keys(_baseCats(baseName)||{}).length>0);
+        try { var _pr=/(\d+)\s*os/i.exec(tag); if(_pr && parseInt(_pr[1],10)>mx) mx=parseInt(_pr[1],10); } catch(e){}   // v614 — a real read above the stored max is PROOF (the 2os Wand principle)
         if (isBase){ var rw=(typeof findRuneword==='function')?(findRuneword(tag)||''):'';
-          out.push({ name:n, base:baseName, sockets:0, max:mx,
+          // v614 — '(Nos low base)' intake labels carry their REAL socket count in the tag: register it
+          // socketed (sockets are fixed once socketed) instead of as a phantom Larzuk/cube candidate.
+          var _tagSock=/(\d+)\s*os/i.exec(tag); var _tsN=_tagSock?parseInt(_tagSock[1],10):0;
+          out.push({ name:n, base:baseName, sockets:(_tsN>=1&&_tsN<=6)?_tsN:0, max:mx,
             eth:(typeof window._isEthereal==='function')?!!window._isEthereal(n):false,
             sup:(typeof window._isSuperior==='function')?!!window._isSuperior(n):false,
             count:(typeof copyCount==='function')?copyCount(n):1, taggedRw:rw }); }
@@ -28214,7 +28250,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var out={ now:[], pipeline:[], onestep:[], crafts:[], counts:{} };
     if (typeof RUNEWORD_TIP==='undefined' || typeof canMakeNow!=='function') return out;
     var bases=_ownedBases();
-    var kindRank=function(t){ return t.kind==='now'?0:t.kind==='pipeline'?1:2; };
+    // v614 — rank by GAP COUNT, not raw kind: an exact-fit socketed base whose runes just need cubing
+    // (onestep sub:'cube' — 1 gap) must beat an unsocketed Larzuk base + cube (pipeline sub:'cube' —
+    // 2 gaps); the old kind-only rank told the user to burn Larzuk while the ready base idled.
+    var kindRank=function(t){
+      if (t.kind==='now') return 0;
+      if (t.kind==='pipeline') return t.sub==='cube'?3:1;
+      return t.sub==='cube'||t.sub==='runes'?2:4;   // onestep cube/runes (base ready) > pipeline-cube; get-base last
+    };
     var byRw={}, _nowCands={}, _pipeCands={};   // _nowCands / _pipeCands: rw → ALL owned bases (socketed / Larzuk) that can host it, so allocation can spread across every base, not just one
     // 1) cross owned bases × the runewords they can hold
     bases.forEach(function(b){
@@ -28389,7 +28432,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v545 — recompute the cube-gamble flag against the ACTUAL chosen base (a clean Larzuk base has max===need
         // → false; a tagged unsocketed base whose max overshoots the count → true). Keeps flag ↔ base in sync even
         // when byRw picked a different candidate than the spread allocator lands on.
-        t.cubeGamble = (chosen.sockets===0 && chosen.max && t.need>0 && t.need < chosen.max);
+        t.cubeGamble = (chosen.sockets===0 && !chosen.sup && (chosen.taggedRw===t.rw || _isIdealBase(t.rw, chosen.base)) && chosen.max && t.need>0 && t.need < chosen.max);   // v614 — same eligibility as the original gate (superior NEVER cube-gambles)
       }
     });
     out.onestep.sort(function(a,b){ var o=function(t){return t.sub==='cube'?0:t.sub==='runes'?1:2;}; return o(a)-o(b) || b.val-a.val || a.rw.localeCompare(b.rw); });
