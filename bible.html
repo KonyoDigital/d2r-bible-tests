@@ -3198,7 +3198,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* v543 — Smart Insights card */
 #tab-tools .si-body{display:flex;flex-direction:column;gap:14px}
 #tab-tools .si-panel{padding:0 0 12px;border-bottom:1px solid rgba(157,123,216,.18)}
-#tab-tools .si-h{font-size:13px;font-weight:800;color:#c3a6f0;letter-spacing:.3px;margin-bottom:8px}
+#tab-tools .si-h{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#c3a6f0;margin-bottom:8px}   /* v617 — plate-family title */
+#tab-tools .si-h .si-ht{background:linear-gradient(180deg,#e6d4ff,#b48ee8 60%,#7d5bb0);-webkit-background-clip:text;background-clip:text;color:transparent}
+#tab-tools .si-go{cursor:pointer;border-radius:7px;transition:background .12s,transform .12s}
+#tab-tools .si-rhs{display:inline-flex;align-items:center;gap:8px}
+#tab-tools .si-go:hover{background:rgba(157,123,216,.14);transform:translateX(2px)}
+#tab-tools .si-row.si-go{padding:4px 7px;margin:0 -7px}
+#tab-tools .si-coin{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:12.5px;color:#1a1026;background:linear-gradient(180deg,#dcc4ff,#9d7bd8);border:1px solid rgba(230,212,255,.75);border-radius:50%;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 3px rgba(60,30,100,.5),0 1px 3px rgba(0,0,0,.55)}   /* v617 — forged coin counters, purple material */
 #tab-tools .si-bar{position:relative;height:22px;background:rgba(157,123,216,.12);border:1px solid rgba(157,123,216,.3);border-radius:8px;overflow:hidden;margin-bottom:8px}
 #tab-tools .si-fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#7d5bb8,#b48be0);border-radius:8px 0 0 8px}
 #tab-tools .si-barlbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
@@ -4519,14 +4525,31 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
     var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
     var total=Object.keys(tips).length; var madeN=Object.keys(tips).filter(function(n){return made[n];}).length;
-    var s=(typeof window.forgeScan==='function')?window.forgeScan():{now:[],pipeline:[],onestep:[],crafts:[]};
+    var s=(typeof window.forgeScan==='function')?window.forgeScan():{now:[],pipeline:[],onestep:[],crafts:[],farm:[],counts:{}};
+    // v617 (lockdown) — ONE canonical accounting, shared with the Forge (s.counts): the audit found
+    // THREE different numbers shipping under the same '⚒ Make now' label. Deferred tasks (ready, just
+    // sharing a base/rune) are SHOWN, not dropped; baseOver one-steps count as base-blocked (their only
+    // copy is claimed — the Farm panel below simultaneously lists their base to find); cube-reachable
+    // words split out of 'need runes' (the runes exist, they just need cubing).
     var now=(s.now||[]).filter(function(t){return !t.deferred;});
-    var baseOnly=(s.onestep||[]).filter(function(t){return t.sub==='base';}).length;
-    var runeOnly=(s.onestep||[]).filter(function(t){return t.sub==='runes'||t.sub==='cube';}).length;
+    var deferredN=(s.counts&&s.counts.deferred)||0;
+    var baseOnly=(s.onestep||[]).filter(function(t){return t.sub==='base'||t.baseOver;}).length;
+    var runeOnly=(s.onestep||[]).filter(function(t){return t.sub==='runes'&&!t.baseOver;}).length;
+    var cubeOnly=(s.onestep||[]).filter(function(t){return t.sub==='cube'&&!t.baseOver;}).length;
+    var farmN=(s.farm||[]).length;
+    var ladderN=0; try{ Object.keys(tips).forEach(function(n){ if(!made[n]&&window._rwLadderBlocked&&window._rwLadderBlocked(n))ladderN++; }); }catch(e){}
     var best=now.slice().sort(function(a,b){return (b.val||0)-(a.val||0);})[0];
     var fp=window._smartFarmPriority(); var nx=fp[0];
-    return {total:total, made:madeN, remaining:total-madeN, makeNow:now.length, pipeline:(s.pipeline||[]).length, oneStep:(s.onestep||[]).length,
-      blockedByBase:baseOnly, blockedByRunes:runeOnly, bestNow:best?best.rw:null, nextUnlockBase:nx?nx.base:null, nextUnlockCount:nx?nx.count:0};
+    // v617 — 'unlocks' honesty: of the words the top base serves, how many are READY the moment you
+    // find it (runes in hand → onestep sub:'base') vs still rune-short (farm bucket → it only advances)?
+    var nxReady=0, nxAdvance=0;
+    if(nx){ try{ var _ready={}; (s.onestep||[]).forEach(function(t){ if(t.sub==='base')_ready[t.rw]=1; });
+      nx.runewords.forEach(function(rw){ if(_ready[rw])nxReady++; else nxAdvance++; }); }catch(e){} }
+    return {total:total, made:madeN, remaining:total-madeN, makeNow:now.length, deferred:deferredN,
+      pipeline:(s.pipeline||[]).length, oneStep:(s.onestep||[]).length, farm:farmN, ladderExcluded:ladderN,
+      blockedByBase:baseOnly, blockedByRunes:runeOnly, cubeReachable:cubeOnly,
+      bestNow:best?best.rw:null, nextUnlockBase:nx?nx.base:null, nextUnlockCount:nx?nx.count:0,
+      nextUnlockReady:nxReady, nextUnlockAdvance:nxAdvance};
   };
   // v546 — how many of a rune you could END with by cascading your whole stash up the cube-up chain (reuses the
   // Runes-tab cubeUpPotential engine). Lets the Rune radar say "you can cube up to N Sur from what you hold".
@@ -4556,27 +4579,54 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     if (tier==='exceptional') return {tag:'exc', where:'Nightmare/Hell mid areas, or any <b>lvl-85</b> zone'};
     return {tag:'', where:'drops broadly across Hell — or gamble it from a vendor'};
   };
+  // v617 (lockdown+flagship, Konyo: "Smart Insights doesn't route anywhere… flagship it") — every
+  // number ROUTES to the thing it describes, counts are the Forge's own (s.counts — the audit found
+  // 3 formulas under one label), deferred/farm/ladder are named instead of vanishing, and the panel
+  // wears the platform's engraved-plate language. Routing reuses forgeSetFilter + the v557 glide.
+  window.smartGoForge = function(filter, word){
+    try {
+      if (window.switchTab) window.switchTab('forge');
+      setTimeout(function(){
+        try { if (filter && window.forgeSetFilter) window.forgeSetFilter(filter); } catch(e){}
+        setTimeout(function(){
+          var t=null;
+          if (word){ t=Array.from(document.querySelectorAll('#forge-body .f-card')).find(function(c){ return (c.textContent||'').indexOf(word)>=0; }); }
+          if (!t) t=document.querySelector('#forge-body .forge-sec');
+          if (t) t.scrollIntoView({block:'center',behavior:'smooth'});
+        }, 160);
+      }, 60);
+    } catch(e){}
+  };
   window.renderSmartInsights = function(){
     var box=document.getElementById('smart-insights-body'); if(!box) return;
     try{
       var p=window._smartProgress(), fp=window._smartFarmPriority(), rg=window._smartRuneGating();
       var esc=function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
       var pct=p.total?Math.round(p.made/p.total*100):0, H='';
+      var row=function(icon,label,val,extra,route,title){
+        return '<div class="si-row si-go" role="button" tabindex="0" title="'+esc(title||'open this in the Forge')+'" onclick="'+route+'"><span>'+icon+' '+label+'</span><span class="si-rhs">'+(extra||'')+'<b class="si-coin">'+val+'</b></span></div>';
+      };
       H+='<div class="si-panel"><div class="si-h">📊 Progress</div>'
         +'<div class="si-bar"><div class="si-fill" style="width:'+pct+'%"></div><span class="si-barlbl">'+p.made+' / '+p.total+' · '+pct+'%</span></div>'
-        +'<div class="si-row"><span>⚒ Make now</span><b>'+p.makeNow+'</b></div>'
-        +'<div class="si-row"><span>🔧 Pipeline</span><b>'+p.pipeline+'</b></div>'
-        +'<div class="si-row"><span>🟡 One step</span><b>'+p.oneStep+'</b> <span class="si-dim">('+p.blockedByBase+' need a base · '+p.blockedByRunes+' need runes)</span></div>'
-        +(p.bestNow?'<div class="si-tip">⭐ Best you can make now: <b>'+esc(p.bestNow)+'</b></div>':'')
-        +(p.nextUnlockBase?'<div class="si-tip">💡 Highest-leverage base to find: <b>'+esc(p.nextUnlockBase)+'</b> → unlocks '+p.nextUnlockCount+' runeword'+(p.nextUnlockCount>1?'s':'')+'</div>':'')
+        +(p.ladderExcluded?'<div class="si-dim" style="margin:2px 0 4px">('+p.ladderExcluded+' ladder-only word'+(p.ladderExcluded>1?'s':'')+' excluded from the tasks below — flip the Chronicle ladder toggle to include them)</div>':'')
+        +row('⚒','Make now',p.makeNow,(p.deferred?' <span class="si-dim">(+'+p.deferred+' next up — share a base/rune)</span>':''),"window.smartGoForge('now')",'open the Forge → ⚒ Make now')
+        +row('🔧','Pipeline',p.pipeline,'',"window.smartGoForge('pipeline')",'open the Forge → 🔧 Pipeline (Larzuk-socket, then forge)')
+        +row('🟡','One step',p.oneStep,' <span class="si-dim">('+p.blockedByBase+' need a base · '+p.blockedByRunes+' need runes'+(p.cubeReachable?' · '+p.cubeReachable+' cube-up-able':'')+')</span>',"window.smartGoForge('onestep')",'open the Forge → 🟡 One step away')
+        +(p.farm?row('🌾','Furthest out',p.farm,' <span class="si-dim">(need both base and runes)</span>',"window.smartGoForge('onestep')",'open the Forge — the 🌾 Furthest out list rides the One-step view'):'')
+        +(p.bestNow?'<div class="si-tip si-go" role="button" tabindex="0" onclick="window.smartGoForge(\'now\',\''+esc(p.bestNow)+'\')" title="jump to this exact task card">⭐ Best you can make now: <b data-arttip="'+esc(p.bestNow)+'">'+esc(p.bestNow)+'</b> →</div>':'')
+        +(p.nextUnlockBase?'<div class="si-tip si-go" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\''+esc(p.nextUnlockBase)+'\')" title="open this base\'s card">💡 Highest-leverage base to find: <b data-arttip="'+esc(p.nextUnlockBase)+'">'+esc(p.nextUnlockBase)+'</b>'
+          +(p.nextUnlockReady||p.nextUnlockAdvance?' → <b>'+p.nextUnlockReady+'</b> ready on find'+(p.nextUnlockAdvance?' · advances '+p.nextUnlockAdvance+' more':''):' → unlocks '+p.nextUnlockCount)+' →</div>':'')
         +'</div>';
       H+='<div class="si-panel"><div class="si-h">🎯 Farm priority — bases by leverage</div>';
       if(!fp.length){ H+='<div class="si-dim">Nothing to farm — you own a base for every remaining runeword. 🎉</div>'; }
-      else { fp.slice(0,12).forEach(function(x){ var fw=(typeof window._baseFarmWhere==='function')?window._baseFarmWhere(x.base):{tag:'',where:''}; H+='<div class="si-fp"><span class="si-fpn">'+esc(x.base)+(fw.tag?' <span class="si-tier">'+esc(fw.tag)+'</span>':'')+'</span><span class="si-fpc">'+x.count+' word'+(x.count>1?'s':'')+'</span><div class="si-fpw">'+x.runewords.slice(0,5).map(esc).join(' · ')+(x.runewords.length>5?' …':'')+'</div>'+(fw.where?'<div class="si-fpwhere">📍 '+fw.where+'</div>':'')+'</div>'; }); if(fp.length>12)H+='<div class="si-dim">+ '+(fp.length-12)+' more single-word bases</div>'; H+='<div class="si-tip" style="cursor:pointer" onclick="window.switchTab&&window.switchTab(\'tz\')">🔥 Jump to <b>Terror Zones</b> for today’s lvl-85 rotation →</div>'; }
+      else { fp.slice(0,12).forEach(function(x){ var fw=(typeof window._baseFarmWhere==='function')?window._baseFarmWhere(x.base):{tag:'',where:''};
+        H+='<div class="si-fp"><span class="si-fpn si-go" role="button" tabindex="0" data-arttip="'+esc(x.base)+'" onclick="window.openDrop&&window.openDrop(\''+esc(x.base)+'\')" title="open '+esc(x.base)+'\'s base card">'+esc(x.base)+(fw.tag?' <span class="si-tier">'+esc(fw.tag)+'</span>':'')+' →</span><span class="si-fpc">'+x.count+' word'+(x.count>1?'s':'')+'</span><div class="si-fpw">'+x.runewords.slice(0,5).map(function(rw){ return '<span data-arttip="'+esc(rw)+'">'+esc(rw)+'</span>'; }).join(' · ')+(x.runewords.length>5?' …':'')+'</div>'+(fw.where?'<div class="si-fpwhere">📍 '+fw.where+'</div>':'')+'</div>'; });
+        if(fp.length>12)H+='<div class="si-dim">+ '+(fp.length-12)+' more single-word bases</div>';
+        H+='<div class="si-tip si-go" role="button" tabindex="0" onclick="window.switchTab&&window.switchTab(\'tz\')">🔥 Jump to <b>Terror Zones</b> for today\'s lvl-85 rotation →</div>'; }
       H+='</div>';
       H+='<div class="si-panel" style="border:none"><div class="si-h">🔑 Rune radar — what you\'re short on</div>';
       if(!rg.length){ H+='<div class="si-dim">You have every rune your remaining runewords need — just farm the bases. 🎉</div>'; }
-      else { rg.slice(0,14).forEach(function(x){ var cu=(typeof window._runeCubeUpTo==='function')?window._runeCubeUpTo(x.rune):0; var cuNote=''; if(cu>x.owned){ var covers=cu>=x.demand; cuNote='<button class="si-cube'+(covers?' si-cube-full':'')+'" title="cascade your lower runes up the cube chain toward '+esc(x.rune)+'" onclick="window.smartJumpRuneCubeUp&&window.smartJumpRuneCubeUp(\''+esc(x.rune)+'\')">🧊 cube up to '+cu+(covers?' — covers it!':'')+'</button>'; } H+='<div class="si-rg"><span class="si-rgn">'+esc(x.rune)+'</span><span class="si-rgs">short <b>'+x.short+'</b></span><span class="si-dim">need '+x.demand+' · have '+x.owned+'</span>'+cuNote+'</div>'; }); }
+      else { rg.slice(0,14).forEach(function(x){ var cu=(typeof window._runeCubeUpTo==='function')?window._runeCubeUpTo(x.rune):0; var cuNote=''; if(cu>x.owned){ var covers=cu>=x.demand; cuNote='<button class="si-cube'+(covers?' si-cube-full':'')+'" title="cascade your lower runes up the cube chain toward '+esc(x.rune)+'" onclick="window.smartJumpRuneCubeUp&&window.smartJumpRuneCubeUp(\''+esc(x.rune)+'\')">🧊 cube up to '+cu+(covers?' — covers it!':'')+'</button>'; } H+='<div class="si-rg"><span class="si-rgn" data-arttip="'+esc(x.rune)+'">'+esc(x.rune)+'</span><span class="si-rgs">short <b>'+x.short+'</b></span><span class="si-dim">need '+x.demand+' · have '+x.owned+'</span>'+cuNote+'</div>'; }); }
       H+='</div>';
       box.innerHTML=H;
     }catch(e){ box.innerHTML='<div class="si-dim">insights unavailable</div>'; }
@@ -17650,7 +17700,7 @@ var RW_BEST_BASE = {
   'Enigma':'Archon Plate','Fortitude':'Archon Plate','Chains of Honor':'Archon Plate','Bramble':'Archon Plate',
   'Treachery':'Dusk Shroud','Stone':'Wire Fleece','Duress':'Wire Fleece','Prudence':'Wire Fleece',
   'Spirit':'Monarch','Exile':'Sacred Targe','Dragon':'Monarch','Phoenix':'Monarch','Sanctuary':'Monarch',   // v614 — Exile is paladin-AURIC-only (the v503 gate); Monarch was a class-illegal art home
-  "Ancient's Pledge":'Troll Nest','Splendor':'Monarch',
+  "Ancients' Pledge":'Troll Nest','Splendor':'Monarch',   // v616 — apostrophe fixed: the misspelled key never matched, so the word's art home silently missed
   'Grief':'Phase Blade','Plague':'Phase Blade','Death':'Phase Blade','Crescent Moon':'Phase Blade',
   'Lawbringer':'Crystal Sword','Heart of the Oak':'Flail','Call to Arms':'Crystal Sword','Insight':'Cryptic Axe',
   'Infinity':'Cryptic Axe','Pride':'Cryptic Axe','Obedience':'Cryptic Axe',
@@ -28259,7 +28309,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         body:(p.cubeGamble?'Cube-socket your <b>'+_qArt(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_qArt(tgt)+'</b> → '+p.need+'os')+' → forge it', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
     } else {
       var fp=[]; try { fp=(typeof window._smartFarmPriority==='function')?window._smartFarmPriority():[]; } catch(e){}
-      if (fp.length){ var f=fp[0]; pick={icon:'🎯', tone:'step', art:f.base, artKind:'base', lead:'best thing to farm', name:_qArt(f.base), body:'unlocks <b>'+f.count+'</b> runeword'+(f.count>1?'s':''), act:"window.switchTab&&window.switchTab('tools');setTimeout(function(){window.renderSmartInsights&&window.renderSmartInsights();},80)", cta:'Smart Insights'};
+      if (fp.length){ var f=fp[0]; pick={icon:'🎯', tone:'step', art:f.base, artKind:'base', lead:'best thing to farm', name:_qArt(f.base), body:'unlocks <b>'+f.count+'</b> runeword'+(f.count>1?'s':''), act:"window.switchTab&&window.switchTab('tools');setTimeout(function(){var c=document.getElementById('smart-insights-card');if(c&&c.classList.contains('collapsed')&&window.toggleCardCollapse)window.toggleCardCollapse('smart-insights-card');window.renderSmartInsights&&window.renderSmartInsights();if(c)c.scrollIntoView({block:'start',behavior:'smooth'});},80)", cta:'Smart Insights'};
       } else { var os=(s.onestep||[])[0]; if (os) pick={icon:'🟡', tone:'step', art:os.rw, artKind:'rw', lead:'one step away', name:_qArt(os.rw), body:'do the one step to unlock it', act:"window.forgeSetFilter('onestep')", cta:'One step'}; }
     }
     if (!pick) return '';
