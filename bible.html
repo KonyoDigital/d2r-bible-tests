@@ -8406,8 +8406,32 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // Konyo's rule: the ⚒ FORGED stamp means "ignore this base TYPE forever" — so it may ONLY appear when
   // every word the base can EVER hold is created, not just the ones fitting this copy's current count.
   var allTodo = rws.filter(function(r){ return !_rwIsMade(r.n); });
+  // v612 — THE STAMP UNIVERSE (Konyo's Double Bow / Elegant Blade lie): "ALL this base can EVER hold"
+  // must count every word the base can PHYSICALLY host — (a) INCLUDING the endgame words the v585
+  // display gate hides ("+N in endgame bases only" — a Double Bow still physically hosts an unmade
+  // Faith, so the base is NOT complete); (b) WITHOUT the untrusted BASE_DB weapon max (v553: weapon
+  // maxes understated — Elegant Blade claims "2", hiding the unmade 3os sword words). Trusted caps
+  // only: gear slot caps (_keepSocketCeil) + the verified SOCKET_MAX list. Ladder-blocked words stay
+  // excluded — off-ladder they can't be made at all. Display lists/chips keep the v385/v585 filters;
+  // ONLY the completion claims (⚒ stamp · BASE COMPLETE band) use this wider universe.
+  var _stampAll = [], _stampTodo = [];
+  try {
+    var _scn = String(name||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+    _stampAll = _baseRunewords(_scn);
+    var _smx = (typeof _keepSocketCeil==='function') ? _keepSocketCeil(_scn) : 0;
+    if (!_smx && typeof SOCKET_MAX!=='undefined' && SOCKET_MAX[_scn.toLowerCase()]!=null) _smx = parseInt(SOCKET_MAX[_scn.toLowerCase()],10)||0;
+    if (_smx>=1 && _smx<=6) _stampAll = _stampAll.filter(function(r){ return r.s<=_smx; });
+    try { if (typeof window._rwLadderBlocked==='function') _stampAll = _stampAll.filter(function(r){ return !window._rwLadderBlocked(r.n); }); } catch(e){}
+    _stampTodo = _stampAll.filter(function(r){ return !_rwIsMade(r.n); });
+  } catch(e){ _stampAll = rws; _stampTodo = allTodo; }
   // other-count unmade words, rendered WITH their socket counts so the "hunt a 3os copy" action is obvious
   var _rwNamesSock = function(list){ return list.slice(0, 8).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n):''; return '<span class="rwn-chip" data-arttip="'+n+'">'+lg+n+' <span style="opacity:.75">('+r.s+'os)</span></span>'; }).join('') + (list.length > 8 ? ' <span class="rwn-more">+' + (list.length - 8) + ' more</span>' : ''); };
+  // words unmade in the STAMP universe but hidden from the display list (endgame-gated / above the
+  // display cap) — named in amber so a stampless "all visible created" state explains itself.
+  var _stampHiddenTodo = _stampTodo.filter(function(r){ var nm=r.n; return !rws.some(function(x){ return x.n===nm; }); });
+  var _gatedNote = _stampHiddenTodo.length
+    ? '<div class="att-tag" style="margin-top:3px;color:#e9b96e">⚠ base type NOT fully forged — this base can still physically host: ' + _rwNamesSock(_stampHiddenTodo) + ' <span style="opacity:.8">(hidden from the list above — endgame words homed in ideal/elite bases, or above this base\'s listed max — but the base TYPE is not done)</span></div>'
+    : '';
   if (ks >= 1 && ks <= 6){
     // v389 — show ONLY runewords that fit the item's EXACT current socket count. A socketed item is fixed at
     // its count (you can't add sockets to an already-socketed base), so listing other counts (a 2os Steel on
@@ -8428,10 +8452,10 @@ function _baseRWLine(name, knownSockets, forceSuperior){
       + (nowTodo.length
           ? ' <span style="opacity:.85">— still to create (' + nowTodo.length + '):</span> ' + _rwNames(nowTodo) + _rwMadeTag(nowMade, !allTodo.length)
           : (nowMade.length
-              ? (!allTodo.length
-                  ? ': <span class="rw-stamp" title="EVERY runeword this base type can host — at any socket count it can hold — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + rws.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(rws, true)
-                  : ': <span style="color:#8fd0a0">✓ all ' + nowMade.length + ' that fit ' + ks + 'os created</span>' + _rwMadeTag(nowMade, !allTodo.length) + _otherNote)
-              : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>' + _otherNote))
+              ? (!_stampTodo.length
+                  ? ': <span class="rw-stamp" title="EVERY runeword this base type can physically host — at any socket count, endgame words included — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + _stampAll.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(_stampAll, true)
+                  : ': <span style="color:#8fd0a0">✓ all ' + nowMade.length + ' that fit ' + ks + 'os created</span>' + _rwMadeTag(nowMade, false) + _otherNote + _gatedNote)
+              : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>' + _otherNote + _gatedNote))
       + _handNote
       + '</div>';
   }
@@ -8445,11 +8469,11 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   // unsocketed copy can cube-roll BELOW max, so sub-max unmade words are reachable and must block the stamp.
   var subTodo = allTodo.filter(function(r){ return r.s !== maxS; });
   var show = bestTodo.length
-    ? '<span style="opacity:.85">still to create (' + bestTodo.length + '):</span> ' + _rwNames(bestTodo) + _rwMadeTag(bestMade, !allTodo.length)
+    ? '<span style="opacity:.85">still to create (' + bestTodo.length + '):</span> ' + _rwNames(bestTodo) + _rwMadeTag(bestMade, false)
     : (bestMade.length
-        ? (!allTodo.length
-            ? '<span class="rw-stamp" title="EVERY runeword this base type can host — at any socket count it can hold — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + rws.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(rws, true)
-            : '<span style="color:#8fd0a0">✓ all ' + bestMade.length + ' at max ' + maxS + 'os created</span>' + _rwMadeTag(bestMade, !allTodo.length) + '<div class="att-tag" style="margin-top:3px;color:#e9b96e">⚠ base type NOT fully forged — still unmade below max: ' + _rwNamesSock(subTodo) + ' <span style="opacity:.8">(cube-roll can land these lower counts)</span></div>')
+        ? (!_stampTodo.length
+            ? '<span class="rw-stamp" title="EVERY runeword this base type can physically host — at any socket count, endgame words included — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + _stampAll.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(_stampAll, true)
+            : '<span style="color:#8fd0a0">✓ all ' + bestMade.length + ' at max ' + maxS + 'os created</span>' + _rwMadeTag(bestMade, false) + (subTodo.length ? '<div class="att-tag" style="margin-top:3px;color:#e9b96e">⚠ base type NOT fully forged — still unmade below max: ' + _rwNamesSock(subTodo) + ' <span style="opacity:.8">(cube-roll can land these lower counts)</span></div>' : '') + _gatedNote)
         : '<span style="opacity:.7">—</span>');
   return _supNote + '<div class="att-aff" style="color:#cdb988">🔨 <b>Keep for runewords</b> — socket it to its max <b>' + maxS + 'os</b> for: '
     + show

@@ -110,3 +110,42 @@ test('⚒ Forged stamp only when EVERY word the base can ever hold is created', 
   expect(full.ks).toContain('base complete');
   expect(full.ks).toContain('save spares for trading');
 });
+
+// v612 — THE STAMP UNIVERSE (Konyo's Double Bow / Elegant Blade): "ALL this base can EVER hold" was
+// counting only the DISPLAY list — endgame-gated words (+N in endgame bases only) and words above the
+// untrusted BASE_DB weapon max (Elegant Blade claims max 2 — the v553 trap) escaped it, so the FORGED
+// seal fired with Faith/Ice/King's Grace unmade. Completion claims now count the full physical universe.
+test('no FORGED seal while endgame-gated or cap-hidden words are unmade (Double Bow / Elegant Blade)', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1800);
+  const target = await page.evaluate(() => {
+    // Konyo's real June Chronicle slice: leveling words made, endgame words NOT
+    const made: any = {};
+    ['Zephyr', 'Edge', 'Melody', 'Harmony', 'Insight', 'Passion', 'Venom', 'Mania',
+     'Steel', 'Strength', 'Wind'].forEach((n) => (made[n] = 'x'));
+    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    return true;
+  });
+  expect(target).toBe(true);
+  await page.reload(); await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    const db = String(w._baseRWLine('Double Bow', 2) || '');
+    const eb = String(w._baseRWLine('Elegant Blade', 2) || '');
+    localStorage.removeItem('d2r_rwMade');
+    return {
+      dbStamp: db.includes('⚒ Forged'), dbComplete: db.includes('base complete'),
+      dbNames: /Faith|Ice|Brand|Wrath/.test(db),
+      ebStamp: eb.includes('⚒ Forged'), ebComplete: eb.includes('base complete'),
+      ebNames: /King's Grace|Lawbringer|Crescent Moon/.test(eb),
+      dbHasCheck: db.includes('that fit 2os created'), ebHasCheck: eb.includes('that fit 2os created'),
+    };
+  });
+  expect(r.dbStamp).toBe(false);       // a Double Bow can still host unmade Faith/Ice/Brand/Wrath (4os)
+  expect(r.dbComplete).toBe(false);    // …so no seal, no BASE COMPLETE band
+  expect(r.dbNames).toBe(true);        // and the card NAMES what's physically still open
+  expect(r.ebStamp).toBe(false);       // Elegant Blade's "max 2" is untrusted — 3os sword words are open
+  expect(r.ebComplete).toBe(false);
+  expect(r.ebNames).toBe(true);
+  expect(r.dbHasCheck).toBe(true);     // the honest per-count ✓ remains for what IS done
+  expect(r.ebHasCheck).toBe(true);
+});
