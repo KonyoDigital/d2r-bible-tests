@@ -8734,6 +8734,12 @@ window._resyncSocketedDescs = _resyncSocketedDescs;
     window.addEventListener('pointerdown', function(e){ if(!_hit(e.target)) return; _grabbing=true; _seq([_f5,_f10,_grab]); }, true);
     window.addEventListener('pointerup', _rel, true);
     window.addEventListener('pointercancel', _rel, true);
+    // v608 — a native HTML5 drag (vault chips) fires dragend/drop INSTEAD of pointerup → the hand
+    // stayed closed after a drag (Konyo: "the closed hand gets bugged while moving through sections").
+    // Release on drag completion + a safety net: any pointermove with no buttons held while grabbing.
+    window.addEventListener('dragend', _rel, true);
+    window.addEventListener('drop', _rel, true);
+    window.addEventListener('pointermove', function(e){ if(_grabbing && e.buttons===0) _rel(); }, true);
     window.addEventListener('blur', function(){ _tm.forEach(clearTimeout); _grabbing=false; _rt.style.setProperty('--kcur', _open); });
   } catch(e){}
 })();
@@ -26506,6 +26512,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   document.addEventListener('dragstart', function(e){
     var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
     if (chip){ e.dataTransfer.setData('text/vault-item', chip.dataset.vaultItem); e.dataTransfer.effectAllowed='move'; }
+    // v608 — a native drag swallows mouseout, so the #arttip hover card froze on screen mid-drag
+    // (Konyo's stuck Katar card). Force-hide it the moment ANY drag starts.
+    try { var _at=document.getElementById('arttip'); if(_at) _at.classList.remove('on'); } catch(err){}
   });
   document.addEventListener('dragover', function(e){
     var mule=e.target&&e.target.closest&&e.target.closest('.vault-mule');
