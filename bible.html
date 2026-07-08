@@ -8730,8 +8730,28 @@ window._resyncSocketedDescs = _resyncSocketedDescs;
     var _GRABBABLE='a,button,input,select,textarea,summary,label,[onclick],[role=button],[tabindex],[data-arttip],[data-tab],.tab,.f-card,.f-btn,.f-getchip,.to-card,.to-shot,.rwn-chip,.item-tile,.boss-card,.su-link,.owned-btn,.rwc-toggle,.vrg-keep,.vrg-x,.forge-tab,.gf-chips span,.d2art-wrap';
     var _grabbing=false;
     var _hit=function(t){ try { return !!(t && t.closest && t.closest(_GRABBABLE)); } catch(e){ return false; } };
+    // v611 — ✦ grab MAGIC: a glint burst where the hand closes + a faint trail while holding-and-
+    // dragging. Glyph particles (✦/✧/•), ≤24 live at once, self-removing, silent under reduced motion.
+    var _sparkOK=function(){ try { return !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch(e){ return true; } };
+    var _sparkN=0, _lastTrail=0, _lastX=0, _lastY=0;
+    var _spark=function(x,y,big){
+      if (_sparkN>24 || !_sparkOK()) return;
+      var n=big?5:1;
+      for (var i=0;i<n;i++){
+        var el=document.createElement('span'); el.className='kspark';
+        el.textContent=['✦','✧','•','✦'][Math.floor(Math.random()*4)];
+        el.style.left=(x-4+Math.random()*8)+'px'; el.style.top=(y-4+Math.random()*8)+'px';
+        el.style.fontSize=(big?7+Math.random()*7:5+Math.random()*5)+'px';
+        el.style.setProperty('--kx',(Math.random()*36-18)+'px');
+        el.style.setProperty('--ky',(-8-Math.random()*26)+'px');
+        el.style.setProperty('--kr',(Math.random()*140-70)+'deg');
+        el.style.setProperty('--kd',(big? .5+Math.random()*.25 : .4+Math.random()*.2)+'s');
+        _sparkN++; el.addEventListener('animationend', function(){ this.remove(); _sparkN--; });
+        document.body.appendChild(el);
+      }
+    };
     var _rel=function(){ if(!_grabbing) return; _grabbing=false; _seq([_f10,_f5,_open]); };
-    window.addEventListener('pointerdown', function(e){ if(!_hit(e.target)) return; _grabbing=true; _seq([_f5,_f10,_grab]); }, true);
+    window.addEventListener('pointerdown', function(e){ if(!_hit(e.target)) return; _grabbing=true; _seq([_f5,_f10,_grab]); _spark(e.clientX,e.clientY,true); _lastX=e.clientX; _lastY=e.clientY; }, true);
     window.addEventListener('pointerup', _rel, true);
     window.addEventListener('pointercancel', _rel, true);
     // v608 — a native HTML5 drag (vault chips) fires dragend/drop INSTEAD of pointerup → the hand
@@ -8739,7 +8759,20 @@ window._resyncSocketedDescs = _resyncSocketedDescs;
     // Release on drag completion + a safety net: any pointermove with no buttons held while grabbing.
     window.addEventListener('dragend', _rel, true);
     window.addEventListener('drop', _rel, true);
-    window.addEventListener('pointermove', function(e){ if(_grabbing && e.buttons===0) _rel(); }, true);
+    window.addEventListener('pointermove', function(e){
+      if(_grabbing && e.buttons===0){ _rel(); return; }
+      // v611 — drag trail: a tiny twinkle every ~90ms once the held hand has moved a real distance
+      if(_grabbing && e.buttons>0){
+        var _now=performance.now(), dx=e.clientX-_lastX, dy=e.clientY-_lastY;
+        if(_now-_lastTrail>90 && (dx*dx+dy*dy)>140){ _lastTrail=_now; _lastX=e.clientX; _lastY=e.clientY; _spark(e.clientX,e.clientY,false); }
+      }
+    }, true);
+    window.addEventListener('dragover', function(e){
+      // native HTML5 drags (vault chips) fire dragover, not pointermove — same trail
+      if(!_grabbing) return;
+      var _now=performance.now(), dx=e.clientX-_lastX, dy=e.clientY-_lastY;
+      if(_now-_lastTrail>90 && (dx*dx+dy*dy)>140){ _lastTrail=_now; _lastX=e.clientX; _lastY=e.clientY; _spark(e.clientX,e.clientY,false); }
+    }, true);
     window.addEventListener('blur', function(){ _tm.forEach(clearTimeout); _grabbing=false; _rt.style.setProperty('--kcur', _open); });
   } catch(e){}
 })();
@@ -24611,6 +24644,11 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .to-acc-blue .to-rule{background:linear-gradient(90deg,rgba(127,212,255,.5),rgba(127,212,255,.12) 62%,transparent)}
 .to-acc-blue .to-rule::before{background:linear-gradient(135deg,#bfe6ff,#4e88ad);box-shadow:0 0 7px rgba(127,212,255,.7)}
 .to-acc-blue .to-chev{color:#7fd4ff;border-color:rgba(127,212,255,.45);background:rgba(127,212,255,.07)}
+/* v611 — ✦ grab magic: tiny gold glints at the fingertip when the gauntlet closes, and a faint
+   trailing twinkle while holding-and-dragging. Pure transform/opacity, self-removing, capped. */
+.kspark{position:fixed;z-index:99998;pointer-events:none;color:#ffd97a;text-shadow:0 0 6px rgba(255,205,90,.9),0 0 14px rgba(255,170,40,.45);animation:kspark var(--kd,.55s) ease-out forwards;will-change:transform,opacity}
+@keyframes kspark{0%{transform:translate(0,0) scale(.5) rotate(0deg);opacity:1}60%{opacity:.95}100%{transform:translate(var(--kx,0px),var(--ky,-18px)) scale(1.15) rotate(var(--kr,40deg));opacity:0}}
+@media (prefers-reduced-motion:reduce){.kspark{display:none}}
 /* v440 — collapsed sub-group for the repetitive low-set throw-out cards */
 .to-subgroup{margin:8px 6px 4px;border:1px dashed rgba(154,166,178,.32);border-radius:8px;background:rgba(154,166,178,.04)}
 .to-subsum{display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;list-style:none;user-select:none;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:12.5px;font-weight:700;letter-spacing:.05em;color:#c9b072}
