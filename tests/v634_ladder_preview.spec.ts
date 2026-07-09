@@ -70,11 +70,19 @@ test('v634.2 — the TOP-of-forge 🪜 pill exists, names the remaining count, a
     const above = !!(pillRow && strip && (pillRow.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING));
     (pill as any).click();
     const plans = document.querySelectorAll('.forge-ladder-plan').length;
+    // v634.3 — EXPANDED, the plan section renders at the TOP of the forge (above 🌾 Furthest out);
+    // collapsing locks it back to the bottom chip strip. Pure render-order, zero state.
+    const stripUp = document.getElementById('forge-ladder-strip');
+    const farmSec = [...document.querySelectorAll('#tab-forge .forge-sec')].find((x) => /Furthest out/.test(x.textContent || ''));
+    const expandedOnTop = !!(stripUp && farmSec && (stripUp.compareDocumentPosition(farmSec) & Node.DOCUMENT_POSITION_FOLLOWING));
     localStorage.removeItem('d2r_ladderPreview'); try { w.renderForge(); } catch (e) {}
-    return { pillThere: !!pill, countShown, above, plansAfterClick: plans, stripCount };
+    const backDown = (() => { const st = document.getElementById('forge-ladder-strip'); const f2 = [...document.querySelectorAll('#tab-forge .forge-sec')].find((x) => /Furthest out/.test(x.textContent || '')); return !!(st && f2 && (f2.compareDocumentPosition(st) & Node.DOCUMENT_POSITION_FOLLOWING) && st.querySelectorAll('.forge-ladder-plan').length === 0); })();
+    return { pillThere: !!pill, countShown, above, plansAfterClick: plans, stripCount, expandedOnTop, backDown };
   });
   expect(r.pillThere).toBe(true);
   expect(r.countShown).toBe(true);
   expect(r.above).toBe(true);
   expect(r.plansAfterClick).toBe(r.stripCount);
+  expect(r.expandedOnTop).toBe(true);   // toggled ON → plans flood the TOP of the forge
+  expect(r.backDown).toBe(true);        // toggled OFF → locked back to the bottom chips
 });
