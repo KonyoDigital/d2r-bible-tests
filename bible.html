@@ -8160,6 +8160,29 @@ function _baseRunewords(name){
   return out;
 }
 window._baseRunewords = _baseRunewords;
+// v630 — how many base TYPES can host this word? (memoized inverse of _baseRunewords over BASE_DB).
+// A CLASS-LOCKED word (breadth ≤ 24: auric shields=15, claws=21, wands/orbs/staves≈15) has almost no
+// homes — it gets FIRST claim on an owned host copy in forgeScan's allocation (Konyo's Exile-vs-Phoenix:
+// "my sacred shield should task Exile, not be wasted on Phoenix — Phoenix can live in a Monarch").
+var _rwBreadthMap=null;
+function _rwBreadth(rw){
+  if(!_rwBreadthMap){
+    _rwBreadthMap={};
+    try{ Object.keys(typeof BASE_DB!=='undefined'?BASE_DB:{}).forEach(function(bt){
+      (_baseRunewords(bt)||[]).forEach(function(r){ _rwBreadthMap[r.n]=(_rwBreadthMap[r.n]||0)+1; });
+    }); }catch(e){}
+  }
+  return _rwBreadthMap[rw]||999;
+}
+window._rwBreadth = _rwBreadth;
+// CLASS-LOCKED = narrow breadth AND the word's base phrase names class-exclusive GEAR (auric shields,
+// claws, orbs, wands, heads, grimoires). 'Polearms'-only words (Pride/Infinity) are narrow but polearms
+// are common find-anywhere gear — they must NOT out-reserve a make-now Insight (v630.1 smoke regression).
+window._rwClassLocked = function(rw){
+  if (_rwBreadth(rw) > 24) return false;
+  var b = ((typeof RUNEWORD_TIP!=='undefined' && RUNEWORD_TIP[rw]) || {}).b || '';
+  return /paladin|auric|claw|katar|\borbs?\b|\bwands?\b|voodoo|shrunken|\bheads?\b|grimoire/i.test(b);
+};
 // v524 — SINGLE SOURCE OF TRUTH for "is this white base worth keeping as a socket base?" = can it hold ANY
 // runeword? (circlets/orbs/throwing/javelins can't — they socket gems/jewels or nothing → NOT keepers).
 // Used by the vault routing (suggestMule) AND _ensureSocketBaseEntry so the 500+ bases are labelled ONE way,
@@ -28572,6 +28595,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }); out.farm.sort(function(a,b){ return b.val-a.val || a.rw.localeCompare(b.rw); }); } catch(e){}
     // bucket
     Object.keys(byRw).forEach(function(k){ var t=byRw[k]; (t.kind==='now'?out.now:t.kind==='pipeline'?out.pipeline:out.onestep).push(t); });
+    // v630 — EXCLUSIVITY RESERVATION (Konyo: "logic and priority — the sacred shield I have should task
+    // me to create Exile with it instead of wasting that item for the Phoenix"). Before any allocation,
+    // every word with an owned host reserves ONE copy — CLASS-LOCKED words (window._rwClassLocked) jump
+    // the value queue, because their base class is the only home they will EVER have; broad words keep
+    // the old value order among themselves. Downstream, a word may only claim a copy reserved for it
+    // (or a spare beyond all reservations) — a denied broad word re-tasks as get-ANOTHER-base.
+    var _rsv={};   // owned copy label → [rw names], one entry per reserved copy
+    try {
+      var _rw2cands={};
+      Object.keys(byRw).forEach(function(n){ var t=byRw[n]; var c=(_nowCands[n]||[]).concat(_pipeCands[n]||[]); if(t&&t.base&&c.indexOf(t.base)<0) c.push(t.base); if(c.length) _rw2cands[n]=c; });
+      var _rsvTaken={};
+      Object.keys(_rw2cands)
+        .sort(function(a,b){ var la=window._rwClassLocked(a)?0:1, lb=window._rwClassLocked(b)?0:1;
+          if (la!==lb) return la-lb;
+          // non-locked words reserve in the OLD claim order: readiness first (a make-now word must not
+          // lose its base to a rune-blocked higher-value word — v535's Insight), then value
+          var ka=kindRank(byRw[a]||{}), kb=kindRank(byRw[b]||{});
+          return ka-kb || _rwVal(b)-_rwVal(a) || a.localeCompare(b); })
+        .forEach(function(n){
+          var cands=_rw2cands[n].slice().sort(function(a,c){ var ha=_handOk(n,a.base)?1:0,hc2=_handOk(n,c.base)?1:0; if(ha!==hc2) return hc2-ha; return (_isIdealBase(n,c.base)?1:0)-(_isIdealBase(n,a.base)?1:0); });
+          for (var i=0;i<cands.length;i++){ var c=cands[i]; if(!c||!c.name) continue; if((_rsvTaken[c.name]||0) < (c.count||1)){ _rsvTaken[c.name]=(_rsvTaken[c.name]||0)+1; (_rsv[c.name]=_rsv[c.name]||[]).push(n); break; } }
+        });
+    } catch(e){}
+    var _rsvOk=function(rwName, c){
+      var r=_rsv[c.name]; if(!r || !r.length) return true;
+      if (r.indexOf(rwName)>=0) return true;
+      return (c.count||1) > r.length;   // copies to spare beyond every reservation
+    };
+    var _rsvHolder=function(t){ return (t&&t.base&&t.base.name&&_rsv[t.base.name]&&_rsv[t.base.name].indexOf(t.rw)>=0)?0:1; };
     // 3) conflict / auto-prioritise: value-sort, greedily allocate the shared rune + base pool
     out.now.sort(function(a,b){ return b.val-a.val || (b.ideal?1:0)-(a.ideal?1:0) || a.rw.localeCompare(b.rw); });
     var pool={}; (typeof RUNES!=='undefined'?RUNES:[]).forEach(function(r){ pool[r.n]=_runeCount(r.n); });
@@ -28589,7 +28641,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           return (_isIdealBase(t.rw,c.base)?1:0)-(_isIdealBase(t.rw,a.base)?1:0);
         });
       var chosen=null;
-      for (var i=0;i<cands.length;i++){ var c=cands[i]; if (c && (baseUsed[c.name]||0) < (c.count||1)){ chosen=c; break; } }
+      for (var i=0;i<cands.length;i++){ var c=cands[i]; if (c && (baseUsed[c.name]||0) < (c.count||1) && _rsvOk(t.rw,c)){ chosen=c; break; } }   // v630 — never claim a copy earmarked for a class-locked word
       if (runeOk && chosen){
         Object.keys(t.req).forEach(function(r){ pool[r]-=t.req[r]; });
         baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1;
@@ -28599,6 +28651,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         t.deferred=true;
         t.blockedBy=Object.keys(t.req).filter(function(r){ return (pool[r]||0)<t.req[r]; });
         if(!chosen && t.base) t.blockedBase=t.base.base;
+        if(!chosen && t.base && t.base.name && _rsv[t.base.name] && _rsv[t.base.name].indexOf(t.rw)<0) t.rsvFor=_rsv[t.base.name][0];   // v630 — say WHO the copy is earmarked for
       }
     });
     // 4) crafts you can cube now (have the perfect gem + the slot rune)
@@ -28638,10 +28691,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var pick=null, spare=null;
       for (var i=0;i<cands.length;i++){ var c=cands[i]; if(!c) continue;
         var u=baseUsed[c.name]||0, cap=c.count||1; if (u>=cap) continue;
+        if (!_rsvOk(t.rw,c)) continue;          // v630 — reserved for a class-locked word, hands off
         if (u===0){ pick=c; break; }          // a base type not yet touched → clearest + uses your other bases
         if (!spare) spare=c;                    // else a base you own MORE than one of (copies to spare)
       }
       var chosen=pick||spare;
+      if (!chosen && t.base && t.base.name && _rsv[t.base.name] && _rsv[t.base.name].indexOf(t.rw)<0) t.rsvFor=_rsv[t.base.name][0];   // v630
       if (chosen){ t.base=chosen; t.ideal=_isIdealBase(t.rw,chosen.base); baseUsed[chosen.name]=(baseUsed[chosen.name]||0)+1;
         t.mercOwn=!_handOk(t.rw,chosen.base); t.hand=t.mercOwn?'2H merc':_hand(t.rw);   // v582 — flag follows the CHOSEN base
         // v545 — recompute the cube-gamble flag against the ACTUAL chosen base (a clean Larzuk base has max===need
@@ -28662,12 +28717,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _capUsed={};
       var _capClaim=function(t){ if(!t||!t.base||!t.base.name) return;
         var _cu=_capUsed[t.base.name]||0;
-        if (_cu >= (t.base.count||1)) t.baseOver=true; else { t.baseOver=false; _capUsed[t.base.name]=_cu+1; }
+        if (_cu >= (t.base.count||1)){ t.baseOver=true; if(!t.rsvFor && _rsv[t.base.name] && _rsv[t.base.name].indexOf(t.rw)<0) t.rsvFor=_rsv[t.base.name][0]; }
+        else { t.baseOver=false; _capUsed[t.base.name]=_cu+1; }
       };
-      out.now.filter(function(t){return !t.deferred;}).forEach(_capClaim);   // real makes claim first (allocation already kept these within capacity)
-      out.now.filter(function(t){return t.deferred;}).forEach(_capClaim);    // a rune-blocked make still HOLDS its base — it's the plan once the rune drops
-      out.pipeline.forEach(_capClaim);
-      out.onestep.forEach(function(t){ if(t.sub!=='base') _capClaim(t); });
+      // v630 — within each group, the copy's RESERVED word claims first (stable sort: everything else
+      // keeps its order). Without this, a higher-value onestep (Phoenix) still out-claimed Exile here.
+      var _rsvFirst=function(arr){ return arr.slice().sort(function(a,b){ return _rsvHolder(a)-_rsvHolder(b); }); };
+      _rsvFirst(out.now.filter(function(t){return !t.deferred;})).forEach(_capClaim);   // real makes claim first (allocation already kept these within capacity)
+      _rsvFirst(out.now.filter(function(t){return t.deferred;})).forEach(_capClaim);    // a rune-blocked make still HOLDS its base — it's the plan once the rune drops
+      _rsvFirst(out.pipeline).forEach(_capClaim);
+      _rsvFirst(out.onestep.filter(function(t){ return t.sub!=='base'; })).forEach(_capClaim);
     } catch(e){}
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
     return out;
@@ -29031,7 +29090,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       if (deferred.length){
         H.push('<div class="forge-sec forge-sec-defer"><div class="forge-sec-h">⏸ Next up <span class="forge-sec-ct">'+deferred.length+'</span><span class="forge-sec-sub">ready too — frees up once a shared base/rune above is used</span></div>');
-        deferred.forEach(function(t){ H.push('<div class="f-card f-defer"><div class="f-cardbody"><div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</span></div><div class="f-cardmeta">Shares your <b>'+_qName(t.blockedBase||(t.blockedBy||[]).join(', ')||'resource')+'</b> with a higher-value forge above.</div></div></div>'); });
+        deferred.forEach(function(t){ H.push('<div class="f-card f-defer"><div class="f-cardbody"><div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+_fEsc(t.rw)+'</span></div><div class="f-cardmeta">'+(t.rsvFor?('🛡 Your <b>'+_qName(t.blockedBase||'base')+'</b> is <b>earmarked for '+_qArt(t.rsvFor)+'</b> — the only base class that word can live in. This word has other homes: get another base.'):('Shares your <b>'+_qName(t.blockedBase||(t.blockedBy||[]).join(', ')||'resource')+'</b> with a higher-value forge above.'))+'</div></div></div>'); });
         H.push('</div>');
       }
     }
@@ -29053,7 +29112,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qArt(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(t.baseOver?' <span class="f-atomsub" style="color:#e9b96e" title="one copy, two words — forge the other word first; this one will re-task as GET another '+_fEsc(t.base.base)+' the moment that copy is consumed">⏳ shares the last copy</span>':'')+'</div>'
+          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(t.baseOver?' <span class="f-atomsub" style="color:#e9b96e" title="'+(t.rsvFor?_fEsc('your '+t.base.name+' is the only base class '+t.rsvFor+' can ever live in — it is reserved for that word; get another '+t.base.base+' for this one'):'one copy, two words — forge the other word first; this one will re-task as GET another '+_fEsc(t.base.base)+' the moment that copy is consumed')+'">'+(t.rsvFor?'🛡 base earmarked for '+_fEsc(t.rsvFor):'⏳ shares the last copy')+'</span>':'')+'</div>'
           +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
