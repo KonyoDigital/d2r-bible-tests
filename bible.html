@@ -29049,6 +29049,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_rbits) H.push('<div class="forge-restore-top">'+_rbits+'</div>');
     // v546 — "Do this one thing" hero banner: one highest-leverage move, above the cards (not on the Completed view).
     if (F!=='completed'){ var _hero=_forgeHero(s); if (_hero) H.push(_hero); }
+    // v634.2 — TOP-of-forge 🪜 pill (Konyo: "the toggle for ladder should be somewhere on the top"):
+    // one glance says how many ladder words remain; click toggles the plan preview AND glides to the strip.
+    if (F!=='completed' && (s.ladder||[]).length){
+      var _lpTop=false; try { _lpTop = localStorage.getItem('d2r_ladderPreview')==='1'; } catch(e){}
+      H.push('<div class="forge-restore-top" style="margin-top:6px"><span>🪜 <b>'+s.ladder.length+'</b> ladder-only word'+(s.ladder.length>1?'s':'')+' remain (separate economy — made on your ladder char)</span>'
+        +'<button class="f-btn f-btn-mini" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',localStorage.getItem(\'d2r_ladderPreview\')===\'1\'?\'\':\'1\')}catch(e){};try{window.renderForge()}catch(e){};setTimeout(function(){var el=document.getElementById(\'forge-ladder-strip\');if(el)el.scrollIntoView({block:\'center\',behavior:\'smooth\'});},180)" title="view-only plan preview — nothing is promoted, consumed or re-tasked">'+(_lpTop?'🪜 hide ladder plans':'🪜 show ladder plans')+'</button></div>');
+    }
     // v532 — COMPLETED is a dedicated view (never mixed into 'all'): the done list + clear/restore.
     if (F==='completed'){
       var made=_madeRw().filter(function(n){ return !_doneHidden.has(n); })
@@ -29253,7 +29260,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             +(legacy
               ? '<div class="f-atomsub">legacy 3.0 rename — this IS <b>Mania</b> (weapon) / <b>Hysteria</b> (armor); never cube it separately</div>'
               : ('<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(t.rw)+'</div>'
-                +'<div class="f-atomsub">🛒 base: <b>'+_fEsc(e.b||'?')+'</b> — farm it AND the runes ON THE LADDER CHAR (separate stash; your tallies here don\'t transfer)</div>'))
+                // v634.2 — base names as HOVERABLE chips (Konyo: "same in-depth HD detail for keywords and
+                // items"): the word's best bases carry data-arttip → the full floating HD base card (v633).
+                +'<div class="f-atomsub">🛒 base: '+(function(){ var bs=String(_bestBaseStr(t.rw)||'').split(/\s*\/\s*/).map(function(x){return x.trim();}).filter(Boolean); return bs.length? bs.map(function(b){ return '<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its full card">'+_fEsc(b)+'</span>'; }).join('') + ' <span style="opacity:.7">('+_fEsc(e.b||'')+')</span>' : '<b>'+_fEsc(e.b||'?')+'</b>'; })()+' — farm it AND the runes ON THE LADDER CHAR (separate stash; your tallies here don\'t transfer)</div>'))
             +'</div></div>');
         });
       }

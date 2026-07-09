@@ -19,13 +19,17 @@ test('toggle expands the remaining 8 plan cards (recipes + base + 🪜 ribbon, H
     (document.getElementById('forge-ladder-preview-btn') as any).click();          // 🪜 show ladder plans
     const strip1 = document.getElementById('forge-ladder-strip')!;
     const plans = [...strip1.querySelectorAll('.forge-ladder-plan')];
-    const mania = plans.find((c) => /Mania/.test(c.textContent || ''));
-    const hustle = plans.find((c) => /Hustle/.test(c.textContent || ''));
+    // exact title match — Hustle's legacy note CONTAINS the word 'Mania', so text-find is ambiguous
+    const byTitle = (n: string) => plans.find((c) => c.querySelector('.f-cardtitle [data-arttip="' + n + '"]'));
+    const mania = byTitle('Mania');
+    const hustle = byTitle('Hustle');
     const expanded = {
       count: plans.length,
       allRibboned: plans.every((c) => /ladder-only/.test(c.textContent || '')),
       maniaRecipe: !!(mania && mania.querySelector('.f-atomrecipe')),
       maniaBase: !!(mania && /base:/.test(mania.textContent || '')),
+      maniaBaseHover: !!(mania && mania.querySelector('.f-getchip-base[data-arttip]')),   // v634.2 — HD floating card on the base chip
+      wordHover: !!(mania && mania.querySelector('.f-cardtitle [data-arttip]')),
       hustleLegacy: !!(hustle && /legacy|never cube/i.test(hustle.textContent || '')),
       hustleNoRecipe: !!(hustle && !hustle.querySelector('.f-atomrecipe')),
       noButtons: plans.every((c) => c.querySelectorAll('button').length === 0),     // read-only: no ✓ created
@@ -42,9 +46,35 @@ test('toggle expands the remaining 8 plan cards (recipes + base + 🪜 ribbon, H
   expect(r.expanded.allRibboned).toBe(true);
   expect(r.expanded.maniaRecipe).toBe(true);
   expect(r.expanded.maniaBase).toBe(true);
+  expect(r.expanded.maniaBaseHover).toBe(true);
+  expect(r.expanded.wordHover).toBe(true);
   expect(r.expanded.hustleLegacy).toBe(true);
   expect(r.expanded.hustleNoRecipe).toBe(true);
   expect(r.expanded.noButtons).toBe(true);
   expect(r.recollapsed).toBe(true);
   expect(r.stateIdentical).toBe(true);   // THE contract: previewing never touches the account
+});
+
+test('v634.2 — the TOP-of-forge 🪜 pill exists, names the remaining count, and toggles the same preview', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    w.switchTab('forge'); try { w.renderForge(); } catch (e) {}
+    const forge = document.getElementById('tab-forge')!;
+    const pill = [...forge.querySelectorAll('.forge-restore-top button')].find((b) => /ladder plans/i.test(b.textContent || ''));
+    const pillRow = pill && pill.closest('.forge-restore-top');
+    const stripCount = (w.forgeScan().ladder || []).length;
+    const countShown = !!(pillRow && new RegExp('\\b' + stripCount + '\\b').test(pillRow.textContent || ''));
+    // the pill sits ABOVE the strip in DOM order (top placement)
+    const strip = document.getElementById('forge-ladder-strip');
+    const above = !!(pillRow && strip && (pillRow.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING));
+    (pill as any).click();
+    const plans = document.querySelectorAll('.forge-ladder-plan').length;
+    localStorage.removeItem('d2r_ladderPreview'); try { w.renderForge(); } catch (e) {}
+    return { pillThere: !!pill, countShown, above, plansAfterClick: plans, stripCount };
+  });
+  expect(r.pillThere).toBe(true);
+  expect(r.countShown).toBe(true);
+  expect(r.above).toBe(true);
+  expect(r.plansAfterClick).toBe(r.stripCount);
 });
