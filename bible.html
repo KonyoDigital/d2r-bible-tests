@@ -17323,9 +17323,28 @@ window.rwcSetFilter = function(f){ _rwcFilter = f; renderRunewordChronicle(); };
 // label, exactly like the vault's ✕). d2r_rwBaseUsed remembers what was consumed per word, so
 // un-marking the word (↺ / Undo last) gives the base back. Must run BEFORE the word is flagged made —
 // forgeScan skips made words, so the task (and its chosen base) would already be gone.
-window._consumeForgeBase = function(rw){
+window._consumeForgeBase = function(rw, hintLabel){
   try {
     if (!rw || typeof window.forgeScan !== 'function') return;
+    // v626 (lockdown of Konyo's Last Wish race) — the ✓-created click happens on a CARD that showed a
+    // specific base; consuming via a fresh forgeScan can pick a DIFFERENT copy/base than the one the
+    // user actually forged (the plan re-ranks between render and click). When the clicked card's base
+    // label is owned, consume THAT — the click is a statement of physical fact, not a plan.
+    if (hintLabel && owned.has(hintLabel)){
+      var _hUsed = _safeJsonParse(LS.getItem('d2r_rwBaseUsed'), {}) || {};
+      if (copyCount(hintLabel) > 1){
+        var _hnv = copyCount(hintLabel) - 1;
+        if (_hnv <= 1) delete copies[hintLabel]; else copies[hintLabel] = _hnv;
+        try { persist(); } catch(e){}
+        _hUsed[rw] = { l: hintLabel, copy: true };
+      } else {
+        try { if (window.vaultUnown) window.vaultUnown(hintLabel); else { owned.delete(hintLabel); persist(); } } catch(e){ try{ owned.delete(hintLabel); persist(); }catch(e2){} }
+        _hUsed[rw] = { l: hintLabel, copy: false };
+      }
+      LS.setItem('d2r_rwBaseUsed', JSON.stringify(_hUsed));
+      try { if (typeof window._grailToast==='function') window._grailToast('🧰','<b>'+hintLabel+'</b> left the vault','it became '+rw+' — un-mark the word to get it back'); } catch(e){}
+      return;
+    }
     var sc = window.forgeScan();
     // v615 (lockdown, Konyo's Katar/Pattern incident) — three consume gaps closed:
     //  (a) baseOver tasks now CONSUME: the user just told us the base physically became this word —
@@ -17391,7 +17410,7 @@ window._restoreForgeBase = function(rw){
     try { persist(); } catch(e){}
   } catch(e){}
 };
-window.rwToggleMade = function(name){
+window.rwToggleMade = function(name, baseHint){
   if (!name) return;
   if (rwMade[name]) { delete rwMade[name];
     // v424 — record an explicit un-mark of a FLOOR runeword so the durable-floor top-up doesn't re-add it.
@@ -17399,7 +17418,7 @@ window.rwToggleMade = function(name){
     try { window._restoreForgeBase(name); } catch(e){}   // v596 — give the consumed base back
   }
   else {
-    try { window._consumeForgeBase(name); } catch(e){}   // v596 — consume the planned base (BEFORE the made flag hides the task)
+    try { window._consumeForgeBase(name, baseHint); } catch(e){}   // v596/v626 — consume the CLICKED card's base when known (BEFORE the made flag hides the task)
     var d = new Date();
     var mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
     rwMade[name] = mon+' '+d.getDate()+', '+d.getFullYear()+' · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
@@ -28353,7 +28372,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v618 (Konyo: "the top one should also be able to be clicked on and created") — the hero
         // carries the SAME one-click ✓ as the list cards: forgeDoneAnim → rwToggleMade → Chronicle
         // tally + vault consume + celebration, identical sync path.
-        done:'<button class="f-btn fh-cta fh-done" onclick="window.forgeDoneAnim(this,\''+_fJs(b.rw)+'\')" title="I forged it — tick it created (tallies the Chronicle, consumes the base from the vault)">✓ created</button>'};
+        done:'<button class="f-btn fh-cta fh-done" onclick="window.forgeDoneAnim(this,\''+_fJs(b.rw)+'\',\''+_fJs(b.base.name)+'\')" title="I forged it — tick it created (tallies the Chronicle, consumes the base from the vault)">✓ created</button>'};
     } else if ((s.pipeline||[]).length){ var p=s.pipeline.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0]; var tgt=p.base?p.base.base:'';
       pick={icon:p.cubeGamble?'🎲':'🔧', tone:'pipe', art:p.rw, artKind:'rw', lead:p.cubeGamble?'one gamble away':'one socket away', name:_qArt(p.rw),
         body:(p.cubeGamble?'Cube-socket your <b>'+_qArt(tgt)+'</b> (gamble for '+p.need+'os)':'Larzuk your <b>'+_qArt(tgt)+'</b> → '+p.need+'os')+' → forge it', act:"window.forgeSetFilter('pipeline')", cta:'Pipeline'};
@@ -28666,7 +28685,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       setTimeout(fn, ms);
     } catch(e){ fn(); }
   }
-  window.forgeDoneAnim=function(el,name){ _animThen(el,'f-anim-forged',430,function(){ if(window.rwToggleMade) window.rwToggleMade(name); }); };
+  window.forgeDoneAnim=function(el,name,baseHint){ _animThen(el,'f-anim-forged',430,function(){ if(window.rwToggleMade) window.rwToggleMade(name,baseHint); }); };   // v626 — the clicked card's base rides along
   window.forgeForgedAnim=function(el,chainKey,word){ _animThen(el,'f-anim-forged',430,function(){ window.forgeForged(chainKey,word); }); };
   window.forgeSkipAnim=function(el,key){ _animThen(el,'f-anim-skip',260,function(){ window.forgeSkip(key); }); };
   window.forgeAdvanceAnim=function(el,k,total){ _animThen(el,'f-anim-step',230,function(){ window.forgeAdvance(k,total); }); };
@@ -28675,7 +28694,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v531 — the FINAL step of a chain is "Forge <word>". Ticking it = the runeword is CREATED: mark it in the
   // Chronicle (so it leaves the Forge for good), reset the chain's step, and re-render. Was calling forgeAdvance
   // which just looped back to step 1 — a finished chain never actually completed (Konyo caught this).
-  window.forgeForged=function(chainKey, word){ try{ _stepSet(chainKey,0); }catch(e){} if(window.rwToggleMade){ window.rwToggleMade(word); } else if(typeof renderForge==='function'){ renderForge(); } };
+  window.forgeForged=function(chainKey, word){ try{ _stepSet(chainKey,0); }catch(e){} var _hint=String(chainKey||'').replace(/^chain\|/,'');
+    if(window.rwToggleMade){ window.rwToggleMade(word, _hint||undefined); } else if(typeof renderForge==='function'){ renderForge(); } };   // v626 — the chain IS the base: consume exactly it
   // skip / dismiss: ✕ a task you don't want now. Persisted in d2r_forgeSkip. Skipping a chain's forge-step word
   // (key 'rw|<word>') reveals the next word on that base; skipping a whole task hides it. Restorable.
   function _skipSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeSkip')||'[]')); }catch(e){ return new Set(); } }
@@ -28903,7 +28923,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         atoms:[ '<div class="f-atomact">Forge <b class="f-rwbig">'+_qArt(t.rw)+'</b> <span class="f-in">in your</span> <b>'+t.base.sockets+'os '+_qArt(t.base.base)+'</b></div>'
           +'<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(t.rw)+'</div>'
           +((t.mercOwn||_bestHint)?('<div class="f-atomsubrow">'+(t.mercOwn?'<span class="f-atomsub">2-handed → a <b>mercenary</b> weapon (you own the base + runes)</span>':'')+_bestHint+'</div>'):'') ],
-        btn:'<button class="f-btn f-btn-go" onclick="window.forgeDoneAnim(this,\''+_fJs(t.rw)+'\')">✓ created</button>' }); });
+        btn:'<button class="f-btn f-btn-go" onclick="window.forgeDoneAnim(this,\''+_fJs(t.rw)+'\',\''+_fJs(t.base.name)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
       var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
@@ -28915,8 +28935,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             +'<div class="f-atomrecipe"><span class="f-reclbl">cube recipe</span><span class="f-cube">'+_cubeGambleRecipe(target)+'</span></div>'
             +'<div class="f-atomsubrow">gamble for <b>'+t0.need+'os</b> · Larzuk overshoots to '+t0.base.max+' · re-roll until it hits '+t0.need+'</div>');
         } else {
-          atoms.push('<div class="f-atomact">Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qArt(target)+'</b> → <b>'+t0.need+'os</b></div>'
-            +(t0.base.eth?'<div class="f-atomsubrow">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</div>':''));
+          var _forWords=grp.map(function(t){return t.rw;}).filter(function(w2){return !skip.has('rw|'+w2);}).slice(0,3);
+          atoms.push('<div class="f-atomact">Larzuk-socket your <b>'+(t0.base.eth?'ethereal ':'')+_qArt(target)+'</b> → <b>'+t0.need+'os</b>'+(_forWords.length?' <span class="f-atomsub">— for <b>'+_forWords.map(function(w2){return _qArt(w2);}).join(', ')+'</b>'+(grp.length>_forWords.length?' +'+(grp.length-_forWords.length):'')+'</span>':'')+'</div>'
+            +(t0.base.eth?'<div class="f-atomsubrow">⊘ ethereal — socket &amp; forge it as-is. An eth no-repair runeword is ideal for an <b>Act 5 (Barbarian) mercenary</b>.</div>':'')
+            +_consumedNote(t0.base.name));   // v625 (Konyo: "I socketed a 6os blade… it just disappeared?!") — after a sibling forge resets this shared chain, SAY that the previous copy became that word: this step means Larzuk ANOTHER copy (or tap 'did it' if you already have one socketed in-game)
         }
         // final step: ONE word at a time (top non-skipped). ✕-ing it reveals the next word on this base.
         var words=grp.map(function(t){return t.rw;}).filter(function(w){return !skip.has('rw|'+w);});
@@ -28985,11 +29007,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (t.cubeGamble){
           steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> 🎲 <b>Cube-socket</b> your <b>'+_qArt(target)+'</b> — <span class="f-cube">'+_cubeGambleRecipe(target)+'</span> gives a <b>random 1–'+t.base.max+'</b> sockets. Larzuk would overshoot to '+t.base.max+', so <b>re-roll the cube until it lands '+t.need+'os</b>. '+_gambleAfford(target, t.need, t.base.max)+'</div>';
         } else {
-          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qArt(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').</div>';
+          steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Larzuk-socket your <b>'+_qArt(target)+'</b>'+(t.ideal?' <span class="f-ideal">✓ ideal base</span>':'')+' → <b>'+t.need+'os</b> (guaranteed max — exactly '+t.need+').'+_consumedNote(t.base.name)+'</div>';
         }
         steps+='<div class="f-step"><span class="f-stepn">'+(n++)+'</span> Forge <b>'+_qArt(t.rw)+'</b> — '+(t.sub==='cube'?('cube up <b>'+_fEsc((t.missing||[]).join(', '))+'</b> first, then forge'):'runes already in hand')+'. <span class="f-recipe-inline">'+_recipe(t.rw)+'</span></div>';
         H.push('<div class="f-card f-pipe"><div class="f-cardart" data-arttip="'+_fEsc(t.base.base)+'">'+((typeof _fArt==='function'&&_fArt(t.base.base))?'<img class="f-art" src="'+_fEsc(_fArt(t.base.base))+'" alt="" loading="lazy">':_rwArt(t.rw))+'</div><div class="f-cardbody">'
-          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span></div>'
+          +'<div class="f-cardtitle">Forge <b data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</b> '+_handTag(t.hand)+' <span class="f-need">needs '+t.need+'os</span>'+(t.baseOver?' <span class="f-atomsub" style="color:#e9b96e" title="one copy, two words — forge the other word first; this one will re-task as GET another '+_fEsc(t.base.base)+' the moment that copy is consumed">⏳ shares the last copy</span>':'')+'</div>'
           +'<div class="f-steps">'+steps+'</div>'
           +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
           +'</div></div>');
@@ -29036,9 +29058,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _missChips2=function(arr){ return (arr||[]).slice(0,4).map(function(m){ var nm=String(m).replace(/^\d+×\s*/,'').trim(); return '<span class="f-getchip" data-arttip="'+_fEsc(nm)+'" title="'+_fEsc(nm)+' rune">'+_fEsc(m)+'</span>'; }).join('')+((arr||[]).length>4?' <span class="f-atomsub">+'+((arr||[]).length-4)+' more</span>':''); };
       s.farm.forEach(function(t){
         var b1=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/)[0].trim();
+        // v625 (Konyo's idle-time doctrine: "gambling for the sockets is good when I don't have
+        // anything to do") — when the word needs FEWER sockets than the base's max, the plain-white
+        // cube gamble is the acquisition path; name it on the row instead of implying Larzuk.
+        var _gm=b1?(parseInt(_socketMaxFor(b1),10)||0):0;
+        var _gNote=(_gm&&t.need>0&&t.need<_gm)?' · 🎲 <span title="Larzuk would overshoot to '+_gm+'os — cube-gamble a PLAIN WHITE copy ('+_fEsc(_cubeGambleRecipe(b1))+') until it rolls '+t.need+'os — a perfect nothing-else-to-do activity">gamble a plain white for '+t.need+'os</span>':'';
         H.push('<div class="f-card f-step" style="padding:7px 10px"><div class="f-cardbody">'
           +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
-          +'<div class="f-getsub">🛒 base: <span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b1)+'" style="color:'+(_qC(b1)||'var(--q-normal)')+'">'+_fEsc(b1||t.baseReq||'?')+'</span> · 🔨 runes missing: '+_missChips2(t.missing)+'</div>'
+          +'<div class="f-getsub">🛒 base: <span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b1)+'" style="color:'+(_qC(b1)||'var(--q-normal)')+'">'+_fEsc(b1||t.baseReq||'?')+'</span> · 🔨 runes missing: '+_missChips2(t.missing)+_gNote+'</div>'
           +'</div></div>');
       });
       H.push('</div>');
