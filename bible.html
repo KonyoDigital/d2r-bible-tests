@@ -29232,7 +29232,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // never silently disagree. Read-only chips + the mode toggle for when his character IS ladder.
     if ((s.ladder||[]).length){
       H.push('<div class="forge-sec forge-sec-step" id="forge-ladder-strip"><div class="forge-sec-h">🪜 Ladder-locked <span class="forge-sec-ct">'+s.ladder.length+'</span>'
-        +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — no tasks, no rune plans, so you never waste runes on them off-ladder (your Mania lesson). Playing a ladder char? </span>'
+        +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — no tasks, no rune plans, so you never waste runes on them off-ladder (your Mania lesson). NOTE: ladder is a SEPARATE economy — your rune tallies here are non-ladder; a ladder character farms its own. Playing one? </span>'
         +'<button class="f-btn" style="font-size:11px;padding:2px 8px" onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'ladder\');try{window.renderForge()}catch(e){}" title="switch the whole platform to Ladder mode — these words become real forge tasks">🪜 switch to Ladder</button></div>'
         +'<div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px">'
         +s.ladder.map(function(t){ return '<span class="f-getchip" data-arttip="'+_fEsc(t.rw)+'" style="color:'+(_qC(t.rw)||'var(--q-normal)')+'" title="'+_fEsc(t.baseReq||'')+' — ladder-only in the mod">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'; }).join('')
