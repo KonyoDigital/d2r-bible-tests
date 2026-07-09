@@ -20804,6 +20804,36 @@ window.renderMostWanted = renderMostWanted;
 // v379 — re-register per-base socketed keepers ("Monarch (4os)", "Colossus Voulge (Larzuk base)"…) from the
 // persisted owned set, so after a reload they still resolve their own art + exact max-socket card (not generic).
 try { if (typeof owned !== 'undefined' && typeof _ensureSocketBaseEntry === 'function') Array.from(owned).forEach(function(n){ _ensureSocketBaseEntry(n); }); } catch(e){}
+// v631 — PROMOTE socket-known base reads out of the 'needs a look' ledger (Konyo's Heavy Crossbow (5os)
+// → Mist: the host map SAW it but the planner could not task it, because unknownReads is invisible to
+// _ownedBases). A read that parses as '<known base> (Nos)' whose socket count EXACT-FITS an unmade,
+// unblocked runeword is not 'unknown' — it is live forge capability: register it as an owned socketed
+// base so the planner, vault and capacity ledger all see it. Junk reads (nothing unmade fits) stay put.
+// Idempotent; runs at boot and again at every vault-scan finish.
+window._promoteUnknownBases = function(){
+  var moved=[];
+  try {
+    if (typeof unknownReads==='undefined' || !unknownReads || !unknownReads.size) return moved;
+    Array.from(unknownReads).forEach(function(lbl){
+      var m=/^(.+?)\s*\(\s*(\d+)\s*os(?:\s+low base)?\s*\)\s*$/i.exec(String(lbl||'')); if(!m) return;
+      var clean=(typeof _qualStrip==='function'?_qualStrip(m[1].trim()):m[1].trim())||m[1].trim();
+      clean=clean.replace(/\bKriss\b/g,'Kris').replace(/\bStilleto\b/g,'Stiletto').replace(/\bMithral Point\b/g,'Mithril Point');
+      if (typeof BASE_DB==='undefined' || !BASE_DB[clean]) return;
+      if (typeof _isRunewordBase==='function' && !_isRunewordBase(clean)) return;
+      var ks=parseInt(m[2],10)||0; if(ks<1) return;
+      var fits=[];
+      try { fits=(_baseUnmadeRunewords(clean, ks)||[]).filter(function(r){ return r && r.s===ks; }); } catch(e){}
+      if (!fits.length) return;
+      owned.add(lbl);
+      try { _ensureSocketBaseEntry(lbl); } catch(e){}
+      unknownReads.delete(lbl);
+      moved.push(lbl);
+    });
+    if (moved.length){ try{ persist(); }catch(e){} }
+  } catch(e){}
+  return moved;
+};
+try { window._promoteUnknownBases(); } catch(e){}
 updateEffMF();
 updatePlayers();
 renderHero();
@@ -27657,6 +27687,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       localStorage.setItem(SEEN_KEY, JSON.stringify(_sNow));
     } catch(e){}
     journalAdd(logged, perFile);
+    try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof toast==='function') toast('🧰 '+_promoted.length+' read'+(_promoted.length>1?'s':'')+' promoted to forge bases: '+_promoted.join(', ')); } catch(e){}   // v631
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal();
     try { if (typeof renderAll === 'function') renderAll(); } catch(e){}
     // v342.7 — fixed-format, scrollable, ORGANIZED report card with a grand TOTAL (Konyo: "fixed format
