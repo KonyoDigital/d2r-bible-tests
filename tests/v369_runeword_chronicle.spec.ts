@@ -54,12 +54,12 @@ test('Chronicle seeds 66 created, lists all 100, syncs makeable, toggles persist
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.faith?.badge).toContain('Missing');  // Ohm+Jah+Lem+Eld not owned, not seeded
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 57 → 58
+  // toggling an UN-seeded runeword to created persists and bumps the count 66 → 67
   const after = await page.evaluate(() => {
     (window as any).rwToggleMade('Faith');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return { faith: !!made['Faith'], count: Object.keys(made).length };
   });
   expect(after.faith).toBe(true);
-  expect(after.count).toBe(58);
+  expect(after.count).toBe(67);
 });
