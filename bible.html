@@ -8237,7 +8237,11 @@ function _baseUnmadeRunewords(base, knownSockets){
   return rws.filter(function(r){
     if (made[r.n]) return false;
     try { if (typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(r.n)) return false; } catch(e){}
-    if (!_egOk(r.n)) return false;
+    // v628 (Konyo's thrown-out 4os Double Bow with Faith unmade): an EXACT-FIT SOCKETED copy is
+    // makeable RIGHT NOW in-game — the endgame gate is a farming preference (don't hoard junk whites
+    // for endgame words), never a veto over capability already in hand. Wrong-fit/unsocketed copies
+    // keep the gate.
+    if (!_egOk(r.n) && !(ks >= 1 && r.s === ks)) return false;
     if (ks >= 1) return r.s === ks;
     if (_supOnly) return r.s === _supOnly;
     if (baseMax) return r.s <= baseMax;
@@ -28464,8 +28468,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           // v583 — the word's TRUE home (RW_BIS/ideal) always passes, even held as a 2H/merc stick (BotD in
           // an eth Colossus Blade is the classic); otherwise: never a merc-rescue, and elite-tier required.
           var _egIdeal = _isIdealBase(name, b.base);
-          if (!_egIdeal && _mercOwn) return;
-          if (!_egIdeal && ((typeof window._baseTier==='function'?window._baseTier(b.base):'')!=='elite')) return;
+          // v628 — an ALREADY-SOCKETED exact-fit base bypasses the gate: the word is makeable NOW at
+          // zero cost (Konyo's 4os Double Bow → Faith). The gate still stops Larzuk/gamble PLANS on
+          // non-ideal, non-elite bases (don't burn quests/runes on the wrong home).
+          var _egFit = (b.sockets === need);
+          if (!_egIdeal && !_egFit && _mercOwn) return;
+          if (!_egIdeal && !_egFit && ((typeof window._baseTier==='function'?window._baseTier(b.base):'')!=='elite')) return;
         }
         // NOTE: do NOT gate on _socketMaxFor here — a base that ALREADY has `need` sockets proves it can hold
         // them, even when our max estimate is low (e.g. Wand reports max 1 but a 2os Wand is real). The max
