@@ -17804,6 +17804,31 @@ function _rwBaseTipHtml(name){
     + '<div class="att-info">A normal/superior <b>grey</b> base — socket it to the right count (Larzuk / cube / drops) and cube the runes in order. Click to open its top runeword.</div>';
 }
 window._rwBaseTipHtml = _rwBaseTipHtml;
+// v633 — GENERIC base card (Konyo: "some are PERFECT and some are just plain picture with no detail —
+// fix that across the platform"): the rich card above only existed for the ~17 hand-curated RW_BASES;
+// Scourge / War Spike / Ettin Axe hovered as a naked picture. Any BASE_DB name now builds the same
+// card LIVE from data: tier + slot, verified socket max (_socketMaxFor, never the understated raw
+// weapon max alone), str/dex/lvl reqs, hand, and the actual runewords this base can host.
+function _genericBaseTipHtml(name){
+  try {
+    var d=(typeof BASE_DB!=='undefined')?BASE_DB[name]:null; if(!d) return '';
+    var cats=(typeof _baseCats==='function')?_baseCats(name):{};
+    var slot=cats['body armor']?'Body Armor':cats['shield']?'Shields':cats['helm']?'Helms':cats['weapon']?'Weapons':'Base';
+    var mx=(typeof _socketMaxFor==='function')?(parseInt(_socketMaxFor(name),10)||0):(parseInt(d.maxSockets,10)||0);
+    var hand=d.twoH&&d.oneH?'1- or 2-handed':d.twoH?'2-handed':d.oneH?'1-handed':'';
+    var tier=(typeof _itemTierLabel==='function')?_itemTierLabel(name):(d.tier?String(d.tier):'');
+    var reqs=[]; if(d.reqStr)reqs.push(d.reqStr+' str'); if(d.reqDex)reqs.push(d.reqDex+' dex'); if(d.reqLvl)reqs.push('lvl '+d.reqLvl);
+    var rws=(typeof _baseRunewords==='function')?_baseRunewords(name):[];
+    var shown=rws.slice(0,10).map(function(r){ return '<span class="att-tag">'+String(r.n).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'<span class="rwb-tip-sk">'+r.s+'🔩</span></span>'; }).join('');
+    var more=rws.length>10?' <span class="att-meta" style="opacity:.6">+'+(rws.length-10)+' more</span>':'';
+    return '<div class="att-type" style="color:var(--q-base,#a8adb8)">Base Item &middot; '+slot+'</div>'
+      + '<div class="att-meta">🔩 '+(mx?('up to '+mx+' socket'+(mx===1?'':'s')):'socketable')+(reqs.length?' &middot; '+reqs.join(' &middot; '):'')+'</div>'
+      + ((tier||hand)?'<div class="att-aff">'+[tier,hand].filter(Boolean).join(' &middot; ')+'</div>':'')
+      + (rws.length?('<div class="att-result-h" style="margin-top:5px">⚒️ runewords on this base <span style="opacity:.6;font-weight:400">(🔩 = sockets needed)</span></div><div class="att-recipe" style="flex-wrap:wrap;gap:3px">'+shown+more+'</div>'):'')
+      + '<div class="att-info">A normal/superior <b>grey</b> base — socket it to the right count (Larzuk / cube / drops) and cube the runes in order.</div>';
+  } catch(e){ return ''; }
+}
+window._genericBaseTipHtml = _genericBaseTipHtml;
 // v341.30 — each runeword's iconic / most-common (top-rated) base, so its floating tooltip can show
 // HD base art (Konyo: "Enigma → Archon Plate is the most common & best — show the top-tier base").
 // Names map to the base-item art keys in D2IO_ART; if art is missing the tip just shows no image.
@@ -19729,6 +19754,11 @@ function _arttipResolve(nm){
     var _tc = (typeof _throwClean === 'function') ? _throwClean(nm) : nm;
     var _ts = (typeof artUrl === 'function' ? artUrl(_tc) : '') || (typeof _magicArtSrc === 'function' ? _magicArtSrc(_tc) : '') || null;
     return { artName: '', artSrc: _ts, desc: (typeof _throwTipHtml === 'function') ? _throwTipHtml(nm) : '', rich: true };
+  }
+  // v633 — ANY known base gets the full data-driven card (tier · sockets · reqs · its runewords)
+  // instead of a naked picture; keeps the platform's hover depth uniform across all 523 bases.
+  if (typeof BASE_DB !== 'undefined' && BASE_DB[nm] && typeof _genericBaseTipHtml === 'function'){
+    var _gb = _genericBaseTipHtml(nm); if (_gb) return { artName: nm, desc: _gb, rich: true };
   }
   return { artName: nm, desc: '', rich: false };
 }
@@ -28624,6 +28654,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var e=RUNEWORD_TIP[name]||{};
       out.farm.push({ kind:'farm', rw:name, base:null, need:0, req:req, baseReq:e.b||'', missing:_missing(req), hand:_hand(name), val:_rwVal(name), bestStr:_bestBaseStr(name), bestMeta:_bestMeta(name) });
     }); out.farm.sort(function(a,b){ return b.val-a.val || a.rw.localeCompare(b.rw); }); } catch(e){}
+    // v632 — LADDER-LOCKED VISIBILITY (Konyo's Death Mask: "lots of runewords to still create — why is
+    // it not part of the forge"): the ladder rune-saver (v419, born from HIS Mania rune-waste on a
+    // non-ladder char) HIDES the 9 mod-ladder words off-ladder — correctly un-taskable, but silently,
+    // so the Chronicle counts them while the Forge pretends they don't exist. They now surface in a
+    // dedicated read-only strip. Invariant upgrade: unmade ⇒ visible SOMEWHERE, blocked included.
+    out.ladder=[];
+    try { if (typeof rwLadderMode!=='undefined' && rwLadderMode==='nonladder') Object.keys(RUNEWORD_TIP).forEach(function(name){
+      if (_rwBlocked(name)!=='ladder') return;
+      var e=RUNEWORD_TIP[name]||{};
+      out.ladder.push({ rw:name, baseReq:e.b||'', val:_rwVal(name) });
+    }); out.ladder.sort(function(a,b){ return b.val-a.val || a.rw.localeCompare(b.rw); }); } catch(e){}
     // bucket
     Object.keys(byRw).forEach(function(k){ var t=byRw[k]; (t.kind==='now'?out.now:t.kind==='pipeline'?out.pipeline:out.onestep).push(t); });
     // v630 — EXCLUSIVITY RESERVATION (Konyo: "logic and priority — the sacred shield I have should task
@@ -29186,6 +29227,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'</div></div>');
       });
       H.push('</div>');
+    }
+    // v632 — 🪜 LADDER-LOCKED strip: the Chronicle's remaining count includes these; the Forge must
+    // never silently disagree. Read-only chips + the mode toggle for when his character IS ladder.
+    if ((s.ladder||[]).length){
+      H.push('<div class="forge-sec forge-sec-step" id="forge-ladder-strip"><div class="forge-sec-h">🪜 Ladder-locked <span class="forge-sec-ct">'+s.ladder.length+'</span>'
+        +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — no tasks, no rune plans, so you never waste runes on them off-ladder (your Mania lesson). Playing a ladder char? </span>'
+        +'<button class="f-btn" style="font-size:11px;padding:2px 8px" onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'ladder\');try{window.renderForge()}catch(e){}" title="switch the whole platform to Ladder mode — these words become real forge tasks">🪜 switch to Ladder</button></div>'
+        +'<div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px">'
+        +s.ladder.map(function(t){ return '<span class="f-getchip" data-arttip="'+_fEsc(t.rw)+'" style="color:'+(_qC(t.rw)||'var(--q-normal)')+'" title="'+_fEsc(t.baseReq||'')+' — ladder-only in the mod">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'; }).join('')
+        +'</div></div>');
     }
     // v604 — 🌾 FURTHEST OUT: the coverage catch-all (see forgeScan 2b). Words with NO base owned AND
     // runes not ready used to be SILENT — Konyo's "why is it not tasking me" class. Compact rows, not
