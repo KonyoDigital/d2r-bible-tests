@@ -29231,12 +29231,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v632 — 🪜 LADDER-LOCKED strip: the Chronicle's remaining count includes these; the Forge must
     // never silently disagree. Read-only chips + the mode toggle for when his character IS ladder.
     if ((s.ladder||[]).length){
+      // v634 — TIER-1 LADDER PREVIEW (Konyo: "i click ladder and forge is like synced to the ladder
+      // profile — tier 1 sounds good"): a pure VIEW toggle. Expanded, each ladder word renders a full
+      // read-only plan card (recipe in order · the base to farm · separate-economy note) — no buttons,
+      // no consumes, no promotions, ZERO writes to game state (the toggle itself is a display pref).
+      var _lpOn = false; try { _lpOn = localStorage.getItem('d2r_ladderPreview')==='1'; } catch(e){}
       H.push('<div class="forge-sec forge-sec-step" id="forge-ladder-strip"><div class="forge-sec-h">🪜 Ladder-locked <span class="forge-sec-ct">'+s.ladder.length+'</span>'
-        +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — no tasks, no rune plans, so you never waste runes on them off-ladder (your Mania lesson). NOTE: ladder is a SEPARATE economy — your rune tallies here are non-ladder; a ladder character farms its own. Playing one? </span>'
-        +'<button class="f-btn" style="font-size:11px;padding:2px 8px" onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'ladder\');try{window.renderForge()}catch(e){}" title="switch the whole platform to Ladder mode — these words become real forge tasks">🪜 switch to Ladder</button></div>'
-        +'<div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px">'
-        +s.ladder.map(function(t){ return '<span class="f-getchip" data-arttip="'+_fEsc(t.rw)+'" style="color:'+(_qC(t.rw)||'var(--q-normal)')+'" title="'+_fEsc(t.baseReq||'')+' — ladder-only in the mod">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'; }).join('')
-        +'</div></div>');
+        +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — ladder is a SEPARATE economy (your tallies here are non-ladder). Preview the plans without touching your account: </span>'
+        +'<button class="f-btn" id="forge-ladder-preview-btn" style="font-size:11px;padding:2px 8px" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',localStorage.getItem(\'d2r_ladderPreview\')===\'1\'?\'\':\'1\')}catch(e){};try{window.renderForge()}catch(e){}" title="view-only: expand the 9 into full plan cards — nothing is promoted, consumed or re-tasked">'+(_lpOn?'🪜 hide plans':'🪜 show ladder plans')+'</button></div>');
+      if (!_lpOn){
+        H.push('<div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px">'
+          +s.ladder.map(function(t){ return '<span class="f-getchip" data-arttip="'+_fEsc(t.rw)+'" style="color:'+(_qC(t.rw)||'var(--q-normal)')+'" title="'+_fEsc(t.baseReq||'')+' — ladder-only in the mod">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'; }).join('')
+          +'</div>');
+      } else {
+        s.ladder.forEach(function(t){
+          var e=(typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{};
+          var legacy=/^Hustle$/i.test(t.rw);
+          H.push('<div class="f-card f-step forge-ladder-plan" style="padding:7px 10px;opacity:'+(legacy?'.55':'.92')+'"><div class="f-cardbody">'
+            +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'
+            +' <span class="f-atomsub" style="color:#ffc14d">🪜 ladder-only — plan preview, needs a ladder character</span></div>'
+            +(legacy
+              ? '<div class="f-atomsub">legacy 3.0 rename — this IS <b>Mania</b> (weapon) / <b>Hysteria</b> (armor); never cube it separately</div>'
+              : ('<div class="f-atomrecipe"><span class="f-reclbl">socket in order</span>'+_recipe(t.rw)+'</div>'
+                +'<div class="f-atomsub">🛒 base: <b>'+_fEsc(e.b||'?')+'</b> — farm it AND the runes ON THE LADDER CHAR (separate stash; your tallies here don\'t transfer)</div>'))
+            +'</div></div>');
+        });
+      }
+      H.push('</div>');
     }
     // v604 — 🌾 FURTHEST OUT: the coverage catch-all (see forgeScan 2b). Words with NO base owned AND
     // runes not ready used to be SILENT — Konyo's "why is it not tasking me" class. Compact rows, not
