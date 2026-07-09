@@ -3238,6 +3238,45 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      page renders immediately in the system fallback (var(--serif-display)/var(--sans) stacks) and
      swaps to Cinzel/Playfair/Inter once they arrive (display=swap → no invisible-text flash). -->
 <script>
+// ══════════════════════════════════════════════════════════════════════════════
+// v635 — LADDER PROFILE STORAGE ROUTER (Konyo: "a smooth polished toggle that ascends perfectly
+// from non-ladder to ladder — make sure nothing bleeds"). Two accounts, one engine:
+//   · main   → the original unprefixed d2r_* keys, byte-for-byte untouched (zero migration)
+//   · ladder → the same keys under the 'L·' prefix — a genuinely fresh second account
+// D2R_PROFILE is read ONCE per page load; switching profiles is ALWAYS a full reload
+// (window.profileSwitch) so no half-pointed in-memory state can ever mix the two.
+// Only ACCOUNT state forks (vault, tallies, chronicle, forge progress, intake ledgers);
+// site prefs, caches and reference data stay shared. Defined in the first script block so
+// every later block routes through it.
+// ══════════════════════════════════════════════════════════════════════════════
+window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwMade", "d2r_rwUnmade", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_rwProfile", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft"]);
+window.LSR = (function(){
+  var RAW = window.localStorage;
+  function key(k){ return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k; }
+  return {
+    getItem:    function(k){ return RAW.getItem(key(k)); },
+    setItem:    function(k,v){ return RAW.setItem(key(k), v); },
+    removeItem: function(k){ return RAW.removeItem(key(k)); },
+    raw: RAW, key: key
+  };
+})();
+window.profileSwitch = function(p){
+  p = (p==='ladder') ? 'ladder' : 'main';
+  try { window.localStorage.setItem('d2r_activeProfile', p); } catch(e){}
+  location.reload();
+};
+// First ladder boot: pre-seed the intake SEEN ledger from main — every screenshot already scanned
+// belongs to the non-ladder account; without this, the first ladder folder-scan would re-intake
+// the entire history as ladder loot (the ultimate bleed).
+try {
+  if (window.D2R_PROFILE==='ladder' && !window.localStorage.getItem('L·d2r_intakeSeen')){
+    var _mSeen = window.window.LSR.getItem('d2r_intakeSeen');
+    if (_mSeen) window.localStorage.setItem('L·d2r_intakeSeen', _mSeen);
+  }
+} catch(e){}
+</script>
+<script>
 (function(){
   function loadFonts(){
     if (document.getElementById('gfont-css')) return;
@@ -3299,6 +3338,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     <div class="header-title-block">
       <div class="masthead">
         <h1 class="h-title"><img class="masthead-art" src="art/countess01_graphic.png" alt="" loading="lazy" onerror="this.style.display='none'">Konyo's D2R Farming Bible</h1>
+        <!-- v635 — ACCOUNT PILL: two parallel accounts (main = his non-ladder truth, ladder = the fresh
+             ladder-economy account). Switching is a full reload through window.profileSwitch — no bleed. -->
+        <div id="profile-pill" class="profile-pill" title="two separate accounts — switching reloads the page; nothing ever mixes">
+          <button class="pp-btn pp-main" onclick="window.profileSwitch('main')">⚔ MAIN</button><button class="pp-btn pp-ladder" onclick="window.profileSwitch('ladder')">🪜 LADDER</button>
+        </div>
         <div class="masthead-rule"></div>
         <div class="masthead-tagline">A complete grail-hunting reference — annotated with kill rate, drop chance, terror-zone schedule, and personal wishlist tracking.</div>
       </div>
@@ -4310,7 +4354,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     var out = { codes: [], names: [], gambleOnlyCodes: [] };
     try {
       var CODE = JSON.parse(document.getElementById('lf-base-codes').textContent);
-      var made = {}; try { made = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}'); } catch(e){}
+      var made = {}; try { made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}'); } catch(e){}
       var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
       var meta = window._forgeMetaBase;
       // v536.2 — SYNC with the Forge: skip a word you ALREADY own a socket-correct base for (it's in the Forge's
@@ -4439,7 +4483,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   // v590 — the one Chronicle-progress counter every filter surface shares (same math as the Forge meter).
   window._chronicleMadeCount = function(){
     try {
-      var md = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');
+      var md = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}');
       var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
       return Object.keys(tips).filter(function(n){ return md[n]; }).length;
     } catch(e){ return 0; }
@@ -4501,7 +4545,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   window._smartUnmadeNeedingBase = function(){
     var out=[];
     try{
-      var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
+      var made={}; try{made=JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}');}catch(e){}
       var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
       var ownedBaseWord={};
       try{var sc=(typeof window.forgeScan==='function')?window.forgeScan():null; if(sc){[].concat(sc.now||[],sc.pipeline||[]).forEach(function(t){if(t&&t.base&&!t.baseOver)ownedBaseWord[t.rw]=1;});(sc.onestep||[]).forEach(function(t){if(t&&t.base&&t.sub!=='base'&&!t.baseOver)ownedBaseWord[t.rw]=1;});}}catch(e){}
@@ -4516,15 +4560,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     return Object.keys(byBase).map(function(b){return {base:b, count:byBase[b].length, runewords:byBase[b]};}).sort(function(a,b){return b.count-a.count || a.base.localeCompare(b.base);});
   };
   window._smartRuneGating = function(){
-    var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
-    var stash={}; try{stash=JSON.parse(localStorage.getItem('d2r_runeStash')||'{}');}catch(e){}
+    var made={}; try{made=JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}');}catch(e){}
+    var stash={}; try{stash=JSON.parse(window.LSR.getItem('d2r_runeStash')||'{}');}catch(e){}
     var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
     var demand={}, byRune={};
     Object.keys(tips).forEach(function(rw){ if(made[rw])return; if(window._rwLadderBlocked&&window._rwLadderBlocked(rw))return; var rec=(tips[rw]||{}).rec||[]; rec.forEach(function(r){ demand[r]=(demand[r]||0)+1; byRune[r]=byRune[r]||{}; byRune[r][rw]=1; }); });  // v553 — don't report short on runes only ladder words need
     return Object.keys(demand).map(function(r){var owned=stash[r]||0; return {rune:r, demand:demand[r], owned:owned, short:demand[r]-owned, words:Object.keys(byRune[r])};}).filter(function(x){return x.short>0;}).sort(function(a,b){return b.short-a.short || b.demand-a.demand;});
   };
   window._smartProgress = function(){
-    var made={}; try{made=JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');}catch(e){}
+    var made={}; try{made=JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}');}catch(e){}
     var tips=(typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{});
     var total=Object.keys(tips).length; var madeN=Object.keys(tips).filter(function(n){return made[n];}).length;
     var s=(typeof window.forgeScan==='function')?window.forgeScan():{now:[],pipeline:[],onestep:[],crafts:[],farm:[],counts:{}};
@@ -8225,7 +8269,7 @@ function _baseUnmadeRunewords(base, knownSockets){
   clean = clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
   var rws = (typeof _baseRunewords === 'function') ? _baseRunewords(clean) : [];
   if (!rws.length) return [];
-  var made = {}; try { made = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}'); } catch(e){}
+  var made = {}; try { made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}'); } catch(e){}
   var ks = parseInt(knownSockets, 10) || 0;
   // v563.1 — unsocketed cap via _keepSocketCeil (gear only; weapon maxes are understated — see _isRunewordBase)
   var baseMax = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(clean) : 0;
@@ -13412,7 +13456,7 @@ BOSSES.forEach(boss => {
 });
 
 const $ = id => document.getElementById(id);
-const LS = window.localStorage;
+const LS = window.LSR;   // v635 — profile-routed storage (main = bare keys, ladder = L· prefix)
 let mf = parseInt(LS.getItem('d2r_mf') || '699');
 let players = parseInt(LS.getItem('d2r_players') || '1');
 let currentFilter = "all";
@@ -13600,7 +13644,7 @@ try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // load as a durable floor. On a DIFFERENT player's browser (Konyo's cousin) that wrongly pre-fills 45 as "made".
 // A 'fresh' profile flag (set by the Chronicle "Reset" button) suppresses the seed entirely, so a new player
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
-var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh'); } catch(e){}
+var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh') || (window.D2R_PROFILE === 'ladder'); } catch(e){}   // v635 — the LADDER account is a fresh chronicle: the owner's 75-word floor belongs to MAIN only
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = _rwFreshFlag ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
 // v424 — DURABLE 28-FLOOR. A one-time flag was too fragile (a cache hit / backup-restore left Konyo's
@@ -13666,7 +13710,8 @@ try { window._rwLadderBlocked = function(rw){ try { return !!(window._rwIsLadder
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
 if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = {"Mania":"fail","Hysteria":"fail","Hustle":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }
 // ladder mode: 'ladder' | 'nonladder' | 'unknown'. Konyo's evidence (ladder-only RWs failing) ⇒ default nonladder.
-let rwLadderMode = (function(){ var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
+let rwLadderMode = (function(){ if (window.D2R_PROFILE==='ladder') return 'ladder';   // v635 — the ladder ACCOUNT is implicitly ladder (all 9 words unlocked, no strip)
+  var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
 window.rwSetVerify = function(name, state){ var k = (typeof findRuneword==='function' && findRuneword(name)) || name; if (state) rwVerify[k] = state; else delete rwVerify[k];
   try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} try { if (typeof refreshOpenCard==='function') refreshOpenCard(); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){} };
 window.rwSetLadderMode = function(m){ rwLadderMode = (m==='ladder')?'ladder':'nonladder'; try { LS.setItem('d2r_ladderMode', rwLadderMode); } catch(e){}
@@ -17586,9 +17631,12 @@ function renderRunewordChronicle(){
     +   '<span class="rwc-stat rwc-s-now">✅ '+nowN+' can make now</span>'
     +   '<span class="rwc-stat rwc-s-cube">🧪 '+cubeN+' cube-up</span>'
     +   '<span class="rwc-stat rwc-s-todo">⏳ '+(total-madeN)+' left to make</span>'
-    +   '<span class="rwc-ladmode" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim,#9a8c72)" title="Ladder-only runewords (🪜 stamp) will NOT form on a non-ladder character. Set this to match your character.">my character:'
-    +     '<button onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'ladder\')" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid '+(rwLadderMode==='ladder'?'rgba(255,196,80,.7)':'var(--border,#3a2f1e)')+';background:'+(rwLadderMode==='ladder'?'rgba(255,196,80,.15)':'none')+';color:'+(rwLadderMode==='ladder'?'#ffe08a':'var(--text-dim,#9a8c72)')+'">🪜 Ladder</button>'
-    +     '<button onclick="window.rwSetLadderMode&&window.rwSetLadderMode(\'nonladder\')" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid '+(rwLadderMode==='nonladder'?'rgba(143,208,255,.7)':'var(--border,#3a2f1e)')+';background:'+(rwLadderMode==='nonladder'?'rgba(143,208,255,.15)':'none')+';color:'+(rwLadderMode==='nonladder'?'#bcd6ff':'var(--text-dim,#9a8c72)')+'">Non-Ladder</button>'
+    // v635 — the old in-place mode buttons flipped rwLadderMode on THIS account (the exact 'mixing'
+    // Konyo rejected: ladder words suddenly claiming his non-ladder bases). Ladder is now a separate
+    // ACCOUNT — the chip routes to the profile switch (full reload, zero bleed) instead.
+    +   '<span class="rwc-ladmode" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim,#9a8c72)" title="two parallel accounts — switching reloads the page; nothing ever mixes">account:'
+    +     '<button onclick="window.profileSwitch&&window.profileSwitch(\'main\')" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid '+(window.D2R_PROFILE!=='ladder'?'rgba(143,208,255,.7)':'var(--border,#3a2f1e)')+';background:'+(window.D2R_PROFILE!=='ladder'?'rgba(143,208,255,.15)':'none')+';color:'+(window.D2R_PROFILE!=='ladder'?'#bcd6ff':'var(--text-dim,#9a8c72)')+'">⚔ Main (non-ladder)</button>'
+    +     '<button onclick="window.profileSwitch&&window.profileSwitch(\'ladder\')" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:5px;border:1px solid '+(window.D2R_PROFILE==='ladder'?'rgba(255,196,80,.7)':'var(--border,#3a2f1e)')+';background:'+(window.D2R_PROFILE==='ladder'?'rgba(255,196,80,.15)':'none')+';color:'+(window.D2R_PROFILE==='ladder'?'#ffe08a':'var(--text-dim,#9a8c72)')+'">🪜 Ladder account</button>'
     +   '</span>'
     + '</div>';
   var fl = document.getElementById('rwc-filters');
@@ -17660,15 +17708,15 @@ window.renderRunewordChronicle = renderRunewordChronicle;
 // created runewords are seeded as a durable floor on every load — which pre-fills a NEW player's Chronicle with
 // progress that isn't theirs. These give a new player a one-tap "fresh start" (suppresses the seed via the
 // 'fresh' profile flag) and let the owner re-load the pre-filled set. Konyo: "each to his own cookies right?"
-window._rwIsFresh = function(){ try { return localStorage.getItem('d2r_rwProfile') === 'fresh'; } catch(e){ return false; } };
+window._rwIsFresh = function(){ try { return window.LSR.getItem('d2r_rwProfile') === 'fresh'; } catch(e){ return false; } };
 window.chronicleReset = async function(){
   var msg = 'Start a FRESH Chronicle?\n\nThis clears the pre-filled progress so a new player on THIS browser tracks their own runewords from zero. Your runes / gems / vault are untouched, and it only affects this device.';
   var ok = (typeof uiConfirm === 'function') ? await uiConfirm(msg) : confirm(msg);
   if (!ok) return;
   try {
-    localStorage.setItem('d2r_rwProfile', 'fresh');
+    window.LSR.setItem('d2r_rwProfile', 'fresh');
     rwMade = {}; if (typeof rwUnmade !== 'undefined') rwUnmade = {};
-    localStorage.setItem('d2r_rwMade', '{}'); localStorage.setItem('d2r_rwUnmade', '{}');
+    window.LSR.setItem('d2r_rwMade', '{}'); window.LSR.setItem('d2r_rwUnmade', '{}');
   } catch(e){}
   try { window._rwChronicleChanged(); } catch(e){}   // v615 — the FULL fan-out (was 2 of 9 consumers → stale Forge/vault/insights after a bulk flip)
 };
@@ -17678,9 +17726,9 @@ window.chronicleLoadSeed = async function(){
   var ok = (typeof uiConfirm === 'function') ? await uiConfirm(msg) : confirm(msg);
   if (!ok) return;
   try {
-    localStorage.removeItem('d2r_rwProfile');
+    window.LSR.removeItem('d2r_rwProfile');
     Object.keys(_RWC_SEED).forEach(function(k){ rwMade[k] = _RWC_SEED[k]; });
-    localStorage.setItem('d2r_rwMade', JSON.stringify(rwMade));
+    window.LSR.setItem('d2r_rwMade', JSON.stringify(rwMade));
   } catch(e){}
   try { window._rwChronicleChanged(); } catch(e){}   // v615 — full fan-out here too
 };
@@ -18680,7 +18728,7 @@ window.scanTopPicks = function(opts){
   if(tp.close.length) L.push('<b>🔜 Almost there:</b> '+tp.close.map(function(x){return _askEsc(x.name)+' <span style="color:var(--text-dim)">('+(x.awayN||1)+' more: '+_askEsc(x.need)+')</span>';}).slice(0,8).join(' · '));
   out.insertAdjacentHTML('beforeend','<div class="ask-a ask-toppicks">'+L.join('<br>')+'</div>');
   out.scrollTop=out.scrollHeight;
-  try{ localStorage.setItem('d2r_lastTopScan', new Date().toISOString().slice(0,10)); }catch(e){}
+  try{ window.LSR.setItem('d2r_lastTopScan', new Date().toISOString().slice(0,10)); }catch(e){}
   if(!opts || !opts.localOnly) window.askBible('From my Top Picks above, what ONE thing should I make first and exactly how (recipe + why it beats the alternatives)? Then list the rest in priority order, briefly and to the point.');
 };
 // v337 — the always-visible "✨ What you can create now" DATA PANEL. Auto-renders the makeable
@@ -18755,8 +18803,8 @@ window.renderCreateNow = function(){
         ? (tp.close.length ? '<div class="cn-focusnote">🎯 <b>Sandbox focus</b> — showing only what these ingredients make. <span style="opacity:.72">'+tp.close.length+' near-miss'+(tp.close.length===1?'':'es')+' hidden · clear the sandbox to see “what to grab next”.</span></div>' : '')
         : group('🔜 Almost there — what to grab next', tp.close,'🔜','cn-close'));
   if(!body) body='<div class="cn-empty">Nothing top-tier craftable yet — tally more runes &amp; gems with 📸 intake and this dashboard updates itself.</div>';
-  var when=''; try{ when=localStorage.getItem('d2r_createNowDate')||''; }catch(e){}
-  var ai=''; try{ ai=localStorage.getItem('d2r_createNowAi')||''; }catch(e){}
+  var when=''; try{ when=window.LSR.getItem('d2r_createNowDate')||''; }catch(e){}
+  var ai=''; try{ ai=window.LSR.getItem('d2r_createNowAi')||''; }catch(e){}
   var aiBanner = ai ? ('<div class="cn-ai">💡 <b>Today’s pick:</b> '+_askMd(ai)+'</div>') : '';
   // 🧪 preview bar — sandbox simulator (real tallies untouched)
   var pv=window.previewStash, pvBar='';
@@ -18818,7 +18866,7 @@ window.renderCreateNow = function(){
       +'</div>';
   }
   host.innerHTML='<div class="cn-head"><span class="cn-title">✨ What you can create now'+(pv?' <span class="cn-pv-badge">PREVIEW</span>':'')+'</span><span class="cn-meta">'+pvToggle+' <span class="cn-when">auto-updated daily'+(when?(' · '+when):'')+'</span> <button class="cn-refresh" onclick="window.renderCreateNow();window.dailyCreateAi(true)" title="refresh + re-ask the AI now">🔄</button></span></div>'+pvBar+aiBanner+body;
-  if(!pv){ try{ localStorage.setItem('d2r_createNowDate', new Date().toISOString().slice(0,10)); }catch(e){} }  // don't stamp the date while previewing
+  if(!pv){ try{ window.LSR.setItem('d2r_createNowDate', new Date().toISOString().slice(0,10)); }catch(e){} }  // don't stamp the date while previewing
 };
 // once-a-day (or forced) AI enrichment: name the single best pick, cache it, re-render.
 window.dailyCreateAi = function(force){
@@ -18829,20 +18877,20 @@ window.dailyCreateAi = function(force){
   // v556 — PICK-LOGIC VERSION stamp. When the pick's question/priority changes (e.g. v555.5 runewords-over-crafts),
   // a same-day cached blurb from the OLD logic must not survive until tomorrow — bump _PICK_V to auto-invalidate.
   var _PICK_V='2';
-  try { if(!force && localStorage.getItem('d2r_createNowAiV')!==_PICK_V) force=true; } catch(e){}
+  try { if(!force && window.LSR.getItem('d2r_createNowAiV')!==_PICK_V) force=true; } catch(e){}
   // v555.3 — even within the same day, if the cached pick NAMES a runeword the player has since made (Chronicle),
   // it's stale ("Make Enigma" after Enigma is done) → force a fresh pick that respects the Chronicle.
-  try { if(!force){ var _c=localStorage.getItem('d2r_createNowAi')||''; if(_c && typeof rwMade!=='undefined' && rwMade){ for(var _k in rwMade){ if(rwMade[_k] && _k && _c.indexOf(_k)>=0){ force=true; break; } } } } } catch(e){}
-  try{ if(!force && localStorage.getItem('d2r_createNowAiDate')===today) return; }catch(e){}
-  try{ localStorage.setItem('d2r_createNowAiV', _PICK_V); }catch(e){}
+  try { if(!force){ var _c=window.LSR.getItem('d2r_createNowAi')||''; if(_c && typeof rwMade!=='undefined' && rwMade){ for(var _k in rwMade){ if(rwMade[_k] && _k && _c.indexOf(_k)>=0){ force=true; break; } } } } } catch(e){}
+  try{ if(!force && window.LSR.getItem('d2r_createNowAiDate')===today) return; }catch(e){}
+  try{ window.LSR.setItem('d2r_createNowAiV', _PICK_V); }catch(e){}
   var tp=(typeof buildTopPicks==='function')?window._previewWrap(buildTopPicks):{makeNow:[],afterCubing:[],close:[]};
-  try{ localStorage.setItem('d2r_createNowAiDate', today); }catch(e){}
-  if(!(tp.makeNow.length||tp.afterCubing.length)){ try{ localStorage.removeItem('d2r_createNowAi'); }catch(e){} return; }
+  try{ window.LSR.setItem('d2r_createNowAiDate', today); }catch(e){}
+  if(!(tp.makeNow.length||tp.afterCubing.length)){ try{ window.LSR.removeItem('d2r_createNowAi'); }catch(e){} return; }
   var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
   fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing to make right now from my Top Picks and why. PRIORITISE an unmade RUNEWORD from snapshot.forge.makeNow — finishing runewords advances my Chronicle (snapshot.chronicle made/100) and a runeword outweighs a craft. Recommend a CRAFT (e.g. a caster amulet) ONLY if I have no makeable unmade runeword left. Once my Chronicle is complete it is naturally all crafts/items.',snapshot:snap})})
-    .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ localStorage.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
+    .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ window.LSR.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
 };
 (function(){
   function inject(){
@@ -25492,7 +25540,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
-  function load(k,f){ try{ var v=JSON.parse(localStorage.getItem(k)); return v||f; }catch(e){ return f; } }
+  function load(k,f){ try{ var v=JSON.parse(window.LSR.getItem(k)); return v||f; }catch(e){ return f; } }
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
   // v230 migration: runes / essences / Worldstone shards / statues live in RoW's
@@ -25505,8 +25553,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     roster = roster.filter(function(m){ return !DEAD[m.id]; });
     var prunedAssign = false;
     Object.keys(assign).forEach(function(n){ if (DEAD[assign[n]]){ delete assign[n]; prunedAssign = true; } });
-    if (had){ try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){} }
-    if (prunedAssign){ try{ localStorage.setItem(AK, JSON.stringify(assign)); }catch(e){} }
+    if (had){ try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){} }
+    if (prunedAssign){ try{ window.LSR.setItem(AK, JSON.stringify(assign)); }catch(e){} }
   })();
   // v404 migration — inject the RUNEWORDS mule into rosters saved before it existed (Konyo: "just a
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
@@ -25515,7 +25563,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var rw = {id:'runewords', name:'RUNEWORDS', icon:'📜', note:'forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor'};
     var bi = roster.findIndex(function(m){ return m.id === 'bases'; });
     if (bi >= 0) roster.splice(bi, 0, rw); else roster.push(rw);
-    try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+    try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
   })();
   // v322: rename the legacy BASES locker → SOCKETED (same id 'bases', so assignments survive) for
   // rosters saved before this version, and refresh its icon/note to the socketed-base wording.
@@ -25524,7 +25572,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (b && b.name !== 'SOCKETED'){
       b.name='SOCKETED'; b.icon='🔩';
       b.note='socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)';
-      try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+      try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
   // v342.5 — ensure the MAGIC & RARE locker exists on rosters saved before it (holds the magicFinds keepers)
@@ -25533,18 +25581,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var mr={id:'magic-rare', name:'MAGIC & RARE', icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'};
       var idx=roster.findIndex(function(m){ return m.id==='bases'; });
       if (idx>=0) roster.splice(idx+1, 0, mr); else roster.push(mr);
-      try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+      try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
     // v360 — ensure the SHARED STASH locker exists on rosters saved before it (holds the never-muled items)
     if (!roster.some(function(m){ return m.id==='shared'; })){
       var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs'};
       var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
       if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
-      try{ localStorage.setItem(RK, JSON.stringify(roster)); }catch(e){}
+      try{ window.LSR.setItem(RK, JSON.stringify(roster)); }catch(e){}
     }
   })();
-  function saveR(){ localStorage.setItem(RK, JSON.stringify(roster)); }
-  function saveA(){ localStorage.setItem(AK, JSON.stringify(assign)); }
+  function saveR(){ window.LSR.setItem(RK, JSON.stringify(roster)); }
+  function saveA(){ window.LSR.setItem(AK, JSON.stringify(assign)); }
   var selectedChip = null;
   // v322 polish: each locker carries a rarity ACCENT (like the Crafted Workshop's per-craft gem
   // colours) — tinted plate + top stripe + gauge, keyed to what the locker HOLDS. Sets green,
@@ -26402,8 +26450,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       owned.add(lbl);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(lbl, true);
       if (sg && muleById(sg.id) && !assign[lbl]) assign[lbl] = sg.id;
-      try { var _st = JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}');
-        if (_st['chain|'+lbl] != null){ delete _st['chain|'+lbl]; localStorage.setItem('d2r_forgeStep', JSON.stringify(_st)); } } catch(e){}
+      try { var _st = JSON.parse(window.LSR.getItem('d2r_forgeStep')||'{}');
+        if (_st['chain|'+lbl] != null){ delete _st['chain|'+lbl]; window.LSR.setItem('d2r_forgeStep', JSON.stringify(_st)); } } catch(e){}
       persistOwned(); saveA();
       return { label: lbl, mode: 'new' };
     } catch(e){ return null; }
@@ -27106,19 +27154,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   // ── v215: intake journal — persists what was registered, when, across sessions
   var JOURNAL_KEY='d2r_intakeLog';
-  function journal(){ try { return JSON.parse(localStorage.getItem(JOURNAL_KEY)||'[]'); } catch(e){ return []; } }
+  function journal(){ try { return JSON.parse(window.LSR.getItem(JOURNAL_KEY)||'[]'); } catch(e){ return []; } }
   // v320: clear the intake history so the SAME screenshots can be re-read (for test runs).
   // v328: FULL RESET — a true blank start (Konyo: "delete history + unsorted should register
   // as a blank start"). Empties the log + scan-ledger AND every ✓ owned / vaulted item, set
   // pieces, and mule assignments. The mule ROSTER + rune/gem/material tallies are kept.
   window.vaultClearHistory = async function(){
     if (!(await uiConfirm('Clear intake history — FULL RESET to a blank start?\n\nThis empties the “Recently registered” log, forgets which screenshots were scanned, AND removes EVERY ✓ owned / vaulted item + mule assignments + set-piece checks. Your mule roster and rune/gem tallies stay. This cannot be undone.'))) return;
-    try { localStorage.removeItem(JOURNAL_KEY); } catch(e){}
-    try { localStorage.removeItem('d2r_intakeSeen'); } catch(e){}
+    try { window.LSR.removeItem(JOURNAL_KEY); } catch(e){}
+    try { window.LSR.removeItem('d2r_intakeSeen'); } catch(e){}
     try { owned.clear(); } catch(e){}
-    try { magicFinds = {}; localStorage.removeItem('d2r_magicFinds'); } catch(e){}
-    try { unknownReads.clear(); localStorage.removeItem('d2r_unknownReads'); } catch(e){}
-    try { copies = {}; localStorage.removeItem('d2r_copies'); } catch(e){} // have-counts reset; multiKeep TARGETS (config) kept
+    try { magicFinds = {}; window.LSR.removeItem('d2r_magicFinds'); } catch(e){}
+    try { unknownReads.clear(); window.LSR.removeItem('d2r_unknownReads'); } catch(e){}
+    try { copies = {}; window.LSR.removeItem('d2r_copies'); } catch(e){} // have-counts reset; multiKeep TARGETS (config) kept
     try { if (typeof setPieces !== 'undefined') setPieces.clear(); } catch(e){}
     try { Object.keys(assign).forEach(function(k){ delete assign[k]; }); } catch(e){}
     try { if (typeof persist === 'function') persist(); else persistOwned(); } catch(e){ try{ persistOwned(); }catch(e2){} }
@@ -27142,7 +27190,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var seenN = 0; try { seenN = Object.keys(seenLedger()).length; } catch(e){}
     if (!seenN){ status('🧽 scan slate already empty — nothing to clear'); return; }
     if (!(await uiConfirm('Clear scan history (wipe the slate)?\n\nThis forgets the '+seenN+' screenshot file'+(seenN===1?'':'s')+' the vault has already read, so the NEXT folder scan treats every file as fresh and re-reads them.\n\nYour ✓ owned items, mules, Magic & Rare, and the registered vault are NOT touched — only the seen-files ledger.'))) return;
-    try { localStorage.removeItem(SEEN_KEY); } catch(e){}
+    try { window.LSR.removeItem(SEEN_KEY); } catch(e){}
     status('🧽 scan slate wiped — '+seenN+' file'+(seenN===1?'':'s')+' forgotten; next scan re-reads everything');
   };
   // v342.23 — also persist the PER-SCREENSHOT breakdown (file → what it read) so the "Recently registered"
@@ -27159,11 +27207,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // earlier card showing "no shot" (Konyo: cards need the expandable screenshot like the rest). ~6×5 thumbs
     // ≈ a few hundred KB, far under quota; the quota-fallback below still sheds them if storage runs out.
     for (var _k = 6; _k < j.length; _k++){ if (j[_k] && j[_k].pf){ j[_k].pf.forEach(function(p){ if (p) delete p.th; }); } }
-    try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
+    try { window.LSR.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
     catch(e){
       // quota hit — drop thumbnails from the newest entry too, then retry smaller
-      try { (j[0].pf||[]).forEach(function(p){ if (p) delete p.th; }); localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
-      catch(e2){ try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 5))); } catch(e3){} }
+      try { (j[0].pf||[]).forEach(function(p){ if (p) delete p.th; }); window.LSR.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 20))); }
+      catch(e2){ try { window.LSR.setItem(JOURNAL_KEY, JSON.stringify(j.slice(0, 5))); } catch(e3){} }
     }
   }
   function renderJournal(){
@@ -27234,11 +27282,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '</details>';
   }
   function persistOwned(){
-    try { localStorage.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
-    try { localStorage.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
-    try { localStorage.setItem('d2r_unknownReads', JSON.stringify(Array.from(unknownReads))); } catch(e){}
-    try { localStorage.setItem('d2r_copies', JSON.stringify(copies)); } catch(e){}
-    try { localStorage.setItem('d2r_multiKeep', JSON.stringify(multiKeep)); } catch(e){}
+    try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
+    try { window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
+    try { window.LSR.setItem('d2r_unknownReads', JSON.stringify(Array.from(unknownReads))); } catch(e){}
+    try { window.LSR.setItem('d2r_copies', JSON.stringify(copies)); } catch(e){}
+    try { window.LSR.setItem('d2r_multiKeep', JSON.stringify(multiKeep)); } catch(e){}
   }
   // v323: a cooler scanning/loading UI — animated progress bar + sweeping scan-line + rotating
   // verb (reading→scanning→analyzing→matching) so it's visibly WORKING, not a static text line.
@@ -27554,8 +27602,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             // v597 — a NEWLY-registered read is a FRESH physical item: any Forge chain-step memory for this
             // label belongs to a previous copy (Konyo's post-reset Bone Visage greeted him at "step 2/2" —
             // the OLD helm's Larzuk click had survived the vault reset). Reset it so the chain starts at 1.
-            try { var _fst=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}');
-              if (_fst['chain|'+n]!=null){ delete _fst['chain|'+n]; localStorage.setItem('d2r_forgeStep', JSON.stringify(_fst)); } } catch(e){}
+            try { var _fst=JSON.parse(window.LSR.getItem('d2r_forgeStep')||'{}');
+              if (_fst['chain|'+n]!=null){ delete _fst['chain|'+n]; window.LSR.setItem('d2r_forgeStep', JSON.stringify(_fst)); } } catch(e){}
             logged.push(n); fRec.nw.push(n);
           } else {
             // v342.28 — a re-read of a MULTI-KEEP staple that's still UNDER its target is a WANTED
@@ -27714,7 +27762,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_readSomething){ _sNow[f.name] = 1; _sNow[f.name + '|' + f.lastModified] = 1; }
         else { _sNow[f.name] = 'retry'; delete _sNow[f.name + '|' + f.lastModified]; }   // err / no-match → manual-rescan only
       });
-      localStorage.setItem(SEEN_KEY, JSON.stringify(_sNow));
+      window.LSR.setItem(SEEN_KEY, JSON.stringify(_sNow));
     } catch(e){}
     journalAdd(logged, perFile);
     try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof toast==='function') toast('🧰 '+_promoted.length+' read'+(_promoted.length>1?'s':'')+' promoted to forge bases: '+_promoted.join(', ')); } catch(e){}   // v631
@@ -27883,7 +27931,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return false;
     } catch(e){ return false; }
   };
-  function seenLedger(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
+  function seenLedger(){ try { return JSON.parse(window.LSR.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
   // v224: ONE scan menu, rendered FULL-WIDTH in #vault-intake-report (the tiny
   // toolbar #vault-status span was invisible to Konyo — REG-class lesson:
   // injecting interactive UI into a cramped inline span = users never see it).
@@ -27892,7 +27940,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // the AI: the new ones, or a deliberate 🕐 Latest 20/40 session PAST the ledger.
   var _pendingAll = null, _pendingFresh = null;
   function vaultOfferMenu(all, fresh, seen){
-    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+    window.LSR.setItem(SEEN_KEY, JSON.stringify(seen));
     all.sort(function(a,b){ return a.lastModified-b.lastModified; });
     fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
     _pendingAll = all; _pendingFresh = fresh;
@@ -27966,7 +28014,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (quiet){
         if (!fresh.length){ if (retriable) status('📂 '+retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time — hit 🔄 Scan folder to retry them'); return; }
         if (fresh.length <= 12){
-          localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+          window.LSR.setItem(SEEN_KEY, JSON.stringify(seen));
           fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
           status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…');
           window.vaultIntake(fresh, {fromFolder:true});
@@ -27978,7 +28026,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // shots seen, no batch was picked → "linked folder doesn't work"). The pick-a-batch menu is only
       // for BIG backlogs (>12) where the token guard genuinely matters.
       if (fresh.length > 0 && fresh.length <= 12){
-        localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+        window.LSR.setItem(SEEN_KEY, JSON.stringify(seen));
         fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
         status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…');
         window.vaultIntake(fresh, {fromFolder:true});
@@ -28818,7 +28866,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // card whose base label has consumed siblings narrates them, and multi-copy bases show ×N.
   function _consumedNote(baseLabel){
     try {
-      var used = JSON.parse(localStorage.getItem('d2r_rwBaseUsed')||'{}');
+      var used = JSON.parse(window.LSR.getItem('d2r_rwBaseUsed')||'{}');
       var words = Object.keys(used).filter(function(k){ return used[k] && used[k].l === baseLabel; });
       if (!words.length) return '';
       var n = (typeof copyCount==='function') ? copyCount(baseLabel) : 1;
@@ -28840,8 +28888,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // a higher tier — only unique / rare / set can (game-file cubemain.txt). The Forge only ever Larzuk-sockets the
   // base you own (or names the right-tier base to FIND in a One-step). No _upgradeChainFor, no upgrade bucket.
   // step progress for multi-step chains (persisted): the current atomic step shown in Make Now.
-  function _stepGet(k){ try{ return (JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
-  function _stepSet(k,v){ try{ var o=JSON.parse(localStorage.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; localStorage.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
+  function _stepGet(k){ try{ return (JSON.parse(window.LSR.getItem('d2r_forgeStep')||'{}')[k])||0; }catch(e){ return 0; } }
+  function _stepSet(k,v){ try{ var o=JSON.parse(window.LSR.getItem('d2r_forgeStep')||'{}'); if(v<=0)delete o[k]; else o[k]=v; window.LSR.setItem('d2r_forgeStep',JSON.stringify(o)); }catch(e){} }
   // v558 — MOTION LAYER (Fable-5 "lively" pass). All action buttons animate the card first, THEN act. Instant
   // under automation (navigator.webdriver) so specs stay deterministic, and inert under prefers-reduced-motion.
   function _motionOK(){ try { return !navigator.webdriver && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch(e){ return true; } }
@@ -28871,17 +28919,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(window.rwToggleMade){ window.rwToggleMade(word, _hint||undefined); } else if(typeof renderForge==='function'){ renderForge(); } };   // v626 — the chain IS the base: consume exactly it
   // skip / dismiss: ✕ a task you don't want now. Persisted in d2r_forgeSkip. Skipping a chain's forge-step word
   // (key 'rw|<word>') reveals the next word on that base; skipping a whole task hides it. Restorable.
-  function _skipSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeSkip')||'[]')); }catch(e){ return new Set(); } }
-  window.forgeSkip=function(key){ var s=_skipSet(); s.add(key); try{ localStorage.setItem('d2r_forgeSkip', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
-  window.forgeUnskipAll=function(){ try{ localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  function _skipSet(){ try{ return new Set(JSON.parse(window.LSR.getItem('d2r_forgeSkip')||'[]')); }catch(e){ return new Set(); } }
+  window.forgeSkip=function(key){ var s=_skipSet(); s.add(key); try{ window.LSR.setItem('d2r_forgeSkip', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeUnskipAll=function(){ try{ window.LSR.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   // v532 — ✓ COMPLETED tab. Created runewords live in the Chronicle (rwMade); the Completed tab mirrors them
   // as an end-of-storyline "done" list. "Clear" DISMISSES them from this view (d2r_forgeDone — NON-destructive,
   // they stay created in the Chronicle); "Restore" un-dismisses + un-skips. Per-row ↺ un-marks (back to tasks).
-  function _doneSet(){ try{ return new Set(JSON.parse(localStorage.getItem('d2r_forgeDone')||'[]')); }catch(e){ return new Set(); } }
+  function _doneSet(){ try{ return new Set(JSON.parse(window.LSR.getItem('d2r_forgeDone')||'[]')); }catch(e){ return new Set(); } }
   function _madeRw(){ try{ return Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){ return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n]; }); }catch(e){ return []; } }
-  window.forgeDismissDone=function(name){ var s=_doneSet(); s.add(name); try{ localStorage.setItem('d2r_forgeDone', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
-  window.forgeClearCompleted=function(){ try{ localStorage.setItem('d2r_forgeDone', JSON.stringify(_madeRw())); }catch(e){} if(typeof renderForge==='function') renderForge(); };
-  window.forgeRestoreCompleted=function(){ try{ localStorage.removeItem('d2r_forgeDone'); localStorage.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeDismissDone=function(name){ var s=_doneSet(); s.add(name); try{ window.LSR.setItem('d2r_forgeDone', JSON.stringify(Array.from(s))); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeClearCompleted=function(){ try{ window.LSR.setItem('d2r_forgeDone', JSON.stringify(_madeRw())); }catch(e){} if(typeof renderForge==='function') renderForge(); };
+  window.forgeRestoreCompleted=function(){ try{ window.LSR.removeItem('d2r_forgeDone'); window.LSR.removeItem('d2r_forgeSkip'); }catch(e){} if(typeof renderForge==='function') renderForge(); };
   function _forgeDate(s){ try{ return Date.parse(String(s||'').replace(/\s*·\s*/,' ').replace(/,/,'')) || 0; }catch(e){ return 0; } }
   // v537.3 — the "↩ Undo last" button is now SESSION-scoped: it names only what you've created THIS SESSION,
   // and disappears on reload. _sessDone is an in-memory stack of runewords marked created this session (via the
@@ -29055,7 +29103,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (F!=='completed' && (s.ladder||[]).length){
       var _lpTop=false; try { _lpTop = localStorage.getItem('d2r_ladderPreview')==='1'; } catch(e){}
       H.push('<div class="forge-restore-top" style="margin-top:6px"><span>🪜 <b>'+s.ladder.length+'</b> ladder-only word'+(s.ladder.length>1?'s':'')+' remain (separate economy — made on your ladder char)</span>'
-        +'<button class="f-btn f-btn-mini" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',localStorage.getItem(\'d2r_ladderPreview\')===\'1\'?\'\':\'1\')}catch(e){};try{window.renderForge()}catch(e){}" title="view-only plan preview — nothing is promoted, consumed or re-tasked; toggle back any time">'+(_lpTop?'🪜 hide ladder plans (lock them back)':'🪜 show ladder plans')+'</button></div>');
+        +'<button class="f-btn f-btn-mini" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',localStorage.getItem(\'d2r_ladderPreview\')===\'1\'?\'\':\'1\')}catch(e){};try{window.renderForge()}catch(e){}" title="view-only plan preview — nothing is promoted, consumed or re-tasked; toggle back any time">'+(_lpTop?'🪜 hide ladder plans (lock them back)':'🪜 show ladder plans')+'</button>'
+        +'<button class="f-btn f-btn-mini" onclick="window.profileSwitch&&window.profileSwitch(\'ladder\')" title="ascend to your 🪜 LADDER account — its own vault, tallies and Chronicle; this main account stays untouched (full reload, zero bleed)">⤴ open the LADDER account</button></div>');
       if (_lpTop){
         H.push('<div class="forge-sec forge-sec-step" id="forge-ladder-strip"><div class="forge-sec-h">🪜 Ladder plans <span class="forge-sec-ct">'+s.ladder.length+'</span>'
           +'<span class="forge-sec-sub">view-only — separate ladder economy; nothing here touches your account. Toggle off to lock them back.</span>'
@@ -29256,22 +29305,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // v632 — 🪜 LADDER-LOCKED strip: the Chronicle's remaining count includes these; the Forge must
     // never silently disagree. Read-only chips + the mode toggle for when his character IS ladder.
-    if ((s.ladder||[]).length){
-      // v634 — TIER-1 LADDER PREVIEW · v634.3 placement (Konyo: "full control of the back-and-forth"):
-      // COLLAPSED → this locked chip strip lives here at the bottom. EXPANDED → the whole section
-      // (same id, same read-only cards) renders at the TOP of the forge instead (below the 🪜 pill),
-      // so toggling visually floods the top and toggling off locks everything back down here.
-      // Pure render-order — zero state writes either way (spec-pinned byte-identical).
-      var _lpOn2 = false; try { _lpOn2 = localStorage.getItem('d2r_ladderPreview')==='1'; } catch(e){}
-      if (!_lpOn2){
-        H.push('<div class="forge-sec forge-sec-step" id="forge-ladder-strip"><div class="forge-sec-h">🪜 Ladder-locked <span class="forge-sec-ct">'+s.ladder.length+'</span>'
-          +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — ladder is a SEPARATE economy (your tallies here are non-ladder). Preview the plans without touching your account: </span>'
-          +'<button class="f-btn" id="forge-ladder-preview-btn" style="font-size:11px;padding:2px 8px" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',\'1\')}catch(e){};try{window.renderForge()}catch(e){};setTimeout(function(){var el=document.getElementById(\'forge-ladder-strip\');if(el)el.scrollIntoView({block:\'center\',behavior:\'smooth\'});},180)" title="view-only: expand the plans at the TOP of the forge — nothing is promoted, consumed or re-tasked">🪜 show ladder plans</button></div>'
-          +'<div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px">'
-          +s.ladder.map(function(t){ return '<span class="f-getchip" data-arttip="'+_fEsc(t.rw)+'" style="color:'+(_qC(t.rw)||'var(--q-normal)')+'" title="'+_fEsc(t.baseReq||'')+' — ladder-only in the mod">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'; }).join('')
-          +'</div></div>');
-      }
-    }
     // v604 — 🌾 FURTHEST OUT: the coverage catch-all (see forgeScan 2b). Words with NO base owned AND
     // runes not ready used to be SILENT — Konyo's "why is it not tasking me" class. Compact rows, not
     // full cards: every remaining word names the base to find + the runes still missing. Nothing hides.
@@ -29292,6 +29325,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'</div></div>');
       });
       H.push('</div>');
+    }
+    if ((s.ladder||[]).length){
+      // v634 — TIER-1 LADDER PREVIEW · v634.3 placement (Konyo: "full control of the back-and-forth"):
+      // COLLAPSED → this locked chip strip lives here at the bottom. EXPANDED → the whole section
+      // (same id, same read-only cards) renders at the TOP of the forge instead (below the 🪜 pill),
+      // so toggling visually floods the top and toggling off locks everything back down here.
+      // Pure render-order — zero state writes either way (spec-pinned byte-identical).
+      var _lpOn2 = false; try { _lpOn2 = localStorage.getItem('d2r_ladderPreview')==='1'; } catch(e){}
+      if (!_lpOn2){
+        H.push('<div class="forge-sec forge-sec-step" id="forge-ladder-strip"><div class="forge-sec-h">🪜 Ladder-locked <span class="forge-sec-ct">'+s.ladder.length+'</span>'
+          +'<span class="forge-sec-sub">these mod runewords only FORM on a ladder character — ladder is a SEPARATE economy (your tallies here are non-ladder). Preview the plans without touching your account: </span>'
+          +'<button class="f-btn" id="forge-ladder-preview-btn" style="font-size:11px;padding:2px 8px" onclick="try{localStorage.setItem(\'d2r_ladderPreview\',\'1\')}catch(e){};try{window.renderForge()}catch(e){};setTimeout(function(){var el=document.getElementById(\'forge-ladder-strip\');if(el)el.scrollIntoView({block:\'center\',behavior:\'smooth\'});},180)" title="view-only: expand the plans at the TOP of the forge — nothing is promoted, consumed or re-tasked">🪜 show ladder plans</button></div>'
+          +'<div style="padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px">'
+          +s.ladder.map(function(t){ return '<span class="f-getchip" data-arttip="'+_fEsc(t.rw)+'" style="color:'+(_qC(t.rw)||'var(--q-normal)')+'" title="'+_fEsc(t.baseReq||'')+' — ladder-only in the mod">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span>'; }).join('')
+          +'</div></div>');
+      }
     }
     /* v542 — there is no "base upgrades" section, bucket, or chain anywhere. White/normal/superior bases can't be
        cube-upgraded (game-file cubemain.txt: unique/rare/set only); a base that can't reach a word's socket count
@@ -29399,7 +29448,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   /* ── UNIQUES ─────────────────────────────────────────── */
   function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); return L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; }); }
-  function _ownedNames(){ try { return new Set(JSON.parse(localStorage.getItem('d2r_owned')||'[]')); } catch(e){ return new Set(); } }
+  function _ownedNames(){ try { return new Set(JSON.parse(window.LSR.getItem('d2r_owned')||'[]')); } catch(e){ return new Set(); } }
   function _bestSrc(it){
     var best=null, bestR=-1;
     (it.sources||[]).forEach(function(s){ if(!s||s.blocked||s.chance==null) return; var rate=(s.kph||30)/s.chance; if(rate>bestR){ bestR=rate; best=s; } });
@@ -29541,7 +29590,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
 
   /* ── SETS ────────────────────────────────────────────── */
-  function _setHave(){ try { return new Set(JSON.parse(localStorage.getItem('d2r_setPieces')||'[]')); } catch(e){ return new Set(); } }
+  function _setHave(){ try { return new Set(JSON.parse(window.LSR.getItem('d2r_setPieces')||'[]')); } catch(e){ return new Set(); } }
   window.fsetsScan=function(){
     var have=_setHave(); var sets=(typeof window.__allSets==='function')?window.__allSets():[];
     var totalP=0, haveP=0;
@@ -29730,8 +29779,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(!found.size){ show('😕 no FOUND items could be read'+(errs?' ('+errs+' image error'+(errs>1?'s':'')+')':'')+' — make sure the names + found-marks are legible and try again.'); return; }
     // batch-apply straight to the shared stores, then reload so every view (Calculator, Vault, Set Tracker,
     // both grail forges, AI snapshot) rebuilds from the same state — the one-time import path.
-    var owned=[]; try{ owned=JSON.parse(localStorage.getItem('d2r_owned')||'[]'); }catch(e){}
-    var setP=[]; try{ setP=JSON.parse(localStorage.getItem('d2r_setPieces')||'[]'); }catch(e){}
+    var owned=[]; try{ owned=JSON.parse(window.LSR.getItem('d2r_owned')||'[]'); }catch(e){}
+    var setP=[]; try{ setP=JSON.parse(window.LSR.getItem('d2r_setPieces')||'[]'); }catch(e){}
     var oSet=new Set(owned), pSet=new Set(setP), addU=0, addP=0;
     found.forEach(function(n){
       if(V.uniq.has(n)){ if(!oSet.has(n)){ oSet.add(n); addU++; } }
@@ -29739,17 +29788,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else unknown.add(n);
     });
     try {
-      localStorage.setItem('d2r_owned', JSON.stringify(Array.from(oSet)));
-      localStorage.setItem('d2r_setPieces', JSON.stringify(Array.from(pSet)));
-      localStorage.setItem('d2r_grailImportReport', JSON.stringify({u:addU,p:addP,unk:Array.from(unknown).slice(0,20),t:Date.now()}));
+      window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(oSet)));
+      window.LSR.setItem('d2r_setPieces', JSON.stringify(Array.from(pSet)));
+      window.LSR.setItem('d2r_grailImportReport', JSON.stringify({u:addU,p:addP,unk:Array.from(unknown).slice(0,20),t:Date.now()}));
     } catch(e){}
     show('✅ imported — reloading to sync every view…');
     setTimeout(function(){ location.reload(); },600);
   };
   function _grailImportToastOnce(){
-    var raw=null; try{ raw=localStorage.getItem('d2r_grailImportReport'); }catch(e){}
+    var raw=null; try{ raw=window.LSR.getItem('d2r_grailImportReport'); }catch(e){}
     if(!raw) return;
-    try{ localStorage.removeItem('d2r_grailImportReport'); }catch(e){}
+    try{ window.LSR.removeItem('d2r_grailImportReport'); }catch(e){}
     try {
       var r=JSON.parse(raw);
       var t=document.createElement('div'); t.className='forge-toast';
@@ -29818,6 +29867,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();
 })();
+</script>
+<style>
+/* v635 — account pill + the unmistakable ladder cue */
+.profile-pill{position:absolute;top:14px;right:16px;z-index:60;display:flex;border:1px solid rgba(233,208,122,.4);border-radius:999px;overflow:hidden;background:rgba(0,0,0,.35);backdrop-filter:blur(3px)}
+.profile-pill .pp-btn{border:0;background:none;color:var(--text-dim,#9a8c72);font:600 11px/1 inherit;letter-spacing:.08em;padding:7px 12px;cursor:pointer}
+.profile-pill .pp-btn:hover{color:#ffe08a}
+body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
+body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
+body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
+body.ladder-profile::before{content:"🪜 LADDER ACCOUNT — separate economy · your main account is untouched";display:block;position:sticky;top:0;z-index:70;text-align:center;font:700 11px/1 inherit;letter-spacing:.12em;padding:6px 10px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+@media (max-width:700px){.profile-pill{position:static;margin:6px auto;width:max-content}}
+</style>
+<script>
+// v635 — stamp the account cue class at boot (CSS above renders the golden ladder ribbon)
+try { if (window.D2R_PROFILE==='ladder') document.body.classList.add('ladder-profile'); } catch(e){}
 </script>
 </body>
 </html>

@@ -50,6 +50,9 @@ SMOKE_SPECS=(
   tests/v631_promote_unknown_bases.spec.ts   # v631 — '(Nos)' reads stuck in unknownReads that exact-fit
                                      # an unmade word are PROMOTED to owned forge bases at boot/scan-finish
                                      # (Konyo's Heavy Crossbow → Mist); junk reads stay in the ledger.
+  tests/v635_ladder_profile.spec.ts   # v635 — LADDER ACCOUNT bleed-proof invariant: the storage router
+                                     # keeps main byte-identical while the ladder profile lives a full
+                                     # forge life (make-now → created → consume) under L· keys.
 )
 
 ZERO="0000000000000000000000000000000000000000"
