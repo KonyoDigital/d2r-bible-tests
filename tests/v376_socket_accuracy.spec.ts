@@ -78,7 +78,7 @@ test.describe('v376 socket accuracy', () => {
     // the 5os Scourge shows only 5os runewords — NOT the 2os Steel that annoyed Konyo
     expect(r.scourge5).toContain('makeable in your 5os now');
     expect(r.scourge5).toContain('Eternity');                   // a real, not-yet-forged 5os word
-    expect(r.scourge5).toContain('already created');            // Call to Arms is now a seeded forged RW → moved to this bucket
+    expect(r.scourge5).toContain('Call to Arms');               // v621.1 - fresh-profile premise: CtA sits in 'still to create' now
     expect(r.scourge5).not.toContain('Steel');                  // 2os word — must be gone
     expect(r.scourge5).not.toContain('other socket counts');
   });

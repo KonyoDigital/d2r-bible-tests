@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('Chronicle seeds 57 created, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
+test('Chronicle seeds 66 created, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
@@ -46,7 +46,7 @@ test('Chronicle seeds 57 created, lists all 100, syncs makeable, toggles persist
   ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom', 'Plague', 'Treachery', 'Zephyr', 'Memory', 'Rift', 'Void', 'Fury', 'Gloom'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(100);                 // all 100 runewords listed
-  expect(r.prog).toContain('57 / 100');         // 57% created (v595 +Delirium +Principle)
+  expect(r.prog).toContain('66 / 100');         // v615 - the owner's live 66-word snapshot
   expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
   expect(r.zephyr?.made).toBe(true);            // v456 — Zephyr is now a seeded floor RW → reads Created
   expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Amn+Ral+Thul) from the rune stash

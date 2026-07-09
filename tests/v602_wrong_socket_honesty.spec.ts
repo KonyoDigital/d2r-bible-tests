@@ -119,6 +119,9 @@ test('⚒ Forged stamp only when EVERY word the base can ever hold is created', 
 // untrusted BASE_DB weapon max (Elegant Blade claims max 2 — the v553 trap) escaped it, so the FORGED
 // seal fired with Faith/Ice/King's Grace unmade. Completion claims now count the full physical universe.
 test('no FORGED seal while endgame-gated or cap-hidden words are unmade (Double Bow / Elegant Blade)', async ({ page }) => {
+  // v621.1 - fresh profile: the reload must boot EXACTLY the test made-slice (the 66-seed would
+  // merge on top and mark King's Grace/Lawbringer - the very words the amber note must name)
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); });
   await page.goto(URL); await page.waitForTimeout(1800);
   const target = await page.evaluate(() => {
     // Konyo's real June Chronicle slice: leveling words made, endgame words NOT
