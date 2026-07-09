@@ -5,7 +5,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v436 — Chronicle sync: a runeword you've ALREADY FORGED (rwMade) is exempted from the "Keep for
 // runewords" examples (throw-out review + base hover + mule cards), so you only see what's LEFT to make.
 // Also: seed is now 30 (Authority + Melody added).
-test("seed is 68 (v615/v624: the owner's LIVE Chronicle snapshot 2026-07-08 — incl. the Jul 8 session)", async ({ page }) => {
+test("seed is 70 (v615/v624: the owner's LIVE Chronicle snapshot 2026-07-08 — incl. the Jul 8 session)", async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window;
@@ -14,7 +14,7 @@ test("seed is 68 (v615/v624: the owner's LIVE Chronicle snapshot 2026-07-08 — 
              hasMelody: !!(w._RWC_SEED && w._RWC_SEED['Melody']),
              hasAncients: !!(w._RWC_SEED && w._RWC_SEED["Ancients' Pledge"]) };
   });
-  expect(r.count).toBe(68);   // v624: +Kingslayer +Voice of Reason (Jul 9 session)
+  expect(r.count).toBe(70);   // v624.1: the Jul 9 spree — +Kingslayer +VoR +BotD +Last Wish
   expect(r.hasAuthority).toBe(true);
   expect(r.hasMelody).toBe(true);
   expect(r.hasAncients).toBe(true);
