@@ -17503,6 +17503,30 @@ function _rwHand(b){
   return '';
 }
 window._rwHand = _rwHand;
+// v629 (Konyo's Stiletto/Ritual: "back-engineer from Chronicle to Forge back and forth — flag it")
+// — ONE host-knowledge map from the vault, feeding BOTH directions: which unmade words have an
+// EXACT-FIT socketed host in hand, and which have a POSSIBLE host (a known-base read whose sockets
+// the AI missed — the v397 one-tap setter completes it). Memoized ~1.2s: renders call it per row.
+var _vhmCache=null, _vhmAt=0;
+window._vaultHostMap = function(){
+  var now=Date.now(); if(_vhmCache && now-_vhmAt<1200) return _vhmCache;
+  var exact={}, maybe={};
+  try {
+    var labels=[];
+    try { labels=labels.concat(Array.from(owned)); } catch(e){}
+    try { if(typeof unknownReads!=='undefined'&&unknownReads) labels=labels.concat(Array.from(unknownReads)); } catch(e){}
+    labels.forEach(function(lbl){
+      var clean=String(lbl||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+      if(!clean || (typeof _isRunewordBase==='function' && !_isRunewordBase(clean))) return;
+      var m=/\((\d+)\s*os/i.exec(lbl); var ks=m?parseInt(m[1],10):0;
+      (typeof _baseRunewords==='function'?_baseRunewords(clean):[]).forEach(function(r){
+        if(ks>=1){ if(r.s===ks) (exact[r.n]=exact[r.n]||[]).push(lbl); }
+        else (maybe[r.n]=maybe[r.n]||[]).push(lbl);
+      });
+    });
+  } catch(e){}
+  _vhmCache={exact:exact, maybe:maybe}; _vhmAt=now; return _vhmCache;
+};
 function renderRunewordChronicle(){
   var box = document.getElementById('rwc-list'); if (!box || typeof RUNEWORD_TIP === 'undefined') return;
   var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
@@ -17569,6 +17593,13 @@ function renderRunewordChronicle(){
     else if (x.now){ cls='rwc-r-now'; badge='<span class="rwc-badge rwc-b-now">✅ Can make now</span>'; }
     else if (x.cube){ cls='rwc-r-cube'; badge='<span class="rwc-badge rwc-b-cube">🧪 Cube-up</span><span class="rwc-need">need '+esc(x.missing.join(', '))+'</span>'; }
     else { cls='rwc-r-need'; badge='<span class="rwc-badge rwc-b-need">⏳ Missing</span><span class="rwc-need">'+esc(x.missing.join(', '))+'</span>'; }
+    // v629 — the Chronicle KNOWS the vault: an unmade row whose host sits in your stash says so
+    if (!x.made && !x.blocked){
+      try { var _hm=window._vaultHostMap();
+        if (_hm.exact[x.n]) badge+='<span class="rwc-badge" style="color:#8fe6a0;margin-left:5px" title="an exact-fit socketed host is IN YOUR VAULT — this word is forgeable the moment the runes are ready">🧰 host in vault: '+esc(_hm.exact[x.n][0])+(_hm.exact[x.n].length>1?' +'+(_hm.exact[x.n].length-1):'')+'</span>';
+        else if (_hm.maybe[x.n]) badge+='<span class="rwc-badge" style="color:#e9b96e;margin-left:5px" title="a possible host was read from your stash but its socket count is unknown — open the Vault review card and tap the real count">🧰 possible host: '+esc(_hm.maybe[x.n][0])+' — set its sockets</span>';
+      } catch(e){}
+    }
     var toggle = '<button class="rwc-toggle'+(x.made?' on':'')+'" onclick="event.stopPropagation();window.rwToggleMade(\''+oc+'\')" title="'+(x.made?'un-mark (not yet created)':'mark as created')+'">'+(x.made?'↺':'✓ made')+'</button>';
     // v369.2 — runeword icon = its base-item sprite (via _rwArtName); name carries data-arttip → the
     // in-game runeword card floats on hover. Layout: art + NAME + base FIRST, then the recipe IN ORDER.
@@ -29039,6 +29070,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
         else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready ('+_baseLine(t)+')'; }   // v604 — NAME the ready base (the cube branch already did; Konyo must see WHICH item is waiting)
         else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips);
+          // v629 — the Forge KNOWS the vault too (Konyo's Stiletto/Ritual): a possible host already
+          // read from his stash turns 'go get a base' into 'you may already own one — set its sockets'
+          try { var _hm9=window._vaultHostMap();
+            if (_hm9.maybe[t.rw]) segs.push('🧰 <b>you may already own a host</b>: <b>'+_fEsc(_hm9.maybe[t.rw][0])+'</b> was read from your stash — its sockets are unset; open its Vault review card and tap the real count');
+          } catch(e){}
           if(need){
             // v545 — SOCKET STEP. Larzuk always gives a base's MAX. If that max === the word's count, Larzuk is clean.
             // If the max OVERSHOOTS (e.g. a Flail/Archon Plate maxes at 5/4 but the word needs 4/3), Larzuk can't hit
@@ -29074,6 +29110,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // cube gamble is the acquisition path; name it on the row instead of implying Larzuk.
         var _gm=b1?(parseInt(_socketMaxFor(b1),10)||0):0;
         var _gNote=(_gm&&t.need>0&&t.need<_gm)?' · 🎲 <span title="Larzuk would overshoot to '+_gm+'os — cube-gamble a PLAIN WHITE copy ('+_fEsc(_cubeGambleRecipe(b1))+') until it rolls '+t.need+'os — a perfect nothing-else-to-do activity">gamble a plain white for '+t.need+'os</span>':'';
+        try { var _hmF=window._vaultHostMap(); if(_hmF.maybe[t.rw]) _gNote+=' · 🧰 <span style="color:#e9b96e" title="a possible host was read from your stash with unknown sockets — set its real count on its Vault review card">possible host in vault: '+_fEsc(_hmF.maybe[t.rw][0])+'</span>'; } catch(e){}   // v629
         H.push('<div class="f-card f-step" style="padding:7px 10px"><div class="f-cardbody">'
           +'<div class="f-cardtitle"><span data-arttip="'+_fEsc(t.rw)+'" style="cursor:help;color:'+(_qC(t.rw)||'')+'">'+((typeof window.nameLogo==='function')?window.nameLogo(t.rw):'')+_fEsc(t.rw)+'</span> '+_handTag(t.hand)+'</div>'
           +'<div class="f-getsub">🛒 base: <span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b1)+'" style="color:'+(_qC(b1)||'var(--q-normal)')+'">'+_fEsc(b1||t.baseReq||'?')+'</span> · 🔨 runes missing: '+_missChips2(t.missing)+_gNote+'</div>'
