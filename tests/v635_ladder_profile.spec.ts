@@ -103,7 +103,9 @@ test('UX — the header account pill switches profiles; the ladder account wears
   await page.reload(); await page.waitForTimeout(1800);
   const ladder = await page.evaluate(() => {
     const pill = document.getElementById('profile-pill');
-    return { text: pill ? pill.textContent || '' : '', ribbon: document.body.classList.contains('ladder-profile') };
+    const rb = document.getElementById('ladder-ribbon');
+    const thin = rb ? rb.getBoundingClientRect().height < 40 : false;   // a slim banner, never a content wash
+    return { text: pill ? pill.textContent || '' : '', ribbon: document.body.classList.contains('ladder-profile') && !!rb && thin };
   });
   await page.evaluate(() => {
     Object.keys(localStorage).filter((k) => k.indexOf('L·') === 0).forEach((k) => localStorage.removeItem(k));

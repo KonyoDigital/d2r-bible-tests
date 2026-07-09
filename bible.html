@@ -29876,12 +29876,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
 body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
-body.ladder-profile::before{content:"🪜 LADDER ACCOUNT — separate economy · your main account is untouched";display:block;position:sticky;top:0;z-index:70;text-align:center;font:700 11px/1 inherit;letter-spacing:.12em;padding:6px 10px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);box-shadow:0 2px 10px rgba(0,0,0,.4)}
+#ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:70;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
 @media (max-width:700px){.profile-pill{position:static;margin:6px auto;width:max-content}}
 </style>
 <script>
 // v635 — stamp the account cue class at boot (CSS above renders the golden ladder ribbon)
-try { if (window.D2R_PROFILE==='ladder') document.body.classList.add('ladder-profile'); } catch(e){}
+try { if (window.D2R_PROFILE==='ladder'){ document.body.classList.add('ladder-profile');
+  var _lr=document.createElement('div'); _lr.id='ladder-ribbon'; _lr.textContent='🪜 LADDER ACCOUNT — separate economy · your main account is untouched'; document.body.appendChild(_lr);
+} } catch(e){}
 </script>
 </body>
 </html>
