@@ -44,6 +44,12 @@ SMOKE_SPECS=(
   tests/v616_class_restriction_invariant.spec.ts   # v616 — GAME-RULE LOCK: full-catalog sweep — class-
                                      # gated words (Exile=auric, Pattern/Chaos=claws, circlets host
                                      # nothing) can never leak onto illegal bases; art homes stay legal.
+  tests/v630_exclusivity_reservation.spec.ts   # v630 — EXCLUSIVITY RESERVATION: a class-locked word
+                                     # (Exile) claims its owned host first; broad words (Phoenix) re-task
+                                     # with the earmark narration; readiness order preserved among peers.
+  tests/v631_promote_unknown_bases.spec.ts   # v631 — '(Nos)' reads stuck in unknownReads that exact-fit
+                                     # an unmade word are PROMOTED to owned forge bases at boot/scan-finish
+                                     # (Konyo's Heavy Crossbow → Mist); junk reads stay in the ledger.
 )
 
 ZERO="0000000000000000000000000000000000000000"

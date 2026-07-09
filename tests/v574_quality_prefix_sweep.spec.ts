@@ -139,10 +139,13 @@ test('v576 — Eternity refuses a plain Flail; HoJ refuses a merc-rescued Coloss
     const flailKeeps = (w._baseUnmadeRunewords('Flail (5os)', 5) || []).map((x: any) => x.n);
     return { eternityOnFlail: !!eternityOnFlail, hojOnCV: !!hojOnCV, honorRescued: !!honorRescued, flailKeeps };
   });
-  expect(r.eternityOnFlail).toBe(false);      // endgame word → not in a normal-tier Flail
-  expect(r.hojOnCV).toBe(false);              // endgame word → never on a 2H/merc rescue
+  // v628 DOCTRINE FLIP: an ALREADY-SOCKETED exact-fit base bypasses the endgame gate — the 5os Flail
+  // hosts Eternity NOW at zero cost (Konyo's Double Bow/Faith ruling). The gate still refuses PLANS on
+  // wrong homes: the UNSOCKETED Colossus Voulge (Larzuk base) stays refused for HoJ (no exact fit yet).
+  expect(r.eternityOnFlail).toBe(true);       // exact-fit sockets in hand → the word is makeable now
+  expect(r.hojOnCV).toBe(false);              // unsocketed merc-rescue plan → still gated
   expect(r.honorRescued).toBe(true);          // the cheap word still gets planned on an owned base
-  expect(r.flailKeeps).not.toContain('Eternity');   // vault keep-advice uses the same gate
+  expect(r.flailKeeps).toContain('Eternity'); // vault keep-advice uses the same (bypassed) gate
 });
 
 // v577 — LADDER words never appear as EXAMPLE CHIPS in non-ladder mode (Konyo: "I play non-ladder — mixing

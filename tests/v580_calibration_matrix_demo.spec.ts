@@ -112,7 +112,7 @@ test('v580.1 — a "Superior X (…)" LABEL is superior everywhere, even without
 // Flail (5os) arrived the spare logic vendored IT ("Honor covered by your Zweihander") — backwards. A
 // hand-correct base is the player home; the 2H merc-rescue is the compromise. Now: the Forge's tie-break
 // prefers hand-correct bases, and a merc-rescued coverage can never spare a hand-correct candidate.
-test('v582 — 1H Flail beats the earlier-registered 2H Zweihander for Honor; the Zweihander is the spare', async ({ page }) => {
+test('v582 — 1H Flail beats the earlier-registered 2H Zweihander for Honor; the Zweihander keeps for its own words (v628)', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Zweihander (5os)', 'Flail (5os)']));   // Zwei FIRST
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 1, El: 1, Ith: 1, Tir: 1, Sol: 1 }));
@@ -140,7 +140,10 @@ test('v582 — 1H Flail beats the earlier-registered 2H Zweihander for Honor; th
   expect(r.honorMercOwn).toBe(false);         // …not as a merc compromise
   expect(r.flailRoute).toBe('bases');         // the vault MULES the Flail (Konyo: "it should have muled it")
   expect(r.flailWhy).toContain('Honor');
-  expect(r.zweiRoute).toBe('__throwout');     // the redundant 2H is the spare
+  // v628 DOCTRINE FLIP: the Zweihander is no longer a vendorable spare — its 5 sockets exact-fit other
+  // unmade 5os words (CtA/Eternity…), and capability in hand is a keeper. Honor itself still belongs
+  // to the hand-correct Flail (asserted above) — the Zwei keeps for its OWN jobs, not as Honor's spare.
+  expect(r.zweiRoute).toBe('bases');
   expect(r.zweiWhy).toContain('spare');
 });
 

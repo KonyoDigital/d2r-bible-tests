@@ -20,7 +20,11 @@ test('socketed-base labels route to SOCKETED', async ({ page }) => {
       windforce: sm('Windforce').id,
     };
   });
-  expect(r.grim).toBe('__throwout');   // v576 — its 6os words (BotD/Silence) are endgame-tier; an exceptional Grim Scythe isn't their home
+  // v628 DOCTRINE FLIP (Konyo's 4os Double Bow: "in the throwout! which most definitely should not be"):
+  // an ALREADY-SOCKETED exact-fit base is capability in hand — a 6os Grim Scythe hosts BotD/Silence NOW
+  // at zero cost, so it is a KEEPER even though the ideal home is elite. The gate still stops PLANS
+  // (Larzuk/gamble) on wrong homes; it no longer vendors real sockets.
+  expect(r.grim).toBe('bases');
   // v524 — a CIRCLET can't hold a runeword (type=circ, gems/jewels only) → NOT a socketed keeper → throw-out.
   expect(r.circlet).toBe('__throwout');
   expect(r.trident).toBe('bases');
