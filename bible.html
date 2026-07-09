@@ -27331,13 +27331,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // above is STILL empty, crop JUST that corner region and upscale it hard (≤3.2×) → the floating NAME is
         // large + legible, WITHOUT shrinking the whole screen (the full-frame v432 experiment that hurt accuracy).
         if (_isEmpty(data) && !_aiLimitHit && _imRef){
-          try {
-            var _tl = _vEnlarge(_imRef, [0, 0, 0.5, 0.42]);   // top-left corner only, upscaled
-            var _rT = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
-              body: JSON.stringify({ image:_tl, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
-            if (_rT.ok){ var _dT = await _rT.json(); if (_aiIsLimit(_dT)) _aiLimitHit = true; else if (!_isEmpty(_dT)){ data = _dT;
-              try { console.log('[vault-intake] ' + fname + ' → still empty → TOP-LEFT raw-name recovered', _dT.items || _dT.unrecognized); } catch(e){} } }
-          } catch(e){}
+          // v623 (Konyo's 37-batch calibration: 7 misses, 2 verified by eye as CLEAR tooltips the chain
+          // never saw) — the detached-tooltip rescue generalizes from one corner to the THREE bands D2R
+          // actually pins tooltips to: top-left (stash items), LEFT-CENTER tall (his Bone Visage — the
+          // old 0.42 bottom cut it), and the RIGHT/inventory panel (his Death Mask · Socketed (2), which
+          // the left-only crop could never see). First non-empty wins; each is upscaled like the others.
+          var _bands = [ [0, 0, 0.5, 0.42], [0, 0.08, 0.55, 0.62], [0.45, 0.05, 1, 0.65] ];
+          for (var _bi = 0; _bi < _bands.length && _isEmpty(data); _bi++){
+            try {
+              var _tl = _vEnlarge(_imRef, _bands[_bi]);
+              var _rT = await _vFetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
+                body: JSON.stringify({ image:_tl, media_type:'image/jpeg', names:vocab, file:fname, kind:'rawname' }) }, 60000);
+              if (_rT.ok){ var _dT = await _rT.json(); if (_aiIsLimit(_dT)) _aiLimitHit = true; else if (!_isEmpty(_dT)){ data = _dT;
+                try { console.log('[vault-intake] ' + fname + ' → still empty → BAND ' + _bi + ' raw-name recovered', _dT.items || _dT.unrecognized); } catch(e){} } }
+            } catch(e){}
+          }
         }
         // v601 — SOCKET-COUNT VERIFY (Konyo's Superior Long Sword — third recurrence of this miss class,
         // after the Superior Champion Axe and Grim Scythe): a read claiming an UNSOCKETED base
