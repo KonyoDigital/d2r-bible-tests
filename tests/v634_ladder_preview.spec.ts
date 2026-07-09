@@ -6,7 +6,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // shows a full read-only plan (recipe · base to farm · ladder-economy note). ZERO writes to game
 // state — the exact anti-messiness contract Konyo asked for after the live-flip incident.
 
-test('toggle expands 9 plan cards (recipes + base + 🪜 ribbon, Hustle = legacy note), collapses back — and game state is BYTE-IDENTICAL', async ({ page }) => {
+test('toggle expands the remaining 8 plan cards (recipes + base + 🪜 ribbon, Hustle = legacy note), collapses back — and game state is BYTE-IDENTICAL', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -38,7 +38,7 @@ test('toggle expands 9 plan cards (recipes + base + 🪜 ribbon, Hustle = legacy
     return { collapsed, expanded, recollapsed, stateIdentical: before === after };
   });
   expect(r.collapsed).toBe(true);
-  expect(r.expanded.count).toBe(9);
+  expect(r.expanded.count).toBe(8);   // Bulwark seeded MADE (Jul 10) — made ladder words leave the strip
   expect(r.expanded.allRibboned).toBe(true);
   expect(r.expanded.maniaRecipe).toBe(true);
   expect(r.expanded.maniaBase).toBe(true);

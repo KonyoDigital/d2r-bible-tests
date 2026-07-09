@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('Chronicle seeds 74 created, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
+test('Chronicle seeds 75 created, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
@@ -42,11 +42,11 @@ test('Chronicle seeds 74 created, lists all 100, syncs makeable, toggles persist
 
   expect(errs).toEqual([]);
   // seeded the 42-runeword durable floor (Konyo's actual created list, + Zephyr + Memory + Rift + Void as of v456-v463)
-  expect(r.madeCount).toBe(74);   // v631.1 +Mist +Brand +Wisdom +Phoenix (Jul 9)
+  expect(r.madeCount).toBe(75);   // v631.1 Jul 9 spree + Bulwark (Jul 10, ladder char)
   ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom', 'Plague', 'Treachery', 'Zephyr', 'Memory', 'Rift', 'Void', 'Fury', 'Gloom'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(100);                 // all 100 runewords listed
-  expect(r.prog).toContain('74 / 100');         // v631.1 +Mist +Brand +Wisdom +Phoenix
+  expect(r.prog).toContain('75 / 100');         // v631.1 spree + Bulwark
   expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
   expect(r.zephyr?.made).toBe(true);            // v456 — Zephyr is now a seeded floor RW → reads Created
   expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Nef+Sol+Ith) from the rune stash
@@ -54,12 +54,12 @@ test('Chronicle seeds 74 created, lists all 100, syncs makeable, toggles persist
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.faith?.badge).toContain('Missing');  // Ohm+Jah+Lem+Eld not owned, not seeded
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 74 → 75
+  // toggling an UN-seeded runeword to created persists and bumps the count 75 → 76
   const after = await page.evaluate(() => {
     (window as any).rwToggleMade('Faith');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return { faith: !!made['Faith'], count: Object.keys(made).length };
   });
   expect(after.faith).toBe(true);
-  expect(after.count).toBe(75);
+  expect(after.count).toBe(76);
 });
