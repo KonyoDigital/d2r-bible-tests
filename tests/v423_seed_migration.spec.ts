@@ -14,7 +14,7 @@ test('a stuck-at-19 save snaps up to 57 on load', async ({ page }) => {
     const s = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');
     return { count: Object.keys(s).length, hasDeath: !!s['Death'], hasEdge: !!s['Edge'] };
   });
-  expect(r.count).toBe(57);   // v594 +Coven, v595 +Delirium +Principle
+  expect(r.count).toBe(66);   // v615 live snapshot
   expect(r.hasDeath).toBe(true);
   expect(r.hasEdge).toBe(true);
 });
@@ -26,12 +26,13 @@ test('floor re-applies even after the stale one-time flag was set (the real stuc
   });
   await page.goto(URL); await page.waitForTimeout(1300);
   const n = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade')||'{}')).length);
-  expect(n).toBe(57);   // durable floor ignores the flag
+  expect(n).toBe(66);   // durable floor ignores the flag
 });
-test('un-marks: a seeded forged RW snaps back (purged), a non-seeded one stays un-marked', async ({ page }) => {
+test('un-marks SURVIVE the floor for seeded AND non-seeded words (the v615 ↺ contract)', async ({ page }) => {
   await page.addInitScript(() => {
-    // both un-marked away (absent from rwMade); the floor must re-assert the SEEDED Death (forged fact)
-    // and purge its stale un-mark, while the NON-seeded Faith stays un-marked (not floored).
+    // v615 (lockdown) REVERSED the v448 purge: an explicit un-mark is USER TRUTH — the boot floor
+    // honors it (the ↺ button used to silently revert on reload, desyncing consumed bases). A wipe
+    // still refloors everything because a wipe clears d2r_rwUnmade too (v615_chronicle_lockdown).
     localStorage.setItem('d2r_rwUnmade', JSON.stringify({ 'Death': 1, 'Faith': 1 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
   });
@@ -41,9 +42,9 @@ test('un-marks: a seeded forged RW snaps back (purged), a non-seeded one stays u
     const u = JSON.parse(localStorage.getItem('d2r_rwUnmade')||'{}');
     return { hasDeath: !!s['Death'], hasFaith: !!s['Faith'], count: Object.keys(s).length, unmadeDeath: !!u['Death'], unmadeFaith: !!u['Faith'] };
   });
-  expect(r.hasDeath).toBe(true);      // seeded → re-floored (forged fact)
-  expect(r.unmadeDeath).toBe(false);  // its stale un-mark purged
-  expect(r.hasFaith).toBe(false);     // non-seeded → un-mark respected, NOT floored
-  expect(r.unmadeFaith).toBe(true);   // non-seeded un-mark preserved across the reload
-  expect(r.count).toBe(57);           // exactly the 57 forged seeds
+  expect(r.hasDeath).toBe(false);     // seeded + explicitly un-marked → the floor RESPECTS it now
+  expect(r.unmadeDeath).toBe(true);   // …and the un-mark record survives
+  expect(r.hasFaith).toBe(false);     // non-seeded → unchanged behavior
+  expect(r.unmadeFaith).toBe(true);
+  expect(r.count).toBe(65);           // 66 seeds minus the honored Death un-mark
 });

@@ -106,7 +106,7 @@ test('UX — clicking the hero "Make now →" CTA actually switches the Forge to
   await page.goto(URL); await page.waitForTimeout(1400);
   await page.evaluate(() => { const w: any = window; w._ensureSocketBaseEntry('Colossus Voulge (4os)'); w.switchTab('forge'); w.forgeSetFilter('all'); w.renderForge(); });
   // real click on the rendered CTA button
-  await page.locator('#tab-forge .forge-hero .fh-cta').click();
+  await page.locator('#tab-forge .forge-hero .fh-cta:not(.fh-done)').click();   // v618 added the ✓ created twin — target the router CTA
   await page.waitForTimeout(300);
   const cls = await page.evaluate(() => document.querySelector('#tab-forge .forge-tabs .ft-now')?.className || '');
   expect(cls).toMatch(/\bon\b/);   // Make-now tab is now the active filter

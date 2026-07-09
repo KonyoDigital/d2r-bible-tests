@@ -42,7 +42,7 @@ test('Chronicle seeds 57 created, lists all 100, syncs makeable, toggles persist
 
   expect(errs).toEqual([]);
   // seeded the 42-runeword durable floor (Konyo's actual created list, + Zephyr + Memory + Rift + Void as of v456-v463)
-  expect(r.madeCount).toBe(57);   // v594 +Coven, v595 +Delirium +Principle
+  expect(r.madeCount).toBe(66);   // v615 — the owner's LIVE Chronicle snapshot
   ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom', 'Plague', 'Treachery', 'Zephyr', 'Memory', 'Rift', 'Void', 'Fury', 'Gloom'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(100);                 // all 100 runewords listed

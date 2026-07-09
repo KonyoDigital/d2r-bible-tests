@@ -8538,7 +8538,9 @@ function _baseRWLine(name, knownSockets, forceSuperior){
               ? (!_stampTodo.length
                   ? ': <span class="rw-stamp" title="EVERY runeword this base type can physically host — at any socket count, endgame words included — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + _stampAll.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(_stampAll, true)
                   : ': <span style="color:#8fd0a0">✓ all ' + nowMade.length + ' that fit ' + ks + 'os created</span>' + _rwMadeTag(nowMade, false) + _otherNote + _gatedNote)
-              : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>' + _otherNote + _gatedNote))
+              : (!_stampTodo.length && _stampAll.length
+                  ? ': <span class="rw-stamp" title="EVERY runeword this base type can physically host — at any socket count, endgame words included — is already forged. Nothing left to make in this base, ever.">⚒ Forged ✓<span class="rws-sub">all ' + _stampAll.length + ' this base can ever hold — already created</span></span>' + _rwMadeTag(_stampAll, true)
+                  : ': <span style="opacity:.7">none takes exactly ' + ks + ' socket' + (ks === 1 ? '' : 's') + ' in this base type</span>' + _otherNote + _gatedNote)))   // v621.1 — a fully-forged base type seals even at a count no word fits (Konyo's 1os Suwayyah, post-Pattern)
       + _handNote
       + '</div>';
   }

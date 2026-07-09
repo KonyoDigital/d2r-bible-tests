@@ -10,6 +10,9 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.describe('v376 socket accuracy', () => {
   test.beforeEach(async ({ page }) => {
+    // v621.1 — the 66-seed floors made-words in the IN-MEMORY Chronicle; these accuracy cases premise
+    // specific words unmade ('still to create' buckets), so every test boots a fresh profile.
+    await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({})); });
     await page.goto(URL);
     await page.waitForTimeout(2000);
   });

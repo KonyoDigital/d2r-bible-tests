@@ -11,6 +11,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('_ownedBases recognises a "<Base> (<Runeword> base)" tagged, unsocketed base', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (Heart of the Oak base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
@@ -32,6 +33,7 @@ test('_ownedBases recognises a "<Base> (<Runeword> base)" tagged, unsocketed bas
 
 test('an owned tagged base whose max overshoots → a cube-socket GAMBLE pipeline task (not "go get a base")', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (Heart of the Oak base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
@@ -59,6 +61,7 @@ test('an owned tagged base whose max overshoots → a cube-socket GAMBLE pipelin
 
 test('the gamble step renders in the Pipeline card (recipe + re-roll wording, not "guaranteed max")', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (Heart of the Oak base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
@@ -86,6 +89,7 @@ test('"go get a base" one-step: when the base overshoots (Larzuk max > word coun
   // claim "Larzuk → 3os" — it should say find a 3os drop or cube-gamble. A CLEAN word (Insight, 4os on a 4os-max
   // Colossus Voulge) keeps the plain "Larzuk → 4os". Runes in hand, no base owned → both are base one-steps.
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     const RUNES = 'El Eld Tir Nef Eth Ith Tal Ral Ort Thul Amn Sol Shael Dol Hel Io Lum Ko Fal Lem Pul Um Mal Ist Gul Vex Ohm Lo Sur Ber Jah Cham Zod'.split(' ');
     const stash: any = {}; RUNES.forEach((r) => (stash[r] = 5));
     localStorage.setItem('d2r_owned', JSON.stringify([]));
@@ -112,6 +116,7 @@ test('untagged white bases do NOT get a gamble task (scoped to tagged bases only
   // A plain "Crystal Sword (Larzuk base)" (6os max) is NOT tagged for any word → for a 4os word it stays a
   // "go get the right base" one-step, never a gamble. Only tagged owned bases gamble.
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Crystal Sword (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));

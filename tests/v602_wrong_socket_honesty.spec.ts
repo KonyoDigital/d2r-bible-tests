@@ -41,6 +41,9 @@ test('1os Suwayyah: Pattern-class unmade words at other counts are named, never 
 });
 
 test('throw-out card + tip for a socketed copy: honest amber note, no Larzuk/cube socket guide', async ({ page }) => {
+  // v621.1 — _baseRWLine's made-check is the IN-MEMORY Chronicle; the 66-seed floors claw words, so
+  // the unmade-words premise needs a fresh-profile boot, not just a localStorage pin.
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({})); });
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;

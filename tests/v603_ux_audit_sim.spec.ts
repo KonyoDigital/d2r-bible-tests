@@ -9,6 +9,7 @@ test('v603.1 UX audit sim: Konyo screenshot state — rendered Throw-Out + Socke
   await page.goto(URL); await page.waitForTimeout(1500);
   // seed Konyo's screenshot state: throw-out reads + registered socketed bases (Chronicle = live seed 57)
   await page.evaluate(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({}));   // v621.1 — 66-seed floors claw words; the sim premises them unmade
     localStorage.setItem('d2r_unknownReads', JSON.stringify([
       'Suwayyah (1os low base)', 'Grim Scythe (4os low base)', 'Small Crescent (3os low base)',
     ]));

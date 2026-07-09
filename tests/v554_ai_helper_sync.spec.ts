@@ -8,6 +8,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('buildAskSnapshot carries the Forge plan + Chronicle progress', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (4os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 2, Tir: 2, Tal: 2, Sol: 2 }));
     localStorage.setItem('d2r_rwMade', JSON.stringify({}));
@@ -37,6 +38,7 @@ test('buildAskSnapshot carries the Forge plan + Chronicle progress', async ({ pa
 
 test('the snapshot labels a cube-gamble pipeline task correctly (not "Larzuk-socket")', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (Heart of the Oak base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ko: 17, Vex: 10, Pul: 18, Thul: 36 }));
     localStorage.setItem('d2r_rwMade', '{}'); localStorage.setItem('d2r_ladderMode', 'nonladder');

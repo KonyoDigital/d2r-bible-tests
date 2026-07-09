@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 // v331 — AI Diablo II Helper: buildAskSnapshot reads live tallies + makeable-now engines,
 // the #ask-bible-card injects after the Crafting Workshop, and askBible POSTs to /api/ask.
 test.beforeEach(async ({ page }) => {
+  // v621.1 — the 66-seed floors made-words (Spirit/CTA included); these tests premise makeable words
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', JSON.stringify({})); });
   await page.goto('file://' + process.cwd() + '/bible.html');
   await page.waitForFunction(() => (window as any).buildAskSnapshot && (window as any).askBible);
   await page.evaluate(() => (window as any).switchTab && (window as any).switchTab('tools'));

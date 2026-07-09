@@ -4,6 +4,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('owned 2H base + runes → runeword shows as a MERC weapon make-now (Honor in a 5os Zweihander)', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v621.1 — the 66-seed floors made-words; specs premised on unmade words pin a fresh Chronicle
     localStorage.setItem('d2r_owned', JSON.stringify(['Zweihander (5os)']));
     // Honor = Amn El Ith Tir Sol — give plenty
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Amn: 5, El: 5, Ith: 5, Tir: 5, Sol: 5 }));

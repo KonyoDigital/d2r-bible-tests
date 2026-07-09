@@ -26,7 +26,7 @@ test('chronicle seed has all 57 created runewords', async ({ page }) => {
     const w:any = window; const s = w._RWC_SEED || {};
     return { count: Object.keys(s).length, hasDeath: !!s['Death'], hasMosaic: !!s['Mosaic'], hasEdge: !!s['Edge'] };
   });
-  expect(r.count).toBe(57);   // v594 +Coven, v595 +Delirium +Principle
+  expect(r.count).toBe(66);   // v615 — the owner's LIVE Chronicle snapshot
   expect(r.hasDeath).toBe(true);
   expect(r.hasMosaic).toBe(true);
   expect(r.hasEdge).toBe(true);
