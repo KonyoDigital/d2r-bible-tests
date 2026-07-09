@@ -12,9 +12,9 @@ test('Chronicle seeds 66 created, lists all 100, syncs makeable, toggles persist
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
-    // enough runes to make King's Grace (Amn+Ral+Thul) now — an UN-seeded word for the "Can make now"
-    // check (Leaf joined the seeded floor in v581). Leave d2r_rwMade unset → seeds the durable floor.
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Ort: 2, Sol: 1, Tal: 1, Thul: 1, Amn: 1, Eth: 1, Tir: 1, Ral: 1 }));
+    // enough runes to make Radiance (Nef+Sol+Ith) now — an UN-seeded word for the "Can make now"
+    // check (Leaf joined the seed in v581; King's Grace in v615 — pick from the truly-open tail).
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Nef: 1, Sol: 1, Ith: 1, Ort: 2, Tal: 1, Thul: 1, Amn: 1, Tir: 1, Ral: 1 }));
   });
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1400);
@@ -35,7 +35,7 @@ test('Chronicle seeds 66 created, lists all 100, syncs makeable, toggles persist
       madeCount: Object.keys(made).length,
       rowCount: rows.length,
       prog: (document.getElementById('rwc-progress') || {}).textContent || '',
-      spirit: find('Spirit'), zephyr: find('Zephyr'), leaf: find("King's Grace"),
+      spirit: find('Spirit'), zephyr: find('Zephyr'), leaf: find('Radiance'),
       beast: find('Beast'), death: find('Death'), faith: find('Faith'),
     };
   });
@@ -49,7 +49,7 @@ test('Chronicle seeds 66 created, lists all 100, syncs makeable, toggles persist
   expect(r.prog).toContain('66 / 100');         // v615 - the owner's live 66-word snapshot
   expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
   expect(r.zephyr?.made).toBe(true);            // v456 — Zephyr is now a seeded floor RW → reads Created
-  expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Amn+Ral+Thul) from the rune stash
+  expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Nef+Sol+Ith) from the rune stash
   expect(r.beast?.made).toBe(true);             // a seeded one reads Created
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.faith?.badge).toContain('Missing');  // Ohm+Jah+Lem+Eld not owned, not seeded
