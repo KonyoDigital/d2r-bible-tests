@@ -8372,7 +8372,8 @@ function _baseRWLine(name, knownSockets, forceSuperior){
   var _rwIsMade = function(n){ try { return typeof rwMade !== 'undefined' && rwMade && !!rwMade[n]; } catch(e){ return false; } };
   // v559.1 — Konyo: "keywords here HD art upgraded and image cursor floating" — every runeword NAME in these
   // lists is now an inline chip with its HD logo + the floating #arttip hover card (was plain comma text).
-  var _rwNames = function(list){ return list.slice(0, 14).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n):''; return '<span class="rwn-chip" data-arttip="'+n+'">'+lg+n+'</span>'; }).join('') + (list.length > 14 ? ' <span class="rwn-more">+' + (list.length - 14) + ' more</span>' : ''); };
+  var _rwCtx = String(name||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();   // v622 — the host base: its sprite dresses every chip on this card
+  var _rwNames = function(list){ return list.slice(0, 14).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n,_rwCtx):''; return '<span class="rwn-chip" data-arttip="'+n+'" data-arttip-ctx="'+_d2artEsc(_rwCtx)+'">'+lg+n+'</span>'; }).join('') + (list.length > 14 ? ' <span class="rwn-more">+' + (list.length - 14) + ' more</span>' : ''); };
   // v455 — CLARITY: the count-only "· 6 already created ✓" left Konyo unsure WHICH were done vs still needed.
   // Now the made ones are NAMED on their own green line, and the to-do list is explicitly labelled "still to
   // create", so the split reads unambiguously: this many left (these), that many done (those).
@@ -8508,7 +8509,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
     _stampTodo = _stampAll.filter(function(r){ return !_rwIsMade(r.n); });
   } catch(e){ _stampAll = rws; _stampTodo = allTodo; }
   // other-count unmade words, rendered WITH their socket counts so the "hunt a 3os copy" action is obvious
-  var _rwNamesSock = function(list){ return list.slice(0, 8).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n):''; return '<span class="rwn-chip" data-arttip="'+n+'">'+lg+n+' <span style="opacity:.75">('+r.s+'os)</span></span>'; }).join('') + (list.length > 8 ? ' <span class="rwn-more">+' + (list.length - 8) + ' more</span>' : ''); };
+  var _rwNamesSock = function(list){ return list.slice(0, 8).map(function(r){ var n=_d2artEsc(r.n); var lg=(typeof nameLogo==='function')?nameLogo(r.n,_rwCtx):''; return '<span class="rwn-chip" data-arttip="'+n+'" data-arttip-ctx="'+_d2artEsc(_rwCtx)+'">'+lg+n+' <span style="opacity:.75">('+r.s+'os)</span></span>'; }).join('') + (list.length > 8 ? ' <span class="rwn-more">+' + (list.length - 8) + ' more</span>' : ''); };
   // words unmade in the STAMP universe but hidden from the display list (endgame-gated / above the
   // display cap) — named in amber so a stampless "all visible created" state explains itself.
   var _stampHiddenTodo = _stampTodo.filter(function(r){ var nm=r.n; return !rws.some(function(x){ return x.n===nm; }); });
@@ -12671,24 +12672,33 @@ window.D2IO_ART = D2IO_ART;
   for (var s in SLOT){ if (Object.prototype.hasOwnProperty.call(SLOT,s)) D2IO_ART['magic '+s+' base'] = 'art/'+SLOT[s]+'_graphic.png'; }
   D2IO_ART['any jewel'] = 'art/jewel02_graphic.png';
 })();
+// v622 — art FIDELITY tiers (Konyo's Spired Helm wearing the barbarian Fanged Helm's face): a
+// keyword slot-fallback (*_graphic like fangedhelm) seeded onto a suffixed label must never beat the
+// item's REAL sprite. Cross-referenced against the game files: armor.txt says Spired Helm invfile =
+// invghm = the Great Helm sprite (hd_great_helm.png) — invba2/fangedhelm is a different helm entirely.
+// Tiers: in-game HD extraction > maxroll HD > diablo2.io/specific > keyword slot-generic > corrupt base_.
+function _artTier(u){
+  if (!u) return -1;
+  if (/\/hd_[^/]+\.png$/.test(u)) return 4;
+  if (/\/mr_[^/]+\.png$/.test(u)) return 3;
+  if (/\/base_[^/]+\.png$/.test(u)) return 0;   // the v381 corrupt-batch class
+  if (/_graphic\.png$/.test(u)) return 1;        // keyword slot art — last real resort
+  return 2;
+}
 function artUrl(name){
   var direct = (name && Object.prototype.hasOwnProperty.call(D2IO_ART, name)) ? D2IO_ART[name] : null;
-  // v570 — corrupt-base_ bypass (Konyo's "Colossus Voulge (Larzuk base)" rendered the blue-gem placeholder,
-  // "looks like an Annihilus"): ~487/526 base_*.png are ONE corrupt file (v381/v497). When a name resolves to
-  // a base_ file — or to nothing (socket/Larzuk-suffixed labels) — re-resolve the CLEAN base name and prefer
-  // its hd_/mr_/graphic art (elites inherit their tier's sprite, e.g. Colossus Voulge → hd_voulge).
+  // v570/v622 — whenever the CLEAN base name resolves to HIGHER-fidelity art than the raw label
+  // (suffixed labels collect keyword fallbacks and corrupt base_ hits), the clean art wins.
   try {
-    if (!direct || /\/base_[^/]+\.png$/.test(direct)){
-      var _cl = String(name || '').replace(/\s*\([^)]*\)\s*$/, '').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
-      if (_cl && _cl !== name && Object.prototype.hasOwnProperty.call(D2IO_ART, _cl)){
-        var _alt = D2IO_ART[_cl];
-        if (_alt && !/\/base_[^/]+\.png$/.test(_alt)) return _alt;   // clean name has REAL art → use it
-        if (!direct) return _alt;                                     // nothing direct → any clean art beats none
-      }
+    var _cl = String(name || '').replace(/\s*\([^)]*\)\s*$/, '').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
+    if (_cl && _cl !== name && Object.prototype.hasOwnProperty.call(D2IO_ART, _cl)){
+      var _alt = D2IO_ART[_cl];
+      if (_artTier(_alt) > _artTier(direct)) return _alt;
     }
   } catch(e){}
   return direct;
 }
+window._artTier = _artTier;
 window.artUrl = artUrl;
 // v383.1 — ADDITIVE art register: only fill names that have NO art yet, so the existing HD
 // (mr_*.png, base_*.png — extracted from the local D2 install) is NEVER overwritten by diablo2.io icons.
@@ -12862,7 +12872,7 @@ window.artOr = artOr;
 // Unified drop-row logo: render the registered in-game art thumbnail (lazy, graceful)
 // ONLY when one exists for this name — no empty placeholder box for art-less items.
 // Used by every drop-table / top-drops surface so a named item shows its in-game logo.
-function nameLogo(name){ return (typeof artUrl==='function' && artUrl(name)) ? artOr(name, '', 'sm')+' ' : ''; }
+function nameLogo(name, ctxArt){ var a=ctxArt||name; return (typeof artUrl==='function' && artUrl(a)) ? artOr(a, '', 'sm')+' ' : ''; }   // v622 — ctxArt: chips on a base card wear that base's sprite
 window.nameLogo = nameLogo;
 // v349 — a name rendered in its in-game RARITY COLOUR + the floating #arttip hover (image+description),
 // for the intake report + journal breakdown so every item name reads/behaves like the rest of the app.
@@ -19870,7 +19880,11 @@ window._jewelTipHtml = _jewelTipHtml;
       }
       var nm = nameOf(el); if (!nm) return;
       var r = (typeof _arttipResolve==='function') ? _arttipResolve(nm) : { artName:nm, desc:'', rich:false };
-      var url = (typeof artUrl==='function') ? (artUrl(nm) || artUrl(r.artName)) : '';
+      // v622 (Konyo: the chips on a CLAW's card floated sword art) — a chip rendered on a specific
+      // base's card carries data-arttip-ctx="<that base>": the hover keeps the runeword's STATS but
+      // wears the host base's sprite, so a Strength chip on a Scissors Katar card shows the claw.
+      var _ctx = el.getAttribute && el.getAttribute('data-arttip-ctx');
+      var url = (typeof artUrl==='function') ? ((_ctx && artUrl(_ctx)) || artUrl(nm) || artUrl(r.artName)) : '';
       if (!url && r.artSrc) url = r.artSrc;   // v345 — rolled-name keeper base sprite
       if (!url && !r.desc) return;
       cur = el;
