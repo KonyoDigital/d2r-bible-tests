@@ -27315,7 +27315,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // the one lever the boost tiers don't pull (they lift the background too). Two passes at different
         // floors, because the right threshold depends on how transparent the tooltip is; first non-empty wins.
         if (_isEmpty(data) && !_aiLimitHit && _imRef){
-          var _isoFloors = [92, 60];
+          // v627 — third, DEEPER floor (Konyo's Death Mask · Socketed(2): a translucent tooltip over the
+          // red/blue stash grid beat floors 92+60 twice across two batches — the correctly-located crop
+          // was simply illegible; a lower value-floor keeps the faintest glyph pixels).
+          var _isoFloors = [92, 60, 38];
           for (var _fi = 0; _fi < _isoFloors.length && _isEmpty(data); _fi++){
             try {
               var _iso = _vTextIso(_imRef, _box || null, 1568, _isoFloors[_fi]);
