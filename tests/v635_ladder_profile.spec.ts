@@ -43,7 +43,7 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     const laddered = (sc.ladder || []).length;                       // ladder profile: NO locked strip
     w.rwToggleMade('Mania', mania && mania.base && mania.base.name); // ✓ created — the REAL engine
     const made = Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}'));
-    return { maniaKind: mania && mania.kind, maniaBase: mania && mania.base && mania.base.base, laddered, made };
+    return { maniaKind: mania && mania.kind, maniaBase: mania && mania.base && mania.base.base, laddered, madeN: made.length, hasMania: made.includes('Mania') };
   });
   // descend to main — byte-identical
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'main'); });
@@ -56,7 +56,8 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     const w: any = window;
     // creating Mania CONSUMED the Blade Talons (the real engine ran) — assert the consume trail
     const used = JSON.parse(w.LSR.getItem('d2r_rwBaseUsed') || '{}');
-    return { made: Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}')), owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
+    const made = Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}'));
+    return { madeN: made.length, hasMania: made.includes('Mania'), owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
              consumed: used['Mania'] && used['Mania'].l };
   });
   // cleanup: back to main, wipe ladder keys + test main keys
@@ -65,14 +66,16 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash');
   });
   expect(ladder.owned).toBe(0);           // fresh account: no bases bleed in
-  expect(ladder.made).toBe(0);            // Chronicle starts 0/100 (no owner seed on ladder)
-  expect(ladder.runes).toBe(0);           // no rune tallies bleed in
+  expect(ladder.made).toBe(75);           // v637 — ONE-WAY INHERITANCE: main's 75 forges show here automatically
+  expect(ladder.runes).toBe(0);           // no rune tallies bleed in (physical stash stays separate)
   expect(ladderLife.laddered).toBe(0);    // ladder profile: the 9 are UNLOCKED (no strip)
   expect(ladderLife.maniaKind).toBe('now');
   expect(ladderLife.maniaBase).toBe('Blade Talons');
-  expect(ladderLife.made).toEqual(['Mania']);
+  expect(ladderLife.madeN).toBe(76);           // 75 inherited + Mania forged here
+  expect(ladderLife.hasMania).toBe(true);
   expect(mainAfter).toBe(mainBefore);     // ★ NOTHING BLEEDS — byte-identical main
-  expect(ladderPersist.made).toEqual(['Mania']);              // ladder life survives round-trips
+  expect(ladderPersist.madeN).toBe(76);                       // ladder life survives round-trips (75 inherited + Mania)
+  expect(ladderPersist.hasMania).toBe(true);
   expect(ladderPersist.owned).not.toContain('Blade Talons (3os)');   // the forge CONSUMED it — full engine, ladder-side
   expect(ladderPersist.consumed).toBe('Blade Talons (3os)');         // and the consume trail says so
 });

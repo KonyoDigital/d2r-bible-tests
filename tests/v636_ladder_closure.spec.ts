@@ -67,7 +67,7 @@ test('ladder account consistency: _rwLadderBlocked=false, NO fail-verdict seed, 
   expect(r.verifyFails).toBe(0);          // non-ladder fail verdicts never seed the ladder account
   expect(r.guardBlocked).toBe(false);     // Mania's card wears no did-not-form banner here
   expect(r.mainMode).toBe('nonladder');   // the shared key is untouched from the ladder side
-  expect(r.ladderMade).toBe(0);           // the owner's 75-word seed can never be loaded into ladder
+  expect(r.ladderMade).toBe(75);          // v637 — the union is already inherited; the refused seed-load adds NOTHING on top
 });
 
 test('Backup & Share lives again: export contains real keys per-profile, restore never flips the account', async ({ page }) => {
@@ -103,7 +103,7 @@ test('Backup & Share lives again: export contains real keys per-profile, restore
   expect(ladder.hasProfileKey).toBe(false);
 });
 
-test('FULL no-silent sweep INSIDE the ladder account: ~100 unmade words, zero silent, no strip; profileSwitch same-account = no-op', async ({ page }) => {
+test('FULL no-silent sweep INSIDE the ladder account: the inherited remainder + ladder words, zero silent, no strip; profileSwitch same-account = no-op', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   await toLadder(page);
   const r = await page.evaluate(() => {
@@ -121,7 +121,8 @@ test('FULL no-silent sweep INSIDE the ladder account: ~100 unmade words, zero si
     return { unmadeCount: unmade.length, silent, strip: (sc.ladder || []).length, reloaded };
   });
   await cleanup(page);
-  expect(r.unmadeCount).toBeGreaterThan(90);
+  expect(r.unmadeCount).toBeGreaterThan(10);   // v637 — inheritance: only main's remainder + the ladder words are open here
+  expect(r.unmadeCount).toBeLessThan(40);
   expect(r.silent).toEqual([]);          // the v604 invariant holds in the ladder account too
   expect(r.strip).toBe(0);
   expect(r.reloaded).toBe(false);
