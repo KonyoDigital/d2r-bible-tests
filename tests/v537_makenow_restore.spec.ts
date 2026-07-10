@@ -35,7 +35,7 @@ test('completing a Make-now task shows "Undo last" ON the Make-now view, and it 
     w.rwToggleMade('Insight');            // the "✓ created" button
     w.forgeSetFilter('now'); w.renderForge();   // stay on the Make-now filter
     const f = document.getElementById('tab-forge')!;
-    const bar = f.querySelector('.forge-restore-top');
+    const bar = [...f.querySelectorAll('.forge-restore-top')].find((b) => /Undo last|Restore skipped|skipped task/i.test(b.textContent || '')) || null;
     const undoBtn = bar ? [...bar.querySelectorAll('button')].find((b) => /Undo last/i.test(b.textContent || '')) : null;
     return {
       barVisibleOnNow: !!bar,
@@ -77,7 +77,9 @@ test('the Undo-last bar is hidden on load (pre-existing creations) and appears o
     w._ensureSocketBaseEntry('Colossus Voulge (4os)');
     w.switchTab('forge'); w.forgeSetFilter('now'); w.renderForge();
     const f = document.getElementById('tab-forge')!;
-    return { bar: !!f.querySelector('.forge-restore-top'), madeCount: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length };
+    // v641 note: the 🪜 ladder pill row shares .forge-restore-top styling — the RESTORE bar is the one carrying Undo/skipped controls
+    const bars = [...f.querySelectorAll('.forge-restore-top')].filter((b) => /Undo last|Restore skipped|skipped task/i.test(b.textContent || ''));
+    return { bar: bars.length > 0, madeCount: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length };
   });
   expect(onLoad.madeCount).toBeGreaterThanOrEqual(1);   // a past creation exists (fresh profile: Enigma)…
   expect(onLoad.bar).toBe(false);                // …but the bar does NOT show for them (nothing done THIS session)
@@ -86,7 +88,7 @@ test('the Undo-last bar is hidden on load (pre-existing creations) and appears o
     const w: any = window;
     w.rwToggleMade('Insight'); w.forgeSetFilter('now'); w.renderForge();
     const f = document.getElementById('tab-forge')!;
-    const bar = f.querySelector('.forge-restore-top');
+    const bar = [...f.querySelectorAll('.forge-restore-top')].find((b) => /Undo last|Restore skipped|skipped task/i.test(b.textContent || '')) || null;
     const undo = bar ? [...bar.querySelectorAll('button')].find((b) => /Undo last/i.test(b.textContent || '')) : null;
     return { bar: !!bar, undo: undo ? undo.textContent!.replace(/\s+/g, ' ').trim() : '' };
   });
