@@ -53,6 +53,9 @@ SMOKE_SPECS=(
   tests/v635_ladder_profile.spec.ts   # v635 — LADDER ACCOUNT bleed-proof invariant: the storage router
                                      # keeps main byte-identical while the ladder profile lives a full
                                      # forge life (make-now → created → consume) under L· keys.
+  tests/v636_ladder_closure.spec.ts   # v636 — the closure-swarm locks: profile-scoped wipe, SEEN pre-seed,
+                                     # ladder consistency (_rwLadderBlocked/rwVerify/rwSetLadderMode),
+                                     # per-profile Backup&Share, and the no-silent sweep INSIDE ladder.
 )
 
 ZERO="0000000000000000000000000000000000000000"

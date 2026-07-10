@@ -7,17 +7,18 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // profile keeps its unprefixed d2r_* keys byte-for-byte; the ladder profile lives under 'L·'.
 // Switching = a full reload. The engine is IDENTICAL — it just reads the active account's stash.
 
-const K = ['d2r_owned','d2r_runeStash','d2r_rwMade','d2r_copies','d2r_unknownReads','d2r_rwBaseUsed'];
-const snap = () => K.map((k) => k + '=' + (localStorage.getItem(k) || '')).join('|');
+// v636 — the snapshot derives from the SOURCE OF TRUTH (_LP_FORKED, all 37 keys) + the shared
+// d2r_ladderMode canary, so un-forking ANY account key or a raw-write regression fails the gate.
+const SNAP_JS = `[...(window)._LP_FORKED, 'd2r_ladderMode'].sort().map((k) => k + '=' + (localStorage.getItem(k) || '')).join('|')`;
 
 test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile stays byte-identical (and vice versa)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   // arrange a recognizable MAIN state
-  const mainBefore = await page.evaluate(({ K }: any) => {
+  const mainBefore = await page.evaluate(({ SNAP_JS }: any) => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (5os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ El: 3 }));
-    return K.map((k: string) => k + '=' + (localStorage.getItem(k) || '')).join('|');
-  }, { K });
+    return eval(SNAP_JS);
+  }, { SNAP_JS });
   // ascend to ladder
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'ladder'); });
   await page.reload(); await page.waitForTimeout(1800);
@@ -47,7 +48,7 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
   // descend to main — byte-identical
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'main'); });
   await page.reload(); await page.waitForTimeout(1800);
-  const mainAfter = await page.evaluate(({ K }: any) => K.map((k: string) => k + '=' + (localStorage.getItem(k) || '')).join('|'), { K });
+  const mainAfter = await page.evaluate(({ SNAP_JS }: any) => eval(SNAP_JS), { SNAP_JS });
   // ladder data SURVIVES the round-trip
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'ladder'); });
   await page.reload(); await page.waitForTimeout(1800);

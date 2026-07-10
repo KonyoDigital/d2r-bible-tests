@@ -3250,7 +3250,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // every later block routes through it.
 // ══════════════════════════════════════════════════════════════════════════════
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwMade", "d2r_rwUnmade", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_rwProfile", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft"]);
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwMade", "d2r_rwUnmade", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_rwProfile", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players"]);
 window.LSR = (function(){
   var RAW = window.localStorage;
   function key(k){ return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k; }
@@ -3263,15 +3263,32 @@ window.LSR = (function(){
 })();
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
+  if (p === window.D2R_PROFILE) return;   // v636 — clicking the already-active account is a no-op, not a reload
   try { window.localStorage.setItem('d2r_activeProfile', p); } catch(e){}
   location.reload();
+};
+// v636 — PROFILE-SCOPED WIPE (the closure swarm's #1 critical: the footer reset ran raw
+// localStorage.clear(), nuking BOTH accounts + the profile pointer from either side).
+// Wipes ONLY the active account: ladder = its 'L·' keys; main = the bare keys (never 'L·',
+// never d2r_activeProfile). The other account stays byte-identical.
+window.LSR.wipeProfile = function(){
+  try {
+    var RAW = window.localStorage, kill = [];
+    for (var i = 0; i < RAW.length; i++){
+      var k = RAW.key(i); if (k == null || k === 'd2r_activeProfile') continue;
+      if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0) kill.push(k); }
+      else { if (k.indexOf('L·') !== 0) kill.push(k); }
+    }
+    kill.forEach(function(k){ RAW.removeItem(k); });
+    return kill.length;
+  } catch(e){ return 0; }
 };
 // First ladder boot: pre-seed the intake SEEN ledger from main — every screenshot already scanned
 // belongs to the non-ladder account; without this, the first ladder folder-scan would re-intake
 // the entire history as ladder loot (the ultimate bleed).
 try {
   if (window.D2R_PROFILE==='ladder' && !window.localStorage.getItem('L·d2r_intakeSeen')){
-    var _mSeen = window.window.LSR.getItem('d2r_intakeSeen');
+    var _mSeen = window.localStorage.getItem('d2r_intakeSeen');   // v636 — RAW read of MAIN's bare key (the routed read resolved to the very L· key the guard proved empty — dead code, swarm-caught)
     if (_mSeen) window.localStorage.setItem('L·d2r_intakeSeen', _mSeen);
   }
 } catch(e){}
@@ -4654,7 +4671,7 @@ try {
       };
       H+='<div class="si-panel"><div class="si-h">📊 Progress</div>'
         +'<div class="si-bar"><div class="si-fill" style="width:'+pct+'%"></div><span class="si-barlbl">'+p.made+' / '+p.total+' · '+pct+'%</span></div>'
-        +(p.ladderExcluded?'<div class="si-dim" style="margin:2px 0 4px">('+p.ladderExcluded+' ladder-only word'+(p.ladderExcluded>1?'s':'')+' excluded from the tasks below — flip the Chronicle ladder toggle to include them)</div>':'')
+        +(p.ladderExcluded?'<div class="si-dim" style="margin:2px 0 4px">('+p.ladderExcluded+' ladder-only word'+(p.ladderExcluded>1?'s':'')+' excluded from the tasks below — they live on the 🪜 <b style="cursor:pointer" onclick="window.profileSwitch&&window.profileSwitch(\'ladder\')">LADDER account</b> — switch via the header pill)</div>':'')
         +row('⚒','Make now',p.makeNow,(p.deferred?' <span class="si-dim">(+'+p.deferred+' next up — share a base/rune)</span>':''),"window.smartGoForge('now')",'open the Forge → ⚒ Make now')
         +row('🔧','Pipeline',p.pipeline,'',"window.smartGoForge('pipeline')",'open the Forge → 🔧 Pipeline (Larzuk-socket, then forge)')
         +row('🟡','One step',p.oneStep,' <span class="si-dim">('+p.blockedByBase+' need a base · '+p.blockedByRunes+' need runes'+(p.cubeReachable?' · '+p.cubeReachable+' cube-up-able':'')+')</span>',"window.smartGoForge('onestep')",'open the Forge → 🟡 One step away')
@@ -6723,7 +6740,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <span style="font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.28em;color:var(--gold-bright,#f0c060);font-size:15px;text-shadow:0 0 12px rgba(240,192,96,.25);white-space:nowrap">⚒ Konyo ⚒</span>
     <span style="flex:0 1 120px;height:1px;background:linear-gradient(90deg,rgba(212,168,71,.55),transparent)"></span>
   </div>
-    <button class="reset-btn" onclick="uiConfirm('Erase ALL saved progress? This permanently clears your wishlist, owned/grail checkmarks, statue tracker, sort/filter choices, and MF/players settings — and cannot be undone.').then(function(ok){if(ok){localStorage.clear();location.reload();}})">🗑️ Erase all saved progress (wishlist, owned, settings)</button>
+    <button class="reset-btn" onclick="uiConfirm('Erase ALL saved progress on the '+(window.D2R_PROFILE==='ladder'?'🪜 LADDER':'⚔ MAIN')+' account? This permanently clears ITS wishlist, owned/grail checkmarks, statue tracker and settings — the other account is untouched. Cannot be undone.').then(function(ok){if(ok){window.LSR.wipeProfile();location.reload();}})">🗑️ Erase all saved progress (this account only)</button>
 </div>
 </div>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
@@ -8507,7 +8524,7 @@ function _baseRWLine(name, knownSockets, forceSuperior){
     _egHid = _b5 - rws.length;
   } catch(e){}
   if (!rws.length) return _supNote;
-  var _lbTag = _lbHid > 0 ? ' <span class="rwn-more" title="ladder-only runeword' + (_lbHid===1?'':'s') + ' — hidden while you play non-ladder (flip the Chronicle ladder toggle to include them)">+' + _lbHid + ' ladder-only hidden</span>' : '';
+  var _lbTag = _lbHid > 0 ? ' <span class="rwn-more" title="ladder-only runeword' + (_lbHid===1?'':'s') + ' — hidden while you play non-ladder (they live on the 🪜 LADDER account — switch via the header pill)">+' + _lbHid + ' ladder-only hidden</span>' : '';
   if (_egHid > 0) _lbTag += ' <span class="rwn-more" title="endgame word' + (_egHid===1?'':'s') + ' this base isn\'t the home of — they belong in their ideal/elite base">+' + _egHid + ' in endgame bases only</span>';
   // v583 — clarity: name the words this base is the COMMUNITY-STANDARD home of (Konyo: "these should be in
   // their Elite Item End Game gear" — a Flail isn't just 'a base', it's THE HotO/CtA stick).
@@ -13704,17 +13721,19 @@ try { window._rwIsLadderOnly = _rwIsLadderOnly; window._rwLadderTag = _rwLadderT
 // v553 — is a runeword unmakeable RIGHT NOW because it's ladder-only and the user is in non-ladder mode? Shared
 // by the Loot filter + Smart Insights (farm-priority / rune-radar) so they stop farming/short-listing bases &
 // runes for the 9 ladder words the Chronicle + Forge already correctly hide off-ladder.
-try { window._rwLadderBlocked = function(rw){ try { return !!(window._rwIsLadderOnly && window._rwIsLadderOnly(rw)) && (localStorage.getItem('d2r_ladderMode')||'nonladder')!=='ladder'; } catch(e){ return false; } }; } catch(e){}
+try { window._rwLadderBlocked = function(rw){ try { if (window.D2R_PROFILE==='ladder') return false;   // v636 — the ladder ACCOUNT is implicitly ladder; this raw read was main's mode bleeding into ladder's SI/filter/stamps (swarm-caught split-brain)
+  return !!(window._rwIsLadderOnly && window._rwIsLadderOnly(rw)) && (localStorage.getItem('d2r_ladderMode')||'nonladder')!=='ladder'; } catch(e){ return false; } }; } catch(e){}
 // per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
 // three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
-if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = {"Mania":"fail","Hysteria":"fail","Hustle":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }
+if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder') ? {} : {"Mania":"fail","Hysteria":"fail","Hustle":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
 // ladder mode: 'ladder' | 'nonladder' | 'unknown'. Konyo's evidence (ladder-only RWs failing) ⇒ default nonladder.
 let rwLadderMode = (function(){ if (window.D2R_PROFILE==='ladder') return 'ladder';   // v635 — the ladder ACCOUNT is implicitly ladder (all 9 words unlocked, no strip)
   var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
 window.rwSetVerify = function(name, state){ var k = (typeof findRuneword==='function' && findRuneword(name)) || name; if (state) rwVerify[k] = state; else delete rwVerify[k];
   try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} try { if (typeof refreshOpenCard==='function') refreshOpenCard(); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){} };
-window.rwSetLadderMode = function(m){ rwLadderMode = (m==='ladder')?'ladder':'nonladder'; try { LS.setItem('d2r_ladderMode', rwLadderMode); } catch(e){}
+window.rwSetLadderMode = function(m){ if (window.D2R_PROFILE==='ladder') return;   // v636 — the ladder account IS ladder; writing the shared bare key from here silently flipped MAIN's mode (swarm-caught bleed vector)
+  rwLadderMode = (m==='ladder')?'ladder':'nonladder'; try { LS.setItem('d2r_ladderMode', rwLadderMode); } catch(e){}
   try { if (typeof refreshOpenCard==='function') refreshOpenCard(); if (typeof renderRunewordChronicle==='function') renderRunewordChronicle(); } catch(e){} };
 // the verdict for a runeword card: blocked (won't form for you) / caution (unverified) / ok.
 window._rwGuard = function(key){
@@ -16164,8 +16183,20 @@ function toggleOwned(name) {
    to back it up, sync to another device, or share — and restore it. No grail data
    is fabricated; this only round-trips the keys the app already writes. */
 function _collectProgress(){
-  const out = {};
-  for (let i = 0; i < LS.length; i++){ const k = LS.key(i); if (k != null) out[k] = LS.getItem(k); }
+  // v636 — v635's LS→LSR rebind silently killed this (LSR has no .length/.key(i): the loop never ran,
+  // every export since was `data:{}` — swarm-caught). Iterate the RAW store, scoped to the ACTIVE
+  // account: forked keys export under their BARE names (so a restore's LS.setItem routes them into
+  // whichever account is active), the other account's namespace is never included.
+  const out = {}; const RAW = window.LSR.raw; const onLadder = (window.D2R_PROFILE === 'ladder');
+  for (let i = 0; i < RAW.length; i++){
+    const k = RAW.key(i); if (k == null || k === 'd2r_activeProfile') continue;
+    if (onLadder){
+      if (k.indexOf('L·') === 0) out[k.slice(2)] = RAW.getItem(k);                   // this account's forked state, bare-named
+      else if (!window._LP_FORKED.has(k)) out[k] = RAW.getItem(k);                    // shared prefs; bare FORKED keys are MAIN's — excluded
+    } else {
+      if (k.indexOf('L·') !== 0) out[k] = RAW.getItem(k);                             // main: everything bare; ladder namespace excluded
+    }
+  }
   return out;
 }
 function _progressSnapshot(){
@@ -16198,7 +16229,8 @@ async function _applyProgress(raw){
   const keys = data ? Object.keys(data).filter(k => typeof data[k] === "string") : [];
   if (!keys.length){ _backupStatus("No saved progress found in that snapshot.", "err"); return false; }
   if (!(await uiConfirm("Restore " + keys.length + " saved settings from this snapshot? This OVERWRITES the grail / wishlist / settings currently in this browser."))) { _backupStatus("Restore cancelled — nothing changed.", "warn"); return false; }
-  keys.forEach(k => { try { LS.setItem(k, data[k]); } catch(e){} });
+  keys.forEach(k => { if (k === 'd2r_activeProfile' || k.indexOf('L·') === 0) return;   // v636 — a restore must never flip the account or reach across into the other one
+    try { LS.setItem(k, data[k]); } catch(e){} });
   _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
   setTimeout(() => location.reload(), 600);
   return true;
@@ -17721,6 +17753,7 @@ window.chronicleReset = async function(){
   try { window._rwChronicleChanged(); } catch(e){}   // v615 — the FULL fan-out (was 2 of 9 consumers → stale Forge/vault/insights after a bulk flip)
 };
 window.chronicleLoadSeed = async function(){
+  if (window.D2R_PROFILE==='ladder'){ try { toast('🪜 the LADDER account tracks from zero — the owner\'s pre-filled set belongs to the ⚔ MAIN account'); } catch(e){} return; }   // v636 — a one-click main→ladder seed bleed (swarm-caught)
   var _seedN = 0; try { _seedN = Object.keys(_RWC_SEED).length; } catch(e){}
   var msg = 'Load the pre-filled Chronicle (the owner\'s ' + _seedN + ' created runewords)?\n\nUse this on the OWNER\'s own device. It re-adds the seeded runewords as created.';
   var ok = (typeof uiConfirm === 'function') ? await uiConfirm(msg) : confirm(msg);
@@ -17734,6 +17767,11 @@ window.chronicleLoadSeed = async function(){
 };
 window.renderChronicleProfile = function(){
   var el = document.getElementById('rwc-profile'); if (!el) return;
+  if (window.D2R_PROFILE==='ladder'){   // v636 — the bar claimed 'pre-filled with the owner's runewords' on a 0/100 ladder chronicle (swarm-caught lie)
+    el.className = 'rwc-profile';
+    el.innerHTML = '<span class="rwc-prof-note">🪜 <b>Ladder account Chronicle</b> — tracked from zero, fully separate from your ⚔ MAIN progress.</span>';
+    return;
+  }
   if (window._rwIsFresh()){
     el.className = 'rwc-profile rwc-profile-fresh';
     el.innerHTML = '<span class="rwc-prof-badge">✦ Fresh profile — this Chronicle is yours, tracked from zero</span>'
