@@ -144,7 +144,8 @@ test('v582 — 1H Flail beats the earlier-registered 2H Zweihander for Honor; th
   // unmade 5os words (CtA/Eternity…), and capability in hand is a keeper. Honor itself still belongs
   // to the hand-correct Flail (asserted above) — the Zwei keeps for its OWN jobs, not as Honor's spare.
   expect(r.zweiRoute).toBe('bases');
-  expect(r.zweiWhy).toContain('spare');
+  // v628 doctrine: the Zwei is no longer a vendorable 'spare' — its why names its OWN remaining words
+  expect(r.zweiWhy).toMatch(/still needed|Call to Arms|Eternity|runeword/i);
 });
 
 // v582.1 — re-registering an already-labelled read must not double the suffix ("Flail (5os) (5os)" —

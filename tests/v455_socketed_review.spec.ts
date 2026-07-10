@@ -18,6 +18,10 @@ test.describe('v455 socketed/larzuk runeword review', () => {
   test('section renders for a muled socketed base with exact-socket runewords', async ({ page }) => {
     const r = await page.evaluate(() => {
       const w = window as any;
+      // v631.2 seed-drift fix: Phoenix+Spirit are now seeded MADE, which flips the 4os Monarch's review
+      // to '✓ all created' — pin Spirit unmade so the 'still to create' branch this spec locks still runs.
+      try { const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); delete made['Spirit']; localStorage.setItem('d2r_rwMade', JSON.stringify(made)); eval('rwMade') && delete eval('rwMade')['Spirit']; } catch (e) {}
+      try { const un = JSON.parse(localStorage.getItem('d2r_rwUnmade') || '{}'); un['Spirit'] = 1; localStorage.setItem('d2r_rwUnmade', JSON.stringify(un)); const ru = eval('rwUnmade'); if (ru) ru['Spirit'] = 1; } catch (e) {}
       // a 4-socket Monarch is the classic Spirit-shield base
       w._ensureSocketBaseEntry('Monarch (4os)');
       eval('owned').add('Monarch (4os)');

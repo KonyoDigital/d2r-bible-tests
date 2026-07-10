@@ -39,8 +39,8 @@ test('v603.1 UX audit sim: Konyo screenshot state — rendered Throw-Out + Socke
       toCount: to ? to.querySelectorAll('.to-card').length : 0,
       soCount: so ? so.querySelectorAll('.to-card').length : 0,
       suw1: cardText(to, 'Suwayyah'),
-      grim4: cardText(to, 'Grim Scythe'),
-      cres3: cardText(to, 'Small Crescent'),
+      grim4: cardText(to, 'Grim Scythe') || cardText(so, 'Grim Scythe'),   // v631 — promoted to Socketed Review
+      cres3: cardText(to, 'Small Crescent') || cardText(so, 'Small Crescent'),
       suw3so: cardText(so, 'Suwayyah'),
       bone3so: cardText(so, 'Bone Visage'),
       // helper truth for cross-checking the rendered text
@@ -52,7 +52,11 @@ test('v603.1 UX audit sim: Konyo screenshot state — rendered Throw-Out + Socke
   console.log('AUDIT', JSON.stringify(audit, null, 1).slice(0, 3000));
   console.log('ERRORS', JSON.stringify(errors));
   expect(errors).toEqual([]);
-  expect(audit.toCount).toBeGreaterThanOrEqual(3);
+  // v631 — capability PROMOTION now lifts '(Nos)' reads that exact-fit unmade words out of the
+  // throw-out ledger at boot (Grim Scythe 4os + Small Crescent 3os here); only the 1os Suwayyah
+  // (no 1os word exists) stays behind. The review split is the NEW honest state this sim locks.
+  expect(audit.toCount).toBeGreaterThanOrEqual(1);
+  expect(audit.soCount).toBeGreaterThanOrEqual(5);   // 3 registered + 2 promoted
   // 1os Suwayyah card: names the unmade wrong-sock word, no "✓ forged" lie, no Larzuk/cube socket guide
   if (audit.suwWrong.length) {
     expect(audit.suw1).toContain('STILL UNMADE');
