@@ -3250,7 +3250,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // every later block routes through it.
 // ══════════════════════════════════════════════════════════════════════════════
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players"]);
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog"]);
 window.LSR = (function(){
   var RAW = window.localStorage;
   function key(k){ return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k; }
@@ -3261,6 +3261,7 @@ window.LSR = (function(){
     raw: RAW, key: key
   };
 })();
+window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
   if (p === window.D2R_PROFILE) return;   // v636 — clicking the already-active account is a no-op, not a reload
@@ -16185,6 +16186,14 @@ function toggleOwned(name) {
   if (wasOwned) owned.delete(name);
   else owned.add(name);
   persist();
+  // v644 — THE GRAIL LEDGER: every grail find gets a DATED entry (the found-chronicle, mirroring
+  // rwMade's dates); un-marking erases it. Lives in the same store family as d2r_owned.
+  try {
+    const gi = ITEMS.find(i => i.n === name);
+    if (gi){ const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
+      if (wasOwned) delete fl[name]; else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+      window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); }
+  } catch(e){}
   // Celebrate first-time ownership of grail items
   if (!wasOwned) {
     const item = ITEMS.find(i => i.n === name);
@@ -16980,6 +16989,10 @@ function renderSetTracker() {
   }).join('');
 }
 function toggleSetPiece(piece) {
+  // v644 — set pieces chronicle into the same found ledger
+  try { const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
+    if (setPieces.has(piece)) delete fl[piece]; else fl[piece] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+    window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); } catch(e){}
   if (setPieces.has(piece)) setPieces.delete(piece);
   else setPieces.add(piece);
   persist();
@@ -29531,6 +29544,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function art(n, glyph){ try { var u=(typeof artUrl==='function')?artUrl(n):''; return u?'<img class="f-art" src="'+esc(u)+'" alt="" loading="lazy">':'<span class="f-glyph">'+glyph+'</span>'; } catch(e){ return '<span class="f-glyph">'+glyph+'</span>'; } }
   function chipLogo(n){ try { return (typeof nameLogo==='function')?nameLogo(n):''; } catch(e){ return ''; } }
   function fmtOdds(c){ if(c==null) return ''; return '1:'+(c>=1000?(Math.round(c/100)/10)+'k':c); }
+  // v644 — THE GRAIL LEDGER: dated found-chronicle shared by both grail forges (d2r_foundLog,
+  // written by toggleOwned/toggleSetPiece — the single sources of truth — so a tick ANYWHERE dates it).
+  function _flog(){ try { return JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}'); } catch(e){ return {}; } }
+  function _flogSort(names){ var fl=_flog(); return names.slice().sort(function(a,b){ var da=fl[a]||'', db=fl[b]||''; if(da&&db) return db.localeCompare(da); if(da) return -1; if(db) return 1; return a.localeCompare(b); }); }
+  function _undoBar(kind){
+    var fl=_flog(); var keys=Object.keys(fl);
+    var _L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);   // v644.1 — ITEMS is const-scoped elsewhere; the bare typeof check silently emptied the 'uni' ledger
+    var mine=keys.filter(function(n){ var isU=_L.some(function(i){return i.n===n;}); return kind==='uni'?isU:!isU; });
+    if(!mine.length) return '';
+    mine=_flogSort(mine); var last=mine[0];
+    var fn=kind==='uni'?'grailFoundUni':'grailTogglePiece';
+    return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: <b data-arttip="'+esc(last)+'">'+esc(last)+'</b> <span class="gp-date">'+esc(fl[last])+'</span></span>'
+      +'<button class="f-btn f-btn-mini" onclick="window.'+fn+'(this,\''+jsq(last)+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button></div>';
+  }
+  function _tickBtn(name, fn){ return '<span class="gf-tick" role="button" tabindex="0" data-gf-tick="'+esc(name)+'" onclick="event.stopPropagation();window.'+fn+'(this,\''+jsq(name)+'\')" title="✓ mark '+esc(name)+' FOUND — tallies the Calculator + grail meters instantly">✓</span>'; }
+  function _allGrid(title, sub, entries, fn){
+    if(!entries.length) return '';
+    var H=['<div class="forge-sec forge-sec-step"><div class="forge-sec-h">📿 '+title+' <span class="forge-sec-ct">'+entries.length+'</span><span class="forge-sec-sub">'+sub+'</span></div><div class="gf-allgrid">'];
+    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
+    H.push('</div></div>');
+    return H.join('');
+  }
 
   /* ── UNIQUES ─────────────────────────────────────────── */
   function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); return L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; }); }
@@ -29597,7 +29632,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+esc(label)+'</span><span class="ft-ct">'+n+'</span></button>';
   }
   function _itemChip(n,q){
-    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+chipLogo(n)+'<span>'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
+    return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span>'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
   }
   function _runCard(r,i){
     var chips=r.items.slice(0,10).map(function(x){ return _itemChip(x.n,x.qlvl); }).join('');
@@ -29620,6 +29655,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var box=document.getElementById('funi-body'); if(!box) return;
     var s=window.funiScan(); var F=_fuF; var H=[];
     H.push(_meter(s.found,s.total,''));
+    H.push(_undoBar('uni'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v560 — UNIFIED sub-tabs across BOTH grail forges (Konyo: same names, same logic, set or unique):
     // ▦ All missing · 🎯 Best runs · ⚡ Quick wins (low-level uniques / 1-piece sets) · ✅ Found
     H.push('<div class="forge-tabs">'
@@ -29663,11 +29699,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if(F!=='low'&&s.low.length>6) H.push('<div class="forge-note">+ '+(s.low.length-6)+' more — open the ⚡ Quick wins tile</div>');
       H.push('</div>');
     }
+    // v644 — EVERY missing unique, one-click tickable (Konyo: 'how do i mark a found item?' —
+    // the answer must never be more than one glance away). Rendered on the ALL view, full pool.
+    if(F==='all'){
+      var _ownA=_ownedNames();
+      var _missAll=_uniItems().filter(function(x){ return !_ownA.has(x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
+        .map(function(x){ return { n:x.n, key:x.n, badge:'q'+(x.qlvl||'?') }; });
+      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly · hover for the full card', _missAll, 'grailFoundUni'));
+    }
     if(F==='found'){
-      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">synced with the Calculator ✓ — tap to un-mark</span></div><div class="gf-chips">');
+      H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to un-mark</span></div><div class="gf-chips">');
       var own=_ownedNames();
-      _uniItems().filter(function(x){return own.has(x.n);}).forEach(function(x){
-        H.push('<span class="gf-piece have" data-arttip="'+esc(x.n)+'" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')"><span class="gp-ck">✓</span>'+chipLogo(x.n)+esc(x.n)+'</span>');
+      var _flU=_flog(); var _ownF=_ownedNames();
+      _flogSort(_uniItems().filter(function(x){return _ownF.has(x.n);}).map(function(x){return x.n;})).forEach(function(n){
+        H.push('<span class="gf-piece have" data-arttip="'+esc(n)+'" onclick="window.grailFoundUni(this,\''+jsq(n)+'\')"><span class="gp-ck">✓</span>'+chipLogo(n)+esc(n)+(_flU[n]?'<span class="gp-date">'+esc(_flU[n])+'</span>':'')+'</span>');
       });
       H.push('</div></div>');
       if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
@@ -29734,6 +29779,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.renderForgeSets=function(){
     var box=document.getElementById('fsets-body'); if(!box) return;
     var s=window.fsetsScan(); var F=_fsF; var H=[];
+    H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v560.1 — Konyo: "I already have item trackers — F·Sets should be the F·Uniques coding logic." So this is
     // PIECE-centric, identical to Forge·Uniques: every missing PIECE is a farm item (Find → best run → ✓ found),
     // the tally syncs silently to the Item Set Tracker (d2r_setPieces), and the checklist wall stays in Tools.
@@ -29759,6 +29805,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v619 — ⚔ COMPLETED SETS wear the horizontal seal (the platform's done-forever language): a full
     // set means its pieces stop being farm targets everywhere — the run lists above already exclude
     // them (piece-centric missing scan), the seal makes the achievement readable.
+    // v644 — EVERY missing piece, one-click tickable (grail-ledger parity with F·Uniques)
+    if(F==='all'){
+      var _missP=[];
+      (s.sets||[]).forEach(function(st){ (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl }); } }); });
+      _missP.sort(function(a,b){ return a.n.localeCompare(b.n); });
+      H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece'));
+    }
     if((F==='all'||F==='done')&&(s.done||[]).length){
       H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">⚔ Completed sets <span class="forge-sec-ct">'+s.done.length+'</span><span class="forge-sec-sub">every piece found — these no longer appear in any farm list</span></div>');
       s.done.slice(0,F==='done'?40:5).forEach(function(r){
@@ -30004,6 +30057,16 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 /* the first content section breathes right under the compact band */
 .tab-content{padding-top:10px!important}
 @media (max-width:900px){ .masthead .h-title{font-size:19px!important} .tab{font-size:10px!important;padding:4px 7px!important} }
+</style>
+<style id="v644-grail-ledger">
+/* v644 — THE GRAIL LEDGER surfaces */
+.gf-tick{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-right:5px;border:1px solid rgba(95,201,122,.55);border-radius:5px;color:#8fe6a0;font-size:10px;font-weight:700;cursor:pointer;background:rgba(95,201,122,.08);flex:0 0 auto;transition:transform .14s cubic-bezier(.2,.9,.3,1.4),background .14s ease}
+.gf-tick:hover{background:rgba(95,201,122,.28);transform:scale(1.18)}
+.gf-allgrid{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;content-visibility:auto;contain-intrinsic-size:auto 600px}
+.gf-allgrid .gf-piece.gf-miss{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 4px;border:1px solid rgba(233,208,122,.28);border-radius:7px;background:rgba(233,208,122,.04);color:var(--text,#d8cdb6);font-size:11px;cursor:help}
+.gf-allgrid .gf-piece.gf-miss:hover{border-color:rgba(233,208,122,.6)}
+.gp-date{font-size:9px;color:var(--text-dim,#9a8c72);margin-left:5px;font-family:var(--mono,monospace)}
+.gf-undo-bar{display:flex;align-items:center;gap:10px;justify-content:flex-start}
 </style>
 <style id="v639-polish">
 /* ══════════════════════════════════════════════════════════════════════════════
