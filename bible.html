@@ -29186,6 +29186,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
       + tab('completed','✅','Completed','ft-done',_doneN)          // v532 — end of the storyline
       +'</div>');
+
     // v533 — ALWAYS-VISIBLE restore bar. Was buried inside the Make-now section, so skipping your last task
     // (which empties that section) "swallowed" the restore button too. Now it rides under the tabs on every view.
     // v537 — the bar now carries BOTH restores so they're reachable from Make now (not just the Completed tab):
@@ -29559,13 +29560,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'<button class="f-btn f-btn-mini" onclick="window.'+fn+'(this,\''+jsq(last)+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button></div>';
   }
   function _tickBtn(name, fn){ return '<span class="gf-tick" role="button" tabindex="0" data-gf-tick="'+esc(name)+'" onclick="event.stopPropagation();window.'+fn+'(this,\''+jsq(name)+'\')" title="✓ mark '+esc(name)+' FOUND — tallies the Calculator + grail meters instantly">✓</span>'; }
+  // v646 — THE GRAIL WALL is a DRAWER, not an avalanche (Konyo: "it takes up the whole page —
+  // needs to be intelligently and proportionally built, dropdown expandable"). Collapsed by
+  // default behind a flagship summary bar; open = a type-to-filter box + a CONTAINED scroll
+  // panel (~5 rows) with a styled scrollbar. One renderer, BOTH grail forges, same position.
   function _allGrid(title, sub, entries, fn){
     if(!entries.length) return '';
-    var H=['<div class="forge-sec forge-sec-step"><div class="forge-sec-h">📿 '+title+' <span class="forge-sec-ct">'+entries.length+'</span><span class="forge-sec-sub">'+sub+'</span></div><div class="gf-allgrid">'];
+    var openAttr=''; try { if(localStorage.getItem('d2r_grailWallOpen')==='1') openAttr=' open'; } catch(e){}
+    var H=['<details class="gf-wall"'+openAttr+' ontoggle="try{localStorage.setItem(\'d2r_grailWallOpen\',this.open?\'1\':\'\')}catch(e){}">'
+      +'<summary class="gf-wall-sum"><span class="gf-wall-emblem">📿</span><span class="gf-wall-hd"><span class="gf-wall-t">'+title+'</span><span class="gf-wall-sub">'+sub+'</span></span><span class="gf-wall-ct">'+entries.length+'</span><span class="gf-wall-chev">▾</span></summary>'
+      +'<div class="gf-wall-body"><input class="gf-wall-filter" type="text" placeholder="🔍 type to filter '+entries.length+'…" oninput="window.gfWallFilter(this)">'
+      +'<div class="gf-allgrid">'];
     entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
-    H.push('</div></div>');
+    H.push('</div></div></details>');
     return H.join('');
   }
+  window.gfWallFilter=function(inp){
+    try { var q=(inp.value||'').toLowerCase().trim(); var grid=inp.parentElement.querySelector('.gf-allgrid');
+      [].forEach.call(grid.children, function(ch){ ch.style.display = (!q || (ch.textContent||'').toLowerCase().indexOf(q)>=0) ? '' : 'none'; });
+    } catch(e){}
+  };
 
   /* ── UNIQUES ─────────────────────────────────────────── */
   function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); return L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; }); }
@@ -29664,6 +29678,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +_tile('low','⚡','Quick wins','ft-step',s.low.length,F,'window.funiSetFilter')
       +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter')
       +'</div>');
+
+    // v646 — THE GRAIL WALL: identical drawer, identical position on BOTH grail forges
+    if(F==='all'){
+      var _ownA=_ownedNames();
+      var _missAll=_uniItems().filter(function(x){ return !_ownA.has(x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
+        .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });
+      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
+    }
     // HERO: the single best run
     var top=s.runs[0];
     if(top&&F!=='found'){
@@ -29698,14 +29720,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       s.low.slice(0,F==='low'?60:6).forEach(function(x){ H.push(_uniItemCard(x)); });
       if(F!=='low'&&s.low.length>6) H.push('<div class="forge-note">+ '+(s.low.length-6)+' more — open the ⚡ Quick wins tile</div>');
       H.push('</div>');
-    }
-    // v644 — EVERY missing unique, one-click tickable (Konyo: 'how do i mark a found item?' —
-    // the answer must never be more than one glance away). Rendered on the ALL view, full pool.
-    if(F==='all'){
-      var _ownA=_ownedNames();
-      var _missAll=_uniItems().filter(function(x){ return !_ownA.has(x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
-        .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });   // v645 — rune trackers/charms carry no qlvl; a 'q0' badge read as data rot
-      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly · hover for the full card', _missAll, 'grailFoundUni'));
     }
     if(F==='found'){
       H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.found+'</span><span class="forge-sec-sub">the grail ledger — dated, newest first, synced with the Calculator ✓ — tap to un-mark</span></div><div class="gf-chips">');
@@ -29802,16 +29816,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +_tile('near','⚡','Quick wins','ft-step',quick.length,F,'window.fsetsSetFilter')
       +_tile('done','✅','Found','ft-done',s.havePieces,F,'window.fsetsSetFilter')
       +'</div>');
-    // v619 — ⚔ COMPLETED SETS wear the horizontal seal (the platform's done-forever language): a full
-    // set means its pieces stop being farm targets everywhere — the run lists above already exclude
-    // them (piece-centric missing scan), the seal makes the achievement readable.
-    // v644 — EVERY missing piece, one-click tickable (grail-ledger parity with F·Uniques)
+
+    // v646 — THE GRAIL WALL: identical drawer, identical position on BOTH grail forges
     if(F==='all'){
       var _missP=[];
       (s.sets||[]).forEach(function(st){ (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl }); } }); });
       _missP.sort(function(a,b){ return a.n.localeCompare(b.n); });
       H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece'));
     }
+
+    // v619 — ⚔ COMPLETED SETS wear the horizontal seal (the platform's done-forever language): a full
+    // set means its pieces stop being farm targets everywhere — the run lists above already exclude
+    // them (piece-centric missing scan), the seal makes the achievement readable.
     if((F==='all'||F==='done')&&(s.done||[]).length){
       H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">⚔ Completed sets <span class="forge-sec-ct">'+s.done.length+'</span><span class="forge-sec-sub">every piece found — these no longer appear in any farm list</span></div>');
       s.done.slice(0,F==='done'?40:5).forEach(function(r){
@@ -30059,7 +30075,26 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 @media (max-width:900px){ .masthead .h-title{font-size:19px!important} .tab{font-size:10px!important;padding:4px 7px!important} }
 </style>
 <style id="v644-grail-ledger">
-/* v644 — THE GRAIL LEDGER surfaces */
+/* v644-646 — THE GRAIL LEDGER surfaces + THE GRAIL WALL drawer */
+.gf-wall{margin:10px 0;border:1px solid rgba(233,208,122,.35);border-radius:12px;background:linear-gradient(135deg,rgba(233,208,122,.06),rgba(255,255,255,.01) 65%);overflow:hidden}
+.gf-wall-sum{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;list-style:none;user-select:none;transition:background .15s ease}
+.gf-wall-sum::-webkit-details-marker{display:none}
+.gf-wall-sum:hover{background:rgba(233,208,122,.07)}
+.gf-wall-emblem{font-size:17px}
+.gf-wall-hd{display:flex;flex-direction:column;gap:1px;min-width:0}
+.gf-wall-t{font-weight:700;font-size:13px;color:#ffe08a;letter-spacing:.02em}
+.gf-wall-sub{font-size:10.5px;color:var(--text-dim,#9a8c72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gf-wall-ct{margin-left:auto;font-family:var(--mono,monospace);font-weight:700;font-size:12px;color:#ffe08a;background:rgba(233,208,122,.12);border:1px solid rgba(233,208,122,.4);border-radius:999px;padding:2px 10px}
+.gf-wall-chev{color:var(--text-dim,#9a8c72);transition:transform .25s ease}
+.gf-wall[open] .gf-wall-chev{transform:rotate(180deg)}
+.gf-wall-body{padding:8px 12px 12px;border-top:1px solid rgba(233,208,122,.18)}
+.gf-wall-filter{width:100%;box-sizing:border-box;margin:2px 0 8px;padding:6px 11px;font:12px var(--mono,monospace);color:var(--text,#d8cdb6);background:rgba(0,0,0,.3);border:1px solid rgba(233,208,122,.25);border-radius:7px;outline:none}
+.gf-wall-filter:focus{border-color:rgba(233,208,122,.6)}
+.gf-wall .gf-allgrid{max-height:300px;overflow-y:auto;padding:2px 4px 2px 0;scrollbar-width:thin;scrollbar-color:rgba(233,208,122,.45) rgba(0,0,0,.25)}
+.gf-wall .gf-allgrid::-webkit-scrollbar{width:9px}
+.gf-wall .gf-allgrid::-webkit-scrollbar-track{background:rgba(0,0,0,.25);border-radius:5px}
+.gf-wall .gf-allgrid::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#c99b3f,#8a6f2e);border-radius:5px;border:2px solid rgba(0,0,0,.35)}
+.gf-wall .gf-allgrid::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#ffe08a,#c99b3f)}
 .gf-tick{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-right:5px;border:1px solid rgba(95,201,122,.55);border-radius:5px;color:#8fe6a0;font-size:10px;font-weight:700;cursor:pointer;background:rgba(95,201,122,.08);flex:0 0 auto;transition:transform .14s cubic-bezier(.2,.9,.3,1.4),background .14s ease}
 .gf-tick:hover{background:rgba(95,201,122,.28);transform:scale(1.18)}
 .gf-allgrid{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;content-visibility:auto;contain-intrinsic-size:auto 600px}
