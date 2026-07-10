@@ -3250,7 +3250,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // every later block routes through it.
 // ══════════════════════════════════════════════════════════════════════════════
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwMade", "d2r_rwUnmade", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_rwProfile", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players"]);
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players"]);
 window.LSR = (function(){
   var RAW = window.localStorage;
   function key(k){ return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k; }
@@ -3286,6 +3286,20 @@ window.LSR.wipeProfile = function(){
 // First ladder boot: pre-seed the intake SEEN ledger from main — every screenshot already scanned
 // belongs to the non-ladder account; without this, the first ladder folder-scan would re-intake
 // the entire history as ladder loot (the ultimate bleed).
+// v638 — one-time reconcile: v635-v637 briefly forked the chronicle; any forge recorded under the
+// orphaned L·d2r_rwMade merges INTO the shared ledger (union-only — nothing is ever un-made), then
+// the L· chronicle copies are removed.
+try {
+  var _oL = window.localStorage.getItem('L·d2r_rwMade');
+  if (_oL){
+    var _lm = JSON.parse(_oL)||{}, _bm = JSON.parse(window.localStorage.getItem('d2r_rwMade')||'{}')||{};
+    Object.keys(_lm).forEach(function(k){ if(!_bm[k]) _bm[k]=_lm[k]; });
+    window.localStorage.setItem('d2r_rwMade', JSON.stringify(_bm));
+    window.localStorage.removeItem('L·d2r_rwMade');
+    window.localStorage.removeItem('L·d2r_rwUnmade');
+    window.localStorage.removeItem('L·d2r_rwProfile');
+  }
+} catch(e){}
 try {
   if (window.D2R_PROFILE==='ladder' && !window.localStorage.getItem('L·d2r_intakeSeen')){
     var _mSeen = window.localStorage.getItem('d2r_intakeSeen');   // v636 — RAW read of MAIN's bare key (the routed read resolved to the very L· key the guard proved empty — dead code, swarm-caught)
@@ -13661,7 +13675,7 @@ try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // load as a durable floor. On a DIFFERENT player's browser (Konyo's cousin) that wrongly pre-fills 45 as "made".
 // A 'fresh' profile flag (set by the Chronicle "Reset" button) suppresses the seed entirely, so a new player
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
-var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh') || (window.D2R_PROFILE === 'ladder'); } catch(e){}   // v635 — the LADDER account is a fresh chronicle: the owner's 75-word floor belongs to MAIN only
+var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh'); } catch(e){}   // v638 — the chronicle is SHARED across accounts (one grail): the owner's floor applies on both; only an explicit fresh-profile reset skips it
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = _rwFreshFlag ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
 // v424 — DURABLE 28-FLOOR. A one-time flag was too fragile (a cache hit / backup-restore left Konyo's
@@ -13670,20 +13684,11 @@ if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rw
 // snaps back to ≥28, while un-marks still stick. This converges the stuck-at-19 save to 28 with no flag.
 let rwUnmade = _safeJsonParse(LS.getItem('d2r_rwUnmade'), null);
 if (rwUnmade === null || typeof rwUnmade !== 'object' || Array.isArray(rwUnmade)) rwUnmade = {};
-// v637 — ONE-WAY INHERITANCE (Konyo: "all the progress for non-ladder can be on the ladder account
-// too — just it can't go opposite"). A word forged on ANY character is forged forever in his grail:
-// the ladder Chronicle = MAIN's made-words ∪ its own ladder forges. On every ladder boot we merge
-// main's BARE d2r_rwMade underneath (honoring the ladder account's own explicit ↺ un-marks) and
-// PERSIST the union to L·d2r_rwMade so every consumer (Forge, vault keep/throw, stamps, SI) sees it.
-// Main NEVER reads an L· key, so nothing can ever flow back — the opposite direction stays sealed.
-if (window.D2R_PROFILE === 'ladder'){
-  try {
-    var _mainMade = _safeJsonParse(window.localStorage.getItem('d2r_rwMade'), {}) || {};
-    var _inh = 0;
-    Object.keys(_mainMade).forEach(function(k){ if (!rwMade[k] && !rwUnmade[k]){ rwMade[k] = _mainMade[k]; _inh++; } });
-    if (_inh) LS.setItem('d2r_rwMade', JSON.stringify(rwMade));
-  } catch(e){}
-}
+// v638 — SHARED CHRONICLE (Konyo's real-life truth, correcting v637's one-way merge: "the only
+// thing they DO share in real life is the chronicle — regardless if you're in ladder or non-ladder
+// it still counts"). d2r_rwMade / d2r_rwUnmade / d2r_rwProfile are NOT forked: one grail ledger,
+// a forge on EITHER account counts once, instantly, in both. Everything physical (vault, tallies,
+// intake, consume trail) stays per-account.
 // v432/v436/v448 — HARD FLOOR of the confirmed Chronicle (now 31: + Ancients' Pledge). The v424 floor still
 // honoured d2r_rwUnmade, so a save with seeded RWs un-marked kept snapping back down. These runewords are
 // FORGED FACT — force them made on EVERY load UNCONDITIONALLY and purge any stale un-mark of a seeded RW, so
@@ -17767,7 +17772,6 @@ window.chronicleReset = async function(){
   try { window._rwChronicleChanged(); } catch(e){}   // v615 — the FULL fan-out (was 2 of 9 consumers → stale Forge/vault/insights after a bulk flip)
 };
 window.chronicleLoadSeed = async function(){
-  if (window.D2R_PROFILE==='ladder'){ try { toast('🪜 the LADDER account tracks from zero — the owner\'s pre-filled set belongs to the ⚔ MAIN account'); } catch(e){} return; }   // v636 — a one-click main→ladder seed bleed (swarm-caught)
   var _seedN = 0; try { _seedN = Object.keys(_RWC_SEED).length; } catch(e){}
   var msg = 'Load the pre-filled Chronicle (the owner\'s ' + _seedN + ' created runewords)?\n\nUse this on the OWNER\'s own device. It re-adds the seeded runewords as created.';
   var ok = (typeof uiConfirm === 'function') ? await uiConfirm(msg) : confirm(msg);
@@ -17783,7 +17787,7 @@ window.renderChronicleProfile = function(){
   var el = document.getElementById('rwc-profile'); if (!el) return;
   if (window.D2R_PROFILE==='ladder'){   // v636 — the bar claimed 'pre-filled with the owner's runewords' on a 0/100 ladder chronicle (swarm-caught lie)
     el.className = 'rwc-profile';
-    el.innerHTML = '<span class="rwc-prof-note">🪜 <b>Ladder account Chronicle</b> — inherits every ⚔ MAIN forge automatically (one-way) + tracks your ladder forges on top. Nothing here ever flows back into MAIN.</span>';
+    el.innerHTML = '<span class="rwc-prof-note">🪜 <b>Ladder account</b> — the Chronicle is <b>SHARED</b>: a forge counts once no matter which account made it (real-life truth). Vault · runes · gems stay fully separate per account.</span>';
     return;
   }
   if (window._rwIsFresh()){

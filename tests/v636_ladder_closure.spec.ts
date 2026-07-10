@@ -67,7 +67,7 @@ test('ladder account consistency: _rwLadderBlocked=false, NO fail-verdict seed, 
   expect(r.verifyFails).toBe(0);          // non-ladder fail verdicts never seed the ladder account
   expect(r.guardBlocked).toBe(false);     // Mania's card wears no did-not-form banner here
   expect(r.mainMode).toBe('nonladder');   // the shared key is untouched from the ladder side
-  expect(r.ladderMade).toBe(75);          // v637 — the union is already inherited; the refused seed-load adds NOTHING on top
+  expect(r.ladderMade).toBe(75);          // v638 — SHARED grail ledger: the seed-load is a harmless no-op on an already-seeded chronicle
 });
 
 test('Backup & Share lives again: export contains real keys per-profile, restore never flips the account', async ({ page }) => {
@@ -121,7 +121,7 @@ test('FULL no-silent sweep INSIDE the ladder account: the inherited remainder + 
     return { unmadeCount: unmade.length, silent, strip: (sc.ladder || []).length, reloaded };
   });
   await cleanup(page);
-  expect(r.unmadeCount).toBeGreaterThan(10);   // v637 — inheritance: only main's remainder + the ladder words are open here
+  expect(r.unmadeCount).toBeGreaterThan(10);   // v638 — shared chronicle: only the true remainder is open here
   expect(r.unmadeCount).toBeLessThan(40);
   expect(r.silent).toEqual([]);          // the v604 invariant holds in the ladder account too
   expect(r.strip).toBe(0);

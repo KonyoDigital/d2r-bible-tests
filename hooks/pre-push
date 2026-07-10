@@ -56,8 +56,9 @@ SMOKE_SPECS=(
   tests/v636_ladder_closure.spec.ts   # v636 — the closure-swarm locks: profile-scoped wipe, SEEN pre-seed,
                                      # ladder consistency (_rwLadderBlocked/rwVerify/rwSetLadderMode),
                                      # per-profile Backup&Share, and the no-silent sweep INSIDE ladder.
-  tests/v637_oneway_inheritance.spec.ts   # v637 — ladder Chronicle = main ∪ ladder (fresh main forges
-                                     # sync in at boot; ladder un-marks stick); the reverse is SEALED.
+  tests/v637_oneway_inheritance.spec.ts   # v638 — SHARED CHRONICLE: one grail ledger both ways (a forge
+                                     # counts from either account); vaults/tallies never cross; the
+                                     # v637-era orphaned L· chronicle reconciles once, union-only.
 )
 
 ZERO="0000000000000000000000000000000000000000"
