@@ -2487,8 +2487,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     border-color:var(--gold-bright);background:rgba(240,192,96,.15);
     transform:translateY(-1px);box-shadow:0 2px 6px rgba(240,192,96,.3);
   }
-  #routine-toggle-pulse{
-    animation:routine-pulse 2s ease-in-out infinite;
+  #routine-status-bar.routine-intro-pulse{
+    animation:routine-pulse 2s ease-in-out 2;   /* v642 — two gentle pulses, not infinite */
   }
   @keyframes routine-pulse {
     0%, 100% { opacity: 1; }
@@ -21381,11 +21381,10 @@ setTimeout(() => {
   const bar = document.getElementById('routine-status-bar');
   if (bar && !localStorage.getItem('routineBarSeen')) {
     bar.style.display = 'block';
-    bar.id = 'routine-toggle-pulse';
-    // the pulse is meant to be BRIEF — hide it again after 5s so it doesn't sit on top
-    // of the bottom-right corner controls (? help-btn + nav compass) for the whole
-    // session. It only ever shows once (routineBarSeen), and R re-toggles it on demand.
-    setTimeout(() => { bar.id = 'routine-status-bar'; bar.style.display = 'none'; }, 5000);
+    bar.classList.add('routine-intro-pulse');   // v642 — a CLASS, never an id rename: the old id swap
+    // made every #routine-status-bar rule (incl. the v641 dock-aware position) stop matching for 5s —
+    // the widget visibly JUMPED between two positions/styles (Konyo's report).
+    setTimeout(() => { bar.classList.remove('routine-intro-pulse'); bar.style.display = 'none'; }, 5000);
     localStorage.setItem('routineBarSeen', '1');
   }
 }, 1500);
@@ -21693,7 +21692,7 @@ _v39_whenReady(() => {
   // Patch toggle to persist
   const origToggle = (key) => {
     document.addEventListener('keydown', e => {
-      if (e.key === 'R' && !e.target.matches('input, textarea, [contenteditable]') && !e.ctrlKey && !e.metaKey) {
+      if ((e.key === 'R' || e.key === 'r') && !e.target.matches('input, textarea, [contenteditable]') && !e.ctrlKey && !e.metaKey) {   // v642 — lowercase r toggles never persisted → the widget re-appeared on the next load ('jumping' across sessions)
         const isVisible = bar.style.display !== 'none';
         try { localStorage.setItem('routineBarVisible', isVisible ? '1' : '0'); } catch(e) {}
       }
@@ -22034,7 +22033,7 @@ function _v41_applyStatus(st) {
                    : rs.reduce((n, r) => n + (Number(r.expected_per_day) || 0), 0);
     counter.textContent = (rs.length && (fired || expected))
       ? `${fired}/${expected} fires today`
-      : '— / — fires today';
+      : 'status offline';   // v642 — a permanent '— / —' read as broken; say what it is
     const anyRed = Object.values(st.routines || {}).some(r => r.status === 'red');
     counter.className = anyRed ? 'has-red' : (st.all_green ? 'all-green' : '');
     counter.title = st.generated_at ? `Status snapshot: ${st.generated_at}` : 'Routine status snapshot';
@@ -22064,18 +22063,14 @@ function _v41_enhanceWidget() {
   if (bar.querySelector('#routine-fires-counter')) return; // already enhanced
   // Find the header line (containing the title or letters)
   // The widget structure varies — try to find a sensible insertion point
-  let header = bar.querySelector('.routine-bar-header') || bar.querySelector('h3') || bar.querySelector('.bar-title');
-  if (!header) {
-    // Fallback: insert at the very top of the bar
-    header = document.createElement('div');
-    header.className = 'routine-bar-header';
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:11px;color:var(--gold-dim,#8a6f2e);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;';
-    header.innerHTML = '<span>⚙ Routines</span>';
-    bar.insertBefore(header, bar.firstChild);
-  }
+  // v642 — NEVER create a second header (the old fallback injected a duplicate '⚙ Routines' row
+  // above the widget's own '🤖 ROUTINES' one — Konyo saw both). The widget's first flex row IS the
+  // header: mount the counter + refresh there, before the × close button.
+  let header = bar.querySelector('.routine-bar-header') || bar.firstElementChild;
+  if (!header) return;
   const counter = document.createElement('span');
   counter.id = 'routine-fires-counter';
-  counter.textContent = '— / — fires today';
+  counter.textContent = 'status…';
   counter.style.marginLeft = 'auto';
   const refreshBtn = document.createElement('button');
   refreshBtn.id = 'routine-refresh-btn';
@@ -22086,8 +22081,10 @@ function _v41_enhanceWidget() {
     setTimeout(() => refreshBtn.classList.remove('spinning'), 800);
     _v41_refreshStatus();
   };
-  header.appendChild(counter);
-  header.appendChild(refreshBtn);
+  const closeBtn = header.querySelector('button');
+  if (closeBtn){ header.insertBefore(counter, closeBtn); header.insertBefore(refreshBtn, closeBtn); }
+  else { header.appendChild(counter); header.appendChild(refreshBtn); }
+  counter.style.marginLeft = 'auto'; counter.style.fontSize = '9px';
 }
 
 // Helper: run when ready
