@@ -59,6 +59,8 @@ SMOKE_SPECS=(
   tests/v637_oneway_inheritance.spec.ts   # v638 — SHARED CHRONICLE: one grail ledger both ways (a forge
                                      # counts from either account); vaults/tallies never cross; the
                                      # v637-era orphaned L· chronicle reconciles once, union-only.
+  tests/v644_grail_ledger.spec.ts   # v644 — THE GRAIL LEDGER: every unique/piece one-click tickable,
+                                     # dated found-chronicle (d2r_foundLog), undo-last, tallies both ways.
 )
 
 ZERO="0000000000000000000000000000000000000000"

@@ -29704,7 +29704,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(F==='all'){
       var _ownA=_ownedNames();
       var _missAll=_uniItems().filter(function(x){ return !_ownA.has(x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
-        .map(function(x){ return { n:x.n, key:x.n, badge:'q'+(x.qlvl||'?') }; });
+        .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });   // v645 — rune trackers/charms carry no qlvl; a 'q0' badge read as data rot
       H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly · hover for the full card', _missAll, 'grailFoundUni'));
     }
     if(F==='found'){
