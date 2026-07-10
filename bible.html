@@ -29876,7 +29876,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
 body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
-#ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:70;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
+#ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;   /* v635.2 — the site header is sticky z:100 and opaque; the account cue must never hide behind it */font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
 @media (max-width:700px){.profile-pill{position:static;margin:6px auto;width:max-content}}
 </style>
 <script>

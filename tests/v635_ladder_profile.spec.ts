@@ -105,7 +105,8 @@ test('UX — the header account pill switches profiles; the ladder account wears
     const pill = document.getElementById('profile-pill');
     const rb = document.getElementById('ladder-ribbon');
     const thin = rb ? rb.getBoundingClientRect().height < 40 : false;   // a slim banner, never a content wash
-    return { text: pill ? pill.textContent || '' : '', ribbon: document.body.classList.contains('ladder-profile') && !!rb && thin };
+    const aboveHeader = rb ? parseInt(getComputedStyle(rb).zIndex || '0', 10) > 100 : false;   // header is sticky z:100 — the cue must outrank it
+    return { text: pill ? pill.textContent || '' : '', ribbon: document.body.classList.contains('ladder-profile') && !!rb && thin && aboveHeader };
   });
   await page.evaluate(() => {
     Object.keys(localStorage).filter((k) => k.indexOf('L·') === 0).forEach((k) => localStorage.removeItem(k));
