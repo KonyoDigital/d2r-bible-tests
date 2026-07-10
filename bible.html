@@ -3406,11 +3406,6 @@ try {
     <span style="font-size:9px;color:var(--gold-dim);font-family:var(--mono);opacity:.7;margin-left:auto">click preset · type exact · ⌨️ shift+1-6 · ? for shortcuts</span>
   </div>
 
-  <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
-    <span class="gsearch-ic-lead">🔍</span>
-    <input id="gsearch-input" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
-    <div id="gsearch-results" class="gsearch-results" hidden></div>
-  </div>
   <div class="tabs">
     <button class="tab active" data-tab="main">🏠 main</button>
     <button class="tab" data-tab="bosses">🗺️ bosses</button>
@@ -3427,6 +3422,11 @@ try {
     <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="funi">🏆 F·uniques</button>
     <button class="tab" data-tab="fsets">🧩 F·sets</button>
+  </div>
+  <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
+    <span class="gsearch-ic-lead">🔍</span>
+    <input id="gsearch-input" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
+    <div id="gsearch-results" class="gsearch-results" hidden></div>
   </div>
 </div>
 
@@ -29934,6 +29934,29 @@ body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 #ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;   /* v635.2 — the site header is sticky z:100 and opaque; the account cue must never hide behind it */font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
 @media (max-width:700px){.profile-pill{position:static;margin:6px auto;width:max-content}}
+</style>
+<style id="v640-compact-header">
+/* ══════════════════════════════════════════════════════════════════════════════
+   v640 — COMPACT COMMAND HEADER (Konyo: "my title name and the tabs are taking up half the page —
+   80% data, 20% title/tabs, search bar under the main tabs"). The sticky header collapses from a
+   half-viewport masthead into a tight three-row command band: title · tabs · slim search.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.header{padding:5px 14px 6px!important}
+.masthead{padding:0 0 2px!important;max-width:none!important}
+.masthead .h-title{font-size:clamp(19px,2.1vw,28px)!important;margin:0!important;line-height:1.15!important;gap:.4em!important}
+.masthead .h-title .masthead-art{height:1.35em!important;border-radius:4px!important}
+.masthead-rule,.masthead-tagline,.masthead-kicker{display:none!important}
+.header .header-top{margin:0!important;padding:0!important}
+.profile-pill{top:8px!important;right:12px!important}
+.profile-pill .pp-btn{padding:5px 10px!important;font-size:10px!important}
+.tabs{margin:6px auto 0!important;gap:3px!important;max-width:none!important;justify-content:center!important}
+.tab{padding:4px 9px!important;font-size:10.5px!important;border-radius:5px!important}
+.gsearch-wrap{max-width:980px!important;margin:6px auto 0!important;padding:5px 11px!important;border-radius:7px!important}
+.gsearch-input{font-size:12.5px!important;padding:1px 0!important}
+#ladder-ribbon{font-size:9.5px!important;padding:3px 12px 4px!important}
+/* the first content section breathes right under the compact band */
+.tab-content{padding-top:10px!important}
+@media (max-width:900px){ .masthead .h-title{font-size:19px!important} .tab{font-size:10px!important;padding:4px 7px!important} }
 </style>
 <style id="v639-polish">
 /* ══════════════════════════════════════════════════════════════════════════════
