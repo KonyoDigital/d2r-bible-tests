@@ -3423,7 +3423,6 @@ try {
    <!-- v641 — ⚒ THE WORKSHOP: the DOING tabs (Konyo: "all the other tabs are literally just
         info/data — these should be highlighted and emphasized, structured together as a group") -->
    <div class="tabs-workshop" title="THE WORKSHOP — your live tools: intake, plan, forge, grail-hunt">
-    <span class="tw-lbl">⚒ WORKSHOP</span>
     <button class="tab" data-tab="tools">🧰 tools</button>
     <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="funi">🏆 F·uniques</button>
@@ -29965,10 +29964,11 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
    group: the four DOING tabs framed in gold at the right end, unmistakably not just info. */
 .tabs{display:flex!important;flex-wrap:nowrap!important;gap:6px!important;width:100%!important;align-items:stretch!important}
 .tabs-data{display:flex;flex:1 1 auto;gap:5px;min-width:0}
-.tabs-data .tab{flex:1 1 0;text-align:center}
-.tabs .tab{font-size:12px!important;padding:7px 6px!important;letter-spacing:.02em!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tabs-workshop{display:flex;flex:0 0 auto;gap:5px;align-items:center;padding:3px 8px 3px 10px;border:1px solid rgba(233,208,122,.5);border-radius:9px;background:linear-gradient(135deg,rgba(233,208,122,.10),rgba(233,208,122,.02) 70%);box-shadow:0 0 14px -6px rgba(233,208,122,.45),inset 0 1px 0 rgba(255,255,255,.05)}
-.tabs-workshop .tw-lbl{font-size:8.5px;font-weight:700;letter-spacing:.14em;color:#ffe08a;opacity:.85;line-height:1;padding:0 2px;align-self:center}   /* v641.2 — horizontal: the vertical label was 114px tall and stretched the whole row */
+.tabs-data .tab{flex:1 1 auto;text-align:center}
+.tabs .tab{font-size:12.5px!important;padding:7px 8px!important;letter-spacing:.02em!important;white-space:nowrap}   /* v641.4 — NEVER truncate a label (Konyo: 'i dont want half a word'); tabs grow to fit their text */
+.tabs-data{flex:11 1 0}
+.tabs-workshop{display:flex;flex:4 1 0;gap:5px;align-items:stretch;padding:3px 5px;border:1px solid rgba(233,208,122,.5);border-radius:9px;background:linear-gradient(135deg,rgba(233,208,122,.10),rgba(233,208,122,.02) 70%);box-shadow:0 0 14px -6px rgba(233,208,122,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+.tabs-workshop .tab{flex:1 1 auto;text-align:center}   /* v641.3 — label removed (took space); all 15 tabs share the full row equally, frame marks the workshop */
 .tabs-workshop .tab{border-color:rgba(233,208,122,.4)!important;color:#e9d07a!important;font-weight:600!important;background:rgba(233,208,122,.05)!important}
 .tabs-workshop .tab:hover{background:rgba(233,208,122,.14)!important;color:#ffe08a!important}
 .tabs-workshop .tab.active{background:rgba(233,208,122,.2)!important;color:#fff4d2!important;border-color:#ffe08a!important}
