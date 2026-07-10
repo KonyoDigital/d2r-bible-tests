@@ -20022,7 +20022,33 @@ window._jewelTipHtml = _jewelTipHtml;
       // v341.36 — runeword bases are grey/normal items → desaturate the popup art + white name.
       tip.classList.toggle('tip-grey', (typeof RW_BASE_INDEX !== 'undefined') && !!RW_BASE_INDEX[name]);
     }
-    function move(e){ var x=e.clientX+16, y=e.clientY+18, w=tip.offsetWidth||130, h=tip.offsetHeight||130; if (x+w>window.innerWidth-8) x=e.clientX-w-12; if (y+h>window.innerHeight-8) y=e.clientY-h-12; tip.style.left=x+'px'; tip.style.top=y+'px'; }
+    // v643 — ELEMENT-ANCHORED placement (Konyo: "calibrated to when i'm on the item itself —
+    // it looks like randomly opening windows"). The old cursor-follow + viewport-flip could
+    // teleport a tall card ~500px away from the hovered item (flip up + flip left = top-right
+    // corner while hovering bottom-left). Now the card GLUES to the hovered element's rect:
+    // beside it (right → left), vertically aligned to it, clamped to the viewport — the card
+    // always visually connects to the item that opened it. Falls back to cursor math only
+    // when there is no anchor rect.
+    function move(e){
+      var w=tip.offsetWidth||130, h=tip.offsetHeight||130, vw=window.innerWidth, vh=window.innerHeight, x, y;
+      var r = (cur && cur.getBoundingClientRect) ? cur.getBoundingClientRect() : null;
+      if (r && (r.width || r.height)){
+        x = r.right + 12;                                   // prefer: beside the item, to the right
+        if (x + w > vw - 8) x = r.left - w - 12;            // no room → to the left
+        if (x < 8){                                          // huge anchor / narrow screen → below/above
+          x = Math.min(Math.max(8, r.left), vw - w - 8);
+          y = (r.bottom + 10 + h <= vh - 8) ? r.bottom + 10 : Math.max(8, r.top - h - 10);
+          tip.style.left = x + 'px'; tip.style.top = y + 'px'; return;
+        }
+        y = r.top + r.height/2 - h/2;                        // vertically centred on the item
+        y = Math.min(Math.max(8, y), vh - h - 8);            // clamped, never off-screen
+      } else {
+        x = e.clientX + 16; y = e.clientY + 18;
+        if (x + w > vw - 8) x = e.clientX - w - 12;
+        if (y + h > vh - 8) y = e.clientY - h - 12;
+      }
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    }
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
       tip.classList.remove('tip-grey');   // v341.36 — clear grey state; setTipR re-adds for runeword bases
@@ -20123,7 +20149,8 @@ window._jewelTipHtml = _jewelTipHtml;
       if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; }
       var over = e.target && e.target.closest && e.target.closest(ARTTIP_SEL);
       if (over !== cur){ cur=null; tip.classList.remove('on'); return; }   // left the source → hide
-      move(e);
+      // v643 — no per-frame re-positioning: the card is glued to the item's rect, so it holds
+      // perfectly still while the cursor travels inside the anchor (no more trailing wobble).
     });
     document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest(ARTTIP_SEL); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
     // ultimate safety net: leaving the document entirely also clears it
