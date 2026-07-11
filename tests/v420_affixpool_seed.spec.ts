@@ -20,13 +20,13 @@ test('affix pool renders for rolled jewelry, not for gear/crafted', async ({ pag
   expect(r.gear).toBe('');
   expect(r.crafted).toBe('');
 });
-test('chronicle seed has all 75 created runewords', async ({ page }) => {
+test('chronicle seed has all 79 created runewords', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window; const s = w._RWC_SEED || {};
     return { count: Object.keys(s).length, hasDeath: !!s['Death'], hasMosaic: !!s['Mosaic'], hasEdge: !!s['Edge'] };
   });
-  expect(r.count).toBe(75);   // v631.1 Jul 9 spree + Bulwark (Jul 10, ladder char)
+  expect(r.count).toBe(79);   // v648 ladder spree
   expect(r.hasDeath).toBe(true);
   expect(r.hasMosaic).toBe(true);
   expect(r.hasEdge).toBe(true);

@@ -5,7 +5,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v436 — Chronicle sync: a runeword you've ALREADY FORGED (rwMade) is exempted from the "Keep for
 // runewords" examples (throw-out review + base hover + mule cards), so you only see what's LEFT to make.
 // Also: seed is now 30 (Authority + Melody added).
-test("seed is 75 (v615/v631.1: the owner's LIVE Chronicle — Jul 9 spree + Bulwark from his ladder char)", async ({ page }) => {
+test("seed is 79 (v615/v648: the owner's LIVE Chronicle — incl. the Jul 11 ladder spree)", async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window;
@@ -14,7 +14,7 @@ test("seed is 75 (v615/v631.1: the owner's LIVE Chronicle — Jul 9 spree + Bulw
              hasMelody: !!(w._RWC_SEED && w._RWC_SEED['Melody']),
              hasAncients: !!(w._RWC_SEED && w._RWC_SEED["Ancients' Pledge"]) };
   });
-  expect(r.count).toBe(75);   // v631.1 spree + Bulwark (Jul 10 — his FIRST ladder-char forge in the seed)
+  expect(r.count).toBe(79);   // v648: + Cure/Ground/Hearth/Temper (the Jul 11 ladder spree)
   expect(r.hasAuthority).toBe(true);
   expect(r.hasMelody).toBe(true);
   expect(r.hasAncients).toBe(true);

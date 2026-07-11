@@ -66,15 +66,15 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash');
   });
   expect(ladder.owned).toBe(0);           // fresh account: no bases bleed in
-  expect(ladder.made).toBe(75);           // v638 — SHARED chronicle: one grail ledger on both accounts
+  expect(ladder.made).toBe(79);           // v638 — SHARED chronicle: one grail ledger on both accounts
   expect(ladder.runes).toBe(0);           // no rune tallies bleed in (physical stash stays separate)
   expect(ladderLife.laddered).toBe(0);    // ladder profile: the 9 are UNLOCKED (no strip)
   expect(ladderLife.maniaKind).toBe('now');
   expect(ladderLife.maniaBase).toBe('Blade Talons');
-  expect(ladderLife.madeN).toBe(76);           // 75 inherited + Mania forged here
+  expect(ladderLife.madeN).toBe(80);           // 79 shared + Mania forged here
   expect(ladderLife.hasMania).toBe(true);
   expect(mainAfter).toBe(mainBefore);     // ★ NOTHING BLEEDS — byte-identical main
-  expect(ladderPersist.madeN).toBe(76);                       // ladder life survives round-trips (75 inherited + Mania)
+  expect(ladderPersist.madeN).toBe(80);                       // ladder life survives round-trips
   expect(ladderPersist.hasMania).toBe(true);
   expect(ladderPersist.owned).not.toContain('Blade Talons (3os)');   // the forge CONSUMED it — full engine, ladder-side
   expect(ladderPersist.consumed).toBe('Blade Talons (3os)');         // and the consume trail says so
@@ -92,7 +92,7 @@ test('main profile is untouched-by-default: no L· keys exist until ladder is ev
     };
   });
   expect(r.profile).toBe('main');
-  expect(r.made).toBe(75);
+  expect(r.made).toBe(79);
   expect(r.lKeys).toBe(0);
   expect(r.routerSame).toBe(true);
 });
