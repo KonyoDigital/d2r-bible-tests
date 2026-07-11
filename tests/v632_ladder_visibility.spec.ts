@@ -72,7 +72,7 @@ test('ladder-mode flip demo: the strip empties and every former ladder word beco
   expect(r.silent).toEqual([]);
 });
 
-test('lifecycle demo to the ENDPOINT (his real Death Mask): Radiance pipeline → ✓ created → Chronicle 83, task gone, invariant still holds', async ({ page }) => {
+test('lifecycle demo to the ENDPOINT (his real Death Mask): Radiance pipeline → ✓ created → Chronicle 82, task gone, invariant still holds', async ({ page }) => {
   await liveState(page);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -93,7 +93,7 @@ test('lifecycle demo to the ENDPOINT (his real Death Mask): Radiance pipeline �
   await cleanup(page);
   expect(r.before.kind).toBe('pipeline');
   expect(r.before.base).toBe('Death Mask (Larzuk base)');   // HIS helm hosts it
-  expect(r.madeCount).toBe(83);                             // 82 + Radiance
+  expect(r.madeCount).toBe(82);                             // 81 + Radiance
   expect(r.stillTasked).toBe(false);                        // task evaporated at the endpoint
   expect(r.silent).toEqual([]);                             // coverage never breaks mid-journey
 });

@@ -6,7 +6,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // shows a full read-only plan (recipe · base to farm · ladder-economy note). ZERO writes to game
 // state — the exact anti-messiness contract Konyo asked for after the live-flip incident.
 
-test('toggle expands the remaining plan card (recipes + base + 🪜 ribbon, Hustle = legacy note), collapses back — and game state is BYTE-IDENTICAL', async ({ page }) => {
+test('toggle expands the remaining plan card (recipe + base + 🪜 ribbon), collapses back — and game state is BYTE-IDENTICAL', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -15,14 +15,12 @@ test('toggle expands the remaining plan card (recipes + base + 🪜 ribbon, Hust
     const before = snap();
     w.switchTab('forge'); try { w.renderForge(); } catch (e) {}
     const strip0 = document.getElementById('forge-ladder-strip')!;
-    const collapsed = strip0.querySelectorAll('.forge-ladder-plan').length === 0 && strip0.querySelectorAll('.f-getchip').length >= 8;
+    const collapsed = strip0.querySelectorAll('.forge-ladder-plan').length === 0 && strip0.querySelectorAll('.f-getchip').length >= 1;   // v651 — Metamorphosis is the last ladder word
     (document.getElementById('forge-ladder-preview-btn') as any).click();          // 🪜 show ladder plans
     const strip1 = document.getElementById('forge-ladder-strip')!;
     const plans = [...strip1.querySelectorAll('.forge-ladder-plan')];
-    // exact title match — Hustle's legacy note CONTAINS the word 'Mania', so text-find is ambiguous
     const byTitle = (n: string) => plans.find((c) => c.querySelector('.f-cardtitle [data-arttip="' + n + '"]'));
-    const mania = byTitle('Mania');
-    const hustle = byTitle('Hustle');
+    const mania = byTitle('Metamorphosis');   // v651 — the last remaining ladder word
     const expanded = {
       count: plans.length,
       allRibboned: plans.every((c) => /ladder-only/.test(c.textContent || '')),
@@ -30,8 +28,7 @@ test('toggle expands the remaining plan card (recipes + base + 🪜 ribbon, Hust
       maniaBase: !!(mania && /base:/.test(mania.textContent || '')),
       maniaBaseHover: !!(mania && mania.querySelector('.f-getchip-base[data-arttip]')),   // v634.2 — HD floating card on the base chip
       wordHover: !!(mania && mania.querySelector('.f-cardtitle [data-arttip]')),
-      hustleLegacy: !!(hustle && /legacy|never cube/i.test(hustle.textContent || '')),
-      hustleNoRecipe: !!(hustle && !hustle.querySelector('.f-atomrecipe')),
+
       noButtons: plans.every((c) => c.querySelectorAll('button').length === 0),     // read-only: no ✓ created
     };
     (document.getElementById('forge-ladder-preview-btn') as any).click();          // hide again
@@ -48,8 +45,6 @@ test('toggle expands the remaining plan card (recipes + base + 🪜 ribbon, Hust
   expect(r.expanded.maniaBase).toBe(true);
   expect(r.expanded.maniaBaseHover).toBe(true);
   expect(r.expanded.wordHover).toBe(true);
-  expect(r.expanded.hustleLegacy).toBe(true);
-  expect(r.expanded.hustleNoRecipe).toBe(true);
   expect(r.expanded.noButtons).toBe(true);
   expect(r.recollapsed).toBe(true);
   expect(r.stateIdentical).toBe(true);   // THE contract: previewing never touches the account
