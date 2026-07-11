@@ -44,6 +44,24 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
   expect(r.poolN).toBeGreaterThan(290);
 });
 
+test('VISIBILITY: with every drawer open, ALL missing uniques appear in the run cards AND the wall (302 = 302 = 302)', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(2200);
+  const r = await page.evaluate(async () => {
+    const w: any = window;
+    w.switchTab('funi'); await new Promise((res) => setTimeout(res, 800));
+    const box = document.getElementById('tab-funi')!;
+    [...box.querySelectorAll('details')].forEach((d: any) => (d.open = true));
+    await new Promise((res) => setTimeout(res, 300));
+    const missing = w.funiScan().total - w.funiScan().found;
+    const runChips = new Set([...box.querySelectorAll('.gf-chip[data-arttip]')].map((c: any) => c.getAttribute('data-arttip')));
+    const wall = new Set([...box.querySelectorAll('.gf-allgrid [data-gf-tick]')].map((t: any) => t.getAttribute('data-gf-tick')));
+    return { missing, runChipN: runChips.size, wallN: wall.size, chipTicks: box.querySelectorAll('.gf-chip .gf-tick').length };
+  });
+  expect(r.runChipN).toBe(r.missing);   // every missing unique visible in its run card (v647.1 in-card drawers)
+  expect(r.wallN).toBe(r.missing);      // and in the Grail Wall
+  expect(r.chipTicks).toBe(r.missing);  // every chip carries its ✓
+});
+
 test('ALL set pieces: reachable + full found lifecycle through the Set Tracker store', async ({ page }) => {
   test.setTimeout(600000);
   await page.goto(URL); await page.waitForTimeout(2200);

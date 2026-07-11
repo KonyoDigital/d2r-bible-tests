@@ -29658,8 +29658,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '<span class="gf-chip" data-arttip="'+esc(n)+'" onclick="window.navigateToItem&&window.navigateToItem(\''+jsq(n)+'\')" title="open '+esc(n)+'’s card">'+_tickBtn(n,'grailFoundUni')+chipLogo(n)+'<span>'+esc(n)+'</span>'+(q?'<span class="gq">q'+q+'</span>':'')+'</span>';
   }
   function _runCard(r,i){
-    var chips=r.items.slice(0,10).map(function(x){ return _itemChip(x.n,x.qlvl); }).join('');
-    var more=r.items.length>10?'<span class="gf-note">+ '+(r.items.length-10)+' more from this run</span>':'';
+    // v647.1 — the '+N more from this run' dead-end becomes an in-card drawer: EVERY drop of the
+    // run is visible + tickable in place (Konyo: 'there should be 300+ in all — i dont see them').
+    var _all=r.items.map(function(x){ return _itemChip(x.n,x.qlvl); });
+    var chips=_all.slice(0,10).join('');
+    var more=_all.length>10?'<details class="gf-more gf-more-inline"><summary class="gf-more-sum">▾ all '+_all.length+' drops from this run <span class="gf-more-ct">+'+(_all.length-10)+' more</span></summary><div class="gf-more-body gf-chips">'+_all.slice(10).join('')+'</div></details>':'';
     var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
     return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art(r.items[0]?r.items[0].n:'','🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
