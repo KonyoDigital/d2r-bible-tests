@@ -32,7 +32,9 @@ test('every RW_BEST_BASE art home is a legal host of its word', async ({ page })
   const r = await page.evaluate(() => {
     const w: any = window;
     const bad: string[] = [];
-    Object.keys(w.RW_BEST_BASE || {}).forEach((rw) => {
+    // v650 — 'Hustle' exempt: the legacy 3.0-rename alias is deliberately never a socket target
+    // (_baseRunewords skips it), so its art home is display-only and can't be a 'legal host'.
+    Object.keys(w.RW_BEST_BASE || {}).filter((rw) => rw !== 'Hustle').forEach((rw) => {
       const home = w.RW_BEST_BASE[rw];
       if (!w.BASE_DB || !(home in w.BASE_DB)) return;   // non-base art names are out of scope
       const words = (w._baseRunewords(home) || []).map((x: any) => x.n);
