@@ -29575,6 +29575,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     H.push('</div></div></details>');
     return H.join('');
   }
+  // v647 — SEE-MORE EXPANDER (Konyo: 'how do i see all quick wins — it needs a dropdown
+  // collapsable see-more thing'): every capped card list shows its head, and the ENTIRE tail
+  // lives inside a collapsed drawer — nothing is ever unreachable, nothing floods the page.
+  function _moreWrap(cards, shown, label){
+    if(!cards.length) return '';
+    if(cards.length<=shown) return cards.join('');
+    var head=cards.slice(0,shown).join(''), tail=cards.slice(shown);
+    return head+'<details class="gf-more"><summary class="gf-more-sum">▾ see all '+cards.length+' '+esc(label)+' <span class="gf-more-ct">+'+tail.length+' more</span></summary><div class="gf-more-body">'+tail.join('')+'</div></details>';
+  }
   window.gfWallFilter=function(inp){
     try { var q=(inp.value||'').toLowerCase().trim(); var grid=inp.parentElement.querySelector('.gf-allgrid');
       [].forEach.call(grid.children, function(ch){ ch.style.display = (!q || (ch.textContent||'').toLowerCase().indexOf(q)>=0) ? '' : 'none'; });
@@ -29698,17 +29707,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var show=function(k){ return F==='all'||F===k; };
     if(show('runs')&&s.runs.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🎯 Best runs <span class="forge-sec-ct">'+s.runs.length+'</span><span class="forge-sec-sub">each run ranked by how many missing uniques it can drop</span></div>');
-      s.runs.slice(0,F==='runs'?40:8).forEach(function(r,i){ H.push(_runCard(r,i)); });
-      if(F!=='runs'&&s.runs.length>8) H.push('<div class="forge-note">+ '+(s.runs.length-8)+' more runs — open the 🎯 Best runs tile</div>');
+      H.push(_moreWrap(s.runs.map(function(r,i){ return _runCard(r,i); }), F==='runs'?12:6, 'runs'));   // v647
       H.push('</div>');
     }
     // v619 — 🏆 SEALED GROUNDS: runs whose ENTIRE verified pool is found wear the horizontal seal band
     // (the vault's trade-keeper language) — farm these for trade/friends only, never for your grail.
     if(show('runs')&&(s.sealed||[]).length){
       H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">🏆 Sealed grounds <span class="forge-sec-ct">'+s.sealed.length+'</span><span class="forge-sec-sub">every verified unique from these runs is FOUND — nothing left here for your grail</span></div>');
-      s.sealed.slice(0,F==='runs'?24:6).forEach(function(g){
-        H.push('<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(g.boss)+' — grounds sealed</span><span class="rw-band-s">all '+g.total+' verified uniques found · runs here are trade loot now</span></div>');
-      });
+      H.push(_moreWrap(s.sealed.map(function(g){
+        return '<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(g.boss)+' — grounds sealed</span><span class="rw-band-s">all '+g.total+' verified uniques found · runs here are trade loot now</span></div>';
+      }), 6, 'sealed grounds'));   // v647
+
       H.push('</div>');
     }
     if(show('low')&&!s.low.length&&s.lowTotal>0){
@@ -29717,8 +29726,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if(show('low')&&s.low.length){
       H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">⚡ Quick wins <span class="forge-sec-ct">'+s.low.length+'</span><span class="forge-sec-sub">qlvl ≤ 35 — the early uniques skipped on the way to Hell, fastest to cross off</span></div>');
-      s.low.slice(0,F==='low'?60:6).forEach(function(x){ H.push(_uniItemCard(x)); });
-      if(F!=='low'&&s.low.length>6) H.push('<div class="forge-note">+ '+(s.low.length-6)+' more — open the ⚡ Quick wins tile</div>');
+      H.push(_moreWrap(s.low.map(function(x){ return _uniItemCard(x); }), F==='low'?12:6, 'quick wins'));   // v647 — ALL of them, drawer-tailed
       H.push('</div>');
     }
     if(F==='found'){
@@ -29830,10 +29838,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // them (piece-centric missing scan), the seal makes the achievement readable.
     if((F==='all'||F==='done')&&(s.done||[]).length){
       H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">⚔ Completed sets <span class="forge-sec-ct">'+s.done.length+'</span><span class="forge-sec-sub">every piece found — these no longer appear in any farm list</span></div>');
-      s.done.slice(0,F==='done'?40:5).forEach(function(r){
-        H.push('<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(r.name.replace(/\s*\(set\)$/i,''))+' — set complete</span><span class="rw-band-s">all '+r.pieces.length+' pieces found · spares are trade loot</span></div>');
-      });
-      if(F!=='done'&&s.done.length>5) H.push('<div class="forge-note">+ '+(s.done.length-5)+' more — open the ✅ Found tile</div>');
+      H.push(_moreWrap(s.done.map(function(r){
+        return '<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(r.name.replace(/\s*\(set\)$/i,''))+' — set complete</span><span class="rw-band-s">all '+r.pieces.length+' pieces found · spares are trade loot</span></div>';
+      }), F==='done'?12:5, 'complete sets'));   // v647
       H.push('</div>');
     }
     // HERO — a quick-win piece if one exists, else the top run (same priority spirit as uniques)
@@ -29858,30 +29865,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // BEST RUNS — run cards listing the missing pieces they can drop (chips tick on click)
     if(show('runs')&&runs.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🎯 Best runs <span class="forge-sec-ct">'+runs.length+'</span><span class="forge-sec-sub">where your missing set pieces actually drop</span></div>');
-      runs.slice(0,F==='runs'?99:6).forEach(function(g,i){
+      var _rCards=runs.map(function(g,i){
         var chips=g.items.slice(0,12).map(function(mp){ return _pieceChip({name:mp.name,have:false}); }).join('');
         var more=g.items.length>12?'<span class="gf-note">+ '+(g.items.length-12)+' more pieces</span>':'';
         var bossBtn=g.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(g.bossId)+'\')">📜 boss card</button></div>':'';
-        H.push('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
+        return ('<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art((g.items[0]?g.items[0].name:'').replace(/\s*\([^)]+\)\s*$/,''),'🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(g.boss)+'</b></div>'
           +'<div class="f-atomsubrow">can drop <b>'+g.items.length+'</b> of your missing pieces — tap a piece the moment it drops</div>'
           +'<div class="gf-chips">'+chips+more+'</div></div>'+bossBtn+'</div></div>');
       });
-      if(F!=='runs'&&runs.length>6) H.push('<div class="forge-note">+ '+(runs.length-6)+' more runs — open the 🎯 Best runs tile</div>');
+      H.push(_moreWrap(_rCards, F==='runs'?12:6, 'runs'));   // v647
+
       H.push('</div>');
     }
     // QUICK WINS — piece cards, F·Uniques style ("Find X → ✓ found it")
     if(show('near')&&quick.length){
       H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">⚡ Quick wins <span class="forge-sec-ct">'+quick.length+'</span><span class="forge-sec-sub">one piece finishes the whole set</span></div>');
-      quick.slice(0,F==='near'?99:6).forEach(function(mp){
+      var _qCards=[];
+      quick.slice(0,99999).forEach(function(mp){
         var clean=mp.name.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(mp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
         var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(mp.src.chance)+'</span></div>'):'<div class="gf-note">drops broadly — any high-MF run</div>';
-        H.push('<div class="f-card f-step f-atom" data-arttip="'+esc(clean)+'"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
+        _qCards.push('<div class="f-card f-step f-atom" data-arttip="'+esc(clean)+'"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
           +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
           +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailTogglePiece(this,\''+jsq(mp.name)+'\')">✓ found it</button></div></div></div>');
       });
-      if(F!=='near'&&quick.length>6) H.push('<div class="forge-note">+ '+(quick.length-6)+' more — open the ⚡ Quick wins tile</div>');
+      H.push(_moreWrap(_qCards, F==='near'?12:6, 'quick wins'));   // v647
       H.push('</div>');
     }
     // FOUND — green chips (tap to un-mark), synced to the Item Set Tracker
@@ -30095,6 +30104,16 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .gf-wall .gf-allgrid::-webkit-scrollbar-track{background:rgba(0,0,0,.25);border-radius:5px}
 .gf-wall .gf-allgrid::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#c99b3f,#8a6f2e);border-radius:5px;border:2px solid rgba(0,0,0,.35)}
 .gf-wall .gf-allgrid::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#ffe08a,#c99b3f)}
+.gf-more{margin:4px 0}
+.gf-more-sum{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;list-style:none;user-select:none;font-size:12px;font-weight:600;color:#ffe08a;border:1px dashed rgba(233,208,122,.4);border-radius:9px;background:rgba(233,208,122,.04);transition:background .15s ease}
+.gf-more-sum::-webkit-details-marker{display:none}
+.gf-more-sum:hover{background:rgba(233,208,122,.1)}
+.gf-more-ct{margin-left:auto;font-family:var(--mono,monospace);font-size:10.5px;color:var(--text-dim,#9a8c72)}
+.gf-more[open]>.gf-more-sum{border-style:solid;border-radius:9px 9px 0 0}
+.gf-more[open]>.gf-more-sum .gf-more-ct::after{content:' · click to fold'}
+.gf-more-body{border:1px solid rgba(233,208,122,.22);border-top:0;border-radius:0 0 9px 9px;padding:6px 8px;max-height:560px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(233,208,122,.45) rgba(0,0,0,.25)}
+.gf-more-body::-webkit-scrollbar{width:9px}
+.gf-more-body::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#c99b3f,#8a6f2e);border-radius:5px}
 .gf-tick{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-right:5px;border:1px solid rgba(95,201,122,.55);border-radius:5px;color:#8fe6a0;font-size:10px;font-weight:700;cursor:pointer;background:rgba(95,201,122,.08);flex:0 0 auto;transition:transform .14s cubic-bezier(.2,.9,.3,1.4),background .14s ease}
 .gf-tick:hover{background:rgba(95,201,122,.28);transform:scale(1.18)}
 .gf-allgrid{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;content-visibility:auto;contain-intrinsic-size:auto 600px}
