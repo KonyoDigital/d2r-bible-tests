@@ -20085,6 +20085,10 @@ window._jewelTipHtml = _jewelTipHtml;
     }
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest && e.target.closest('.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]'); if (!el) return;
+      // v654 — COMPACT ANCHORS ONLY (Konyo: "i dont want it opening when i hit the SECTION itself —
+      // only over the specific item keyword; it feels random"): a whole card/row/section can never
+      // open the floating card. Only chip/title/thumbnail-sized anchors qualify.
+      try { var _rr = el.getBoundingClientRect(); if (_rr.width > 430 || _rr.height > 120) return; } catch(e){}
       tip.classList.remove('tip-grey');   // v341.36 — clear grey state; setTipR re-adds for runeword bases
       // v341.28 — "shows in-game as" craft example chips float the craft's RESULT card: the
       // guaranteed mods + affix RANGES (floor→godly), same as every other item tooltip.
@@ -29696,8 +29700,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bb=_bestSrc(x); var b=bb&&bb.s;
     var src=b?('<div class="gf-src">📍 best run: <b>'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(b.chance)+'</span>'+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
              :'<div class="gf-note">no verified source — drops broadly</div>';
-    return '<div class="f-card f-step f-atom" data-arttip="'+esc(x.n)+'"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
-      +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
+    return '<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(x.n,'🏆')+'<span class="f-cardart-badge">🏆</span></div><div class="f-cardbody">'
+      +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
       +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')">✓ found it</button></div></div></div>';
   }
   window.renderForgeUni=function(){
@@ -29911,8 +29915,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       quick.slice(0,99999).forEach(function(mp){
         var clean=mp.name.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(mp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
         var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(mp.src.chance)+'</span></div>'):'<div class="gf-note">drops broadly — any high-MF run</div>';
-        _qCards.push('<div class="f-card f-step f-atom" data-arttip="'+esc(clean)+'"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
-          +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
+        _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'<span class="f-cardart-badge">⚡</span></div><div class="f-cardbody">'
+          +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(clean)+'">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
           +'<div class="f-atomsubrow">completes <b>'+esc(mp.set.replace(/\s*\(set\)$/,''))+'</b></div>'+src+'</div>'
           +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailTogglePiece(this,\''+jsq(mp.name)+'\')">✓ found it</button></div></div></div>');
       });

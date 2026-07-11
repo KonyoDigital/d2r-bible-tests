@@ -7,6 +7,38 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // the hovered element's rect (gap ≤ 16px on one axis, overlapping its band on the other), never
 // teleport across the viewport, and hold still while the cursor moves inside the anchor.
 
+test('v654 — a SECTION/CARD-sized element can never open the floating card; only compact keyword anchors do', async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.goto(URL); await page.waitForTimeout(2000);
+  await page.evaluate(() => { (window as any).switchTab('funi'); });
+  await page.waitForTimeout(700);
+  const r = await page.evaluate(async () => {
+    const tip = document.getElementById('arttip')!;
+    // hover a full task CARD body (large container) → must NOT open
+    const card = document.querySelector('#tab-funi .f-card.f-atom') as any;
+    let cardOpened = null;
+    if (card) {
+      const cr = card.getBoundingClientRect();
+      card.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: cr.left + cr.width / 2, clientY: cr.bottom - 6 }));
+      await new Promise((res) => setTimeout(res, 150));
+      cardOpened = tip.classList.contains('on');
+      document.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+    }
+    // hover the compact item NAME inside the same card → MUST open
+    const name = card ? (card.querySelector('.f-rwbig[data-arttip]') as any) : null;
+    let nameOpened = null;
+    if (name) {
+      const nr = name.getBoundingClientRect();
+      name.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: nr.left + 4, clientY: nr.top + 4 }));
+      await new Promise((res) => setTimeout(res, 150));
+      nameOpened = tip.classList.contains('on');
+    }
+    return { cardOpened, nameOpened };
+  });
+  expect(r.cardOpened).toBe(false);
+  expect(r.nameOpened).toBe(true);
+});
+
 test('the card opens glued to the hovered item and never detaches across the screen', async ({ page }) => {
   await page.setViewportSize({ width: 1500, height: 900 });
   await page.goto(URL); await page.waitForTimeout(2000);
