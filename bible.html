@@ -17703,8 +17703,7 @@ function renderRunewordChronicle(){
     var now = !made && !blocked && has && canMakeNow(req);
     var cube = !made && !blocked && !now && has && canMakeWithCubing(req);
     var missing = Object.keys(req).filter(function(r){ return _runeCount(r) < req[r]; })
-      .sort(function(a,b){ return (RUNE_INDEX[b]||0)-(RUNE_INDEX[a]||0); })
-      .map(function(r){ return (req[r]-_runeCount(r))+'× '+r; });
+      .map(function(r){ return (req[r]-_runeCount(r))+'× '+r; });   // v652 — SOCKET order (req preserves rec[] insertion order); value-sorting here cost Konyo a ladder Cham
     return { n:n, e:e, rec:rec, made:made, now:now, cube:cube, missing:missing, ladderOnly:ladderOnly, blocked:blocked,
              cat:_rwCategory(e.b), tier: rec.reduce(function(m,r){ return Math.max(m, RUNE_INDEX[r]||0); }, 0) };
   });
@@ -17754,7 +17753,7 @@ function renderRunewordChronicle(){
     else if (x.blocked){ cls='rwc-r-block'; badge='<span class="rwc-badge rwc-b-block">🪜 Ladder only</span><span class="rwc-need">won’t form on a non-ladder character</span>'; }
     else if (x.now){ cls='rwc-r-now'; badge='<span class="rwc-badge rwc-b-now">✅ Can make now</span>'; }
     else if (x.cube){ cls='rwc-r-cube'; badge='<span class="rwc-badge rwc-b-cube">🧪 Cube-up</span><span class="rwc-need">need '+esc(x.missing.join(', '))+'</span>'; }
-    else { cls='rwc-r-need'; badge='<span class="rwc-badge rwc-b-need">⏳ Missing</span><span class="rwc-need">'+esc(x.missing.join(', '))+'</span>'; }
+    else { cls='rwc-r-need'; badge='<span class="rwc-badge rwc-b-need">⏳ Missing</span><span class="rwc-need" title="listed in SOCKET ORDER — insert runes left to right">'+esc(x.missing.join(', '))+' <i style="opacity:.6">(socket order)</i></span>'; }
     // v629 — the Chronicle KNOWS the vault: an unmade row whose host sits in your stash says so
     if (!x.made && !x.blocked){
       try { var _hm=window._vaultHostMap();
@@ -28548,8 +28547,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return '';
   }
   function _missing(req){
+    // v652 — SOCKET ORDER, not value order (Konyo socketed his last ladder Cham in the value-sorted
+    // 'missing' order and the word failed — runes wasted). req is built by iterating rec[] in order,
+    // and JS preserves string-key insertion order — so Object.keys(req) IS the socket order.
     return Object.keys(req).filter(function(r){ return _runeCount(r)<req[r]; })
-      .sort(function(a,b){ return (RUNE_INDEX[b]||0)-(RUNE_INDEX[a]||0); })
       .map(function(r){ return (req[r]-_runeCount(r))+'× '+r; });
   }
   // full-coaching: cheapest way to get a missing rune (cube recipe + farm hint)
