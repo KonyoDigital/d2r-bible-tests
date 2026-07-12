@@ -12,7 +12,7 @@ async function cleanup(page: any) {
     Object.keys(localStorage).filter((k) => k.indexOf('L·') === 0).forEach((k) => localStorage.removeItem(k));
     localStorage.removeItem('d2r_activeProfile');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
-    delete made['Metamorphosis']; delete made['Radiance'];
+    delete made['Radiance']; delete made['Rain'];
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     ['d2r_rwUnmade','d2r_rwBaseUsed'].forEach((k) => localStorage.removeItem(k));
   });
@@ -32,24 +32,24 @@ test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts 
   const onLadder = await page.evaluate(() => {
     const w: any = window;
     const made = JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}');
-    // ladder forges Metamorphosis on ITS own helm — the real engine, consume included (v650: Mania is seeded now)
+    // ladder forges Radiance on ITS own helm (v655: Metamorphosis seeded — journey word must stay unseeded)
     w.LSR.setItem('d2r_owned', JSON.stringify(['Great Helm (3os)']));
     return { seesMainForge: !!made['Radiance'], n: Object.keys(made).length,
              vaultSeparate: JSON.parse(w.LSR.getItem('d2r_owned') || '[]') };
   });
   await page.reload(); await page.waitForTimeout(1800);
-  await page.evaluate(() => { const w: any = window; w.rwToggleMade('Metamorphosis', 'Great Helm (3os)'); });
+  await page.evaluate(() => { const w: any = window; w.rwToggleMade('Radiance', 'Great Helm (3os)'); });
   // descend: main must SEE Mania (shared grail) but never the ladder vault
   await page.evaluate(() => localStorage.setItem('d2r_activeProfile', 'main'));
   await page.reload(); await page.waitForTimeout(1800);
   const onMain = await page.evaluate(() => ({
-    seesLadderForge: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Metamorphosis'],
+    seesLadderForge: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Radiance'],
     mainVault: JSON.parse(localStorage.getItem('d2r_owned') || '[]'),
     ladderVaultStillParked: JSON.parse(localStorage.getItem('L·d2r_owned') || '[]'),
   }));
   await cleanup(page);
   expect(onLadder.seesMainForge).toBe(true);                        // main → ladder: counts
-  expect(onLadder.n).toBe(83);                                      // 82 + Radiance, shared
+  expect(onLadder.n).toBe(84);                                      // 83 + Radiance, shared
   expect(onMain.seesLadderForge).toBe(true);                        // ladder → main: counts too
   expect(onMain.mainVault).toEqual(['Flail (5os)']);                // physical NEVER crosses
   expect(onMain.ladderVaultStillParked).not.toContain('Flail (5os)');   // ladder's vault namespace never gained main's item
@@ -58,16 +58,16 @@ test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts 
 test('v637-era orphaned L· chronicle reconciles once into the shared ledger (union-only) and the L· copies vanish', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   await page.evaluate(() => {
-    localStorage.setItem('L·d2r_rwMade', JSON.stringify({ Metamorphosis: 'Jul 10, 2026 · 02:00' }));   // a ladder-side forge from the v637 window
+    localStorage.setItem('L·d2r_rwMade', JSON.stringify({ Rain: 'Jul 10, 2026 · 02:00' }));   // a ladder-side forge from the v637 window
   });
   await page.reload(); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => ({
-    merged: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Metamorphosis'],
+    merged: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Radiance'],
     orphanGone: localStorage.getItem('L·d2r_rwMade') === null,
     count: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length,
   }));
   await cleanup(page);
   expect(r.merged).toBe(true);
   expect(r.orphanGone).toBe(true);
-  expect(r.count).toBe(83);   // 82 boot + the reconciled Metamorphosis
+  expect(r.count).toBe(84);   // 83 boot + the reconciled Rain
 });
