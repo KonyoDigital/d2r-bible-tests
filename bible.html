@@ -3257,12 +3257,29 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // Same doctrine as v635: the machine is read ONCE per load; switching is ALWAYS a full reload.
 window.D2R_MACHINE = (function(){ try { return window.localStorage.getItem('d2r_activeMachine')==='windows' ? 'windows' : 'mac'; } catch(e){ return 'mac'; } })();
 window._isCousinShell = (window.D2R_MACHINE==='windows');
-window.D2R_PROFILE = (function(){ try { if (window.D2R_MACHINE==='windows') return 'main'; return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
+// v665.1 — WINDOWS has its own Main/Ladder pair (Konyo: "the windows need to also have the toggle").
+// Each machine remembers its own active account via its own pointer key.
+window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
+window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
 window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog"]);
+// v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
+// v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
+// grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
+// v635's: only ACCOUNT STATE forks; prefs/caches stay shared so both machines LOOK identical.
+// WINDOWS forks the ladder set PLUS the chronicle family (unlike ladder, the cousin shares no grail).
+window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads']));
 window.LSR = (function(){
   var RAW = window.localStorage;
   function key(k){
-    if (window.D2R_MACHINE==='windows' && k.indexOf('d2r_')===0) return 'W·'+k;   // v663 — cousin shell: the WHOLE keyspace forks
+    // v665.1 — the full 2×2: MAC main = bare · MAC ladder = L· · WINDOWS main = W· · WINDOWS ladder = WL·.
+    // On WINDOWS the chronicle family (in _WP_FORKED but NOT _LP_FORKED) falls through to W· on BOTH
+    // cousin profiles — the cousin's main and ladder share the COUSIN's grail, the exact v638 doctrine
+    // Konyo's own two accounts follow. UI prefs match no fork set → bare = identical structure everywhere.
+    if (window.D2R_MACHINE==='windows'){
+      if (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) return 'WL·'+k;
+      if (window._WP_FORKED.has(k)) return 'W·'+k;
+      return k;
+    }
     return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k;
   }
   return {
@@ -3274,10 +3291,9 @@ window.LSR = (function(){
 })();
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
-  if (window.D2R_MACHINE==='windows') return;   // v663 — Main/Ladder is a MAC concept; the cousin shell has one account
   p = (p==='ladder') ? 'ladder' : 'main';
   if (p === window.D2R_PROFILE) return;   // v636 — clicking the already-active account is a no-op, not a reload
-  try { window.localStorage.setItem('d2r_activeProfile', p); } catch(e){}
+  try { window.localStorage.setItem(window._PROFILE_PTR, p); } catch(e){}   // v665.1 — each machine keeps its own pointer
   location.reload();
 };
 window.machineSwitch = function(m){
@@ -3295,10 +3311,13 @@ window.LSR.wipeProfile = function(){
     var RAW = window.localStorage, kill = [];
     for (var i = 0; i < RAW.length; i++){
       var k = RAW.key(i); if (k == null || k === 'd2r_activeProfile') continue;
-      if (k === 'd2r_activeMachine') continue;   // v663 — the master pointer survives every wipe
-      if (window.D2R_MACHINE === 'windows'){ if (k.indexOf('W·') === 0) kill.push(k); }   // v663 — cousin wipe touches ONLY W·
-      else if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0) kill.push(k); }
-      else { if (k.indexOf('L·') !== 0 && k.indexOf('W·') !== 0) kill.push(k); }   // v663 — a MAC main wipe never reaches the cousin's W· world
+      if (k === 'd2r_activeMachine' || k === 'd2r_activeProfileWin') continue;   // v663/v665.1 — the pointers survive every wipe
+      if (window.D2R_MACHINE === 'windows'){
+        if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('WL·') === 0) kill.push(k); }          // cousin-ladder wipe = WL· only
+        else { if (k.indexOf('W·') === 0 && k.indexOf('WL·') !== 0) kill.push(k); }                // cousin-main wipe = W· only, never WL·
+      }
+      else if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0 && k.indexOf('WL·') !== 0) kill.push(k); }
+      else { if (k.indexOf('L·') !== 0 && k.indexOf('W·') !== 0 && k.indexOf('WL·') !== 0) kill.push(k); }   // MAC main wipe never reaches the cousin's worlds
     }
     kill.forEach(function(k){ RAW.removeItem(k); });
     return kill.length;
@@ -4640,7 +4659,11 @@ try {
       // v664.1 — BOTH truths on the badge: the curated hunt set (what SI/base-hunt shows) AND the
       // engine-true socketed universe the filter actually ships (army audit: '27 bases' vs 204 lit).
       if (el) el.textContent = _ebb.names.length + ' hunt · ' + (_ebb.sockCodes || _ebb.codes).length + ' sock';
-      if (nm) nm.textContent = 'KonyoEndgame' + window._chronicleMadeCount();
+      // v665.2 (identity swarm) — the card label must follow the shell: it displayed 'KonyoEndgame0'
+      // on WINDOWS while the export was correctly named 'Cousin0'.
+      var _lfBrand = (window._isCousinShell ? 'Cousin' : 'KonyoEndgame');
+      if (nm) nm.textContent = _lfBrand + window._chronicleMadeCount();
+      try { var _cb = document.querySelector('.lf-copy-btn[onclick*="copyLootFilter(\'endgame\')"]'); if (_cb) _cb.textContent = '\ud83d\udccb Copy live ' + _lfBrand + ' filter'; } catch(e){}
     } catch(e){}
   };
   window.copyLootFilter = function(which){
@@ -30463,8 +30486,8 @@ body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgb
 .machine-pill{top:14px;right:200px}   /* v663 — master pill sits left of the account pill */
 body:not(.cousin-shell) .pp-mac,body.cousin-shell .pp-win{background:rgba(140,200,255,.18);color:#bfe0ff}
 body.cousin-shell .pp-win{background:rgba(140,200,255,.3)}
-body.cousin-shell #profile-pill{display:none}   /* Main/Ladder is a MAC concept */
 body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
+body.cousin-shell #ladder-ribbon{top:24px}   /* v665.1 — WINDOWS has Main/Ladder too; the two ribbons stack instead of overlap */
 #cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:700px){#cousin-ribbon{font-size:9px;letter-spacing:.06em;padding:3px 10px 4px}}
 @media (max-width:700px){.machine-pill{position:static;margin:6px auto;width:max-content}}

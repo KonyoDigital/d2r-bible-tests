@@ -33,7 +33,7 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
       filterName: fj.name,
       sockHides: fj.rules.filter((r: any) => r.ruleType === 'hide' && r.filterEtherealSocketed === true).length,
       ribbon: !!document.getElementById('cousin-ribbon'),
-      profilePillHidden: getComputedStyle(document.getElementById('profile-pill')!).display === 'none',
+      profilePillVisible: getComputedStyle(document.getElementById('profile-pill')!).display !== 'none',   // v665.1 — WINDOWS has its own Main/Ladder pair
       wKeys: Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0).length,
     };
   });
@@ -61,13 +61,13 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
   expect(mac.made).toBeGreaterThanOrEqual(88);
   expect(win.machine).toBe('windows');
   expect(win.isCousin).toBe(true);
-  expect(win.profile).toBe('main');                 // Main/Ladder is a MAC concept
+  expect(win.profile).toBe('main');                 // v665.1 — fresh WINDOWS boot lands on the cousin's MAIN (own pointer, d2r_activeProfileWin)
   expect(win.madeAtBoot).toBe(true);                // ★ no owner seed
   expect(win.found).toBe(0);                        // ★ no owner grail floor
   expect(win.filterName).toBe('Cousin0');           // the cousin's own progress number
   expect(win.sockHides).toBe(0);                    // <50% forged → wide stage: sockets always show
   expect(win.ribbon).toBe(true);
-  expect(win.profilePillHidden).toBe(true);
+  expect(win.profilePillVisible).toBe(true);        // v665.1 — the cousin gets the Main/Ladder toggle too
   expect(win.wKeys).toBeGreaterThan(0);
   expect(wipe.killed).toBeGreaterThan(0);
   expect(wipe.macKeysIntact).toBe(true);            // ★ a cousin wipe never touches MAC keys
@@ -77,4 +77,56 @@ test('WINDOWS shell: full isolation, zero seeds, Cousin<N> filter, wide socketed
   expect(back.found).toBe(mac.found);
   expect(back.ribbon).toBe(false);
   expect(back.filterName).toMatch(/^KonyoEndgame\d+$/);
+});
+
+test('v665.1 — the 2×2 matrix: WINDOWS-ladder forks WL·, shares the COUSIN chronicle, never touches MAC or cousin-main vaults', async ({ page }) => {
+  await page.goto(URL); await page.waitForTimeout(2200);
+  // cousin main: forge a word + own a base
+  await page.evaluate(() => { localStorage.setItem('d2r_activeMachine', 'windows'); });
+  await page.reload(); await page.waitForTimeout(2200);
+  await page.evaluate(() => {
+    const w: any = window;
+    const made: any = { Stealth: 'Jul 12, 2026 · 23:30' };
+    w.LSR.setItem('d2r_rwMade', JSON.stringify(made));
+    w.LSR.setItem('d2r_owned', JSON.stringify(['Flail (5os)']));
+  });
+  // ascend to cousin LADDER
+  await page.evaluate(() => { localStorage.setItem('d2r_activeProfileWin', 'ladder'); });
+  await page.reload(); await page.waitForTimeout(2200);
+  const cl = await page.evaluate(() => {
+    const w: any = window;
+    w.LSR.setItem('d2r_owned', JSON.stringify(['Monarch (4os)']));   // cousin-ladder physical
+    return {
+      profile: w.D2R_PROFILE, machine: w.D2R_MACHINE,
+      seesCousinForge: !!JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}')['Stealth'],   // chronicle shared cousin-main↔cousin-ladder
+      vaultClean: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
+      wlKey: w.LSR.raw.getItem('WL·d2r_owned'),
+      ribbons: !!document.getElementById('cousin-ribbon') && !!document.getElementById('ladder-ribbon'),
+    };
+  });
+  // back to cousin MAIN: vault separate, chronicle same
+  await page.evaluate(() => { localStorage.setItem('d2r_activeProfileWin', 'main'); });
+  await page.reload(); await page.waitForTimeout(2200);
+  const cm = await page.evaluate(() => ({
+    vault: JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]'),
+    made: Object.keys(JSON.parse((window as any).LSR.getItem('d2r_rwMade') || '{}')),
+  }));
+  // back to MAC: everything his, no W/WL leakage
+  await page.evaluate(() => { localStorage.setItem('d2r_activeMachine', 'mac'); });
+  await page.reload(); await page.waitForTimeout(2200);
+  const mac = await page.evaluate(() => ({
+    made: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length,
+    profile: (window as any).D2R_PROFILE,
+  }));
+  await page.evaluate(() => { Object.keys(localStorage).filter((k) => k.indexOf('W·') === 0 || k.indexOf('WL·') === 0).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('d2r_activeMachine'); localStorage.removeItem('d2r_activeProfileWin'); });
+  expect(cl.machine).toBe('windows');
+  expect(cl.profile).toBe('ladder');
+  expect(cl.seesCousinForge).toBe(true);                       // ★ ONE cousin grail across his two accounts
+  expect(cl.vaultClean).toEqual(['Monarch (4os)']);            // ★ physical NEVER crosses (cousin-main's Flail absent)
+  expect(cl.wlKey).toBe(JSON.stringify(['Monarch (4os)']));    // parked under WL·
+  expect(cl.ribbons).toBe(true);                               // both cues stack
+  expect(cm.vault).toEqual(['Flail (5os)']);                   // cousin-main vault intact
+  expect(cm.made).toContain('Stealth');
+  expect(mac.made).toBeGreaterThanOrEqual(88);                 // MAC untouched
+  expect(mac.profile).toBe('main');                            // MAC pointer never moved
 });
