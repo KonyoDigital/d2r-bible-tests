@@ -79,9 +79,11 @@ test('C — loot filter shrinks to exactly the premium floor when nothing needs 
     return { baseCount: f.baseCount, ruleCodes: baseRule ? baseRule.equipmentItemCode.length : -1,
              premium: (w._premiumTradeBases || []).length };
   });
-  // v588 — the premium trade floor never shrinks off: "nothing to farm" = exactly the floor, no
-  // word-driven bases, and the plain-white rule = the floor too (was: both 0 pre-v588).
+  // v588 — the premium trade floor never shrinks off the SOCKETED universe: "nothing to farm" =
+  // exactly the floor as codes. v667 — but its PLAIN-white show is stage-gated (Konyo: 'premium
+  // plains… I'm not larzuking a base just for the fuck of it'): all-made = 100% forged = late
+  // stage → the plain rule empties completely (no Larzuk-exacts either, no live words remain).
   expect(r.premium).toBeGreaterThan(0);
   expect(r.baseCount).toBe(r.premium);
-  expect(r.ruleCodes).toBe(r.premium);
+  expect(r.ruleCodes).toBe(0);   // v667 — late-stage: no premium plains, no Larzuk-exacts
 });

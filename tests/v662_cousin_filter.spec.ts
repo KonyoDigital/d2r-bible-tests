@@ -24,6 +24,8 @@ test('CousinFull: fresh grail, zero socketed/eth hide rules, ASCII names; KonyoE
       notReady: false,
       mineName: mine.name, mineSockHides: sockHides(mine), mineShow3: show3(mine).length, mineRules: mine.rules.length,
       cuzName: cuz.name, cuzSockHides: sockHides(cuz), cuzShow3: show3(cuz).length, cuzRules: cuz.rules.length,
+      // v667 — rule-set diff by NAME: cousin may also drop the (conditional) gamble-only hide
+      missingInCuz: mine.rules.map((x: any) => x.name).filter((n: string) => !cuz.rules.some((y: any) => y.name === n)),
       cuzAscii: cuz.rules.every((x: any) => /^[\x20-\x7e]*$/.test(x.name)),   // non-ASCII rule names get silently dropped by the mod importer
       cuzHasUniques: cuz.rules.some((x: any) => x.name === '2. Show Uniques and Sets' && x.enabled),
       cuzTrashHideIntact: cuz.rules.some((x: any) => x.name === '1. Hide Trash Gear' && x.filterEtherealSocketed === false),
@@ -35,7 +37,9 @@ test('CousinFull: fresh grail, zero socketed/eth hide rules, ASCII names; KonyoE
   expect(r.cuzName).toBe('CousinFull');
   expect(r.cuzSockHides).toBe(0);                     // ★ NO rule can hide a socketed/eth item
   expect(r.cuzShow3).toBeGreaterThan(r.mineShow3);    // fresh grail lights far more bases
-  expect(r.cuzRules).toBe(r.mineRules - 4);           // exactly the four socketed hides removed
+  r.missingInCuz.forEach((n: string) => {             // v667 — only socketed hides + the conditional gamble-only hide may be absent
+    expect(/ETH|Hide ETH Sockets|Gamble-Only/.test(n)).toBe(true);
+  });
   expect(r.cuzAscii).toBe(true);
   expect(r.cuzHasUniques).toBe(true);
   expect(r.cuzTrashHideIntact).toBe(true);            // plain trash still hidden (flag=false ignores socketed)

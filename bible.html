@@ -4455,6 +4455,9 @@ try {
       var CODE = JSON.parse(document.getElementById('lf-base-codes').textContent);
       var made = {}; try { if (!fresh) made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}'); } catch(e){}
       var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
+      // v667 — chronicle stage, shared with the build's wide/doctrine split: early = <50% forged (or a fresh/cousin build)
+      var _totalW = Object.keys(tips).length, _madeW = Object.keys(tips).filter(function(n){ return made[n]; }).length;
+      var _early = fresh || (_totalW > 0 && (_madeW/_totalW) < 0.5);
       var meta = window._forgeMetaBase;
       // v536.2 — SYNC with the Forge: skip a word you ALREADY own a socket-correct base for (it's in the Forge's
       // make-now / pipeline, or a "have base, need runes" one-step). No point farming the ideal base for a word
@@ -4492,15 +4495,16 @@ try {
       // v592 — plainCodes: ONLY these light up as PLAIN (unsocketed, non-eth) whites. Everything else in
       // codes shows eth/socketed only — Konyo farms sockets instead of burning Larzuk quests.
       var plainSet = {};
-      // v666 (Konyo: 'or a MAX larzuk socket.. OR farming it socketed') — a plain white shows when
-      // ONE Larzuk quest turns it into a live word's exact base (need == trusted max). Everything
-      // else stays socketed/eth-only: Larzuk-overshoot bases are cube-gamble noise he rejected (v592).
-      Object.keys(larzukExact).forEach(function(lc){ plainSet[lc] = 1; });
+      // v667 (Konyo: 'premium plains I don't think I really need… only in the beginning of the
+      // chronicle — I'm not larzuking a base just for the fuck of it') — the premium PLAIN floor is
+      // STAGE-GATED: below 50% forged it lights plain whites (early trade capital, the cousin's shell);
+      // at 50%+ plains shrink to Larzuk-exact only. Premium SOCKETED/ETH copies keep riding the
+      // universe — a grey 4os Archon Plate is still a pickup.
       (window._premiumTradeBases || []).forEach(function(nm){
         var pc = CODE[nm]; if (!pc) return;
-        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1; plainSet[pc] = 1;
+        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1;
+        if (_early) plainSet[pc] = 1;
       });
-      out.plainCodes = Object.keys(plainSet).sort();
       out.codes = Object.keys(codeSet).sort();
       out.names = Object.keys(nameSet).sort();
       // v662.1 — ENGINE-TRUE SOCKETED UNIVERSE (Konyo: 'not just cousins build.. it should be
@@ -4518,7 +4522,8 @@ try {
           Object.keys(CODE).forEach(function(nm){
             if (/^\s*(Circlet|Coronet|Tiara|Diadem)\s*$/i.test(nm)) return;   // circlets can't host runewords
             var c = CODE[nm]; if (!c) return;
-            if (codeSet[c]){ sockSet[c] = 1; return; }                        // curated homes always ride
+            var isCurated = !!codeSet[c];
+            if (isCurated) sockSet[c] = 1;                                    // curated/premium homes always ride socketed
             var hosts = window._baseRunewords(nm) || [];
             var liveNeeds = [];
             for (var hi = 0; hi < hosts.length; hi++){
@@ -4534,13 +4539,23 @@ try {
             // Elegant Blade is no Unbending Will). Trusted-max doctrine (v575.2): only exclude on a
             // KNOWN max — unknown maxes fail open, never wrongly hiding a real base.
             var _smx = null; try { _smx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
-            if (_smx >= 1 && _smx <= 6 && !liveNeeds.some(function(n){ return n <= _smx; })) return;
-            sockSet[c] = 1;
+            // v667.1 — Larzuk-exact plains stay CURATED: only right-tier homes + premium bases earn a
+            // plain-white show (a plain Ring Mail technically hosts Myth, but plain-spam is the exact
+            // thing v592 killed). Non-curated bases remain socketed/eth-only forever.
+            if (isCurated && _smx >= 1 && _smx <= 6 && liveNeeds.indexOf(_smx) >= 0) larzukExact[c] = 1;
+            if (!isCurated){
+              if (_smx >= 1 && _smx <= 6 && !liveNeeds.some(function(n){ return n <= _smx; })) return;
+              sockSet[c] = 1;
+            }
             if (!(_smx >= 1 && _smx <= 6) || liveNeeds.indexOf(_smx) >= 0) supOkSet[c] = 1;
-            if (_smx >= 1 && _smx <= 6 && liveNeeds.indexOf(_smx) >= 0) larzukExact[c] = 1;   // v666
           });
         }
       } catch(e){}
+      // v666/v667.1 (Konyo: 'or a MAX larzuk socket.. OR farming it socketed') — a plain white shows
+      // when ONE Larzuk quest lands exactly on a live word's count. Merged HERE, after the full
+      // universe pass, so premium/non-curated Larzuk-exacts (Mage Plate) make it in too.
+      Object.keys(larzukExact).forEach(function(lc){ plainSet[lc] = 1; });
+      out.plainCodes = Object.keys(plainSet).sort();
       out.sockCodes = Object.keys(sockSet).sort();
       if (!out.sockCodes.length) out.sockCodes = out.codes.slice();            // engine not ready → never narrower than the curated set
       out.gambleOnlyCodes = out.sockCodes.filter(function(c){ return !supOkSet[c]; });   // superior drops useless here
