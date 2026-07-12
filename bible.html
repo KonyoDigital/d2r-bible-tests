@@ -6682,6 +6682,9 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
+/* v675 — the IDEAL base chip on one-step cards yells like a Make-now pick */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-ideal{border-color:rgba(255,215,106,.75);background:linear-gradient(135deg,rgba(255,215,106,.16),rgba(201,155,63,.10));box-shadow:0 0 12px rgba(255,215,106,.28);font-weight:800;font-size:13px;color:#ffe08a!important}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-ideal:hover{box-shadow:0 0 16px rgba(255,215,106,.45)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-getsub b{color:#cdb988;font-style:normal}
 /* One-step full-journey arc: do-this-now segment lit, downstream dimmed */
@@ -29838,7 +29841,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var need=(((typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[t.rw])||{}).rec||[]).length, segs=[], note='';
         if (t.sub==='cube'){ segs.push('🧪 Cube up '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note='base ready ('+_baseLine(t)+')'; }
         else if (t.sub==='runes'){ var top=(t.missing&&t.missing[0])?t.missing[0].replace(/^\d+×\s*/,''):''; segs.push('🔨 Get '+_missChips(t.missing)); segs.push('⚒ Forge <b>'+_qName(t.rw)+'</b>'); note=_fEsc(_runeSource(top))+' · base ready ('+_baseLine(t)+')'; }   // v604 — NAME the ready base (the cube branch already did; Konyo must see WHICH item is waiting)
-        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); return b?'<span class="f-getchip f-getchip-base" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+' — hover for its card">'+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>':''; }).join(''); segs.push('🛒 Get '+chips);
+        else { var bases=String(t.bestStr||t.baseReq||'').split(/\s*\/\s*/); var chips=bases.map(function(bn,bi){ var b=bn.trim(); if(!b) return '';
+          // v675 (Konyo: 'emphasize which base is the IDEAL elite best — like Make now does') — the
+          // recommended home wears the full golden treatment, the alternates stay quiet chips.
+          var _idealCls = bi===0 ? ' f-getchip-ideal' : '';
+          return '<span class="f-getchip f-getchip-base'+_idealCls+'" data-arttip="'+_fEsc(b)+'" style="color:'+(_qC(b)||'var(--q-normal)')+'" title="'+_fEsc(b)+(bi===0?' — THE recommended home for this word':' — hover for its card')+'">'+(bi===0?'🏆 ':'')+_fEsc(b)+_baseRoleBadge(b, bi===0)+'</span>'; }).join(''); segs.push('🛒 Get '+chips);
           // v629 — the Forge KNOWS the vault too (Konyo's Stiletto/Ritual): a possible host already
           // read from his stash turns 'go get a base' into 'you may already own one — set its sockets'
           try { var _hm9=window._vaultHostMap();

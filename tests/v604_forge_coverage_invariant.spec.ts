@@ -17,6 +17,12 @@ test('every unmade non-ladder word is tasked in forgeScan AND rendered in the Fo
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(URL); await page.waitForTimeout(1800);
+  await page.evaluate(() => {   // v674 — the live Chronicle is COMPLETE (99/99): open a 2-word window so the invariant has subjects
+    const m = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); delete m['Wrath']; delete m['Peace'];
+    localStorage.setItem('d2r_rwMade', JSON.stringify(m));
+    localStorage.setItem('d2r_rwUnmade', JSON.stringify({ Wrath: 1, Peace: 1 }));
+  });
+  await page.reload(); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
     w.switchTab && w.switchTab('forge');
@@ -34,9 +40,10 @@ test('every unmade non-ladder word is tasked in forgeScan AND rendered in the Fo
       missingFromDom: live.filter((n) => !dom.includes(n)),
     };
   });
-  expect(r.liveCount).toBeGreaterThan(0);       // a fresh profile always has open words
+  expect(r.liveCount).toBeGreaterThan(0);       // the pinned 2-word window
   expect(r.farmCount).toBeGreaterThan(0);       // fresh profile (no bases, no runes) → the catch-all fires
   expect(r.missingFromScan).toEqual([]);        // no word may silently vanish from the engine
+  await page.evaluate(() => { localStorage.removeItem('d2r_rwUnmade'); });   // v674 hygiene
   expect(r.missingFromDom).toEqual([]);         // …or from what Konyo actually SEES
   expect(errors).toEqual([]);
 });
