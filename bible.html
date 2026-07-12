@@ -4642,6 +4642,12 @@ try {
       nx.runewords.forEach(function(rw){ if(_ready[rw])nxReady++; else nxAdvance++; }); }catch(e){} }
     return {total:total, made:madeN, remaining:total-madeN, makeNow:now.length, deferred:deferredN,
       pipeline:(s.pipeline||[]).length, oneStep:(s.onestep||[]).length, farm:farmN, ladderExcluded:ladderN,
+      // v656 — BASE-HUNT intel (Konyo: 'more depth for accuracy and elite bases'): the exact bases
+      // worth picking up right now, elite-first, same live set the in-game loot filter shows.
+      baseHunt:(function(){ try { var eb=window._endgameFilterBases(); var nm=(eb.names||[]).slice();
+        nm.sort(function(a,b){ var ta=(window._baseTier&&window._baseTier(a)==='elite')?0:1, tb=(window._baseTier&&window._baseTier(b)==='elite')?0:1; return ta-tb || a.localeCompare(b); });
+        return { n: nm.length, top: nm.slice(0,4), elites: nm.filter(function(x){ return window._baseTier&&window._baseTier(x)==='elite'; }).length };
+      } catch(e){ return null; } })(),
       blockedByBase:baseOnly, blockedByRunes:runeOnly, cubeReachable:cubeOnly,
       bestNow:best?best.rw:null, nextUnlockBase:nx?nx.base:null, nextUnlockCount:nx?nx.count:0,
       nextUnlockReady:nxReady, nextUnlockAdvance:nxAdvance};
@@ -4708,6 +4714,7 @@ try {
         +row('🔧','Pipeline',p.pipeline,'',"window.smartGoForge('pipeline')",'open the Forge → 🔧 Pipeline (Larzuk-socket, then forge)')
         +row('🟡','One step',p.oneStep,' <span class="si-dim">('+p.blockedByBase+' need a base · '+p.blockedByRunes+' need runes'+(p.cubeReachable?' · '+p.cubeReachable+' cube-up-able':'')+')</span>',"window.smartGoForge('onestep')",'open the Forge → 🟡 One step away')
         +(p.farm?row('🌾','Furthest out',p.farm,' <span class="si-dim">(need both base and runes)</span>',"window.smartGoForge('onestep')",'open the Forge — the 🌾 Furthest out list rides the One-step view'):'')
+        +(p.baseHunt&&p.baseHunt.n?row('🏹','Base hunt',p.baseHunt.n,' <span class="si-dim">('+p.baseHunt.elites+' elite · top: '+p.baseHunt.top.map(function(x){return '<b data-arttip="'+x.replace(/"/g,'&quot;')+'">'+x+'</b>';}).join(' · ')+' — all lit in your in-game filter)</span>',"window.switchTab('tools')",'the exact grey/eth socketed bases worth grabbing — synced to the KonyoEndgame loot filter'):'')
         +(p.bestNow?'<div class="si-tip si-go" role="button" tabindex="0" onclick="window.smartGoForge(\'now\',\''+esc(p.bestNow)+'\')" title="jump to this exact task card">⭐ Best you can make now: <b data-arttip="'+esc(p.bestNow)+'">'+esc(p.bestNow)+'</b> →</div>':'')
         +(p.nextUnlockBase?'<div class="si-tip si-go" role="button" tabindex="0" onclick="window.openDrop&&window.openDrop(\''+esc(p.nextUnlockBase)+'\')" title="open this base\'s card">💡 Highest-leverage base to find: <b data-arttip="'+esc(p.nextUnlockBase)+'">'+esc(p.nextUnlockBase)+'</b>'
           +(p.nextUnlockReady||p.nextUnlockAdvance?' → <b>'+p.nextUnlockReady+'</b> ready on find'+(p.nextUnlockAdvance?' · advances '+p.nextUnlockAdvance+' more':''):' → unlocks '+p.nextUnlockCount)+' →</div>':'')
