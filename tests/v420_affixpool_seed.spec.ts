@@ -20,13 +20,13 @@ test('affix pool renders for rolled jewelry, not for gear/crafted', async ({ pag
   expect(r.gear).toBe('');
   expect(r.crafted).toBe('');
 });
-test('chronicle seed has all 95 created runewords', async ({ page }) => {
+test('chronicle seed has all 97 created runewords', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window; const s = w._RWC_SEED || {};
     return { count: Object.keys(s).length, hasDeath: !!s['Death'], hasMosaic: !!s['Mosaic'], hasEdge: !!s['Edge'] };
   });
-  expect(r.count).toBe(95);   // v671 +Myth
+  expect(r.count).toBe(97);   // v672 +UW +Bramble
   expect(r.hasDeath).toBe(true);
   expect(r.hasMosaic).toBe(true);
   expect(r.hasEdge).toBe(true);
