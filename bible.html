@@ -3249,11 +3249,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 // site prefs, caches and reference data stay shared. Defined in the first script block so
 // every later block routes through it.
 // ══════════════════════════════════════════════════════════════════════════════
-window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
+// v663 — MASTER MACHINE SWITCH (Konyo: "a master switch between the two — WINDOWS/MAC").
+// MAC = Konyo's world, byte-identical to everything before (bare keys + the L· ladder fork).
+// WINDOWS = the cousin's OWN isolated world: EVERY d2r_* key routes to the 'W·' prefix — chronicle
+// included (unlike ladder's shared grail, the cousin shares NOTHING), and every owner seed floor
+// (_RWC_SEED · _GRAIL_SEED · rwVerify fails) is suppressed so he genuinely starts from zero.
+// Same doctrine as v635: the machine is read ONCE per load; switching is ALWAYS a full reload.
+window.D2R_MACHINE = (function(){ try { return window.localStorage.getItem('d2r_activeMachine')==='windows' ? 'windows' : 'mac'; } catch(e){ return 'mac'; } })();
+window._isCousinShell = (window.D2R_MACHINE==='windows');
+window.D2R_PROFILE = (function(){ try { if (window.D2R_MACHINE==='windows') return 'main'; return window.localStorage.getItem('d2r_activeProfile')==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
 window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog"]);
 window.LSR = (function(){
   var RAW = window.localStorage;
-  function key(k){ return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k; }
+  function key(k){
+    if (window.D2R_MACHINE==='windows' && k.indexOf('d2r_')===0) return 'W·'+k;   // v663 — cousin shell: the WHOLE keyspace forks
+    return (window.D2R_PROFILE==='ladder' && window._LP_FORKED.has(k)) ? 'L·'+k : k;
+  }
   return {
     getItem:    function(k){ return RAW.getItem(key(k)); },
     setItem:    function(k,v){ return RAW.setItem(key(k), v); },
@@ -3263,9 +3274,16 @@ window.LSR = (function(){
 })();
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
+  if (window.D2R_MACHINE==='windows') return;   // v663 — Main/Ladder is a MAC concept; the cousin shell has one account
   p = (p==='ladder') ? 'ladder' : 'main';
   if (p === window.D2R_PROFILE) return;   // v636 — clicking the already-active account is a no-op, not a reload
   try { window.localStorage.setItem('d2r_activeProfile', p); } catch(e){}
+  location.reload();
+};
+window.machineSwitch = function(m){
+  m = (m==='windows') ? 'windows' : 'mac';
+  if (m === window.D2R_MACHINE) return;
+  try { window.localStorage.setItem('d2r_activeMachine', m); } catch(e){}
   location.reload();
 };
 // v636 — PROFILE-SCOPED WIPE (the closure swarm's #1 critical: the footer reset ran raw
@@ -3277,8 +3295,10 @@ window.LSR.wipeProfile = function(){
     var RAW = window.localStorage, kill = [];
     for (var i = 0; i < RAW.length; i++){
       var k = RAW.key(i); if (k == null || k === 'd2r_activeProfile') continue;
-      if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0) kill.push(k); }
-      else { if (k.indexOf('L·') !== 0) kill.push(k); }
+      if (k === 'd2r_activeMachine') continue;   // v663 — the master pointer survives every wipe
+      if (window.D2R_MACHINE === 'windows'){ if (k.indexOf('W·') === 0) kill.push(k); }   // v663 — cousin wipe touches ONLY W·
+      else if (window.D2R_PROFILE === 'ladder'){ if (k.indexOf('L·') === 0) kill.push(k); }
+      else { if (k.indexOf('L·') !== 0 && k.indexOf('W·') !== 0) kill.push(k); }   // v663 — a MAC main wipe never reaches the cousin's W· world
     }
     kill.forEach(function(k){ RAW.removeItem(k); });
     return kill.length;
@@ -3383,6 +3403,10 @@ try {
         <h1 class="h-title"><img class="masthead-art" src="art/countess01_graphic.png" alt="" loading="lazy" onerror="this.style.display='none'">Konyo's D2R Farming Bible</h1>
         <!-- v635 — ACCOUNT PILL: two parallel accounts (main = his non-ladder truth, ladder = the fresh
              ladder-economy account). Switching is a full reload through window.profileSwitch — no bleed. -->
+        <!-- v663 — MASTER MACHINE PILL: 🖥 MAC = Konyo's world (with its Main/Ladder below), 🪟 WINDOWS = the cousin's own isolated world -->
+        <div id="machine-pill" class="profile-pill machine-pill" title="MASTER switch — Mac = Konyo's world, Windows = the cousin's own isolated world. Switching reloads the page; nothing ever mixes.">
+          <button class="pp-btn pp-mac" onclick="window.machineSwitch('mac')">🖥 MAC</button><button class="pp-btn pp-win" onclick="window.machineSwitch('windows')">🪟 WINDOWS</button>
+        </div>
         <div id="profile-pill" class="profile-pill" title="two separate accounts — switching reloads the page; nothing ever mixes">
           <button class="pp-btn pp-main" onclick="window.profileSwitch('main')">⚔ MAIN</button><button class="pp-btn pp-ladder" onclick="window.profileSwitch('ladder')">🪜 LADDER</button>
         </div>
@@ -4371,6 +4395,7 @@ try {
         <div class="lf-b-head"><span class="lf-b-name">KonyoEndgame</span><span class="lf-b-tag lf-tag-elite" id="lf-endgame-count">bases</span></div>
         <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests; plain (unsocketed) whites light up <strong>only for the premium trade bases</strong> below. As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('endgame')">📋 Copy live KonyoEndgame filter</button>
+        <button class="lf-copy-btn" onclick="window.copyLootFilter('cousin')" title="fresh-grail build: ignores the Chronicle — EVERY runeword base lights up socketed/eth (what a from-zero player hunts). Send this one to the cousin.">👤 Copy COUSIN filter (fresh grail — all socketed bases)</button>
         <span class="lf-status" id="lf-endgame-status"></span>
       </div>
       <div class="lf-howto">⚠ <strong>Quit D2R before importing</strong> — the mod overwrites the filter file while the game is running. Then relaunch and pick the profile. Rare circlets show via the rings/amulets rule; <strong>💠 magic (blue) Diadems show too</strong> — the elite circlet rolls chase mods (+3 class skills / MF, e.g. a Torrid Diadem of Amicae); other white/magic/socketed circlets are hidden.</div>
@@ -4399,11 +4424,17 @@ try {
     'Thresher', 'Giant Thresher', 'Cryptic Axe',                                     // eth merc polearms (Insight/Infinity)
     'Matriarchal Bow', 'Grand Matron Bow'                                            // Faith / Brand bows
   ];
-  window._endgameFilterBases = function(){
+  window._endgameFilterBases = function(opts){
+    // v662 — opts.fresh: build for a FRESH grail (the cousin's reality). The normal build shrinks to
+    // KONYO's Chronicle — and the shared-chronicle seed floors his 88 words on ANY browser, so a cousin
+    // generating his own copy gets the same shrunk filter, with every sub-endgame socketed base folded
+    // into the Hide-ETH-Sockets rule. fresh ignores rwMade + the owned-base sync so ALL words light
+    // their bases (socketed/eth), exactly what a from-zero player hunts.
+    var fresh = !!(opts && opts.fresh);
     var out = { codes: [], names: [], gambleOnlyCodes: [] };
     try {
       var CODE = JSON.parse(document.getElementById('lf-base-codes').textContent);
-      var made = {}; try { made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}'); } catch(e){}
+      var made = {}; try { if (!fresh) made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}'); } catch(e){}
       var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
       var meta = window._forgeMetaBase;
       // v536.2 — SYNC with the Forge: skip a word you ALREADY own a socket-correct base for (it's in the Forge's
@@ -4413,7 +4444,7 @@ try {
       var ownedBaseWord = {};
       // v587 — CAPACITY: an over-subscribed task (t.baseOver — its base copy is already claimed by a
       // higher-priority word) does NOT own a base → keep farming bases for that word.
-      try { var sc = (typeof window.forgeScan==='function') ? window.forgeScan() : null;
+      try { var sc = (!fresh && typeof window.forgeScan==='function') ? window.forgeScan() : null;
         if (sc){ [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if(t && t.base && !t.baseOver) ownedBaseWord[t.rw]=1; });
                  (sc.onestep||[]).forEach(function(t){ if(t && t.base && t.sub!=='base' && !t.baseOver) ownedBaseWord[t.rw]=1; }); } } catch(e){}
       var codeSet = {}, nameSet = {}, supOkSet = {};
@@ -4448,14 +4479,47 @@ try {
       out.plainCodes = Object.keys(plainSet).sort();
       out.codes = Object.keys(codeSet).sort();
       out.names = Object.keys(nameSet).sort();
-      out.gambleOnlyCodes = out.codes.filter(function(c){ return !supOkSet[c]; });   // superior drops useless here
+      // v662.1 — ENGINE-TRUE SOCKETED UNIVERSE (Konyo: 'not just cousins build.. it should be
+      // calibrated as a whole for the engine… I've been missing lots and lots of socketed gear').
+      // The curated meta homes above are the FARM-PRIORITY intel (SI base hunt, plain/premium rules),
+      // but the mod can't filter by socket COUNT — so hiding a socketed drop is only honest when NO
+      // unmade word could ever live in that base TYPE. The socketed/eth show set is therefore the
+      // _baseRunewords inverse: every base type class-legal for ANY unmade, non-ladder-blocked word.
+      // A socketed Mage Plate shows while any armor word lives; forge the last armor word and the
+      // whole armor class drops out on the next copy — the exact 'gradually removes the useless ones'
+      // contract, computed from the engine instead of a hand-curated list.
+      var sockSet = {};
+      try {
+        if (typeof window._baseRunewords === 'function'){
+          Object.keys(CODE).forEach(function(nm){
+            if (/^\s*(Circlet|Coronet|Tiara|Diadem)\s*$/i.test(nm)) return;   // circlets can't host runewords
+            var c = CODE[nm]; if (!c) return;
+            if (codeSet[c]){ sockSet[c] = 1; return; }                        // curated homes always ride
+            var hosts = window._baseRunewords(nm) || [];
+            var liveNeeds = [];
+            for (var hi = 0; hi < hosts.length; hi++){
+              var hw = hosts[hi] && (hosts[hi].n || hosts[hi]); if (!hw) continue;
+              if (made[hw]) continue;
+              if (typeof window._rwLadderBlocked === 'function' && window._rwLadderBlocked(hw)) continue;
+              liveNeeds.push(((tips[hw] || {}).rec || []).length);
+            }
+            if (!liveNeeds.length) return;                                    // no unmade word can live here → socketed copy is honestly useless
+            sockSet[c] = 1;
+            var _smx = null; try { _smx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
+            if (!(_smx >= 1 && _smx <= 6) || liveNeeds.indexOf(_smx) >= 0) supOkSet[c] = 1;
+          });
+        }
+      } catch(e){}
+      out.sockCodes = Object.keys(sockSet).sort();
+      if (!out.sockCodes.length) out.sockCodes = out.codes.slice();            // engine not ready → never narrower than the curated set
+      out.gambleOnlyCodes = out.sockCodes.filter(function(c){ return !supOkSet[c]; });   // superior drops useless here
     } catch(e){}
     return out;
   };
-  window.buildEndgameFilter = function(){
+  window.buildEndgameFilter = function(opts){
     var tplEl = document.getElementById('lf-data-endgame');
     var tpl = JSON.parse(tplEl.textContent);
-    var eb = window._endgameFilterBases();
+    var eb = window._endgameFilterBases(opts);
     // v553 — ALWAYS sync the two base-show rules to the live set (was guarded by `if (eb.codes.length)`, which left
     // the template's ~50 hardcoded codes in place when nothing needs farming — contradicting the "0 bases" label).
     // Empty = show no bases, consistent with the count + the "shrinks to match your Chronicle" promise.
@@ -4464,7 +4528,7 @@ try {
     // floor (Bone Visage class — rare/valuable enough to burn a Larzuk or trade as-is); every other
     // wanted base appears eth/socketed ONLY (rule 3). No more plain War Spikes begging for a quest.
     tpl.rules.forEach(function(r){
-      if (r.name==='3. Show ETH and Socket bases'){ r.equipmentItemCode = eb.codes.slice(); }
+      if (r.name==='3. Show ETH and Socket bases'){ r.equipmentItemCode = (eb.sockCodes||eb.codes).slice(); }   // v662.1 — the engine-true socketed universe
       if (r.name==='Show Base Items'){ r.equipmentItemCode = (eb.plainCodes||[]).slice(); }
     });
     // v562 — PLUG THE BLUE-MAGIC LEAK (Konyo's cow-run screenshots: magic Gothic Shield + magic Coronet showing).
@@ -4487,7 +4551,7 @@ try {
       Object.keys(CODE2).forEach(function(nm){ hideSet[CODE2[nm]]=1; });
       CIRC.forEach(function(c){ delete hideSet[c]; });
       Object.keys(NEVER_HIDE).forEach(function(c){ delete hideSet[c]; });
-      eb.codes.forEach(function(c){ delete hideSet[c]; });
+      (eb.sockCodes||eb.codes).forEach(function(c){ delete hideSet[c]; });   // v662.1 — nothing in the socketed universe may sit in a hide list
       var hideCodes = Object.keys(hideSet).sort();
       // v592 — a non-premium wanted base must be hidden as a PLAIN drop (it's only wanted eth/socketed):
       // its code joins the flat-item hide (rule 1, filterEtherealSocketed:false) but stays OUT of the
@@ -4495,7 +4559,7 @@ try {
       // keep showing via "Show Base Items". Works under first- and last-match semantics alike (the plain
       // drop matches ONLY a hide either way; the eth/socketed drop matches only the show).
       var _plainIs = {}; (eb.plainCodes||[]).forEach(function(c){ _plainIs[c]=1; });
-      var plainHide = hideCodes.concat(eb.codes.filter(function(c){ return !_plainIs[c]; })).sort();
+      var plainHide = hideCodes.concat((eb.sockCodes||eb.codes).filter(function(c){ return !_plainIs[c]; })).sort();
       tpl.rules.forEach(function(r){
         if (r.name==='1. Hide Trash Gear'){ r.equipmentItemCode = plainHide.slice(); }
         if (r.name==='Hide ETH Sockets'){ r.equipmentItemCode = hideCodes.slice(); }
@@ -4515,8 +4579,8 @@ try {
         tpl.rules.push({ name:'Hide Superior Gamble-Only Bases', enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:['hiQuality'], equipmentQuality:Q3.slice(), equipmentItemCode: eb.gambleOnlyCodes.slice() });
       }
       tpl.rules.push(
-        { name:'Hide Magic Wanted Bases',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: eb.codes.slice() },
-        { name:'Hide Magic Wanted Bases ETH', enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: eb.codes.slice() },
+        { name:'Hide Magic Wanted Bases',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: (eb.sockCodes||eb.codes).slice() },
+        { name:'Hide Magic Wanted Bases ETH', enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: (eb.sockCodes||eb.codes).slice() },   // magic can never host a runeword — socketed magic of a wanted base is still trash
         { name:'Hide Non-Rare Circlets',      enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:CIRC_R.slice(),  equipmentQuality:Q3.slice(), equipmentItemCode: CIRC.slice() },
         { name:'Hide Non-Rare Circlets ETH',  enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:CIRC_R.slice(),  equipmentQuality:Q3.slice(), equipmentItemCode: CIRC.slice() },
         { name:'Hide Magic Circlets Not Diadem',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:['magic'], equipmentQuality:Q3.slice(), equipmentItemCode: CIRC_MAGIC.slice() },
@@ -4526,7 +4590,19 @@ try {
     // v590 (Konyo) — CHRONICLE-NUMBERED NAME: the exported profile is "KonyoEndgame<N>" where N = runewords
     // forged (53/100 → KonyoEndgame53). Seeing the number in-game tells you at a glance whether the filter
     // you're running is in sync with your Chronicle — re-import when it lags.
-    tpl.name = 'KonyoEndgame' + window._chronicleMadeCount();
+    // v662 — PROGRESS-STAGED filter (Konyo: 'at first obviously give all socketed and all options…
+    // and gradually as we tally off and progress through the forge and chronicle percentage wise it
+    // automatically removes the useless ones'). Below 50% forged the player is LEVELING: a 2os Skull
+    // Cap IS his Lore — so EVERY eth/socketed hide rule is stripped (sockets = show, period; unmatched
+    // items default-show in the mod) while plain white/magic/rare trash hides stay. From 50% on, the
+    // full endgame doctrine returns: curated homes + socketed-trash hides — and the base-show rules
+    // keep shrinking with every forged word, exactly like Konyo's own filter always has. fresh:true
+    // (the cousin export from Konyo's device) forces the wide stage regardless of the local chronicle.
+    var _lfMadeN = (opts && opts.fresh) ? 0 : window._chronicleMadeCount();
+    var _lfTotal = 0; try { _lfTotal = Object.keys((typeof RUNEWORD_TIP!=='undefined')?RUNEWORD_TIP:(window.RUNEWORD_TIP||{})).length; } catch(e){}
+    var _lfWide = (opts && opts.fresh) || (_lfTotal > 0 && (_lfMadeN/_lfTotal) < 0.5);
+    if (_lfWide) tpl.rules = tpl.rules.filter(function(r){ return !(r.ruleType==='hide' && r.filterEtherealSocketed===true); });
+    tpl.name = (opts && opts.fresh) ? 'CousinFull' : ((window._isCousinShell ? 'Cousin' : 'KonyoEndgame') + window._chronicleMadeCount());   // v662/v663 — ASCII names; on the WINDOWS shell the number is the COUSIN's own progress
     return { text: JSON.stringify(tpl), baseCount: eb.codes.length, name: tpl.name };
   };
   // v590 — the one Chronicle-progress counter every filter surface shares (same math as the Forge meter).
@@ -4577,7 +4653,7 @@ try {
     var ok = function(txt){ if(st){ st.textContent='\u2713 copied '+(nm?nm+' ':'')+'('+txt.length+' chars) \u2014 paste into the Loot Filter'; st.className='lf-status lf-ok'; } };
     var no = function(){ if(st){ st.textContent='clipboard blocked \u2014 long-press/select is off; try again'; st.className='lf-status lf-no'; } };
     var txt;
-    try { var _bf = window.buildEndgameFilter(); txt = _bf.text; nm = _bf.name || ''; }
+    try { var _bf = window.buildEndgameFilter(which==='cousin' ? {fresh:true} : undefined); txt = _bf.text; nm = _bf.name || ''; }
     catch(e){ var el=document.getElementById('lf-data-endgame'); txt = el?el.textContent.trim():''; }
     if(!txt){ if(st) st.textContent='data missing'; return; }
     try {
@@ -13729,7 +13805,7 @@ try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
 var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh'); } catch(e){}   // v638 — the chronicle is SHARED across accounts (one grail): the owner's floor applies on both; only an explicit fresh-profile reset skips it
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
-if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = _rwFreshFlag ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }
+if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = (_rwFreshFlag || window._isCousinShell) ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }   // v663 — the cousin shell NEVER inherits the owner's seed
 // v424 — DURABLE 28-FLOOR. A one-time flag was too fragile (a cache hit / backup-restore left Konyo's
 // Chronicle stuck at the old 19). Instead the 28 created runewords are a permanent FLOOR re-applied on EVERY
 // load, EXCEPT ones the user has explicitly UN-marked (tracked in d2r_rwUnmade). So a reset/restore always
@@ -13764,6 +13840,7 @@ if (!_rwFreshFlag) (function(){ try {
     // a Chronicle⇄vault desync). A deliberate un-mark is user truth; a wipe/restore still refloors
     // because a wipe clears d2r_rwUnmade too.
     if (rwUnmade[k]) return;
+    if (window._isCousinShell) return;   // v663 — the owner's forged-fact floor never touches the cousin's chronicle
     if (!rwMade[k]){ rwMade[k] = _RWC_SEED[k]; _ch = true; }  // re-assert the forged date
   });
   if (_ch){ LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); }
@@ -13805,7 +13882,7 @@ try { window._rwLadderBlocked = function(rw){ try { if (window.D2R_PROFILE==='la
 // per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
 // three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
-if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder') ? {} : {"Mania":"fail","Hysteria":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
+if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder' || window._isCousinShell) ? {} : {"Mania":"fail","Hysteria":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
 // ladder mode: 'ladder' | 'nonladder' | 'unknown'. Konyo's evidence (ladder-only RWs failing) ⇒ default nonladder.
 let rwLadderMode = (function(){ if (window.D2R_PROFILE==='ladder') return 'ladder';   // v635 — the ladder ACCOUNT is implicitly ladder (all 9 words unlocked, no strip)
   var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
@@ -14490,7 +14567,7 @@ window.renderHighValueFinds = renderHighValueFinds;
   // MAIN profile only: d2r_owned is the PHYSICAL vault store and physical never crosses accounts
   // (v635/v638 doctrine) — the ladder account's grail stays its own until owned is ever un-forked.
   try {
-    if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder') {
+    if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder' && !window._isCousinShell) {   // v663 — the grail floor is the OWNER's
       var _gUn = _safeJsonParse(LS.getItem('d2r_grailUnfound'), {}) || {};
       var _gfl = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {};
       var _gch = false, _gflCh = false;
@@ -17865,6 +17942,7 @@ window.chronicleReset = async function(){
   try { window._rwChronicleChanged(); } catch(e){}   // v615 — the FULL fan-out (was 2 of 9 consumers → stale Forge/vault/insights after a bulk flip)
 };
 window.chronicleLoadSeed = async function(){
+  if (window._isCousinShell){ try { alert('This is the 🪟 WINDOWS (cousin) world — the pre-filled Chronicle belongs to the Mac owner. Switch to 🖥 MAC first.'); } catch(e){} return; }   // v663
   var _seedN = 0; try { _seedN = Object.keys(_RWC_SEED).length; } catch(e){}
   var msg = 'Load the pre-filled Chronicle (the owner\'s ' + _seedN + ' created runewords)?\n\nUse this on the OWNER\'s own device. It re-adds the seeded runewords as created.';
   var ok = (typeof uiConfirm === 'function') ? await uiConfirm(msg) : confirm(msg);
@@ -29940,7 +30018,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var sealed=Object.keys(byAll).map(function(k){return byAll[k];}).filter(function(g){ return g.total>=2 && g.found===g.total; })
       .sort(function(a,b){ return b.total-a.total; });
     var lowTotal=items.filter(function(x){ return (x.qlvl||99)<=35; }).length;
-    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal };
+    // v663 — GAME-TRUE DENOMINATOR (Konyo: 'calibrate and fix the percentages'). The in-game Chronicle
+    // counts 403 unique entries (uniqueitems.txt, spawnable, extracted from the live RotW CASC store
+    // 2026-07-12) — the site's 364 named cards are a subset (39 gap entries: internal-typo aliases,
+    // 8 Rainbow Facet rows, quest uniques, RotW customs). The headline % must use the GAME's math:
+    // found/403, or the site reads 63% while the game says 59%. The remaining drift is real missing
+    // data — his 56-shot scroll had gaps (~8 found rows never on screen) — NOT a counting bug.
+    return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403 };
   };
   var _fuF='all';
   window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni(); };
@@ -29999,6 +30083,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var box=document.getElementById('funi-body'); if(!box) return;
     var s=window.funiScan(); var F=_fuF; var H=[];
     H.push(_meter(s.found,s.total,''));
+    // v663 — the IN-GAME line: the mod chronicle counts 403 entries, the game's % is found/403.
+    // Keeping both numbers visible kills the '63% here, 59% in game' confusion at the source.
+    if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the rest are typo-aliases, 8 Rainbow Facet rows, quest uniques and RotW customs">🎮 in-game chronicle: <b>'+s.found+' / '+s.chronTotal+'</b> = <b>'+Math.round(s.found/s.chronTotal*100)+'%</b>'+(Math.round(s.found/s.chronTotal*100)<59?' <span style="opacity:.8">(game shows more? a few finds sit in your screenshot scroll-gaps — reshoot those sections and re-import)</span>':'')+'</div>');
     H.push(_undoBar('uni'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v560 — UNIFIED sub-tabs across BOTH grail forges (Konyo: same names, same logic, set or unique):
     // ▦ All missing · 🎯 Best runs · ⚡ Quick wins (low-level uniques / 1-piece sets) · ✅ Found
@@ -30359,6 +30446,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 .profile-pill .pp-btn{border:0;background:none;color:var(--text-dim,#9a8c72);font:600 11px/1 inherit;letter-spacing:.08em;padding:7px 12px;cursor:pointer}
 .profile-pill .pp-btn:hover{color:#ffe08a}
 body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgba(233,208,122,.18);color:#ffe08a}
+.machine-pill{top:14px;right:200px}   /* v663 — master pill sits left of the account pill */
+body:not(.cousin-shell) .pp-mac,body.cousin-shell .pp-win{background:rgba(140,200,255,.18);color:#bfe0ff}
+body.cousin-shell .pp-win{background:rgba(140,200,255,.3)}
+body.cousin-shell #profile-pill{display:none}   /* Main/Ladder is a MAC concept */
+body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
+#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
+@media (max-width:700px){.machine-pill{position:static;margin:6px auto;width:max-content}}
 body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 #ladder-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;   /* v635.2 — the site header is sticky z:100 and opaque; the account cue must never hide behind it */font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#1a1206;background:linear-gradient(90deg,#c99b3f,#ffe08a,#c99b3f);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
@@ -30505,6 +30599,10 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 // v635 — stamp the account cue class at boot (CSS above renders the golden ladder ribbon)
 try { if (window.D2R_PROFILE==='ladder'){ document.body.classList.add('ladder-profile');
   var _lr=document.createElement('div'); _lr.id='ladder-ribbon'; _lr.textContent='🪜 LADDER ACCOUNT — separate economy · your main account is untouched'; document.body.appendChild(_lr);
+} } catch(e){}
+// v663 — cousin shell cue: blue ribbon + body class (hides the Main/Ladder pill, tints the masthead)
+try { if (window.D2R_MACHINE==='windows'){ document.body.classList.add('cousin-shell');
+  var _wr=document.createElement('div'); _wr.id='cousin-ribbon'; _wr.textContent='🪟 WINDOWS — the cousin\'s own world · Konyo\'s Mac data is untouched'; document.body.appendChild(_wr);
 } } catch(e){}
 </script>
 </body>
