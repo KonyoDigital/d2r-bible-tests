@@ -17,12 +17,12 @@ test.beforeEach(async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
 });
 
-test('_smartProgress reads the Chronicle: total 100, made floor, remaining, and task buckets', async ({ page }) => {
+test('_smartProgress reads the Chronicle: total 99, made floor, remaining, and task buckets', async ({ page }) => {
   const p = await page.evaluate(() => (window as any)._smartProgress());
-  expect(p.total).toBe(100);
+  expect(p.total).toBe(99);   // v658 recalibration — the catalog is 99 since the v651 Hustle purge
   expect(p.made).toBeGreaterThan(0);
   expect(p.remaining).toBe(p.total - p.made);
-  expect(p.made + p.remaining).toBe(100);
+  expect(p.made + p.remaining).toBe(99);
   expect(typeof p.makeNow).toBe('number');
   expect(typeof p.blockedByBase).toBe('number');
 });

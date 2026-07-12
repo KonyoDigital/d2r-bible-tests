@@ -39,11 +39,11 @@ test('forgeForged creates the runeword + resets the chain step (final "Forge" ti
     const w: any = window;
     return {
       hasFn: typeof w.forgeForged,
-      // exercise it: mark a non-seeded word made via the chain-complete path (Silence — Insight joined the v578 seed)
+      // exercise it: mark a non-seeded word made via the chain-complete path (Wrath — Silence joined the v658 seed; forgeForged on an already-made word would TOGGLE it off)
       run: (() => {
         localStorage.setItem('d2r_forgeStep', JSON.stringify({ 'chain|TestBase': 2 }));
-        w.forgeForged('chain|TestBase', 'Silence');
-        const made = !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Silence'];
+        w.forgeForged('chain|TestBase', 'Wrath');
+        const made = !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Wrath'];
         const step = JSON.parse(localStorage.getItem('d2r_forgeStep') || '{}')['chain|TestBase'] || 0;
         return { made, step };
       })(),

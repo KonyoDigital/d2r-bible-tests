@@ -30,21 +30,21 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
       made: Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}')).length,
       runes: Object.keys(JSON.parse(w.LSR.getItem('d2r_runeStash') || '{}')).length,
     };
-    // live a whole ladder life: own a 3os helm, tally Radiance's runes, forge it
-    // (v655 — journey word must stay unseeded: Radiance)
-    w.LSR.setItem('d2r_owned', JSON.stringify(['Great Helm (3os)']));
-    w.LSR.setItem('d2r_runeStash', JSON.stringify({ Nef: 1, Sol: 1, Ith: 1 }));
+    // live a whole ladder life: own a 3os armor, tally Wealth's runes, forge it
+    // (v658 — Radiance joined the seed; the journey word must stay unseeded: Wealth, Lem+Ko+Tir in a 3os armor)
+    w.LSR.setItem('d2r_owned', JSON.stringify(['Mage Plate (3os)']));
+    w.LSR.setItem('d2r_runeStash', JSON.stringify({ Lem: 1, Ko: 1, Tir: 1 }));
     return cleanStart;
   });
   await page.reload(); await page.waitForTimeout(1800);
   const ladderLife = await page.evaluate(() => {
     const w: any = window;
     const sc = w.forgeScan();
-    const mania = [].concat(sc.now || [], sc.pipeline || [], sc.onestep || []).find((t: any) => t.rw === 'Radiance');
+    const mania = [].concat(sc.now || [], sc.pipeline || [], sc.onestep || []).find((t: any) => t.rw === 'Wealth');
     const laddered = (sc.ladder || []).length;                       // ladder profile: NO locked strip
-    w.rwToggleMade('Radiance', mania && mania.base && mania.base.name); // ✓ created — the REAL engine
+    w.rwToggleMade('Wealth', mania && mania.base && mania.base.name); // ✓ created — the REAL engine
     const made = Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}'));
-    return { maniaKind: mania && mania.kind, maniaBase: mania && mania.base && mania.base.base, laddered, madeN: made.length, hasMania: made.includes('Radiance') };
+    return { maniaKind: mania && mania.kind, maniaBase: mania && mania.base && mania.base.base, laddered, madeN: made.length, hasMania: made.includes('Wealth') };
   });
   // descend to main — byte-identical
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'main'); });
@@ -55,11 +55,11 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
   await page.reload(); await page.waitForTimeout(1800);
   const ladderPersist = await page.evaluate(() => {
     const w: any = window;
-    // creating Radiance CONSUMED the Great Helm (the real engine ran) — assert the consume trail
+    // creating Wealth CONSUMED the Mage Plate (the real engine ran) — assert the consume trail
     const used = JSON.parse(w.LSR.getItem('d2r_rwBaseUsed') || '{}');
     const made = Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}'));
-    return { madeN: made.length, hasMania: made.includes('Radiance'), owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
-             consumed: used['Radiance'] && used['Radiance'].l };
+    return { madeN: made.length, hasMania: made.includes('Wealth'), owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
+             consumed: used['Wealth'] && used['Wealth'].l };
   });
   // cleanup: back to main, wipe ladder keys + test main keys
   await page.evaluate(() => {
@@ -67,21 +67,21 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash');
   });
   expect(ladder.owned).toBe(0);           // fresh account: no bases bleed in
-  expect(ladder.made).toBe(83);           // v655 — 83 seeded of the 99 catalog, one shared grail ledger
+  expect(ladder.made).toBe(87);           // v658 — 87 seeded of the 99 catalog, one shared grail ledger
   expect(ladder.runes).toBe(0);           // no rune tallies bleed in (physical stash stays separate)
   expect(ladderLife.laddered).toBe(0);    // ladder profile: the 9 are UNLOCKED (no strip)
   expect(ladderLife.maniaKind).toBe('now');
-  expect(ladderLife.maniaBase).toBe('Great Helm');
-  expect(ladderLife.madeN).toBe(84);           // 83 boot + Radiance forged here
+  expect(ladderLife.maniaBase).toBe('Mage Plate');
+  expect(ladderLife.madeN).toBe(88);           // 87 boot + Wealth forged here
   expect(ladderLife.hasMania).toBe(true);
   expect(mainAfter).toBe(mainBefore);     // ★ NOTHING BLEEDS — byte-identical main
-  expect(ladderPersist.madeN).toBe(84);                       // 83 boot + Radiance forged in the journey
+  expect(ladderPersist.madeN).toBe(88);                       // 87 boot + Wealth forged in the journey
   expect(ladderPersist.hasMania).toBe(true);
-  expect(ladderPersist.owned).not.toContain('Great Helm (3os)');   // the forge CONSUMED it — full engine, ladder-side
-  expect(ladderPersist.consumed).toBe('Great Helm (3os)');         // and the consume trail says so
+  expect(ladderPersist.owned).not.toContain('Mage Plate (3os)');   // the forge CONSUMED it — full engine, ladder-side
+  expect(ladderPersist.consumed).toBe('Mage Plate (3os)');         // and the consume trail says so
 });
 
-test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 83', async ({ page }) => {
+test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 87', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -93,7 +93,7 @@ test('main profile is untouched-by-default: no L· keys exist until ladder is ev
     };
   });
   expect(r.profile).toBe('main');
-  expect(r.made).toBe(83);
+  expect(r.made).toBe(87);
   expect(r.lKeys).toBe(0);
   expect(r.routerSame).toBe(true);
 });

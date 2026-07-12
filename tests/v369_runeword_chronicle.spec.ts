@@ -8,13 +8,13 @@ import { test, expect } from '@playwright/test';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('Chronicle seeds 83 created, catalog is 99, lists all 100, syncs makeable, toggles persist', async ({ page }) => {
+test('Chronicle seeds 87 created, catalog is 99, lists all 99, syncs makeable, toggles persist', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
-    // enough runes to make Radiance (Nef+Sol+Ith) now — an UN-seeded word for the "Can make now"
-    // check (Leaf joined the seed in v581; King's Grace in v615 — pick from the truly-open tail).
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Nef: 1, Sol: 1, Ith: 1, Ort: 2, Tal: 1, Thul: 1, Amn: 1, Tir: 1, Ral: 1 }));
+    // enough runes to make Wealth (Lem+Ko+Tir) now — an UN-seeded word for the "Can make now"
+    // check (Leaf v581; King's Grace v615; Radiance v658 — pick from the truly-open tail).
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ Lem: 1, Ko: 1, Tir: 1, Ort: 2, Tal: 1, Thul: 1, Amn: 1, Ral: 1 }));
   });
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1400);
@@ -35,31 +35,31 @@ test('Chronicle seeds 83 created, catalog is 99, lists all 100, syncs makeable, 
       madeCount: Object.keys(made).length,
       rowCount: rows.length,
       prog: (document.getElementById('rwc-progress') || {}).textContent || '',
-      spirit: find('Spirit'), zephyr: find('Zephyr'), leaf: find('Radiance'),
+      spirit: find('Spirit'), zephyr: find('Zephyr'), leaf: find('Wealth'),
       beast: find('Beast'), death: find('Death'), faith: find('Faith'),
     };
   });
 
   expect(errs).toEqual([]);
   // seeded the 42-runeword durable floor (Konyo's actual created list, + Zephyr + Memory + Rift + Void as of v456-v463)
-  expect(r.madeCount).toBe(83);   // v655: +Metamorphosis — ALL 9 ladder words complete
+  expect(r.madeCount).toBe(87);   // v658: +Silence +Exile +Radiance +Ritual (2026-07-12)
   ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom', 'Plague', 'Treachery', 'Zephyr', 'Memory', 'Rift', 'Void', 'Fury', 'Gloom'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
-  expect(r.rowCount).toBe(100);                 // all 100 runewords listed
-  expect(r.prog).toContain('83 / 99');          // v655
+  expect(r.rowCount).toBe(99);                  // all 99 runewords listed (v658 recalibration — 99 since the v651 Hustle purge)
+  expect(r.prog).toContain('87 / 99');          // v658
   expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
   expect(r.zephyr?.made).toBe(true);            // v456 — Zephyr is now a seeded floor RW → reads Created
-  expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Nef+Sol+Ith) from the rune stash
+  expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Lem+Ko+Tir) from the rune stash
   expect(r.beast?.made).toBe(true);             // a seeded one reads Created
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
   expect(r.faith?.badge).toContain('Missing');  // Ohm+Jah+Lem+Eld not owned, not seeded
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 83 → 84
+  // toggling an UN-seeded runeword to created persists and bumps the count 87 → 88
   const after = await page.evaluate(() => {
     (window as any).rwToggleMade('Faith');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return { faith: !!made['Faith'], count: Object.keys(made).length };
   });
   expect(after.faith).toBe(true);
-  expect(after.count).toBe(84);
+  expect(after.count).toBe(88);
 });
