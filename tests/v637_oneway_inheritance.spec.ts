@@ -50,7 +50,7 @@ test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts 
   }));
   await cleanup(page);
   expect(onLadder.seesMainForge).toBe(true);                        // main → ladder: counts
-  expect(onLadder.n).toBe(89);                                      // 88 + Lionheart, shared
+  expect(onLadder.n).toBe(90);                                      // 89 + Lionheart, shared
   expect(onMain.seesLadderForge).toBe(true);                        // ladder → main: counts too
   expect(onMain.mainVault).toContain('Flail (5os)');             // physical NEVER crosses (v659 — the grail found-seed also floors main's owned, so exact-equality is out)
   expect(onMain.ladderVaultStillParked).not.toContain('Flail (5os)');   // ladder's vault namespace never gained main's item
@@ -70,5 +70,5 @@ test('v637-era orphaned L· chronicle reconciles once into the shared ledger (un
   await cleanup(page);
   expect(r.merged).toBe(true);
   expect(r.orphanGone).toBe(true);
-  expect(r.count).toBe(89);   // 88 boot + the reconciled Peace
+  expect(r.count).toBe(90);   // 89 boot + the reconciled Peace
 });

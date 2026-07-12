@@ -70,21 +70,21 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash');
   });
   expect(ladder.owned).toBe(0);           // fresh account: no bases bleed in
-  expect(ladder.made).toBe(88);           // v660 — 88 seeded of the 99 catalog, one shared grail ledger
+  expect(ladder.made).toBe(89);           // v668 — 89 seeded of the 99 catalog, one shared grail ledger
   expect(ladder.runes).toBe(0);           // no rune tallies bleed in (physical stash stays separate)
   expect(ladderLife.laddered).toBe(0);    // ladder profile: the 9 are UNLOCKED (no strip)
   expect(ladderLife.maniaKind).toBe('now');
   expect(ladderLife.maniaBase).toBe('Mage Plate');
-  expect(ladderLife.madeN).toBe(89);           // 88 boot + Wealth forged here
+  expect(ladderLife.madeN).toBe(90);           // 89 boot + Wealth forged here
   expect(ladderLife.hasMania).toBe(true);
   expect(mainAfter).toBe(mainBefore);     // ★ NOTHING BLEEDS — byte-identical main
-  expect(ladderPersist.madeN).toBe(89);                       // 88 boot + Wealth forged in the journey
+  expect(ladderPersist.madeN).toBe(90);                       // 89 boot + Wealth forged in the journey
   expect(ladderPersist.hasMania).toBe(true);
   expect(ladderPersist.owned).not.toContain('Mage Plate (3os)');   // the forge CONSUMED it — full engine, ladder-side
   expect(ladderPersist.consumed).toBe('Mage Plate (3os)');         // and the consume trail says so
 });
 
-test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 88', async ({ page }) => {
+test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 89', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -96,7 +96,7 @@ test('main profile is untouched-by-default: no L· keys exist until ladder is ev
     };
   });
   expect(r.profile).toBe('main');
-  expect(r.made).toBe(88);
+  expect(r.made).toBe(89);
   expect(r.lKeys).toBe(0);
   expect(r.routerSame).toBe(true);
 });

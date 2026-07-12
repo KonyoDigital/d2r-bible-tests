@@ -20,7 +20,7 @@ async function liveState(page: any) {
     // exactly the seed minus the 9 mod-ladder words minus tonight's 5 forges = his 74 that day.
     localStorage.setItem('d2r_rwProfile', 'fresh');
     const SEED = (window as any)._RWC_SEED || {};
-    const POST = ['Cure','Ground','Hearth','Hysteria','Mania','Temper','Eternity','Metamorphosis','Bulwark','Silence','Exile','Radiance','Ritual','Rain'];
+    const POST = ['Cure','Ground','Hearth','Hysteria','Mania','Temper','Eternity','Metamorphosis','Bulwark','Silence','Exile','Radiance','Ritual','Rain','Vigilance'];   // v668 — keeps the pinned Jul-9 snapshot at exactly 74
     const made: any = {}; Object.keys(SEED).forEach((n) => { if (POST.indexOf(n) < 0) made[n] = SEED[n]; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
   }, { owned: LIVE_OWNED, runes: LIVE_RUNES });

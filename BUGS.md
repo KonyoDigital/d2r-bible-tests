@@ -494,3 +494,10 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   bumped in lockstep with any feature that adds to that container (v81 ↔ facets, same
   lesson as v109 ↔ binds in the BUG-above). (3) Sanity-check host load before trusting
   a slow/failing local run.
+
+## REG-016 — socketed grimoires/voodoo heads were planner-invisible (Vigilance '✓ got the base' didn't ascend)
+- **Symptom:** clicking '✓ got the base' on Vigilance registered "Blasphemous Grimoire (2os)" into owned but the word stayed a 🟡 one-step (base: null) instead of ascending to ⚒ Make now. Same for every AI-intake read of a socketed grimoire/head since the classes were added.
+- **Caught by:** Konyo live (2026-07-13), reproduced headlessly same night.
+- **Root cause:** `_ensureSocketBaseEntry`'s slot resolver only mapped body armor/shield/helm/weapon cats; RotW's 'grimoire' and 'voodoo head' cats fell through to `slot=null` → silent return → no EXTRA_ITEMS entry → `_ownedBases()` (cat==='Socketed bases') never saw them.
+- **Fix:** v668 — grimoire + voodoo head map to the Shield slot.
+- **Prevention:** REG-016 spec in tests/v660_got_base_ascend.spec.ts (registers both classes + full ascension e2e); doctrine: any NEW base cat added to _baseCats must be wired into the slot resolver or it is planner-invisible.

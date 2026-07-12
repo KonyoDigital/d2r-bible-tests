@@ -43,3 +43,31 @@ test('one-step base card shows ✓ got the base; clicking registers the base and
   expect(r.ownedHasLabel).toBe(true);                  // registered exactly like an intake read
   expect(r.nowBase).toBe(r.base + ' (' + r.need + 'os)');
 });
+
+test('REG-016 — grimoire/voodoo-head offhands register and ascend too (they had NO slot mapping)', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); });
+  await page.goto(URL); await page.waitForTimeout(1800);
+  await page.evaluate(() => {
+    const w: any = window;
+    const made: any = {}; Object.keys(w.RUNEWORD_TIP).forEach((n: string) => { if (n !== 'Vigilance') made[n] = 'x'; });
+    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    localStorage.setItem('d2r_runeStash', JSON.stringify({ El: 9, Eld: 9, Tir: 9, Nef: 9, Eth: 9, Ith: 9, Tal: 9, Ral: 9, Ort: 9, Thul: 9, Amn: 9, Sol: 9, Shael: 9, Dol: 9, Hel: 9, Io: 9, Lum: 9, Ko: 9, Fal: 9, Lem: 9, Pul: 9, Um: 9, Mal: 9, Ist: 9, Gul: 9, Vex: 9, Ohm: 9, Lo: 9, Sur: 9, Ber: 9, Jah: 9, Cham: 9, Zod: 9 }));
+  });
+  await page.reload(); await page.waitForTimeout(1800);
+  const r = await page.evaluate(() => {
+    const w: any = window;
+    w._ensureSocketBaseEntry('Blasphemous Grimoire (2os)');
+    w._ensureSocketBaseEntry('Bloodlord Skull (2os)');
+    const grim = !!(w.EXTRA_ITEMS && w.EXTRA_ITEMS['Blasphemous Grimoire (2os)']);
+    const head = !!(w.EXTRA_ITEMS && w.EXTRA_ITEMS['Bloodlord Skull (2os)']);
+    const t = (w.forgeScan().onestep || []).find((x: any) => x.rw === 'Vigilance' && x.sub === 'base');
+    const osBase = t ? String(t.bestStr || '').split(/\s*\/\s*/)[0].trim() : '';
+    if (t) w.forgeGotBase(null, 'Vigilance', osBase, 2);
+    const now = (w.forgeScan().now || []).find((x: any) => x.rw === 'Vigilance' && !x.deferred);
+    return { grim, head, task: !!t, ascended: !!now };
+  });
+  expect(r.grim).toBe(true);        // the grimoire class registers (was silently refused — no slot)
+  expect(r.head).toBe(true);        // voodoo heads too
+  expect(r.task).toBe(true);
+  expect(r.ascended).toBe(true);    // ✓ got the base → ⚒ Make now, the v660 contract, offhands included
+});
