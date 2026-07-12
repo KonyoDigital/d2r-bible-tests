@@ -11,7 +11,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 //     single-piece round-trip restores. Rendered meter matches the scan.
 
 test('A — F·Uniques: perfect partition of all missing uniques into runs; all-found empties the forge', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v659 — the grail found-seed floors 229; these sims need a genuinely empty grail
+  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); localStorage.setItem('d2r_foundLog', '{}'); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v659 — the grail found-seed floors 229; these sims need a genuinely empty grail
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -23,7 +23,7 @@ test('A — F·Uniques: perfect partition of all missing uniques into runs; all-
     const dupes = runItems.length - new Set(runItems).size;
     const strayInRuns = runItems.filter((n) => !missingNames.has(n));
     // mark EVERYTHING found → the forge must empty
-    localStorage.setItem('d2r_owned', JSON.stringify(s0.missing.map((x: any) => x.n)));
+    const _fl: any = {}; s0.missing.forEach((x: any) => (_fl[x.n] = 'sim')); localStorage.setItem('d2r_foundLog', JSON.stringify(_fl)); (window as any)._gFoundDirty && (window as any)._gFoundDirty();   // v677 — found = the LEDGER
     const s1 = w.funiScan();
     return { total: s0.total, found0: s0.found, missing0: s0.missing.length,
       notInAnyRun, dupes, strayInRuns,
@@ -42,14 +42,14 @@ test('A — F·Uniques: perfect partition of all missing uniques into runs; all-
 });
 
 test('B — F·Uniques round-trip: Calculator toggleOwned moves the forge both ways; rendered meter matches', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v659 — the grail found-seed floors 229; these sims need a genuinely empty grail
+  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); localStorage.setItem('d2r_foundLog', '{}'); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v659 — the grail found-seed floors 229; these sims need a genuinely empty grail
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
     const name = w.funiScan().missing[0].n;
     w.toggleOwned(name);                        // the SAME fn the Calculator ✓ fires
     const after = w.funiScan();
-    const stored = JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes(name);
+    const stored = !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[name];   // v677
     w.switchTab('funi');                        // render hook fires on tab open
     const meterTxt = (document.getElementById('funi-body') || { textContent: '' }).textContent!;
     const meterOk = meterTxt.includes(String(after.found)) && meterTxt.includes(String(after.total));
@@ -59,7 +59,7 @@ test('B — F·Uniques round-trip: Calculator toggleOwned moves the forge both w
       backMissing: restored.missing.some((x: any) => x.n === name), foundRestored: restored.found };
   });
   expect(r.foundAfter).toBe(1);
-  expect(r.stored).toBe(true);                 // same d2r_owned store as the Calculator/vault
+  expect(r.stored).toBe(true);                 // same LEDGER as the Calculator (v677 — the vault stays physical)
   expect(r.meterOk).toBe(true);                // the RENDERED meter shows the live counts
   expect(r.backMissing).toBe(true);
   expect(r.foundRestored).toBe(0);

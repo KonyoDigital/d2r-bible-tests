@@ -51,7 +51,7 @@ test.describe('v65 grail tier breakdown + backup/restore', () => {
       const ta = document.getElementById('backup-textarea') as HTMLTextAreaElement;
       let parsed: any = null, ok = false;
       try { parsed = JSON.parse(ta.value); ok = true; } catch (e) {}
-      const ownedInSnap = ok ? JSON.parse(parsed.data['d2r_owned'] || '[]') : [];
+      const ownedInSnap = ok ? Object.keys(JSON.parse(parsed.data['d2r_foundLog'] || '{}')) : [];   // v677 — grail lives in the ledger
       (window as any).toggleOwned(it.n);   // revert
       return {
         ok,
@@ -74,14 +74,14 @@ test.describe('v65 grail tier breakdown + backup/restore', () => {
     const target = await page.evaluate(() =>
       (ITEMS as any[]).find((i) => (i.tier === 'grail' || i.tier === 'uber') && !owned.has(i.n)).n);
     await page.evaluate((name) => {
-      const snap = JSON.stringify({ app: 'd2r-bible', kind: 'grail-progress', version: 1, data: { d2r_owned: JSON.stringify([name]) } });
+      const snap = JSON.stringify({ app: 'd2r-bible', kind: 'grail-progress', version: 1, data: { d2r_foundLog: JSON.stringify({ [name]: 'restored' }) } });   // v677
       const ta = document.getElementById('backup-textarea') as HTMLTextAreaElement;
       ta.value = snap;
       (window as any).importProgress();
     }, target);
     await page.waitForTimeout(1400);                  // restore reloads at +600ms
     const owns = await page.evaluate((name) =>
-      JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes(name), target);
+      !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[name], target);   // v677
     expect(owns).toBe(true);                           // a real grail item -> survives the boot sanitizer
   });
 

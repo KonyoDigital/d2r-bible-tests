@@ -6682,6 +6682,9 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
+/* v676 — off-meta ready-base warning + the BIS line */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-offmeta{color:#e9b96e;font-weight:800;font-size:11.5px;letter-spacing:.03em}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-bisline{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:6px;font-weight:800;color:#ffe08a}
 /* v675 — the IDEAL base chip on one-step cards yells like a Make-now pick */
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-ideal{border-color:rgba(255,215,106,.75);background:linear-gradient(135deg,rgba(255,215,106,.16),rgba(201,155,63,.10));box-shadow:0 0 12px rgba(255,215,106,.28);font-weight:800;font-size:13px;color:#ffe08a!important}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-ideal:hover{box-shadow:0 0 16px rgba(255,215,106,.45)}
@@ -13842,6 +13845,21 @@ let copies = _safeJsonParse(LS.getItem('d2r_copies'), {});
 let multiKeep = _safeJsonParse(LS.getItem('d2r_multiKeep'), null) || Object.assign({}, MULTI_KEEP_DEFAULT);
 function multiTarget(n){ return (multiKeep && multiKeep[n] > 1) ? multiKeep[n] : 1; }
 function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
+// v677 (Konyo: 'items from chronicle I pick up I don't save — mostly thrown out; this shouldn't
+// auto-sync them and tally them HERE [the vault]') — the FOUND ledger and the VAULT are now two
+// stores: grail found = d2r_foundLog (dated chronicle truth) ∪ legacy owned entries; the vault
+// (owned) holds only PHYSICAL items (socketed bases, muled keepers). Every grail-semantic read
+// goes through _gFound; the seed floors foundLog only.
+var _gfCache=null;
+function _gFoundDirty(){ _gfCache=null; }
+function _gFound(n){
+  try {
+    if (owned.has(n)) return true;
+    if (!_gfCache) _gfCache = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {};
+    return _gfCache[n] != null;
+  } catch(e){ return owned.has(n); }
+}
+try { window._gFound=_gFound; window._gFoundDirty=_gFoundDirty; } catch(e){}
 let statues = new Set(_safeJsonParse(LS.getItem('d2r_statues'), []));
 let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
 let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
@@ -14644,11 +14662,20 @@ window.renderHighValueFinds = renderHighValueFinds;
       var _gUn = _safeJsonParse(LS.getItem('d2r_grailUnfound'), {}) || {};
       var _gfl = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {};
       var _gch = false, _gflCh = false;
+      // v677 — the floor writes the LEDGER only: chronicle finds never enter the vault.
       Object.keys(_GRAIL_SEED).forEach(function(n){
         if (_gUn[n]) return;
-        if (!owned.has(n)) { owned.add(n); _gch = true; }
         if (!_gfl[n]) { _gfl[n] = _GRAIL_SEED[n]; _gflCh = true; }
       });
+      // one-time vault cleanse: the v659-v676 floors put ledger names INTO owned (231-item unsorted
+      // dock). Strip every seed/extra name that was never mule-assigned — genuinely KEPT uniques
+      // (assigned to a mule) stay physical.
+      try {
+        var _ma = _safeJsonParse(LS.getItem('d2r_muleAssign'), {}) || {};
+        Object.keys(_GRAIL_SEED).concat(Object.keys(typeof _UNI_EXTRA!=='undefined'?_UNI_EXTRA:{})).forEach(function(n){
+          if (owned.has(n) && !_ma[n]) { owned.delete(n); _gch = true; if (!_gfl[n]) { _gfl[n] = _GRAIL_SEED[n] || (window._grailStamp?window._grailStamp():''); _gflCh = true; } }
+        });
+      } catch(e){}
       if (_gch) LS.setItem('d2r_owned', JSON.stringify([...owned]));
       if (_gflCh) LS.setItem('d2r_foundLog', JSON.stringify(_gfl));
     }
@@ -14728,7 +14755,7 @@ function sparkline(chance, kph, hoursMax) {
 function renderGrailProgress() {
   const allGrails = ITEMS.filter(i => i.tier === "grail" || i.tier === "uber");
   const total = allGrails.length;
-  const have = allGrails.filter(i => owned.has(i.n)).length;
+  const have = allGrails.filter(i => _gFound(i.n)).length;
   const pct = total ? have / total : 0;
   const pctNum = Math.round(pct * 100);
   const circleC = 2 * Math.PI * 26;
@@ -14756,7 +14783,7 @@ function renderGrailTierBreakdown(allGrails){
   ].filter(r => r.pool.length > 0);
   el.innerHTML = rows.map(r => {
     const total = r.pool.length;
-    const have = r.pool.filter(i => owned.has(i.n)).length;
+    const have = r.pool.filter(i => _gFound(i.n)).length;
     const p = total ? Math.round(have / total * 100) : 0;
     return `<div class="gp-tier"><div class="gp-tier-head"><span class="gp-tier-lab">${r.lab}</span><span class="gp-tier-num">${have} / ${total}</span></div><div class="gp-tier-bar"><div class="gp-tier-fill ${r.cls}" style="width:${p}%"></div></div></div>`;
   }).join("");
@@ -15005,7 +15032,7 @@ function renderWishlistHuntPath() {
     const suggestions = [];
     ITEMS.forEach(item => {
       if (item.tier !== 'grail' && item.tier !== 'uber') return;
-      if (owned.has(item.n)) return;
+      if (_gFound(item.n)) return;
       let best = null;
       (item.sources || []).forEach(s => {
         if (!s.chance || s.chance < 100) return;
@@ -15056,7 +15083,7 @@ function renderWishlistHuntPath() {
         best = {boss:s.boss, bossId:s.bossId, chance:adj, kph:s.kph||100, hours:hrs, r50, verified:s.verified};
       }
     });
-    huntItems.push({name, tier:item.tier, owned:owned.has(name), best});
+    huntItems.push({name, tier:item.tier, owned:_gFound(name), best});
   });
 
   // Sort: not-owned first (sorted by hours), then owned at bottom
@@ -15173,7 +15200,7 @@ function renderItemDetailCard(itemName) {
   if (!item) { panel.innerHTML = '<div class="gic-card">item not found</div>'; return; }
 
   const esc = itemName.replace(/'/g, "\\'");
-  const isOwned = owned.has(itemName);
+  const isOwned = _gFound(itemName);
   const isStarred = wishlist.has(itemName);
   const vaultLoc = (typeof window._vaultBadge === 'function') ? window._vaultBadge(itemName) : '';
   const tierBadge = item.tier === 'uber' ? '<span class="gic-uber-badge">⚡ UBER</span>' : item.tier === 'grail' ? '<span class="gic-grail-badge">★ GRAIL</span>' : '';
@@ -15414,7 +15441,7 @@ function renderHeroV31() {
     const itemBossHrs = {}; // {itemName: {bossId: hours, ...}}
     ITEMS.forEach(item => {
       if (item.tier !== 'grail' && item.tier !== 'uber') return;
-      if (owned.has(item.n)) return;
+      if (_gFound(item.n)) return;
       itemBossHrs[item.n] = {};
       (item.sources || []).forEach(s => {
         if (!s.chance || s.chance < 100) return;
@@ -15432,7 +15459,7 @@ function renderHeroV31() {
     const entries = [];
     ITEMS.forEach(item => {
       if (item.tier !== 'grail' && item.tier !== 'uber') return;
-      if (owned.has(item.n)) return;
+      if (_gFound(item.n)) return;
       const bossHrs = itemBossHrs[item.n] || {};
       const thisBossHrs = bossHrs[bossActive];
       if (thisBossHrs === undefined) return; // not reachable from this boss
@@ -15531,7 +15558,7 @@ function renderHeroV31() {
   const entries = [];
   ITEMS.forEach(item => {
     if (item.tier !== 'grail' && item.tier !== 'uber') return;
-    if (owned.has(item.n)) return;
+    if (_gFound(item.n)) return;
     const bestPerBoss = {};
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance < 100) return;
@@ -15687,7 +15714,7 @@ function renderBossDetailCard(bossId, focusDiff) {
   const picks = [];
   boss.dropTable.forEach(d => {
     if (d.tier !== 'grail' && d.tier !== 'uber') return;
-    if (owned.has(d.n)) return;
+    if (_gFound(d.n)) return;
     const diffKeys = ['hellTz','hell','nmTz','nm','normTz','norm'];
     let best = null;
     diffKeys.forEach(k => {
@@ -16152,7 +16179,7 @@ function _bossFilteredDrops(boss){
   if (filter === "grail") dropTable = dropTable.filter(function(d){ return d.tier === "grail" || d.tier === "uber"; });
   if (filter === "achievable") dropTable = dropTable.filter(function(d){ return ["norm","normTz","nm","nmTz","hell","hellTz"].some(function(k){ return d[k] !== null; }); });
   if (filter === "starred") dropTable = dropTable.filter(function(d){ return wishlist.has(d.n); });
-  if (filter === "hideowned") dropTable = dropTable.filter(function(d){ return !owned.has(d.n); });
+  if (filter === "hideowned") dropTable = dropTable.filter(function(d){ return !_gFound(d.n); });
   var sortKey = bossSorts[boss.id];
   if (sortKey) {
     var sp = sortKey.split(":"), col = sp[0], dir = sp[1];
@@ -16195,7 +16222,7 @@ function _bossDropRowsHtml(bossId){
     }).join("");
     const itemNameClass = "q-" + ((typeof _artRarity === 'function' && _artRarity(d.n)) || itemQuality(d));
     const starred = wishlist.has(d.n);
-    const isOwned = owned.has(d.n);
+    const isOwned = _gFound(d.n);
     const wishCls = starred ? 'wishlist-row' : '';
     const ownedCls = isOwned ? 'owned-row' : '';
     const escName = d.n.replace(/'/g,"\\'");
@@ -16250,7 +16277,7 @@ function renderBossCards() {
     let quickTake = '';
     let bestRow = null, bestChance = Infinity, bestDiffKey = null;
     boss.dropTable.forEach(d => {
-      if ((d.tier !== "grail" && d.tier !== "uber") || owned.has(d.n)) return;
+      if ((d.tier !== "grail" && d.tier !== "uber") || _gFound(d.n)) return;
       ["hellTz","hell","nmTz","nm","normTz","norm"].forEach(k => {
         if (d[k]) {
           const adj = effChance(d[k], boss.id, k);
@@ -16404,18 +16431,26 @@ function toggleStar(name) {
   renderGrailProgress();
 }
 function toggleOwned(name) {
-  const wasOwned = owned.has(name);
-  if (wasOwned) owned.delete(name);
-  else owned.add(name);
-  persist();
-  // v644 — THE GRAIL LEDGER: every grail find gets a DATED entry (the found-chronicle, mirroring
-  // rwMade's dates); un-marking erases it. Lives in the same store family as d2r_owned.
-  try {
-    const gi = ITEMS.find(i => i.n === name) || ((window._UNI_EXTRA && window._UNI_EXTRA[name]) ? { n: name } : null);   // v659 — chronicle-extra uniques get dated too
-    if (gi){ const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
-      if (wasOwned) delete fl[name]; else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
-      window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); }
-  } catch(e){}
+  // v677 — grail items live in the FOUND LEDGER (d2r_foundLog), never the vault: a chronicle tick
+  // is knowledge, not possession (Konyo throws most finds away). Non-grail labels (socketed bases,
+  // tagged keepers) keep the classic owned-set toggle — they ARE physical.
+  const _gi = ITEMS.find(i => i.n === name) || ((window._UNI_EXTRA && window._UNI_EXTRA[name]) ? { n: name } : null);
+  let wasOwned;
+  if (_gi){
+    wasOwned = _gFound(name);
+    try {
+      const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
+      if (wasOwned){ delete fl[name]; if (owned.has(name)){ owned.delete(name); persist(); } }   // un-tick also clears any legacy vault entry
+      else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+      window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
+      _gFoundDirty();
+    } catch(e){}
+  } else {
+    wasOwned = owned.has(name);
+    if (wasOwned) owned.delete(name);
+    else owned.add(name);
+    persist();
+  }
   // v659 — seeded grail names: an explicit un-tick is USER TRUTH — record it so the boot floor
   // respects it (mirrors d2r_rwUnmade for the runeword seed); re-ticking clears the record.
   try { if (window._GRAIL_SEED && window._GRAIL_SEED[name]) { var _gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (wasOwned) _gu[name] = 1; else delete _gu[name]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_gu)); } } catch(e){}
@@ -16521,8 +16556,8 @@ function renderCalc() {
     if (currentFilter === "grail" && it.tier !== "grail") return false;
     if (currentFilter === "uber" && it.tier !== "uber") return false;
     if (currentFilter === "starred" && !wishlist.has(it.n)) return false;
-    if (currentFilter === "owned" && !owned.has(it.n)) return false;
-    if (currentFilter === "missing" && (owned.has(it.n) || (it.tier !== "grail" && it.tier !== "uber"))) return false;
+    if (currentFilter === "owned" && !_gFound(it.n)) return false;
+    if (currentFilter === "missing" && (_gFound(it.n) || (it.tier !== "grail" && it.tier !== "uber"))) return false;
     if (currentFilter === "special" && it.tier !== "special") return false;
     if (currentFilter === "tc87" && it.tc !== 87) return false;
     if (currentFilter === "tc85" && it.tc !== 84 && it.tc !== 85) return false;
@@ -16533,7 +16568,7 @@ function renderCalc() {
   });
   $("search-counter").textContent = `showing ${filtered.length} of ${ITEMS.length} items${searchQ?` matching "${searchQ}"`:''}${currentFilter!=='all'?` · filter: ${currentFilter}`:''}`;
   grid.innerHTML = filtered.map((it, idx) => {
-    const isOwned = owned.has(it.n);
+    const isOwned = _gFound(it.n);
     const _r = (typeof _artRarity === 'function') ? _artRarity(it.n) : '';
     return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${_r?'it-r-'+_r:''} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
       <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
@@ -16623,7 +16658,7 @@ function renderDetail() {
     </div>`;
   }
   const starHtml = `<span class="star-btn ${wishlist.has(item.n)?'starred':''}" style="font-size:24px" onclick="toggleStar('${item.n.replace(/'/g,"\\'")}')">${wishlist.has(item.n)?'★':'☆'}</span>`;
-  const ownedHtml = `<button class="owned-btn ${owned.has(item.n)?'owned':''}" style="font-size:14px;padding:4px 10px" onclick="toggleOwned('${item.n.replace(/'/g,"\\'")}')">${owned.has(item.n)?'✓ owned':'☐ mark owned'}</button>`;
+  const ownedHtml = `<button class="owned-btn ${_gFound(item.n)?'owned':''}" style="font-size:14px;padding:4px 10px" onclick="toggleOwned('${item.n.replace(/'/g,"\\'")}')">${_gFound(item.n)?'✓ owned':'☐ mark owned'}</button>`;
   panel.innerHTML = `${renderAidCard(item.n, {context:'calc'})}${renderCodexCard(item.n)}${typeof setPiecesSectionHtml==='function'?setPiecesSectionHtml(item.n):''}<div class="scroll-table"><table class="drops">
     <thead><tr><th>source</th><th class="diff-col">your chance</th><th class="diff-col">50% conf</th><th class="diff-col">≈ time</th><th class="diff-col">95% conf</th></tr></thead>
     <tbody>
@@ -16930,7 +16965,7 @@ function renderAidCard(name, opts){
   const escName = name.replace(/'/g, "\\'");
   const tierCls = `tier-${item.tier}`;
   const isStarred = wishlist.has(name);
-  const isOwned = owned.has(name);
+  const isOwned = _gFound(name);
 
   const fasterBanner = !isFastest && fastest ? `
     <div class="aid-faster-banner">
@@ -18475,9 +18510,10 @@ function _runeSheetPrep(file){
         var seen=new Uint8Array(CW*CH), blobs=[], stack=[];
         for (var s=0;s<CW*CH;s++){
           if (!mask[s]||seen[s]) continue;
-          var minx=CW,maxx=0,miny=CH,maxy=0,n=0; stack.length=0; stack.push(s); seen[s]=1;
+          var minx=CW,maxx=0,miny=CH,maxy=0,n=0,sr=0,sg=0,sb=0; stack.length=0; stack.push(s); seen[s]=1;
           while (stack.length){
             var q=stack.pop(), qx=q%CW, qy=(q-qx)/CW; n++;
+            var qo=q*4; sr+=px[qo]; sg+=px[qo+1]; sb+=px[qo+2];
             if(qx<minx)minx=qx; if(qx>maxx)maxx=qx; if(qy<miny)miny=qy; if(qy>maxy)maxy=qy;
             if(qx>0&&mask[q-1]&&!seen[q-1]){seen[q-1]=1;stack.push(q-1);}
             if(qx<CW-1&&mask[q+1]&&!seen[q+1]){seen[q+1]=1;stack.push(q+1);}
@@ -18485,7 +18521,11 @@ function _runeSheetPrep(file){
             if(qy<CH-1&&mask[q+CW]&&!seen[q+CW]){seen[q+CW]=1;stack.push(q+CW);}
           }
           var bw=maxx-minx+1, bh=maxy-miny+1;
-          if (n>60 && bw>8 && bh>8) blobs.push({x:minx,y:miny,w:bw,h:bh,cx:minx+bw/2,cy:miny+bh/2,n:n});
+          // v676 (REG-017, the cousin's 2nd stash) — the cube panel's GOLD frame blobbed as a stone and
+          // its off-lattice position bailed the whole detection. Rune stones are GREY limestone
+          // (R≈G≈B); gold decoration screams R≫B — reject saturated blobs at the source.
+          var _mr=sr/n, _mb=sb/n;
+          if (n>60 && bw>8 && bh>8 && (_mr-_mb)<30) blobs.push({x:minx,y:miny,w:bw,h:bh,cx:minx+bw/2,cy:miny+bh/2,n:n});
         }
         blobs=blobs.filter(function(b){ return b.y>CH*0.06 && b.y<CH*0.62 && b.w<CW*0.25 && b.w/b.h<2.2 && b.h/b.w<2.2; });   // drop the window title bar / frame rails / banners + everything below the grid band (cube art, footer decorations)
         // agglomerate glyph-split fragments into whole stones: merge blobs whose boxes come within
@@ -18519,22 +18559,35 @@ function _runeSheetPrep(file){
         for (var r=1;r<blobs.length;r++){ if (blobs[r].cy-cur[cur.length-1].cy > medW*0.6){ rows.push(cur); cur=[blobs[r]]; } else cur.push(blobs[r]); }
         rows.push(cur); rows.forEach(function(rw){ rw.sort(function(a,b){ return a.cx-b.cx; }); });
         if (rows.length>5){ resolve(null); return; }
-        // column pitch from adjacent gaps inside rows (fallback: stone width + slot gap ≈ 1.3×medW)
-        var gaps=[]; rows.forEach(function(rw){ for (var g=1;g<rw.length;g++){ var d=rw[g].cx-rw[g-1].cx; if (d>medW*0.8 && d<medW*2.2) gaps.push(d); } });
-        gaps.sort(function(a,b){return a-b;});
-        var pitch=gaps.length?gaps[gaps.length>>1]:medW*1.3;
+        // v676.1 — RANSAC pitch (the cousin's 2nd stash: a merged Eld+Tir blob poisoned the adjacent-gap
+        // median to 83 vs the true 79, drifting every column fractional and bailing the snap). Candidates
+        // come from EVERY same-row pair gap divided by 1..8; the winner is the pitch that snaps the most
+        // blobs onto clean integer columns from the min-cx anchor.
+        var _minCx=Math.min.apply(null, blobs.map(function(b){return b.cx;}));
+        var _cands=[]; rows.forEach(function(rw){ for (var g1=0;g1<rw.length;g1++){ for (var g2=g1+1;g2<rw.length;g2++){ var d=Math.abs(rw[g2].cx-rw[g1].cx); for (var kk=1;kk<=8;kk++){ var cc=d/kk; if (cc>medW*0.75 && cc<medW*2.0) _cands.push(cc); } } } });
+        if (!_cands.length) _cands.push(medW*1.3);
+        var pitch=_cands[0], _bestScore=-1;
+        _cands.forEach(function(cc){
+          var sc=0; blobs.forEach(function(b){ var col=(b.cx-_minCx)/cc; if (Math.abs(col-Math.round(col))<=0.15 && Math.round(col)>=0 && Math.round(col)<=8) sc++; });
+          if (sc>_bestScore || (sc===_bestScore && Math.abs(cc-medW*1.3)<Math.abs(pitch-medW*1.3))){ _bestScore=sc; pitch=cc; }
+        });
         // absolute column anchor: leftmost stone across all rows = its column via left-edge alignment.
         // Columns must land 0..8; try anchor = global min cx, validate every blob snaps within 0.22 pitch.
         var x0=Math.min.apply(null, blobs.map(function(b){return b.cx;}));
-        var ok=true, assign=[];
-        for (var ri=0; ri<rows.length && ok; ri++){
+        // v676 — OUTLIER TOLERANCE: one stray decoration blob must never bail the whole detection.
+        // Non-snapping blobs (off-lattice x, impossible col, or a row index beyond the 5-row grid)
+        // are DROPPED (≤20% of the pool); the lattice sweep re-derives every cell anyway, so a
+        // dropped true stone costs nothing. Bail only when the structure itself won't resolve.
+        var assign=[], outliers=0, total=0;
+        for (var ri=0; ri<rows.length; ri++){
           for (var ci=0; ci<rows[ri].length; ci++){
+            total++;
             var col=(rows[ri][ci].cx-x0)/pitch, snap=Math.round(col);
-            if (Math.abs(col-snap)>0.24 || snap<0 || snap>8){ ok=false; break; }
+            if (Math.abs(col-snap)>0.24 || snap<0 || snap>8 || ri>4){ outliers++; continue; }
             assign.push({b:rows[ri][ci], row:ri, col:snap});
           }
         }
-        if (!ok || !assign.length){ resolve(null); return; }
+        if (!assign.length || outliers>Math.max(1, Math.floor(total*0.2))){ resolve(null); return; }
         // v661b — the blobs are only the lattice ANCHOR. Fragile per-stone detection missed stones
         // (JPEG-mush fragments), which would silently ZERO owned runes — so instead: derive the full
         // lattice (origin + pitches) from the anchored blobs, then classify EVERY cell of the fixed
@@ -26433,7 +26486,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else if(/key|horn|brain|\beye\b|essence|wirt|leg/.test(lk)) ingred.push(tag);
       else shared.push(tag);
     }); }catch(e){}
-    try{ if(typeof owned!=='undefined') ['Annihilus','Hellfire Torch',"Gheed's Fortune"].forEach(function(n){ if(owned.has(n)) charm.push(n); }); }catch(e){}
+    try{ if(typeof owned!=='undefined') ['Annihilus','Hellfire Torch',"Gheed's Fortune"].forEach(function(n){ if(_gFound(n)) charm.push(n); }); }catch(e){}
     var rows=[];
     if(shared.length) rows.push({ic:'🏦', t:'Account-shared stash', items:shared, count:true, r:"runes, gems, essences, Worldstone shards & Colossal statues sit in your shared stash — reachable by every character instantly. A separate alt ACCOUNT can't see it, so keep them here."});
     if(charm.length) rows.push({ic:'💠', t:'Charms — keep in your inventory', items:charm, r:"Sunders, Annihilus, Torch, Gheed's & skillers only do anything in the inventory of the character you're playing — never bury them on an alt."});
@@ -29418,8 +29471,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _handTag(h){ if(!h) return ''; var ti=h==='1H/2H'?'one- or two-handed depending on base':/2H merc/.test(h)?'two-handed → a mercenary weapon':/2H caster/.test(h)?'two-handed caster staff (your weapon)':h==='2H'?'two-handed':'one-handed'; return '<span class="f-hand" title="'+ti+'">'+_fEsc(h)+'</span>'; }
   function _baseLine(t){
-    var idl = t.ideal ? '<span class="f-ideal" title="'+_fEsc(t.bestMeta)+'">✓ ideal base</span>'
-              : (t.bestStr ? '<span class="f-alt" title="'+_fEsc(t.bestMeta)+'">meta base: '+_fEsc(t.bestStr)+'</span>' : '');
+    // v676 (Konyo's Crusader-Bow BotD: 'it tells me to create BotD in the crusader bow instead of
+    // Berserker Axe / Colossus Blade… I need to know EXACTLY the best runeword home, locked and
+    // hardcoded, even though the forge auto-tasks any legal host') — when the READY base is
+    // OFF-META, the BIS homes get the full golden treatment and the ready base is demoted to
+    // 'works, but off-meta'. The engine still tasks it (a legal host is a legal host); the CARD
+    // now tells the truth about what to hunt.
+    var idl;
+    if (t.ideal) idl = '<span class="f-ideal" title="'+_fEsc(t.bestMeta)+'">✓ ideal base</span>';
+    else if (t.bestStr){
+      var _metaNames = String(t.bestStr).split(/\s*\/\s*/).map(function(x){ return x.trim(); }).filter(Boolean);
+      var _onMeta = _metaNames.some(function(nm){ return nm.toLowerCase() === String(t.base.base||'').toLowerCase(); });
+      if (_onMeta) idl = '<span class="f-alt" title="'+_fEsc(t.bestMeta)+'">meta base: '+_fEsc(t.bestStr)+'</span>';
+      else idl = '<span class="f-offmeta" title="your ready base is a LEGAL host, but not the word\'s best home — forge there only if you won\'t hunt the 🏆">⚠ works, but OFF-META</span> '
+        + '<span class="f-bisline">🏆 BIS home: '+_metaNames.map(function(nm,i){ return '<span class="f-getchip f-getchip-base'+(i===0?' f-getchip-ideal':'')+'" data-arttip="'+_fEsc(nm)+'" style="color:'+(_qC(nm)||'var(--q-normal)')+'">'+(i===0?'🏆 ':'')+_fEsc(nm)+((typeof _baseRoleBadge==='function')?_baseRoleBadge(nm, i===0):'')+'</span>'; }).join('')+'</span>';
+    } else idl = '';
     return '<b>'+t.base.sockets+'os '+_fEsc(t.base.base)+'</b>'+(t.base.eth?' <span class="f-eth">⊘ eth</span>':'')+(t.base.sup?' <span class="f-sup">superior</span>':'')+' '+idl
       + _consumedNote(t.base.name);   // v624 — "its twin already became Kingslayer; this uses a REMAINING copy"
   }
@@ -30074,7 +30140,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var xc=(window._uniExtraCache=window._uniExtraCache||{});
     var ex=Object.keys(window._UNI_EXTRA||{}).map(function(n){ return xc[n]||(xc[n]={ n:n, tier:'common', sources:[] }); });
     return base.concat(ex); }
-  function _ownedNames(){ try { return new Set(JSON.parse(window.LSR.getItem('d2r_owned')||'[]')); } catch(e){ return new Set(); } }
+  function _ownedNames(){ try { var s=new Set(JSON.parse(window.LSR.getItem('d2r_owned')||'[]')); Object.keys(JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}')).forEach(function(n){ s.add(n); }); return s; } catch(e){ return new Set(); } }   // v677 — found = ledger ∪ legacy owned
   function _bestSrc(it){
     var best=null, bestR=-1;
     (it.sources||[]).forEach(function(s){ if(!s||s.blocked||s.chance==null) return; var rate=(s.kph||30)/s.chance; if(rate>bestR){ bestR=rate; best=s; } });
@@ -30440,13 +30506,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var owned=[]; try{ owned=JSON.parse(window.LSR.getItem('d2r_owned')||'[]'); }catch(e){}
     var setP=[]; try{ setP=JSON.parse(window.LSR.getItem('d2r_setPieces')||'[]'); }catch(e){}
     var oSet=new Set(owned), pSet=new Set(setP), addU=0, addP=0;
+    var flI={}; try{ flI=JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}'); }catch(e){}
     found.forEach(function(n){
-      if(V.uniq.has(n)){ if(!oSet.has(n)){ oSet.add(n); addU++; } }
+      if(V.uniq.has(n)){ if(!flI[n] && !oSet.has(n)){ flI[n]=(window._grailStamp?window._grailStamp():'')+' · imported'; addU++; } }   // v677 — imports land in the LEDGER, not the vault
       else if(V.pieceMap[n]){ if(!pSet.has(V.pieceMap[n])){ pSet.add(V.pieceMap[n]); addP++; } }
       else unknown.add(n);
     });
     try {
-      window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(oSet)));
+      window.LSR.setItem('d2r_foundLog', JSON.stringify(flI));
       window.LSR.setItem('d2r_setPieces', JSON.stringify(Array.from(pSet)));
       window.LSR.setItem('d2r_grailImportReport', JSON.stringify({u:addU,p:addP,unk:Array.from(unknown).slice(0,20),t:Date.now()}));
     } catch(e){}

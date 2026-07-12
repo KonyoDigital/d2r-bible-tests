@@ -16,7 +16,7 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
     w.switchTab('funi'); await new Promise((res) => setTimeout(res, 800));
     const box = document.getElementById('tab-funi')!;
     const pool = (w.ITEMS || []).filter((x: any) => ['grail','high','common'].includes(x.tier));
-    const ownedBefore = new Set(JSON.parse(localStorage.getItem('d2r_owned') || '[]'));
+    const ownedBefore = new Set(Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')));   // v677 — the LEDGER is the found store
     const missing = pool.filter((x: any) => !ownedBefore.has(x.n));
     const failures: string[] = [];
     // reachability: every missing unique has a tick in the rendered ALL grid
@@ -27,12 +27,12 @@ test('ALL grail uniques: reachable + full found lifecycle (tick → dated/tallie
     for (const x of missing) {
       w.toggleOwned(x.n);
       const log1 = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}');
-      const own1 = JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes(x.n);
+      const own1 = !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[x.n];
       if (!own1) failures.push('NOT TALLIED: ' + x.n);
       if (!log1[x.n]) failures.push('NOT DATED: ' + x.n);
       w.toggleOwned(x.n);
       const log2 = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}');
-      const own2 = JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes(x.n);
+      const own2 = !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[x.n];
       if (own2) failures.push('NOT RESTORED: ' + x.n);
       if (log2[x.n]) failures.push('LEDGER NOT ERASED: ' + x.n);
     }

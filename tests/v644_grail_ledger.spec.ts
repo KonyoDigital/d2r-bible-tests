@@ -10,8 +10,8 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 async function cleanup(page: any) {
   await page.evaluate(() => {
     ['Nagelring', 'Manald Heal'].forEach((n) => {
-      const o = new Set(JSON.parse(localStorage.getItem('d2r_owned') || '[]')); o.delete(n);
-      localStorage.setItem('d2r_owned', JSON.stringify([...o]));
+      const o = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'); delete o[n];
+      localStorage.setItem('d2r_foundLog', JSON.stringify(o));   // v677 — un-find = ledger removal
     });
     const sp = new Set(JSON.parse(localStorage.getItem('d2r_setPieces') || '[]'));
     [...sp].filter((p: any) => /Hsarus/.test(p)).forEach((p) => sp.delete(p));
@@ -40,7 +40,7 @@ test('F·Uniques: every missing unique is tickable in ALL MISSING; ticking dates
     tick.click();
     await new Promise((res) => setTimeout(res, 700));
     const log = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}');
-    const ownedNow = JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Nagelring');
+    const ownedNow = !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Nagelring'];   // v677
     const undoBar = box.querySelector('.gf-undo-bar');
     const undoNames = undoBar ? undoBar.textContent || '' : '';
     // FOUND view shows the dated entry, newest first
@@ -64,7 +64,7 @@ test('F·Uniques: every missing unique is tickable in ALL MISSING; ticking dates
     (box.querySelector('.gf-undo-bar button') as any).click();
     await new Promise((res) => setTimeout(res, 600));
     return {
-      restored: !JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Nagelring'),
+      restored: !JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Nagelring'],   // v677
       logCleared: !JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Nagelring'],
     };
   });

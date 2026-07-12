@@ -423,7 +423,9 @@ export async function onRequestPost(context) {
     + 'white name label under it, find the printed stack number inside it, and return {name, count} in the tally. '
     + 'TRANSCRIBE, NEVER FABRICATE: report exactly the digits printed. Read each number twice; 1 vs 2, 5 vs 6, 11 vs 17 are '
     + 'the classic slips. Do not skip any labeled tile, do not invent tiles, and use ONLY the printed labels for names — '
-    + 'never re-identify the rune from its glyph. If a tile\'s digits are truly unreadable, omit that tile rather than guess.';
+    + 'never re-identify the rune from its glyph. EVERY tile on this sheet is an OWNED rune — its true count is AT LEAST 1 '
+    + '(single stacks print a thin, faint 1 at the stone\'s edge). If you cannot make out a digit, return 1 — the minimum truth. '
+    + 'NEVER omit a labeled tile: omission is always wrong here.';
   const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText : isCraft ? craftText : isTally ? (isTally2 ? tally2Text : tallyText) : isGrail ? grailText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 

@@ -13,7 +13,7 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
     const w: any = window;
     const s = w.funiScan();
     const fl = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}');
-    const owned = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
+    const owned = Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'));   // v677 — the LEDGER is the found store; the vault stays physical
     return {
       total: s.total, found: s.found, flN: Object.keys(fl).length,
       seedN: Object.keys(w._GRAIL_SEED || {}).length, extraN: Object.keys(w._UNI_EXTRA || {}).length,
@@ -21,6 +21,7 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
       hoz: owned.includes('Herald of Zakarum'),         // _UNI_EXTRA unique — owned + carded in the F-tab
       hozStamp: fl['Herald of Zakarum'],
       calcClean: (w.ITEMS || []).filter((x: any) => x.n === 'Herald of Zakarum').length,  // NEVER in the calculator DB
+      vaultClean: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,           // v677 — the seed must NEVER touch the vault
     };
   });
   expect(r.seedN).toBe(229);
@@ -32,6 +33,7 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
   expect(r.calcClean).toBe(0);          // extras stay OUT of ITEMS — the calculator/boss tables are untouched
+  expect(r.vaultClean).toBe(0);         // v677 — zero chronicle names in the vault (Konyo throws finds away)
 });
 
 test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re-tick clears it', async ({ page }) => {
@@ -39,7 +41,7 @@ test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re
   await page.evaluate(() => (window as any).toggleOwned('Wormskull'));
   await page.reload(); await page.waitForTimeout(2000);
   const after = await page.evaluate(() => ({
-    owned: JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Wormskull'),
+    owned: !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Wormskull'],   // v677
     gu: JSON.parse(localStorage.getItem('d2r_grailUnfound') || '{}')['Wormskull'],
     found: (window as any).funiScan().found,
   }));

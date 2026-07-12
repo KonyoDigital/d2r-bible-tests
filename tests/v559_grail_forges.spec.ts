@@ -88,12 +88,12 @@ test('Forge·Sets is PIECE-centric with the F·Uniques logic + IDENTICAL unified
   expect(r.trackerNote).toBe(true);               // checklists stay home in the Item Set Tracker (synced)
 });
 
-test('SYNC — ticking found in Forge·Uniques writes the SAME d2r_owned the Calculator uses', async ({ page }) => {
+test('SYNC — ticking found in Forge·Uniques writes the SAME found LEDGER the Calculator uses (v677: d2r_foundLog)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window; w.switchTab('funi');
     const s = w.funiScan(); const before = s.found; const target = s.missing[0].n;
     w.grailFoundUni(null, target);   // ✓ found it
-    const stored = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
+    const stored = Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'));   // v677 — grail ticks land in the LEDGER, never the vault
     const after = w.funiScan();
     return { target, before, inOwned: stored.includes(target), foundNow: after.found, missingDropped: !after.missing.some((x: any) => x.n === target) };
   });
@@ -148,7 +148,7 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
   expect(r.fsetsIco).toBe(true);
 });
 
-test('v561 — grail bulk-import: AI-read FOUND names batch-tick into d2r_owned + d2r_setPieces', async ({ page }) => {
+test('v561 — grail bulk-import: AI-read FOUND names batch-tick into the LEDGER + d2r_setPieces (v677)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   // fire the intake with a stubbed AI endpoint; the flow writes the stores then RELOADS to resync every view
   await page.evaluate(async () => {
@@ -160,7 +160,7 @@ test('v561 — grail bulk-import: AI-read FOUND names batch-tick into d2r_owned 
   });
   await page.waitForLoadState('load'); await page.waitForTimeout(2600);   // post-reload boot + import toast window
   const r = await page.evaluate(() => {
-    const owned = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
+    const owned = Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'));   // v677
     const pieces = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]');
     const toast = document.querySelector('.forge-toast');
     const scan = (window as any).funiScan();
