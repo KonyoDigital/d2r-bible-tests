@@ -13544,6 +13544,18 @@ const _safeJsonParse = (raw, fallback) => {
 };
 let wishlist = new Set(_safeJsonParse(LS.getItem('d2r_wishlist'), []));
 let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
+// v659 — GRAIL FOUND-SEED: the owner's IN-GAME Chronicle truth (Unique tab, 59%), transcribed from his 56
+// screenshots 2026-07-12 — 229 uniques with their exact in-game First Found stamps. Durable floor mirroring
+// _RWC_SEED: re-applied every load, honors explicit un-ticks (d2r_grailUnfound), suppressed on a fresh
+// profile (a different player's browser). _UNI_EXTRA = the 62 mod-Chronicle uniques that live OUTSIDE the
+// calculator ITEMS DB (low vanilla uniques + Latent charms etc.) — appended to the F·Uniques universe only,
+// never the calculator, so every in-game find has a home. One unresolved row is NOT seeded: the D-weapon
+// above Doomslinger (Mephisto 05/18/2026 01:45, name hidden behind the panel header in the shot — likely
+// Djinn Slayer by icon; Konyo to confirm in game).
+const _UNI_EXTRA = {"Athena's Wrath":1,"Axe of Fechmar":1,"Baezil's Vortex":1,"Blacktongue":1,"Bladebone":1,"Bloodpact Shard":1,"Bloodthief":1,"Coldsteel Eye":1,"Culwen's Point":1,"Dark Clan Crusher":1,"Darkglow":1,"Deathbit":1,"Deathspade":1,"Dimoak's Hew":1,"Dreadfang":1,"Gleamscythe":1,"Goreshovel":1,"Grim's Burning Dead":1,"Griswold's Edge":1,"Hellcast":1,"Hellplague":1,"Herald of Zakarum":1,"Horizon's Tornado":1,"Humongous":1,"Husoldal Evo":1,"Ichorsting":1,"Iron Pelt":1,"Kelpie Snare":1,"Kinemil's Awl":1,"Knell Striker":1,"Langer Briser":1,"Latent Black Cleft":1,"Latent Cold Rupture":1,"Latent Crack of the Heavens":1,"Latent Rotting Fissure":1,"Leadcrow":1,"Medusa's Gaze":1,"Moonfall":1,"Razortine":1,"Ripsaw":1,"Rune Master":1,"Rusthandle":1,"Shadowfang":1,"Skewer of Krintiz":1,"Skull Splitter":1,"Soul Harvest":1,"Soulflay":1,"Spectral Shard":1,"Spineripper":1,"Steelgoad":1,"Stone Crusher":1,"Sureshrill Frost":1,"The Dragon Chang":1,"The Fetid Sprinkler":1,"The Iron Jang Bong":1,"The Mahim-Oak Curio":1,"The Scalper":1,"The Tannr Gorerod":1,"Viperfork":1,"Woestave":1,"Wraithstep":1,"Zakarum's Hand":1};
+try { window._UNI_EXTRA = _UNI_EXTRA; } catch(e){}
+const _GRAIL_SEED = {"Wormskull":"Jun 22, 2026 · 02:00","Wraith Flight":"Jun 18, 2026 · 19:29","Witherstring":"Jul 1, 2026 · 21:09","Wizardspike":"Jun 3, 2026 · 12:45","Wizendraw":"May 20, 2026 · 21:15","Wolfhowl":"Jun 5, 2026 · 00:45","War Traveler":"Jun 4, 2026 · 01:24","Windhammer":"May 22, 2026 · 01:17","Venom Grip":"May 20, 2026 · 18:35","Venom Ward":"May 18, 2026 · 21:07","Verdungo's Hearty Cord":"Jun 22, 2026 · 02:10","Wall of the Eyeless":"May 20, 2026 · 18:26","Twitchthroe":"Jun 2, 2026 · 01:07","Ume's Lament":"May 18, 2026 · 00:25","Undead Crown":"May 17, 2026 · 01:45","Vampire Gaze":"Jul 7, 2026 · 00:44","Tomb Reaver":"Jun 18, 2026 · 02:19","Toothrow":"May 22, 2026 · 00:59","Treads of Cthon":"May 20, 2026 · 19:21","The Ward":"May 18, 2026 · 00:40","Thundergod's Vigor":"May 20, 2026 · 02:19","Tiamat's Rebuke":"May 15, 2026 · 18:24","Todesfaelle Flamme":"Jun 4, 2026 · 01:23","The Rising Sun":"Jun 3, 2026 · 00:48","The Salamander":"May 18, 2026 · 01:26","The Spirit Shroud":"Jun 6, 2026 · 20:49","The Vile Husk":"Jun 30, 2026 · 21:17","The Jade Tan Do":"May 19, 2026 · 23:44","The Minotaur":"Jul 6, 2026 · 21:10","The Patriarch":"May 15, 2026 · 01:19","The Reaper's Toll":"May 18, 2026 · 21:15","The Gavel of Pain":"Jun 10, 2026 · 01:57","The General's Tan Do Li Ga":"May 17, 2026 · 01:37","The Grandfather":"Jun 4, 2026 · 01:41","The Grim Reaper":"May 17, 2026 · 01:43","Tearhaunch":"May 15, 2026 · 18:36","The Battlebranch":"May 26, 2026 · 00:14","The Chieftain":"May 18, 2026 · 21:04","The Face of Horror":"May 20, 2026 · 02:19","Suicide Branch":"May 27, 2026 · 00:49","Swordguard":"Jun 22, 2026 · 02:57","Stoneraven":"Jun 4, 2026 · 01:22","Stormguild":"May 18, 2026 · 01:40","Stormshield":"May 27, 2026 · 19:51","Stormspike":"Jun 18, 2026 · 00:14","Stormstrike":"May 17, 2026 · 01:53","Stoutnail":"Jun 22, 2026 · 02:25","Steel Shade":"May 18, 2026 · 01:50","Steelclash":"May 21, 2026 · 11:51","Steeldriver":"May 18, 2026 · 02:03","Spire of Honor":"May 27, 2026 · 20:16","Spirit Forge":"Jun 18, 2026 · 01:03","Stealskull":"May 31, 2026 · 21:37","Snowclash":"May 19, 2026 · 16:12","Sparking Mail":"May 15, 2026 · 20:58","Spellsteel":"May 17, 2026 · 23:50","Skystrike":"May 18, 2026 · 00:38","Snakecord":"May 15, 2026 · 00:58","Skin of the Vipermagi":"May 20, 2026 · 22:27","Skullder's Ire":"May 22, 2026 · 01:21","Serpent Lord":"May 17, 2026 · 01:43","Shaftstop":"May 31, 2026 · 20:50","Sandstorm Trek":"Jun 25, 2026 · 00:56","Schaefer's Hammer":"Jun 4, 2026 · 00:26","Riphook":"May 27, 2026 · 20:59","Rockfleece":"May 18, 2026 · 23:17","Rockstopper":"May 27, 2026 · 19:44","Rogue's Bow":"May 19, 2026 · 00:25","Rattlecage":"Jun 21, 2026 · 17:52","Raven Claw":"Jun 4, 2026 · 01:32","Raven Frost":"May 25, 2026 · 21:26","Razortail":"May 21, 2026 · 01:03","Ribcracker":"May 17, 2026 · 01:32","Pierre Tombale Couant":"Jul 6, 2026 · 22:43","Plague Bearer":"May 27, 2026 · 01:29","Pluckeye":"Jul 9, 2026 · 18:51","Pompeii's Wrath":"May 27, 2026 · 00:51","Que-Hegan's Wisdom":"Jun 4, 2026 · 01:22","Peasant Crown":"May 15, 2026 · 21:22","Pelta Lunata":"Jun 29, 2026 · 01:20","Nature's Peace":"May 23, 2026 · 01:06","Nightsmoke":"May 15, 2026 · 20:17","Nightwing's Veil":"May 18, 2026 · 00:38","Nokozan Relic":"Jun 18, 2026 · 20:37","Nord's Tenderizer":"May 18, 2026 · 20:53","Nosferatu's Coil":"Jun 18, 2026 · 18:57","Messerschmidt's Reaver":"May 31, 2026 · 23:46","Moser's Blessed Circle":"Jun 10, 2026 · 21:55","Manald Heal":"May 18, 2026 · 23:53","Mang Song's Lesson":"May 31, 2026 · 21:00","Marrowwalk":"Jun 21, 2026 · 20:12","Lightsabre":"May 22, 2026 · 01:17","Maelstrom":"Jun 1, 2026 · 01:00","Magefist":"May 18, 2026 · 00:43","Magewrath":"May 26, 2026 · 01:52","Lava Gout":"May 18, 2026 · 21:11","Kuko Shakaku":"Jun 19, 2026 · 00:46","Lacerator":"Jun 4, 2026 · 01:41","Lance Guard":"May 19, 2026 · 20:29","Lance of Yaggai":"May 17, 2026 · 00:57","Kira's Guardian":"May 19, 2026 · 20:39","Iceblink":"May 15, 2026 · 20:54","Infernostride":"May 20, 2026 · 21:58","Ironstone":"May 19, 2026 · 20:30","Jalal's Mane":"Jun 10, 2026 · 12:46","Hotspur":"Jun 24, 2026 · 17:59","Howltusk":"Jun 10, 2026 · 12:28","Hellrack":"Jun 19, 2026 · 00:14","Hexfire":"May 23, 2026 · 18:25","Homunculus":"May 27, 2026 · 19:54","Hone Sundan":"May 22, 2026 · 01:11","Heart Carver":"May 26, 2026 · 00:19","Heavenly Garb":"May 25, 2026 · 21:25","Gravenspine":"May 17, 2026 · 01:51","Gravepalm":"Jun 8, 2026 · 23:44","Gore Rider":"Jun 1, 2026 · 00:08","Gorefoot":"Jun 12, 2026 · 23:47","Goldskin":"May 15, 2026 · 15:20","Goldstrike Arch":"May 18, 2026 · 00:37","Goldwrap":"Jun 22, 2026 · 02:34","Gimmershred":"May 28, 2026 · 20:14","Ginther's Rift":"May 18, 2026 · 23:32","Ethereal Edge":"May 31, 2026 · 20:47","Firelizard's Talons":"May 20, 2026 · 01:36","Flamebellow":"May 31, 2026 · 20:57","Fleshripper":"May 28, 2026 · 20:23","Ghoulhide":"May 15, 2026 · 20:23","Doomslinger":"Jun 10, 2026 · 23:51","Duriel's Shell":"Jun 1, 2026 · 00:28","Duskdeep":"Jun 22, 2026 · 02:51","Demonhorn's Edge":"May 18, 2026 · 01:05","Demon Limb":"Jun 2, 2026 · 01:09","Demon Machine":"May 25, 2026 · 21:56","Demon's Arch":"May 18, 2026 · 01:40","Death Cleaver":"May 19, 2026 · 16:05","Crow Caw":"May 20, 2026 · 01:36","Crushflange":"Jun 15, 2026 · 02:37","Coldkill":"Jun 4, 2026 · 11:27","Crainte Vomir":"Jul 6, 2026 · 21:05","Cranebeak":"Jun 1, 2026 · 00:29","Chance Guards":"Jun 8, 2026 · 23:22","Cloudcrack":"Jun 4, 2026 · 01:24","Coif of Glory":"May 15, 2026 · 20:02","Bverrit Keep":"May 18, 2026 · 00:33","Carin Shard":"Jun 10, 2026 · 22:36","Cerebus' Bite":"Jun 24, 2026 · 17:27","Boneflesh":"May 26, 2026 · 01:21","Bonehew":"Jun 18, 2026 · 02:21","Boneslayer Blade":"May 21, 2026 · 13:24","Bonesnap":"Jun 4, 2026 · 01:45","Brainhew":"Jun 4, 2026 · 01:24","Buriza-Do Kyanon":"May 31, 2026 · 20:46","Blastbark":"Jun 22, 2026 · 01:56","Bloodfist":"Jun 19, 2026 · 21:36","Bloodletter":"May 15, 2026 · 17:47","Bloodrise":"May 24, 2026 · 02:09","Blade of Ali Baba":"May 25, 2026 · 23:55","Bladebuckle":"May 27, 2026 · 20:11","Bing Sz Wang":"May 31, 2026 · 20:42","Black Hades":"Jun 22, 2026 · 02:08","Blackhorn's Face":"Jun 15, 2026 · 02:54","Blackleach Blade":"Jun 15, 2026 · 02:48","Atma's Scarab":"Jun 19, 2026 · 20:17","Bartuc's Cut-Throat":"May 20, 2026 · 02:19","Andariel's Visage":"May 25, 2026 · 21:32","Arioc's Needle":"May 21, 2026 · 12:53","Arm of King Leoric":"May 26, 2026 · 00:00","Wraithstep":"Jul 6, 2026 · 22:06","Zakarum's Hand":"May 23, 2026 · 18:22","Woestave":"May 20, 2026 · 13:50","Viperfork":"May 18, 2026 · 23:36","The Scalper":"May 20, 2026 · 02:19","The Tannr Gorerod":"Jun 1, 2026 · 02:09","The Iron Jang Bong":"May 19, 2026 · 19:54","The Mahim-Oak Curio":"May 18, 2026 · 00:15","The Fetid Sprinkler":"May 23, 2026 · 18:03","The Dragon Chang":"Jun 10, 2026 · 22:13","Sureshrill Frost":"Jul 6, 2026 · 23:59","Steelgoad":"May 20, 2026 · 22:29","Stone Crusher":"May 29, 2026 · 00:28","Spineripper":"May 18, 2026 · 01:35","Soul Harvest":"May 31, 2026 · 21:18","Soulflay":"May 25, 2026 · 19:04","Spectral Shard":"May 24, 2026 · 21:45","Skewer of Krintiz":"May 15, 2026 · 21:06","Skull Splitter":"May 20, 2026 · 01:42","Shadowfang":"May 27, 2026 · 23:48","Ripsaw":"May 15, 2026 · 20:51","Rune Master":"Jun 3, 2026 · 00:20","Rusthandle":"May 31, 2026 · 20:39","Razortine":"May 18, 2026 · 01:47","Moonfall":"May 15, 2026 · 20:12","Medusa's Gaze":"May 27, 2026 · 19:45","Latent Black Cleft":"Jun 8, 2026 · 17:26","Latent Cold Rupture":"Jun 12, 2026 · 00:40","Latent Crack of the Heavens":"Jun 25, 2026 · 00:47","Latent Rotting Fissure":"Jun 18, 2026 · 02:24","Leadcrow":"Jun 4, 2026 · 00:40","Langer Briser":"Jun 8, 2026 · 19:53","Knell Striker":"Jun 29, 2026 · 00:57","Kelpie Snare":"May 29, 2026 · 00:46","Kinemil's Awl":"Jun 10, 2026 · 16:01","Ichorsting":"May 18, 2026 · 00:17","Iron Pelt":"Jun 4, 2026 · 20:41","Horizon's Tornado":"May 31, 2026 · 21:23","Humongous":"May 18, 2026 · 01:40","Husoldal Evo":"May 19, 2026 · 20:29","Hellcast":"May 17, 2026 · 23:53","Hellplague":"May 15, 2026 · 00:04","Herald of Zakarum":"May 27, 2026 · 22:31","Griswold's Edge":"May 15, 2026 · 20:10","Grim's Burning Dead":"Jun 24, 2026 · 17:57","Goreshovel":"May 14, 2026 · 19:15","Gleamscythe":"Jun 1, 2026 · 01:58","Dreadfang":"May 25, 2026 · 21:35","Dimoak's Hew":"May 25, 2026 · 23:47","Dark Clan Crusher":"May 19, 2026 · 20:25","Darkglow":"May 19, 2026 · 11:27","Deathbit":"May 23, 2026 · 17:53","Deathspade":"May 14, 2026 · 18:57","Culwen's Point":"May 18, 2026 · 23:38","Coldsteel Eye":"Jun 19, 2026 · 20:25","Bloodpact Shard":"Jun 4, 2026 · 01:20","Bloodthief":"May 14, 2026 · 18:53","Bladebone":"May 12, 2026 · 00:43","Blacktongue":"May 20, 2026 · 18:41","Axe of Fechmar":"Jun 15, 2026 · 02:40","Baezil's Vortex":"Jun 4, 2026 · 00:50","Athena's Wrath":"May 19, 2026 · 00:19"};
+try { window._GRAIL_SEED = _GRAIL_SEED; } catch(e){}
 // v342.3 — Magic & Rare keepers: rolled-name items (skillers, magic/rare charms·jewels·rings·amulets,
 // notable rares/crafts) that can't be grail-DB entries. Map name→quality ('magic'|'rare'|'crafted').
 // Tracked SEPARATELY from grail `owned` so it never pollutes the calculator / grail count.
@@ -13705,9 +13717,9 @@ let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // from Konyo's full Chronicle screenshots (2026-07-01), replacing the earlier approximate seed times
 // (Steel 12:53→03:03, Doom 12:20→20:20, Grief 12:05→19:07, Spirit 12:00→00:42…). Names were already 1:1;
 // this fixed the times. Durable floor: re-asserted every load so a reset/restore snaps back to these 45.
-// v658 — 87 (+Silence +Exile +Radiance +Ritual, forged 2026-07-12). 12 words left, ALL get-base:
-// Bramble·Enlightenment·Faith·Ice·Lionheart·Myth·Peace·Rain·Unbending Will·Vigilance·Wealth·Wrath.
-const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 01:01", "Bone": "Jun 23, 2026 · 00:27", "Brand": "Jul 9, 2026 · 21:20", "Bulwark": "Jul 10, 2026 · 00:30", "Cure": "Jul 11, 2026 · 20:45", "Ground": "Jul 11, 2026 · 20:50", "Hearth": "Jul 11, 2026 · 20:55", "Hysteria": "Jul 11, 2026 · 21:15", "Mania": "Jul 11, 2026 · 21:25", "Eternity": "Jul 12, 2026 · 01:30", "Metamorphosis": "Jul 12, 2026 · 12:00", "Temper": "Jul 11, 2026 · 21:00", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Chaos": "Jul 8, 2026 · 19:43", "Coven": "Jul 7, 2026 · 00:17", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Delirium": "Jul 7, 2026 · 00:18", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 01:04", "Flickering Flame": "Jul 7, 2026 · 00:16", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:27", "Harmony": "Jun 24, 2026 · 01:06", "Heart of the Oak": "Jul 8, 2026 · 19:47", "Holy Thunder": "Jun 23, 2026 · 00:11", "Honor": "Jul 8, 2026 · 19:53", "Infinity": "Jun 21, 2026 · 01:37", "Insight": "Jul 5, 2026 · 01:06", "King's Grace": "Jul 8, 2026 · 20:18", "Lawbringer": "Jul 8, 2026 · 19:51", "Leaf": "Jul 5, 2026 · 18:02", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Mist": "Jul 9, 2026 · 21:10", "Wisdom": "Jul 9, 2026 · 21:35", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Oath": "Jul 8, 2026 · 20:21", "Obedience": "Jul 4, 2026 · 21:52", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Pattern": "Jul 8, 2026 · 20:20", "Phoenix": "Jul 9, 2026 · 21:45", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Principle": "Jul 7, 2026 · 00:21", "Prudence": "Jul 8, 2026 · 20:20", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Sanctuary": "Jul 8, 2026 · 19:49", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "Void": "Jun 29, 2026 · 20:08", "White": "Jul 4, 2026 · 21:31", "Wind": "Jul 5, 2026 · 01:10", "Zephyr": "Jun 29, 2026 · 19:29", "Kingslayer": "Jul 9, 2026 · 19:30", "Voice of Reason": "Jul 9, 2026 · 19:37", "Breath of the Dying": "Jul 9, 2026 · 19:40", "Last Wish": "Jul 9, 2026 · 19:43", "Silence": "Jul 12, 2026 · 17:35", "Exile": "Jul 12, 2026 · 17:45", "Radiance": "Jul 12, 2026 · 17:55", "Ritual": "Jul 12, 2026 · 18:20"};
+// v658 — 87 (+Silence +Exile +Radiance +Ritual, forged 2026-07-12). v660 — 88 (+Rain, same night).
+// 11 words left, ALL get-base: Bramble·Enlightenment·Faith·Ice·Lionheart·Myth·Peace·Unbending Will·Vigilance·Wealth·Wrath.
+const _RWC_SEED = {"Ancients' Pledge": "Jun 24, 2026 · 23:15", "Authority": "Jun 24, 2026 · 17:05", "Beast": "Jun 18, 2026 · 20:00", "Black": "Jul 5, 2026 · 01:01", "Bone": "Jun 23, 2026 · 00:27", "Brand": "Jul 9, 2026 · 21:20", "Bulwark": "Jul 10, 2026 · 00:30", "Cure": "Jul 11, 2026 · 20:45", "Ground": "Jul 11, 2026 · 20:50", "Hearth": "Jul 11, 2026 · 20:55", "Hysteria": "Jul 11, 2026 · 21:15", "Mania": "Jul 11, 2026 · 21:25", "Eternity": "Jul 12, 2026 · 01:30", "Metamorphosis": "Jul 12, 2026 · 12:00", "Temper": "Jul 11, 2026 · 21:00", "Call to Arms": "Jun 23, 2026 · 00:23", "Chains of Honor": "Jun 19, 2026 · 22:48", "Chaos": "Jul 8, 2026 · 19:43", "Coven": "Jul 7, 2026 · 00:17", "Crescent Moon": "Jun 22, 2026 · 01:35", "Death": "Jun 24, 2026 · 01:24", "Delirium": "Jul 7, 2026 · 00:18", "Destruction": "Jun 24, 2026 · 01:20", "Doom": "Jun 28, 2026 · 20:20", "Dragon": "Jun 23, 2026 · 00:30", "Dream": "Jun 18, 2026 · 20:03", "Duress": "Jun 21, 2026 · 18:01", "Edge": "Jun 23, 2026 · 01:20", "Enigma": "Jun 28, 2026 · 20:13", "Famine": "Jul 5, 2026 · 01:04", "Flickering Flame": "Jul 7, 2026 · 00:16", "Fortitude": "Jun 18, 2026 · 20:06", "Fury": "Jun 29, 2026 · 23:52", "Gloom": "Jun 29, 2026 · 23:50", "Grief": "Jun 28, 2026 · 19:07", "Hand of Justice": "Jul 6, 2026 · 19:27", "Harmony": "Jun 24, 2026 · 01:06", "Heart of the Oak": "Jul 8, 2026 · 19:47", "Holy Thunder": "Jun 23, 2026 · 00:11", "Honor": "Jul 8, 2026 · 19:53", "Infinity": "Jun 21, 2026 · 01:37", "Insight": "Jul 5, 2026 · 01:06", "King's Grace": "Jul 8, 2026 · 20:18", "Lawbringer": "Jul 8, 2026 · 19:51", "Leaf": "Jul 5, 2026 · 18:02", "Lore": "Jun 24, 2026 · 03:01", "Malice": "Jun 23, 2026 · 00:09", "Melody": "Jun 24, 2026 · 17:43", "Mist": "Jul 9, 2026 · 21:10", "Wisdom": "Jul 9, 2026 · 21:35", "Memory": "Jun 29, 2026 · 19:33", "Mosaic": "Jun 24, 2026 · 01:03", "Nadir": "Jun 22, 2026 · 14:41", "Oath": "Jul 8, 2026 · 20:21", "Obedience": "Jul 4, 2026 · 21:52", "Obsession": "Jun 30, 2026 · 23:54", "Passion": "Jun 23, 2026 · 00:14", "Pattern": "Jul 8, 2026 · 20:20", "Phoenix": "Jul 9, 2026 · 21:45", "Plague": "Jun 28, 2026 · 21:29", "Pride": "Jun 24, 2026 · 01:17", "Principle": "Jul 7, 2026 · 00:21", "Prudence": "Jul 8, 2026 · 20:20", "Rhyme": "Jun 19, 2026 · 22:35", "Rift": "Jun 29, 2026 · 20:02", "Sanctuary": "Jul 8, 2026 · 19:49", "Smoke": "Jun 24, 2026 · 00:59", "Spirit": "Jun 28, 2026 · 00:42", "Splendor": "Jun 23, 2026 · 00:24", "Stealth": "Jun 22, 2026 · 14:45", "Steel": "Jun 22, 2026 · 03:03", "Stone": "Jun 28, 2026 · 19:13", "Strength": "Jun 23, 2026 · 01:51", "Treachery": "Jun 28, 2026 · 23:41", "Venom": "Jun 24, 2026 · 01:09", "Void": "Jun 29, 2026 · 20:08", "White": "Jul 4, 2026 · 21:31", "Wind": "Jul 5, 2026 · 01:10", "Zephyr": "Jun 29, 2026 · 19:29", "Kingslayer": "Jul 9, 2026 · 19:30", "Voice of Reason": "Jul 9, 2026 · 19:37", "Breath of the Dying": "Jul 9, 2026 · 19:40", "Last Wish": "Jul 9, 2026 · 19:43", "Silence": "Jul 12, 2026 · 17:35", "Exile": "Jul 12, 2026 · 17:45", "Radiance": "Jul 12, 2026 · 17:55", "Ritual": "Jul 12, 2026 · 18:20", "Rain": "Jul 12, 2026 · 19:00"};
 try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // v549/v615 — MULTI-PLAYER PROFILE. The seed above is the OWNER's (Konyo's) live Chronicle snapshot (66 words,
 // captured from his browser 2026-07-08 with his real forge dates — incl. the Jul 8 session: Chaos, HotO,
@@ -14465,13 +14477,32 @@ window.renderHighValueFinds = renderHighValueFinds;
   // batch looked like it "didn't build on top" of the earlier one (Konyo's accumulation bug). Match the label
   // suffix so they survive; _ensureSocketBaseEntry then rebuilds their cards on the same load.
   var _SOCKET_KEEP = /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i;
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));   // v659 — chronicle-seeded uniques + extras survive the prune
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
     console.warn('[bible] pruned ' + wDrift + ' stale wishlist + ' + oDrift + ' stale owned entries (items renamed/removed in data update)');
     persist();
   }
+
+  // v659 — GRAIL FOUND-SEED floor (after the prune so it always wins): every seeded in-game find is
+  // owned + dated in d2r_foundLog unless the user explicitly un-ticked it (d2r_grailUnfound = user truth).
+  // MAIN profile only: d2r_owned is the PHYSICAL vault store and physical never crosses accounts
+  // (v635/v638 doctrine) — the ladder account's grail stays its own until owned is ever un-forked.
+  try {
+    if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder') {
+      var _gUn = _safeJsonParse(LS.getItem('d2r_grailUnfound'), {}) || {};
+      var _gfl = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {};
+      var _gch = false, _gflCh = false;
+      Object.keys(_GRAIL_SEED).forEach(function(n){
+        if (_gUn[n]) return;
+        if (!owned.has(n)) { owned.add(n); _gch = true; }
+        if (!_gfl[n]) { _gfl[n] = _GRAIL_SEED[n]; _gflCh = true; }
+      });
+      if (_gch) LS.setItem('d2r_owned', JSON.stringify([...owned]));
+      if (_gflCh) LS.setItem('d2r_foundLog', JSON.stringify(_gfl));
+    }
+  } catch(e){}
 })();
 
 function updateEffMF() {
@@ -16230,11 +16261,14 @@ function toggleOwned(name) {
   // v644 — THE GRAIL LEDGER: every grail find gets a DATED entry (the found-chronicle, mirroring
   // rwMade's dates); un-marking erases it. Lives in the same store family as d2r_owned.
   try {
-    const gi = ITEMS.find(i => i.n === name);
+    const gi = ITEMS.find(i => i.n === name) || ((window._UNI_EXTRA && window._UNI_EXTRA[name]) ? { n: name } : null);   // v659 — chronicle-extra uniques get dated too
     if (gi){ const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
       if (wasOwned) delete fl[name]; else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
       window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); }
   } catch(e){}
+  // v659 — seeded grail names: an explicit un-tick is USER TRUTH — record it so the boot floor
+  // respects it (mirrors d2r_rwUnmade for the runeword seed); re-ticking clears the record.
+  try { if (window._GRAIL_SEED && window._GRAIL_SEED[name]) { var _gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (wasOwned) _gu[name] = 1; else delete _gu[name]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_gu)); } } catch(e){}
   // Celebrate first-time ownership of grail items
   if (!wasOwned) {
     const item = ITEMS.find(i => i.n === name);
@@ -29034,6 +29068,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   var _forgeFilter='all';   // mutually-exclusive sub-tab filter: all | now | pipeline | onestep | crafts
   window.forgeSetFilter=function(f){ _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge(); };
+  // v660 — "✓ got the base" (Konyo: 'lets say i did get a runeword base… clicking i have the base with a
+  // checkmark style and then it automatically ascends to MAKE NOW'). Registers the card's recommended base
+  // at the word's exact socket count (the same registry the AI intake writes: owned + EXTRA_ITEMS socketed
+  // entry), re-scans, and jumps the view to where the word ACTUALLY landed — ⚒ Make now when the engine
+  // agrees, honestly elsewhere when reservations/base-sharing re-task it (v604/v612 no-false-claims doctrine).
+  window.forgeGotBase=function(btn,rw,base,need){
+    try {
+      var label=base+' ('+need+'os)';
+      if (typeof window._ensureSocketBaseEntry==='function') window._ensureSocketBaseEntry(label);
+      try { owned.add(label); } catch(e){}
+      try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
+      var landed=''; try { var sc=window.forgeScan();
+        if ((sc.now||[]).some(function(t){return t.rw===rw && !t.deferred;})) landed='now';
+        else if ((sc.pipeline||[]).some(function(t){return t.rw===rw;})) landed='pipeline';
+        else if ((sc.onestep||[]).some(function(t){return t.rw===rw;})) landed='onestep'; } catch(e){}
+      try { if (typeof _motionOK!=='function' || _motionOK()){
+        var _t=document.createElement('div'); _t.className='forge-toast'; _t.innerHTML='🛒 <b>'+esc(label)+'</b> registered <span class="ft-sub">'+(landed==='now'?('⚒ '+esc(rw)+' ascended to MAKE NOW'):('the Forge re-tasked '+esc(rw)))+'</span>';
+        (function(el){var st=document.getElementById('forge-toasts');if(!st){st=document.createElement('div');st.id='forge-toasts';document.body.appendChild(st);}st.appendChild(el);})(_t); setTimeout(function(){ _t.classList.add('out'); setTimeout(function(){ _t.remove(); },450); }, 2400);
+      } } catch(e){}
+      _forgeFilter=(landed==='now')?'now':'all'; renderForge();
+    } catch(e){ try { renderForge(); } catch(e2){} }
+  };
 
   // v542 — the "base upgrade chain" is GONE for good. White / normal / superior bases CANNOT be cube-upgraded to
   // a higher tier — only unique / rare / set can (game-file cubemain.txt). The Forge only ever Larzuk-sockets the
@@ -29450,7 +29506,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="f-journey">'+journey+'</div>'
           +'<div class="f-getsub">'+note+' · <b>'+segs.length+' step'+(segs.length>1?'s':'')+' to go</b></div>'
           +'<div class="f-recipe">'+_recipe(t.rw)+'</div>'
-          +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button></div>'
+          +'<div class="f-cta"><button class="f-btn" onclick="window.openDrop&&window.openDrop(\''+_fJs(t.rw)+'\')">📜 card</button>'
+          +((t.sub==='base'&&_osBase)?'<button class="f-btn f-btn-go" title="I found/farmed this base — one click registers '+_fEsc(_osBase)+' ('+need+'os) to the vault and the word ascends to ⚒ Make now" onclick="window.forgeGotBase(this,\''+_fJs(t.rw)+'\',\''+_fJs(_osBase)+'\','+need+')">✓ got the base</button>':'')   // v660 — got-the-base ascension
+          +'</div>'
           +'</div></div>');
       });
       H.push('</div>');
@@ -29643,7 +29701,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
 
   /* ── UNIQUES ─────────────────────────────────────────── */
-  function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); return L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; }); }
+  function _uniItems(){ var L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]); var base=L.filter(function(x){ return x.tier==='grail'||x.tier==='high'||x.tier==='common'; });
+    // v659 — the mod Chronicle tracks uniques beyond the calculator DB (low vanilla uniques, Latent charms …).
+    // Append them to the F·Uniques universe ONLY (never the calculator/boss tables) so every in-game find has
+    // a card and the found % tracks the in-game Chronicle. Cached objects so funiScan identity stays stable.
+    var xc=(window._uniExtraCache=window._uniExtraCache||{});
+    var ex=Object.keys(window._UNI_EXTRA||{}).map(function(n){ return xc[n]||(xc[n]={ n:n, tier:'common', sources:[] }); });
+    return base.concat(ex); }
   function _ownedNames(){ try { return new Set(JSON.parse(window.LSR.getItem('d2r_owned')||'[]')); } catch(e){ return new Set(); } }
   function _bestSrc(it){
     var best=null, bestR=-1;

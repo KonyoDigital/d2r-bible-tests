@@ -11,7 +11,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 //     single-piece round-trip restores. Rendered meter matches the scan.
 
 test('A — F·Uniques: perfect partition of all missing uniques into runs; all-found empties the forge', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); });
+  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v659 — the grail found-seed floors 229; these sims need a genuinely empty grail
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -42,7 +42,7 @@ test('A — F·Uniques: perfect partition of all missing uniques into runs; all-
 });
 
 test('B — F·Uniques round-trip: Calculator toggleOwned moves the forge both ways; rendered meter matches', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); });
+  await page.addInitScript(() => { localStorage.setItem('d2r_owned', JSON.stringify([])); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v659 — the grail found-seed floors 229; these sims need a genuinely empty grail
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;

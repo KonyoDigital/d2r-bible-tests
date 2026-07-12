@@ -31,7 +31,7 @@ test('Forge·Uniques renders the full shell: meter, 4 KPI tiles, hero, run cards
       hero: !!b.querySelector('.forge-hero'),
       heroLead: b.querySelector('.fh-lead')?.textContent || '',
       runCards: b.querySelectorAll('.f-card').length,
-      scan: (() => { const s = w.funiScan(); return { total: s.total, missing: s.missing.length, runs: s.runs.length, low: s.low.length }; })(),
+      scan: (() => { const s = w.funiScan(); return { total: s.total, found: s.found, missing: s.missing.length, runs: s.runs.length, low: s.low.length, seedN: Object.keys(w._GRAIL_SEED || {}).length }; })(),
     };
   });
   expect(r.active).toBe(true);
@@ -41,7 +41,8 @@ test('Forge·Uniques renders the full shell: meter, 4 KPI tiles, hero, run cards
   expect(r.heroLead).toMatch(/best farm/i);
   expect(r.runCards).toBeGreaterThan(3);
   expect(r.scan.total).toBeGreaterThan(250);      // grail+high+common uniques
-  expect(r.scan.missing).toBe(r.scan.total);      // fresh profile → everything missing
+  expect(r.scan.found).toBe(r.scan.seedN);        // v659 — the owner's boot floors the in-game chronicle seed
+  expect(r.scan.missing).toBe(r.scan.total - r.scan.seedN);
   expect(r.scan.runs).toBeGreaterThan(10);        // grouped by best source
 });
 
@@ -90,14 +91,14 @@ test('Forge·Sets is PIECE-centric with the F·Uniques logic + IDENTICAL unified
 test('SYNC — ticking found in Forge·Uniques writes the SAME d2r_owned the Calculator uses', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window; w.switchTab('funi');
-    const s = w.funiScan(); const target = s.missing[0].n;
+    const s = w.funiScan(); const before = s.found; const target = s.missing[0].n;
     w.grailFoundUni(null, target);   // ✓ found it
     const stored = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
     const after = w.funiScan();
-    return { target, inOwned: stored.includes(target), foundNow: after.found, missingDropped: !after.missing.some((x: any) => x.n === target) };
+    return { target, before, inOwned: stored.includes(target), foundNow: after.found, missingDropped: !after.missing.some((x: any) => x.n === target) };
   });
   expect(r.inOwned).toBe(true);          // the Calculator's store
-  expect(r.foundNow).toBe(1);
+  expect(r.foundNow).toBe(r.before + 1);   // v659 — boot starts at the 229 seed, not zero
   expect(r.missingDropped).toBe(true);   // left the hunt immediately
 });
 

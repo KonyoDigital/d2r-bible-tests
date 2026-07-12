@@ -67,7 +67,7 @@ test('ladder account consistency: _rwLadderBlocked=false, NO fail-verdict seed, 
   expect(r.verifyFails).toBe(0);          // non-ladder fail verdicts never seed the ladder account
   expect(r.guardBlocked).toBe(false);     // Mania's card wears no did-not-form banner here
   expect(r.mainMode).toBe('nonladder');   // the shared key is untouched from the ladder side
-  expect(r.ladderMade).toBe(87);          // v638 — SHARED grail ledger: the seed-load is a harmless no-op on an already-seeded chronicle
+  expect(r.ladderMade).toBe(88);          // v638 — SHARED grail ledger: the seed-load is a harmless no-op on an already-seeded chronicle
 });
 
 test('Backup & Share lives again: export contains real keys per-profile, restore never flips the account', async ({ page }) => {

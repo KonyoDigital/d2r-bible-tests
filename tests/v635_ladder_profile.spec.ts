@@ -13,12 +13,15 @@ const SNAP_JS = `[...(window)._LP_FORKED, 'd2r_ladderMode'].sort().map((k) => k 
 
 test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile stays byte-identical (and vice versa)', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
-  // arrange a recognizable MAIN state
-  const mainBefore = await page.evaluate(({ SNAP_JS }: any) => {
+  // arrange a recognizable MAIN state — then RELOAD before snapshotting, so the v659 grail
+  // found-seed floor (which rewrites d2r_owned/d2r_foundLog on a main boot) is already baked
+  // into the baseline; otherwise the round-trip's re-boot makes main look changed when it isn't.
+  await page.evaluate(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (5os)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ El: 3 }));
-    return eval(SNAP_JS);
-  }, { SNAP_JS });
+  });
+  await page.reload(); await page.waitForTimeout(1800);
+  const mainBefore = await page.evaluate(({ SNAP_JS }: any) => eval(SNAP_JS), { SNAP_JS });
   // ascend to ladder
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'ladder'); });
   await page.reload(); await page.waitForTimeout(1800);
@@ -67,21 +70,21 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
     localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash');
   });
   expect(ladder.owned).toBe(0);           // fresh account: no bases bleed in
-  expect(ladder.made).toBe(87);           // v658 — 87 seeded of the 99 catalog, one shared grail ledger
+  expect(ladder.made).toBe(88);           // v660 — 88 seeded of the 99 catalog, one shared grail ledger
   expect(ladder.runes).toBe(0);           // no rune tallies bleed in (physical stash stays separate)
   expect(ladderLife.laddered).toBe(0);    // ladder profile: the 9 are UNLOCKED (no strip)
   expect(ladderLife.maniaKind).toBe('now');
   expect(ladderLife.maniaBase).toBe('Mage Plate');
-  expect(ladderLife.madeN).toBe(88);           // 87 boot + Wealth forged here
+  expect(ladderLife.madeN).toBe(89);           // 88 boot + Wealth forged here
   expect(ladderLife.hasMania).toBe(true);
   expect(mainAfter).toBe(mainBefore);     // ★ NOTHING BLEEDS — byte-identical main
-  expect(ladderPersist.madeN).toBe(88);                       // 87 boot + Wealth forged in the journey
+  expect(ladderPersist.madeN).toBe(89);                       // 88 boot + Wealth forged in the journey
   expect(ladderPersist.hasMania).toBe(true);
   expect(ladderPersist.owned).not.toContain('Mage Plate (3os)');   // the forge CONSUMED it — full engine, ladder-side
   expect(ladderPersist.consumed).toBe('Mage Plate (3os)');         // and the consume trail says so
 });
 
-test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 87', async ({ page }) => {
+test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 88', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -93,7 +96,7 @@ test('main profile is untouched-by-default: no L· keys exist until ladder is ev
     };
   });
   expect(r.profile).toBe('main');
-  expect(r.made).toBe(87);
+  expect(r.made).toBe(88);
   expect(r.lKeys).toBe(0);
   expect(r.routerSame).toBe(true);
 });

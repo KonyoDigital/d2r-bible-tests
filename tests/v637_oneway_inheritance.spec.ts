@@ -12,7 +12,7 @@ async function cleanup(page: any) {
     Object.keys(localStorage).filter((k) => k.indexOf('L·') === 0).forEach((k) => localStorage.removeItem(k));
     localStorage.removeItem('d2r_activeProfile');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
-    delete made['Radiance']; delete made['Rain']; delete made['Myth'];
+    delete made['Lionheart']; delete made['Peace']; delete made['Myth'];
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     ['d2r_rwUnmade','d2r_rwBaseUsed'].forEach((k) => localStorage.removeItem(k));
   });
@@ -20,10 +20,10 @@ async function cleanup(page: any) {
 
 test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts on main — vaults never cross', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
-  // main forges Rain (v658 — Radiance joined the seed; the test word must stay unseeded)
+  // main forges Lionheart (v660 — Rain joined the seed too; the test word must stay unseeded)
   await page.evaluate(() => {
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
-    made['Rain'] = 'Jul 10, 2026 · 03:00';
+    made['Lionheart'] = 'Jul 10, 2026 · 03:00';
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     localStorage.setItem('d2r_owned', JSON.stringify(['Flail (5os)']));   // main's physical vault
   });
@@ -32,10 +32,10 @@ test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts 
   const onLadder = await page.evaluate(() => {
     const w: any = window;
     const made = JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}');
-    // ladder forges MYTH on its own armor (v658 — main's test word is Rain; the ladder side
+    // ladder forges MYTH on its own armor (v660 — main's test word is Lionheart; the ladder side
     // must forge a DIFFERENT unseeded word or the toggle un-makes it)
     w.LSR.setItem('d2r_owned', JSON.stringify(['Breast Plate (3os)']));
-    return { seesMainForge: !!made['Rain'], n: Object.keys(made).length,
+    return { seesMainForge: !!made['Lionheart'], n: Object.keys(made).length,
              vaultSeparate: JSON.parse(w.LSR.getItem('d2r_owned') || '[]') };
   });
   await page.reload(); await page.waitForTimeout(1800);
@@ -50,25 +50,25 @@ test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts 
   }));
   await cleanup(page);
   expect(onLadder.seesMainForge).toBe(true);                        // main → ladder: counts
-  expect(onLadder.n).toBe(88);                                      // 87 + Rain, shared
+  expect(onLadder.n).toBe(89);                                      // 88 + Lionheart, shared
   expect(onMain.seesLadderForge).toBe(true);                        // ladder → main: counts too
-  expect(onMain.mainVault).toEqual(['Flail (5os)']);                // physical NEVER crosses
+  expect(onMain.mainVault).toContain('Flail (5os)');             // physical NEVER crosses (v659 — the grail found-seed also floors main's owned, so exact-equality is out)
   expect(onMain.ladderVaultStillParked).not.toContain('Flail (5os)');   // ladder's vault namespace never gained main's item
 });
 
 test('v637-era orphaned L· chronicle reconciles once into the shared ledger (union-only) and the L· copies vanish', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   await page.evaluate(() => {
-    localStorage.setItem('L·d2r_rwMade', JSON.stringify({ Rain: 'Jul 10, 2026 · 02:00' }));   // a ladder-side forge from the v637 window
+    localStorage.setItem('L·d2r_rwMade', JSON.stringify({ Peace: 'Jul 10, 2026 · 02:00' }));   // a ladder-side forge from the v637 window
   });
   await page.reload(); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => ({
-    merged: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Rain'],
+    merged: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Peace'],
     orphanGone: localStorage.getItem('L·d2r_rwMade') === null,
     count: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length,
   }));
   await cleanup(page);
   expect(r.merged).toBe(true);
   expect(r.orphanGone).toBe(true);
-  expect(r.count).toBe(88);   // 87 boot + the reconciled Rain
+  expect(r.count).toBe(89);   // 88 boot + the reconciled Peace
 });
