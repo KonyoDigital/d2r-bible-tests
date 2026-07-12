@@ -15,6 +15,7 @@ test('milestone forge → toast + epic overlay + ascend stagger; overlay self-re
   // seed the Chronicle to 59 made (next forge = 60 → a %10 milestone) — pick unmade words dynamically
   await page.evaluate(() => {
     const w: any = window;
+    localStorage.setItem('d2r_rwProfile', 'fresh');   // v663 — the 88-seed floor pushed the next %10 milestone to 100, unreachable in the 99 catalog
     const all = Object.keys(w.RUNEWORD_TIP || {});
     const made: any = {}; all.slice(0, 59).forEach((n) => (made[n] = 'x'));
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));

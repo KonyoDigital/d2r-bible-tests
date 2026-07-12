@@ -16,12 +16,18 @@ async function liveState(page: any) {
     localStorage.setItem('d2r_owned', JSON.stringify(owned));
     localStorage.setItem('d2r_runeStash', JSON.stringify(runes));
     localStorage.removeItem('d2r_ladderMode');   // his live state: unset → nonladder
-    // default owner seed (74) = his live rwMade exactly
+    // v663 — the live seed moved on (88, ladder set complete); PIN the 2026-07-09 snapshot instead:
+    // exactly the seed minus the 9 mod-ladder words minus tonight's 5 forges = his 74 that day.
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+    const SEED = (window as any)._RWC_SEED || {};
+    const POST = ['Cure','Ground','Hearth','Hysteria','Mania','Temper','Eternity','Metamorphosis','Bulwark','Silence','Exile','Radiance','Ritual','Rain'];
+    const made: any = {}; Object.keys(SEED).forEach((n) => { if (POST.indexOf(n) < 0) made[n] = SEED[n]; });
+    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
   }, { owned: LIVE_OWNED, runes: LIVE_RUNES });
   await page.reload(); await page.waitForTimeout(1800);
 }
 async function cleanup(page: any) {
-  await page.evaluate(() => ['d2r_owned','d2r_runeStash','d2r_ladderMode','d2r_rwMade','d2r_rwBaseUsed','d2r_forgeStep'].forEach((k) => localStorage.removeItem(k)));
+  await page.evaluate(() => ['d2r_owned','d2r_runeStash','d2r_ladderMode','d2r_rwMade','d2r_rwBaseUsed','d2r_forgeStep','d2r_rwProfile'].forEach((k) => localStorage.removeItem(k)));
 }
 
 test('FULL REMAINDER (his live state): every unmade word is tasked OR in the ladder strip — zero silent words', async ({ page }) => {
@@ -72,7 +78,7 @@ test('ladder-mode flip demo: the strip empties and every former ladder word beco
   expect(r.silent).toEqual([]);
 });
 
-test('lifecycle demo to the ENDPOINT (his real Death Mask): Radiance pipeline → ✓ created → Chronicle 84, task gone, invariant still holds', async ({ page }) => {
+test('lifecycle demo to the ENDPOINT (his real Death Mask): Radiance pipeline → ✓ created → Chronicle 75, task gone, invariant still holds', async ({ page }) => {
   await liveState(page);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -93,7 +99,7 @@ test('lifecycle demo to the ENDPOINT (his real Death Mask): Radiance pipeline �
   await cleanup(page);
   expect(r.before.kind).toBe('pipeline');
   expect(r.before.base).toBe('Death Mask (Larzuk base)');   // HIS helm hosts it
-  expect(r.madeCount).toBe(84);                             // 83 + Radiance
+  expect(r.madeCount).toBe(75);                             // v663 — 74 pinned (the Jul-9 snapshot) + Radiance
   expect(r.stillTasked).toBe(false);                        // task evaporated at the endpoint
   expect(r.silent).toEqual([]);                             // coverage never breaks mid-journey
 });

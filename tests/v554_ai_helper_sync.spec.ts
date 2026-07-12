@@ -32,7 +32,7 @@ test('buildAskSnapshot carries the Forge plan + Chronicle progress', async ({ pa
   expect(r.forgeKeys).toEqual(expect.arrayContaining(['makeNow', 'pipeline', 'oneStep']));
   expect(r.makeNowIsArray).toBe(true);
   expect(r.hasChronicle).toBe(true);
-  expect(r.total).toBe(100);
+  expect(r.total).toBe(99);   // v663 recalibration — 99 since the v651 Hustle purge
   expect(r.madeIsNumber).toBe(true);
 });
 

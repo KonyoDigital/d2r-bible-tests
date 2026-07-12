@@ -47,7 +47,7 @@ test('the Chronicle progress meter renders with a fill and a made/total label', 
   expect(r.present).toBe(true);
   expect(r.hasFill).toBe(true);
   expect(r.width).toMatch(/%$/);           // a percentage width
-  expect(r.text).toMatch(/\/\s*100 forged/);
+  expect(r.text).toMatch(/\/\s*99 forged/);   // v663 recalibration — 99 since the v651 Hustle purge
   expect(r.text).toMatch(/%/);
 });
 

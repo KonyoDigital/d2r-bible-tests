@@ -4636,7 +4636,8 @@ try {
         return;
       }
       window._lfCountTries = 0;
-      var n = window._endgameFilterBases().codes.length;
+      var _ebb = window._endgameFilterBases();
+      var n = (_ebb.sockCodes || _ebb.codes).length;   // v664 (army audit) — the badge said 27 while the filter ships the 204-code engine-true socketed universe
       if (el) el.textContent = n + ' bases';
       if (nm) nm.textContent = 'KonyoEndgame' + window._chronicleMadeCount();
     } catch(e){}
@@ -13780,6 +13781,9 @@ let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
 let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
 let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
+// v664 (army audit) — the pre-fix F·Sets undo bar could walk _UNI_EXTRA unique names INTO the set-piece
+// store (one click per name). Uniques never belong here — strip them once on every load.
+try { if (typeof _UNI_EXTRA !== 'undefined'){ var _spDirty=false; Array.from(setPieces).forEach(function(n){ if (_UNI_EXTRA[n]){ setPieces.delete(n); _spDirty=true; } }); if (_spDirty) LS.setItem('d2r_setPieces', JSON.stringify(Array.from(setPieces))); } } catch(e){}
 // Rune Stash: { runeName: count } map. Pure user-owned tally; powers the cube-up planner.
 let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
 // v369 — Chronicle Runeword Maker: { runewordName: "first-made date string" } — which runewords the
@@ -17809,6 +17813,11 @@ window._vaultHostMap = function(){
       var clean=String(lbl||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
       if(!clean || (typeof _isRunewordBase==='function' && !_isRunewordBase(clean))) return;
       var m=/\((\d+)\s*os/i.exec(lbl); var ks=m?parseInt(m[1],10):0;
+      // v664 (v629-spec + army) — the v659 grail seed put 229 UNIQUE names into owned, and each resolved
+      // through its base type into a 'possible host' — flooding every chronicle row and forge card with
+      // 'you may already own a host: Wizardspike…'. A known grail unique with no explicit socket label is
+      // a FOUND UNIQUE (runewords only form in grey bases) — never a host candidate.
+      if (!m && ((typeof ITEM_REGISTRY!=='undefined' && ITEM_REGISTRY[clean]) || (window._UNI_EXTRA && window._UNI_EXTRA[clean]))) return;
       (typeof _baseRunewords==='function'?_baseRunewords(clean):[]).forEach(function(r){
         if(ks>=1){ if(r.s===ks) (exact[r.n]=exact[r.n]||[]).push(lbl); }
         else (maybe[r.n]=maybe[r.n]||[]).push(lbl);
@@ -29938,11 +29947,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v644 — THE GRAIL LEDGER: dated found-chronicle shared by both grail forges (d2r_foundLog,
   // written by toggleOwned/toggleSetPiece — the single sources of truth — so a tick ANYWHERE dates it).
   function _flog(){ try { return JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}'); } catch(e){ return {}; } }
-  function _flogSort(names){ var fl=_flog(); return names.slice().sort(function(a,b){ var da=fl[a]||'', db=fl[b]||''; if(da&&db) return db.localeCompare(da); if(da) return -1; if(db) return 1; return a.localeCompare(b); }); }
+  // v664 (army audit) — the display stamps ('Jul 12, 2026 · 22:41') were compared LEXICALLY, and month
+  // names sort alphabetically (May > Jun > Jul) — so May seeds permanently outranked fresh July ticks and
+  // the ↩ undo bar targeted the WRONG item. Parse to epoch; the display string stays untouched.
+  function _flogTime(s){ var t=Date.parse(String(s||'').replace('\u00b7',' ')); return isFinite(t)?t:0; }
+  function _flogSort(names){ var fl=_flog(); return names.slice().sort(function(a,b){ var da=_flogTime(fl[a]), db=_flogTime(fl[b]); if(da!==db) return db-da; if(fl[a]&&!fl[b]) return -1; if(fl[b]&&!fl[a]) return 1; return a.localeCompare(b); }); }
   function _undoBar(kind){
     var fl=_flog(); var keys=Object.keys(fl);
     var _L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);   // v644.1 — ITEMS is const-scoped elsewhere; the bare typeof check silently emptied the 'uni' ledger
-    var mine=keys.filter(function(n){ var isU=_L.some(function(i){return i.n===n;}); return kind==='uni'?isU:!isU; });
+    var mine=keys.filter(function(n){ var isU=_L.some(function(i){return i.n===n;}) || !!(window._UNI_EXTRA && window._UNI_EXTRA[n]); return kind==='uni'?isU:!isU; });   // v664 (army audit) — the 62 mod-chronicle uniques bucketed as 'set' and the F·Sets undo bar walked them INTO d2r_setPieces
     if(!mine.length) return '';
     mine=_flogSort(mine); var last=mine[0];
     var fn=kind==='uni'?'grailFoundUni':'grailTogglePiece';
@@ -30451,7 +30464,8 @@ body:not(.cousin-shell) .pp-mac,body.cousin-shell .pp-win{background:rgba(140,20
 body.cousin-shell .pp-win{background:rgba(140,200,255,.3)}
 body.cousin-shell #profile-pill{display:none}   /* Main/Ladder is a MAC concept */
 body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
-#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
+#cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:700 11px/1 inherit;letter-spacing:.12em;padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){#cousin-ribbon{font-size:9px;letter-spacing:.06em;padding:3px 10px 4px}}
 @media (max-width:700px){.machine-pill{position:static;margin:6px auto;width:max-content}}
 body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
@@ -30471,6 +30485,7 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .masthead-rule,.masthead-tagline,.masthead-kicker{display:none!important}
 .header .header-top{margin:0!important;padding:0!important}
 .profile-pill{top:8px!important;right:12px!important}
+.machine-pill{right:172px!important}   /* v664 (army audit) — the compact-header override stacked BOTH pills at right:12px, burying the master switch under Main/Ladder */
 .profile-pill .pp-btn{padding:5px 10px!important;font-size:10px!important}
 .tabs{margin:6px auto 0!important;gap:3px!important;max-width:none!important;justify-content:center!important}
 .tab{padding:4px 8px!important;font-size:10px!important;border-radius:5px!important;letter-spacing:.02em!important}   /* v640.1 — a notch tighter so all 15 hold ONE row at his width */
@@ -30602,7 +30617,7 @@ try { if (window.D2R_PROFILE==='ladder'){ document.body.classList.add('ladder-pr
 } } catch(e){}
 // v663 — cousin shell cue: blue ribbon + body class (hides the Main/Ladder pill, tints the masthead)
 try { if (window.D2R_MACHINE==='windows'){ document.body.classList.add('cousin-shell');
-  var _wr=document.createElement('div'); _wr.id='cousin-ribbon'; _wr.textContent='🪟 WINDOWS — the cousin\'s own world · Konyo\'s Mac data is untouched'; document.body.appendChild(_wr);
+  var _wr=document.createElement('div'); _wr.id='cousin-ribbon'; _wr.textContent='🪟 WINDOWS — cousin world · Mac untouched'; document.body.appendChild(_wr);
 } } catch(e){}
 </script>
 </body>

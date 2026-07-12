@@ -83,7 +83,7 @@ test('the 6 RotW Colossal Jewels exist, render cards, and never rot in a throw-o
   }
 });
 
-test('audit invariants that came back CLEAN stay locked: 100 runewords, 34 sets, sunder tips', async ({ page }) => {
+test('audit invariants that came back CLEAN stay locked: 99 runewords, 34 sets, sunder tips', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window;
     return {
@@ -95,7 +95,7 @@ test('audit invariants that came back CLEAN stay locked: 100 runewords, 34 sets,
       botd: (w.RUNEWORD_TIP['Breath of the Dying'] || {}).rec,
     };
   });
-  expect(r.rwCount).toBe(100);
+  expect(r.rwCount).toBe(99);   // v663 recalibration — 99 since the v651 Hustle purge
   expect(r.setCount).toBe(34);                 // 32 vanilla (piece-perfect vs battle.net) + Bane's + Horazon's (RotW)
   expect(r.sunder).toBeGreaterThanOrEqual(12); // Latent+Renewed ×6 — matches the AB wiki sunder data
   expect(r.enigma).toEqual(['Jah', 'Ith', 'Ber']);

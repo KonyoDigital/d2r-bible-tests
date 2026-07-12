@@ -63,7 +63,7 @@ test('REVERSE-ENGINEER the remaining words: EVERY unmade word with an exact-fit 
     const md = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     return Object.keys(w.RUNEWORD_TIP || {}).filter((n) => !md[n] && !(w._rwLadderBlocked && w._rwLadderBlocked(n)));
   });
-  expect(words.length).toBeGreaterThan(15);
+  expect(words.length).toBeGreaterThan(5);   // v663 — 11 as of the 88-seed; shrinks as he forges, the sweep below is what matters
   const fails = await page.evaluate((words: string[]) => {
     const w: any = window;
     const out: string[] = [];
