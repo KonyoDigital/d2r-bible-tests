@@ -14,7 +14,7 @@ test('a stuck-at-19 save snaps up to 57 on load', async ({ page }) => {
     const s = JSON.parse(localStorage.getItem('d2r_rwMade')||'{}');
     return { count: Object.keys(s).length, hasDeath: !!s['Death'], hasEdge: !!s['Edge'] };
   });
-  expect(r.count).toBe(97);   // v672 +UW +Bramble
+  expect(r.count).toBe(99);   // v674 — COMPLETE
   expect(r.hasDeath).toBe(true);
   expect(r.hasEdge).toBe(true);
 });
@@ -26,7 +26,7 @@ test('floor re-applies even after the stale one-time flag was set (the real stuc
   });
   await page.goto(URL); await page.waitForTimeout(1300);
   const n = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade')||'{}')).length);
-  expect(n).toBe(97);   // durable floor ignores the flag
+  expect(n).toBe(99);   // durable floor ignores the flag
 });
 test('un-marks SURVIVE the floor for seeded AND non-seeded words (the v615 ↺ contract)', async ({ page }) => {
   await page.addInitScript(() => {
@@ -44,7 +44,7 @@ test('un-marks SURVIVE the floor for seeded AND non-seeded words (the v615 ↺ c
   });
   expect(r.hasDeath).toBe(false);     // seeded + explicitly un-marked → the floor RESPECTS it now
   expect(r.unmadeDeath).toBe(true);   // …and the un-mark record survives
-  expect(r.hasFaith).toBe(false);     // non-seeded → unchanged behavior
+  expect(r.hasFaith).toBe(false);     // v674 — Wrath is seeded too; its un-mark is honored the same
   expect(r.unmadeFaith).toBe(true);
-  expect(r.count).toBe(96);           // 97 minus the honored Death un-mark
+  expect(r.count).toBe(97);           // v674 — 99 minus the two honored un-marks (both seeded now: Death + Wrath)
 });

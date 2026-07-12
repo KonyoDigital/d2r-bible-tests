@@ -34,6 +34,7 @@ test('ready Make-now: ✓ created marks the word AND removes it from the Forge i
 });
 
 test('forgeForged creates the runeword + resets the chain step (final "Forge" tick completes it)', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); localStorage.setItem('d2r_rwMade', '{}'); });   // v674 — 99/99: no unseeded word exists, pin a fresh chronicle
   await page.goto(URL); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window;

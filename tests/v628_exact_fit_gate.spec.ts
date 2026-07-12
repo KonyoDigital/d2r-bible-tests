@@ -56,14 +56,17 @@ test('the gate still stops PLANS on wrong homes: an unsocketed exceptional bow s
 
 test('REVERSE-ENGINEER the remaining words: EVERY unmade word with an exact-fit owned base gets kept + tasked', async ({ page }) => {
   test.setTimeout(180000);
+  // v674 — the live Chronicle is COMPLETE (99/99): pin the sweep to a stable 5-word snapshot forever
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); });
   await page.goto(URL); await page.waitForTimeout(1800);
-  // Konyo's real Chronicle (the 70 seed) — the ~30 remaining words are the sweep set
   const words = await page.evaluate(() => {
     const w: any = window;
-    const md = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
-    return Object.keys(w.RUNEWORD_TIP || {}).filter((n) => !md[n] && !(w._rwLadderBlocked && w._rwLadderBlocked(n)));
+    const PIN = ['Bramble', 'Myth', 'Peace', 'Unbending Will', 'Wrath'];
+    const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n: string) => { if (PIN.indexOf(n) < 0) made[n] = 'x'; });
+    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
+    return PIN.filter((n) => !(w._rwLadderBlocked && w._rwLadderBlocked(n)));
   });
-  expect(words.length).toBeGreaterThan(0);   // v672 — 2 at the 97-seed; the sweep below is what matters
+  expect(words.length).toBeGreaterThan(0);
   const fails = await page.evaluate((words: string[]) => {
     const w: any = window;
     const out: string[] = [];

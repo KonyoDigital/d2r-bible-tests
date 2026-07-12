@@ -8,13 +8,14 @@ import { test, expect } from '@playwright/test';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('Chronicle seeds 97 created, catalog is 99, lists all 99, syncs makeable, toggles persist', async ({ page }) => {
+test('Chronicle seeds 99 created — COMPLETE, catalog is 99, lists all 99, syncs makeable, toggles persist', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
-    // enough runes to make Peace (Shael+Thul+Amn) now — an UN-seeded word for the "Can make now"
-    // check (Leaf v581; Wealth v669; Myth v671 — pick from the truly-open tail).
-    localStorage.setItem('d2r_runeStash', JSON.stringify({ Shael: 1, Thul: 1, Amn: 1, Ort: 2, Tal: 1, Ral: 1 }));
+    // v673 — WRATH is the LAST unseeded word, so it plays BOTH badge probes: boot with an empty
+    // stash → '⏳ Missing'; then its exact runes are stashed in-page and the re-render must flip
+    // the same row to '✅ Can make now'.
+    localStorage.setItem('d2r_runeStash', JSON.stringify({}));
   });
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1400);
@@ -24,6 +25,7 @@ test('Chronicle seeds 97 created, catalog is 99, lists all 99, syncs makeable, t
   await page.waitForTimeout(300);
 
   const r = await page.evaluate(() => {
+    const w0: any = window;
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     const rows = Array.from(document.querySelectorAll('#rwc-list .rwc-row'));
     const find = (n: string) => {
@@ -35,31 +37,50 @@ test('Chronicle seeds 97 created, catalog is 99, lists all 99, syncs makeable, t
       madeCount: Object.keys(made).length,
       rowCount: rows.length,
       prog: (document.getElementById('rwc-progress') || {}).textContent || '',
-      spirit: find('Spirit'), zephyr: find('Zephyr'), leaf: find('Peace'),
-      beast: find('Beast'), death: find('Death'), faith: find('Wrath'),
+      spirit: find('Spirit'), zephyr: find('Zephyr'),
+      beast: find('Beast'), death: find('Death'), faith: find('Wrath'),  // read BEFORE the leaf() un-make probe runs
+      leaf: (() => {   // v674 — NO unseeded word exists at 99/99: un-make Wrath in-page, stash its
+        // recipe → the row must read Can make now; the re-make below restores the sealed Chronicle.
+        (window as any).rwToggleMade('Wrath');
+        const rec = ((w0.RUNEWORD_TIP['Wrath'] || {}).rec || []);
+        const st: any = {}; rec.forEach((rn: string) => (st[rn] = (st[rn] || 0) + 1));
+        localStorage.setItem('d2r_runeStash', JSON.stringify(st));
+        try { if (w0.runeStash) Object.keys(st).forEach((k) => (w0.runeStash[k] = st[k])); } catch (e) {}
+        try { (window as any).renderRunewordChronicle(); (window as any).rwcSetFilter('all'); } catch (e) {}
+        const rows2 = Array.from(document.querySelectorAll('#rwc-list .rwc-row'));
+        const el = rows2.find((r) => (r.querySelector('.rwc-name')?.textContent || '') === 'Wrath');
+        const out = el ? { badge: el.querySelector('.rwc-badge')?.textContent || '', made: el.classList.contains('rwc-made') } : null;
+        (window as any).rwToggleMade('Wrath');   // re-seal
+        localStorage.removeItem('d2r_rwUnmade');
+        return out;
+      })(),
     };
   });
 
   expect(errs).toEqual([]);
   // seeded the 42-runeword durable floor (Konyo's actual created list, + Zephyr + Memory + Rift + Void as of v456-v463)
-  expect(r.madeCount).toBe(97);   // v672: +Unbending Will +Bramble
+  expect(r.madeCount).toBe(99);   // v674 — 99/99, the Chronicle is COMPLETE
   ['Beast', 'Chains of Honor', 'Death', 'Mosaic', 'Edge', 'Lore', 'Pride', 'Destruction', "Ancients' Pledge", 'Spirit', 'Grief', 'Stone', 'Enigma', 'Doom', 'Plague', 'Treachery', 'Zephyr', 'Memory', 'Rift', 'Void', 'Fury', 'Gloom'].forEach((n) =>
     expect(r.madeKeys).toContain(n));
   expect(r.rowCount).toBe(99);                  // all 99 runewords listed (v658 recalibration — 99 since the v651 Hustle purge)
-  expect(r.prog).toContain('97 / 99');          // v672
+  expect(r.prog).toContain('99 / 99');          // v674 — sealed
   expect(r.spirit?.made).toBe(true);            // now a seeded forged RW → reads Created
   expect(r.zephyr?.made).toBe(true);            // v456 — Zephyr is now a seeded floor RW → reads Created
-  expect(r.leaf?.badge).toContain('Can make now');   // un-seeded, makeable (Shael+Thul+Amn) from the rune stash
+  expect(r.leaf?.badge).toContain('Can make now');   // v673 — the SAME Wrath row flips once its recipe is stashed
   expect(r.beast?.made).toBe(true);             // a seeded one reads Created
   expect(r.death?.made).toBe(true);             // a newly-seeded (v420) one reads Created
-  expect(r.faith?.badge).toContain('Missing');  // v669.1 — Wrath: high runes not in the pinned stash, not seeded
+  expect(r.faith?.made).toBe(true);             // v674 — Wrath sealed the Chronicle
 
-  // toggling an UN-seeded runeword to created persists and bumps the count 97 → 98
+  // v674 — no unseeded word exists: the toggle contract is now the un-make/re-make ROUND-TRIP
   const after = await page.evaluate(() => {
-    (window as any).rwToggleMade('Wrath');
+    (window as any).rwToggleMade('Wrath');   // un-make (99 → 98, un-mark recorded)
+    const mid = Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length;
+    (window as any).rwToggleMade('Wrath');   // re-make (98 → 99, un-mark cleared)
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
-    return { faith: !!made['Wrath'], count: Object.keys(made).length };
+    localStorage.removeItem('d2r_rwUnmade');
+    return { faith: !!made['Wrath'], count: Object.keys(made).length, mid };
   });
+  expect(after.mid).toBe(98);
   expect(after.faith).toBe(true);
-  expect(after.count).toBe(98);
+  expect(after.count).toBe(99);
 });

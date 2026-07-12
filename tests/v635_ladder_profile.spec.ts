@@ -33,21 +33,28 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
       made: Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}')).length,
       runes: Object.keys(JSON.parse(w.LSR.getItem('d2r_runeStash') || '{}')).length,
     };
-    // live a whole ladder life: own a 3os armor, tally Peace's runes, forge it
-    // (v669.1 — Wealth joined the seed; the journey word must stay unseeded: Peace, Shael+Thul+Amn in a 3os armor)
-    w.LSR.setItem('d2r_owned', JSON.stringify(['Mage Plate (3os)']));
-    w.LSR.setItem('d2r_runeStash', JSON.stringify({ Shael: 1, Thul: 1, Amn: 1 }));
+    // live a whole ladder life: own a 4os bow, tally Wrath's runes, forge it
+    // (v674 — 99/99: NO unseeded word exists. The journey opens its own window: Wrath is pinned
+    // un-made via d2r_rwUnmade (the floor honors user un-marks), forged in the journey, resealing 99.)
+    w.LSR.setItem('d2r_owned', JSON.stringify(['Blade Bow (4os)']));
+    // v674 — open the journey window: the initial seed-fill ignores rwUnmade, so Wrath must also
+    // leave the STORED chronicle; the honored un-mark then keeps the floor from re-adding it.
+    const _sm = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); delete _sm['Wrath'];
+    localStorage.setItem('d2r_rwMade', JSON.stringify(_sm));
+    localStorage.setItem('d2r_rwUnmade', JSON.stringify({ Wrath: 1 }));
+    const _rec = ((w.RUNEWORD_TIP['Wrath'] || {}).rec || []); const _st: any = {}; _rec.forEach((rn: string) => (_st[rn] = (_st[rn] || 0) + 1));
+    w.LSR.setItem('d2r_runeStash', JSON.stringify(_st));
     return cleanStart;
   });
   await page.reload(); await page.waitForTimeout(1800);
   const ladderLife = await page.evaluate(() => {
     const w: any = window;
     const sc = w.forgeScan();
-    const mania = [].concat(sc.now || [], sc.pipeline || [], sc.onestep || []).find((t: any) => t.rw === 'Peace');
+    const mania = [].concat(sc.now || [], sc.pipeline || [], sc.onestep || []).find((t: any) => t.rw === 'Wrath');
     const laddered = (sc.ladder || []).length;                       // ladder profile: NO locked strip
-    w.rwToggleMade('Peace', mania && mania.base && mania.base.name); // ✓ created — the REAL engine
+    w.rwToggleMade('Wrath', mania && mania.base && mania.base.name); // ✓ created — the REAL engine
     const made = Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}'));
-    return { maniaKind: mania && mania.kind, maniaBase: mania && mania.base && mania.base.base, laddered, madeN: made.length, hasMania: made.includes('Peace') };
+    return { maniaKind: mania && mania.kind, maniaBase: mania && mania.base && mania.base.base, laddered, madeN: made.length, hasMania: made.includes('Wrath') };
   });
   // descend to main — byte-identical
   await page.evaluate(() => { localStorage.setItem('d2r_activeProfile', 'main'); });
@@ -58,33 +65,33 @@ test('BLEED-PROOF: forge/tally/create in the LADDER profile — the main profile
   await page.reload(); await page.waitForTimeout(1800);
   const ladderPersist = await page.evaluate(() => {
     const w: any = window;
-    // creating Peace CONSUMED the Mage Plate (the real engine ran) — assert the consume trail
+    // creating Wrath CONSUMED the Blade Bow (the real engine ran) — assert the consume trail
     const used = JSON.parse(w.LSR.getItem('d2r_rwBaseUsed') || '{}');
     const made = Object.keys(JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}'));
-    return { madeN: made.length, hasMania: made.includes('Peace'), owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
-             consumed: used['Peace'] && used['Peace'].l };
+    return { madeN: made.length, hasMania: made.includes('Wrath'), owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]'),
+             consumed: used['Wrath'] && used['Wrath'].l };
   });
   // cleanup: back to main, wipe ladder keys + test main keys
   await page.evaluate(() => {
     Object.keys(localStorage).filter((k) => k.indexOf('L·') === 0).forEach((k) => localStorage.removeItem(k));
-    localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash');
+    localStorage.removeItem('d2r_activeProfile'); localStorage.removeItem('d2r_owned'); localStorage.removeItem('d2r_runeStash'); localStorage.removeItem('d2r_rwUnmade');
   });
   expect(ladder.owned).toBe(0);           // fresh account: no bases bleed in
-  expect(ladder.made).toBe(97);           // v672 — 97 seeded of the 99 catalog, one shared grail ledger
+  expect(ladder.made).toBe(99);           // v674 — the COMPLETE shared chronicle is visible on ladder at first read; the Wrath window applies on the next reload
   expect(ladder.runes).toBe(0);           // no rune tallies bleed in (physical stash stays separate)
   expect(ladderLife.laddered).toBe(0);    // ladder profile: the 9 are UNLOCKED (no strip)
   expect(ladderLife.maniaKind).toBe('now');
-  expect(ladderLife.maniaBase).toBe('Mage Plate');
-  expect(ladderLife.madeN).toBe(98);           // 97 boot + Peace forged here
+  expect(ladderLife.maniaBase).toBe('Blade Bow');
+  expect(ladderLife.madeN).toBe(99);           // the journey re-forges Wrath → the Chronicle re-seals at 99
   expect(ladderLife.hasMania).toBe(true);
   expect(mainAfter).toBe(mainBefore);     // ★ NOTHING BLEEDS — byte-identical main
-  expect(ladderPersist.madeN).toBe(98);                       // 97 boot + Peace forged in the journey
+  expect(ladderPersist.madeN).toBe(99);                       // sealed at 99 after the journey
   expect(ladderPersist.hasMania).toBe(true);
-  expect(ladderPersist.owned).not.toContain('Mage Plate (3os)');   // the forge CONSUMED it — full engine, ladder-side
-  expect(ladderPersist.consumed).toBe('Mage Plate (3os)');         // and the consume trail says so
+  expect(ladderPersist.owned).not.toContain('Blade Bow (4os)');   // the forge CONSUMED it — full engine, ladder-side
+  expect(ladderPersist.consumed).toBe('Blade Bow (4os)');         // and the consume trail says so
 });
 
-test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 97', async ({ page }) => {
+test('main profile is untouched-by-default: no L· keys exist until ladder is ever used; boot count stays 99', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1800);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -96,7 +103,7 @@ test('main profile is untouched-by-default: no L· keys exist until ladder is ev
     };
   });
   expect(r.profile).toBe('main');
-  expect(r.made).toBe(97);
+  expect(r.made).toBe(99);
   expect(r.lKeys).toBe(0);
   expect(r.routerSame).toBe(true);
 });

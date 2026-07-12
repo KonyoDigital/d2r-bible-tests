@@ -67,7 +67,7 @@ test('ladder account consistency: _rwLadderBlocked=false, NO fail-verdict seed, 
   expect(r.verifyFails).toBe(0);          // non-ladder fail verdicts never seed the ladder account
   expect(r.guardBlocked).toBe(false);     // Mania's card wears no did-not-form banner here
   expect(r.mainMode).toBe('nonladder');   // the shared key is untouched from the ladder side
-  expect(r.ladderMade).toBe(97);          // v638 — SHARED grail ledger: the seed-load is a harmless no-op on an already-seeded chronicle
+  expect(r.ladderMade).toBe(99);          // v638 — SHARED grail ledger (COMPLETE): the seed-load is a harmless no-op on an already-seeded chronicle
 });
 
 test('Backup & Share lives again: export contains real keys per-profile, restore never flips the account', async ({ page }) => {
@@ -105,6 +105,11 @@ test('Backup & Share lives again: export contains real keys per-profile, restore
 
 test('FULL no-silent sweep INSIDE the ladder account: the inherited remainder + ladder words, zero silent, no strip; profileSwitch same-account = no-op', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
+  await page.evaluate(() => {   // v674 — the live Chronicle is COMPLETE: open a 2-word remainder window
+    const m = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); delete m['Wrath']; delete m['Peace'];
+    localStorage.setItem('d2r_rwMade', JSON.stringify(m));
+    localStorage.setItem('d2r_rwUnmade', JSON.stringify({ Wrath: 1, Peace: 1 }));
+  });
   await toLadder(page);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -121,7 +126,7 @@ test('FULL no-silent sweep INSIDE the ladder account: the inherited remainder + 
     return { unmadeCount: unmade.length, silent, strip: (sc.ladder || []).length, reloaded };
   });
   await cleanup(page);
-  expect(r.unmadeCount).toBeGreaterThan(0);    // v638/v672 — shared chronicle: only the true remainder is open here (2 at the 97-seed)
+  expect(r.unmadeCount).toBeGreaterThan(0);    // v674 — remainder opened via the pinned un-marks below (the live Chronicle is COMPLETE)
   expect(r.unmadeCount).toBeLessThan(40);
   expect(r.silent).toEqual([]);          // the v604 invariant holds in the ladder account too
   expect(r.strip).toBe(0);
