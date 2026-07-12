@@ -4523,8 +4523,14 @@ try {
               liveNeeds.push(((tips[hw] || {}).rec || []).length);
             }
             if (!liveNeeds.length) return;                                    // no unmade word can live here → socketed copy is honestly useless
-            sockSet[c] = 1;
+            // v665.3 (Konyo's Chaos run: plain-looking 'Scale Mail'/'Superior Elegant Blade' labels) —
+            // SOCKET FEASIBILITY: a base whose TRUSTED max sockets sits below every live word's count
+            // can never host any of them (a 2os-max Scale Mail is no Myth/Wealth base; a 3os-max
+            // Elegant Blade is no Unbending Will). Trusted-max doctrine (v575.2): only exclude on a
+            // KNOWN max — unknown maxes fail open, never wrongly hiding a real base.
             var _smx = null; try { _smx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
+            if (_smx >= 1 && _smx <= 6 && !liveNeeds.some(function(n){ return n <= _smx; })) return;
+            sockSet[c] = 1;
             if (!(_smx >= 1 && _smx <= 6) || liveNeeds.indexOf(_smx) >= 0) supOkSet[c] = 1;
           });
         }
