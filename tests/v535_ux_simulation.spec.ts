@@ -99,13 +99,13 @@ test('UX — cross-platform sync: the Forge\'s "find the base" set === the Tools
       premium: (w._premiumTradeBases || []).slice(),
       inFilterNotForge: filterBases.filter((n: string) => !forgeBases.includes(n)),
       inForgeNotFilter: forgeBases.filter((n: string) => !filterBases.includes(n)),
-      badge, filterCount: filterBases.length,
+      badge, filterCount: filterBases.length, sockCount: (w._endgameFilterBases().sockCodes || []).length,
     };
   });
   // v588 — the filter may exceed the Forge set ONLY by the premium trade floor (never shrinks off)
   expect(r.inFilterNotForge.filter((n: string) => !r.premium.includes(n))).toEqual([]);
   expect(r.inForgeNotFilter).toEqual([]);           // every Forge "find the base" IS in the filter — one source of truth
-  expect(r.badge).toBe(r.filterCount + ' bases');   // the Tools card badge reflects the live set
+  expect(r.badge).toBe(r.filterCount + ' hunt · ' + r.sockCount + ' sock');   // v664.1 — the badge carries BOTH truths: curated hunt set + the engine-true socketed universe the filter ships
 });
 
 test('UX — skip a Make-now task → the always-visible Restore bar appears and restores it', async ({ page }) => {

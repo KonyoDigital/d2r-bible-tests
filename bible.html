@@ -4637,8 +4637,9 @@ try {
       }
       window._lfCountTries = 0;
       var _ebb = window._endgameFilterBases();
-      var n = (_ebb.sockCodes || _ebb.codes).length;   // v664 (army audit) — the badge said 27 while the filter ships the 204-code engine-true socketed universe
-      if (el) el.textContent = n + ' bases';
+      // v664.1 — BOTH truths on the badge: the curated hunt set (what SI/base-hunt shows) AND the
+      // engine-true socketed universe the filter actually ships (army audit: '27 bases' vs 204 lit).
+      if (el) el.textContent = _ebb.names.length + ' hunt · ' + (_ebb.sockCodes || _ebb.codes).length + ' sock';
       if (nm) nm.textContent = 'KonyoEndgame' + window._chronicleMadeCount();
     } catch(e){}
   };
