@@ -4546,7 +4546,12 @@ try {
             // v667.1 — Larzuk-exact plains stay CURATED: only right-tier homes + premium bases earn a
             // plain-white show (a plain Ring Mail technically hosts Myth, but plain-spam is the exact
             // thing v592 killed). Non-curated bases remain socketed/eth-only forever.
-            if (isCurated && _smx >= 1 && _smx <= 6 && liveNeeds.indexOf(_smx) >= 0) larzukExact[c] = 1;
+            // v670 (Konyo's cow run: 'maybe only the mage plate') — PREMIUM names keep their Larzuk-exact
+            // eligibility at EVERY stage: v667.2 gated premium out of codeSet late, which silently dropped
+            // plain Mage Plate (max 3 = his 3os words). Quality doctrine: premium ∪ curated may earn a
+            // Larzuk-exact plain; only premium's UNCONDITIONAL ride is early-gated.
+            var _isPrem = false; try { _isPrem = (window._premiumTradeBases || []).indexOf(nm) >= 0; } catch(e){}
+            if ((isCurated || _isPrem) && _smx >= 1 && _smx <= 6 && liveNeeds.indexOf(_smx) >= 0) larzukExact[c] = 1;
             if (!isCurated){
               if (_smx >= 1 && _smx <= 6 && !liveNeeds.some(function(n){ return n <= _smx; })) return;
               sockSet[c] = 1;
