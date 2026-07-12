@@ -33,6 +33,17 @@ mkdir -p "$DIST/d2r"
 cp bible.html "$DIST/d2r/index.html"   # served at /d2r/
 cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
 cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
+# v657 — CACHE LOCKDOWN: Konyo's tabs kept serving WEEKS-old HTML from browser cache for URLs
+# with stale ?v=/?cb= params (the recurring 'this bug is still there' ghost — routines widget,
+# tooltip fixes, all of it). The HTML must always revalidate; the art can cache forever.
+cat > "$DIST/_headers" <<'HDRS'
+/d2r/
+  Cache-Control: no-cache, must-revalidate
+/d2r/index.html
+  Cache-Control: no-cache, must-revalidate
+/d2r/art/*
+  Cache-Control: public, max-age=604800, immutable
+HDRS
 
 echo "deploy: publishing to Cloudflare Pages (d2r-bible → bull-4-u.com)…"
 if npx wrangler pages deploy "$DIST" --project-name=d2r-bible --branch=main; then
