@@ -4412,7 +4412,7 @@ try {
       <div class="lf-lead">One ready-to-import filter, <strong>rebuilt live from your Chronicle</strong> every time you copy it. Shows uniques · sets · runes · gems · charms · <strong>super/rejuv potions</strong> + <strong>only the socket-correct bases worth grabbing for the runewords you still need</strong> (rare circlets only — white circlets can't hold runewords). Tap <strong>Copy</strong>, then in D2R open the <strong>Loot Filter</strong> window → New/Import → paste.</div>
       <div class="lf-block">
         <div class="lf-b-head"><span class="lf-b-name">KonyoEndgame</span><span class="lf-b-tag lf-tag-elite" id="lf-endgame-count">bases</span></div>
-        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests; plain (unsocketed) whites light up <strong>only for the premium trade bases</strong> below. As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
+        <div class="lf-b-desc">The exact <strong>right-tier bases to FIND</strong> for the runewords you haven't forged yet. <strong>🔩 Common bases show only when they drop eth/socketed</strong> — you farm the sockets instead of grinding Larzuk quests. Plain (unsocketed) whites light up only when they are <strong>💎 premium trade bases</strong> or <strong>🔨 Larzuk-exact</strong> (the base's max sockets equal a wanted word's count — ONE quest turns that white into the word's base). As you tick words off in the Chronicle, the filter shrinks to match. <strong>💎 Premium trade bases never shrink off</strong> — Archon Plate/Staff, Bone Visage, Monarch, Flail, Phase&nbsp;/&nbsp;Colossus Blade, Berserker Axe, eth merc polearms, Matriarchal/Grand Matron bows, Sacred Targe/Rondache &amp; co. stay in the filter regardless of the Chronicle: each is worth ≥ an Ist in trade as a clean white/eth/socketed drop.</div>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('endgame')">📋 Copy live KonyoEndgame filter</button>
         <button class="lf-copy-btn" onclick="window.copyLootFilter('cousin')" title="fresh-grail build: ignores the Chronicle — EVERY runeword base lights up socketed/eth (what a from-zero player hunts). Send this one to the cousin.">👤 Copy COUSIN filter (fresh grail — all socketed bases)</button>
         <span class="lf-status" id="lf-endgame-status"></span>
@@ -4466,7 +4466,7 @@ try {
       try { var sc = (!fresh && typeof window.forgeScan==='function') ? window.forgeScan() : null;
         if (sc){ [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if(t && t.base && !t.baseOver) ownedBaseWord[t.rw]=1; });
                  (sc.onestep||[]).forEach(function(t){ if(t && t.base && t.sub!=='base' && !t.baseOver) ownedBaseWord[t.rw]=1; }); } } catch(e){}
-      var codeSet = {}, nameSet = {}, supOkSet = {};
+      var codeSet = {}, nameSet = {}, supOkSet = {}, larzukExact = {};   // v666 — bases where a live word's count == the trusted Larzuk max
       Object.keys(tips).forEach(function(rw){
         if (made[rw]) return;                                  // already forged -> skip
         if (typeof window._rwLadderBlocked==='function' && window._rwLadderBlocked(rw)) return;  // v553 — don't farm bases for ladder-only words you can't make off-ladder
@@ -4483,6 +4483,7 @@ try {
             // fail-open (superior allowed).
             var _mx = null; try { _mx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
             if (!(_mx >= 1 && _mx <= 6) || _need === _mx) supOkSet[c] = 1;
+            if (_mx >= 1 && _mx <= 6 && _need === _mx) larzukExact[c] = 1;   // v666 — Larzuk gives its max: ONE quest turns a PLAIN white into this word's base
           }
         });
       });
@@ -4491,6 +4492,10 @@ try {
       // v592 — plainCodes: ONLY these light up as PLAIN (unsocketed, non-eth) whites. Everything else in
       // codes shows eth/socketed only — Konyo farms sockets instead of burning Larzuk quests.
       var plainSet = {};
+      // v666 (Konyo: 'or a MAX larzuk socket.. OR farming it socketed') — a plain white shows when
+      // ONE Larzuk quest turns it into a live word's exact base (need == trusted max). Everything
+      // else stays socketed/eth-only: Larzuk-overshoot bases are cube-gamble noise he rejected (v592).
+      Object.keys(larzukExact).forEach(function(lc){ plainSet[lc] = 1; });
       (window._premiumTradeBases || []).forEach(function(nm){
         var pc = CODE[nm]; if (!pc) return;
         codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1; plainSet[pc] = 1;
@@ -4532,6 +4537,7 @@ try {
             if (_smx >= 1 && _smx <= 6 && !liveNeeds.some(function(n){ return n <= _smx; })) return;
             sockSet[c] = 1;
             if (!(_smx >= 1 && _smx <= 6) || liveNeeds.indexOf(_smx) >= 0) supOkSet[c] = 1;
+            if (_smx >= 1 && _smx <= 6 && liveNeeds.indexOf(_smx) >= 0) larzukExact[c] = 1;   // v666
           });
         }
       } catch(e){}

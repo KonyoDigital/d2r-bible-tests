@@ -28,8 +28,11 @@ test('plain whites: premium-only show; common wanted bases eth/socketed-only wit
     const cv = CODE['Colossus Voulge'], bv = CODE['Bone Visage'];
     return {
       cvWanted: eb.codes.includes(cv), cvPlain: eb.plainCodes.includes(cv),
+      cvLarzukExact: (() => { try { return parseInt(w._socketMaxFor('Colossus Voulge'), 10) === 4; } catch (e) { return false; } })(),
       bvPlain: eb.plainCodes.includes(bv),
-      plainEqualsPremiumCount: eb.plainCodes.length === (w._premiumTradeBases || []).length,
+      // v666 — plains = premium floor ∪ Larzuk-exact (need == trusted max). Every non-premium plain
+      // must be justified by a live word whose count equals the base's trusted max.
+      premiumCodes: (w._premiumTradeBases || []).map((n: string) => CODE[n]).filter(Boolean),
       showBase: rule('Show Base Items').equipmentItemCode,
       showEth: rule('3. Show ETH and Socket bases').equipmentItemCode,
       hidePlain: rule('1. Hide Trash Gear').equipmentItemCode,
@@ -38,14 +41,16 @@ test('plain whites: premium-only show; common wanted bases eth/socketed-only wit
     };
   });
   expect(r.cvWanted).toBe(true);                       // Insight still needs a Voulge…
-  expect(r.cvPlain).toBe(false);                       // …but NOT as a plain white
+  expect(r.cvPlain).toBe(r.cvLarzukExact);             // v666 — plain CV shows IFF Larzuk-max == Insight's 4os (the Larzuk-clean case Konyo now wants lit)
   expect(r.bvPlain).toBe(true);                        // premium floor keeps plain Bone Visage
-  expect(r.plainEqualsPremiumCount).toBe(true);        // plain set === the premium floor, nothing else
-  expect(r.showBase).toContain(r.bvCode);              // plain-white rule = premium only
-  expect(r.showBase).not.toContain(r.cvCode);
+  r.showBase.forEach((c: string) => {                  // v666 — every plain is premium OR rides the socketed universe (Larzuk-exact ⊂ wanted)
+    expect(r.premiumCodes.includes(c) || r.showEth.includes(c)).toBe(true);
+  });
+  expect(r.showBase).toContain(r.bvCode);
   expect(r.showEth).toContain(r.cvCode);               // eth/socketed Voulge still lights up
   expect(r.showEth).toContain(r.bvCode);
-  expect(r.hidePlain).toContain(r.cvCode);             // plain Voulge explicitly hidden (no default-show leak)
+  if (r.cvLarzukExact) expect(r.hidePlain).not.toContain(r.cvCode);   // v666 — Larzuk-exact plain SHOWS, so it must be out of the hide
+  else expect(r.hidePlain).toContain(r.cvCode);                        // otherwise plain Voulge stays explicitly hidden (no default-show leak)
   expect(r.hidePlain).not.toContain(r.bvCode);         // plain Bone Visage NOT hidden
   expect(r.hideEth).not.toContain(r.cvCode);           // the eth/socketed hide never swallows a wanted base
   expect(r.hideEth).not.toContain(r.bvCode);
