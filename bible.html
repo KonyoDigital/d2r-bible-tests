@@ -4500,10 +4500,14 @@ try {
       // STAGE-GATED: below 50% forged it lights plain whites (early trade capital, the cousin's shell);
       // at 50%+ plains shrink to Larzuk-exact only. Premium SOCKETED/ETH copies keep riding the
       // universe — a grey 4os Archon Plate is still a pickup.
-      (window._premiumTradeBases || []).forEach(function(nm){
+      // v667.2 (Konyo: 'not every single item though') — the premium floor is EARLY-ONLY in FULL:
+      // below 50% forged it rides codes+socketed+plains as trade capital; from 50% on, premium bases
+      // obey the exact same engine gates as every other base (hostability × socket feasibility ×
+      // unmade words). No blanket floors: Flail/Bone Visage/eth-merc-polearms drop once their words
+      // are forged; Archon Plate keeps riding only because Bramble still lives in it.
+      if (_early) (window._premiumTradeBases || []).forEach(function(nm){
         var pc = CODE[nm]; if (!pc) return;
-        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1;
-        if (_early) plainSet[pc] = 1;
+        codeSet[pc] = 1; nameSet[nm] = 1; supOkSet[pc] = 1; plainSet[pc] = 1;
       });
       out.codes = Object.keys(codeSet).sort();
       out.names = Object.keys(nameSet).sort();

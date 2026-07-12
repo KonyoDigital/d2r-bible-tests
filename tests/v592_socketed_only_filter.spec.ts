@@ -50,11 +50,13 @@ test('plain whites: premium-only show; common wanted bases eth/socketed-only wit
   });
   if (r.early || r.bvLarzukExact) expect(r.showBase).toContain(r.bvCode);
   expect(r.showEth).toContain(r.cvCode);               // eth/socketed Voulge still lights up
-  expect(r.showEth).toContain(r.bvCode);
+  if (r.early || r.bvLarzukExact) expect(r.showEth).toContain(r.bvCode);   // v667.2 — premium socketed rides only while EARLY or hosting a live word
+  else expect(r.showEth).not.toContain(r.bvCode);
   if (r.cvLarzukExact) expect(r.hidePlain).not.toContain(r.cvCode);   // v666 — Larzuk-exact plain SHOWS, so it must be out of the hide
   else expect(r.hidePlain).toContain(r.cvCode);                        // otherwise plain Voulge stays explicitly hidden (no default-show leak)
   if (r.early || r.bvLarzukExact) expect(r.hidePlain).not.toContain(r.bvCode);   // early: premium plain shows
   else expect(r.hidePlain).toContain(r.bvCode);                                  // v667 — late stage: premium PLAIN correctly hidden (socketed copy still rides rule 3)
   expect(r.hideEth).not.toContain(r.cvCode);           // the eth/socketed hide never swallows a wanted base
-  expect(r.hideEth).not.toContain(r.bvCode);
+  if (r.early || r.bvLarzukExact) expect(r.hideEth).not.toContain(r.bvCode);
+  else expect(r.hideEth).toContain(r.bvCode);   // v667.2 — late stage: a done-word premium's socketed copy is honestly hidden too
 });

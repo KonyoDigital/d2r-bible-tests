@@ -41,7 +41,7 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
   expect(r.madeCount).toBeGreaterThan(0);
   expect(r.outName).toBe('KonyoEndgame' + r.madeCount);
   expect([19, 20]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble; v599 +2 magic-circlet splits
-  expect(r.baseCount).toBeGreaterThan(20);     // a real set of socket-correct bases
+  expect(r.baseCount).toBeGreaterThan(0);      // v667.2 — fully chronicle-synced: at 88/99 the curated hunt set is small and keeps shrinking
   expect(r.outLeak).toBe(false);               // no white circlets leak in
 });
 
@@ -59,7 +59,7 @@ test('the filter shrinks when runewords are marked made (live-synced to the Chro
     const nNone = w._endgameFilterBases().codes.length;
     return { nAll, nNone, nPremium: (w._premiumTradeBases || []).length };
   });
-  expect(r.nAll).toBeGreaterThan(r.nPremium);   // word-driven bases on top of the floor
+  expect(r.nAll).toBeGreaterThan(0);            // v667.2 — the premium floor is early-only now; late stage = word-driven only
   expect(r.nNone).toBe(r.nPremium);             // all words made -> shrinks to exactly the premium trade floor (v588)
 });
 

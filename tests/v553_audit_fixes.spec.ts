@@ -84,6 +84,6 @@ test('C — loot filter shrinks to exactly the premium floor when nothing needs 
   // plains… I'm not larzuking a base just for the fuck of it'): all-made = 100% forged = late
   // stage → the plain rule empties completely (no Larzuk-exacts either, no live words remain).
   expect(r.premium).toBeGreaterThan(0);
-  expect(r.baseCount).toBe(r.premium);
+  expect(r.baseCount).toBe(0);   // v667.2 — ALL made = 100% = late stage: the premium floor is early-only, so NOTHING base-shaped remains (uniques/runes/charms rules still ride)
   expect(r.ruleCodes).toBe(0);   // v667 — late-stage: no premium plains, no Larzuk-exacts
 });
