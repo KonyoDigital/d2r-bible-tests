@@ -12,7 +12,7 @@ async function cleanup(page: any) {
     Object.keys(localStorage).filter((k) => k.indexOf('L·') === 0).forEach((k) => localStorage.removeItem(k));
     localStorage.removeItem('d2r_activeProfile');
     const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
-    delete made['Radiance']; delete made['Rain'];
+    delete made['Radiance']; delete made['Rain']; delete made['Myth'];
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     ['d2r_rwUnmade','d2r_rwBaseUsed'].forEach((k) => localStorage.removeItem(k));
   });
@@ -32,18 +32,19 @@ test('ONE grail both ways: a MAIN forge counts on ladder, a LADDER forge counts 
   const onLadder = await page.evaluate(() => {
     const w: any = window;
     const made = JSON.parse(w.LSR.getItem('d2r_rwMade') || '{}');
-    // ladder forges Radiance on ITS own helm (v655: Metamorphosis seeded — journey word must stay unseeded)
-    w.LSR.setItem('d2r_owned', JSON.stringify(['Great Helm (3os)']));
+    // ladder forges MYTH on its own armor (v655.1 — main's test word is Radiance; the ladder side
+    // must forge a DIFFERENT unseeded word or the toggle un-makes it)
+    w.LSR.setItem('d2r_owned', JSON.stringify(['Breast Plate (3os)']));
     return { seesMainForge: !!made['Radiance'], n: Object.keys(made).length,
              vaultSeparate: JSON.parse(w.LSR.getItem('d2r_owned') || '[]') };
   });
   await page.reload(); await page.waitForTimeout(1800);
-  await page.evaluate(() => { const w: any = window; w.rwToggleMade('Radiance', 'Great Helm (3os)'); });
+  await page.evaluate(() => { const w: any = window; w.rwToggleMade('Myth', 'Breast Plate (3os)'); });
   // descend: main must SEE Mania (shared grail) but never the ladder vault
   await page.evaluate(() => localStorage.setItem('d2r_activeProfile', 'main'));
   await page.reload(); await page.waitForTimeout(1800);
   const onMain = await page.evaluate(() => ({
-    seesLadderForge: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Radiance'],
+    seesLadderForge: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Myth'],
     mainVault: JSON.parse(localStorage.getItem('d2r_owned') || '[]'),
     ladderVaultStillParked: JSON.parse(localStorage.getItem('L·d2r_owned') || '[]'),
   }));
@@ -62,7 +63,7 @@ test('v637-era orphaned L· chronicle reconciles once into the shared ledger (un
   });
   await page.reload(); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => ({
-    merged: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Radiance'],
+    merged: !!JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')['Rain'],
     orphanGone: localStorage.getItem('L·d2r_rwMade') === null,
     count: Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length,
   }));
