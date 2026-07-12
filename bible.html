@@ -18237,20 +18237,32 @@ function _tallyPrepImage(file, layout){
     var img=new Image(), url=URL.createObjectURL(file);
     img.onload=function(){
       var W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
-      var sx=0, sy=0, sw=W, sh=H;
+      var sx=0, sy=0, sw=W, sh=H, aspect=W/H, MAX=1568, CAP=3.2;
+      try { window._tallyPrepForeign = false; } catch(e){}   // v661 — set true only when the foreign-capture tier fires (routes _tallyRead to kind:tally2)
       // D2R full-screen capture → the stash (Runes/Gems/Materials) is ALWAYS the left panel, same spot.
-      if ((W/H) >= 1.3 && W >= 1200){
-        // v341.59 — LAYOUT-SPECIFIC crop. The grids differ in extent: the RUNE tab is 9-wide and its
-        // bottom two rows wrap around the central cube (so it runs wider + lower), while the GEM tab is
-        // a clean 7×5 block that ends higher and a touch narrower. Measured from real fullscreen
-        // captures (both 1.538 aspect). Using the rune box for gems left the 7×5 block small in-frame →
-        // misreads on the Perfect (bottom) row. Each layout now bounds its own grid TIGHTLY so it fills
-        // the upscaled canvas at max digit resolution.
+      if (aspect >= 1.45 && aspect <= 1.62 && W >= 1200){
+        // v341.59 — LAYOUT-SPECIFIC crop (LOCKED — do not change). The grids differ in extent: the RUNE
+        // tab is 9-wide and its bottom two rows wrap around the central cube (so it runs wider + lower),
+        // while the GEM tab is a clean 7×5 block that ends higher and a touch narrower. Measured from
+        // real fullscreen captures (both 1.538 aspect). Using the rune box for gems left the 7×5 block
+        // small in-frame → misreads on the Perfect (bottom) row. Each layout bounds its own grid TIGHTLY
+        // so it fills the upscaled canvas at max digit resolution.
         var x0=0.083, y0=0.20, x1=0.402, y1=0.468;          // runes (9-wide, cube-wrapped bottom rows)
         if (layout === 'gems'){ x0=0.105; y0=0.205; x1=0.388; y1=0.445; }   // gems (clean 7×5 block)
         sx=Math.round(x0*W); sy=Math.round(y0*H); sw=Math.round((x1-x0)*W); sh=Math.round((y1-y0)*H);
+      } else if (aspect >= 1.3){
+        // v661 — FOREIGN-CAPTURE tier (the cousin's WhatsApp shot: 1600×783 windowed PC, aspect 2.04).
+        // The locked fractions above are calibrated to a 1.538 fullscreen — on any other shape they
+        // slid off-grid: column 1 sliced in half (shifting every fixed-position rune ID), the bottom
+        // wrap rows cut off, and at ~20px cells Sonnet can't tell an owned stone from a greyed ghost →
+        // it printed a phantom "1" on every unowned rune. For foreign aspects take the WHOLE LEFT 46%
+        // at full height (the stash panel is always left-anchored in D2R, any window shape) and upscale
+        // HARDER (long edge 2300, cap 4×) so the digits AND the owned-vs-ghost tint survive WhatsApp
+        // compression. The locked fullscreen path above is untouched.
+        sw=Math.round(0.46*W); MAX=2300; CAP=4;
+        try { window._tallyPrepForeign = true; } catch(e){}
       }
-      var MAX=1568, scale=Math.min(3.2, MAX/Math.max(sw,sh)); // enlarge the crop so digits are crisp (cap up-scale at 3.2×)
+      var scale=Math.min(CAP, MAX/Math.max(sw,sh)); // enlarge the crop so digits are crisp
       var c=document.createElement('canvas');
       c.width=Math.max(1,Math.round(sw*scale)); c.height=Math.max(1,Math.round(sh*scale));
       var ctx=c.getContext('2d'); try{ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; }catch(e){}
@@ -18262,15 +18274,197 @@ function _tallyPrepImage(file, layout){
   });
 }
 window._tallyPrepImage = _tallyPrepImage;
+// v661 — FOREIGN-CAPTURE RUNE SHEET (the 1000%-accuracy tier for re-shared shots, e.g. the cousin's
+// WhatsApp 1600×783 windowed capture). Prompt-tuning against WhatsApp compression kept moving the
+// errors around (phantom-1 ghosts next to bright edges · boundary digits credited to the wrong
+// neighbor · position slides), so this tier makes those failures IMPOSSIBLE by construction:
+//  1. detect every OWNED rune stone by PIXEL (bright blob) — a greyed ghost can never be counted;
+//  2. snap blobs to the runes tab's fixed 9-column lattice and derive each stone's RUNE NAME from
+//     its lattice position CLIENT-SIDE — the model never does position/identity;
+//  3. render a generated CONTACT SHEET of isolated, name-captioned tiles (full cell incl. the
+//     bottom-right count corner, 3× enlarged) — the model's only remaining job is reading a big
+//     digit off a clean tile (kind:'tally2', 3-pass majority as usual).
+// Returns the sheet b64, or null when detection is ambiguous → caller falls back to the plain path.
+// Konyo's own 1.45–1.62 fullscreens NEVER enter here — the locked pipeline is untouched.
+var _RUNE_GRID_MAP = [
+  ['El','Eld','Tir','Nef','Eth','Ith','Tal','Ral','Ort'],
+  ['Thul','Amn','Sol','Shael','Dol','Hel','Io','Lum','Ko'],
+  ['Fal','Lem','Pul','Um','Mal','Ist','Gul','Vex','Ohm'],
+  {0:'Lo',1:'Sur',7:'Ber',8:'Jah'},
+  {0:'Cham',8:'Zod'}
+];
+function _runeSheetPrep(file){
+  return new Promise(function(resolve){
+    var img=new Image(), url=URL.createObjectURL(file);
+    img.onerror=function(){ URL.revokeObjectURL(url); resolve(null); };
+    img.onload=function(){
+      try{
+        var W=img.naturalWidth||img.width, H=img.naturalHeight||img.height, aspect=W/H;
+        // v661.1 — sheet-FIRST for every landscape capture: the live sim showed the locked crop pipeline
+        // reads phantom counts on the ISOLATED GHOST CORNERS even on Konyo's own 2940×1912 fullscreen
+        // (Sur=2/Zod=1 on a stash that owns neither — 3/3 passes), while the lattice sheet reads 33/33 on
+        // both capture classes. The locked crop pipeline remains the automatic FALLBACK whenever detection
+        // bails (any resolve(null) below), so nothing can be worse than before.
+        if (aspect<1.3){ URL.revokeObjectURL(url); resolve(null); return; }
+        // working canvas: left 46% at 2× (detection + tile source)
+        var sw=Math.round(0.46*W), scale=Math.max(1, Math.min(3, 1600/sw));
+        var c=document.createElement('canvas'); c.width=Math.round(sw*scale); c.height=Math.round(H*scale);
+        var ctx=c.getContext('2d'); try{ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; }catch(e){}
+        ctx.drawImage(img, 0,0,sw,H, 0,0,c.width,c.height); URL.revokeObjectURL(url);
+        var id=ctx.getImageData(0,0,c.width,c.height), px=id.data, CW=c.width, CH=c.height;
+        // bright-stone mask (owned rune stones are pale limestone; ghosts/background are dark)
+        var mask=new Uint8Array(CW*CH);
+        for (var i=0;i<CW*CH;i++){ var o=i*4, lum=0.299*px[o]+0.587*px[o+1]+0.114*px[o+2]; if (lum>115) mask[i]=1; }
+        // connected components (iterative flood fill), keep stone-sized squarish blobs
+        var seen=new Uint8Array(CW*CH), blobs=[], stack=[];
+        for (var s=0;s<CW*CH;s++){
+          if (!mask[s]||seen[s]) continue;
+          var minx=CW,maxx=0,miny=CH,maxy=0,n=0; stack.length=0; stack.push(s); seen[s]=1;
+          while (stack.length){
+            var q=stack.pop(), qx=q%CW, qy=(q-qx)/CW; n++;
+            if(qx<minx)minx=qx; if(qx>maxx)maxx=qx; if(qy<miny)miny=qy; if(qy>maxy)maxy=qy;
+            if(qx>0&&mask[q-1]&&!seen[q-1]){seen[q-1]=1;stack.push(q-1);}
+            if(qx<CW-1&&mask[q+1]&&!seen[q+1]){seen[q+1]=1;stack.push(q+1);}
+            if(qy>0&&mask[q-CW]&&!seen[q-CW]){seen[q-CW]=1;stack.push(q-CW);}
+            if(qy<CH-1&&mask[q+CW]&&!seen[q+CW]){seen[q+CW]=1;stack.push(q+CW);}
+          }
+          var bw=maxx-minx+1, bh=maxy-miny+1;
+          if (n>60 && bw>8 && bh>8) blobs.push({x:minx,y:miny,w:bw,h:bh,cx:minx+bw/2,cy:miny+bh/2,n:n});
+        }
+        blobs=blobs.filter(function(b){ return b.y>CH*0.06 && b.y<CH*0.62 && b.w<CW*0.25 && b.w/b.h<2.2 && b.h/b.w<2.2; });   // drop the window title bar / frame rails / banners + everything below the grid band (cube art, footer decorations)
+        // agglomerate glyph-split fragments into whole stones: merge blobs whose boxes come within
+        // 6px of each other (a stone's ink-split pieces overlap or nearly touch; neighboring CELLS
+        // stay ~16px apart, so stones never chain together). Loop to a fixed point.
+        var merged=true;
+        while (merged){ merged=false;
+          outer: for (var mi=0;mi<blobs.length;mi++){ for (var mj=mi+1;mj<blobs.length;mj++){
+            var A=blobs[mi], B=blobs[mj];
+            if (A.x-6<B.x+B.w && B.x-6<A.x+A.w && A.y-6<B.y+B.h && B.y-6<A.y+A.h){
+              var nx=Math.min(A.x,B.x), ny=Math.min(A.y,B.y), nx2=Math.max(A.x+A.w,B.x+B.w), ny2=Math.max(A.y+A.h,B.y+B.h);
+              blobs[mi]={x:nx,y:ny,w:nx2-nx,h:ny2-ny,cx:(nx+nx2)/2,cy:(ny+ny2)/2,n:A.n+B.n};
+              blobs.splice(mj,1); merged=true; break outer;
+            }
+          } }
+        }
+        blobs=blobs.filter(function(b){ return b.w/b.h>0.55 && b.w/b.h<1.9 && b.n/(b.w*b.h)>0.22; });   // stones are squarish and reasonably filled
+        if (blobs.length<3){ resolve(null); return; }
+        // keep blobs near the STONE size. The plain median is poisoned by small junk fragments
+        // (glyph slivers, digit dots), so anchor on the big end: stones are the dominant LARGE squarish
+        // blobs — reference = the largest area, stone set = everything within 30% of it.
+        var refA=0; blobs.forEach(function(b){ var a=b.w*b.h; if(a>refA)refA=a; });
+        var big=blobs.filter(function(b){ return b.w*b.h>=0.3*refA; });
+        if (big.length<3){ resolve(null); return; }
+        var ws=big.map(function(b){return b.w;}).sort(function(a,b){return a-b;}), medW=ws[ws.length>>1];
+        blobs=blobs.filter(function(b){ return b.w>0.6*medW && b.w<1.5*medW && b.h>0.5*medW && b.h<1.6*medW; });
+        if (blobs.length<3){ resolve(null); return; }
+        // rows: cluster by cy
+        blobs.sort(function(a,b){ return a.cy-b.cy; });
+        var rows=[], cur=[blobs[0]];
+        for (var r=1;r<blobs.length;r++){ if (blobs[r].cy-cur[cur.length-1].cy > medW*0.6){ rows.push(cur); cur=[blobs[r]]; } else cur.push(blobs[r]); }
+        rows.push(cur); rows.forEach(function(rw){ rw.sort(function(a,b){ return a.cx-b.cx; }); });
+        if (rows.length>5){ resolve(null); return; }
+        // column pitch from adjacent gaps inside rows (fallback: stone width + slot gap ≈ 1.3×medW)
+        var gaps=[]; rows.forEach(function(rw){ for (var g=1;g<rw.length;g++){ var d=rw[g].cx-rw[g-1].cx; if (d>medW*0.8 && d<medW*2.2) gaps.push(d); } });
+        gaps.sort(function(a,b){return a-b;});
+        var pitch=gaps.length?gaps[gaps.length>>1]:medW*1.3;
+        // absolute column anchor: leftmost stone across all rows = its column via left-edge alignment.
+        // Columns must land 0..8; try anchor = global min cx, validate every blob snaps within 0.22 pitch.
+        var x0=Math.min.apply(null, blobs.map(function(b){return b.cx;}));
+        var ok=true, assign=[];
+        for (var ri=0; ri<rows.length && ok; ri++){
+          for (var ci=0; ci<rows[ri].length; ci++){
+            var col=(rows[ri][ci].cx-x0)/pitch, snap=Math.round(col);
+            if (Math.abs(col-snap)>0.24 || snap<0 || snap>8){ ok=false; break; }
+            assign.push({b:rows[ri][ci], row:ri, col:snap});
+          }
+        }
+        if (!ok || !assign.length){ resolve(null); return; }
+        // v661b — the blobs are only the lattice ANCHOR. Fragile per-stone detection missed stones
+        // (JPEG-mush fragments), which would silently ZERO owned runes — so instead: derive the full
+        // lattice (origin + pitches) from the anchored blobs, then classify EVERY cell of the fixed
+        // 33-cell runes-tab layout by its own mean luminance (owned pale stone ≈ 2× a ghost/empty
+        // slot). Completeness comes from the layout, not from detection luck.
+        var rowIdxs={}; assign.forEach(function(a){ (rowIdxs[a.row]=rowIdxs[a.row]||[]).push(a); });
+        var rowKeys=Object.keys(rowIdxs).map(Number).sort(function(a,b){return a-b;});
+        var rowPitch=null;
+        if (rowKeys.length>=2){ var dsum=0,dn=0; for (var rk=1;rk<rowKeys.length;rk++){ var y1=0,y2=0;
+            rowIdxs[rowKeys[rk-1]].forEach(function(a){y1+=a.b.cy;}); y1/=rowIdxs[rowKeys[rk-1]].length;
+            rowIdxs[rowKeys[rk]].forEach(function(a){y2+=a.b.cy;}); y2/=rowIdxs[rowKeys[rk]].length;
+            dsum+=(y2-y1)/(rowKeys[rk]-rowKeys[rk-1]); dn++; } rowPitch=dsum/dn; }
+        else rowPitch=pitch*0.93;   // single detected row: cells are near-square, row pitch tracks column pitch
+        var y0sum=0; assign.forEach(function(a){ y0sum+=a.b.cy-a.row*rowPitch; }); var y0=y0sum/assign.length;
+        var x0sum=0; assign.forEach(function(a){ x0sum+=a.b.cx-a.col*pitch; }); var x0c=x0sum/assign.length;
+        function cellLum(cx,cy){ var r=Math.max(6,Math.round(pitch*0.22)), sum=0, cnt=0;
+          for (var yy=Math.max(0,Math.round(cy-r)); yy<Math.min(CH,Math.round(cy+r)); yy++)
+            for (var xx=Math.max(0,Math.round(cx-r)); xx<Math.min(CW,Math.round(cx+r)); xx++){
+              var o=(yy*CW+xx)*4; sum+=0.299*px[o]+0.587*px[o+1]+0.114*px[o+2]; cnt++; }
+          return cnt?sum/cnt:0; }
+        var stoneLums=assign.map(function(a){ return cellLum(a.b.cx,a.b.cy); }).sort(function(a,b){return a-b;});
+        var stoneMed=stoneLums[stoneLums.length>>1];
+        var CELLS=[]; 
+        for (var lr=0; lr<_RUNE_GRID_MAP.length; lr++){ var mrow=_RUNE_GRID_MAP[lr];
+          var cols=Array.isArray(mrow)?mrow.map(function(_,ci){return ci;}):Object.keys(mrow).map(Number);
+          cols.forEach(function(cc){ var nm=Array.isArray(mrow)?mrow[cc]:mrow[cc]; if(!nm) return;
+            var ccx=x0c+cc*pitch, ccy=y0+lr*rowPitch; if (ccx<0||ccx>=CW||ccy<0||ccy>=CH) return;
+            CELLS.push({name:nm, cx:ccx, cy:ccy, lum:cellLum(ccx,ccy)}); }); }
+        if (CELLS.length<33*0.8){ resolve(null); return; }   // lattice ran off-canvas → unsafe, fall back
+        // owned = stone-bright. The split is found by LARGEST-GAP clustering of the 33 cell luminances:
+        // on both live captures the ghost cluster ends far below the stone cluster (cousin 33→65,
+        // Konyo 54→76) while within-cluster steps are small — so the biggest gap IS the class boundary.
+        // Guards: the gap must be a real separation (ratio ≥1.22) or there are simply no ghosts
+        // (all-owned stash → gap ratio small → threshold below the dimmest anchored stone). Every
+        // anchored blob must land above the threshold — else bail to the locked fallback.
+        var minStone=Infinity; assign.forEach(function(a){ var l=cellLum(a.b.cx,a.b.cy); if(l<minStone)minStone=l; });
+        var lums=CELLS.map(function(c){return c.lum;}).sort(function(a,b){return a-b;});
+        var gi=-1, g=0;
+        for (var li=1; li<lums.length; li++){ var d=lums[li]-lums[li-1]; if (d>g){ g=d; gi=li; } }
+        var TH;
+        if (gi>0 && lums[gi-1]>0 && lums[gi]/lums[gi-1]>=1.22 && lums[gi]<=minStone) TH=(lums[gi]+lums[gi-1])/2;
+        else TH=minStone*0.72;   // no ghost/stone gap below the stones → treat everything stone-bright as owned
+        var tiles=[];
+        CELLS.forEach(function(cell){ if (cell.lum>=TH){
+          // the stack digit prints at the cell's BOTTOM-RIGHT corner — extend the tile right+down so it's never clipped
+          var L=pitch*0.45, R=pitch*0.62, T=pitch*0.45, B=pitch*0.58;
+          tiles.push({name:cell.name, b:{x:Math.max(0,Math.round(cell.cx-L)), y:Math.max(0,Math.round(cell.cy-T)), w:Math.round(L+R), h:Math.round(T+B)}}); } });
+        // every anchored blob must be re-found by the sweep — else the lattice is off → bail
+        var byName={}; tiles.forEach(function(t){ byName[t.name]=1; });
+        for (var vi=0; vi<assign.length; vi++){ var vrow=_RUNE_GRID_MAP[assign[vi].row]; var vn=Array.isArray(vrow)?vrow[assign[vi].col]:vrow[assign[vi].col]; if (!vn || !byName[vn]){ resolve(null); return; } }
+        if (!tiles.length){ resolve(null); return; }
+        // duplicate names = detection glitch → bail to the safe path
+        var seenN={}; for (var ti=0;ti<tiles.length;ti++){ if (seenN[tiles[ti].name]){ resolve(null); return; } seenN[tiles[ti].name]=1; }
+        // contact sheet: each tile = the FULL CELL (stone + the bottom-right count corner) at 3×, name caption under it
+        var PAD_R=0.42, PAD_B=0.34, PAD_L=0.10, PAD_T=0.10, TILE=210, CAP=34, COLS=Math.min(6, Math.max(1,tiles.length)), GUT=26;
+        var rowsN=Math.ceil(tiles.length/COLS);
+        var sc=document.createElement('canvas');
+        sc.width=COLS*(TILE+GUT)+GUT; sc.height=rowsN*(TILE+CAP+GUT)+GUT;
+        var sctx=sc.getContext('2d'); sctx.fillStyle='#000'; sctx.fillRect(0,0,sc.width,sc.height);
+        try{ sctx.imageSmoothingEnabled=true; sctx.imageSmoothingQuality='high'; }catch(e){}
+        for (var k=0;k<tiles.length;k++){
+          var t=tiles[k], gx=k%COLS, gy=(k-gx)/COLS;
+          var cx0=t.b.x, cy0=t.b.y, cw=Math.min(CW-cx0, t.b.w), ch=Math.min(CH-cy0, t.b.h);
+          var dx=GUT+gx*(TILE+GUT), dy=GUT+gy*(TILE+CAP+GUT);
+          sctx.drawImage(c, cx0, cy0, cw, ch, dx, dy, TILE, TILE);
+          sctx.fillStyle='#fff'; sctx.font='bold 24px Arial'; sctx.textAlign='center';
+          sctx.fillText(t.name, dx+TILE/2, dy+TILE+26);
+        }
+        try { window._tallyPrepForeign = true; } catch(e){}
+        resolve(sc.toDataURL('image/jpeg',0.95).split(',')[1]);
+      }catch(e){ resolve(null); }
+    };
+    img.src=url;
+  });
+}
+window._runeSheetPrep = _runeSheetPrep;
 // v341.43 — calibrated counting. Reads the image 2–5× (independent Sonnet passes) and reconciles
 // each rune/gem by MAJORITY VOTE (mode; median tie-break), recounting only while a stack is still
 // disputed and stopping as soon as every count wins a majority. The old Math.max amplified a single
 // over-read into the total; a majority needs agreement, killing phantom stacks and one-off miscounts.
-async function _tallyRead(b64, vocab, layout){
+async function _tallyRead(b64, vocab, layout, kind){
+  kind = kind || (window._tallyPrepForeign ? 'tally2' : 'tally');   // v661 — foreign captures use the compression-hardened prompt; the locked 'tally' path is unchanged for Konyo's own fullscreens
   var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   async function onePass(){
     try{
-      var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:'tally',layout:layout||undefined})});
+      var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:kind,layout:layout||undefined})});
       if(!resp.ok) return null;
       var data = await resp.json();
       if(data && data.error) return null;   // v341.52 — upstream/worker error (200 + error field) → failed pass, not an empty read
@@ -19538,8 +19732,16 @@ window.runeIntake = async function(files){
   var added={}, total=0, errors=0;
   for (var i=0;i<files.length;i++){
     try{
-      var b64=await _tallyPrepImage(files[i], 'runes');   // v341.59 — rune-specific crop (9-wide, cube-wrapped)
-      var t=await _tallyRead(b64, vocab, 'runes');   // v341.54 — runes tab has a FIXED layout → identify by position, not glyph (kills Jah/Cham swaps)
+      // v661 — foreign captures (cousin WhatsApp / windowed shots) go through the pixel-detected
+      // CONTACT SHEET (ghost/position/boundary errors impossible by construction); Konyo's own
+      // fullscreens and any ambiguous detection fall back to the locked v341.59 crop pipeline.
+      var sheet=await _runeSheetPrep(files[i]);
+      var b64, t;
+      if (sheet){ b64=sheet; t=await _tallyRead(b64, vocab, 'runesheet', 'tally2'); }
+      else {
+        b64=await _tallyPrepImage(files[i], 'runes');   // v341.59 — rune-specific crop (9-wide, cube-wrapped)
+        t=await _tallyRead(b64, vocab, 'runes', 'tally');   // v341.54 — runes tab has a FIXED layout → identify by position, not glyph (kills Jah/Cham swaps)
+      }
       if(t===null){ errors++; continue; }
       Object.keys(t).forEach(function(k){
         if(k in RUNE_INDEX){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0){ runeStash[k]=(parseInt(runeStash[k],10)||0)+c; added[k]=(added[k]||0)+c; total+=c; } }

@@ -35,7 +35,8 @@ export async function onRequestPost(context) {
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
   const isGrail = kind === 'grail';   // v561 — bulk grail import: a grail/collection UI listing many item names with found-state
-  const isTally = (kind === 'tally' || isCraft) && !isLocate;   // craft shares the {tally} count contract
+  const isTally2 = kind === 'tally2'; // v661 — FOREIGN-CAPTURE tally (WhatsApp-recompressed / windowed shots): the locked tally prompt + a compression addendum. Additive kind — the 'tally' path is byte-identical.
+  const isTally = (kind === 'tally' || isTally2 || isCraft) && !isLocate;   // craft shares the {tally} count contract
 
   // v561 — GRAIL IMPORT. The player photographs their grail/collection tracker UI (in-game mod tab or an
   // external grail tool): a long LIST/GRID of unique + set item names where each row/cell shows a FOUND state
@@ -411,7 +412,19 @@ export async function onRequestPost(context) {
     required: ['name', 'color'],
     additionalProperties: false,
   };
-  const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText : isCraft ? craftText : isTally ? tallyText : isGrail ? grailText : itemsText;
+  // v661 — CONTACT-SHEET reader for foreign captures. The page detects each owned rune by pixel,
+  // derives its name from the fixed lattice position, and sends a generated sheet of isolated
+  // name-captioned tiles — so this prompt's ONLY job is digit transcription off clean tiles.
+  // The locked 'tally' prompt is untouched.
+  const tally2Text = 'You read a GENERATED CONTACT SHEET built from a Diablo 2 Resurrected rune stash. Each tile on the '
+    + 'black background is ONE rune cell cropped from the stash grid, enlarged, with that rune\'s NAME printed in white text '
+    + 'directly BELOW the tile. Every tile is an OWNED rune, and somewhere inside the tile (usually the lower-right area) '
+    + 'its stack-count number is printed in small white digits — often TWO digits (11, 17, 23, 53). For EVERY tile: read the '
+    + 'white name label under it, find the printed stack number inside it, and return {name, count} in the tally. '
+    + 'TRANSCRIBE, NEVER FABRICATE: report exactly the digits printed. Read each number twice; 1 vs 2, 5 vs 6, 11 vs 17 are '
+    + 'the classic slips. Do not skip any labeled tile, do not invent tiles, and use ONLY the printed labels for names — '
+    + 'never re-identify the rune from its glyph. If a tile\'s digits are truly unreadable, omit that tile rather than guess.';
+  const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText : isCraft ? craftText : isTally ? (isTally2 ? tally2Text : tallyText) : isGrail ? grailText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -458,7 +471,7 @@ export async function onRequestPost(context) {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally2 ? 'Read every labeled tile on this contact sheet and return its rune name + the printed stack number.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
