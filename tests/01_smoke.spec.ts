@@ -68,6 +68,7 @@ test.describe('Smoke — page loads correctly', () => {
 
   test('grail progress widget present', async ({ page }) => {
     await page.goto(BIBLE);
+    await page.waitForTimeout(600); await page.evaluate(() => (window as any).switchTab('main'));   // v680 — TOOLS is the landing tab; the widget lives on Main
     // v63: dropdown sections default-collapsed site-wide → expand Grail Progress first
     await page.locator('.sec-h', { hasText: 'Grail Progress' }).click();
     await expect(page.locator('.grail-progress')).toBeVisible();

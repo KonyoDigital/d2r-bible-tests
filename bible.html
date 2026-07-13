@@ -3289,6 +3289,11 @@ window.LSR = (function(){
     raw: RAW, key: key
   };
 })();
+// v680 — TOOLS is home (Konyo: 'hard refresh should put me by default at tools'): a BARE tab hash
+// (the last-visited tab riding the URL) is normalized at PARSE time, before the v39 routers
+// register. True deep-links keep working: a hash WITH a subpath (#bosses/baal, #item/…) is intent,
+// not residue, and routes normally.
+try { var _h680 = window.location.hash || ''; if (_h680 && _h680 !== '#tools' && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -18242,6 +18247,16 @@ window.RW_BEST_BASE = RW_BEST_BASE;
 function _rwArtName(rwName){
   if (!rwName) return rwName;
   var key = String(rwName).replace(/\s*\([^)]*\)\s*$/,'').trim();   // "Spirit (sword)" → "Spirit"
+  // v680 (Konyo: 'runeword pictures need to be ENDGAME base items — Archon Plate, not that hd art —
+  // across the Forge, so I know the elite best gear the word fits in, like Enigma Archon Plate'):
+  // the word's icon = its curated BIS meta home first (the v583 endgame doctrine), classic
+  // RW_BEST_BASE as the fallback when the engine isn't loaded yet or has no meta for the word.
+  try {
+    if (typeof window._forgeMetaBase === 'function'){
+      var _mm = window._forgeMetaBase(key);
+      if (_mm && _mm.names && _mm.names[0] && typeof artUrl === 'function' && artUrl(_mm.names[0])) return _mm.names[0];
+    }
+  } catch(e){}
   var base = RW_BEST_BASE[key];
   return (base && typeof artUrl==='function' && artUrl(base)) ? base : (typeof artUrl==='function' && artUrl(rwName) ? rwName : (base || rwName));
 }
@@ -22025,16 +22040,13 @@ if (_v39_origClearActiveBoss) {
   };
 }
 
-// --- On initial load: restore saved tab or hash (hash wins if both present)
+// --- On initial load: TOOLS is the home page (v680, Konyo: 'when I hard refresh it should put me
+// by default at tools as the main page'). A fresh load ALWAYS lands on Tools — the saved-tab
+// restore and any stale hash are ignored at boot; in-session hash navigation (search jumps,
+// deep links you click AFTER load) still works exactly as before.
 _v39_whenReady(() => {
-  const hashHas = (location.hash || '').replace(/^#/, '').split('/')[0];
-  const saved = localStorage.getItem('d2r_activeTab');
-  let target = null;
-  if (_v39_validTabName(hashHas)) target = hashHas;
-  else if (_v39_validTabName(saved)) target = saved;
-  if (target && target !== 'bosses') {
-    setTimeout(() => _v39_origSwitchTab(target), 0);
-  }
+  const _deep = (location.hash || '').indexOf('/') >= 0;   // v680 — deep-links (#bosses/baal) route themselves
+  if (!_deep) setTimeout(() => _v39_origSwitchTab('tools'), 0);
   setTimeout(_v39_routeFromHash, 250);
 });
 
@@ -29135,7 +29147,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var live=(s.now||[]).filter(function(t){return !t.deferred;});
     if (live.length){ var b=live.slice().sort(function(a,c){return (c.val||0)-(a.val||0);})[0];
       // v557 — SHOW the how, don't describe it: the hero carries the rune recipe chips + the exact owned base.
-      pick={icon:'⚒', tone:'now', art:b.rw, artKind:'rw', lead:'forge it now', name:_qArt(b.rw),
+      pick={icon:'⚒', tone:'now', art:(b.base&&b.base.base)||b.rw, artKind:(b.base&&b.base.base)?'base':'rw', lead:'forge it now', name:_qArt(b.rw),   // v680 — the hero wears the ACTUAL base's art (Peace in your Archon Plate → AP sprite)
         body:'in your <b>'+b.base.sockets+'os '+_fEsc(b.base.base)+'</b> · <span class="fh-recipe">'+_recipe(b.rw)+'</span>', act:"window.forgeSetFilter('now')", cta:'Make now',
         // v618 (Konyo: "the top one should also be able to be clicked on and created") — the hero
         // carries the SAME one-click ✓ as the list cards: forgeDoneAnim → rwToggleMade → Chronicle

@@ -13,14 +13,14 @@ test.describe('v39 polish — tab persistence', () => {
     expect(saved).toBe('calc');
   });
 
-  test('saved tab is restored on reload', async ({ page }) => {
+  test('v680 — reload lands on TOOLS, the home tab (saved-tab restore retired by doctrine)', async ({ page }) => {
     await page.goto(BIBLE);
     await page.waitForTimeout(400);
     await page.locator('.tab[data-tab="runes"]').click();
     await page.waitForTimeout(150);
     await page.reload();
-    await page.waitForTimeout(500);
-    await expect(page.locator('.tab[data-tab="runes"]')).toHaveClass(/active/);
+    await page.waitForTimeout(700);
+    await expect(page.locator('.tab[data-tab="tools"]')).toHaveClass(/active/);
   });
 });
 
@@ -34,10 +34,10 @@ test.describe('v39 polish — URL hash routing', () => {
     expect(hash).toBe('#tz');
   });
 
-  test('opening page with #calc hash activates calc tab', async ({ page }) => {
+  test('v680 — a BARE tab hash normalizes to TOOLS on entry (deep-links with a subpath still route)', async ({ page }) => {
     await page.goto(BIBLE + '#calc');
     await page.waitForTimeout(700);
-    await expect(page.locator('.tab[data-tab="calc"]')).toHaveClass(/active/);
+    await expect(page.locator('.tab[data-tab="tools"]')).toHaveClass(/active/);
   });
 
   test('hashchange (back/forward) routes to the new tab', async ({ page }) => {
