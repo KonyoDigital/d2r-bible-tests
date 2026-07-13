@@ -11,6 +11,8 @@ test.describe('v74 materials are searchable + route to their ID card', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('main'));   // v680 — TOOLS is the landing tab now; #event-ref lives on Main
+    await page.waitForTimeout(300);
   });
 
   async function search(page: any, q: string) {
