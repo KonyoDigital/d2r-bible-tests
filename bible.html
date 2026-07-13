@@ -30284,7 +30284,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v560 — UNIFIED sub-tabs across BOTH grail forges (Konyo: same names, same logic, set or unique):
     // ▦ All missing · 🎯 Best runs · ⚡ Quick wins (low-level uniques / 1-piece sets) · ✅ Found
     H.push('<div class="forge-tabs">'
-      +_tile('all','▦','All missing','ft-all',s.missing.length,F,'window.funiSetFilter')
+      +_tile('all','▦','All missing','ft-all',(s.chronTotal?s.chronTotal-s.found:s.missing.length),F,'window.funiSetFilter')   // v682.2 — SAME universe as the headline (403): named missing + still-dark rows
       +_tile('runs','🎯','Best runs','ft-pipe',s.runs.length,F,'window.funiSetFilter')
       +_tile('low','⚡','Quick wins','ft-step',s.low.length,F,'window.funiSetFilter')
       +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter')
@@ -30296,6 +30296,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _missAll=_uniItems().filter(function(x){ return !_ownA.has(x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
         .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });
       H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
+      // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
+      // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
+      // They count in the All-missing number so every meter tells the same 403-story.
+      var _darkN=(s.chronTotal||0)-s.total;
+      if(_darkN>0) H.push('<div class="rw-stamp-mini rw-band" style="margin:8px 0"><span class="rw-band-t">🌑 + '+_darkN+' still-dark chronicle rows</span><span class="rw-band-s">the game hides their names until they drop — they reveal (and card here) on find · counted in All missing</span></div>');
     }
     // HERO: the single best run
     var top=s.runs[0];
