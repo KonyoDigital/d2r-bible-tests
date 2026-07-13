@@ -10,6 +10,9 @@ test('trade values: data, card render, owned-item badge, suffix-aware lookup', a
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
     localStorage.setItem('d2r_owned', JSON.stringify(['Windforce', 'Axe of Fechmar', 'Annihilus']));
+    // v681 — mule-assign so the v677 ledger/vault cleanse keeps these physical grail uniques in owned
+    // (unassigned grail-seed names are stripped from d2r_owned on boot). The badge still exercises _itemValue.
+    localStorage.setItem('d2r_muleAssign', JSON.stringify({ 'Windforce': 'uni-weap', 'Axe of Fechmar': 'uni-weap', 'Annihilus': 'uni-small' }));
   });
   await page.goto(URL);
   await page.waitForTimeout(2200);

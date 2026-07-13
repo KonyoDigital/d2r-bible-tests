@@ -9,6 +9,10 @@ const URL = 'file://' + process.cwd() + '/bible.html';
 test.describe('v236 vault finder', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
+      // v681 — fresh profile skips the v677 grail floor + owner cleanse, so an explicitly-seeded
+      // owned-but-unassigned grail item (Stormshield) survives the reload instead of being stripped
+      // to the ledger. That's exactly what this finder test needs an "unsorted" item for.
+      localStorage.setItem('d2r_rwProfile', 'fresh');
       localStorage.setItem('d2r_owned', JSON.stringify(['Windforce', 'Vampire Gaze', 'Stormshield']));
       localStorage.setItem('d2r_muleAssign', JSON.stringify({ Windforce: 'uni-weap', 'Vampire Gaze': 'uni-armor' }));
     });

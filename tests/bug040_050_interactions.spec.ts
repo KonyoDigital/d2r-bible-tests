@@ -57,13 +57,18 @@ test.describe('BUG-040..050 — interaction probe sweep', () => {
     await page.waitForTimeout(1200);
     // v47: owned buttons live inside the now-hidden boss-body accordion. Fire the first
     // owned-btn's onclick directly (evaluate-click works on hidden nodes) → toggleOwned.
+    // v681 — v677 LEDGER/VAULT SPLIT: toggleOwned on a GRAIL unique now writes the dated found-ledger
+    // key d2r_foundLog (knowledge), NOT the physical vault d2r_owned. Boss-card owned-btns are grail
+    // uniques, so assert the found ledger changed (the boot floor may pre-seed it as found → a click
+    // un-ticks it, so compare the stored blob before/after rather than asserting growth).
+    const flBefore = await page.evaluate(() => (window as any).LSR.getItem('d2r_foundLog') || '{}');
     await page.evaluate(() => {
       const ownBtn = document.querySelector('#boss-cards .owned-btn') as HTMLElement;
       ownBtn.click();
     });
     await page.waitForTimeout(150);
-    const owned = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_owned') || '[]'));
-    expect(owned.length).toBeGreaterThan(0);
+    const flAfter = await page.evaluate(() => (window as any).LSR.getItem('d2r_foundLog') || '{}');
+    expect(flAfter).not.toBe(flBefore);
   });
 
   test('BUG-044 MF slider live-updates boss-card drop chances', async ({ page }) => {

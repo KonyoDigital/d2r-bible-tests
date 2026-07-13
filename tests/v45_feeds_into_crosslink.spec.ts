@@ -88,6 +88,9 @@ test.describe('v45 feeds-into cross-link — zones clickable + keys/shards/essen
   });
 
   test('event-ref reference section renders under the grail with correct key attributions', async ({ page }) => {
+    // v681 — TOOLS is the landing tab now (v680); #event-ref lives on #tab-main → switch to it first.
+    await page.evaluate(() => (window as any).switchTab('main'));
+    await page.waitForTimeout(300);
     const er = page.locator('#event-ref');
     await expect(er).toBeVisible();
     // v63: dropdown sections default-collapsed → expand the er section to read its body

@@ -26,27 +26,33 @@ test.describe('v171 #arttip survives a benign (momentum) scroll, dismisses only 
     await page.waitForTimeout(1500); // let openBossDetail's own smooth scroll settle
   });
 
+  // v681 — target whichever grail tile is rendered first rather than a hard-coded name.
+  // The gbc-grail-item list is the boss's top-15 grail picks sorted by farm-time, and its
+  // membership shifts with drop-odds data (Wizardspike is no longer in Duriel's top 15),
+  // which nulled the old fixed selector. Returns the tile's name so tests assert against
+  // the live render.
   async function hoverTile(page: any) {
     const r = await page.evaluate(() => {
-      const el = document.querySelector('#boss-detail-panel .gbc-grail-item[data-arttip="Wizardspike"]') as HTMLElement;
+      const el = document.querySelector('#boss-detail-panel .gbc-grail-item') as HTMLElement;
       const b = el.getBoundingClientRect();
-      return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
+      return { name: el.getAttribute('data-arttip'), x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
     });
     await page.mouse.move(r.x - 50, r.y);
     await page.waitForTimeout(50);
     await page.mouse.move(r.x, r.y);
     await page.waitForTimeout(120);
+    return r.name as string;
   }
 
   test('hovering a grail tile opens the rich card', async ({ page }) => {
-    await hoverTile(page);
+    const name = await hoverTile(page);
     const s = await page.evaluate(() => {
       const t = document.getElementById('arttip')!;
       return { on: t.classList.contains('on'), rich: t.classList.contains('tip-rich'), name: (t.querySelector('.att-name') as HTMLElement).textContent };
     });
     expect(s.on).toBe(true);
     expect(s.rich).toBe(true);
-    expect(s.name).toBe('Wizardspike');
+    expect(s.name).toBe(name);
   });
 
   test('a trailing (momentum) scroll over a still-visible tile does NOT blank the tip', async ({ page }) => {
@@ -65,7 +71,7 @@ test.describe('v171 #arttip survives a benign (momentum) scroll, dismisses only 
     await hoverTile(page);
     expect(await page.evaluate(() => document.getElementById('arttip')!.classList.contains('on'))).toBe(true);
     const dismissed = await page.evaluate(() => {
-      const el = document.querySelector('#boss-detail-panel .gbc-grail-item[data-arttip="Wizardspike"]') as HTMLElement;
+      const el = document.querySelector('#boss-detail-panel .gbc-grail-item') as HTMLElement; // v681 — first tile (see hoverTile)
       el.style.display = 'none'; // orphan it (offsetParent === null)
       window.dispatchEvent(new Event('scroll'));
       return !document.getElementById('arttip')!.classList.contains('on');

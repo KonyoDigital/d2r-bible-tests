@@ -9,6 +9,10 @@ const URL = 'file://' + process.cwd() + '/bible.html';
 test.describe('v347 duplicate count badge', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
+      // v681 — fresh profile skips the v677 grail floor + owner cleanse, so the single-owned control
+      // item (Stormshield) survives the reload with copyCount 1 instead of being stripped to the ledger
+      // (which made copyCount('Stormshield') read 0). Windforce is mule-assigned so it survived either way.
+      localStorage.setItem('d2r_rwProfile', 'fresh');
       localStorage.setItem('d2r_owned', JSON.stringify(['Windforce', 'Stormshield']));
       localStorage.setItem('d2r_muleAssign', JSON.stringify({ Windforce: 'uni-weap' }));
       localStorage.setItem('d2r_copies', JSON.stringify({ Windforce: 3 })); // owned 3 (2 duplicates)

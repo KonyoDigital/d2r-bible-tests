@@ -41,6 +41,10 @@ test('_isRunewordBase + suggestMule agree across the whole base batch (no false 
 test('GRIMOIRES hold Vigilance → runeword-worthy → kept (the _RW_TYPE plural gap fix)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window;
+    // v681 — Chronicle sealed 99/99 seeds Vigilance as MADE, so the grimoire's only word is forged and it
+    // routes __throwout. Pin an empty Chronicle (same as the batch audit above) to keep testing the capability
+    // → keep route (_baseRunewords reads d2r_rwMade live).
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     const rw = (n: string) => (w._baseRunewords(n) || []).map((x: any) => x.n);
     return {
       grimoire: rw('Blasphemous Grimoire'),
@@ -60,6 +64,9 @@ test('GRIMOIRES hold Vigilance → runeword-worthy → kept (the _RW_TYPE plural
 test('non-runeword bases (circlet/orb/javelin/throwing/belt/boot/glove) → throw-out', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w: any = window;
+    // v681 — empty the sealed 99/99 Chronicle so the real runeword bases (monarch/phase/archon) still have
+    // unmade words to host → 'bases'; the non-runeword bases throw out on capability regardless.
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
     const route = (n: string) => (w.suggestMule(n) || {}).id;
     return {
       tiara: route('Tiara'), diadem: route('Diadem'),

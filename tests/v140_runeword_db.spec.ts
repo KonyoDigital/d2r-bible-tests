@@ -25,7 +25,7 @@ test.describe('v140 full runeword database + ID cards + browser', () => {
     await page.waitForTimeout(800);
   });
 
-  test('RUNEWORD_TIP holds 100 verified, well-formed entries', async ({ page }) => {
+  test('RUNEWORD_TIP holds 99 verified, well-formed entries', async ({ page }) => {
     const r = await page.evaluate(() => {
       const T = (window as any).RUNEWORD_TIP || {};
       const keys = Object.keys(T);
@@ -39,7 +39,7 @@ test.describe('v140 full runeword database + ID cards + browser', () => {
       }
       return { count: keys.length, emptyLines, badTier, noRec, noReq };
     });
-    expect(r.count).toBe(100);
+    expect(r.count).toBe(99);   // v681 — catalog is 99 since Hustle's v651 platform-wide removal
     expect(r.emptyLines).toBe(0);
     expect(r.badTier).toBe(0);
     expect(r.noRec).toBe(0);

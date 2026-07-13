@@ -30,6 +30,10 @@ test('ladder stamp renders on All-Runewords + What-I-can-make titles', async ({ 
 });
 
 test('Ladder/Non-Ladder toggle changes the Chronicle list', async ({ page }) => {
+  // v681 — CHRONICLE SEALED 99/99: the owner floor (_RWC_SEED) marks every word made, so the
+  // Chronicle's default 'todo' filter renders nothing (Cure included) → row lookups return null.
+  // A fresh profile suppresses the seed so unmade/blocked rows exist to assert on.
+  await page.addInitScript(() => { try { localStorage.setItem('d2r_rwProfile', 'fresh'); } catch(e){} });
   await page.goto(URL); await page.waitForTimeout(1300);
   const r = await page.evaluate(() => {
     const w:any = window;

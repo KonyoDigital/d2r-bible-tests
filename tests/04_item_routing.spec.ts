@@ -119,6 +119,8 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
     await page.goto(BIBLE);
     await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(600);
+    await page.evaluate(() => (window as any).switchTab('main'));   // v681 — TOOLS is the landing tab now (v680); hero picks live on Main
+    await page.waitForTimeout(300);
     // v63: dropdown sections default-collapsed → expand Today's Best Grail Picks first
     await page.locator('.sec-h', { hasText: 'Best Grail Picks' }).click();
     const firstPick = page.locator('.hero-pick').first();

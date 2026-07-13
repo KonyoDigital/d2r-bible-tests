@@ -8,6 +8,10 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test.describe('v462 fix socket count', () => {
   test.beforeEach(async ({ page }) => {
+    // v681 — Chronicle sealed 99/99 (owner seed) makes every socketed base route to __throwout (no unmade
+    // word left to host). Pin a fresh profile so unmade words exist and the corrected label derives a real
+    // 'bases' home — the mechanism this file actually exercises (rename + assignment carry/derive).
+    await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); });
     await page.goto(URL);
     await page.waitForFunction(() => (window as any).vaultFixSockets && (window as any)._ensureSocketBaseEntry);
     await page.evaluate(() => { (window as any).switchTab && (window as any).switchTab('tools'); });

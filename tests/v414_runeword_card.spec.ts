@@ -9,8 +9,10 @@ test('runeword ID card renders + Chronicle click opens it', async ({ page }) => 
     const w:any = window;
     let detailLen = 0, detailErr = '';
     try { detailLen = String(w.runewordDetailHtml('Hand of Justice')||'').length; } catch(e:any){ detailErr = String(e).slice(0,100); }
-    // simulate the Chronicle row click → openDrop
-    try { w.renderRunewordChronicle && w.renderRunewordChronicle(); } catch(e){}
+    // v681 — Chronicle is SEALED 99/99 (all words ✨ Created); its default 'todo' (⏳ Left) filter
+    // therefore hides every row. Switch to the 'all' view so a clickable row exists, then simulate
+    // the row click → openDrop → runeword ID card.
+    try { w.rwcSetFilter ? w.rwcSetFilter('all') : (w.renderRunewordChronicle && w.renderRunewordChronicle()); } catch(e){}
     const row = document.querySelector('.rwc-row') as HTMLElement|null;
     const img = row ? row.querySelector('.d2art-wrap, .rwc-glyph') as HTMLElement|null : null;
     if (img) img.click();

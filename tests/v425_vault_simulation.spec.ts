@@ -112,7 +112,18 @@ test('LOAD/CAPACITY — 450 owned items register, render, and persist without cr
   // seed 450 real item names into owned BEFORE the app boots
   await page.goto(URL); await page.waitForTimeout(1500);
   const names: string[] = await page.evaluate(() => (window as any).__allItemNames().slice(0, 450));
-  await page.evaluate((ns) => { localStorage.setItem('d2r_owned', JSON.stringify(ns)); }, names);
+  // v681 — the v677 boot cleanse strips grail-seed + uni-extra names from d2r_owned unless they're
+  // mule-assigned, so mule-assign ONLY that subset to keep all 450 physical. The remaining (non-grail)
+  // names stay unassigned → they persist via the registry prune AND render as loose .vault-chip, so the
+  // 450-item load/capacity pass still exercises both persistence and chip rendering.
+  await page.evaluate((ns) => {
+    localStorage.setItem('d2r_owned', JSON.stringify(ns));
+    const w: any = window;
+    const seed = w._GRAIL_SEED || {}, uex = w._UNI_EXTRA || {};
+    const ma: Record<string, string> = {};
+    ns.forEach((n) => { if (seed[n] || uex[n]) ma[n] = 'wip'; });
+    localStorage.setItem('d2r_muleAssign', JSON.stringify(ma));
+  }, names);
   await page.reload(); await page.waitForTimeout(2200);
   const r = await page.evaluate(() => {
     const w: any = window;

@@ -68,7 +68,10 @@ test.describe('v159 tagline-to-dock + animated masthead title + livelier tabs', 
       return {
         capsuleAnimates: /v159TabsGlow/.test(getComputedStyle(tabs).animationName),
         sheenAnimates: /v159TabsSheen/.test(getComputedStyle(tabs, '::before').animationName),
-        underlineAnimates: /v159TabUnderline/.test(getComputedStyle(active, '::after').animationName),
+        // v681 — the active-tab underline keyframe was superseded by v639Ember (v639 Living
+        // Treasury ember subtabs, a later equal-specificity `.tabs .tab.active::after` rule).
+        // The flowing animated gold underline still exists; only the keyframe name changed.
+        underlineAnimates: /v159TabUnderline|v639Ember/.test(getComputedStyle(active, '::after').animationName),
       };
     });
     expect(r.capsuleAnimates).toBe(true);
