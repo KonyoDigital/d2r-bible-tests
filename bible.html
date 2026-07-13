@@ -13852,12 +13852,16 @@ function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (o
 // stores: grail found = d2r_foundLog (dated chronicle truth) ∪ legacy owned entries; the vault
 // (owned) holds only PHYSICAL items (socketed bases, muled keepers). Every grail-semantic read
 // goes through _gFound; the seed floors foundLog only.
-var _gfCache=null;
+var _gfCache=null, _gfAt=0;
 function _gFoundDirty(){ _gfCache=null; }
 function _gFound(n){
   try {
     if (owned.has(n)) return true;
-    if (!_gfCache) _gfCache = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {};
+    // v679.2 — 500ms TTL: render bursts stay hot-cached, but an EXTERNAL foundLog write (backup
+    // restore, spec cleanup, another tab) can never leave toggleOwned deciding on stale truth —
+    // a stale 'found' flipped a tick into a DELETE.
+    var _now = Date.now();
+    if (!_gfCache || _now - _gfAt > 500){ _gfCache = _safeJsonParse(LS.getItem('d2r_foundLog'), {}) || {}; _gfAt = _now; }
     return _gfCache[n] != null;
   } catch(e){ return owned.has(n); }
 }
