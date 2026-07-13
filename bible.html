@@ -3203,7 +3203,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .si-h{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#c3a6f0;margin-bottom:8px}   /* v617 — plate-family title */
 #tab-tools .si-h .si-ht{background:linear-gradient(180deg,#e6d4ff,#b48ee8 60%,#7d5bb0);-webkit-background-clip:text;background-clip:text;color:transparent}
 #tab-tools .si-go{cursor:pointer;border-radius:7px;transition:background .12s,transform .12s}
-#tab-tools .si-rhs{display:inline-flex;align-items:center;gap:8px}
+#tab-tools .si-rhs{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;text-align:right;min-width:0}
+#tab-tools .si-row>span:first-child{flex:none;white-space:nowrap;margin-right:8px}   /* v681 — the Base-hunt blurb was squeezing the label into a vertical wrap */
 #tab-tools .si-go:hover{background:rgba(157,123,216,.14);transform:translateX(2px)}
 #tab-tools .si-row.si-go{padding:4px 7px;margin:0 -7px}
 #tab-tools .si-coin{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:700;font-size:12.5px;color:#1a1026;background:linear-gradient(180deg,#dcc4ff,#9d7bd8);border:1px solid rgba(230,212,255,.75);border-radius:50%;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 3px rgba(60,30,100,.5),0 1px 3px rgba(0,0,0,.55)}   /* v617 — forged coin counters, purple material */
@@ -30299,6 +30300,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
       H.push('</div>');
     }
+    if(F==='runs'&&!s.runs.length&&!(s.sealed||[]).length){
+      H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — no missing unique maps to a ranked run. Tap <b>▦ All</b> for the full missing grid, or <b>⚡ Quick wins</b> for the fastest crosses.</div>');   // v681 — same 0-count fall-through class as the v678 quick-wins fix
+    }
     if(show('low')&&!s.low.length&&s.lowTotal>0){
       // v619 — every quick-win (qlvl ≤35, the Normal/Nightmare hunts) found → the seal, not an empty tab
       H.push('<div class="forge-sec forge-sec-done"><div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ quick wins complete</span><span class="rw-band-s">all '+s.lowTotal+' low-level (qlvl ≤35) uniques found — the early game is sealed</span></div></div>');
@@ -30456,6 +30460,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push(_moreWrap(_rCards, F==='runs'?12:6, 'runs'));   // v647
 
       H.push('</div>');
+    }
+    if(F==='runs'&&!runs.length){
+      H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — no missing set piece maps to a ranked run. Tap <b>▦ All</b> for every missing piece, or <b>⚡ Quick wins</b> for the one-piece finishes.</div>');   // v681 — same 0-count fall-through class as the v678 quick-wins fix
     }
     // QUICK WINS — piece cards, F·Uniques style ("Find X → ✓ found it")
     if(show('near')&&quick.length){
