@@ -30271,10 +30271,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.renderForgeUni=function(){
     var box=document.getElementById('funi-body'); if(!box) return;
     var s=window.funiScan(); var F=_fuF; var H=[];
-    H.push(_meter(s.found,s.total,''));
+    // v682.1 — the HEADLINE meter is the IN-GAME truth (Konyo: 'Uniques is at 60% for chronicle..
+    // uniques isnt synced'): found / the mod's 403-entry chronicle, the same number the game shows.
+    // The 368 named cards stay the working grid below; the ~35 still-dark mod uniques are unknowable
+    // until found (the game silhouettes them as bare base types), so 403 is the only honest total.
+    H.push(_meter(s.found,s.chronTotal||s.total,''));
     // v663 — the IN-GAME line: the mod chronicle counts 403 entries, the game's % is found/403.
     // Keeping both numbers visible kills the '63% here, 59% in game' confusion at the source.
-    if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the rest are typo-aliases, 8 Rainbow Facet rows, quest uniques and RotW customs">🎮 in-game chronicle: <b>'+s.found+' / '+s.chronTotal+'</b> = <b>'+Math.round(s.found/s.chronTotal*100)+'%</b>'+(Math.round(s.found/s.chronTotal*100)<59?' <span style="opacity:.8">(game shows more? a few finds sit in your screenshot scroll-gaps — reshoot those sections and re-import)</span>':'')+'</div>');
+    // v682.1 — the headline meter above IS the in-game number now; this line explains the named-card grid
+    if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the remaining rows are still dark silhouettes in-game (bare base types), unknowable until they drop">🗂 named cards: <b>'+s.found+' / '+s.total+'</b> ticked · <b>'+(s.chronTotal-s.total)+'</b> chronicle rows still dark (names reveal on find)</div>');
     H.push(_undoBar('uni'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v560 — UNIFIED sub-tabs across BOTH grail forges (Konyo: same names, same logic, set or unique):
     // ▦ All missing · 🎯 Best runs · ⚡ Quick wins (low-level uniques / 1-piece sets) · ✅ Found
