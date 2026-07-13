@@ -36,11 +36,13 @@ test('F·Uniques: every missing unique is tickable in ALL MISSING; ticking dates
   expect(r1.chipTicks).toBeGreaterThan(10);         // run-card chips carry the tick too
   const r2 = await page.evaluate(async () => {
     const w: any = window; const box = document.getElementById('tab-funi')!;
-    const tick = [...box.querySelectorAll('.gf-allgrid [data-gf-tick]')].find((t: any) => t.getAttribute('data-gf-tick') === 'Nagelring') as any;
+    // v679 — Nagelring joined the seed (Konyo-confirmed gap find): target the FIRST missing unique dynamically
+    const targetName = w.funiScan().missing[0].n;
+    const tick = [...box.querySelectorAll('.gf-allgrid [data-gf-tick]')].find((t: any) => t.getAttribute('data-gf-tick') === targetName) as any;
     tick.click();
     await new Promise((res) => setTimeout(res, 700));
     const log = JSON.parse(localStorage.getItem('d2r_foundLog') || '{}');
-    const ownedNow = !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Nagelring'];   // v677
+    const ownedNow = !!JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[targetName];   // v677
     const undoBar = box.querySelector('.gf-undo-bar');
     const undoNames = undoBar ? undoBar.textContent || '' : '';
     // FOUND view shows the dated entry, newest first
@@ -49,8 +51,9 @@ test('F·Uniques: every missing unique is tickable in ALL MISSING; ticking dates
     const foundView = box.querySelector('.forge-sec-now .gf-chips');
     const firstFound = foundView ? (foundView.querySelector('.gf-piece') as any) : null;
     return {
-      dated: !!log['Nagelring'], ownedNow, undoShows: /Nagelring/.test(undoNames),
-      newestFirst: firstFound ? /Nagelring/.test(firstFound.textContent || '') : false,
+      targetName,
+      dated: !!log[targetName], ownedNow, undoShows: undoNames.includes(targetName),
+      newestFirst: firstFound ? (firstFound.textContent || '').includes(targetName) : false,
       dateShown: firstFound ? /·|20\d\d|Jul|Jan/.test((firstFound.querySelector('.gp-date') || {} as any).textContent || '') : false,
     };
   });
@@ -59,15 +62,15 @@ test('F·Uniques: every missing unique is tickable in ALL MISSING; ticking dates
   expect(r2.undoShows).toBe(true);
   expect(r2.newestFirst).toBe(true);
   expect(r2.dateShown).toBe(true);
-  const r3 = await page.evaluate(async () => {
+  const r3 = await page.evaluate(async (targetName: string) => {
     const w: any = window; const box = document.getElementById('tab-funi')!;
     (box.querySelector('.gf-undo-bar button') as any).click();
     await new Promise((res) => setTimeout(res, 600));
     return {
-      restored: !JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Nagelring'],   // v677
-      logCleared: !JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')['Nagelring'],
+      restored: !JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[targetName],   // v677
+      logCleared: !JSON.parse(localStorage.getItem('d2r_foundLog') || '{}')[targetName],
     };
-  });
+  }, r2.targetName);
   await cleanup(page);
   expect(r3.restored).toBe(true);
   expect(r3.logCleared).toBe(true);
