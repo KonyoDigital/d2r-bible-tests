@@ -24,11 +24,11 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
       vaultClean: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,           // v677 — the seed must NEVER touch the vault
     };
   });
-  expect(r.seedN).toBe(230);   // v679 +Nagelring (Konyo-confirmed gap find)
-  expect(r.extraN).toBe(62);
-  expect(r.total).toBe(364);            // 302 calculator uniques + 62 chronicle extras
-  expect(r.found).toBe(230);
-  expect(r.flN).toBe(230);
+  expect(r.seedN).toBe(243);   // v682 full reshoot: +13 gap finds (Djinn Slayer confirmed) · Nagelring real stamp
+  expect(r.extraN).toBe(66);   // v682 +Blackbog's Sharp/Radament's Sphere/Rakescar/Skull Collector
+  expect(r.total).toBe(368);            // 302 calculator uniques + 66 chronicle extras
+  expect(r.found).toBe(243);
+  expect(r.flN).toBe(351);   // v682: 243 uniques + 108 set-piece stamps share the ledger
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
@@ -54,8 +54,8 @@ test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re
   await page.evaluate(() => { localStorage.removeItem('d2r_grailUnfound'); });
   expect(after.owned).toBe(false);
   expect(after.gu).toBe(1);
-  expect(after.found).toBe(229);
-  expect(restored.found).toBe(230);
+  expect(after.found).toBe(242);
+  expect(restored.found).toBe(243);
   expect(restored.gu).toBeUndefined();
 });
 

@@ -97,7 +97,7 @@ test('F·Sets: pieces tick with the same ledger — dated, undoable, synced to t
     return { gridTicks, dated: !!log[pieceName], have, undone: !haveAfter };
   });
   await cleanup(page);
-  expect(r.gridTicks).toBeGreaterThan(30);          // the full missing-piece pool is tickable
+  expect(r.gridTicks).toBeGreaterThan(20);          // v682: the seed floors 108/135 pieces — 27 remain missing, all tickable
   expect(r.dated).toBe(true);
   expect(r.have).toBe(true);
   expect(r.undone).toBe(true);
