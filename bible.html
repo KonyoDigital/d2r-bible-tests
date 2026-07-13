@@ -594,7 +594,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .kbd{display:inline-block;background:var(--surface-3);border:1px solid var(--border-light);border-radius:3px;padding:1px 5px;font-family:ui-monospace,monospace;font-size:10px;color:var(--gold-bright)}
 .celebrate{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:linear-gradient(135deg,var(--best),var(--gold-bright));color:#0a0805;padding:18px 28px;border-radius:14px;font-size:18px;font-weight:700;box-shadow:0 8px 32px rgba(0,255,170,.4);z-index:500;animation:celebrate 2.4s ease forwards;pointer-events:none}
 @keyframes celebrate{0%{opacity:0;transform:translate(-50%,-20px) scale(.8)}15%{opacity:1;transform:translate(-50%,0) scale(1.05)}30%{transform:translate(-50%,0) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px) scale(.95)}}
-.shortcut-hint{position:fixed;bottom:18px;left:18px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-muted);z-index:150;display:none;align-items:center;gap:8px;pointer-events:none}
+.shortcut-hint{position:fixed;bottom:calc(var(--dock-h, 84px) + 80px);left:18px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-muted);z-index:150;display:none;align-items:center;gap:8px;pointer-events:none}   /* v678 (swarm) — was burying the TZ pill */
 .shortcut-hint.show{display:flex}
 @media(min-width:701px){.shortcut-hint.show{display:flex}}
 @media(max-width:700px){.shortcut-hint{display:none!important}.grail-progress{padding:12px 14px;gap:12px}.gp-circle{width:54px;height:54px}.gp-bar{min-width:100px}.hero-pick-chance{font-size:11px}}
@@ -18476,7 +18476,8 @@ window._tallyPrepImage = _tallyPrepImage;
 //     bottom-right count corner, 3× enlarged) — the model's only remaining job is reading a big
 //     digit off a clean tile (kind:'tally2', 3-pass majority as usual).
 // Returns the sheet b64, or null when detection is ambiguous → caller falls back to the plain path.
-// Konyo's own 1.45–1.62 fullscreens NEVER enter here — the locked pipeline is untouched.
+// v661.1 — sheet-FIRST for EVERY landscape capture (his own fullscreens included): the live sims
+// proved the sheet beats the locked crop on both classes; the locked pipeline is the FALLBACK.
 var _RUNE_GRID_MAP = [
   ['El','Eld','Tir','Nef','Eth','Ith','Tal','Ral','Ort'],
   ['Thul','Amn','Sol','Shael','Dol','Hel','Io','Lum','Ko'],
@@ -23709,7 +23710,7 @@ _v41_whenReady(() => {
 <style>
   #v42-tz-countdown {
     position: fixed;
-    bottom: 16px;
+    bottom: calc(var(--dock-h, 84px) + 12px);   /* v678 (swarm) — lifted above the control dock at ALL widths (the 92px-gutter promise was false for this 140px pill) */
     left: 16px;
     background: linear-gradient(180deg, rgba(26,18,8,.95), rgba(21,16,10,.95));
     border: 1px solid rgba(255,68,68,.45);
@@ -29711,8 +29712,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     };
     var _doneHidden=_doneSet(), _doneN=_madeRw().filter(function(n){ return !_doneHidden.has(n); }).length;   // v532
     H.push('<div class="forge-tabs">'
-      + tab('all','▦','All','ft-all',total)
-      + tab('onestep','🟡','One step','ft-step',s.onestep.length)   // v531 — storyline order: one step →
+      + tab('all','▦','All','ft-all',total+(s.farm||[]).length)   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards
+      + tab('onestep','🟡','One step','ft-step',s.onestep.length+(s.farm||[]).length)   // v678 — farm rows ride the one-step view   // v531 — storyline order: one step →
       + tab('now','⚒','Make now','ft-now',nowCount)                 //   make now → pipeline (Konyo)
       + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length)
       + tab('crafts','⚗️','Crafts','ft-craft',s.crafts.length)
@@ -29997,7 +29998,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('</div></div>');
     }
     // per-filter empty hint (a bucket the user filtered to that has nothing in it)
-    var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?s.pipeline.length:F==='onestep'?s.onestep.length:F==='crafts'?s.crafts.length:total;
+    var bc = F==='now'?(liveNow.length+deferred.length):F==='pipeline'?s.pipeline.length:F==='onestep'?(s.onestep.length+(s.farm||[]).length):F==='crafts'?s.crafts.length:(total+(s.farm||[]).length);   // v678 — farm rows count where they render
     if (F!=='all' && !bc){
       H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — tap <b>▦ All</b>, or tally more runes / gems / bases.</div>');
     }
@@ -30453,6 +30454,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push(_moreWrap(_qCards, F==='near'?12:6, 'quick wins'));   // v647
       H.push('</div>');
     }
+    if(F==='near'&&!quick.length){
+      H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — no set is 1 piece away yet. Tap <b>▦ All</b> for every missing piece, or <b>🎯 Best runs</b> to farm toward one.</div>');   // v678 (swarm) — the 0-count filter fell through to a blank page
+    }
     // FOUND — green chips (tap to un-mark), synced to the Item Set Tracker
     if(F==='done'){
       H.push('<div class="forge-sec forge-sec-now"><div class="forge-sec-h">✅ Found <span class="forge-sec-ct">'+s.havePieces+'</span><span class="forge-sec-sub">synced with the Item Set Tracker — tap to un-mark</span></div><div class="gf-chips">');
@@ -30644,7 +30648,11 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tabs-workshop .tab{border-color:rgba(233,208,122,.4)!important;color:#e9d07a!important;font-weight:600!important;background:rgba(233,208,122,.05)!important}
 .tabs-workshop .tab:hover{background:rgba(233,208,122,.14)!important;color:#ffe08a!important}
 .tabs-workshop .tab.active{background:rgba(233,208,122,.2)!important;color:#fff4d2!important;border-color:#ffe08a!important}
-@media (max-width:1100px){ .tabs{flex-wrap:wrap!important} .tabs-workshop{margin:4px auto 0} }
+@media (max-width:1360px){   /* v678 (swarm) — at ≤1360px the nowrap data strip overflowed UNDER the workshop frame (garbled at 700px, REFERENCE clipped at 1280px) */
+  .tabs{flex-wrap:wrap!important}
+  .tabs-data{flex:1 1 100%;flex-wrap:wrap}
+  .tabs-workshop{flex:0 1 auto;flex-wrap:wrap;justify-content:center;margin:4px auto 0}
+}
 /* v641 — routines widget ALIGNED: it collided with the bottom control dock and pulsed forever
    ("routines are jumping"). Park it above the dock, kill the infinite pulse. */
 #routine-status-bar{bottom:calc(var(--dock-h,64px) + 16px)!important;right:12px!important}
