@@ -28,6 +28,7 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
       tplName: tpl && tpl.name, tplRules: tpl && tpl.rules.length,
       outName: out && out.name, outRules: out && out.rules.length,
       madeCount: w._chronicleMadeCount ? w._chronicleMadeCount() : -1,
+      totalWords: Object.keys(w.RUNEWORD_TIP || {}).length,
       baseCount: built && built.baseCount,
       outLeak: circletLeak(out),
     };
@@ -41,11 +42,21 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
   expect(r.madeCount).toBeGreaterThan(0);
   expect(r.outName).toBe('KonyoEndgame' + r.madeCount);
   expect([19, 20]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble; v599 +2 magic-circlet splits
-  expect(r.baseCount).toBeGreaterThan(0);      // v667.2 — fully chronicle-synced: at 88/99 the curated hunt set is small and keeps shrinking
+  // v684 recalibration — the live seed sealed the Chronicle (99/99): with no word unmade the word-driven
+  // hunt set is legitimately EMPTY (premium floor is early-stage only, v667.2). Pre-seal the old
+  // baseCount>0 held; both regimes now assert their own truth.
+  if (r.madeCount < r.totalWords) expect(r.baseCount).toBeGreaterThan(0);
+  else expect(r.baseCount).toBe(0);
   expect(r.outLeak).toBe(false);               // no white circlets leak in
 });
 
 test('the filter shrinks when runewords are marked made (live-synced to the Chronicle)', async ({ page }) => {
+  // v684 recalibration — the 99/99 seed floors every word at boot, so "nothing made yet" needs a
+  // pinned-fresh Chronicle (the v655 seeded-words trap; same pin the v536.2 specs below use).
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  });
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -60,7 +71,10 @@ test('the filter shrinks when runewords are marked made (live-synced to the Chro
     return { nAll, nNone, nPremium: (w._premiumTradeBases || []).length };
   });
   expect(r.nAll).toBeGreaterThan(0);            // v667.2 — the premium floor is early-only now; late stage = word-driven only
-  expect(r.nNone).toBe(r.nPremium);             // all words made -> shrinks to exactly the premium trade floor (v588)
+  // v684 recalibration — all-made is the LATEST stage: v667.2 ended v588's unconditional premium ride
+  // (≥50% forged, premium obeys the same engine gates as everything else), so a fully-made Chronicle
+  // shrinks the show set to NOTHING, not to the 17-base floor (bible.html:4516 doctrine comment).
+  expect(r.nNone).toBe(0);
 });
 
 // v536.2 — the loot filter must stay SYNCED with the Forge: don't tell you to FARM the ideal base for a word
@@ -112,6 +126,12 @@ test('v536.2 — owning a socket-correct base for the word DROPS its base from t
 });
 
 test('every base code emitted maps to a real base name in the embedded code map', async ({ page }) => {
+  // v684 recalibration — pin a fresh Chronicle: at the live 99/99 seed the emitted set is empty and
+  // the orphan check would assert on nothing (the v655 seeded-words trap).
+  await page.addInitScript(() => {
+    localStorage.setItem('d2r_rwMade', JSON.stringify({}));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  });
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;

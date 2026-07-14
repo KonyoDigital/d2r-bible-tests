@@ -3358,9 +3358,16 @@ try {
   }
 } catch(e){}
 try {
-  if (window.D2R_PROFILE==='ladder' && !window.localStorage.getItem('L·d2r_intakeSeen')){
-    var _mSeen = window.localStorage.getItem('d2r_intakeSeen');   // v636 — RAW read of MAIN's bare key (the routed read resolved to the very L· key the guard proved empty — dead code, swarm-caught)
-    if (_mSeen) window.localStorage.setItem('L·d2r_intakeSeen', _mSeen);
+  if (window.D2R_PROFILE==='ladder'){
+    // v684 — machine-aware: WINDOWS-ladder seeds WL· from the COUSIN's own W· ledger (it was hardcoded
+    // to the MAC keys, so the first cousin-ladder folder scan would re-intake the entire screenshot
+    // history — and worse, the cousin re-created MAC's L· key, a cross-machine write).
+    var _seenKey = window._isCousinShell ? 'WL·d2r_intakeSeen' : 'L·d2r_intakeSeen';
+    var _seenSrc = window._isCousinShell ? 'W·d2r_intakeSeen'  : 'd2r_intakeSeen';   // v636 — RAW read of the owning MAIN's key (a routed read resolves to the very key the guard proved empty)
+    if (!window.localStorage.getItem(_seenKey)){
+      var _mSeen = window.localStorage.getItem(_seenSrc);
+      if (_mSeen) window.localStorage.setItem(_seenKey, _mSeen);
+    }
   }
 } catch(e){}
 </script>
@@ -4427,7 +4434,7 @@ try {
     </div>
   </div>
   <script type="application/json" id="lf-data-endgame">{"name":"KonyoEndgame","rules":[{"name":"1. Hide Trash Gear","enabled":true,"ruleType":"hide","filterEtherealSocketed":false,"equipmentRarity":["rare","lowQuality","magic","hiQuality","normal"],"equipmentQuality":["normal","exceptional","elite"],"equipmentItemCode":["9b9","7b8","6bs","6lb","ult","uts","7br","8cs","hlm","brn","obb","lgl","9gm","ba7","6lw","spt","lrg","gwn","wab","am8","9sp","bst","msk","kri","wsd","xkp","lea","ne2","nea","9ax","9cl","lbb","7ga","uvc","uuc","uhg","spc","xar","7ma","7qr","9p9","nef","ob4","uvg","pa6","8s8","xsk","pax","9bk","vou","9pi","9wa","bkf","gsd","axf","9br","ces","zhb","8cb","lsd","am2","fld","xlg","9mt","lbt","dr1","am9","ba2","6sb","7b7","xuc","gis","xlb","7bt","ne6","obd","ulc","6ls","9b7","9sb","xui","bwn","9lw","7fc","ob3","7p7","wst","aar","7la","ob8","hla","kit","9gi","chn","opm","7s7","ba1","hbw","xth","ne3","umc","9s9","7wn","ztb","bhm","skp","xmb","9ws","neg","ssd","8sb","paf","xcl","drc","gpm","umb","scy","pa7","gps","9sm","xhg","xhb","9wn","btl","gpl","bld","jav","qui","9la","pa4","amb","brs","6s7","xsh","am4","rng","ktr","8mx","vgl","7gs","scp","ops","tsp","9qr","7tr","9h9","9fl","7di","ne7","2ax","bax","8lb","pil","9fb","lbl","pa5","9wd","flb","7cs","btx","9cs","7ws","am7","lwb","uhl","7o7","gth","8hb","9qs","xlm","uth","dir","ghm","tax","dre","9ja","hal","8hx","xtg","lbw","6l7","9ss","bsh","uhc","9ts","sst","bac","ob2","ne8","baf","9bw","wa4","8lx","nee","7st","cbw","mac","zvb","8bs","xrs","xla","6cs","9cr","am6","mbt","amd","uhn","crn","utg","drb","uul","9kr","xea","ob9","xtb","crs","drd","zmb","am5","gix","utc","lxb","zlb","9cm","pa9","spr","8sw","7bk","xul","6sw","tgl","mxb","mbl","9tr","wa6","7tk","dr7","9vo","ukp","7sc","9m9","7cm","upl","xhl","7dg","9gw","bad","ful","xts","dr3","bsd","ba5","7wh","dr5","bar","9wh","ame","ltp","9yw","xtu","xlt","92a","hxb","pa2","vbt","9gd","hbl","2hs","obc","6hx","92h","xpk","umg","neb","dgr","utb","9b8","mst","9ma","8ls","obe","9gl","7gi","72h","7ss","ba9","dr2","9xf","lst","clm","7ta","oba","baa","dr9","9ba","8ss","ne9","wa2","9wb","ulb","xvb","dra","9ha","wa3","uvb","7gl","7ba","wnd","xld","xrg","9sr","ob6","obf","opl","9bs","uld","ba3","axe","pa1","wae","wa8","scm","cap","cst","gsc","gax","7ja","ba6","7ts","ucl","pa8","9s8","9wc","ung","whm","ywn","hgl","9gs","stu","dr4","7gm","clb","wax","am3","dr8","spk","7pi","9dg","wsp","xh9","ba4","9ga","6rx","xrn","8lw","amc","8ws","tri","wa1","9ls","skr","wa9","ama","uap","mau","ne1","sbr","9fc","bsw","sml","buc","8l8","ulm","ob7","paa","xow","drf","9bl","sbb","tkf","7m7","uml","lax","ulg","xmg","ob1","mpi","urg","9tk","bal","ne5","xhn","7tw","rxb","clw","6ws","6lx","uea","xpl","wrb","am1","7xf","xap","9st","uow","wsc","9bt","dr6","9tw","hbt","ba8","wa5","7sr","xit","9pa","amf","8rx","swb","9mp","ned","pae","ssp","urs","ob5","wac","fhl","plt","tbl","9ar","pa3","9sc","uhb","scl","mgl","pik","flc","9ta","pad","ne4","sbw","xvg","7fb","vbl","9di","gma","glv","hax","bab","spl","tbt","xml","7sm","xng"],"itemCategory":["ammo","scrlt","keysr"],"itemCode":["hp2","gpw","gsw","glb","mp1","glg","vps","gpg","skl","gzv","gly","gpy","gpr","hp4","gsv","mp2","hp3","mp4","gpb","hp1","gsb","rvs","glw","skz","mp3","gsg","wms","gsr","gsy","sku","yps","gpv","glr","gps","ops","gpm","opm","gpl","opl"],"goldFilterValue":2704},{"name":"2. Show Uniques and Sets","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"equipmentRarity":["set","unique"]},{"name":"3. Show ETH and Socket bases","enabled":true,"ruleType":"show","filterEtherealSocketed":true,"equipmentQuality":["normal","exceptional","elite"],"equipmentCategory":[],"equipmentItemCode":["6cb","6hb","6mx","6ss","72a","7ar","7ax","7bl","7bs","7bw","7cl","7cr","7fl","7gw","7ha","7kr","7ls","7lw","7mp","7mt","7qs","7sb","7sp","7vo","7wa","7wb","7wd","7yw","bae","fla","gts","pab","pac","tow","uh9","uhm","ula","upk","urn","ush","usk","utp","utu","uui","wa7","waa","wad","waf","xhm"]},{"name":"4. Show Charms Skillers Sunders","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"equipmentRarity":["unique","magic"],"equipmentCategory":["charm"]},{"name":"5. Show Gems","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"itemCode":["gpw","gsw","gpb","glb","gsb","glw","glg","gpg","skz","gzv","skl","gsg","gsy","gsr","gpy","gpr","gly","sku","gsv","gpv","glr"]},{"name":"6. Show Runes Sunder Mats High","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"itemCategory":["runes"]},{"name":"7. Show Shards Essences Uber Mat","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"itemCategory":["uberm","terrt","absol"]},{"name":"8. Show Potions","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"itemCode":["hp5","mp5","rvl"]},{"name":"9. Show Jewels Rings Amulets","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"equipmentRarity":["unique"],"equipmentQuality":["normal","exceptional","elite"],"equipmentCategory":["jewel","rings","amule"]},{"name":"Show Jewels","enabled":true,"ruleType":"show","filterEtherealSocketed":true,"equipmentRarity":["rare","lowQuality","set","unique","magic","hiQuality","normal"],"equipmentQuality":["normal","exceptional","elite"],"equipmentCategory":["jewel"]},{"name":"Hide ETH Sockets","enabled":true,"ruleType":"hide","filterEtherealSocketed":true,"equipmentRarity":["rare","lowQuality","magic","hiQuality","normal"],"equipmentQuality":["normal","exceptional","elite"],"equipmentItemCode":["9b9","7b8","6bs","6lb","ult","uts","7br","8cs","hlm","brn","obb","lgl","9gm","ba7","6lw","spt","lrg","gwn","wab","am8","9sp","bst","msk","kri","wsd","xkp","lea","ne2","nea","9ax","9cl","lbb","7ga","uvc","uuc","uhg","spc","xar","7ma","7qr","9p9","nef","ob4","uvg","pa6","8s8","xsk","pax","9bk","vou","9pi","9wa","bkf","gsd","axf","9br","ces","zhb","8cb","lsd","am2","fld","xlg","9mt","lbt","dr1","am9","ba2","6sb","7b7","xuc","gis","xlb","7bt","ne6","obd","ulc","6ls","9b7","9sb","xui","bwn","9lw","7fc","ob3","7p7","wst","aar","7la","ob8","hla","kit","9gi","chn","opm","7s7","ba1","hbw","xth","ne3","umc","9s9","7wn","ztb","bhm","skp","xmb","9ws","neg","ssd","8sb","paf","xcl","drc","gpm","umb","scy","pa7","gps","9sm","xhg","xhb","9wn","btl","gpl","bld","jav","qui","9la","pa4","amb","brs","6s7","xsh","am4","rng","ktr","8mx","vgl","7gs","scp","ops","tsp","9qr","7tr","9h9","9fl","7di","ne7","2ax","bax","8lb","pil","9fb","lbl","pa5","9wd","flb","7cs","btx","9cs","7ws","am7","lwb","uhl","7o7","gth","8hb","9qs","xlm","uth","dir","ghm","tax","dre","9ja","hal","8hx","xtg","lbw","6l7","9ss","bsh","uhc","9ts","sst","bac","ob2","ne8","baf","9bw","wa4","8lx","nee","7st","cbw","mac","zvb","8bs","xrs","xla","6cs","9cr","am6","mbt","amd","uhn","crn","utg","drb","uul","9kr","xea","ob9","xtb","crs","drd","zmb","am5","gix","utc","lxb","zlb","9cm","pa9","spr","8sw","7bk","xul","6sw","tgl","mxb","mbl","9tr","wa6","7tk","dr7","9vo","ukp","7sc","9m9","7cm","upl","xhl","7dg","9gw","bad","ful","xts","dr3","bsd","ba5","7wh","dr5","bar","9wh","ame","ltp","9yw","xtu","xlt","92a","hxb","pa2","vbt","9gd","hbl","2hs","obc","6hx","92h","xpk","umg","neb","dgr","utb","9b8","mst","9ma","8ls","obe","9gl","7gi","72h","7ss","ba9","dr2","9xf","lst","clm","7ta","oba","baa","dr9","9ba","8ss","ne9","wa2","9wb","ulb","xvb","dra","9ha","wa3","uvb","7gl","7ba","wnd","xld","xrg","9sr","ob6","obf","opl","9bs","uld","ba3","axe","pa1","wae","wa8","scm","cap","cst","gsc","gax","7ja","ba6","7ts","ucl","pa8","9s8","9wc","ung","whm","ywn","hgl","9gs","stu","dr4","7gm","clb","wax","am3","dr8","spk","7pi","9dg","wsp","xh9","ba4","9ga","6rx","xrn","8lw","amc","8ws","tri","wa1","9ls","skr","wa9","ama","uap","mau","ne1","sbr","9fc","bsw","sml","buc","8l8","ulm","ob7","paa","xow","drf","9bl","sbb","tkf","7m7","uml","lax","ulg","xmg","ob1","mpi","urg","9tk","bal","ne5","xhn","7tw","rxb","clw","6ws","6lx","uea","xpl","wrb","am1","7xf","xap","9st","uow","wsc","9bt","dr6","9tw","hbt","ba8","wa5","7sr","xit","9pa","amf","8rx","swb","9mp","ned","pae","ssp","urs","ob5","wac","fhl","plt","tbl","9ar","pa3","9sc","uhb","scl","mgl","pik","flc","9ta","pad","ne4","sbw","xvg","7fb","vbl","9di","gma","glv","hax","bab","spl","tbt","xml","7sm","xng"]},{"name":"Show Rare Rings and Amulets","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"equipmentRarity":["rare"],"equipmentQuality":["normal","exceptional","elite"],"equipmentCategory":["rings","circl","amule"]},{"name":"Show Base Items","enabled":true,"ruleType":"show","filterEtherealSocketed":false,"equipmentRarity":["normal"],"equipmentQuality":["normal","exceptional","elite"],"equipmentCategory":[],"equipmentItemCode":["6cb","6hb","6mx","6ss","72a","7ar","7ax","7bl","7bs","7bw","7cl","7cr","7fl","7gw","7ha","7kr","7ls","7lw","7mp","7mt","7qs","7sb","7sp","7vo","7wa","7wb","7wd","7yw","bae","fla","gts","pab","pac","tow","uh9","uhm","ula","upk","urn","ush","usk","utp","utu","uui","wa7","waa","wad","waf","xhm"]}]}</script>
-  <script type="application/json" id="lf-base-codes">{"Aegis":"uow","Aerin Shield":"pa4","Akaran Rondache":"pa7","Akaran Targe":"pa6","Alpha Helm":"dr6","Ancient Armor":"aar","Ancient Axe":"9gi","Ancient Shield":"xts","Ancient Sword":"9wd","Antlers":"dr3","Arbalest":"8lx","Archon Plate":"utp","Archon Staff":"6ws","Armet":"ulm","Ashwood Bow":"am6","Assault Helmet":"ba4","Ataghan":"7sm","Avenger Guard":"ba5","Axe":"axe","Balanced Axe":"bal","Balanced Knife":"bkf","Ballista":"8hx","Balrog Blade":"7gs","Balrog Skin":"upl","Balrog Spear":"7s7","Barbed Club":"9sp","Barbed Shield":"xpk","Bardiche":"bar","Basinet":"xhl","Bastard Sword":"bsw","Battle Axe":"btx","Battle Belt":"ztb","Battle Boots":"xtb","Battle Cestus":"7cs","Battle Dart":"9tk","Battle Gauntlets":"xtg","Battle Hammer":"9wh","Battle Scythe":"9s8","Battle Staff":"bst","Battle Sword":"9bs","Bearded Axe":"9ba","Bec-de-Corbin":"9h9","Belt":"mbl","Berserker Axe":"7wa","Bill":"9vo","Blade":"bld","Blade Barrier":"upk","Blade Bow":"6hb","Blade Talons":"btl","Blasphemous Compendium":"wae","Blasphemous Grimoire":"waf","Blood Spirit":"drb","Bloodlord Skull":"nef","Bone Helm":"bhm","Bone Knife":"7dg","Bone Shield":"bsh","Bone Visage":"uh9","Bone Wand":"bwn","Boneweave":"uhn","Boneweave Boots":"umb","Boots":"lbt","Bramble Mitts":"ulg","Brandistock":"brn","Breast Plate":"brs","Broad Axe":"bax","Broad Sword":"bsd","Buckler":"buc","Burnt Text":"wa6","Burnt Wand":"9wn","Caduceus":"7ws","Cantor Trophy":"ne9","Cap":"cap","Carnage Helm":"bab","Casque":"xlm","Cedar Bow":"8lb","Cedar Staff":"8cs","Ceremonial Bow":"am7","Ceremonial Javelin":"ama","Ceremonial Pike":"am9","Ceremonial Spear":"am8","Cestus":"ces","Chain Boots":"mbt","Chain Gloves":"mgl","Chain Mail":"chn","Champion Axe":"7ga","Champion Sword":"7b7","Chaos Armor":"xul","Choking Gas Potion":"gpm","Chu-Ko-Nu":"8rx","Cinquedeas":"9kr","Circlet":"ci0","Clasped Orb":"ob4","Claws":"clw","Claymore":"clm","Cleaver":"9ax","Cloudy Sphere":"ob8","Club":"clb","Codex":"wa3","Colossal Sword":"7fb","Colossus Blade":"7gd","Colossus Crossbow":"6hx","Colossus Girdle":"uhc","Colossus Voulge":"7vo","Compendium":"wa4","Composite Bow":"cbw","Conqueror Crown":"bae","Conquest Sword":"7bs","Corona":"urn","Coronet":"ci1","Crossbow":"mxb","Crowbill":"9mp","Crown":"crn","Crown Shield":"pa5","Crusader Bow":"6l7","Crusader Gauntlets":"utg","Cryptic Axe":"7pa","Cryptic Sword":"7ls","Crystal Sword":"crs","Crystalline Globe":"ob7","Cudgel":"9cl","Cuirass":"xrs","Cutlass":"9sm","Dacian Falx":"9cm","Dagger":"dgr","Dark Codex":"wa8","Dark Tome":"wa7","Death Mask":"xsk","Decapitator":"7bt","Decoy Gidbinn":"d33","Defender":"xuc","Demon Crossbow":"6rx","Demon Head":"ne5","Demon Heart":"obd","Demonhead":"usk","Demonhide Armor":"xla","Demonhide Boots":"xlb","Demonhide Gloves":"xlg","Demonhide Sash":"zlb","Destroyer Helm":"bad","Devil Star":"7mt","Diadem":"ci3","Diamond Bow":"6s7","Diamond Mail":"ung","Dimensional Blade":"9cr","Dimensional Shard":"obf","Dirk":"dir","Divine Scepter":"9ws","Double Axe":"2ax","Double Bow":"8cb","Dragon Shield":"xit","Dream Spirit":"drf","Dusk Shroud":"uui","Eagle Orb":"ob1","Earth Spirit":"drd","Edge Bow":"8sb","Elder Staff":"6cs","Eldritch Orb":"obc","Elegant Blade":"7sb","Embossed Plate":"xth","Espandon":"92h","Ettin Axe":"72a","Executioner Sword":"9gd","Exploding Potion":"opm","Falcata":"7ss","Falchion":"flc","Falcon Mask":"dr4","Fanged Helm":"ba2","Fanged Knife":"7kr","Fascia":"9xf","Feral Axe":"7la","Feral Claws":"7lw","Fetish Trophy":"ne7","Field Plate":"fld","Flail":"fla","Flamberge":"flb","Flanged Mace":"9ma","Flying Axe":"7ta","Flying Knife":"7tk","Forgotten Volume":"wab","Francisca":"9ta","Full Helm":"fhl","Full Plate Mail":"ful","Fulminating Potion":"opl","Fury Visor":"bac","Fuscina":"9tr","Gargoyle Head":"ne4","Gauntlets":"hgl","Ghost Armor":"xui","Ghost Glaive":"7gl","Ghost Spear":"7st","Ghost Wand":"7yw","Giant Axe":"gix","Giant Conch":"uhl","Giant Sword":"gis","Giant Thresher":"7wc","Gilded Shield":"pa9","Gladius":"9ss","Glaive":"glv","Glorious Axe":"7gi","Glowing Orb":"ob6","Gnarled Staff":"cst","Gorgon Crossbow":"6mx","Gothic Axe":"9ga","Gothic Bow":"8lw","Gothic Plate":"gth","Gothic Shield":"gts","Gothic Staff":"8bs","Gothic Sword":"9b9","Grand Crown":"xrn","Grand Matron Bow":"amc","Grand Scepter":"gsc","Grave Wand":"9gw","Great Axe":"gax","Great Bow":"6cb","Great Hauberk":"urs","Great Helm":"ghm","Great Maul":"gma","Great Pilum":"9pi","Great Poleaxe":"7h7","Great Sword":"gsd","Greater Claws":"9lw","Greater Talons":"9tw","Greaves":"hbt","Griffon Headress":"dr7","Grim Helm":"xh9","Grim Scythe":"9wc","Grim Shield":"xsh","Grim Wand":"gwn","Grimoire":"wa5","Guardian Crown":"baf","Halberd":"hal","Hand Axe":"hax","Hand Scythe":"9cs","Hard Leather Armor":"hla","Harpoon":"9ts","Hatchet":"9ha","Hatchet Hands":"axf","Hawk Helm":"dr2","Heater":"uuc","Heavenly Stone":"obb","Heavy Belt":"tbl","Heavy Boots":"vbt","Heavy Bracers":"xmg","Heavy Crossbow":"hxb","Heavy Gloves":"vgl","Heirophant Trophy":"nea","Hellforge Hammer":"hfh","Hellforge Plate":"ult","Hellspawn Skull":"neg","Helm":"hlm","Heraldic Shield":"pa3","Hierophant Trophy":"nea","Highland Blade":"7cm","Holy Water Sprinkler":"9qs","Horadric Malus":"hdm","Horadric Staff":"hst","Horned Helm":"ba3","Hunter's Bow":"hbw","Hunter's Guise":"dr8","Hurlbat":"9b8","Hydra Bow":"6lw","Hydra Edge":"7fc","Hydraskull":"ukp","Hyperion":"urg","Hyperion Javelin":"7ja","Hyperion Spear":"7sr","Jagged Star":"9mt","Jared's Stone":"ob5","Javelin":"jav","Jawbone Cap":"ba1","Jawbone Visor":"ba6","Jo Staff":"8ss","Katar":"ktr","Khalim's Flail":"qf1","Khalim's Will":"qf2","Kite Shield":"kit","Knout":"9fl","Kraken Shell":"uld","Kris":"kri","Kriss":"kri","Lacquered Plate":"uth","Lance":"9p9","Large Axe":"lax","Large Shield":"lrg","Leather Armor":"lea","Leather Gloves":"lgl","Legend Spike":"7bl","Legend Sword":"72h","Legendary Mallet":"7wh","Lich Wand":"7bw","Light Belt":"vbl","Light Crossbow":"lxb","Light Gauntlets":"tgl","Light Plate":"ltp","Light Plated Boots":"tbt","Linked Mail":"xng","Lion Helm":"ba7","Lochaber Axe":"9b7","Long Battle Bow":"lbb","Long Bow":"lbw","Long Siege Bow":"8l8","Long Staff":"lst","Long Sword":"lsd","Long War Bow":"lwb","Loricated Mail":"ucl","Luna":"uml","Mace":"mac","Mage Plate":"xtp","Maiden Javelin":"am5","Maiden Pike":"am4","Maiden Spear":"am3","Mancatcher":"7br","Martel de Fer":"9gm","Mask":"msk","Matriarchal Bow":"amb","Matriarchal Javelin":"amf","Matriarchal Pike":"ame","Matriarchal Spear":"amd","Maul":"mau","Mesh Armor":"xhn","Mesh Belt":"zmb","Mesh Boots":"xmb","Mighty Scepter":"7sc","Military Axe":"9la","Military Pick":"mpi","Minion Skull":"neb","Mirrored Boots":"utb","Mithral Point":"7di","Mithril Coil":"umc","Mithril Point":"7di","Monarch":"uit","Morning Star":"mst","Mummified Trophy":"ne6","Myrmidon Greaves":"uhb","Mythical Sword":"7wd","Naga":"9wa","Occult Codex":"wad","Occult Tome":"wac","Ogre Axe":"7o7","Ogre Gauntlets":"uhg","Ogre Maul":"7m7","Oil Potion":"ops","Old Book":"wa1","Ornate Armor":"xar","Overseer Skull":"ned","Partizan":"9pa","Pavise":"xow","Pellet Bow":"6lx","Petrified Wand":"9yw","Phase Blade":"7cr","Pike":"pik","Pilum":"pil","Plate Mail":"plt","Plated Belt":"hbl","Poignard":"9dg","Poleaxe":"pax","Polished Wand":"7wn","Possessed Compendium":"wa9","Possessed Grimoire":"waa","Preserved Head":"ne1","Protector Shield":"pa8","Quarterstaff":"8ls","Quhab":"9ar","Quilted Armor":"qui","Rage Mask":"ba8","Rancid Gas Potion":"gps","Razor Bow":"8hb","Reflex Bow":"am2","Reinforced Mace":"7ma","Repeating Crossbow":"rxb","Ring Mail":"rng","Rondache":"pa2","Rondel":"9di","Round Shield":"xml","Royal Shield":"paa","Rune Bow":"8sw","Rune Scepter":"9sc","Rune Staff":"8ws","Rune Sword":"9ls","Runic Talons":"7tw","Russet Armor":"xpl","Saber":"sbr","Sacred Armor":"uar","Sacred Feathers":"dr9","Sacred Globe":"ob2","Sacred Rondache":"pac","Sacred Targe":"pab","Sallet":"xkp","Sash":"lbl","Savage Helmet":"ba9","Scale Mail":"scl","Scarab Husk":"ula","Scarabshell Boots":"uvb","Scepter":"scp","Scimitar":"scm","Scissors Katar":"skr","Scissors Quhab":"9qr","Scissors Suwayyah":"7qr","Scourge":"7fl","Scutum":"xrg","Scythe":"scy","Seraph Rod":"7qs","Serpentskin Armor":"xea","Sexton Trophy":"ne8","Shadow Bow":"6lb","Shadow Plate":"uul","Shako":"uap","Shamshir":"9sb","Sharkskin Belt":"zvb","Sharkskin Boots":"xvb","Sharkskin Gloves":"xvg","Sharktooth Armor":"xld","Shillelagh":"6bs","Short Battle Bow":"sbb","Short Bow":"sbw","Short Siege Bow":"8s8","Short Spear":"ssp","Short Staff":"sst","Short Sword":"ssd","Short War Bow":"swb","Siege Crossbow":"8mx","Silver-edged Axe":"7ba","Simbilan":"9s9","Skull Cap":"skp","Sky Spirit":"dre","Slayer Guard":"baa","Small Crescent":"7ax","Small Shield":"sml","Smoked Sphere":"ob3","Sparkling Ball":"ob9","Spear":"spr","Spetum":"spt","Spiculum":"9gl","Spider Bow":"6sb","Spiderweb Sash":"ulc","Spiked Club":"spc","Spiked Shield":"spk","Spired Helm":"uhm","Spirit Mask":"dr5","Splint Mail":"spl","Staff of Kings":"msf","Stag Bow":"am1","Stalagmite":"6ls","Stiletto":"9bl","Stilleto":"9bl","Strangling Gas Potion":"gpl","Studded Leather":"stu","Stygian Pike":"7tr","Stygian Pilum":"7pi","Succubus Skull":"nee","Sun Spirit":"drc","Suwayyah":"7ar","Swirling Crystal":"oba","Tabar":"9bt","Targe":"pa1","Templar Coat":"xlt","The Gidbinn":"g33","Thresher":"7s8","Throwing Axe":"tax","Throwing Knife":"tkf","Throwing Spear":"tsp","Thunder Maul":"7gm","Tiara":"ci2","Tigulated Mail":"xcl","Tomahawk":"7ha","Tomb Wand":"9bw","Tome":"wa2","Totemic Mask":"dra","Tower Shield":"tow","Trellised Armor":"xtu","Trident":"tri","Troll Belt":"utc","Troll Nest":"ush","Truncheon":"7cl","Tulwar":"9fc","Tusk Sword":"9gs","Twin Axe":"92a","Two-Handed Sword":"2hs","Tyrant Club":"7sp","Unearthed Wand":"7gw","Unraveller Head":"ne3","Vambraces":"umg","Vampirebone Gloves":"uvg","Vampirefang Belt":"uvc","Vortex Orb":"obe","Vortex Shield":"paf","Voulge":"vou","Walking Stick":"6ss","Wand":"wnd","War Axe":"wax","War Belt":"zhb","War Boots":"xhb","War Club":"9m9","War Dart":"9bk","War Fist":"7xf","War Fork":"9br","War Gauntlets":"xhg","War Hammer":"whm","War Hat":"xap","War Javelin":"9ja","War Pike":"7p7","War Scepter":"wsp","War Scythe":"wsc","War Spear":"9sr","War Spike":"7mp","War Staff":"wst","War Sword":"wsd","Ward":"uts","Ward Bow":"6sw","Winged Axe":"7b8","Winged Harpoon":"7ts","Winged Helm":"xhm","Winged Knife":"7bk","Wire Fleece":"utu","Wirt's Leg":"leg","Wolf Head":"dr1","Wrist Blade":"wrb","Wrist Spike":"9wb","Wrist Sword":"7wb","Wyrmhide":"uea","Wyrmhide Boots":"ulb","Yari":"9st","Yew Wand":"ywn","Zakarum Shield":"pae","Zombie Head":"ne2","Zweihander":"9fb"}</script>
+  <script type="application/json" id="lf-base-codes">{"Aegis":"uow","Aerin Shield":"pa4","Akaran Rondache":"pa7","Akaran Targe":"pa6","Alpha Helm":"dr6","Ancient Armor":"aar","Ancient Axe":"9gi","Ancient Shield":"xts","Ancient Sword":"9wd","Antlers":"dr3","Arbalest":"8lx","Archon Plate":"utp","Archon Staff":"6ws","Armet":"ulm","Ashwood Bow":"am6","Assault Helmet":"ba4","Ataghan":"7sm","Avenger Guard":"ba5","Axe":"axe","Balanced Axe":"bal","Balanced Knife":"bkf","Ballista":"8hx","Balrog Blade":"7gs","Balrog Skin":"upl","Balrog Spear":"7s7","Barbed Club":"9sp","Barbed Shield":"xpk","Bardiche":"bar","Basinet":"xhl","Bastard Sword":"bsw","Battle Axe":"btx","Battle Belt":"ztb","Battle Boots":"xtb","Battle Cestus":"7cs","Battle Dart":"9tk","Battle Gauntlets":"xtg","Battle Hammer":"9wh","Battle Scythe":"9s8","Battle Staff":"bst","Battle Sword":"9bs","Bearded Axe":"9ba","Bec-de-Corbin":"9h9","Belt":"mbl","Berserker Axe":"7wa","Bill":"9vo","Blade":"bld","Blade Barrier":"upk","Blade Bow":"6hb","Blade Talons":"btl","Blasphemous Compendium":"wae","Blasphemous Grimoire":"waf","Blood Spirit":"drb","Bloodlord Skull":"nef","Bone Helm":"bhm","Bone Knife":"7dg","Bone Shield":"bsh","Bone Visage":"uh9","Bone Wand":"bwn","Boneweave":"uhn","Boneweave Boots":"umb","Boots":"lbt","Bramble Mitts":"ulg","Brandistock":"brn","Breast Plate":"brs","Broad Axe":"bax","Broad Sword":"bsd","Buckler":"buc","Burnt Text":"wa6","Burnt Wand":"9wn","Caduceus":"7ws","Cantor Trophy":"ne9","Cap":"cap","Carnage Helm":"bab","Casque":"xlm","Cedar Bow":"8lb","Cedar Staff":"8cs","Ceremonial Bow":"am7","Ceremonial Javelin":"ama","Ceremonial Pike":"am9","Ceremonial Spear":"am8","Cestus":"ces","Chain Boots":"mbt","Chain Gloves":"mgl","Chain Mail":"chn","Champion Axe":"7ga","Champion Sword":"7b7","Chaos Armor":"xul","Choking Gas Potion":"gpm","Chu-Ko-Nu":"8rx","Cinquedeas":"9kr","Circlet":"ci0","Clasped Orb":"ob4","Claws":"clw","Claymore":"clm","Cleaver":"9ax","Cloudy Sphere":"ob8","Club":"clb","Codex":"wa3","Colossal Sword":"7fb","Colossus Blade":"7gd","Colossus Crossbow":"6hx","Colossus Girdle":"uhc","Colossus Voulge":"7vo","Compendium":"wa4","Composite Bow":"cbw","Conqueror Crown":"bae","Conquest Sword":"7bs","Corona":"urn","Coronet":"ci1","Crossbow":"mxb","Crowbill":"9mp","Crown":"crn","Crown Shield":"pa5","Crusader Bow":"6l7","Crusader Gauntlets":"utg","Cryptic Axe":"7pa","Cryptic Sword":"7ls","Crystal Sword":"crs","Crystalline Globe":"ob7","Cudgel":"9cl","Cuirass":"xrs","Cutlass":"9sm","Dacian Falx":"9cm","Dagger":"dgr","Dark Codex":"wa8","Dark Tome":"wa7","Death Mask":"xsk","Decapitator":"7bt","Decoy Gidbinn":"d33","Defender":"xuc","Demon Crossbow":"6rx","Demon Head":"ne5","Demon Heart":"obd","Demonhead":"usk","Demonhide Armor":"xla","Demonhide Boots":"xlb","Demonhide Gloves":"xlg","Demonhide Sash":"zlb","Destroyer Helm":"bad","Devil Star":"7mt","Diadem":"ci3","Diamond Bow":"6s7","Diamond Mail":"ung","Dimensional Blade":"9cr","Dimensional Shard":"obf","Dirk":"dir","Divine Scepter":"9ws","Double Axe":"2ax","Double Bow":"8cb","Dragon Shield":"xit","Dream Spirit":"drf","Dusk Shroud":"uui","Eagle Orb":"ob1","Earth Spirit":"drd","Edge Bow":"8sb","Elder Staff":"6cs","Eldritch Orb":"obc","Elegant Blade":"7sb","Embossed Plate":"xth","Espandon":"92h","Ettin Axe":"72a","Executioner Sword":"9gd","Exploding Potion":"opm","Falcata":"7ss","Falchion":"flc","Falcon Mask":"dr4","Fanged Helm":"ba2","Fanged Knife":"7kr","Fascia":"9xf","Feral Axe":"7la","Feral Claws":"7lw","Fetish Trophy":"ne7","Field Plate":"fld","Flail":"fla","Flamberge":"flb","Flanged Mace":"9ma","Flying Axe":"7ta","Flying Knife":"7tk","Forgotten Volume":"wab","Francisca":"9ta","Full Helm":"fhl","Full Plate Mail":"ful","Fulminating Potion":"opl","Fury Visor":"bac","Fuscina":"9tr","Gargoyle Head":"ne4","Gauntlets":"hgl","Ghost Armor":"xui","Ghost Glaive":"7gl","Ghost Spear":"7st","Ghost Wand":"7yw","Giant Axe":"gix","Giant Conch":"uhl","Giant Sword":"gis","Giant Thresher":"7wc","Gilded Shield":"pa9","Gladius":"9ss","Glaive":"glv","Glorious Axe":"7gi","Glowing Orb":"ob6","Gnarled Staff":"cst","Gorgon Crossbow":"6mx","Gothic Axe":"9ga","Gothic Bow":"8lw","Gothic Plate":"gth","Gothic Shield":"gts","Gothic Staff":"8bs","Gothic Sword":"9b9","Grand Crown":"xrn","Grand Matron Bow":"amc","Grand Scepter":"gsc","Grave Wand":"9gw","Great Axe":"gax","Great Bow":"6cb","Great Hauberk":"urs","Great Helm":"ghm","Great Maul":"gma","Great Pilum":"9pi","Great Poleaxe":"7h7","Great Sword":"gsd","Greater Claws":"9lw","Greater Talons":"9tw","Greaves":"hbt","Griffon Headdress":"dr7","Griffon Headress":"dr7","Grim Helm":"xh9","Grim Scythe":"9wc","Grim Shield":"xsh","Grim Wand":"gwn","Grimoire":"wa5","Guardian Crown":"baf","Halberd":"hal","Hand Axe":"hax","Hand Scythe":"9cs","Hard Leather Armor":"hla","Harpoon":"9ts","Hatchet":"9ha","Hatchet Hands":"axf","Hawk Helm":"dr2","Heater":"uuc","Heavenly Stone":"obb","Heavy Belt":"tbl","Heavy Boots":"vbt","Heavy Bracers":"xmg","Heavy Crossbow":"hxb","Heavy Gloves":"vgl","Heirophant Trophy":"nea","Hellforge Hammer":"hfh","Hellforge Plate":"ult","Hellspawn Skull":"neg","Helm":"hlm","Heraldic Shield":"pa3","Hierophant Trophy":"nea","Highland Blade":"7cm","Holy Water Sprinkler":"9qs","Horadric Malus":"hdm","Horadric Staff":"hst","Horned Helm":"ba3","Hunter's Bow":"hbw","Hunter's Guise":"dr8","Hurlbat":"9b8","Hydra Bow":"6lw","Hydra Edge":"7fc","Hydraskull":"ukp","Hyperion":"urg","Hyperion Javelin":"7ja","Hyperion Spear":"7sr","Jagged Star":"9mt","Jared's Stone":"ob5","Javelin":"jav","Jawbone Cap":"ba1","Jawbone Visor":"ba6","Jo Staff":"8ss","Katar":"ktr","Khalim's Flail":"qf1","Khalim's Will":"qf2","Kite Shield":"kit","Knout":"9fl","Kraken Shell":"uld","Kris":"kri","Kriss":"kri","Kurast Shield":"pad","Lacquered Plate":"uth","Lance":"9p9","Large Axe":"lax","Large Shield":"lrg","Leather Armor":"lea","Leather Gloves":"lgl","Legend Spike":"7bl","Legend Sword":"72h","Legendary Mallet":"7wh","Lich Wand":"7bw","Light Belt":"vbl","Light Crossbow":"lxb","Light Gauntlets":"tgl","Light Plate":"ltp","Light Plated Boots":"tbt","Linked Mail":"xng","Lion Helm":"ba7","Lochaber Axe":"9b7","Long Battle Bow":"lbb","Long Bow":"lbw","Long Siege Bow":"8l8","Long Staff":"lst","Long Sword":"lsd","Long War Bow":"lwb","Loricated Mail":"ucl","Luna":"uml","Mace":"mac","Mage Plate":"xtp","Maiden Javelin":"am5","Maiden Pike":"am4","Maiden Spear":"am3","Mancatcher":"7br","Martel de Fer":"9gm","Mask":"msk","Matriarchal Bow":"amb","Matriarchal Javelin":"amf","Matriarchal Pike":"ame","Matriarchal Spear":"amd","Maul":"mau","Mesh Armor":"xhn","Mesh Belt":"zmb","Mesh Boots":"xmb","Mighty Scepter":"7sc","Military Axe":"9la","Military Pick":"mpi","Minion Skull":"neb","Mirrored Boots":"utb","Mithral Point":"7di","Mithril Coil":"umc","Mithril Point":"7di","Monarch":"uit","Morning Star":"mst","Mummified Trophy":"ne6","Myrmidon Greaves":"uhb","Mythical Sword":"7wd","Naga":"9wa","Occult Codex":"wad","Occult Tome":"wac","Ogre Axe":"7o7","Ogre Gauntlets":"uhg","Ogre Maul":"7m7","Oil Potion":"ops","Old Book":"wa1","Ornate Armor":"xar","Overseer Skull":"ned","Partizan":"9pa","Pavise":"xow","Pellet Bow":"6lx","Petrified Wand":"9yw","Phase Blade":"7cr","Pike":"pik","Pilum":"pil","Plate Mail":"plt","Plated Belt":"hbl","Poignard":"9dg","Poleaxe":"pax","Polished Wand":"7wn","Possessed Compendium":"wa9","Possessed Grimoire":"waa","Preserved Head":"ne1","Protector Shield":"pa8","Quarterstaff":"8ls","Quhab":"9ar","Quilted Armor":"qui","Rage Mask":"ba8","Rancid Gas Potion":"gps","Razor Bow":"8hb","Reflex Bow":"am2","Reinforced Mace":"7ma","Repeating Crossbow":"rxb","Ring Mail":"rng","Rondache":"pa2","Rondel":"9di","Round Shield":"xml","Royal Shield":"paa","Rune Bow":"8sw","Rune Scepter":"9sc","Rune Staff":"8ws","Rune Sword":"9ls","Runic Talons":"7tw","Russet Armor":"xpl","Saber":"sbr","Sacred Armor":"uar","Sacred Feathers":"dr9","Sacred Globe":"ob2","Sacred Rondache":"pac","Sacred Targe":"pab","Sallet":"xkp","Sash":"lbl","Savage Helmet":"ba9","Scale Mail":"scl","Scarab Husk":"ula","Scarabshell Boots":"uvb","Scepter":"scp","Scimitar":"scm","Scissors Katar":"skr","Scissors Quhab":"9qr","Scissors Suwayyah":"7qr","Scourge":"7fl","Scutum":"xrg","Scythe":"scy","Seraph Rod":"7qs","Serpentskin Armor":"xea","Sexton Trophy":"ne8","Shadow Bow":"6lb","Shadow Plate":"uul","Shako":"uap","Shamshir":"9sb","Sharkskin Belt":"zvb","Sharkskin Boots":"xvb","Sharkskin Gloves":"xvg","Sharktooth Armor":"xld","Shillelagh":"6bs","Short Battle Bow":"sbb","Short Bow":"sbw","Short Siege Bow":"8s8","Short Spear":"ssp","Short Staff":"sst","Short Sword":"ssd","Short War Bow":"swb","Siege Crossbow":"8mx","Silver-edged Axe":"7ba","Simbilan":"9s9","Skull Cap":"skp","Sky Spirit":"dre","Slayer Guard":"baa","Small Crescent":"7ax","Small Shield":"sml","Smoked Sphere":"ob3","Sparkling Ball":"ob9","Spear":"spr","Spetum":"spt","Spiculum":"9gl","Spider Bow":"6sb","Spiderweb Sash":"ulc","Spiked Club":"spc","Spiked Shield":"spk","Spired Helm":"uhm","Spirit Mask":"dr5","Splint Mail":"spl","Staff of Kings":"msf","Stag Bow":"am1","Stalagmite":"6ls","Stiletto":"9bl","Stilleto":"9bl","Strangling Gas Potion":"gpl","Studded Leather":"stu","Stygian Pike":"7tr","Stygian Pilum":"7pi","Succubus Skull":"nee","Sun Spirit":"drc","Suwayyah":"7ar","Swirling Crystal":"oba","Tabar":"9bt","Targe":"pa1","Templar Coat":"xlt","The Gidbinn":"g33","Thresher":"7s8","Throwing Axe":"tax","Throwing Knife":"tkf","Throwing Spear":"tsp","Thunder Maul":"7gm","Tiara":"ci2","Tigulated Mail":"xcl","Tomahawk":"7ha","Tomb Wand":"9bw","Tome":"wa2","Totemic Mask":"dra","Tower Shield":"tow","Trellised Armor":"xtu","Trident":"tri","Troll Belt":"utc","Troll Nest":"ush","Truncheon":"7cl","Tulwar":"9fc","Tusk Sword":"9gs","Twin Axe":"92a","Two-Handed Sword":"2hs","Tyrant Club":"7sp","Unearthed Wand":"7gw","Unraveller Head":"ne3","Vambraces":"umg","Vampirebone Gloves":"uvg","Vampirefang Belt":"uvc","Vortex Orb":"obe","Vortex Shield":"paf","Voulge":"vou","Walking Stick":"6ss","Wand":"wnd","War Axe":"wax","War Belt":"zhb","War Boots":"xhb","War Club":"9m9","War Dart":"9bk","War Fist":"7xf","War Fork":"9br","War Gauntlets":"xhg","War Hammer":"whm","War Hat":"xap","War Javelin":"9ja","War Pike":"7p7","War Scepter":"wsp","War Scythe":"wsc","War Spear":"9sr","War Spike":"7mp","War Staff":"wst","War Sword":"wsd","Ward":"uts","Ward Bow":"6sw","Winged Axe":"7b8","Winged Harpoon":"7ts","Winged Helm":"xhm","Winged Knife":"7bk","Wire Fleece":"utu","Wirt's Leg":"leg","Wolf Head":"dr1","Wrist Blade":"wrb","Wrist Spike":"9wb","Wrist Sword":"7wb","Wyrmhide":"uea","Wyrmhide Boots":"ulb","Yari":"9st","Yew Wand":"ywn","Zakarum Shield":"pae","Zombie Head":"ne2","Zweihander":"9fb"}</script>
   <script>
   // v535 — DYNAMIC endgame loot filter. Rebuilds LIVE from your Chronicle so it always matches the runewords you
   // still need: unmade runeword -> its socket-correct meta base(s) (window._forgeMetaBase) -> base item code. No
@@ -4490,7 +4497,7 @@ try {
             // v575.2 — is a SUPERIOR drop of this base useful? Only if some unmade word needs exactly its
             // MAX sockets (superior = Larzuk-max only; the cube gamble is plain-normal only). Unknown max →
             // fail-open (superior allowed).
-            var _mx = null; try { _mx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
+            var _mx = null; try { _mx = window._socketMaxTrusted(nm) || null; } catch(e){}   // v684 — trusted maxes only (understated weapon maxes wrongly denied superior/Larzuk-exact shows)
             if (!(_mx >= 1 && _mx <= 6) || _need === _mx) supOkSet[c] = 1;
             if (_mx >= 1 && _mx <= 6 && _need === _mx) larzukExact[c] = 1;   // v666 — Larzuk gives its max: ONE quest turns a PLAIN white into this word's base
           }
@@ -4548,7 +4555,7 @@ try {
             // can never host any of them (a 2os-max Scale Mail is no Myth/Wealth base; a 3os-max
             // Elegant Blade is no Unbending Will). Trusted-max doctrine (v575.2): only exclude on a
             // KNOWN max — unknown maxes fail open, never wrongly hiding a real base.
-            var _smx = null; try { _smx = parseInt(window._socketMaxFor(nm), 10); } catch(e){}
+            var _smx = null; try { _smx = window._socketMaxTrusted(nm) || null; } catch(e){}   // v684 — trusted maxes only: BASE_DB weapon maxes are understated and this gate HIDES bases (Wand max "1" hid real 2os White wands)
             // v667.1 — Larzuk-exact plains stay CURATED: only right-tier homes + premium bases earn a
             // plain-white show (a plain Ring Mail technically hosts Myth, but plain-spam is the exact
             // thing v592 killed). Non-curated bases remain socketed/eth-only forever.
@@ -6520,7 +6527,7 @@ try {
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:13px 8px;border-radius:14px;border:1px solid var(--border,#3a2f1e);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.008));color:var(--text-dim,#9a8c72);cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:13px 8px;border-radius:14px;border:1px solid rgba(122,101,66,.55);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));color:#b7a888;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}  /* v685 — inactive tiles one step brighter (label + border): ONE STEP/MAKE NOW/PIPELINE/CRAFTS dissolved into the background next to the framed ALL */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:active{transform:translateY(0)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .ft-emoji{font-size:21px;line-height:1;filter:saturate(1.15)}
@@ -6830,6 +6837,15 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atomprog{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:1.6;text-align:center}
+/* v685 — SEALED CHRONICLE celebration: at 99/99 the Forge's proudest state was a void whose only
+   visible control was the red erase button. The seal fills it — engraved gold, next-hunt pointers. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed{margin:18px 0 8px;padding:44px 26px 40px;border:1px solid rgba(212,168,71,.4);border-radius:14px;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(240,192,96,.09),rgba(0,0,0,0) 65%),linear-gradient(180deg,rgba(26,20,10,.6),rgba(14,11,6,.4));box-shadow:inset 0 1px 0 rgba(255,220,140,.12),0 10px 30px -18px rgba(0,0,0,.8)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-crest{font-size:40px;line-height:1;margin-bottom:12px;filter:drop-shadow(0 0 18px rgba(240,192,96,.45))}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.22em;font-size:22px;color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.4);margin-bottom:6px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-sub{color:var(--text-dim,#9a8c72);font-size:13.5px;line-height:1.7;margin-bottom:20px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:13px;cursor:pointer;transition:background .15s ease,transform .12s ease}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
 /* v546 — "Do this one thing" hero banner */
 /* v552 — FLAGSHIP HERO: the single "do this one thing" — big, HD art, animated, impossible to miss */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
@@ -8878,6 +8894,11 @@ function _socketMaxFor(base){
   return null;   // weapons + unknowns: don't assert a max we haven't verified
 }
 window._socketMaxFor = _socketMaxFor;
+// v684 — TRUSTED max only (the v563.1 doctrine, now for the loot filter too): gear slot caps
+// (_keepSocketCeil — weapons deliberately 0) or the VERIFIED SOCKET_MAX list. BASE_DB weapon maxes
+// are known-understated (Wand "1" vs a real 2os Wand) — an understated max in the feasibility gate
+// HID real socketed drops for unmade words (White's Wands, the 3os-dagger words). 0 = unknown = fail open.
+window._socketMaxTrusted = function(nm){ try { var t = (typeof _keepSocketCeil==='function' ? _keepSocketCeil(nm) : 0) || 0; var k = String(nm||'').toLowerCase(); if (!t && typeof SOCKET_MAX !== 'undefined' && SOCKET_MAX[k] != null) t = parseInt(SOCKET_MAX[k], 10) || 0; return (t >= 1 && t <= 6) ? t : 0; } catch(e){ return 0; } };
 // v376 — Larzuk + Horadric-cube socketing guidance for a base card, QUALITY-aware:
 //   normal/superior → Larzuk = GUARANTEED max; cube = RANDOM 1→max (per-slot recipe)
 //   magic (blue)    → Larzuk random 1–2; cube CAN'T socket magic → GEM it, NOT a runeword base
@@ -13985,7 +14006,7 @@ try { window._rwIsLadderOnly = _rwIsLadderOnly; window._rwLadderTag = _rwLadderT
 // by the Loot filter + Smart Insights (farm-priority / rune-radar) so they stop farming/short-listing bases &
 // runes for the 9 ladder words the Chronicle + Forge already correctly hide off-ladder.
 try { window._rwLadderBlocked = function(rw){ try { if (window.D2R_PROFILE==='ladder') return false;   // v636 — the ladder ACCOUNT is implicitly ladder; this raw read was main's mode bleeding into ladder's SI/filter/stamps (swarm-caught split-brain)
-  return !!(window._rwIsLadderOnly && window._rwIsLadderOnly(rw)) && (localStorage.getItem('d2r_ladderMode')||'nonladder')!=='ladder'; } catch(e){ return false; } }; } catch(e){}
+  return !!(window._rwIsLadderOnly && window._rwIsLadderOnly(rw)) && (window.LSR.getItem('d2r_ladderMode')||'nonladder')!=='ladder'; } catch(e){ return false; } }; } catch(e){}  /* v684 — route through LSR: the cousin shell forks d2r_ladderMode to W·, a raw read re-opened the v636 split-brain */
 // per-runeword user verification from their OWN game: 'ok' = formed, 'fail' = did not form. Seeded with the
 // three Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character.
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
@@ -14702,6 +14723,10 @@ window.renderHighValueFinds = renderHighValueFinds;
           if (!_gfl[n]) { _gfl[n] = _SET_SEED[n]; _gflCh = true; }
         });
         if (_spCh) LS.setItem('d2r_setPieces', JSON.stringify([..._spSet]));
+        // v684 — sync the LIVE in-memory Set too (the unique floor mutates `owned` directly for the
+        // same reason): otherwise the first persist() rewrites d2r_setPieces from the stale pre-seed
+        // Set and clobbers every floored piece, and toggleSetPiece inverts on seeded pieces.
+        _spSet.forEach(function(n){ setPieces.add(n); });
       } catch(e){}
       if (_gch) LS.setItem('d2r_owned', JSON.stringify([...owned]));
       if (_gflCh) LS.setItem('d2r_foundLog', JSON.stringify(_gfl));
@@ -15646,7 +15671,9 @@ function renderHeroV31() {
   `).join('');
 
   const starredCount = wishlist.size;
-  const ownedCount = owned.size;
+  // v684 — post-v677 `owned` is the PHYSICAL vault only; the hero's ✓ count must be grail-found
+  // (same semantics as renderGrailProgress) or it visibly disagrees with the meter beside it.
+  const ownedCount = ITEMS.filter(i => (i.tier === "grail" || i.tier === "uber") && _gFound(i.n)).length;
   $('hero-sub').innerHTML = `Top ${final.length} fastest grail farms at <strong>${mf}% MF</strong> · <strong>/players ${typeof players !== 'undefined' ? players : 1}</strong> · time-to-50% · 🔒 = verified · ⭐ ${starredCount} wishlist · ✓ ${ownedCount} owned · <em>click any pick → opens Golden Item Card</em>`;
 
   // Reset title to global
@@ -16480,7 +16507,8 @@ function toggleOwned(name) {
   }
   // v659 — seeded grail names: an explicit un-tick is USER TRUTH — record it so the boot floor
   // respects it (mirrors d2r_rwUnmade for the runeword seed); re-ticking clears the record.
-  try { if (window._GRAIL_SEED && window._GRAIL_SEED[name]) { var _gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (wasOwned) _gu[name] = 1; else delete _gu[name]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_gu)); } } catch(e){}
+  // v684 — same mac-ladder guard as toggleSetPiece: never let a ladder toggle mutate MAIN's shared unfound ledger.
+  try { if (window._GRAIL_SEED && window._GRAIL_SEED[name] && (window._isCousinShell || window.D2R_PROFILE !== 'ladder')) { var _gu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (wasOwned) _gu[name] = 1; else delete _gu[name]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_gu)); } } catch(e){}
   // Celebrate first-time ownership of grail items
   if (!wasOwned) {
     const item = ITEMS.find(i => i.n === name);
@@ -16508,15 +16536,17 @@ function _collectProgress(){
   // every export since was `data:{}` — swarm-caught). Iterate the RAW store, scoped to the ACTIVE
   // account: forked keys export under their BARE names (so a restore's LS.setItem routes them into
   // whichever account is active), the other account's namespace is never included.
-  const out = {}; const RAW = window.LSR.raw; const onLadder = (window.D2R_PROFILE === 'ladder');
+  // v684 — machine-fork aware (the v663/v665 2×2 outgrew the L·-only logic: mac-main exports leaked
+  // the whole W·/WL· cousin world + both machine pointers, and a restore could overwrite the other
+  // machine's account then reboot into it). One rule now covers all four shells: a raw key exports
+  // (bare-named) IFF it is exactly where the ACTIVE account reads that bare name — LSR.key() decides.
+  const out = {}; const RAW = window.LSR.raw;
+  const PTRS = { 'd2r_activeProfile':1, 'd2r_activeProfileWin':1, 'd2r_activeMachine':1 };
   for (let i = 0; i < RAW.length; i++){
-    const k = RAW.key(i); if (k == null || k === 'd2r_activeProfile') continue;
-    if (onLadder){
-      if (k.indexOf('L·') === 0) out[k.slice(2)] = RAW.getItem(k);                   // this account's forked state, bare-named
-      else if (!window._LP_FORKED.has(k)) out[k] = RAW.getItem(k);                    // shared prefs; bare FORKED keys are MAIN's — excluded
-    } else {
-      if (k.indexOf('L·') !== 0) out[k] = RAW.getItem(k);                             // main: everything bare; ladder namespace excluded
-    }
+    const rk = RAW.key(i); if (rk == null) continue;
+    const bare = rk.indexOf('WL·') === 0 ? rk.slice(3) : (rk.indexOf('L·') === 0 || rk.indexOf('W·') === 0) ? rk.slice(2) : rk;
+    if (PTRS[bare]) continue;                                                        // pointers never travel — a restore must not flip account or machine
+    if (window.LSR.key(bare) === rk) out[bare] = RAW.getItem(rk);                     // active account's view only; the other namespaces never leave
   }
   return out;
 }
@@ -16550,7 +16580,7 @@ async function _applyProgress(raw){
   const keys = data ? Object.keys(data).filter(k => typeof data[k] === "string") : [];
   if (!keys.length){ _backupStatus("No saved progress found in that snapshot.", "err"); return false; }
   if (!(await uiConfirm("Restore " + keys.length + " saved settings from this snapshot? This OVERWRITES the grail / wishlist / settings currently in this browser."))) { _backupStatus("Restore cancelled — nothing changed.", "warn"); return false; }
-  keys.forEach(k => { if (k === 'd2r_activeProfile' || k.indexOf('L·') === 0) return;   // v636 — a restore must never flip the account or reach across into the other one
+  keys.forEach(k => { if (k === 'd2r_activeProfile' || k === 'd2r_activeProfileWin' || k === 'd2r_activeMachine' || k.indexOf('L·') === 0 || k.indexOf('W·') === 0) return;   // v636 — a restore must never flip the account or reach across into the other one (v684: nor flip/overwrite the other MACHINE — W· covers WL· too)
     try { LS.setItem(k, data[k]); } catch(e){} });
   _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
   setTimeout(() => location.reload(), 600);
@@ -17281,7 +17311,11 @@ function toggleSetPiece(piece) {
     if (setPieces.has(piece)) delete fl[piece]; else fl[piece] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
     window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); } catch(e){}
   // v682 — a seeded piece un-tick is USER TRUTH: record it so the boot floor never re-asserts it
-  try { if (window._SET_SEED && window._SET_SEED[piece]) { var _sgu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (setPieces.has(piece)) _sgu[piece] = 1; else delete _sgu[piece]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_sgu)); } } catch(e){}
+  // v684 — MAC-ladder must NOT write this: d2r_grailUnfound isn't ladder-forked, so a ladder un-tick
+  // would land in MAIN's shared ledger and permanently gate main's seed floor (and a ladder re-tick
+  // would erase main's explicit un-marks). The floor only runs on the owner (mac main); cousin's
+  // W·-family writes stay correct via LSR.
+  try { if (window._SET_SEED && window._SET_SEED[piece] && (window._isCousinShell || window.D2R_PROFILE !== 'ladder')) { var _sgu = JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}'); if (setPieces.has(piece)) _sgu[piece] = 1; else delete _sgu[piece]; window.LSR.setItem('d2r_grailUnfound', JSON.stringify(_sgu)); } } catch(e){}
   if (setPieces.has(piece)) setPieces.delete(piece);
   else setPieces.add(piece);
   persist();
@@ -17834,7 +17868,7 @@ window._restoreForgeBase = function(rw){
   try {
     var used = _safeJsonParse(LS.getItem('d2r_rwBaseUsed'), {}) || {};
     var u = used[rw]; if (!u || !u.l) return;
-    if (u.copy){ if(!owned.has(u.l)){ owned.add(u.l); try{ if(typeof _ensureSocketBaseEntry==='function') _ensureSocketBaseEntry(u.l); }catch(e){} } copies[u.l] = (owned.has(u.l) ? (copyCount(u.l) || 1) + 1 : 2); }   // v615 — a copy-restore must re-own the label too (no phantom counts on unowned items)
+    if (u.copy){ var _hadB4 = owned.has(u.l); if(!_hadB4){ owned.add(u.l); try{ if(typeof _ensureSocketBaseEntry==='function') _ensureSocketBaseEntry(u.l); }catch(e){} } copies[u.l] = _hadB4 ? (copyCount(u.l) || 1) + 1 : 1; }   // v615 — a copy-restore must re-own the label too. v684 — decide from ownership BEFORE the re-add: owned.add ran first, so the old ternary always took the +1 arm and a since-thrown-out stack restored as a PHANTOM ×2 (REG-013 class: capacity ledger then plans 2 words on 1 physical base)
     else { owned.add(u.l); try { if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(u.l); } catch(e){} }
     delete used[rw];
     LS.setItem('d2r_rwBaseUsed', JSON.stringify(used));
@@ -19277,7 +19311,7 @@ window.buildAskSnapshot = function(){
   try { snap.tally.gems = nonzero(typeof gemStash!=='undefined'?gemStash:{}); }catch(e){}
   try { snap.tally.materials = nonzero(typeof materialStash!=='undefined'?materialStash:{}); }catch(e){}
   try { snap.tally.craftBasesOwned = nonzero(typeof craftBaseStash!=='undefined'?craftBaseStash:{}); }catch(e){}  // v341: magic bases the player has (by slot) — NOT auto-assumed
-  try { snap.owned.count=(typeof owned!=='undefined')?owned.size:0; snap.owned.setPieces=(typeof setPieces!=='undefined')?setPieces.size:0; }catch(e){}
+  try { snap.owned.count=(typeof ITEMS!=='undefined'&&typeof _gFound==='function')?ITEMS.filter(function(i){return (i.tier==="grail"||i.tier==="uber")&&_gFound(i.n);}).length:((typeof owned!=='undefined')?owned.size:0); snap.owned.setPieces=(typeof setPieces!=='undefined')?setPieces.size:0; }catch(e){}  /* v684 — the AI snapshot answers 'how many grail uniques' — ledger truth, not the physical vault */
   try { snap.topPicks = window.buildTopPicks(); }catch(e){}  // v335: ranked top-tier opportunities
   // v554 — SYNC THE AI HELPER WITH THE FORGE. The runewords/crafts above are the older rune-only view; the Forge
   // (forgeScan) is owned-base-aware. Carry its plan + the Chronicle count so "what should I make/do next" answers
@@ -23764,6 +23798,13 @@ _v41_whenReady(() => {
   }
   #v42-tz-countdown.show { display: block; }
   #v42-tz-countdown:hover { opacity: .85; }
+  /* v685 — on wide screens the pill DOCKS into the control bar's left gutter (the dock centers a
+     1240px inner at 92px+ side padding, so ≥1460px leaves ≥150px of free corner) instead of floating
+     one row up where it sat ON TOP of the tool cards and bit their first words ("…unt your gems").
+     Narrow screens keep the v678 above-the-dock lift — there the gutter really is too small. */
+  @media (min-width: 1460px){
+    #v42-tz-countdown{ bottom: 14px; left: 12px; z-index: 121; }
+  }
   #v42-tz-countdown .v42-tz-label {
     color: rgba(255,140,140,.7);
     font-size: 9.5px;
@@ -25051,8 +25092,10 @@ table th {
    ════════════════════════════════════════════════════════════════════════ */
 :root{ --dock-h: 84px; }
 
-/* keep the last of the page content clear of the floating dock */
-body{ padding-bottom: 108px; }
+/* keep the last of the page content clear of the floating dock
+   v685 — track the dock's real height (it grows to 118px at narrow widths where the static
+   108px let the last card slide UNDER the bar) + room for the TZ pill riding above it */
+body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
 
 .control-dock{
   position:fixed; left:0; right:0; bottom:0;
@@ -25190,8 +25233,10 @@ body{ padding-bottom: 108px; }
   margin:0;
   opacity:.92;
 }
-/* the dock now carries an extra caption row — reserve a touch more space */
-body{ padding-bottom:128px; }
+/* the dock now carries an extra caption row — reserve a touch more space
+   v685 — calc, not a constant: this LAST rule is the one that wins, and the static 128px stopped
+   tracking --dock-h; +64 clears the dock plus the TZ pill row on top of it */
+body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
 @media (max-width: 700px){
   body{ padding-bottom: calc(var(--dock-h) + 44px); }
 }
@@ -29727,11 +29772,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var deferred=s.now.filter(function(t){return t.deferred;});
     var total=liveNow.length+s.pipeline.length+s.onestep.length+s.crafts.length;
     // Make-now is now the ATOMIC feed: ready forges + crafts + ONE entry per pipeline base-group (the chain's current step)
-    var _pipeBases={}; s.pipeline.forEach(function(t){ _pipeBases[t.base.name]=1; });
+    var skip=_skipSet();   // v532 — computed once so the restore bar shows on EVERY sub-tab, not just Make now (v684: moved up — the ⚒ pill must apply the SAME skip rules as the body)
+    // v684 — pipeline groups key on base+NEED+mode, not base alone: one owned base can legally carry a
+    // Larzuk task (need===max) AND a cube-gamble task (need<max); grouping them on one card mixed the
+    // socket counts and could instruct a destructive wrong-count Larzuk (v597 chain-sanity class).
+    var _pipeGroups={}; s.pipeline.forEach(function(t){ var gk=t.base.name+'|'+t.need+'|'+(t.cubeGamble?'g':'l'); (_pipeGroups[gk]=_pipeGroups[gk]||[]).push(t); });
     var _craftTypes={}; s.crafts.forEach(function(c){ _craftTypes[c.craft]=1; });   // group crafts by TYPE (Caster/Blood/…), not slot
-    var nowCount = liveNow.length + Object.keys(_craftTypes).length + Object.keys(_pipeBases).length;
+    // v684 — the ⚒ pill counts EXACTLY what the section body will render (skip-filtered): skipped words,
+    // skipped chains, chains whose every word is skipped, and skipped craft types all leave the count.
+    var nowCount = liveNow.filter(function(t){ return !skip.has('rw|'+t.rw); }).length
+      + Object.keys(_craftTypes).filter(function(ck){ return !skip.has('craft|'+ck); }).length
+      + Object.keys(_pipeGroups).filter(function(gk){ if (skip.has('chain|'+gk)) return false; return _pipeGroups[gk].some(function(t){ return !skip.has('rw|'+t.rw); }); }).length;
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
-    var skip=_skipSet();   // v532 — computed once so the restore bar shows on EVERY sub-tab, not just Make now
     H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
@@ -29814,7 +29866,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       box.innerHTML=H.join(''); return;
     }
     if (!total && !(s.farm||[]).length){
-      H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
+      // v685 — a SEALED chronicle deserves a seal, not "Nothing queued" over a void where the only
+      // visible control was the red erase button. Celebration + where the hunt lives now.
+      var _sealedAll = false, _sealN = 0;
+      try { var _sT = (typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:0; _sealN = _madeRw().length; _sealedAll = (_sT > 0 && _sealN >= _sT); } catch(e){}
+      if (_sealedAll){
+        H.push('<div class="forge-sealed"><div class="fs-crest">⚒👑⚒</div>'
+          +'<div class="fs-title">Chronicle Sealed</div>'
+          +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The Forge rests —<br>the hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div>'
+          +'<div class="fs-btns">'
+          +'<button class="fs-btn" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
+          +'<button class="fs-btn" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
+          +'</div></div>');
+      } else {
+        H.push('<div class="forge-empty">✅ <b>Nothing queued.</b> Everything your runes, gems & bases can build is already ✓ created in the Chronicle.<br>Tally more runes/gems or intake bases in the Vault to unlock new tasks.</div>');
+      }
       box.innerHTML=H.join(''); return;
     }
     // v604 — the empty state above is only TRUE when farm is empty too. With no actionable task but open
@@ -29843,7 +29909,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         btn:'<button class="f-btn f-btn-go" onclick="window.forgeDoneAnim(this,\''+_fJs(t.rw)+'\',\''+_fJs(t.base.name)+'\')">✓ created</button>' }); });
       // upgrade/socket chains GROUPED by the owned base (you upgrade ONE base, then pick a word) → step-by-step.
       // Listed BEFORE crafts — endgame gear progression leads (Konyo's "Upgrade Crystal Sword" is example #1).
-      var byBase={}; s.pipeline.forEach(function(t){ (byBase[t.base.name]=byBase[t.base.name]||[]).push(t); });
+      // v684 — reuse the base+need+mode groups built for the pill: every card is internally consistent
+      // (one socket count, one Larzuk-vs-cube mode); a mixed base renders one card per need.
+      var byBase=_pipeGroups;
       Object.keys(byBase).forEach(function(bn){
         if (skip.has('chain|'+bn)) return;
         var grp=byBase[bn], t0=grp[0], target=t0.base.base, atoms=[];
@@ -30126,7 +30194,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v664 (army audit) — the display stamps ('Jul 12, 2026 · 22:41') were compared LEXICALLY, and month
   // names sort alphabetically (May > Jun > Jul) — so May seeds permanently outranked fresh July ticks and
   // the ↩ undo bar targeted the WRONG item. Parse to epoch; the display string stays untouched.
-  function _flogTime(s){ var t=Date.parse(String(s||'').replace('\u00b7',' ')); return isFinite(t)?t:0; }
+  function _flogTime(s){ var t=Date.parse(String(s||'').replace(/\s*\u00b7\s*imported\s*$/i,'').replace(/\u00b7/g,' ')); return isFinite(t)?t:0; }  /* v684 \u2014 strip the '\u00b7 imported' suffix and EVERY '\u00b7' (a stamp has two); imports used to parse as epoch-0 and sink to the ledger's bottom */
   function _flogSort(names){ var fl=_flog(); return names.slice().sort(function(a,b){ var da=_flogTime(fl[a]), db=_flogTime(fl[b]); if(da!==db) return db-da; if(fl[a]&&!fl[b]) return -1; if(fl[b]&&!fl[a]) return 1; return a.localeCompare(b); }); }
   function _undoBar(kind){
     var fl=_flog(); var keys=Object.keys(fl);
@@ -30565,7 +30633,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var flI={}; try{ flI=JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}'); }catch(e){}
     found.forEach(function(n){
       if(V.uniq.has(n)){ if(!flI[n] && !oSet.has(n)){ flI[n]=(window._grailStamp?window._grailStamp():'')+' · imported'; addU++; } }   // v677 — imports land in the LEDGER, not the vault
-      else if(V.pieceMap[n]){ if(!pSet.has(V.pieceMap[n])){ pSet.add(V.pieceMap[n]); addP++; } }
+      else if(V.pieceMap[n]){ if(!pSet.has(V.pieceMap[n])){ pSet.add(V.pieceMap[n]); addP++; } if(!flI[V.pieceMap[n]]){ flI[V.pieceMap[n]]=(window._grailStamp?window._grailStamp():'')+' · imported'; } }   // v684 — set pieces chronicle into the ledger like uniques (they silently skipped it)
       else unknown.add(n);
     });
     try {
