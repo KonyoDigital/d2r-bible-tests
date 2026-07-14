@@ -41,7 +41,7 @@ test('Tools loot-filter card: dynamic endgame filter builds valid, circlet-clean
   // v590 — the BUILT profile name carries the Chronicle count (KonyoEndgame53 at 53/100 forged)
   expect(r.madeCount).toBeGreaterThan(0);
   expect(r.outName).toBe('KonyoEndgame' + r.madeCount);
-  expect([19, 20]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble; v599 +2 magic-circlet splits
+  expect([21, 22]).toContain(r.outRules);   // v562 +4 tail hides; v575.2 +1 superior-gamble; v599 +2 magic-circlet splits; v690 +2 craft-base tails
   // v684 recalibration — the live seed sealed the Chronicle (99/99): with no word unmade the word-driven
   // hunt set is legitimately EMPTY (premium floor is early-stage only, v667.2). Pre-seal the old
   // baseCount>0 held; both regimes now assert their own truth.

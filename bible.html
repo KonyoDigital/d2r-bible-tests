@@ -4633,6 +4633,19 @@ try {
           });
         }
       } catch(e){}
+      // v690 (Konyo: 'i dont need any white bases cuz i need to larzuk quest them.. i needed only
+      // socketed ones') — SEALED-MODE TRADE TICKER: with every word forged the engine universe is
+      // honestly empty, but the premium trade list keeps a SOCKETED/ETH-ONLY show — a grey 4os
+      // Archon Plate or 6os Archon Staff is an Ist+ trade regardless of the Chronicle. Plains stay
+      // hidden (his Larzuk quests are spoken for — the v592 doctrine, now absolute): sockSet only,
+      // never plainSet/codeSet, so baseCount and the plain-white rule stay at zero.
+      if (!fresh && _totalW > 0 && _madeW >= _totalW){
+        (window._premiumTradeBases || []).forEach(function(nm){
+          var pc = CODE[nm]; if (!pc) return;
+          sockSet[pc] = 1; supOkSet[pc] = 1; nameSet[nm] = 1;
+        });
+        out.names = Object.keys(nameSet).sort();
+      }
       // v666/v667.1 (Konyo: 'or a MAX larzuk socket.. OR farming it socketed') — a plain white shows
       // when ONE Larzuk quest lands exactly on a live word's count. Merged HERE, after the full
       // universe pass, so premium/non-curated Larzuk-exacts (Mage Plate) make it in too.
@@ -4680,6 +4693,27 @@ try {
       CIRC.forEach(function(c){ delete hideSet[c]; });
       Object.keys(NEVER_HIDE).forEach(function(c){ delete hideSet[c]; });
       (eb.sockCodes||eb.codes).forEach(function(c){ delete hideSet[c]; });   // v662.1 — nothing in the socketed universe may sit in a hide list
+      // v690 — CRAFT INBOX (dual-audit consult: probed live — magic Heavy Bracers/Vampirebone Gloves/
+      // Demonhide Boots all died in '1. Hide Trash Gear'; his Blood/Caster/Safety/HitPower loop never
+      // saw its fuel). Craft-input gear bases (each craft's `best` slots; amulets/rings always show
+      // anyway) use the v599 blue-Diadem pattern: carve them out of every hide, tail-hide their
+      // NON-magic rarities — a magic craft base then matches NO rule and default-shows, correct under
+      // both first- and last-match semantics.
+      var craftSet = {};
+      try {
+        (window.CRAFTS || []).forEach(function(cr){
+          (cr.best || []).forEach(function(slot){
+            if (slot === 'Amulet' || slot === 'Ring') return;
+            var s = (cr.slots || {})[slot]; if (!s || !s.base) return;
+            String(s.base).split('·').forEach(function(nm){
+              nm = nm.trim(); var cc = CODE2[nm]; if (cc && !CIRC.includes(cc)) craftSet[cc] = 1;
+            });
+          });
+        });
+      } catch(e){}
+      var _sockIs = {}; (eb.sockCodes||eb.codes).forEach(function(c){ _sockIs[c]=1; });
+      var craftCodes = Object.keys(craftSet).filter(function(c){ return !_sockIs[c]; }).sort();   // overlap codes (e.g. premium Monarch) keep their socketed handling
+      craftCodes.forEach(function(c){ delete hideSet[c]; });
       var hideCodes = Object.keys(hideSet).sort();
       // v592 — a non-premium wanted base must be hidden as a PLAIN drop (it's only wanted eth/socketed):
       // its code joins the flat-item hide (rule 1, filterEtherealSocketed:false) but stays OUT of the
@@ -4705,6 +4739,15 @@ try {
       // Socketed/eth superiors keep riding rule 3 (a pre-socketed superior at the right count is usable).
       if ((eb.gambleOnlyCodes||[]).length){
         tpl.rules.push({ name:'Hide Superior Gamble-Only Bases', enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:['hiQuality'], equipmentQuality:Q3.slice(), equipmentItemCode: eb.gambleOnlyCodes.slice() });
+      }
+      // v690 — craft-base tails: every rarity EXCEPT magic hides (magic then matches no rule →
+      // default-show, the v599 pattern). Plain whites of craft bases stay hidden exactly like before.
+      if (craftCodes.length){
+        var CRAFT_R = ['rare','lowQuality','hiQuality','normal'];
+        tpl.rules.push(
+          { name:'Hide Craft Bases Non-Magic',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:CRAFT_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: craftCodes.slice() },
+          { name:'Hide Craft Bases Non-Magic ETH', enabled:true, ruleType:'hide', filterEtherealSocketed:true,  equipmentRarity:CRAFT_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: craftCodes.slice() }
+        );
       }
       tpl.rules.push(
         { name:'Hide Magic Wanted Bases',     enabled:true, ruleType:'hide', filterEtherealSocketed:false, equipmentRarity:TRASH_R.slice(), equipmentQuality:Q3.slice(), equipmentItemCode: (eb.sockCodes||eb.codes).slice() },
