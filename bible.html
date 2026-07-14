@@ -4633,19 +4633,12 @@ try {
           });
         }
       } catch(e){}
-      // v690 (Konyo: 'i dont need any white bases cuz i need to larzuk quest them.. i needed only
-      // socketed ones') — SEALED-MODE TRADE TICKER: with every word forged the engine universe is
-      // honestly empty, but the premium trade list keeps a SOCKETED/ETH-ONLY show — a grey 4os
-      // Archon Plate or 6os Archon Staff is an Ist+ trade regardless of the Chronicle. Plains stay
-      // hidden (his Larzuk quests are spoken for — the v592 doctrine, now absolute): sockSet only,
-      // never plainSet/codeSet, so baseCount and the plain-white rule stay at zero.
-      if (!fresh && _totalW > 0 && _madeW >= _totalW){
-        (window._premiumTradeBases || []).forEach(function(nm){
-          var pc = CODE[nm]; if (!pc) return;
-          sockSet[pc] = 1; supOkSet[pc] = 1; nameSet[nm] = 1;
-        });
-        out.names = Object.keys(nameSet).sort();
-      }
+      // v690.1 (Konyo: 'once im through the runeword chronicle or 3/4 of the way then it hardens to
+      // where we are now — no base.. i dont think i need them its pointless') — the v690 sealed-mode
+      // premium trade ticker lasted one commit: NO base shows once the words are done. The filter
+      // hardens with progress and ends empty; word-driven bases already shrink to zero naturally,
+      // premium's full ride stays early-only (v667.2), and the craft-inbox blues are unaffected
+      // (that's crafting fuel, not trade bases).
       // v666/v667.1 (Konyo: 'or a MAX larzuk socket.. OR farming it socketed') — a plain white shows
       // when ONE Larzuk quest lands exactly on a live word's count. Merged HERE, after the full
       // universe pass, so premium/non-curated Larzuk-exacts (Mage Plate) make it in too.
