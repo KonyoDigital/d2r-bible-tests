@@ -3262,7 +3262,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog"]);
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin"]);  /* v686 — session-cockpit state is ACCOUNT state: intake freshness + the pinned target fork per account (cousin inherits via _WP_FORKED) */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -3491,6 +3491,7 @@ try {
    <!-- v641 — ⚒ THE WORKSHOP: the DOING tabs (Konyo: "all the other tabs are literally just
         info/data — these should be highlighted and emphasized, structured together as a group") -->
    <div class="tabs-workshop" title="THE WORKSHOP — your live tools: intake, plan, forge, grail-hunt">
+    <button class="tab" data-tab="session">⚡ session</button><!-- v686 — Session Cockpit: tonight's plan on one screen (Grok's idea, rebuilt native) -->
     <button class="tab" data-tab="tools">🧰 tools</button>
     <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="funi">🏆 F·uniques</button>
@@ -3515,6 +3516,8 @@ try {
       <span class="dock-handle-chev" aria-hidden="true">▾</span>
     </button>
     <div class="dock-tagline" id="dock-tagline"></div>
+    <!-- v686 — session target chip: the ONE thing being hunted right now, set from ⚡ session -->
+    <button type="button" class="dock-pin" id="dock-pin" onclick="switchTab('session')" title="Session target — set or change it in ⚡ session"></button>
     <div class="dock-cluster dock-sliders" id="dock-sliders"></div>
     <div class="dock-cluster dock-presets" id="dock-presets"></div>
   </div>
@@ -4103,6 +4106,25 @@ try {
   </div>
 </div>
 
+<!-- v686 ⚡ SESSION COCKPIT — tonight's plan on one screen: TZ · forge next · session target · grail
+     hunt · intake freshness. Grok's Session-Cockpit concept rebuilt NATIVE: single-file, LSR-routed,
+     no service worker, no nav restructure. Bodies fill in renderSessionCockpit() on tab open. -->
+<div class="tab-content" id="tab-session">
+  <div class="sc-hero">
+    <div class="sc-hero-txt">
+      <div class="sc-title">⚡ Session Cockpit</div>
+      <div class="sc-sub">Tonight's hunt on one screen — live from your Chronicle · tallies · MF · TZ.</div>
+    </div>
+    <div class="sc-kpis" id="sc-kpis"></div>
+  </div>
+  <div class="sc-fresh" id="sc-fresh"></div>
+  <div class="sc-grid">
+    <section class="sc-card" id="sc-card-tz"><div class="sc-card-h">🔥 Terror Zone <button type="button" class="sc-go" onclick="switchTab('tztracker')">tracker →</button></div><div class="sc-body" id="sc-tz-body"></div></section>
+    <section class="sc-card" id="sc-card-forge"><div class="sc-card-h">🔨 Forge next <button type="button" class="sc-go" onclick="switchTab('forge')">full forge →</button></div><div class="sc-body" id="sc-forge-body"></div></section>
+    <section class="sc-card" id="sc-card-target"><div class="sc-card-h">🎯 Session target <button type="button" class="sc-go" onclick="window._sessionPinClear&&window._sessionPinClear()">clear</button></div><div class="sc-body" id="sc-target-body"></div></section>
+    <section class="sc-card" id="sc-card-grail"><div class="sc-card-h">⭐ Grail hunt <button type="button" class="sc-go" onclick="switchTab('funi')">grail wall →</button></div><div class="sc-body" id="sc-grail-body"></div></section>
+  </div>
+</div>
 <div class="tab-content" id="tab-tools">
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
   <div class="tools-quickup" id="tools-quickup">
@@ -6846,6 +6868,44 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:13px;cursor:pointer;transition:background .15s ease,transform .12s ease}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
+/* v686 ⚡ SESSION COCKPIT */
+#tab-session .sc-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:6px 0 14px}
+#tab-session .sc-title{font-family:var(--serif-display);font-variant-caps:small-caps;letter-spacing:.14em;font-size:26px;color:var(--gold-bright);text-shadow:0 0 18px rgba(240,192,96,.35)}
+#tab-session .sc-sub{font-family:var(--serif-text,serif);font-style:italic;color:var(--text-muted);font-size:12.5px;margin-top:2px}
+#tab-session .sc-kpis{display:flex;gap:10px;flex-wrap:wrap}
+#tab-session .sc-kpi{min-width:86px;text-align:center;padding:8px 12px;border:1px solid rgba(212,168,71,.3);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01))}
+#tab-session .sc-kpi b{display:block;font-size:16px;color:var(--gold-bright)}
+#tab-session .sc-kpi span{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+#tab-session .sc-fresh{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+#tab-session .sc-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text-muted);font-size:11.5px;cursor:pointer}
+#tab-session .sc-chip:hover{border-color:var(--border-light);color:var(--text)}
+.sc-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.sc-ok .sc-dot{background:#66ff88;box-shadow:0 0 6px rgba(102,255,136,.6)}
+.sc-warn .sc-dot{background:#ffcc44;box-shadow:0 0 6px rgba(255,204,68,.6)}
+.sc-bad .sc-dot{background:#ff5050;box-shadow:0 0 6px rgba(255,80,80,.6)}
+#tab-session .sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+#tab-session .sc-card{border:1px solid rgba(212,168,71,.24);border-radius:13px;padding:14px 16px;background:linear-gradient(180deg,rgba(26,20,10,.55),rgba(14,11,6,.35));box-shadow:inset 0 1px 0 rgba(255,220,140,.07)}
+#tab-session .sc-card-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-family:var(--serif-display);font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-bright);border-bottom:1px solid rgba(212,168,71,.2);padding-bottom:8px;margin-bottom:10px}
+#tab-session .sc-go{border:1px solid rgba(212,168,71,.35);border-radius:7px;background:none;color:var(--gold);font-size:10.5px;padding:3px 9px;cursor:pointer;letter-spacing:.04em}
+#tab-session .sc-go:hover{background:rgba(240,192,96,.12);color:var(--gold-bright)}
+#tab-session .sc-row{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px dashed rgba(212,168,71,.12);font-size:13px}
+#tab-session .sc-row:last-child{border-bottom:none}
+#tab-session .sc-tag{flex:0 0 auto;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--text-dim)}
+#tab-session .sc-tag.now{color:#8fe0a0;border-color:rgba(95,201,122,.4)}
+#tab-session .sc-tag.step{color:#e9d07a;border-color:rgba(205,177,87,.4)}
+#tab-session .sc-tag.want{color:#9fd4ff;border-color:rgba(91,159,208,.4)}
+#tab-session .sc-row-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tab-session .sc-act{flex:0 0 auto;border:none;background:none;color:var(--gold);font-size:11px;cursor:pointer;padding:2px 6px}
+#tab-session .sc-act:hover{color:var(--gold-bright);text-decoration:underline}
+#tab-session .sc-empty{color:var(--text-dim);font-size:12.5px;font-style:italic;padding:6px 0}
+#tab-session .sc-target-big{display:flex;align-items:center;gap:10px;padding:10px 4px;font-size:17px;color:var(--gold-bright);font-weight:600}
+/* dock session-target chip */
+.dock-pin{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;max-width:220px;padding:6px 12px;border-radius:9px;border:1px solid rgba(212,168,71,.35);background:linear-gradient(180deg,rgba(240,192,96,.1),rgba(240,192,96,.02));color:var(--gold-bright);font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dock-pin:hover{background:rgba(240,192,96,.18)}
+.dock-pin.empty{color:var(--text-dim);border-color:var(--border);background:none}
+/* v686 — quick-rail freshness dots (Tools) */
+.tqu-btn .sc-dot{position:absolute;top:7px;right:7px}
+.tqu-btn{position:relative}
 /* v546 — "Do this one thing" hero banner */
 /* v552 — FLAGSHIP HERO: the single "do this one thing" — big, HD art, animated, impossible to miss */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
@@ -16551,7 +16611,12 @@ function _collectProgress(){
   return out;
 }
 function _progressSnapshot(){
-  return JSON.stringify({ app:"d2r-bible", kind:"grail-progress", version:1, exported:new Date().toISOString(), data:_collectProgress() }, null, 2);
+  // v686 — schema v2 (Grok's idea, kept lean): meta names WHERE the snapshot came from so a restore
+  // can be sanity-read by eye across the 2×2 machine/account grid. `data` stays FLAT — _applyProgress
+  // reads only .data, so v1 and v2 snapshots both restore everywhere.
+  return JSON.stringify({ app:"d2r-bible", kind:"grail-progress", version:2,
+    meta:{ schemaVersion:2, profile:(window.D2R_PROFILE||'main'), machine:(window.D2R_MACHINE||'mac') },
+    exported:new Date().toISOString(), data:_collectProgress() }, null, 2);
 }
 function _backupStatus(msg, kind){ const el = $("backup-status"); if (!el) return; el.textContent = msg; el.className = "backup-status " + (kind || ""); }
 function exportProgress(){
@@ -21167,6 +21232,7 @@ function switchTab(name) {
   if (name === "forge" && typeof renderForge === "function") renderForge();   // v470 — recompute the task plan every time the Forge tab opens
   if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount();   // v535 — live loot-filter base count
   if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights();          // v543 — smart Chronicle insights
+  if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit();      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
 }
 
 // ===== TZ TRACKER (live terror-zone tab) =====
@@ -21293,6 +21359,8 @@ async function refreshTzTracker(manual){
   finally { _tzFetching = false; }
 }
 window.refreshTzTracker = refreshTzTracker;
+window._tzPeek = function(){ return _tzLast; };            // v686 — session cockpit reads the tracker's last fetch
+window.tzZoneRowHtml = tzZoneRowHtml;                       // v686 — cockpit reuses the tracker's zone row renderer
 
 function tzTrackerOnShow(){
   refreshTzTracker(false);
@@ -30887,6 +30955,168 @@ try { if (window.D2R_PROFILE==='ladder'){ document.body.classList.add('ladder-pr
 try { if (window.D2R_MACHINE==='windows'){ document.body.classList.add('cousin-shell');
   var _wr=document.createElement('div'); _wr.id='cousin-ribbon'; _wr.textContent='🪟 WINDOWS — cousin world · Mac untouched'; document.body.appendChild(_wr);
 } } catch(e){}
+
+/* ═══════════ v686 ⚡ SESSION COCKPIT (native rebuild of Grok's v44 concept) ═══════════
+   Kept: stash freshness · session-target pin on the dock · cockpit tab · backup schema v2.
+   Dropped by doctrine: service worker (v657 ghost-build class) · nav restructure (v641 nav
+   is settled + spec-anchored) · intake-review modal (the intake pipeline is LOCKED 2026-06-24;
+   the freshness stamp below only OBSERVES completions, it never touches the flow). */
+
+// ── stash freshness (d2r_stashMeta: {runes|gems|materials|vault: epoch-ms}) ──
+window._stashTouch = function(kind){
+  try {
+    var m = JSON.parse(window.LSR.getItem('d2r_stashMeta')||'{}')||{};
+    m[kind] = Date.now();
+    window.LSR.setItem('d2r_stashMeta', JSON.stringify(m));
+    window._renderStashFresh();
+  } catch(e){}
+};
+window._stashAgeH = function(kind){
+  try { var m = JSON.parse(window.LSR.getItem('d2r_stashMeta')||'{}')||{}; if (!m[kind]) return Infinity;
+    return (Date.now() - m[kind]) / 3600000; } catch(e){ return Infinity; }
+};
+function _scFreshLabel(h){ if (!isFinite(h)) return 'never scanned'; if (h < 1) return Math.max(1,Math.round(h*60))+'m ago'; if (h < 48) return Math.round(h)+'h ago'; return Math.round(h/24)+'d ago'; }
+function _scFreshClass(h){ if (!isFinite(h) || h >= 36) return 'sc-bad'; if (h >= 12) return 'sc-warn'; return 'sc-ok'; }
+var _SC_KINDS = [ {k:'runes',label:'Runes',cls:'tqu-rune'}, {k:'gems',label:'Gems',cls:'tqu-gem'}, {k:'materials',label:'Materials',cls:'tqu-mat'}, {k:'vault',label:'Vault',cls:'tqu-vault'} ];
+window._renderStashFresh = function(){
+  try {
+    _SC_KINDS.forEach(function(x){
+      var btn = document.querySelector('.tqu-btn.'+x.cls); if (!btn) return;
+      var h = window._stashAgeH(x.k), cls = _scFreshClass(h);
+      btn.classList.remove('sc-ok','sc-warn','sc-bad'); btn.classList.add(cls);
+      var dot = btn.querySelector('.sc-dot');
+      if (!dot){ dot = document.createElement('span'); dot.className='sc-dot'; btn.appendChild(dot); }
+      btn.title = (btn.title||'').replace(/ · scanned .*$| · never scanned$/,'') + ' · ' + (isFinite(h)?('scanned '+_scFreshLabel(h)):'never scanned');
+    });
+    var host = document.getElementById('sc-fresh');
+    if (host) host.innerHTML = _SC_KINDS.map(function(x){
+      var h = window._stashAgeH(x.k);
+      return '<button type="button" class="sc-chip '+_scFreshClass(h)+'" onclick="switchTab(\'tools\')" title="update in 🧰 tools"><span class="sc-dot"></span>'+x.label+' · '+_scFreshLabel(h)+'</button>';
+    }).join('');
+  } catch(e){}
+};
+// observe intake completions (all call sites go through window.*, so the wrap is consumer-safe)
+(function(){
+  function _wrapIntake(name, kind){
+    var orig = window[name]; if (typeof orig !== 'function' || orig.__v686) return;
+    var w = async function(){ var r = await orig.apply(this, arguments); try { window._stashTouch(kind); } catch(e){} return r; };
+    w.__v686 = true; window[name] = w;
+  }
+  _wrapIntake('runeIntake','runes'); _wrapIntake('gemIntake','gems');
+  _wrapIntake('materialIntake','materials'); _wrapIntake('vaultIntake','vault');
+})();
+
+// ── session-target pin (d2r_chroniclePin: a runeword OR grail item name) ──
+window._sessionPinGet = function(){ try { return window.LSR.getItem('d2r_chroniclePin') || ''; } catch(e){ return ''; } };
+window._sessionPinSet = function(name){
+  try { if (name) window.LSR.setItem('d2r_chroniclePin', String(name)); else window.LSR.removeItem('d2r_chroniclePin'); } catch(e){}
+  window._renderDockPin();
+  try { var t = document.getElementById('tab-session'); if (t && t.classList.contains('active')) window.renderSessionCockpit(); } catch(e){}
+};
+window._sessionPinClear = function(){ window._sessionPinSet(''); };
+window._renderDockPin = function(){
+  var el = document.getElementById('dock-pin'); if (!el) return;
+  var pin = window._sessionPinGet();
+  if (pin){ el.classList.remove('empty'); el.innerHTML = '🎯 <b>'+_scEsc(pin)+'</b>'; }
+  else { el.classList.add('empty'); el.textContent = '🎯 set a session target'; }
+};
+function _scEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── the cockpit ──
+window.renderSessionCockpit = function(){
+  try {
+    // KPIs — same truths the Forge meter / grail meter / dock read
+    var kh = [];
+    // _madeRw lives inside the forge IIFE — count from the same primitive it reads (rwMade is script-global)
+    var _scRwMade = function(){ try { return Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){ return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n]; }).length; } catch(e){ return 0; } };
+    try {
+      var rwT = (typeof RUNEWORD_TIP!=='undefined') ? Object.keys(RUNEWORD_TIP).length : 0;
+      if (rwT) kh.push('<div class="sc-kpi"><b>'+_scRwMade()+'/'+rwT+'</b><span>Chronicle</span></div>');
+    } catch(e){}
+    var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}   // the WALL truth — same universe as the F·Uniques headline (243/403)
+    if (_scFuni) kh.push('<div class="sc-kpi"><b>'+_scFuni.found+'/'+(_scFuni.chronTotal||_scFuni.total)+'</b><span>Grail</span></div>');
+    try { if (typeof setPieces!=='undefined' && typeof SETS!=='undefined' && Array.isArray(SETS)) kh.push('<div class="sc-kpi"><b>'+setPieces.size+'/'+SETS.reduce(function(a,s){return a+s.pieces.length;},0)+'</b><span>Sets</span></div>'); } catch(e){}
+    try { kh.push('<div class="sc-kpi"><b>'+((typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'0'))+'%</b><span>MF</span></div>'); } catch(e){}
+    try { kh.push('<div class="sc-kpi"><b>/p'+((typeof players!=='undefined')?players:(window.LSR.getItem('d2r_players')||'1'))+'</b><span>Players</span></div>'); } catch(e){}
+    var kEl = document.getElementById('sc-kpis'); if (kEl) kEl.innerHTML = kh.join('');
+
+    window._renderStashFresh();
+
+    // TZ card — reuse the tracker's own fetch + row renderer
+    var tzB = document.getElementById('sc-tz-body');
+    if (tzB){
+      if (location.protocol === 'file:'){
+        tzB.innerHTML = '<div class="sc-empty">📡 live rotation needs the online site — this card is live on bull-4-u.com/d2r</div>';
+      } else {
+        var _tzPaint = function(){
+          var d = window._tzPeek && window._tzPeek();
+          if (d && (d.current || d.next)){
+            tzB.innerHTML = '<div class="sc-row"><span class="sc-tag now">now</span><div class="sc-row-txt">'+window.tzZoneRowHtml(d.current)+'</div></div>'
+              + (d.next ? '<div class="sc-row"><span class="sc-tag">next</span><div class="sc-row-txt">'+window.tzZoneRowHtml(d.next)+'</div></div>' : '');
+          } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach the live tracker — open 📡 TZ tracker and hit refresh</div>';
+        };
+        tzB.innerHTML = '<div class="sc-empty">fetching live rotation…</div>';
+        Promise.resolve(window.refreshTzTracker && window.refreshTzTracker(false)).then(_tzPaint, _tzPaint);
+      }
+    }
+
+    // Forge card — top 3 live tasks; a sealed Chronicle points at the base-hunt instead
+    var fB = document.getElementById('sc-forge-body');
+    if (fB){
+      var rows = [];
+      try {
+        var s = window.forgeScan();
+        (s.now||[]).filter(function(t){return !t.deferred;}).slice(0,2).forEach(function(t){ rows.push({tag:'now',cls:'now',txt:'Forge <b>'+_scEsc(t.rw)+'</b> — runes + base ready',pin:t.rw}); });
+        (s.onestep||[]).slice(0,2).forEach(function(t){ rows.push({tag:'step',cls:'step',txt:'<b>'+_scEsc(t.rw)+'</b> — '+_scEsc(t.sub||'one step away'),pin:t.rw}); });
+        (s.pipeline||[]).slice(0,1).forEach(function(t){ rows.push({tag:'pipe',cls:'step',txt:'Socket chain → <b>'+_scEsc(t.rw)+'</b>',pin:t.rw}); });
+      } catch(e){}
+      if (rows.length){
+        fB.innerHTML = rows.slice(0,3).map(function(r){
+          return '<div class="sc-row"><span class="sc-tag '+r.cls+'">'+r.tag+'</span><div class="sc-row-txt">'+r.txt+'</div><button type="button" class="sc-act" onclick="window._sessionPinSet(\''+_scEsc(r.pin).replace(/'/g,'\\\'')+'\')">🎯 pin</button></div>';
+        }).join('');
+      } else {
+        var sealed = false; try { sealed = (typeof RUNEWORD_TIP!=='undefined') && (_scRwMade() >= Object.keys(RUNEWORD_TIP).length); } catch(e){}
+        fB.innerHTML = sealed
+          ? '<div class="sc-empty">⚒👑 Chronicle sealed — the Forge rests. The hunt is bases &amp; grail now.</div>'
+          : '<div class="sc-empty">no live task — tally runes/gems or intake bases in 🧰 tools</div>';
+      }
+    }
+
+    // Target card — the pin, or suggestions from the live truths
+    var tB = document.getElementById('sc-target-body');
+    if (tB){
+      var pin = window._sessionPinGet();
+      if (pin){
+        tB.innerHTML = '<div class="sc-target-big">'+(typeof artOr==='function'?artOr(pin,'🎯','sm'):'🎯')+' '+_scEsc(pin)+'</div>'
+          + '<div class="sc-empty">pinned — it rides the bottom dock on every tab. <button type="button" class="sc-act" onclick="window.openItemDetail&&window.openItemDetail(\''+_scEsc(pin).replace(/'/g,'\\\'')+'\')">open its card →</button></div>';
+      } else {
+        var sug = [];
+        try { if (typeof RUNEWORD_TIP!=='undefined' && typeof rwMade!=='undefined'){ sug = Object.keys(RUNEWORD_TIP).filter(function(n){return !rwMade[n];}).slice(0,3); } } catch(e){}
+        if (!sug.length && _scFuni){ try { sug = _scFuni.missing.slice(0,3).map(function(x){ return x.n; }); } catch(e){} }
+        tB.innerHTML = '<div class="sc-empty">nothing pinned — pick tonight’s ONE thing:</div>'
+          + sug.map(function(n){ return '<div class="sc-row"><span class="sc-tag want">idea</span><div class="sc-row-txt">'+_scEsc(n)+'</div><button type="button" class="sc-act" onclick="window._sessionPinSet(\''+_scEsc(n).replace(/'/g,'\\\'')+'\')">🎯 pin</button></div>'; }).join('');
+      }
+    }
+
+    // Grail card — starred wishes first, then the nearest dark corners of the wall
+    var gB = document.getElementById('sc-grail-body');
+    if (gB){
+      var wants = [];
+      try { if (typeof wishlist!=='undefined') wants = [...wishlist].slice(0,4).map(function(n){ return {n:n, tag:'⭐'}; }); } catch(e){}
+      try {
+        if (_scFuni) _scFuni.missing.slice(0, Math.max(0, 5-wants.length)).forEach(function(x){ wants.push({n:x.n, tag:'want'}); });
+      } catch(e){}
+      gB.innerHTML = wants.length
+        ? wants.map(function(x){ return '<div class="sc-row"><span class="sc-tag want">'+x.tag+'</span><div class="sc-row-txt">'+(typeof nameLogo==='function'?nameLogo(x.n):'')+_scEsc(x.n)+'</div><button type="button" class="sc-act" onclick="window.openItemDetail&&window.openItemDetail(\''+_scEsc(x.n).replace(/'/g,'\\\'')+'\')">open</button><button type="button" class="sc-act" onclick="window._sessionPinSet(\''+_scEsc(x.n).replace(/'/g,'\\\'')+'\')">🎯</button></div>'; }).join('')
+        : '<div class="sc-empty">the wall is FULL — go outside and feel the sun 🌞</div>';
+    }
+
+    window._renderDockPin();
+  } catch(e){}
+};
+
+// boot — the dock chip + freshness dots exist on every tab from the first paint
+try { window._renderDockPin(); window._renderStashFresh(); } catch(e){}
 </script>
 </body>
 </html>
