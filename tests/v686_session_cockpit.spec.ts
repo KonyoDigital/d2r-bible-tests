@@ -24,30 +24,29 @@ test('cockpit renders 4 cards + live KPIs + freshness chips on the seeded profil
   await page.goto(URL); await page.waitForTimeout(2500);
   await page.evaluate(() => (window as any).switchTab('session'));
   await page.waitForTimeout(1800);
+  // v688 recalibration — the cockpit became Grok's ⚔️ Task Force layout: mission brief (the ONE
+  // computed order) + ops queue + TZ/intel/log cards. Same truths, new surfaces.
   const r = await page.evaluate(() => {
-    const w: any = window;
-    const rwT = Object.keys(w.RUNEWORD_TIP || {}).length;
     return {
       active: document.getElementById('tab-session')!.classList.contains('active'),
       cards: document.querySelectorAll('#tab-session .sc-card').length,
       kpiText: document.getElementById('sc-kpis')!.textContent || '',
-      rwT,
       chips: document.querySelectorAll('#sc-fresh .sc-chip').length,
       tz: document.getElementById('sc-tz-body')!.textContent || '',
-      forge: document.getElementById('sc-forge-body')!.textContent || '',
-      grailRows: document.querySelectorAll('#sc-grail-body .sc-row').length,
+      mission: document.getElementById('sc-mission-body')!.textContent || '',
+      opsRows: document.querySelectorAll('#sc-ops-body .sc-ops-row, #sc-ops-body .sc-row').length,
+      logBody: document.getElementById('sc-log-body')!.textContent || '',
     };
   });
   expect(r.active).toBe(true);
-  expect(r.cards).toBe(4);
+  expect(r.cards).toBe(4);                                    // ops · tz · intel · log
   expect(r.kpiText).toContain('Chronicle');
   expect(r.kpiText).toContain('Grail');
   expect(r.chips).toBe(4);
-  expect(r.tz).toMatch(/online site|live on bull/);          // file:// = graceful note, no fetch error
-  expect(r.grailRows).toBeGreaterThan(0);
-  // seeded Chronicle is FULL → the forge card must say sealed, not lie about "no tasks"
-  const made = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length);
-  if (made >= r.rwT) expect(r.forge).toMatch(/sealed/i);
+  expect(r.tz).toMatch(/online site|live on bull|tracker/);   // file:// = graceful note, no fetch error
+  expect(r.mission.length).toBeGreaterThan(10);               // the general always issues an order (auto or standby)
+  expect(r.opsRows).toBeGreaterThan(0);                       // fresh profile: stale-intel blockers guarantee ops
+  expect(r.logBody.length).toBeGreaterThan(0);                // log renders (events or the empty-state line)
 });
 
 test('session-target pin: LSR-persisted, dock chip, account-forked, clearable', async ({ page }) => {

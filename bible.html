@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v687 · Session Cockpit</title>
-<meta name="d2r-build" content="v687">
+  <title>Konyo's D2R Farming Bible v688 · Task Force</title>
+<meta name="d2r-build" content="v688">
 <meta name="d2r-build-date" content="2026-07-14">
-<meta name="d2r-build-note" content="P0: session home · intake review · identity">
+<meta name="d2r-build-note" content="Task Force: mission brief · ops queue · battlefield">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
 *{box-sizing:border-box}
@@ -3265,7 +3265,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin"]);  /* v686 — session-cockpit state is ACCOUNT state: intake freshness + the pinned target fork per account (cousin inherits via _WP_FORKED) */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog"]);  /* v686 — session-cockpit state is ACCOUNT state: intake freshness + the pinned target + (v688) the session log fork per account (cousin inherits via _WP_FORKED) */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -4113,20 +4113,55 @@ try {
      hunt · intake freshness. Grok's Session-Cockpit concept rebuilt NATIVE: single-file, LSR-routed,
      no service worker, no nav restructure. Bodies fill in renderSessionCockpit() on tab open. -->
 <div class="tab-content" id="tab-session">
-  <div class="sc-hero">
+  <div class="sc-hero sc-hero-tf">
     <div class="sc-hero-txt">
-      <div class="sc-title">⚡ Session Cockpit</div>
-      <div class="sc-sub">Tonight's hunt on one screen — live from your Chronicle · tallies · MF · TZ.</div>
+      <div class="sc-title">⚔️ Task Force</div>
+      <div class="sc-sub">One mission. Ordered ops. Live TZ judged against the objective.</div>
     </div>
     <div class="sc-kpis" id="sc-kpis"></div>
   </div>
-  <div class="sc-fresh" id="sc-fresh"></div>
-  <div class="sc-grid">
-    <section class="sc-card" id="sc-card-tz"><div class="sc-card-h">🔥 Terror Zone <button type="button" class="sc-go" onclick="switchTab('tztracker')">tracker →</button></div><div class="sc-body" id="sc-tz-body"></div></section>
-    <section class="sc-card" id="sc-card-forge"><div class="sc-card-h">🔨 Forge next <button type="button" class="sc-go" onclick="switchTab('forge')">full forge →</button></div><div class="sc-body" id="sc-forge-body"></div></section>
-    <section class="sc-card" id="sc-card-target"><div class="sc-card-h">🎯 Session target <button type="button" class="sc-go" onclick="window._sessionPinClear&&window._sessionPinClear()">clear</button></div><div class="sc-body" id="sc-target-body"></div></section>
-    <section class="sc-card" id="sc-card-grail"><div class="sc-card-h">⭐ Grail hunt <button type="button" class="sc-go" onclick="switchTab('funi')">grail wall →</button></div><div class="sc-body" id="sc-grail-body"></div></section>
+  <div class="sc-fresh" id="sc-fresh" aria-label="Stash intelligence"></div>
+
+  <!-- MISSION BRIEF — the general -->
+  <section class="sc-mission" id="sc-mission">
+    <div class="sc-mission-label">Mission brief</div>
+    <div class="sc-mission-body" id="sc-mission-body">
+      <div class="sc-empty">computing orders…</div>
+    </div>
+  </section>
+
+  <div class="sc-grid sc-grid-tf">
+    <section class="sc-card sc-card-ops" id="sc-card-ops">
+      <div class="sc-card-h">📋 Ops queue <button type="button" class="sc-go" onclick="switchTab('forge')">full forge →</button></div>
+      <div class="sc-body" id="sc-ops-body"></div>
+    </section>
+    <section class="sc-card" id="sc-card-tz">
+      <div class="sc-card-h">🔥 Battlefield · TZ <button type="button" class="sc-go" onclick="switchTab('tztracker')">tracker →</button></div>
+      <div class="sc-body" id="sc-tz-body"></div>
+    </section>
+    <section class="sc-card" id="sc-card-intel">
+      <div class="sc-card-h">📡 Intel <button type="button" class="sc-go" onclick="switchTab('tools')">tools →</button></div>
+      <div class="sc-body" id="sc-intel-body"></div>
+    </section>
+    <section class="sc-card" id="sc-card-log">
+      <div class="sc-card-h">📓 Session log <button type="button" class="sc-go" onclick="window._sessionLogClear&&window._sessionLogClear()">clear</button></div>
+      <div class="sc-body" id="sc-log-body"></div>
+    </section>
   </div>
+
+  <div class="sc-strip" id="sc-strip">
+    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('rune')">📸 Runes</button>
+    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('gem')">📸 Gems</button>
+    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('material')">📸 Mats</button>
+    <button type="button" class="sc-strip-btn" onclick="window.quickIntake&&window.quickIntake('vault')">📸 Vault</button>
+    <button type="button" class="sc-strip-btn primary" onclick="window._sessionPrintPlan&&window._sessionPrintPlan()">🖨 Tonight’s plan</button>
+    <button type="button" class="sc-strip-btn" onclick="switchTab('funi')">🏆 Grail wall</button>
+  </div>
+
+  <!-- legacy anchors kept so any old JS ids don't throw -->
+  <div hidden id="sc-forge-body"></div>
+  <div hidden id="sc-target-body"></div>
+  <div hidden id="sc-grail-body"></div>
 </div>
 <div class="tab-content" id="tab-tools">
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
@@ -6906,6 +6941,100 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .dock-pin{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;max-width:220px;padding:6px 12px;border-radius:9px;border:1px solid rgba(212,168,71,.35);background:linear-gradient(180deg,rgba(240,192,96,.1),rgba(240,192,96,.02));color:var(--gold-bright);font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dock-pin:hover{background:rgba(240,192,96,.18)}
 .dock-pin.empty{color:var(--text-dim);border-color:var(--border);background:none}
+
+/* v688 ⚔ TASK FORCE command center */
+#tab-session .sc-hero-tf{margin-bottom:10px}
+#tab-session .sc-mission{
+  margin:0 0 14px;padding:16px 18px;border-radius:14px;
+  border:1px solid rgba(240,192,96,.42);
+  background:
+    radial-gradient(ellipse 90% 120% at 0% 0%,rgba(240,192,96,.16),transparent 55%),
+    linear-gradient(180deg,rgba(36,28,14,.75),rgba(14,11,6,.55));
+  box-shadow:0 0 0 1px rgba(240,192,96,.08), inset 0 1px 0 rgba(255,220,140,.1);
+}
+#tab-session .sc-mission-label{
+  font:700 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold-bright,#f0c060);opacity:.9;margin-bottom:8px;
+}
+#tab-session .sc-mission-name{
+  font-family:var(--serif-display),Cinzel,serif;font-size:22px;font-weight:700;
+  color:var(--gold-bright,#f0c060);display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  text-shadow:0 0 18px rgba(240,192,96,.3);
+}
+#tab-session .sc-mission-status{
+  display:inline-flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;
+}
+#tab-session .sc-mission-status .sc-tag{font-size:10px}
+#tab-session .sc-mission-detail{
+  margin:8px 0 0;font-size:12.5px;color:var(--text-muted,#b5a48a);line-height:1.45;max-width:70ch;
+}
+#tab-session .sc-mission-detail b{color:var(--text,#f4e8d0)}
+#tab-session .sc-mission-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#tab-session .sc-cta{
+  cursor:pointer;font:700 12px/1.2 inherit;padding:9px 14px;border-radius:8px;
+  border:1px solid rgba(240,192,96,.5);
+  background:linear-gradient(135deg,rgba(240,192,96,.32),rgba(240,192,96,.1));
+  color:var(--gold-bright,#f0c060);
+}
+#tab-session .sc-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
+#tab-session .sc-cta.ghost{
+  background:transparent;border-color:var(--border,#3a2f1e);color:var(--text-muted,#b5a48a);font-weight:600;
+}
+#tab-session .sc-cta.ghost:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
+#tab-session .sc-grid-tf{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start}  /* v688.1 — cards size to their content: default stretch made a one-line TZ/log card a 230px void that read as broken */
+#tab-session .sc-card-ops{grid-column:1 / -1}
+@media(min-width:960px){
+  #tab-session .sc-grid-tf{
+    grid-template-columns:1.4fr 1fr 1fr;
+    grid-template-areas:"ops ops ops" "tz intel log";
+  }
+  #tab-session .sc-card-ops{grid-area:ops}
+  #tab-session #sc-card-tz{grid-area:tz}
+  #tab-session #sc-card-intel{grid-area:intel}
+  #tab-session #sc-card-log{grid-area:log}
+}
+#tab-session .sc-ops-row{
+  display:grid;grid-template-columns:28px 52px 1fr auto;gap:8px;align-items:center;
+  padding:8px 0;border-bottom:1px solid rgba(58,47,30,.5);font-size:12.5px;
+}
+#tab-session .sc-ops-row:last-child{border-bottom:0}
+#tab-session .sc-ops-n{
+  font:700 11px/1 ui-monospace,Menlo,monospace;color:var(--gold-bright);
+  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(240,192,96,.35);background:rgba(240,192,96,.08);
+}
+#tab-session .sc-ops-row.blocker .sc-ops-n{border-color:rgba(255,80,80,.5);color:#ff7070;background:rgba(255,80,80,.1)}
+#tab-session .sc-ops-row.blocker{background:rgba(255,80,80,.04);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:6px}
+#tab-session .sc-tz-verdict{
+  margin-top:8px;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.4;
+  border:1px solid var(--border);
+}
+#tab-session .sc-tz-verdict.yes{border-color:rgba(102,255,136,.35);background:rgba(102,255,136,.07);color:#9fdfb0}
+#tab-session .sc-tz-verdict.weak{border-color:rgba(255,204,68,.35);background:rgba(255,204,68,.07);color:#e8d090}
+#tab-session .sc-tz-verdict.no{border-color:rgba(255,80,80,.3);background:rgba(255,80,80,.06);color:#d0a0a0}
+#tab-session .sc-strip{
+  display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px;padding-top:4px;
+}
+#tab-session .sc-strip-btn{
+  cursor:pointer;font:600 11.5px/1.2 inherit;padding:7px 11px;border-radius:8px;
+  border:1px solid var(--border,#3a2f1e);background:var(--surface-3,#2f261a);color:var(--text,#f4e8d0);
+}
+#tab-session .sc-strip-btn:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
+#tab-session .sc-strip-btn.primary{
+  border-color:rgba(240,192,96,.45);background:rgba(240,192,96,.12);color:var(--gold-bright);
+}
+#tab-session .sc-log-line{
+  font-size:11px;color:var(--text-muted);padding:4px 0;border-bottom:1px solid rgba(58,47,30,.35);
+  font-family:ui-monospace,Menlo,monospace;
+}
+#tab-session .sc-log-line time{color:var(--text-dim);margin-right:6px}
+#v687-build-badge{content:none}
+@media print{
+  .tabs,.control-dock,.gsearch-wrap,#v687-build-badge,#v687-intake-modal,.sc-strip{display:none!important}
+  #tab-session{display:block!important}
+  #tab-session .sc-mission,#tab-session .sc-card{break-inside:avoid}
+}
+
 /* v687.1 — compact chip under 1560w: the full label was what wrapped the dock to a 2nd row at 1512 */
 @media (max-width:1560px){ .dock-pin{max-width:150px;font-size:11px;padding:4px 9px} .dock-pin.empty .dp-cta{display:none} }
 /* v686 — quick-rail freshness dots (Tools) */
@@ -31167,97 +31296,399 @@ window._renderDockPin = function(){
 function _scEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── the cockpit ──
+window._sessionLog = function(msg){
+  try {
+    var arr = JSON.parse(window.LSR.getItem('d2r_sessionLog')||'[]');
+    if (!Array.isArray(arr)) arr = [];
+    arr.unshift({ t: Date.now(), msg: String(msg||'') });
+    if (arr.length > 40) arr = arr.slice(0, 40);
+    window.LSR.setItem('d2r_sessionLog', JSON.stringify(arr));
+  } catch(e){}
+  try { window._renderSessionLog && window._renderSessionLog(); } catch(e){}
+};
+window._sessionLogClear = function(){
+  try { window.LSR.setItem('d2r_sessionLog', '[]'); } catch(e){}
+  try { window._renderSessionLog && window._renderSessionLog(); } catch(e){}
+};
+window._renderSessionLog = function(){
+  var el = document.getElementById('sc-log-body'); if (!el) return;
+  try {
+    var arr = JSON.parse(window.LSR.getItem('d2r_sessionLog')||'[]');
+    if (!arr.length){ el.innerHTML = '<div class="sc-empty">no events this shift — pin a mission or run an intake</div>'; return; }
+    el.innerHTML = arr.slice(0,12).map(function(x){
+      var d = new Date(x.t||Date.now());
+      var hh = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      return '<div class="sc-log-line"><time>'+hh+'</time>'+_scEsc(x.msg)+'</div>';
+    }).join('');
+  } catch(e){ el.innerHTML = '<div class="sc-empty">log unavailable</div>'; }
+};
+window._sessionPrintPlan = function(){
+  try { if (window.switchTab) window.switchTab('session'); } catch(e){}
+  setTimeout(function(){ try { window.print(); } catch(e){} }, 200);
+};
+// Mark mission forged (chronicle) then refresh cockpit
+window._sessionMarkForged = function(name){
+  if (!name) return;
+  try {
+    var made = (typeof rwMade!=='undefined' && rwMade[name]);
+    if (!made && typeof window.rwToggleMade === 'function') window.rwToggleMade(name);
+  } catch(e){}
+  try { window._sessionLog('✓ forged / toggled: '+name); } catch(e){}
+  try { if (typeof window.renderForge==='function') window.renderForge(); } catch(e){}
+  try { window.renderSessionCockpit(); } catch(e){}
+};
+window._sessionDoMission = function(){
+  var m = window._scMission;
+  if (!m){ if (window.switchTab) window.switchTab('forge'); return; }
+  try { window._sessionLog('▶ do now: '+m.name+' ('+m.status+')'); } catch(e){}
+  if (m.kind === 'rw'){
+    if (window.switchTab) window.switchTab('forge');
+    setTimeout(function(){
+      try {
+        if (m.status === 'now' && window.forgeSetFilter) window.forgeSetFilter('now');
+        else if (m.status === 'step' && window.forgeSetFilter) window.forgeSetFilter('onestep');
+        else if (m.status === 'pipe' && window.forgeSetFilter) window.forgeSetFilter('pipeline');
+      } catch(e){}
+    }, 80);
+  } else if (m.kind === 'grail'){
+    if (typeof window.openItemDetail === 'function') window.openItemDetail(m.name);
+    else if (typeof window.openDrop === 'function') window.openDrop(m.name);
+    else if (window.switchTab) window.switchTab('calc');
+  } else {
+    if (window.switchTab) window.switchTab('tools');
+  }
+};
+
 window.renderSessionCockpit = function(){
   try {
-    // KPIs — same truths the Forge meter / grail meter / dock read
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function escJs(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+    // ── KPIs ──
     var kh = [];
-    // _madeRw lives inside the forge IIFE — count from the same primitive it reads (rwMade is script-global)
-    var _scRwMade = function(){ try { return Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){ return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n]; }).length; } catch(e){ return 0; } };
+    var _scRwMade = function(){
+      try { return Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){
+        return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n];
+      }).length; } catch(e){ return 0; }
+    };
     try {
       var rwT = (typeof RUNEWORD_TIP!=='undefined') ? Object.keys(RUNEWORD_TIP).length : 0;
       if (rwT) kh.push('<div class="sc-kpi"><b>'+_scRwMade()+'/'+rwT+'</b><span>Chronicle</span></div>');
     } catch(e){}
-    var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}   // the WALL truth — same universe as the F·Uniques headline (243/403)
+    var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}
     if (_scFuni) kh.push('<div class="sc-kpi"><b>'+_scFuni.found+'/'+(_scFuni.chronTotal||_scFuni.total)+'</b><span>Grail</span></div>');
-    try { if (typeof setPieces!=='undefined' && typeof SETS!=='undefined' && Array.isArray(SETS)) kh.push('<div class="sc-kpi"><b>'+setPieces.size+'/'+SETS.reduce(function(a,s){return a+s.pieces.length;},0)+'</b><span>Sets</span></div>'); } catch(e){}
+    try {
+      if (typeof setPieces!=='undefined' && typeof SETS!=='undefined' && Array.isArray(SETS))
+        kh.push('<div class="sc-kpi"><b>'+setPieces.size+'/'+SETS.reduce(function(a,s){return a+s.pieces.length;},0)+'</b><span>Sets</span></div>');
+    } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>'+((typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'0'))+'%</b><span>MF</span></div>'); } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>/p'+((typeof players!=='undefined')?players:(window.LSR.getItem('d2r_players')||'1'))+'</b><span>Players</span></div>'); } catch(e){}
     var kEl = document.getElementById('sc-kpis'); if (kEl) kEl.innerHTML = kh.join('');
 
     window._renderStashFresh();
 
-    // TZ card — reuse the tracker's own fetch + row renderer
+    // ── Forge scan ──
+    var scan = { now:[], onestep:[], pipeline:[], crafts:[], farm:[] };
+    try { if (typeof window.forgeScan === 'function') scan = window.forgeScan() || scan; } catch(e){}
+    var liveNow = (scan.now||[]).filter(function(t){ return !t.deferred; });
+
+    // ── Resolve mission ──
+    var pin = '';
+    try { pin = window._sessionPinGet() || ''; } catch(e){}
+    var mission = null; // {name, kind:'rw'|'grail'|'scan', status, detail, task}
+
+    function findRwTask(name){
+      var lists = [
+        {arr:liveNow, status:'now', label:'Make now — runes + base ready'},
+        {arr:scan.onestep||[], status:'step', label:'One step away'},
+        {arr:scan.pipeline||[], status:'pipe', label:'Pipeline — socket / prepare base'},
+        {arr:scan.farm||[], status:'farm', label:'Farm ingredients'}
+      ];
+      for (var i=0;i<lists.length;i++){
+        for (var j=0;j<lists[i].arr.length;j++){
+          if (lists[i].arr[j].rw === name){
+            return { task: lists[i].arr[j], status: lists[i].status, label: lists[i].label };
+          }
+        }
+      }
+      // known runeword but not in queue
+      if (typeof RUNEWORD_TIP!=='undefined' && RUNEWORD_TIP[name]){
+        var made = typeof rwMade!=='undefined' && rwMade[name];
+        return { task:null, status: made?'done':'hunt', label: made?'Already in Chronicle':'Not ready — farm runes/base' };
+      }
+      return null;
+    }
+
+    if (pin){
+      var hit = findRwTask(pin);
+      if (hit){
+        mission = { name:pin, kind:'rw', status:hit.status, label:hit.label, task:hit.task };
+      } else {
+        mission = { name:pin, kind:'grail', status:'hunt', label:'Grail / item hunt', task:null };
+      }
+    } else if (liveNow[0]){
+      mission = { name:liveNow[0].rw, kind:'rw', status:'now', label:'Make now — runes + base ready', task:liveNow[0], auto:true };
+    } else if ((scan.onestep||[])[0]){
+      var t = scan.onestep[0];
+      mission = { name:t.rw, kind:'rw', status:'step', label:'One step away', task:t, auto:true };
+    } else if ((scan.pipeline||[])[0]){
+      var t2 = scan.pipeline[0];
+      mission = { name:t2.rw, kind:'rw', status:'pipe', label:'Pipeline', task:t2, auto:true };
+    } else {
+      var wish = null;
+      try { if (typeof wishlist!=='undefined' && wishlist.size) wish = [...wishlist][0]; } catch(e){}
+      if (wish) mission = { name:wish, kind:'grail', status:'hunt', label:'Wishlist priority', task:null, auto:true };
+      else if (_scFuni && _scFuni.missing && _scFuni.missing[0])
+        mission = { name:_scFuni.missing[0].n, kind:'grail', status:'hunt', label:'Nearest dark corner of the wall', task:null, auto:true };
+      else
+        mission = { name:null, kind:'scan', status:'idle', label:'No live orders — update intel', task:null };
+    }
+    window._scMission = mission;
+
+    // detail line
+    var detail = '';
+    if (mission.task){
+      var t = mission.task;
+      if (t.missing && t.missing.length) detail = 'Missing: <b>'+esc(t.missing.join(', '))+'</b>';
+      else if (t.sub === 'base') detail = 'Need a socketed base'+(t.bestStr||t.baseReq ? ' — <b>'+esc(t.bestStr||t.baseReq)+'</b>' : '');
+      else if (t.sub === 'cube') detail = 'Cube up runes, then forge';
+      else if (mission.status === 'now') detail = 'Everything in hand — open Forge and socket in order';
+      else if (t.base && t.base.base) detail = 'Base: <b>'+esc(t.base.base)+'</b>'+(t.need?(' · '+t.need+'os'):'');
+    } else if (mission.kind === 'grail'){
+      detail = 'Open its card for best boss + 1:X under your current MF / players.';
+    } else if (mission.kind === 'scan'){
+      detail = 'Scan runes · gems · vault in Tools so Forge can build a real queue.';
+    }
+
+    // Mission brief HTML
+    var mB = document.getElementById('sc-mission-body');
+    if (mB){
+      if (!mission.name && mission.kind === 'scan'){
+        mB.innerHTML = '<div class="sc-mission-name">Stand by</div>'
+          + '<div class="sc-mission-status"><span class="sc-tag">idle</span></div>'
+          + '<div class="sc-mission-detail">'+detail+'</div>'
+          + '<div class="sc-mission-actions">'
+          + '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'
+          + '<button type="button" class="sc-cta ghost" onclick="switchTab(\'forge\')">Open Forge</button>'
+          + '</div>';
+      } else {
+        var art = '';
+        try { if (typeof artOr==='function') art = artOr(mission.name,'🎯','sm'); } catch(e){}
+        var statusCls = mission.status==='now'?'now':(mission.status==='step'||mission.status==='pipe'?'step':'want');
+        mB.innerHTML = '<div class="sc-mission-name">'+(art||'🎯')+' '+esc(mission.name)
+          + (mission.auto?' <span style="font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:.04em">AUTO</span>':'')
+          + '</div>'
+          + '<div class="sc-mission-status"><span class="sc-tag '+statusCls+'">'+esc(mission.status)+'</span>'
+          + '<span style="font-size:12px;color:var(--text-muted)">'+esc(mission.label)+'</span></div>'
+          + (detail?'<div class="sc-mission-detail">'+detail+'</div>':'')
+          + '<div class="sc-mission-actions">'
+          + '<button type="button" class="sc-cta" onclick="window._sessionDoMission()">▶ Do this now</button>'
+          + (mission.kind==='rw' && mission.status!=='done'
+              ? '<button type="button" class="sc-cta ghost" onclick="window._sessionMarkForged(\''+escJs(mission.name)+'\')">✓ Mark forged</button>' : '')
+          + (!pin && mission.name
+              ? '<button type="button" class="sc-cta ghost" onclick="window._sessionPinSet(\''+escJs(mission.name)+'\');window._sessionLog(\'🎯 pinned '+escJs(mission.name)+'\')">🎯 Pin mission</button>' : '')
+          + (pin
+              ? '<button type="button" class="sc-cta ghost" onclick="window._sessionPinClear();window._sessionLog(\'cleared mission pin\')">Clear pin</button>' : '')
+          + '</div>';
+      }
+    }
+
+    // ── Ops queue ──
+    var ops = [];
+    // blockers: stale stashes
+    try {
+      ['runes','gems','materials','vault'].forEach(function(k){
+        var h = window._stashAgeH ? window._stashAgeH(k) : Infinity;
+        if (!isFinite(h) || h >= 36){
+          ops.push({
+            blocker:true, tag:'intel', cls:'want',
+            txt:'<b>'+esc(k)+'</b> stash '+(isFinite(h)?'stale ('+Math.round(h)+'h)':'never scanned')+' — orders may be wrong',
+            act:'📸 Scan', go:function(){ if(window.switchTab) window.switchTab('tools'); }
+          });
+        } else if (h >= 12){
+          ops.push({
+            blocker:false, tag:'intel', cls:'step',
+            txt:'Rescan <b>'+esc(k)+'</b> soon ('+Math.round(h)+'h old)',
+            act:'Tools', goTab:'tools'
+          });
+        }
+      });
+    } catch(e){}
+    // cap blockers shown
+    var blockers = ops.filter(function(o){return o.blocker;}).slice(0,2);
+    var rest = [];
+    liveNow.slice(0,2).forEach(function(t){
+      rest.push({ tag:'now', cls:'now', txt:'Forge <b>'+esc(t.rw)+'</b> — ready', pin:t.rw, act:'Forge', goTab:'forge', filter:'now' });
+    });
+    (scan.onestep||[]).slice(0,2).forEach(function(t){
+      var miss = (t.missing&&t.missing.length)?t.missing.join(', '):(t.sub||'one step');
+      rest.push({ tag:'step', cls:'step', txt:'<b>'+esc(t.rw)+'</b> — '+esc(miss), pin:t.rw, act:'Forge', goTab:'forge', filter:'onestep' });
+    });
+    (scan.pipeline||[]).slice(0,1).forEach(function(t){
+      rest.push({ tag:'pipe', cls:'step', txt:'Pipeline <b>'+esc(t.rw)+'</b>', pin:t.rw, act:'Forge', goTab:'forge', filter:'pipeline' });
+    });
+    // grail side ops if room
+    try {
+      if (typeof wishlist!=='undefined'){
+        [...wishlist].slice(0,2).forEach(function(n){
+          if (mission && mission.name===n) return;
+          rest.push({ tag:'grail', cls:'want', txt:'Wishlist <b>'+esc(n)+'</b>', pin:n, act:'Open', item:n });
+        });
+      }
+    } catch(e){}
+    ops = blockers.concat(rest).slice(0,6);
+
+    var oB = document.getElementById('sc-ops-body');
+    if (oB){
+      if (!ops.length){
+        oB.innerHTML = '<div class="sc-empty">queue clear — Chronicle sealed or intel empty. Hunt grail or enjoy the sun 🌞</div>';
+      } else {
+        oB.innerHTML = ops.map(function(op, idx){
+          var btns = '';
+          if (op.pin) btns += '<button type="button" class="sc-act" data-pin="'+esc(op.pin)+'">🎯</button>';
+          if (op.act) btns += '<button type="button" class="sc-act sc-ops-go" data-i="'+idx+'">'+esc(op.act)+'</button>';
+          return '<div class="sc-ops-row'+(op.blocker?' blocker':'')+'">'
+            + '<span class="sc-ops-n">'+(idx+1)+'</span>'
+            + '<span class="sc-tag '+op.cls+'">'+esc(op.tag)+'</span>'
+            + '<div class="sc-row-txt">'+op.txt+'</div>'
+            + '<div style="display:flex;gap:4px">'+btns+'</div></div>';
+        }).join('');
+        oB.querySelectorAll('[data-pin]').forEach(function(b){
+          b.addEventListener('click', function(){
+            var n = b.getAttribute('data-pin');
+            window._sessionPinSet(n);
+            window._sessionLog('🎯 pinned '+n);
+          });
+        });
+        oB.querySelectorAll('.sc-ops-go').forEach(function(b){
+          b.addEventListener('click', function(){
+            var i = parseInt(b.getAttribute('data-i'),10);
+            var op = ops[i]; if (!op) return;
+            if (op.goTab){
+              if (window.switchTab) window.switchTab(op.goTab);
+              if (op.filter) setTimeout(function(){ try{ window.forgeSetFilter&&window.forgeSetFilter(op.filter);}catch(e){} }, 100);
+            } else if (op.item){
+              if (window.openItemDetail) window.openItemDetail(op.item);
+              else if (window.openDrop) window.openDrop(op.item);
+            } else if (typeof op.go === 'function') op.go();
+          });
+        });
+      }
+    }
+    // keep legacy forge body filled lightly
+    var fB = document.getElementById('sc-forge-body');
+    if (fB) fB.innerHTML = '';
+
+    // ── Battlefield TZ ──
     var tzB = document.getElementById('sc-tz-body');
+    function tzVerdict(zoneLabel){
+      var z = String(zoneLabel||'').toLowerCase();
+      var mname = (mission && mission.name) ? String(mission.name) : '';
+      var mstat = mission ? mission.status : '';
+      // default
+      var v = { cls:'weak', text:'Side content — only divert if the mission is blocked.' };
+      if (!mname){ v = { cls:'weak', text:'No mission — farm densest loot or update intel.' }; }
+      else if (mission.kind === 'rw'){
+        if (mstat === 'now') v = { cls:'no', text:'Mission is Make-now — skip TZ and forge '+mname+' first.' };
+        else if (mstat === 'step' || mstat === 'pipe' || mstat === 'farm' || mstat === 'hunt'){
+          // rune-friendly zones
+          if (/travincal|durance|chaos|worldstone|throne|pit|ancient tunnels|flayer|outer steppes|city of the damned|river of flame/.test(z))
+            v = { cls:'yes', text:'Serves rune/base density for '+mname+' — good battlefield while you fill gaps.' };
+          else if (/cows|mooland/.test(z))
+            v = { cls:'yes', text:'Cows = base density king if you still need a host for '+mname+'.' };
+          else
+            v = { cls:'weak', text:'Weak for '+mname+' — optional clear or stay on targeted farms.' };
+        } else if (mstat === 'done')
+          v = { cls:'yes', text:'Mission forged — TZ is free real estate. Grail or next word.' };
+      } else if (mission.kind === 'grail'){
+        v = { cls:'yes', text:'Grail mission — open '+mname+' card; if this TZ holds its boss/superunique, dive in.' };
+      }
+      return v;
+    }
     if (tzB){
       if (location.protocol === 'file:'){
-        tzB.innerHTML = '<div class="sc-empty">📡 live rotation needs the online site — this card is live on bull-4-u.com/d2r</div>';
+        tzB.innerHTML = '<div class="sc-empty">📡 live rotation needs the online site</div>';
       } else {
         var _tzPaint = function(){
           var d = window._tzPeek && window._tzPeek();
           if (d && (d.current || d.next)){
-            tzB.innerHTML = '<div class="sc-row"><span class="sc-tag now">now</span><div class="sc-row-txt">'+window.tzZoneRowHtml(d.current)+'</div></div>'
-              + (d.next ? '<div class="sc-row"><span class="sc-tag">next</span><div class="sc-row-txt">'+window.tzZoneRowHtml(d.next)+'</div></div>' : '');
-          } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach the live tracker — open 📡 TZ tracker and hit refresh</div>';
+            var curLabel = '';
+            try {
+              // tzZoneRowHtml returns HTML; also try plain fields
+              if (d.current && d.current.zone) curLabel = d.current.zone;
+              else if (typeof d.current === 'string') curLabel = d.current;
+              else if (d.current && d.current.name) curLabel = d.current.name;
+            } catch(e){}
+            var ver = tzVerdict(curLabel || (tzB.textContent||''));
+            // re-read label from rendered row if needed
+            var rowHtml = '';
+            try { rowHtml = window.tzZoneRowHtml ? window.tzZoneRowHtml(d.current) : esc(curLabel); } catch(e){ rowHtml = esc(curLabel); }
+            var nextHtml = '';
+            try { if (d.next) nextHtml = window.tzZoneRowHtml(d.next); } catch(e){}
+            // refine verdict from full row text
+            ver = tzVerdict((curLabel||'') + ' ' + (rowHtml||'').replace(/<[^>]+>/g,' '));
+            tzB.innerHTML = '<div class="sc-row"><span class="sc-tag now">now</span><div class="sc-row-txt">'+rowHtml+'</div></div>'
+              + (nextHtml ? '<div class="sc-row"><span class="sc-tag">next</span><div class="sc-row-txt">'+nextHtml+'</div></div>' : '')
+              + '<div class="sc-tz-verdict '+ver.cls+'"><b>ROE · </b>'+esc(ver.text)+'</div>';
+          } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach live tracker — open 📡 TZ tracker</div>';
         };
-        tzB.innerHTML = '<div class="sc-empty">fetching live rotation…</div>';
+        tzB.innerHTML = '<div class="sc-empty">fetching battlefield…</div>';
         Promise.resolve(window.refreshTzTracker && window.refreshTzTracker(false)).then(_tzPaint, _tzPaint);
       }
     }
 
-    // Forge card — top 3 live tasks; a sealed Chronicle points at the base-hunt instead
-    var fB = document.getElementById('sc-forge-body');
-    if (fB){
-      var rows = [];
+    // ── Intel card ──
+    var iB = document.getElementById('sc-intel-body');
+    if (iB){
+      var lines = [];
+      lines.push('<div class="sc-row"><span class="sc-tag">chr</span><div class="sc-row-txt"><b>'+_scRwMade()+'</b> runewords forged'
+        +(typeof RUNEWORD_TIP!=='undefined'?' / '+Object.keys(RUNEWORD_TIP).length:'')+'</div></div>');
+      if (_scFuni) lines.push('<div class="sc-row"><span class="sc-tag">grail</span><div class="sc-row-txt"><b>'+_scFuni.found+'</b> / '+(_scFuni.chronTotal||_scFuni.total)+' uniques</div></div>');
       try {
-        var s = window.forgeScan();
-        (s.now||[]).filter(function(t){return !t.deferred;}).slice(0,2).forEach(function(t){ rows.push({tag:'now',cls:'now',txt:'Forge <b>'+_scEsc(t.rw)+'</b> — runes + base ready',pin:t.rw}); });
-        (s.onestep||[]).slice(0,2).forEach(function(t){ rows.push({tag:'step',cls:'step',txt:'<b>'+_scEsc(t.rw)+'</b> — '+_scEsc(t.sub||'one step away'),pin:t.rw}); });
-        (s.pipeline||[]).slice(0,1).forEach(function(t){ rows.push({tag:'pipe',cls:'step',txt:'Socket chain → <b>'+_scEsc(t.rw)+'</b>',pin:t.rw}); });
+        var mfV = (typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'?');
+        var pV = (typeof players!=='undefined')?players:(window.LSR.getItem('d2r_players')||'?');
+        lines.push('<div class="sc-row"><span class="sc-tag">roe</span><div class="sc-row-txt">MF <b>'+esc(String(mfV))+'</b> · /p<b>'+esc(String(pV))+'</b> · use dock to adjust</div></div>');
       } catch(e){}
-      if (rows.length){
-        fB.innerHTML = rows.slice(0,3).map(function(r){
-          return '<div class="sc-row"><span class="sc-tag '+r.cls+'">'+r.tag+'</span><div class="sc-row-txt">'+r.txt+'</div><button type="button" class="sc-act" onclick="window._sessionPinSet(\''+_scEsc(r.pin).replace(/'/g,'\\\'')+'\')">🎯 pin</button></div>';
-        }).join('');
-      } else {
-        var sealed = false; try { sealed = (typeof RUNEWORD_TIP!=='undefined') && (_scRwMade() >= Object.keys(RUNEWORD_TIP).length); } catch(e){}
-        fB.innerHTML = sealed
-          ? '<div class="sc-empty">⚒👑 Chronicle sealed — the Forge rests. The hunt is bases &amp; grail now.</div>'
-          : '<div class="sc-empty">no live task — tally runes/gems or intake bases in 🧰 tools</div>';
-      }
+      try {
+        var prof = window.D2R_PROFILE||'main';
+        lines.push('<div class="sc-row"><span class="sc-tag">acct</span><div class="sc-row-txt">'+(prof==='ladder'?'🪜 Ladder':'Main')+' account · '+(window.D2R_MACHINE||'mac')+'</div></div>');
+      } catch(e){}
+      var staleN = 0;
+      try {
+        ['runes','gems','materials','vault'].forEach(function(k){
+          var h = window._stashAgeH(k); if (!isFinite(h)||h>=12) staleN++;
+        });
+      } catch(e){}
+      lines.push('<div class="sc-row"><span class="sc-tag '+(staleN?'want':'now')+'">intel</span><div class="sc-row-txt">'
+        +(staleN? (staleN+' stash source'+(staleN>1?'s':'')+' need attention') : 'All stashes fresh enough to trust Forge')
+        +'</div></div>');
+      iB.innerHTML = lines.join('');
     }
 
-    // Target card — the pin, or suggestions from the live truths
+    // legacy targets
     var tB = document.getElementById('sc-target-body');
-    if (tB){
-      var pin = window._sessionPinGet();
-      if (pin){
-        tB.innerHTML = '<div class="sc-target-big">'+(typeof artOr==='function'?artOr(pin,'🎯','sm'):'🎯')+' '+_scEsc(pin)+'</div>'
-          + '<div class="sc-empty">pinned — it rides the bottom dock on every tab. <button type="button" class="sc-act" onclick="window.openItemDetail&&window.openItemDetail(\''+_scEsc(pin).replace(/'/g,'\\\'')+'\')">open its card →</button></div>';
-      } else {
-        var sug = [];
-        try { if (typeof RUNEWORD_TIP!=='undefined' && typeof rwMade!=='undefined'){ sug = Object.keys(RUNEWORD_TIP).filter(function(n){return !rwMade[n];}).slice(0,3); } } catch(e){}
-        if (!sug.length && _scFuni){ try { sug = _scFuni.missing.slice(0,3).map(function(x){ return x.n; }); } catch(e){} }
-        tB.innerHTML = '<div class="sc-empty">nothing pinned — pick tonight’s ONE thing:</div>'
-          + sug.map(function(n){ return '<div class="sc-row"><span class="sc-tag want">idea</span><div class="sc-row-txt">'+_scEsc(n)+'</div><button type="button" class="sc-act" onclick="window._sessionPinSet(\''+_scEsc(n).replace(/'/g,'\\\'')+'\')">🎯 pin</button></div>'; }).join('');
-      }
-    }
-
-    // Grail card — starred wishes first, then the nearest dark corners of the wall
+    if (tB && mission && mission.name) tB.innerHTML = esc(mission.name);
     var gB = document.getElementById('sc-grail-body');
-    if (gB){
-      var wants = [];
-      try { if (typeof wishlist!=='undefined') wants = [...wishlist].slice(0,4).map(function(n){ return {n:n, tag:'⭐'}; }); } catch(e){}
-      try {
-        if (_scFuni) _scFuni.missing.slice(0, Math.max(0, 5-wants.length)).forEach(function(x){ wants.push({n:x.n, tag:'want'}); });
-      } catch(e){}
-      gB.innerHTML = wants.length
-        ? wants.map(function(x){ return '<div class="sc-row"><span class="sc-tag want">'+x.tag+'</span><div class="sc-row-txt">'+(typeof nameLogo==='function'?nameLogo(x.n):'')+_scEsc(x.n)+'</div><button type="button" class="sc-act" onclick="window.openItemDetail&&window.openItemDetail(\''+_scEsc(x.n).replace(/'/g,'\\\'')+'\')">open</button><button type="button" class="sc-act" onclick="window._sessionPinSet(\''+_scEsc(x.n).replace(/'/g,'\\\'')+'\')">🎯</button></div>'; }).join('')
-        : '<div class="sc-empty">the wall is FULL — go outside and feel the sun 🌞</div>';
-    }
+    if (gB) gB.innerHTML = '';
 
     window._renderDockPin();
-  } catch(e){}
+    window._renderSessionLog();
+  } catch(e){ try { console.warn('renderSessionCockpit', e); } catch(e2){} }
 };
+
+// log pin changes
+(function(){
+  var _pin = window._sessionPinSet;
+  if (typeof _pin === 'function' && !_pin.__v688){
+    window._sessionPinSet = function(name){
+      var r = _pin.apply(this, arguments);
+      try { if (name) window._sessionLog('🎯 mission → '+name); else window._sessionLog('mission cleared'); } catch(e){}
+      return r;
+    };
+    window._sessionPinSet.__v688 = true;
+  }
+})();
+
 
 // boot — the dock chip + freshness dots exist on every tab from the first paint
 try { window._renderDockPin(); window._renderStashFresh(); } catch(e){}
@@ -31336,13 +31767,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v687', name:'Session Cockpit', date:'2026-07-14', note:'P0 session home + intake review' };
+  window.D2R_BUILD = { id:'v688', name:'Task Force', date:'2026-07-14', note:'Mission brief · ops queue · battlefield' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
     el.id = 'v687-build-badge';
     el.title = 'D2R Bible build';
-    el.textContent = 'v687 · Session Cockpit · 2026-07-14';
+    el.textContent = 'v688 · Task Force · 2026-07-14';
     document.body.appendChild(el);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', badge);
