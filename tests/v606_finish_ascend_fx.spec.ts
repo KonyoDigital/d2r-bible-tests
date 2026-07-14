@@ -59,6 +59,9 @@ test('milestone forge → toast + epic overlay + ascend stagger; overlay self-re
 
 test('non-milestone forge → toast but NO epic; reduced motion → neither', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
+  // v693.2 recalibration — at the 99/99 seal there is no unmade word to forge; pin fresh. (Also fixed
+  // the spec's own const-reassign that only fired when n1+1 hit a %10 milestone — dormant until 99.)
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwMade', JSON.stringify({})); localStorage.setItem('d2r_rwProfile', 'fresh'); });
   await page.goto(URL); await page.waitForTimeout(1800);
   const r1 = await page.evaluate(() => {
     const w: any = window;
@@ -67,7 +70,7 @@ test('non-milestone forge → toast but NO epic; reduced motion → neither', as
     w.switchTab && w.switchTab('forge');
     try { w.renderForge && w.renderForge(); } catch (e) {}
     const all = Object.keys(w.RUNEWORD_TIP || {});
-    const made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
+    let made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     let n1 = Object.keys(made).length;
     if ((n1 + 1) % 10 === 0) { const t0 = all.find((x) => !made[x]); w.rwToggleMade(t0); made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); n1 = Object.keys(made).length; document.querySelectorAll('.forge-epic,.forge-toast').forEach((e) => e.remove()); }
     const target = all.find((x) => !made[x]);

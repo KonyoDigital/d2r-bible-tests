@@ -52,6 +52,8 @@ test('B — every Tools card expands via its real header click, non-empty, zero 
 });
 
 test('C — Chronicle ✓ toggle propagates to Smart Insights + loot filter, and untick restores', async ({ page }) => {
+  // v693.2 recalibration — the live seed seals 99/99: no unmade word left to ✓. Pin fresh (v655 trap).
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwMade', JSON.stringify({})); localStorage.setItem('d2r_rwProfile', 'fresh'); });
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(async () => {
     const w: any = window;

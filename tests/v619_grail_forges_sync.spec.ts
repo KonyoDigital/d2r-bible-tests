@@ -56,17 +56,23 @@ test('completed sets wear the seal band; checklist⇄fsets sync both ways', asyn
     const w: any = window;
     w.switchTab('fsets');
     const dom1 = (document.getElementById('fsets-body') || document.body).textContent || '';
-    const hadBand = dom1.includes('set complete');
+    // v693.2 recalibration — v693 collapsed the per-set seals into ONE summary band on ▦ All
+    // ('✓ N sets complete'); assert the aggregate count instead of per-set text.
+    const m1 = dom1.match(/(\d+) sets? complete/);
+    const hadBand = !!m1;
+    const n1 = m1 ? parseInt(m1[1], 10) : 0;
     // un-tick one piece from the CHECKLIST side while fsets is the active tab → the band must leave live
     const s = w.fsetsScan();
     const done = s.done[0];
     w.toggleSetPiece(done.pieces[0].name);
     const dom2 = (document.getElementById('fsets-body') || document.body).textContent || '';
     localStorage.removeItem('d2r_setPieces');
-    return { hadBand, stillDone: dom2.includes('set complete') && dom2.includes(setName.replace(/\s*\(set\)$/i, '')) };
+    const m2 = dom2.match(/(\d+) sets? complete/);
+    const n2 = m2 ? parseInt(m2[1], 10) : 0;
+    return { hadBand, n1, n2 };
   }, r.set);
-  expect(r2.hadBand).toBe(true);      // the full set wears the seal
-  expect(r2.stillDone).toBe(false);   // checklist un-tick re-scanned the open fsets tab live
+  expect(r2.hadBand).toBe(true);      // the summary band wears the aggregate seal
+  expect(r2.n2).toBe(r2.n1 - 1);      // checklist un-tick re-scanned the open fsets tab live (count fell)
 });
 
 test('toggleOwned live-syncs an open F·Uniques tab', async ({ page }) => {

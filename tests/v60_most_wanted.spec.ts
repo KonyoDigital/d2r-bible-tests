@@ -14,6 +14,10 @@ test.describe('v60 Most Wanted community-demand board', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
+    // v693.2 recalibration — v687 made ⚡session the HOME tab; the MW board lives on MAIN,
+    // so navigate there first (the old boot tab WAS main).
+    await page.evaluate(() => (window as any).switchTab('main'));
+    await page.waitForTimeout(400);
     // v63: dropdown sections now default to COLLAPSED site-wide. The Most Wanted
     // board lives inside one, so expand it before any real-UI click/focus test.
     await page.evaluate(() => {

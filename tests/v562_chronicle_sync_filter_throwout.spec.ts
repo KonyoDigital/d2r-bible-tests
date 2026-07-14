@@ -25,7 +25,12 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
     const leaks: string[] = [];
     // v599 — ci3 (Diadem) is DELIBERATELY not magic-hidden: a blue Diadem is a chase item
     // (Konyo's Torrid Diadem of Amicae — +3 class skills / MF rolls on the elite circlet).
-    Object.keys(CODE).forEach((nm) => { const c = CODE[nm]; if (!QUEST.has(c) && c !== 'ci3' && !magicHidden.has(c)) leaks.push(nm + '=' + c); });
+    // v690 — CRAFT INBOX: the four crafts' best-slot gear bases are the SECOND sanctioned magic
+    // exemption (blues are craft fuel; their non-magic rarities are tail-hidden instead). Derive the
+    // exemption set from the shipped rule so the spec tracks the whitelist, not a copy of it.
+    const craftTail = out.rules.find((x: any) => x.name === 'Hide Craft Bases Non-Magic');
+    const CRAFT = new Set<string>((craftTail && craftTail.equipmentItemCode) || []);
+    Object.keys(CODE).forEach((nm) => { const c = CODE[nm]; if (!QUEST.has(c) && c !== 'ci3' && !CRAFT.has(c) && !magicHidden.has(c)) leaks.push(nm + '=' + c); });
     const ebAll = w._endgameFilterBases();
     const eb = ebAll.codes as string[];
     const trash = out.rules.find((x: any) => x.name === '1. Hide Trash Gear');

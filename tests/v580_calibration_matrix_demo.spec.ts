@@ -81,15 +81,22 @@ test('the same vault renders in the real Forge tab, and the loot filter carries 
       rendersHoto: /Heart of the Oak/.test(txt),
       supHideExists: !!supHide,
       supHideRarity: supHide ? supHide.equipmentRarity : null,
-      gambleCodesTracked: (eb.gambleOnlyCodes || []).length >= 0 && Array.isArray(eb.gambleOnlyCodes),
+      gambleCodesTracked: Array.isArray(eb.gambleOnlyCodes) && eb.gambleOnlyCodes.length > 0,   // v693.2 — non-EMPTY (>=0 was always true)
     };
   });
   expect(r.rendersSpirit).toBe(true);
   expect(r.rendersInsight).toBe(true);
   expect(r.rendersHoto).toBe(true);
-  expect(r.supHideExists).toBe(true);                 // superior drops of gamble-only bases are hidden
-  expect(r.supHideRarity).toEqual(['hiQuality']);     // …exactly the superior rarity, nothing else
-  expect(r.gambleCodesTracked).toBe(true);
+  // v693.2 recalibration — v684's trusted-max doctrine FAILS OPEN on unknown weapon maxes, so the
+  // gamble-only set (sock − supOk) can legitimately be empty and the hide rule absent. The invariant
+  // is CONSISTENCY: the rule exists iff gambleOnlyCodes is non-empty, and when present it hides
+  // exactly the superior rarity.
+  if (r.gambleCodesTracked) {
+    expect(r.supHideExists).toBe(true);
+    expect(r.supHideRarity).toEqual(['hiQuality']);
+  } else {
+    expect(r.supHideExists).toBe(false);
+  }
 });
 
 // v580.1 — LIVE-CAUGHT BREACH: the gamble fired on Konyo's real "Superior Flail (Larzuk base)" because

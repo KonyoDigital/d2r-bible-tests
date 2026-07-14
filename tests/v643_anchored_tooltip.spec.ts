@@ -41,6 +41,9 @@ test('v654 — a SECTION/CARD-sized element can never open the floating card; on
 
 test('the card opens glued to the hovered item and never detaches across the screen', async ({ page }) => {
   await page.setViewportSize({ width: 1500, height: 900 });
+  // v693.2 recalibration — data-arttip anchors live on live forge TASK cards; the 99/99 seal leaves
+  // none (both the old celebration and the new Completed landing are anchor-free). Pin fresh.
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwMade', JSON.stringify({})); localStorage.setItem('d2r_rwProfile', 'fresh'); });
   await page.goto(URL); await page.waitForTimeout(2000);
   await page.evaluate(() => { (window as any).switchTab('forge'); try { (window as any).renderForge(); } catch (e) {} });
   await page.waitForTimeout(600);

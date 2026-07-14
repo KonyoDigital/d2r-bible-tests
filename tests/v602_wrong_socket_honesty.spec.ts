@@ -62,14 +62,16 @@ test('throw-out card + tip for a socketed copy: honest amber note, no Larzuk/cub
 });
 
 test('⚒ Forged stamp only when EVERY word the base can ever hold is created', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwMade', JSON.stringify({})); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v693.2 — sealed chronicle leaves no unmade Monarch words
   await page.goto(URL); await page.waitForTimeout(1500);
   // pick a NON-SEEDED other-count word on Monarch to leave unmade (the seed force re-marks seeded words
   // on load, so the hold-out must be one Konyo hasn't forged) — then mark everything else created.
   const target = await page.evaluate(() => {
     const w: any = window;
     const rws = (w._baseRunewords('Monarch') || []) as Array<{ n: string; s: number }>;
-    const seed = w._RWC_SEED || {};
-    const t = rws.find((r) => r.s !== 4 && r.s <= 4 && !seed[r.n]
+    // v693.2 — the !seed[] guard is obsolete under the fresh pin (the floor never re-marks on a
+    // fresh profile) and by 99/99 the seed covers EVERY sub-4os Monarch word, filtering all of them.
+    const t = rws.find((r) => r.s !== 4 && r.s <= 4
       && !(typeof w._rwLadderBlocked === 'function' && w._rwLadderBlocked(r.n)));
     const made: any = {};
     Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (!t || n !== t.n) made[n] = 'x'; });

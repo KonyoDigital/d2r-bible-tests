@@ -106,8 +106,11 @@ test('SYNC — ticking a piece in Forge·Sets writes d2r_setPieces; completing a
   const r = await page.evaluate(() => {
     const w: any = window; w.switchTab('fsets');
     const s = w.fsetsScan();
-    const smallest = s.sets.slice().sort((a: any, b: any) => a.pieces.length - b.pieces.length)[0];
-    smallest.pieces.forEach((p: any) => w.grailTogglePiece(null, p.name));   // tick every piece
+    // v693.2 recalibration — the v682 seed floors 108 pieces: pick the smallest INCOMPLETE set and
+    // tick only its MISSING pieces (blind-ticking a seeded piece UN-ticks it — the old red).
+    const incomplete = s.sets.filter((x: any) => x.pieces.some((p: any) => !p.have));
+    const smallest = incomplete.slice().sort((a: any, b: any) => a.pieces.length - b.pieces.length)[0];
+    smallest.pieces.filter((p: any) => !p.have).forEach((p: any) => w.grailTogglePiece(null, p.name));
     const stored = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]');
     const after = w.fsetsScan();
     const done = after.done.some((r2: any) => r2.name === smallest.name);
@@ -142,7 +145,7 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
     const fsetsIco = document.querySelector('.tabs .tab[data-tab="fsets"] img.tab-hdico');
     return { order: tabs.slice(-3), funiIco: !!funiIco, fsetsIco: !!fsetsIco, count: tabs.length };
   });
-  expect(r.count).toBe(15);
+  expect(r.count).toBe(16);   // v693.2 — +⚡session (v686 cockpit) joined the workshop group
   expect(r.order).toEqual(['forge', 'funi', 'fsets']);
   expect(r.funiIco).toBe(true);
   expect(r.fsetsIco).toBe(true);

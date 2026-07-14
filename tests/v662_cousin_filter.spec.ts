@@ -33,7 +33,7 @@ test('CousinFull: fresh grail, zero socketed/eth hide rules, ASCII names; KonyoE
   });
   expect(r.notReady).toBe(false);
   expect(r.mineName).toMatch(/^KonyoEndgame\d+$/);
-  expect(r.mineSockHides).toBe(4);                    // Konyo's build keeps all four eth/socket hides
+  expect(r.mineSockHides).toBe(5);                    // v693.2 — the v690 craft ETH tail joined the four eth/socket hides
   expect(r.cuzName).toBe('CousinFull');
   expect(r.cuzSockHides).toBe(0);                     // ★ NO rule can hide a socketed/eth item
   expect(r.cuzShow3).toBeGreaterThan(r.mineShow3);    // fresh grail lights far more bases
