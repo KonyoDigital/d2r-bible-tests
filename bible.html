@@ -7008,9 +7008,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-session .sc-mission-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 #tab-session .sc-cta{
   cursor:pointer;font:700 12px/1.2 inherit;padding:9px 14px;border-radius:8px;
-  border:1px solid rgba(240,192,96,.5);
-  background:linear-gradient(135deg,rgba(240,192,96,.32),rgba(240,192,96,.1));
+  border:1px solid rgba(240,192,96,.65);
+  background:linear-gradient(135deg,rgba(240,192,96,.38),rgba(240,192,96,.12));
   color:var(--gold-bright,#f0c060);
+  box-shadow:0 0 14px -4px rgba(240,192,96,.35);   /* v691 (🏓 R1) — the primary order visibly outranks the ghosts */
 }
 #tab-session .sc-cta:hover{filter:brightness(1.08);transform:translateY(-1px)}
 #tab-session .sc-cta.ghost{
@@ -30052,6 +30053,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var nowCount = liveNow.filter(function(t){ return !skip.has('rw|'+t.rw); }).length
       + Object.keys(_craftTypes).filter(function(ck){ return !skip.has('craft|'+ck); }).length
       + Object.keys(_pipeGroups).filter(function(gk){ if (skip.has('chain|'+gk)) return false; return _pipeGroups[gk].some(function(t){ return !skip.has('rw|'+t.rw); }); }).length;
+    // v691 (🏓 R1) — a SEALED chronicle lands on COMPLETED, not an empty ALL: the gold-selected chip
+    // claiming 0 items over the celebration read as a broken view. User clicks still override.
+    if (_forgeFilter==='all' && !total && !(s.farm||[]).length && nowCount===0){
+      var _sT691=0, _sM691=0; try { _sT691=Object.keys(RUNEWORD_TIP).length; _sM691=_madeRw().length; } catch(e){}
+      if (_sT691>0 && _sM691>=_sT691) _forgeFilter='completed';
+    }
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
     H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
@@ -31190,10 +31197,23 @@ window._renderStashFresh = function(){
       btn.title = (btn.title||'').replace(/ · scanned .*$| · never scanned$/,'') + ' · ' + (isFinite(h)?('scanned '+_scFreshLabel(h)):'never scanned');
     });
     var host = document.getElementById('sc-fresh');
-    if (host) host.innerHTML = _SC_KINDS.map(function(x){
-      var h = window._stashAgeH(x.k);
-      return '<button type="button" class="sc-chip '+_scFreshClass(h)+'" onclick="switchTab(\'tools\')" title="update in 🧰 tools"><span class="sc-dot"></span>'+x.label+' · '+_scFreshLabel(h)+'</button>';
-    }).join('');
+    if (host){
+      // v691 (🏓 R1, Grok: 'everything is red so nothing is urgent') — 2+ stale stashes collapse into
+      // ONE intel gate + a single Scan CTA; per-stash chips return once most intel is fresh.
+      var _stale = _SC_KINDS.filter(function(x){ var h = window._stashAgeH(x.k); return !isFinite(h) || h >= 36; });
+      if (_stale.length >= 2){
+        host.innerHTML = '<button type="button" class="sc-chip sc-bad" onclick="switchTab(\'tools\')" title="update in 🧰 tools"><span class="sc-dot"></span>⚠ '+_stale.length+' of 4 stashes unscanned — orders may be wrong · 📸 scan in Tools →</button>'
+          + _SC_KINDS.filter(function(x){ var h = window._stashAgeH(x.k); return isFinite(h) && h < 36; }).map(function(x){
+              var h = window._stashAgeH(x.k);
+              return '<button type="button" class="sc-chip '+_scFreshClass(h)+'" onclick="switchTab(\'tools\')" title="update in 🧰 tools"><span class="sc-dot"></span>'+x.label+' · '+_scFreshLabel(h)+'</button>';
+            }).join('');
+      } else {
+        host.innerHTML = _SC_KINDS.map(function(x){
+          var h = window._stashAgeH(x.k);
+          return '<button type="button" class="sc-chip '+_scFreshClass(h)+'" onclick="switchTab(\'tools\')" title="update in 🧰 tools"><span class="sc-dot"></span>'+x.label+' · '+_scFreshLabel(h)+'</button>';
+        }).join('');
+      }
+    }
   } catch(e){}
 };
 // v687 — intake review: after AI tally, confirm / edit / undo before you trust Forge.
@@ -31359,7 +31379,7 @@ window._renderSessionLog = function(){
   var el = document.getElementById('sc-log-body'); if (!el) return;
   try {
     var arr = JSON.parse(window.LSR.getItem('d2r_sessionLog')||'[]');
-    if (!arr.length){ el.innerHTML = '<div class="sc-empty">no events this shift — pin a mission or run an intake</div>'; return; }
+    if (!arr.length){ el.innerHTML = '<div class="sc-empty">no events this shift — <button type="button" class="sc-act" onclick="var m=window._scMission;if(m&&m.name){window._sessionPinSet(m.name);window._sessionLog(\'🎯 pinned \'+m.name);}">pin the current mission</button> or <button type="button" class="sc-act" onclick="switchTab(\'tools\')">run an intake →</button></div>'; return; }   /* v691 (🏓 R1) — empty states ROUTE, not just explain */
     el.innerHTML = arr.slice(0,12).map(function(x){
       var d = new Date(x.t||Date.now());
       var hh = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
@@ -31675,7 +31695,7 @@ window.renderSessionCockpit = function(){
             tzB.innerHTML = '<div class="sc-row"><span class="sc-tag now">now</span><div class="sc-row-txt">'+rowHtml+'</div></div>'
               + (nextHtml ? '<div class="sc-row"><span class="sc-tag">next</span><div class="sc-row-txt">'+nextHtml+'</div></div>' : '')
               + '<div class="sc-tz-verdict '+ver.cls+'"><b>ROE · </b>'+esc(ver.text)+'</div>';
-          } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach live tracker — open 📡 TZ tracker</div>';
+          } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach live tracker — <button type="button" class="sc-act" onclick="switchTab(\'tztracker\')">open 📡 TZ tracker →</button></div>';   /* v691 (🏓 R1) — route from the empty state */
         };
         tzB.innerHTML = '<div class="sc-empty">fetching battlefield…</div>';
         Promise.resolve(window.refreshTzTracker && window.refreshTzTracker(false)).then(_tzPaint, _tzPaint);

@@ -42,7 +42,9 @@ test('cockpit renders 4 cards + live KPIs + freshness chips on the seeded profil
   expect(r.cards).toBe(4);                                    // ops · tz · intel · log
   expect(r.kpiText).toContain('Chronicle');
   expect(r.kpiText).toContain('Grail');
-  expect(r.chips).toBe(4);
+  // v691 (🏓 R1) — 2+ stale stashes collapse into ONE intel-gate chip ('N of 4 stashes unscanned');
+  // per-stash chips return as intel freshens. Fresh profile ⇒ the single gate.
+  expect(r.chips).toBeGreaterThanOrEqual(1);
   expect(r.tz).toMatch(/online site|live on bull|tracker/);   // file:// = graceful note, no fetch error
   expect(r.mission.length).toBeGreaterThan(10);               // the general always issues an order (auto or standby)
   expect(r.opsRows).toBeGreaterThan(0);                       // fresh profile: stale-intel blockers guarantee ops
@@ -104,13 +106,14 @@ test('stash freshness: touch stamps via LSR and paints the Tools rail + session 
       railOk: rail.classList.contains('sc-ok'),
       railDot: !!rail.querySelector('.sc-dot'),
       gemChipOk: /sc-ok/.test(gemChip) && /ago/.test(gemChip),
-      runesNever: /never scanned/.test(chips.find(c => c.includes('Runes')) || ''),
+      // v691 (🏓 R1) — the 3 untouched stashes collapse into the intel-gate summary chip
+      staleGate: /stashes unscanned/.test(chips.join('|')),
     };
   });
   expect(r.stamped).toBe(true);
   expect(r.railOk && r.railDot).toBe(true);
   expect(r.gemChipOk).toBe(true);
-  expect(r.runesNever).toBe(true);   // untouched kinds stay honest
+  expect(r.staleGate).toBe(true);   // untouched kinds stay honest — one gate says so
 });
 
 test('intake fns wrapped as observers; snapshot is schema v2 with flat v1-compatible data', async ({ page }) => {
