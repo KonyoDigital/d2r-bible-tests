@@ -4,11 +4,16 @@ name: Routine I — Playwright suite
 # tests/ suite against bible.html. Always-on: fires on schedule, on every
 # bible.html / tests change (the real ship gate), and on manual dispatch.
 #
-# Sharded 3 ways for speed: the 2-core GitHub runner ran the whole suite in
-# ~39m single-job; 3 parallel shards bring wall-clock to ~13m. Smaller shards
-# (~52 tests each) also stay well under the ~140-test tail-fatigue threshold,
-# and each shard is a fresh runner (no cross-test state pressure). Chromium is
-# cached between runs to skip the ~1-2m browser download.
+# v684 re-shard: the suite grew to ~1400 tests — under 3-way sharding a shard
+# carried ~470 tests (~29m clean, ~60m with a red streak) and blew the 50m job
+# cap, so every run since v681.1 died as a false "cancelled" WITHOUT writing its
+# blob report (the failing specs were never named anywhere — 40 undiagnosed
+# runs). 6 shards ≈ 234 tests each ≈ 15m clean, well under the ~140-test
+# tail-fatigue threshold per worker, with the 50m cap now genuine headroom.
+# playwright.config.ts adds a CI globalTimeout (45m) so even a pathological
+# shard exits gracefully and REPORTS instead of being SIGKILLed, and CI retries
+# drop to 1 so a red shard finishes inside the cap. merge-report now fails
+# loudly when any shard's blob is missing instead of quietly merging the rest.
 on:
   schedule:
     - cron: '0 6 * * *'   # 09:00 IDT
@@ -26,18 +31,16 @@ env:
 
 jobs:
   test:
-    name: shard ${{ matrix.shard }}/3
+    name: shard ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
-    # A healthy shard finishes in ~13m. Degraded/slow runner instances can push a
-    # shard past 25m; the prior 35m cap still false-cancelled shard 3 on a slow-runner
-    # day (34m50s on a sibling shard the same run). Raised to 50m so a degraded runner
-    # finishes rather than reporting a false red; Playwright's per-test timeouts still
-    # bound any genuine hang, and fail-fast cancels siblings on a real failure.
+    # A healthy shard finishes in ~15m; the config's CI globalTimeout (45m) bounds
+    # the run itself, so this cap only catches a wedged runner. Playwright's
+    # per-test timeouts still bound any genuine hang.
     timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -58,7 +61,7 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - name: Run shard
-        run: npx playwright test --shard=${{ matrix.shard }}/3 --reporter=blob
+        run: npx playwright test --shard=${{ matrix.shard }}/6 --reporter=blob
       - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v5
@@ -85,6 +88,16 @@ jobs:
           path: all-blobs
           pattern: blob-*
           merge-multiple: true
+      - name: All shards reported?
+        # v684 — a killed shard uploads nothing; merging the survivors used to LOOK complete
+        # while hiding exactly the shard that failed. Missing blob = red merge, loudly.
+        run: |
+          n=$(ls all-blobs/*.zip 2>/dev/null | wc -l)
+          echo "shard blobs present: $n / 6"
+          if [ "$n" -lt 6 ]; then
+            echo "::error::only $n of 6 shard blob reports present — a shard died without reporting (check its job log)"
+            exit 1
+          fi
       - name: Merge into HTML report
         run: npx playwright merge-reports --reporter html ./all-blobs
       - name: Upload merged report
