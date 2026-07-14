@@ -5701,7 +5701,7 @@ try {
   </div>
 
   <div class="colossal" id="binds-gate">
-    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🔑 The hard-point gate — why most monsters say "Impossible" <span class="sec-chev">▾</span></h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">🔑 The hard-point gate — why most monsters say "Impossible" <span class="sec-h-peek pk-dim" style="font-size:11.5px">1 / 10 / 15 / 20 hp</span> <span class="sec-chev">▾</span></h3><!-- v693.1 🏓R4: one-word orientation on the closed row -->
     <div class="sec-body" hidden>
     <p>Bind Demon checks your <strong>hard points</strong> against the target's tier. Gear that adds +skills does NOT count toward this gate (it only helps the bound demon's aura level after the bind).</p>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Monster tier</th><th>Name color</th><th>Hard points needed</th><th>Aura Enchanted possible?</th></tr></thead><tbody>
@@ -5716,7 +5716,7 @@ try {
   </div>
 
   <div class="colossal" id="binds-elite">
-    <h3 class="sec-h collapsed" onclick="toggleSec(this)">⚜️ Aura Enchanted — exact aura levels &amp; the Hell elite-affix pool <span class="sec-chev">▾</span></h3>
+    <h3 class="sec-h collapsed" onclick="toggleSec(this)">⚜️ Aura Enchanted — exact aura levels &amp; the Hell elite-affix pool <span class="sec-h-peek pk-dim" style="font-size:11.5px">reroll → Fanaticism</span> <span class="sec-chev">▾</span></h3><!-- v693.1 🏓R4 -->
     <div class="sec-body" hidden>
     <div class="gic-card material-card binds-aura-card">
       <header class="gic-header">
@@ -21409,6 +21409,15 @@ function switchTab(name) {
   if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights();          // v543 — smart Chronicle insights
   if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit();      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
   if (name === "main" && typeof window._mainPeeks === "function") setTimeout(window._mainPeeks, 600);              // v693 🏓R3 — closed-row peeks refresh after the async boards paint
+  // v693.1 🏓R4 — the Binds verdict opens itself ONCE per session (the tab's whole answer); every
+  // other lore drawer stays collapsed. sessionStorage: per-tab-session, never persisted state.
+  if (name === "binds"){ try {
+    if (!sessionStorage.getItem('d2r_bindsVerdictShown')){
+      sessionStorage.setItem('d2r_bindsVerdictShown','1');
+      var _bvh = document.querySelector('#tab-binds .tier-header.sec-h.collapsed');
+      if (_bvh) toggleSec(_bvh);
+    }
+  } catch(e){} }
 }
 
 // ===== TZ TRACKER (live terror-zone tab) =====
@@ -21493,7 +21502,7 @@ function renderTzHistory(history){
   const cnt = document.getElementById('tzt-history-count');
   if (!history || !history.length){
     el.innerHTML = '<div class="tzt-hist-empty">📡 The 48-hour log is recording — it fills as rotations roll in (24/7, even while you’re away). Check back soon.</div>';
-    if (cnt) cnt.textContent = '';
+    if (cnt) cnt.textContent = '0 slots · open the live site once to seed';   /* v693.1 🏓R4 — the closed summary says WHY it's empty */
     return;
   }
   const nowSlot = Math.floor(Date.now() / 1800000) * 1800000;
@@ -25673,6 +25682,10 @@ body::before{
 .sec-h-peek .pk-track{ width:90px; height:4px; border-radius:3px; background:rgba(212,168,71,.18); overflow:hidden }
 .sec-h-peek .pk-fill{ height:100%; border-radius:3px; background:linear-gradient(90deg,var(--gold),var(--gold-bright)) }
 .sec-h-peek .pk-dim{ color:var(--text-dim); font-size:11px }
+/* v693.1 🏓R4 — MW closed row = title + #1 peek only; the prose sub returns on expand */
+.mw-title.collapsed .mw-sub{ display:none }
+/* v693.1 🏓R4 — A-tier recedes a step so S truly dominates (Grok verify: 'S is marked, not dominant') */
+.tz-zone-card[data-tier="A"]{ opacity:.87 }
 /* v691 🏓R2 — S-tier TZ rows outrank the rest (the page's own thesis: S = go when live) */
 .tz-zone-card[data-tier="S"]{ border-left:3px solid var(--gold-bright); background:linear-gradient(90deg,rgba(240,192,96,.09),rgba(0,0,0,0) 55%); box-shadow:inset 0 0 0 1px rgba(240,192,96,.14), var(--shadow-low,0 1px 3px rgba(0,0,0,.4)) }
 .tz-zone-card[data-tier="S"] .tz-zone-tier{ transform:scale(1.12); font-weight:800; text-shadow:0 0 10px rgba(240,192,96,.5) }
