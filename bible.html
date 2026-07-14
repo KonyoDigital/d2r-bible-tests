@@ -3560,7 +3560,7 @@ try {
 <div class="container">
 
 <div class="tab-content active" id="tab-main">
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🏆</span><span class="sec-h-block"><span class="sec-h-t">Grail Progress</span><span class="sec-h-sub">Mark items ✓ owned to track your Holy Grail collection</span></span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🏆</span><span class="sec-h-block"><span class="sec-h-t">Grail Progress</span><span class="sec-h-sub">Mark items ✓ owned to track your Holy Grail collection</span></span><span class="sec-h-peek" id="grail-peek"></span><span class="sec-chev">▾</span></h2><!-- v691 🏓R2: the #1 question ('how far am I?') answers on the CLOSED row -->
   <div class="sec-body" hidden>
   <div class="grail-progress">
     <div class="gp-circle">
@@ -3595,7 +3595,7 @@ try {
     <div class="backup-status" id="backup-status" aria-live="polite"></div>
   </div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🎯</span><span class="sec-h-block"><span class="sec-h-t">Today's Best Grail Picks</span><span class="sec-h-sub">Calculated live from every item row — click any to jump to that boss</span></span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🎯</span><span class="sec-h-block"><span class="sec-h-t">Today's Best Grail Picks</span><span class="sec-h-sub">Calculated live from every item row — click any to jump to that boss</span></span><span class="sec-h-peek" id="picks-peek"></span><span class="sec-chev">▾</span></h2><!-- v691 🏓R2: #1 pick peeks on the closed row -->
   <div class="sec-body" hidden>
   <div class="hero">
     <div class="hero-sub" id="hero-sub">Calculated live from all 251 item rows. Click any to jump to that boss card.</div>
@@ -16413,7 +16413,7 @@ function renderBossNav() {
       const lo = Math.min(...ms), hi = Math.max(...ms);
       xtxt = (Math.abs(lo - hi) < 0.005) ? ('×' + hi.toFixed(2)) : ('×' + lo.toFixed(2) + '–' + hi.toFixed(2));
     }
-    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}<span class="boss-nav-group-mult" title="drop-quantity multiplier at /players ${players}"> · ${xtxt}</span></span><div class="boss-nav-group-chips">${chips}</div></div>`;
+    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}${players > 1 ? `<span class="boss-nav-group-mult" title="drop-quantity multiplier at /players ${players}"> · ${xtxt}</span>` : ''}</span><div class="boss-nav-group-chips">${chips}</div></div>`;   /* v691 (🏓 R2) — ×1.00 on every group at /p1 is zero information; at /p2+ even ×1.00 is signal (P#-PROOF tier) */
   }).join("");
   const leftover = BOSSES.filter(b => !used[b.id]).map(chip).join("");
   const leftoverHtml = leftover ? `<div class="boss-nav-group pt-event"><span class="boss-nav-group-label">WORLD EVENT<span class="boss-nav-group-mult" title="event-only drops — not /players scaled"> · event</span></span><div class="boss-nav-group-chips">${leftover}</div></div>` : "";
@@ -16654,7 +16654,7 @@ function renderBossCards() {
     }
     const cards = g.members.map(id => __cardOf[id] || '').join('');
     return `<div class="tier-section ${g.cls}">
-      <div class="tier-head"><span class="tier-name">${g.name}</span><span class="tier-mult" title="drop-quantity multiplier at /players ${players}">/players ${players} · ${xtxt}</span></div>
+      <div class="tier-head"><span class="tier-name">${g.name}</span>${players > 1 ? `<span class="tier-mult" title="drop-quantity multiplier at /players ${players}">/players ${players} · ${xtxt}</span>` : ''}</div>
       <div class="tier-tag">${g.tag}</div>${cards}</div>`;
   }).join('');
   const _leftover = BOSSES.filter(b => !_usedIds[b.id]).map(b => __cardOf[b.id] || '').join('');
@@ -25659,6 +25659,17 @@ body::before{
    style/layout/paint entirely (boss-card and item-tile have had this since v297; the sets grid,
    TZ zone list and event cards never got it) */
 .set-card, .tz-zone-card, .event-card, .gic-card{ content-visibility:auto; contain-intrinsic-size:auto 120px; }
+/* v691 🏓R2 — closed-row PEEKS: the drawer answers before it opens */
+.sec-h-peek{ margin-left:auto; margin-right:10px; flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--gold-bright); font-family:var(--mono,monospace); letter-spacing:.02em; white-space:nowrap }
+.sec-h-peek .pk-track{ width:90px; height:4px; border-radius:3px; background:rgba(212,168,71,.18); overflow:hidden }
+.sec-h-peek .pk-fill{ height:100%; border-radius:3px; background:linear-gradient(90deg,var(--gold),var(--gold-bright)) }
+.sec-h-peek .pk-dim{ color:var(--text-dim); font-size:11px }
+/* v691 🏓R2 — S-tier TZ rows outrank the rest (the page's own thesis: S = go when live) */
+.tz-zone-card[data-tier="S"]{ border-left:3px solid var(--gold-bright); background:linear-gradient(90deg,rgba(240,192,96,.09),rgba(0,0,0,0) 55%); box-shadow:inset 0 0 0 1px rgba(240,192,96,.14), var(--shadow-low,0 1px 3px rgba(0,0,0,.4)) }
+.tz-zone-card[data-tier="S"] .tz-zone-tier{ transform:scale(1.12); font-weight:800; text-shadow:0 0 10px rgba(240,192,96,.5) }
+.tz-zone-card[data-tier="B"], .tz-zone-card[data-tier="B+"]{ opacity:.82 }
+/* v691 🏓R2 — a boss card scrolled into view clears the dock, not just the sticky header */
+.boss-card{ scroll-margin-bottom:calc(var(--dock-h,84px) + 24px) }
 /* v689 PERF — when the window is hidden/occluded (Konyo: bible in the background while D2R runs
    fullscreen) EVERY css animation pauses: the 7 infinite ambient effects (title sheen, tabs
    glow/sheen, art float, embers, compass) cost compositor time 24/7 for a page nobody is watching.
@@ -31784,6 +31795,27 @@ try {
   var _tzC = document.getElementById('v42-tz-countdown');
   if (_tzC && _dockEl){ _dockEl.insertBefore(_tzC, _dockEl.firstChild); _tzC.classList.add('in-dock'); }
 } catch(e){}
+
+// v691 🏓R2 — stamp data-tier from each TZ zone pill so CSS can rank S over the field
+try { document.querySelectorAll('.tz-zone-card .tz-zone-tier').forEach(function(t){ t.closest('.tz-zone-card').setAttribute('data-tier', (t.textContent||'').trim()); }); } catch(e){}
+// v691 🏓R2 — closed-row peeks on Main: grail meter + tonight's #1 pick, live
+window._mainPeeks = function(){
+  try {
+    var gp = document.getElementById('grail-peek');
+    if (gp && typeof window.funiScan === 'function'){
+      var fs3 = window.funiScan(); var tot = fs3.chronTotal || fs3.total || 0;
+      var pct = tot ? Math.round(fs3.found / tot * 100) : 0;
+      gp.innerHTML = '<b>'+fs3.found+'/'+tot+'</b><span class="pk-track"><span class="pk-fill" style="width:'+pct+'%"></span></span><span class="pk-dim">'+pct+'%</span>';
+    }
+  } catch(e){}
+  try {
+    var pp = document.getElementById('picks-peek');
+    var first = document.querySelector('#hero-picks .hero-pick .hero-pick-item');
+    var boss = document.querySelector('#hero-picks .hero-pick .hero-pick-boss');
+    if (pp && first) pp.innerHTML = '<span class="pk-dim">#1</span> '+first.textContent.trim().slice(0,26)+(boss?' <span class="pk-dim">· '+boss.textContent.trim().split('·')[0].slice(0,18)+'</span>':'');
+  } catch(e){}
+};
+try { window._mainPeeks(); setTimeout(window._mainPeeks, 2500); } catch(e){}   // late pass: hero picks render async
 
 // v689 PERF — background silence: page hidden ⇒ html.z-bg ⇒ all animations pause (CSS above).
 // Timers/data stay live (TZ countdown keeps counting — it repaints correctly on return).
