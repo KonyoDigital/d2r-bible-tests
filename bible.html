@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v43 · finalized</title>
+  <title>Konyo's D2R Farming Bible v687 · Session Cockpit</title>
+<meta name="d2r-build" content="v687">
+<meta name="d2r-build-date" content="2026-07-14">
+<meta name="d2r-build-note" content="P0: session home · intake review · identity">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
 *{box-sizing:border-box}
@@ -6903,6 +6906,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .dock-pin{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;max-width:220px;padding:6px 12px;border-radius:9px;border:1px solid rgba(212,168,71,.35);background:linear-gradient(180deg,rgba(240,192,96,.1),rgba(240,192,96,.02));color:var(--gold-bright);font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dock-pin:hover{background:rgba(240,192,96,.18)}
 .dock-pin.empty{color:var(--text-dim);border-color:var(--border);background:none}
+/* v687.1 — compact chip under 1560w: the full label was what wrapped the dock to a 2nd row at 1512 */
+@media (max-width:1560px){ .dock-pin{max-width:150px;font-size:11px;padding:4px 9px} .dock-pin.empty .dp-cta{display:none} }
 /* v686 — quick-rail freshness dots (Tools) */
 .tqu-btn .sc-dot{position:absolute;top:7px;right:7px}
 .tqu-btn{position:relative}
@@ -14095,6 +14100,10 @@ let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
 // Gem Stash: { gemFullName: count } map (e.g. "Perfect Amethyst":4). Powers the gem
 // cube-up planner. Gem socket stats are verified D2R game-data values (gems.json).
 let gemStash = _safeJsonParse(LS.getItem('d2r_gemStash'), {});
+
+try { window.gemStash = gemStash; } catch(e){}         // v687 — intake review undo/edit
+try { window.materialStash = materialStash; } catch(e){} // v687 — intake review undo/edit
+try { window.runeStash = runeStash; } catch(e){}       // v687 — re-bind after all stashes live
 // Crafted Items Workshop: { "<Craft> <Slot>": count } map (e.g. "Caster Amulet":2) — the
 // finished crafted rares the user owns. Ingredients are NOT stored here (cubeable status
 // reads live from runeStash + gemStash); this tracks only completed crafts (📸 AI intake).
@@ -16615,7 +16624,7 @@ function _progressSnapshot(){
   // can be sanity-read by eye across the 2×2 machine/account grid. `data` stays FLAT — _applyProgress
   // reads only .data, so v1 and v2 snapshots both restore everywhere.
   return JSON.stringify({ app:"d2r-bible", kind:"grail-progress", version:2,
-    meta:{ schemaVersion:2, profile:(window.D2R_PROFILE||'main'), machine:(window.D2R_MACHINE||'mac') },
+    meta:{ schemaVersion:2, build:(window.D2R_BUILD&&window.D2R_BUILD.id)||'v687', profile:(window.D2R_PROFILE||'main'), machine:(window.D2R_MACHINE||'mac') },
     exported:new Date().toISOString(), data:_collectProgress() }, null, 2);
 }
 function _backupStatus(msg, kind){ const el = $("backup-status"); if (!el) return; el.textContent = msg; el.className = "backup-status " + (kind || ""); }
@@ -22165,8 +22174,17 @@ if (_v39_origClearActiveBoss) {
 // restore and any stale hash are ignored at boot; in-session hash navigation (search jumps,
 // deep links you click AFTER load) still works exactly as before.
 _v39_whenReady(() => {
-  const _deep = (location.hash || '').indexOf('/') >= 0;   // v680 — deep-links (#bosses/baal) route themselves
-  if (!_deep) setTimeout(() => _v39_origSwitchTab('tools'), 0);
+  // v687 — Session Cockpit is the home screen (P0). Deep-links (#bosses/baal) still route.
+  // Opt out: localStorage d2r_v687_home = 'tools' | 'main' | any tab id.
+  const _deep = (location.hash || '').indexOf('/') >= 0;
+  if (!_deep) {
+    let home = 'session';
+    try {
+      const o = localStorage.getItem('d2r_v687_home');
+      if (o && document.querySelector('.tab[data-tab="'+o+'"]')) home = o;
+    } catch(e){}
+    setTimeout(() => _v39_origSwitchTab(home), 0);
+  }
   setTimeout(_v39_routeFromHash, 250);
 });
 
@@ -23869,10 +23887,19 @@ _v41_whenReady(() => {
   /* v685 — on wide screens the pill DOCKS into the control bar's left gutter (the dock centers a
      1240px inner at 92px+ side padding, so ≥1460px leaves ≥150px of free corner) instead of floating
      one row up where it sat ON TOP of the tool cards and bit their first words ("…unt your gems").
-     Narrow screens keep the v678 above-the-dock lift — there the gutter really is too small. */
+     Narrow screens keep the v678 above-the-dock lift — there the gutter really is too small.
+     v687.1 — gated on html:not(.dock-tall): when the dock wraps to 2+ rows (the v686 🎯 chip did it
+     at 1512w — Konyo's real window) the band has no free corner, so the pill lifts above instead;
+     --dock-h is now MEASURED live, so the lift is exact at every width. */
   @media (min-width: 1460px){
-    #v42-tz-countdown{ bottom: 14px; left: 12px; z-index: 121; }
+    html:not(.dock-tall) #v42-tz-countdown:not(.in-dock){ bottom: 14px; left: 12px; z-index: 121; }
   }
+  /* v687.1 — in-dock mode: the countdown is a dock CITIZEN (moved into .dock-inner at boot).
+     Static in the flex row → it can never overlap page content. The fixed-position rules above
+     remain only as the no-dock fallback. */
+  #v42-tz-countdown.in-dock{ position:static; box-shadow:none; padding:5px 11px; margin-right:4px; }
+  #v42-tz-countdown.in-dock.show{ display:inline-flex; align-items:baseline; gap:7px; }
+  #v42-tz-countdown.in-dock .v42-tz-label{ display:inline; margin-bottom:0; }
   #v42-tz-countdown .v42-tz-label {
     color: rgba(255,140,140,.7);
     font-size: 9.5px;
@@ -30995,15 +31022,132 @@ window._renderStashFresh = function(){
     }).join('');
   } catch(e){}
 };
-// observe intake completions (all call sites go through window.*, so the wrap is consumer-safe)
+// v687 — intake review: after AI tally, confirm / edit / undo before you trust Forge.
+// Vault stays touch-only (item filing is multi-object; not a flat count map).
 (function(){
-  function _wrapIntake(name, kind){
-    var orig = window[name]; if (typeof orig !== 'function' || orig.__v686) return;
-    var w = async function(){ var r = await orig.apply(this, arguments); try { window._stashTouch(kind); } catch(e){} return r; };
-    w.__v686 = true; window[name] = w;
+  var KEY = { runes:'d2r_runeStash', gems:'d2r_gemStash', materials:'d2r_materialStash' };
+  var MEM = { runes:'runeStash', gems:'gemStash', materials:'materialStash' };
+  var REND = { runes:'renderRuneStash', gems:'renderGemStash', materials:'renderMaterialStash' };
+
+  function _snap(kind){
+    try {
+      var mem = window[MEM[kind]];
+      if (mem && typeof mem === 'object') return JSON.parse(JSON.stringify(mem));
+    } catch(e){}
+    try { return JSON.parse(window.LSR.getItem(KEY[kind])||'{}')||{}; } catch(e){ return {}; }
   }
-  _wrapIntake('runeIntake','runes'); _wrapIntake('gemIntake','gems');
-  _wrapIntake('materialIntake','materials'); _wrapIntake('vaultIntake','vault');
+  function _diff(before, after){
+    var keys = {}, rows = [];
+    Object.keys(before||{}).forEach(function(k){ keys[k]=1; });
+    Object.keys(after||{}).forEach(function(k){ keys[k]=1; });
+    Object.keys(keys).sort().forEach(function(k){
+      var a = parseInt((before||{})[k],10)||0, b = parseInt((after||{})[k],10)||0;
+      if (a !== b) rows.push({ k:k, before:a, after:b, delta:b-a });
+    });
+    return rows;
+  }
+  function _writeStash(kind, obj){
+    try {
+      var mem = window[MEM[kind]];
+      if (mem && typeof mem === 'object'){
+        Object.keys(mem).forEach(function(k){ delete mem[k]; });
+        Object.keys(obj||{}).forEach(function(k){ var v=parseInt(obj[k],10); if(isFinite(v)&&v>0) mem[k]=v; });
+      }
+    } catch(e){}
+    try { window.LSR.setItem(KEY[kind], JSON.stringify(obj||{})); } catch(e){}
+    try {
+      // also bare localStorage path if LSR mirrors
+      if (window.LS && window.LS.setItem) window.LS.setItem(KEY[kind], JSON.stringify(obj||{}));
+    } catch(e){}
+    try { var rn = REND[kind]; if (typeof window[rn] === 'function') window[rn](); } catch(e){}
+    try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
+    try { if (typeof window.renderSessionCockpit === 'function') window.renderSessionCockpit(); } catch(e){}
+  }
+  function _ensureModal(){
+    var m = document.getElementById('v687-intake-modal');
+    if (m) return m;
+    m = document.createElement('div');
+    m.id = 'v687-intake-modal';
+    m.innerHTML = '<div class="v687-modal" role="dialog" aria-modal="true" aria-labelledby="v687-intake-title">'
+      + '<h3 id="v687-intake-title">Review intake</h3>'
+      + '<p class="v687-sub" id="v687-intake-sub"></p>'
+      + '<div id="v687-intake-table"></div>'
+      + '<div class="v687-actions">'
+      + '<button type="button" class="v687-btn ghost" id="v687-intake-undo">↩ Undo</button>'
+      + '<button type="button" class="v687-btn" id="v687-intake-edit">Apply edits</button>'
+      + '<button type="button" class="v687-btn primary" id="v687-intake-keep">✓ Keep</button>'
+      + '</div></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('open'); });
+    return m;
+  }
+  function _showReview(kind, before, after){
+    var rows = _diff(before, after);
+    if (!rows.length){ try { window._stashTouch(kind); } catch(e){} return; }
+    var modal = _ensureModal();
+    document.getElementById('v687-intake-title').textContent = 'Review ' + kind + ' intake';
+    document.getElementById('v687-intake-sub').textContent = rows.length + ' change' + (rows.length===1?'':'s')
+      + ' from vision — confirm, edit counts, or undo before Forge trusts this.';
+    var wrap = document.getElementById('v687-intake-table');
+    wrap.innerHTML = '<table class="v687-diff"><thead><tr><th>Item</th><th>Before</th><th>Δ</th><th>After</th></tr></thead><tbody>'
+      + rows.map(function(r){
+          var cls = r.delta>0?'up':'down';
+          return '<tr><td>'+String(r.k).replace(/</g,'&lt;')+'</td><td class="same">'+r.before+'</td>'
+            + '<td class="'+cls+'">'+(r.delta>0?'+':'')+r.delta+'</td>'
+            + '<td><input type="number" min="0" step="1" data-key="'+String(r.k).replace(/"/g,'&quot;')+'" value="'+r.after+'"></td></tr>';
+        }).join('')
+      + '</tbody></table>';
+    modal.classList.add('open');
+    function close(){ modal.classList.remove('open'); }
+    document.getElementById('v687-intake-keep').onclick = function(){
+      try { window._stashTouch(kind); } catch(e){}
+      close();
+    };
+    document.getElementById('v687-intake-undo').onclick = function(){
+      _writeStash(kind, before);
+      try { window._stashTouch(kind); } catch(e){}
+      close();
+    };
+    document.getElementById('v687-intake-edit').onclick = function(){
+      var next = JSON.parse(JSON.stringify(before||{}));
+      wrap.querySelectorAll('input[data-key]').forEach(function(inp){
+        var k = inp.getAttribute('data-key');
+        var v = parseInt(inp.value, 10);
+        if (isFinite(v) && v > 0) next[k] = v; else delete next[k];
+      });
+      _writeStash(kind, next);
+      try { window._stashTouch(kind); } catch(e){}
+      close();
+    };
+  }
+
+  function _wrapIntake(name, kind, review){
+    var orig = window[name];
+    if (typeof orig !== 'function' || orig.__v687) return;
+    // unwrap prior v686 wrapper if present by not stacking — only wrap once
+    if (orig.__v686 && !orig.__v687) {
+      // still wrap the v686 wrap; double-touch is ok
+    }
+    var w = async function(){
+      var before = review ? _snap(kind) : null;
+      var r = await orig.apply(this, arguments);
+      try {
+        if (review){
+          var after = _snap(kind);
+          _showReview(kind, before, after);
+        } else {
+          window._stashTouch(kind);
+        }
+      } catch(e){ try { window._stashTouch(kind); } catch(e2){} }
+      return r;
+    };
+    w.__v687 = true; w.__v686 = true;
+    window[name] = w;
+  }
+  _wrapIntake('runeIntake','runes', true);
+  _wrapIntake('gemIntake','gems', true);
+  _wrapIntake('materialIntake','materials', true);
+  _wrapIntake('vaultIntake','vault', false);
 })();
 
 // ── session-target pin (d2r_chroniclePin: a runeword OR grail item name) ──
@@ -31018,7 +31162,7 @@ window._renderDockPin = function(){
   var el = document.getElementById('dock-pin'); if (!el) return;
   var pin = window._sessionPinGet();
   if (pin){ el.classList.remove('empty'); el.innerHTML = '🎯 <b>'+_scEsc(pin)+'</b>'; }
-  else { el.classList.add('empty'); el.textContent = '🎯 set a session target'; }
+  else { el.classList.add('empty'); el.innerHTML = '🎯 <span class="dp-cta">set a session target</span>'; }   /* v687.1 — the CTA text hides at ≤1560w so the empty chip never wraps the dock */
 };
 function _scEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -31117,6 +31261,94 @@ window.renderSessionCockpit = function(){
 
 // boot — the dock chip + freshness dots exist on every tab from the first paint
 try { window._renderDockPin(); window._renderStashFresh(); } catch(e){}
+
+// v687.1 — --dock-h becomes a MEASUREMENT, not a guess. The static 84px lied the moment the dock
+// wrapped to a second row (v686's 🎯 chip at ≤1560w): the TZ pill lifted into card text and the
+// body's safe-area under-padded, so the last card slid beneath the bar (Konyo saw both live).
+// Every consumer (TZ pill, shortcut-hint, body padding) already reads the var — one observer
+// fixes them all, at every width, forever. .dock-tall gates the pill's corner-docking off when
+// the band has no free corner.
+try {
+  var _dockEl = document.querySelector('#control-dock .dock-inner');
+  var _dockSync = function(){
+    try {
+      var h = _dockEl ? Math.ceil(_dockEl.getBoundingClientRect().height) + 14 : 84;   // +14 = the dock's bottom padding
+      if (h < 60) h = 84;                                                              // collapsed/hidden dock → keep the floor sane
+      document.documentElement.style.setProperty('--dock-h', h + 'px');
+      document.documentElement.classList.toggle('dock-tall', h > 104);
+    } catch(e){}
+  };
+  if (_dockEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_dockSync).observe(_dockEl); }
+  window.addEventListener('resize', _dockSync);
+  _dockSync();
+  // v687.1 — the TZ countdown RIDES IN the dock band (first item) instead of floating above it:
+  // one bottom collision system, zero card overlap at any width (the float was still biting the
+  // 4th cockpit card at 1512w even with an exact lift). Fixed-position CSS stays as the fallback
+  // for a missing dock.
+  var _tzC = document.getElementById('v42-tz-countdown');
+  if (_tzC && _dockEl){ _dockEl.insertBefore(_tzC, _dockEl.firstChild); _tzC.classList.add('in-dock'); }
+} catch(e){}
 </script>
+
+<style id="v687-p0-styles">
+/* v687 P0 — build badge + intake review modal */
+#v687-build-badge{
+  /* v687.1 polish — top-LEFT: the top-right corner belongs to the MAC/WINDOWS + MAIN/LADDER pills
+     (the badge was sitting on top of them — Konyo saw the overlap live) */
+  position:fixed;top:6px;left:8px;z-index:9990;pointer-events:none;
+  font:10px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.02em;
+  color:var(--text-muted,#b5a48a);background:rgba(10,8,5,.78);
+  border:1px solid var(--border,#3a2f1e);border-radius:6px;padding:3px 7px;opacity:.9;
+}
+body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28px}  /* ribbons live left too */
+#v687-intake-modal{
+  position:fixed;inset:0;z-index:10060;display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.72);padding:16px;
+}
+#v687-intake-modal.open{display:flex}
+.v687-modal{
+  width:min(560px,100%);max-height:min(80vh,720px);overflow:auto;
+  background:var(--surface,#1a140d);border:1px solid var(--border,#3a2f1e);
+  border-radius:14px;padding:16px 18px;box-shadow:0 20px 60px rgba(0,0,0,.55);
+  color:var(--text,#f4e8d0);
+}
+.v687-modal h3{margin:0 0 6px;color:var(--gold-bright,#f0c060);font-size:1.05rem}
+.v687-sub{margin:0 0 12px;font-size:12px;color:var(--text-muted,#b5a48a);line-height:1.4}
+.v687-diff{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+.v687-diff th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--text-muted,#b5a48a);padding:4px 6px;border-bottom:1px solid var(--border,#3a2f1e)}
+.v687-diff td{padding:5px 6px;border-bottom:1px solid rgba(58,47,30,.45);font-variant-numeric:tabular-nums}
+.v687-diff .up{color:#66ff88}.v687-diff .down{color:#ff6060}.v687-diff .same{color:var(--text-muted,#b5a48a)}
+.v687-diff input{
+  width:56px;background:var(--surface-3,#2f261a);border:1px solid var(--border,#3a2f1e);
+  color:var(--text,#f4e8d0);border-radius:4px;padding:2px 4px;font:inherit;
+}
+.v687-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:8px}
+.v687-btn{
+  cursor:pointer;font:600 12px/1.2 inherit;padding:7px 12px;border-radius:7px;
+  border:1px solid var(--border,#3a2f1e);background:var(--surface-3,#2f261a);color:var(--text,#f4e8d0);
+}
+.v687-btn:hover{border-color:var(--gold-bright,#f0c060);color:var(--gold-bright,#f0c060)}
+.v687-btn.primary{background:linear-gradient(135deg,rgba(240,192,96,.28),rgba(240,192,96,.1));
+  border-color:rgba(240,192,96,.5);color:var(--gold-bright,#f0c060)}
+.v687-btn.ghost{background:transparent}
+@media (max-width:720px){#v687-build-badge{display:none}}
+</style>
+<script id="v687-p0-boot">
+(function(){
+  window.D2R_BUILD = { id:'v687', name:'Session Cockpit', date:'2026-07-14', note:'P0 session home + intake review' };
+  function badge(){
+    if (document.getElementById('v687-build-badge')) return;
+    var el = document.createElement('div');
+    el.id = 'v687-build-badge';
+    el.title = 'D2R Bible build';
+    el.textContent = 'v687 · Session Cockpit · 2026-07-14';
+    document.body.appendChild(el);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', badge);
+  else badge();
+})();
+</script>
+
 </body>
 </html>

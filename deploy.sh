@@ -33,6 +33,8 @@ mkdir -p "$DIST/d2r"
 cp bible.html "$DIST/d2r/index.html"   # served at /d2r/
 cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
 cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
+# v687 — do NOT ship orphan /d2r/v44/* (Session Cockpit is native in bible.html; external
+# v44 CSS/JS/SW were a dead layer and caused ghost/404 confusion). Dist is only index+art+functions.
 # v657 — CACHE LOCKDOWN: Konyo's tabs kept serving WEEKS-old HTML from browser cache for URLs
 # with stale ?v=/?cb= params (the recurring 'this bug is still there' ghost — routines widget,
 # tooltip fixes, all of it). The HTML must always revalidate; the art can cache forever.
