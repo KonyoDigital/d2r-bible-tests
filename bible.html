@@ -5660,7 +5660,7 @@ try {
   </div>
 
   <div class="colossal" id="binds-tierlist">
-    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--best);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--best);margin-bottom:5px">The Verdict · Ranked Best → Budget</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🏆 Best Warlock Binds — Tier List <span class="sec-chev">▾</span></h3></div>
+    <div class="tier-header sec-h collapsed" onclick="toggleSec(this)" style="border-left:3px solid var(--best);padding:2px 0 2px 14px;margin:0 0 16px"><div style="font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:var(--best);margin-bottom:5px">The Verdict · Ranked Best → Budget</div><h3 style="font-family:var(--serif-display,Georgia,serif);font-size:23px;font-weight:600;color:var(--text);margin:0;border:none">🏆 Best Warlock Binds — Tier List <span class="sec-h-peek" style="font-size:12.5px"><b style="color:var(--best)">S</b>&nbsp;Hephasto · TZ Urdar · Lister</span> <span class="sec-chev">▾</span></h3><!-- v693 🏓R3: the tab's whole answer peeks on the closed verdict row --></div>
     <div class="sec-body" hidden>
     <div class="gic-card material-card binds-tierlist-card">
       <header class="gic-header">
@@ -21408,6 +21408,7 @@ function switchTab(name) {
   if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount();   // v535 — live loot-filter base count
   if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights();          // v543 — smart Chronicle insights
   if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit();      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
+  if (name === "main" && typeof window._mainPeeks === "function") setTimeout(window._mainPeeks, 600);              // v693 🏓R3 — closed-row peeks refresh after the async boards paint
 }
 
 // ===== TZ TRACKER (live terror-zone tab) =====
@@ -21462,8 +21463,16 @@ function renderTzTracker(data){
   const body = document.getElementById('tztracker-body');
   if (!body) return;
   if (data === 'offline'){
-    body.innerHTML = '<div class="tzt-offline">📡 Live rotation needs the online site — open '
-      + '<a href="https://bull-4-u.com/d2r/" target="_blank" rel="noopener">bull-4-u.com/d2r</a> to see the current terror zone.</div>';
+    // v693 🏓R3 — offline is a usable fallback, not a dead page: button-weight CTA + the hardcoded
+    // always-huntable doctrine as jump chips (no fake live data — just where the S-tier truth lives).
+    body.innerHTML = '<div class="tzt-offline">📡 Live rotation needs the online site.'
+      + '<div style="margin:12px 0 14px"><a class="fs-btn" style="display:inline-block;padding:8px 16px;border:1px solid rgba(212,168,71,.5);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.15),rgba(240,192,96,.04));color:var(--gold-bright);text-decoration:none" href="https://bull-4-u.com/d2r/" target="_blank" rel="noopener">Open the live tracker → bull-4-u.com/d2r</a></div>'
+      + '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">meanwhile — the always-worth-it runs (no TZ needed):</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + [['travincal','⚔ Travincal'],['countess','🗝 Countess'],['pindle','❄ Pindleskin'],['cows','🐄 Cows'],['pit','⛏ The Pit']].map(function(x){
+          return '<button type="button" class="sc-chip" style="cursor:pointer" onclick="switchTab(\'bosses\');setTimeout(function(){try{window.openBossDetail(\''+x[0]+'\')}catch(e){}},150)">'+x[1]+'</button>';
+        }).join('')
+      + '</div></div>';
     return;
   }
   if (data === 'error'){
@@ -30802,11 +30811,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // set means its pieces stop being farm targets everywhere — the run lists above already exclude
     // them (piece-centric missing scan), the seal makes the achievement readable.
     if((F==='all'||F==='done')&&(s.done||[]).length){
-      H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">⚔ Completed sets <span class="forge-sec-ct">'+s.done.length+'</span><span class="forge-sec-sub">every piece found — these no longer appear in any farm list</span></div>');
-      H.push(_moreWrap(s.done.map(function(r){
-        return '<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(r.name.replace(/\s*\(set\)$/i,''))+' — set complete</span><span class="rw-band-s">all '+r.pieces.length+' pieces found · spares are trade loot</span></div>';
-      }), F==='done'?12:5, 'complete sets'));   // v647
-      H.push('</div>');
+      // v693 🏓R3 (Grok: 'the page celebrates history harder than the remaining 27') — on ▦ All the
+      // completed wall collapses to ONE summary band; the full seal list lives on ✅ (F==='done').
+      if (F==='all'){
+        H.push('<div class="forge-sec forge-sec-done"><div class="rw-stamp-mini rw-band" style="margin:6px 0;cursor:pointer" onclick="window.fsetsSetFilter?window.fsetsSetFilter(\'done\'):null" title="open the ✅ view for the full seal list">'
+          +'<span class="rw-band-t">✓ '+s.done.length+' sets complete</span><span class="rw-band-s">spares are trade loot · click for the seal wall</span></div></div>');
+      } else {
+        H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">⚔ Completed sets <span class="forge-sec-ct">'+s.done.length+'</span><span class="forge-sec-sub">every piece found — these no longer appear in any farm list</span></div>');
+        H.push(_moreWrap(s.done.map(function(r){
+          return '<div class="rw-stamp-mini rw-band" style="margin:6px 0"><span class="rw-band-t">✓ '+esc(r.name.replace(/\s*\(set\)$/i,''))+' — set complete</span><span class="rw-band-s">all '+r.pieces.length+' pieces found · spares are trade loot</span></div>';
+        }), 12, 'complete sets'));   // v647
+        H.push('</div>');
+      }
     }
     // HERO — a quick-win piece if one exists, else the top run (same priority spirit as uniques)
     if(F!=='done'){
@@ -31812,7 +31828,20 @@ window._mainPeeks = function(){
     var pp = document.getElementById('picks-peek');
     var first = document.querySelector('#hero-picks .hero-pick .hero-pick-item');
     var boss = document.querySelector('#hero-picks .hero-pick .hero-pick-boss');
-    if (pp && first) pp.innerHTML = '<span class="pk-dim">#1</span> '+first.textContent.trim().slice(0,26)+(boss?' <span class="pk-dim">· '+boss.textContent.trim().split('·')[0].slice(0,18)+'</span>':'');
+    var odds = document.querySelector('#hero-picks .hero-pick .hero-pick-chance');   // v693 🏓R3 — the numeric answers, not just the name
+    if (pp && first) pp.innerHTML = '<span class="pk-dim">#1</span> '+first.textContent.trim().slice(0,26)
+      +(boss?' <span class="pk-dim">· '+boss.textContent.trim().split('·')[0].slice(0,18)+'</span>':'')
+      +(odds?' <b>'+odds.textContent.trim().split('·')[0].trim().slice(0,12)+'</b>':'');
+  } catch(e){}
+  try {
+    // v693 🏓R3 — Most Wanted closed row peeks its #1 demand
+    var mwT = document.querySelector('.mw-title');
+    if (mwT && !document.getElementById('mw-peek')){
+      var sp = document.createElement('span'); sp.id='mw-peek'; sp.className='sec-h-peek';
+      var chev = mwT.querySelector('.sec-chev'); mwT.insertBefore(sp, chev);
+    }
+    var mwEl = document.getElementById('mw-peek');
+    if (mwEl && typeof MW_TOP10 !== 'undefined' && MW_TOP10[0]) mwEl.innerHTML = '<span class="pk-dim">#1</span> '+String(MW_TOP10[0].n).slice(0,24)+' <span class="pk-dim">· '+(MW_TOP10.filter(function(x){return x.dt==='S';}).length)+' S-tier</span>';   /* v693 — peek from the hardcoded board, not the collapsed DOM */
   } catch(e){}
 };
 try { window._mainPeeks(); setTimeout(window._mainPeeks, 2500); } catch(e){}   // late pass: hero picks render async
