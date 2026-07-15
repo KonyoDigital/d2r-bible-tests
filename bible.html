@@ -9,7 +9,7 @@
 <meta name="d2r-build-date" content="2026-07-15">
 <meta name="d2r-build-note" content="Task Force · RoW odds COMPLETE: council/cows/pit (v697-699) · 14-SU wave · exact council runes (Zod=TZ-only) · 11 TZ zone dwellers (v700) · owned-collapse + sealed quiet + TZ×wishlist weld (v701)">
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5;margin:0}
 html{scroll-behavior:smooth}
@@ -102,7 +102,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .legend-item-text{flex:1}
 .legend-item-title{font-size:12px;color:var(--text);font-weight:600;line-height:1.3}
 .legend-item-desc{font-size:11px;color:var(--text-muted);line-height:1.4;margin-top:2px}
-.boss-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);border-radius:12px;margin:20px 0;overflow:hidden;scroll-margin-top:130px;content-visibility:auto;contain-intrinsic-size:auto 90px}
+.boss-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);border-radius:12px;margin:20px 0;overflow:hidden;scroll-margin-top:var(--scroll-pad-card);content-visibility:auto;contain-intrinsic-size:auto 90px}
 .boss-header{background:linear-gradient(90deg,var(--surface-3),var(--surface-2));border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:14px}
 .boss-emoji{font-size:40px;line-height:1;filter:drop-shadow(0 0 8px rgba(212,168,71,.5))}
 /* v341.10 — premium Tools-tab cards: each carries a themed accent (--tc) so the whole Tools tab
@@ -343,7 +343,7 @@ h3{color:var(--gold-bright);font-size:16px;font-weight:500;margin:20px 0 10px}
 #tab-binds .colossal h3.sec-h:hover{color:var(--gold-bright)}
 #tab-binds .colossal h3.sec-h:not(.collapsed){color:var(--gold-bright)}
 .sec-body[hidden]{display:none}
-h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-margin-top:70px}
+h2,h3,.sec-h,.zd-item-click,.boss-card,.event-card,.su-card,#item-detail{scroll-margin-top:var(--chrome-top)}
 .statue-tracker{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:12px 0}
 .cs-group-head{font-size:13px;font-weight:700;letter-spacing:.3px;color:var(--gold);border-bottom:1px solid rgba(201,161,74,.2);padding-bottom:6px;margin:16px 0 9px}
 .colossal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px;margin-bottom:6px}
@@ -1261,8 +1261,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .crystal-foot{font-size:11px;color:var(--text-dim);margin-top:9px;line-height:1.55;border-top:1px dotted var(--border);padding-top:8px}
 /* v78 — Uber Boss ID cards (9): 3 mini-ubers + 3 Tristram trio + 3 Colossal Ancients */
 /* Routable detail cards land on their TITLE under the sticky header (block:'start') */
-#bindsu-detail,#herald-card,.tz-crosslink-card,.su-card,.tz-zone-card{scroll-margin-top:150px}
-.uber-boss-card{border:1px solid var(--border-light);border-left:3px solid var(--uber);border-radius:10px;margin:10px 0;background:var(--surface-2);overflow:hidden;scroll-margin-top:150px}
+#bindsu-detail,#herald-card,.tz-crosslink-card,.su-card,.tz-zone-card{scroll-margin-top:var(--scroll-pad-deep)}
+.uber-boss-card{border:1px solid var(--border-light);border-left:3px solid var(--uber);border-radius:10px;margin:10px 0;background:var(--surface-2);overflow:hidden;scroll-margin-top:var(--scroll-pad-deep)}
 .uber-boss-card.open{box-shadow:0 0 0 1px rgba(255,0,212,.12),0 0 16px rgba(170,110,200,.10)}
 .ubc-head{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer}
 .ubc-head:hover{background:rgba(170,110,200,.06)}
@@ -2181,8 +2181,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .boss-nav-sticky .boss-nav-group-chips .boss-chip .emoji{font-size:17px}
 
   /* aid-card scroll target: when arriving from a boss click, scroll-margin-top accounts for sticky */
-  .aid-card{scroll-margin-top:150px}
-  #item-detail{scroll-margin-top:150px}
+  .aid-card{scroll-margin-top:var(--scroll-pad-deep)}
+  #item-detail{scroll-margin-top:var(--scroll-pad-deep)}
 
   /* back-nav button inside aid-card header */
   .aid-back-btn{background:linear-gradient(180deg,rgba(255,212,128,.12),rgba(255,212,128,.04));border:1px solid var(--gold-dim);color:var(--gold-bright);padding:5px 11px;border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.3px;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
@@ -2192,7 +2192,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   @media (max-width:720px){
     html{scroll-padding-top:110px}
     .boss-nav-sticky{top:54px}
-    .aid-card{scroll-margin-top:120px}
+    .aid-card{scroll-margin-top:calc(var(--chrome-top) + 50px)}
   }
 
 
@@ -3206,6 +3206,27 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .lf-status{font-size:11.5px;margin-left:10px;font-family:var(--mono,monospace)}
 /* v548 — Quick-upload shortcut: richer HD-art cards + a "shortcut on the side" header (legend-style cool) */
 #tab-tools .tools-quickup{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap;margin:2px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(157,123,216,.13),rgba(157,123,216,.03));border:1px solid rgba(157,123,216,.26);border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,.2)}
+/* v705 — TOOLS INDEX + RANKED CHROME (Grok wave P3): a wayfinding chip row over the 17 cards
+   (grouped by job, chip = jump + pulse), and TWO card voices — the four do-now planners keep
+   the full premium glow, everything else drops to a quieter shelf tone. Nothing moves. */
+.tools-index{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 14px;padding:9px 13px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.015)}
+.tools-index .ti-g{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.tools-index .ti-gl{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);margin-right:2px;white-space:nowrap}
+.tools-index .ti-chip{font:inherit;font-size:11px;color:var(--text);background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;white-space:nowrap;transition:border-color .13s,background .13s,color .13s}
+.tools-index .ti-chip:hover{border-color:var(--gold-dim);color:var(--gold-bright);background:rgba(240,192,96,.07)}
+.tools-index .ti-chip.ti-hot{border-color:rgba(240,192,96,.45);color:var(--gold-bright);background:rgba(240,192,96,.06);font-weight:600}
+#tab-tools .tool-premium:not(.tool-primary){border-color:color-mix(in srgb,var(--tc,#f0c060) 16%,var(--border));box-shadow:0 5px 18px -16px color-mix(in srgb,var(--tc,#f0c060) 40%,transparent)}
+#tab-tools .tool-premium:not(.tool-primary) .boss-header .boss-emoji{opacity:.72;transform:scale(.88)}
+#tab-tools .tool-primary{border-color:color-mix(in srgb,var(--tc,#f0c060) 45%,var(--border));box-shadow:0 10px 30px -14px color-mix(in srgb,var(--tc,#f0c060) 85%,transparent),inset 0 1px 0 rgba(255,255,255,.04)}
+.tool-jump-pulse{animation:tjpulse 1.2s ease 1}
+@keyframes tjpulse{0%{outline:2px solid rgba(240,192,96,.0);outline-offset:2px}25%{outline:2px solid rgba(240,192,96,.85)}100%{outline:2px solid rgba(240,192,96,0)}}
+/* v707 — LORE TOC: one sticky chip rail on the encyclopedia tabs (ref · binds · RotW). Single
+   row, side-scroll, fade edge — a map, never another wall. Sticky offset derives from the
+   v706 chrome token, nowhere else. */
+.lore-toc{position:sticky;top:calc(var(--chrome-top) - 22px);z-index:60;display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:8px 34px 8px 12px;border:1px solid var(--border);border-radius:11px;background:linear-gradient(180deg,rgba(20,15,9,.97),rgba(14,10,6,.97));overflow-x:auto;white-space:nowrap;scrollbar-width:thin;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
+.lore-toc .lt-l{font-size:13px;color:var(--gold-dim);flex:0 0 auto}
+.lore-toc .lt-chip{flex:0 0 auto;font:inherit;font-size:var(--fs-meta);color:var(--text-muted);background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;max-width:200px;overflow:hidden;text-overflow:ellipsis;transition:border-color .13s,color .13s,background .13s}
+.lore-toc .lt-chip:hover{border-color:var(--gold-dim);color:var(--gold-bright);background:rgba(240,192,96,.07)}
 #tab-tools .tqu-head{display:flex;align-items:center;gap:10px;padding-right:14px;border-right:1px solid rgba(157,123,216,.22)}
 #tab-tools .tqu-cam{font-size:24px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
 #tab-tools .tqu-headtxt{display:flex;flex-direction:column;line-height:1.2}
@@ -3500,16 +3521,23 @@ try {
   <div class="tabs">
    <div class="tabs-data">
     <button class="tab active" data-tab="main">🏠 main</button>
-    <button class="tab" data-tab="bosses">🗺️ bosses</button>
-    <button class="tab" data-tab="calc">🔍 calculator</button>
-    <button class="tab" data-tab="tz">🔥 TZ zones</button>
-    <button class="tab" data-tab="tztracker">📡 TZ tracker</button>
-    <button class="tab" data-tab="runes">🪨 runes</button>
-    <button class="tab" data-tab="rotw">👑 RotW special</button>
-    <button class="tab" data-tab="ancients">🔥 events</button>
-    <button class="tab" data-tab="endgame">⛓️ endgame</button>
-    <button class="tab" data-tab="binds">🔱 binds</button>
-    <button class="tab" data-tab="ref">📐 reference</button>
+    <!-- v703 — NAV CLUSTERS (Grok wave, CSS separators only — v641 order untouched): the 11 data
+         tabs read as ONE flat flag; group HUNT (where do I farm) vs LORE (rules & reference) with
+         quiet frames + micro-captions so wayfinding is instant. main stays alone as the front door. -->
+    <div class="tabs-cluster tc-hunt" data-cluster="HUNT" title="HUNT — where to farm: bosses, odds, terror zones, runes">
+     <button class="tab" data-tab="bosses">🗺️ bosses</button>
+     <button class="tab" data-tab="calc">🔍 calculator</button>
+     <button class="tab" data-tab="tz">🔥 TZ zones</button>
+     <button class="tab" data-tab="tztracker">📡 TZ tracker</button>
+     <button class="tab" data-tab="runes">🪨 runes</button>
+    </div>
+    <div class="tabs-cluster tc-lore" data-cluster="LORE" title="LORE — rules & reference: RotW truth, events, endgame, binds">
+     <button class="tab" data-tab="rotw">👑 RotW special</button>
+     <button class="tab" data-tab="ancients">🔥 events</button>
+     <button class="tab" data-tab="endgame">⛓️ endgame</button>
+     <button class="tab" data-tab="binds">🔱 binds</button>
+     <button class="tab" data-tab="ref">📐 reference</button>
+    </div>
    </div>
    <!-- v641 — ⚒ THE WORKSHOP: the DOING tabs (Konyo: "all the other tabs are literally just
         info/data — these should be highlighted and emphasized, structured together as a group") -->
@@ -4204,7 +4232,18 @@ try {
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="mule-vault-card" style="--tc:#f0c060">
+  <!-- v705 — TOOLS INDEX (Grok wave P3): 17 equal gold cards read as a warehouse. One chip row
+       maps the room — grouped by JOB, each chip jumps to (and pulses) its card. No card moved,
+       no card hidden: every id keeps its place, the index is pure wayfinding on top. -->
+  <div class="tools-index" id="tools-index">
+    <span class="ti-g"><span class="ti-gl">⚡ do now</span><button class="ti-chip ti-hot" onclick="window._toolJump('mule-vault-card')">🏦 vault</button><button class="ti-chip ti-hot" onclick="window._toolJump('rune-stash-card')">🪨 runes</button><button class="ti-chip ti-hot" onclick="window._toolJump('rw-chronicle-card')">📜 chronicle</button><button class="ti-chip ti-hot" onclick="window._toolJump('smart-insights-card')">🧠 insights</button></span>
+    <span class="ti-g"><span class="ti-gl">📦 stashes</span><button class="ti-chip" onclick="window._toolJump('gem-stash-card')">💎 gems</button><button class="ti-chip" onclick="window._toolJump('material-stash-card')">🜍 materials</button></span>
+    <span class="ti-g"><span class="ti-gl">⚗️ craft &amp; cube</span><button class="ti-chip" onclick="window._toolJump('craft-workshop-card')">⚗️ crafts</button><button class="ti-chip" onclick="window._toolJump('horadric-recipe-card')">🧪 recipes</button><button class="ti-chip" onclick="window._toolJump('sunder-recipe-card')">🌀 sunders</button></span>
+    <span class="ti-g"><span class="ti-gl">🗺 planners</span><button class="ti-chip" onclick="window._toolJump('ai-item-checker-card')">🔬 AI checker</button><button class="ti-chip" onclick="window._toolJump('all-runewords-card')">📖 runewords</button><button class="ti-chip" onclick="window._toolJump('rw-bases-card')">🛡 bases</button><button class="ti-chip" onclick="window._toolJump('loot-filters-card')">🎯 loot filter</button><button class="ti-chip" onclick="window._toolJump('set-tracker-card')">🧩 sets</button></span>
+    <span class="ti-g"><span class="ti-gl">💰 values</span><button class="ti-chip" onclick="window._toolJump('item-values-card')">💰 worth</button><button class="ti-chip" onclick="window._toolJump('item-rarity-card')">🏆 rarity</button><button class="ti-chip" onclick="window._toolJump('hvf-card')">⭐ HVF</button></span>
+  </div>
+
+  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="mule-vault-card" style="--tc:#f0c060">
     <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_gold.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
       <div class="boss-title-block">
@@ -4304,7 +4343,7 @@ try {
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="rune-stash-card" style="--tc:#ffa800">
+  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="rune-stash-card" style="--tc:#ffa800">
     <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/runeZod_icon.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,150,50,.5))" decoding="async"></span>
       <div class="boss-title-block">
@@ -4396,7 +4435,7 @@ try {
   </div>
 
   <!-- v369 — Chronicle: Runeword Maker — what you can forge NOW (synced w/ Rune Stash) + what you've already created -->
-  <div class="boss-card collapsible collapsed tool-premium" id="rw-chronicle-card" style="--tc:#b58cff">
+  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="rw-chronicle-card" style="--tc:#b58cff">
     <div class="boss-header" onclick="window.toggleCardCollapse('rw-chronicle-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center;font-size:24px">📖</span>
       <div class="boss-title-block">
@@ -5020,7 +5059,7 @@ try {
   };
   </script>
 
-  <div class="boss-card collapsible collapsed tool-premium" id="smart-insights-card" style="--tc:#9d7bd8">
+  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="smart-insights-card" style="--tc:#9d7bd8">
     <div class="boss-header" onclick="window.toggleCardCollapse('smart-insights-card'); window.renderSmartInsights&&window.renderSmartInsights();" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="font-size:30px">🧠</span>
       <div class="boss-title-block">
@@ -21494,6 +21533,11 @@ function switchTab(name) {
   document.querySelectorAll(".tab-content").forEach(x => x.classList.remove("active"));
   _tabBtn.classList.add("active");
   _tabEl.classList.add("active");
+  // v703 — stamp the active tab on <html> so CSS can scope per-tab chrome (the system-tray
+  // FABs read this: forge legend only on the forge family, tools legend only on tools).
+  try { document.documentElement.setAttribute("data-tab", name); } catch(e){}
+  // v707 — lore tabs render sections late; build their TOC rail on first entry (idempotent)
+  if ((name === "ref" || name === "binds" || name === "rotw") && window._buildLoreTocs) window._buildLoreTocs();
   // v607 — glide the tab in (transform/opacity only; class self-removes so re-entry replays)
   try { _tabEl.classList.remove("tab-in"); void _tabEl.offsetWidth; _tabEl.classList.add("tab-in"); setTimeout(function(){ _tabEl.classList.remove("tab-in"); }, 400); } catch(e){}
   // v28: ensure data-boss-id is set on TZ zones when tab becomes visible
@@ -22142,6 +22186,39 @@ renderSpecialDrops();
 renderEventRef();
 tagTzZonesWithBossId();
 buildNavWidget();
+// v707 — LORE TOC (Grok wave P5): the long-form tabs (reference · binds · RotW) are encyclopedias —
+// dozens of section headers, no map. One sticky chip row per tab, built from the tab's OWN .sec-h
+// headers (no copies to drift): chip = open-if-collapsed + glide to the section.
+window._buildLoreTocs = function(){
+  ["ref","binds","rotw"].forEach(function(tn){
+    try {
+      var tab = document.getElementById("tab-"+tn); if (!tab) return;
+      if (tab.querySelector(".lore-toc")) return;   // idempotent — some tabs render their sections late, we retry on entry
+      var hs = [...tab.querySelectorAll(".sec-h")].filter(function(h){ return h.querySelector(".sec-h-t"); });
+      if (hs.length < 5) return;
+      var row = document.createElement("div"); row.className = "lore-toc";
+      var lab = document.createElement("span"); lab.className = "lt-l"; lab.textContent = "☰"; row.appendChild(lab);
+      hs.forEach(function(h, i){
+        if (!h.id) h.id = "lt-"+tn+"-"+i;
+        var t = (h.querySelector(".sec-h-t").textContent || "").trim();
+        var b = document.createElement("button"); b.className = "lt-chip"; b.setAttribute("data-t", h.id);
+        b.textContent = t; b.title = t;
+        row.appendChild(b);
+      });
+      row.addEventListener("click", function(e){
+        var b = e.target.closest(".lt-chip"); if (!b) return;
+        var h = document.getElementById(b.getAttribute("data-t")); if (!h) return;
+        if (h.classList.contains("collapsed")) h.click();
+        h.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      var lead = tab.querySelector(".lead");
+      if (lead) lead.insertAdjacentElement("afterend", row);
+      else tab.insertAdjacentElement("afterbegin", row);
+    } catch(e){}
+  });
+};
+window._buildLoreTocs();
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", window._buildLoreTocs);
 if (typeof renderWishlistHuntPath === "function") renderWishlistHuntPath();
 
 // keyboard shortcuts (v12 enhanced)
@@ -22402,6 +22479,19 @@ window.switchTab = function(name) {
       history.replaceState(null, '', newHash);
     }
   } catch(e) {}
+};
+// v703 — boot stamp: switchTab only fires on a CHANGE, so the initial tab (main, or the
+// persisted one restored below) must stamp <html data-tab> itself for per-tab chrome CSS.
+try { document.documentElement.setAttribute("data-tab", document.querySelector(".tab.active")?.getAttribute("data-tab") || "main"); } catch(e){}
+// v705 — tools-index chip → jump to a card and pulse its frame. Never auto-expands
+// (expanding fires the card's render; the user asks for that by clicking the header).
+window._toolJump = function(id){
+  try {
+    var el = document.getElementById(id); if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.classList.remove("tool-jump-pulse"); void el.offsetWidth; el.classList.add("tool-jump-pulse");
+    setTimeout(function(){ el.classList.remove("tool-jump-pulse"); }, 1400);
+  } catch(e){}
 };
 
 // --- URL hash routing: react to manual #anchor changes (back/forward, paste)
@@ -25797,7 +25887,7 @@ html.detail-open .control-dock:hover, html.runs-open .control-dock:hover{ transf
 .control-dock{ transition:transform .25s ease, opacity .25s ease }
 /* v694 🏓R6 — expanding a Tools work card OWNS the viewport (expand-without-scroll was the round-6
    diagnosis: 'you cannot mule what you cannot see') */
-#tab-tools .sec-h{ scroll-margin-top:130px }
+#tab-tools .sec-h{ scroll-margin-top:var(--scroll-pad-card) }
 /* v694 🏓R6 — the footer erase lives in a CLOSED danger drawer: never the brightest control in a void */
 .footer details.danger-zone{ margin-top:10px }
 .footer details.danger-zone > summary{ cursor:pointer; list-style:none; display:inline-block; font-size:11px; letter-spacing:.08em; color:var(--text-dim); border:1px dashed rgba(255,80,80,.35); border-radius:7px; padding:5px 12px }
@@ -31215,10 +31305,22 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tabs-workshop .tab{border-color:rgba(233,208,122,.4)!important;color:#e9d07a!important;font-weight:600!important;background:rgba(233,208,122,.05)!important}
 .tabs-workshop .tab:hover{background:rgba(233,208,122,.14)!important;color:#ffe08a!important}
 .tabs-workshop .tab.active{background:rgba(233,208,122,.2)!important;color:#fff4d2!important;border-color:#ffe08a!important}
+/* v703 — NAV CLUSTERS: HUNT + LORE quiet frames inside the data strip (the workshop frame's
+   little cousins — same shape, a fraction of its voice). Micro-captions ride the top border
+   (absolute — costs the row ZERO width, the v641.3 lesson). main stays a lone front door. */
+.tabs-data{align-items:stretch}
+.tabs-data > .tab[data-tab="main"]{flex:1 1 0}
+.tabs-cluster{position:relative;display:flex;flex:5 1 0;gap:5px;align-items:stretch;min-width:0;padding:3px 5px;border:1px solid rgba(233,208,122,.16);border-radius:9px;background:rgba(255,255,255,.012)}
+.tabs-cluster .tab{flex:1 1 auto;text-align:center}
+.tabs-cluster::before{content:attr(data-cluster);position:absolute;top:-6px;left:10px;padding:0 5px;font-size:8px;font-weight:700;letter-spacing:.22em;line-height:1;color:rgba(233,208,122,.55);background:var(--bg);border-radius:3px;pointer-events:none}
+.tc-hunt{border-color:rgba(224,120,70,.22)}
+.tc-hunt::before{color:rgba(255,150,90,.6)}
+.tabs{padding-top:12px!important}   /* room for the micro-captions above the cluster frames (sticky bar keeps its blur) */
 @media (max-width:1360px){   /* v678 (swarm) — at ≤1360px the nowrap data strip overflowed UNDER the workshop frame (garbled at 700px, REFERENCE clipped at 1280px) */
   .tabs{flex-wrap:wrap!important}
   .tabs-data{flex:1 1 100%;flex-wrap:wrap}
   .tabs-workshop{flex:0 1 auto;flex-wrap:wrap;justify-content:center;margin:4px auto 0}
+  .tabs-cluster{flex:1 1 auto;flex-wrap:wrap}
 }
 /* v641 — routines widget ALIGNED: it collided with the bottom control dock and pulsed forever
    ("routines are jumping"). Park it above the dock, kill the infinite pulse. */
@@ -31227,6 +31329,30 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 /* the first content section breathes right under the compact band */
 .tab-content{padding-top:10px!important}
 @media (max-width:900px){ .masthead .h-title{font-size:19px!important} .tab{font-size:10px!important;padding:4px 7px!important} }
+</style>
+<style id="v704-sys-tray">
+/* v704 — SYSTEM TRAY (Grok wave P2): the bottom-right corner had FIVE chrome families at five
+   sizes, five coordinates and three z-bands (help 18/18 · 🧰 legend 18/68 · nav compass 72/11 ·
+   forge/tools legend fabs 172/24 · routines bar on top of all of it). ONE column now: fixed
+   slots up the right edge, ONE 44px size, ONE z-band, everything parked ABOVE the dock. No DOM
+   moves — the legend fabs keep their body:has() tab-scoping, this only reassigns coordinates.
+   Slots (bottom→top): S0 help · S1 nav compass · S2 context legend · S3 tools map. */
+.help-btn{bottom:calc(var(--dock-h,84px) + 14px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:17px!important;z-index:230!important}
+.nav-widget{bottom:calc(var(--dock-h,84px) + 66px)!important;right:12px!important;z-index:230!important}
+.nav-fab{width:44px!important;height:44px!important}
+/* the tray sits higher than the old 72px anchor — the panel must never poke past the top edge */
+.nav-widget.open .nav-panel{max-height:min(560px,calc(100vh - var(--dock-h,84px) - 130px))!important;overflow-y:auto!important}
+/* the 🧰 field-guide opener was GLOBAL noise — it explains the Tools planners, it lives on tools (v703 data-tab stamp) */
+.tools-legend-btn{display:none!important}
+html[data-tab="tools"] .tools-legend-btn{display:flex!important;bottom:calc(var(--dock-h,84px) + 118px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:19px!important;z-index:230!important}
+.forge-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important;right:12px!important;width:44px!important;height:44px!important;z-index:230!important}
+.forge-legend-fab img{width:27px!important;height:27px!important}
+.tools-legend-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:21px!important;z-index:230!important}
+/* their popovers open beside the column, not under it */
+.forge-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
+.tools-legend-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important}
+/* routines bar shares the corner — park it LEFT of the tray column so they never overlap */
+#routine-status-bar{right:calc(12px + 56px)!important}
 </style>
 <style id="v644-grail-ledger">
 /* v644-646 — THE GRAIL LEDGER surfaces + THE GRAIL WALL drawer */
@@ -32064,13 +32190,14 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v701', name:'Task Force', date:'2026-07-15', note:'Task Force + full RoW odds: council/cows/pit calibrated · 14-SU per-kill wave · exact council runes (Zod=TZ-only) · TZ zone per-kill dwellers (v700)' };
+  window.D2R_BUILD = { id:'v707', name:'Structured Bible', date:'2026-07-15', note:'Grok visual/IA wave: HUNT·LORE nav clusters · bottom-right system tray (one column, one size) · tools index + ranked cards · type/accent/chrome tokens · sticky lore TOCs (ref/binds/RotW) · intake golden-set regression (v702)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
     el.id = 'v687-build-badge';
-    el.title = 'D2R Bible build';
-    el.textContent = 'v688 · Task Force · 2026-07-14';
+    el.title = 'D2R Bible build — ' + (window.D2R_BUILD.note || '');
+    // v707 — the badge READS D2R_BUILD (it was a hardcoded copy, frozen at v688 while the build object said v701)
+    el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.name + ' · ' + window.D2R_BUILD.date;
     document.body.appendChild(el);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', badge);

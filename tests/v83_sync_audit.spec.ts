@@ -219,11 +219,12 @@ test.describe('v83 website synchronization audit', () => {
         superUnique: check(cards.superUnique),
         tzZone: check(cards.tzZone),
         runeSource: check(cards.runeSource),
-        // honesty markers must survive the re-shell
-        suCaveat: /pending silospen pull/.test(cards.superUnique),
+        // honesty markers must survive the re-shell. v707 recal: v698 (SU per-kill wave) and
+        // v699 (exact council runes) REPLACED the "pending silospen pull" caveat with real
+        // pulled odds — honesty is now satisfied by EITHER the caveat OR an actual 1:N figure.
+        suCaveat: /pending silospen pull/.test(cards.superUnique) || /1:[0-9][0-9,.]*/.test(cards.superUnique),
         suTitle: /super-unique detail/.test(cards.superUnique),
-        // v93: Travincal's honest-odds caveat must survive its re-shell too
-        rsCaveat: /pending silospen pull/.test(cards.runeSource),
+        rsCaveat: /pending silospen pull/.test(cards.runeSource) || /1:[0-9][0-9,.]*/.test(cards.runeSource),
       };
     });
     for (const [card, c] of Object.entries({ superUnique: r.superUnique, tzZone: r.tzZone, runeSource: r.runeSource })) {
@@ -233,9 +234,9 @@ test.describe('v83 website synchronization audit', () => {
       expect(c.emblem, `${card} missing artOr emblem`).toBe(true);
       expect(c.noUndef, `${card} renders 'undefined'`).toBe(true);
     }
-    expect(r.suCaveat, 'super-unique lost its pending-odds caveat in the re-shell').toBe(true);
+    expect(r.suCaveat, 'super-unique lost BOTH its pending-odds caveat AND its real 1:N odds (v698)').toBe(true);
     expect(r.suTitle, 'super-unique lost its "super-unique detail" title in the re-shell').toBe(true);
-    expect(r.rsCaveat, 'rune-source (Travincal) lost its pending-odds caveat in the v93 re-shell').toBe(true);
+    expect(r.rsCaveat, 'rune-source (Travincal) lost BOTH its pending-odds caveat AND its real 1:N odds (v699)').toBe(true);
   });
 
   test('event-card head parity (#52 / v92): every pinnacle event-card head shares the golden banner — emblem + titles + tier badge', async ({ page }) => {
