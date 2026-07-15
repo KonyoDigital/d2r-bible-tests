@@ -37,7 +37,7 @@ STATE  = os.path.join(HERE, "state.json")
 PORT   = 17771
 MIN_GAP_S    = 20     # never read more often than this
 SESSION_CAP  = 120    # hard stop for a whole session
-POLL_S       = 3.0    # capture cadence
+POLL_S       = 0.5    # capture cadence — eyes always open, half-second pulse (Konyo: "make it even half a second ;)")
 WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win.ps1
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
@@ -82,6 +82,12 @@ def _save(st):
     with open(tmp, "w", encoding="utf-8") as f: json.dump(st, f)
     os.replace(tmp, STATE)
 
+_BEAT = {"ts": 0, "phase": "idle", "motion": 0.0}
+def beat(phase, motion):
+    """v710.4 — the LIVE pulse, IN MEMORY only (Grok audit: rewriting state.json twice a
+    second thrashed disk + the lock). /state merges it at request time; reads still persist."""
+    _BEAT["ts"] = int(time.time()*1000); _BEAT["phase"] = phase; _BEAT["motion"] = round(float(motion), 3)
+
 def bridge():
     """localhost bridge the bible polls. GET /state → JSON. CORS: any origin may READ."""
     class H(BaseHTTPRequestHandler):
@@ -95,7 +101,7 @@ def bridge():
         def do_GET(self):
             if self.path.startswith("/state"):
                 with _state_lock:
-                    st = _load(); st["online"] = True; st["now"] = int(time.time()*1000)
+                    st = _load(); st["online"] = True; st["now"] = int(time.time()*1000); st["beat"] = dict(_BEAT)
                 self._hdr(); self.wfile.write(json.dumps(st).encode())
             elif self.path.startswith("/ping"):
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
@@ -192,9 +198,12 @@ def main():
         try: cur = frame_sig(frame)
         except Exception: continue
         SETTLE = 0.03   # ≤3% of sampled pixels moving = you stopped to look (ambient animation rides under this)
+        motion = sig_diff(cur, last_md5)
         # loading screens between zones are static + near-black — they settle but hold nothing readable
-        if sum(cur) / max(1, len(cur)) < 14: continue
-        stable = stable + 1 if sig_diff(cur, last_md5) <= SETTLE else 0
+        if sum(cur) / max(1, len(cur)) < 14:
+            beat("loading", motion); last_md5 = cur; continue
+        beat("watching", motion)
+        stable = stable + 1 if motion <= SETTLE else 0
         last_md5 = cur
         # STABLE: two consecutive settled captures (stable==1 on the second) = a read-worthy moment
         if stable != 1 or sig_diff(cur, last_sent_md5) <= SETTLE: continue
@@ -204,6 +213,7 @@ def main():
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
         print(f"  👁 screen settled — reading ({reads}/{SESSION_CAP}) …")
+        beat("reading", 0.0)
         rd = claude_read(frame)
         names = rd["names"]
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")

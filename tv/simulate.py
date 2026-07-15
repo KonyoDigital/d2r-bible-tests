@@ -32,6 +32,15 @@ def main():
     with tv_diablo._state_lock:
         tv_diablo._save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0, "sim": True})
     tv_diablo.bridge()
+    # v710.4 — simulated heartbeat so the board breathes during demos too
+    import math, threading
+    def _beats():
+        t0 = time.time()
+        while True:
+            m = abs(math.sin((time.time()-t0)/2.2)) * 0.5
+            tv_diablo.beat("watching", m)
+            time.sleep(1)
+    threading.Thread(target=_beats, daemon=True).start()
     print(f"📺 TV DIABLO SIMULATOR — bridge live on http://127.0.0.1:{tv_diablo.PORT}/state")
     print("   open the bible → ⚡ session → 📺 TV DIABLO → flip the switch. Ctrl-C stops (= agent-offline state).\n")
     n = 0

@@ -20,7 +20,7 @@ export const BINDS_SECTIONS_TOTAL = 16;
 export const ENDGAME_RELICS_TOTAL = 15;
 
 // Nav tab bar entries (v158 dock spec). v232: +TZ tracker → 12.
-export const NAV_TABS_TOTAL = 16;   // v693.2 — +⚡session (v686 Task Force cockpit) joined the workshop group
+export const NAV_TABS_TOTAL = 17;   // v710.4 — +📺 TV·D (the live scanner's flagship board) joined the workshop group
 
 // Horadric cube recipe browser rows (v177).
 export const HORADRIC_RECIPES_TOTAL = 36;

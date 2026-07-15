@@ -16,7 +16,7 @@ test('workshop nav: ⚡ session added first, existing tabs untouched', async ({ 
     const ws = Array.from(document.querySelectorAll('.tabs-workshop .tab')).map(b => b.getAttribute('data-tab'));
     return { ws, dataCount: document.querySelectorAll('.tabs-data .tab').length };
   });
-  expect(r.ws).toEqual(['session', 'tools', 'forge', 'funi', 'fsets']);
+  expect(r.ws).toEqual(['session', 'tools', 'forge', 'funi', 'fsets', 'tvd']);   // v710.4 — +📺 TV·D
   expect(r.dataCount).toBe(11);   // the data group is untouched (v641 nav is settled)
 });
 

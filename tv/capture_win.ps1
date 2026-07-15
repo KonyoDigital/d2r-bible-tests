@@ -26,5 +26,5 @@ while ($true) {
     Move-Item -Force $tmp $out
     $g.Dispose(); $bmp.Dispose()
   } catch { Write-Host "  capture error: $_" }
-  Start-Sleep -Seconds 3
+  Start-Sleep -Milliseconds 500   # aligned with the agent's half-second eyes (POLL_S)
 }
