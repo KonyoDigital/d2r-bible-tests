@@ -6696,13 +6696,13 @@ try {
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:11.5px;font-weight:700;color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);padding:1px 9px;border-radius:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(20,70,35,.45),0 1px 3px rgba(0,0,0,.55)}   /* v620 — forged-coin percent */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:1.5}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:10px;margin:18px 0 22px;width:100%}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:13px 8px;border-radius:14px;border:1px solid rgba(122,101,66,.55);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));color:#b7a888;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}  /* v685 — inactive tiles one step brighter (label + border): ONE STEP/MAKE NOW/PIPELINE/CRAFTS dissolved into the background next to the framed ALL */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:8px;margin:14px 0 18px;width:100%;flex-wrap:wrap}   /* v709 (Grok forge wave A2) — the 80px towers competed with the tasks; one ~38px chip rail */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 auto;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:6px 14px;border-radius:999px;border:1px solid rgba(122,101,66,.55);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));color:#b7a888;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}  /* v685 — inactive tiles one step brighter (label + border): ONE STEP/MAKE NOW/PIPELINE/CRAFTS dissolved into the background next to the framed ALL */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:active{transform:translateY(0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-emoji{font-size:21px;line-height:1;filter:saturate(1.15)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-lbl{font-size:12.5px;font-weight:800;letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-ct{font-size:18px;font-weight:900;padding:1px 12px;border-radius:11px;background:rgba(255,255,255,.07);line-height:1.25;min-width:34px;text-align:center}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-emoji{font-size:15px;line-height:1;filter:saturate(1.15)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-lbl{font-size:var(--fs-meta);font-weight:800;letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
+:is(#tab-forge,#tab-funi,#tab-fsets) .ft-ct{font-size:var(--fs-body);font-weight:900;padding:0 9px;border-radius:9px;background:rgba(255,255,255,.07);line-height:1.45;min-width:26px;text-align:center}
 /* persistent per-bucket accent so the tabs are scannable at a glance even when inactive */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
@@ -6710,7 +6710,7 @@ try {
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-ct{color:#c79ce6;background:rgba(199,156,230,.12)}
 /* active = filled capsule + a top accent rail in the bucket colour + a soft outer glow */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on{box-shadow:inset 0 3px 0 -1px currentColor,0 4px 20px -6px currentColor;transform:translateY(-1px)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on{box-shadow:inset 0 0 0 1px currentColor,0 3px 16px -6px currentColor}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
@@ -6720,6 +6720,10 @@ try {
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-lbl{color:inherit}
 /* an empty bucket recedes so the eye lands on what actually has tasks */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty{opacity:.42}
+/* v709 — the honest cross-mode courtesy strip on the runs views */
+:is(#tab-funi,#tab-fsets) .fu-basehunt{margin:0 0 12px;padding:8px 14px;border:1px dashed rgba(224,185,106,.4);border-radius:9px;color:var(--text-muted);font-size:var(--fs-meta);cursor:pointer;transition:border-color .14s,color .14s}
+:is(#tab-funi,#tab-fsets) .fu-basehunt:hover{border-color:rgba(224,185,106,.75);color:var(--gold-bright)}
+:is(#tab-funi,#tab-fsets) .fu-basehunt b{color:var(--rune,#ff7d3c)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:#c79ce6}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
@@ -30886,9 +30890,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig" data-arttip="'+esc(x.n)+'">'+esc(x.n)+'</b> <span class="f-need">qlvl '+(x.qlvl||'?')+'</span></div>'+src+'</div>'
       +'<div class="f-cta"><button class="f-btn f-btn-go" onclick="window.grailFoundUni(this,\''+jsq(x.n)+'\')">✓ found it</button></div></div></div>';
   }
+  // v709 (Grok forge wave B2, honesty-bounded) — the cross-mode courtesy strip: while grail-running,
+  // remind that the BASE hunt is live. States ONLY filter truth (how many socketed bases your in-game
+  // filter lights, from forge's published _endgameFilterBases) — never a per-zone drop claim, because
+  // per-run base droppability (area qlvl) is data we don't have. Hidden when the filter is hardened.
+  function _baseHuntStrip(){
+    try {
+      var eb = (typeof window._endgameFilterBases==='function') ? window._endgameFilterBases() : null;
+      var n = eb && eb.names ? eb.names.length : 0;
+      if (!n) return '';
+      return '<div class="fu-basehunt" role="button" tabindex="0" onclick="window.switchTab(\'tools\')" title="the exact grey/eth socketed bases worth grabbing — synced to your in-game loot filter">🏹 while you run: <b>'+n+'</b> socketed base'+(n===1?'':'s')+' lit in your in-game filter — grab them for the Forge <span class="fh-cta-arw">→</span></div>';
+    } catch(e){ return ''; }
+  }
   window.renderForgeUni=function(){
     var box=document.getElementById('funi-body'); if(!box) return;
-    var s=window.funiScan(); var F=_fuF; var H=[];
+    var s=window.funiScan();
+    // v709 (Grok forge wave B5, the v691 sealed-landing mirror) — a 99%+ grail opens on the
+    // CELEBRATION, not a near-empty missing list. One-shot per load; every click stays manual.
+    if(!window._fuLanded){ window._fuLanded=true; try { if(s.chronTotal && s.found/s.chronTotal>=.99 && _fuF==='all') _fuF='found'; } catch(e){} }
+    var F=_fuF; var H=[];
     // v682.1 — the HEADLINE meter is the IN-GAME truth (Konyo: 'Uniques is at 60% for chronicle..
     // uniques isnt synced'): found / the mod's 403-entry chronicle, the same number the game shows.
     // The 368 named cards stay the working grid below; the ~35 still-dark mod uniques are unknowable
@@ -30934,6 +30954,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var show=function(k){ return F==='all'||F===k; };
     if(show('runs')&&s.runs.length){
       H.push('<div class="forge-sec forge-sec-pipe"><div class="forge-sec-h">🎯 Best runs <span class="forge-sec-ct">'+s.runs.length+'</span><span class="forge-sec-sub">each run ranked by how many missing uniques it can drop</span></div>');
+      if(F==='runs') H.push(_baseHuntStrip());   // v709 — the forge courtesy line rides the dedicated runs view only
       H.push(_moreWrap(s.runs.map(function(r,i){ return _runCard(r,i); }), F==='runs'?12:6, 'runs'));   // v647
       H.push('</div>');
     }
@@ -31030,7 +31051,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window.renderForgeSets=function(){
     var box=document.getElementById('fsets-body'); if(!box) return;
-    var s=window.fsetsScan(); var F=_fsF; var H=[];
+    var s=window.fsetsScan();
+    // v709 (Grok forge wave B5) — same sealed-landing rule as funi, from fsets' OWN scan
+    if(!window._fsLanded){ window._fsLanded=true; try { if(s.totalPieces && s.havePieces/s.totalPieces>=.99 && _fsF==='all') _fsF='done'; } catch(e){} }   // fsets' found-key is 'done'
+    var F=_fsF; var H=[];
     H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style
     // v560.1 — Konyo: "I already have item trackers — F·Sets should be the F·Uniques coding logic." So this is
     // PIECE-centric, identical to Forge·Uniques: every missing PIECE is a farm item (Find → best run → ✓ found),
@@ -31111,6 +31135,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<div class="f-atomsubrow">can drop <b>'+g.items.length+'</b> of your missing pieces — tap a piece the moment it drops</div>'
           +'<div class="gf-chips">'+chips+more+'</div></div>'+bossBtn+'</div></div>');
       });
+      if(F==='runs') H.push(_baseHuntStrip());   // v709 — courtesy strip above the set run cards
       H.push(_moreWrap(_rCards, F==='runs'?12:6, 'runs'));   // v647
 
       H.push('</div>');
@@ -32271,7 +32296,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v708.1', name:'Structured Bible', date:'2026-07-15', note:'CI hotfix: data-active-tab stamp (the html data-tab made EVERYTHING gauntlet-grabbable) · deep scroll targets respect the dock · measured --chrome-top · title/meta follow D2R_BUILD · 631 font sizes on tokens · events TOC rail · mobile one-row snap strip · backup-age nudge' };
+  window.D2R_BUILD = { id:'v709', name:'Workshop Family', date:'2026-07-15', note:'Grok forge wave (chronicles stay SEPARATE — presentation only): 80px filter towers → one 38px chip rail on all 3 workshop tabs · sealed-grail landing (99%+ opens on the celebration, the v691 mirror) · honest cross-mode courtesy strip on Best-runs (filter truth only, hidden when hardened)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
