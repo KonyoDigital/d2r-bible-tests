@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v700 · Task Force</title>
-<meta name="d2r-build" content="v700">
+  <title>Konyo's D2R Farming Bible v701 · Task Force</title>
+<meta name="d2r-build" content="v701">
 <meta name="d2r-build-date" content="2026-07-15">
-<meta name="d2r-build-note" content="Task Force + RoW odds: council/cows base+TZ (v697) · SU per-kill (v698) · pit per-kill model + council runes + all-SU wave (v699)">
+<meta name="d2r-build-note" content="Task Force · RoW odds COMPLETE: council/cows/pit (v697-699) · 14-SU wave · exact council runes (Zod=TZ-only) · 11 TZ zone dwellers (v700) · owned-collapse + sealed quiet + TZ×wishlist weld (v701)">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a}
 *{box-sizing:border-box}
@@ -16929,14 +16929,32 @@ function renderCalc() {
     return true;
   });
   $("search-counter").textContent = `showing ${filtered.length} of ${ITEMS.length} items${searchQ?` matching "${searchQ}"`:''}${currentFilter!=='all'?` · filter: ${currentFilter}`:''}`;
-  grid.innerHTML = filtered.map((it, idx) => {
+  // v701 🏓 — OWNED-COLLAPSE (Grok tier-1, thrice deferred): the wall shows WHAT'S LEFT; the ✓ owned
+  // crossed-off trophies tuck behind one strip. Search and the ✓owned/missing filters show everything;
+  // navigating to an owned item auto-opens the tuck. Tiles stay in the DOM (display-hidden) so the
+  // H-routine click sweep and the art-coverage floor see the full wall.
+  const _collapseOwned = !searchQ && currentFilter !== 'owned' && currentFilter !== 'missing';
+  if (_collapseOwned && selectedItem && _gFound(selectedItem)) window._calcOwnedOpen = true;
+  const _unowned = _collapseOwned ? filtered.filter(it => !_gFound(it.n)) : filtered;
+  const _owned   = _collapseOwned ? filtered.filter(it =>  _gFound(it.n)) : [];
+  const _tileHtml = (it, idx) => {
     const isOwned = _gFound(it.n);
     const _r = (typeof _artRarity === 'function') ? _artRarity(it.n) : '';
     return `<div tabindex="0" data-idx="${idx}" class="item-tile tier-tc${it.tc} ${_r?'it-r-'+_r:''} ${it.tier==='grail'?'item-tile-grail':''} ${it.tier==='uber'?'item-tile-uber':''} ${wishlist.has(it.n)?'item-tile-starred':''} ${selectedItem===it.n?'selected':''}" data-name="${it.n}" style="${isOwned?'opacity:.5;text-decoration:line-through':''}">
       <div class="item-tile-row">${artOr(it.n, '', 'sm')}<div class="item-tile-text">
         <div class="item-tile-name" data-arttip="${_d2artEsc(it.n)}">${it.n}</div>
       </div></div></div>`;
-  }).join("");
+  };
+  // flat siblings only (the v71 anti-nesting invariant): owned tiles carry a class and hide via
+  // the grid's tuck-closed state — no wrapper divs, every tile stays a direct #item-grid child.
+  const _tuckOpen = !!window._calcOwnedOpen;
+  let _gridHtml = _unowned.map((it) => _tileHtml(it, filtered.indexOf(it))).join("");
+  if (_collapseOwned && _owned.length){
+    _gridHtml += `<div class="owned-tuck${_tuckOpen?' open':''}" onclick="window._calcOwnedOpen=!window._calcOwnedOpen;renderCalc()" title="crossed-off trophies — the grail wall shows what's left">✓ owned · <b>${_owned.length}</b> tucked away <span class="ot-chev">${_tuckOpen?'▴ hide':'▾ show'}</span></div>`;
+    _gridHtml += _owned.map((it) => _tileHtml(it, filtered.indexOf(it)).replace('class="item-tile ', 'class="item-tile is-owned-tucked ')).join("");
+  }
+  grid.classList.toggle('tuck-closed', _collapseOwned && !_tuckOpen);
+  grid.innerHTML = _gridHtml;
   grid.querySelectorAll(".item-tile").forEach(el => {
     el.onclick = () => { selectedItem = el.dataset.name; activeItem = el.dataset.name; setActiveItem(el.dataset.name); renderCalc(); renderDetail(); document.getElementById("item-detail")?.scrollIntoView({behavior:"smooth", block:"start"}); };
   });
@@ -25761,6 +25779,12 @@ body::before{
    style/layout/paint entirely (boss-card and item-tile have had this since v297; the sets grid,
    TZ zone list and event cards never got it) */
 .set-card, .tz-zone-card, .event-card, .gic-card{ content-visibility:auto; contain-intrinsic-size:auto 120px; }
+/* v701 🏓 — the owned tuck: the grail wall shows what's left */
+.owned-tuck{grid-column:1/-1;margin:10px 0 4px;padding:9px 16px;border:1px dashed rgba(212,168,71,.35);border-radius:9px;color:var(--text-dim);font-size:12.5px;cursor:pointer;text-align:center;letter-spacing:.03em}
+.owned-tuck:hover{color:var(--gold);border-color:rgba(212,168,71,.6)}
+.owned-tuck.open{color:var(--gold)}
+.owned-tuck .ot-chev{margin-left:8px;font-size:11px;opacity:.8}
+#item-grid.tuck-closed .item-tile.is-owned-tucked{display:none}
 /* v691 🏓R2 — closed-row PEEKS: the drawer answers before it opens */
 .sec-h-peek{ margin-left:auto; margin-right:10px; flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--gold-bright); font-family:var(--mono,monospace); letter-spacing:.02em; white-space:nowrap }
 .sec-h-peek .pk-track{ width:90px; height:4px; border-radius:3px; background:rgba(212,168,71,.18); overflow:hidden }
@@ -31679,7 +31703,7 @@ window.renderSessionCockpit = function(){
           + '<div class="sc-mission-status"><span class="sc-tag">idle</span></div>'
           + '<div class="sc-mission-detail">'+detail+'</div>'
           + '<div class="sc-mission-actions">'
-          + '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'
+          + ((function(){ try { var fresh = ['runes','gems','materials','vault'].every(function(k){ var h = window._stashAgeH(k); return isFinite(h) && h < 36; }); var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade')||'{}')).length >= Object.keys(RUNEWORD_TIP).length; return (sealed && fresh) ? '' : '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'; } catch(e){ return '<button type="button" class="sc-cta" onclick="switchTab(\'tools\')">📸 Update intel</button>'; } })())
           + '<button type="button" class="sc-cta ghost" onclick="switchTab(\'forge\')">Open Forge</button>'
           + '</div>';
       } else {
@@ -31838,9 +31862,28 @@ window.renderSessionCockpit = function(){
             try { if (d.next) nextHtml = window.tzZoneRowHtml(d.next); } catch(e){}
             // refine verdict from full row text
             ver = tzVerdict((curLabel||'') + ' ' + (rowHtml||'').replace(/<[^>]+>/g,' '));
+            // v701 🏓 — THE WELD: tonight's live TZ × your unfound wall × real per-kill 1:N on one card.
+            var weld = '';
+            try {
+              var ZO = window._TZ_ZONE_ODDS || (window._TZ_ZONE_ODDS = JSON.parse(document.getElementById('tz-zone-odds').textContent));
+              var live = (curLabel || (rowHtml||'').replace(/<[^>]+>/g,' ')).toLowerCase();
+              var zkey = Object.keys(ZO).find(function(k){
+                return k.toLowerCase().split(/\s*[+/]\s*/).some(function(part){ return part.length > 3 && live.indexOf(part.trim().replace(/\s*l\d(-l\d)?$/,'').trim()) >= 0; });
+              });
+              if (zkey && typeof window.funiScan === 'function'){
+                var missSet = {}; window.funiScan().missing.forEach(function(x){ missSet[x.n.replace(/\s*\([^)]*\)\s*$/,'')] = x.n; });
+                var hits = Object.entries(ZO[zkey].hellTz || {}).filter(function(kv){ return missSet[kv[0]]; }).sort(function(a,b){ return a[1]-b[1]; }).slice(0,3);
+                if (hits.length){
+                  var fmtN = function(n){ return n >= 1e6 ? (Math.round(n/1e5)/10)+'M' : n >= 1e4 ? Math.round(n/1e3)+'k' : n.toLocaleString(); };
+                  weld = '<div class="zd-hg-note" style="margin-top:8px"><b style="color:var(--gold-bright)">🏆 your wall, this TZ</b> — '
+                    + hits.map(function(kv){ return _scEsc(kv[0])+' <b>1:'+fmtN(kv[1])+'</b>'; }).join(' · ')
+                    + ' <span class="pk-dim">per kill</span></div>';
+                }
+              }
+            } catch(e){}
             tzB.innerHTML = '<div class="sc-row"><span class="sc-tag now">now</span><div class="sc-row-txt">'+rowHtml+'</div></div>'
               + (nextHtml ? '<div class="sc-row"><span class="sc-tag">next</span><div class="sc-row-txt">'+nextHtml+'</div></div>' : '')
-              + '<div class="sc-tz-verdict '+ver.cls+'"><b>ROE · </b>'+esc(ver.text)+'</div>';
+              + '<div class="sc-tz-verdict '+ver.cls+'"><b>ROE · </b>'+esc(ver.text)+'</div>' + weld;
           } else tzB.innerHTML = '<div class="sc-empty">couldn’t reach live tracker — <button type="button" class="sc-act" onclick="switchTab(\'tztracker\')">open 📡 TZ tracker →</button></div>';   /* v691 (🏓 R1) — route from the empty state */
         };
         tzB.innerHTML = '<div class="sc-empty">fetching battlefield…</div>';
@@ -32020,7 +32063,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v700', name:'Task Force', date:'2026-07-15', note:'Task Force + full RoW odds: council/cows/pit calibrated · 14-SU per-kill wave · exact council runes (Zod=TZ-only) · TZ zone per-kill dwellers (v700)' };
+  window.D2R_BUILD = { id:'v701', name:'Task Force', date:'2026-07-15', note:'Task Force + full RoW odds: council/cows/pit calibrated · 14-SU per-kill wave · exact council runes (Zod=TZ-only) · TZ zone per-kill dwellers (v700)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

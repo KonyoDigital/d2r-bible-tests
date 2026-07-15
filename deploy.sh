@@ -60,6 +60,8 @@ printf '/* v696 tombstone — the v44 layer is dead; Session Cockpit is native i
 cat > "$DIST/_headers" <<'HDRS'
 /d2r/
   Cache-Control: no-cache, must-revalidate
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
 /d2r/index.html
   Cache-Control: no-cache, must-revalidate
 /d2r/sw.js

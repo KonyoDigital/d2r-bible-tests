@@ -136,6 +136,10 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
   Hell Bovines FULL base+TZ (v697, 2026-07-15: 2,245 cells; council = 3 SUs combined
   1/(Σ1/Nᵢ); REGULAR ids keep their PLAIN id under `desecrated=true` — d-suffix is
   boss/SU only)**.
+- **v700 additions:** all 11 TZ zone cards carry per-kill DWELLER odds (silospen location-verified;
+  dweller map in commit 7768873); the hunt grids route to them. **Odds-honesty state: COMPLETE** —
+  every boss/SU/zone/area = RoW truth or an explicit label (Colossal/materials/Heralds stay
+  community-estimate labeled until primary sources exist).
 - **v699 additions:** Pit = per-kill of a Pit L1 dweller (cr_archer3, area-TC-representative
   by post-1.13 rules; 1,033 cells) · council rune grid EXACT (Zod is TZ-ONLY: 1:97,811) ·
   14 super-uniques carry per-kill odds (su-odds-data).
