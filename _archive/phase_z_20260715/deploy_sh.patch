@@ -1,0 +1,137 @@
+diff --git a/deploy.sh b/deploy.sh
+index 2d0983f..84571ec 100755
+--- a/deploy.sh
++++ b/deploy.sh
+@@ -1,15 +1,17 @@
+ #!/usr/bin/env bash
+ # deploy.sh — publish the D2R Bible live to Cloudflare Pages
+-# (project `d2r-bible` → bull-4-u.com). Ships bible.html as index.html plus the
+-# self-hosted item art (art/) and the AI-vision API (functions/api/intake.js).
++# (project `d2r-bible` → bull-4-u.com).
+ #
+-# Run it by hand anytime:   bash deploy.sh
+-# It is ALSO invoked automatically by hooks/pre-push after the smoke gate passes
+-# on a push to main that touches bible.html / art / functions (see that hook).
++# v689 Phase-Z:
++#   • Runs tools/build_perf.py (monolith → thin HTML shell + hashed assets/z/*)
++#   • HTML: no-cache (anti ghost-build)
++#   • assets/z/* + art/*: long-cache immutable
++#   • sw.js: network-first HTML, cache-first assets
+ #
+-# Auth: needs CLOUDFLARE_API_TOKEN in the env (set in ~/.zshenv, scope Pages:Edit).
+-# The non-interactive shell sources ~/.zshenv, so it's present on hook runs too.
+-# Exit codes: 0 = deployed, 2 = skipped (missing token/npx), 1 = deploy failed.
++# Source of truth for CONTENT: bible.monolith.html (full single-file).
++# bible.html is the built shell (also regenerated here).
++#
++# Run:   bash deploy.sh
+ set -u
+ 
+ REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "deploy: not in a git repo."; exit 1; }
+@@ -23,33 +25,94 @@ if ! command -v npx >/dev/null 2>&1; then
+   echo "deploy: npx not found on PATH — cannot deploy."
+   exit 2
+ fi
+-for d in bible.html art functions; do
++
++# Prefer monolith as source; fall back to bible.html if someone edited the shell only
++if [ ! -f bible.monolith.html ]; then
++  if [ -f bible.html ] && [ "$(wc -c < bible.html | tr -d ' ')" -gt 1000000 ]; then
++    cp bible.html bible.monolith.html
++    echo "deploy: seeded bible.monolith.html from large bible.html"
++  else
++    echo "deploy: missing bible.monolith.html (and no large bible.html) — aborting."
++    exit 1
++  fi
++fi
++for d in art functions tools/build_perf.py; do
+   if [ ! -e "$d" ]; then echo "deploy: missing '$d' — aborting."; exit 1; fi
+ done
+ 
++echo "deploy: Phase-Z build…"
++python3 tools/build_perf.py || { echo "deploy: build_perf failed."; exit 1; }
++
++# SW at app root (scope /d2r/)
++if [ -f assets/z/latest.json ]; then
++  SET=$(python3 -c "import json;print(json.load(open('assets/z/latest.json'))['set'])")
++  cat > sw.js <<SW
++/* D2R Bible Phase-Z SW — auto from deploy */
++const ZSET = '${SET}';
++const CACHE = 'd2r-z-' + ZSET;
++self.addEventListener('install', (e) => { self.skipWaiting(); });
++self.addEventListener('activate', (e) => {
++  e.waitUntil(
++    caches.keys().then((keys) =>
++      Promise.all(keys.filter((k) => k.startsWith('d2r-z-') && k !== CACHE).map((k) => caches.delete(k)))
++    ).then(() => self.clients.claim())
++  );
++});
++self.addEventListener('fetch', (e) => {
++  const req = e.request;
++  if (req.method !== 'GET') return;
++  const url = new URL(req.url);
++  if (url.origin !== self.location.origin) return;
++  if (url.pathname.startsWith('/api/')) return;
++  const isHtml = url.pathname === '/d2r/' || url.pathname === '/d2r/index.html';
++  if (isHtml) {
++    e.respondWith(fetch(req).catch(() => caches.match(req)));
++    return;
++  }
++  const cacheable = url.pathname.startsWith('/d2r/assets/z/') || url.pathname.startsWith('/d2r/art/');
++  if (!cacheable) return;
++  e.respondWith(
++    caches.open(CACHE).then(async (cache) => {
++      const hit = await cache.match(req);
++      if (hit) return hit;
++      try {
++        const res = await fetch(req);
++        if (res && res.ok) cache.put(req, res.clone());
++        return res;
++      } catch (err) {
++        return hit || Response.error();
++      }
++    })
++  );
++});
++SW
++fi
++
+ DIST="$(mktemp -d -t d2r_dist.XXXXXX)" || { echo "deploy: mktemp failed."; exit 1; }
+ trap 'rm -rf "$DIST"' EXIT
+ mkdir -p "$DIST/d2r"
+-cp bible.html "$DIST/d2r/index.html"   # served at /d2r/
+-cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
+-cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
+-# v687 — do NOT ship orphan /d2r/v44/* (Session Cockpit is native in bible.html; external
+-# v44 CSS/JS/SW were a dead layer and caused ghost/404 confusion). Dist is only index+art+functions.
+-# v657 — CACHE LOCKDOWN: Konyo's tabs kept serving WEEKS-old HTML from browser cache for URLs
+-# with stale ?v=/?cb= params (the recurring 'this bug is still there' ghost — routines widget,
+-# tooltip fixes, all of it). The HTML must always revalidate; the art can cache forever.
++cp bible.html "$DIST/d2r/index.html"
++cp -R art "$DIST/d2r/art"
++cp -R assets "$DIST/d2r/assets"
++cp sw.js "$DIST/d2r/sw.js"
++cp -R functions "$DIST/functions"
++
+ cat > "$DIST/_headers" <<'HDRS'
+ /d2r/
+   Cache-Control: no-cache, must-revalidate
+ /d2r/index.html
+   Cache-Control: no-cache, must-revalidate
++/d2r/sw.js
++  Cache-Control: no-cache, must-revalidate
+ /d2r/art/*
+-  Cache-Control: public, max-age=604800, immutable
++  Cache-Control: public, max-age=31536000, immutable
++/d2r/assets/z/*
++  Cache-Control: public, max-age=31536000, immutable
+ HDRS
+ 
+ echo "deploy: publishing to Cloudflare Pages (d2r-bible → bull-4-u.com)…"
+-if npx wrangler pages deploy "$DIST" --project-name=d2r-bible --branch=main; then
+-  echo "deploy: ✨ live."
++if npx wrangler pages deploy "$DIST" --project-name=d2r-bible --branch=main --commit-dirty=true; then
++  echo "deploy: ✨ live (Phase-Z)."
+   exit 0
+ fi
+ echo "deploy: FAILED — site NOT updated. Re-run: bash deploy.sh"

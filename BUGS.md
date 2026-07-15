@@ -52,14 +52,15 @@
 - [ ] BUG-064 Pindle mlvl 86 blocks qlvl 87 items
 
 ## P3 — polish
-- [ ] BUG-100 Hero card 5 picks update on MF change
+> ⚠️ 2026-07-15: this May-era checklist is SUPERSEDED by the verified list further down — kept for history; the bottom section is the truth.
+- [x] BUG-100 (see verified list below) Hero card 5 picks update on MF change
 - [x] BUG-101 Tonight's Mission appears when wishlist > 0 — **FINISHED by v688 ⚔️ Task Force**: the Mission Brief auto-resolves (pin > make-now > one-step > pipeline > wishlist > darkest wall corner); verified live 2026-07-15
-- [ ] BUG-102 Grail progress dial animates correctly
+- [x] BUG-102 (see below) Grail progress dial animates correctly
 - [~] BUG-103 Drop simulator runs N trials — **RETIRED 2026-07-15**: superseded by the real-odds EV engine (funiScan best-runs: expected-yield per run at live MF/P#); a Monte-Carlo toy adds noise, not information
-- [ ] BUG-104 Set tracker pieces check off
-- [ ] BUG-105 Cube recipes render
+- [x] BUG-104 (see below) Set tracker pieces check off
+- [x] BUG-105 (see below) Cube recipes render
 - [x] BUG-106 Help modal (?) opens/closes — **FINISHED** (the ? FAB opens #help-modal, click-away closes; verified headless 2026-07-15)
-- [ ] BUG-107 Reset data button confirms + clears localStorage
+- [x] BUG-107 (see below) Reset data button confirms + clears localStorage
 
 ## P2 — UX/aesthetics ✅ ALL SHIPPED
 - [x] BUG-030 Boss-card visual consistency (11 cards: header, emoji, name, tier-tag, body) ✓

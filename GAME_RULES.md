@@ -132,9 +132,14 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
   **1:4,080**. (Old vanilla values 912 / 1,617 / 2,721 are SUPERSEDED.)
 - Per-boss act-boss/minion odds = Mephisto's rarity column × one constant scalar
   (proven by median=min ratio); only Countess/Travincal/Cows/Pit got per-item tuning.
-- **Still vanilla-calibrated (pending separate RoW passes):** event drops (Key of
-  Hate 36% / Annihilus 12%), ALL TZ columns (normTz/nmTz/hellTz), runes (Ist etc.
-  ignore MF), travincal/cows/pit. silospen does TZ via `desecrated=true&desecratedLevel=N`.
+- **RoW-calibrated since:** the 8 boss TZ columns (v129/v187) · **Travincal Council +
+  Hell Bovines FULL base+TZ (v697, 2026-07-15: 2,245 cells; council = 3 SUs combined
+  1/(Σ1/Nᵢ); REGULAR ids keep their PLAIN id under `desecrated=true` — d-suffix is
+  boss/SU only)**.
+- **Still vanilla-calibrated (pending):** event drops (Key of Hate 36% / Annihilus 12%),
+  rune odds (Ist etc. ignore MF), and **Pit** — deliberately unpulled: the bible models
+  an AREA RUN and silospen only has per-monster odds; repull awaits a modeling decision
+  (representative monster vs composite vs pool-only honesty).
 - **Materials are NOT MF-scaled and NOT in the 312-item grail count** (sunders,
   shards, statues, jewels, keys, organs, essences). Their per-kill figures are
   community estimates (silospen / d2runewizard / diablo2.io / Maxroll), never invented.

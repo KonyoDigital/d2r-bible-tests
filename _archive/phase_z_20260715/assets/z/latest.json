@@ -1,0 +1,27 @@
+{
+  "build": "v689",
+  "set": "3527b03a86",
+  "css": "bible.bffef6a30c.css",
+  "js": [
+    "chunk-00.2d09d09364.js",
+    "chunk-01.4140e03834.js",
+    "chunk-02.1a35fb99a2.js",
+    "chunk-03.32ebcfb130.js",
+    "chunk-04.4115e8d20f.js",
+    "chunk-05.a49fdddcba.js",
+    "chunk-06.9441b6ec1f.js",
+    "chunk-07.03b7098427.js",
+    "chunk-08.6a31198505.js",
+    "chunk-09.e3450adba5.js",
+    "chunk-10.c19e2319e1.js",
+    "chunk-11.26d3b7e0af.js",
+    "chunk-12.7b3419df11.js",
+    "chunk-13.8ebe87076a.js",
+    "chunk-14.88f61c087a.js",
+    "chunk-15.0c3e734f86.js"
+  ],
+  "html_bytes": 337042,
+  "css_bytes": 462917,
+  "js_bytes": 2743818,
+  "chunks": 16
+}

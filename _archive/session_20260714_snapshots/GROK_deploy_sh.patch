@@ -1,0 +1,30 @@
+diff --git a/deploy.sh b/deploy.sh
+index e9bdfa0..3fb7d05 100755
+--- a/deploy.sh
++++ b/deploy.sh
+@@ -33,9 +33,16 @@ mkdir -p "$DIST/d2r"
+ cp bible.html "$DIST/d2r/index.html"   # served at /d2r/
+ cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
+ cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
++# v44 — Session Cockpit layer (CSS/JS/SW). Served under /d2r/v44/
++if [ -d v44 ]; then
++  cp -R v44 "$DIST/d2r/v44"
++else
++  echo "deploy: warning — v44/ missing; Session Cockpit assets will 404."
++fi
+ # v657 — CACHE LOCKDOWN: Konyo's tabs kept serving WEEKS-old HTML from browser cache for URLs
+ # with stale ?v=/?cb= params (the recurring 'this bug is still there' ghost — routines widget,
+ # tooltip fixes, all of it). The HTML must always revalidate; the art can cache forever.
++# v44 assets use short hash query (?v=44.1) + long cache; SW is network-first for HTML.
+ cat > "$DIST/_headers" <<'HDRS'
+ /d2r/
+   Cache-Control: no-cache, must-revalidate
+@@ -43,6 +50,8 @@ cat > "$DIST/_headers" <<'HDRS'
+   Cache-Control: no-cache, must-revalidate
+ /d2r/art/*
+   Cache-Control: public, max-age=604800, immutable
++/d2r/v44/*
++  Cache-Control: public, max-age=86400
+ HDRS
+ 
+ echo "deploy: publishing to Cloudflare Pages (d2r-bible → bull-4-u.com)…"
