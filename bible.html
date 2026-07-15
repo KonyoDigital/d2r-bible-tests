@@ -34,6 +34,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .gsearch-input::placeholder{color:rgba(240,192,96,.42);font-style:italic}
 .gsearch-results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:500;max-height:62vh;overflow-y:auto;background:linear-gradient(180deg,#1a1208,#15100a);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 14px 50px rgba(0,0,0,.85);padding:6px 0}
 .gsearch-results[hidden]{display:none}
+.gsearch-foot{padding:7px 16px 5px;border-top:1px solid rgba(212,168,71,.18);color:var(--text-dim);font-size:10.5px;font-family:var(--mono,monospace);letter-spacing:.03em}
 .gsearch-item{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;padding:9px 16px;cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px;color:#e8d8b8;border-left:2px solid transparent}
 .gsearch-item:hover,.gsearch-item.gsearch-active{background:rgba(240,192,96,.10);border-left-color:var(--gold-bright,#f0c060);color:#fff5d8}
 .gsearch-ic{font-size:15px;text-align:center;opacity:.9;display:flex;align-items:center;justify-content:center}
@@ -21426,6 +21427,7 @@ function switchTab(name) {
   if (name === "main" && typeof window._mainPeeks === "function") setTimeout(window._mainPeeks, 600);              // v693 🏓R3 — closed-row peeks refresh after the async boards paint
   // v693.1 🏓R4 — the Binds verdict opens itself ONCE per session (the tab's whole answer); every
   // other lore drawer stays collapsed. sessionStorage: per-tab-session, never persisted state.
+  try { document.documentElement.classList.toggle('runs-open', name === 'funi' && !!window._fuRunsActive); } catch(e){}   // v695 🏓R7 — the dock yields only while the runs view is actually on screen
   if (name === "binds"){ try {
     if (!sessionStorage.getItem('d2r_bindsVerdictShown')){
       sessionStorage.setItem('d2r_bindsVerdictShown','1');
@@ -23223,7 +23225,11 @@ _v41_whenReady(() => {
         var l=(c.label||'').toLowerCase(), k=(c.keywords||'').toLowerCase(), hay=l+' '+k;
         if (l===q) return 100;
         if (l.indexOf(q)===0) return 80;
-        if (l.indexOf(q)>0) return 60;
+        // v695 🏓R7 — mid-string hits must start at a WORD BOUNDARY: 'ber' inside 'U·ber Meph' or
+        // 'Hal·ber·d' polluted the most-typed high-rune queries. Boundary hit keeps 60; a buried
+        // substring drops below keyword hits (25) so real intent always outranks accidents.
+        var _mi = l.indexOf(q);
+        if (_mi > 0) return /[\s\-—·(/']/.test(l.charAt(_mi-1)) ? 60 : 25;
         if (k.indexOf(q)>=0) return 40;
         var toks=q.split(/\s+/).filter(function(t){ return t && !GS_STOP[t]; });
         if (toks.length>=2){
@@ -23260,6 +23266,7 @@ _v41_whenReady(() => {
             : _ic;
           html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+icHtml+'</span><span class="gsearch-lab"'+(typeof _qStyle==='function'?_qStyle(c.label):'')+'>'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
         }
+        html += '<div class="gsearch-foot">'+ranked.length+' result'+(ranked.length===1?'':'s')+' · <span class="kbd">↑↓</span> move · <span class="kbd">Enter</span> open · <span class="kbd">Esc</span> close</div>';   /* v695 🏓R7 — the router says how to drive it */
         box.innerHTML=html; active=0; box.hidden=false; paint();
       }
       function run(i){ if (ranked[i]){ try { ranked[i].c.action(); } catch(e){} inp.value=''; close(); inp.blur(); } }
@@ -25699,8 +25706,8 @@ body::before{
 .sec-h-peek .pk-dim{ color:var(--text-dim); font-size:11px }
 /* v694 🏓R6 — the dock YIELDS while a golden item card is open (it was eating TOP-6-SOURCES and
    the Quick take — 'the task failing at the last inch'). Slides to a grip; hover peeks it back. */
-html.detail-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
-html.detail-open .control-dock:hover{ transform:none; opacity:1 }
+html.detail-open .control-dock, html.runs-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
+html.detail-open .control-dock:hover, html.runs-open .control-dock:hover{ transform:none; opacity:1 }
 .control-dock{ transition:transform .25s ease, opacity .25s ease }
 /* v694 🏓R6 — expanding a Tools work card OWNS the viewport (expand-without-scroll was the round-6
    diagnosis: 'you cannot mule what you cannot see') */
@@ -30534,6 +30541,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // the ↩ undo bar targeted the WRONG item. Parse to epoch; the display string stays untouched.
   function _flogTime(s){ var t=Date.parse(String(s||'').replace(/\s*\u00b7\s*imported\s*$/i,'').replace(/\u00b7/g,' ')); return isFinite(t)?t:0; }  /* v684 \u2014 strip the '\u00b7 imported' suffix and EVERY '\u00b7' (a stamp has two); imports used to parse as epoch-0 and sink to the ledger's bottom */
   function _flogSort(names){ var fl=_flog(); return names.slice().sort(function(a,b){ var da=_flogTime(fl[a]), db=_flogTime(fl[b]); if(da!==db) return db-da; if(fl[a]&&!fl[b]) return -1; if(fl[b]&&!fl[a]) return 1; return a.localeCompare(b); }); }
+  // v695 🏓R7 — human-first drop intervals: '~1 every 0.1h' forced mid-session math; under an hour
+  // reads in MINUTES ('~1 every 6m'), an hour and up keeps hours. Odds math untouched — display only.
+  function _fuRate(ev){ var h = 1/ev; if (h < 1) return Math.max(1, Math.round(h*60)) + 'm'; if (h < 10) return (Math.round(h*10)/10) + 'h'; return Math.round(h) + 'h'; }
   function _undoBar(kind){
     var fl=_flog(); var keys=Object.keys(fl);
     var _L=(typeof ITEMS!=='undefined')?ITEMS:(window.ITEMS||[]);   // v644.1 — ITEMS is const-scoped elsewhere; the bare typeof check silently emptied the 'uni' ledger
@@ -30622,7 +30632,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403 };
   };
   var _fuF='all';
-  window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni(); };
+  window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni();
+    // v695 🏓R7 — on 🎯 Best runs the dock YIELDS (same R6 mechanism as the item card, own class):
+    // the ranked farm list IS this view's job and the bar was eating run #1. Hover peeks it back.
+    try { window._fuRunsActive = (_fuF==='runs'); document.documentElement.classList.toggle('runs-open', window._fuRunsActive); } catch(e){} };
   window.grailFoundUni=function(el,name){
     var wasOwned=_ownedNames().has(name);   // v559.1 — un-marking must not celebrate
     var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name); } catch(e){} window.renderForgeUni(); if(!wasOwned) _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique grail grows'); };
@@ -30663,7 +30676,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var bossBtn=r.bossId?'<div class="f-cta"><button class="f-btn" onclick="window.openBossDetail&&window.openBossDetail(\''+jsq(r.bossId)+'\')">📜 boss card</button></div>':'';
     return '<div class="f-card f-pipe"><div class="f-cardart f-cardart-hd">'+art(r.items[0]?r.items[0].n:'','🎯')+'<span class="f-cardart-badge">'+(i+1)+'</span></div><div class="f-cardbody">'
       +'<div class="f-cardtitle"><div class="f-atomact">Run <b class="f-rwbig">'+esc(r.boss)+'</b></div>'
-      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+(r.ev>=1?(Math.round(10/r.ev)/10)+'h':Math.round(1/r.ev)+'h')+'</b> of running':'')+'</div>'
+      +'<div class="f-atomsubrow">drops <b>'+r.items.length+'</b> of your missing uniques'+(r.ev>0?' · expected <b>~1 every '+_fuRate(r.ev)+'</b> of running':'')+'</div>'
       +'<div class="gf-chips">'+chips+'</div>'+more+'</div>'+bossBtn+'</div></div>';
   }
   function _uniItemCard(x){
@@ -30714,8 +30727,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       H.push('<div class="forge-hero forge-hero-pipe"><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'
         +'<div class="fh-artwrap"><div class="fh-art">'+art(top.items[0]?top.items[0].n:'','🎯')+'</div><div class="fh-icobadge">🎯</div></div>'
         +'<div class="fh-main"><div class="fh-lead">👉 DO THIS ONE THING · best farm</div><div class="fh-name">'+esc(top.boss)+'</div>'
-        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+(top.ev>=1?(Math.round(10/top.ev)/10)+'h':Math.round(1/top.ev)+'h')+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
-        +'<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>');
+        +'<div class="fh-body">best expected yield — <b>'+top.items.length+'</b> missing uniques'+(top.ev>0?' · <b>~1 every '+_fuRate(top.ev)+'</b>':'')+' — '+top.items.slice(0,3).map(function(x){return esc(x.n);}).join(' · ')+(top.items.length>3?' …':'')+'</div></div>'
+        +(F==='runs'
+            ? '<button class="f-btn fh-cta" onclick="'+(top.bossId?'window.openBossDetail(\''+top.bossId+'\')':'window.switchTab(\'bosses\')')+'">Open boss card <span class="fh-cta-arw">→</span></button></div>'
+            : '<button class="f-btn fh-cta" onclick="window.funiSetFilter(\'runs\')">Best runs <span class="fh-cta-arw">→</span></button></div>'));   /* v695 🏓R7 — on the runs view the old CTA TOGGLED BACK to All (funiSetFilter re-click semantics): a lying arrow on the planning surface */
     }
     var show=function(k){ return F==='all'||F===k; };
     if(show('runs')&&s.runs.length){
