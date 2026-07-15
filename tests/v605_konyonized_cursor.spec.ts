@@ -47,9 +47,15 @@ test('gauntlet grabs on interactive elements, ignores blank space', async ({ pag
   // 2) press verified BLANK space → the hand must NOT close (v613: judged by the live predicate)
   const blank = await page.evaluate(() => {
     const w: any = window;
-    for (const [x, y] of [[720, 320], [400, 330], [1000, 330], [730, 165], [200, 700]] as Array<[number, number]>) {
-      const el = document.elementFromPoint(x, y);
-      if (el && !w._kcurHit(el)) return { x, y };
+    // v708 recal — five FIXED points all landed on interactive chrome after the v703 nav
+    // clusters shifted layout ~12px (coordinate probes rot with every layout change).
+    // Scan a grid instead: any genuinely inert point qualifies.
+    for (let y = 140; y < Math.min(innerHeight - 40, 860); y += 34) {
+      for (const x of [200, 400, 720, 1000, 1240]) {
+        if (x > innerWidth - 20) continue;
+        const el = document.elementFromPoint(x, y);
+        if (el && !w._kcurHit(el)) return { x, y };
+      }
     }
     return null;
   });

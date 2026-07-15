@@ -134,8 +134,18 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
       await page.waitForTimeout(200);
       await page.evaluate(() => (document.querySelector('.filter-pill[data-filter="all"]') as HTMLElement)?.click());
       await page.waitForTimeout(200);
+      // v708 recal — v701 owned-collapse: on "all", OWNED tiles sit tucked behind the
+      // .owned-tuck strip by design. Full grid = visible + tucked; opening the tuck shows all.
       const after = await page.locator('#item-grid .item-tile:visible').count();
-      expect(after).toBe(total);
+      const tucked = await page.evaluate(() =>
+        document.querySelector('#item-grid')?.classList.contains('tuck-closed')
+          ? document.querySelectorAll('#item-grid .item-tile.is-owned-tucked').length : 0);
+      expect(after + (tucked as number)).toBe(total);
+      if ((tucked as number) > 0) {
+        await page.evaluate(() => (document.querySelector('.owned-tuck') as HTMLElement)?.click());
+        await page.waitForTimeout(200);
+        expect(await page.locator('#item-grid .item-tile:visible').count()).toBe(total);
+      }
     }
   });
 

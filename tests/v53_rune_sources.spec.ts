@@ -27,7 +27,7 @@ test.describe('v53 rune sources — droppable cards', () => {
     }
   });
 
-  test('Travincal expands to approximate high-rune grid + honest caveat', async ({ page }) => {
+  test('Travincal expands to exact high-rune grid (v699 pulled odds, no caveat needed)', async ({ page }) => {
     const detail = page.locator('#rune-src-detail-travincal');
     await expect(detail).toBeHidden();
     await page.locator('.rune-src-card', { hasText: 'Travincal Council' }).click();
@@ -35,7 +35,10 @@ test.describe('v53 rune sources — droppable cards', () => {
     await expect(detail).toContainText('Lo #28');
     await expect(detail).toContainText('Ohm #27');
     await expect(detail).toContainText('Vex #26');
-    await expect(detail).toContainText('pending silospen pull');
+    // v708 recal — v699 replaced the "pending silospen pull" caveat with EXACT pulled council
+    // odds (e.g. Vex → 1:14,489). Honesty is now a real 1:N figure, never a fake, never "pending".
+    await expect(detail).toContainText('1:');
+    await expect(detail).not.toContainText('pending silospen pull');
   });
 
   test('Hellforge expands to a deterministic guaranteed tier pool', async ({ page }) => {

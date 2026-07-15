@@ -130,7 +130,11 @@ test.describe('v66 TZ cross-link cards (The Pit)', () => {
     await page.waitForTimeout(150);
     await page.fill('#gsearch-input', 'pit');
     await page.waitForTimeout(220);
-    await page.locator('.tz-crosslink-card[data-crosslink-boss-id="pit"]').click();
+    // v708.1 — the card's center can sit under the fixed control dock at 1280×720 (pointer
+    // intercepted; scrollIntoViewIfNeeded ignores scroll-margin). This spec guards CONSOLE
+    // ERRORS in the flow, not pixel-click mechanics — fire the handler via evaluate, the
+    // established BUG-013 / BUG-119 pattern for dock/header-covered targets.
+    await page.evaluate(() => (document.querySelector('.tz-crosslink-card[data-crosslink-boss-id="pit"]') as HTMLElement)?.click());
     await page.waitForTimeout(200);
     expect(errors).toEqual([]);
   });

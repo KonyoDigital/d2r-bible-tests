@@ -120,8 +120,10 @@ test.describe('v51 super-uniques section + TZ cross-reference', () => {
         shenkDclone: byName['Shenk the Overseer'].dclone,
         frozenCold: byName['Frozenstein'].immune,
         mlvlRange: data.every((s) => s.mlvl >= 70 && s.mlvl <= 96),
-        // honesty: every detail card carries the pending-odds caveat, never a fake 1:N
-        allCaveated: data.every((s) => /pending silospen pull/.test((window as any).superUniqueDetailHtml(s))),
+        // honesty (v708.1 recal): v698 gave the farmed SUs REAL pulled per-kill odds; the four
+        // silospen can't model (Summoner/Nihlathak/Izual/Blood Raven) say so explicitly. Every
+        // card must carry ONE of the three honesty markers — never a fake 1:N, never silence.
+        allCaveated: data.every((s) => { const h = (window as any).superUniqueDetailHtml(s); return /pending silospen pull/.test(h) || /1:[0-9]/.test(h) || /not modeled by silospen/.test(h); }),
       };
     });
     expect(r.pindleMlvl).toBe(86);
