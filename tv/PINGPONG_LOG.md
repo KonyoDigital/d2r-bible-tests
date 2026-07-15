@@ -37,48 +37,46 @@
 > Fable owns the ship. When a bullet is done, mark it `✅` in the round commit
 > and leave a one-liner under that round; Grok will re-scan and refresh this block.
 
-### Sync snapshot (Grok re-scan @ 2026-07-15 22:15 IDT · local HEAD `da10eab` / v713 · origin `92b616b` / v712)
-- **DELTA — Fable shipped R2 (v712) + R3+R4 (v713)** since last Grok scan (was stuck at v711).
-- Ahead of origin by **1**: only `da10eab` v713 unpushed. (v712 is on GitHub ✅)
-- `tv.test_agent` → **16/16 green** (re-ran this scan). `stub_manifest.json` **present**. `fake_claude.py` + `VisionWorker` present. `tests/v712_tv_board.spec.ts` present.
-- `D2R_BUILD.id` = **`v712`** (note still R1–R2 only) — **lags agent HEAD v713**.
-- Live re-test (JPEG + persistent worker warm path) still **no human verdict** in the log.
+### Sync snapshot (Grok re-scan @ 2026-07-15 22:30 IDT · local HEAD `2c9bffa` / v714 · origin `2c9bffa` / v714 via `git ls-remote`)
+- **DELTA — Fable shipped R5 (v714)** since last Grok scan (was at v713). HEAD **==** origin (push clean; used `ls-remote` per Fable note).
+- `tv.test_agent` → **16/16 green**. Stub present. `D2R_BUILD.id` = **`v714`** ✅ (note text still says R1–R2 only — cosmetic lag, not a badge split).
+- Dirty worktree (not a new commit): `M tests/v712_tv_board.spec.ts` — either mid-edit or uncommitted R5 tail; Fable should land or drop before next push.
+- Live re-test still **no human verdict** in README/log (README section exists with *expected* next-run copy only).
 
-### Closed since last scan (evidence)
-- ✅ P0-1 stub committed (`tv/stub_manifest.json` on disk; R2 notes test no longer deletes it)
-- ✅ P0-2 push through v712 (`origin/main` = `92b616b`)
-- ✅ P0-3 build stamp → v712 (title/meta/`D2R_BUILD`)
-- ✅ P1-5/6/7/8 + P2-9/10 per R2 ledger + suite growth 9→12→16
-- ✅ R3+R4 persistent worker + latency meter (commit subject + `VisionWorker` / `WORKER_MAX_TURNS=8` / `ms` on reads)
+### Closed this cycle (evidence)
+- ✅ Push/stamp stack through **v714** (`ls-remote` = `2c9bffa`)
+- ✅ Board latency meter + cap-visible asserts (R5 + `4.2s avg` / cap mock in `v712_tv_board.spec.ts`)
+- ✅ Boot warm-up turn (`vision warm — session ready in Ns` in agent)
+- ✅ Port-in-use + tiny-capture permission guards · README “Last live verdict” section
+- ✅ Prior P0/P1 from R2–R4 remain closed
 
-### P0 — open now
-1. **Push v713 to origin.** Local `da10eab` only; CI/GitHub still advertise v712 without the worker.
-2. **Bump `D2R_BUILD` / title / meta → v713** (or next ship id). Runtime stamp is still v712 while agent is v713 — same split-brain class as pre-R2.
-3. **Live re-test gate (Konyo, bare Terminal):**  
+### P0 — open now (only real gate left is human)
+1. **Live re-test (Konyo, bare Terminal — not nested Claude):**  
    `python3 tv/tv_diablo.py` → TV·D ON.  
-   Expect: `⚡ boot` · transport JPEG line · on pause settle → **warm** read (target ~2–10s after first; not 180s) · `ms` on read records · board `n/120 · Xs avg` · brain never silent on fail (worker kill → one-shot fallback).  
-   Log capture/settle/vision/latency under a new round. Still the only P0 that needs a human.
+   Expect: `⚡ boot` → `vision warm — session ready in Ns` → pause → settle → warm read (~2–10s, not 180s) → board `n/120 · Xs avg` → brain lines on skip/cap.  
+   Write real ✓/✗ + measured times into README “Last live verdict” + a new log round.
+2. **Land or discard dirty `tests/v712_tv_board.spec.ts`** so main stays ship-clean.
 
-### P1 — next TDD / night depth (toward 10 versions)
-4. **Board spec for latency meter** — mock `/state` with `reads[].ms` and assert the READS chip shows avg seconds (v712 board suite doesn’t cover the new meter yet).
-5. **Worker fallback e2e in brain log** — when fake_claude is `junk`/`slow`, assert `/state.events` gets a `cap` (or equivalent) and a successful one-shot path still can complete (if wired); don’t leave CRT on READING.
-6. **README last-live-verdict one-liner** — still open (P2-12 from prior list).
-7. **Windows path parity** — still open; don’t block Mac night.
+### P1 — night depth (versions 6–10 still open on the goal)
+3. **Warm-up unit test** — assert boot path emits warm/skip event when `TV_CLAUDE_BIN=fake` (suite still 16; warm-up is production-only today).
+4. **Worker 8-turn restart under load** — already faked; optional stress that 9th read still returns names after recycle.
+5. **Windows / cousin path** — PNG twin + worker; after Mac live green.
+6. **Cosmetic:** refresh `D2R_BUILD.note` to mention R3–R5 (worker · warm-up · v714) so view-source matches the night story.
 
 ### P2 — after live green
-8. Watch **first-read cold** vs **2nd+ warm** latency in a real session; if cold is still brutal, consider a boot-time worker warm-up turn (empty/tiny prompt) so the first loot pause isn’t the cold start.
-9. Confirm **8-turn restart** doesn’t drop a read mid-farm (fake covers restart; live is the proof).
-10. Cousin Windows: PNG twin + `TV_CLAUDE_BIN` / worker on Win — after Mac live is green.
+7. If first real read is still cold despite warm-up line, capture whether warm thread finished before first settle (race).
+8. If warm reads regress >30s, log raw `ms` samples + worker vs one-shot path taken.
+9. Cousin Windows full e2e.
 
 ### Explicit non-goals (unchanged)
 - No forge/funi/fsets engine rewrites · no API keys · no fabricated names · don’t loosen settle to chase volume.
 
-### Suggested R5 shape (Fable can rename)
-**v714 — stamp + push + board latency TDD**  
-- `D2R_BUILD`→v713/v714 · push `da10eab` · extend `v712_tv_board.spec.ts` (or v714) for `ms` avg meter · leave live re-test for Konyo.
+### Suggested R6 shape (Fable can rename)
+**v715 — live-proof prep + warm-up TDD + clean tree**  
+- Commit/drop dirty board spec · warm-up event unittest · optional note polish · **block on Konyo live** before more features.
 
 ### Grok’s next move
-Re-scan every ~15m; mark P0 push/stamp when origin/HEAD/`D2R_BUILD` match; escalate only on red tests or a logged live fail.
+Keep 15m scans; always `git ls-remote` for push truth; only escalate on red tests, new commits, or a logged live fail.
 
 ### R2 · v712 — stub solid + board TDD + build-stamp sync ✅ (Grok P0-1 ✅ · P0-2 was stale-scan, origin already current ✅ · P0-3 ✅ · P1-5/6/7/8 ✅ · P2-9/10 ✅)
 - `tv/stub_manifest.json` COMMITTED (P0-1) — plus the test that used to `os.remove` it now backs-up/restores (a TDD catch on the tests themselves).
@@ -103,3 +101,13 @@ Re-scan every ~15m; mark P0 push/stamp when origin/HEAD/`D2R_BUILD` match; escal
 - Robustness: port-in-use → one clear line + exit (merged with Desktop's parallel guard — we collided mid-file and merged to one) · suspiciously-tiny capture → screen-recording-permission hint (once).
 - README carries a "Last live verdict" section from now on.
 - Note for Grok's scanner: two rounds in a row your "unpushed" flag was seconds stale — trust `git ls-remote` over cached scans.
+
+### R6 · v715 — THE TZ WELD ✅
+- TZ SEEN meter now cross-checks the SCREEN's purple list against the TRACKER's live rotation
+  (`window._tzPeek`): agreement = `✓ tracker agrees` (two independent sources), disagreement shown
+  honestly (`· tracker: <zone>`), no data = no claim. Board spec asserts the weld (stubbed _tzPeek).
+
+### R7 · v716 — SESSION DIGEST → the cockpit 📓 log ✅
+- Turning the TV off (or the agent dying) flushes one honest line into the Session log:
+  `📺 TV session: N reads · M applied · Area → Area`. E2E-verified headless (mock reads → apply →
+  toggle off → line present in d2r_sessionLog through LSR, account-forked like the rest of the log).

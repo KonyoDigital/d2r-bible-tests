@@ -30,6 +30,8 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(state()) });
     });
     await page.goto(URL); await page.waitForTimeout(1500);
+    // v715 weld: give the page a live-rotation stub so TZ SEEN can cross-check
+    await page.evaluate(() => { (window as any)._tzPeek = () => ({ current: { zone: 'Spider Forest' } }); });
     await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(400);
 
     // OFF: dead channel
@@ -61,6 +63,7 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(live.area).toBe('The Pit Level 1');
     expect(live.scene).toBe('loot');
     expect(live.tz).toContain('Spider Forest');
+    expect(live.tz).toContain('✓ tracker agrees');               // v715 — screen×tracker weld (two independent sources)
     expect(live.log).toContain('scanner online');                // brain log renders agent events
     expect(live.log).toContain('vision timed out');              // failures are NEVER silent on the board (Grok P1-5)
 

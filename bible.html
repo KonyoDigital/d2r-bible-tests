@@ -32451,7 +32451,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v714', name:'TV Night', date:'2026-07-16', note:'🏓 TV pingpong night R1-R2: TDD foundation (TV_STUB seam · 12 agent unittests · mock-bridge board specs) · live-run fix verified in code (BMP→JPEG vision, 90s fail-fast) · brain log · Grok co-pilots via tv/PINGPONG_LOG.md' };
+  window.D2R_BUILD = { id:'v716', name:'TV Night', date:'2026-07-16', note:'🏓 TV pingpong night R1-R2: TDD foundation (TV_STUB seam · 12 agent unittests · mock-bridge board specs) · live-run fix verified in code (BMP→JPEG vision, 90s fail-fast) · brain log · Grok co-pilots via tv/PINGPONG_LOG.md' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32483,6 +32483,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 // Specs never poll (navigator.webdriver guard — the v617 cost lesson).
 (function(){
   var URL0='http://127.0.0.1:17771/state', T=null, SEEN=0, STATE='off', FEED=[];
+  var DIGEST={reads:0, applied:0, areas:{}};   // v716 — end-of-session digest → the cockpit 📓 log
+  window._tvdCountApply=function(){ DIGEST.applied++; };
+  function digestFlush(reason){
+    try {
+      if(!DIGEST.reads) return;
+      var areas=Object.keys(DIGEST.areas).filter(Boolean);
+      if(typeof window._sessionLog==='function')
+        window._sessionLog('📺 TV '+reason+': '+DIGEST.reads+' read'+(DIGEST.reads===1?'':'s')+' · '+DIGEST.applied+' applied'+(areas.length?' · '+areas.slice(0,4).join(' → '):''));
+      DIGEST={reads:0, applied:0, areas:{}};
+    } catch(e){}
+  }
   function escAttr(x){ return String(x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
   function setState(s){
     STATE=s;
@@ -32528,6 +32539,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       else if(kind==='uni'){ if(typeof _gFound==='function'&&_gFound(key)) return; if(typeof window.toggleOwned==='function') window.toggleOwned(key); }
       else if(kind==='set'){ var hv=false; try{ hv=(typeof _setHave==='function')&&_setHave().has(key); }catch(e){} if(hv) return; if(typeof window.toggleSetPiece==='function') window.toggleSetPiece(key); }
       else return;
+      if(typeof window._tvdCountApply==='function') window._tvdCountApply();
       if(chip){ chip.classList.add('tc-done'); var a=chip.querySelector('.tc-apply'); if(a){ a.textContent='✓ done'; a.onclick=null; } }
     } catch(e){}
   }
@@ -32614,7 +32626,21 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(lastR){
         var ar=document.getElementById('tvb-area'); if(ar&&lastR.area) ar.textContent=lastR.area;
         var sc2=document.getElementById('tvb-scene'); if(sc2&&lastR.scene) sc2.textContent=lastR.scene;
-        var tzq=document.getElementById('tvb-tz'); if(tzq&&lastR.tz&&lastR.tz.length) tzq.textContent=lastR.tz.join(' · ');
+        var tzq=document.getElementById('tvb-tz');
+        if(tzq&&lastR.tz&&lastR.tz.length){
+          var tzTxt=lastR.tz.join(' · ');
+          // v715 — THE WELD: the SCREEN's purple TZ list vs the TRACKER's live rotation.
+          // Agreement = ✓ (two independent sources); disagreement shown honestly; no data = no claim.
+          try {
+            var pk=(typeof window._tzPeek==='function')?window._tzPeek():null;
+            var cur=pk&&pk.current&&(pk.current.zone||pk.current.name)||'';
+            if(cur){
+              var hit=lastR.tz.some(function(z){ var a=z.toLowerCase(),b=cur.toLowerCase(); return a.indexOf(b)>=0||b.indexOf(a)>=0; });
+              tzTxt += hit?' ✓ tracker agrees':' · tracker: '+cur;
+            }
+          } catch(e){}
+          tzq.textContent=tzTxt;
+        }
       }
     } catch(e){}
   }
@@ -32629,13 +32655,14 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       (st.reads||[]).forEach(function(rd){
         if(!rd || rd.ts<=SEEN) return; SEEN=rd.ts; grew=true;
         FEED.push({ ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:(rd.names||[]).map(route).filter(Boolean) });
+        DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;
         if(FEED.length>60) FEED=FEED.slice(-60);
       });
       if(grew || !document.getElementById('sc-tvd-body') || true) render();
-    }).catch(function(){ if(to) clearTimeout(to); if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
+    }).catch(function(){ if(to) clearTimeout(to); if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
   }
   window._tvdToggle=function(){
-    if(T){ clearInterval(T); T=null; setState('off'); try{ localStorage.setItem('d2r_tvdOn','0'); }catch(e){} render(); return; }
+    if(T){ clearInterval(T); T=null; setState('off'); digestFlush('session'); try{ localStorage.setItem('d2r_tvdOn','0'); }catch(e){} render(); return; }
     setState('conn'); try{ localStorage.setItem('d2r_tvdOn','1'); }catch(e){} render();
     poll(); T=setInterval(poll, 2000);
   };
