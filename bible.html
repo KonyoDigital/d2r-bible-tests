@@ -32672,6 +32672,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   });
   // resume if it was on last session — never in automation (specs must not poll localhost)
   try { if(localStorage.getItem('d2r_tvdOn')==='1' && !navigator.webdriver){ setState('conn'); poll(); T=setInterval(poll, 2000); } } catch(e){}
+  // v719 — Konyo's gate run: with the switch resumed ON but the tab BACKGROUNDED, Chrome throttles
+  // interval timers — the board looked dead until an off/on toggle forced a poll. Any return to the
+  // tab now polls IMMEDIATELY, so agent-came-online is never stuck behind the throttle.
+  try {
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden && T) poll(); });
+    window.addEventListener('focus', function(){ if(T) poll(); });
+  } catch(e){}
 })();
 </script>
 
