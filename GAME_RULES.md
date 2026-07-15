@@ -136,10 +136,11 @@ Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.
   Hell Bovines FULL base+TZ (v697, 2026-07-15: 2,245 cells; council = 3 SUs combined
   1/(Σ1/Nᵢ); REGULAR ids keep their PLAIN id under `desecrated=true` — d-suffix is
   boss/SU only)**.
-- **Still vanilla-calibrated (pending):** event drops (Key of Hate 36% / Annihilus 12%),
-  rune odds (Ist etc. ignore MF), and **Pit** — deliberately unpulled: the bible models
-  an AREA RUN and silospen only has per-monster odds; repull awaits a modeling decision
-  (representative monster vs composite vs pool-only honesty).
+- **v699 additions:** Pit = per-kill of a Pit L1 dweller (cr_archer3, area-TC-representative
+  by post-1.13 rules; 1,033 cells) · council rune grid EXACT (Zod is TZ-ONLY: 1:97,811) ·
+  14 super-uniques carry per-kill odds (su-odds-data).
+- **Fixed-rate mechanics (not silospen-modelable, community-verified):** Key of Hate 36%
+  per Summoner kill · Annihilus per-DClone. Countess rune odds separately calibrated (1:850 Ist).
 - **Materials are NOT MF-scaled and NOT in the 312-item grail count** (sunders,
   shards, statues, jewels, keys, organs, essences). Their per-kill figures are
   community estimates (silospen / d2runewizard / diablo2.io / Maxroll), never invented.
