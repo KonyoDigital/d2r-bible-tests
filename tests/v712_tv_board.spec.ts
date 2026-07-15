@@ -14,8 +14,9 @@ function state(over: any = {}) {
   return {
     online: true, startedAt: 1, now: Date.now(), readCount: 1,
     beat: { ts: Date.now(), phase: 'watching', motion: 0.08 },
-    events: [{ ts: Date.now() - 1000, k: 'boot', t: 'scanner online' }],
-    reads: [{ ts: Date.now() - 500, n: 1, area: 'The Pit Level 1', scene: 'loot', tz: ['Spider Forest'],
+    events: [{ ts: Date.now() - 1000, k: 'boot', t: 'scanner online' },
+             { ts: Date.now() - 800, k: 'cap', t: 'vision timed out (90s) — fallback armed' }],
+    reads: [{ ts: Date.now() - 500, n: 1, area: 'The Pit Level 1', scene: 'loot', tz: ['Spider Forest'], ms: 4200,
               names: ['Ist Rune', 'Perfect Ruby', 'Harlequin Crest', "Sigon's Guard", 'Superior Mage Plate'] }],
     ...over,
   };
@@ -56,10 +57,12 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     live.words.forEach((w) => expect(w).toContain('LIVE'));      // BOTH switches (card + board)
     expect(parseInt(live.motion)).toBeGreaterThan(0);
     expect(live.reads).toContain('1 / 120');
+    expect(live.reads).toContain('4.2s avg');                    // v713 latency meter (Grok P1-4)
     expect(live.area).toBe('The Pit Level 1');
     expect(live.scene).toBe('loot');
     expect(live.tz).toContain('Spider Forest');
     expect(live.log).toContain('scanner online');                // brain log renders agent events
+    expect(live.log).toContain('vision timed out');              // failures are NEVER silent on the board (Grok P1-5)
 
     // bridge dies → offline theatre within ~2 polls
     mode = 'dead';

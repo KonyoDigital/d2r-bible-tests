@@ -61,3 +61,9 @@ appear in the feed; matched grail/set names offer one-tap ✓ apply (review-firs
 The public version is the same architecture productized: users subscribe to
 the app and authenticate their *own* Claude — the Claude Agent SDK supports
 exactly this bring-your-own-Claude model.
+
+## Last live verdict
+- **2026-07-15 run #1**: capture ✓ · settle ✓ (fired exactly at pauses) · bridge ✓ · board ✓ ·
+  vision ✗ (16MB BMP → 180s timeouts). Fixed same night: JPEG transport + persistent worker.
+- **Next run**: expect `⚡ boot` → `vision warm — session ready in Ns` → warm reads ~2–10s.
+  Update this line after each live session.

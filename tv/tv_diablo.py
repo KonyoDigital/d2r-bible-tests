@@ -116,7 +116,7 @@ def bridge():
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
     except OSError as e:
-        print(f"⛔ cannot bind 127.0.0.1:{PORT} — is another TV DIABLO / simulate.py already running?\n   {e}")
+        print(f"⛔ cannot bind 127.0.0.1:{PORT} — another TV DIABLO / simulate.py is already running. Ctrl-C it first (or TV_PORT={PORT+1}).\n   {e}")
         sys.exit(2)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
@@ -307,6 +307,14 @@ def main():
         _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0})   # fresh — never inherit a stale sim flag
     bridge()
     ev("boot", "scanner online — eyes at 0.5s, read-only, your subscription")
+    if not os.environ.get("TV_STUB"):
+        def _warm():
+            t0 = time.time()
+            if _WORKER.ask("Reply with exactly: ok", timeout=60) is not None:
+                ev("boot", f"vision warm — session ready in {int(time.time()-t0)}s (first read will be fast)")
+            else:
+                ev("skip", "warm-up didn't answer — first read may be slow (one-shot fallback armed)")
+        threading.Thread(target=_warm, daemon=True).start()
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
@@ -325,6 +333,12 @@ def main():
             frame = f
         elif not capture_mac(frame):
             print("  ⚠ screencapture failed (grant Terminal screen-recording permission in System Settings)"); continue
+        elif (not WATCH_MODE) and os.path.getsize(frame) < 200000:
+            if not globals().get("_PERM_WARNED"):
+                globals()["_PERM_WARNED"] = True
+                ev("cap", "capture looks EMPTY — grant Screen Recording to your terminal (System Settings → Privacy) and relaunch")
+                print("  ⚠ capture is suspiciously tiny — screen-recording permission is probably missing")
+            continue
         try: cur = frame_sig(frame)
         except Exception: continue
         SETTLE = 0.03   # ≤3% of sampled pixels moving = you stopped to look (ambient animation rides under this)
