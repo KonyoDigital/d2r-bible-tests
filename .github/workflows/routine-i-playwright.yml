@@ -29,6 +29,14 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+# v699.1 (Konyo: 'routines I jumping alot at me') — ship-storm days queued a full 6-shard run per
+# push and every superseded run still finished (and emailed). One group: a new push CANCELS the
+# in-flight run for the old commit — only the newest commit's verdict survives. The nightly
+# scheduled run shares the group, so it also never doubles up with a late-evening push.
+concurrency:
+  group: routine-i-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: shard ${{ matrix.shard }}/6
