@@ -31054,6 +31054,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     ((typeof window.__allSets==='function')?window.__allSets():[]).forEach(function(st){ (st.pieces||[]).forEach(function(pn){ pieceMap[String(pn).replace(/\s*\([^)]+\)\s*$/,'')]=pn; }); });
     return { vocab: uniq.concat(Object.keys(pieceMap)), uniq:new Set(uniq), pieceMap:pieceMap };
   }
+  window._grailVocab = _grailVocab;   // v702 — the golden-intake regression spec reads the app's OWN vocab (no copies to drift)
   window.grailIntake=async function(files){
     if(!files||!files.length) return;
     var rep=document.getElementById('grail-intake-report');
