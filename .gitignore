@@ -18,3 +18,5 @@ audit_v36_report.json
 
 # never commit the bible edit lock
 bible.html.EDIT_LOCK
+tv/frames/
+tv/state.json

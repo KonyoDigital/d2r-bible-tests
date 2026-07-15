@@ -37,46 +37,33 @@
 > Fable owns the ship. When a bullet is done, mark it `✅` in the round commit
 > and leave a one-liner under that round; Grok will re-scan and refresh this block.
 
-### Sync snapshot (Grok re-scan @ 2026-07-15 22:30 IDT · local HEAD `2c9bffa` / v714 · origin `2c9bffa` / v714 via `git ls-remote`)
-- **DELTA — Fable shipped R5 (v714)** since last Grok scan (was at v713). HEAD **==** origin (push clean; used `ls-remote` per Fable note).
-- `tv.test_agent` → **16/16 green**. Stub present. `D2R_BUILD.id` = **`v714`** ✅ (note text still says R1–R2 only — cosmetic lag, not a badge split).
-- Dirty worktree (not a new commit): `M tests/v712_tv_board.spec.ts` — either mid-edit or uncommitted R5 tail; Fable should land or drop before next push.
-- Live re-test still **no human verdict** in README/log (README section exists with *expected* next-run copy only).
+### Sync snapshot (Grok re-scan @ 2026-07-15 23:15 IDT · HEAD `780c9f9` / v719.1 · origin `780c9f9` via `ls-remote`)
+- **no delta on git** — still v719.1; suite **16/16**; `D2R_BUILD` still **v716**; README still run #1 only.
+- **Live still broken (ops, not missing commits):** agent PID **98261** started **22:51** (pre-v719.1). Child `claude -p` lines **lack `--strict-mcp-config`** (verified on live PIDs). Disk `state.json` still **poisoned** (`startedAt:1` + stub Pit loot) while in-memory brain log shows **8 consecutive** settle → worker death → **90s oneshot timeout** → empty `gameplay` cycles; beat `reading` on read #8. JPEG transport still OK (303KB).
 
-### Closed this cycle (evidence)
-- ✅ Push/stamp stack through **v714** (`ls-remote` = `2c9bffa`)
-- ✅ Board latency meter + cap-visible asserts (R5 + `4.2s avg` / cap mock in `v712_tv_board.spec.ts`)
-- ✅ Boot warm-up turn (`vision warm — session ready in Ns` in agent)
-- ✅ Port-in-use + tiny-capture permission guards · README “Last live verdict” section
-- ✅ Prior P0/P1 from R2–R4 remain closed
+### Live status (unchanged P0 — escalate)
+1. **RESTART AGENT NOW** — v719.1 on disk is useless while 22:51 process runs. After restart, `ps` must show `--strict-mcp-config` on warm + oneshot children.
+2. **Fullscreen D2R** before any settle (run #2 captured bible Chrome).
+3. Expect after restart: `vision warm — session ready in Ns` (not “didn't answer”). If warm still fails *with* strict-mcp, escalate past MCP theory.
+4. Log README run #2 truth + R11 ledger notes (v719/v719.1 commits have no round section yet).
+5. Stamp badge → v719.1+ when writing up.
 
-### P0 — open now (only real gate left is human)
-1. **Live re-test (Konyo, bare Terminal — not nested Claude):**  
-   `python3 tv/tv_diablo.py` → TV·D ON.  
-   Expect: `⚡ boot` → `vision warm — session ready in Ns` → pause → settle → warm read (~2–10s, not 180s) → board `n/120 · Xs avg` → brain lines on skip/cap.  
-   Write real ✓/✗ + measured times into README “Last live verdict” + a new log round.
-2. **Land or discard dirty `tests/v712_tv_board.spec.ts`** so main stays ship-clean.
+### Closed (commits — same as prior scan)
+- ✅ v719 focus/visibility re-poll · ✅ v719.1 `--strict-mcp-config` · ✅ R6–R10 stack
 
-### P1 — night depth (versions 6–10 still open on the goal)
-3. **Warm-up unit test** — assert boot path emits warm/skip event when `TV_CLAUDE_BIN=fake` (suite still 16; warm-up is production-only today).
-4. **Worker 8-turn restart under load** — already faked; optional stress that 9th read still returns names after recycle.
-5. **Windows / cousin path** — PNG twin + worker; after Mac live green.
-6. **Cosmetic:** refresh `D2R_BUILD.note` to mention R3–R5 (worker · warm-up · v714) so view-source matches the night story.
-
-### P2 — after live green
-7. If first real read is still cold despite warm-up line, capture whether warm thread finished before first settle (race).
-8. If warm reads regress >30s, log raw `ms` samples + worker vs one-shot path taken.
-9. Cousin Windows full e2e.
+### P1 — Fable (still open)
+- State poison guard (`startedAt:1` / stub names must never win over live events)
+- Argv unit test for `--strict-mcp-config`
+- Optional: agent prints build/mtime or git sha at boot so stale process is obvious in brain log
 
 ### Explicit non-goals (unchanged)
-- No forge/funi/fsets engine rewrites · no API keys · no fabricated names · don’t loosen settle to chase volume.
+- No forge engines · no API keys · no fabricated names · don’t loosen settle.
 
-### Suggested R6 shape (Fable can rename)
-**v715 — live-proof prep + warm-up TDD + clean tree**  
-- Commit/drop dirty board spec · warm-up event unittest · optional note polish · **block on Konyo live** before more features.
+### Suggested next shape
+**No more features until restart + one warm read.** Then **v720**: stamp · state guard · boot-sha brain line · README run #2/#3.
 
 ### Grok’s next move
-Keep 15m scans; always `git ls-remote` for push truth; only escalate on red tests, new commits, or a logged live fail.
+Next scan: closed only if agent `lstart` ≥ 22:58 **and** a child argv contains `strict-mcp-config` **and** a warm/boot event is not “didn't answer”.
 
 ### R2 · v712 — stub solid + board TDD + build-stamp sync ✅ (Grok P0-1 ✅ · P0-2 was stale-scan, origin already current ✅ · P0-3 ✅ · P1-5/6/7/8 ✅ · P2-9/10 ✅)
 - `tv/stub_manifest.json` COMMITTED (P0-1) — plus the test that used to `os.remove` it now backs-up/restores (a TDD catch on the tests themselves).
