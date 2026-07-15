@@ -3227,6 +3227,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .lore-toc .lt-l{font-size:13px;color:var(--gold-dim);flex:0 0 auto}
 .lore-toc .lt-chip{flex:0 0 auto;font:inherit;font-size:var(--fs-meta);color:var(--text-muted);background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;max-width:200px;overflow:hidden;text-overflow:ellipsis;transition:border-color .13s,color .13s,background .13s}
 .lore-toc .lt-chip:hover{border-color:var(--gold-dim);color:var(--gold-bright);background:rgba(240,192,96,.07)}
+.lore-toc .lt-chip.lt-on{border-color:rgba(240,192,96,.6);color:#1a1208;background:var(--gold);font-weight:700}
+/* v708 (Grok round 6) — ONE primary index on tools: the chip rail owns wayfinding, the
+   quick-upload band drops to half its visual weight (function untouched — same buttons). */
+#tab-tools .tools-quickup{padding:7px 11px;gap:10px;margin-bottom:10px}
+#tab-tools .tqu-cam{font-size:18px}
+#tab-tools .tqu-headtxt b{font-size:12px}
 #tab-tools .tqu-head{display:flex;align-items:center;gap:10px;padding-right:14px;border-right:1px solid rgba(157,123,216,.22)}
 #tab-tools .tqu-cam{font-size:24px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
 #tab-tools .tqu-headtxt{display:flex;flex-direction:column;line-height:1.2}
@@ -3237,6 +3243,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .tqu-btn:hover{transform:translateY(-2px);box-shadow:0 7px 20px color-mix(in srgb,var(--a) 32%,transparent);filter:brightness(1.07);background:linear-gradient(180deg,color-mix(in srgb,var(--a) 15%,transparent),color-mix(in srgb,var(--a) 4%,transparent))}
 #tab-tools .tqu-btn:active{transform:translateY(0)}
 #tab-tools .tqu-art{width:36px;height:36px;object-fit:contain;flex:none;filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))}
+/* v708 — compact quick-upload (must sit AFTER the base .tqu rules to win the cascade) */
+#tab-tools .tqu-btn .tqu-art{width:26px;height:26px}
+#tab-tools .tqu-btn{padding:5px 10px;min-width:128px;flex:1 1 128px}
 #tab-tools .tqu-txt{display:flex;flex-direction:column;line-height:1.25}
 #tab-tools .tqu-txt b{font-size:13.5px;font-weight:800;color:var(--a,#f2ead8)}
 #tab-tools .tqu-txt small{font-size:10.5px;color:#c8bfa8;opacity:.85}
@@ -4241,6 +4250,7 @@ try {
     <span class="ti-g"><span class="ti-gl">⚗️ craft &amp; cube</span><button class="ti-chip" onclick="window._toolJump('craft-workshop-card')">⚗️ crafts</button><button class="ti-chip" onclick="window._toolJump('horadric-recipe-card')">🧪 recipes</button><button class="ti-chip" onclick="window._toolJump('sunder-recipe-card')">🌀 sunders</button></span>
     <span class="ti-g"><span class="ti-gl">🗺 planners</span><button class="ti-chip" onclick="window._toolJump('ai-item-checker-card')">🔬 AI checker</button><button class="ti-chip" onclick="window._toolJump('all-runewords-card')">📖 runewords</button><button class="ti-chip" onclick="window._toolJump('rw-bases-card')">🛡 bases</button><button class="ti-chip" onclick="window._toolJump('loot-filters-card')">🎯 loot filter</button><button class="ti-chip" onclick="window._toolJump('set-tracker-card')">🧩 sets</button></span>
     <span class="ti-g"><span class="ti-gl">💰 values</span><button class="ti-chip" onclick="window._toolJump('item-values-card')">💰 worth</button><button class="ti-chip" onclick="window._toolJump('item-rarity-card')">🏆 rarity</button><button class="ti-chip" onclick="window._toolJump('hvf-card')">⭐ HVF</button></span>
+    <span class="ti-g"><span class="ti-gl">❓</span><button class="ti-chip" onclick="document.getElementById('tools-legend-modal').classList.add('show')" title="Field guide — what every planner does + where to start">🧰 field guide</button></span>
   </div>
 
   <div class="boss-card collapsible collapsed tool-premium tool-primary" id="mule-vault-card" style="--tc:#f0c060">
@@ -22201,8 +22211,12 @@ window._buildLoreTocs = function(){
       hs.forEach(function(h, i){
         if (!h.id) h.id = "lt-"+tn+"-"+i;
         var t = (h.querySelector(".sec-h-t").textContent || "").trim();
+        // v708 (Grok round 6) — SLUG the chip: full titles ellipsized into mush ("The hard-point gate — why m…").
+        // Cut at the first dash/paren/colon qualifier; the full title lives on the hover tooltip.
+        var slug = t.split(/\s+[—–-]\s+|\s*[(:]/)[0].trim() || t;
+        if (slug.length > 26) slug = slug.slice(0, 25).replace(/\s+\S*$/, "") + "…";
         var b = document.createElement("button"); b.className = "lt-chip"; b.setAttribute("data-t", h.id);
-        b.textContent = t; b.title = t;
+        b.textContent = slug; b.title = t;
         row.appendChild(b);
       });
       row.addEventListener("click", function(e){
@@ -22210,6 +22224,9 @@ window._buildLoreTocs = function(){
         var h = document.getElementById(b.getAttribute("data-t")); if (!h) return;
         if (h.classList.contains("collapsed")) h.click();
         h.scrollIntoView({ behavior: "smooth", block: "start" });
+        // v708 — a real active state: the rail remembers where it sent you
+        row.querySelectorAll(".lt-chip.lt-on").forEach(function(x){ x.classList.remove("lt-on"); });
+        b.classList.add("lt-on");
       });
       var lead = tab.querySelector(".lead");
       if (lead) lead.insertAdjacentElement("afterend", row);
@@ -31342,15 +31359,17 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .nav-fab{width:44px!important;height:44px!important}
 /* the tray sits higher than the old 72px anchor — the panel must never poke past the top edge */
 .nav-widget.open .nav-panel{max-height:min(560px,calc(100vh - var(--dock-h,84px) - 130px))!important;overflow-y:auto!important}
-/* the 🧰 field-guide opener was GLOBAL noise — it explains the Tools planners, it lives on tools (v703 data-tab stamp) */
+/* the 🧰 field-guide opener was GLOBAL noise; v708 (Grok round 6: 'cap the tray at 3 orbs')
+   retires the orb entirely — the field guide opens from the 🧰 chip in the tools index instead */
 .tools-legend-btn{display:none!important}
-html[data-tab="tools"] .tools-legend-btn{display:flex!important;bottom:calc(var(--dock-h,84px) + 118px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:19px!important;z-index:230!important}
 .forge-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important;right:12px!important;width:44px!important;height:44px!important;z-index:230!important}
 .forge-legend-fab img{width:27px!important;height:27px!important}
 .tools-legend-fab{bottom:calc(var(--dock-h,84px) + 170px)!important;right:12px!important;width:44px!important;height:44px!important;font-size:21px!important;z-index:230!important}
+/* v708 — with the 🧰 orb retired, the 🧭 tools map takes the S2 context slot (3-orb cap) */
+.tools-legend-fab{bottom:calc(var(--dock-h,84px) + 118px)!important}
 /* their popovers open beside the column, not under it */
 .forge-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
-.tools-legend-pop{bottom:calc(var(--dock-h,84px) + 170px)!important;right:66px!important}
+.tools-legend-pop{bottom:calc(var(--dock-h,84px) + 118px)!important;right:66px!important}
 /* routines bar shares the corner — park it LEFT of the tray column so they never overlap */
 #routine-status-bar{right:calc(12px + 56px)!important}
 </style>
@@ -32190,7 +32209,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v707', name:'Structured Bible', date:'2026-07-15', note:'Grok visual/IA wave: HUNT·LORE nav clusters · bottom-right system tray (one column, one size) · tools index + ranked cards · type/accent/chrome tokens · sticky lore TOCs (ref/binds/RotW) · intake golden-set regression (v702)' };
+  window.D2R_BUILD = { id:'v708', name:'Structured Bible', date:'2026-07-15', note:'Grok wave round 2: TOC slugs + active chip · ONE tools index (quick-upload compacted, 🧰 orb retired → field-guide chip) · 3-orb tray cap · plus the v703-707 clusters/tray/tokens/TOCs and the v702 intake golden set' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
