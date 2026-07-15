@@ -233,6 +233,18 @@ class VisionWorker:
             return None
 _WORKER = VisionWorker()
 
+_REWARM_T = [0.0]
+def _rewarm():
+    """after a worker death, quietly warm a fresh session in the background (60s debounce)
+    so the NEXT pause reads warm again — one-shot is a bridge, never the new normal."""
+    if time.time() - _REWARM_T[0] < 60: return
+    _REWARM_T[0] = time.time()
+    def _w():
+        t0 = time.time()
+        if _WORKER.ask("Reply with exactly: ok", timeout=60) is not None:
+            ev("boot", f"vision re-warmed in {int(time.time()-t0)}s — back to fast reads")
+    threading.Thread(target=_w, daemon=True).start()
+
 def _parse_read(out):
     """extract + normalize the read JSON from model text; None if no JSON object found."""
     a, b = out.find("{"), out.rfind("}")
@@ -269,11 +281,12 @@ def claude_read(path):
     if out_w is not None:
         parsed = _parse_read(out_w)
         if parsed is not None:
-            parsed["ms"] = int((time.time() - t0) * 1000)
+            parsed["ms"] = int((time.time() - t0) * 1000); parsed["mode"] = "warm"
             return parsed
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
-        ev("skip", "vision worker restarted (timeout/stream end) — one-shot fallback for this read")
+        ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
+        _rewarm()   # v718 (Grok R10 pick #2): fallback never permanently demotes the session
     try:
         r = subprocess.run(
             [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
@@ -290,7 +303,7 @@ def claude_read(path):
             return EMPTY
         parsed = _parse_read(out)
         if parsed is None: return EMPTY
-        parsed["ms"] = int((time.time() - t0) * 1000)
+        parsed["ms"] = int((time.time() - t0) * 1000); parsed["mode"] = "oneshot"
         return parsed
     except subprocess.TimeoutExpired:
         ev("cap", "vision timed out (90s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
@@ -368,7 +381,7 @@ def main():
         rd = claude_read(frame)
         beat("watching", 0.0)   # pulse resumes immediately — the CRT verb never sticks on READING after a slow/failed read
         names = rd["names"]
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)"))
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + (" ["+rd.get("mode","?")+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
         with _state_lock:
             st = _load()

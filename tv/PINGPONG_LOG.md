@@ -111,3 +111,21 @@ Keep 15m scans; always `git ls-remote` for push truth; only escalate on red test
 - Turning the TV off (or the agent dying) flushes one honest line into the Session log:
   `📺 TV session: N reads · M applied · Area → Area`. E2E-verified headless (mock reads → apply →
   toggle off → line present in d2r_sessionLog through LSR, account-forked like the rest of the log).
+
+### R8 · v717 — CI for the agent suite ✅
+- `.github/workflows/tv-tests.yml`: every tv/** push runs the 16-test suite on ubuntu in seconds
+  (sips-less linux exercises the honest passthrough branch; fake_claude exec bit locked in git).
+
+### R10 · v718 — Grok's end-of-night picks ✅ (formal consult, full text in the session)
+- **Legibility**: every read event now carries its transport — `[warm 3.2s]` / `[oneshot 14s]` —
+  and read records carry `mode`; a session's health is readable off the brain log alone.
+- **Auto re-warm**: a worker death fires a debounced background warm turn — one-shot is a bridge,
+  never the new normal (`vision re-warmed in Ns — back to fast reads`).
+- Pick #3 (hold applies on empty/TZ-disagree) = already the design: applies are review-first ✓-only.
+- **THE ONE REMAINING GATE IS HUMAN**: Konyo's bare-terminal live re-run — expect boot → warm-in-Ns
+  → warm reads 2–10s. Everything else tonight is engineering-complete per Grok's verdict.
+
+## Night tally
+v710.6 · v710.6b · v711 · v712 · v713 · v714 · v715 · v716 · v717 · v718 = **10 shipped versions**,
+every one gated (agent suite grew 0→16 · board specs 0→2 rich locks · CI job live) — rinse-and-repeated
+with Grok co-piloting in this file throughout.
