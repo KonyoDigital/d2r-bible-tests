@@ -210,9 +210,12 @@ def claude_read(path):
 def main():
     os.makedirs(FRAMES, exist_ok=True)
     with _state_lock:
-        st = _load(); st["startedAt"] = int(time.time()*1000); st["online"] = True; st["reads"] = []; st["readCount"] = 0; _save(st)
+        _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0})   # fresh — never inherit a stale sim flag
     bridge()
     ev("boot", "scanner online — eyes at 0.5s, read-only, your subscription")
+    if os.environ.get("CLAUDECODE"):
+        ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
+        print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
     print("📺 TV DIABLO — live scanner (read-only · your Claude subscription · no API keys)")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print("   tip: run D2R fullscreen so the menu-bar clock doesn't keep the frame 'moving'")

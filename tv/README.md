@@ -21,6 +21,9 @@ at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
 ```bash
 python3 tv/tv_diablo.py
 ```
+**Use a bare Terminal window** — not a shell inside a Claude Code session (nested
+`claude -p` calls hang; your first live run proved it).
+
 First run: macOS will ask for Screen Recording permission for your terminal —
 grant it (System Settings → Privacy & Security → Screen Recording).
 
