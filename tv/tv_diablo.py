@@ -176,6 +176,75 @@ def _readable_frame(ap):
         pass
     return ap
 
+
+# ═══ v713 — PERSISTENT VISION WORKER (the SPEED fix). One long-lived claude session in
+# stream-json mode: each frame is a TURN, not a cold start (live run #1: cold starts + a
+# broken transport = 180s hangs). The worker restarts itself every N turns so conversation
+# context never bloats a read, and ANY wobble (timeout · dead process · bad JSON) kills it
+# and falls back to the one-shot path. TV_CLAUDE_BIN overrides the binary — the TDD seam
+# (tests run a fake bin that speaks stream-json).
+CLAUDE_BIN = os.environ.get("TV_CLAUDE_BIN", "claude")
+WORKER_MAX_TURNS = 8
+class VisionWorker:
+    def __init__(self):
+        self.p = None; self.q = None; self.turns = 0
+    def _spawn(self):
+        import queue
+        self.p = subprocess.Popen(
+            [CLAUDE_BIN, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
+             "--verbose", "--model", "sonnet", "--allowedTools", "Read"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, bufsize=1)
+        self.q = queue.Queue(); self.turns = 0
+        def _pump(proc, q):
+            try:
+                for line in proc.stdout: q.put(line)
+            except Exception: pass
+            q.put(None)
+        threading.Thread(target=_pump, args=(self.p, self.q), daemon=True).start()
+    def stop(self):
+        try:
+            if self.p and self.p.poll() is None: self.p.kill()
+        except Exception: pass
+        self.p = None
+    def ask(self, prompt, timeout=75):
+        """one turn → the result text, or None (caller falls back to one-shot)."""
+        try:
+            if self.p is None or self.p.poll() is not None or self.turns >= WORKER_MAX_TURNS:
+                self.stop(); self._spawn()
+            msg = {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}
+            self.p.stdin.write(json.dumps(msg) + "\n"); self.p.stdin.flush()
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                try: line = self.q.get(timeout=max(0.1, deadline - time.time()))
+                except Exception: break
+                if line is None: break
+                line = line.strip()
+                if not line: continue
+                try: j = json.loads(line)
+                except Exception: continue
+                if j.get("type") == "result":
+                    self.turns += 1
+                    return j.get("result") or ""
+            self.stop()   # timed out / stream ended — never reuse a wedged worker
+            return None
+        except Exception:
+            self.stop()
+            return None
+_WORKER = VisionWorker()
+
+def _parse_read(out):
+    """extract + normalize the read JSON from model text; None if no JSON object found."""
+    a, b = out.find("{"), out.rfind("}")
+    if a < 0 or b <= a: return None
+    try: j = json.loads(out[a:b+1])
+    except Exception: return None
+    names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
+    scene = str(j.get("scene", "gameplay")).lower()
+    if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
+    tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
+    return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz}
+
 def claude_read(path):
     """One vision read on YOUR Claude subscription. Read-only tools; Sonnet (the intake-calibrated model)."""
     # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
@@ -195,9 +264,19 @@ def claude_read(path):
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
         return EMPTY
+    t0 = time.time()
+    out_w = _WORKER.ask(READ_PROMPT.format(path=ap))
+    if out_w is not None:
+        parsed = _parse_read(out_w)
+        if parsed is not None:
+            parsed["ms"] = int((time.time() - t0) * 1000)
+            return parsed
+        ev("cap", "worker returned non-JSON — falling back to one-shot")
+    else:
+        ev("skip", "vision worker restarted (timeout/stream end) — one-shot fallback for this read")
     try:
         r = subprocess.run(
-            ["claude", "-p", READ_PROMPT.format(path=ap),
+            [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
              "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text"],
             capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL)
         out = (r.stdout or "").strip()
@@ -209,12 +288,10 @@ def claude_read(path):
             if r.returncode != 0:
                 print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
             return EMPTY
-        j = json.loads(out[a:b+1])
-        names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
-        scene = str(j.get("scene", "gameplay")).lower()
-        if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
-        tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
-        return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz}
+        parsed = _parse_read(out)
+        if parsed is None: return EMPTY
+        parsed["ms"] = int((time.time() - t0) * 1000)
+        return parsed
     except subprocess.TimeoutExpired:
         ev("cap", "vision timed out (90s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
         print("  ⚠ vision timed out (90s)")
@@ -281,7 +358,7 @@ def main():
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
         with _state_lock:
             st = _load()
-            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"], "tz": rd.get("tz", [])})
+            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"], "tz": rd.get("tz", []), "ms": rd.get("ms", 0)})
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
             _save(st)

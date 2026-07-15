@@ -157,5 +157,54 @@ class TestStubE2E(unittest.TestCase):
             del os.environ["TV_STUB"]
 
 
+class TestVisionWorker(unittest.TestCase):
+    """v713 — the persistent worker against the fake claude bin (TV_CLAUDE_BIN seam)."""
+    def setUp(self):
+        self.fake = os.path.join(tv.HERE, "fake_claude.py")
+        tv.CLAUDE_BIN = sys.executable and sys.executable or "python3"
+        # the worker invokes CLAUDE_BIN with claude-style args — wrap via env-configured argv0
+        tv.CLAUDE_BIN = self.fake
+        os.environ.pop("TV_FAKE_MODE", None)
+
+    def tearDown(self):
+        tv._WORKER.stop()
+        os.environ.pop("TV_FAKE_MODE", None)
+
+    def test_multi_turn_reuse_same_process(self):
+        w = tv.VisionWorker()
+        r1 = w.ask("read frame 1", timeout=10)
+        pid1 = w.p.pid
+        r2 = w.ask("read frame 2", timeout=10)
+        self.assertEqual(w.p.pid, pid1)            # SAME process — no cold start
+        self.assertIn("Worker Keep", r1)
+        self.assertIn("Vex Rune", r2)
+        self.assertEqual(w.turns, 2)
+        w.stop()
+
+    def test_restart_after_max_turns(self):
+        w = tv.VisionWorker()
+        w.ask("t", timeout=10); pid1 = w.p.pid
+        w.turns = tv.WORKER_MAX_TURNS             # force the context-bloat guard
+        w.ask("t", timeout=10)
+        self.assertNotEqual(w.p.pid, pid1)         # fresh process
+        w.stop()
+
+    def test_timeout_kills_worker_returns_none(self):
+        os.environ["TV_FAKE_MODE"] = "slow"
+        w = tv.VisionWorker()
+        r = w.ask("t", timeout=2)
+        self.assertIsNone(r)                       # caller falls back to one-shot
+        self.assertIsNone(w.p)                     # wedged worker is DEAD, never reused
+        w.stop()
+
+    def test_junk_result_parses_to_none(self):
+        os.environ["TV_FAKE_MODE"] = "junk"
+        w = tv.VisionWorker()
+        out = w.ask("t", timeout=10)
+        self.assertIsNotNone(out)
+        self.assertIsNone(tv._parse_read(out))     # claude_read falls back on this
+        w.stop()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

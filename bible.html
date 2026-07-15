@@ -32583,7 +32583,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         scr.classList.toggle('tvb-reading', !!(fresh&&bt.phase==='reading'));
         if(v) v.textContent = !fresh?'👁 WATCHING':bt.phase==='reading'?'🧠 READING…':bt.phase==='loading'?'⏳ ZONE LOADING':'👁 WATCHING';
       }
-      var rc=document.getElementById('tvb-reads'); if(rc) rc.textContent=(st.readCount||0)+' / 120';
+      var rc=document.getElementById('tvb-reads');
+      if(rc){
+        var msArr=(st.reads||[]).map(function(r){return r.ms||0;}).filter(Boolean);
+        var avg=msArr.length?Math.round(msArr.reduce(function(a,b){return a+b;},0)/msArr.length/100)/10:0;
+        rc.textContent=(st.readCount||0)+' / 120'+(avg?(' \u00b7 '+avg+'s avg'):'');
+      }
       // v710.6 — BRAIN LOG: append only unseen events, keep autoscroll pinned to the newest
       var lg=document.getElementById('tvb-log');
       if(lg&&st.events&&st.events.length){

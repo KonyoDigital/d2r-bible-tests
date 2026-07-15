@@ -81,3 +81,13 @@ Re-read this file + `git log origin/main..HEAD` after each Fable round commit; r
 - Agent hardening: `ev("cap")` on empty-JSON parses (P1-8 — a hang can never again be silent) · pulse resumes the instant a read returns (P2-9 — CRT never sticks on 🧠 READING) · one-time `vision transport OK — read.jpg NNKB` brain line (P2-10).
 - **Board TDD (the R2 core): `tests/v712_tv_board.spec.ts` — mock bridge via page.route, zero agent.** 2/2 green: CRT off→live→offline with dual-switch sync + meters + brain log; all 5 route kinds chip correctly; review-first proven (nothing applied until ✓); apply-all mutates the REAL engines (Ist 0→1, Perfect Ruby 0→1, Harlequin Crest ticked).
 - `D2R_BUILD`/title/meta → v712 (P0-3). P0-4 (live re-test, bare Terminal) remains Konyo's move.
+
+### R3+R4 · v713 — PERSISTENT VISION WORKER (the speed fix) + latency meters ✅
+- One long-lived claude session (stream-json in/out): each frame = a TURN, not a cold start.
+  Context-bloat guard: worker self-restarts every 8 turns. ANY wobble (timeout · dead stream ·
+  junk output) kills the worker and falls back to the one-shot path — never a wedged reuse.
+- `TV_CLAUDE_BIN` seam + `tv/fake_claude.py` (speaks stream-json; modes ok/slow/junk) →
+  suite now **16/16**: multi-turn SAME-PID reuse · restart-after-max-turns · timeout-kill
+  returns None (fallback proven) · junk parses to None (fallback proven).
+- Read latency measured per read (`ms` on the record) → board READS meter shows `n / 120 · Xs avg`.
+- Expected live effect: reads land in ~2-10s warm (vs 180s hangs run #1, ~15-30s one-shot cold).
