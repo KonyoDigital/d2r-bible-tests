@@ -40,13 +40,21 @@ SESSION_CAP  = 120    # hard stop for a whole session
 POLL_S       = 3.0    # capture cadence
 WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win.ps1
 
+# v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
+# coded to flag farming when not in town — the corner always shows where we are on the map").
+# Every read extracts WHERE (area = the zone name on the HUD/automap corner) and WHICH MOMENT
+# (scene: town/loot/inventory/stash/gameplay) alongside the item names.
 READ_PROMPT = (
-    "Read the image file at {path} — it is a screenshot of Diablo II: Resurrected "
-    "(Reign of the Warlock mod). If it shows an inventory, stash, or an item tooltip, list EVERY "
-    "item name you can actually read: uniques, set pieces, runes (like 'Ist Rune'), gems, charms, "
-    "jewels, bases. Read ONLY text that is genuinely legible — never guess or complete a name you "
-    "cannot fully read. If the screen is gameplay with no readable item UI, return an empty list. "
-    "Answer with STRICT JSON only, no prose: {{\"names\":[\"...\"]}}"
+    "Read the image file at {path} — a screenshot of Diablo II: Resurrected (Reign of the Warlock mod). "
+    "Return THREE things as STRICT JSON. (1) \"area\": the current zone name if it is rendered "
+    "anywhere on the HUD (the automap corner usually shows it) — verbatim, else \"\". "
+    "(2) \"scene\": exactly one of \"town\" (the area is an act town: Rogue Encampment, Lut Gholein, "
+    "Kurast Docks, Pandemonium Fortress, Harrogath), \"loot\" (item labels floating over the ground), "
+    "\"inventory\" (inventory panel open), \"stash\" (stash panel open), \"gameplay\" (none of those). "
+    "(3) \"names\": EVERY item name you can actually read — ground labels, tooltips, inventory/stash "
+    "items: uniques, set pieces, runes (like \'Ist Rune\'), gems, charms, jewels, bases. Read ONLY text "
+    "that is genuinely legible — never guess or complete a name you cannot fully read; empty list if none. "
+    "STRICT JSON only, no prose: {{\"area\":\"...\",\"scene\":\"...\",\"names\":[\"...\"]}}"
 )
 
 _state_lock = threading.Lock()
@@ -80,7 +88,11 @@ def bridge():
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
             else:
                 self._hdr(404); self.wfile.write(b'{"error":"not found"}')
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
+    except OSError as e:
+        print(f"⛔ cannot bind 127.0.0.1:{PORT} — is another TV DIABLO / simulate.py already running?\n   {e}")
+        sys.exit(2)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
@@ -105,27 +117,41 @@ def md5f(path):
 
 def claude_read(path):
     """One vision read on YOUR Claude subscription. Read-only tools; Sonnet (the intake-calibrated model)."""
+    ap = os.path.abspath(path)
+    EMPTY = {"area": "", "scene": "gameplay", "names": []}
+    if not os.path.isfile(ap):
+        print(f"  ⚠ image missing: {ap}")
+        return EMPTY
     try:
         r = subprocess.run(
-            ["claude", "-p", READ_PROMPT.format(path=path),
+            ["claude", "-p", READ_PROMPT.format(path=ap),
              "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text"],
             capture_output=True, text=True, timeout=180, stdin=subprocess.DEVNULL)
         out = (r.stdout or "").strip()
+        # tolerate markdown fences / preamble around the JSON object
         a, b = out.find("{"), out.rfind("}")
-        if a < 0 or b <= a: return []
-        names = json.loads(out[a:b+1]).get("names", [])
-        return [str(n).strip() for n in names if str(n).strip()][:60]
+        if a < 0 or b <= a:
+            if r.returncode != 0:
+                err = (r.stderr or "").strip()[:200]
+                print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
+            return EMPTY
+        j = json.loads(out[a:b+1])
+        names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
+        scene = str(j.get("scene", "gameplay")).lower()
+        if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
+        return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names}
     except Exception as e:
         print(f"  ⚠ read failed: {e}")
-        return []
+        return EMPTY
 
 def main():
     os.makedirs(FRAMES, exist_ok=True)
     with _state_lock:
-        st = _load(); st["startedAt"] = int(time.time()*1000); st["online"] = True; _save(st)
+        st = _load(); st["startedAt"] = int(time.time()*1000); st["online"] = True; st["reads"] = []; st["readCount"] = 0; _save(st)
     bridge()
     print("📺 TV DIABLO — live scanner (read-only · your Claude subscription · no API keys)")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
+    print("   tip: run D2R fullscreen so the menu-bar clock doesn't keep the frame 'moving'")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip the switch. Ctrl-C to stop.\n")
 
     frame = os.path.join(FRAMES, "live.bmp")
@@ -142,7 +168,7 @@ def main():
         except Exception: continue
         stable = stable + 1 if cur == last_md5 else 0
         last_md5 = cur
-        # STABLE twice = you stopped to look at something new → worth one read
+        # STABLE: two consecutive identical captures (stable==1 on the second) = you stopped to look
         if stable != 1 or cur == last_sent_md5: continue
         if time.time() - last_read_t < MIN_GAP_S: continue
         if reads >= SESSION_CAP:
@@ -150,11 +176,12 @@ def main():
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
         print(f"  👁 screen settled — reading ({reads}/{SESSION_CAP}) …")
-        names = claude_read(frame)
-        print(f"  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable (gameplay frame)'}")
+        rd = claude_read(frame)
+        names = rd["names"]
+        print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
         with _state_lock:
             st = _load()
-            st["reads"].append({"ts": int(time.time()*1000), "names": names})
+            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"]})
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
             _save(st)
@@ -163,10 +190,19 @@ if __name__ == "__main__":
     # one-shot validation: python3 tv/tv_diablo.py --test <image>  (run in YOUR terminal —
     # a Claude Code session cannot nest another; from a normal shell this is a plain call)
     if "--test" in sys.argv:
-        img = sys.argv[sys.argv.index("--test") + 1]
-        print("📺 test read:", img)
+        try:
+            img = sys.argv[sys.argv.index("--test") + 1]
+        except IndexError:
+            print("usage: python3 tv/tv_diablo.py --test <image.jpg>"); sys.exit(2)
+        print("📺 test read:", os.path.abspath(img))
         print(json.dumps(claude_read(img), indent=1))
         sys.exit(0)
-    try: main()
+    try:
+        main()
     except KeyboardInterrupt:
+        with _state_lock:
+            try:
+                st = _load(); st["online"] = False; _save(st)
+            except Exception:
+                pass
         print("\n📺 TV DIABLO off — good hunting.")

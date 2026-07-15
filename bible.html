@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v710 · TV DIABLO</title>
-<meta name="d2r-build" content="v710">
+  <title>Konyo's D2R Farming Bible v710.1 · TV DIABLO</title>
+<meta name="d2r-build" content="v710.1">
 <meta name="d2r-build-date" content="2026-07-15">
-<meta name="d2r-build-note" content="Workshop Family · forge wave round 1 (chronicles separate): 38px chip rail on all 3 workshop tabs · sealed-grail landing · honest Best-runs courtesy strip · on the v703-708 structured-bible wave">
+<meta name="d2r-build-note" content="📺 TV DIABLO v710.1 — receiver harden (read #s · Shako alias · no un-tick apply · safer chips) + agent port/offline · live scanner on YOUR Claude subscription">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00ff00;--q-orange:#ffa800;--q-magic:#6969ff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -31412,6 +31412,7 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-feed{display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto}
 .tvd-read{padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:rgba(255,255,255,.02)}
 .tvd-read-ts{font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-dim);margin-bottom:4px}
+.tvd-where{color:var(--acc-intel);font-weight:700}
 .tvd-chip{display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0;padding:2px 9px;border:1px solid var(--border-light);border-radius:999px;font-size:var(--fs-meta)}
 .tvd-chip .tc-apply{cursor:pointer;color:var(--acc-done);font-weight:800}
 .tvd-chip .tc-apply:hover{text-shadow:0 0 6px rgba(102,255,136,.7)}
@@ -32338,7 +32339,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v710', name:'TV DIABLO', date:'2026-07-15', note:'📺 TV DIABLO — the live game-screen scanner: local read-only agent (tv/tv_diablo.py) on the PLAYER\'S OWN Claude subscription (zero API keys) → localhost bridge → session-tab receiver with the animated OFF/CONNECTING/LIVE switch · every read routes through the existing engines (🏆 grail · 🧩 set · 🪨 rune · 💎 gem) · review-first, never silent · + the v709 workshop-family wave' };
+  window.D2R_BUILD = { id:'v710.1', name:'TV DIABLO', date:'2026-07-15', note:'📺 TV DIABLO — live game-screen scanner + v710.1 receiver harden: sequential read #s · base-name unique alias (Shako→Harlequin Crest) · apply never un-ticks · safer chip attrs · agent port-conflict + offline on Ctrl-C' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32390,16 +32391,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(typeof findGem==='function'){ var gk=findGem(n); if(gk) return { kind:'gem', key:gk, label:'💎 '+gk }; }
       if(typeof window._grailVocab==='function'){
         var V=window._grailVocab(), lo=n.toLowerCase(), clean=n.replace(/\s*\([^)]+\)\s*$/,'');
-        // 🏆 unique — the same toggler the grail wall uses. Vocab entries carry the base as a
-        // "(Shako)" suffix; the game (and so the vision read) shows the BARE name — match both.
-        var u=null; V.uniq.forEach(function(x){ if(!u && (x.toLowerCase()===lo || x.replace(/\s*\([^)]+\)\s*$/,'').toLowerCase()===lo)) u=x; });
+        // 🏆 unique — vocab may be "Harlequin Crest (Shako)"; vision may return bare name OR just "Shako"
+        var u=null;
+        V.uniq.forEach(function(x){
+          if(u) return;
+          var bare=x.replace(/\s*\([^)]+\)\s*$/,'');
+          var m=x.match(/\(([^)]+)\)\s*$/);
+          var base=m?m[1]:'';
+          if(x.toLowerCase()===lo || bare.toLowerCase()===lo || (base && base.toLowerCase()===lo)) u=x;
+        });
         if(u) return { kind:'uni', key:u, label:'🏆 '+u.replace(/\s*\([^)]+\)\s*$/,''), done:(typeof _gFound==='function')&&_gFound(u) };
         // 🧩 set piece — pieceMap: clean name → full "(slot)" name (vision may read either form)
         var pm=V.pieceMap[clean]||V.pieceMap[n];
         if(!pm){ Object.keys(V.pieceMap).some(function(k){ if(k.toLowerCase()===clean.toLowerCase()){ pm=V.pieceMap[k]; return true; } return false; }); }
         if(pm){
           var have=false; try { have=(typeof _setHave==='function')&&_setHave().has(pm); } catch(e){ try { have=(typeof setPieces!=='undefined')&&setPieces.has(pm); } catch(e2){} }
-          return { kind:'set', key:pm, label:'🧩 '+clean, done:have };
+          return { kind:'set', key:pm, label:'🧩 '+clean, done:!!have };
         }
       }
     } catch(e){}
@@ -32407,10 +32414,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
   function apply(kind,key,chip){
     try {
+      // uniques/sets: only ADD (never un-tick via TV apply) — toggleOwned flips; guard with done-state
       if(kind==='rune'){ runeStash[key]=(parseInt(runeStash[key],10)||0)+1; persist(); if(typeof renderRuneStash==='function') renderRuneStash(); }
       else if(kind==='gem'){ gemStash[key]=(parseInt(gemStash[key],10)||0)+1; persist(); if(typeof renderGemStash==='function') renderGemStash(); }
-      else if(kind==='uni' && typeof window.toggleOwned==='function') window.toggleOwned(key);
-      else if(kind==='set' && typeof window.toggleSetPiece==='function') window.toggleSetPiece(key);
+      else if(kind==='uni' && typeof window.toggleOwned==='function'){
+        if(typeof _gFound==='function' && _gFound(key)){ /* already found */ }
+        else window.toggleOwned(key);
+      }
+      else if(kind==='set' && typeof window.toggleSetPiece==='function'){
+        var have=false; try { have=(typeof _setHave==='function')&&_setHave().has(key); } catch(e){ try { have=setPieces&&setPieces.has(key); } catch(e2){} }
+        if(!have) window.toggleSetPiece(key);
+      }
       else return;
       if(chip){ chip.classList.add('tc-done'); var a=chip.querySelector('.tc-apply'); if(a) a.textContent='✓ done'; }
     } catch(e){}
@@ -32419,6 +32433,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   window._tvdApplyAll=function(btn){
     try { var box=btn.closest('.tvd-read')||elBody(); box.querySelectorAll('.tvd-chip:not(.tc-done):not(.tc-note) .tc-apply').forEach(function(a){ a.click(); }); } catch(e){}
   };
+  function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
   function render(){
     var b=elBody(); if(!b) return;
     if(!FEED.length){
@@ -32430,17 +32445,25 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       return;
     }
     b.innerHTML='<div class="tvd-feed">'+FEED.slice(-14).reverse().map(function(r){
-      var chips=r.routes.map(function(x,i){
+      var chips=r.routes.map(function(x){
         if(x.kind==='note') return '<span class="tvd-chip tc-note" title="read but not a tracked name — runes/uniques/sets auto-route">'+x.label+'</span>';
         if(x.done) return '<span class="tvd-chip tc-done" title="already in your chronicle">'+x.label+' ✓</span>';
-        return '<span class="tvd-chip">'+x.label+' <span class="tc-apply" role="button" onclick="window._tvdApply(this,\''+x.kind+'\',\''+String(x.key).replace(/'/g,"\\'")+'\')">✓ apply</span></span>';
+        // data-* attrs avoid quote-break in keys like "Tal Rasha's …"
+        return '<span class="tvd-chip">'+x.label+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
       }).join('');
       var applyable=r.routes.some(function(x){ return x.kind!=='note' && !x.done; });
-      return '<div class="tvd-read"><div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+r.n+'</div>'
+      var sceneIco={town:'\ud83c\udfd8',loot:'\u2694\ufe0f',inventory:'\ud83c\udf92',stash:'\ud83c\udfe6',gameplay:'\ud83c\udf2b'}[r.scene]||'';
+      var where=(r.area?('\ud83d\uddfa '+r.area):'')+(r.scene&&r.scene!=='gameplay'?((r.area?' \u00b7 ':'')+sceneIco+' '+r.scene):'');
+      return '<div class="tvd-read"><div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' \u00b7 read #'+r.n+(where?' \u00b7 <span class="tvd-where">'+where+'</span>':'')+'</div>'
         + (applyable?'<button type="button" class="tvd-applyall" onclick="window._tvdApplyAll(this)">✓ apply all</button>':'')
         + (chips||'<span class="tvd-chip tc-note">nothing readable (gameplay frame)</span>')+'</div>';
     }).join('')+'</div>'
     + '<div class="tvd-hint">read-only scanner · your subscription · reads land when the screen settles</div>';
+    // wire data-* apply chips (safer than inline onclick with apostrophes)
+    try { b.querySelectorAll('.tc-apply[data-k]').forEach(function(a){
+      a.onclick=function(){ window._tvdApply(a, a.getAttribute('data-k'), a.getAttribute('data-v')); };
+      a.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); a.click(); } };
+    }); } catch(e){}
   }
   function poll(){
     var ac = (typeof AbortController!=='undefined') ? new AbortController() : null;
@@ -32448,9 +32471,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     fetch(URL0, { signal: ac && ac.signal, cache:'no-store' }).then(function(r){ return r.json(); }).then(function(st){
       if(to) clearTimeout(to);
       if(STATE!=='live') setState('live');
+      // v710.1 — prefer agent-side `n` when present; else number by arrival (st.readCount alone
+      // is the LATEST total, so a batch of N new reads would all paint as "read #N")
+      var seq = FEED.length;
       (st.reads||[]).forEach(function(rd){
         if(!rd || rd.ts<=SEEN) return; SEEN=rd.ts;
-        FEED.push({ ts:rd.ts, n:(st.readCount||FEED.length+1), routes:(rd.names||[]).map(route).filter(Boolean) });
+        seq += 1;
+        FEED.push({ ts:rd.ts, n:(rd.n||seq), area:rd.area||'', scene:rd.scene||'', routes:(rd.names||[]).map(route).filter(Boolean) });
         if(FEED.length>60) FEED=FEED.slice(-60);
       });
       render();
@@ -32461,6 +32488,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     setState('conn'); try{ localStorage.setItem('d2r_tvdOn','1'); }catch(e){} render();
     poll(); T=setInterval(poll, 4000);
   };
+  // keyboard on the switch
+  try { var sw0=elSwitch(); if(sw0) sw0.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); window._tvdToggle(); } }); } catch(e){}
   // resume if it was on last session — never in automation (specs must not poll localhost)
   try { if(localStorage.getItem('d2r_tvdOn')==='1' && !navigator.webdriver){ setState('conn'); poll(); T=setInterval(poll, 4000); } } catch(e){}
 })();

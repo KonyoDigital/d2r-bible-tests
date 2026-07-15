@@ -17,13 +17,14 @@ import json, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tv_diablo
 
+# each step = one "moment": (area, scene, names) — mirrors the v710.1 scenario engine
 SCRIPT = [
-    ["Ist Rune"],                                          # 🪨 rune pickup
-    ["Skin of the Vipermagi", "Perfect Ruby"],             # 🏆 unique + note
-    ["Sigon's Guard", "Vex Rune"],                         # 🧩 set piece + 🪨 rune
-    [],                                                    # gameplay frame — nothing readable
-    ["Harlequin Crest", "Tal Rasha's Horadric Crest"],     # 🏆 + 🧩
-    ["Superior Mage Plate of the Whale"],                  # 📋 unroutable note
+    ("The Pit Level 1", "loot",      ["Ist Rune"]),
+    ("The Pit Level 1", "loot",      ["Skin of the Vipermagi", "Perfect Ruby"]),
+    ("Chaos Sanctuary", "loot",      ["Sigon's Guard", "Vex Rune"]),
+    ("Chaos Sanctuary", "gameplay",  []),
+    ("Worldstone Keep Level 2", "loot", ["Harlequin Crest", "Tal Rasha's Horadric Crest"]),
+    ("Harrogath", "stash",           ["Superior Mage Plate of the Whale"]),
 ]
 
 def main():
@@ -35,16 +36,16 @@ def main():
     print("   open the bible → ⚡ session → 📺 TV DIABLO → flip the switch. Ctrl-C stops (= agent-offline state).\n")
     n = 0
     while True:
-        for names in SCRIPT:
+        for area, scene, names in SCRIPT:
             time.sleep(2 if fast else 8)
             n += 1
             with tv_diablo._state_lock:
                 st = tv_diablo._load()
-                st["reads"].append({"ts": int(time.time()*1000), "names": names})
+                st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": n, "area": area, "scene": scene})
                 st["reads"] = st["reads"][-200:]
                 st["readCount"] = n
                 tv_diablo._save(st)
-            print(f"  ▶ read #{n}: {' · '.join(names) if names else '(gameplay frame)'}")
+            print(f"  ▶ read #{n} [{area} · {scene}]: {' · '.join(names) if names else '(nothing readable)'}")
 
 if __name__ == "__main__":
     try: main()

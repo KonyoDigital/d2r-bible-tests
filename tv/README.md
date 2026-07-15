@@ -24,6 +24,16 @@ python3 tv/tv_diablo.py
 First run: macOS will ask for Screen Recording permission for your terminal —
 grant it (System Settings → Privacy & Security → Screen Recording).
 
+**Fullscreen D2R** works best: the settle detector is a strict pixel md5, so a
+visible menu-bar clock (or any ticking HUD) keeps every frame “different” and
+reads never fire. Fullscreen game → stable frames when you stop on loot.
+
+One-shot vision check (no bridge):
+
+```bash
+python3 tv/tv_diablo.py --test tests/golden/intake/chronicle_mid.jpg
+```
+
 ## Windows (the cousin)
 
 Prereqs once: install Python 3 + Claude Code, then `claude` login with **your
