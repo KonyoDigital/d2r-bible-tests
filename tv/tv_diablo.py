@@ -192,7 +192,7 @@ class VisionWorker:
         import queue
         self.p = subprocess.Popen(
             [CLAUDE_BIN, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
-             "--verbose", "--model", "sonnet", "--allowedTools", "Read"],
+             "--verbose", "--model", "sonnet", "--allowedTools", "Read", "--strict-mcp-config"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=True, bufsize=1)
         self.q = queue.Queue(); self.turns = 0
@@ -290,7 +290,9 @@ def claude_read(path):
     try:
         r = subprocess.run(
             [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
-             "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text"],
+             "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text",
+             "--strict-mcp-config"],   # v719.1 — SKIP the user's MCP servers: dead ones (old gateways,
+                                       # browser bridges) stall EVERY headless spawn — the real 90s hang
             capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL)
         out = (r.stdout or "").strip()
         # tolerate markdown fences / preamble around the JSON object
