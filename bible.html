@@ -7180,7 +7180,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <span style="font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:.28em;color:var(--gold-bright,#f0c060);font-size:15px;text-shadow:0 0 12px rgba(240,192,96,.25);white-space:nowrap">⚒ Konyo ⚒</span>
     <span style="flex:0 1 120px;height:1px;background:linear-gradient(90deg,rgba(212,168,71,.55),transparent)"></span>
   </div>
+    <details class="danger-zone"><summary>⚠ danger zone</summary><!-- v694 🏓R6: a destructive control must never be the only bright thing in a void -->
     <button class="reset-btn" onclick="uiConfirm('Erase ALL saved progress on the '+(window.D2R_PROFILE==='ladder'?'🪜 LADDER':'⚔ MAIN')+' account? This permanently clears ITS wishlist, owned/grail checkmarks, statue tracker and settings — the other account is untouched. Cannot be undone.').then(function(ok){if(ok){window.LSR.wipeProfile();location.reload();}})">🗑️ Erase all saved progress (this account only)</button>
+    </details>
 </div>
 </div>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
@@ -10411,7 +10413,11 @@ function renderEventRef(){
 // v47 unify: event/uber sections (Uber Tristram, Cow, DClone, Colossal Ancients,
 // 22 Nights) now expand inline like the TZ-zone dropdown / boss detail cards —
 // click the card header to reveal its detail in place; accordion (one open at a time).
-function toggleSec(h){var b=h.nextElementSibling;if(!b||!b.classList.contains('sec-body'))return;if(b.hasAttribute('hidden')){b.removeAttribute('hidden');h.classList.remove('collapsed');}else{b.setAttribute('hidden','');h.classList.add('collapsed');}}
+function toggleSec(h){var b=h.nextElementSibling;if(!b||!b.classList.contains('sec-body'))return;if(b.hasAttribute('hidden')){b.removeAttribute('hidden');h.classList.remove('collapsed');
+  // v694 🏓R6 — a Tools work card OWNS the viewport when it opens (expand-without-scroll buried the
+  // Vault/Craft bodies below the fold — Grok round 6's top Tools friction)
+  try { if (h.closest && h.closest('#tab-tools')) setTimeout(function(){ h.scrollIntoView({block:'start', behavior: (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth'}); }, 60); } catch(e){}
+  }else{b.setAttribute('hidden','');h.classList.add('collapsed');}}
 /* Konyo: make EVERY collapsible header render like the ROTW Herald-of-Terror one —
    boxed emoji emblem (.sec-h-art) + serif title (.sec-h-t). Plain headers ship with a
    raw leading emoji + title as a bare text node ("🏆 Grail Progress "); this wraps that
@@ -15470,6 +15476,7 @@ window.openItemDetail = function(itemName) {
     panel.classList.remove('hidden');
     __alignCard('#item-detail-panel');
   }
+  document.documentElement.classList.add('detail-open');   // v694 🏓R6 — the dock yields while a work card is open
   // ensure we're on bosses tab so the panel is visible
   if (!document.querySelector('.tab[data-tab="bosses"].active')) switchTab('bosses');
 };
@@ -15478,6 +15485,7 @@ window.closeItemDetail = function() {
   activeItemDetail = null;
   const panel = document.getElementById('item-detail-panel');
   if (panel) { panel.classList.add('hidden'); panel.innerHTML = ''; }
+  document.documentElement.classList.remove('detail-open');   // v694 🏓R6 — dock returns
 };
 
 function renderItemDetailCard(itemName) {
@@ -17879,6 +17887,13 @@ window.toggleCardCollapse = function(id){
   const open = card.classList.toggle('collapsed');   // returns true when collapsed added
   const hdr = card.querySelector('.boss-header');
   if (hdr) hdr.setAttribute('aria-expanded', String(!card.classList.contains('collapsed')));
+  // v694 🏓R6 — an expanding Tools work card OWNS the viewport ('you cannot mule what you cannot
+  // see'): scroll its header under the sticky chrome. Collapse never scrolls.
+  try {
+    if (!card.classList.contains('collapsed') && card.closest('#tab-tools')){
+      setTimeout(function(){ card.scrollIntoView({block:'start', behavior:(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth'}); }, 80);
+    }
+  } catch(e){}
 };
 // Parse a runeword's recipe string ("Jah + Mal + Jah + …") into {rune: count}.
 // Returns null for non-runeword pseudo-entries (e.g. the unique Death's Web).
@@ -25682,6 +25697,20 @@ body::before{
 .sec-h-peek .pk-track{ width:90px; height:4px; border-radius:3px; background:rgba(212,168,71,.18); overflow:hidden }
 .sec-h-peek .pk-fill{ height:100%; border-radius:3px; background:linear-gradient(90deg,var(--gold),var(--gold-bright)) }
 .sec-h-peek .pk-dim{ color:var(--text-dim); font-size:11px }
+/* v694 🏓R6 — the dock YIELDS while a golden item card is open (it was eating TOP-6-SOURCES and
+   the Quick take — 'the task failing at the last inch'). Slides to a grip; hover peeks it back. */
+html.detail-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
+html.detail-open .control-dock:hover{ transform:none; opacity:1 }
+.control-dock{ transition:transform .25s ease, opacity .25s ease }
+/* v694 🏓R6 — expanding a Tools work card OWNS the viewport (expand-without-scroll was the round-6
+   diagnosis: 'you cannot mule what you cannot see') */
+#tab-tools .sec-h{ scroll-margin-top:130px }
+/* v694 🏓R6 — the footer erase lives in a CLOSED danger drawer: never the brightest control in a void */
+.footer details.danger-zone{ margin-top:10px }
+.footer details.danger-zone > summary{ cursor:pointer; list-style:none; display:inline-block; font-size:11px; letter-spacing:.08em; color:var(--text-dim); border:1px dashed rgba(255,80,80,.35); border-radius:7px; padding:5px 12px }
+.footer details.danger-zone > summary:hover{ color:#ff8080; border-color:rgba(255,80,80,.6) }
+.footer details.danger-zone[open] > summary{ color:#ff8080 }
+.footer details.danger-zone:not([open]) > :not(summary){ display:none !important }  /* the .reset-btn display rule out-specifies the UA's closed-details hiding */
 /* v693.1 🏓R4 — MW closed row = title + #1 peek only; the prose sub returns on expand */
 .mw-title.collapsed .mw-sub{ display:none }
 /* v693.1 🏓R4 — A-tier recedes a step so S truly dominates (Grok verify: 'S is marked, not dominant') */
