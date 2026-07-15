@@ -164,6 +164,10 @@ def _readable_frame(ap):
                             "--resampleHeightWidthMax", "1568", ap, "--out", jp],
                            capture_output=True, timeout=20)
         if r.returncode == 0 and os.path.isfile(jp):
+            global _JPEG_LOGGED
+            if not globals().get("_JPEG_LOGGED"):
+                _JPEG_LOGGED = True
+                ev("boot", f"vision transport OK — frame \u2192 read.jpg {os.path.getsize(jp)//1024}KB (was {os.path.getsize(ap)//1024//1024}MB)")
             return jp
         png = os.path.join(os.path.dirname(ap), "live.png")   # Windows: saved by capture_win.ps1
         if os.path.isfile(png):
@@ -200,8 +204,9 @@ def claude_read(path):
         # tolerate markdown fences / preamble around the JSON object
         a, b = out.find("{"), out.rfind("}")
         if a < 0 or b <= a:
+            err = (r.stderr or "").strip()[:160]
+            ev("cap", f"vision returned no JSON (exit {r.returncode})" + (f": {err}" if err else "") or "")
             if r.returncode != 0:
-                err = (r.stderr or "").strip()[:200]
                 print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
             return EMPTY
         j = json.loads(out[a:b+1])
@@ -270,6 +275,7 @@ def main():
         ev("settle", f"screen settled — something to look at. Vision read #{reads} firing")
         beat("reading", 0.0)
         rd = claude_read(frame)
+        beat("watching", 0.0)   # pulse resumes immediately — the CRT verb never sticks on READING after a slow/failed read
         names = rd["names"]
         ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)"))
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")

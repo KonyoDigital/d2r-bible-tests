@@ -1,0 +1,7 @@
+{
+  "_doc": "TV_STUB=1 canned reads — keyed by frame basename, '*' = fallback. Zero vision cost; never set in real play.",
+  "pit_loot.jpg": { "area": "The Pit Level 1", "scene": "loot", "names": ["Ist Rune", "Skin of the Vipermagi"], "tz": ["Spider Forest", "Arachnid Lair"] },
+  "town_stash.jpg": { "area": "Harrogath", "scene": "stash", "names": ["Ars Dul'Mephistos"], "tz": [] },
+  "live.bmp": { "area": "Cold Plains", "scene": "loot", "names": ["Vex Rune", "Perfect Ruby"], "tz": ["Spider Forest"] },
+  "*": { "area": "", "scene": "gameplay", "names": [], "tz": [] }
+}

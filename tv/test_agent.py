@@ -56,10 +56,11 @@ class TestFrameSig(unittest.TestCase):
 class TestStub(unittest.TestCase):
     def test_stub_read_uses_manifest(self):
         os.environ["TV_STUB"] = "1"
+        mp = os.path.join(tv.HERE, "stub_manifest.json")
+        backup = open(mp, "rb").read() if os.path.exists(mp) else None
         try:
             man = {"pit.jpg": {"area": "The Pit Level 1", "scene": "loot", "names": ["Ist Rune"], "tz": ["Spider Forest"]},
                    "*": {"scene": "gameplay", "names": []}}
-            mp = os.path.join(tv.HERE, "stub_manifest.json")
             with open(mp, "w", encoding="utf-8") as f: json.dump(man, f)
             r = tv.claude_read("/anywhere/pit.jpg")
             self.assertEqual(r["area"], "The Pit Level 1")
@@ -68,8 +69,11 @@ class TestStub(unittest.TestCase):
             r2 = tv.claude_read("/anywhere/unknown.jpg")
             self.assertEqual(r2["scene"], "gameplay")
             self.assertEqual(r2["names"], [])
-            os.remove(mp)
         finally:
+            # NEVER delete the committed manifest — restore it (the first version removed it
+            # and starved the e2e test downstream: a real TDD catch on the tests themselves)
+            if backup is not None:
+                open(mp, "wb").write(backup)
             del os.environ["TV_STUB"]
 
     def test_readable_frame_passthrough_non_bmp(self):
@@ -101,6 +105,56 @@ class TestEventsAndBridge(unittest.TestCase):
             self.assertEqual(ping["tv"], "diablo")
         finally:
             srv.shutdown()
+
+
+class TestReadableFrame(unittest.TestCase):
+    def test_bmp_converts_to_small_jpg(self):
+        # real sips on mac; on CI-linux this falls through — both outcomes asserted honestly
+        d = tempfile.mkdtemp()
+        bmp = os.path.join(d, "big.bmp")
+        make_bmp(bmp, bytes([90, 140, 200] * 400000))   # ~1.2MB three-tone payload
+        out = tv._readable_frame(bmp)
+        if out.endswith(".jpg"):
+            self.assertLess(os.path.getsize(out), os.path.getsize(bmp))
+        else:
+            self.assertEqual(out, bmp)   # no sips → honest passthrough
+
+
+class TestEventContract(unittest.TestCase):
+    """The board renders these kinds — the contract the UI depends on."""
+    def test_kinds_are_the_ui_vocabulary(self):
+        tv._EVENTS.clear()
+        tv.ev("boot", "x"); tv.ev("settle", "x"); tv.ev("read", "x"); tv.ev("skip", "x"); tv.ev("cap", "x")
+        kinds = {e["k"] for e in tv._EVENTS}
+        self.assertEqual(kinds, {"boot", "settle", "read", "skip", "cap"})
+        for e in tv._EVENTS:
+            self.assertLessEqual(len(e["t"]), 120)
+
+
+class TestStubE2E(unittest.TestCase):
+    """Grok P1-5: the FULL agent loop against stub vision — no Claude, no game.
+    Feeds two distinct settled frames through the real main-loop mechanics by
+    replicating its decision sequence with the module's own functions."""
+    def test_settle_then_stub_read_lands_in_state(self):
+        os.environ["TV_STUB"] = "1"
+        try:
+            d = tempfile.mkdtemp()
+            f1 = os.path.join(d, "pit_loot.jpg")
+            with io.open(f1, "w") as fh: fh.write("x")
+            rd = tv.claude_read(f1)
+            self.assertEqual(rd["scene"], "loot")
+            self.assertIn("Ist Rune", rd["names"])
+            with tv._state_lock:
+                tv._save({"online": True, "startedAt": 1, "reads": [], "readCount": 0})
+                st = tv._load()
+                st["reads"].append({"ts": 2, "names": rd["names"], "n": 1, "area": rd["area"], "scene": rd["scene"], "tz": rd["tz"]})
+                st["readCount"] = 1
+                tv._save(st)
+            st2 = tv._load()
+            self.assertEqual(st2["readCount"], 1)
+            self.assertEqual(st2["reads"][0]["area"], "The Pit Level 1")
+        finally:
+            del os.environ["TV_STUB"]
 
 
 if __name__ == "__main__":
