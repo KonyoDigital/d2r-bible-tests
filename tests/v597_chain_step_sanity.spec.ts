@@ -14,7 +14,7 @@ test('step-2 chain card names its base; ↺ back walks the chain back to step 1'
     localStorage.setItem('d2r_owned', JSON.stringify(['Colossus Voulge (Larzuk base)']));
     localStorage.setItem('d2r_runeStash', JSON.stringify({ Ral: 1, Tir: 1, Tal: 1, Sol: 1 }));
     // stale step memory from a "previous copy" of the same base label (the Bone Visage scenario)
-    localStorage.setItem('d2r_forgeStep', JSON.stringify({ 'chain|Colossus Voulge (Larzuk base)': 1 }));
+    localStorage.setItem('d2r_forgeStep', JSON.stringify({ 'chain|Colossus Voulge (Larzuk base)|4|l': 1 }));   // v693.3 — v684 chain keys carry |need|mode (base+need+Larzuk/gamble) so mixed-socket groups split
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);

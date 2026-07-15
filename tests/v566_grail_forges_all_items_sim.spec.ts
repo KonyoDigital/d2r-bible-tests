@@ -66,7 +66,7 @@ test('B — F·Uniques round-trip: Calculator toggleOwned moves the forge both w
 });
 
 test('C — F·Sets: every piece tracked; tick-all completes every set; single-piece round-trip restores', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('d2r_setPieces', JSON.stringify([])); });
+  await page.addInitScript(() => { localStorage.setItem('d2r_setPieces', JSON.stringify([])); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v693.3 — fresh flag skips the v682 108-piece seed floor (the spec's from-zero premise)
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;

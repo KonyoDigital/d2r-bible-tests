@@ -62,7 +62,7 @@ test('throw-out card + tip for a socketed copy: honest amber note, no Larzuk/cub
 });
 
 test('⚒ Forged stamp only when EVERY word the base can ever hold is created', async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem('d2r_rwMade', JSON.stringify({})); localStorage.setItem('d2r_rwProfile', 'fresh'); });   // v693.2 — sealed chronicle leaves no unmade Monarch words
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); /* v693.3 — profile pin ONLY: addInitScript re-runs on reload and a rwMade={} here stomped this spec's own mid-test writes (the v578.1 trap); fresh flag alone makes boot init rwMade={} */ });   // v693.2 — sealed chronicle leaves no unmade Monarch words
   await page.goto(URL); await page.waitForTimeout(1500);
   // pick a NON-SEEDED other-count word on Monarch to leave unmade (the seed force re-marks seeded words
   // on load, so the hold-out must be one Konyo hasn't forged) — then mark everything else created.

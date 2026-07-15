@@ -61,7 +61,7 @@ test('non-milestone forge → toast but NO epic; reduced motion → neither', as
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
   // v693.2 recalibration — at the 99/99 seal there is no unmade word to forge; pin fresh. (Also fixed
   // the spec's own const-reassign that only fired when n1+1 hit a %10 milestone — dormant until 99.)
-  await page.addInitScript(() => { localStorage.setItem('d2r_rwMade', JSON.stringify({})); localStorage.setItem('d2r_rwProfile', 'fresh'); });
+  await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); /* v693.3 — profile pin ONLY: addInitScript re-runs on reload and a rwMade={} here stomped this spec's own mid-test writes (the v578.1 trap); fresh flag alone makes boot init rwMade={} */ });
   await page.goto(URL); await page.waitForTimeout(1800);
   const r1 = await page.evaluate(() => {
     const w: any = window;

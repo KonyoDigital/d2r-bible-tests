@@ -47,7 +47,7 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
       leaks, wantedInTrash, commonPlainHidden, rareCircHidden, ethRarity: ethShow.equipmentRarity,
       ci1MagicHidden: magicHidden.has('ci1'),           // Konyo's blue Coronet
       ci3MagicShown: !magicHidden.has('ci3'),           // v599 — blue Diadem = chase item, must SHOW
-      gtsMagicHidden: magicHidden.has('gts'),           // Konyo's blue Gothic Shield
+      gtsMagicHidden: magicHidden.has('gts'),           // Konyo's blue Gothic Shield — a HitPower craft shield since v690
       uitMagicHidden: magicHidden.has('uit'),           // stale-draft Monarch, previously in NO rule
     };
   });
@@ -58,7 +58,7 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
   expect(r.ethRarity).toEqual(['normal', 'hiQuality']); // socketed MAGIC can't ride the eth/socket show rule
   expect(r.ci1MagicHidden).toBe(true);
   expect(r.ci3MagicShown).toBe(true);                   // v599 — blue Diadems surface (default-show, no rule matches)
-  expect(r.gtsMagicHidden).toBe(true);
+  expect(r.gtsMagicHidden).toBe(false);   // v693.3 — Gothic Shield joined the v690 craft inbox (HitPower shield slot): its BLUES are fuel now, deliberately default-shown
   expect(r.uitMagicHidden).toBe(true);
 });
 

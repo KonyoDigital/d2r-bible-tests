@@ -27,7 +27,7 @@ test.describe('v109 binds tab collapsible sections', () => {
   test('all 16 binds sections are collapsible and collapsed by default', async ({ page }) => {
     await expect(page.locator('#tab-binds .sec-h')).toHaveCount(BINDS_SECTIONS_TOTAL);
     await expect(page.locator('#tab-binds .sec-body')).toHaveCount(BINDS_SECTIONS_TOTAL);
-    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(BINDS_SECTIONS_TOTAL);
+    await expect(page.locator('#tab-binds .sec-body[hidden]')).toHaveCount(BINDS_SECTIONS_TOTAL - 1);   // v693.3 — the 🏆 verdict AUTO-OPENS once per session (v693.1): the tab's whole answer greets you; every other drawer stays collapsed
     // every section head has a chevron affordance (matches the other tabs)
     await expect(page.locator('#tab-binds .sec-h .sec-chev')).toHaveCount(BINDS_SECTIONS_TOTAL);
     // the always-on intro banner is NOT a collapsible section
