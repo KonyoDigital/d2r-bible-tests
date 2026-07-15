@@ -145,8 +145,8 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
     const fsetsIco = document.querySelector('.tabs .tab[data-tab="fsets"] img.tab-hdico');
     return { order: tabs.slice(-3), funiIco: !!funiIco, fsetsIco: !!fsetsIco, count: tabs.length };
   });
-  expect(r.count).toBe(16);   // v693.2 — +⚡session (v686 cockpit) joined the workshop group
-  expect(r.order).toEqual(['forge', 'funi', 'fsets']);
+  expect(r.count).toBe(17);   // v710.4 — +📺 TV·D (the live scanner) joined the workshop group
+  expect(r.order).toEqual(['funi', 'fsets', 'tvd']);
   expect(r.funiIco).toBe(true);
   expect(r.fsetsIco).toBe(true);
 });

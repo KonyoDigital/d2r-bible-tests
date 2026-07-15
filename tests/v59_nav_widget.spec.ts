@@ -52,7 +52,7 @@ test.describe('v59 nav compass widget', () => {
     // v82: an 11th tab — "tools" (personal planners: Rune Stash, Materials Stash, Item Set
     // Tracker, relocated out of runes/ancients/rotw into their own home) — was added.
     // v232: a 12th tab — "TZ tracker" (live terror-zone rotation) — was added.
-    expect(r.chipNames.length).toBe(16);   // v470 + Forge · v559 + Forge·Uniques + Forge·Sets · v686 + ⚡session
+    expect(r.chipNames.length).toBe(17);   // … · v710.4 + 📺 TV·D
     expect(r.hasBackToTop).toBe(true);
     expect(r.firstChipKeepsIcon).toBe(true);
     expect(r.noUndef).toBe(true);
