@@ -34,7 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.path.join(HERE, "frames")
 STATE  = os.path.join(HERE, "state.json")
-PORT   = 17771
+PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
 MIN_GAP_S    = 20     # never read more often than this
 SESSION_CAP  = 120    # hard stop for a whole session
 POLL_S       = 0.5    # capture cadence — eyes always open, half-second pulse (Konyo: "make it even half a second ;)")
@@ -174,6 +174,18 @@ def _readable_frame(ap):
 
 def claude_read(path):
     """One vision read on YOUR Claude subscription. Read-only tools; Sonnet (the intake-calibrated model)."""
+    # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
+    # (keyed by frame basename, '*' fallback) — the FULL agent loop runs end-to-end with zero
+    # vision cost, in tests and in CI. Never set in real play.
+    if os.environ.get("TV_STUB"):
+        try:
+            with open(os.path.join(HERE, "stub_manifest.json"), encoding="utf-8") as f: man = json.load(f)
+        except Exception:
+            man = {}
+        base = os.path.basename(path)
+        rd = man.get(base) or man.get("*") or {}
+        return {"area": rd.get("area", ""), "scene": rd.get("scene", "gameplay"),
+                "names": rd.get("names", []), "tz": rd.get("tz", [])}
     ap = _readable_frame(os.path.abspath(path))
     EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": []}
     if not os.path.isfile(ap):
