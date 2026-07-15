@@ -192,6 +192,8 @@ def main():
         try: cur = frame_sig(frame)
         except Exception: continue
         SETTLE = 0.03   # ≤3% of sampled pixels moving = you stopped to look (ambient animation rides under this)
+        # loading screens between zones are static + near-black — they settle but hold nothing readable
+        if sum(cur) / max(1, len(cur)) < 14: continue
         stable = stable + 1 if sig_diff(cur, last_md5) <= SETTLE else 0
         last_md5 = cur
         # STABLE: two consecutive settled captures (stable==1 on the second) = a read-worthy moment
