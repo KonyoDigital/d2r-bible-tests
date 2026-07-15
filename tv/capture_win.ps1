@@ -24,6 +24,9 @@ while ($true) {
     $out = Join-Path $frames 'live.bmp'
     $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Bmp)
     Move-Item -Force $tmp $out
+    # PNG twin — the vision reader needs a compressed format (BMP made claude's Read choke)
+    $png = Join-Path $frames 'live.png'
+    $bmp.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
     $g.Dispose(); $bmp.Dispose()
   } catch { Write-Host "  capture error: $_" }
   Start-Sleep -Milliseconds 500   # aligned with the agent's half-second eyes (POLL_S)

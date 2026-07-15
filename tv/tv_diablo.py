@@ -83,6 +83,12 @@ def _save(st):
     os.replace(tmp, STATE)
 
 _BEAT = {"ts": 0, "phase": "idle", "motion": 0.0}
+_EVENTS = []
+def ev(kind, text):
+    """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
+    (in-memory ring like the beat; /state merges it — no disk churn)."""
+    _EVENTS.append({"ts": int(time.time()*1000), "k": kind, "t": str(text)[:120]})
+    del _EVENTS[:-60]
 def beat(phase, motion):
     """v710.4 — the LIVE pulse, IN MEMORY only (Grok audit: rewriting state.json twice a
     second thrashed disk + the lock). /state merges it at request time; reads still persist."""
@@ -101,7 +107,7 @@ def bridge():
         def do_GET(self):
             if self.path.startswith("/state"):
                 with _state_lock:
-                    st = _load(); st["online"] = True; st["now"] = int(time.time()*1000); st["beat"] = dict(_BEAT)
+                    st = _load(); st["online"] = True; st["now"] = int(time.time()*1000); st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS)
                 self._hdr(); self.wfile.write(json.dumps(st).encode())
             elif self.path.startswith("/ping"):
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
@@ -145,9 +151,30 @@ def sig_diff(a, b, tol=28):
     m = min(len(a), len(b))
     return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
+def _readable_frame(ap):
+    """v710.6 LIVE-SESSION FIX (Konyo's first real run): claude's Read tool chokes on a 16MB
+    raw BMP — both live reads timed out at 180s. Convert to a 1568px JPEG (the locked intake
+    spec) before the vision call. Mac: sips (built-in). Windows: capture_win.ps1 saves live.png
+    alongside. Falls back to the original path if conversion isn't available."""
+    try:
+        if not ap.lower().endswith(".bmp"):
+            return ap
+        jp = os.path.join(FRAMES, "read.jpg")
+        r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80",
+                            "--resampleHeightWidthMax", "1568", ap, "--out", jp],
+                           capture_output=True, timeout=20)
+        if r.returncode == 0 and os.path.isfile(jp):
+            return jp
+        png = os.path.join(os.path.dirname(ap), "live.png")   # Windows: saved by capture_win.ps1
+        if os.path.isfile(png):
+            return png
+    except Exception:
+        pass
+    return ap
+
 def claude_read(path):
     """One vision read on YOUR Claude subscription. Read-only tools; Sonnet (the intake-calibrated model)."""
-    ap = os.path.abspath(path)
+    ap = _readable_frame(os.path.abspath(path))
     EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": []}
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
@@ -156,7 +183,7 @@ def claude_read(path):
         r = subprocess.run(
             ["claude", "-p", READ_PROMPT.format(path=ap),
              "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text"],
-            capture_output=True, text=True, timeout=180, stdin=subprocess.DEVNULL)
+            capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL)
         out = (r.stdout or "").strip()
         # tolerate markdown fences / preamble around the JSON object
         a, b = out.find("{"), out.rfind("}")
@@ -171,7 +198,12 @@ def claude_read(path):
         if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
         tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
         return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz}
+    except subprocess.TimeoutExpired:
+        ev("cap", "vision timed out (90s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
+        print("  ⚠ vision timed out (90s)")
+        return EMPTY
     except Exception as e:
+        ev("cap", f"read failed: {e}")
         print(f"  ⚠ read failed: {e}")
         return EMPTY
 
@@ -180,6 +212,7 @@ def main():
     with _state_lock:
         st = _load(); st["startedAt"] = int(time.time()*1000); st["online"] = True; st["reads"] = []; st["readCount"] = 0; _save(st)
     bridge()
+    ev("boot", "scanner online — eyes at 0.5s, read-only, your subscription")
     print("📺 TV DIABLO — live scanner (read-only · your Claude subscription · no API keys)")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print("   tip: run D2R fullscreen so the menu-bar clock doesn't keep the frame 'moving'")
@@ -201,21 +234,29 @@ def main():
         motion = sig_diff(cur, last_md5)
         # loading screens between zones are static + near-black — they settle but hold nothing readable
         if sum(cur) / max(1, len(cur)) < 14:
+            if _BEAT["phase"] != "loading": ev("skip", "near-black frame (loading screen) — not worth a read")
             beat("loading", motion); last_md5 = cur; continue
         beat("watching", motion)
         stable = stable + 1 if motion <= SETTLE else 0
         last_md5 = cur
         # STABLE: two consecutive settled captures (stable==1 on the second) = a read-worthy moment
-        if stable != 1 or sig_diff(cur, last_sent_md5) <= SETTLE: continue
-        if time.time() - last_read_t < MIN_GAP_S: continue
+        if stable != 1:
+            continue
+        if sig_diff(cur, last_sent_md5) <= SETTLE:
+            ev("skip", "settled, but same view I already read — waiting for something new"); continue
+        if time.time() - last_read_t < MIN_GAP_S:
+            ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since the last read (gap {MIN_GAP_S}s)"); continue
         if reads >= SESSION_CAP:
+            ev("cap", f"session cap {SESSION_CAP} reached — restart to continue")
             print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
         print(f"  👁 screen settled — reading ({reads}/{SESSION_CAP}) …")
+        ev("settle", f"screen settled — something to look at. Vision read #{reads} firing")
         beat("reading", 0.0)
         rd = claude_read(frame)
         names = rd["names"]
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)"))
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
         with _state_lock:
             st = _load()

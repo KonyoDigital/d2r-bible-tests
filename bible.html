@@ -7271,6 +7271,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      card stays as the compact twin — one shared engine renders both. -->
 <div class="tab-content" id="tab-tvd">
   <div class="tvb-hero">
+    <div class="tvb-left">
     <div class="tvb-screen tvb-off" id="tvb-screen">
       <div class="tvb-scan"></div>
       <div class="tvb-noise"></div>
@@ -7278,6 +7279,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <div class="tvb-roll"></div>
       <div class="tvb-eye" id="tvb-eye">📺</div>
       <div class="tvb-verb" id="tvb-verb">⛔ DISCONNECTED</div>
+    </div>
+    <!-- v710.6 — the BRAIN LOG (Konyo: 'logging the actions so i can see its thought process'):
+         the scanner's REAL decisions, verbatim from the agent — settles, skips + why, reads + results -->
+    <div class="tvb-log" id="tvb-log"><div class="tvb-log-line tvb-lg-idle">— brain log · the scanner narrates its decisions here —</div></div>
     </div>
     <div class="tvb-side">
       <div class="tvb-title">📺 TV DIABLO <span class="tvb-badge">LIVE SCANNER</span></div>
@@ -31515,7 +31520,18 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvb-feed-sub{font-weight:400;letter-spacing:.02em;color:var(--text-dim);text-transform:none}
 #tvb-feed{padding:12px 16px;max-height:520px;overflow-y:auto;font-family:var(--mono)}
 #tvb-feed .tvd-read{margin-bottom:8px}
-@media (max-width:900px){.tvb-screen{flex:1 1 100%;min-height:190px}}
+.tvb-left{display:flex;flex-direction:column;gap:10px;flex:0 0 380px}
+.tvb-left .tvb-screen{flex:0 0 auto}
+.tvb-log{height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#050704;padding:8px 11px;font-family:var(--mono);font-size:var(--fs-micro);line-height:1.7;scrollbar-width:thin}
+.tvb-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#7fae87}
+.tvb-log-line .lg-ts{color:#4a5d4e;margin-right:7px}
+.tvb-lg-boot{color:#8fe6a0;font-weight:700}
+.tvb-lg-settle{color:#ffd97a}
+.tvb-lg-read{color:#b7ecc4;font-weight:700}
+.tvb-lg-skip{color:#6f7d71;font-style:italic}
+.tvb-lg-cap{color:#e08a8a;font-weight:700}
+.tvb-lg-idle{color:#4a5d4e;font-style:italic}
+@media (max-width:900px){.tvb-left{flex:1 1 100%}.tvb-screen{min-height:190px}}
 </style>
 <style id="v704-sys-tray">
 /* v704 — SYSTEM TRAY (Grok wave P2): the bottom-right corner had FIVE chrome families at five
@@ -32568,6 +32584,27 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         if(v) v.textContent = !fresh?'👁 WATCHING':bt.phase==='reading'?'🧠 READING…':bt.phase==='loading'?'⏳ ZONE LOADING':'👁 WATCHING';
       }
       var rc=document.getElementById('tvb-reads'); if(rc) rc.textContent=(st.readCount||0)+' / 120';
+      // v710.6 — BRAIN LOG: append only unseen events, keep autoscroll pinned to the newest
+      var lg=document.getElementById('tvb-log');
+      if(lg&&st.events&&st.events.length){
+        window.__tvdLogSeen=window.__tvdLogSeen||0;
+        var fresh=st.events.filter(function(e){ return e.ts>window.__tvdLogSeen; });
+        if(fresh.length){
+          window.__tvdLogSeen=st.events[st.events.length-1].ts;
+          var ico={boot:'⚡',settle:'👁',read:'📦',skip:'·',cap:'⛔'};
+          fresh.forEach(function(e){
+            var d=document.createElement('div');
+            d.className='tvb-log-line tvb-lg-'+(e.k||'idle');
+            d.textContent=''; var tsp=document.createElement('span'); tsp.className='lg-ts';
+            tsp.textContent=new Date(e.ts).toLocaleTimeString();
+            d.appendChild(tsp); d.appendChild(document.createTextNode((ico[e.k]||'·')+' '+e.t));
+            d.title=e.t;
+            lg.appendChild(d);
+          });
+          while(lg.children.length>80) lg.removeChild(lg.firstChild);
+          lg.scrollTop=lg.scrollHeight;
+        }
+      }
       var lastR=(st.reads||[]).length?st.reads[st.reads.length-1]:null;
       if(lastR){
         var ar=document.getElementById('tvb-area'); if(ar&&lastR.area) ar.textContent=lastR.area;
