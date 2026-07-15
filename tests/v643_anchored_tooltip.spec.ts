@@ -53,10 +53,19 @@ test('the card opens glued to the hovered item and never detaches across the scr
     for (const a of anchors) {
       const ar = (a as any).getBoundingClientRect();
       a.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: ar.left + 4, clientY: ar.top + 4 }));
-      await new Promise((res) => setTimeout(res, 120));
+      // v696.2 — SETTLE-AWARE measure: a fixed 120ms read the tall card mid-position on slow CI
+      // runners (Archon Plate adjacency false at CI speed, green locally). Poll until the rect is
+      // stable across two frames (≤900ms), then measure.
       const tip = document.getElementById('arttip')!;
+      let tr = { left: -1, top: -1, right: -1, bottom: -1 } as any, settled = 0;
+      for (let w2 = 0; w2 < 15 && settled < 2; w2++) {
+        await new Promise((res) => setTimeout(res, 60));
+        if (!tip.classList.contains('on')) continue;
+        const now = tip.getBoundingClientRect();
+        if (Math.abs(now.left - tr.left) <= 1 && Math.abs(now.top - tr.top) <= 1) settled++; else settled = 0;
+        tr = now;
+      }
       if (!tip.classList.contains('on')) continue;
-      const tr = tip.getBoundingClientRect();
       // adjacency: horizontal gap to the anchor ≤ 20px on either side, OR stacked within 20px
       const hGap = Math.min(Math.abs(tr.left - ar.right), Math.abs(ar.left - tr.right));
       const vGap = Math.min(Math.abs(tr.top - ar.bottom), Math.abs(ar.top - tr.bottom));
