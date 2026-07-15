@@ -63,7 +63,7 @@ test('non-milestone forge → toast but NO epic; reduced motion → neither', as
   // the spec's own const-reassign that only fired when n1+1 hit a %10 milestone — dormant until 99.)
   await page.addInitScript(() => { localStorage.setItem('d2r_rwProfile', 'fresh'); /* v693.3 — profile pin ONLY: addInitScript re-runs on reload and a rwMade={} here stomped this spec's own mid-test writes (the v578.1 trap); fresh flag alone makes boot init rwMade={} */ });
   await page.goto(URL); await page.waitForTimeout(1800);
-  const r1 = await page.evaluate(() => {
+  const r1 = await page.evaluate(async () => {
     const w: any = window;
     // NOTE: do NOT reset localStorage here — the in-memory Chronicle keeps the seed, and a mismatched
     // target would UN-make a word (count drops → no toast). The live seed state is the test state.
@@ -72,6 +72,16 @@ test('non-milestone forge → toast but NO epic; reduced motion → neither', as
     const all = Object.keys(w.RUNEWORD_TIP || {});
     let made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
     let n1 = Object.keys(made).length;
+    // v696 — a FRESH chronicle's FIRST forge fires the v618 first-forge epic BY DESIGN (CI caught it;
+    // fast local runs read the DOM before it mounted). Burn word #1 quietly and let its fx clear, so
+    // the tested forge is #2 — a plain non-milestone toast.
+    if (n1 === 0) {
+      w.rwToggleMade(all[0]);
+      await new Promise((res) => setTimeout(res, 3000));
+      document.querySelectorAll('.forge-epic,.forge-toast').forEach((el) => el.remove());
+      made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}');
+      n1 = Object.keys(made).length;
+    }
     if ((n1 + 1) % 10 === 0) { const t0 = all.find((x) => !made[x]); w.rwToggleMade(t0); made = JSON.parse(localStorage.getItem('d2r_rwMade') || '{}'); n1 = Object.keys(made).length; document.querySelectorAll('.forge-epic,.forge-toast').forEach((e) => e.remove()); }
     const target = all.find((x) => !made[x]);
     w.rwToggleMade(target);

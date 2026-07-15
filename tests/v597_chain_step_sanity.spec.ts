@@ -37,7 +37,7 @@ test('step-2 chain card names its base; ↺ back walks the chain back to step 1'
       text: (c1?.textContent || '').replace(/\s+/g, ' '),
       hasBack: !!c1?.querySelector('button[onclick*="forgeStepBack"]'),
     };
-    w.forgeStepBack('chain|Colossus Voulge (Larzuk base)');
+    w.forgeStepBack('chain|Colossus Voulge (Larzuk base)|4|l');   // v696 — the v684 key format, same as the seed
     await new Promise((res) => setTimeout(res, 300));
     const c2 = card();
     const step1 = {
@@ -57,5 +57,5 @@ test('step-2 chain card names its base; ↺ back walks the chain back to step 1'
   expect(r.step1.text).toContain('Larzuk-socket');
   expect(r.step1.text).toContain('step 1 / 2');
   expect(r.step1.hasBack).toBe(false);
-  expect(r.step1.store['chain|Colossus Voulge (Larzuk base)'] || 0).toBe(0);
+  expect(r.step1.store['chain|Colossus Voulge (Larzuk base)|4|l'] || 0).toBe(0);
 });

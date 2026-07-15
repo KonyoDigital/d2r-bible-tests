@@ -59,7 +59,7 @@ test('loot filter: no blue-magic leak — every real base code is hidden at magi
   expect(r.ci1MagicHidden).toBe(true);
   expect(r.ci3MagicShown).toBe(true);                   // v599 — blue Diadems surface (default-show, no rule matches)
   expect(r.gtsMagicHidden).toBe(false);   // v693.3 — Gothic Shield joined the v690 craft inbox (HitPower shield slot): its BLUES are fuel now, deliberately default-shown
-  expect(r.uitMagicHidden).toBe(true);
+  expect(r.uitMagicHidden).toBe(false);   // v696 — Monarch is a Safety-craft shield: at the sealed stage (sock universe empty) its BLUES are craft fuel like Gothic Shield; mid-chronicle the sock overlap re-hides them
 });
 
 test('vault: keep-or-throw reads the Chronicle — all words forged → __throwout, unmade → kept + named', async ({ page }) => {

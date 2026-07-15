@@ -94,6 +94,8 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
       localStorage.setItem('d2r_wishlist', JSON.stringify(['Test Item']));
     });
     page.on('dialog', d => d.dismiss());
+    // v696 — the reset button lives inside the CLOSED ⚠ danger-zone drawer (v694): open it first
+    await page.evaluate(() => { const d = document.querySelector('.footer details.danger-zone'); if (d) (d as any).open = true; });
     const btn = page.locator('.reset-btn').first();
     if (await btn.count()) {
       await btn.click().catch(() => {});
