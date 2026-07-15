@@ -1,0 +1,13 @@
+name: 📺 TV DIABLO — agent tests
+on:
+  push:
+    paths: ['tv/**']
+  workflow_dispatch:
+jobs:
+  agent-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the agent TDD suite (stdlib only — no deps, no vision cost)
+        run: python3 tv/test_agent.py
