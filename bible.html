@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v688 · Task Force</title>
-<meta name="d2r-build" content="v688">
+  <title>Konyo's D2R Farming Bible v696 · Task Force</title>
+<meta name="d2r-build" content="v696">
 <meta name="d2r-build-date" content="2026-07-14">
 <meta name="d2r-build-note" content="Task Force: mission brief · ops queue · battlefield">
 <style>
@@ -35,6 +35,25 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .gsearch-results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:500;max-height:62vh;overflow-y:auto;background:linear-gradient(180deg,#1a1208,#15100a);border:1px solid var(--gold-bright,#d4a849);border-radius:10px;box-shadow:0 14px 50px rgba(0,0,0,.85);padding:6px 0}
 .gsearch-results[hidden]{display:none}
 .gsearch-foot{padding:7px 16px 5px;border-top:1px solid rgba(212,168,71,.18);color:var(--text-dim);font-size:10.5px;font-family:var(--mono,monospace);letter-spacing:.03em}
+/* v696 P1 — exclusive search focus: the page dims behind open results (scrim z 400 < results 500;
+   the search wrap rises above it). Programmatic el.click() — the H routine's language — still fires. */
+#gsearch-scrim{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);backdrop-filter:blur(1px)}
+#gsearch-scrim[hidden]{display:none}
+.gsearch-wrap{position:relative;z-index:450}
+/* v696 P1 — the golden card's decision chrome sticks while its body scrolls */
+.gic-header{position:sticky;top:0;z-index:6;background:linear-gradient(180deg,rgba(26,18,8,.97),rgba(21,16,10,.94));backdrop-filter:blur(2px);box-shadow:0 6px 18px -8px rgba(0,0,0,.7)}
+/* v696 P1 — narrow-width pass (R1 #8, conservative): the dock quick-set strip scrolls instead of
+   wrapping; low-value chrome steps back before anything truncates */
+@media (max-width:1100px){
+  .dock-presets{overflow-x:auto;flex-wrap:nowrap;max-width:100%;scrollbar-width:thin}
+  .sec-h-peek .pk-track{display:none}
+}
+@media (max-width:900px){
+  .dock-tagline{display:none}
+  #tab-session .sc-kpis{gap:6px}
+  #tab-session .sc-kpi{min-width:70px;padding:6px 8px}
+  .sec-h-peek{display:none}
+}
 .gsearch-item{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;padding:9px 16px;cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px;color:#e8d8b8;border-left:2px solid transparent}
 .gsearch-item:hover,.gsearch-item.gsearch-active{background:rgba(240,192,96,.10);border-left-color:var(--gold-bright,#f0c060);color:#fff5d8}
 .gsearch-ic{font-size:15px;text-align:center;opacity:.9;display:flex;align-items:center;justify-content:center}
@@ -3506,6 +3525,7 @@ try {
     <span class="gsearch-ic-lead">🔍</span>
     <input id="gsearch-input" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
     <div id="gsearch-results" class="gsearch-results" hidden></div>
+    <div id="gsearch-scrim" hidden onclick="try{var b=document.getElementById('gsearch-results');b.hidden=true;b.innerHTML='';this.hidden=true;document.getElementById('gsearch-input').blur();}catch(e){}"></div><!-- v696 P1: search owns focus — click-away closes -->
   </div>
 </div>
 
@@ -23243,7 +23263,8 @@ _v41_whenReady(() => {
         }
         return -1;
       }
-      function close(){ box.hidden=true; box.innerHTML=''; ranked=[]; active=-1; }
+      function _scrim(hide){ try { var sc=document.getElementById('gsearch-scrim'); if (sc) sc.hidden=!!hide; } catch(e){} }   // v696 P1 — search is a ROUTER: while results are open the page behind dims and clicks close instead of mis-firing
+      function close(){ box.hidden=true; box.innerHTML=''; ranked=[]; active=-1; _scrim(true); }
       function paint(){ var els=box.querySelectorAll('.gsearch-item'); for (var i=0;i<els.length;i++){ if (i===active) els[i].classList.add('gsearch-active'); else els[i].classList.remove('gsearch-active'); } var a=box.querySelector('.gsearch-active'); if (a) a.scrollIntoView({block:'nearest'}); }
       function render(q){
         q=(q||'').trim().toLowerCase();
@@ -23252,7 +23273,7 @@ _v41_whenReady(() => {
         for (var i=0;i<all.length;i++){ var sc=score(all[i],q); if (sc>=0) scored.push({c:all[i],s:sc}); }
         scored.sort(function(a,b){ return b.s-a.s || (a.c.label||'').length-(b.c.label||'').length; });
         ranked=scored.slice(0,10);
-        if (!ranked.length){ box.innerHTML='<div class="gsearch-empty">No boss, zone, act, or item matches "'+esc(q)+'"</div>'; box.hidden=false; active=-1; return; }
+        if (!ranked.length){ box.innerHTML='<div class="gsearch-empty">No boss, zone, act, or item matches "'+esc(q)+'"</div>'; box.hidden=false; _scrim(false); active=-1; return; }
         var html='';
         for (var j=0;j<ranked.length;j++){ var c=ranked[j].c;
           // v146 — prefer the verified in-game art logo over the generic tier emoji.
@@ -23267,7 +23288,7 @@ _v41_whenReady(() => {
           html += '<div class="gsearch-item" data-gi="'+j+'"><span class="gsearch-ic">'+icHtml+'</span><span class="gsearch-lab"'+(typeof _qStyle==='function'?_qStyle(c.label):'')+'>'+esc(c.label)+(c.sub?' <span class="gsearch-sub">'+esc(c.sub)+'</span>':'')+'</span><span class="gsearch-cat">'+esc(c.cat||'')+'</span></div>';
         }
         html += '<div class="gsearch-foot">'+ranked.length+' result'+(ranked.length===1?'':'s')+' · <span class="kbd">↑↓</span> move · <span class="kbd">Enter</span> open · <span class="kbd">Esc</span> close</div>';   /* v695 🏓R7 — the router says how to drive it */
-        box.innerHTML=html; active=0; box.hidden=false; paint();
+        box.innerHTML=html; active=0; box.hidden=false; _scrim(false); paint();
       }
       function run(i){ if (ranked[i]){ try { ranked[i].c.action(); } catch(e){} inp.value=''; close(); inp.blur(); } }
       inp.addEventListener('input', function(e){ render(e.target.value); });
@@ -31958,7 +31979,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v693.1', name:'Task Force', date:'2026-07-14', note:'Mission brief · ops queue · battlefield' };
+  window.D2R_BUILD = { id:'v696', name:'Task Force', date:'2026-07-15', note:'Mission brief · ops queue · battlefield' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

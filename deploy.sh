@@ -35,6 +35,25 @@ cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
 cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
 # v687 — do NOT ship orphan /d2r/v44/* (Session Cockpit is native in bible.html; external
 # v44 CSS/JS/SW were a dead layer and caused ghost/404 confusion). Dist is only index+art+functions.
+# v696 — GHOST EXORCISM (live audit): the Phase-Z service worker + a 41KB v44 orphan were STILL
+# serving 200 from the edge, and any browser that ever registered that SW keeps intercepting
+# /d2r/ GETs. Ship TOMBSTONES at those exact paths: a self-unregistering sw.js (kills old client
+# registrations + nukes its caches on their next update check) and an inert v44-upgrade.js —
+# both under no-cache so the edge revalidates instead of resurrecting the cached originals.
+cat > "$DIST/d2r/sw.js" <<'SWJS'
+/* v696 tombstone — the Phase-Z worker is dead. This replaces it on every client's next
+   update check: unregister, drop all caches, hand pages back to the network. */
+self.addEventListener('install', function(){ self.skipWaiting(); });
+self.addEventListener('activate', function(e){
+  e.waitUntil((async function(){
+    try { const ks = await caches.keys(); await Promise.all(ks.map(function(k){ return caches.delete(k); })); } catch(err){}
+    try { await self.registration.unregister(); } catch(err){}
+    try { const cs = await self.clients.matchAll({type:'window'}); cs.forEach(function(c){ c.navigate(c.url); }); } catch(err){}
+  })());
+});
+SWJS
+mkdir -p "$DIST/d2r/v44"
+printf '/* v696 tombstone — the v44 layer is dead; Session Cockpit is native in bible.html */\n' > "$DIST/d2r/v44/v44-upgrade.js"
 # v657 — CACHE LOCKDOWN: Konyo's tabs kept serving WEEKS-old HTML from browser cache for URLs
 # with stale ?v=/?cb= params (the recurring 'this bug is still there' ghost — routines widget,
 # tooltip fixes, all of it). The HTML must always revalidate; the art can cache forever.
@@ -42,6 +61,10 @@ cat > "$DIST/_headers" <<'HDRS'
 /d2r/
   Cache-Control: no-cache, must-revalidate
 /d2r/index.html
+  Cache-Control: no-cache, must-revalidate
+/d2r/sw.js
+  Cache-Control: no-cache, must-revalidate
+/d2r/v44/*
   Cache-Control: no-cache, must-revalidate
 /d2r/art/*
   Cache-Control: public, max-age=604800, immutable
