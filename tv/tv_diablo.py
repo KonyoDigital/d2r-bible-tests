@@ -44,17 +44,30 @@ WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win
 # coded to flag farming when not in town — the corner always shows where we are on the map").
 # Every read extracts WHERE (area = the zone name on the HUD/automap corner) and WHICH MOMENT
 # (scene: town/loot/inventory/stash/gameplay) alongside the item names.
+# Prompt truths calibrated on Konyo's REAL session videos (2026-07-15, town + Cold Plains runs):
+#  · top-right block = "Game: <name>" then the CURRENT AREA, then purple lines = today's terror
+#    zones — persistent during play, hidden when a right-side panel (inventory) covers it
+#  · zone transitions flash a red "ENTERING <ZONE>" banner
+#  · panel grids show item ICONS with no text — names ONLY come from hover tooltips (first line
+#    = name), ground labels (loot key held), waypoint labels ("<Zone> Waypoint"), and the
+#    DETACHED top-left hover label (ground item hovered while a panel is open)
 READ_PROMPT = (
     "Read the image file at {path} — a screenshot of Diablo II: Resurrected (Reign of the Warlock mod). "
-    "Return THREE things as STRICT JSON. (1) \"area\": the current zone name if it is rendered "
-    "anywhere on the HUD (the automap corner usually shows it) — verbatim, else \"\". "
-    "(2) \"scene\": exactly one of \"town\" (the area is an act town: Rogue Encampment, Lut Gholein, "
-    "Kurast Docks, Pandemonium Fortress, Harrogath), \"loot\" (item labels floating over the ground), "
-    "\"inventory\" (inventory panel open), \"stash\" (stash panel open), \"gameplay\" (none of those). "
-    "(3) \"names\": EVERY item name you can actually read — ground labels, tooltips, inventory/stash "
-    "items: uniques, set pieces, runes (like \'Ist Rune\'), gems, charms, jewels, bases. Read ONLY text "
-    "that is genuinely legible — never guess or complete a name you cannot fully read; empty list if none. "
-    "STRICT JSON only, no prose: {{\"area\":\"...\",\"scene\":\"...\",\"names\":[\"...\"]}}"
+    "Return FOUR things as STRICT JSON. "
+    "(1) \"area\": the current zone. Look for: the top-right info block (line under \'Game: ...\' is the "
+    "area name), a red \'ENTERING THE <ZONE>\' banner, or the automap corner text. Verbatim, else \"\". "
+    "(2) \"tz\": the purple zone names in that top-right block (today's terror zones), else []. "
+    "(3) \"scene\": exactly one of \"town\" (an act town: Rogue Encampment, Lut Gholein, Kurast Docks, "
+    "Pandemonium Fortress, Harrogath — town NPCs/stash present), \"stash\" (a STASH-titled panel is open), "
+    "\"inventory\" (an INVENTORY panel is open, no stash), \"loot\" (item name labels floating over the "
+    "ground), \"gameplay\" (none of those). "
+    "(4) \"names\": item names from READABLE TEXT ONLY. Item icons in panel grids carry NO readable name — "
+    "NEVER name an item from its icon. Readable names come from: a hover TOOLTIP (FIRST line = the item "
+    "name, second = its base type), ground item LABELS, a DETACHED top-left hover label, or a waypoint "
+    "label (report \'<Zone> Waypoint\' as area intel, NOT as an item). Include uniques, set pieces, runes "
+    "(like \'Ist Rune\'), gems, charms, jewels, bases, potions. Never guess or complete a partially "
+    "hidden name; [] if no readable item text. "
+    "STRICT JSON only, no prose: {{\"area\":\"...\",\"tz\":[\"...\"],\"scene\":\"...\",\"names\":[\"...\"]}}"
 )
 
 _state_lock = threading.Lock()
@@ -109,16 +122,27 @@ def newest_watched_frame():
     except Exception:
         return None
 
-def md5f(path):
-    h = hashlib.md5()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""): h.update(chunk)
-    return h.hexdigest()
+def frame_sig(path):
+    """~4k byte samples across the BMP pixel data — cheap fuzzy fingerprint, stdlib only."""
+    with open(path, "rb") as f: data = f.read()
+    body = data[54:]
+    step = max(1, len(body) // 4096)
+    return bytes(body[::step][:4096])
+
+def sig_diff(a, b, tol=28):
+    """fraction of samples that MEANINGFULLY differ. Real-game calibration (Konyo's town
+    video): render/recording noise nudges nearly every pixel a little each frame, and the
+    background always animates — so equality is useless. A sample counts as changed only
+    when its value moved by more than `tol` (ambient flicker stays under it; opening a
+    panel / a tooltip / walking moves whole regions far past it)."""
+    if a is None or b is None or len(a) == 0 or len(b) == 0: return 1.0
+    m = min(len(a), len(b))
+    return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
 def claude_read(path):
     """One vision read on YOUR Claude subscription. Read-only tools; Sonnet (the intake-calibrated model)."""
     ap = os.path.abspath(path)
-    EMPTY = {"area": "", "scene": "gameplay", "names": []}
+    EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": []}
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
         return EMPTY
@@ -139,7 +163,8 @@ def claude_read(path):
         names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
         scene = str(j.get("scene", "gameplay")).lower()
         if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
-        return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names}
+        tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
+        return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz}
     except Exception as e:
         print(f"  ⚠ read failed: {e}")
         return EMPTY
@@ -164,12 +189,13 @@ def main():
             frame = f
         elif not capture_mac(frame):
             print("  ⚠ screencapture failed (grant Terminal screen-recording permission in System Settings)"); continue
-        try: cur = md5f(frame)
+        try: cur = frame_sig(frame)
         except Exception: continue
-        stable = stable + 1 if cur == last_md5 else 0
+        SETTLE = 0.03   # ≤3% of sampled pixels moving = you stopped to look (ambient animation rides under this)
+        stable = stable + 1 if sig_diff(cur, last_md5) <= SETTLE else 0
         last_md5 = cur
-        # STABLE: two consecutive identical captures (stable==1 on the second) = you stopped to look
-        if stable != 1 or cur == last_sent_md5: continue
+        # STABLE: two consecutive settled captures (stable==1 on the second) = a read-worthy moment
+        if stable != 1 or sig_diff(cur, last_sent_md5) <= SETTLE: continue
         if time.time() - last_read_t < MIN_GAP_S: continue
         if reads >= SESSION_CAP:
             print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
@@ -181,7 +207,7 @@ def main():
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
         with _state_lock:
             st = _load()
-            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"]})
+            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"], "tz": rd.get("tz", [])})
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
             _save(st)
