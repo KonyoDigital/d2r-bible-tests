@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # 📺 TV DIABLO — agent TDD suite (v711). Zero deps, zero vision cost, synthetic frames.
 #   python3 tv/test_agent.py
-import io, json, os, struct, sys, tempfile, time, unittest, urllib.request
+import io, json, os, struct, sys, tempfile, threading, time, unittest, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["TV_PORT"] = "17971"          # never collide with a live agent
@@ -215,6 +215,19 @@ class TestVisionWorker(unittest.TestCase):
         self.assertIn("Worker Keep", r1)
         self.assertIn("Vex Rune", r2)
         self.assertEqual(w.turns, 2)
+        w.stop()
+
+    def test_ask_is_serialized_under_lock(self):
+        """v720.1 — concurrent ask() must not interleave prompts on one stream."""
+        w = tv.VisionWorker()
+        results = []
+        def go(i):
+            results.append(w.ask(f"read {i}", timeout=10))
+        threads = [threading.Thread(target=go, args=(i,)) for i in range(3)]
+        for t in threads: t.start()
+        for t in threads: t.join(timeout=30)
+        self.assertEqual(len(results), 3)
+        self.assertTrue(all(r and "Worker Keep" in r for r in results))
         w.stop()
 
     def test_restart_after_max_turns(self):

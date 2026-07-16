@@ -65,11 +65,16 @@ the app and authenticate their *own* Claude — the Claude Agent SDK supports
 exactly this bring-your-own-Claude model.
 
 ## Last live verdict
+- **2026-07-16 evening — GATE PASSED ✅**: boot → `vision warm in 3s` → real reads
+  `[warm 6-10s]` — scene detection ✓ (inventory), five real item names read from the live
+  game. Root-caused across two runs: 16MB BMP transport (v710.6) + dead-MCP stalls (v719.1) +
+  **a stale shell ANTHROPIC_API_KEY out-ranking the subscription login (v720, Grok's catch)**.
+
+## Older verdicts
 - **2026-07-15 run #1**: capture ✓ · settle ✓ · bridge ✓ · board ✓ ·
   vision ✗ (16MB BMP → 180s timeouts). Fixed: JPEG transport + persistent worker.
-- **2026-07-16 run #2** (v719.2 live): capture ✓ · settle ✓ · transport ✓ (391KB JPEG) ·
-  `--strict-mcp-config` ✓ · vision still ✗ (warm + oneshot 90s empty). **Root cause:**
-  shell `ANTHROPIC_API_KEY` forced API auth over subscription login → hangs.
-  **v720 fix:** strip API-key env on every vision spawn; probe: text ~7s, image ~21s
-  with key stripped. Expect brain: `vision auth: stripped ANTHROPIC_API_KEY` then
-  `vision warm — session ready in Ns`.
+- **2026-07-16 run #2** (v719.2): transport ✓ · vision ✗ — shell `ANTHROPIC_API_KEY`
+  stole auth from subscription login (90s empty).
+- **2026-07-16 run #3** (v720+): **vision ✓** — warm in 14s · oneshot ~16s · warm reads
+  ~7–9s. v720 strips API-key env on vision spawns; v720.1 serializes worker turns.
+  Fullscreen D2R + hover/loot labels still required for non-empty `area`/`names`.

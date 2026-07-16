@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — the live game-screen scanner (v720)
+# 📺 TV DIABLO — the live game-screen scanner (v720.1)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -206,7 +206,8 @@ def _log_auth_once(stripped):
 
 class VisionWorker:
     def __init__(self):
-        self.p = None; self.q = None; self.turns = 0
+        # v720.1 — lock: warm thread + settle-read must never interleave on one stream
+        self.p = None; self.q = None; self.turns = 0; self.lock = threading.Lock()
     def _spawn(self):
         import queue
         env, stripped = _claude_env()
@@ -229,29 +230,30 @@ class VisionWorker:
         except Exception: pass
         self.p = None
     def ask(self, prompt, timeout=75):
-        """one turn → the result text, or None (caller falls back to one-shot)."""
-        try:
-            if self.p is None or self.p.poll() is not None or self.turns >= WORKER_MAX_TURNS:
-                self.stop(); self._spawn()
-            msg = {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}
-            self.p.stdin.write(json.dumps(msg) + "\n"); self.p.stdin.flush()
-            deadline = time.time() + timeout
-            while time.time() < deadline:
-                try: line = self.q.get(timeout=max(0.1, deadline - time.time()))
-                except Exception: break
-                if line is None: break
-                line = line.strip()
-                if not line: continue
-                try: j = json.loads(line)
-                except Exception: continue
-                if j.get("type") == "result":
-                    self.turns += 1
-                    return j.get("result") or ""
-            self.stop()   # timed out / stream ended — never reuse a wedged worker
-            return None
-        except Exception:
-            self.stop()
-            return None
+        """one turn → the result text, or None (caller falls back to one-shot). Serialized."""
+        with self.lock:
+            try:
+                if self.p is None or self.p.poll() is not None or self.turns >= WORKER_MAX_TURNS:
+                    self.stop(); self._spawn()
+                msg = {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}
+                self.p.stdin.write(json.dumps(msg) + "\n"); self.p.stdin.flush()
+                deadline = time.time() + timeout
+                while time.time() < deadline:
+                    try: line = self.q.get(timeout=max(0.1, deadline - time.time()))
+                    except Exception: break
+                    if line is None: break
+                    line = line.strip()
+                    if not line: continue
+                    try: j = json.loads(line)
+                    except Exception: continue
+                    if j.get("type") == "result":
+                        self.turns += 1
+                        return j.get("result") or ""
+                self.stop()   # timed out / stream ended — never reuse a wedged worker
+                return None
+            except Exception:
+                self.stop()
+                return None
 _WORKER = VisionWorker()
 
 _REWARM_T = [0.0]
@@ -411,7 +413,7 @@ def main():
         print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
         with _state_lock:
             st = _load()
-            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"], "tz": rd.get("tz", []), "ms": rd.get("ms", 0)})
+            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"], "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", "")})
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
             _save(st)

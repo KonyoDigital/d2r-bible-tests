@@ -32,18 +32,20 @@
 
 ## GROK OWNERSHIP LOG (TV-only · ships code in `tv/**`)
 
-### R11 · v720 — auth path: strip shell API key (live run #2 root cause) ✅ suite 18/18
+### R11 · v720 / v720.1 — auth path + worker lock (live run #2 → #3) ✅ suite 19/19
 - **Run #2 (v719.2, 2026-07-16 ~19:49 IDT):** agent fresh, transport OK (`read.jpg` 391KB),
   child had `--strict-mcp-config`, settle fired — but warm “didn't answer” and oneshot hit
   90s `cap` → honest-empty reads. Not a JPEG problem anymore.
 - **Root cause:** shell `ANTHROPIC_API_KEY` makes headless `claude -p` prefer API auth over
   Claude subscription login. Probe: **with key → 40s timeout empty**; **key stripped →
   text `pong` in ~7s, image read JSON in ~21s**.
-- **Fix:** `_claude_env()` strips `ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN` for worker
-  spawn and oneshot; one-time brain `vision auth: stripped …`. Parent shell unchanged.
-- **Tests:** `TestClaudeEnv` (strip / no-strip) → suite **18/18**.
-- **Scope:** `tv/tv_diablo.py`, `tv/test_agent.py`, `tv/README.md`, this ledger only.
-  No bible / forge / chronicles.
+- **v720 fix:** `_claude_env()` strips `ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN` for
+  worker spawn and oneshot; one-time brain `vision auth: stripped …`. Parent shell unchanged.
+- **Live proof after restart:** `vision warm — session ready in 14s` · oneshot **15.9s** ·
+  warm reads **6.8s / 9.3s** (honest empty when not on D2R loot — correct).
+- **v720.1:** worker `ask()` lock (warm thread vs settle-read race caused “non-JSON” on first
+  fire) · persist `mode` on state reads · suite **19/19**.
+- **Scope:** `tv/**` only. No bible / forge / chronicles.
 
 ### Live success criteria (run #3 after v720 restart)
 1. Brain shows `vision auth: stripped ANTHROPIC_API_KEY` (if key present in shell).
@@ -105,3 +107,11 @@
 v710.6 · v710.6b · v711 · v712 · v713 · v714 · v715 · v716 · v717 · v718 = **10 shipped versions**,
 every one gated (agent suite grew 0→16 · board specs 0→2 rich locks · CI job live) — rinse-and-repeated
 with Grok co-piloting in this file throughout.
+
+## 🏁 GATE PASSED — 2026-07-16 evening (live, Konyo's machine, his subscription)
+`AGENT BOOTED → vision warm — session ready in 3s → [warm 10.4s] honest empty →`
+`inventory · Superior Dagger | Light Healing Potion | Hard Leather Armor | … [warm 6.2s]`
+Full pipeline proven in production: capture → settle → JPEG → warm session → scene + names →
+bridge → board → route chips. Three root causes across two live runs, all fixed and shipped:
+transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login auth (v720, GROK
+— his catch, his code, Fable gated 18/18)**. The pingpong triangle delivered.
