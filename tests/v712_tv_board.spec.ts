@@ -340,4 +340,50 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     const ocrCalls = await page.evaluate(() => (window as any).__runeIntakeCalls || 0);
     expect(ocrCalls).toBe(0);
   });
+
+  test('v735 history row carries frame thumb; open lightbox uses /frame?id=', async ({ page }) => {
+    const jpeg = Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8hf//Z',
+      'base64'
+    );
+    let frameIdHits = 0;
+    await page.route('http://127.0.0.1:17771/frame**', async (route) => {
+      const u = route.request().url();
+      if (u.includes('id=3_99')) frameIdHits++;
+      await route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg });
+    });
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(state({
+          reads: [{
+            ts: Date.now() - 200, n: 3, area: 'Cold Plains', scene: 'loot', lane: 'deep',
+            frameId: '3_99', ms: 5000, names: ['Ist Rune'], conf: 0.9,
+          }],
+        })),
+      }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(200);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1200);
+    // history thumb present with correct frame id
+    const thumb = await page.evaluate(() => {
+      const img = document.querySelector('#tvb-hist img.tvd-frame-thumb') as HTMLImageElement | null;
+      return img ? { id: img.getAttribute('data-frame'), src: img.getAttribute('src') || '' } : null;
+    });
+    expect(thumb).toBeTruthy();
+    expect(thumb!.id).toBe('3_99');
+    expect(thumb!.src).toContain('id=3_99');
+    // open lightbox
+    await page.evaluate(() => (window as any)._tvdOpenFrame('3_99', { n: 3, scene: 'loot' }));
+    await page.waitForTimeout(300);
+    const lb = await page.evaluate(() => {
+      const el = document.getElementById('tvd-frame-lb');
+      const img = document.getElementById('tvd-frame-lb-img') as HTMLImageElement | null;
+      return { open: el && !el.hidden, src: (img && img.src) || '' };
+    });
+    expect(lb.open).toBe(true);
+    expect(lb.src).toContain('id=3_99');
+    expect(frameIdHits).toBeGreaterThanOrEqual(1);
+  });
 });

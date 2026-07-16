@@ -7318,10 +7318,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     </div>
     <div class="tvb-hist-meta" id="tvb-hist-meta">— no sessions yet —</div>
     <div class="tvb-hist-eye" id="tvb-hist-eye" hidden>
-      <div class="tvb-hist-eye-h">👁 last frame the AI read <span class="tvb-feed-sub">(live agent · /frame)</span></div>
-      <img id="tvb-hist-frame" alt="last vision frame" loading="lazy">
+      <div class="tvb-hist-eye-h">👁 last frame the AI read <span class="tvb-feed-sub">(live agent · /frame · click any row thumb for ~1920 fullscreen)</span></div>
+      <img id="tvb-hist-frame" alt="last vision frame" loading="lazy" style="cursor:zoom-in" title="click to enlarge" onclick="window._tvdOpenFrame&&window._tvdOpenFrame('',{title:'last frame'})">
     </div>
     <div id="tvb-hist"><div class="sc-empty">flip the scanner on — reads archive here by time so you can debug after the agent restarts</div></div>
+  </div>
+  <!-- v735 — fullscreen frame lightbox (per-read eye on the AI) -->
+  <div class="tvd-frame-lb" id="tvd-frame-lb" hidden>
+    <div class="tvd-frame-lb-bar">
+      <span id="tvd-frame-lb-title">👁 AI frame</span>
+      <button type="button" onclick="window._tvdCloseFrame&&window._tvdCloseFrame()">✕ close · Esc</button>
+    </div>
+    <img id="tvd-frame-lb-img" alt="AI vision frame fullscreen">
   </div>
 </div>
 <div class="footer">
@@ -31643,7 +31651,18 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-read-farmed{border-color:rgba(102,255,136,.28);background:rgba(40,100,55,.06)}
 .tvd-read-seen{border-color:rgba(255,217,122,.22);background:rgba(120,90,20,.05)}
 .tvc-art.tvc-art-lg{width:28px;height:28px}
-@media (max-width:900px){.tvb-left{flex:1 1 100%}.tvb-screen{min-height:190px}}
+/* v735 — per-read frame thumb + MacBook-style fullscreen lightbox */
+.tvd-read{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}
+.tvd-read-body{min-width:0}
+.tvd-frame-thumb{display:block;width:112px;height:70px;object-fit:cover;border-radius:8px;border:1px solid rgba(240,192,96,.35);background:#0a0c08;cursor:zoom-in;box-shadow:0 6px 18px -10px rgba(0,0,0,.9);transition:border-color .15s,transform .15s}
+.tvd-frame-thumb:hover{border-color:rgba(240,192,96,.85);transform:scale(1.03)}
+.tvd-frame-ph{width:112px;height:70px;border-radius:8px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.06em;text-align:center;padding:4px}
+.tvd-frame-lb{position:fixed;inset:0;z-index:99990;background:rgba(4,6,4,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(6px)}
+.tvd-frame-lb[hidden]{display:none!important}
+.tvd-frame-lb-bar{width:min(1920px,96vw);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;font-family:var(--mono);font-size:var(--fs-meta);color:var(--gold-bright)}
+.tvd-frame-lb-bar button{font:inherit;font-weight:800;letter-spacing:.1em;padding:6px 14px;border-radius:999px;border:1px solid var(--border-light);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer}
+.tvd-frame-lb img{max-width:min(1920px,96vw);max-height:min(1080px,82vh);width:auto;height:auto;object-fit:contain;border-radius:12px;border:1px solid rgba(240,192,96,.4);box-shadow:0 24px 80px -20px rgba(0,0,0,.95);background:#000}
+@media (max-width:900px){.tvb-left{flex:1 1 100%}.tvb-screen{min-height:190px}.tvd-read{grid-template-columns:1fr}.tvd-frame-thumb,.tvd-frame-ph{width:100%;height:120px}}
 </style>
 <style id="v704-sys-tray">
 /* v704 — SYSTEM TRAY (Grok wave P2): the bottom-right corner had FIVE chrome families at five
@@ -32563,7 +32582,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v734', name:'Stash Auto-Intake', date:'2026-07-17', note:'v734: stand on Runes/Gems/Materials stash tab → TV feeds GET /frame into locked tally intake (once per visit); OCR honesty + dual-lane kept' };
+  window.D2R_BUILD = { id:'v735', name:'Frame History', date:'2026-07-17', note:'v735: each history read links to archived ~1920 frame; click thumb → fullscreen lightbox; eyes on what the AI saw' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32897,7 +32916,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     }
     // newest first
     var rows = reads.slice().reverse().map(function(r){
-      var chips = (r.items||[]).map(function(it){ return histChip(it, !!it.vault); }).join('');
+      var chips = (r.items||[]).filter(function(it){
+        // v735 — never re-paint OCR garble notes in history (honesty gate for archives too)
+        if ((r.lane==='ocr'||r.mode==='ocr'||r.provisional) && (it.kind==='note'||it.db===false)) return false;
+        return true;
+      }).map(function(it){ return histChip(it, !!it.vault); }).join('');
       var intent=r.intent||'';
       var intentTag=intent==='farmed'?' · <span class="tvd-intent tvd-farmed">🛍 FARMED</span>':intent==='seen'?' · <span class="tvd-intent tvd-seen">👁 SEEN</span>':'';
       var model = r.model ? (' · '+r.model+(r.escalated?'⬆':'')) : '';
@@ -32905,9 +32928,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var ms = r.ms ? (' · '+fmtMs(r.ms)) : '';
       var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+escAttr(r.scene)):'')+intentTag+lane+model+ms;
       return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'">'
+        + histFrameCell(r)
+        +'<div class="tvd-read-body">'
         +'<div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+(r.n||'?')+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
         +(chips||'<span class="tvd-chip tc-note">nothing readable</span>')
-        +'</div>';
+        +'</div></div>';
     }).join('');
     root.innerHTML = '<div class="tvd-feed">'+rows+'</div>';
     // restore scroll so poll re-paints don't yank the user to the top (LAST SESSION read)
@@ -32958,9 +32983,69 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     return '<div class="sc-empty">'+(STATE==='live'
       ? '👁 watching — stop on a drop pile or hover a tooltip and the read lands here'
       : STATE==='offline'
-      ? 'agent not running — terminal: <code>python3 tv/tv_diablo.py</code> · read-only · your Claude subscription'
+      ? 'agent not running — terminal: <code>tvd</code> · read-only · your Claude subscription'
       : 'flip the switch — the scanner reads what you stop to look at, and it tallies itself')+'</div>';
   }
+  // v735 — per-read frame URL (agent serves frames/hist/{id}.jpg while online)
+  function frameSrc(id){
+    if (id) return FRAME0 + '?id=' + encodeURIComponent(String(id));
+    return FRAME0 + '?t=' + Date.now();
+  }
+  window._tvdOpenFrame = function(id, meta){
+    try {
+      meta = meta || {};
+      var lb = document.getElementById('tvd-frame-lb');
+      var img = document.getElementById('tvd-frame-lb-img');
+      var tit = document.getElementById('tvd-frame-lb-title');
+      if (!lb || !img) return;
+      var label = meta.title || ('read #' + (meta.n || '?') + (meta.scene ? (' · ' + meta.scene) : '') + (id ? (' · ' + id) : ''));
+      if (tit) tit.textContent = '👁 ' + label + ' · click outside / Esc to close';
+      img.onload = function(){ lb.hidden = false; };
+      img.onerror = function(){
+        lb.hidden = false;
+        if (tit) tit.textContent = '👁 frame missing — start tvd (agent serves /frame?id=…) · ' + (id || 'latest');
+      };
+      img.src = frameSrc(id);
+      lb.hidden = false;
+      lb.onclick = function(e){ if (e.target === lb) window._tvdCloseFrame(); };
+    } catch(e){}
+  };
+  window._tvdCloseFrame = function(){
+    try {
+      var lb = document.getElementById('tvd-frame-lb');
+      var img = document.getElementById('tvd-frame-lb-img');
+      if (lb) lb.hidden = true;
+      if (img) { img.removeAttribute('src'); }
+    } catch(e){}
+  };
+  try {
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') window._tvdCloseFrame && window._tvdCloseFrame();
+    });
+  } catch(e){}
+  function histFrameCell(r){
+    var id = String(r.frameId || r.frame_id || '');
+    // ids are only digits_digits from the agent
+    if (!/^\d+_\d+$/.test(id)) return '<div class="tvd-frame-ph" title="no archived frame for this read">no frame</div>';
+    var src = frameSrc(id);
+    var sc = String(r.scene || '').replace(/[^a-z0-9_-]/gi, '');
+    var n = Number(r.n || 0) || 0;
+    var title = 'read #' + (n || '?') + (sc ? (' · ' + sc) : '') + ' · click to enlarge ~1920';
+    return '<img class="tvd-frame-thumb" src="'+escAttr(src)+'" alt="AI frame" loading="lazy" title="'+escAttr(title)+'"'
+      +' data-frame="'+id+'" data-n="'+n+'" data-scene="'+escAttr(sc)+'"'
+      +' onerror="this.outerHTML=\'<div class=tvd-frame-ph>frame offline</div>\'">';
+  }
+  // delegate clicks (safer than inline JS with scene strings)
+  try {
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      if (!t || !t.classList || !t.classList.contains('tvd-frame-thumb')) return;
+      e.preventDefault();
+      window._tvdOpenFrame && window._tvdOpenFrame(t.getAttribute('data-frame') || '', {
+        n: t.getAttribute('data-n'), scene: t.getAttribute('data-scene') || ''
+      });
+    });
+  } catch(e){}
   function render(){
     var b=document.getElementById('sc-tvd-body');
     if(b){
@@ -33145,6 +33230,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var entry = { ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:routes, intent:intent, auto:auto, model:rd.model||'', conf:rd.conf, ms:rd.ms||0, escalated:!!rd.escalated,
           lane: rd.lane || (isOcr ? 'ocr' : ''), provisional: !!isOcr,
           stashTab: stashTab, stashIntake: !!stashIntakeQueued,
+          frameId: rd.frameId || rd.frame_id || '',
           vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
           lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
           items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, lc:x.lc||'', muleName:x.muleName||'' }; }) };

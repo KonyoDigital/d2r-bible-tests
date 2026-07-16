@@ -31,6 +31,15 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-17 — Grok: v735 per-read frame history (eyes on the AI)
+
+- Each settle archives `tv/frames/hist/{n}_{ts}.jpg` (~1920 JPEG from the capture).
+- Read records carry `frameId`; board history rows show a thumb; click → fullscreen
+  lightbox (`GET /frame?id=`). Last-frame eye still works. Offline copy → `tvd`.
+- History paint also drops archived OCR `NO DB` notes (garble scrub). Ring keep=80.
+
+---
+
 ## 2026-07-17 — Grok: v734 stash-tab auto-intake
 
 - Konyo design (Fable backlog): stand on RotW Runes/Gems/Materials stash tab → TV hands

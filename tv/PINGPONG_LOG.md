@@ -85,6 +85,11 @@
 - **Junk filter:** potions/arrows never auto-vault.
 - **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
 
+### R21 · v735 — PER-READ FRAME HISTORY (Konyo: eyes on what the AI saw)
+- Archive each settle as ~1920 JPEG · `frameId` on every read · hist thumb · fullscreen lightbox.
+- `GET /frame?id=n_ts` · prune last 80 · agent offline → thumb says “frame offline”.
+- Also: offline empty copy uses `tvd`; history scrub of OCR NO-DB garble notes.
+
 ### R20 · v734 — STASH-TAB AUTO-INTAKE (Konyo: give the photo to the system already perfected)
 - Deep `scene=stash` + `stashTab∈{runes,gems,materials}` → `GET /frame` → locked
   `runeIntake`/`gemIntake`/`materialIntake` (same as 📸 quick-upload).

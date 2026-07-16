@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Autopilot scanner (v734)
+# 📺 TV DIABLO — Autopilot scanner (v735)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -98,7 +98,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v734",
+    "ver": "v735",
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -141,8 +141,18 @@ def bridge():
             elif self.path.startswith("/ping"):
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
             elif self.path.startswith("/frame"):
-                # v724 — last vision JPEG for the board's session-history eye (debug what AI saw)
-                jp = os.path.join(FRAMES, "read.jpg")
+                # v724 — last vision JPEG · v735 — ?id=N_ts for per-read hist archive (1920 eye)
+                from urllib.parse import urlparse, parse_qs
+                qs = parse_qs(urlparse(self.path).query or "")
+                fid = (qs.get("id") or qs.get("frame") or [None])[0]
+                if fid:
+                    # only allow simple ids: digits_digits (no path traversal)
+                    safe = str(fid).strip()
+                    if not all(c.isdigit() or c == "_" for c in safe) or ".." in safe or "/" in safe:
+                        self._hdr(400); self.wfile.write(b'{"error":"bad frame id"}'); return
+                    jp = os.path.join(FRAMES, "hist", safe + ".jpg")
+                else:
+                    jp = os.path.join(FRAMES, "read.jpg")
                 if os.path.isfile(jp):
                     try:
                         with open(jp, "rb") as f: data = f.read()
@@ -197,6 +207,15 @@ def sig_diff(a, b, tol=28):
     m = min(len(a), len(b))
     return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
+# v735 — per-read frame ring for session history (human eye ~1920; AI still uses 1568)
+HIST_DIR = os.path.join(FRAMES, "hist")
+try:
+    HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "80")))
+except Exception:
+    HIST_KEEP = 80
+# MacBook-ish display width for click-to-enlarge (not the AI vision input size)
+HIST_MAX_PX = 1920
+
 def _readable_frame(ap):
     """v710.6 LIVE-SESSION FIX (Konyo's first real run): claude's Read tool chokes on a 16MB
     raw BMP — both live reads timed out at 180s. Convert to a 1568px JPEG (the locked intake
@@ -221,6 +240,56 @@ def _readable_frame(ap):
     except Exception:
         pass
     return ap
+
+def archive_read_frame(src_path, n, ts_ms=None):
+    """v735 — snapshot the settled screen into frames/hist/{n}_{ts}.jpg (~1920 JPEG).
+    Returns frame id string for /frame?id=… so each history row can reopen what the AI saw.
+    Keeps last HIST_KEEP files. Never raises into the scan loop."""
+    ts_ms = ts_ms if ts_ms is not None else int(time.time() * 1000)
+    fid = "%d_%d" % (int(n), int(ts_ms))
+    try:
+        os.makedirs(HIST_DIR, exist_ok=True)
+        dest = os.path.join(HIST_DIR, fid + ".jpg")
+        src = os.path.abspath(src_path) if src_path else ""
+        ok = False
+        if src and os.path.isfile(src):
+            # Prefer full capture → 1920 for human eyes (AI path stays 1568 via _readable_frame)
+            if src.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")):
+                r = subprocess.run(
+                    ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82",
+                     "--resampleHeightWidthMax", str(HIST_MAX_PX), src, "--out", dest],
+                    capture_output=True, timeout=25)
+                ok = r.returncode == 0 and os.path.isfile(dest)
+            if not ok:
+                # last resort: copy vision read.jpg if present
+                jp = os.path.join(FRAMES, "read.jpg")
+                if os.path.isfile(jp):
+                    import shutil
+                    shutil.copy2(jp, dest)
+                    ok = os.path.isfile(dest)
+        if not ok:
+            return ""
+        # prune oldest beyond HIST_KEEP
+        try:
+            files = [os.path.join(HIST_DIR, f) for f in os.listdir(HIST_DIR)
+                     if f.lower().endswith(".jpg")]
+            files.sort(key=lambda p: os.path.getmtime(p))
+            for old in files[:-HIST_KEEP]:
+                try: os.remove(old)
+                except Exception: pass
+        except Exception:
+            pass
+        return fid
+    except Exception:
+        return ""
+
+def frame_path_for_id(fid):
+    """Resolve hist id → absolute path, or '' if missing/unsafe."""
+    safe = str(fid or "").strip()
+    if not safe or not all(c.isdigit() or c == "_" for c in safe):
+        return ""
+    p = os.path.join(HIST_DIR, safe + ".jpg")
+    return p if os.path.isfile(p) else ""
 
 
 # ═══ v713 — PERSISTENT VISION WORKER (the SPEED fix). One long-lived claude session in
@@ -935,14 +1004,14 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v734 — OCR + stash-tab auto-intake · commitment vault")
+    print("📺 TV DIABLO Autopilot v735 — per-read frame history · OCR · stash auto-intake")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
     print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
-    ev("boot", f"autopilot v734 — OCR + stashTab auto-intake · priority gap {PRIORITY_GAP_S}s")
+    ev("boot", f"autopilot v735 — frame hist + OCR + stashTab · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
             try:
@@ -1036,9 +1105,14 @@ def main():
             print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
+        read_ts = int(time.time() * 1000)
+        # v735 — archive THIS settle's frame for history click-to-enlarge (before vision mutates)
+        frame_id = archive_read_frame(frame, reads, read_ts)
         ptag = "⚡PRIORITY " if priority else ""
-        print(f"  👁 {ptag}screen settled — reading ({reads}/{SESSION_CAP}) interest={interest:.2f} …")
-        ev("settle", f"{ptag}settle · interest {interest:.2f} · peak {peak:.2f} · dual-lane read #{reads}")
+        print(f"  👁 {ptag}screen settled — reading ({reads}/{SESSION_CAP}) interest={interest:.2f} …"
+              + (f" frame={frame_id}" if frame_id else ""))
+        ev("settle", f"{ptag}settle · interest {interest:.2f} · peak {peak:.2f} · dual-lane read #{reads}"
+           + (f" · frame {frame_id}" if frame_id else ""))
         beat("reading", 0.0)
         _AP["mode"] = "read"
         used_priority = priority
@@ -1059,12 +1133,13 @@ def main():
                     st = _load()
                     st.setdefault("seen", []); st.setdefault("farmed", [])
                     prec = {
-                        "ts": int(time.time() * 1000), "names": onames, "n": reads,
+                        "ts": read_ts, "names": onames, "n": reads,
                         "area": "", "scene": "loot", "tz": [],
                         "ms": oms, "mode": "ocr", "lane": "ocr", "model": "ocr-mac",
                         "conf": ocr_rd.get("conf"), "intent": "seen",
                         "escalated": False, "interest": interest, "priority": used_priority,
                         "provisional": True,
+                        "frameId": frame_id,
                         "vault_names": [], "farmed_names": [],  # NEVER vault from OCR alone
                         "pending_names": [], "thrown_names": [], "unvault_names": [],
                         "lifecycle_tags": {nm: "ocr" for nm in onames},
@@ -1148,6 +1223,7 @@ def main():
                    "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
                    "lane": "deep", "model": model_tag, "conf": rd.get("conf"), "intent": intent,
                    "stashTab": stash_tab,
+                   "frameId": frame_id,
                    "escalated": bool(rd.get("escalated")),
                    "interest": interest, "priority": used_priority,
                    "provisional": False,

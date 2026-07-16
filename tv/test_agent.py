@@ -233,6 +233,36 @@ class TestLootLifecycleV2(unittest.TestCase):
         self.assertEqual(r["vault_names"], [])
 
 
+class TestFrameArchive(unittest.TestCase):
+    """v735 — per-read frame hist for click-to-enlarge eyes-on-AI."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._old_frames = tv.FRAMES
+        self._old_hist = tv.HIST_DIR
+        tv.FRAMES = self.d
+        tv.HIST_DIR = os.path.join(self.d, "hist")
+
+    def tearDown(self):
+        tv.FRAMES = self._old_frames
+        tv.HIST_DIR = self._old_hist
+
+    def test_archive_makes_id_and_file(self):
+        # minimal jpeg via sips from a tiny png written as bmp-ish won't work — use read.jpg copy path
+        src = os.path.join(self.d, "live.png")
+        # 1x1 png
+        import base64
+        open(src, "wb").write(base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="))
+        fid = tv.archive_read_frame(src, 3, 1_700_000_000_000)
+        self.assertTrue(fid)
+        self.assertEqual(fid, "3_1700000000000")
+        self.assertTrue(os.path.isfile(tv.frame_path_for_id(fid)))
+
+    def test_frame_path_rejects_traversal(self):
+        self.assertEqual(tv.frame_path_for_id("../etc/passwd"), "")
+        self.assertEqual(tv.frame_path_for_id("abc"), "")
+
+
 class TestStashTab(unittest.TestCase):
     """v734 — stashTab normalize for RotW left tabs."""
     def test_norm_aliases(self):
