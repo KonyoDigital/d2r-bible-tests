@@ -32972,23 +32972,33 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var intent=rd.intent||(rd.scene==='inventory'||rd.scene==='stash'?'farmed':rd.scene==='loot'?'seen':'context');
         var routes=(rd.names||[]).map(route).filter(Boolean);
         var auto=false;
-        // v723 — FARMED only (inv/stash after physical pickup): auto-tick engines + vault shelf.
-        // FLOOR (seen) stays review-first — never silent-apply ground loot.
-        if(intent==='farmed' && routes.length){
+        // v729 — LOOT LIFECYCLE v2: only auto-apply farmed_names from agent (baseline/anchors excluded).
+        // Fallback: if farmed_names missing (old agent), keep v723 "all inv/stash names".
+        var farmedList = Array.isArray(rd.farmed_names) ? rd.farmed_names : null;
+        var farmedSet = {};
+        function _nN(s){ return String(s||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); }
+        if (farmedList) farmedList.forEach(function(n){ farmedSet[_nN(n)] = true; });
+        var shouldAuto = farmedList ? farmedList.length > 0 : (intent==='farmed' && routes.length > 0);
+        if (shouldAuto){
           routes.forEach(function(x){
             try {
+              var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
+              if (farmedList && farmedList.length){
+                if (!farmedSet[_nN(x.key)] && !farmedSet[_nN(vaultName)]) return;
+              }
               // engines only for rune/gem/uni/set — not generic ITEMS bases
               if(x.kind!=='note' && x.kind!=='item' && !x.done){ apply(x.kind, x.key, null); x.done=true; }
-              var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
               var vr = null;
               if(vaultName && typeof window.tvVaultRegister==='function') vr = window.tvVaultRegister(vaultName);
               x.vault = !!(vr && vr.ok);
+              x.lc = (rd.lifecycle_tags && (rd.lifecycle_tags[vaultName] || rd.lifecycle_tags[x.key])) || 'farmed';
             } catch(e){}
           });
           auto=true;
         }
         var entry = { ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:routes, intent:intent, auto:auto, model:rd.model||'', conf:rd.conf, ms:rd.ms||0, escalated:!!rd.escalated,
-          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault }; }) };
+          farmed_names: farmedList || [], lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
+          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, lc:x.lc||'' }; }) };
         FEED.push(entry);
         pushHistRead(entry);
         DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;

@@ -72,6 +72,13 @@
   empty — including “I just stopped on loot / opened inv.” Play latency > empty thrift.
 - **Removed.** Only same-view skip + MIN_GAP 6s remain.
 
+### R16 · v729 — LOOT LIFECYCLE v2 object permanence (run #3 design → code)
+- **BASELINE** first inv/stash snapshot · never re-tally those names
+- **SEEN** floor ledger · **GONE** same-area miss (1-read grace) = candidate only
+- **CONFIRM** inv/stash + not baseline → `farmed_names` + engines/vault (tag `seen→gone→inventory`)
+- **Honesty:** GONE alone never applies · inv-only still works · anchors (Cube/tomes) hold apply if missing+low conf
+- Board applies **only** `farmed_names`. Suite **30/30**.
+
 ### Explicit non-goals (unchanged)
 - No forge rewrite · no fabricated names · don’t loosen settle · don’t rewire vault intake photos.
 

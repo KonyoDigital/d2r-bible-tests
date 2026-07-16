@@ -37,6 +37,15 @@
 - Removed dynamic EMPTY_GAP; thrash control = same-view skip + MIN_GAP 6s only.
 - Agent suite 22/22. `tvd restart` / agent relaunched sonnet warm 3s.
 
+## 2026-07-16 — Grok: v729 LOOT LIFECYCLE v2 (object permanence)
+
+- Run #3 design (Konyo/Fable backlog): floor SEEN → same-area GONE (grace) → inv CONFIRM.
+- `LootLifecycle` session engine · `farmed_names` only auto-apply · baseline never re-tally ·
+  anchors (Cube/TP/ID tomes) · GONE alone never applies · inv-only still works.
+- Agent suite **30/30**. Board uses `farmed_names`. Run #4 live-verify next.
+
+---
+
 ---
 
 ## 2026-07-16 — Grok: v727 Autopilot core (Tesla-style when-to-read)

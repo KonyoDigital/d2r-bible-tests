@@ -170,6 +170,66 @@ class TestAutopilotInterest(unittest.TestCase):
         self.assertGreater(s, 0.5)
 
 
+class TestLootLifecycleV2(unittest.TestCase):
+    """v729 — object permanence: seen→gone→inventory confirm; baseline; anchors."""
+    def setUp(self):
+        self.lc = tv.LootLifecycle()
+
+    def test_baseline_first_inv_never_auto_farms(self):
+        r = self.lc.process("inventory", ["Horadric Cube", "Tome of Town Portal", "Ist Rune"], "Rogue Encampment", 0.9)
+        self.assertEqual(r["farmed_names"], [])
+        self.assertTrue(self.lc.baseline_set)
+        self.assertIn("ist rune", self.lc.baseline)
+        self.assertEqual(r["lifecycle_tags"].get("Ist Rune"), "baseline")
+        self.assertEqual(r["anchor"], "ok")
+
+    def test_seen_gone_confirm_strongest_signal(self):
+        # empty baseline
+        self.lc.process("inventory", ["Horadric Cube", "Tome of Identify"], "Rogue Encampment", 0.9)
+        # floor see Vipermagi in Stony Field
+        self.lc.process("loot", ["Skin of the Vipermagi", "Super Healing Potion"], "Stony Field", 0.85)
+        self.assertIn("skin of the vipermagi", self.lc.seen)
+        # still on floor (grace)
+        r1 = self.lc.process("loot", ["Super Healing Potion"], "Stony Field", 0.8)
+        self.assertEqual(r1["gone_candidates"], [])  # 1-miss grace
+        # second miss → candidate
+        r2 = self.lc.process("loot", [], "Stony Field", 0.8)
+        self.assertIn("Skin of the Vipermagi", r2["gone_candidates"])
+        self.assertEqual(r2["farmed_names"], [])  # GONE alone never applies
+        # inventory confirm
+        r3 = self.lc.process("inventory",
+                             ["Horadric Cube", "Tome of Identify", "Skin of the Vipermagi"],
+                             "Rogue Encampment", 0.9)
+        self.assertIn("Skin of the Vipermagi", r3["farmed_names"])
+        self.assertEqual(r3["lifecycle_tags"].get("Skin of the Vipermagi"), "seen→gone→inventory")
+
+    def test_inventory_only_still_farms_new_item(self):
+        self.lc.process("inventory", ["Horadric Cube"], "town", 0.9)
+        r = self.lc.process("inventory", ["Horadric Cube", "Harlequin Crest"], "town", 0.9)
+        self.assertIn("Harlequin Crest", r["farmed_names"])
+        self.assertEqual(r["lifecycle_tags"].get("Harlequin Crest"), "inventory-only")
+
+    def test_baseline_item_never_retallies(self):
+        self.lc.process("inventory", ["Horadric Cube", "Ist Rune"], "town", 0.9)
+        r = self.lc.process("inventory", ["Horadric Cube", "Ist Rune"], "town", 0.9)
+        self.assertEqual(r["farmed_names"], [])
+        self.assertEqual(r["lifecycle_tags"].get("Ist Rune"), "baseline")
+
+    def test_anchor_missing_holds_apply_when_low_conf(self):
+        self.lc.process("inventory", [], "town", 0.9)  # empty baseline
+        r = self.lc.process("inventory", ["Some Unique Sword"], "town", 0.4)  # no cube/tome, low conf
+        self.assertEqual(r["farmed_names"], [])
+        self.assertEqual(r.get("apply_held"), "anchor-missing")
+
+    def test_gone_different_area_not_candidate(self):
+        self.lc.process("inventory", ["Horadric Cube"], "town", 0.9)
+        self.lc.process("loot", ["Vex Rune"], "Stony Field", 0.9)
+        # missing in another area — not same-area gone
+        r = self.lc.process("loot", [], "Cold Plains", 0.9)
+        r2 = self.lc.process("loot", [], "Cold Plains", 0.9)
+        self.assertEqual(r2["gone_candidates"], [])
+
+
 class TestIntentAndEscalate(unittest.TestCase):
     """v723 — floor=seen / inv-stash=farmed · haiku→sonnet escalate gates."""
     def test_intent_lifecycle(self):

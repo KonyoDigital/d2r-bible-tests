@@ -91,6 +91,13 @@ stash scenario at session end — the full arc is in the session history for rep
 
 Owner: Grok codes · Fable gates · Konyo live-verifies (run #4).
 
+### v729 — SHIPPED (Grok)
+- `LootLifecycle` in `tv/tv_diablo.py`: baseline · seen · gone-candidate (1-miss grace) · confirm
+- Read fields: `farmed_names`, `lifecycle_tags`, `anchor`, `gone_candidates`
+- Board auto-apply uses **only** `farmed_names` (baseline/anchors excluded)
+- Unit tests: `TestLootLifecycleV2` (6 cases) · suite 30/30
+- Run #4 live-verify: empty inv baseline → pile SEEN → gone candidate → inv CONFIRM → vault
+
 ---
 
 ## LOOT LIFECYCLE v2 — OBJECT PERMANENCE (Konyo's design, 2026-07-16 run #3 debrief)

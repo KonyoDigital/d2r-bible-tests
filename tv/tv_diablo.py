@@ -73,6 +73,8 @@ READ_PROMPT = (
     "(like \'Ist Rune\'), gems, charms, jewels, bases, potions. Never guess or complete a partially "
     "hidden name; [] if no readable item text. "
     "(5) \"conf\": your confidence 0.0–1.0 that area/scene/names are correct (1.0 = crystal-clear text). "
+    "When scene is inventory, ALSO include fixed landmarks in names if readable: Horadric Cube, "
+    "Tome of Town Portal, Tome of Identify (anchor slots — proves the panel read is real). "
     "STRICT JSON only, no prose: {{\"area\":\"...\",\"tz\":[\"...\"],\"scene\":\"...\",\"names\":[\"...\"],\"conf\":0.0}}"
 )
 
@@ -354,6 +356,167 @@ def _intent_for(scene):
     if scene == "loot": return "seen"
     return "context"
 
+# ═══ v729 — LOOT LIFECYCLE v2 (object permanence, Konyo run #3 design) ═══════════
+# seen(floor) → gone(same area) → inventory confirm = strongest farmed signal.
+# GONE alone never applies. Baseline items never re-tally. Anchors = read confidence.
+_ANCHOR_SUBSTR = (
+    "horadric cube", "tome of town portal", "tome of identify",
+    "scroll of town portal", "scroll of identify", "identify book", "town portal book",
+)
+def _norm_name(n):
+    s = str(n or "").strip().lower()
+    # strip trailing quality parens for matching: "foo (//)" noise
+    if s.endswith(")") and "(" in s:
+        s = s[:s.rfind("(")].strip()
+    return s
+
+def _is_anchor(n):
+    lo = _norm_name(n)
+    return any(a in lo for a in _ANCHOR_SUBSTR)
+
+def _area_key(a):
+    return str(a or "").strip().lower()
+
+class LootLifecycle:
+    """Session-scoped object permanence for floor → bag correlation."""
+    def __init__(self):
+        self.baseline = {}          # norm → display name (first inv/stash snapshot)
+        self.baseline_set = False
+        self.seen = {}              # norm → {name, area, firstSeen, lastSeen, count, miss}
+        self.candidates = {}        # norm → {name, area, goneAt}
+        self.confirmed = []         # ring of confirm events
+        self.confirmed_set = set()  # norms already auto-farmed this session (dedupe)
+
+    def snapshot(self):
+        return {
+            "baselineSet": self.baseline_set,
+            "baseline": list(self.baseline.values())[:80],
+            "seen": [{"name": v["name"], "area": v.get("area", ""), "count": v.get("count", 0)}
+                     for v in list(self.seen.values())[-60:]],
+            "candidates": [{"name": v["name"], "area": v.get("area", "")}
+                           for v in self.candidates.values()],
+            "confirmed": self.confirmed[-40:],
+        }
+
+    def process(self, scene, names, area, conf, now_ms=None):
+        """Update ledgers. Returns enrichment for the read record."""
+        now_ms = now_ms if now_ms is not None else int(time.time() * 1000)
+        names = [str(n).strip() for n in (names or []) if str(n).strip()]
+        out = {
+            "farmed_names": [],
+            "lifecycle_tags": {},
+            "anchor": "n/a",
+            "baseline_set": self.baseline_set,
+            "gone_candidates": [],
+        }
+        if scene == "loot":
+            self._on_loot(names, area, now_ms, out)
+        elif scene in ("inventory", "stash"):
+            self._on_panel(scene, names, area, conf, now_ms, out)
+        return out
+
+    def _on_loot(self, names, area, now_ms, out):
+        present = {}
+        for n in names:
+            if _is_anchor(n):
+                continue
+            k = _norm_name(n)
+            if not k:
+                continue
+            present[k] = n
+            e = self.seen.get(k)
+            if not e:
+                self.seen[k] = {"name": n, "area": area or "", "firstSeen": now_ms,
+                                "lastSeen": now_ms, "count": 1, "miss": 0}
+            else:
+                e["lastSeen"] = now_ms
+                e["count"] = e.get("count", 0) + 1
+                e["miss"] = 0
+                if area:
+                    e["area"] = area
+            out["lifecycle_tags"][n] = "seen"
+        # GONE detection — same area, missing name (1-read grace for flicker)
+        ak = _area_key(area)
+        if not ak:
+            return
+        for k, e in list(self.seen.items()):
+            if _area_key(e.get("area")) != ak:
+                continue
+            if k in present:
+                continue
+            e["miss"] = e.get("miss", 0) + 1
+            if e["miss"] == 1:
+                continue  # grace frame
+            # candidate picked-up — NEVER auto-apply here
+            self.candidates[k] = {"name": e["name"], "area": e.get("area", ""), "goneAt": now_ms}
+            out["gone_candidates"].append(e["name"])
+            out["lifecycle_tags"][e["name"]] = "gone-candidate"
+
+    def _on_panel(self, scene, names, area, conf, now_ms, out):
+        # Anchors
+        anchors_hit = [n for n in names if _is_anchor(n)]
+        if scene == "inventory":
+            out["anchor"] = "ok" if anchors_hit else "missing"
+        else:
+            out["anchor"] = "ok" if names else "missing"  # stash: presence of any readable text is ok
+
+        # BASELINE — first panel read of the session
+        if not self.baseline_set:
+            for n in names:
+                if _is_anchor(n):
+                    out["lifecycle_tags"][n] = "anchor"
+                    continue
+                k = _norm_name(n)
+                if k:
+                    self.baseline[k] = n
+                    out["lifecycle_tags"][n] = "baseline"
+            self.baseline_set = True
+            out["baseline_set"] = True
+            # first snapshot never auto-tally (even if non-empty)
+            out["farmed_names"] = []
+            return
+
+        hold = (out["anchor"] == "missing" and scene == "inventory"
+                and (conf is None or conf < 0.75))
+
+        farmed = []
+        for n in names:
+            if _is_anchor(n):
+                out["lifecycle_tags"][n] = "anchor"
+                continue
+            k = _norm_name(n)
+            if not k:
+                continue
+            if k in self.baseline:
+                out["lifecycle_tags"][n] = "baseline"
+                continue
+            if k in self.confirmed_set:
+                out["lifecycle_tags"][n] = "already-farmed"
+                continue
+            was_cand = k in self.candidates
+            was_seen = k in self.seen
+            if was_cand:
+                tag = "seen→gone→inventory"
+            elif was_seen:
+                tag = "seen→inventory"
+            else:
+                tag = "inventory-only"  # v723 path still works
+            out["lifecycle_tags"][n] = tag
+            if not hold:
+                farmed.append(n)
+                self.confirmed_set.add(k)
+                self.confirmed.append({
+                    "ts": now_ms, "name": n, "tag": tag, "scene": scene, "area": area or "",
+                })
+                del self.confirmed[:-80]
+                # clear candidate / soft-clear seen
+                self.candidates.pop(k, None)
+        out["farmed_names"] = farmed
+        if hold:
+            out["apply_held"] = "anchor-missing"
+
+_LIFECYCLE = LootLifecycle()
+
 def _read_score(rd):
     if not rd: return -1
     conf = rd.get("conf")
@@ -484,12 +647,15 @@ def claude_read(path):
         return EMPTY
 
 def main():
+    global _LIFECYCLE
     os.makedirs(FRAMES, exist_ok=True)
+    _LIFECYCLE = LootLifecycle()
     with _state_lock:
         _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0,
-               "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL})
+               "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,
+               "lifecycle": _LIFECYCLE.snapshot()})
     bridge()
-    ev("boot", f"scanner online — eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · subscription")
+    ev("boot", f"scanner online — eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
     if not os.environ.get("TV_STUB"):
         def _warm():
             t0 = time.time()
@@ -589,6 +755,9 @@ def main():
         beat("watching", 0.0)
         names = rd["names"]
         intent = rd.get("intent") or _intent_for(rd.get("scene"))
+        # v729 object permanence — correlates floor SEEN → GONE → inv CONFIRM
+        lc = _LIFECYCLE.process(rd.get("scene") or "gameplay", names, rd.get("area") or "", rd.get("conf"))
+        farmed_names = lc.get("farmed_names") or []
         if names:
             empty_streak = 0
             named_until = time.time() + 45
@@ -598,33 +767,55 @@ def main():
             empty_streak += 1
             _AP["namedStreak"] = 0
         _AP["emptyStreak"] = empty_streak
-        tag = ("🛍 farmed" if intent == "farmed" else "👁 seen" if intent == "seen" else "·")
+        if farmed_names:
+            tag = "🛍 farmed"
+        elif intent == "seen":
+            tag = "👁 seen"
+        elif lc.get("gone_candidates"):
+            tag = "👻 gone?"
+        else:
+            tag = "·"
         model_tag = rd.get("model") or FAST_MODEL
         esc = " ⬆genius" if rd.get("escalated") else ""
         pri = " ⚡" if used_priority else ""
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
-        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}  [{model_tag}{esc}{pri}]")
+        lc_note = ""
+        if farmed_names:
+            lc_note = " · CONFIRM " + ", ".join(farmed_names[:3])
+        elif lc.get("gone_candidates"):
+            lc_note = " · candidate gone " + ", ".join(lc["gone_candidates"][:3])
+        elif lc.get("apply_held"):
+            lc_note = " · hold apply (" + lc["apply_held"] + ")"
+        elif not _LIFECYCLE.baseline_set and (rd.get("scene") in ("inventory", "stash")):
+            lc_note = " · baseline snapshot"
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
+        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}  [{model_tag}{esc}{pri}]")
         with _state_lock:
             st = _load()
             st.setdefault("seen", []); st.setdefault("farmed", [])
             rec = {"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"],
                    "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
                    "model": model_tag, "conf": rd.get("conf"), "intent": intent, "escalated": bool(rd.get("escalated")),
-                   "interest": interest, "priority": used_priority}
+                   "interest": interest, "priority": used_priority,
+                   "farmed_names": farmed_names,
+                   "lifecycle_tags": lc.get("lifecycle_tags") or {},
+                   "anchor": lc.get("anchor", "n/a"),
+                   "gone_candidates": lc.get("gone_candidates") or []}
             st["reads"].append(rec)
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
             st["ap"] = dict(_AP)
+            st["lifecycle"] = _LIFECYCLE.snapshot()
             def _push(arr, name, extra):
                 arr.append({"ts": rec["ts"], "name": name, "area": rd.get("area") or "", **extra})
                 del arr[:-200]
             if intent == "seen":
                 for nm in names:
-                    _push(st["seen"], nm, {"scene": "loot"})
-            elif intent == "farmed":
-                for nm in names:
-                    st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
-                    _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory"})
+                    if not _is_anchor(nm):
+                        _push(st["seen"], nm, {"scene": "loot"})
+            for nm in farmed_names:
+                st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
+                _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory",
+                                         "tag": (lc.get("lifecycle_tags") or {}).get(nm, "inventory-only")})
             _save(st)
 
 if __name__ == "__main__":

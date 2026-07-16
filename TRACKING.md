@@ -62,13 +62,14 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 | TV-B2 | **done** | Floor=seen / inv-stash=farmed | v723 |
 | TV-B3 | **done** | Thin `tvVaultRegister` vault door | v723 — no photo intake rewrite |
 | TV-B4 | **done** | Session history LIVE/LAST + DB badges + `/frame` | v724 |
-| TV-B5 | in progress | **Run #3 live proof** | Sonnet · no empty cool · Autopilot v727 |
-| TV-B6 | **done** | Autopilot L2 interest + priority gap | v727 · see `tv/PLAN_FSD.md` |
+| TV-B5 | **done** | **Run #3 live proof** | area/scene/pile/Sonnet/floor-review all ✅ |
+| TV-B6 | **done** | Autopilot L2 interest + priority gap | v727 |
+| TV-B13 | **done** | LOOT LIFECYCLE v2 object permanence | v729 — seen→gone→inv confirm |
 | TV-B7 | open | History: click chip → openDrop / vault card | UX polish |
-| TV-B8 | open | Multi-frame confirm (low-interest only) | v728 |
-| TV-B9 | open | Shadow metrics (pile-to-chip p50) | v730 |
-| TV-B10 | open | Board Autopilot HUD polish | v731 partial in v727 meters |
-| TV-B11 | later | Vault journal “TV farmed @ time” | after B5 green |
+| TV-B8 | open | Multi-frame confirm (low-interest only) | |
+| TV-B9 | open | Shadow metrics (pile-to-chip p50) | |
+| TV-B10 | open | Board Autopilot HUD polish | partial v727 |
+| TV-B11 | open | **Run #4** live-verify lifecycle v2 | empty base→pile→pick→inv→vault |
 | TV-B12 | later | Public product path | Out of scope until Konyo says go |
 
 ### Rules for TV work
