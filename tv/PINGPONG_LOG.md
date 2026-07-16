@@ -251,3 +251,10 @@ OCR vocab-HIT (deep lane kept winning the race this run — a good problem).
   advice; unknown names get a minimal EXTRA_ITEMS reference entry (universe guarantee).
 - Full-flow sim (mock read → receiver → register → Vault UI): unique ✓ · 5os base ✓ · RotW ✓ ·
   rune ×1 (dedupe honest — earlier ×7 scare was the mock minting fresh timestamps). Spec-locked.
+
+## RUN #4b — vault-mirror verification (2026-07-17 ~03:00)
+✅ Nagelring: floor → held → stash → 🏦 commit fired (unique path) · ✅ vendored Damaged War Axe
+correctly NEVER vaulted (stash-only counting doing its job) · ✅ holding reads (Horned Helm ·
+Linked Mail · Long War Bow) · ✅ cow-level piles 12.7s · ✅ OCR noise stayed agent-side.
+⏳ Konyo's eyeball verdict on the mule manager pending (v739 mirror shipped mid-run — a fresh
+page load carries it).
