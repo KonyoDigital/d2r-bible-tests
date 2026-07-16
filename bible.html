@@ -22655,7 +22655,12 @@ _v39_whenReady(() => {
   // v687 — Session Cockpit is the home screen (P0). Deep-links (#bosses/baal) still route.
   // Opt out: localStorage d2r_v687_home = 'tools' | 'main' | any tab id.
   const _deep = (location.hash || '').indexOf('/') >= 0;
-  if (!_deep) {
+  // v737 — the v680 'always land home' rule was silently yanking Konyo OFF the TV board on
+  // every reload mid-session ('it routed me on its own'). When the TV switch is ON and the
+  // URL says #tvd, that's not a stale hash — it's a live session. Honor it; v680 stands
+  // everywhere else.
+  const _tvLive = (location.hash || '').replace('#','') === 'tvd' && (function(){ try { return localStorage.getItem('d2r_tvdOn') === '1'; } catch(e){ return false; } })();
+  if (!_deep && !_tvLive) {
     let home = 'session';
     try {
       const o = localStorage.getItem('d2r_v687_home');
@@ -32600,7 +32605,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v735.1', name:'Frame History', date:'2026-07-17', note:'v735.1: TV never steals tab focus (stash auto-intake / vault silent); per-read frame lightbox kept' };
+  window.D2R_BUILD = { id:'v737', name:'Frame History', date:'2026-07-17', note:'v735.1: TV never steals tab focus (stash auto-intake / vault silent); per-read frame lightbox kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33047,6 +33052,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         lb.hidden = false;
         if (tit) tit.textContent = '👁 frame missing — start tvd (agent serves /frame?id=…) · ' + (id || 'latest');
       };
+      img.onerror = function(){ if(!img.__fb){ img.__fb=1; img.src='tv/frames/hist/'+String(id)+'.jpg'; } };   // v737 — archived fallback
       img.src = frameSrc(id);
       lb.hidden = false;
       lb.onclick = function(e){ if (e.target === lb) window._tvdCloseFrame(); };
@@ -33073,9 +33079,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var sc = String(r.scene || '').replace(/[^a-z0-9_-]/gi, '');
     var n = Number(r.n || 0) || 0;
     var title = 'read #' + (n || '?') + (sc ? (' · ' + sc) : '') + ' · click to enlarge ~1920';
+    // v737 — frames OUTLIVE the agent: bridge first, then the archived file the page's own
+    // server (or file://) can reach, placeholder only when both fail.
     return '<img class="tvd-frame-thumb" src="'+escAttr(src)+'" alt="AI frame" loading="lazy" title="'+escAttr(title)+'"'
       +' data-frame="'+id+'" data-n="'+n+'" data-scene="'+escAttr(sc)+'"'
-      +' onerror="this.outerHTML=\'<div class=tvd-frame-ph>frame offline</div>\'">';
+      +' onerror="if(!this.__fb){this.__fb=1;this.src=\'tv/frames/hist/'+id+'.jpg\';}else{this.outerHTML=\'<div class=tvd-frame-ph>frame offline</div>\';}">';
   }
   // delegate clicks (safer than inline JS with scene strings)
   try {

@@ -213,3 +213,16 @@ transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login 
   🗑 thrown strike-through · ✓ confirmed) + row lane badges (⚡ INSTANT / 🧠 model+seconds) +
   intent left-borders (seen=blue · farmed=green). One glance = the item's whole story.
 - Board suite 8/8 (incl. Grok's v735 lightbox spec).
+
+### R16 · v737 — MCP user-experience pass (Fable drove Konyo's real browser) ✅
+- **Frame history OUTLIVES the agent**: thumbs + lightbox now fall back to the archived
+  `tv/frames/hist/*.jpg` the page's own server reaches — proven live (dead bridge → 1920px frame
+  loaded from disk). "frame offline" only when both paths fail.
+- **The phantom router unmasked**: Konyo's own v680 'always land home on reload' rule was yanking
+  him off #tvd mid-session. Reconciled: TV switch ON + #tvd = a live session, honored; v680 stands
+  everywhere else. (v735.1 had already fixed the intake steal — this was the remaining path.)
+- **The 'black page' closed as artifact**: background-tab screenshots capture html.z-bg (animations
+  paused at dark frames) + document.hidden=true — correct behavior, not a user-facing bug.
+- Board suite 8/8 after every change. NEW: `.claude/agents/code-reviewer.md` +
+  `.claude/agents/visual-coding-architect.md` — the repo's own review/design subagents, loaded
+  with the doctrines + the actually-shipped bug classes.
