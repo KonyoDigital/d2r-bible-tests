@@ -33,6 +33,14 @@
 
 ---
 
+## 2026-07-16 — Grok: v725 TV speed flip (run #3)
+
+- **Live #3:** Haiku warm **13–16s** (slower than prior Sonnet **6–10s**) · 43 empty gameplay settles.
+- **Ship:** default `TV_MODEL=sonnet` · MIN_GAP **6s** · empty gameplay/town cool **20s**.
+- Agent suite **22/22**. Warm re-proof: sonnet ready in **3s**. Restart: `tvd restart`.
+
+---
+
 ## 2026-07-16 — Grok: TRACKING.md contract (project board so 700+ versions stay legible)
 
 - Added **`TRACKING.md`**: single living backlog + **9-step ship gate** (TDD → suites →
