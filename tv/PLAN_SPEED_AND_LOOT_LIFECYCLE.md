@@ -152,3 +152,10 @@ VNRecognizeTextRequest on read.jpg → JSON strings; agent merges. Zero new deps
 OS the player already has.
 
 Owner: Grok codes · Fable gates · target = pile-to-chip FEELS instant on run #5.
+
+### Shipped v732 (Grok) — tuned harder than 0.5–1s
+- Warm single-ROI Vision OCR **~10–50ms** (not 0.5s — we pushed the fast lane lower).
+- Persistent `tv/bin/ocr_mac --worker` · board poll **250ms** · ⚡ocr chips review-first.
+- Claude remains deep lane (3–8s) for scene/area/confirm + commitment vault.
+- True 1ms end-to-end is not reachable (capture + poll + OCR still ~50–200ms wall);
+  the *feel* is instant once the pile freezes.

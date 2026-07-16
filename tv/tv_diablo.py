@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Autopilot scanner (v731)
+# 📺 TV DIABLO — Autopilot scanner (v732)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -93,7 +93,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v731",
+    "ver": "v732",
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -309,6 +309,163 @@ class VisionWorker:
                 self.stop()
                 return None
 _WORKER = VisionWorker()
+
+# ═══ v732 — OCR FAST LANE (Konyo: pile→chip in ~0.1–0.2s; LLM floors at 3–6s)
+# Local macOS Vision OCR (warm worker ~10–50ms). Claude stays the deep brain.
+# Honesty: OCR names are provisional (review-first, never vault_names) until deep/lifecycle.
+OCR_BIN = os.environ.get("TV_OCR_BIN") or os.path.join(HERE, "bin", "ocr_mac")
+OCR_ENABLED = os.environ.get("TV_OCR", "1") != "0"
+
+class OcrWorker:
+    """Persistent `ocr_mac --worker` — one process, many frames. Stdlib only."""
+    def __init__(self):
+        self.p = None
+        self.q = None
+        self.lock = threading.Lock()
+        self.ok = False
+
+    def available(self):
+        return bool(OCR_ENABLED and os.path.isfile(OCR_BIN) and os.access(OCR_BIN, os.X_OK))
+
+    def _spawn(self):
+        import queue
+        if not self.available():
+            self.ok = False
+            return False
+        try:
+            self.p = subprocess.Popen(
+                [OCR_BIN, "--worker"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, bufsize=1)
+            self.q = queue.Queue()
+            def _pump(proc, q):
+                try:
+                    for line in proc.stdout:
+                        q.put(line)
+                except Exception:
+                    pass
+                q.put(None)
+            threading.Thread(target=_pump, args=(self.p, self.q), daemon=True).start()
+            self.ok = True
+            return True
+        except Exception:
+            self.ok = False
+            self.p = None
+            return False
+
+    def stop(self):
+        try:
+            if self.p and self.p.poll() is None:
+                try:
+                    self.p.stdin.write("quit\n"); self.p.stdin.flush()
+                except Exception:
+                    pass
+                self.p.kill()
+        except Exception:
+            pass
+        self.p = None
+        self.ok = False
+
+    def read(self, path, timeout=1.2):
+        """Return {ms, lines, confs, mode} or None. Never raises into the scan loop."""
+        with self.lock:
+            try:
+                if self.p is None or self.p.poll() is not None:
+                    self.stop()
+                    if not self._spawn():
+                        return None
+                ap = os.path.abspath(path)
+                self.p.stdin.write(ap + "\n")
+                self.p.stdin.flush()
+                deadline = time.time() + timeout
+                while time.time() < deadline:
+                    try:
+                        line = self.q.get(timeout=max(0.05, deadline - time.time()))
+                    except Exception:
+                        break
+                    if line is None:
+                        self.stop()
+                        return None
+                    line = (line or "").strip()
+                    if not line:
+                        continue
+                    try:
+                        j = json.loads(line)
+                    except Exception:
+                        continue
+                    if isinstance(j, dict) and "lines" in j:
+                        return j
+                self.stop()
+                return None
+            except Exception:
+                self.stop()
+                return None
+
+_OCR = OcrWorker()
+
+# HUD / shell noise that is never a D2 item label
+_OCR_NOISE = (
+    "http", "localhost", "claude", "python", "terminal", "settings", "safari",
+    "chrome", "wrangler", "github", "localhost", "127.0.0.1", "subscription",
+    "screenshot", "screencapture", "grok", "cursor", "vscode",
+)
+
+def filter_ocr_lines(lines):
+    """Keep item-ish strings; drop UI chrome. Board vocab does the real route match."""
+    out, seen = [], set()
+    for raw in lines or []:
+        s = str(raw or "").strip()
+        if len(s) < 3 or len(s) > 48:
+            continue
+        lo = s.lower()
+        if lo in seen:
+            continue
+        if any(n in lo for n in _OCR_NOISE):
+            continue
+        if sum(c.isdigit() for c in s) > max(3, len(s) // 2):
+            continue
+        # need at least one letter run of 2+
+        if not any(len(p) >= 2 and p.isalpha() for p in lo.replace("'", " ").split()):
+            continue
+        seen.add(lo)
+        out.append(s)
+        if len(out) >= 16:
+            break
+    return out
+
+def ocr_fast(path):
+    """Fast lane: local OCR → provisional names. Target warm p50 < 50ms, p99 < 200ms."""
+    if not OCR_ENABLED:
+        return None
+    t0 = time.time()
+    raw = _OCR.read(path)
+    wall = int((time.time() - t0) * 1000)
+    if not raw:
+        return None
+    lines = filter_ocr_lines(raw.get("lines") or [])
+    confs = raw.get("confs") or []
+    avg_c = None
+    if confs:
+        try:
+            avg_c = round(sum(float(c) for c in confs[: len(lines) or 1]) / max(1, min(len(confs), max(1, len(lines)))), 3)
+        except Exception:
+            avg_c = None
+    return {
+        "names": lines,
+        "ms": int(raw.get("ms") or wall),
+        "wall_ms": wall,
+        "conf": avg_c if avg_c is not None else 0.45,
+        "mode": "ocr",
+        "lane": "ocr",
+        "model": "ocr-mac",
+        "scene": "loot",          # provisional — deep lane will set real scene
+        "area": "",
+        "tz": [],
+        "intent": "seen",         # never farmed from OCR alone
+        "provisional": True,
+        "escalated": False,
+        "raw_n": len(raw.get("lines") or []),
+    }
 
 _REWARM_T = [0.0]
 def _rewarm():
@@ -748,12 +905,37 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v731 — commitment vault · hold/stash/throw · subscription")
+    print("📺 TV DIABLO Autopilot v732 — OCR fast lane (~10–50ms) + Claude deep · commitment vault")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
-    print("   tip: fullscreen D2R · stop on piles / open stash — Autopilot prioritizes hard-motion→stop")
+    ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
+    print(f"   ocr lane: {ocr_tag}")
+    print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
-    ev("boot", f"autopilot v727 — interest scorer · priority gap {PRIORITY_GAP_S}s after hard motion")
+    ev("boot", f"autopilot v732 — OCR fast lane + interest scorer · priority gap {PRIORITY_GAP_S}s")
+    if _OCR.available():
+        def _warm_ocr():
+            try:
+                # warm Vision frameworks so first pile isn't cold
+                jp = os.path.join(FRAMES, "read.jpg")
+                probe = jp if os.path.isfile(jp) else None
+                if not probe:
+                    # tiny blank jpeg via sips from any existing frame
+                    for cand in (os.path.join(FRAMES, "live.bmp"),):
+                        if os.path.isfile(cand):
+                            probe = cand
+                            break
+                if probe:
+                    r = _OCR.read(probe, timeout=3.0)
+                    if r is not None:
+                        ev("boot", f"ocr warm — Vision ready ({r.get('ms', '?')}ms probe)")
+                    else:
+                        ev("skip", "ocr warm failed — fast lane may miss first settle")
+            except Exception as e:
+                ev("skip", f"ocr warm error: {e}")
+        threading.Thread(target=_warm_ocr, daemon=True).start()
+    else:
+        ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
 
     frame = os.path.join(FRAMES, "live.bmp")
     last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, 0.0, 0
@@ -826,12 +1008,54 @@ def main():
         reads += 1
         ptag = "⚡PRIORITY " if priority else ""
         print(f"  👁 {ptag}screen settled — reading ({reads}/{SESSION_CAP}) interest={interest:.2f} …")
-        ev("settle", f"{ptag}settle · interest {interest:.2f} · peak {peak:.2f} · Vision read #{reads}")
+        ev("settle", f"{ptag}settle · interest {interest:.2f} · peak {peak:.2f} · dual-lane read #{reads}")
         beat("reading", 0.0)
         _AP["mode"] = "read"
         used_priority = priority
         peak = 0.0
         priority = False
+
+        # ── FAST LANE: local OCR first (target ~10–50ms warm; board poll 250ms) ──
+        ocr_rd = ocr_fast(frame)
+        if ocr_rd is not None:
+            oms = ocr_rd.get("ms") or ocr_rd.get("wall_ms") or 0
+            onames = ocr_rd.get("names") or []
+            ev("ocr", f"⚡ocr {oms}ms · {len(onames)} name(s)" +
+               ((" — " + ", ".join(onames[:4])) if onames else " — no item-ish text") +
+               f" (raw {ocr_rd.get('raw_n', 0)})")
+            print(f"  ⚡ ocr {oms}ms  {('· ' + ' · '.join(onames[:6])) if onames else '· no item-ish text'}")
+            if onames:
+                with _state_lock:
+                    st = _load()
+                    st.setdefault("seen", []); st.setdefault("farmed", [])
+                    prec = {
+                        "ts": int(time.time() * 1000), "names": onames, "n": reads,
+                        "area": "", "scene": "loot", "tz": [],
+                        "ms": oms, "mode": "ocr", "lane": "ocr", "model": "ocr-mac",
+                        "conf": ocr_rd.get("conf"), "intent": "seen",
+                        "escalated": False, "interest": interest, "priority": used_priority,
+                        "provisional": True,
+                        "vault_names": [], "farmed_names": [],  # NEVER vault from OCR alone
+                        "pending_names": [], "thrown_names": [], "unvault_names": [],
+                        "lifecycle_tags": {nm: "ocr" for nm in onames},
+                        "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
+                    }
+                    st["reads"].append(prec)
+                    st["reads"] = st["reads"][-200:]
+                    st["readCount"] = reads
+                    st["ap"] = dict(_AP)
+                    st["lifecycle"] = _LIFECYCLE.snapshot()
+                    for nm in onames:
+                        if not _is_anchor(nm) and not _is_junk(nm):
+                            st["seen"].append({"ts": prec["ts"], "name": nm, "area": "", "scene": "loot", "src": "ocr"})
+                            del st["seen"][:-200]
+                    _save(st)
+                empty_streak = 0
+                named_until = time.time() + 45
+                _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+                _AP["lastNamed"] = ", ".join(onames[:4])
+
+        # ── DEEP LANE: Claude (scene/area/verify; 3–8s) ──
         rd = claude_read(frame)
         beat("watching", 0.0)
         names = rd["names"]
@@ -848,8 +1072,9 @@ def main():
             _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
             _AP["lastNamed"] = ", ".join(names[:4])
         else:
-            empty_streak += 1
-            _AP["namedStreak"] = 0
+            if not (ocr_rd and ocr_rd.get("names")):
+                empty_streak += 1
+                _AP["namedStreak"] = 0
         _AP["emptyStreak"] = empty_streak
         if vault_names:
             tag = "🏦 vaulted"
@@ -877,15 +1102,24 @@ def main():
             lc_note = " · candidate gone " + ", ".join(lc["gone_candidates"][:3])
         elif lc.get("apply_held"):
             lc_note = " · hold apply (" + lc["apply_held"] + ")"
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
-        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}  [{model_tag}{esc}{pri}]")
+        ocr_ms = (ocr_rd or {}).get("ms")
+        # mark which deep names confirm a prior OCR flash
+        ocr_set = {_norm_name(x) for x in ((ocr_rd or {}).get("names") or [])}
+        confirmed = [n for n in names if _norm_name(n) in ocr_set]
+        conf_note = ((" · ✓ocr " + ", ".join(confirmed[:3])) if confirmed else "")
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + conf_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else "") + (f" · ocr {ocr_ms}ms" if ocr_ms is not None else ""))
+        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}{conf_note}  [{model_tag}{esc}{pri}]")
         with _state_lock:
             st = _load()
             st.setdefault("seen", []); st.setdefault("farmed", [])
             rec = {"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"],
                    "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
-                   "model": model_tag, "conf": rd.get("conf"), "intent": intent, "escalated": bool(rd.get("escalated")),
+                   "lane": "deep", "model": model_tag, "conf": rd.get("conf"), "intent": intent,
+                   "escalated": bool(rd.get("escalated")),
                    "interest": interest, "priority": used_priority,
+                   "provisional": False,
+                   "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
+                   "confirmed_names": confirmed,
                    "vault_names": vault_names,
                    "farmed_names": vault_names,  # board vault wire uses this = COMMIT only
                    "pending_names": pending_names,
@@ -906,7 +1140,7 @@ def main():
             if intent == "seen":
                 for nm in names:
                     if not _is_anchor(nm) and not _is_junk(nm):
-                        _push(st["seen"], nm, {"scene": "loot"})
+                        _push(st["seen"], nm, {"scene": "loot", "src": "deep"})
             for nm in vault_names:
                 st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
                 _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory",

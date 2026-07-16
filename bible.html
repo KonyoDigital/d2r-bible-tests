@@ -32563,7 +32563,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v731', name:'Commitment Vault', date:'2026-07-16', note:'v731 commitment vault: inv HOLDING ~30s or town stash → vault; throw-out cancels; HIT≠vault; farmed_names only on commit' };
+  window.D2R_BUILD = { id:'v732', name:'OCR Fast Lane', date:'2026-07-16', note:'v732 dual-lane: local Vision OCR ~10–50ms chips (⚡ocr, review-first) + Claude deep confirm; commitment vault unchanged' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32772,9 +32772,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if (x.thrown) vtag = '<span class="tvd-vault-tag" style="color:#e08a8a" title="thrown back to floor — not kept">🗑 throw</span>';
     else if (vaulted || x.vault) vtag = '<span class="tvd-vault-tag" title="'+(x.muleName?('filed → '+x.muleName):'filed to vault shelf')+'">🏦 vault</span>';
     else if (x.holding) vtag = '<span class="tvd-vault-tag" style="color:#ffd97a" title="holding in inv — vault after ~30s still held or town stash">⏳ hold</span>';
+    else if (x.confirmed) vtag = '<span class="tvd-vault-tag" style="color:#8fe6a0" title="Claude confirmed the OCR flash">✓ conf</span>';
+    else if (x.ocr || x.provisional) vtag = '<span class="tvd-vault-tag" style="color:#7ec8ff" title="local OCR flash — review-first until Claude confirms">⚡ocr</span>';
     if (x.kind==='note') return '<span class="tvd-chip tc-note"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
     if (x.done) return '<span class="tvd-chip tc-done"'+tip+'>'+chipArt(x,true)+x.label+' ✓'+dbBadge(x)+vtag+'</span>';
     return '<span class="tvd-chip"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
+  }
+  function fmtMs(ms){
+    if (ms==null || ms==='') return '';
+    var n = Number(ms); if (!isFinite(n) || n < 0) return '';
+    if (n < 1000) return Math.round(n) + 'ms';
+    return (Math.round(n/100)/10) + 's';
   }
   // v728 — scroll jump fix: poll was calling render() → renderHistory() every 2s, wiping
   // #tvb-hist.innerHTML and snapping scrollTop to 0. Skip unchanged paints; preserve scroll;
@@ -32838,8 +32846,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var intent=r.intent||'';
       var intentTag=intent==='farmed'?' · <span class="tvd-intent tvd-farmed">🛍 FARMED</span>':intent==='seen'?' · <span class="tvd-intent tvd-seen">👁 SEEN</span>':'';
       var model = r.model ? (' · '+r.model+(r.escalated?'⬆':'')) : '';
-      var ms = r.ms ? (' · '+(Math.round(r.ms/100)/10)+'s') : '';
-      var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+escAttr(r.scene)):'')+intentTag+model+ms;
+      var lane = r.lane==='ocr' ? ' · ⚡ocr' : (r.lane==='deep' ? ' · deep' : '');
+      var ms = r.ms ? (' · '+fmtMs(r.ms)) : '';
+      var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+escAttr(r.scene)):'')+intentTag+lane+model+ms;
       return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'">'
         +'<div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+(r.n||'?')+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
         +(chips||'<span class="tvd-chip tc-note">nothing readable</span>')
@@ -33001,15 +33010,19 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         // v729 — LOOT LIFECYCLE v2: only auto-apply farmed_names from agent (baseline/anchors excluded).
         // Fallback: if farmed_names missing (old agent), keep v723 "all inv/stash names".
         // v731 — ONLY vault_names (hold-complete or stash). Never vault on inv glimpse.
-        var vaultList = Array.isArray(rd.vault_names) ? rd.vault_names
-          : (Array.isArray(rd.farmed_names) ? rd.farmed_names : []);
+        // v732 — OCR provisional: never auto-vault; deep lane only commits vault_names
+        var isOcr = rd.lane==='ocr' || rd.mode==='ocr' || !!rd.provisional;
+        var vaultList = isOcr ? [] : (Array.isArray(rd.vault_names) ? rd.vault_names
+          : (Array.isArray(rd.farmed_names) ? rd.farmed_names : []));
         var pendingList = Array.isArray(rd.pending_names) ? rd.pending_names : [];
         var thrownList = Array.isArray(rd.thrown_names) ? rd.thrown_names : [];
         var unvaultList = Array.isArray(rd.unvault_names) ? rd.unvault_names : [];
-        var vaultSet = {}, pendSet = {};
+        var confList = Array.isArray(rd.confirmed_names) ? rd.confirmed_names : [];
+        var vaultSet = {}, pendSet = {}, confSet = {};
         function _nN(s){ return String(s||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); }
         vaultList.forEach(function(n){ vaultSet[_nN(n)] = true; });
         pendingList.forEach(function(n){ pendSet[_nN(n)] = true; });
+        confList.forEach(function(n){ confSet[_nN(n)] = true; });
         // reverse mistaken vaults (dropped after vault)
         unvaultList.forEach(function(n){
           try { if (typeof window.tvVaultUnregister === 'function') window.tvVaultUnregister(n); } catch(e){}
@@ -33034,18 +33047,21 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           });
           auto=true;
         }
-        // mark holding chips (not vaulted yet)
+        // mark holding / ocr / confirmed chips (not vaulted yet)
         routes.forEach(function(x){
           var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
           if (pendSet[_nN(x.key)] || pendSet[_nN(vaultName)]) { x.holding = true; x.lc = 'holding'; }
           if (thrownList.some(function(t){ return _nN(t)===_nN(x.key)||_nN(t)===_nN(vaultName); })) {
             x.thrown = true; x.lc = 'throw-out'; x.vault = false;
           }
+          if (isOcr) { x.ocr = true; x.provisional = true; x.lc = x.lc || 'ocr'; }
+          if (confSet[_nN(x.key)] || confSet[_nN(vaultName)]) { x.confirmed = true; x.lc = 'confirmed'; }
         });
         var entry = { ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:routes, intent:intent, auto:auto, model:rd.model||'', conf:rd.conf, ms:rd.ms||0, escalated:!!rd.escalated,
+          lane: rd.lane || (isOcr ? 'ocr' : ''), provisional: !!isOcr,
           vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
           lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
-          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, lc:x.lc||'', muleName:x.muleName||'' }; }) };
+          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, lc:x.lc||'', muleName:x.muleName||'' }; }) };
         FEED.push(entry);
         pushHistRead(entry);
         DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;
@@ -33058,7 +33074,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   window._tvdToggle=function(){
     if(T){ clearInterval(T); T=null; setState('off'); digestFlush('session'); try{ localStorage.setItem('d2r_tvdOn','0'); }catch(e){} render(); return; }
     setState('conn'); try{ localStorage.setItem('d2r_tvdOn','1'); }catch(e){} render();
-    poll(); T=setInterval(poll, 2000);
+    // v732 — 250ms live poll so OCR chips land in ~0.1–0.3s (was 2s — that alone felt "slow")
+    poll(); T=setInterval(poll, 250);
   };
   window._tvdRefreshTab=function(){ setState(STATE); render(); renderHistory(); refreshFrameEye(); };
   document.querySelectorAll('.tvd-switch').forEach(function(sw){
@@ -33067,7 +33084,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // paint any archived history immediately (even with switch OFF)
   try { HIST_TAB='live'; renderHistory(); } catch(e){}
   // resume if it was on last session — never in automation (specs must not poll localhost)
-  try { if(localStorage.getItem('d2r_tvdOn')==='1' && !navigator.webdriver){ setState('conn'); poll(); T=setInterval(poll, 2000); } } catch(e){}
+  try { if(localStorage.getItem('d2r_tvdOn')==='1' && !navigator.webdriver){ setState('conn'); poll(); T=setInterval(poll, 250); } } catch(e){}
   // v719 — Konyo's gate run: with the switch resumed ON but the tab BACKGROUNDED, Chrome throttles
   // interval timers — the board looked dead until an off/on toggle forced a poll. Any return to the
   // tab now polls IMMEDIATELY, so agent-came-online is never stuck behind the throttle.

@@ -31,6 +31,16 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-16 — Grok: v732 OCR fast lane (pile→chip ~0.1–0.2s feel)
+
+- Physics: LLM vision floors ~3–6s. Local Vision OCR + warm worker = **~10–50ms** (bench
+  warm ~27ms; single-ROI 800px). Board poll **2s→250ms** so chips land sub-second.
+- Dual lane: OCR provisional `lane=ocr` ⚡ocr review-first · never `vault_names` · Claude
+  deep confirms (`confirmed_names` / ✓ conf). `tv/bin/ocr_mac` + `ocr_mac.swift`.
+- `TV_OCR=0` disables · `TV_OCR_BIN` seam for TDD. Suite green + OCR unit tests.
+
+---
+
 ## 2026-07-16 — Grok: v731 commitment vault (hold / stash / throw-out)
 
 - **Problem (run #4):** inv glimpse after ID→throw still vaulted; 🏦 badge without lasting

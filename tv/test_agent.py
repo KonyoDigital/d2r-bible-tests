@@ -233,6 +233,77 @@ class TestLootLifecycleV2(unittest.TestCase):
         self.assertEqual(r["vault_names"], [])
 
 
+class TestOcrFastLane(unittest.TestCase):
+    """v732 — local OCR lane: filter noise; provisional never vaults."""
+    def test_filter_keeps_itemish_drops_chrome(self):
+        lines = ["Blade Bow", "Ist Rune", "http://localhost:17771", "12", "ab",
+                 "python3 tv/tv_diablo.py", "Crown of Thieves", ""]
+        n = tv.filter_ocr_lines(lines)
+        self.assertIn("Blade Bow", n)
+        self.assertIn("Ist Rune", n)
+        self.assertIn("Crown of Thieves", n)
+        self.assertNotIn("http://localhost:17771", n)
+        self.assertTrue(all("python" not in x.lower() for x in n))
+
+    def test_filter_dedupes_case(self):
+        n = tv.filter_ocr_lines(["Blade Bow", "blade bow", "BLADE BOW"])
+        self.assertEqual(len(n), 1)
+
+    def test_ocr_disabled_returns_none(self):
+        prev = os.environ.get("TV_OCR")
+        os.environ["TV_OCR"] = "0"
+        try:
+            # re-read flag is module-level — patch directly
+            old = tv.OCR_ENABLED
+            tv.OCR_ENABLED = False
+            try:
+                self.assertIsNone(tv.ocr_fast("/tmp/nope.jpg"))
+            finally:
+                tv.OCR_ENABLED = old
+        finally:
+            if prev is None:
+                os.environ.pop("TV_OCR", None)
+            else:
+                os.environ["TV_OCR"] = prev
+
+    def test_fake_ocr_worker_roundtrip(self):
+        """TV_OCR_BIN seam: a fake worker prints JSON lines — agent parses names."""
+        d = tempfile.mkdtemp()
+        fake = os.path.join(d, "fake_ocr")
+        with open(fake, "w") as f:
+            f.write("#!/usr/bin/env bash\n"
+                    "if [[ \"${1:-}\" == --worker ]]; then\n"
+                    "  while IFS= read -r line; do\n"
+                    "    [[ \"$line\" == quit ]] && break\n"
+                    "    echo '{\"ms\":12,\"lines\":[\"Blade Bow\",\"http://x\",\"Ist Rune\"],\"confs\":[0.9,0.4,0.8],\"mode\":\"roi-fast\"}'\n"
+                    "  done\n"
+                    "fi\n")
+        os.chmod(fake, 0o755)
+        old_bin, old_en = tv.OCR_BIN, tv.OCR_ENABLED
+        old_ocr = tv._OCR
+        try:
+            tv.OCR_BIN = fake
+            tv.OCR_ENABLED = True
+            tv._OCR = tv.OcrWorker()
+            # need a real path that exists (worker ignores content)
+            p = os.path.join(d, "frame.jpg")
+            open(p, "wb").write(b"x")
+            rd = tv.ocr_fast(p)
+            self.assertIsNotNone(rd)
+            self.assertEqual(rd["mode"], "ocr")
+            self.assertTrue(rd["provisional"])
+            self.assertEqual(rd["intent"], "seen")
+            self.assertIn("Blade Bow", rd["names"])
+            self.assertIn("Ist Rune", rd["names"])
+            self.assertNotIn("http://x", rd["names"])
+            self.assertEqual(rd["ms"], 12)
+        finally:
+            try: tv._OCR.stop()
+            except Exception: pass
+            tv.OCR_BIN, tv.OCR_ENABLED = old_bin, old_en
+            tv._OCR = old_ocr
+
+
 class TestIntentAndEscalate(unittest.TestCase):
     """v723 — floor=seen / inv-stash=farmed · haiku→sonnet escalate gates."""
     def test_intent_lifecycle(self):

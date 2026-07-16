@@ -85,6 +85,13 @@
 - **Junk filter:** potions/arrows never auto-vault.
 - **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
 
+### R19 · v732 — OCR FAST LANE (Konyo: 0.1–0.2s pile→chip)
+- Honest floor: true 1ms OCR of a game frame is not physics-real; **warm local Vision
+  hits ~10–50ms** (bench 27ms worker). Board poll was the real lag (2s) → **250ms**.
+- Dual lane: `ocr_mac --worker` → provisional ⚡ocr chips (review-first, no vault) →
+  Claude deep upgrades (area/scene/verify + commitment vault rules).
+- Windows later: WinRT OCR sibling. Disable: `TV_OCR=0`.
+
 ### R18 · v731 — commitment vault (Konyo: ID→throw must NOT vault)
 - **HOLDING** on inv glimpse (⏳ chip) — NOT vault.
 - **VAULT** only after ~30s still held (`HOLD_MS`) **or** town **stash** panel.
