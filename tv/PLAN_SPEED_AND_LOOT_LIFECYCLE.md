@@ -127,3 +127,28 @@ Run #3 evidence this builds on: pre-run empty inventory · 3 items picked (2 tos
 stash scenario at session end — the full arc is in the session history for replay-testing.
 
 Owner: Grok codes · Fable gates · Konyo live-verifies (run #4).
+
+---
+
+## SPEED v2 — THE OCR FAST LANE (Konyo's target: reads in 0.5–1s · 2026-07-16)
+
+Physics first: an LLM vision round-trip (even warm Sonnet) floors at ~3–6s inference — no
+tuning reaches sub-second. The architecture that DOES:
+
+**Two lanes per settled frame:**
+1. **FAST (0.2–0.5s, local, free)** — macOS Vision framework OCR on the frame (on-device,
+   no network, no cost; Windows: WinRT OCR). Extracted strings → the bible's OWN vocab
+   matchers (same fuzzy logic as intake) → instant chips. Labels/tooltips ARE text — OCR
+   is the right tool for names.
+2. **DEEP (3–8s, Claude, subscription)** — the existing read: scene · area · tz ·
+   verification. Confirms/enriches/corrects the fast lane; resolves what OCR garbles.
+
+Feed semantics: fast-lane chips land ~instantly marked `⚡ocr`, the deep read upgrades them
+(`✓ confirmed` / corrections). Honesty holds: OCR-only names stay review-first until the
+deep read or the lifecycle chain confirms.
+
+Implementation sketch (mac): a tiny Swift/`osascript` helper or `shortcuts` invoking
+VNRecognizeTextRequest on read.jpg → JSON strings; agent merges. Zero new deps beyond an
+OS the player already has.
+
+Owner: Grok codes · Fable gates · target = pile-to-chip FEELS instant on run #5.
