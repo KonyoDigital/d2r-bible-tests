@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Autopilot scanner (v732)
+# 📺 TV DIABLO — Autopilot scanner (v734)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -57,14 +57,19 @@ SETTLE       = 0.03
 #    = name), ground labels (loot key held), waypoint labels ("<Zone> Waypoint"), and the
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
+# v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
-    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"names\":[],\"conf\":0.0}}\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"conf\":0.0}}\n"
     "scene = one of: town | stash | inventory | loot | gameplay.\n"
     "area = zone name from top-right Game block / ENTERING banner / automap, else \"\".\n"
     "tz = purple terror-zone lines in that block, else [].\n"
+    "stashTab = ONLY when scene=stash: which LEFT stash tab is active — "
+    "personal | shared | gems | materials | runes | \"\" if unknown. "
+    "Stash tell: left panel tabs + inventory often open on the right.\n"
     "names = READABLE text labels only (tooltips first line, ground loot labels, open inventory/stash "
     "name text). Never invent from icons alone. Never complete partial names.\n"
+    "Never put merc/NPC/player names, HP bars, waypoint labels, or chat into names.\n"
     "inventory/stash: also list anchors if visible — Horadric Cube, Tome of Town Portal, Tome of Identify.\n"
     "conf = 0.0-1.0 confidence. Be fast and precise."
 )
@@ -93,7 +98,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v732",
+    "ver": "v734",
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -479,6 +484,27 @@ def _rewarm():
             ev("boot", f"vision re-warmed in {int(time.time()-t0)}s — back to fast reads")
     threading.Thread(target=_w, daemon=True).start()
 
+_STASH_TABS = frozenset(("personal", "shared", "gems", "materials", "runes"))
+_STASH_TAB_ALIASES = {
+    "rune": "runes", "runes": "runes",
+    "gem": "gems", "gems": "gems",
+    "mat": "materials", "mats": "materials", "material": "materials", "materials": "materials",
+    "personal": "personal", "shared": "shared",
+}
+
+def _norm_stash_tab(raw, scene=None):
+    """v734 — active RotW stash tab, or \"\" if not stash / unknown."""
+    if scene is not None and scene != "stash":
+        return ""
+    lo = str(raw or "").strip().lower()
+    if not lo:
+        return ""
+    # allow "Runes Tab" / "Materials stash"
+    for key in ("materials", "material", "runes", "rune", "gems", "gem", "personal", "shared"):
+        if key in lo:
+            return _STASH_TAB_ALIASES.get(key, key if key in _STASH_TABS else "")
+    return _STASH_TAB_ALIASES.get(lo, "") if lo in _STASH_TAB_ALIASES else ""
+
 def _parse_read(out):
     """extract + normalize the read JSON from model text; None if no JSON object found."""
     a, b = out.find("{"), out.rfind("}")
@@ -496,7 +522,9 @@ def _parse_read(out):
             conf = max(0.0, min(1.0, conf))
     except Exception:
         conf = None
-    return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz, "conf": conf}
+    stash_tab = _norm_stash_tab(j.get("stashTab") or j.get("stash_tab"), scene)
+    return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names,
+            "tz": tz, "conf": conf, "stashTab": stash_tab}
 
 def _intent_for(scene):
     """v723 — loot lifecycle: floor labels = seen (not farmed); inv/stash = farmed for real."""
@@ -853,10 +881,12 @@ def claude_read(path):
         return {"area": rd.get("area", ""), "scene": scene,
                 "names": rd.get("names", []), "tz": rd.get("tz", []),
                 "conf": rd.get("conf", 1.0), "intent": _intent_for(scene),
+                "stashTab": _norm_stash_tab(rd.get("stashTab") or rd.get("stash_tab"), scene),
                 "model": "stub", "mode": "stub", "escalated": False, "ms": 0}
     ap = _readable_frame(os.path.abspath(path))
     EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None,
-             "intent": "context", "model": FAST_MODEL, "mode": "empty", "escalated": False, "ms": 0}
+             "intent": "context", "stashTab": "",
+             "model": FAST_MODEL, "mode": "empty", "escalated": False, "ms": 0}
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
         return EMPTY
@@ -905,14 +935,14 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v732 — OCR fast lane (~10–50ms) + Claude deep · commitment vault")
+    print("📺 TV DIABLO Autopilot v734 — OCR + stash-tab auto-intake · commitment vault")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
     print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
-    ev("boot", f"autopilot v732 — OCR fast lane + interest scorer · priority gap {PRIORITY_GAP_S}s")
+    ev("boot", f"autopilot v734 — OCR + stashTab auto-intake · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
             try:
@@ -1103,18 +1133,21 @@ def main():
         elif lc.get("apply_held"):
             lc_note = " · hold apply (" + lc["apply_held"] + ")"
         ocr_ms = (ocr_rd or {}).get("ms")
+        stash_tab = _norm_stash_tab(rd.get("stashTab"), rd.get("scene"))
         # mark which deep names confirm a prior OCR flash
         ocr_set = {_norm_name(x) for x in ((ocr_rd or {}).get("names") or [])}
         confirmed = [n for n in names if _norm_name(n) in ocr_set]
         conf_note = ((" · ✓ocr " + ", ".join(confirmed[:3])) if confirmed else "")
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + conf_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else "") + (f" · ocr {ocr_ms}ms" if ocr_ms is not None else ""))
-        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}{conf_note}  [{model_tag}{esc}{pri}]")
+        tab_note = (f" · tab:{stash_tab}" if stash_tab else "")
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + tab_note + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + conf_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else "") + (f" · ocr {ocr_ms}ms" if ocr_ms is not None else ""))
+        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}{tab_note}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}{conf_note}  [{model_tag}{esc}{pri}]")
         with _state_lock:
             st = _load()
             st.setdefault("seen", []); st.setdefault("farmed", [])
             rec = {"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"],
                    "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
                    "lane": "deep", "model": model_tag, "conf": rd.get("conf"), "intent": intent,
+                   "stashTab": stash_tab,
                    "escalated": bool(rd.get("escalated")),
                    "interest": interest, "priority": used_priority,
                    "provisional": False,

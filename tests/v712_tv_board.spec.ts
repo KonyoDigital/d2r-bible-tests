@@ -269,4 +269,75 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(r.chips.find((c) => c.includes('tvlbinl'))).toBeFalsy();            // garble → DROPPED
     expect(r.ist).toBe(0);                                                     // OCR NEVER auto-applies
   });
+
+  test('v734 stash-tab auto-intake: deep runes tab feeds /frame into runeIntake once; OCR never fires', async ({ page }) => {
+    // tiny 1x1 jpeg
+    const jpeg = Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8hf//Z',
+      'base64'
+    );
+    let intakeCalls = 0;
+    let frameHits = 0;
+    await page.route('http://127.0.0.1:17771/frame**', async (route) => {
+      frameHits++;
+      await route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg });
+    });
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(state({
+          reads: [{
+            ts: Date.now() - 300, n: 1, area: 'Rogue Encampment', scene: 'stash',
+            stashTab: 'runes', lane: 'deep', mode: 'warm', ms: 4000,
+            names: [], conf: 0.9, vault_names: [], farmed_names: [],
+          }],
+        })),
+      }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      (window as any).__runeIntakeCalls = 0;
+      (window as any).runeIntake = async function(){ (window as any).__runeIntakeCalls++; };
+      (window as any).gemIntake = async function(){ (window as any).__gemIntakeCalls = ((window as any).__gemIntakeCalls||0)+1; };
+    });
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(200);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1500);
+    const first = await page.evaluate(() => (window as any).__runeIntakeCalls || 0);
+    expect(first).toBe(1);                       // locked runeIntake got the /frame File
+    expect(frameHits).toBeGreaterThanOrEqual(1);
+
+    // same visit, second poll with new ts + same tab → debounce (no second intake)
+    await page.unroute(BRIDGE + '**');
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(state({
+          reads: [{
+            ts: Date.now() - 50, n: 2, area: 'Rogue Encampment', scene: 'stash',
+            stashTab: 'runes', lane: 'deep', mode: 'warm', ms: 3000,
+            names: [], conf: 0.9, vault_names: [], farmed_names: [],
+          }],
+        })),
+      }));
+    await page.waitForTimeout(800);
+    const second = await page.evaluate(() => (window as any).__runeIntakeCalls || 0);
+    expect(second).toBe(1);
+
+    // OCR stash claim must NEVER fire intake
+    await page.evaluate(() => { (window as any).__runeIntakeCalls = 0; });
+    await page.unroute(BRIDGE + '**');
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(state({
+          reads: [{
+            ts: Date.now(), n: 3, area: '', scene: 'stash', stashTab: 'runes',
+            lane: 'ocr', mode: 'ocr', provisional: true, ms: 40, names: ['Ist Rune'],
+          }],
+        })),
+      }));
+    await page.waitForTimeout(800);
+    const ocrCalls = await page.evaluate(() => (window as any).__runeIntakeCalls || 0);
+    expect(ocrCalls).toBe(0);
+  });
 });

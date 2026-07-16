@@ -31,6 +31,16 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-17 — Grok: v734 stash-tab auto-intake
+
+- Konyo design (Fable backlog): stand on RotW Runes/Gems/Materials stash tab → TV hands
+  the frame to the **locked** tally intake (`runeIntake`/`gemIntake`/`materialIntake`).
+- Agent deep-read adds `stashTab`; board fetches `GET /frame` → File → intake. Once per
+  stash-visit per tab. Personal/shared = normal item flow only. OCR never fires intake.
+- Intake machinery untouched. Agent tests + board mock for debounce/OCR guard.
+
+---
+
 ## 2026-07-16 — Grok: v732 OCR fast lane (pile→chip ~0.1–0.2s feel)
 
 - Physics: LLM vision floors ~3–6s. Local Vision OCR + warm worker = **~10–50ms** (bench

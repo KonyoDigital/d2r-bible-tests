@@ -233,6 +233,25 @@ class TestLootLifecycleV2(unittest.TestCase):
         self.assertEqual(r["vault_names"], [])
 
 
+class TestStashTab(unittest.TestCase):
+    """v734 — stashTab normalize for RotW left tabs."""
+    def test_norm_aliases(self):
+        self.assertEqual(tv._norm_stash_tab("Runes", "stash"), "runes")
+        self.assertEqual(tv._norm_stash_tab("rune", "stash"), "runes")
+        self.assertEqual(tv._norm_stash_tab("Materials", "stash"), "materials")
+        self.assertEqual(tv._norm_stash_tab("Gems tab", "stash"), "gems")
+        self.assertEqual(tv._norm_stash_tab("personal", "stash"), "personal")
+        self.assertEqual(tv._norm_stash_tab("runes", "inventory"), "")  # not stash scene
+        self.assertEqual(tv._norm_stash_tab("", "stash"), "")
+
+    def test_parse_read_includes_stash_tab(self):
+        raw = '{"area":"Rogue Encampment","tz":[],"scene":"stash","stashTab":"runes","names":[],"conf":0.9}'
+        p = tv._parse_read(raw)
+        self.assertIsNotNone(p)
+        self.assertEqual(p["scene"], "stash")
+        self.assertEqual(p["stashTab"], "runes")
+
+
 class TestOcrFastLane(unittest.TestCase):
     """v732 — local OCR lane: filter noise; provisional never vaults."""
     def test_filter_keeps_itemish_drops_chrome(self):

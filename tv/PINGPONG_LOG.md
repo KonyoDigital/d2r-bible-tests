@@ -85,6 +85,12 @@
 - **Junk filter:** potions/arrows never auto-vault.
 - **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
 
+### R20 · v734 — STASH-TAB AUTO-INTAKE (Konyo: give the photo to the system already perfected)
+- Deep `scene=stash` + `stashTab∈{runes,gems,materials}` → `GET /frame` → locked
+  `runeIntake`/`gemIntake`/`materialIntake` (same as 📸 quick-upload).
+- Once per stash-visit per tab · personal/shared never tally · OCR never fires.
+- Live verify: stand on Runes tab with `tvd` + bible 📺 ON.
+
 ### R19 · v732 — OCR FAST LANE (Konyo: 0.1–0.2s pile→chip)
 - Honest floor: true 1ms OCR of a game frame is not physics-real; **warm local Vision
   hits ~10–50ms** (bench 27ms worker). Board poll was the real lag (2s) → **250ms**.

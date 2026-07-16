@@ -32563,7 +32563,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v733', name:'OCR Fast Lane', date:'2026-07-16', note:'v732 dual-lane: local Vision OCR ~10–50ms chips (⚡ocr, review-first) + Claude deep confirm; commitment vault unchanged' };
+  window.D2R_BUILD = { id:'v734', name:'Stash Auto-Intake', date:'2026-07-17', note:'v734: stand on Runes/Gems/Materials stash tab → TV feeds GET /frame into locked tally intake (once per visit); OCR honesty + dual-lane kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32595,6 +32595,61 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 // Specs never poll (navigator.webdriver guard — the v617 cost lesson).
 (function(){
   var URL0='http://127.0.0.1:17771/state', FRAME0='http://127.0.0.1:17771/frame', T=null, SEEN=0, STATE='off', FEED=[];
+  // v734 — stash-tab auto-intake: once per visit per tally tab (runes/gems/materials)
+  var _stashVisitDone = {};   // tab → true for current open-stash visit
+  var _stashVisitOpen = false;
+  var _stashIntakeBusy = false;
+  function _normStashTab(s){
+    var lo = String(s||'').toLowerCase().trim();
+    if (!lo) return '';
+    if (/material/.test(lo)) return 'materials';
+    if (/rune/.test(lo)) return 'runes';
+    if (/gem/.test(lo)) return 'gems';
+    if (/personal/.test(lo)) return 'personal';
+    if (/shared/.test(lo)) return 'shared';
+    return '';
+  }
+  // Feed the agent's last JPEG into the LOCKED tally pipeline (same as 📸 quick-upload).
+  // Never rebuilds intake — only supplies a File. Deep-lane only; OCR never calls this.
+  window.tvStashAutoIntake = async function(tab, opts){
+    opts = opts || {};
+    tab = _normStashTab(tab);
+    if (tab !== 'runes' && tab !== 'gems' && tab !== 'materials') return { ok:false, why:'not-tally-tab' };
+    if (_stashIntakeBusy) return { ok:false, why:'busy' };
+    _stashIntakeBusy = true;
+    try {
+      var map = {
+        runes:     { fn:'runeIntake',     card:'rune-stash-card',     render:'renderRuneStash' },
+        gems:      { fn:'gemIntake',      card:'gem-stash-card',      render:'renderGemStash' },
+        materials: { fn:'materialIntake', card:'material-stash-card', render:null }
+      };
+      var m = map[tab];
+      var intake = typeof window[m.fn] === 'function' ? window[m.fn] : null;
+      if (!intake) return { ok:false, why:'no-intake-fn' };
+      var resp = await fetch(FRAME0 + '?t=' + Date.now(), { cache:'no-store' });
+      if (!resp.ok) return { ok:false, why:'no-frame', status: resp.status };
+      var blob = await resp.blob();
+      if (!blob || !blob.size) return { ok:false, why:'empty-frame' };
+      var file = new File([blob], 'tv-stash-' + tab + '-' + Date.now() + '.jpg', { type: blob.type || 'image/jpeg' });
+      try {
+        var card = document.getElementById(m.card);
+        if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+          window.toggleCardCollapse(m.card);
+        if (m.render && typeof window[m.render] === 'function') window[m.render]();
+      } catch(e){}
+      try { if (typeof switchTab === 'function') switchTab('tools'); } catch(e){}
+      await intake([file]);
+      try {
+        var st = document.getElementById('vault-status');
+        if (st) st.textContent = '📺 TV stash auto-intake → ' + tab + ' (locked tally)';
+      } catch(e){}
+      return { ok:true, tab: tab, bytes: blob.size };
+    } catch(e){
+      return { ok:false, why: String(e && e.message || e) };
+    } finally {
+      _stashIntakeBusy = false;
+    }
+  };
   var DIGEST={reads:0, applied:0, areas:{}};   // v716 — end-of-session digest → the cockpit 📓 log
   var AGENT_START=0, HIST_TAB='live', HIST_KEY='d2r_tvdHist';
   window._tvdCountApply=function(){ DIGEST.applied++; };
@@ -33017,6 +33072,31 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         // (rune/gem/unique/set) — unmatched OCR text is dropped, never rendered. Deep-lane
         // notes stay (Sonnet reads real text; its notes are useful).
         if (isOcr) routes = routes.filter(function(x){ return x && x.kind !== 'note'; });
+        // v734 — STASH-TAB AUTO-INTAKE: deep stash + runes/gems/materials → feed /frame to locked tally
+        var stashTab = _normStashTab(rd.stashTab || rd.stash_tab || '');
+        var stashIntakeQueued = false;
+        if (!isOcr) {
+          if ((rd.scene || '') === 'stash') {
+            _stashVisitOpen = true;
+            if ((stashTab === 'runes' || stashTab === 'gems' || stashTab === 'materials') && !_stashVisitDone[stashTab]) {
+              _stashVisitDone[stashTab] = true;
+              stashIntakeQueued = true;
+              // fire-and-forget — intake is async; report UI is the intake's own
+              try {
+                Promise.resolve(window.tvStashAutoIntake(stashTab)).then(function(r){
+                  try {
+                    if (r && r.ok) console.log('[tvd] stash auto-intake ok', stashTab, r.bytes);
+                    else console.log('[tvd] stash auto-intake skip', stashTab, r && r.why);
+                  } catch(e){}
+                });
+              } catch(e){}
+            }
+          } else if (_stashVisitOpen) {
+            // left stash (any non-stash deep scene) → reset visit debounce
+            _stashVisitOpen = false;
+            _stashVisitDone = {};
+          }
+        }
         var vaultList = isOcr ? [] : (Array.isArray(rd.vault_names) ? rd.vault_names
           : (Array.isArray(rd.farmed_names) ? rd.farmed_names : []));
         var pendingList = Array.isArray(rd.pending_names) ? rd.pending_names : [];
@@ -33064,6 +33144,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         });
         var entry = { ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:routes, intent:intent, auto:auto, model:rd.model||'', conf:rd.conf, ms:rd.ms||0, escalated:!!rd.escalated,
           lane: rd.lane || (isOcr ? 'ocr' : ''), provisional: !!isOcr,
+          stashTab: stashTab, stashIntake: !!stashIntakeQueued,
           vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
           lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
           items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, lc:x.lc||'', muleName:x.muleName||'' }; }) };

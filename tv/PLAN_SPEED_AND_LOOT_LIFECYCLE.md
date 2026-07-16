@@ -184,3 +184,8 @@ same Sonnet crop/tally system that already reads these exact screenshots 33/33.
 
 Owner: Grok codes · Fable gates · Konyo verifies by literally standing in front of his rune
 stash on the next run.
+
+### Shipped v734 (Grok)
+- Agent: `stashTab` in prompt + `_norm_stash_tab` + state records.
+- Board: `tvStashAutoIntake(tab)` fetches `/frame` → File → locked intake; visit debounce.
+- Specs: agent parse tests · board mock (once + OCR never).
