@@ -33012,6 +33012,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         // v731 — ONLY vault_names (hold-complete or stash). Never vault on inv glimpse.
         // v732 — OCR provisional: never auto-vault; deep lane only commits vault_names
         var isOcr = rd.lane==='ocr' || rd.mode==='ocr' || !!rd.provisional;
+        // v733 — THE OCR HONESTY GATE (live evidence: the fast lane OCR'd the chat window into
+        // the feed as 📋 garble). OCR strings only become chips when the VOCAB matched them
+        // (rune/gem/unique/set) — unmatched OCR text is dropped, never rendered. Deep-lane
+        // notes stay (Sonnet reads real text; its notes are useful).
+        if (isOcr) routes = routes.filter(function(x){ return x && x.kind !== 'note'; });
         var vaultList = isOcr ? [] : (Array.isArray(rd.vault_names) ? rd.vault_names
           : (Array.isArray(rd.farmed_names) ? rd.farmed_names : []));
         var pendingList = Array.isArray(rd.pending_names) ? rd.pending_names : [];

@@ -245,4 +245,25 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(seen.ist).toBe(0);            // review-first on floor
     expect(seen.feed).toMatch(/SEEN|loot/i);
   });
+
+  test('v733 OCR honesty gate: garbled OCR text never chips; vocab-matched OCR does — provisional, never vaulted', async ({ page }) => {
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(state({
+        reads: [{ ts: Date.now() - 400, n: 1, area: '', scene: 'loot', lane: 'ocr', mode: 'ocr', ms: 30,
+                  names: ['Ist Rune', 'LogginB it &6 evidEnre', 'tvlbinl just llPPEaTad', 'Harlequin Crest'] }],
+      })) }));
+    await page.goto(URL); await page.waitForTimeout(1500);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1200);
+    const r = await page.evaluate(() => ({
+      chips: [...document.querySelectorAll('#tvb-feed .tvd-chip')].map((c) => c.textContent!.trim()),
+      ist: (parseInt((window as any).runeStash['Ist'], 10) || 0),
+    }));
+    expect(r.chips.find((c) => c.includes('Ist Rune'))).toBeTruthy();          // vocab hit → chip
+    expect(r.chips.find((c) => c.includes('Harlequin'))).toBeTruthy();         // vocab hit → chip
+    expect(r.chips.find((c) => c.includes('LogginB'))).toBeFalsy();            // garble → DROPPED
+    expect(r.chips.find((c) => c.includes('tvlbinl'))).toBeFalsy();            // garble → DROPPED
+    expect(r.ist).toBe(0);                                                     // OCR NEVER auto-applies
+  });
 });

@@ -159,3 +159,28 @@ Owner: Grok codes · Fable gates · target = pile-to-chip FEELS instant on run #
 - Claude remains deep lane (3–8s) for scene/area/confirm + commitment vault.
 - True 1ms end-to-end is not reachable (capture + poll + OCR still ~50–200ms wall);
   the *feel* is instant once the pile freezes.
+
+---
+
+## STASH-TAB AUTO-INTAKE (Konyo's design, 2026-07-17 — "give the photo to the system already perfected")
+
+The RotW stash has tabs: Personal · Shared · Gems · Materials · Runes. When TV-D sees the
+stash open (inventory auto-opens on the right — a strong stash tell) AND identifies WHICH
+tab is active on the left, the frame itself is handed to the LOCKED intake pipeline — the
+same Sonnet crop/tally system that already reads these exact screenshots 33/33.
+
+**Surgical wiring — reuse, never rebuild (the intake stays LOCKED, we only FEED it):**
+1. **Agent**: deep-read prompt extends scene detection — when scene=stash, also report
+   `stashTab: personal|shared|gems|materials|runes|""` (the active tab header is legible —
+   proven in Konyo's video #1).
+2. **Receiver**: read arrives with scene=stash + stashTab∈{runes,gems,materials} →
+   fetch the frame from the agent's existing `GET /frame` → Blob → File → feed the SAME
+   function the 📸 quick-upload file-picker uses (kind: rune/gem/material). The tally lands
+   exactly as if Konyo uploaded it by hand — crops, layouts, verify-flags, all the locked
+   machinery untouched.
+3. **Guards**: once per stash-visit per tab (debounce — don't re-tally the same stand-still);
+   review-report shown as always (the intake's own report UI); never fires from OCR lane
+   (deep-read scene only); personal/shared tabs = normal item flow, NOT tally intake.
+
+Owner: Grok codes · Fable gates · Konyo verifies by literally standing in front of his rune
+stash on the next run.
