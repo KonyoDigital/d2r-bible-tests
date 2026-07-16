@@ -31555,6 +31555,19 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-chip .tvc-art{width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7));margin-right:2px}
 .tvd-chip[data-arttip]{cursor:help}
 .tvd-chip .tc-apply{cursor:pointer;color:var(--acc-done);font-weight:800}
+/* v736 — the lifecycle color language: one glance = the item's whole story */
+.tvc-lc{font-size:var(--fs-micro);font-weight:800;border-radius:999px;padding:1px 7px;margin-left:2px}
+.tvc-ocr{color:#ffd97a;background:rgba(255,200,90,.12);animation:tvdconn 1.6s ease-in-out infinite}
+.tvc-hold{color:#ffd97a;background:rgba(255,200,90,.14)}
+.tvc-vault{color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a)}
+.tvc-conf{color:#8fe6a0;background:rgba(102,255,136,.13)}
+.tvc-thrown{color:#e08a8a;background:rgba(255,100,100,.12)}
+.tvd-chip.tc-thrown{opacity:.55;text-decoration:line-through}
+.tvd-lane{font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.08em;border-radius:5px;padding:0 6px}
+.tvd-lane-ocr{color:#ffd97a;background:rgba(255,200,90,.1)}
+.tvd-lane-deep{color:#9fd4ff;background:rgba(91,159,208,.12)}
+.tvd-read-seen{border-left:3px solid rgba(111,184,232,.55)}
+.tvd-read-farmed{border-left:3px solid rgba(102,255,136,.55)}
 .tvd-chip .tc-apply:hover{text-shadow:0 0 6px rgba(102,255,136,.7)}
 .tvd-chip.tc-done{opacity:.55;border-style:dashed}
 .tvd-chip.tc-note{opacity:.75}
@@ -32775,6 +32788,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       sw.setAttribute('aria-checked', s==='live'?'true':'false');
       var w=sw.querySelector('.tvd-word'); if(w) w.textContent=word;
     });
+    try { render(true); } catch(e){}   // v736 — state transitions repaint the empty-state copy
     var scr=document.getElementById('tvb-screen');
     if(scr){
       scr.className='tvb-screen tvb-'+(s==='live'?'live':s==='conn'?'conn':s==='offline'?'offline':'off');
@@ -32969,15 +32983,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var chips=r.routes.map(function(x){
         if(x.kind==='note') return '<span class="tvd-chip tc-note"'+chipTip(x)+' title="read but not a tracked name — runes/uniques/sets/gems auto-route">'+chipArt(x)+x.label+dbBadge(x)+'</span>';
         if(x.kind==='item') return '<span class="tvd-chip"'+chipTip(x)+' title="in ITEMS DB — vault-fileable base/misc">'+chipArt(x)+x.label+dbBadge(x)+'</span>';
-        if(x.done) return '<span class="tvd-chip tc-done"'+chipTip(x)+' title="already in your chronicle">'+chipArt(x)+x.label+' ✓'+dbBadge(x)+'</span>';
-        return '<span class="tvd-chip"'+chipTip(x)+'>'+chipArt(x)+x.label+dbBadge(x)+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
+        if(x.done) return '<span class="tvd-chip tc-done"'+chipTip(x)+' title="already in your chronicle">'+chipArt(x)+x.label+' ✓'+dbBadge(x)+(x.vault?' <span class="tvc-lc tvc-vault" title="vaulted'+(x.muleName?(' → '+escAttr(x.muleName)):'')+'">🏦'+(x.muleName?' '+escAttr(x.muleName):'')+'</span>':'')+'</span>';
+        var lc='';
+        if(x.thrown) lc=' <span class="tvc-lc tvc-thrown" title="lifecycle: thrown out / vendored">🗑</span>';
+        else if(x.vault) lc=' <span class="tvc-lc tvc-vault" title="lifecycle: vaulted'+(x.muleName?(' → '+escAttr(x.muleName)):'')+'">🏦'+(x.muleName?' '+escAttr(x.muleName):'')+'</span>';
+        else if(x.holding) lc=' <span class="tvc-lc tvc-hold" title="lifecycle: in hand — waiting for stash">⏳</span>';
+        else if(x.confirmed) lc=' <span class="tvc-lc tvc-conf" title="deep-read confirmed">✓</span>';
+        else if(x.ocr) lc=' <span class="tvc-lc tvc-ocr" title="⚡ instant OCR — deep read confirms">⚡</span>';
+        return '<span class="tvd-chip'+(x.thrown?' tc-thrown':'')+'"'+chipTip(x)+'>'+chipArt(x)+x.label+dbBadge(x)+lc+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
       }).join('');
       var applyable=r.routes.some(function(x){ return x.kind!=='note' && x.kind!=='item' && !x.done; });
       var sceneIco={town:'🏘',loot:'⚔️',inventory:'🎒',stash:'🏦',gameplay:'🌫'}[r.scene]||'';
       var intent=r.intent||'';
       var intentTag=intent==='farmed'?' · <span class="tvd-intent tvd-farmed">🛍 FARMED</span>':intent==='seen'?' · <span class="tvd-intent tvd-seen">👁 SEEN (floor)</span>':'';
       var autoTag=r.auto?' · auto-vault':'';
-      var where=(r.area?('🗺 '+r.area):'')+(r.scene&&r.scene!=='gameplay'?((r.area?' · ':'')+sceneIco+' '+r.scene):'')+intentTag+autoTag;
+      var laneTag=r.lane==='ocr'?' · <span class="tvd-lane tvd-lane-ocr">⚡ INSTANT</span>':(r.ms?' · <span class="tvd-lane tvd-lane-deep">🧠 '+(r.model||'deep')+' '+(Math.round(r.ms/100)/10)+'s</span>':'');
+      var where=(r.area?('🗺 '+r.area):'')+(r.scene&&r.scene!=='gameplay'?((r.area?' · ':'')+sceneIco+' '+r.scene):'')+intentTag+autoTag+laneTag;
       return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'"><div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+r.n+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
         + (applyable?'<button type="button" class="tvd-applyall" onclick="window._tvdApplyAll(this)">✓ apply all</button>':'')
         + (chips||'<span class="tvd-chip tc-note">nothing readable (gameplay frame)</span>')+'</div>';
@@ -32988,6 +33009,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       a.onclick=function(){ window._tvdApply(a, a.getAttribute('data-k'), a.getAttribute('data-v')); };
       a.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); a.click(); } };
     }); } catch(e){}
+    // v736 — CLICK CONTAINMENT (Konyo: 'it silently routed me to pages'): chip data-arttip
+    // joined the GLOBAL click delegate (line ~21095) which ROUTES to item pages on click.
+    // The TVD feed is an observer surface — hover cards yes, click-routing never. Bubble-phase
+    // stop on the container: tc-apply's own handler has already run; the document delegate
+    // never sees chip clicks.
+    if (!rootEl.__tvdContained){
+      rootEl.__tvdContained = true;
+      rootEl.addEventListener('click', function(e){
+        if (e.target && e.target.closest && e.target.closest('.tvd-chip')) e.stopPropagation();
+      });
+    }
   }
   function emptyMsg(){
     return '<div class="sc-empty">'+(STATE==='live'
@@ -33056,17 +33088,30 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       });
     });
   } catch(e){}
-  function render(){
-    var b=document.getElementById('sc-tvd-body');
-    if(b){
-      b.innerHTML = FEED.length
-        ? feedHtml(14) + '<div class="tvd-hint">read-only scanner · your subscription · reads land when the screen settles</div>'
+  // v736 — RENDER DISCIPLINE (Konyo: 'scrollbars frozen'): the poll called render() with
+  // `|| true` — an innerHTML blast 4×/sec once the poll hit 250ms. You cannot scroll a
+  // container that is replaced under your thumb. Now: fingerprint-skip (paint ONLY when the
+  // feed actually changed) + scroll-preserve on both containers. The board works for the
+  // user in the BACKGROUND — it never fights the user's hands.
+  var _feedFp='';
+  function _fp(){
+    return STATE+':'+FEED.length+':'+(FEED.length?FEED[FEED.length-1].ts:'')+':'+FEED.reduce(function(a,r){
+      return a + r.routes.reduce(function(b,x){ return b+(x.done?1:0)+(x.vault?2:0)+(x.thrown?4:0)+(x.confirmed?8:0)+(x.holding?16:0); },0);
+    },0);
+  }
+  function render(force){
+    var fp=_fp();
+    if(!force && fp===_feedFp) return;
+    _feedFp=fp;
+    [['sc-tvd-body',14],['tvb-feed',24]].forEach(function(cfg){
+      var el=document.getElementById(cfg[0]); if(!el) return;
+      var keep=el.scrollTop;
+      el.innerHTML = FEED.length
+        ? feedHtml(cfg[1]) + (cfg[0]==='sc-tvd-body'?'<div class="tvd-hint">read-only scanner · your subscription · reads land when the screen settles</div>':'')
         : emptyMsg();
-      wireApplies(b);
-    }
-    var tb=document.getElementById('tvb-feed');
-    if(tb){ tb.innerHTML = FEED.length ? feedHtml(24) : emptyMsg(); wireApplies(tb); }
-    // v728 — do NOT force-rebuild history every poll (scroll jump). Only refresh when fingerprint changed.
+      wireApplies(el);
+      try { el.scrollTop = keep; } catch(e){}
+    });
     renderHistory(false);
   }
   function paintBeat(st){
@@ -33113,7 +33158,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             lg.appendChild(d);
           });
           while(lg.children.length>80) lg.removeChild(lg.firstChild);
-          lg.scrollTop=lg.scrollHeight;
+          // v736 — autoscroll ONLY when the user is already pinned at the bottom; if they
+          // scrolled up to read, the log never yanks them back down
+          if (lg.scrollHeight - lg.scrollTop - lg.clientHeight < 40) lg.scrollTop=lg.scrollHeight;
         }
       }
       var lastR=(st.reads||[]).length?st.reads[st.reads.length-1]:null;
@@ -33250,7 +33297,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         if(FEED.length>60) FEED=FEED.slice(-60);
       });
       if(grew) refreshFrameEye();
-      if(grew || !document.getElementById('sc-tvd-body') || true) render();
+      if(grew) render();   // v736 — paints only on change; meters/beat update separately (targeted nodes)
     }).catch(function(){ if(to) clearTimeout(to); if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
   }
   window._tvdToggle=function(){

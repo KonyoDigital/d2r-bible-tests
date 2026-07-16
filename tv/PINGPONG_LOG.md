@@ -200,3 +200,16 @@ transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login 
 - v723 spec recal'd to v731 semantics (auto-commit = agent vault_names only, never inv glimpse).
 - `tv/ocr_mac.swift` SOURCE committed alongside the binary (public-repo provenance).
 - Backlogged from Konyo live: STASH-TAB AUTO-INTAKE (frame → the LOCKED intake via GET /frame).
+
+### R15 · v736 — UX HARDENING (Konyo live report: frozen scrollbars + phantom routing) ✅
+- **ROOT CAUSE 1 (Fable's own)**: the original receiver's `|| true` made render() unconditional —
+  harmless at 2s, a 4×/sec innerHTML shredder once Grok's 250ms poll landed. Now: fingerprint-skip
+  (paint ONLY when the feed changed) + scroll-preserve on both containers + brain-log autoscroll
+  only when already pinned at bottom. THE BOARD WORKS IN THE BACKGROUND, NEVER AGAINST THE HANDS.
+- **ROOT CAUSE 2 (Fable's own, v721)**: chip data-arttip joined the GLOBAL click delegate which
+  ROUTES to item pages — clicks near chips silently navigated. CLICK CONTAINMENT: bubble-phase
+  stop on the feed containers; hover cards stay, TVD never routes. Doctrine: observer surface.
+- **VISIBLE LIFECYCLE**: every chip wears its state (⚡ocr pulse · ⏳ holding · 🏦 vault+mule name ·
+  🗑 thrown strike-through · ✓ confirmed) + row lane badges (⚡ INSTANT / 🧠 model+seconds) +
+  intent left-borders (seen=blue · farmed=green). One glance = the item's whole story.
+- Board suite 8/8 (incl. Grok's v735 lightbox spec).
