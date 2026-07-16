@@ -27762,10 +27762,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else if (sg && sg.id === '__keep' && !assign[name]) { assign[name] = '__keep'; muleId = '__keep'; }
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
+      // v735.1 — do not expand vault card while user is on TV·D (silent file only)
       try {
-        var card = document.getElementById('mule-vault-card');
-        if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
-          window.toggleCardCollapse('mule-vault-card');
+        var curV = (document.querySelector('.tab.active') || {}).getAttribute
+          ? document.querySelector('.tab.active').getAttribute('data-tab') : '';
+        if (curV === 'tools') {
+          var card = document.getElementById('mule-vault-card');
+          if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+            window.toggleCardCollapse('mule-vault-card');
+        }
       } catch(e){}
       var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId || 'unsorted';
       var st2 = document.getElementById('vault-status');
@@ -32582,7 +32587,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v735', name:'Frame History', date:'2026-07-17', note:'v735: each history read links to archived ~1920 frame; click thumb → fullscreen lightbox; eyes on what the AI saw' };
+  window.D2R_BUILD = { id:'v735.1', name:'Frame History', date:'2026-07-17', note:'v735.1: TV never steals tab focus (stash auto-intake / vault silent); per-read frame lightbox kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32650,17 +32655,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var blob = await resp.blob();
       if (!blob || !blob.size) return { ok:false, why:'empty-frame' };
       var file = new File([blob], 'tv-stash-' + tab + '-' + Date.now() + '.jpg', { type: blob.type || 'image/jpeg' });
+      // v735.1 — NEVER steal focus from TV·D (no switchTab). Only expand Tools cards if
+      // user is already on the tools tab. Tally still runs + reports update either way.
       try {
-        var card = document.getElementById(m.card);
-        if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
-          window.toggleCardCollapse(m.card);
-        if (m.render && typeof window[m.render] === 'function') window[m.render]();
+        var curTab = (document.querySelector('.tab.active') || {}).getAttribute
+          ? document.querySelector('.tab.active').getAttribute('data-tab') : '';
+        if (curTab === 'tools') {
+          var card = document.getElementById(m.card);
+          if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+            window.toggleCardCollapse(m.card);
+          if (m.render && typeof window[m.render] === 'function') window[m.render]();
+        }
       } catch(e){}
-      try { if (typeof switchTab === 'function') switchTab('tools'); } catch(e){}
       await intake([file]);
       try {
         var st = document.getElementById('vault-status');
-        if (st) st.textContent = '📺 TV stash auto-intake → ' + tab + ' (locked tally)';
+        if (st) st.textContent = '📺 TV stash auto-intake → ' + tab + ' (locked tally · stay on TV·D)';
       } catch(e){}
       return { ok:true, tab: tab, bytes: blob.size };
     } catch(e){
