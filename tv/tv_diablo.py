@@ -35,7 +35,8 @@ HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.path.join(HERE, "frames")
 STATE  = os.path.join(HERE, "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
-MIN_GAP_S    = 8      # v722 — warm reads are ~6s now; the 20s cooldown WAS the felt lag
+MIN_GAP_S    = 6      # v725 — sonnet warm is ~6–10s; keep gap under felt lag
+EMPTY_GAP_S  = 20     # v725 — after empty gameplay/town, cool down (combat-pause filter)
 SESSION_CAP  = 240    # v722 — same budget discipline, sized for the faster cadence
 POLL_S       = 0.25   # v722 — quarter-second eyes (Konyo: faster)
 WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win.ps1
@@ -203,11 +204,12 @@ def _readable_frame(ap):
 # (tests run a fake bin that speaks stream-json).
 CLAUDE_BIN = os.environ.get("TV_CLAUDE_BIN", "claude")
 WORKER_MAX_TURNS = 8
-# v723 — SPEED + GENIUS LADDER (subscription only):
-#   FAST_MODEL (default haiku) = warm worker + first read (in-game feel)
-#   GENIUS_MODEL (default sonnet) = automatic escalate when accuracy looks shaky
-# Override: TV_MODEL=haiku  TV_MODEL_ESCALATE=sonnet  TV_ESCALATE_CAP=40  TV_MODEL=sonnet (force genius always)
-FAST_MODEL = os.environ.get("TV_MODEL", "haiku").strip() or "haiku"
+# v723/v725 — SPEED + GENIUS LADDER (subscription only):
+#   LIVE RUN #3 finding: Haiku warm was 13–16s; Sonnet warm was 6–10s — economics flipped.
+#   FAST_MODEL default is now SONNET (felt speed). Haiku remains opt-in via TV_MODEL=haiku.
+#   GENIUS escalate only fires when FAST != GENIUS (e.g. haiku→sonnet experiments).
+# Override: TV_MODEL=sonnet|haiku  TV_MODEL_ESCALATE=sonnet  TV_ESCALATE_CAP=40
+FAST_MODEL = os.environ.get("TV_MODEL", "sonnet").strip() or "sonnet"
 GENIUS_MODEL = os.environ.get("TV_MODEL_ESCALATE", "sonnet").strip() or "sonnet"
 try:
     ESCALATE_CAP = max(0, int(os.environ.get("TV_ESCALATE_CAP", "40")))
@@ -478,6 +480,7 @@ def main():
 
     frame = os.path.join(FRAMES, "live.bmp")
     last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, 0.0, 0
+    gap_s = float(MIN_GAP_S)   # v725 — dynamic gap (stretches after empty combat pauses)
     while True:
         time.sleep(POLL_S)
         if WATCH_MODE:
@@ -508,8 +511,8 @@ def main():
             continue
         if sig_diff(cur, last_sent_md5) <= SETTLE:
             ev("skip", "settled, but same view I already read — waiting for something new"); continue
-        if time.time() - last_read_t < MIN_GAP_S:
-            ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since the last read (gap {MIN_GAP_S}s)"); continue
+        if time.time() - last_read_t < gap_s:
+            ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since the last read (gap {int(gap_s)}s)"); continue
         if reads >= SESSION_CAP:
             ev("cap", f"session cap {SESSION_CAP} reached — restart to continue")
             print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
@@ -522,6 +525,12 @@ def main():
         beat("watching", 0.0)   # pulse resumes immediately — the CRT verb never sticks on READING after a slow/failed read
         names = rd["names"]
         intent = rd.get("intent") or _intent_for(rd.get("scene"))
+        # v725 — combat-pause filter: empty gameplay/town stretches the gap so we don't burn 40× haiku on stands
+        if not names and (rd.get("scene") or "") in ("gameplay", "town"):
+            gap_s = float(EMPTY_GAP_S)
+            ev("skip", f"empty {rd.get('scene')} — cooling {int(gap_s)}s (combat-pause filter)")
+        else:
+            gap_s = float(MIN_GAP_S)
         tag = ("🛍 farmed" if intent == "farmed" else "👁 seen" if intent == "seen" else "·")
         model_tag = rd.get("model") or FAST_MODEL
         esc = " ⬆genius" if rd.get("escalated") else ""

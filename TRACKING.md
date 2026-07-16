@@ -62,8 +62,8 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 | TV-B2 | **done** | Floor=seen / inv-stash=farmed | v723 |
 | TV-B3 | **done** | Thin `tvVaultRegister` vault door | v723 — no photo intake rewrite |
 | TV-B4 | **done** | Session history LIVE/LAST + DB badges + `/frame` | v724 |
-| TV-B5 | open | **Run #3 live proof** | Fullscreen D2R · history fills · farmed vault tags · no false floor farm |
-| TV-B6 | open | Scene-gated shorter prompts (speed) | v725 candidate |
+| TV-B5 | in progress | **Run #3 live proof** | Haiku was SLOWER (13–16s) → v725 default Sonnet; empty combat-pause filter |
+| TV-B6 | open | Scene-gated shorter prompts (speed) | still useful after sonnet default |
 | TV-B7 | open | History: click chip → openDrop / vault card | UX polish |
 | TV-B8 | open | Agent disk history backup (optional) | LS is primary; agent-side ring optional |
 | TV-B9 | later | Vault journal line “TV farmed @ time” | Only after B5 green |

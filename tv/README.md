@@ -76,11 +76,13 @@ The public version is the same architecture productized: users subscribe to
 the app and authenticate their *own* Claude — the Claude Agent SDK supports
 exactly this bring-your-own-Claude model.
 
-## Models (v723)
-- **Fast default:** Haiku (`TV_MODEL=haiku`) — warm worker, in-game speed.
-- **Genius escalate:** Sonnet (`TV_MODEL_ESCALATE=sonnet`) when conf is low, loot piles look
-  empty, or farmed names look shaky. Cap: `TV_ESCALATE_CAP=40` / session.
-  Still **subscription login**, never API-key burn.
+## Models (v725 — live-proven)
+- **Fast default: Sonnet** (`TV_MODEL=sonnet`) — run #3: Haiku warm was **13–16s**, Sonnet was
+  **6–10s**, so the default flipped. Opt into Haiku with `TV_MODEL=haiku` if you want to retest.
+- **Genius escalate:** only when `TV_MODEL` ≠ `TV_MODEL_ESCALATE` (e.g. haiku→sonnet experiments).
+  Cap: `TV_ESCALATE_CAP=40`. Still **subscription login**, never API-key burn.
+- **Combat-pause filter:** empty gameplay/town stretches the settle gap to **20s** so combat
+  freezes don’t burn the session cap.
 - **Loot lifecycle:** floor `loot` → intent `seen` (review-first chips).
   `inventory` / `stash` → intent `farmed` → auto-tick engines + `tvVaultRegister` into the
   vault shelf (same owned/mule path as AI intake, **no photo**).

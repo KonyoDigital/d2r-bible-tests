@@ -61,6 +61,12 @@
 - Persisted `d2r_tvdHist` (account-forked) so last session survives agent restart.
 - Board specs **4/4** · agent suite **22/22**. Restore point unchanged.
 
+### R14 · v725 — run #3: Haiku slower live → Sonnet default + combat-pause filter
+- **Live #3 observation:** Haiku warm **13–16s** vs prior Sonnet **6–10s** (opposite of plan).
+  43 honest-empty gameplay settles burned budget on combat pauses.
+- **Default flip:** `TV_MODEL=sonnet` (haiku opt-in). Gap 8→6s. Empty gameplay/town →
+  **20s cool** so stands don’t re-fire vision. Warm re-proof: sonnet ready in **3s**.
+
 ### Explicit non-goals (unchanged)
 - No forge rewrite · no fabricated names · don’t loosen settle · don’t rewire vault intake photos.
 
