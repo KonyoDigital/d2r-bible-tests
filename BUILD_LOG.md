@@ -5,8 +5,10 @@
 > entry whenever something ships or a decision is made. Maintained continuously by
 > CC's logging loop.
 >
-> **Companion docs (cross-referenced):** `GAME_RULES.md` (durable RoW game-truth +
-> drop-odds provenance + deploy/CI facts) · `BUGS.md` (regression log, `REG-NNN`).
+> **Companion docs (cross-referenced):** `TRACKING.md` (**the living project board +
+> ship gate — nothing is real until listed/shipped there**) · `GAME_RULES.md`
+> (durable RoW game-truth + drop-odds provenance + deploy/CI facts) · `BUGS.md`
+> (regression log, `REG-NNN` / `TV-NOTE-NNN`).
 
 ## How the agents split work
 - **Desktop** = visuals/features; often pushes straight to `main` WITHOUT running
@@ -30,6 +32,13 @@
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
 ---
+
+## 2026-07-16 — Grok: TRACKING.md contract (project board so 700+ versions stay legible)
+
+- Added **`TRACKING.md`**: single living backlog + **9-step ship gate** (TDD → suites →
+  BUILD_LOG → BUGS → commit → **push GitHub**). Rule: if it is not tracked + pushed, it
+  does not exist for other agents. No separate GitHub Project yet — this file *is* the project.
+- TV active stream + open IDs TV-B5…B10 listed there (B1–B4 done with v723–v724).
 
 ## 2026-07-16 — Grok: TV-KAI v723–v724 (Haiku+genius · farmed vault wire · session history)
 
