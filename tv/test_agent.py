@@ -157,6 +157,32 @@ class TestStubE2E(unittest.TestCase):
             del os.environ["TV_STUB"]
 
 
+class TestIntentAndEscalate(unittest.TestCase):
+    """v723 — floor=seen / inv-stash=farmed · haiku→sonnet escalate gates."""
+    def test_intent_lifecycle(self):
+        self.assertEqual(tv._intent_for("loot"), "seen")
+        self.assertEqual(tv._intent_for("inventory"), "farmed")
+        self.assertEqual(tv._intent_for("stash"), "farmed")
+        self.assertEqual(tv._intent_for("gameplay"), "context")
+        self.assertEqual(tv._intent_for("town"), "context")
+
+    def test_escalate_on_low_conf_and_empty_loot(self):
+        self.assertTrue(tv._needs_escalate(None))
+        self.assertTrue(tv._needs_escalate({"scene": "loot", "names": [], "conf": 0.9}))
+        # empty gameplay/town: never escalate (honest empty, don't burn genius)
+        self.assertFalse(tv._needs_escalate({"scene": "gameplay", "names": [], "conf": 0.2}))
+        self.assertFalse(tv._needs_escalate({"scene": "gameplay", "names": [], "conf": 0.9}))
+        self.assertFalse(tv._needs_escalate({"scene": "inventory", "names": [], "conf": 0.9}))  # no hover = honest
+        self.assertTrue(tv._needs_escalate({"scene": "inventory", "names": ["Ist Rune"], "conf": 0.4}))
+        self.assertFalse(tv._needs_escalate({"scene": "inventory", "names": ["Ist Rune"], "conf": 0.9}))
+        self.assertTrue(tv._needs_escalate({"scene": "loot", "names": ["Ist Rune"], "conf": 0.3}))
+
+    def test_read_score_prefers_names(self):
+        a = {"names": ["Ist Rune"], "conf": 0.5, "area": ""}
+        b = {"names": ["Ist Rune", "Vex Rune"], "conf": 0.5, "area": "Pit"}
+        self.assertGreater(tv._read_score(b), tv._read_score(a))
+
+
 class TestClaudeEnv(unittest.TestCase):
     """v720 — vision must ride the Claude subscription, not a shell API key."""
     def test_strips_api_key_keeps_other_env(self):

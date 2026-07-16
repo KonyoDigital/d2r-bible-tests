@@ -58,7 +58,7 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(live.scr).toContain('tvb-live');
     live.words.forEach((w) => expect(w).toContain('LIVE'));      // BOTH switches (card + board)
     expect(parseInt(live.motion)).toBeGreaterThan(0);
-    expect(live.reads).toContain('1 / 120');
+    expect(live.reads).toMatch(/1 \/ (120|240)/);               // v722+ cap is 240; mock without cap → 240
     expect(live.reads).toContain('4.2s avg');                    // v713 latency meter (Grok P1-4)
     expect(live.area).toBe('The Pit Level 1');
     expect(live.scene).toBe('loot');
@@ -113,5 +113,79 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(after.ist).toBe(1);
     expect(after.ruby).toBe(1);
     expect(after.harle).toBe(true);
+  });
+
+  test('v724 session history panel shows timed DB-matched items and survives mock reads', async ({ page }) => {
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(state({
+        startedAt: 9001,
+        reads: [{ ts: Date.now() - 200, n: 1, area: 'The Pit Level 1', scene: 'loot', intent: 'seen',
+                  model: 'haiku', ms: 3200, names: ['Ist Rune', 'Harlequin Crest'] }],
+      })) }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      try { localStorage.removeItem('d2r_tvdHist'); } catch (e) {}
+      (window as any).switchTab('tvd');
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1400);
+    const hist = await page.evaluate(() => {
+      const meta = document.getElementById('tvb-hist-meta')!.textContent || '';
+      const body = document.getElementById('tvb-hist')!.textContent || '';
+      const wrap = !!document.getElementById('tvb-histwrap');
+      const stored = localStorage.getItem('d2r_tvdHist') || '';
+      return { meta, body, wrap, storedLen: stored.length };
+    });
+    expect(hist.wrap).toBe(true);
+    expect(hist.meta).toMatch(/LIVE|read/i);
+    expect(hist.body).toMatch(/Ist|Harlequin|SEEN/i);
+    expect(hist.storedLen).toBeGreaterThan(20);
+    // LAST SESSION tab is present and switchable
+    await page.evaluate(() => (window as any)._tvdHistTab('last'));
+    await page.waitForTimeout(200);
+    const lastMeta = await page.evaluate(() => document.getElementById('tvb-hist-meta')!.textContent || '');
+    expect(lastMeta.length).toBeGreaterThan(5);
+  });
+
+  test('v723 farmed inv/stash auto-applies; floor loot stays review-first', async ({ page }) => {
+    const farmed = state({
+      reads: [{ ts: Date.now() - 500, n: 1, area: 'Harrogath', scene: 'stash', intent: 'farmed',
+                tz: [], ms: 2100, names: ['Ist Rune', 'Perfect Ruby'] }],
+    });
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(farmed) }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1200);
+    const farm = await page.evaluate(() => ({
+      ist: (parseInt((window as any).runeStash['Ist'], 10) || 0),
+      ruby: (parseInt((window as any).gemStash['Perfect Ruby'], 10) || 0),
+      feed: document.getElementById('tvb-feed')!.textContent || '',
+    }));
+    expect(farm.ist).toBe(1);            // auto engine tick
+    expect(farm.ruby).toBe(1);
+    expect(farm.feed).toContain('FARMED');
+
+    // floor SEEN must NOT auto-apply (reset stash first)
+    await page.evaluate(() => {
+      (window as any).runeStash['Ist'] = 0;
+      (window as any).gemStash['Perfect Ruby'] = 0;
+    });
+    const floor = state({
+      reads: [{ ts: Date.now(), n: 2, area: 'The Pit Level 1', scene: 'loot', intent: 'seen',
+                tz: [], ms: 1800, names: ['Ist Rune'] }],
+    });
+    await page.unroute(BRIDGE + '**');
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(floor) }));
+    await page.waitForTimeout(2500);
+    const seen = await page.evaluate(() => ({
+      ist: (parseInt((window as any).runeStash['Ist'], 10) || 0),
+      feed: document.getElementById('tvb-feed')!.textContent || '',
+    }));
+    expect(seen.ist).toBe(0);            // review-first on floor
+    expect(seen.feed).toMatch(/SEEN|loot/i);
   });
 });

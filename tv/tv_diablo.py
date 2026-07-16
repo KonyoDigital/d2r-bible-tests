@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — the live game-screen scanner (v720.1)
+# 📺 TV DIABLO — the live game-screen scanner (v723)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -53,7 +53,7 @@ WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 READ_PROMPT = (
     "Read the image file at {path} — a screenshot of Diablo II: Resurrected (Reign of the Warlock mod). "
-    "Return FOUR things as STRICT JSON. "
+    "Return FIVE things as STRICT JSON. "
     "(1) \"area\": the current zone. Look for: the top-right info block (line under \'Game: ...\' is the "
     "area name), a red \'ENTERING THE <ZONE>\' banner, or the automap corner text. Verbatim, else \"\". "
     "(2) \"tz\": the purple zone names in that top-right block (today's terror zones), else []. "
@@ -67,7 +67,8 @@ READ_PROMPT = (
     "label (report \'<Zone> Waypoint\' as area intel, NOT as an item). Include uniques, set pieces, runes "
     "(like \'Ist Rune\'), gems, charms, jewels, bases, potions. Never guess or complete a partially "
     "hidden name; [] if no readable item text. "
-    "STRICT JSON only, no prose: {{\"area\":\"...\",\"tz\":[\"...\"],\"scene\":\"...\",\"names\":[\"...\"]}}"
+    "(5) \"conf\": your confidence 0.0–1.0 that area/scene/names are correct (1.0 = crystal-clear text). "
+    "STRICT JSON only, no prose: {{\"area\":\"...\",\"tz\":[\"...\"],\"scene\":\"...\",\"names\":[\"...\"],\"conf\":0.0}}"
 )
 
 _state_lock = threading.Lock()
@@ -111,6 +112,23 @@ def bridge():
                 self._hdr(); self.wfile.write(json.dumps(st).encode())
             elif self.path.startswith("/ping"):
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
+            elif self.path.startswith("/frame"):
+                # v724 — last vision JPEG for the board's session-history eye (debug what AI saw)
+                jp = os.path.join(FRAMES, "read.jpg")
+                if os.path.isfile(jp):
+                    try:
+                        with open(jp, "rb") as f: data = f.read()
+                        self.send_response(200)
+                        self.send_header("content-type", "image/jpeg")
+                        self.send_header("access-control-allow-origin", "*")
+                        self.send_header("cache-control", "no-store")
+                        self.send_header("content-length", str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
+                    except Exception:
+                        self._hdr(500); self.wfile.write(b'{"error":"frame read failed"}')
+                else:
+                    self._hdr(404); self.wfile.write(b'{"error":"no frame yet"}')
             else:
                 self._hdr(404); self.wfile.write(b'{"error":"not found"}')
     try:
@@ -185,6 +203,17 @@ def _readable_frame(ap):
 # (tests run a fake bin that speaks stream-json).
 CLAUDE_BIN = os.environ.get("TV_CLAUDE_BIN", "claude")
 WORKER_MAX_TURNS = 8
+# v723 — SPEED + GENIUS LADDER (subscription only):
+#   FAST_MODEL (default haiku) = warm worker + first read (in-game feel)
+#   GENIUS_MODEL (default sonnet) = automatic escalate when accuracy looks shaky
+# Override: TV_MODEL=haiku  TV_MODEL_ESCALATE=sonnet  TV_ESCALATE_CAP=40  TV_MODEL=sonnet (force genius always)
+FAST_MODEL = os.environ.get("TV_MODEL", "haiku").strip() or "haiku"
+GENIUS_MODEL = os.environ.get("TV_MODEL_ESCALATE", "sonnet").strip() or "sonnet"
+try:
+    ESCALATE_CAP = max(0, int(os.environ.get("TV_ESCALATE_CAP", "40")))
+except Exception:
+    ESCALATE_CAP = 40
+_ESCALATE_N = [0]
 
 # v720 — AUTH PATH FIX (live run #2): if ANTHROPIC_API_KEY (or sibling API tokens) is set in
 # the shell, every headless `claude -p` prefers that key over the user's Claude subscription
@@ -205,8 +234,9 @@ def _log_auth_once(stripped):
     ev("boot", f"vision auth: stripped {','.join(stripped)} — using Claude subscription login")
 
 class VisionWorker:
-    def __init__(self):
+    def __init__(self, model=None):
         # v720.1 — lock: warm thread + settle-read must never interleave on one stream
+        self.model = model or FAST_MODEL
         self.p = None; self.q = None; self.turns = 0; self.lock = threading.Lock()
     def _spawn(self):
         import queue
@@ -214,7 +244,7 @@ class VisionWorker:
         _log_auth_once(stripped)
         self.p = subprocess.Popen(
             [CLAUDE_BIN, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
-             "--verbose", "--model", "sonnet", "--allowedTools", "Read", "--strict-mcp-config"],
+             "--verbose", "--model", self.model, "--allowedTools", "Read", "--strict-mcp-config"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=True, bufsize=1, env=env)
         self.q = queue.Queue(); self.turns = 0
@@ -278,10 +308,105 @@ def _parse_read(out):
     scene = str(j.get("scene", "gameplay")).lower()
     if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
     tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
-    return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz}
+    conf = j.get("conf", None)
+    try:
+        conf = float(conf) if conf is not None else None
+        if conf is not None:
+            conf = max(0.0, min(1.0, conf))
+    except Exception:
+        conf = None
+    return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names, "tz": tz, "conf": conf}
+
+def _intent_for(scene):
+    """v723 — loot lifecycle: floor labels = seen (not farmed); inv/stash = farmed for real."""
+    if scene in ("inventory", "stash"): return "farmed"
+    if scene == "loot": return "seen"
+    return "context"
+
+def _read_score(rd):
+    if not rd: return -1
+    conf = rd.get("conf")
+    if conf is None: conf = 0.5
+    return len(rd.get("names") or []) * 10 + conf * 10 + (2 if rd.get("area") else 0)
+
+def _needs_escalate(rd):
+    """Haiku → Sonnet when accuracy is suspect. Empty gameplay/town is honest, not a miss."""
+    if rd is None: return True
+    conf = rd.get("conf")
+    scene = rd.get("scene") or "gameplay"
+    names = rd.get("names") or []
+    # ground loot should show labels if the player paused on a pile
+    if scene == "loot" and not names: return True
+    # any claimed names with low conf — recheck before we trust them
+    if names and conf is not None and conf < 0.55: return True
+    # farmed panels with shaky conf on non-empty claims — recheck before auto-vault
+    if scene in ("inventory", "stash") and names and conf is not None and conf < 0.7: return True
+    return False
+
+def _oneshot(ap, model, timeout=90):
+    """One cold `claude -p` on subscription (strict-mcp, no API key)."""
+    env, stripped = _claude_env()
+    _log_auth_once(stripped)
+    r = subprocess.run(
+        [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
+         "--model", model, "--allowedTools", "Read", "--output-format", "text",
+         "--strict-mcp-config"],
+        capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env)
+    out = (r.stdout or "").strip()
+    a, b = out.find("{"), out.rfind("}")
+    if a < 0 or b <= a:
+        err = (r.stderr or "").strip()[:160]
+        ev("cap", f"vision returned no JSON ({model} exit {r.returncode})" + (f": {err}" if err else ""))
+        if r.returncode != 0:
+            print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
+        return None
+    return _parse_read(out)
+
+def _maybe_genius(ap, parsed, t0, mode):
+    """v723 — automatic Sonnet escalate when Haiku looks weak (session-capped)."""
+    if not _needs_escalate(parsed):
+        if parsed is not None:
+            parsed["ms"] = int((time.time() - t0) * 1000)
+            parsed["mode"] = mode
+            parsed["model"] = FAST_MODEL
+            parsed["intent"] = _intent_for(parsed.get("scene"))
+            parsed["escalated"] = False
+        return parsed
+    if FAST_MODEL == GENIUS_MODEL or ESCALATE_CAP <= 0 or _ESCALATE_N[0] >= ESCALATE_CAP:
+        if parsed is not None:
+            parsed["ms"] = int((time.time() - t0) * 1000)
+            parsed["mode"] = mode
+            parsed["model"] = FAST_MODEL
+            parsed["intent"] = _intent_for(parsed.get("scene"))
+            parsed["escalated"] = False
+        return parsed
+    _ESCALATE_N[0] += 1
+    ev("boot", f"genius escalate → {GENIUS_MODEL} (#{_ESCALATE_N[0]}/{ESCALATE_CAP}) — accuracy pass")
+    try:
+        better = _oneshot(ap, GENIUS_MODEL, timeout=90)
+    except subprocess.TimeoutExpired:
+        better = None
+        ev("cap", f"genius {GENIUS_MODEL} timed out — keeping {FAST_MODEL} result")
+    except Exception as e:
+        better = None
+        ev("cap", f"genius fail: {e}")
+    if better is not None and _read_score(better) >= _read_score(parsed):
+        better["ms"] = int((time.time() - t0) * 1000)
+        better["mode"] = "genius"
+        better["model"] = GENIUS_MODEL
+        better["intent"] = _intent_for(better.get("scene"))
+        better["escalated"] = True
+        return better
+    if parsed is not None:
+        parsed["ms"] = int((time.time() - t0) * 1000)
+        parsed["mode"] = mode
+        parsed["model"] = FAST_MODEL
+        parsed["intent"] = _intent_for(parsed.get("scene"))
+        parsed["escalated"] = False
+    return parsed
 
 def claude_read(path):
-    """One vision read on YOUR Claude subscription. Read-only tools; Sonnet (the intake-calibrated model)."""
+    """One vision read on YOUR Claude subscription. Fast model first; genius escalate if needed."""
     # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
     # (keyed by frame basename, '*' fallback) — the FULL agent loop runs end-to-end with zero
     # vision cost, in tests and in CI. Never set in real play.
@@ -292,10 +417,14 @@ def claude_read(path):
             man = {}
         base = os.path.basename(path)
         rd = man.get(base) or man.get("*") or {}
-        return {"area": rd.get("area", ""), "scene": rd.get("scene", "gameplay"),
-                "names": rd.get("names", []), "tz": rd.get("tz", [])}
+        scene = rd.get("scene", "gameplay")
+        return {"area": rd.get("area", ""), "scene": scene,
+                "names": rd.get("names", []), "tz": rd.get("tz", []),
+                "conf": rd.get("conf", 1.0), "intent": _intent_for(scene),
+                "model": "stub", "mode": "stub", "escalated": False, "ms": 0}
     ap = _readable_frame(os.path.abspath(path))
-    EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": []}
+    EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None,
+             "intent": "context", "model": FAST_MODEL, "mode": "empty", "escalated": False, "ms": 0}
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
         return EMPTY
@@ -304,35 +433,16 @@ def claude_read(path):
     if out_w is not None:
         parsed = _parse_read(out_w)
         if parsed is not None:
-            parsed["ms"] = int((time.time() - t0) * 1000); parsed["mode"] = "warm"
-            return parsed
+            return _maybe_genius(ap, parsed, t0, "warm") or EMPTY
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
         ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
         _rewarm()   # v718 (Grok R10 pick #2): fallback never permanently demotes the session
     try:
-        env, stripped = _claude_env()
-        _log_auth_once(stripped)
-        r = subprocess.run(
-            [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
-             "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text",
-             "--strict-mcp-config"],   # v719.1 — SKIP the user's MCP servers: dead ones (old gateways,
-                                       # browser bridges) stall EVERY headless spawn — the real 90s hang
-                                       # v720 — also strip ANTHROPIC_API_KEY (see _claude_env)
-            capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL, env=env)
-        out = (r.stdout or "").strip()
-        # tolerate markdown fences / preamble around the JSON object
-        a, b = out.find("{"), out.rfind("}")
-        if a < 0 or b <= a:
-            err = (r.stderr or "").strip()[:160]
-            ev("cap", f"vision returned no JSON (exit {r.returncode})" + (f": {err}" if err else "") or "")
-            if r.returncode != 0:
-                print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
+        parsed = _oneshot(ap, FAST_MODEL, timeout=90)
+        if parsed is None:
             return EMPTY
-        parsed = _parse_read(out)
-        if parsed is None: return EMPTY
-        parsed["ms"] = int((time.time() - t0) * 1000); parsed["mode"] = "oneshot"
-        return parsed
+        return _maybe_genius(ap, parsed, t0, "oneshot") or EMPTY
     except subprocess.TimeoutExpired:
         ev("cap", "vision timed out (90s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
         print("  ⚠ vision timed out (90s)")
@@ -345,14 +455,15 @@ def claude_read(path):
 def main():
     os.makedirs(FRAMES, exist_ok=True)
     with _state_lock:
-        _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0, "cap": SESSION_CAP})   # fresh — never inherit a stale sim flag
+        _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0,
+               "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL})
     bridge()
-    ev("boot", "scanner online — eyes at 0.5s, read-only, your subscription")
+    ev("boot", f"scanner online — eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · subscription")
     if not os.environ.get("TV_STUB"):
         def _warm():
             t0 = time.time()
             if _WORKER.ask("Reply with exactly: ok", timeout=60) is not None:
-                ev("boot", f"vision warm — session ready in {int(time.time()-t0)}s (first read will be fast)")
+                ev("boot", f"vision warm — {FAST_MODEL} ready in {int(time.time()-t0)}s (first read will be fast)")
             else:
                 ev("skip", "warm-up didn't answer — first read may be slow (one-shot fallback armed)")
         threading.Thread(target=_warm, daemon=True).start()
@@ -361,6 +472,7 @@ def main():
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
     print("📺 TV DIABLO — live scanner (read-only · your Claude subscription · no API keys)")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
+    print(f"   models: fast={FAST_MODEL} · genius escalate={GENIUS_MODEL} (cap {ESCALATE_CAP}/session)")
     print("   tip: run D2R fullscreen so the menu-bar clock doesn't keep the frame 'moving'")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip the switch. Ctrl-C to stop.\n")
 
@@ -409,13 +521,33 @@ def main():
         rd = claude_read(frame)
         beat("watching", 0.0)   # pulse resumes immediately — the CRT verb never sticks on READING after a slow/failed read
         names = rd["names"]
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + (" ["+rd.get("mode","?")+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
-        print(f"  🗺 {(rd['area'] or '?')} · {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}")
+        intent = rd.get("intent") or _intent_for(rd.get("scene"))
+        tag = ("🛍 farmed" if intent == "farmed" else "👁 seen" if intent == "seen" else "·")
+        model_tag = rd.get("model") or FAST_MODEL
+        esc = " ⬆genius" if rd.get("escalated") else ""
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + (" ["+rd.get("mode","?")+" "+model_tag+esc+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
+        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}  [{model_tag}{esc}]")
         with _state_lock:
             st = _load()
-            st["reads"].append({"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"], "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", "")})
+            st.setdefault("seen", []); st.setdefault("farmed", [])
+            rec = {"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"],
+                   "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
+                   "model": model_tag, "conf": rd.get("conf"), "intent": intent, "escalated": bool(rd.get("escalated"))}
+            st["reads"].append(rec)
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
+            # lifecycle rings (session truth) — floor seen ≠ farmed until inv/stash confirms
+            def _push(arr, name, extra):
+                arr.append({"ts": rec["ts"], "name": name, "area": rd.get("area") or "", **extra})
+                del arr[:-200]
+            if intent == "seen":
+                for nm in names:
+                    _push(st["seen"], nm, {"scene": "loot"})
+            elif intent == "farmed":
+                for nm in names:
+                    # promote: drop matching pending floor-seen entries for the same name
+                    st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
+                    _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory"})
             _save(st)
 
 if __name__ == "__main__":

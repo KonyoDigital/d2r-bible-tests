@@ -3315,7 +3315,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog"]);  /* v686 — session-cockpit state is ACCOUNT state: intake freshness + the pinned target + (v688) the session log fork per account (cousin inherits via _WP_FORKED) */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -7302,6 +7302,24 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   <div class="tvb-feedwrap">
     <div class="tvb-feed-h">SIGNAL FEED <span class="tvb-feed-sub">every read · routed to your engines · ✓ to apply</span></div>
     <div id="tvb-feed"><div class="sc-empty">the feed lights up when the scanner comes online</div></div>
+  </div>
+  <!-- v724 — SESSION HISTORY: survives agent restarts · time-ordered · HD art · DB match · vault trail -->
+  <div class="tvb-histwrap" id="tvb-histwrap">
+    <div class="tvb-feed-h">
+      SESSION HISTORY
+      <span class="tvb-feed-sub">last sessions · clock time · what AI read · DB cross-ref · vault trail</span>
+      <span class="tvb-hist-acts">
+        <button type="button" class="tvb-hist-btn" id="tvb-hist-live" onclick="window._tvdHistTab&&window._tvdHistTab('live')">LIVE</button>
+        <button type="button" class="tvb-hist-btn" id="tvb-hist-last" onclick="window._tvdHistTab&&window._tvdHistTab('last')">LAST SESSION</button>
+        <button type="button" class="tvb-hist-btn tvb-hist-ghost" onclick="window._tvdHistClear&&window._tvdHistClear()" title="clear saved TV history on this account">clear</button>
+      </span>
+    </div>
+    <div class="tvb-hist-meta" id="tvb-hist-meta">— no sessions yet —</div>
+    <div class="tvb-hist-eye" id="tvb-hist-eye" hidden>
+      <div class="tvb-hist-eye-h">👁 last frame the AI read <span class="tvb-feed-sub">(live agent · /frame)</span></div>
+      <img id="tvb-hist-frame" alt="last vision frame" loading="lazy">
+    </div>
+    <div id="tvb-hist"><div class="sc-empty">flip the scanner on — reads archive here by time so you can debug after the agent restarts</div></div>
   </div>
 </div>
 <div class="footer">
@@ -27694,6 +27712,47 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     status('🏦 '+name+' → '+muleById(muleId).name);
   }
   window.vaultAssign = assignItem;
+  // v723 — TV farmed wire (name-only, NO AI call, NO photo). Reuses the SAME owned + suggestMule
+  // + muleAssign path vault intake uses. Called when TV sees inventory/stash after a physical pickup.
+  // Does NOT touch engines (runes/gems/grail) — the TV board apply() already does that.
+  // Safe: never removes items; never auto-throws; dedupes via owned.has.
+  window.tvVaultRegister = function(name){
+    try {
+      name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+      if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(name);
+      var sg = null;
+      try { sg = suggestMule(name); } catch(e){}
+      if (sg && sg.id === '__throwout'){
+        try {
+          var _spX = window.findSetPiece && window.findSetPiece(name);
+          if (_spX && window.__setStemOf && typeof ITEMS !== 'undefined'){
+            var _stX = window.__setStemOf((_spX.set && _spX.set.name) || '');
+            var _agX = ITEMS.find(function(i4){ return /\((any piece|set)\)\s*$/i.test(i4.n) && _stX.indexOf(window.__setStemOf(i4.n)) === 0; });
+            if (_agX) owned.add(_agX.n);
+          }
+        } catch(e){}
+        persistOwned(); saveA();
+        return { ok:true, mode:'throwout' };
+      }
+      if (owned.has(name)){
+        return { ok:true, mode:'already', mule: assign[name] || null };
+      }
+      owned.add(name);
+      try {
+        var spg = window.findSetPiece && window.findSetPiece(name);
+        if (spg && window.__setStemOf && typeof ITEMS !== 'undefined'){
+          var pstem = window.__setStemOf((spg.set && spg.set.name) || '');
+          var agg = ITEMS.find(function(it2){ return /\((any piece|set)\)\s*$/i.test(it2.n) && pstem.indexOf(window.__setStemOf(it2.n)) === 0; });
+          if (agg) owned.add(agg.n);
+        }
+      } catch(e){}
+      if (sg && muleById(sg.id) && !assign[name]) assign[name] = sg.id;
+      else if (sg && sg.id === '__keep' && !assign[name]) assign[name] = '__keep';
+      persistOwned(); saveA();
+      try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
+      return { ok:true, mode:'new', mule: assign[name] || null };
+    } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
+  };
   // v598 — auto-register a "<Base> (Nos low base)" intake read as a FULL vault entry — no clicks.
   // Returns {label, mode:'new'|'copy'} when handled, null when it must stay a human call (not a
   // runeword base, or the vault verdict already says vendor). The label keeps the read's quality
@@ -31533,6 +31592,32 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvb-lg-skip{color:#6f7d71;font-style:italic}
 .tvb-lg-cap{color:#e08a8a;font-weight:700}
 .tvb-lg-idle{color:#4a5d4e;font-style:italic}
+/* v724 — session history board */
+.tvb-histwrap{margin-top:14px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.012);overflow:hidden}
+.tvb-histwrap .tvb-feed-h{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.tvb-hist-acts{margin-left:auto;display:inline-flex;gap:6px;align-items:center}
+.tvb-hist-btn{font:inherit;font-size:var(--fs-micro);font-weight:800;letter-spacing:.12em;padding:3px 10px;border-radius:999px;border:1px solid var(--border-light);background:rgba(255,255,255,.03);color:var(--text-dim);cursor:pointer}
+.tvb-hist-btn.on{border-color:rgba(102,255,136,.55);color:#8fe6a0;background:rgba(40,120,60,.18)}
+.tvb-hist-btn.tvb-hist-ghost{opacity:.7}
+.tvb-hist-meta{padding:8px 16px;font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-dim);border-bottom:1px solid var(--border)}
+.tvb-hist-meta b{color:var(--gold-bright)}
+.tvb-hist-eye{padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.25)}
+.tvb-hist-eye-h{font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-dim);margin-bottom:8px}
+#tvb-hist-frame{display:block;max-width:100%;max-height:220px;width:auto;border-radius:10px;border:1px solid var(--border-light);box-shadow:0 8px 28px -12px rgba(0,0,0,.8)}
+#tvb-hist{padding:12px 16px;max-height:560px;overflow-y:auto}
+.tvb-hist-sess{margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed rgba(255,255,255,.06)}
+.tvb-hist-sess:last-child{border-bottom:0}
+.tvb-hist-sess-h{font-family:var(--mono);font-size:var(--fs-meta);font-weight:800;letter-spacing:.08em;color:var(--gold-dim);margin-bottom:8px}
+.tvd-intent.tvd-farmed{color:#8fe6a0;font-weight:800}
+.tvd-intent.tvd-seen{color:#ffd97a;font-weight:800}
+.tvd-db{font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.06em;padding:1px 6px;border-radius:999px;margin-left:4px}
+.tvd-db-hit{background:rgba(102,255,136,.15);color:#8fe6a0;border:1px solid rgba(102,255,136,.35)}
+.tvd-db-miss{background:rgba(224,138,138,.12);color:#e08a8a;border:1px solid rgba(224,138,138,.35)}
+.tvd-db-item{background:rgba(127,212,255,.12);color:#7fd4ff;border:1px solid rgba(127,212,255,.35)}
+.tvd-vault-tag{font-family:var(--mono);font-size:9px;color:#f0c060;margin-left:4px}
+.tvd-read-farmed{border-color:rgba(102,255,136,.28);background:rgba(40,100,55,.06)}
+.tvd-read-seen{border-color:rgba(255,217,122,.22);background:rgba(120,90,20,.05)}
+.tvc-art.tvc-art-lg{width:28px;height:28px}
 @media (max-width:900px){.tvb-left{flex:1 1 100%}.tvb-screen{min-height:190px}}
 </style>
 <style id="v704-sys-tray">
@@ -32484,9 +32569,81 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 // breathing screen). Names route through the EXISTING engines — review-first, never silent.
 // Specs never poll (navigator.webdriver guard — the v617 cost lesson).
 (function(){
-  var URL0='http://127.0.0.1:17771/state', T=null, SEEN=0, STATE='off', FEED=[];
+  var URL0='http://127.0.0.1:17771/state', FRAME0='http://127.0.0.1:17771/frame', T=null, SEEN=0, STATE='off', FEED=[];
   var DIGEST={reads:0, applied:0, areas:{}};   // v716 — end-of-session digest → the cockpit 📓 log
+  var AGENT_START=0, HIST_TAB='live', HIST_KEY='d2r_tvdHist';
   window._tvdCountApply=function(){ DIGEST.applied++; };
+  // v724 — persisted session history (survives agent restart / page reload). Account-local.
+  function loadHist(){
+    try {
+      var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem(HIST_KEY) : localStorage.getItem(HIST_KEY);
+      var h = raw ? JSON.parse(raw) : null;
+      if (!h || typeof h !== 'object') return { live:null, sessions:[] };
+      if (!Array.isArray(h.sessions)) h.sessions = [];
+      return h;
+    } catch(e){ return { live:null, sessions:[] }; }
+  }
+  function saveHist(h){
+    try {
+      var s = JSON.stringify(h);
+      if (window.LSR && window.LSR.setItem) window.LSR.setItem(HIST_KEY, s);
+      else localStorage.setItem(HIST_KEY, s);
+    } catch(e){}
+  }
+  function ensureLiveSession(agentStart){
+    var h = loadHist();
+    if (h.live && h.live.agentStart && agentStart && h.live.agentStart !== agentStart && (h.live.reads||[]).length){
+      h.live.endedAt = h.live.endedAt || Date.now();
+      h.sessions.unshift(h.live);
+      h.sessions = h.sessions.slice(0, 12);
+      h.live = null;
+    }
+    if (!h.live || (agentStart && h.live.agentStart !== agentStart)){
+      h.live = { agentStart: agentStart||Date.now(), startedAt: Date.now(), endedAt: null, reads: [] };
+    }
+    saveHist(h);
+    return h;
+  }
+  function archiveLive(reason){
+    try {
+      var h = loadHist();
+      if (h.live && (h.live.reads||[]).length){
+        h.live.endedAt = Date.now();
+        h.live.endReason = reason || 'closed';
+        h.sessions.unshift(h.live);
+        h.sessions = h.sessions.slice(0, 12);
+        h.live = null;
+        saveHist(h);
+      }
+    } catch(e){}
+  }
+  function pushHistRead(entry){
+    try {
+      var h = ensureLiveSession(AGENT_START || entry.ts);
+      h.live.reads.push(entry);
+      h.live.endedAt = entry.ts;
+      // cap live reads
+      if (h.live.reads.length > 200) h.live.reads = h.live.reads.slice(-200);
+      saveHist(h);
+      renderHistory();
+    } catch(e){}
+  }
+  window._tvdHistTab = function(tab){
+    HIST_TAB = tab === 'last' ? 'last' : 'live';
+    try {
+      var a=document.getElementById('tvb-hist-live'), b=document.getElementById('tvb-hist-last');
+      if(a) a.classList.toggle('on', HIST_TAB==='live');
+      if(b) b.classList.toggle('on', HIST_TAB==='last');
+    } catch(e){}
+    renderHistory();
+  };
+  window._tvdHistClear = function(){
+    try {
+      if (window.LSR && window.LSR.setItem) window.LSR.setItem(HIST_KEY, JSON.stringify({live:null, sessions:[]}));
+      else localStorage.setItem(HIST_KEY, JSON.stringify({live:null, sessions:[]}));
+    } catch(e){}
+    renderHistory();
+  };
   function digestFlush(reason){
     try {
       if(!DIGEST.reads) return;
@@ -32494,6 +32651,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(typeof window._sessionLog==='function')
         window._sessionLog('📺 TV '+reason+': '+DIGEST.reads+' read'+(DIGEST.reads===1?'':'s')+' · '+DIGEST.applied+' applied'+(areas.length?' · '+areas.slice(0,4).join(' → '):''));
       DIGEST={reads:0, applied:0, areas:{}};
+      archiveLive(reason);
     } catch(e){}
   }
   function escAttr(x){ return String(x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -32515,24 +32673,35 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
   function route(name){
     var n=String(name||'').trim(); if(!n) return null;
+    var lo=n.toLowerCase(), clean=n.replace(/\s*\([^)]+\)\s*$/,'');
     try {
       var rm=n.match(/^(.+?)\s+Rune$/i), rk=rm?rm[1]:n;
       rk=rk.charAt(0).toUpperCase()+rk.slice(1).toLowerCase();
-      if(typeof RUNE_INDEX!=='undefined' && (rk in RUNE_INDEX) && (rm||n.length<=5)) return { kind:'rune', key:rk, label:'🪨 '+rk+' Rune' };
-      if(typeof findGem==='function'){ var gk=findGem(n); if(gk) return { kind:'gem', key:gk, label:'💎 '+gk }; }
+      if(typeof RUNE_INDEX!=='undefined' && (rk in RUNE_INDEX) && (rm||n.length<=5)) return { kind:'rune', key:rk, label:'🪨 '+rk+' Rune', db:true };
+      if(typeof findGem==='function'){ var gk=findGem(n); if(gk) return { kind:'gem', key:gk, label:'💎 '+gk, db:true }; }
       if(typeof window._grailVocab==='function'){
-        var V=window._grailVocab(), lo=n.toLowerCase(), clean=n.replace(/\s*\([^)]+\)\s*$/,'');
+        var V=window._grailVocab();
         var u=null; V.uniq.forEach(function(x){ if(!u && (x.toLowerCase()===lo || x.replace(/\s*\([^)]+\)\s*$/,'').toLowerCase()===lo)) u=x; });
-        if(u) return { kind:'uni', key:u, label:'🏆 '+u.replace(/\s*\([^)]+\)\s*$/,''), done:(typeof _gFound==='function')&&_gFound(u) };
+        if(u) return { kind:'uni', key:u, label:'🏆 '+u.replace(/\s*\([^)]+\)\s*$/,''), done:(typeof _gFound==='function')&&_gFound(u), db:true };
         var pm=V.pieceMap[clean]||V.pieceMap[n];
         if(!pm){ Object.keys(V.pieceMap).some(function(k){ if(k.toLowerCase()===clean.toLowerCase()){ pm=V.pieceMap[k]; return true; } return false; }); }
         if(pm){
           var have=false; try { have=(typeof _setHave==='function')&&_setHave().has(pm); } catch(e){ try { have=(typeof setPieces!=='undefined')&&setPieces.has(pm); } catch(e2){} }
-          return { kind:'set', key:pm, label:'🧩 '+clean, done:have };
+          return { kind:'set', key:pm, label:'🧩 '+clean, done:have, db:true };
         }
       }
+      // v724 — broader bible DB hit (~1400 ITEMS) for bases / misc so history shows accurate cross-ref
+      if (typeof ITEMS !== 'undefined' && ITEMS && ITEMS.length){
+        var hit=null;
+        for (var ii=0; ii<ITEMS.length; ii++){
+          var inn = ITEMS[ii] && ITEMS[ii].n; if (!inn) continue;
+          var ilo = inn.toLowerCase(), ic = inn.replace(/\s*\([^)]+\)\s*$/,'').toLowerCase();
+          if (ilo === lo || ic === clean.toLowerCase()){ hit = inn; break; }
+        }
+        if (hit) return { kind:'item', key:hit, label:'📦 '+hit.replace(/\s*\([^)]+\)\s*$/,''), done:false, db:true };
+      }
     } catch(e){}
-    return { kind:'note', key:n, label:'📋 '+n };
+    return { kind:'note', key:n, label:'📋 '+n, db:false };
   }
   function apply(kind,key,chip){
     try {
@@ -32551,12 +32720,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   };
   // v721 — chips CONNECT to the database: data-arttip = the same hover card every other surface
   // uses (odds · bases · rarity), and artUrl() = the HD art so items look REAL in the feed.
-  function chipArt(x){
+  function chipArt(x, lg){
     try {
       var clean=String(x.key||'').replace(/\s*\([^)]+\)\s*$/,'');
       if(x.kind==='rune') clean=x.key+' Rune';
       var u=(typeof artUrl==='function')?artUrl(clean):'';
-      return u?'<img class="tvc-art" src="'+escAttr(u)+'" alt="" loading="lazy" onerror="this.remove()">':'';
+      if(!u && typeof _magicArtSrc==='function') u=_magicArtSrc(clean)||'';
+      return u?'<img class="tvc-art'+(lg?' tvc-art-lg':'')+'" src="'+escAttr(u)+'" alt="" loading="lazy" onerror="this.remove()">':'';
     } catch(e){ return ''; }
   }
   function chipTip(x){
@@ -32564,17 +32734,107 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if(x.kind==='rune') clean=x.key+' Rune';
     return ' data-arttip="'+escAttr(clean)+'"';
   }
+  function dbBadge(x){
+    if (x.kind==='note' || x.db===false) return '<span class="tvd-db tvd-db-miss" title="not in bible engines / ITEMS DB">NO DB</span>';
+    if (x.kind==='item') return '<span class="tvd-db tvd-db-item" title="matched ITEMS database">DB</span>';
+    return '<span class="tvd-db tvd-db-hit" title="matched rune/gem/unique/set engine">HIT</span>';
+  }
+  function histChip(x, vaulted){
+    var tip = chipTip(x);
+    var vtag = vaulted ? '<span class="tvd-vault-tag" title="filed to vault shelf">🏦 vault</span>' : '';
+    if (x.kind==='note') return '<span class="tvd-chip tc-note"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
+    if (x.done) return '<span class="tvd-chip tc-done"'+tip+'>'+chipArt(x,true)+x.label+' ✓'+dbBadge(x)+vtag+'</span>';
+    return '<span class="tvd-chip"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
+  }
+  function renderHistory(){
+    var root = document.getElementById('tvb-hist');
+    var meta = document.getElementById('tvb-hist-meta');
+    if (!root) return;
+    try {
+      var a=document.getElementById('tvb-hist-live'), b=document.getElementById('tvb-hist-last');
+      if(a) a.classList.toggle('on', HIST_TAB==='live');
+      if(b) b.classList.toggle('on', HIST_TAB==='last');
+    } catch(e){}
+    var h = loadHist();
+    var sess = null, label = '';
+    if (HIST_TAB === 'last'){
+      sess = (h.sessions && h.sessions[0]) || null;
+      label = 'LAST SESSION';
+    } else {
+      sess = h.live;
+      label = 'LIVE SESSION';
+    }
+    var reads = (sess && sess.reads) || [];
+    // stats
+    var dbHits=0, dbTotal=0, farmedN=0, seenN=0, vaultN=0;
+    reads.forEach(function(r){
+      if (r.intent==='farmed') farmedN++;
+      if (r.intent==='seen') seenN++;
+      (r.items||[]).forEach(function(it){
+        dbTotal++;
+        if (it.kind && it.kind!=='note') dbHits++;
+        if (it.vault) vaultN++;
+      });
+    });
+    if (meta){
+      if (!reads.length) meta.innerHTML = '— no '+(HIST_TAB==='last'?'archived':'live')+' session yet —';
+      else {
+        var st = sess.startedAt ? new Date(sess.startedAt).toLocaleString() : '—';
+        var en = sess.endedAt ? new Date(sess.endedAt).toLocaleTimeString() : 'now';
+        meta.innerHTML = '<b>'+label+'</b> · '+reads.length+' read'+(reads.length===1?'':'s')
+          +' · DB <b>'+dbHits+'/'+dbTotal+'</b> matched'
+          +' · 👁 seen <b>'+seenN+'</b> · 🛍 farmed <b>'+farmedN+'</b> · 🏦 vault <b>'+vaultN+'</b>'
+          +' · '+st+' → '+en
+          +(h.sessions&&h.sessions.length?(' · archive: <b>'+h.sessions.length+'</b> past session'+(h.sessions.length===1?'':'s')):'');
+      }
+    }
+    if (!reads.length){
+      root.innerHTML = '<div class="sc-empty">'+(HIST_TAB==='last'
+        ? 'no last session yet — finish a live run (or agent restarts) and it archives here'
+        : 'live history is empty — when the scanner reads, every item lands here with time + HD art + DB match')+'</div>';
+      return;
+    }
+    // newest first
+    var rows = reads.slice().reverse().map(function(r){
+      var chips = (r.items||[]).map(function(it){ return histChip(it, !!it.vault); }).join('');
+      var intent=r.intent||'';
+      var intentTag=intent==='farmed'?' · <span class="tvd-intent tvd-farmed">🛍 FARMED</span>':intent==='seen'?' · <span class="tvd-intent tvd-seen">👁 SEEN</span>':'';
+      var model = r.model ? (' · '+r.model+(r.escalated?'⬆':'')) : '';
+      var ms = r.ms ? (' · '+(Math.round(r.ms/100)/10)+'s') : '';
+      var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+escAttr(r.scene)):'')+intentTag+model+ms;
+      return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'">'
+        +'<div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+(r.n||'?')+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
+        +(chips||'<span class="tvd-chip tc-note">nothing readable</span>')
+        +'</div>';
+    }).join('');
+    root.innerHTML = '<div class="tvd-feed">'+rows+'</div>';
+  }
+  function refreshFrameEye(){
+    try {
+      var eye = document.getElementById('tvb-hist-eye');
+      var img = document.getElementById('tvb-hist-frame');
+      if (!eye || !img) return;
+      if (STATE !== 'live'){ eye.hidden = true; return; }
+      eye.hidden = false;
+      img.src = FRAME0 + '?t=' + Date.now();
+      img.onerror = function(){ eye.hidden = true; };
+    } catch(e){}
+  }
   function feedHtml(cap){
     return '<div class="tvd-feed">'+FEED.slice(-cap).reverse().map(function(r){
       var chips=r.routes.map(function(x){
-        if(x.kind==='note') return '<span class="tvd-chip tc-note"'+chipTip(x)+' title="read but not a tracked name — runes/uniques/sets/gems auto-route">'+chipArt(x)+x.label+'</span>';
-        if(x.done) return '<span class="tvd-chip tc-done"'+chipTip(x)+' title="already in your chronicle">'+chipArt(x)+x.label+' ✓</span>';
-        return '<span class="tvd-chip"'+chipTip(x)+'>'+chipArt(x)+x.label+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
+        if(x.kind==='note') return '<span class="tvd-chip tc-note"'+chipTip(x)+' title="read but not a tracked name — runes/uniques/sets/gems auto-route">'+chipArt(x)+x.label+dbBadge(x)+'</span>';
+        if(x.kind==='item') return '<span class="tvd-chip"'+chipTip(x)+' title="in ITEMS DB — vault-fileable base/misc">'+chipArt(x)+x.label+dbBadge(x)+'</span>';
+        if(x.done) return '<span class="tvd-chip tc-done"'+chipTip(x)+' title="already in your chronicle">'+chipArt(x)+x.label+' ✓'+dbBadge(x)+'</span>';
+        return '<span class="tvd-chip"'+chipTip(x)+'>'+chipArt(x)+x.label+dbBadge(x)+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
       }).join('');
-      var applyable=r.routes.some(function(x){ return x.kind!=='note' && !x.done; });
+      var applyable=r.routes.some(function(x){ return x.kind!=='note' && x.kind!=='item' && !x.done; });
       var sceneIco={town:'🏘',loot:'⚔️',inventory:'🎒',stash:'🏦',gameplay:'🌫'}[r.scene]||'';
-      var where=(r.area?('🗺 '+r.area):'')+(r.scene&&r.scene!=='gameplay'?((r.area?' · ':'')+sceneIco+' '+r.scene):'');
-      return '<div class="tvd-read"><div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+r.n+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
+      var intent=r.intent||'';
+      var intentTag=intent==='farmed'?' · <span class="tvd-intent tvd-farmed">🛍 FARMED</span>':intent==='seen'?' · <span class="tvd-intent tvd-seen">👁 SEEN (floor)</span>':'';
+      var autoTag=r.auto?' · auto-vault':'';
+      var where=(r.area?('🗺 '+r.area):'')+(r.scene&&r.scene!=='gameplay'?((r.area?' · ':'')+sceneIco+' '+r.scene):'')+intentTag+autoTag;
+      return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'"><div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+r.n+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
         + (applyable?'<button type="button" class="tvd-applyall" onclick="window._tvdApplyAll(this)">✓ apply all</button>':'')
         + (chips||'<span class="tvd-chip tc-note">nothing readable (gameplay frame)</span>')+'</div>';
     }).join('')+'</div>';
@@ -32602,6 +32862,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     }
     var tb=document.getElementById('tvb-feed');
     if(tb){ tb.innerHTML = FEED.length ? feedHtml(24) : emptyMsg(); wireApplies(tb); }
+    renderHistory();
   }
   function paintBeat(st){
     try {
@@ -32667,14 +32928,42 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     fetch(URL0, { signal: ac && ac.signal, cache:'no-store' }).then(function(r){ return r.json(); }).then(function(st){
       if(to) clearTimeout(to);
       if(STATE!=='live') setState('live');
+      // v724 — new agent boot (startedAt change) archives previous live session for LAST SESSION tab
+      if (st.startedAt && st.startedAt !== AGENT_START){
+        if (AGENT_START){ archiveLive('agent restart'); SEEN=0; FEED=[]; }
+        AGENT_START = st.startedAt;
+        ensureLiveSession(AGENT_START);
+      }
       paintBeat(st);
       var grew=false;
       (st.reads||[]).forEach(function(rd){
         if(!rd || rd.ts<=SEEN) return; SEEN=rd.ts; grew=true;
-        FEED.push({ ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:(rd.names||[]).map(route).filter(Boolean) });
+        var intent=rd.intent||(rd.scene==='inventory'||rd.scene==='stash'?'farmed':rd.scene==='loot'?'seen':'context');
+        var routes=(rd.names||[]).map(route).filter(Boolean);
+        var auto=false;
+        // v723 — FARMED only (inv/stash after physical pickup): auto-tick engines + vault shelf.
+        // FLOOR (seen) stays review-first — never silent-apply ground loot.
+        if(intent==='farmed' && routes.length){
+          routes.forEach(function(x){
+            try {
+              // engines only for rune/gem/uni/set — not generic ITEMS bases
+              if(x.kind!=='note' && x.kind!=='item' && !x.done){ apply(x.kind, x.key, null); x.done=true; }
+              var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
+              var vr = null;
+              if(vaultName && typeof window.tvVaultRegister==='function') vr = window.tvVaultRegister(vaultName);
+              x.vault = !!(vr && vr.ok);
+            } catch(e){}
+          });
+          auto=true;
+        }
+        var entry = { ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:routes, intent:intent, auto:auto, model:rd.model||'', conf:rd.conf, ms:rd.ms||0, escalated:!!rd.escalated,
+          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault }; }) };
+        FEED.push(entry);
+        pushHistRead(entry);
         DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;
         if(FEED.length>60) FEED=FEED.slice(-60);
       });
+      if(grew) refreshFrameEye();
       if(grew || !document.getElementById('sc-tvd-body') || true) render();
     }).catch(function(){ if(to) clearTimeout(to); if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
   }
@@ -32683,10 +32972,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     setState('conn'); try{ localStorage.setItem('d2r_tvdOn','1'); }catch(e){} render();
     poll(); T=setInterval(poll, 2000);
   };
-  window._tvdRefreshTab=function(){ setState(STATE); render(); };   // switchTab('tvd') repaints the board
+  window._tvdRefreshTab=function(){ setState(STATE); render(); renderHistory(); refreshFrameEye(); };
   document.querySelectorAll('.tvd-switch').forEach(function(sw){
     sw.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); window._tvdToggle(); } });
   });
+  // paint any archived history immediately (even with switch OFF)
+  try { HIST_TAB='live'; renderHistory(); } catch(e){}
   // resume if it was on last session — never in automation (specs must not poll localhost)
   try { if(localStorage.getItem('d2r_tvdOn')==='1' && !navigator.webdriver){ setState('conn'); poll(); T=setInterval(poll, 2000); } } catch(e){}
   // v719 — Konyo's gate run: with the switch resumed ON but the tab BACKGROUNDED, Chrome throttles

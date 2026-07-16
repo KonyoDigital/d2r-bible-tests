@@ -31,6 +31,40 @@
 
 ---
 
+## 2026-07-16 — Grok: TV-KAI v723–v724 (Haiku+genius · farmed vault wire · session history)
+
+> **Surface:** TV DIABLO only (`tv/**` + TV receiver slice of `bible.html` + board specs).
+> Restore freeze BEFORE this wave: git tag
+> `restore-point-pre-tv-speed-loot-lifecycle-2026-07-16_201534` @ `f5886b8` (v722) +
+> hardcopy `backups/RESTORE_2026-07-16_201534/` (local, not committed).
+
+### v723 — speed + loot lifecycle + thin vault door
+- **Haiku default** (`TV_MODEL=haiku`) warm worker; **Sonnet genius escalate**
+  (`TV_MODEL_ESCALATE=sonnet`) when conf low / empty loot / shaky farmed names
+  (cap `TV_ESCALATE_CAP=40`). Subscription only — still strips `ANTHROPIC_API_KEY`.
+- **Intent:** floor `loot` → `seen` (review-first); `inventory`/`stash` → `farmed`
+  (auto-tick engines + `window.tvVaultRegister` → owned/muleAssign, no photo AI).
+- Agent state rings: `seen[]` / `farmed[]` + model/conf/intent on each read.
+
+### v724 — SESSION HISTORY board (pre run #3)
+- TV tab panel: **LIVE** / **LAST SESSION** · clock-time rows · HD art ·
+  HIT/DB/NO DB badges (engines + ~1400 ITEMS) · 🏦 vault tags · last JPEG via
+  agent `GET /frame`.
+- Persisted `d2r_tvdHist` (account-forked in `_LP_FORKED`) so last session
+  survives agent restart / page reload.
+
+### TDD / CI gates
+- `python3 tv/test_agent.py` → **22/22** (CI: `.github/workflows/tv-tests.yml` on `tv/**`)
+- `npx playwright test tests/v712_tv_board.spec.ts` → **4/4**
+  (CRT · routing/review-first · history panel · farmed auto vs floor review-first)
+- Ledger: `tv/PINGPONG_LOG.md` R12–R13 · plan: `tv/PLAN_SPEED_AND_LOOT_LIFECYCLE.md`
+
+### Non-goals (kept intact)
+- No forge rewrite · no vault photo-intake rewrite · no settle loosening ·
+  no fabricated item names.
+
+---
+
 ## 2026-06-08 — CC: v115 — animated aura GIFs (2x) + nightly B1 Mercenary section
 - **Ships** (one deploy): commit `25ec2a8` (gifs) + `5476017` (B1 merc), live md5
   `7188c8de71748b5d6edc5bd5ef13917c` (apex parity OK).

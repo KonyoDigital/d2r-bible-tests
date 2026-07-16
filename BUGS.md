@@ -510,6 +510,18 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Fix:** v684 — the floor mirrors every seed into the live `setPieces` (`_spSet.forEach(setPieces.add)`); mac-ladder toggles no longer write MAIN's shared `d2r_grailUnfound`.
 - **Prevention:** headless sim asserts in-memory === LS post-boot AND post-persist(); doctrine: a boot floor must mutate the LIVE structure, never only the store.
 
+## TV-NOTE-001 — 2026-07-16 · session history was RAM-only (last TV run vanished on agent restart)
+- **Symptom:** after a live TV DIABLO session + agent restart, the TV tab feed was empty —
+  no clock-time trail of what AI read, no DB match trail, no vault filing trail for debug.
+- **Caught by:** Konyo live (run #2/#3 prep), 2026-07-16.
+- **Root cause:** receiver kept `FEED` in memory only; agent `state.json` resets on boot
+  (`startedAt` fresh). Nothing persisted across restarts.
+- **Fix:** v724 — `d2r_tvdHist` localStorage (account-forked) + SESSION HISTORY panel
+  (LIVE / LAST SESSION) + HD art + HIT/DB/NO DB badges + `GET /frame` last JPEG.
+  Specs: `tests/v712_tv_board.spec.ts` history test.
+- **Prevention:** any new live agent feed must persist to account-forked LS (or agent
+  disk history) before the next boot, or debug trail is lost by design.
+
 ## REG-018 — Routine I silently dead for 40 runs (50m cap SIGKILL = no blob report = invisible failures)
 - **Symptom:** zero Routine I verdicts since v681.1 — 9 failures then 6 "cancelled"; merge-report merged the surviving shards and went green on itself, so shard 3's ~15 real failing specs were never named anywhere.
 - **Caught by:** dual-mode audit CI lens (2026-07-14) reading the cancelled runs' dot output.

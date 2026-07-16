@@ -47,14 +47,22 @@
   fire) · persist `mode` on state reads · suite **19/19**.
 - **Scope:** `tv/**` only. No bible / forge / chronicles.
 
-### Live success criteria (run #3 after v720 restart)
-1. Brain shows `vision auth: stripped ANTHROPIC_API_KEY` (if key present in shell).
-2. `vision warm — session ready in Ns` (not “warm-up didn't answer”).
-3. On settle: read with `mode=warm` (or oneshot) and real `ms` > 0 — not 90s cap empty.
-4. Fullscreen D2R when validating area/names (desktop screenshots honestly return empty).
+### R12 · v723 — Haiku speed + genius Sonnet escalate + farmed→vault wire
+- **Fast model:** `TV_MODEL=haiku` (warm worker). **Genius:** auto-escalate to
+  `TV_MODEL_ESCALATE=sonnet` when conf low / empty loot / shaky farmed names.
+  Cap `TV_ESCALATE_CAP=40`. Subscription only (API key still stripped).
+- **Intent:** loot→`seen` (review-first) · inv/stash→`farmed` (auto engines + vault).
+- **Vault:** new thin `window.tvVaultRegister(name)` — reuses owned + suggestMule +
+  muleAssign from intake. **No photo AI. No vault redesign.** Floor never auto-files.
+
+### R13 · v724 — SESSION HISTORY board (pre run #3)
+- TV tab panel: LIVE / LAST SESSION · clock-time rows · HD art · HIT/DB/NO DB badges
+  against engines + ~1400 ITEMS · farmed vault tags · last vision JPEG via `GET /frame`.
+- Persisted `d2r_tvdHist` (account-forked) so last session survives agent restart.
+- Board specs **4/4** · agent suite **22/22**. Restore point unchanged.
 
 ### Explicit non-goals (unchanged)
-- No forge engines · no fabricated names · don’t loosen settle · don’t touch bible.html.
+- No forge rewrite · no fabricated names · don’t loosen settle · don’t rewire vault intake photos.
 
 ### R2 · v712 — stub solid + board TDD + build-stamp sync ✅ (Grok P0-1 ✅ · P0-2 was stale-scan, origin already current ✅ · P0-3 ✅ · P1-5/6/7/8 ✅ · P2-9/10 ✅)
 - `tv/stub_manifest.json` COMMITTED (P0-1) — plus the test that used to `os.remove` it now backs-up/restores (a TDD catch on the tests themselves).

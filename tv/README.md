@@ -64,17 +64,25 @@ The public version is the same architecture productized: users subscribe to
 the app and authenticate their *own* Claude — the Claude Agent SDK supports
 exactly this bring-your-own-Claude model.
 
+## Models (v723)
+- **Fast default:** Haiku (`TV_MODEL=haiku`) — warm worker, in-game speed.
+- **Genius escalate:** Sonnet (`TV_MODEL_ESCALATE=sonnet`) when conf is low, loot piles look
+  empty, or farmed names look shaky. Cap: `TV_ESCALATE_CAP=40` / session.
+  Still **subscription login**, never API-key burn.
+- **Loot lifecycle:** floor `loot` → intent `seen` (review-first chips).
+  `inventory` / `stash` → intent `farmed` → auto-tick engines + `tvVaultRegister` into the
+  vault shelf (same owned/mule path as AI intake, **no photo**).
+
+## Session history (v724) — TV tab
+- **SESSION HISTORY** panel under the signal feed: **LIVE** + **LAST SESSION** tabs.
+- Survives agent restart / page reload (`d2r_tvdHist`, account-forked).
+- Each read is time-stamped with HD art (`artUrl`), **HIT / DB / NO DB** cross-ref against
+  rune/gem/unique/set engines + the ~1400 `ITEMS` table, intent (seen/farmed), model, ms,
+  and 🏦 vault tags when farmed auto-filed.
+- **Last frame** the AI saw: agent serves `GET /frame` (JPEG) into the eye preview when live.
+
 ## Last live verdict
 - **2026-07-16 evening — GATE PASSED ✅**: boot → `vision warm in 3s` → real reads
-  `[warm 6-10s]` — scene detection ✓ (inventory), five real item names read from the live
-  game. Root-caused across two runs: 16MB BMP transport (v710.6) + dead-MCP stalls (v719.1) +
-  **a stale shell ANTHROPIC_API_KEY out-ranking the subscription login (v720, Grok's catch)**.
-
-## Older verdicts
-- **2026-07-15 run #1**: capture ✓ · settle ✓ · bridge ✓ · board ✓ ·
-  vision ✗ (16MB BMP → 180s timeouts). Fixed: JPEG transport + persistent worker.
-- **2026-07-16 run #2** (v719.2): transport ✓ · vision ✗ — shell `ANTHROPIC_API_KEY`
-  stole auth from subscription login (90s empty).
-- **2026-07-16 run #3** (v720+): **vision ✓** — warm in 14s · oneshot ~16s · warm reads
-  ~7–9s. v720 strips API-key env on vision spawns; v720.1 serializes worker turns.
-  Fullscreen D2R + hover/loot labels still required for non-empty `area`/`names`.
+  `[warm 6-10s]` — scene detection ✓ (inventory), five real item names from live game.
+- **v723:** Haiku-first + Sonnet genius ladder · floor≠farmed · vault wire for farmed only.
+  Restore point: `restore-point-pre-tv-speed-loot-lifecycle-2026-07-16_201534`.
