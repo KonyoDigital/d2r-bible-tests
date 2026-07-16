@@ -79,6 +79,12 @@
 - **Honesty:** GONE alone never applies · inv-only still works · anchors (Cube/tomes) hold apply if missing+low conf
 - Board applies **only** `farmed_names`. Suite **30/30**.
 
+### R17 · v730 — post-run #4 tune (Grok from live state.json)
+- **Bug:** first inv baselined Blade Bow/Crown → `farmed_names=[]` (Claude expected vault tags).
+  Soft first panel: farm non-junk once, then lock baseline.
+- **Junk filter:** potions/arrows never auto-vault.
+- **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
+
 ### Explicit non-goals (unchanged)
 - No forge rewrite · no fabricated names · don’t loosen settle · don’t rewire vault intake photos.
 

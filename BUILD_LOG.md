@@ -46,6 +46,14 @@
 
 ---
 
+## 2026-07-16 — Grok: v730 post-run #4 lifecycle tune
+
+- Live state.json: inv read 25.8s · anchors OK · but farmed_names=[] (first inv baselined loot).
+- Soft first-panel: farm Blade Bow/Crown once then lock · junk (potions/arrows) filtered.
+- Shorter vision prompt for speed. Suite 29/29.
+
+---
+
 ---
 
 ## 2026-07-16 — Grok: v727 Autopilot core (Tesla-style when-to-read)

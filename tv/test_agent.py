@@ -175,16 +175,28 @@ class TestLootLifecycleV2(unittest.TestCase):
     def setUp(self):
         self.lc = tv.LootLifecycle()
 
-    def test_baseline_first_inv_never_auto_farms(self):
-        r = self.lc.process("inventory", ["Horadric Cube", "Tome of Town Portal", "Ist Rune"], "Rogue Encampment", 0.9)
-        self.assertEqual(r["farmed_names"], [])
-        self.assertTrue(self.lc.baseline_set)
-        self.assertIn("ist rune", self.lc.baseline)
-        self.assertEqual(r["lifecycle_tags"].get("Ist Rune"), "baseline")
+    def test_first_inv_soft_farms_then_locks_baseline(self):
+        # run #4 bug: first inv with loot was ALL baselined → nothing vaulted
+        r = self.lc.process("inventory",
+                            ["Horadric Cube", "Tome of Town Portal", "Blade Bow", "Crown",
+                             "Super Healing Potion", "Arrows"],
+                            "Rogue Encampment", 0.9)
         self.assertEqual(r["anchor"], "ok")
+        self.assertIn("Blade Bow", r["farmed_names"])
+        self.assertIn("Crown", r["farmed_names"])
+        # junk filtered
+        self.assertNotIn("Super Healing Potion", r["farmed_names"])
+        self.assertNotIn("Arrows", r["farmed_names"])
+        self.assertEqual(r["lifecycle_tags"].get("Super Healing Potion"), "junk")
+        # reopen must NOT re-tally
+        r2 = self.lc.process("inventory",
+                             ["Horadric Cube", "Blade Bow", "Crown"],
+                             "Rogue Encampment", 0.9)
+        self.assertEqual(r2["farmed_names"], [])
+        self.assertEqual(r2["lifecycle_tags"].get("Blade Bow"), "baseline")
 
     def test_seen_gone_confirm_strongest_signal(self):
-        # empty baseline
+        # empty-ish first panel (anchors only)
         self.lc.process("inventory", ["Horadric Cube", "Tome of Identify"], "Rogue Encampment", 0.9)
         # floor see Vipermagi in Stony Field
         self.lc.process("loot", ["Skin of the Vipermagi", "Super Healing Potion"], "Stony Field", 0.85)
@@ -209,14 +221,8 @@ class TestLootLifecycleV2(unittest.TestCase):
         self.assertIn("Harlequin Crest", r["farmed_names"])
         self.assertEqual(r["lifecycle_tags"].get("Harlequin Crest"), "inventory-only")
 
-    def test_baseline_item_never_retallies(self):
-        self.lc.process("inventory", ["Horadric Cube", "Ist Rune"], "town", 0.9)
-        r = self.lc.process("inventory", ["Horadric Cube", "Ist Rune"], "town", 0.9)
-        self.assertEqual(r["farmed_names"], [])
-        self.assertEqual(r["lifecycle_tags"].get("Ist Rune"), "baseline")
-
     def test_anchor_missing_holds_apply_when_low_conf(self):
-        self.lc.process("inventory", [], "town", 0.9)  # empty baseline
+        self.lc.process("inventory", ["Horadric Cube"], "town", 0.9)
         r = self.lc.process("inventory", ["Some Unique Sword"], "town", 0.4)  # no cube/tome, low conf
         self.assertEqual(r["farmed_names"], [])
         self.assertEqual(r.get("apply_held"), "anchor-missing")

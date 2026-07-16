@@ -56,26 +56,17 @@ SETTLE       = 0.03
 #  · panel grids show item ICONS with no text — names ONLY come from hover tooltips (first line
 #    = name), ground labels (loot key held), waypoint labels ("<Zone> Waypoint"), and the
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
+# v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 READ_PROMPT = (
-    "Read the image file at {path} — a screenshot of Diablo II: Resurrected (Reign of the Warlock mod). "
-    "Return FIVE things as STRICT JSON. "
-    "(1) \"area\": the current zone. Look for: the top-right info block (line under \'Game: ...\' is the "
-    "area name), a red \'ENTERING THE <ZONE>\' banner, or the automap corner text. Verbatim, else \"\". "
-    "(2) \"tz\": the purple zone names in that top-right block (today's terror zones), else []. "
-    "(3) \"scene\": exactly one of \"town\" (an act town: Rogue Encampment, Lut Gholein, Kurast Docks, "
-    "Pandemonium Fortress, Harrogath — town NPCs/stash present), \"stash\" (a STASH-titled panel is open), "
-    "\"inventory\" (an INVENTORY panel is open, no stash), \"loot\" (item name labels floating over the "
-    "ground), \"gameplay\" (none of those). "
-    "(4) \"names\": item names from READABLE TEXT ONLY. Item icons in panel grids carry NO readable name — "
-    "NEVER name an item from its icon. Readable names come from: a hover TOOLTIP (FIRST line = the item "
-    "name, second = its base type), ground item LABELS, a DETACHED top-left hover label, or a waypoint "
-    "label (report \'<Zone> Waypoint\' as area intel, NOT as an item). Include uniques, set pieces, runes "
-    "(like \'Ist Rune\'), gems, charms, jewels, bases, potions. Never guess or complete a partially "
-    "hidden name; [] if no readable item text. "
-    "(5) \"conf\": your confidence 0.0–1.0 that area/scene/names are correct (1.0 = crystal-clear text). "
-    "When scene is inventory, ALSO include fixed landmarks in names if readable: Horadric Cube, "
-    "Tome of Town Portal, Tome of Identify (anchor slots — proves the panel read is real). "
-    "STRICT JSON only, no prose: {{\"area\":\"...\",\"tz\":[\"...\"],\"scene\":\"...\",\"names\":[\"...\"],\"conf\":0.0}}"
+    "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"names\":[],\"conf\":0.0}}\n"
+    "scene = one of: town | stash | inventory | loot | gameplay.\n"
+    "area = zone name from top-right Game block / ENTERING banner / automap, else \"\".\n"
+    "tz = purple terror-zone lines in that block, else [].\n"
+    "names = READABLE text labels only (tooltips first line, ground loot labels, open inventory/stash "
+    "name text). Never invent from icons alone. Never complete partial names.\n"
+    "inventory/stash: also list anchors if visible — Horadric Cube, Tome of Town Portal, Tome of Identify.\n"
+    "conf = 0.0-1.0 confidence. Be fast and precise."
 )
 
 _state_lock = threading.Lock()
@@ -363,6 +354,12 @@ _ANCHOR_SUBSTR = (
     "horadric cube", "tome of town portal", "tome of identify",
     "scroll of town portal", "scroll of identify", "identify book", "town portal book",
 )
+# never auto-vault consumables / ammo (Claude scorecard: potions = vendor noise)
+_JUNK_SUBSTR = (
+    "healing potion", "mana potion", "rejuv", "rejuvenation", "stamina potion",
+    "antidote potion", "thawing potion", "energy potion", "rancid", "bile", "gas potion",
+    "arrows", "bolts", "quill",
+)
 def _norm_name(n):
     s = str(n or "").strip().lower()
     # strip trailing quality parens for matching: "foo (//)" noise
@@ -373,6 +370,12 @@ def _norm_name(n):
 def _is_anchor(n):
     lo = _norm_name(n)
     return any(a in lo for a in _ANCHOR_SUBSTR)
+
+def _is_junk(n):
+    lo = _norm_name(n)
+    if lo in ("arrows", "bolts", "key", "gold"):
+        return True
+    return any(j in lo for j in _JUNK_SUBSTR)
 
 def _area_key(a):
     return str(a or "").strip().lower()
@@ -460,39 +463,22 @@ class LootLifecycle:
         else:
             out["anchor"] = "ok" if names else "missing"  # stash: presence of any readable text is ok
 
-        # BASELINE — first panel read of the session
-        if not self.baseline_set:
-            for n in names:
-                if _is_anchor(n):
-                    out["lifecycle_tags"][n] = "anchor"
-                    continue
-                k = _norm_name(n)
-                if k:
-                    self.baseline[k] = n
-                    out["lifecycle_tags"][n] = "baseline"
-            self.baseline_set = True
-            out["baseline_set"] = True
-            # first snapshot never auto-tally (even if non-empty)
-            out["farmed_names"] = []
-            return
-
         hold = (out["anchor"] == "missing" and scene == "inventory"
                 and (conf is None or conf < 0.75))
 
-        farmed = []
-        for n in names:
+        def _tag_and_maybe_farm(n):
+            """Return (tag, should_farm)."""
             if _is_anchor(n):
-                out["lifecycle_tags"][n] = "anchor"
-                continue
+                return "anchor", False
+            if _is_junk(n):
+                return "junk", False
             k = _norm_name(n)
             if not k:
-                continue
+                return "skip", False
             if k in self.baseline:
-                out["lifecycle_tags"][n] = "baseline"
-                continue
+                return "baseline", False
             if k in self.confirmed_set:
-                out["lifecycle_tags"][n] = "already-farmed"
-                continue
+                return "already-farmed", False
             was_cand = k in self.candidates
             was_seen = k in self.seen
             if was_cand:
@@ -500,8 +486,45 @@ class LootLifecycle:
             elif was_seen:
                 tag = "seen→inventory"
             else:
-                tag = "inventory-only"  # v723 path still works
+                tag = "inventory-only"
+            return tag, True
+
+        farmed = []
+        # FIRST PANEL (run #4 bugfix): empty-only baseline was wrong when the first inv
+        # already held loot (Blade Bow/Crown became baseline → farmed_names=[]). Soft mode:
+        # farm non-junk non-anchor items once, then lock them into baseline so no re-tally.
+        if not self.baseline_set:
+            for n in names:
+                tag, should = _tag_and_maybe_farm(n)
+                out["lifecycle_tags"][n] = tag
+                if tag in ("anchor", "junk", "skip"):
+                    continue
+                k = _norm_name(n)
+                if should and not hold:
+                    farmed.append(n)
+                    self.confirmed_set.add(k)
+                    self.confirmed.append({
+                        "ts": now_ms, "name": n, "tag": tag, "scene": scene, "area": area or "",
+                    })
+                    del self.confirmed[:-80]
+                    self.candidates.pop(k, None)
+                # lock after first panel (farmed or not) so reopen doesn't double-count
+                if k and tag not in ("anchor", "junk", "skip"):
+                    self.baseline[k] = n
+            self.baseline_set = True
+            out["baseline_set"] = True
+            out["farmed_names"] = farmed
+            if hold:
+                out["farmed_names"] = []
+                out["apply_held"] = "anchor-missing"
+            return
+
+        for n in names:
+            tag, should = _tag_and_maybe_farm(n)
             out["lifecycle_tags"][n] = tag
+            if not should:
+                continue
+            k = _norm_name(n)
             if not hold:
                 farmed.append(n)
                 self.confirmed_set.add(k)
@@ -509,8 +532,9 @@ class LootLifecycle:
                     "ts": now_ms, "name": n, "tag": tag, "scene": scene, "area": area or "",
                 })
                 del self.confirmed[:-80]
-                # clear candidate / soft-clear seen
                 self.candidates.pop(k, None)
+                # new finds also join baseline after confirm
+                self.baseline[k] = n
         out["farmed_names"] = farmed
         if hold:
             out["apply_held"] = "anchor-missing"
