@@ -81,8 +81,8 @@ exactly this bring-your-own-Claude model.
   **6–10s**, so the default flipped. Opt into Haiku with `TV_MODEL=haiku` if you want to retest.
 - **Genius escalate:** only when `TV_MODEL` ≠ `TV_MODEL_ESCALATE` (e.g. haiku→sonnet experiments).
   Cap: `TV_ESCALATE_CAP=40`. Still **subscription login**, never API-key burn.
-- **Combat-pause filter:** empty gameplay/town stretches the settle gap to **20s** so combat
-  freezes don’t burn the session cap.
+- **No empty-gameplay cool (v726):** a 20s cool after empty combat pauses delayed real pile
+  stops — removed. Thrash control = same-view skip + MIN_GAP **6s** only.
 - **Loot lifecycle:** floor `loot` → intent `seen` (review-first chips).
   `inventory` / `stash` → intent `farmed` → auto-tick engines + `tvVaultRegister` into the
   vault shelf (same owned/mule path as AI intake, **no photo**).

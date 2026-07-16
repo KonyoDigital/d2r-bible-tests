@@ -67,6 +67,11 @@
 - **Default flip:** `TV_MODEL=sonnet` (haiku opt-in). Gap 8→6s. Empty gameplay/town →
   **20s cool** so stands don’t re-fire vision. Warm re-proof: sonnet ready in **3s**.
 
+### R15 · v726 — kill empty-gameplay 20s cool (Konyo: makes pile stops feel dead)
+- The cool was thrash control for combat freezes, but it **blocked** the next settle after any
+  empty — including “I just stopped on loot / opened inv.” Play latency > empty thrift.
+- **Removed.** Only same-view skip + MIN_GAP 6s remain.
+
 ### Explicit non-goals (unchanged)
 - No forge rewrite · no fabricated names · don’t loosen settle · don’t rewire vault intake photos.
 

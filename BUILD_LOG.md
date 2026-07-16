@@ -31,6 +31,14 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-16 — Grok: v726 kill empty-gameplay 20s cool
+
+- Konyo: cool made pile/inv stops feel dead after any empty combat pause.
+- Removed dynamic EMPTY_GAP; thrash control = same-view skip + MIN_GAP 6s only.
+- Agent suite 22/22. `tvd restart` / agent relaunched sonnet warm 3s.
+
+---
+
 ---
 
 ## 2026-07-16 — Grok: v725 TV speed flip (run #3)

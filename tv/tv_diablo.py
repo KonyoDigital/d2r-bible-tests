@@ -35,8 +35,9 @@ HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.path.join(HERE, "frames")
 STATE  = os.path.join(HERE, "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
-MIN_GAP_S    = 6      # v725 — sonnet warm is ~6–10s; keep gap under felt lag
-EMPTY_GAP_S  = 20     # v725 — after empty gameplay/town, cool down (combat-pause filter)
+MIN_GAP_S    = 6      # v725/v726 — sonnet warm ~6–10s; keep gap under felt lag
+# v726 — REMOVED empty-gameplay 20s cool: it delayed real pile/inv stops after any combat pause.
+# Thrash control stays: same-view skip + MIN_GAP only.
 SESSION_CAP  = 240    # v722 — same budget discipline, sized for the faster cadence
 POLL_S       = 0.25   # v722 — quarter-second eyes (Konyo: faster)
 WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win.ps1
@@ -480,7 +481,6 @@ def main():
 
     frame = os.path.join(FRAMES, "live.bmp")
     last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, 0.0, 0
-    gap_s = float(MIN_GAP_S)   # v725 — dynamic gap (stretches after empty combat pauses)
     while True:
         time.sleep(POLL_S)
         if WATCH_MODE:
@@ -511,8 +511,8 @@ def main():
             continue
         if sig_diff(cur, last_sent_md5) <= SETTLE:
             ev("skip", "settled, but same view I already read — waiting for something new"); continue
-        if time.time() - last_read_t < gap_s:
-            ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since the last read (gap {int(gap_s)}s)"); continue
+        if time.time() - last_read_t < MIN_GAP_S:
+            ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since the last read (gap {MIN_GAP_S}s)"); continue
         if reads >= SESSION_CAP:
             ev("cap", f"session cap {SESSION_CAP} reached — restart to continue")
             print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
@@ -525,12 +525,6 @@ def main():
         beat("watching", 0.0)   # pulse resumes immediately — the CRT verb never sticks on READING after a slow/failed read
         names = rd["names"]
         intent = rd.get("intent") or _intent_for(rd.get("scene"))
-        # v725 — combat-pause filter: empty gameplay/town stretches the gap so we don't burn 40× haiku on stands
-        if not names and (rd.get("scene") or "") in ("gameplay", "town"):
-            gap_s = float(EMPTY_GAP_S)
-            ev("skip", f"empty {rd.get('scene')} — cooling {int(gap_s)}s (combat-pause filter)")
-        else:
-            gap_s = float(MIN_GAP_S)
         tag = ("🛍 farmed" if intent == "farmed" else "👁 seen" if intent == "seen" else "·")
         model_tag = rd.get("model") or FAST_MODEL
         esc = " ⬆genius" if rd.get("escalated") else ""
