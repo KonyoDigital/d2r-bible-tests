@@ -258,3 +258,8 @@ correctly NEVER vaulted (stash-only counting doing its job) · ✅ holding reads
 Linked Mail · Long War Bow) · ✅ cow-level piles 12.7s · ✅ OCR noise stayed agent-side.
 ⏳ Konyo's eyeball verdict on the mule manager pending (v739 mirror shipped mid-run — a fresh
 page load carries it).
+
+## RUN #5 — Chaos farm (2026-07-17 ~03:30)
+✅ Chaos Sanctuary area-tracked · piles 6.0-6.4s deep · holding reads (Breast Plate · Gladius ·
+Diamond Bow) · materials STASH-INTAKE re-fired on the post-run stash visit (per-visit debounce
+correct). No uniques dropped (RNG, not the scanner). System is routine now — runs just work.
