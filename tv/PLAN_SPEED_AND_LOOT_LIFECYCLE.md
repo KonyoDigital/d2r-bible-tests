@@ -90,3 +90,33 @@ Run #3 evidence this builds on: pre-run empty inventory · 3 items picked (2 tos
 stash scenario at session end — the full arc is in the session history for replay-testing.
 
 Owner: Grok codes · Fable gates · Konyo live-verifies (run #4).
+
+---
+
+## LOOT LIFECYCLE v2 — OBJECT PERMANENCE (Konyo's design, 2026-07-16 run #3 debrief)
+
+> "when its suddenly not on the floor anymore it knows that its maybe in the inventory —
+> and especially after it sees it there and READS it, that's where the small wire routes it
+> to the vault and gets automatically tallied and muled/thrown out. it just goes into the
+> system smoothly."
+
+The correlation layer (no new machinery — rides existing reads + tvVaultRegister):
+
+1. **BASELINE** — the first inventory/stash read of a session snapshots the known-items set.
+   Items in the baseline NEVER re-tally (his pre-run inventory was empty = clean baseline).
+2. **SEEN ledger** — every floor (`loot`) read records `{name → area, firstSeen, lastSeen, count}`.
+3. **GONE detection** — a later loot read in the SAME area that no longer contains a
+   previously-seen name marks it `candidate: picked-up` (1-read grace for label flicker).
+4. **CONFIRM** — the next inventory/stash read containing that name (and not in baseline)
+   = CONFIRMED farmed → the existing v723 wire fires: engines tally + tvVaultRegister
+   (mule / throwout). Confidence tag: `seen→gone→inventory` = the strongest intent signal.
+5. **HONESTY RULES** — GONE alone NEVER auto-applies (he may have walked away / despawn).
+   Inventory-read alone still works (v723 behavior) — the lifecycle only UPGRADES confidence.
+6. **ANCHOR LANDMARKS** — the Horadric Cube / TP tome / ID tome hold fixed inventory slots.
+   Locate them per inventory read: anchors legible = high-confidence read; anchors missing
+   or garbled = low confidence → escalate model / hold auto-apply for that read.
+
+Run #3 evidence this builds on: pre-run empty inventory · 3 items picked (2 tossed) · town →
+stash scenario at session end — the full arc is in the session history for replay-testing.
+
+Owner: Grok codes · Fable gates · Konyo live-verifies (run #4).
