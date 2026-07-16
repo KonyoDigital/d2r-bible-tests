@@ -232,6 +232,41 @@ class TestLootLifecycleV2(unittest.TestCase):
         self.assertIn("War Scythe", r["gone_candidates"])
         self.assertEqual(r["vault_names"], [])
 
+    def test_run4_stash_only_commits_seen_not_panel_noise(self):
+        """v738 — Run #4: floor Crossbow SEEN; shared-tab Blood Shield etc must NOT vault."""
+        self.lc.process(
+            "loot",
+            ["Super Mana Potion", "Great Maul", "Greater Healing Potion",
+             "Super Healing Potion", "Colossus Crossbow"],
+            "Black Marsh", 0.9, now_ms=1000)
+        r = self.lc.process(
+            "stash",
+            ["Blood Shield", "Compendium", "Colossus Crossbow", "Jewel", "Unidentified"],
+            "Rogue Encampment", 0.9, now_ms=5000)
+        self.assertIn("Colossus Crossbow", r["vault_names"])
+        self.assertNotIn("Blood Shield", r["vault_names"])
+        self.assertNotIn("Compendium", r["vault_names"])
+        self.assertNotIn("Unidentified", r["vault_names"])
+        # bare Jewel was never on the floor → no chain
+        self.assertNotIn("Jewel", r["vault_names"])
+        self.assertEqual(r["lifecycle_tags"].get("Blood Shield"), "stash-no-chain")
+        self.assertEqual(r["lifecycle_tags"].get("Unidentified"), "skip-weak")
+
+    def test_run4_jewel_vaults_only_if_floor_seen(self):
+        """v738 — Konyo kept a Jewel: only vault if SEEN (or holding) first."""
+        self.lc.process("loot", ["Colossus Crossbow", "Jewel"], "Black Marsh", 0.9, now_ms=1000)
+        r = self.lc.process("stash", ["Colossus Crossbow", "Jewel"], "town", 0.9, now_ms=2000)
+        self.assertCountEqual(r["vault_names"], ["Colossus Crossbow", "Jewel"])
+
+    def test_unidentified_never_vaults_even_if_seen(self):
+        self.lc.process("loot", ["Unidentified"], "Black Marsh", 0.9, now_ms=1000)
+        r = self.lc.process("stash", ["Unidentified"], "town", 0.9, now_ms=2000)
+        self.assertEqual(r["vault_names"], [])
+
+    def test_stash_without_prior_chain_never_vaults(self):
+        r = self.lc.process("stash", ["Blood Shield", "Compendium"], "town", 0.9, now_ms=1000)
+        self.assertEqual(r["vault_names"], [])
+
 
 class TestFrameArchive(unittest.TestCase):
     """v735 — per-read frame hist for click-to-enlarge eyes-on-AI."""

@@ -510,6 +510,15 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Fix:** v684 — the floor mirrors every seed into the live `setPieces` (`_spSet.forEach(setPieces.add)`); mac-ladder toggles no longer write MAIN's shared `d2r_grailUnfound`.
 - **Prevention:** headless sim asserts in-memory === LS post-boot AND post-persist(); doctrine: a boot floor must mutate the LIVE structure, never only the store.
 
+## TV-NOTE-003 — 2026-07-17 · run #4 stash panel false-vaulted (no object permanence)
+- **Symptom:** looted Colossus Crossbow (+ Jewel) in Black Marsh; shared stash auto-vaulted
+  Blood Shield / Compendium / Unidentified; Crossbow never farmed; Jewel vaulted without floor SEEN.
+- **Caught by:** Konyo run #4 live + Grok bridge monitor, 2026-07-17.
+- **Root cause:** `_on_stash` committed every non-junk name on the panel (panel-greedy).
+- **Fix:** v738 — stash-commit requires SEEN/HOLDING/candidate; Unidentified hard-ban;
+  `stash-no-chain` / `skip-weak` tags.
+- **Prevention:** never vault from stash text alone; chain to floor or inv first.
+
 ## TV-NOTE-002 — 2026-07-16 · inv glimpse vaulted after ID→throw (commitment missing)
 - **Symptom:** open inventory briefly → 🏦 vault chip / farmed wire; drop junk after ID still
   counted as vaulted; Vault UI sometimes empty of that name; HIT badge read as “vaulted.”

@@ -85,6 +85,12 @@
 - **Junk filter:** potions/arrows never auto-vault.
 - **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
 
+### R22 · v738 — CHAIN VAULT (run #4: Colossus Crossbow + Jewel)
+- Stash no longer panel-greedy. Commit only SEEN / HOLDING / gone-candidate.
+- Never vault Unidentified. Blood Shield class → `stash-no-chain`.
+- Unit: floor Crossbow+pots → stash panel noise + Crossbow → only Crossbow vaults;
+  Jewel vaults only if floor-SEEN first.
+
 ### R21 · v735 — PER-READ FRAME HISTORY (Konyo: eyes on what the AI saw)
 - Archive each settle as ~1920 JPEG · `frameId` on every read · hist thumb · fullscreen lightbox.
 - `GET /frame?id=n_ts` · prune last 80 · agent offline → thumb says “frame offline”.

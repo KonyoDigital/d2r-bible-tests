@@ -31,6 +31,16 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-17 — Grok: v738 chain vault (run #4 Crossbow + Jewel)
+
+- **Live miss:** floor SEEN Colossus Crossbow; stash vaulted Blood Shield/Compendium/
+  Unidentified; Jewel vaulted without floor chain; Crossbow never farmed.
+- **Fix:** stash-commit ONLY if name is SEEN, HOLDING, or gone-candidate this session.
+  Hard-ban Unidentified; tag `stash-no-chain` / `skip-weak`. Inv hold→stash still works.
+- Suite **42/42** incl. run #4 scenario unit tests.
+
+---
+
 ## 2026-07-17 — Grok: v735 per-read frame history (eyes on the AI)
 
 - Each settle archives `tv/frames/hist/{n}_{ts}.jpg` (~1920 JPEG from the capture).

@@ -70,6 +70,7 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 | TV-B16 | **done** | SPEED v2 OCR fast lane (~10–50ms warm) + 250ms board poll | v732 — Claude deep remains |
 | TV-B17 | **done** | Stash-tab auto-intake (runes/gems/materials → locked tally) | v734 — once/visit; OCR never |
 | TV-B18 | **done** | Per-read frame history + fullscreen lightbox (~1920) | v735 — eyes on AI |
+| TV-B19 | **done** | Chain vault: stash only SEEN/HOLDING; ban Unidentified | v738 — run #4 Crossbow+Jewel |
 | TV-B7 | open | History: click chip → openDrop / vault card | UX polish |
 | TV-B8 | open | Multi-frame confirm (low-interest only) | |
 | TV-B9 | open | Shadow metrics (pile-to-chip p50) | |

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Autopilot scanner (v735)
+# 📺 TV DIABLO — Autopilot scanner (v738)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -98,7 +98,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v735",
+    "ver": "v738",
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -605,6 +605,10 @@ def _intent_for(scene):
 # floor SEEN → inv HOLDING (pending) → vault only after HOLD_MS still in bag OR town STASH
 # drop to floor again = THROW-OUT (cancel pending / reverse mistaken vault)
 # GONE alone never vaults. Junk never vaults. Anchors never vault.
+# ═══ v738 — RUN #4 FIX (Konyo: Colossus Crossbow + Jewel)
+# Stash panel must NOT vault random tooltip text (Blood Shield / Compendium / Unidentified).
+# Stash-commit ONLY if name was SEEN (floor), HOLDING (inv), or gone-candidate this session.
+# Never vault "Unidentified" / bare generics without a chain.
 try:
     HOLD_MS = max(5000, int(os.environ.get("TV_HOLD_MS", "30000")))  # 30s default hold
 except Exception:
@@ -615,6 +619,13 @@ _JUNK_SUBSTR = (
     "antidote potion", "thawing potion", "energy potion", "rancid", "bile", "gas potion",
     "arrows", "bolts", "quill", " gold",
 )
+# Bare / vision-fluff labels that must never auto-vault without a real identity chain
+_WEAK_EXACT = frozenset({
+    "jewel", "ring", "amulet", "shield", "armor", "sword", "bow", "helm", "boots",
+    "gloves", "belt", "item", "charm", "scrollof", "scroll", "tome", "key",
+    "superior", "ethereal", "unidentified", "unid", "great", "super", "greater",
+    "waypoint", "portal",
+})
 def _norm_name(n):
     s = str(n or "").strip().lower()
     if s.endswith(")") and "(" in s:
@@ -634,6 +645,29 @@ def _is_junk(n):
     if lo.endswith("gold") and any(c.isdigit() for c in lo):
         return True
     return any(j in lo for j in _JUNK_SUBSTR)
+
+def _is_never_vault(n):
+    """Hard ban — never farmed/vaulted even if 'seen' as label (run #4 Unidentified)."""
+    lo = _norm_name(n)
+    if not lo:
+        return True
+    if "unidentified" in lo or lo in ("unid", "unidentified item"):
+        return True
+    if lo in ("waypoint", "portal", "identify", "repair"):
+        return True
+    return False
+
+def _is_weak_name(n):
+    """Too generic alone — only stash-commits if already SEEN/HOLDING/candidate."""
+    lo = _norm_name(n)
+    if _is_never_vault(n):
+        return True
+    if lo in _WEAK_EXACT:
+        return True
+    # single short token with no space (e.g. OCR crumbs)
+    if " " not in lo and len(lo) < 5:
+        return True
+    return False
 
 def _area_key(a):
     return str(a or "").strip().lower()
@@ -694,9 +728,16 @@ class LootLifecycle:
         out["pending_names"] = [p["name"] for p in self.pending.values()]
         return out
 
+    def _has_chain(self, n):
+        """v738 — floor SEEN, inv HOLDING, or gone-candidate this session."""
+        k = _norm_name(n)
+        return bool(k) and (k in self.seen or k in self.pending or k in self.candidates)
+
     def _commit(self, n, reason, now_ms, out, tag=None):
         k = _norm_name(n)
-        if not k or _is_junk(n) or _is_anchor(n):
+        if not k or _is_junk(n) or _is_anchor(n) or _is_never_vault(n):
+            if _is_never_vault(n) and not _is_anchor(n) and not _is_junk(n):
+                out["lifecycle_tags"][n] = "skip-weak"
             return
         if k in self.vaulted:
             out["lifecycle_tags"][n] = "already-vaulted"
@@ -732,6 +773,9 @@ class LootLifecycle:
             if _is_anchor(n) or _is_junk(n):
                 if _is_junk(n):
                     out["lifecycle_tags"][n] = "junk"
+                continue
+            if _is_never_vault(n):
+                out["lifecycle_tags"][n] = "skip-weak"
                 continue
             k = _norm_name(n)
             if not k:
@@ -770,6 +814,9 @@ class LootLifecycle:
         if not k or k in self.vaulted:
             if k in self.vaulted:
                 out["lifecycle_tags"][n] = "already-vaulted"
+            return
+        if _is_never_vault(n):
+            out["lifecycle_tags"][n] = "skip-weak"
             return
         p = self.pending.get(k)
         if not p:
@@ -822,15 +869,18 @@ class LootLifecycle:
                 pass
 
     def _on_stash(self, names, area, conf, now_ms, out):
-        # Town stash = commitment — vault immediately (non-junk)
+        # v738 — stash-commit ONLY with object-permanence chain (SEEN / HOLDING / candidate).
+        # Panel-greedy vault of random shared-tab tooltips caused run #4 false farmed.
         out["anchor"] = "ok" if names else "missing"
-        town = _is_town_area(area) or True  # stash panel itself is commitment enough
         for n in names:
             if _is_anchor(n):
                 out["lifecycle_tags"][n] = "anchor"
                 continue
             if _is_junk(n):
                 out["lifecycle_tags"][n] = "junk"
+                continue
+            if _is_never_vault(n):
+                out["lifecycle_tags"][n] = "skip-weak"
                 continue
             k = _norm_name(n)
             if not k:
@@ -840,15 +890,20 @@ class LootLifecycle:
                 continue
             was_cand = k in self.candidates
             was_seen = k in self.seen
-            tag = "stash-commit"
+            was_pend = k in self.pending
+            if not (was_cand or was_seen or was_pend):
+                # no floor/inv provenance this session — do NOT vault (Blood Shield class)
+                out["lifecycle_tags"][n] = "stash-no-chain"
+                continue
             if was_cand:
                 tag = "seen→gone→stash"
+            elif was_pend:
+                tag = "holding→stash"
             elif was_seen:
                 tag = "seen→stash"
-            if town:
-                self._commit(n, "stash", now_ms, out, tag=tag)
             else:
-                self._track_pending(n, tag, now_ms, out)
+                tag = "stash-commit"
+            self._commit(n, "stash", now_ms, out, tag=tag)
 
 _LIFECYCLE = LootLifecycle()
 
@@ -1004,14 +1059,14 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v735 — per-read frame history · OCR · stash auto-intake")
+    print("📺 TV DIABLO Autopilot v738 — chain vault (SEEN/HOLD→stash) · frame hist · OCR")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
     print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
-    ev("boot", f"autopilot v735 — frame hist + OCR + stashTab · priority gap {PRIORITY_GAP_S}s")
+    ev("boot", f"autopilot v738 — chain vault + frame hist + OCR · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
             try:
