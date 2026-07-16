@@ -226,3 +226,12 @@ transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login 
 - Board suite 8/8 after every change. NEW: `.claude/agents/code-reviewer.md` +
   `.claude/agents/visual-coding-architect.md` — the repo's own review/design subagents, loaded
   with the doctrines + the actually-shipped bug classes.
+
+## 🏁 RUN #4 — the full upgraded stack, live (2026-07-17 early AM)
+✅ stash scene + anchors (Cube/TP Tome) · ✅ **materials STASH-INTAKE fired live** (frame → the
+locked tally, zero clicks — the last designed feature proven) · ✅ waypoint board read as area
+intel · ✅ clean pile reads 5.6–8.1s deep (Black Marsh: Colossus Crossbow spotted as a real elite
+base) · ✅ **lifecycle full loop: Blood Shield + Compendium auto-committed 🏦2 at the stash
+moment** (v731 semantics live) · ✅ OCR garble stayed agent-side — the board's honesty gate held.
+⏳ Still to observe live: runes/gems tab intake (materials proved the mechanism) · an in-game
+OCR vocab-HIT (deep lane kept winning the race this run — a good problem).
