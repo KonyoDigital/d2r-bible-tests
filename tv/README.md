@@ -20,6 +20,18 @@ at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
 
 ## Mac (Konyo)
 
+**One-word launcher** (like `claude` / `grok`) — installed at `~/.local/bin/tvd`:
+
+```bash
+tvd              # start live scanner (this terminal)
+tvd status       # ping bridge + last brain lines
+tvd restart      # kill :17771 + start fresh
+tvd stop         # stop agent
+tvd --test img   # one-shot vision check
+```
+
+Or the long form:
+
 ```bash
 python3 tv/tv_diablo.py
 ```

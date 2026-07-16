@@ -72,7 +72,8 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 ### Rules for TV work
 - **In scope:** `tv/**`, TV receiver in `bible.html`, `tests/v712_tv_board.spec.ts`, ledgers above.  
 - **Out of scope unless asked:** forge engines, vault photo intake, chronicles rewrite, settle loosening.  
-- **Auth:** subscription only — never burn API keys for vision.
+- **Auth:** subscription only — never burn API keys for vision.  
+- **Launch:** one-word `tvd` (`~/.local/bin/tvd`) — strips API keys, same as bare `python3 tv/tv_diablo.py`.
 
 ---
 
