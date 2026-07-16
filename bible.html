@@ -23310,13 +23310,13 @@ _v41_whenReady(() => {
     <p>The number after <code>1:</code> is the EXPECTED runs for ONE drop on average. <code>1:836</code> = 836 runs avg. At 50% confidence you'll typically need ~580 runs; at 95% you'll typically need ~2,500.</p>
   </div>
 </div>
-<div id="routine-status-bar" style="position:fixed;bottom:14px;right:14px;background:linear-gradient(180deg,rgba(20,12,4,.95),rgba(10,6,2,.9));border:1px solid var(--gold-bright);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:var(--fs-micro);color:var(--text);z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.6);max-width:280px;display:none">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-    <span style="color:var(--gold-bright);font-weight:700;letter-spacing:.8px">🤖 ROUTINES</span>
-    <span id="routine-status-summary" style="color:var(--gold-dim);font-size:9px">click letters to open Obsidian</span>
+<div id="routine-status-bar" style="position:fixed;bottom:14px;right:14px;background:linear-gradient(180deg,rgba(20,12,4,.95),rgba(10,6,2,.9));border:1px solid var(--gold-bright);border-radius:999px;padding:6px 14px;font-family:var(--mono);font-size:var(--fs-micro);color:var(--text);z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.6);display:none;align-items:center;gap:10px;white-space:nowrap">
+  <div style="display:flex;align-items:center;gap:8px" title="click a letter to open its routine in Obsidian · R toggles this bar">
+    <span style="color:var(--gold-bright);font-weight:700;letter-spacing:.8px;white-space:nowrap">🤖 ROUTINES</span>
+    <span id="routine-status-summary" style="color:var(--gold-dim);font-size:9px;white-space:nowrap"></span>
     <button onclick="document.getElementById('routine-status-bar').style.display='none'" style="margin-left:auto;background:none;border:none;color:var(--gold-dim);cursor:pointer;font-size:14px;padding:0">×</button>
   </div>
-  <div style="display:flex;gap:4px;flex-wrap:wrap" id="routine-letters">
+  <div style="display:flex;gap:4px;flex-wrap:nowrap" id="routine-letters">
     <span class="routine-letter" data-r="G" title="G · End-to-end audit (6h)">G</span>
     <span class="routine-letter" data-r="H" title="H · Item click sweep (12h)">H</span>
     <span class="routine-letter" data-r="I" title="I · Playwright suite (daily 9am)">I</span>
@@ -31528,6 +31528,10 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 /* v641 — routines widget ALIGNED: it collided with the bottom control dock and pulsed forever
    ("routines are jumping"). Park it above the dock, kill the infinite pulse. */
 #routine-status-bar{bottom:calc(var(--dock-h,64px) + 16px)!important;right:12px!important}
+#routine-status-bar[style*="display: block"],#routine-status-bar[style*="display:block"]{display:flex!important}   /* v737.2 — the show-code sets block; the pill is a one-line flex row */
+#routine-status-bar > div{margin-bottom:0!important}
+#routine-status-bar .routine-letter{white-space:nowrap}
+#routine-status-bar > div:last-child{display:none!important}   /* the 'Press R key' hint line — the pill's title carries it now */
 #routine-status-bar .routine-letter{animation:none!important}
 /* the first content section breathes right under the compact band */
 .tab-content{padding-top:10px!important}
