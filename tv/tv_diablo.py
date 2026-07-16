@@ -35,9 +35,9 @@ HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.path.join(HERE, "frames")
 STATE  = os.path.join(HERE, "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
-MIN_GAP_S    = 20     # never read more often than this
-SESSION_CAP  = 120    # hard stop for a whole session
-POLL_S       = 0.5    # capture cadence — eyes always open, half-second pulse (Konyo: "make it even half a second ;)")
+MIN_GAP_S    = 8      # v722 — warm reads are ~6s now; the 20s cooldown WAS the felt lag
+SESSION_CAP  = 240    # v722 — same budget discipline, sized for the faster cadence
+POLL_S       = 0.25   # v722 — quarter-second eyes (Konyo: faster)
 WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win.ps1
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
@@ -345,7 +345,7 @@ def claude_read(path):
 def main():
     os.makedirs(FRAMES, exist_ok=True)
     with _state_lock:
-        _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0})   # fresh — never inherit a stale sim flag
+        _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0, "cap": SESSION_CAP})   # fresh — never inherit a stale sim flag
     bridge()
     ev("boot", "scanner online — eyes at 0.5s, read-only, your subscription")
     if not os.environ.get("TV_STUB"):

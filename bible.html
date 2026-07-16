@@ -32616,7 +32616,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(rc){
         var msArr=(st.reads||[]).map(function(r){return r.ms||0;}).filter(Boolean);
         var avg=msArr.length?Math.round(msArr.reduce(function(a,b){return a+b;},0)/msArr.length/100)/10:0;
-        rc.textContent=(st.readCount||0)+' / 120'+(avg?(' \u00b7 '+avg+'s avg'):'');
+        rc.textContent=(st.readCount||0)+' / '+(st.cap||240)+(avg?(' \u00b7 '+avg+'s avg'):'');
       }
       // v710.6 — BRAIN LOG: append only unseen events, keep autoscroll pinned to the newest
       var lg=document.getElementById('tvb-log');

@@ -120,3 +120,10 @@ transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login 
 - Every signal-feed chip now carries `data-arttip` (the bible's universal hover card — odds ·
   bases · rarity) and `artUrl()` HD art with the in-game look. Runes resolve as '<X> Rune',
   base-suffixes stripped for uniques. Board spec still 2/2; screenshot-verified.
+
+### R12 · v722 — LATENCY RETUNE (Konyo's live feedback: floor pile read ~1min late)
+- Honest diagnosis: eyes were never the lag — the 20s READ COOLDOWN stacking with ~7s vision was.
+- POLL_S 0.5→0.25s (his ask, cheap) · **MIN_GAP_S 20→8s (the real lever)** · SESSION_CAP 120→240
+  (same discipline, sized for the cadence) · cap published in /state, meter reads it dynamically.
+- Expected feel: pause-on-pile → chip in ~10-16s worst case (was up to ~60s when gaps stacked).
+- Floor-vs-inventory is already distinguished per read (scene chip ⚔️ loot vs 🎒 inventory).
