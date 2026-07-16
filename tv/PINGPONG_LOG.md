@@ -167,3 +167,9 @@ transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login 
   (same discipline, sized for the cadence) · cap published in /state, meter reads it dynamically.
 - Expected feel: pause-on-pile → chip in ~10-16s worst case (was up to ~60s when gaps stacked).
 - Floor-vs-inventory is already distinguished per read (scene chip ⚔️ loot vs 🎒 inventory).
+
+### Live evidence — run #3b misread (2026-07-16 ~21:2x)
+- `inventory · Hazade [sonnet 6.1s]` — **Hazade is the mercenary/party name from the top-left
+  HP bars, not an item.** Prompt guard needed: party/merc/monster names from HP bars are NEVER
+  items. (Also pairs with the earlier waypoint-label-in-names miss — same class: non-item UI
+  text leaking into names.) Evidence-only bullet; fix rides the next prompt round.
