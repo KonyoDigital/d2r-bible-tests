@@ -189,3 +189,18 @@ stash on the next run.
 - Agent: `stashTab` in prompt + `_norm_stash_tab` + state records.
 - Board: `tvStashAutoIntake(tab)` fetches `/frame` → File → locked intake; visit debounce.
 - Specs: agent parse tests · board mock (once + OCR never).
+
+---
+
+## PERSONAL-TAB STASH INTAKE (Konyo's Worsuk's End miss, run #6 — 2026-07-17)
+
+Live gap: items placed in the stash WITHOUT a hover-pause are icons — invisible to the
+tooltip reader (Worsuk's End stashed at session end, never registered; Nagelring caught
+earlier only because he hovered it).
+
+The fix is the existing design extended: when TV-D sees scene=stash + stashTab=personal
+(or shared), hand the frame to the LOCKED VAULT PHOTO-INTAKE (the art-based reader that
+already identifies stash screenshots — v342 locate+crop machinery). Same per-visit debounce
+as runes/gems/materials. Icons become items; rushed end-of-run stashing catches everything.
+
+Owner: Grok codes · Fable gates · verify: stash something WITHOUT hovering, watch it register.
