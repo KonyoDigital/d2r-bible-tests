@@ -11,7 +11,9 @@ at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
    overlay, no injection. It is the manual stash-screenshot workflow, automated.
 2. **Subscription, not API keys.** Vision runs through the Claude Code CLI
    (`claude -p`) — billed to *your* Claude plan. Nothing metered, nothing to
-   rotate, nothing in the repo.
+   rotate, nothing in the repo. The agent **strips `ANTHROPIC_API_KEY` /
+   `ANTHROPIC_AUTH_TOKEN` from vision subprocesses** so a shell API key cannot
+   steal auth from your login (v720 / live run #2).
 3. **Frugal by design.** A read fires only when the screen *settles* (you
    stopped moving = you're reading items). Hard caps: ≥20s between reads,
    120 reads/session.
@@ -63,7 +65,11 @@ the app and authenticate their *own* Claude — the Claude Agent SDK supports
 exactly this bring-your-own-Claude model.
 
 ## Last live verdict
-- **2026-07-15 run #1**: capture ✓ · settle ✓ (fired exactly at pauses) · bridge ✓ · board ✓ ·
-  vision ✗ (16MB BMP → 180s timeouts). Fixed same night: JPEG transport + persistent worker.
-- **Next run**: expect `⚡ boot` → `vision warm — session ready in Ns` → warm reads ~2–10s.
-  Update this line after each live session.
+- **2026-07-15 run #1**: capture ✓ · settle ✓ · bridge ✓ · board ✓ ·
+  vision ✗ (16MB BMP → 180s timeouts). Fixed: JPEG transport + persistent worker.
+- **2026-07-16 run #2** (v719.2 live): capture ✓ · settle ✓ · transport ✓ (391KB JPEG) ·
+  `--strict-mcp-config` ✓ · vision still ✗ (warm + oneshot 90s empty). **Root cause:**
+  shell `ANTHROPIC_API_KEY` forced API auth over subscription login → hangs.
+  **v720 fix:** strip API-key env on every vision spawn; probe: text ~7s, image ~21s
+  with key stripped. Expect brain: `vision auth: stripped ANTHROPIC_API_KEY` then
+  `vision warm — session ready in Ns`.

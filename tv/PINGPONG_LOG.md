@@ -2,11 +2,10 @@
 
 > The public round-by-round ledger of the TV-specific pingpong run (Konyo's order:
 > "full TDD and test suites + ping-pong upgrades — ship at least 10 versions,
-> end-to-end, verified in between"). **Fable ships rounds here. Grok is read-only
-> on product code but WRITES the `## GROK INSIGHTS` section** so Fable has a
-> live worklist while editing. Constraint stack: read-only scanner · player's
-> own Claude subscription · Sonnet for reads · chronicles/engines untouched ·
-> no fabrication.
+> end-to-end, verified in between"). **Ownership (2026-07-16):** Grok owns the
+> **TV-KAI surface only** (`tv/**` agent + this ledger + TV README). Bible/forge/
+> chronicles stay untouched. Constraint stack: read-only scanner · player's own
+> Claude subscription · Sonnet for reads · no fabrication.
 
 ## State entering the night (v710.6b)
 - Live run #1 verdict: capture ✓ · settle detector ✓ (fired exactly at pauses) ·
@@ -31,39 +30,29 @@
 
 ---
 
-## GROK INSIGHTS (read-only · for Fable · refreshed as Grok re-reads)
+## GROK OWNERSHIP LOG (TV-only · ships code in `tv/**`)
 
-> Grok does **not** edit `tv_diablo.py` / `bible.html` / capture scripts.
-> Fable owns the ship. When a bullet is done, mark it `✅` in the round commit
-> and leave a one-liner under that round; Grok will re-scan and refresh this block.
+### R11 · v720 — auth path: strip shell API key (live run #2 root cause) ✅ suite 18/18
+- **Run #2 (v719.2, 2026-07-16 ~19:49 IDT):** agent fresh, transport OK (`read.jpg` 391KB),
+  child had `--strict-mcp-config`, settle fired — but warm “didn't answer” and oneshot hit
+  90s `cap` → honest-empty reads. Not a JPEG problem anymore.
+- **Root cause:** shell `ANTHROPIC_API_KEY` makes headless `claude -p` prefer API auth over
+  Claude subscription login. Probe: **with key → 40s timeout empty**; **key stripped →
+  text `pong` in ~7s, image read JSON in ~21s**.
+- **Fix:** `_claude_env()` strips `ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN` for worker
+  spawn and oneshot; one-time brain `vision auth: stripped …`. Parent shell unchanged.
+- **Tests:** `TestClaudeEnv` (strip / no-strip) → suite **18/18**.
+- **Scope:** `tv/tv_diablo.py`, `tv/test_agent.py`, `tv/README.md`, this ledger only.
+  No bible / forge / chronicles.
 
-### Sync snapshot (Grok re-scan @ 2026-07-15 23:15 IDT · HEAD `780c9f9` / v719.1 · origin `780c9f9` via `ls-remote`)
-- **no delta on git** — still v719.1; suite **16/16**; `D2R_BUILD` still **v716**; README still run #1 only.
-- **Live still broken (ops, not missing commits):** agent PID **98261** started **22:51** (pre-v719.1). Child `claude -p` lines **lack `--strict-mcp-config`** (verified on live PIDs). Disk `state.json` still **poisoned** (`startedAt:1` + stub Pit loot) while in-memory brain log shows **8 consecutive** settle → worker death → **90s oneshot timeout** → empty `gameplay` cycles; beat `reading` on read #8. JPEG transport still OK (303KB).
-
-### Live status (unchanged P0 — escalate)
-1. **RESTART AGENT NOW** — v719.1 on disk is useless while 22:51 process runs. After restart, `ps` must show `--strict-mcp-config` on warm + oneshot children.
-2. **Fullscreen D2R** before any settle (run #2 captured bible Chrome).
-3. Expect after restart: `vision warm — session ready in Ns` (not “didn't answer”). If warm still fails *with* strict-mcp, escalate past MCP theory.
-4. Log README run #2 truth + R11 ledger notes (v719/v719.1 commits have no round section yet).
-5. Stamp badge → v719.1+ when writing up.
-
-### Closed (commits — same as prior scan)
-- ✅ v719 focus/visibility re-poll · ✅ v719.1 `--strict-mcp-config` · ✅ R6–R10 stack
-
-### P1 — Fable (still open)
-- State poison guard (`startedAt:1` / stub names must never win over live events)
-- Argv unit test for `--strict-mcp-config`
-- Optional: agent prints build/mtime or git sha at boot so stale process is obvious in brain log
+### Live success criteria (run #3 after v720 restart)
+1. Brain shows `vision auth: stripped ANTHROPIC_API_KEY` (if key present in shell).
+2. `vision warm — session ready in Ns` (not “warm-up didn't answer”).
+3. On settle: read with `mode=warm` (or oneshot) and real `ms` > 0 — not 90s cap empty.
+4. Fullscreen D2R when validating area/names (desktop screenshots honestly return empty).
 
 ### Explicit non-goals (unchanged)
-- No forge engines · no API keys · no fabricated names · don’t loosen settle.
-
-### Suggested next shape
-**No more features until restart + one warm read.** Then **v720**: stamp · state guard · boot-sha brain line · README run #2/#3.
-
-### Grok’s next move
-Next scan: closed only if agent `lstart` ≥ 22:58 **and** a child argv contains `strict-mcp-config` **and** a warm/boot event is not “didn't answer”.
+- No forge engines · no fabricated names · don’t loosen settle · don’t touch bible.html.
 
 ### R2 · v712 — stub solid + board TDD + build-stamp sync ✅ (Grok P0-1 ✅ · P0-2 was stale-scan, origin already current ✅ · P0-3 ✅ · P1-5/6/7/8 ✅ · P2-9/10 ✅)
 - `tv/stub_manifest.json` COMMITTED (P0-1) — plus the test that used to `os.remove` it now backs-up/restores (a TDD catch on the tests themselves).

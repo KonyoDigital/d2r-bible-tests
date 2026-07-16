@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — the live game-screen scanner (v710)
+# 📺 TV DIABLO — the live game-screen scanner (v720)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -185,16 +185,37 @@ def _readable_frame(ap):
 # (tests run a fake bin that speaks stream-json).
 CLAUDE_BIN = os.environ.get("TV_CLAUDE_BIN", "claude")
 WORKER_MAX_TURNS = 8
+
+# v720 — AUTH PATH FIX (live run #2): if ANTHROPIC_API_KEY (or sibling API tokens) is set in
+# the shell, every headless `claude -p` prefers that key over the user's Claude subscription
+# login. A dead/rate-limited key hangs past 40–90s with empty stdout — exactly run #2's
+# warm + oneshot timeouts. Strip API-key auth so vision rides the *logged-in* claude plan
+# (the product contract: "your subscription, not API keys"). Keep OAuth tokens if present.
+_API_AUTH_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+def _claude_env():
+    """Env for vision subprocesses: subscription login, not shell API keys."""
+    env = os.environ.copy()
+    stripped = [k for k in _API_AUTH_ENV if env.pop(k, None) is not None]
+    return env, stripped
+
+def _log_auth_once(stripped):
+    if not stripped or globals().get("_AUTH_LOGGED"):
+        return
+    globals()["_AUTH_LOGGED"] = True
+    ev("boot", f"vision auth: stripped {','.join(stripped)} — using Claude subscription login")
+
 class VisionWorker:
     def __init__(self):
         self.p = None; self.q = None; self.turns = 0
     def _spawn(self):
         import queue
+        env, stripped = _claude_env()
+        _log_auth_once(stripped)
         self.p = subprocess.Popen(
             [CLAUDE_BIN, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
              "--verbose", "--model", "sonnet", "--allowedTools", "Read", "--strict-mcp-config"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, bufsize=1)
+            text=True, bufsize=1, env=env)
         self.q = queue.Queue(); self.turns = 0
         def _pump(proc, q):
             try:
@@ -288,12 +309,15 @@ def claude_read(path):
         ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
         _rewarm()   # v718 (Grok R10 pick #2): fallback never permanently demotes the session
     try:
+        env, stripped = _claude_env()
+        _log_auth_once(stripped)
         r = subprocess.run(
             [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
              "--model", "sonnet", "--allowedTools", "Read", "--output-format", "text",
              "--strict-mcp-config"],   # v719.1 — SKIP the user's MCP servers: dead ones (old gateways,
                                        # browser bridges) stall EVERY headless spawn — the real 90s hang
-            capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL)
+                                       # v720 — also strip ANTHROPIC_API_KEY (see _claude_env)
+            capture_output=True, text=True, timeout=90, stdin=subprocess.DEVNULL, env=env)
         out = (r.stdout or "").strip()
         # tolerate markdown fences / preamble around the JSON object
         a, b = out.find("{"), out.rfind("}")

@@ -157,6 +157,42 @@ class TestStubE2E(unittest.TestCase):
             del os.environ["TV_STUB"]
 
 
+class TestClaudeEnv(unittest.TestCase):
+    """v720 — vision must ride the Claude subscription, not a shell API key."""
+    def test_strips_api_key_keeps_other_env(self):
+        prev = os.environ.get("ANTHROPIC_API_KEY")
+        prev_t = os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-test-should-not-leak"
+        os.environ["ANTHROPIC_AUTH_TOKEN"] = "token-should-not-leak"
+        os.environ["TV_PROBE_KEEP"] = "1"
+        try:
+            env, stripped = tv._claude_env()
+            self.assertIn("ANTHROPIC_API_KEY", stripped)
+            self.assertIn("ANTHROPIC_AUTH_TOKEN", stripped)
+            self.assertNotIn("ANTHROPIC_API_KEY", env)
+            self.assertNotIn("ANTHROPIC_AUTH_TOKEN", env)
+            self.assertEqual(env.get("TV_PROBE_KEEP"), "1")
+            # parent shell env must remain untouched (caller owns their shell)
+            self.assertEqual(os.environ.get("ANTHROPIC_API_KEY"), "sk-ant-test-should-not-leak")
+        finally:
+            if prev is None: os.environ.pop("ANTHROPIC_API_KEY", None)
+            else: os.environ["ANTHROPIC_API_KEY"] = prev
+            if prev_t is None: os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
+            else: os.environ["ANTHROPIC_AUTH_TOKEN"] = prev_t
+            os.environ.pop("TV_PROBE_KEEP", None)
+
+    def test_no_strip_when_unset(self):
+        prev = os.environ.pop("ANTHROPIC_API_KEY", None)
+        prev_t = os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
+        try:
+            env, stripped = tv._claude_env()
+            self.assertEqual(stripped, [])
+            self.assertNotIn("ANTHROPIC_API_KEY", env)
+        finally:
+            if prev is not None: os.environ["ANTHROPIC_API_KEY"] = prev
+            if prev_t is not None: os.environ["ANTHROPIC_AUTH_TOKEN"] = prev_t
+
+
 class TestVisionWorker(unittest.TestCase):
     """v713 — the persistent worker against the fake claude bin (TV_CLAUDE_BIN seam)."""
     def setUp(self):
