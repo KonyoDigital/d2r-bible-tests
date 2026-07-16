@@ -115,3 +115,8 @@ Full pipeline proven in production: capture → settle → JPEG → warm session
 bridge → board → route chips. Three root causes across two live runs, all fixed and shipped:
 transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login auth (v720, GROK
 — his catch, his code, Fable gated 18/18)**. The pingpong triangle delivered.
+
+### R11 · v721 — chips join the DATABASE + HD art ✅ (Konyo, live during his first real session)
+- Every signal-feed chip now carries `data-arttip` (the bible's universal hover card — odds ·
+  bases · rarity) and `artUrl()` HD art with the in-game look. Runes resolve as '<X> Rune',
+  base-suffixes stripped for uniques. Board spec still 2/2; screenshot-verified.

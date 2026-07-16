@@ -31455,6 +31455,8 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-read-ts{font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-dim);margin-bottom:4px}
 .tvd-where{color:var(--acc-intel);font-weight:700}
 .tvd-chip{display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0;padding:2px 9px;border:1px solid var(--border-light);border-radius:999px;font-size:var(--fs-meta)}
+.tvd-chip .tvc-art{width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7));margin-right:2px}
+.tvd-chip[data-arttip]{cursor:help}
 .tvd-chip .tc-apply{cursor:pointer;color:var(--acc-done);font-weight:800}
 .tvd-chip .tc-apply:hover{text-shadow:0 0 6px rgba(102,255,136,.7)}
 .tvd-chip.tc-done{opacity:.55;border-style:dashed}
@@ -32451,7 +32453,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v716', name:'TV Night', date:'2026-07-16', note:'🏓 TV pingpong night R1-R2: TDD foundation (TV_STUB seam · 12 agent unittests · mock-bridge board specs) · live-run fix verified in code (BMP→JPEG vision, 90s fail-fast) · brain log · Grok co-pilots via tv/PINGPONG_LOG.md' };
+  window.D2R_BUILD = { id:'v721', name:'TV Night', date:'2026-07-16', note:'🏓 TV pingpong night R1-R2: TDD foundation (TV_STUB seam · 12 agent unittests · mock-bridge board specs) · live-run fix verified in code (BMP→JPEG vision, 90s fail-fast) · brain log · Grok co-pilots via tv/PINGPONG_LOG.md' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32547,12 +32549,27 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   window._tvdApplyAll=function(btn){
     try { var box=btn.closest('.tvd-read'); if(box) box.querySelectorAll('.tvd-chip:not(.tc-done):not(.tc-note) .tc-apply').forEach(function(a){ a.click(); }); } catch(e){}
   };
+  // v721 — chips CONNECT to the database: data-arttip = the same hover card every other surface
+  // uses (odds · bases · rarity), and artUrl() = the HD art so items look REAL in the feed.
+  function chipArt(x){
+    try {
+      var clean=String(x.key||'').replace(/\s*\([^)]+\)\s*$/,'');
+      if(x.kind==='rune') clean=x.key+' Rune';
+      var u=(typeof artUrl==='function')?artUrl(clean):'';
+      return u?'<img class="tvc-art" src="'+escAttr(u)+'" alt="" loading="lazy" onerror="this.remove()">':'';
+    } catch(e){ return ''; }
+  }
+  function chipTip(x){
+    var clean=String(x.key||'').replace(/\s*\([^)]+\)\s*$/,'');
+    if(x.kind==='rune') clean=x.key+' Rune';
+    return ' data-arttip="'+escAttr(clean)+'"';
+  }
   function feedHtml(cap){
     return '<div class="tvd-feed">'+FEED.slice(-cap).reverse().map(function(r){
       var chips=r.routes.map(function(x){
-        if(x.kind==='note') return '<span class="tvd-chip tc-note" title="read but not a tracked name — runes/uniques/sets/gems auto-route">'+x.label+'</span>';
-        if(x.done) return '<span class="tvd-chip tc-done" title="already in your chronicle">'+x.label+' ✓</span>';
-        return '<span class="tvd-chip">'+x.label+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
+        if(x.kind==='note') return '<span class="tvd-chip tc-note"'+chipTip(x)+' title="read but not a tracked name — runes/uniques/sets/gems auto-route">'+chipArt(x)+x.label+'</span>';
+        if(x.done) return '<span class="tvd-chip tc-done"'+chipTip(x)+' title="already in your chronicle">'+chipArt(x)+x.label+' ✓</span>';
+        return '<span class="tvd-chip"'+chipTip(x)+'>'+chipArt(x)+x.label+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
       }).join('');
       var applyable=r.routes.some(function(x){ return x.kind!=='note' && !x.done; });
       var sceneIco={town:'🏘',loot:'⚔️',inventory:'🎒',stash:'🏦',gameplay:'🌫'}[r.scene]||'';
