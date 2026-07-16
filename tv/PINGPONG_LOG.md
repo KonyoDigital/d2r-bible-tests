@@ -263,3 +263,9 @@ page load carries it).
 ✅ Chaos Sanctuary area-tracked · piles 6.0-6.4s deep · holding reads (Breast Plate · Gladius ·
 Diamond Bow) · materials STASH-INTAKE re-fired on the post-run stash visit (per-visit debounce
 correct). No uniques dropped (RNG, not the scanner). System is routine now — runs just work.
+
+## RUN #6 — Baal run (2026-07-17 ~04:00)
+✅ Full run narrated: Throne of Destruction piles (6.3-8.1s) → 👑 Worldstone Chamber drop read
+(Barbed Shield · Legendary Mallet · Flawless Diamond · Small Charm) → pickup (holding) →
+stash return + materials auto-tally. Area tracking followed the whole route. Six live runs:
+the scanner is a daily-driver now.
