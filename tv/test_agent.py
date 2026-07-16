@@ -157,6 +157,19 @@ class TestStubE2E(unittest.TestCase):
             del os.environ["TV_STUB"]
 
 
+class TestAutopilotInterest(unittest.TestCase):
+    """v727 — Tesla-style interest: hard motion → stop scores high."""
+    def test_hard_motion_priority_is_high(self):
+        lo = tv.ap_interest(peak=0.02, stable_ticks=0, priority=False, empty_streak=0, named_recent=False)
+        hi = tv.ap_interest(peak=0.20, stable_ticks=1, priority=True, empty_streak=0, named_recent=False)
+        self.assertGreater(hi, 0.7)
+        self.assertGreater(hi, lo)
+
+    def test_empty_streak_never_zeros_interest(self):
+        s = tv.ap_interest(peak=0.20, stable_ticks=1, priority=True, empty_streak=10, named_recent=False)
+        self.assertGreater(s, 0.5)
+
+
 class TestIntentAndEscalate(unittest.TestCase):
     """v723 — floor=seen / inv-stash=farmed · haiku→sonnet escalate gates."""
     def test_intent_lifecycle(self):

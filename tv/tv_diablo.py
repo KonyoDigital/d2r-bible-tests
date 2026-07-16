@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — the live game-screen scanner (v723)
+# 📺 TV DIABLO — Autopilot scanner (v727)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -35,12 +35,15 @@ HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.path.join(HERE, "frames")
 STATE  = os.path.join(HERE, "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
-MIN_GAP_S    = 6      # v725/v726 — sonnet warm ~6–10s; keep gap under felt lag
-# v726 — REMOVED empty-gameplay 20s cool: it delayed real pile/inv stops after any combat pause.
-# Thrash control stays: same-view skip + MIN_GAP only.
-SESSION_CAP  = 240    # v722 — same budget discipline, sized for the faster cadence
-POLL_S       = 0.25   # v722 — quarter-second eyes (Konyo: faster)
-WATCH_MODE   = "--watch" in sys.argv   # Windows: frames arrive from capture_win.ps1
+MIN_GAP_S    = 6      # baseline gap between vision fires
+PRIORITY_GAP_S = 2.5  # v727 Autopilot: after HARD motion then settle → near-instant eyes
+# v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
+SESSION_CAP  = 240
+POLL_S       = 0.25
+WATCH_MODE   = "--watch" in sys.argv
+# v727 — motion “wow” threshold: walking/panel open swings past this
+MOTION_PEAK  = 0.12
+SETTLE       = 0.03
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
 # coded to flag farming when not in town — the corner always shows where we are on the map").
@@ -87,6 +90,18 @@ def _save(st):
 
 _BEAT = {"ts": 0, "phase": "idle", "motion": 0.0}
 _EVENTS = []
+# v727 Autopilot HUD — continuous driver state (Tesla stack, screen edition)
+_AP = {
+    "mode": "boot",          # boot|drive|hunt|settle|read|load
+    "interest": 0.0,         # 0–1 how badly we want a vision fire
+    "peak": 0.0,             # recent max motion (hunting for a stop)
+    "priority": False,       # next settle uses short gap
+    "emptyStreak": 0,
+    "namedStreak": 0,
+    "lastNamed": "",
+    "gap": MIN_GAP_S,
+    "ver": "v727",
+}
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
     (in-memory ring like the beat; /state merges it — no disk churn)."""
@@ -96,6 +111,18 @@ def beat(phase, motion):
     """v710.4 — the LIVE pulse, IN MEMORY only (Grok audit: rewriting state.json twice a
     second thrashed disk + the lock). /state merges it at request time; reads still persist."""
     _BEAT["ts"] = int(time.time()*1000); _BEAT["phase"] = phase; _BEAT["motion"] = round(float(motion), 3)
+    _AP["mode"] = {"loading": "load", "watching": "drive", "reading": "read"}.get(phase, phase)
+
+def ap_interest(peak, stable_ticks, priority, empty_streak, named_recent):
+    """0–1 score: hard motion → stop is the 'money moment' (pile / panel)."""
+    s = 0.15
+    if peak >= MOTION_PEAK: s += 0.45
+    elif peak >= 0.06: s += 0.2
+    if priority: s += 0.25
+    if named_recent: s += 0.1
+    if empty_streak >= 3: s -= 0.08   # slight downrank only — never blocks
+    if stable_ticks >= 1: s += 0.1
+    return max(0.0, min(1.0, s))
 
 def bridge():
     """localhost bridge the bible polls. GET /state → JSON. CORS: any origin may READ."""
@@ -110,7 +137,8 @@ def bridge():
         def do_GET(self):
             if self.path.startswith("/state"):
                 with _state_lock:
-                    st = _load(); st["online"] = True; st["now"] = int(time.time()*1000); st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS)
+                    st = _load(); st["online"] = True; st["now"] = int(time.time()*1000)
+                    st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
                 self._hdr(); self.wfile.write(json.dumps(st).encode())
             elif self.path.startswith("/ping"):
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
@@ -473,14 +501,19 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO — live scanner (read-only · your Claude subscription · no API keys)")
+    print("📺 TV DIABLO Autopilot v727 — continuous eyes · smart when-to-read · subscription")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
-    print(f"   models: fast={FAST_MODEL} · genius escalate={GENIUS_MODEL} (cap {ESCALATE_CAP}/session)")
-    print("   tip: run D2R fullscreen so the menu-bar clock doesn't keep the frame 'moving'")
-    print("   in the bible: ⚡ session → 📺 TV DIABLO → flip the switch. Ctrl-C to stop.\n")
+    print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
+    print("   tip: fullscreen D2R · stop on piles / open stash — Autopilot prioritizes hard-motion→stop")
+    print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
+    ev("boot", f"autopilot v727 — interest scorer · priority gap {PRIORITY_GAP_S}s after hard motion")
 
     frame = os.path.join(FRAMES, "live.bmp")
     last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, 0.0, 0
+    peak = 0.0            # recent max motion while hunting
+    priority = False      # hard motion seen since last read → short gap + 1-tick settle
+    empty_streak = 0
+    named_until = 0.0     # boost interest after a named hit
     while True:
         time.sleep(POLL_S)
         if WATCH_MODE:
@@ -497,49 +530,91 @@ def main():
             continue
         try: cur = frame_sig(frame)
         except Exception: continue
-        SETTLE = 0.03   # ≤3% of sampled pixels moving = you stopped to look (ambient animation rides under this)
         motion = sig_diff(cur, last_md5)
         # loading screens between zones are static + near-black — they settle but hold nothing readable
         if sum(cur) / max(1, len(cur)) < 14:
             if _BEAT["phase"] != "loading": ev("skip", "near-black frame (loading screen) — not worth a read")
-            beat("loading", motion); last_md5 = cur; continue
-        beat("watching", motion)
-        stable = stable + 1 if motion <= SETTLE else 0
+            beat("loading", motion); last_md5 = cur; peak = 0.0; stable = 0
+            _AP.update({"mode": "load", "interest": 0.0, "peak": 0.0}); continue
+        # L2 prediction: track motion peaks (drive → stop is the pile/panel moment)
+        if motion > peak: peak = motion
+        if motion >= MOTION_PEAK:
+            priority = True
+            if _AP.get("mode") != "hunt":
+                _AP["mode"] = "hunt"
+        named_recent = time.time() < named_until
+        interest = ap_interest(peak, stable, priority, empty_streak, named_recent)
+        _AP.update({"interest": round(interest, 3), "peak": round(peak, 3), "priority": priority,
+                    "emptyStreak": empty_streak, "gap": PRIORITY_GAP_S if priority else MIN_GAP_S})
+        beat("watching" if motion > SETTLE else "watching", motion)
+        if motion > SETTLE:
+            stable = 0
+            last_md5 = cur
+            if priority: _AP["mode"] = "hunt"
+            else: _AP["mode"] = "drive"
+            continue
+        stable = stable + 1
         last_md5 = cur
-        # STABLE: two consecutive settled captures (stable==1 on the second) = a read-worthy moment
-        if stable != 1:
+        # Adaptive settle: priority (hard motion→stop) fires on first stable tick;
+        # low-interest needs 2 stable ticks (filters ambient flicker without 20s cools)
+        need_ticks = 1 if (priority or interest >= 0.55) else 2
+        if stable < need_ticks:
+            _AP["mode"] = "settle"
             continue
         if sig_diff(cur, last_sent_md5) <= SETTLE:
-            ev("skip", "settled, but same view I already read — waiting for something new"); continue
-        if time.time() - last_read_t < MIN_GAP_S:
-            ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since the last read (gap {MIN_GAP_S}s)"); continue
+            # same view — reset peak so we don't stay priority forever on one freeze
+            if stable == need_ticks:
+                ev("skip", "settled, but same view I already read — waiting for something new")
+            peak = max(0.0, peak * 0.5)
+            continue
+        gap = PRIORITY_GAP_S if priority else MIN_GAP_S
+        if time.time() - last_read_t < gap:
+            if stable == need_ticks:
+                ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since last read (gap {gap}s · {'PRIORITY' if priority else 'cruise'})")
+            continue
         if reads >= SESSION_CAP:
             ev("cap", f"session cap {SESSION_CAP} reached — restart to continue")
             print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
-        print(f"  👁 screen settled — reading ({reads}/{SESSION_CAP}) …")
-        ev("settle", f"screen settled — something to look at. Vision read #{reads} firing")
+        ptag = "⚡PRIORITY " if priority else ""
+        print(f"  👁 {ptag}screen settled — reading ({reads}/{SESSION_CAP}) interest={interest:.2f} …")
+        ev("settle", f"{ptag}settle · interest {interest:.2f} · peak {peak:.2f} · Vision read #{reads}")
         beat("reading", 0.0)
+        _AP["mode"] = "read"
+        used_priority = priority
+        peak = 0.0
+        priority = False
         rd = claude_read(frame)
-        beat("watching", 0.0)   # pulse resumes immediately — the CRT verb never sticks on READING after a slow/failed read
+        beat("watching", 0.0)
         names = rd["names"]
         intent = rd.get("intent") or _intent_for(rd.get("scene"))
+        if names:
+            empty_streak = 0
+            named_until = time.time() + 45
+            _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+            _AP["lastNamed"] = ", ".join(names[:4])
+        else:
+            empty_streak += 1
+            _AP["namedStreak"] = 0
+        _AP["emptyStreak"] = empty_streak
         tag = ("🛍 farmed" if intent == "farmed" else "👁 seen" if intent == "seen" else "·")
         model_tag = rd.get("model") or FAST_MODEL
         esc = " ⬆genius" if rd.get("escalated") else ""
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + (" ["+rd.get("mode","?")+" "+model_tag+esc+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
-        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}  [{model_tag}{esc}]")
+        pri = " ⚡" if used_priority else ""
+        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
+        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}  [{model_tag}{esc}{pri}]")
         with _state_lock:
             st = _load()
             st.setdefault("seen", []); st.setdefault("farmed", [])
             rec = {"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"],
                    "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
-                   "model": model_tag, "conf": rd.get("conf"), "intent": intent, "escalated": bool(rd.get("escalated"))}
+                   "model": model_tag, "conf": rd.get("conf"), "intent": intent, "escalated": bool(rd.get("escalated")),
+                   "interest": interest, "priority": used_priority}
             st["reads"].append(rec)
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
-            # lifecycle rings (session truth) — floor seen ≠ farmed until inv/stash confirms
+            st["ap"] = dict(_AP)
             def _push(arr, name, extra):
                 arr.append({"ts": rec["ts"], "name": name, "area": rd.get("area") or "", **extra})
                 del arr[:-200]
@@ -548,7 +623,6 @@ def main():
                     _push(st["seen"], nm, {"scene": "loot"})
             elif intent == "farmed":
                 for nm in names:
-                    # promote: drop matching pending floor-seen entries for the same name
                     st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
                     _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory"})
             _save(st)

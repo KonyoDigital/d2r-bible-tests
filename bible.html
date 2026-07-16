@@ -7292,6 +7292,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       </span>
       <div class="tvb-meters">
         <div class="tvb-m tvb-m-wide"><span class="tvb-ml">MOTION</span><span class="tvb-bar"><i id="tvb-motion"></i></span></div>
+        <div class="tvb-m tvb-m-wide"><span class="tvb-ml">⚡ INTEREST</span><span class="tvb-bar"><i id="tvb-interest" style="background:linear-gradient(90deg,#39a0c9,#b7ecc4)"></i></span></div>
+        <div class="tvb-m"><span class="tvb-ml">AP</span><b id="tvb-ap">—</b></div>
         <div class="tvb-m"><span class="tvb-ml">READS</span><b id="tvb-reads">0</b></div>
         <div class="tvb-m"><span class="tvb-ml">🗺 AREA</span><b id="tvb-area">—</b></div>
         <div class="tvb-m"><span class="tvb-ml">SCENE</span><b id="tvb-scene">—</b></div>
@@ -32868,10 +32870,21 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     try {
       var bt=st.beat||{}, fresh=bt.ts&&(st.now-bt.ts)<6000;
       var bar=document.getElementById('tvb-motion'); if(bar) bar.style.width=Math.round(Math.min(1,(bt.motion||0)/0.25)*100)+'%';
+      // v727 Autopilot HUD — interest + mode (Tesla-style stack)
+      var ap=st.ap||{};
+      var ib=document.getElementById('tvb-interest'); if(ib) ib.style.width=Math.round(Math.min(1,+(ap.interest||0))*100)+'%';
+      var apEl=document.getElementById('tvb-ap');
+      if(apEl){
+        var md=ap.mode||'—';
+        var pri=ap.priority?' ⚡':'';
+        apEl.textContent=(md+pri).toUpperCase();
+        apEl.title='interest '+(ap.interest!=null?ap.interest:'—')+' · peak '+(ap.peak!=null?ap.peak:'—')+' · gap '+(ap.gap!=null?ap.gap+'s':'—')+(ap.lastNamed?(' · last: '+ap.lastNamed):'');
+      }
       var scr=document.getElementById('tvb-screen'), v=document.getElementById('tvb-verb');
       if(scr&&scr.classList.contains('tvb-live')){
         scr.classList.toggle('tvb-reading', !!(fresh&&bt.phase==='reading'));
-        if(v) v.textContent = !fresh?'👁 WATCHING':bt.phase==='reading'?'🧠 READING…':bt.phase==='loading'?'⏳ ZONE LOADING':'👁 WATCHING';
+        var apMode=ap.mode||'';
+        if(v) v.textContent = !fresh?'👁 WATCHING':bt.phase==='reading'?'🧠 READING…':bt.phase==='loading'?'⏳ ZONE LOADING':apMode==='hunt'?'⚡ HUNTING STOP…':apMode==='settle'?'🎯 SETTLING…':'👁 WATCHING';
       }
       var rc=document.getElementById('tvb-reads');
       if(rc){

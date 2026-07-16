@@ -39,6 +39,15 @@
 
 ---
 
+## 2026-07-16 — Grok: v727 Autopilot core (Tesla-style when-to-read)
+
+- Continuous interest scorer: hard motion → stop = PRIORITY (gap **2.5s**, 1-tick settle).
+- Cruise: gap 6s · 2-tick settle for low interest (no 20s cool).
+- `/state.ap` + board INTEREST/AP meters. Roadmap: `tv/PLAN_FSD.md`.
+- Suite **24/24** agent. Sonnet default unchanged.
+
+---
+
 ---
 
 ## 2026-07-16 — Grok: v725 TV speed flip (run #3)
