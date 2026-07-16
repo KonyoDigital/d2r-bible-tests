@@ -27735,9 +27735,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(name);
+      // v739 — UNIVERSE GUARANTEE: anything TV registers must be drawable by the Vault Manager.
+      // Unknown names (RotW customs like 'Blood Shield' / 'Compendium') get a minimal reference
+      // entry (the v298 EXTRA_ITEMS mechanism) so the mirror NEVER has invisible items.
+      try {
+        var _known = (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === name; }))
+          || (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]);
+        if (!_known && typeof EXTRA_ITEMS !== 'undefined'){
+          EXTRA_ITEMS[name] = { rarity:'basic', base:name, cat:'📺 TV-vaulted', val:'tv',
+            desc:'registered live by TV DIABLO — physically in your stash' };
+        }
+      } catch(e){}
       var sg = null;
       try { sg = suggestMule(name); } catch(e){}
       if (sg && sg.id === '__throwout'){
+        // v739 — THE VAULT IS A MIRROR, NOT AN OPINION (Konyo: 'in my stash = it counts, period';
+        // 3 runs of stashed items silently vanishing because the planner said vendor-it). The item
+        // he PHYSICALLY stashed is registered + filed into the 🗑 Throw-Out Review bucket with the
+        // planner's why as ADVICE — visible, reversible, never dropped.
         try {
           var _spX = window.findSetPiece && window.findSetPiece(name);
           if (_spX && window.__setStemOf && typeof ITEMS !== 'undefined'){
@@ -27746,11 +27761,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (_agX) owned.add(_agX.n);
           }
         } catch(e){}
+        owned.add(name);
+        if (!assign[name]) assign[name] = '__throwout';
         persistOwned(); saveA();
         try { if (typeof renderVault === 'function') renderVault(); } catch(e2){}
         var st = document.getElementById('vault-status');
-        if (st) st.textContent = '📺 TV → throwout: ' + name;
-        return { ok:true, mode:'throwout', mule: null, label: name };
+        if (st) st.textContent = '📺 TV vaulted (throw-out advice): ' + name + (sg.why ? ' — ' + sg.why : '');
+        return { ok:true, mode:'throwout', mule: '__throwout', muleName: '🗑 throw-out review', label: name, why: sg.why || '' };
       }
       var already = owned.has(name);
       if (!already) owned.add(name);
@@ -32612,7 +32629,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v738', name:'Chain Vault', date:'2026-07-17', note:'v738: stash vault only SEEN/HOLDING chain (run #4 Crossbow+Jewel); ban Unidentified; frame hist kept' };
+  window.D2R_BUILD = { id:'v739', name:'Chain Vault', date:'2026-07-17', note:'v738: stash vault only SEEN/HOLDING chain (run #4 Crossbow+Jewel); ban Unidentified; frame hist kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

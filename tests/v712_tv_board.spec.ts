@@ -386,4 +386,33 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(lb.src).toContain('id=3_99');
     expect(frameIdHits).toBeGreaterThanOrEqual(1);
   });
+
+  test('v739 THE VAULT MIRROR: every stashed class lands VISIBLE in the Vault Manager — unique, socketed base (throwout=tag), RotW custom', async ({ page }) => {
+    const T = 1234567890;
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(state({
+        startedAt: T - 9000,
+        reads: [{ ts: T, n: 1, area: 'Harrogath', scene: 'stash', intent: 'farmed', ms: 5000, mode: 'warm',
+                  names: ['Harlequin Crest', 'Colossus Crossbow (5os)', 'Blood Shield', 'Ist Rune'],
+                  vault_names: ['Harlequin Crest (Shako)', 'Colossus Crossbow (5os)', 'Blood Shield', 'Ist Rune'] }],
+      })) }));
+    await page.goto(URL); await page.waitForTimeout(1500);
+    await page.evaluate(() => (window as any).switchTab('tvd'));
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(2200);
+    const r = await page.evaluate(() => {
+      (window as any).renderVault && (window as any).renderVault();
+      const html = (document.getElementById('mule-vault-card') || {}).innerHTML || '';
+      return {
+        ist: (parseInt((window as any).runeStash['Ist'], 10) || 0),
+        harlequin: html.includes('Harlequin'),
+        crossbow: html.includes('Colossus Crossbow'),
+        blood: html.includes('Blood Shield'),
+      };
+    });
+    expect(r.ist).toBe(1);            // dedupe: one read, one tally
+    expect(r.harlequin).toBe(true);   // known unique
+    expect(r.crossbow).toBe(true);    // socketed base — throwout is a TAG, never a disappearance
+    expect(r.blood).toBe(true);       // RotW custom — universe guarantee
+  });
 });

@@ -241,3 +241,13 @@ base) · ✅ **lifecycle full loop: Blood Shield + Compendium auto-committed �
 moment** (v731 semantics live) · ✅ OCR garble stayed agent-side — the board's honesty gate held.
 ⏳ Still to observe live: runes/gems tab intake (materials proved the mechanism) · an in-game
 OCR vocab-HIT (deep lane kept winning the race this run — a good problem).
+
+### R17 · v739 — THE VAULT MIRROR (Konyo: '3-4 runs of stashed items not reaching the Vault Manager') ✅
+- **Root cause, simulated + proven**: two invisibility classes. (1) Socketed bases with a sealed
+  Chronicle → suggestMule says __throwout → the old branch SILENTLY DROPPED them from the vault.
+  (2) RotW custom names (Blood Shield, Compendium) had no entry in the vault's item universe.
+- **The doctrine shift**: THE VAULT IS A MIRROR, NOT AN OPINION. Physically stashed = registered +
+  visible, period. Throw-out verdicts become the 🗑 review-bucket TAG with the planner's why as
+  advice; unknown names get a minimal EXTRA_ITEMS reference entry (universe guarantee).
+- Full-flow sim (mock read → receiver → register → Vault UI): unique ✓ · 5os base ✓ · RotW ✓ ·
+  rune ×1 (dedupe honest — earlier ×7 scare was the mock minting fresh timestamps). Spec-locked.
