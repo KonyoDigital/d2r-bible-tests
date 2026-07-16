@@ -358,7 +358,7 @@ _ANCHOR_SUBSTR = (
 _JUNK_SUBSTR = (
     "healing potion", "mana potion", "rejuv", "rejuvenation", "stamina potion",
     "antidote potion", "thawing potion", "energy potion", "rancid", "bile", "gas potion",
-    "arrows", "bolts", "quill",
+    "arrows", "bolts", "quill", " gold",  # "159 Gold", "252 Gold"
 )
 def _norm_name(n):
     s = str(n or "").strip().lower()
@@ -369,11 +369,16 @@ def _norm_name(n):
 
 def _is_anchor(n):
     lo = _norm_name(n)
-    return any(a in lo for a in _ANCHOR_SUBSTR)
+    # fixed tomes/cube only — loose "scroll of identify" on the ground is NOT an inv anchor
+    return any(a in lo for a in (
+        "horadric cube", "tome of town portal", "tome of identify",
+    ))
 
 def _is_junk(n):
     lo = _norm_name(n)
-    if lo in ("arrows", "bolts", "key", "gold"):
+    if lo in ("arrows", "bolts", "key", "gold") or lo.endswith(" gold") or lo.isdigit():
+        return True
+    if lo.endswith("gold") and any(c.isdigit() for c in lo):
         return True
     return any(j in lo for j in _JUNK_SUBSTR)
 
