@@ -85,6 +85,14 @@
 - **Junk filter:** potions/arrows never auto-vault.
 - **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
 
+### R18 · v731 — commitment vault (Konyo: ID→throw must NOT vault)
+- **HOLDING** on inv glimpse (⏳ chip) — NOT vault.
+- **VAULT** only after ~30s still held (`HOLD_MS`) **or** town **stash** panel.
+- **THROW-OUT** when item reappears on floor: cancel pending; reverse mistaken vault
+  (`tvVaultUnregister` + unvault_names).
+- Board: `vault_names` only auto-apply; belt register every committed name into owned.
+- Honest badges: HIT = DB match · ⏳ hold · 🏦 vault · 🗑 throw. Suite **30/30**.
+
 ### Explicit non-goals (unchanged)
 - No forge rewrite · no fabricated names · don’t loosen settle · don’t rewire vault intake photos.
 

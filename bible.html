@@ -27734,12 +27734,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           }
         } catch(e){}
         persistOwned(); saveA();
-        return { ok:true, mode:'throwout' };
+        try { if (typeof renderVault === 'function') renderVault(); } catch(e2){}
+        var st = document.getElementById('vault-status');
+        if (st) st.textContent = '📺 TV → throwout: ' + name;
+        return { ok:true, mode:'throwout', mule: null, label: name };
       }
-      if (owned.has(name)){
-        return { ok:true, mode:'already', mule: assign[name] || null };
-      }
-      owned.add(name);
+      var already = owned.has(name);
+      if (!already) owned.add(name);
       try {
         var spg = window.findSetPiece && window.findSetPiece(name);
         if (spg && window.__setStemOf && typeof ITEMS !== 'undefined'){
@@ -27748,11 +27749,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (agg) owned.add(agg.n);
         }
       } catch(e){}
-      if (sg && muleById(sg.id) && !assign[name]) assign[name] = sg.id;
-      else if (sg && sg.id === '__keep' && !assign[name]) assign[name] = '__keep';
+      var muleId = assign[name] || null;
+      if (sg && muleById(sg.id) && !assign[name]) { assign[name] = sg.id; muleId = sg.id; }
+      else if (sg && sg.id === '__keep' && !assign[name]) { assign[name] = '__keep'; muleId = '__keep'; }
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
-      return { ok:true, mode:'new', mule: assign[name] || null };
+      try {
+        var card = document.getElementById('mule-vault-card');
+        if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+          window.toggleCardCollapse('mule-vault-card');
+      } catch(e){}
+      var muleName = (muleId && muleById(muleId) && muleById(muleId).name) || muleId || 'unsorted';
+      var st2 = document.getElementById('vault-status');
+      if (st2) st2.textContent = '📺 TV vaulted: ' + name + ' → ' + muleName;
+      return { ok:true, mode: already ? 'already' : 'new', mule: muleId, muleName: muleName, label: name };
+    } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
+  };
+  // v731 — reverse a mistaken vault when player drops the item back to the floor
+  window.tvVaultUnregister = function(name){
+    try {
+      name = String(name || '').trim(); if (!name) return { ok:false };
+      try { owned.delete(name); } catch(e){}
+      try { delete assign[name]; } catch(e){}
+      persistOwned(); saveA();
+      try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
+      var st = document.getElementById('vault-status');
+      if (st) st.textContent = '📺 TV unvaulted (thrown): ' + name;
+      return { ok:true, mode:'unvault', label: name };
     } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
   };
   // v598 — auto-register a "<Base> (Nos low base)" intake read as a FULL vault entry — no clicks.
@@ -32540,7 +32563,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v721', name:'TV Night', date:'2026-07-16', note:'🏓 TV pingpong night R1-R2: TDD foundation (TV_STUB seam · 12 agent unittests · mock-bridge board specs) · live-run fix verified in code (BMP→JPEG vision, 90s fail-fast) · brain log · Grok co-pilots via tv/PINGPONG_LOG.md' };
+  window.D2R_BUILD = { id:'v731', name:'Commitment Vault', date:'2026-07-16', note:'v731 commitment vault: inv HOLDING ~30s or town stash → vault; throw-out cancels; HIT≠vault; farmed_names only on commit' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32745,7 +32768,10 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
   function histChip(x, vaulted){
     var tip = chipTip(x);
-    var vtag = vaulted ? '<span class="tvd-vault-tag" title="filed to vault shelf">🏦 vault</span>' : '';
+    var vtag = '';
+    if (x.thrown) vtag = '<span class="tvd-vault-tag" style="color:#e08a8a" title="thrown back to floor — not kept">🗑 throw</span>';
+    else if (vaulted || x.vault) vtag = '<span class="tvd-vault-tag" title="'+(x.muleName?('filed → '+x.muleName):'filed to vault shelf')+'">🏦 vault</span>';
+    else if (x.holding) vtag = '<span class="tvd-vault-tag" style="color:#ffd97a" title="holding in inv — vault after ~30s still held or town stash">⏳ hold</span>';
     if (x.kind==='note') return '<span class="tvd-chip tc-note"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
     if (x.done) return '<span class="tvd-chip tc-done"'+tip+'>'+chipArt(x,true)+x.label+' ✓'+dbBadge(x)+vtag+'</span>';
     return '<span class="tvd-chip"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
@@ -32974,31 +33000,52 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var auto=false;
         // v729 — LOOT LIFECYCLE v2: only auto-apply farmed_names from agent (baseline/anchors excluded).
         // Fallback: if farmed_names missing (old agent), keep v723 "all inv/stash names".
-        var farmedList = Array.isArray(rd.farmed_names) ? rd.farmed_names : null;
-        var farmedSet = {};
+        // v731 — ONLY vault_names (hold-complete or stash). Never vault on inv glimpse.
+        var vaultList = Array.isArray(rd.vault_names) ? rd.vault_names
+          : (Array.isArray(rd.farmed_names) ? rd.farmed_names : []);
+        var pendingList = Array.isArray(rd.pending_names) ? rd.pending_names : [];
+        var thrownList = Array.isArray(rd.thrown_names) ? rd.thrown_names : [];
+        var unvaultList = Array.isArray(rd.unvault_names) ? rd.unvault_names : [];
+        var vaultSet = {}, pendSet = {};
         function _nN(s){ return String(s||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); }
-        if (farmedList) farmedList.forEach(function(n){ farmedSet[_nN(n)] = true; });
-        var shouldAuto = farmedList ? farmedList.length > 0 : (intent==='farmed' && routes.length > 0);
-        if (shouldAuto){
+        vaultList.forEach(function(n){ vaultSet[_nN(n)] = true; });
+        pendingList.forEach(function(n){ pendSet[_nN(n)] = true; });
+        // reverse mistaken vaults (dropped after vault)
+        unvaultList.forEach(function(n){
+          try { if (typeof window.tvVaultUnregister === 'function') window.tvVaultUnregister(n); } catch(e){}
+        });
+        if (vaultList.length){
           routes.forEach(function(x){
             try {
               var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
-              if (farmedList && farmedList.length){
-                if (!farmedSet[_nN(x.key)] && !farmedSet[_nN(vaultName)]) return;
-              }
-              // engines only for rune/gem/uni/set — not generic ITEMS bases
+              if (!vaultSet[_nN(x.key)] && !vaultSet[_nN(vaultName)]) return;
               if(x.kind!=='note' && x.kind!=='item' && !x.done){ apply(x.kind, x.key, null); x.done=true; }
               var vr = null;
               if(vaultName && typeof window.tvVaultRegister==='function') vr = window.tvVaultRegister(vaultName);
-              x.vault = !!(vr && vr.ok);
-              x.lc = (rd.lifecycle_tags && (rd.lifecycle_tags[vaultName] || rd.lifecycle_tags[x.key])) || 'farmed';
+              x.vault = !!(vr && vr.ok && vr.mode !== 'throwout');
+              x.holding = false;
+              x.lc = (rd.lifecycle_tags && (rd.lifecycle_tags[vaultName] || rd.lifecycle_tags[x.key])) || 'vault';
+              x.muleName = vr && vr.muleName;
             } catch(e){}
+          });
+          // belt: every committed vault_name must hit owned/vault UI even if route() missed
+          vaultList.forEach(function(n){
+            try { if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(n); } catch(e){}
           });
           auto=true;
         }
+        // mark holding chips (not vaulted yet)
+        routes.forEach(function(x){
+          var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
+          if (pendSet[_nN(x.key)] || pendSet[_nN(vaultName)]) { x.holding = true; x.lc = 'holding'; }
+          if (thrownList.some(function(t){ return _nN(t)===_nN(x.key)||_nN(t)===_nN(vaultName); })) {
+            x.thrown = true; x.lc = 'throw-out'; x.vault = false;
+          }
+        });
         var entry = { ts:rd.ts, n:rd.n||FEED.length+1, area:rd.area||'', scene:rd.scene||'', tz:rd.tz||[], routes:routes, intent:intent, auto:auto, model:rd.model||'', conf:rd.conf, ms:rd.ms||0, escalated:!!rd.escalated,
-          farmed_names: farmedList || [], lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
-          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, lc:x.lc||'' }; }) };
+          vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
+          lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
+          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, lc:x.lc||'', muleName:x.muleName||'' }; }) };
         FEED.push(entry);
         pushHistRead(entry);
         DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;

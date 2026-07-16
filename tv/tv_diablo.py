@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Autopilot scanner (v727)
+# 📺 TV DIABLO — Autopilot scanner (v731)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -93,7 +93,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v727",
+    "ver": "v731",
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -347,29 +347,28 @@ def _intent_for(scene):
     if scene == "loot": return "seen"
     return "context"
 
-# ═══ v729 — LOOT LIFECYCLE v2 (object permanence, Konyo run #3 design) ═══════════
-# seen(floor) → gone(same area) → inventory confirm = strongest farmed signal.
-# GONE alone never applies. Baseline items never re-tally. Anchors = read confidence.
-_ANCHOR_SUBSTR = (
-    "horadric cube", "tome of town portal", "tome of identify",
-    "scroll of town portal", "scroll of identify", "identify book", "town portal book",
-)
-# never auto-vault consumables / ammo (Claude scorecard: potions = vendor noise)
+# ═══ v731 — COMMITMENT VAULT (Konyo: ID→throw must NOT vault)
+# floor SEEN → inv HOLDING (pending) → vault only after HOLD_MS still in bag OR town STASH
+# drop to floor again = THROW-OUT (cancel pending / reverse mistaken vault)
+# GONE alone never vaults. Junk never vaults. Anchors never vault.
+try:
+    HOLD_MS = max(5000, int(os.environ.get("TV_HOLD_MS", "30000")))  # 30s default hold
+except Exception:
+    HOLD_MS = 30000
+
 _JUNK_SUBSTR = (
     "healing potion", "mana potion", "rejuv", "rejuvenation", "stamina potion",
     "antidote potion", "thawing potion", "energy potion", "rancid", "bile", "gas potion",
-    "arrows", "bolts", "quill", " gold",  # "159 Gold", "252 Gold"
+    "arrows", "bolts", "quill", " gold",
 )
 def _norm_name(n):
     s = str(n or "").strip().lower()
-    # strip trailing quality parens for matching: "foo (//)" noise
     if s.endswith(")") and "(" in s:
         s = s[:s.rfind("(")].strip()
     return s
 
 def _is_anchor(n):
     lo = _norm_name(n)
-    # fixed tomes/cube only — loose "scroll of identify" on the ground is NOT an inv anchor
     return any(a in lo for a in (
         "horadric cube", "tome of town portal", "tome of identify",
     ))
@@ -385,53 +384,108 @@ def _is_junk(n):
 def _area_key(a):
     return str(a or "").strip().lower()
 
+def _is_town_area(area):
+    lo = _area_key(area)
+    return any(t in lo for t in (
+        "rogue encampment", "lut gholein", "kurast docks", "kurast",
+        "pandemonium fortress", "harrogath", "town",
+    ))
+
 class LootLifecycle:
-    """Session-scoped object permanence for floor → bag correlation."""
+    """Object permanence + commitment: pending hold → vault; throw-out cancels."""
     def __init__(self):
-        self.baseline = {}          # norm → display name (first inv/stash snapshot)
-        self.baseline_set = False
-        self.seen = {}              # norm → {name, area, firstSeen, lastSeen, count, miss}
-        self.candidates = {}        # norm → {name, area, goneAt}
-        self.confirmed = []         # ring of confirm events
-        self.confirmed_set = set()  # norms already auto-farmed this session (dedupe)
+        self.seen = {}           # floor ledger
+        self.candidates = {}     # gone-from-floor pickup candidates
+        self.pending = {}        # inv-held, NOT vaulted yet {name, firstHeld, lastHeld, tag}
+        self.vaulted = {}        # committed {name, reason, ts}
+        self.thrown = []         # ring of throw-out events
+        self.confirmed = []      # ring of vault commits
 
     def snapshot(self):
         return {
-            "baselineSet": self.baseline_set,
-            "baseline": list(self.baseline.values())[:80],
-            "seen": [{"name": v["name"], "area": v.get("area", ""), "count": v.get("count", 0)}
-                     for v in list(self.seen.values())[-60:]],
-            "candidates": [{"name": v["name"], "area": v.get("area", "")}
-                           for v in self.candidates.values()],
+            "holdMs": HOLD_MS,
+            "pending": [{"name": v["name"], "heldMs": 0, "tag": v.get("tag", "")}
+                        for v in list(self.pending.values())[-40:]],
+            "vaulted": [{"name": v["name"], "reason": v.get("reason", "")}
+                        for v in list(self.vaulted.values())[-40:]],
+            "seen": [{"name": v["name"], "area": v.get("area", "")}
+                     for v in list(self.seen.values())[-40:]],
+            "candidates": [{"name": v["name"]} for v in self.candidates.values()],
+            "thrown": self.thrown[-20:],
             "confirmed": self.confirmed[-40:],
         }
 
     def process(self, scene, names, area, conf, now_ms=None):
-        """Update ledgers. Returns enrichment for the read record."""
         now_ms = now_ms if now_ms is not None else int(time.time() * 1000)
         names = [str(n).strip() for n in (names or []) if str(n).strip()]
         out = {
-            "farmed_names": [],
+            "vault_names": [],      # ONLY these may hit tvVaultRegister
+            "pending_names": [],    # holding — show HOLDING, not vault
+            "thrown_names": [],
+            "farmed_names": [],     # alias of vault_names for board compat
             "lifecycle_tags": {},
             "anchor": "n/a",
-            "baseline_set": self.baseline_set,
             "gone_candidates": [],
         }
         if scene == "loot":
             self._on_loot(names, area, now_ms, out)
-        elif scene in ("inventory", "stash"):
-            self._on_panel(scene, names, area, conf, now_ms, out)
+        elif scene == "inventory":
+            self._on_inventory(names, area, conf, now_ms, out)
+        elif scene == "stash":
+            self._on_stash(names, area, conf, now_ms, out)
+        # refresh pending heldMs for snapshot consumers
+        for k, p in self.pending.items():
+            p["heldMs"] = max(0, now_ms - p["firstHeld"])
+        out["farmed_names"] = list(out["vault_names"])
+        out["pending_names"] = [p["name"] for p in self.pending.values()]
         return out
+
+    def _commit(self, n, reason, now_ms, out, tag=None):
+        k = _norm_name(n)
+        if not k or _is_junk(n) or _is_anchor(n):
+            return
+        if k in self.vaulted:
+            out["lifecycle_tags"][n] = "already-vaulted"
+            return
+        self.vaulted[k] = {"name": n, "reason": reason, "ts": now_ms}
+        self.pending.pop(k, None)
+        self.candidates.pop(k, None)
+        self.confirmed.append({"ts": now_ms, "name": n, "reason": reason, "tag": tag or reason})
+        del self.confirmed[:-80]
+        out["vault_names"].append(n)
+        out["lifecycle_tags"][n] = "vault:" + reason
+
+    def _throw_out(self, n, now_ms, out, why="dropped"):
+        k = _norm_name(n)
+        if not k:
+            return
+        was_pending = k in self.pending
+        was_vaulted = k in self.vaulted
+        self.pending.pop(k, None)
+        self.candidates.pop(k, None)
+        if was_vaulted:
+            self.vaulted.pop(k, None)
+            out.setdefault("unvault_names", []).append(n)
+        if was_pending or was_vaulted:
+            self.thrown.append({"ts": now_ms, "name": n, "why": why})
+            del self.thrown[:-40]
+            out["thrown_names"].append(n)
+            out["lifecycle_tags"][n] = "throw-out"
 
     def _on_loot(self, names, area, now_ms, out):
         present = {}
         for n in names:
-            if _is_anchor(n):
+            if _is_anchor(n) or _is_junk(n):
+                if _is_junk(n):
+                    out["lifecycle_tags"][n] = "junk"
                 continue
             k = _norm_name(n)
             if not k:
                 continue
             present[k] = n
+            # THROW-OUT: was holding or vaulted, now on floor again
+            if k in self.pending or k in self.vaulted:
+                self._throw_out(n, now_ms, out, why="floor-again")
             e = self.seen.get(k)
             if not e:
                 self.seen[k] = {"name": n, "area": area or "", "firstSeen": now_ms,
@@ -442,48 +496,61 @@ class LootLifecycle:
                 e["miss"] = 0
                 if area:
                     e["area"] = area
-            out["lifecycle_tags"][n] = "seen"
-        # GONE detection — same area, missing name (1-read grace for flicker)
+            if n not in out["lifecycle_tags"]:
+                out["lifecycle_tags"][n] = "seen"
         ak = _area_key(area)
         if not ak:
             return
         for k, e in list(self.seen.items()):
-            if _area_key(e.get("area")) != ak:
-                continue
-            if k in present:
+            if _area_key(e.get("area")) != ak or k in present:
                 continue
             e["miss"] = e.get("miss", 0) + 1
             if e["miss"] == 1:
-                continue  # grace frame
-            # candidate picked-up — NEVER auto-apply here
+                continue
             self.candidates[k] = {"name": e["name"], "area": e.get("area", ""), "goneAt": now_ms}
             out["gone_candidates"].append(e["name"])
             out["lifecycle_tags"][e["name"]] = "gone-candidate"
 
-    def _on_panel(self, scene, names, area, conf, now_ms, out):
-        # Anchors
-        anchors_hit = [n for n in names if _is_anchor(n)]
-        if scene == "inventory":
-            out["anchor"] = "ok" if anchors_hit else "missing"
+    def _track_pending(self, n, tag, now_ms, out):
+        k = _norm_name(n)
+        if not k or k in self.vaulted:
+            if k in self.vaulted:
+                out["lifecycle_tags"][n] = "already-vaulted"
+            return
+        p = self.pending.get(k)
+        if not p:
+            self.pending[k] = {"name": n, "firstHeld": now_ms, "lastHeld": now_ms, "tag": tag}
+            out["lifecycle_tags"][n] = "holding"
         else:
-            out["anchor"] = "ok" if names else "missing"  # stash: presence of any readable text is ok
+            p["lastHeld"] = now_ms
+            p["name"] = n
+            held = now_ms - p["firstHeld"]
+            if held >= HOLD_MS:
+                self._commit(n, "hold", now_ms, out, tag=p.get("tag") or tag)
+            else:
+                out["lifecycle_tags"][n] = "holding"
+                out.setdefault("_holding_ms", {})[n] = held
 
-        hold = (out["anchor"] == "missing" and scene == "inventory"
-                and (conf is None or conf < 0.75))
-
-        def _tag_and_maybe_farm(n):
-            """Return (tag, should_farm)."""
+    def _on_inventory(self, names, area, conf, now_ms, out):
+        anchors_hit = [n for n in names if _is_anchor(n)]
+        out["anchor"] = "ok" if anchors_hit else "missing"
+        low_conf = out["anchor"] == "missing" and (conf is None or conf < 0.75)
+        present = set()
+        for n in names:
             if _is_anchor(n):
-                return "anchor", False
+                out["lifecycle_tags"][n] = "anchor"
+                continue
             if _is_junk(n):
-                return "junk", False
+                out["lifecycle_tags"][n] = "junk"
+                continue
             k = _norm_name(n)
             if not k:
-                return "skip", False
-            if k in self.baseline:
-                return "baseline", False
-            if k in self.confirmed_set:
-                return "already-farmed", False
+                continue
+            present.add(k)
+            if low_conf:
+                out["lifecycle_tags"][n] = "hold-low-conf"
+                out["apply_held"] = "anchor-missing"
+                continue
             was_cand = k in self.candidates
             was_seen = k in self.seen
             if was_cand:
@@ -492,57 +559,42 @@ class LootLifecycle:
                 tag = "seen→inventory"
             else:
                 tag = "inventory-only"
-            return tag, True
+            self._track_pending(n, tag, now_ms, out)
+        # pending items missing from inv — not throw-out yet (may be stash/cube); leave pending
+        # (throw-out only when we SEE them on the floor again)
+        for k, p in list(self.pending.items()):
+            if k not in present and k not in self.vaulted:
+                # keep pending; user may have put in cube or closed panel mid-ID
+                pass
 
-        farmed = []
-        # FIRST PANEL (run #4 bugfix): empty-only baseline was wrong when the first inv
-        # already held loot (Blade Bow/Crown became baseline → farmed_names=[]). Soft mode:
-        # farm non-junk non-anchor items once, then lock them into baseline so no re-tally.
-        if not self.baseline_set:
-            for n in names:
-                tag, should = _tag_and_maybe_farm(n)
-                out["lifecycle_tags"][n] = tag
-                if tag in ("anchor", "junk", "skip"):
-                    continue
-                k = _norm_name(n)
-                if should and not hold:
-                    farmed.append(n)
-                    self.confirmed_set.add(k)
-                    self.confirmed.append({
-                        "ts": now_ms, "name": n, "tag": tag, "scene": scene, "area": area or "",
-                    })
-                    del self.confirmed[:-80]
-                    self.candidates.pop(k, None)
-                # lock after first panel (farmed or not) so reopen doesn't double-count
-                if k and tag not in ("anchor", "junk", "skip"):
-                    self.baseline[k] = n
-            self.baseline_set = True
-            out["baseline_set"] = True
-            out["farmed_names"] = farmed
-            if hold:
-                out["farmed_names"] = []
-                out["apply_held"] = "anchor-missing"
-            return
-
+    def _on_stash(self, names, area, conf, now_ms, out):
+        # Town stash = commitment — vault immediately (non-junk)
+        out["anchor"] = "ok" if names else "missing"
+        town = _is_town_area(area) or True  # stash panel itself is commitment enough
         for n in names:
-            tag, should = _tag_and_maybe_farm(n)
-            out["lifecycle_tags"][n] = tag
-            if not should:
+            if _is_anchor(n):
+                out["lifecycle_tags"][n] = "anchor"
+                continue
+            if _is_junk(n):
+                out["lifecycle_tags"][n] = "junk"
                 continue
             k = _norm_name(n)
-            if not hold:
-                farmed.append(n)
-                self.confirmed_set.add(k)
-                self.confirmed.append({
-                    "ts": now_ms, "name": n, "tag": tag, "scene": scene, "area": area or "",
-                })
-                del self.confirmed[:-80]
-                self.candidates.pop(k, None)
-                # new finds also join baseline after confirm
-                self.baseline[k] = n
-        out["farmed_names"] = farmed
-        if hold:
-            out["apply_held"] = "anchor-missing"
+            if not k:
+                continue
+            if k in self.vaulted:
+                out["lifecycle_tags"][n] = "already-vaulted"
+                continue
+            was_cand = k in self.candidates
+            was_seen = k in self.seen
+            tag = "stash-commit"
+            if was_cand:
+                tag = "seen→gone→stash"
+            elif was_seen:
+                tag = "seen→stash"
+            if town:
+                self._commit(n, "stash", now_ms, out, tag=tag)
+            else:
+                self._track_pending(n, tag, now_ms, out)
 
 _LIFECYCLE = LootLifecycle()
 
@@ -696,7 +748,7 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v727 — continuous eyes · smart when-to-read · subscription")
+    print("📺 TV DIABLO Autopilot v731 — commitment vault · hold/stash/throw · subscription")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     print("   tip: fullscreen D2R · stop on piles / open stash — Autopilot prioritizes hard-motion→stop")
@@ -784,9 +836,12 @@ def main():
         beat("watching", 0.0)
         names = rd["names"]
         intent = rd.get("intent") or _intent_for(rd.get("scene"))
-        # v729 object permanence — correlates floor SEEN → GONE → inv CONFIRM
+        # v731 commitment vault — inv HOLDING → vault only after hold/stash; throw-out cancels
         lc = _LIFECYCLE.process(rd.get("scene") or "gameplay", names, rd.get("area") or "", rd.get("conf"))
-        farmed_names = lc.get("farmed_names") or []
+        vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
+        pending_names = lc.get("pending_names") or []
+        thrown_names = lc.get("thrown_names") or []
+        unvault_names = lc.get("unvault_names") or []
         if names:
             empty_streak = 0
             named_until = time.time() + 45
@@ -796,10 +851,14 @@ def main():
             empty_streak += 1
             _AP["namedStreak"] = 0
         _AP["emptyStreak"] = empty_streak
-        if farmed_names:
-            tag = "🛍 farmed"
+        if vault_names:
+            tag = "🏦 vaulted"
+        elif pending_names or (intent == "farmed" and names):
+            tag = "⏳ holding"
         elif intent == "seen":
             tag = "👁 seen"
+        elif thrown_names:
+            tag = "🗑 throw"
         elif lc.get("gone_candidates"):
             tag = "👻 gone?"
         else:
@@ -808,14 +867,16 @@ def main():
         esc = " ⬆genius" if rd.get("escalated") else ""
         pri = " ⚡" if used_priority else ""
         lc_note = ""
-        if farmed_names:
-            lc_note = " · CONFIRM " + ", ".join(farmed_names[:3])
+        if vault_names:
+            lc_note = " · VAULT " + ", ".join(vault_names[:3])
+        elif pending_names:
+            lc_note = " · HOLDING " + ", ".join(pending_names[:3]) + f" (≥{HOLD_MS//1000}s or stash)"
+        elif thrown_names:
+            lc_note = " · THROW-OUT " + ", ".join(thrown_names[:3])
         elif lc.get("gone_candidates"):
             lc_note = " · candidate gone " + ", ".join(lc["gone_candidates"][:3])
         elif lc.get("apply_held"):
             lc_note = " · hold apply (" + lc["apply_held"] + ")"
-        elif not _LIFECYCLE.baseline_set and (rd.get("scene") in ("inventory", "stash")):
-            lc_note = " · baseline snapshot"
         ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else ""))
         print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}  [{model_tag}{esc}{pri}]")
         with _state_lock:
@@ -825,10 +886,15 @@ def main():
                    "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
                    "model": model_tag, "conf": rd.get("conf"), "intent": intent, "escalated": bool(rd.get("escalated")),
                    "interest": interest, "priority": used_priority,
-                   "farmed_names": farmed_names,
+                   "vault_names": vault_names,
+                   "farmed_names": vault_names,  # board vault wire uses this = COMMIT only
+                   "pending_names": pending_names,
+                   "thrown_names": thrown_names,
+                   "unvault_names": unvault_names,
                    "lifecycle_tags": lc.get("lifecycle_tags") or {},
                    "anchor": lc.get("anchor", "n/a"),
-                   "gone_candidates": lc.get("gone_candidates") or []}
+                   "gone_candidates": lc.get("gone_candidates") or [],
+                   "holdMs": HOLD_MS}
             st["reads"].append(rec)
             st["reads"] = st["reads"][-200:]
             st["readCount"] = reads
@@ -839,12 +905,12 @@ def main():
                 del arr[:-200]
             if intent == "seen":
                 for nm in names:
-                    if not _is_anchor(nm):
+                    if not _is_anchor(nm) and not _is_junk(nm):
                         _push(st["seen"], nm, {"scene": "loot"})
-            for nm in farmed_names:
+            for nm in vault_names:
                 st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
                 _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory",
-                                         "tag": (lc.get("lifecycle_tags") or {}).get(nm, "inventory-only")})
+                                         "tag": (lc.get("lifecycle_tags") or {}).get(nm, "vault")})
             _save(st)
 
 if __name__ == "__main__":

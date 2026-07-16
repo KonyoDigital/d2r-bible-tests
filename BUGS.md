@@ -510,6 +510,17 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Fix:** v684 — the floor mirrors every seed into the live `setPieces` (`_spSet.forEach(setPieces.add)`); mac-ladder toggles no longer write MAIN's shared `d2r_grailUnfound`.
 - **Prevention:** headless sim asserts in-memory === LS post-boot AND post-persist(); doctrine: a boot floor must mutate the LIVE structure, never only the store.
 
+## TV-NOTE-002 — 2026-07-16 · inv glimpse vaulted after ID→throw (commitment missing)
+- **Symptom:** open inventory briefly → 🏦 vault chip / farmed wire; drop junk after ID still
+  counted as vaulted; Vault UI sometimes empty of that name; HIT badge read as “vaulted.”
+- **Caught by:** Konyo live run #4 + screenshot, 2026-07-16.
+- **Root cause:** soft first-inv / farmed_names committed on first inv panel presence, with no
+  hold timer or throw-out reverse. Board treated farmed as vault immediately.
+- **Fix:** v731 — pending HOLDING (≥HOLD_MS ~30s still in bag) or town stash commit;
+  floor-again throw-out cancels pending + `tvVaultUnregister`; hist ⏳ hold vs 🏦 vault;
+  only `vault_names` auto-apply.
+- **Prevention:** never auto-vault from a single inv frame; require hold duration or stash.
+
 ## TV-NOTE-001 — 2026-07-16 · session history was RAM-only (last TV run vanished on agent restart)
 - **Symptom:** after a live TV DIABLO session + agent restart, the TV tab feed was empty —
   no clock-time trail of what AI read, no DB match trail, no vault filing trail for debug.

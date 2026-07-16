@@ -31,6 +31,18 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-16 — Grok: v731 commitment vault (hold / stash / throw-out)
+
+- **Problem (run #4):** inv glimpse after ID→throw still vaulted; 🏦 badge without lasting
+  owned entry; gold/junk noise; HIT confused with vault.
+- **Rules:** floor = SEEN only · inv = HOLDING (pending) · vault only after `HOLD_MS` (~30s)
+  still in bag **or** town **stash** · floor-again = THROW-OUT (cancel pending / unvault).
+- `LootLifecycle` pending/vaulted/thrown · board `vault_names` only · `tvVaultUnregister` ·
+  belt `tvVaultRegister` for every committed name · hist chips ⏳ hold vs 🏦 vault.
+- Agent suite **30/30**. Live **Run #5** next.
+
+---
+
 ## 2026-07-16 — Grok: v726 kill empty-gameplay 20s cool
 
 - Konyo: cool made pile/inv stops feel dead after any empty combat pause.
