@@ -32632,19 +32632,21 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
   window._tvdHistTab = function(tab){
     HIST_TAB = tab === 'last' ? 'last' : 'live';
+    _histFp = '';   // force paint on tab switch
     try {
       var a=document.getElementById('tvb-hist-live'), b=document.getElementById('tvb-hist-last');
       if(a) a.classList.toggle('on', HIST_TAB==='live');
       if(b) b.classList.toggle('on', HIST_TAB==='last');
     } catch(e){}
-    renderHistory();
+    renderHistory(true);
   };
   window._tvdHistClear = function(){
     try {
       if (window.LSR && window.LSR.setItem) window.LSR.setItem(HIST_KEY, JSON.stringify({live:null, sessions:[]}));
       else localStorage.setItem(HIST_KEY, JSON.stringify({live:null, sessions:[]}));
     } catch(e){}
-    renderHistory();
+    _histFp = '';
+    renderHistory(true);
   };
   function digestFlush(reason){
     try {
@@ -32748,7 +32750,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if (x.done) return '<span class="tvd-chip tc-done"'+tip+'>'+chipArt(x,true)+x.label+' ✓'+dbBadge(x)+vtag+'</span>';
     return '<span class="tvd-chip"'+tip+'>'+chipArt(x,true)+x.label+dbBadge(x)+vtag+'</span>';
   }
-  function renderHistory(){
+  // v728 — scroll jump fix: poll was calling render() → renderHistory() every 2s, wiping
+  // #tvb-hist.innerHTML and snapping scrollTop to 0. Skip unchanged paints; preserve scroll;
+  // LAST SESSION is static after archive so never thrash while the user is reading it.
+  var _histFp = '';
+  function renderHistory(force){
     var root = document.getElementById('tvb-hist');
     var meta = document.getElementById('tvb-hist-meta');
     if (!root) return;
@@ -32767,7 +32773,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       label = 'LIVE SESSION';
     }
     var reads = (sess && sess.reads) || [];
-    // stats
+    var fp = HIST_TAB + '|' + (sess && (sess.agentStart || sess.startedAt) || 0) + '|' + reads.length + '|' + (reads.length ? (reads[reads.length-1].ts||0) : 0) + '|' + (h.sessions ? h.sessions.length : 0);
+    // stats (meta can update lightly even when body skipped — but skip whole paint if unchanged)
     var dbHits=0, dbTotal=0, farmedN=0, seenN=0, vaultN=0;
     reads.forEach(function(r){
       if (r.intent==='farmed') farmedN++;
@@ -32790,6 +32797,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           +(h.sessions&&h.sessions.length?(' · archive: <b>'+h.sessions.length+'</b> past session'+(h.sessions.length===1?'':'s')):'');
       }
     }
+    if (!force && fp === _histFp) return;   // nothing new — leave scroll alone
+    _histFp = fp;
+    var keepScroll = root.scrollTop;
     if (!reads.length){
       root.innerHTML = '<div class="sc-empty">'+(HIST_TAB==='last'
         ? 'no last session yet — finish a live run (or agent restarts) and it archives here'
@@ -32810,15 +32820,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         +'</div>';
     }).join('');
     root.innerHTML = '<div class="tvd-feed">'+rows+'</div>';
+    // restore scroll so poll re-paints don't yank the user to the top (LAST SESSION read)
+    try { root.scrollTop = keepScroll; } catch(e){}
   }
+  var _frameEyeAt = 0;
   function refreshFrameEye(){
     try {
       var eye = document.getElementById('tvb-hist-eye');
       var img = document.getElementById('tvb-hist-frame');
       if (!eye || !img) return;
       if (STATE !== 'live'){ eye.hidden = true; return; }
+      // throttle: busting cache every poll reflows the hist panel and fights the scrollbar
+      var now = Date.now();
+      if (now - _frameEyeAt < 4000 && img.getAttribute('src')) { eye.hidden = false; return; }
+      _frameEyeAt = now;
       eye.hidden = false;
-      img.src = FRAME0 + '?t=' + Date.now();
+      img.src = FRAME0 + '?t=' + now;
       img.onerror = function(){ eye.hidden = true; };
     } catch(e){}
   }
@@ -32864,7 +32881,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     }
     var tb=document.getElementById('tvb-feed');
     if(tb){ tb.innerHTML = FEED.length ? feedHtml(24) : emptyMsg(); wireApplies(tb); }
-    renderHistory();
+    // v728 — do NOT force-rebuild history every poll (scroll jump). Only refresh when fingerprint changed.
+    renderHistory(false);
   }
   function paintBeat(st){
     try {

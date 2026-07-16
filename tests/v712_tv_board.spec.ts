@@ -115,6 +115,63 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(after.harle).toBe(true);
   });
 
+  test('v728 history scroll is not yanked to top on poll re-render', async ({ page }) => {
+    // Fixed agent state so poll fingerprints stay stable; pre-seed tall history in LS.
+    const base = 1_700_000_000_000;
+    const histReads = Array.from({ length: 24 }, (_, i) => ({
+      ts: base + i * 1000, n: i + 1, area: 'The Pit Level 1', scene: 'loot', intent: 'seen',
+      model: 'sonnet', ms: 2000, conf: 0.9, auto: false,
+      items: [
+        { kind: 'rune', key: 'Ist', label: '🪨 Ist Rune', done: false, db: true, vault: false },
+        { kind: 'uni', key: 'Harlequin Crest (Shako)', label: '🏆 Harlequin Crest', done: false, db: true, vault: false },
+      ],
+    }));
+    await page.route(BRIDGE + '**', (route) => {
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(state({
+          startedAt: 9001, readCount: 1,
+          reads: [{ ts: base + 999000, n: 1, area: 'The Pit Level 1', scene: 'gameplay', intent: 'context',
+                    model: 'sonnet', ms: 1000, names: [] }],
+        })),
+      });
+    });
+    await page.goto(URL); await page.waitForTimeout(1000);
+    await page.evaluate((reads) => {
+      const payload = JSON.stringify({
+        live: null,
+        sessions: [{ agentStart: 9001, startedAt: reads[0].ts, endedAt: reads[reads.length - 1].ts, reads }],
+      });
+      try { localStorage.setItem('d2r_tvdHist', payload); } catch (e) {}
+      try { (window as any).LSR && (window as any).LSR.setItem('d2r_tvdHist', payload); } catch (e) {}
+      (window as any).switchTab('tvd');
+      (window as any)._tvdHistTab('last');
+    }, histReads);
+    await page.waitForTimeout(500);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1200);
+    const before = await page.evaluate(() => {
+      const el = document.getElementById('tvb-hist')!;
+      // force overflow if content is short in headless (still exercises scroll preserve path)
+      const pad = document.createElement('div');
+      pad.id = 'tvb-hist-pad';
+      pad.style.height = '900px';
+      el.appendChild(pad);
+      el.scrollTop = 260;
+      return { top: el.scrollTop, h: el.scrollHeight, ch: el.clientHeight, kids: el.children.length };
+    });
+    expect(before.h).toBeGreaterThan(before.ch);
+    expect(before.top).toBeGreaterThan(50);
+    // poll keeps ticking — LAST SESSION fingerprint unchanged → body not rebuilt → pad stays + scroll holds
+    await page.waitForTimeout(4500);
+    const after = await page.evaluate(() => {
+      const el = document.getElementById('tvb-hist')!;
+      return { top: el.scrollTop, hasPad: !!document.getElementById('tvb-hist-pad') };
+    });
+    expect(after.hasPad).toBe(true); // full innerHTML wipe would destroy the pad
+    expect(after.top).toBeGreaterThan(50);
+  });
+
   test('v724 session history panel shows timed DB-matched items and survives mock reads', async ({ page }) => {
     await page.route(BRIDGE + '**', (route) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(state({
