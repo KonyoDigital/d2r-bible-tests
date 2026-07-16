@@ -180,3 +180,12 @@ transport (v710.6, Fable) · MCP stalls (v719.1, Fable) · **API-key-over-login 
   HP bars, not an item.** Prompt guard needed: party/merc/monster names from HP bars are NEVER
   items. (Also pairs with the earlier waypoint-label-in-names miss — same class: non-item UI
   text leaking into names.) Evidence-only bullet; fix rides the next prompt round.
+
+### R14 · v733 — Fable's gate on Grok's v724-732 wave ✅
+- Gates: py+html syntax ✓ · agent suite ✓ · board specs 6/6 ✓ (incl. two new locks) · code review ✓.
+- **OCR HONESTY GATE shipped** (the live chat-spam evidence): OCR-lane strings only chip when
+  vocab-matched — garble is dropped, never rendered; deep-lane notes stay. Spec-locked with the
+  actual garbled strings from the live session.
+- v723 spec recal'd to v731 semantics (auto-commit = agent vault_names only, never inv glimpse).
+- `tv/ocr_mac.swift` SOURCE committed alongside the binary (public-repo provenance).
+- Backlogged from Konyo live: STASH-TAB AUTO-INTAKE (frame → the LOCKED intake via GET /frame).

@@ -207,8 +207,11 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
 
   test('v723 farmed inv/stash auto-applies; floor loot stays review-first', async ({ page }) => {
     const farmed = state({
+      // v733 recal — v731 semantics: auto-commit fires ONLY on agent-committed vault_names
+      // (stash/hold-complete), never on a bare inventory glimpse. The mock now speaks v731.
       reads: [{ ts: Date.now() - 500, n: 1, area: 'Harrogath', scene: 'stash', intent: 'farmed',
-                tz: [], ms: 2100, names: ['Ist Rune', 'Perfect Ruby'] }],
+                tz: [], ms: 2100, names: ['Ist Rune', 'Perfect Ruby'],
+                vault_names: ['Ist Rune', 'Perfect Ruby'] }],
     });
     await page.route(BRIDGE + '**', (route) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(farmed) }));
