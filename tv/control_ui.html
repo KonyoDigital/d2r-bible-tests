@@ -707,7 +707,7 @@
         <button class="act b-off" id="btn-off" type="button"><span class="ic">❚❚</span><span class="lab"><b>Off</b><span>board dark · soft stop</span></span></button>
         <button class="act b-stop" id="btn-stop" type="button"><span class="ic">■</span><span class="lab"><b>Stop</b><span>full shutdown · farewell</span></span></button>
         <button class="act b-restart" id="btn-restart" type="button"><span class="ic">↻</span><span class="lab"><b>Restart</b><span>cycle the bridge</span></span></button>
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Theatre</b><span>replay real sessions · eyes on history</span></span></button>
+        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Sim</b><span>canned feed · zero vision · click again = off</span></span></button>
       </div>
       <div class="signal">
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
@@ -716,6 +716,7 @@
       </div>
       <div class="util">
         <button class="ghost" id="btn-board" type="button"><img class="gjewel" src="/art/hd_lo_rune.png" alt="" onerror="this.style.display='none'">Open Board · TV·D</button>
+        <button class="ghost" id="btn-theatre" type="button"><img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Theatre · history</span></button>
         <button class="ghost" id="btn-log" type="button"><img class="gjewel" src="/art/hd_tal_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Toggle Log</span></button>
       </div>
     </aside>
@@ -857,15 +858,16 @@
 
     // v768 (item 8) — ONE lit/dim truth for every console button: the button whose mode is truly
     // active glows (.lit); every other button reads clearly dim. OFF gets a subtle resting cue.
-    // THEATRE (btn-sim) owns its own .lit via thLit() while the reel is open — don't fight it here.
+    // ONE lit truth: ON, SIM, or OFF — dim the rest. Theatre is a ghost util (history only).
     $('btn-on').classList.toggle('lit', state === 'on');
-    $('btn-off').classList.toggle('lit', state === 'off');
+    $('btn-off').classList.toggle('lit', state === 'off' && !stopping);
+    $('btn-sim').classList.toggle('lit', state === 'sim');
     $('btn-stop').classList.remove('lit');
     $('btn-restart').classList.remove('lit');
-    // stop in flight: ON/RESTART are inert (nothing lights green) until the state truly falls to off —
-    // the server rejects them mid-farewell anyway; busy covers the brief in-request disable.
+    // stop in flight: ON/RESTART/SIM start are inert until truly off
     $('btn-on').disabled = stopping || busy;
     $('btn-restart').disabled = stopping || busy;
+    $('btn-sim').disabled = stopping || busy;
 
     // v768 (Grok R2) — film-first: while truly ON (not sim/stopping), pull the live frame from the
     // AGENT bridge (:agentPort — the CONTROL server has NO /frame). A resolved frame flips the stage
@@ -898,7 +900,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v772') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v773') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -1061,7 +1063,10 @@
     document.body.classList.remove('theatre-open');
     thLit();
   }
-  function thLit(){ $('btn-sim').classList.toggle('lit', TH.open); }
+  function thLit(){
+    var bt = $('btn-theatre');
+    if (bt) bt.classList.toggle('on', TH.open);
+  }
   $('th-close').onclick = thClose;
   $('th-play').onclick = function(){ TH.playing = !TH.playing; this.textContent = TH.playing ? '⏸' : '▶'; if (TH.playing) thSchedule(); };
   $('th-speed').onclick = function(){ TH.speed = TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 1); this.textContent = TH.speed + '×'; };
@@ -1072,45 +1077,65 @@
     TH.i = Number(b.dataset.i) || 0; thPaint(); thSchedule();
   };
 
-  // v765 — toggle semantics (Konyo: 'lights on… click again and it goes dim'):
-  // ON while live = OFF · SIM opens/closes THE THEATRE (real history, zero agents involved)
-  // v768 (item 8) — ON→off routes through the FAREWELL path (/api/stop), not the hard /api/off, so
-  // the last read finishes; the server returns immediately and the state lamp falls on its own. Same
-  // 'farewell…' label treatment as STOP so the button reads honestly while state → stopping → off.
+  // v773 — BUTTON TRUTH (stuck-online loop fix):
+  // · ON while on OR sim → soft stop (cuts agent + board must go dark)
+  // · OFF always soft-stops (no board window)
+  // · SIM toggles: off/on → /api/sim · sim → /api/off (click again = dim / feed cut)
+  // · Theatre is a separate history player (not the agent)
+  async function cutFeed(btn, e, farewell){
+    var lab = btn && btn.querySelector ? btn.querySelector('.lab b') : null;
+    var old = lab ? lab.textContent : '';
+    if (lab) lab.textContent = farewell ? 'farewell…' : 'cutting…';
+    try {
+      await post(farewell ? '/api/stop' : '/api/off', btn, e);
+    } finally {
+      if (lab) lab.textContent = old || (farewell ? 'Stop' : 'Off');
+    }
+  }
   $('btn-on').onclick = async function(e){
     var st = document.body.getAttribute('data-state');
-    if (st !== 'on') { post('/api/on', this, e); return; }
-    var lab = this.querySelector('.lab b'); var old = lab ? lab.textContent : '';
-    if (lab) lab.textContent = 'farewell…';
-    try { await post('/api/stop', this, e); } finally { if (lab) lab.textContent = old || 'On Air'; }
+    // live or sim → turn OFF (sim uses soft cut; live uses farewell via stop)
+    if (st === 'on') { await cutFeed(this, e, true); return; }
+    if (st === 'sim') { await cutFeed(this, e, false); return; }
+    if (st === 'stopping') return;
+    post('/api/on', this, e);
   };
-  $('btn-off').onclick = function(e){ post('/api/off', this, e); };
-  $('btn-stop').onclick = async function(e){
-    // v765 — honest farewell feedback: the stop can hold up to ~90s for the last read
-    var lab = this.querySelector('.lab b'); var old = lab ? lab.textContent : '';
-    if (lab) lab.textContent = 'farewell…';
-    try { await post('/api/stop', this, e); } finally { if (lab) lab.textContent = old || 'Stop'; }
-  };
+  $('btn-off').onclick = async function(e){ await cutFeed(this, e, false); };
+  $('btn-stop').onclick = async function(e){ await cutFeed(this, e, true); };
   $('btn-restart').onclick = function(e){ post('/api/restart', this, e); };
-  $('btn-sim').onclick = function(){ if (TH.open) thClose(); else thOpen(); };
+  // SIM = agent canned feed toggle (NOT theatre)
+  $('btn-sim').onclick = async function(e){
+    var st = document.body.getAttribute('data-state');
+    if (st === 'sim') { await cutFeed(this, e, false); return; }
+    if (st === 'stopping') return;
+    // starting sim stops live first (server-side)
+    post('/api/sim', this, e);
+  };
   $('btn-board').onclick = function(){ post('/api/board'); };
+  var thBtn = $('btn-theatre');
+  if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
   $('btn-log').onclick = function(){
     showLog = !showLog;
     $('btn-log').classList.toggle('on', showLog);
     $('btn-log').querySelector('.glab').textContent = showLog ? 'Live Brain' : 'Toggle Log';
-    brainSig = '';   // force the brain panel to repaint after a view switch
+    brainSig = '';
     if (showLog) loadLog(); else refresh();
   };
 
-  // keyboard: space = on/off toggle, L = log
+  // keyboard: space = cut if live/sim else ON · L = log · T = theatre
   document.addEventListener('keydown', function(e){
     if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (e.code === 'Space') {
       e.preventDefault();
       if (busy) return;
-      post(document.body.getAttribute('data-state') === 'off' ? '/api/on' : '/api/off');
+      var st = document.body.getAttribute('data-state');
+      if (st === 'off') post('/api/on');
+      else if (st === 'stopping') return;
+      else post('/api/off');   // cuts sim AND live
     } else if (e.key === 'l' || e.key === 'L') {
       $('btn-log').click();
+    } else if (e.key === 't' || e.key === 'T') {
+      if (thBtn) thBtn.click();
     }
   });
 

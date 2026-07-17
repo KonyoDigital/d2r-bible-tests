@@ -366,7 +366,7 @@ def start_agent(sim=False):
 
 
 def stop_agent(farewell=True):
-    global _agent_proc, _agent_mode, _stop_inflight
+    global _agent_proc, _agent_mode, _stop_inflight, _BOARD_OPENED
     _stop_inflight = True
     try:
         pid = None
@@ -379,6 +379,7 @@ def stop_agent(farewell=True):
         if pid is None and not IS_WIN:
             _agent_mode = "off"
             _stop_capture()
+            _BOARD_OPENED = False
             return {"ok": True, "msg": "already off"}
 
         if pid is not None:
@@ -421,6 +422,8 @@ def stop_agent(farewell=True):
                 os.remove(PID_PATH)
         except Exception:
             pass
+        # v773 — next ON/SIM may open the board again; session is dark
+        _BOARD_OPENED = False
         return {"ok": True, "msg": "stopped", "farewell": farewell}
     finally:
         # never leave the gate stuck if anything above raises
@@ -718,7 +721,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v772",
+        "ver": "v773",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1052,7 +1055,7 @@ def main():
         return
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v772 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v773 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

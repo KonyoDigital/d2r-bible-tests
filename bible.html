@@ -33226,7 +33226,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v772', name:'Fullscreen Capture', date:'2026-07-17', note:'v772: full-screen capture default (CrossOver/D2R fullscreen); optional TV_CAPTURE=window pin' };
+  window.D2R_BUILD = { id:'v773', name:'Feed Cut Sync', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34301,7 +34301,18 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       });
       refreshFrameEye();   // v744 — the CRT face breathes on the poll (throttled inside)
       if(grew) render();   // v736 — paints only on change; meters/beat update separately (targeted nodes)
-    }).catch(function(){ if(to) clearTimeout(to); if(!T) return; if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
+    }).catch(function(){
+      // v773 — HARD CUT when the app stops the agent: clear the poll loop so we don't
+      // stay stuck ON AIR / WATCHING with a dead bridge (the "feed never dies" bug).
+      if(to) clearTimeout(to);
+      if(!T) return;
+      try { clearInterval(T); } catch(e){}
+      T = null;
+      if(STATE==='live'){ try { digestFlush('agent closed'); } catch(e){} }
+      try { localStorage.setItem('d2r_tvdOn','0'); } catch(e){}
+      setState('offline');   // ⛔ NO SIGNAL
+      try { render(); renderHistory(); refreshFrameEye(); } catch(e){}
+    });
   }
   window._tvdToggle=function(){
     if(T){ clearInterval(T); T=null; setState('off'); digestFlush('session'); try{ localStorage.setItem('d2r_tvdOn','0'); }catch(e){} render(); return; }
@@ -34310,16 +34321,15 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     poll(); T=setInterval(poll, 250);
   };
   window._tvdRefreshTab=function(){ setState(STATE); render(); renderHistory(); refreshFrameEye(); };
-  // v764 — AUTO-SYNC (Konyo: 'i dont need an ON/OFF button on the website — sync it to the app').
-  // The board SENSES the agent: a light /ping probe every 2.5s while dark; the moment the app's
-  // ON/SIM starts the bridge, every open board tab goes live by itself — and the existing poll
-  // catch already drops to OFFLINE when the app stops it. The switch is a lamp now, not a control.
+  // v764/v773 — AUTO-SYNC to the app. Probe only while dark; when the agent dies the poll
+  // catch HARD-CUTS (clears T + NO SIGNAL) so the next probe can re-arm cleanly.
   function _tvdProbe(){
     if (T || document.hidden) return;
     var ac = (typeof AbortController!=='undefined') ? new AbortController() : null;
     var to = ac && setTimeout(function(){ ac.abort(); }, 900);
     fetch('http://127.0.0.1:17771/ping', { signal: ac && ac.signal, cache:'no-store' })
       .then(function(r){ if(to) clearTimeout(to); if (!r.ok || T) return;
+        try { localStorage.setItem('d2r_tvdOn','1'); } catch(e){}
         setState('conn'); render(); poll(); T=setInterval(poll, 250); })
       .catch(function(){ if(to) clearTimeout(to); });
   }
@@ -34327,8 +34337,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // v764 — the switch is a LAMP: auto-synced to the app, never hand-flipped (clicks/keys removed).
   // paint any archived history immediately (even with switch OFF)
   try { HIST_TAB='live'; renderHistory(); } catch(e){}
-  // resume if it was on last session — never in automation (specs must not poll localhost)
-  try { if(localStorage.getItem('d2r_tvdOn')==='1' && !navigator.webdriver){ setState('conn'); poll(); T=setInterval(poll, 250); } } catch(e){}
+  // v773 — do NOT resume poll from stale d2r_tvdOn alone (that left boards "stuck online"
+  // after the app had stopped). Only the live /ping probe may go live now.
   // v719 — Konyo's gate run: with the switch resumed ON but the tab BACKGROUNDED, Chrome throttles
   // interval timers — the board looked dead until an off/on toggle forced a poll. Any return to the
   // tab now polls IMMEDIATELY, so agent-came-online is never stuck behind the throttle.
