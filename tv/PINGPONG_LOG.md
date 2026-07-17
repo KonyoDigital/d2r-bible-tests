@@ -85,6 +85,10 @@
 - **Junk filter:** potions/arrows never auto-vault.
 - **Speed:** shorter vision prompt (inv was 25.8s). Anchors confirmed legible live.
 
+### R23 · v740 — FAREWELL READ (run #7: end-of-session stash lost to shutdown race)
+- On Ctrl-C / `tvd stop` (SIGTERM): one last capture + deep read → publish with `farewell:true`.
+- Bypasses settle/gap. `tvd stop` waits ≤90s. End-of-run garbage stash still lands.
+
 ### R22 · v738 — CHAIN VAULT (run #4: Colossus Crossbow + Jewel)
 - Stash no longer panel-greedy. Commit only SEEN / HOLDING / gone-candidate.
 - Never vault Unidentified. Blood Shield class → `stash-no-chain`.

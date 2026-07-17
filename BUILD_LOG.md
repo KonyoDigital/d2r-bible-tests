@@ -31,6 +31,14 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-17 — Grok: v740 farewell read (run #7 end-stash race)
+
+- **Miss:** garbage stashed then agent killed within seconds → no settle/gap/deep → nothing
+  vaulted. Farewell: on SIGINT/SIGTERM one final capture + deep read (flag `farewell:true`).
+- `tvd stop` waits up to 90s for farewell before SIGKILL. Suite 43/43.
+
+---
+
 ## 2026-07-17 — Grok: v738 chain vault (run #4 Crossbow + Jewel)
 
 - **Live miss:** floor SEEN Colossus Crossbow; stash vaulted Blood Shield/Compendium/

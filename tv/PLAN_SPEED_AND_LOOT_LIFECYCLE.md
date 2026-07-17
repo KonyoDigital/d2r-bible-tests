@@ -218,3 +218,7 @@ lost to the race. Prints '👋 farewell read: …' and publishes it like any rea
 Pairs with the PERSONAL-TAB intake (art-based, no hovers) for full end-of-run coverage.
 
 Owner: Grok codes · Fable gates · verify: stash + instant Ctrl-C → item still registers.
+
+### Shipped v740 (Grok)
+- `farewell_read()` + SIGINT/SIGTERM handler · `emit_deep_read(..., farewell=True)`
+- `tvd stop` grace 90s for farewell. Unit: stub stash/shared + SEEN chain → vault + flag.

@@ -298,6 +298,74 @@ class TestFrameArchive(unittest.TestCase):
         self.assertEqual(tv.frame_path_for_id("abc"), "")
 
 
+class TestFarewellRead(unittest.TestCase):
+    """v740 — shutdown farewell always publishes (run #7 race fix)."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._old_frames = tv.FRAMES
+        self._old_hist = tv.HIST_DIR
+        self._old_state = tv.STATE
+        self._old_life = tv._LIFECYCLE
+        tv.FRAMES = self.d
+        tv.HIST_DIR = os.path.join(self.d, "hist")
+        tv.STATE = os.path.join(self.d, "state.json")
+        tv._LIFECYCLE = tv.LootLifecycle()
+        # seed empty state
+        with open(tv.STATE, "w") as f:
+            json.dump({"online": True, "reads": [], "readCount": 2, "seen": [], "farmed": []}, f)
+        # stub vision
+        self._prev_stub = os.environ.get("TV_STUB")
+        os.environ["TV_STUB"] = "1"
+        man = os.path.join(self.d, "stub_manifest.json")
+        # claude_read looks in HERE for stub_manifest — patch via writing to tv/ and basename
+        self._man_path = os.path.join(os.path.dirname(tv.__file__), "stub_manifest.json")
+        self._man_bak = None
+        if os.path.isfile(self._man_path):
+            with open(self._man_path, encoding="utf-8") as f:
+                self._man_bak = f.read()
+        with open(self._man_path, "w") as f:
+            json.dump({
+                "*": {"scene": "stash", "stashTab": "shared", "area": "Harrogath",
+                      "names": ["Horadric Cube", "Nagelring"], "conf": 0.9}
+            }, f)
+        # seed lifecycle so Nagelring can chain-vault if previously seen
+        tv._LIFECYCLE.process("loot", ["Nagelring"], "Frigid Highlands", 0.9, now_ms=1000)
+
+    def tearDown(self):
+        tv.FRAMES = self._old_frames
+        tv.HIST_DIR = self._old_hist
+        tv.STATE = self._old_state
+        tv._LIFECYCLE = self._old_life
+        if self._prev_stub is None:
+            os.environ.pop("TV_STUB", None)
+        else:
+            os.environ["TV_STUB"] = self._prev_stub
+        if self._man_bak is not None:
+            with open(self._man_path, "w") as f:
+                f.write(self._man_bak)
+        else:
+            try: os.remove(self._man_path)
+            except Exception: pass
+
+    def test_farewell_publishes_flagged_record(self):
+        # use a tiny real file as force_frame so claude_read stub path works by basename
+        img = os.path.join(self.d, "farewell.jpg")
+        open(img, "wb").write(b"\xff\xd8\xff\xd9")  # minimal jpeg bytes
+        # stub looks up basename in manifest under HERE — set * fallback already
+        rec = tv.farewell_read(force_frame=img)
+        self.assertIsNotNone(rec)
+        self.assertTrue(rec.get("farewell"))
+        self.assertEqual(rec.get("lane"), "deep")
+        self.assertEqual(rec.get("n"), 3)  # readCount was 2 → +1
+        self.assertEqual(rec.get("scene"), "stash")
+        # state on disk
+        st = json.load(open(tv.STATE, encoding="utf-8"))
+        self.assertEqual(st["readCount"], 3)
+        self.assertTrue(st["reads"][-1].get("farewell"))
+        # Nagelring was SEEN then farewell stash → vault commit
+        self.assertIn("Nagelring", rec.get("vault_names") or [])
+
+
 class TestStashTab(unittest.TestCase):
     """v734 — stashTab normalize for RotW left tabs."""
     def test_norm_aliases(self):

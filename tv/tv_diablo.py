@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Autopilot scanner (v738)
+# 📺 TV DIABLO — Autopilot scanner (v740)
 #
 #   You play Diablo II. This watches the screen, reads the items you're looking
 #   at, and feeds the tally to the Farming Bible's 📺 panel — automatically.
@@ -28,7 +28,7 @@
 #   items) after having changed. Running around = every frame differs = zero
 #   reads. Hard caps: ≥20s between reads, 120 reads per session.
 # ═══════════════════════════════════════════════════════════════════════════════
-import json, os, subprocess, sys, threading, time, hashlib
+import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE   = os.path.dirname(os.path.abspath(__file__))
@@ -98,7 +98,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v738",
+    "ver": "v740",
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -1059,14 +1059,14 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v738 — chain vault (SEEN/HOLD→stash) · frame hist · OCR")
+    print("📺 TV DIABLO Autopilot v740 — farewell read on stop · chain vault · frame hist")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
     print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
-    ev("boot", f"autopilot v738 — chain vault + frame hist + OCR · priority gap {PRIORITY_GAP_S}s")
+    ev("boot", f"autopilot v740 — farewell on stop · chain vault · OCR · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
             try:
@@ -1218,14 +1218,9 @@ def main():
         # ── DEEP LANE: Claude (scene/area/verify; 3–8s) ──
         rd = claude_read(frame)
         beat("watching", 0.0)
-        names = rd["names"]
-        intent = rd.get("intent") or _intent_for(rd.get("scene"))
-        # v731 commitment vault — inv HOLDING → vault only after hold/stash; throw-out cancels
-        lc = _LIFECYCLE.process(rd.get("scene") or "gameplay", names, rd.get("area") or "", rd.get("conf"))
-        vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
-        pending_names = lc.get("pending_names") or []
-        thrown_names = lc.get("thrown_names") or []
-        unvault_names = lc.get("unvault_names") or []
+        rec = emit_deep_read(rd, n=reads, frame_id=frame_id, interest=interest,
+                             used_priority=used_priority, ocr_rd=ocr_rd, farewell=False)
+        names = (rec or {}).get("names") or []
         if names:
             empty_streak = 0
             named_until = time.time() + 45
@@ -1236,80 +1231,202 @@ def main():
                 empty_streak += 1
                 _AP["namedStreak"] = 0
         _AP["emptyStreak"] = empty_streak
-        if vault_names:
-            tag = "🏦 vaulted"
-        elif pending_names or (intent == "farmed" and names):
-            tag = "⏳ holding"
-        elif intent == "seen":
-            tag = "👁 seen"
-        elif thrown_names:
-            tag = "🗑 throw"
-        elif lc.get("gone_candidates"):
-            tag = "👻 gone?"
-        else:
-            tag = "·"
-        model_tag = rd.get("model") or FAST_MODEL
-        esc = " ⬆genius" if rd.get("escalated") else ""
-        pri = " ⚡" if used_priority else ""
-        lc_note = ""
-        if vault_names:
-            lc_note = " · VAULT " + ", ".join(vault_names[:3])
-        elif pending_names:
-            lc_note = " · HOLDING " + ", ".join(pending_names[:3]) + f" (≥{HOLD_MS//1000}s or stash)"
-        elif thrown_names:
-            lc_note = " · THROW-OUT " + ", ".join(thrown_names[:3])
-        elif lc.get("gone_candidates"):
-            lc_note = " · candidate gone " + ", ".join(lc["gone_candidates"][:3])
-        elif lc.get("apply_held"):
-            lc_note = " · hold apply (" + lc["apply_held"] + ")"
-        ocr_ms = (ocr_rd or {}).get("ms")
-        stash_tab = _norm_stash_tab(rd.get("stashTab"), rd.get("scene"))
-        # mark which deep names confirm a prior OCR flash
-        ocr_set = {_norm_name(x) for x in ((ocr_rd or {}).get("names") or [])}
-        confirmed = [n for n in names if _norm_name(n) in ocr_set]
-        conf_note = ((" · ✓ocr " + ", ".join(confirmed[:3])) if confirmed else "")
-        tab_note = (f" · tab:{stash_tab}" if stash_tab else "")
-        ev("read", (("🗺 "+rd["area"]+" · ") if rd["area"] else "") + tag + " " + rd["scene"] + tab_note + " — " + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)") + lc_note + conf_note + (" ["+rd.get("mode","?")+" "+model_tag+esc+pri+" "+str(round(rd.get("ms",0)/1000,1))+"s]" if rd.get("ms") else "") + (f" · ocr {ocr_ms}ms" if ocr_ms is not None else ""))
-        print(f"  🗺 {(rd['area'] or '?')} · {tag} {rd['scene']}{tab_note}  {'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}{lc_note}{conf_note}  [{model_tag}{esc}{pri}]")
-        with _state_lock:
-            st = _load()
-            st.setdefault("seen", []); st.setdefault("farmed", [])
-            rec = {"ts": int(time.time()*1000), "names": names, "n": reads, "area": rd["area"], "scene": rd["scene"],
-                   "tz": rd.get("tz", []), "ms": rd.get("ms", 0), "mode": rd.get("mode", ""),
-                   "lane": "deep", "model": model_tag, "conf": rd.get("conf"), "intent": intent,
-                   "stashTab": stash_tab,
-                   "frameId": frame_id,
-                   "escalated": bool(rd.get("escalated")),
-                   "interest": interest, "priority": used_priority,
-                   "provisional": False,
-                   "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
-                   "confirmed_names": confirmed,
-                   "vault_names": vault_names,
-                   "farmed_names": vault_names,  # board vault wire uses this = COMMIT only
-                   "pending_names": pending_names,
-                   "thrown_names": thrown_names,
-                   "unvault_names": unvault_names,
-                   "lifecycle_tags": lc.get("lifecycle_tags") or {},
-                   "anchor": lc.get("anchor", "n/a"),
-                   "gone_candidates": lc.get("gone_candidates") or [],
-                   "holdMs": HOLD_MS}
-            st["reads"].append(rec)
-            st["reads"] = st["reads"][-200:]
-            st["readCount"] = reads
-            st["ap"] = dict(_AP)
-            st["lifecycle"] = _LIFECYCLE.snapshot()
-            def _push(arr, name, extra):
-                arr.append({"ts": rec["ts"], "name": name, "area": rd.get("area") or "", **extra})
-                del arr[:-200]
-            if intent == "seen":
-                for nm in names:
-                    if not _is_anchor(nm) and not _is_junk(nm):
-                        _push(st["seen"], nm, {"scene": "loot", "src": "deep"})
-            for nm in vault_names:
-                st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
-                _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory",
-                                         "tag": (lc.get("lifecycle_tags") or {}).get(nm, "vault")})
-            _save(st)
+
+def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False):
+    """Publish one deep-lane record (main settle + v740 farewell). Returns the record dict."""
+    rd = rd or {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None, "mode": "empty"}
+    names = rd.get("names") or []
+    intent = rd.get("intent") or _intent_for(rd.get("scene"))
+    lc = _LIFECYCLE.process(rd.get("scene") or "gameplay", names, rd.get("area") or "", rd.get("conf"))
+    vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
+    pending_names = lc.get("pending_names") or []
+    thrown_names = lc.get("thrown_names") or []
+    unvault_names = lc.get("unvault_names") or []
+    if vault_names:
+        tag = "🏦 vaulted"
+    elif pending_names or (intent == "farmed" and names):
+        tag = "⏳ holding"
+    elif intent == "seen":
+        tag = "👁 seen"
+    elif thrown_names:
+        tag = "🗑 throw"
+    elif lc.get("gone_candidates"):
+        tag = "👻 gone?"
+    else:
+        tag = "·"
+    model_tag = rd.get("model") or FAST_MODEL
+    esc = " ⬆genius" if rd.get("escalated") else ""
+    pri = " ⚡" if used_priority else ""
+    fare = " 👋FAREWELL" if farewell else ""
+    lc_note = ""
+    if vault_names:
+        lc_note = " · VAULT " + ", ".join(vault_names[:3])
+    elif pending_names:
+        lc_note = " · HOLDING " + ", ".join(pending_names[:3]) + f" (≥{HOLD_MS//1000}s or stash)"
+    elif thrown_names:
+        lc_note = " · THROW-OUT " + ", ".join(thrown_names[:3])
+    elif lc.get("gone_candidates"):
+        lc_note = " · candidate gone " + ", ".join(lc["gone_candidates"][:3])
+    elif lc.get("apply_held"):
+        lc_note = " · hold apply (" + lc["apply_held"] + ")"
+    ocr_ms = (ocr_rd or {}).get("ms")
+    stash_tab = _norm_stash_tab(rd.get("stashTab"), rd.get("scene"))
+    ocr_set = {_norm_name(x) for x in ((ocr_rd or {}).get("names") or [])}
+    confirmed = [nm for nm in names if _norm_name(nm) in ocr_set]
+    conf_note = ((" · ✓ocr " + ", ".join(confirmed[:3])) if confirmed else "")
+    tab_note = (f" · tab:{stash_tab}" if stash_tab else "")
+    line = ((("🗺 "+rd.get("area","")+" · ") if rd.get("area") else "") + tag + " " + str(rd.get("scene") or "")
+            + tab_note + " — "
+            + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)")
+            + lc_note + conf_note
+            + (" ["+str(rd.get("mode","?"))+" "+model_tag+esc+pri+fare+" "+str(round((rd.get("ms") or 0)/1000,1))+"s]" if rd.get("ms") else fare)
+            + (f" · ocr {ocr_ms}ms" if ocr_ms is not None else ""))
+    if farewell:
+        ev("read", "👋 farewell · " + line)
+        print(f"  👋 farewell · {(rd.get('area') or '?')} · {tag} {rd.get('scene')}{tab_note}  "
+              f"{'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}"
+              f"{lc_note}{conf_note}  [{model_tag}]")
+    else:
+        ev("read", line)
+        print(f"  🗺 {(rd.get('area') or '?')} · {tag} {rd.get('scene')}{tab_note}  "
+              f"{'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}"
+              f"{lc_note}{conf_note}  [{model_tag}{esc}{pri}]")
+    rec = {
+        "ts": int(time.time() * 1000), "names": names, "n": n, "area": rd.get("area") or "",
+        "scene": rd.get("scene") or "gameplay", "tz": rd.get("tz", []), "ms": rd.get("ms", 0),
+        "mode": rd.get("mode", ""), "lane": "deep", "model": model_tag, "conf": rd.get("conf"),
+        "intent": intent, "stashTab": stash_tab, "frameId": frame_id,
+        "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
+        "provisional": False, "farewell": bool(farewell),
+        "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
+        "confirmed_names": confirmed,
+        "vault_names": vault_names, "farmed_names": vault_names,
+        "pending_names": pending_names, "thrown_names": thrown_names,
+        "unvault_names": unvault_names,
+        "lifecycle_tags": lc.get("lifecycle_tags") or {},
+        "anchor": lc.get("anchor", "n/a"),
+        "gone_candidates": lc.get("gone_candidates") or [],
+        "holdMs": HOLD_MS,
+    }
+    with _state_lock:
+        st = _load()
+        st.setdefault("seen", []); st.setdefault("farmed", [])
+        st["reads"].append(rec)
+        st["reads"] = st["reads"][-200:]
+        st["readCount"] = n
+        st["ap"] = dict(_AP)
+        st["lifecycle"] = _LIFECYCLE.snapshot()
+        def _push(arr, name, extra):
+            arr.append({"ts": rec["ts"], "name": name, "area": rd.get("area") or "", **extra})
+            del arr[:-200]
+        if intent == "seen":
+            for nm in names:
+                if not _is_anchor(nm) and not _is_junk(nm):
+                    _push(st["seen"], nm, {"scene": "loot", "src": "deep"})
+        for nm in vault_names:
+            st["seen"] = [s for s in st["seen"] if s.get("name", "").lower() != nm.lower()]
+            _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory",
+                                     "tag": (lc.get("lifecycle_tags") or {}).get(nm, "vault")})
+        _save(st)
+    return rec
+
+def farewell_read(force_frame=None):
+    """v740 — one last capture + deep read on shutdown so end-of-run stash is never lost.
+
+    Run #7 miss: garbage stashed then agent killed within seconds → no settle/gap/read.
+    Farewell bypasses settle/gap and always publishes (flag farewell=true).
+    force_frame: test seam (path to image); skips capture.
+    Returns the published record, or None on hard failure.
+    """
+    print("\n  👋 farewell read — one last look so end-of-run stash is not lost…")
+    ev("boot", "farewell read — capturing final frame")
+    beat("reading", 0.0)
+    _AP["mode"] = "read"
+    frame = force_frame
+    if not frame:
+        frame = os.path.join(FRAMES, "live.bmp")
+        try:
+            if WATCH_MODE:
+                f = newest_watched_frame()
+                if f:
+                    frame = f
+                elif not os.path.isfile(frame):
+                    ev("cap", "farewell: no watch frame")
+                    print("  👋 farewell: no frame available — skipping")
+                    return None
+            else:
+                if not capture_mac(frame):
+                    # fall back to last vision JPEG if capture fails mid-shutdown
+                    jp = os.path.join(FRAMES, "read.jpg")
+                    if os.path.isfile(jp):
+                        frame = jp
+                        ev("skip", "farewell: capture failed — using last read.jpg")
+                    else:
+                        ev("cap", "farewell capture failed")
+                        print("  👋 farewell: capture failed — skipping")
+                        return None
+        except Exception as e:
+            ev("cap", f"farewell capture error: {e}")
+            print(f"  👋 farewell: capture error — {e}")
+            return None
+    if not os.path.isfile(frame):
+        print("  👋 farewell: frame missing — skipping")
+        return None
+    with _state_lock:
+        try:
+            n = int((_load().get("readCount") or 0)) + 1
+        except Exception:
+            n = 1
+    read_ts = int(time.time() * 1000)
+    frame_id = archive_read_frame(frame, n, read_ts) or ""
+    try:
+        # deep only — farewell must land; OCR is optional and can wait
+        rd = claude_read(frame)
+    except Exception as e:
+        ev("cap", f"farewell vision failed: {e}")
+        print(f"  👋 farewell: vision failed — {e}")
+        return None
+    if not rd:
+        rd = {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None,
+              "mode": "empty", "model": FAST_MODEL, "ms": 0}
+    rec = emit_deep_read(rd, n=n, frame_id=frame_id, interest=1.0,
+                         used_priority=True, ocr_rd=None, farewell=True)
+    names = rec.get("names") or []
+    scene = rec.get("scene") or "?"
+    tab = rec.get("stashTab") or ""
+    vault = rec.get("vault_names") or []
+    summary = scene + (f"/{tab}" if tab else "")
+    if vault:
+        summary += " · VAULT " + ", ".join(vault[:4])
+    elif names:
+        summary += " — " + ", ".join(names[:4])
+    else:
+        summary += " — empty"
+    print(f"  👋 farewell read done: {summary}")
+    ev("boot", f"farewell done · {summary}"[:120])
+    return rec
+
+_FAREWELL_DONE = False
+def _shutdown_handler(signum, frame):
+    """SIGINT/SIGTERM → farewell read then clean exit (tvd stop sends SIGTERM)."""
+    global _FAREWELL_DONE
+    if _FAREWELL_DONE:
+        os._exit(0)
+    _FAREWELL_DONE = True
+    sig_name = "SIGINT" if signum == signal.SIGINT else ("SIGTERM" if signum == signal.SIGTERM else str(signum))
+    print(f"\n  👋 shutdown ({sig_name}) — farewell read…")
+    try:
+        farewell_read()
+    except Exception as e:
+        print(f"  👋 farewell failed: {e}")
+    with _state_lock:
+        try:
+            st = _load(); st["online"] = False; _save(st)
+        except Exception:
+            pass
+    print("\n📺 TV DIABLO off — good hunting.")
+    # hard exit so we don't re-enter the main loop mid-sleep
+    os._exit(0)
 
 if __name__ == "__main__":
     # one-shot validation: python3 tv/tv_diablo.py --test <image>  (run in YOUR terminal —
@@ -1322,12 +1439,15 @@ if __name__ == "__main__":
         print("📺 test read:", os.path.abspath(img))
         print(json.dumps(claude_read(img), indent=1))
         sys.exit(0)
+    # v740 — farewell on Ctrl-C AND tvd stop (SIGTERM)
+    try:
+        signal.signal(signal.SIGINT, _shutdown_handler)
+        signal.signal(signal.SIGTERM, _shutdown_handler)
+    except Exception:
+        pass
     try:
         main()
     except KeyboardInterrupt:
-        with _state_lock:
-            try:
-                st = _load(); st["online"] = False; _save(st)
-            except Exception:
-                pass
-        print("\n📺 TV DIABLO off — good hunting.")
+        # fallback if signal handler not installed (rare)
+        if not _FAREWELL_DONE:
+            _shutdown_handler(signal.SIGINT, None)
