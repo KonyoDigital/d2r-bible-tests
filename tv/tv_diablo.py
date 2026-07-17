@@ -233,6 +233,9 @@ _CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
 
 
 # Owner / title tokens — CrossOver + native D2R. Avoid bare "wine" alone (too broad).
+_PICK_WHY = ""   # v779-pre diag — why the last pick returned None
+_CAP_WHY = ""
+_LAST_GOOD_WIN = None   # v779 — the pin survives flaky window listings
 _D2R_OWNER_HINTS = (
     "crossover", "cross over", "cxpatcher", "winebottler",
     "diablo", "d2r", "battle.net", "battle net",
@@ -255,13 +258,15 @@ def _match_tokens():
 def find_d2r_window_mac():
     """Return (window_id:int, label:str) for the best on-screen D2R/CrossOver game window, or None.
     Uses Quartz (already on machine via pywebview/pyobjc). Read-only window list."""
+    global _PICK_WHY
     try:
         from Quartz import (
             CGWindowListCopyWindowInfo,
             kCGWindowListOptionAll,
             kCGNullWindowID,
         )
-    except Exception:
+    except Exception as e:
+        _PICK_WHY = "quartz-import: %s" % e
         return None
     try:
         # v779-pre (Konyo live: 'it looks full screen') — THE SPACES PROBLEM: a fullscreen D2R
@@ -269,7 +274,8 @@ def find_d2r_window_mac():
         # desktop capture. All-spaces listing finds the game wherever it lives; screencapture
         # -l captures a window across Spaces.
         wins = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID) or []
-    except Exception:
+    except Exception as e:
+        _PICK_WHY = "winlist: %s" % e
         return None
     tokens = _match_tokens()
     best = None  # (score, area, wid, label)
@@ -295,14 +301,22 @@ def find_d2r_window_mac():
             if not wid:
                 continue
             score = 0
-            if any(t in title.lower() for t in _D2R_TITLE_HINTS):
+            # v779 (live pick bug): the CrossOver LAUNCHER out-scored the actual game
+            # window (12752 beat 'D2R.exe · Diablo II: Resurrected'). Game identity is
+            # ABSOLUTE — a diablo/d2r title or a D2R.exe owner beats any launcher math.
+            tl, ol = title.lower(), owner.lower()
+            if "diablo" in tl or "d2r" in tl:
+                score += 1000
+            if "d2r" in ol or "diablo" in ol:
+                score += 500
+            if any(t in tl for t in _D2R_TITLE_HINTS):
                 score += 50
-            if any(t in owner.lower() for t in _D2R_OWNER_PRIORITY):
+            if any(t in ol for t in _D2R_OWNER_PRIORITY):
                 score += 30
-            if "crossover" in owner.lower() or "crossover" in blob:
-                score += 40  # Konyo's Mac path
-            if "diablo" in blob:
-                score += 20
+            if "crossover" in ol or "crossover" in blob:
+                score += 5  # weak tiebreak only — launcher chrome must never beat the game
+            if w.get("kCGWindowIsOnscreen"):
+                score += 40
             area = ww * hh
             score += min(area // 100000, 20)  # prefer larger
             label = f"{owner}" + (f" · {title}" if title else "")
@@ -320,10 +334,23 @@ def capture_mac(path, timeout=12):
     """Full-screen capture by default (fullscreen D2R / CrossOver).
     Optional TV_CAPTURE=window|auto pins CrossOver/D2R window. v753 hard timeout."""
     global _CAP_TARGET
+    _CAP_WHY = ""
     mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()   # v777.1 (Konyo live: 'it's showing the desktop') — AUTO pins the D2R window when one exists; full-screen only as fallback
     # Optional window pin only when explicitly asked (or auto)
     if mode in ("auto", "window", "win", "game"):
         hit = find_d2r_window_mac()
+        # v779 — LAST-GOOD CACHE: Quartz listing is flaky from the agent's context; a window
+        # that pinned once stays pinned until a capture with it actually fails.
+        global _LAST_GOOD_WIN
+        if hit:
+            _LAST_GOOD_WIN = hit
+        elif _LAST_GOOD_WIN:
+            hit = _LAST_GOOD_WIN
+            _CAP_WHY = ""
+        if not hit:
+            _CAP_WHY = "no game window: %s" % (_PICK_WHY or "no match in list")
+        else:
+            _CAP_WHY = ""
         if hit:
             wid, label = hit
             try:
@@ -331,9 +358,18 @@ def capture_mac(path, timeout=12):
                     ["screencapture", "-l", str(wid), "-o", "-x", "-t", "bmp", path],
                     capture_output=True, timeout=timeout,
                 )
-                if r.returncode == 0 and os.path.exists(path) and os.path.getsize(path) > 10000:
+                # v779 — screencapture -l can exit 1 while writing a PERFECT frame (cross-Space
+                # window): trust the OUTPUT, not the exit code. 22MB of game beats a lying rc.
+                if os.path.exists(path) and os.path.getsize(path) > 10000:
+                    if _CAP_TARGET.get("wid") != wid:
+                        try: ev("cap", "🎯 eye pinned to %s" % label)
+                        except Exception: pass
                     _CAP_TARGET = {"mode": "window", "label": label, "wid": wid}
                     return True
+                # this wid failed for real — drop the cache so full-screen can take over
+                if _LAST_GOOD_WIN and _LAST_GOOD_WIN[0] == wid:
+                    _LAST_GOOD_WIN = None
+                _CAP_TARGET = {"mode": "full", "label": "full screen (window capture failed rc=%s size=%s)" % (r.returncode, os.path.getsize(path) if os.path.exists(path) else 0), "wid": wid}
             except Exception:
                 pass
         if mode in ("window", "win", "game"):
@@ -348,7 +384,7 @@ def capture_mac(path, timeout=12):
         )
         ok = r.returncode == 0 and os.path.exists(path)
         if ok:
-            _CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
+            _CAP_TARGET = {"mode": "full", "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")), "wid": None}
         return ok
     except Exception:
         return False
