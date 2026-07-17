@@ -307,3 +307,13 @@ Konyo: "i was doing mephisto runs and it noticed them ausome!" — the product s
 - **Known-dead persistence**: learned transition frames survive restarts (tv/known_frames.json,
   gitignored) — the loading screen is learned ONCE, ever; boot announces '<N> learned frames loaded'.
 - Gates: agent 46/46 · board 9/9 · html clean.
+
+### 🌙 NIGHT R5 · v743 — synapse burst readability ✅
+- Identical repeated thoughts collapse into one node with an amber ×N counter (skip-storms =
+  one quiet line; the active thought stays unmistakable under any burst). Board 9/9.
+
+## 🌙 NIGHT TALLY (Konyo's all-night TV-D order — dawn report)
+v741 lightbox surgery + known-dead learning + THE SYNAPSE · R2 MCP user pass green on his real
+tab · R3 vault e2e green (hold→commit→unvault) · v742 Esc stack + persistent learning (Grok's
+picks) · v743 burst collapse. Suites: agent 46/46 · board 9/9 · every round shipped + gated.
+Grok's verdict pre-dawn: "you're past the hard ships."

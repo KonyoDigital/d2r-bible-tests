@@ -31678,6 +31678,7 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .syn-trans .syn-orb{border-color:rgba(150,150,170,.4);color:#9a9ab0}
 .syn-trans .syn-txt{color:#8a8aa0;font-style:italic}
 .syn-quiet{opacity:.55}
+.syn-x{flex:0 0 auto;font-weight:800;color:#ffd97a;background:rgba(255,200,90,.12);border-radius:999px;padding:0 7px;font-size:9px}
 .syn-active{background:linear-gradient(90deg,rgba(102,255,136,.05),transparent 70%);border-radius:6px}
 .syn-active .syn-txt{white-space:normal}
 .syn-active .syn-orb{animation:synGlow 2s ease-in-out infinite}
@@ -32651,7 +32652,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v742', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v743', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33231,6 +33232,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             tsp.textContent=new Date(e.ts).toLocaleTimeString().replace(/\s?[AP]M$/i,'');
             d.appendChild(orb); d.appendChild(body); d.appendChild(tsp);
             d.title=e.t;
+            // v743 — burst readability: an identical repeated thought bumps a ×N counter on the
+            // existing node instead of flooding the spine (skip-storms stay one quiet line)
+            var last=lg.lastElementChild;
+            if(last && last.classList && last.classList.contains('syn-'+kind) && last.__txt===e.t){
+              last.__n=(last.__n||1)+1;
+              var ctr=last.querySelector('.syn-x')||(function(){ var c=document.createElement('span'); c.className='syn-x'; last.insertBefore(c, last.querySelector('.syn-ts')); return c; })();
+              ctr.textContent='×'+last.__n;
+              var lts=last.querySelector('.syn-ts'); if(lts) lts.textContent=new Date(e.ts).toLocaleTimeString().replace(/\s?[AP]M$/i,'');
+              return;
+            }
+            d.__txt=e.t;
             var prev=lg.querySelector('.syn-active'); if(prev) prev.classList.remove('syn-active');
             d.classList.add('syn-active');
             lg.appendChild(d);
