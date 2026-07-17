@@ -34334,6 +34334,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       .catch(function(){ if(to) clearTimeout(to); });
   }
   try { if (!navigator.webdriver){ setInterval(_tvdProbe, 2500); _tvdProbe(); } } catch(e){}
+  // harness / matrix can call the probe even under Playwright (webdriver skips the interval)
+  try { window._tvdProbe = _tvdProbe; } catch(e){}
   // v764 — the switch is a LAMP: auto-synced to the app, never hand-flipped (clicks/keys removed).
   // paint any archived history immediately (even with switch OFF)
   try { HIST_TAB='live'; renderHistory(); } catch(e){}
