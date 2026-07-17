@@ -355,7 +355,10 @@ def start_agent(sim=False):
         if IS_WIN:
             popen_kw["creationflags"] = _WIN_CREATE
         else:
-            popen_kw["start_new_session"] = True
+            # v779 — do NOT setsid on Mac. A start_new_session child of a launchd-orphaned
+            # control (ppid 1) loses the Screen Recording TCC chain; screencapture then
+            # writes nothing and the eye freezes on a stale desktop frame.
+            popen_kw["start_new_session"] = False
 
         _agent_proc = subprocess.Popen(**popen_kw)
         _write_pid(PID_PATH, _agent_proc.pid)
@@ -748,7 +751,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v774",
+        "ver": "v779",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1125,7 +1128,7 @@ def main():
         return
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v774 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v779 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

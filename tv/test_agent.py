@@ -811,6 +811,65 @@ class TestWindowPin(unittest.TestCase):
         self.assertIn("mode", tv._CAP_TARGET)
         self.assertIn("label", tv._CAP_TARGET)
 
+    def test_cap_promote_rejects_missing_tmp(self):
+        """v779 — stale target must never satisfy a failed capture."""
+        import tempfile
+        d = tempfile.mkdtemp()
+        try:
+            path = os.path.join(d, "live.bmp")
+            with open(path, "wb") as f:
+                f.write(b"BM" + b"X" * 50000)   # pre-existing STALE desktop
+            stale_sz = os.path.getsize(path)
+            tmp = path + ".tmp.nope"
+            self.assertFalse(tv._cap_promote(tmp, path))  # tmp never written
+            self.assertEqual(os.path.getsize(path), stale_sz)  # target untouched
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_cap_promote_only_fresh_tmp(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        try:
+            path = os.path.join(d, "live.bmp")
+            with open(path, "wb") as f:
+                f.write(b"OLD" + b"Y" * 20000)
+            tmp = path + ".tmp.fresh"
+            with open(tmp, "wb") as f:
+                f.write(b"NEW" + b"Z" * 30000)
+            self.assertTrue(tv._cap_promote(tmp, path))
+            self.assertFalse(os.path.exists(tmp))
+            with open(path, "rb") as f:
+                self.assertTrue(f.read(3) == b"NEW")
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_capture_mac_does_not_trust_stale_on_failed_screencapture(self):
+        """If screencapture writes nothing, a pre-existing live.bmp must NOT count as success."""
+        import tempfile
+        from unittest import mock
+        d = tempfile.mkdtemp()
+        try:
+            path = os.path.join(d, "live.bmp")
+            with open(path, "wb") as f:
+                f.write(b"BM" + b"D" * 100000)  # "desktop" already there
+            with open(path, "rb") as f:
+                before = f.read(8)
+            # force window path + a hit, then a screencapture that does NOT create tmp
+            with mock.patch.dict(os.environ, {"TV_CAPTURE": "window"}):
+                with mock.patch.object(tv, "find_d2r_window_mac", return_value=(999, "D2R.exe · fake")):
+                    with mock.patch("subprocess.run") as run:
+                        run.return_value = type("R", (), {"returncode": 1})()
+                        ok = tv.capture_mac(path, timeout=2)
+            self.assertFalse(ok)
+            with open(path, "rb") as f:
+                self.assertEqual(f.read(8), before)  # stale file unchanged
+            self.assertIn(tv._CAP_TARGET.get("mode"), ("waiting", "full"))
+        finally:
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

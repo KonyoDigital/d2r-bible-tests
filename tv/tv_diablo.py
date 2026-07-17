@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v774"   # ONE truth — banner, autopilot HUD, and state all read this
+VERSION = "v779"   # ONE truth — banner, autopilot HUD, and state all read this
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -186,9 +186,14 @@ def bridge():
                     st.pop("seen", None); st.pop("farmed", None)
                 self._hdr(); self.wfile.write(json.dumps(st).encode())
             elif self.path.startswith("/ping"):
-                self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
+                try:
+                    self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
             elif self.path.startswith("/frame"):
                 # v724 — last vision JPEG · v735 — ?id=N_ts for per-read hist archive (1920 eye)
+                # v779 — bare /frame prefers the LIVE eye preview (eye.jpg) so fingerprint-skip
+                # never freezes the film on a stale desktop read.jpg.
                 from urllib.parse import urlparse, parse_qs
                 qs = parse_qs(urlparse(self.path).query or "")
                 fid = (qs.get("id") or qs.get("frame") or [None])[0]
@@ -199,7 +204,20 @@ def bridge():
                         self._hdr(400); self.wfile.write(b'{"error":"bad frame id"}'); return
                     jp = os.path.join(FRAMES, "hist", safe + ".jpg")
                 else:
-                    jp = os.path.join(FRAMES, "read.jpg")
+                    eye = os.path.join(FRAMES, "eye.jpg")
+                    read = os.path.join(FRAMES, "read.jpg")
+                    want = (qs.get("which") or [""])[0].strip().lower()
+                    if want == "read":
+                        jp = read
+                    elif want == "eye":
+                        jp = eye
+                    elif os.path.isfile(eye) and (
+                        (not os.path.isfile(read))
+                        or os.path.getmtime(eye) >= os.path.getmtime(read)
+                    ):
+                        jp = eye
+                    else:
+                        jp = read
                 if os.path.isfile(jp):
                     try:
                         with open(jp, "rb") as f: data = f.read()
@@ -210,8 +228,13 @@ def bridge():
                         self.send_header("content-length", str(len(data)))
                         self.end_headers()
                         self.wfile.write(data)
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
                     except Exception:
-                        self._hdr(500); self.wfile.write(b'{"error":"frame read failed"}')
+                        try:
+                            self._hdr(500); self.wfile.write(b'{"error":"frame read failed"}')
+                        except Exception:
+                            pass
                 else:
                     self._hdr(404); self.wfile.write(b'{"error":"no frame yet"}')
             else:
@@ -330,10 +353,93 @@ def find_d2r_window_mac():
     return best[2], best[3]
 
 
+def screen_recording_ok():
+    """v779 — macOS TCC: when Python is the responsible process (control→agent), Terminal's
+    Screen Recording grant does NOT cover us. Preflight + request the system prompt."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        from Quartz import CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess
+        if CGPreflightScreenCaptureAccess():
+            return True
+        # Shows the system dialog once; user must tick Python / TV DIABLO in Settings if denied.
+        CGRequestScreenCaptureAccess()
+        return bool(CGPreflightScreenCaptureAccess())
+    except Exception:
+        # Older macOS / no Quartz — fall through; screencapture will succeed or fail on its own.
+        return True
+
+
+def open_screen_recording_settings():
+    """Deep-link System Settings → Privacy → Screen Recording (best-effort)."""
+    if sys.platform != "darwin":
+        return
+    try:
+        subprocess.Popen(
+            ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        try:
+            subprocess.Popen(
+                ["open", "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            pass
+
+
+def _cap_tmp(path):
+    """Unique sibling temp path — never write onto the durable target first."""
+    return "%s.tmp.%d.%s" % (path, os.getpid(), str(time.time_ns() if hasattr(time, "time_ns") else int(time.time() * 1000)))
+
+
+def _cap_promote(tmp, path, min_bytes=10000):
+    """v779 — THE STALE-FILE LIE: screencapture can exit 1 WITHOUT touching `path`, leaving a
+    previous desktop BMP in place. Trusting `os.path.exists(path)` then claims window-pin success
+    on last night's wallpaper. Capture into tmp; only promote when THIS call wrote real bytes."""
+    try:
+        if not (os.path.exists(tmp) and os.path.getsize(tmp) > min_bytes):
+            return False
+        os.replace(tmp, path)   # atomic on same volume
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+
+
+_EYE_PREVIEW_AT = 0.0
+def refresh_eye_preview(bmp_path, min_interval=1.0):
+    """v779 — keep frames/eye.jpg fresh so /frame film tracks the LIVE pin, not last vision."""
+    global _EYE_PREVIEW_AT
+    now = time.time()
+    if now - _EYE_PREVIEW_AT < min_interval:
+        return
+    if not bmp_path or not os.path.isfile(bmp_path):
+        return
+    try:
+        eye = os.path.join(FRAMES, "eye.jpg")
+        r = subprocess.run(
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "70",
+             "--resampleHeightWidthMax", "1280", bmp_path, "--out", eye],
+            capture_output=True, timeout=12,
+        )
+        if r.returncode == 0 and os.path.isfile(eye):
+            _EYE_PREVIEW_AT = now
+    except Exception:
+        pass
+
+
 def capture_mac(path, timeout=12):
     """Full-screen capture by default (fullscreen D2R / CrossOver).
-    Optional TV_CAPTURE=window|auto pins CrossOver/D2R window. v753 hard timeout."""
-    global _CAP_TARGET
+    Optional TV_CAPTURE=window|auto pins CrossOver/D2R window. v753 hard timeout.
+    v779 — always capture to a temp path first (stale-target trust gate killed)."""
+    global _CAP_TARGET, _CAP_WHY, _LAST_GOOD_WIN
     _CAP_WHY = ""
     mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()   # v777.1 (Konyo live: 'it's showing the desktop') — AUTO pins the D2R window when one exists; full-screen only as fallback
     # Optional window pin only when explicitly asked (or auto)
@@ -341,26 +447,23 @@ def capture_mac(path, timeout=12):
         hit = find_d2r_window_mac()
         # v779 — LAST-GOOD CACHE: Quartz listing is flaky from the agent's context; a window
         # that pinned once stays pinned until a capture with it actually fails.
-        global _LAST_GOOD_WIN
         if hit:
             _LAST_GOOD_WIN = hit
         elif _LAST_GOOD_WIN:
             hit = _LAST_GOOD_WIN
-            _CAP_WHY = ""
         if not hit:
             _CAP_WHY = "no game window: %s" % (_PICK_WHY or "no match in list")
-        else:
-            _CAP_WHY = ""
         if hit:
             wid, label = hit
+            tmp = _cap_tmp(path)
             try:
                 r = subprocess.run(
-                    ["screencapture", "-l", str(wid), "-o", "-x", "-t", "bmp", path],
+                    ["screencapture", "-l", str(wid), "-o", "-x", "-t", "bmp", tmp],
                     capture_output=True, timeout=timeout,
                 )
                 # v779 — screencapture -l can exit 1 while writing a PERFECT frame (cross-Space
-                # window): trust the OUTPUT, not the exit code. 22MB of game beats a lying rc.
-                if os.path.exists(path) and os.path.getsize(path) > 10000:
+                # window): trust the OUTPUT FILE (tmp), not the exit code — and never the old path.
+                if _cap_promote(tmp, path):
                     if _CAP_TARGET.get("wid") != wid:
                         try: ev("cap", "🎯 eye pinned to %s" % label)
                         except Exception: pass
@@ -369,24 +472,48 @@ def capture_mac(path, timeout=12):
                 # this wid failed for real — drop the cache so full-screen can take over
                 if _LAST_GOOD_WIN and _LAST_GOOD_WIN[0] == wid:
                     _LAST_GOOD_WIN = None
-                _CAP_TARGET = {"mode": "full", "label": "full screen (window capture failed rc=%s size=%s)" % (r.returncode, os.path.getsize(path) if os.path.exists(path) else 0), "wid": wid}
-            except Exception:
-                pass
+                sz = os.path.getsize(tmp) if os.path.exists(tmp) else 0
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
+                _CAP_WHY = "window capture failed rc=%s size=%s" % (getattr(r, "returncode", "?"), sz)
+                _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY, "wid": wid}
+            except Exception as e:
+                _CAP_WHY = "window capture exc: %s" % e
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
         if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
             return False
         # auto with no window → fall through to full screen
     # DEFAULT / fallback: entire display (fullscreen game)
+    tmp = _cap_tmp(path)
     try:
         r = subprocess.run(
-            ["screencapture", "-x", "-t", "bmp", path],
+            ["screencapture", "-x", "-t", "bmp", tmp],
             capture_output=True, timeout=timeout,
         )
-        ok = r.returncode == 0 and os.path.exists(path)
+        ok = _cap_promote(tmp, path)
         if ok:
             _CAP_TARGET = {"mode": "full", "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")), "wid": None}
+        else:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except Exception:
+                pass
         return ok
     except Exception:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
         return False
 
 # v771.2 — SIM without Screen Recording: synthetic BMPs so settle+stub reads still fire.
@@ -1463,7 +1590,16 @@ def main():
     print(f"   ocr lane: {ocr_tag}")
     print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
-    ev("boot", f"autopilot v740 — farewell on stop · chain vault · OCR · priority gap {PRIORITY_GAP_S}s")
+    # v779 — ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant;
+    # Terminal's checkbox does not cover the control-app child agent).
+    if not WATCH_MODE and sys.platform == "darwin":
+        if screen_recording_ok():
+            ev("boot", "Screen Recording OK — eye can pin the D2R window")
+        else:
+            ev("cap", "⚠ Screen Recording DENIED for this Python — open System Settings → Privacy → Screen Recording, enable Python / TV DIABLO, then RESTART")
+            open_screen_recording_settings()
+            print("  ⚠ Screen Recording not granted to this process — film will stay dark until you enable Python in System Settings → Privacy → Screen Recording")
+    ev("boot", f"autopilot {VERSION} — farewell on stop · chain vault · OCR · priority gap {PRIORITY_GAP_S}s")
     if _OCR.available():
         def _warm_ocr():
             try:
@@ -1511,6 +1647,15 @@ def main():
                     ev("cap", "SIM synthetic frames — grant Screen Recording to Python for live play")
                     print("  📺 SIM: no Screen Recording for this process — using synthetic frames + canned reads")
             else:
+                if not globals().get("_PERM_WARNED"):
+                    globals()["_PERM_WARNED"] = True
+                    # re-request + deep-link Settings once so Konyo is not stuck on a silent desktop film
+                    try:
+                        screen_recording_ok()
+                        open_screen_recording_settings()
+                    except Exception:
+                        pass
+                    ev("cap", "⚠ capture failed — grant Screen Recording to Python / TV DIABLO (System Settings → Privacy → Screen Recording), then RESTART")
                 print("  ⚠ screencapture failed (grant Screen Recording to the TV DIABLO / Python app in System Settings → Privacy)"); continue
         elif (not WATCH_MODE) and os.path.getsize(frame) < 200000:
             if os.environ.get("TV_STUB") and capture_stub_synth(frame):
@@ -1523,6 +1668,11 @@ def main():
                     ev("cap", "capture looks EMPTY — grant Screen Recording to TV DIABLO / Python (System Settings → Privacy) and relaunch")
                     print("  ⚠ capture is suspiciously tiny — screen-recording permission is probably missing")
                 continue
+        else:
+            # v779 — live film tracks the pin even while vision is fingerprint-skipping
+            if not WATCH_MODE:
+                try: refresh_eye_preview(frame)
+                except Exception: pass
         try: cur = frame_sig(frame)
         except Exception: continue
         motion = sig_diff(cur, last_md5)

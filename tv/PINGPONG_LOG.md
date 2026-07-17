@@ -793,3 +793,16 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
   → v778 locks. Plus the live-run battle round: v776.1/777.1/777.2/778-pre (SIM toggle, window-pin
   auto, ON spawns nothing, zombie stare, SIM=last-session theatre).
 - Gate: 29/29 (family 9 + board 15 + console 5) + prior wave suites green.
+
+
+### 🎯 v779 — THE HONEST EYE (Grok picks up Fable's capture-pin mystery) ✅
+- **Root cause 1 — THE STALE-FILE LIE**: window capture trusted a pre-existing `live.bmp` when
+  `screencapture` wrote nothing (rc=1, size=0). Agent claimed pin; film was last night's desktop.
+  Fix: capture → unique temp → `os.replace` only on real bytes. 3 unit locks.
+- **Root cause 2 — TCC**: Python-as-responsible (control→agent) needs its own Screen Recording
+  grant; Terminal's checkbox does not cover it. Boot preflight + `CGRequestScreenCaptureAccess`
+  + Settings deep-link; Mac spawn drops `start_new_session` (setsid broke the chain).
+- **Live film**: `/frame` prefers `eye.jpg` (refreshed each capture) over frozen `read.jpg`.
+- **ONE version truth**: agent/control/UI/`D2R_BUILD` → **v779**.
+- Live-verified: pin `D2R.exe · Diablo II: Resurrected`, film = Rogue Encampment, read #1 lands.
+- Gates: agent+control **83/83**.
