@@ -4240,7 +4240,48 @@ try {
   <div hidden id="sc-target-body"></div>
   <div hidden id="sc-grail-body"></div>
 </div>
+<style id="tvf-family">/* v775 🌙 THE FAMILY SPINE — one console-style header language across the five workshop tabs
+   (Session · Tools · Forge · F-Uniques · F-Sets), mirroring the TV·D broadcast console (.tvz-head):
+   emblem box + serif GOLD title + mono purpose line + a real-number stat rail. New tvf- namespace,
+   no collision with tvz-/forge-/sc-. The sibling title accent is GOLD (#f0c060) family-wide. */
+.tvf-spine{display:flex;align-items:center;justify-content:space-between;gap:16px 22px;flex-wrap:wrap;padding:13px 20px;margin:6px 0 16px;border:1px solid rgba(240,192,96,.2);border-radius:16px;background:radial-gradient(140% 240% at 5% -60%,rgba(240,192,96,.08),transparent 46%),linear-gradient(180deg,rgba(20,16,10,.72),rgba(8,7,5,.72));position:relative;overflow:hidden}
+.tvf-spine::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 100% at 100% 0%,rgba(240,192,96,.05),transparent 55%)}
+.tvf-brand{display:flex;align-items:center;gap:14px;min-width:0;position:relative;z-index:1}
+.tvf-emblem{width:52px;height:52px;flex:none;border-radius:12px;display:grid;place-items:center;font-size:26px;line-height:1;border:1px solid rgba(240,192,96,.5);background:radial-gradient(circle at 50% 30%,rgba(240,192,96,.18),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(240,192,96,.2),inset 0 1px 0 rgba(255,255,255,.08)}
+.tvf-brand-txt{min-width:0;display:flex;flex-direction:column;gap:4px}
+.tvf-title{font-family:var(--serif-display,'Cinzel',serif);font-variant-caps:small-caps;font-size:27px;font-weight:700;letter-spacing:.08em;line-height:1;color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.3)}
+.tvf-purpose{font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(58ch,60vw)}
+.tvf-rail{display:flex;align-items:center;gap:9px;flex-wrap:wrap;position:relative;z-index:1}
+.tvf-stat{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:66px;padding:6px 14px;border:1px solid rgba(240,192,96,.22);border-radius:11px;background:rgba(0,0,0,.28)}
+.tvf-stat b{font-family:var(--serif-display,'Cinzel',serif);font-size:18px;font-weight:700;line-height:1;color:var(--gold-bright,#f0c060)}
+.tvf-stat span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap}
+@media(max-width:640px){.tvf-spine{padding:11px 14px}.tvf-title{font-size:22px}.tvf-emblem{width:44px;height:44px;font-size:22px}.tvf-purpose{white-space:normal}}
+/* forge-head family variant — the three forge siblings borrow the emblem box + gold serif accent */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head{display:flex;align-items:flex-start;gap:14px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head .tvf-emblem{margin-top:2px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head .forge-headtxt{min-width:0;flex:1 1 auto}
+/* v775 — >1500 the container centers at 1500 but the sticky header band stayed full-width, so the nav
+   row + search drifted off the content column. Cap them to the same 1472 content column (1500 − 28 pad). */
+@media(min-width:1501px){
+  .header .tabs{max-width:1472px!important}
+  .header .gsearch-wrap{margin-left:calc((100% - 1472px)/2)!important;margin-right:auto!important}
+}
+</style>
 <div class="tab-content" id="tab-tools">
+  <div class="tvf-spine" id="tools-spine">
+    <div class="tvf-brand">
+      <span class="tvf-emblem">🧰</span>
+      <div class="tvf-brand-txt">
+        <div class="tvf-title">Tools</div>
+        <div class="tvf-purpose">Your planners · tally what you own → see what you can make</div>
+      </div>
+    </div>
+    <div class="tvf-rail" id="tools-spine-rail" aria-label="Your tallies">
+      <div class="tvf-stat"><b id="tsp-vault">0</b><span>Vault</span></div>
+      <div class="tvf-stat"><b id="tsp-runes">0</b><span>Runes</span></div>
+      <div class="tvf-stat"><b id="tsp-gems">0</b><span>Gems</span></div>
+    </div>
+  </div>
   <div class="lead">🧰 <strong>Your personal planners.</strong> Everything here is saved on this device and included in 💾 Backup &amp; Share. Tally what you own → see what you can cube up, when you can open an uber portal, and which sets you've completed. More tools land here as the bible grows.</div>
   <div class="tools-quickup" id="tools-quickup">
     <div class="tqu-head"><span class="tqu-cam">📸</span><span class="tqu-headtxt"><b>Quick upload</b><small>AI reads a screenshot</small></span></div>
@@ -6698,7 +6739,7 @@ try {
 <div class="tab-content" id="tab-forge">
 <style>
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-head{margin:2px 0 4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:42px;font-weight:800;letter-spacing:.5px;color:var(--best,#e8c878);line-height:1.1}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:42px;font-weight:800;letter-spacing:.5px;color:#f0c060;line-height:1.1}   /* v775 — GOLD family accent (was --best green on Forge / #4ade80 on Sets); one sibling title colour */
 /* v552 — Chronicle progress meter */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
@@ -7202,6 +7243,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 @media (max-width:760px){:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{flex-wrap:wrap}:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 40%}:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:34px}}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec{margin:20px 0 6px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:800;padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
+/* v775 — right-gutter so a right-aligned .forge-sec-sub clears the fixed corner FAB stack (.nav-widget +
+   .help-btn own the rightmost ~64px). Placed AFTER the base rule so it wins on source order; desktop-only. */
+@media(min-width:701px){:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-h{padding-right:66px}}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-ct{font-size:12px;font-weight:700;padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-sub{font-size:11.5px;font-weight:500;color:var(--text-dim,#9a8c72);margin-left:auto}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-now .forge-sec-h{color:#8fe0a0}
@@ -7258,17 +7302,17 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 </div>
 <!-- v559 — GRAIL FORGES: two ADDITIVE pillars sharing the Forge shell. Forge itself untouched. -->
 <div class="tab-content" id="tab-funi">
-  <div class="forge-head"><div class="forge-title" style="color:#e8c878">🏆 Forge · Uniques</div>
+  <div class="forge-head tvf-head"><span class="tvf-emblem">🏆</span><div class="forge-headtxt"><div class="forge-title">Forge · Uniques</div>
   <div class="forge-sub">Your unique-grail task plan — every missing unique mapped to its <b>best farm run</b> (real odds · kills/hr), synced to the Calculator ✓. Tick <b>✓ found</b> and it leaves the hunt.</div>
-  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your in-game grail / collection tracker — the AI reads every FOUND item and auto-ticks it here (uniques AND set pieces, both synced)">📸 Import my grail — AI reads screenshots</button></div></div>
+  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your in-game grail / collection tracker — the AI reads every FOUND item and auto-ticks it here (uniques AND set pieces, both synced)">📸 Import my grail — AI reads screenshots</button></div></div></div>
   <input type="file" id="grail-intake-file" accept="image/*" multiple style="display:none" onchange="window.grailIntake(this.files)">
   <div id="grail-intake-report" class="forge-note" style="display:none;margin:8px 0"></div>
   <div id="funi-body"></div>
 </div>
 <div class="tab-content" id="tab-fsets">
-  <div class="forge-head"><div class="forge-title" style="color:#4ade80">🧩 Forge · Sets</div>
+  <div class="forge-head tvf-head"><span class="tvf-emblem">🧩</span><div class="forge-headtxt"><div class="forge-title">Forge · Sets</div>
   <div class="forge-sub">Your set-grail task plan — every missing <b>piece</b> mapped to its best farm run (same engine as Forge · Uniques), <b>⚡ last-piece sets first</b>. Tick a piece the moment it drops — it syncs to the Item Set Tracker.</div>
-  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your grail tracker — set pieces auto-tick here too (one import covers uniques + sets)">📸 Import my grail — AI reads screenshots</button></div></div>
+  <div style="margin-top:10px"><button class="f-btn" style="border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="document.getElementById('grail-intake-file').click()" title="photograph your grail tracker — set pieces auto-tick here too (one import covers uniques + sets)">📸 Import my grail — AI reads screenshots</button></div></div></div>
   <div id="fsets-body"></div>
 </div>
 <!-- v710.4 — 📺 TV DIABLO flagship board (Konyo: "a tab of its own, same style as TV KAI —
@@ -20133,6 +20177,8 @@ window.dailyCreateAi = function(force){
     try { var _lead=tools.querySelector(':scope > .lead'); if(_lead) tools.appendChild(_lead); } catch(e){}
     // v550 — Quick-upload bar rides ABOVE the AI helper (Konyo: first thing on the tab, right under the nav).
     try { var _qu=document.getElementById('tools-quickup'); var _ai=document.getElementById('ask-bible-card'); if(_qu && _ai) tools.insertBefore(_qu, _ai); } catch(e){}
+    // v775 — the family spine header rides ABOVE everything (afterbegin injects push it down; pin it back to top)
+    try { var _sp=document.getElementById('tools-spine'); if(_sp) tools.insertBefore(_sp, tools.firstChild); } catch(e){}
     var st=document.createElement('style'); st.textContent=
       '.ask-chip-scan{color:#06121c!important;background:linear-gradient(180deg,#9fdcff,#5fb4e8)!important;border-color:#bfe6ff!important;font-weight:800}'
       +'.ask-chip-scan:hover{filter:brightness(1.07)}'
@@ -21761,6 +21807,7 @@ function switchTab(name) {
   if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId();
   if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow();
   if (name === "forge" && typeof renderForge === "function") renderForge();   // v470 — recompute the task plan every time the Forge tab opens
+  if (name === "tools" && typeof window._renderToolsSpine === "function") window._renderToolsSpine();             // v775 — family spine stat rail (vault · runes · gems)
   if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount();   // v535 — live loot-filter base count
   if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights();          // v543 — smart Chronicle insights
   if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit();      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
@@ -30690,8 +30737,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_sT691>0 && _sM691>=_sT691) _forgeFilter='completed';
     }
     var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
-    H.push('<div class="forge-head"><div class="forge-title">🔨 Forge</div>'
-      +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div>');
+    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem">🔨</span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
+      +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
     try {
       var _rwTotal=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100;
@@ -32716,6 +32763,18 @@ window._sessionDoMission = function(){
   }
 };
 
+// v775 🌙 — Tools family-spine stat rail. Real tallies only (no fabrication): the physical vault
+// count, total runes tallied, total gems tallied. Recomputed every time the Tools tab opens.
+window._renderToolsSpine = function(){
+  try {
+    var v=0; try { v=(typeof owned!=='undefined'&&owned&&typeof owned.size==='number')?owned.size:0; } catch(e){}
+    var rn=0; try { if (typeof RUNES!=='undefined' && typeof _runeCount==='function') rn=RUNES.reduce(function(a,r){return a+_runeCount(r.n);},0); } catch(e){}
+    var gm=0; try { if (typeof gemStash!=='undefined' && gemStash) gm=Object.keys(gemStash).reduce(function(a,k){var n=parseInt(gemStash[k],10);return a+(isFinite(n)&&n>0?n:0);},0); } catch(e){}
+    var set=function(id,n){ var el=document.getElementById(id); if(el) el.textContent=String(n); };
+    set('tsp-vault',v); set('tsp-runes',rn); set('tsp-gems',gm);
+  } catch(e){}
+};
+
 window.renderSessionCockpit = function(){
   try {
     function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -33226,7 +33285,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v773', name:'Feed Cut Sync', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
+  window.D2R_BUILD = { id:'v775', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

@@ -738,3 +738,14 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
 - Gates: control **12/12** (3 new host locks) · py ast · ui js clean · live-verified (200 html
   w/ D2R_BUILD · hist traversal 403).
 - REG-020 postscript shipped first: v773.1 singleton + v773.2 belt-sweep + orphan self-close.
+
+### 🌙 N2 · v775 — WAVE A: THE FAMILY SPINE ✅
+- ONE console header spine (tvf- namespace) across all five tabs, mirroring the TV·D tvz-head:
+  emblem box · serif GOLD title (family accent unified — Forge/Fsets were green) · mono purpose
+  line · real-number stat rails. TOOLS finally has a hero (🧰 + Vault/Runes/Gems live counts via
+  _renderToolsSpine — no fabricated numbers). Funi/Fsets/Forge heads get the emblem treatment.
+- FAB-clipped subtitles fixed with clearance (not FAB moves) · Session header/content left edges
+  aligned at >1500 (both sat at 224 @1920, were 14/224 split).
+- Scout thesis honored: no content rebuilds this wave — spine + consistency only.
+- Gates: 71 specs green across 9 suites (board/console/smoke + the forge-family regression set) ·
+  0 h-overflow, 0 console errors at 1280/1500/1920 through the SAME-ORIGIN app host (/board).
