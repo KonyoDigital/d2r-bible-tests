@@ -447,12 +447,35 @@ def _open_board_once():
     open_board(auto_on=True)
     return "opened"
 
+def _open_board_native():
+    """v767.1 (Konyo: 'no need for Chrome anymore') — the BOARD opens in its own native
+    window too: a sibling process runs pywebview on the LOCAL bible.html#tvd. Returns True
+    if the native window spawned; False → caller falls back to a browser."""
+    try:
+        import webview  # noqa: F401
+    except ImportError:
+        if not ensure_webview():
+            return False
+    try:
+        subprocess.Popen(
+            [sys.executable, os.path.abspath(__file__), "--board-window"],
+            cwd=REPO,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        return True
+    except Exception:
+        return False
+
 def open_board(auto_on=True):
     """Open the bible TV·D tab. v764: the board AUTO-SYNCS to the bridge now (lamp + probe),
     so the deep link only needs to LAND on #tvd — and macOS `open` DROPS file:// fragments
     (the 'routes me to the wrong page' bug), so prefer a direct browser spawn like Windows."""
     if not os.path.isfile(BIBLE):
         return {"ok": False, "msg": "bible.html missing"}
+    if _open_board_native():
+        return {"ok": True, "msg": "board opened (native window)"}
     url = _file_url(BIBLE, "tvd")
     try:
         if sys.platform == "darwin":
@@ -899,15 +922,17 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {**r, "board": board})
             return
         if path == "/api/off":
-            open_board(auto_on=False)
-            r = stop_agent(farewell=False)
-            self._json(200, r)
+            # v767.1 (Konyo's button audit) — OFF opens NOTHING (the board auto-syncs dark), and
+            # the response returns IMMEDIATELY: the stop runs in a thread so the UI's lamp/glow
+            # can follow the state honestly instead of jamming in 'working'.
+            threading.Thread(target=stop_agent, kwargs={"farewell": False}, daemon=True).start()
+            self._json(200, {"ok": True, "msg": "stopping (no farewell)"})
             return
         if path == "/api/stop":
-            # v765 — STOP never opens windows (the board auto-syncs to OFFLINE by itself);
-            # a SIM agent has nothing worth a farewell wait — only live runs get the 90s grace.
-            r = stop_agent(farewell=(_agent_mode != "sim"))
-            self._json(200, r)
+            # v765/v767.1 — STOP never opens windows; farewell only for live runs; async so the
+            # button shows 'farewell…' while the STATE (not a stuck spinner) tells the story.
+            threading.Thread(target=stop_agent, kwargs={"farewell": (_agent_mode != "sim")}, daemon=True).start()
+            self._json(200, {"ok": True, "msg": "stopping — farewell read may take up to ~90s"})
             return
         if path == "/api/restart":
             stop_agent(farewell=False)
@@ -928,7 +953,20 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"ok": False, "msg": "not found"})
 
 
+def board_window():
+    """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd)."""
+    import webview
+    webview.create_window(
+        "TV DIABLO — Board", url=_file_url(BIBLE, "tvd"),
+        width=1500, height=980, min_size=(1080, 700), background_color="#060504",
+    )
+    webview.start()
+
+
 def main():
+    if "--board-window" in sys.argv:
+        board_window()
+        return
     open_ui = "--open" in sys.argv or "-o" in sys.argv
     no_open = "--no-open" in sys.argv
     # --window-only: attach a native window to an already-running control server
