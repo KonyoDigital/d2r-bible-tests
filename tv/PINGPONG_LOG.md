@@ -300,3 +300,10 @@ Konyo: "i was doing mephisto runs and it noticed them ausome!" — the product s
   LAST(13) toggle ✓ · Esc closes lightbox ✓ · chip hover-cards wired ✓ · switch keyboard-access ✓.
 - R3 (headless full-session e2e): floor/holding commits NOTHING (his doctrine) → stash commit =
   vaulted + Vault-Manager-visible + Chronicle ✓ → dropped-back = tvVaultUnregister full reversal ✓.
+
+### 🌙 NIGHT R4 · v742 — Grok's picks: Esc stack discipline + persistent learning ✅
+- **Esc stack**: the lightbox's Escape now acts ONLY when it is the visible top layer, consumes
+  the event (capture phase) — vault fullscreen / search underneath never close in the same press.
+- **Known-dead persistence**: learned transition frames survive restarts (tv/known_frames.json,
+  gitignored) — the loading screen is learned ONCE, ever; boot announces '<N> learned frames loaded'.
+- Gates: agent 46/46 · board 9/9 · html clean.

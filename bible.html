@@ -32651,7 +32651,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v741', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v742', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33121,9 +33121,16 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     } catch(e){}
   };
   try {
+    // v742 — ESC STACK DISCIPLINE (Grok's night pick #1): Esc acts ONLY when the lightbox is
+    // the visible top layer, and consumes the event — the vault fullscreen / search / other
+    // overlays underneath never close in the same keypress. Capture phase = we outrank them.
     document.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') window._tvdCloseFrame && window._tvdCloseFrame();
-    });
+      if (e.key !== 'Escape') return;
+      var lb = document.getElementById('tvd-frame-lb');
+      if (!lb || lb.hidden) return;
+      e.stopPropagation(); e.preventDefault();
+      window._tvdCloseFrame && window._tvdCloseFrame();
+    }, true);
   } catch(e){}
   function histFrameCell(r){
     var id = String(r.frameId || r.frame_id || '');

@@ -222,12 +222,32 @@ HIST_MAX_PX = 1920
 # history registers an honest '⏳ transition' row instead of another 'nothing readable'.
 KNOWN_DEAD_CAP = 8
 _KNOWN_DEAD = []
+_KNOWN_DEAD_FILE = os.path.join(HERE, "known_frames.json")
+def _known_dead_load():
+    """v742 — learning survives restarts: the loading screen is learned ONCE, ever."""
+    try:
+        import base64
+        with open(_KNOWN_DEAD_FILE, encoding="utf-8") as f:
+            for b in json.load(f)[:KNOWN_DEAD_CAP]:
+                _KNOWN_DEAD.append(bytes(base64.b64decode(b)))
+    except Exception:
+        pass
+
+def _known_dead_save():
+    try:
+        import base64
+        with open(_KNOWN_DEAD_FILE, "w", encoding="utf-8") as f:
+            json.dump([base64.b64encode(bytes(k)).decode() for k in _KNOWN_DEAD], f)
+    except Exception:
+        pass
+
 def learn_dead_frame(sig):
     if sig is None: return
     for k in _KNOWN_DEAD:
         if sig_diff(sig, k) <= 0.04: return   # already known
     _KNOWN_DEAD.append(sig)
     del _KNOWN_DEAD[:-KNOWN_DEAD_CAP]
+    _known_dead_save()
 
 def known_dead_match(sig):
     if sig is None: return None
@@ -1067,6 +1087,8 @@ def main():
                "lifecycle": _LIFECYCLE.snapshot()})
     bridge()
     ev("boot", f"scanner online — eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
+    _known_dead_load()
+    if _KNOWN_DEAD: ev("boot", f"{len(_KNOWN_DEAD)} learned transition frame(s) loaded — they cost 0ms now")
     if not os.environ.get("TV_STUB"):
         def _warm():
             t0 = time.time()
