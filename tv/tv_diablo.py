@@ -169,9 +169,19 @@ def bridge():
             self.end_headers()
         def do_GET(self):
             if self.path.startswith("/state"):
+                # v770 (Grok R4 perf) — ?since=<ts> returns a THIN delta: full reads ring only
+                # when asked from cold; 4 polls/sec no longer parse 200 rich reads every tick.
+                from urllib.parse import urlparse, parse_qs
+                _q = parse_qs(urlparse(self.path).query or "")
+                _since = 0
+                try: _since = int((_q.get("since") or ["0"])[0])
+                except Exception: _since = 0
                 with _state_lock:
                     st = _load(); st["online"] = True; st["now"] = int(time.time()*1000)
                     st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
+                if _since:
+                    st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
+                    st.pop("seen", None); st.pop("farmed", None)
                 self._hdr(); self.wfile.write(json.dumps(st).encode())
             elif self.path.startswith("/ping"):
                 self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')

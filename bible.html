@@ -33224,7 +33224,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v769', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
+  window.D2R_BUILD = { id:'v770', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34165,7 +34165,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   function poll(){
     var ac = (typeof AbortController!=='undefined') ? new AbortController() : null;
     var to = ac && setTimeout(function(){ ac.abort(); }, 1800);
-    fetch(URL0, { signal: ac && ac.signal, cache:'no-store' }).then(function(r){ return r.json(); }).then(function(st){
+    fetch(URL0 + (SEEN ? ('?since=' + SEEN) : ''), { signal: ac && ac.signal, cache:'no-store' }).then(function(r){ return r.json(); }).then(function(st){
       if(to) clearTimeout(to);
       if(!T) return;   // v758.1 — toggled OFF while this fetch was in flight: a late response must never un-toggle the switch (the CI-flake race, and the class behind 'the switch was already on')
       if(STATE!=='live') setState('live');
@@ -34351,7 +34351,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(!names.length && Array.isArray(r.names)) names = r.names.slice(0,6);
       return { ts:r.ts, n:r.n, area:r.area||'', scene:r.scene||'',
         note:r.note||(r.transition_from?('through the portal — leaving '+r.transition_from):''),
-        names:names, frame:(r.frameId||r.frame_id||'') };
+        names:names, frame:(r.frameId||r.frame_id||''),
+        // v770 (Grok R4 sleeper) — the chain fields the seals read; without them the R3
+        // 🏦⏳🗑💬🏆 caption seals were dead code on the site (the incomplete-boundary class)
+        vault_names:r.vault_names||[], pending_names:r.pending_names||[],
+        thrown_names:r.thrown_names||[], discovered_names:r.discovered_names||[],
+        intent:r.intent||'', stashTab:r.stashTab||'' };
     });
   }
   function thzSeal(b, n){

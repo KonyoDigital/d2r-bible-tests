@@ -640,6 +640,9 @@ def open_control_window():
     if not ensure_webview():
         print("⚠ pywebview not installed — falling back to browser app window")
         print("   fix:  python3 -m pip install --user pywebview")
+        _loud_fail("TV DIABLO", "Native window engine missing (pywebview/WebView2). "
+                   "Opening in your browser instead.\n\nFix: re-run the installer one-liner "
+                   "from the website — it now bootstraps everything.\nLog: " + LOG_PATH)
         _open_browser_app_fallback(url)
         return
 
@@ -970,6 +973,20 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"ok": False, "msg": "not found"})
 
 
+def _loud_fail(title, msg):
+    """v770 — pythonw has no console: a native-window failure must SHOUT, not vanish."""
+    try:
+        if IS_WIN:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, msg, title, 0x10)   # MB_ICONERROR
+        elif sys.platform == "darwin":
+            subprocess.run(["osascript", "-e",
+                            f'display alert "{title}" message "{msg}" as critical'],
+                           capture_output=True, timeout=10)
+    except Exception:
+        pass
+
+
 def board_window():
     """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd)."""
     import webview
@@ -977,7 +994,11 @@ def board_window():
         "TV DIABLO — Board", url=_file_url(BIBLE, "tvd"),
         width=1500, height=980, min_size=(1080, 700), background_color="#060504",
     )
-    webview.start()
+    try:
+        webview.start()
+    except Exception as e:
+        _loud_fail("TV DIABLO", f"Native window crashed: {e}\n\nOpening in your browser instead.\nLog: {LOG_PATH}")
+        _open_browser_app_fallback(url)
 
 
 def main():

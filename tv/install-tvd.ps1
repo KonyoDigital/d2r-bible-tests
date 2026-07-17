@@ -113,6 +113,14 @@ if ($py) { Ok "python ($py)" } else {
 Say "installing pywebview (native app window)…"
 try {
   & $py -m pip install --user --quiet 'pywebview>=5.0' | Out-Null
+  # v770 — pywebview on Windows NEEDS the Edge WebView2 Runtime; locked-down PCs lack it and
+  # the app silently falls to a browser. Bootstrap it loudly if missing.
+  $wv2 = Test-Path "$env:ProgramFiles (x86)\Microsoft\EdgeWebView\Application" -PathType Container
+  if (-not $wv2) { $wv2 = Test-Path "${env:ProgramFiles(x86)}\Microsoft\EdgeWebView\Application" }
+  if (-not $wv2) {
+    Say "installing Edge WebView2 Runtime (the native window engine)…"
+    winget install -e --id Microsoft.EdgeWebView2Runtime --silent --accept-package-agreements --accept-source-agreements | Out-Null
+  }
   Ok "pywebview (native window · WebView2)"
 } catch {
   Warn "pywebview pip install failed — app will retry on first launch / browser fallback"

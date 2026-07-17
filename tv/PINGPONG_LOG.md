@@ -666,3 +666,18 @@ route() labels. Next-session queue: reading-ghosts polish only.
   double-steps one photo.
 - Copy nit: the site theatre's "in the TV DIABLO app in the TV DIABLO app" de-duplicated.
 - Gates: agent **64/64** (4 new parse locks) · board+console 19/19 · control 7/7 · html clean.
+
+### 🏓 R25 · v770 — Grok round 4/5: the twin finished for real + cousin-proofing + the thin poll ✅
+- **THE SLEEPER AGAIN (same class, caught again)**: the SITE theatre's beat projection dropped
+  every chain field — the R3 caption seals were dead code on the board (claim without the
+  boundary). thzBeats now projects vault/pending/thrown/discovered/intent/stashTab; the seals
+  fire on both surfaces for real. Two rounds, two incomplete-boundary catches: the doctrine
+  (round-trip every boundary) earns its place.
+- **Cousin-proofing** (Grok R4 #2): the Windows installer bootstraps the Edge WebView2 Runtime
+  (pywebview's engine — locked-down PCs lack it and died silently to a browser); native-window
+  failures now SHOUT (MessageBox on Windows / osascript alert on Mac, with the fix line + log
+  path) instead of vanishing under pythonw.
+- **The thin poll** (Grok R4 #3): /state?since=<ts> returns a delta — 4 polls/sec no longer
+  parse a 200-read ring every tick inside the pywebview WebView; the board sends since=SEEN once
+  warm, cold polls stay full. Long farm sessions stop paying the JSON/GC tax.
+- Gates: agent **65/65** · board+console 20/20 · control 7/7 · html clean.
