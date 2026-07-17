@@ -649,3 +649,20 @@ route() labels. Next-session queue: reading-ghosts polish only.
   stopping-state UI · + the v768-pre server gate & lifecycle continuity.
 - Gates: board+console+smoke **28/28** (console spec now 5 incl the #tvd lock) · agent 60/60 ·
   control 7/7 · button matrix 22/22 · html clean both files.
+
+### 🏓 R24 · v769 — Grok round 3/5: THE PARSE WAS LYING (+ theatre depth + film honesty) ✅
+- **THE SLEEPER OF THE ARC** (Grok's repro, confirmed live): `_parse_read` silently killed TWO
+  shipped features on the only path that matters — the scene allowlist rewrote `transition` →
+  `gameplay` (v746's portal scene never minted from live vision) and `discovered` was never
+  extracted (v763's chat lane: 0/116 journal rows). The tests had injected dicts PAST the parser
+  — the boundary was never round-tripped. Fixed one line + one slice; 4 round-trip locks in the
+  agent suite. Doctrine addition: EVERY prompt-schema field gets a parse round-trip test.
+- **THEATRE = the chain, not just names**: /api/session beats now carry vault/pending/thrown/
+  discovered/intent/stashTab/farewell; captions seal every name (🏦 vaulted · ⏳ held · 🗑 thrown ·
+  💬🏆 discovered) on BOTH theatres; timeline beats class vaulted (mint, tall) / holding (amber) /
+  named / noframe.
+- **Film honesty**: a frameless beat clears the src (the app was showing the PREVIOUS photo
+  under portal captions); same-frame OCR+deep pairs coalesce (richer row wins) so the reel never
+  double-steps one photo.
+- Copy nit: the site theatre's "in the TV DIABLO app in the TV DIABLO app" de-duplicated.
+- Gates: agent **64/64** (4 new parse locks) · board+console 19/19 · control 7/7 · html clean.

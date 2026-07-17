@@ -693,6 +693,27 @@ class TestLifecycleRestore(unittest.TestCase):
         self.assertTrue(lc.restore({"seen": [{}], "pending": None}, tv._norm_name) in (True, False))
 
 
+class TestParseHonesty(unittest.TestCase):
+    """v769 (Grok R3 sleeper, repro-CONFIRMED) — _parse_read was the silent kill-switch:
+    it rewrote scene 'transition' to 'gameplay' and never extracted 'discovered', so the v746
+    portal scene and the v763 DISCOVERED lane were DEAD on the only path that matters."""
+    def test_transition_scene_survives_parse(self):
+        p = tv._parse_read('{"area":"","tz":[],"scene":"transition","names":[],"conf":0.9}')
+        self.assertEqual(p["scene"], "transition")
+
+    def test_discovered_survives_parse(self):
+        p = tv._parse_read('{"scene":"gameplay","names":[],"discovered":["Harlequin Crest","Vex Rune"]}')
+        self.assertEqual(p.get("discovered"), ["Harlequin Crest", "Vex Rune"])
+
+    def test_discovered_garbage_tolerant(self):
+        p = tv._parse_read('{"scene":"loot","names":[],"discovered":[" ", 3, "Ist Rune"]}')
+        self.assertEqual(p.get("discovered"), ["3", "Ist Rune"])
+
+    def test_bad_scene_still_normalizes(self):
+        p = tv._parse_read('{"scene":"chatlobby","names":[]}')
+        self.assertEqual(p["scene"], "gameplay")
+
+
 class TestReplay(unittest.TestCase):
     """v752 — REPLAY: re-run a REAL past session (Konyo: 'use the screenshots it used…
     re-run a test on the history — real based on real simulation ingame')."""

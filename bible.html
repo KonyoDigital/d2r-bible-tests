@@ -33224,7 +33224,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v768', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
+  window.D2R_BUILD = { id:'v769', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34354,14 +34354,28 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         names:names, frame:(r.frameId||r.frame_id||'') };
     });
   }
+  function thzSeal(b, n){
+    // v769 — chain truth on the reel caption, RUN STORY language (matches the app theatre)
+    if((b.vault_names||[]).indexOf(n) >= 0) return ' 🏦';
+    if((b.thrown_names||[]).indexOf(n) >= 0) return ' 🗑';
+    if((b.pending_names||[]).indexOf(n) >= 0) return ' ⏳';
+    if((b.discovered_names||[]).indexOf(n) >= 0) return ' 💬🏆';
+    return '';
+  }
   function thzCaption(b){
     if(!b) return '';
     var bits = ['<b>'+escAttr(thzT(b.ts))+'</b>', 'read #'+(b.n||'?')];
     if(b.area) bits.push('🗺 <b>'+escAttr(b.area)+'</b>');
     if(b.scene) bits.push((THZ_SCENE_IC[b.scene]||'')+' '+escAttr(b.scene));
+    if(b.intent === 'farmed') bits.push('🛍 farmed');
+    if(b.stashTab) bits.push('🏦 tab:'+escAttr(b.stashTab));
     var line = bits.join(' · ');
     if(b.note) line += '<br>⏳ '+escAttr(b.note);
-    if(b.names && b.names.length) line += '<br>'+b.names.slice(0,6).map(function(n){ return '<span class="tvz-th-chip">'+escAttr(n)+'</span>'; }).join('');
+    var cast = (b.names||[]).slice(0,6).map(function(n){ return '<span class="tvz-th-chip">'+escAttr(n)+thzSeal(b,n)+'</span>'; });
+    ((b.discovered_names)||[]).slice(0,4).forEach(function(n){
+      if((b.names||[]).indexOf(n) < 0) cast.push('<span class="tvz-th-chip">💬🏆 '+escAttr(n)+'</span>');
+    });
+    if(cast.length) line += '<br>'+cast.join('');
     return line;
   }
   function thzPaint(){
@@ -34415,7 +34429,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var play = document.getElementById('tvz-th-play'); if(play) play.textContent = '⏸';
     if(!s.length){
       var c = document.getElementById('tvz-th-caption');
-      if(c) c.innerHTML = '🎞 no journaled sessions yet — press ON in the TV DIABLO app in the TV DIABLO app, farm a bit, and the theatre fills with real film';
+      if(c) c.innerHTML = '🎞 no journaled sessions yet — press ON in the TV DIABLO app, farm a bit, and the theatre fills with real film';
       var t = document.getElementById('tvz-th-timeline'); if(t) t.innerHTML = '';
       var sess = document.getElementById('tvz-th-sess'); if(sess) sess.textContent = '—';
       var film = document.getElementById('tvz-th-film'); if(film){ film.removeAttribute('src'); film.style.opacity = .12; }

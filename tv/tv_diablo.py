@@ -694,7 +694,7 @@ def _parse_read(out):
     except Exception: return None
     names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
     scene = str(j.get("scene", "gameplay")).lower()
-    if scene not in ("town", "loot", "inventory", "stash", "gameplay"): scene = "gameplay"
+    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition"): scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
     tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
     conf = j.get("conf", None)
     try:
@@ -704,8 +704,10 @@ def _parse_read(out):
     except Exception:
         conf = None
     stash_tab = _norm_stash_tab(j.get("stashTab") or j.get("stash_tab"), scene)
+    discovered = [str(x).strip() for x in (j.get("discovered") or []) if str(x).strip()][:12]
     return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names,
-            "tz": tz, "conf": conf, "stashTab": stash_tab}
+            "tz": tz, "conf": conf, "stashTab": stash_tab,
+            "discovered": discovered}   # v769 — the v763 chat lane finally flows through parse
 
 def _intent_for(scene):
     """v723 — loot lifecycle: floor labels = seen (not farmed); inv/stash = farmed for real."""

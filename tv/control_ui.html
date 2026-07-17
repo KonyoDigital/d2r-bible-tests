@@ -619,6 +619,8 @@
   .th-timeline { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; cursor: pointer; overflow-x: auto; scrollbar-width: none; }
   .th-beat { flex: 1; height: 6px; border-radius: 3px; background: rgba(240,192,96,.18); transition: .12s; min-width: 3px; }
   .th-beat.named { background: rgba(240,192,96,.55); height: 10px; }
+  .th-beat.vaulted { background: var(--mint); height: 14px; box-shadow: 0 0 8px rgba(143,230,160,.5); }
+  .th-beat.holding { background: #ffd97a; height: 12px; }
   .th-beat.cur { background: var(--gold-hi); height: 14px; box-shadow: 0 0 10px rgba(255,223,154,.6); }
   .th-beat.noframe { background: rgba(255,255,255,.08); }
   body.theatre-open .live-bug { color: var(--gold); border-color: rgba(240,192,96,.5); }
@@ -950,14 +952,30 @@
   var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:true, speed:1, timer:null };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
+  function thSeal(b, n){
+    // v769 — the chain truth ON the caption chip, RUN STORY language: 🏦 vaulted · ⏳ held ·
+    // 🗑 thrown · 💬🏆 discovered · plain = seen
+    if ((b.vault_names||[]).indexOf(n) >= 0) return ' 🏦';
+    if ((b.thrown_names||[]).indexOf(n) >= 0) return ' 🗑';
+    if ((b.pending_names||[]).indexOf(n) >= 0) return ' ⏳';
+    if ((b.discovered_names||[]).indexOf(n) >= 0) return ' 💬🏆';
+    return '';
+  }
   function thCaption(b){
     if (!b) return '';
     var bits = ['<b>'+thFmtT(b.ts)+'</b>', 'read #'+esc(b.n||'?')];
     if (b.area) bits.push('🗺 <b>'+esc(b.area)+'</b>');
     if (b.scene) bits.push((SCENE_IC[b.scene]||'')+' '+esc(b.scene));
+    if (b.intent === 'farmed') bits.push('🛍 farmed');
+    if (b.farewell) bits.push('👋 farewell');
+    if (b.stashTab) bits.push('🏦 tab:'+esc(b.stashTab));
     var line = bits.join(' · ');
     if (b.note) line += '<br>⏳ '+esc(b.note);
-    if (b.names && b.names.length) line += '<br>' + b.names.slice(0,6).map(function(n){ return '<span class="th-chip">'+esc(n)+'</span>'; }).join('');
+    var cast = (b.names||[]).slice(0,6).map(function(n){ return '<span class="th-chip">'+esc(n)+thSeal(b,n)+'</span>'; });
+    (b.discovered_names||[]).slice(0,4).forEach(function(n){
+      if ((b.names||[]).indexOf(n) < 0) cast.push('<span class="th-chip">💬🏆 '+esc(n)+'</span>');
+    });
+    if (cast.length) line += '<br>' + cast.join('');
     return line;
   }
   function thPaint(){
@@ -965,7 +983,7 @@
     if (!b) return;
     var film = $('th-film');
     if (b.frame){ film.style.opacity = 1; film.src = '/hist/' + encodeURIComponent(b.frame); }
-    else { film.style.opacity = .25; }   // honest: caption-only beat (no photo archived)
+    else { film.style.opacity = .25; film.removeAttribute('src'); }   // v769 — honest: never show the PREVIOUS photo under a frameless beat
     $('th-caption').innerHTML = thCaption(b);
     var tl = $('th-timeline');
     [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
@@ -990,13 +1008,28 @@
   function thTimeline(){
     var tl = $('th-timeline');
     tl.innerHTML = TH.beats.map(function(b, k){
-      return '<span class="th-beat'+(b.names && b.names.length ? ' named':'')+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+esc(b.n||'?')+(b.area?(' · '+esc(b.area)):'')+'"></span>';
+      var cls = '';
+      if ((b.vault_names||[]).length) cls = ' vaulted';
+      else if ((b.pending_names||[]).length) cls = ' holding';
+      else if (b.names && b.names.length) cls = ' named';
+      return '<span class="th-beat'+cls+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+esc(b.n||'?')+(b.area?(' · '+esc(b.area)):'')+'"></span>';
     }).join('');
   }
   async function thLoadSession(n){
     var r = await fetch('/api/session?n=' + n); var j = await r.json();
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
-    TH.sn = n; TH.beats = j.beats || []; TH.i = 0;
+    var raw = j.beats || [];
+    // v769 (Grok R3) — coalesce same-frame pairs (OCR flash + deep confirm): the richer row wins
+    var byFrame = {}, beats = [];
+    raw.forEach(function(b){
+      if (!b.frame){ beats.push(b); return; }
+      var k = b.frame;
+      if (byFrame[k] === undefined){ byFrame[k] = beats.length; beats.push(b); return; }
+      var prev = beats[byFrame[k]];
+      var score = function(x){ return (x.lane==='deep'?2:0) + ((x.names||[]).length?1:0) + ((x.vault_names||[]).length?2:0); };
+      if (score(b) >= score(prev)) beats[byFrame[k]] = b;
+    });
+    TH.sn = n; TH.beats = beats; TH.i = 0;
     thTimeline(); thPaint(); thSchedule();
   }
   async function thOpen(){

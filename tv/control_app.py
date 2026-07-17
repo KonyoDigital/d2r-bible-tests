@@ -837,7 +837,14 @@ class Handler(BaseHTTPRequestHandler):
                 beats.append({"ts": r.get("ts"), "n": r.get("n"), "scene": r.get("scene", ""),
                               "area": r.get("area", ""), "names": r.get("names", []),
                               "note": r.get("note", ""), "frame": (fid + ".jpg") if has else "",
-                              "ms": r.get("ms", 0), "lane": r.get("lane", "")})
+                              "ms": r.get("ms", 0), "lane": r.get("lane", ""),
+                              # v769 (Grok R3) — the flagship shows the CHAIN, not just names
+                              "vault_names": r.get("vault_names") or [],
+                              "pending_names": r.get("pending_names") or [],
+                              "thrown_names": r.get("thrown_names") or [],
+                              "discovered_names": r.get("discovered_names") or [],
+                              "intent": r.get("intent", ""), "stashTab": r.get("stashTab", ""),
+                              "farewell": bool(r.get("farewell"))})
             return {"n": n, "beats": beats}
         except Exception as e:
             return {"error": str(e)}
