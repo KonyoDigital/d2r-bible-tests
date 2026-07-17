@@ -767,3 +767,17 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
   SEALED · 99/99 · grail-wall buttons — and the 99 restore rows fold behind ONE 📜 disclosure.
 - Gates: 64 specs green incl the full forge lifecycle set · 20/20 blocks parse · before/after
   screenshots archived.
+
+### 🌙 N5 · v778-pre — THE BUTTON MATRIX, no loopholes (Konyo live, both directions) ✅
+- **BUG A — the zombie stare**: our own dead child agent is a ZOMBIE until reaped; os.kill(pid,0)
+  succeeds on zombies, so the stop thread waited the full 90s farewell window on a corpse (the
+  stuck-'stopping' + disabled-ON cascade). _pid_alive now poll()s our child (answers truthfully
+  AND reaps). Every transition: sub-second.
+- **BUG B — the phantom window at ON**: Grok's v773 restructure held DUPLICATE /api/on handlers —
+  the live one still spawned the board window (my v777.1 had fixed the dead copy). ON and RESTART
+  spawn NOTHING now; grep _open_board_once call sites = /api/board only.
+- **SIM = THE LAST SESSION** (Konyo: "simulation mode should be recent last session"): the button
+  is THE THEATRE again, auto-playing the newest real session — the v765 semantic restored over
+  Grok's canned-feed revert; `tvd sim` keeps the canned feed for devs.
+- API truth matrix after fixes: ON→live ✓ · STOP→off 0.6s ✓ · OFF→off 0.6s ✓ · RESTART→live ✓ ·
+  SIM→sim/off ✓ · windows spawned: ZERO across the whole run.

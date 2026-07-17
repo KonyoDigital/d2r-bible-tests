@@ -214,6 +214,15 @@ def _kill_pid(pid, force=False):
 def _pid_alive(pid):
     if pid is None:
         return False
+    # v778-pre (BUG A) — our OWN child becomes a ZOMBIE on death until reaped: os.kill(pid,0)
+    # succeeds on zombies, so the stop thread stared at a corpse for the full 90s farewell
+    # window. poll() both answers truthfully AND reaps.
+    try:
+        with _lock:
+            if _agent_proc is not None and _agent_proc.pid == pid:
+                return _agent_proc.poll() is None
+    except Exception:
+        pass
     if IS_WIN:
         try:
             out = subprocess.check_output(
@@ -978,8 +987,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
                 return
             r = start_agent(sim=False)
-            board = _open_board_once()
-            self._json(200, {**r, "board": board})
+            self._json(200, r)   # v778-pre — ON opens NOTHING (one-window world)
             return
         if path == "/api/sim":
             if _stop_inflight:
@@ -1016,8 +1024,7 @@ class Handler(BaseHTTPRequestHandler):
             stop_agent(farewell=False)
             time.sleep(0.5)
             r = start_agent(sim=False)
-            board = _open_board_once()
-            self._json(200, {**r, "board": board})
+            self._json(200, r)   # v778-pre — RESTART opens NOTHING either
             return
         if path == "/api/board":
             from urllib.parse import parse_qs, urlparse
