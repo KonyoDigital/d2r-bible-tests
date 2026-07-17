@@ -600,7 +600,7 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
                 transition_from: 'Durance of Hate Level 2',
                 note: 'through the portal — leaving Durance of Hate Level 2' }],
     }));
-    await page.waitForTimeout(1400);
+    await readIs(12);
     const bossThrough = await page.evaluate(() => ({
       boss: document.querySelector('#tvn-stage .tvn-boss')?.textContent || '',
       hg: (document.getElementById('tvn-stage')!.textContent!.match(/⏳/g) || []).length,

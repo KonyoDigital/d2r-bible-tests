@@ -33782,6 +33782,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var to = ac && setTimeout(function(){ ac.abort(); }, 1800);
     fetch(URL0, { signal: ac && ac.signal, cache:'no-store' }).then(function(r){ return r.json(); }).then(function(st){
       if(to) clearTimeout(to);
+      if(!T) return;   // v758.1 — toggled OFF while this fetch was in flight: a late response must never un-toggle the switch (the CI-flake race, and the class behind 'the switch was already on')
       if(STATE!=='live') setState('live');
       // v724 — new agent boot (startedAt change) archives previous live session for LAST SESSION tab
       if (st.startedAt && st.startedAt !== AGENT_START){
@@ -33891,7 +33892,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       });
       refreshFrameEye();   // v744 — the CRT face breathes on the poll (throttled inside)
       if(grew) render();   // v736 — paints only on change; meters/beat update separately (targeted nodes)
-    }).catch(function(){ if(to) clearTimeout(to); if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
+    }).catch(function(){ if(to) clearTimeout(to); if(!T) return; if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
   }
   window._tvdToggle=function(){
     if(T){ clearInterval(T); T=null; setState('off'); digestFlush('session'); try{ localStorage.setItem('d2r_tvdOn','0'); }catch(e){} render(); return; }
