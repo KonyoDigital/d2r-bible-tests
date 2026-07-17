@@ -576,3 +576,26 @@ route() labels. Next-session queue: reading-ghosts polish only.
 - Gates: control **7/7** (NEW tv/test_control.py: theatre endpoints on fixtures · hist traversal
   block · stop-never-opens-board · open-once) · agent 57/57 · board 14/14 · theatre verified
   LIVE on his real 9-session archive (screenshot: session 1/9 playing, lit button, clean close).
+
+### 📺 R20 · v766 — THE WEBSITE BECOMES THE APP (Konyo: "replicate the APP in the TV-D tab") ✅
+- **One product, two surfaces**: #tab-tvd rebuilt into the app's console architecture by the
+  Fable architect across three correction rounds (Konyo course-corrected live from screenshots):
+  header band (emblem · serif brand · clock · ON/OFF-AIR pill · 🎞 THEATRE) → the APP'S STANDBY
+  HOMESCREEN as the stage (giant state-tinted serif phase word over the breathing Diablo
+  silhouette, kicker/caption/marquee, meters as the lower-third INSIDE the stage, phase rides
+  the live beat: SETTLING/WATCHING/READING) → LIVE runs the frame film in the same stage →
+  console rail (RUN STORY + SYNAPSE·BRAIN LOG as jeweled panels) → SIGNAL FEED ticker band →
+  archive below.
+- **NO MORE SWITCHES** (his ask, twice): both auto-sync lamps are ON/OFF-AIR pills now — the tab
+  header and the session cockpit card; the engine elements survive hidden (dual-render + 14
+  specs untouched).
+- **🎞 THE THEATRE on the site**: full-viewport cinema replaying d2r_tvdHist sessions — real
+  frames via the bridge /frame?id= (+ tv/frames/hist fallback), pagination, play/speed, honest
+  empty — "simulation mode" viewing, same player as the app.
+- **GET THE APP**: flagship install cards (🖥 curl one-liner · 🪟 irm one-liner) with copy
+  buttons — the cousin move is now a website feature.
+- True-extracted art: uber-diablo emblem; the flaming-logo half-page misfire caught by Konyo and
+  demoted to taste.
+- Gates: board **14/14 UNCHANGED** + v766 locks **4/4** + smoke 8/8 (my re-run: 18/18) · html
+  clean · agent suite untouched · setState className-rewrite trap caught and defused (stage class
+  preserved like tvb-bigswitch).

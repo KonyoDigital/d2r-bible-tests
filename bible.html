@@ -4210,11 +4210,14 @@ try {
          screen capture on the player's OWN Claude subscription). This panel is the receiver: it
          polls the localhost bridge, streams what the scanner read, and routes each name through
          the EXISTING engines (grail tick · set tick · rune tally) — review-first, never silent. -->
-    <section class="sc-card sc-card-tvd" id="sc-card-tvd">
+    <section class="sc-card sc-card-tvd" id="sc-card-tvd" data-tvstate="off">
       <div class="sc-card-h">📺 TV DIABLO
-        <span class="tvd-switch tvd-off" id="tvd-switch" role="switch" aria-checked="false" tabindex="0" title="auto-synced to the TV DIABLO app — press ON there; this lamp follows" data-tvd-lamp="1">
+        <!-- v766 — the ON/OFF-AIR pill is the status (mirrors the TV·D tab + the app). The .tvd-switch
+             stays hidden ONLY for the dual-render engine + board specs (setState drives its .tvd-word). -->
+        <span class="tvd-switch tvd-off" id="tvd-switch" role="status" aria-hidden="true" aria-checked="false" data-tvd-lamp="1">
           <span class="tvd-track"><span class="tvd-knob"></span></span><span class="tvd-word" id="tvd-word">OFF</span>
         </span>
+        <span class="tvz-bug tvz-bug-sc" id="tvd-sc-bug" title="auto-synced to the TV DIABLO app — this follows its ON/OFF (not a button)"><span class="tvz-bug-dot"></span><span class="tvz-bug-txt" id="tvd-sc-bug-txt">OFF AIR</span></span>
       </div>
       <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">flip the switch — the scanner reads what you stop to look at, and it tallies itself</div></div>
     </section>
@@ -7270,49 +7273,115 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      the agent's real half-second heartbeat, meters, and the mono signal feed. The session-tab
      card stays as the compact twin — one shared engine renders both. -->
 <div class="tab-content" id="tab-tvd">
-  <div class="tvb-hero">
-    <div class="tvb-left">
-    <div class="tvb-screen tvb-off" id="tvb-screen">
-      <img class="tvb-face" id="tvb-face" alt="" hidden loading="lazy" decoding="async">
-      <div class="tvb-scan"></div>
-      <div class="tvb-noise"></div>
-      <div class="tvb-static"></div>
-      <div class="tvb-roll"></div>
-      <div class="tvb-eye" id="tvb-eye">📺</div>
-      <div class="tvb-verb" id="tvb-verb">⛔ DISCONNECTED</div>
+ <!-- v766 — TV·D restructured to STRUCTURALLY MATCH the TV DIABLO control app (tv/control_ui.html):
+      header band · state-tinted stage + lower-third meters · console rail (RUN STORY + SYNAPSE) ·
+      SIGNAL FEED ticker · 🎞 THE THEATRE overlay. All engine IDs/classes preserved (poll /
+      renderNowStage / renderStory / renderHistory target them by id); new chrome = tvz- namespace;
+      state tint keys off .tvz-shell[data-tvstate], stamped by setState(). -->
+ <div class="tvz-shell" id="tvz-shell" data-tvstate="off">
+
+  <!-- ══ HEADER BAND — brand · auto-sync lamp · ON/OFF-AIR bug · 🎞 theatre ══ -->
+  <header class="tvz-head">
+    <div class="tvz-brand">
+      <span class="tvz-emblem"><img src="art/hdx_uberdiablo_icon.png" alt="" onerror="this.onerror=null;this.src='art/hd_ohm_rune.png'"></span>
+      <span class="tvz-brand-txt">
+        <span class="tvz-brand-h">TV&nbsp;DIABLO</span>
+        <span class="tvz-brand-sub">Broadcast Console · Live Scanner · your subscription</span>
+      </span>
     </div>
-    <!-- v710.6 — the BRAIN LOG (Konyo: 'logging the actions so i can see its thought process'):
-         the scanner's REAL decisions, verbatim from the agent — settles, skips + why, reads + results -->
-    <div class="tvb-log" id="tvb-log"><div class="tvb-log-line tvb-lg-idle">— brain log · the scanner narrates its decisions here —</div></div>
-    </div>
-    <div class="tvb-side">
-      <div class="tvb-title">📺 TV DIABLO <span class="tvb-badge">LIVE SCANNER</span></div>
-      <div class="tvb-sub">Read-only sight on your own game screen — vision on <b>your</b> Claude subscription, zero API keys, nothing touches the game. Launch: <code>TV DIABLO</code> app (ON auto-connects) or <code>tvd</code>. It watches every quarter-second; it reads the moment you stop on loot, a tooltip, or your stash.</div>
-      <span class="tvd-switch tvd-off tvb-bigswitch" role="switch" aria-checked="false" tabindex="0" title="power" data-tvd-lamp="1">
+    <div class="tvz-head-right">
+      <div class="tvz-clock" id="tvz-clock" aria-hidden="true">--:--:--</div>
+      <!-- v766 — the ON/OFF-AIR bug IS the status now (app pill, breathing dot). The .tvd-switch below
+           is RETAINED ONLY for the dual-render engine + board specs (setState drives its .tvd-word);
+           it is visually removed (.tvz-head .tvd-switch{display:none}) so nothing reads as a toggle. -->
+      <span class="tvd-switch tvd-off tvb-bigswitch tvz-lamp" role="status" aria-hidden="true" aria-checked="false" data-tvd-lamp="1">
         <span class="tvd-track"><span class="tvd-knob"></span></span><span class="tvd-word">OFF</span>
       </span>
-      <div class="tvb-meters">
-        <div class="tvb-m tvb-m-wide"><span class="tvb-ml">MOTION</span><span class="tvb-bar"><i id="tvb-motion"></i></span></div>
-        <div class="tvb-m tvb-m-wide"><span class="tvb-ml">⚡ INTEREST</span><span class="tvb-bar"><i id="tvb-interest" style="background:linear-gradient(90deg,#39a0c9,#b7ecc4)"></i></span></div>
-        <div class="tvb-m"><span class="tvb-ml">AP</span><b id="tvb-ap">—</b></div>
-        <div class="tvb-m"><span class="tvb-ml">READS</span><b id="tvb-reads">0</b></div>
-        <div class="tvb-m"><span class="tvb-ml">🗺 AREA</span><b id="tvb-area">—</b></div>
-        <div class="tvb-m"><span class="tvb-ml">SCENE</span><b id="tvb-scene">—</b></div>
-        <div class="tvb-m tvb-m-wide"><span class="tvb-ml">🔥 TZ SEEN</span><b id="tvb-tz">—</b></div>
+      <div class="tvz-bug" id="tvz-bug" title="auto-synced to the TV DIABLO app — this follows its ON/OFF (not a button)"><span class="tvz-bug-dot"></span><span class="tvz-bug-txt" id="tvz-bug-txt">OFF AIR</span></div>
+      <button type="button" class="tvz-theatre-btn" id="tvz-theatre-btn" title="🎞 THE THEATRE — replay archived sessions (real in-game frames + reads)">🎞 <span class="tvz-tb-lab">Theatre</span></button>
+    </div>
+  </header>
+
+  <!-- v766 — GET THE APP: one-paste install, flagship-styled to match the console (Konyo-ordered). -->
+  <div class="tvz-getapp">
+    <div class="tvz-getapp-h"><img class="tvz-jewel" src="art/hd_ber_rune.png" alt="" onerror="this.style.display='none'">GET THE APP<span class="tvz-getapp-sub">one paste installs everything (Git · Python · Claude Code if missing) + the TV DIABLO app — the only human step is your own Claude login</span></div>
+    <div class="tvz-getapp-cards">
+      <div class="tvz-ga-card">
+        <div class="tvz-ga-top">🖥 <b>MacBook</b><span class="tvz-ga-os">Terminal</span></div>
+        <div class="tvz-ga-cmd"><code id="tvz-ga-mac">curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash</code><button type="button" class="tvz-ga-copy" data-copy="tvz-ga-mac" title="copy to clipboard">Copy</button></div>
+      </div>
+      <div class="tvz-ga-card">
+        <div class="tvz-ga-top">🪟 <b>Windows</b><span class="tvz-ga-os">PowerShell</span></div>
+        <div class="tvz-ga-cmd"><code id="tvz-ga-win">irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex</code><button type="button" class="tvz-ga-copy" data-copy="tvz-ga-win" title="copy to clipboard">Copy</button></div>
       </div>
     </div>
   </div>
-  <!-- v747 — 📡 NOW ON AIR: the live chapter stage (Grok's flagship, Konyo-ordered). While the
-       scanner is ONLINE and thinking, the middle of a read becomes an ILLUSTRATED live chapter —
-       big area line + scene skin + a live cast of the resolved names (HD art · rarity ring ·
-       lifecycle badge). Hidden entirely when the channel is off (the CRT static owns that story).
-       Rendered by renderNowStage() in the receiver IIFE (fingerprint-skip, click-contained). -->
+
+  <!-- ══ STAGE + CONSOLE RAIL ══ -->
+  <div class="tvz-body">
+    <!-- v766 — THE STAGE clones the TV DIABLO app's standby homescreen (tv/control_ui.html .stage):
+         giant state-tinted serif PHASE word centered over the breathing Diablo silhouette, kicker
+         above · caption below, scanlines/sweep/vignette, meters as the broadcast lower-third. When
+         LIVE the CRT face (#tvb-face = /frame) becomes the stage film beneath the phase overlay.
+         #tvb-screen keeps its state classes (setState) + #tvb-verb (specs) + all meter IDs (paintBeat). -->
+    <section class="tvz-stage">
+      <div class="tvb-screen tvb-off tvz-stagecrt" id="tvb-screen">
+        <div class="tvz-aura"></div>
+        <img class="tvz-hero" src="art/diablo_hell_graphic.png" alt="" aria-hidden="true" onerror="this.style.display='none'">
+        <img class="tvb-face" id="tvb-face" alt="" hidden loading="eager" decoding="async">
+        <div class="tvb-scan"></div>
+        <div class="tvb-noise"></div>
+        <div class="tvb-static"></div>
+        <div class="tvb-roll"></div>
+        <div class="tvz-sweep"></div>
+        <div class="tvz-marquee"><span class="tvz-rec"></span><span id="tvz-marquee-t">Standby</span></div>
+        <div class="tvz-center">
+          <div class="tvz-kicker" id="tvz-kicker">Signal Idle</div>
+          <div class="tvz-phase" id="tvz-phase">STANDBY</div>
+          <div class="tvz-caption" id="tvz-caption">Press <b>ON</b> in the TV DIABLO app — the scanner wakes and this board takes over. Vision on <b>your</b> Claude subscription; nothing touches the game.</div>
+          <div class="tvb-eye" id="tvb-eye">📺</div>
+          <div class="tvb-verb" id="tvb-verb">⛔ DISCONNECTED</div>
+        </div>
+        <!-- broadcast lower-third meters (IDs unchanged — paintBeat targets them) -->
+        <div class="tvb-meters">
+          <div class="tvb-m tvb-m-wide"><span class="tvb-ml">MOTION</span><span class="tvb-bar"><i id="tvb-motion"></i></span></div>
+          <div class="tvb-m tvb-m-wide"><span class="tvb-ml">⚡ INTEREST</span><span class="tvb-bar"><i id="tvb-interest" style="background:linear-gradient(90deg,#39a0c9,#b7ecc4)"></i></span></div>
+          <div class="tvb-m"><span class="tvb-ml">AP</span><b id="tvb-ap">—</b></div>
+          <div class="tvb-m"><span class="tvb-ml">READS</span><b id="tvb-reads">0</b></div>
+          <div class="tvb-m"><span class="tvb-ml">🗺 AREA</span><b id="tvb-area">—</b></div>
+          <div class="tvb-m"><span class="tvb-ml">SCENE</span><b id="tvb-scene">—</b></div>
+          <div class="tvb-m tvb-m-wide"><span class="tvb-ml">🔥 TZ SEEN</span><b id="tvb-tz">—</b></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="tvz-rail">
+      <!-- v744 — THE RUN STORY reel (re-homed into the console rail): session as a film strip —
+           Town → Durance → loot → hold → 🏦. Click a tick jumps to that history row. -->
+      <div class="tvz-panel">
+        <div class="tvz-panel-h"><img class="tvz-jewel" src="art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">RUN STORY</div>
+        <div class="tvb-story" id="tvb-story" hidden></div>
+        <div class="tvz-panel-empty" id="tvz-story-empty">— the session reel lights up as chapters roll —</div>
+      </div>
+      <!-- v710.6 — THE SYNAPSE / BRAIN LOG (re-homed into the rail): the scanner's REAL decisions,
+           verbatim from the agent — settles, skips + why, reads + results. -->
+      <div class="tvz-panel tvz-panel-grow">
+        <div class="tvz-panel-h"><img class="tvz-jewel" src="art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">SYNAPSE · BRAIN LOG</div>
+        <div class="tvb-log" id="tvb-log"><div class="tvb-log-line tvb-lg-idle">— brain log · the scanner narrates its decisions here —</div></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- v747 — 📡 NOW ON AIR: the live chapter stage (full-bleed broadcast band — the breathing hero).
+       While the scanner is ONLINE and thinking, the middle of a read becomes an ILLUSTRATED live
+       chapter — big area line + scene skin + a live cast of the resolved names (HD art · rarity ring
+       · lifecycle badge). Hidden entirely when the channel is off. Rendered by renderNowStage() in
+       the receiver IIFE (fingerprint-skip, click-contained; full-bleed margin math unchanged). -->
   <div class="tvn-stage" id="tvn-stage" hidden></div>
-  <!-- v744 — THE RUN STORY (Grok's #2): the session as a film strip — Town → Durance → loot →
-       hold → 🏦. Each tick is a moment; click jumps to that history row. -->
-  <div class="tvb-story" id="tvb-story" hidden></div>
-  <div class="tvb-feedwrap">
-    <div class="tvb-feed-h">SIGNAL FEED <span class="tvb-feed-sub">every read · routed to your engines · ✓ to apply</span></div>
+
+  <!-- ══ SIGNAL FEED ticker (styled like the app's AGENT MIND band) + archive below ══ -->
+  <div class="tvb-feedwrap tvz-feedwrap">
+    <div class="tvb-feed-h tvz-ticker-h"><span class="tvz-ticker-p"></span>SIGNAL FEED <span class="tvb-feed-sub">every read · routed to your engines · ✓ to apply</span></div>
     <div id="tvb-feed"><div class="sc-empty">the feed lights up when the scanner comes online</div></div>
   </div>
   <!-- v724 — SESSION HISTORY: survives agent restarts · time-ordered · HD art · DB match · vault trail -->
@@ -7341,6 +7410,29 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     </div>
     <img id="tvd-frame-lb-img" alt="AI vision frame fullscreen">
   </div>
+
+  <!-- v766 — 🎞 THE THEATRE (site): the app's theatre affordance, brought to the board. Replays
+       archived sessions from the board's OWN d2r_tvdHist history (loadHist) — real frames served
+       by the agent bridge (/frame?id=, fallback tv/frames/hist/<id>.jpg) + the recorded reads. Same
+       player pattern as the app: film · caption · beat timeline · session pagination · play/speed.
+       Honest empty state when there are no journaled sessions (and dims when no frame resolves). -->
+  <div class="tvz-theatre" id="tvz-theatre" hidden>
+    <img class="tvz-th-film" id="tvz-th-film" alt="">
+    <div class="tvz-th-topline">
+      <span class="tvz-th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
+      <span class="tvz-th-sess" id="tvz-th-sess">—</span>
+      <button class="tvz-th-x" id="tvz-th-close" type="button" title="close the theatre">✕</button>
+    </div>
+    <div class="tvz-th-caption" id="tvz-th-caption">loading the reel…</div>
+    <div class="tvz-th-strip">
+      <button class="tvz-th-btn" id="tvz-th-prev-s" type="button" title="older session">⏮</button>
+      <button class="tvz-th-btn" id="tvz-th-play" type="button" title="play/pause">⏸</button>
+      <button class="tvz-th-btn" id="tvz-th-next-s" type="button" title="newer session">⏭</button>
+      <div class="tvz-th-timeline" id="tvz-th-timeline"></div>
+      <button class="tvz-th-btn" id="tvz-th-speed" type="button" title="playback speed">1×</button>
+    </div>
+  </div>
+ </div>
 </div>
 <div class="footer">
   <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px">
@@ -32007,6 +32099,165 @@ html{overflow-x:clip}
 .tvd-frame-lb-bar button:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
 .tvd-frame-lb img{max-width:100vw;max-height:100vh;width:auto;height:auto;object-fit:contain;border:none;border-radius:0;background:#000;cursor:zoom-out}
 @media (max-width:900px){.tvb-left{flex:1 1 100%}.tvb-screen{min-height:190px}.tvd-read{grid-template-columns:1fr}.tvd-frame-thumb,.tvd-frame-ph{width:100%;height:120px}}
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   v766 — TV·D CONSOLE: the tab restructured to STRUCTURALLY MATCH the TV DIABLO app
+   (tv/control_ui.html). Header band · state-tinted stage + meters lower-third · console rail
+   (RUN STORY + SYNAPSE) · SIGNAL FEED ticker · 🎞 THE THEATRE overlay. All engine IDs/classes are
+   preserved; the new chrome is namespaced tvz-. State tint keys off .tvz-shell[data-tvstate]
+   (setState stamps it). Background-tab honesty inherited via html.z-bg (freezes tvz animations).
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+.tvz-shell{--tvz-accent:#f0c060;--tvz-accent-soft:rgba(240,192,96,.5);--tvz-edge:rgba(240,192,96,.2);--tvz-edge-hi:rgba(240,192,96,.5);position:relative;margin:14px 0 6px}
+.tvz-shell[data-tvstate="live"]{--tvz-accent:#8fe6a0;--tvz-accent-soft:rgba(143,230,160,.5);--tvz-edge:rgba(143,230,160,.28);--tvz-edge-hi:rgba(143,230,160,.55)}
+.tvz-shell[data-tvstate="conn"]{--tvz-accent:#ffd97a;--tvz-accent-soft:rgba(255,217,122,.5);--tvz-edge:rgba(255,200,90,.32);--tvz-edge-hi:rgba(255,200,90,.6)}
+.tvz-shell[data-tvstate="offline"]{--tvz-accent:#e08a8a;--tvz-accent-soft:rgba(224,138,138,.5);--tvz-edge:rgba(255,100,100,.28);--tvz-edge-hi:rgba(255,100,100,.5)}
+/* ── HEADER BAND ── */
+.tvz-head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:12px 18px;margin-bottom:15px;border:1px solid var(--tvz-edge);border-radius:16px;background:radial-gradient(140% 240% at 5% -60%,rgba(240,192,96,.08),transparent 46%),linear-gradient(180deg,rgba(20,16,10,.72),rgba(8,7,5,.72));transition:border-color .5s}
+.tvz-brand{display:flex;align-items:center;gap:14px;min-width:0}
+.tvz-emblem{width:52px;height:52px;flex:none;border-radius:12px;display:grid;place-items:center;overflow:hidden;border:1px solid var(--tvz-edge-hi);background:radial-gradient(circle at 50% 30%,rgba(240,192,96,.18),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(240,192,96,.2),inset 0 1px 0 rgba(255,255,255,.08);animation:tvzEmber 3.4s ease-in-out infinite}
+.tvz-emblem img{width:78%;height:78%;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,90,40,.6))}
+@keyframes tvzEmber{0%,100%{box-shadow:0 0 16px rgba(240,192,96,.16),inset 0 1px 0 rgba(255,255,255,.06)}50%{box-shadow:0 0 30px rgba(240,192,96,.4),inset 0 1px 0 rgba(255,255,255,.1)}}
+.tvz-brand-txt{min-width:0;display:flex;flex-direction:column;gap:4px}
+.tvz-brand-h{font-family:var(--serif-display,'Cinzel',serif);font-size:27px;font-weight:700;letter-spacing:.1em;line-height:1;color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.35);white-space:nowrap}
+.tvz-brand-sub{font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tvz-head-right{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.tvz-clock{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:.14em;color:var(--gold-dim,#a07830);font-variant-numeric:tabular-nums}
+.tvz-lamp{transform:scale(1.1);transform-origin:right center;margin:0 2px}
+.tvz-bug{display:inline-flex;align-items:center;gap:9px;padding:8px 16px;border-radius:999px;border:1px solid var(--tvz-edge);background:rgba(0,0,0,.4);font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.2em;color:var(--text-dim);text-transform:uppercase;transition:color .3s,border-color .3s}
+.tvz-bug-dot{width:9px;height:9px;border-radius:50%;background:#4a463c;flex:none;transition:.3s}
+.tvz-shell[data-tvstate="live"] .tvz-bug{color:#8fe6a0;border-color:var(--tvz-edge-hi)}
+.tvz-shell[data-tvstate="live"] .tvz-bug-dot{background:#8fe6a0;box-shadow:0 0 10px #8fe6a0;animation:tvnLiveBug 1.6s ease-out infinite}
+.tvz-shell[data-tvstate="conn"] .tvz-bug{color:#ffd97a;border-color:var(--tvz-edge-hi)}
+.tvz-shell[data-tvstate="conn"] .tvz-bug-dot{background:#ffd97a;box-shadow:0 0 8px #ffd97a}
+.tvz-shell[data-tvstate="offline"] .tvz-bug{color:#e08a8a;border-color:var(--tvz-edge-hi)}
+.tvz-theatre-btn{font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.1em;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:999px;border:1px solid var(--tvz-edge-hi);background:linear-gradient(180deg,rgba(38,30,17,.85),rgba(12,10,7,.92));color:var(--gold-bright,#f0c060);cursor:pointer;transition:transform .12s,box-shadow .18s,border-color .18s}
+.tvz-theatre-btn:hover{transform:translateY(-1px);box-shadow:0 0 18px rgba(240,192,96,.25)}
+.tvz-theatre-btn:active{transform:translateY(1px)}
+.tvz-theatre-btn.on{border-color:var(--gold-bright);box-shadow:0 0 18px rgba(240,192,96,.3);color:#fff4d8}
+/* v766 — the old toggle is GONE from view: the ON/OFF-AIR bug is the only status. The .tvd-switch
+   stays in the DOM (dual-render engine + board specs read its .tvd-word) but is visually removed —
+   targeted by ancestor (setState rewrites the switch className, so a .tvz-lamp hook would be lost). */
+.tvz-head{position:relative;overflow:hidden}
+.tvz-head .tvd-switch{display:none!important}
+/* v766 — the SESSION-cockpit lamp (#sc-card-tvd) gets the same treatment: toggle hidden, ON/OFF-AIR
+   pill is the status. #tvd-switch is stable by id (setState rewrites className, not id). */
+#tvd-switch{display:none!important}
+.tvz-bug-sc{padding:5px 13px;font-size:var(--fs-micro);letter-spacing:.18em;border-color:rgba(240,192,96,.2);margin-left:auto}
+#sc-card-tvd .sc-card-h{display:flex;align-items:center;gap:10px}
+#sc-card-tvd[data-tvstate="live"] .tvz-bug-sc{color:#8fe6a0;border-color:rgba(143,230,160,.55)}
+#sc-card-tvd[data-tvstate="live"] .tvz-bug-sc .tvz-bug-dot{background:#8fe6a0;box-shadow:0 0 10px #8fe6a0;animation:tvnLiveBug 1.6s ease-out infinite}
+#sc-card-tvd[data-tvstate="conn"] .tvz-bug-sc{color:#ffd97a;border-color:rgba(255,200,90,.55)}
+#sc-card-tvd[data-tvstate="conn"] .tvz-bug-sc .tvz-bug-dot{background:#ffd97a;box-shadow:0 0 8px #ffd97a}
+#sc-card-tvd[data-tvstate="offline"] .tvz-bug-sc{color:#e08a8a;border-color:rgba(255,100,100,.5)}
+#sc-card-tvd[data-tvstate="off"] .tvz-bug-sc{animation:tvzBugBreathe 3.2s ease-in-out infinite}
+.tvz-brand,.tvz-head-right{position:relative;z-index:1}
+/* the bug breathes while off (app parity: bugBreathe); goes solid + pulsing dot when live/conn */
+.tvz-shell[data-tvstate="off"] .tvz-bug{animation:tvzBugBreathe 3.2s ease-in-out infinite}
+@keyframes tvzBugBreathe{0%,100%{border-color:rgba(240,192,96,.16)}50%{border-color:rgba(240,192,96,.34)}}
+/* ── GET THE APP — flagship install block ── */
+.tvz-getapp{border:1px solid var(--tvz-edge);border-radius:14px;background:radial-gradient(120% 200% at 4% -60%,rgba(240,192,96,.06),transparent 46%),linear-gradient(180deg,rgba(14,11,7,.6),rgba(8,7,5,.6));padding:12px 15px;margin-bottom:16px}
+.tvz-getapp-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-dim,#a07830);margin-bottom:11px}
+.tvz-getapp-sub{font-weight:400;letter-spacing:.02em;text-transform:none;color:var(--text-muted);font-size:var(--fs-meta)}
+.tvz-getapp-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tvz-ga-card{border:1px solid var(--tvz-edge);border-radius:11px;background:linear-gradient(180deg,rgba(26,21,12,.7),rgba(10,9,6,.85));padding:11px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.tvz-ga-top{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:var(--fs-body)}
+.tvz-ga-top b{color:var(--gold-bright);letter-spacing:.06em}
+.tvz-ga-os{margin-left:auto;font-size:var(--fs-micro);letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.tvz-ga-cmd{display:flex;align-items:stretch;gap:8px;min-width:0}
+.tvz-ga-cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none;background:rgba(0,0,0,.5);border:1px solid rgba(240,192,96,.16);border-radius:8px;padding:8px 11px;font-family:var(--mono);font-size:var(--fs-meta);color:#e6d3a4;letter-spacing:.01em}
+.tvz-ga-cmd code::-webkit-scrollbar{display:none}
+.tvz-ga-copy{flex:none;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:0 14px;border-radius:8px;border:1px solid var(--tvz-edge-hi);background:linear-gradient(180deg,rgba(38,30,17,.9),rgba(12,10,7,.95));color:var(--gold-bright);cursor:pointer;transition:transform .1s,box-shadow .16s,border-color .16s,color .16s}
+.tvz-ga-copy:hover{transform:translateY(-1px);box-shadow:0 0 14px rgba(240,192,96,.22)}
+.tvz-ga-copy:active{transform:translateY(1px)}
+.tvz-ga-copy.copied{border-color:rgba(143,230,160,.6);color:#8fe6a0;background:linear-gradient(180deg,rgba(22,46,30,.9),rgba(8,15,10,.95))}
+@media (max-width:760px){.tvz-getapp-cards{grid-template-columns:1fr}}
+/* ── STAGE + CONSOLE RAIL ── */
+.tvz-body{display:grid;grid-template-columns:1fr clamp(260px,26%,362px);gap:16px;align-items:stretch;margin-bottom:20px}
+.tvz-stage{position:relative;display:flex;min-width:0}
+/* v766 — THE STAGE surface = #tvb-screen repurposed as the app's .stage (tv/control_ui.html):
+   tall, state-tinted, giant serif phase over the breathing Diablo silhouette + lower-third meters.
+   When LIVE, refreshFrameEye() paints #tvb-face = /frame as the film beneath the phase overlay. */
+.tvz-stagecrt{flex:1 1 auto;width:100%;min-height:clamp(360px,46vh,520px);border-radius:18px;border:1px solid var(--tvz-edge);overflow:hidden;position:relative;display:block;
+  background:radial-gradient(ellipse at 50% 6%,rgba(240,192,96,.07),transparent 52%),linear-gradient(180deg,#13110c,#0a0806 68%,#070605);
+  box-shadow:inset 0 1px 0 rgba(240,192,96,.12),inset 0 -40px 80px rgba(0,0,0,.5),0 18px 54px rgba(0,0,0,.55);transition:border-color .5s,box-shadow .5s}
+/* scanlines + vignette (app parity); the dead-channel snow set is retired — the hero owns standby */
+.tvz-stagecrt::before{content:"";position:absolute;inset:-4px 0;z-index:2;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.16) 2px 4px);mix-blend-mode:multiply;opacity:.5;animation:tvzScanDrift 9s linear infinite}
+.tvz-stagecrt::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(120% 120% at 50% 46%,transparent 58%,rgba(0,0,0,.55) 100%)}
+@keyframes tvzScanDrift{from{transform:translateY(0)}to{transform:translateY(4px)}}
+.tvz-stagecrt .tvb-static,.tvz-stagecrt .tvb-roll,.tvz-stagecrt .tvb-scan,.tvz-stagecrt .tvb-noise,.tvz-stagecrt .tvb-eye{display:none!important}
+/* colored aura pooled behind the hero */
+.tvz-aura{position:absolute;left:50%;bottom:8%;width:clamp(300px,58%,680px);aspect-ratio:1;transform:translateX(-50%);z-index:0;pointer-events:none;background:radial-gradient(circle at 50% 55%,var(--tvz-aura,rgba(255,120,40,.18)),transparent 62%);opacity:.75;transition:background .7s;animation:tvzAura 6s ease-in-out infinite}
+.tvz-shell[data-tvstate="live"] .tvz-aura{--tvz-aura:rgba(255,52,30,.28)}
+.tvz-shell[data-tvstate="conn"] .tvz-aura{--tvz-aura:rgba(255,200,90,.22)}
+@keyframes tvzAura{0%,100%{opacity:.55;transform:translateX(-50%) scale(1)}50%{opacity:.9;transform:translateX(-50%) scale(1.06)}}
+/* breathing Diablo silhouette (art/diablo_hell_graphic.png) — the standby hero */
+.tvz-hero{position:absolute;left:50%;bottom:clamp(54px,11%,120px);transform:translateX(-50%);height:clamp(58%,66%,76%);max-width:88%;object-fit:contain;opacity:.42;z-index:1;pointer-events:none;filter:drop-shadow(0 0 40px rgba(255,120,40,.28)) brightness(1.12) saturate(1.05);animation:tvzHeroFloat 7.5s ease-in-out infinite;transition:opacity .6s,filter .6s}
+.tvz-shell[data-tvstate="live"] .tvz-hero{opacity:.5;filter:drop-shadow(0 0 46px rgba(255,60,24,.5)) brightness(1.14) saturate(1.2) hue-rotate(-6deg)}
+@keyframes tvzHeroFloat{0%,100%{transform:translateX(-50%) translateY(0) scale(1)}50%{transform:translateX(-50%) translateY(-1.4%) scale(1.012)}}
+/* live frame film — sits above the hero, below the phase overlay */
+.tvz-stagecrt .tvb-face{z-index:1;opacity:.82;filter:saturate(.92) brightness(.82)}
+/* one bright sweep */
+.tvz-sweep{position:absolute;left:0;right:0;height:30%;top:-30%;z-index:2;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(240,220,180,.05) 45%,rgba(255,240,210,.08) 50%,transparent);animation:tvzSweep 7.5s ease-in-out infinite;opacity:.8}
+@keyframes tvzSweep{0%{top:-32%}60%,100%{top:108%}}
+/* marquee (REC + status) */
+.tvz-marquee{position:absolute;top:clamp(12px,1.8vw,22px);left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:.3em;text-transform:uppercase;color:var(--text-dim)}
+.tvz-rec{width:9px;height:9px;border-radius:50%;background:#4a463c}
+.tvz-shell[data-tvstate="live"] .tvz-rec{background:#ff6b6b;box-shadow:0 0 10px #ff6b6b;animation:tvzRec 1.4s steps(1) infinite}
+.tvz-shell[data-tvstate="conn"] .tvz-rec{background:#ffd97a;box-shadow:0 0 10px #ffd97a}
+@keyframes tvzRec{0%,49%{opacity:1}50%,100%{opacity:.25}}
+/* center — kicker / GIANT serif phase / caption (the homescreen headline) */
+.tvz-center{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:clamp(28px,5vw,60px) clamp(18px,3vw,50px) clamp(100px,16vh,160px)}
+.tvz-kicker{font-family:var(--mono);font-size:clamp(9px,.85vw,13px);letter-spacing:.42em;text-transform:uppercase;color:var(--gold-dim,#a07830);margin-bottom:clamp(8px,1vh,15px)}
+.tvz-phase{font-family:var(--serif-display,'Cinzel',serif);font-size:clamp(40px,7.5vw,112px);font-weight:700;line-height:.96;letter-spacing:.04em;color:var(--gold-bright,#f0c060);text-shadow:0 0 40px rgba(240,192,96,.45),0 4px 6px rgba(0,0,0,.7);transition:color .5s,text-shadow .5s}
+.tvz-shell[data-tvstate="live"] .tvz-phase{color:#a9f2c0;text-shadow:0 0 48px rgba(143,230,160,.6),0 4px 6px rgba(0,0,0,.7)}
+.tvz-shell[data-tvstate="conn"] .tvz-phase{color:#ffe0a0;text-shadow:0 0 40px rgba(255,200,90,.5),0 4px 6px rgba(0,0,0,.7)}
+.tvz-shell[data-tvstate="offline"] .tvz-phase{color:#f0b0b0;text-shadow:0 0 40px rgba(255,100,100,.45),0 4px 6px rgba(0,0,0,.7)}
+.tvz-caption{margin-top:clamp(9px,1.4vh,18px);font-family:var(--mono);font-size:clamp(11px,1vw,15px);color:var(--text-muted);letter-spacing:.02em;line-height:1.5;max-width:min(620px,82%)}
+.tvz-caption b{color:var(--text)}
+.tvz-caption code{color:var(--gold-bright);background:rgba(255,255,255,.05);padding:1px 6px;border-radius:5px;font-size:.92em}
+/* verb — the small technical status line under the caption (specs read DISCONNECTED / NO SIGNAL) */
+.tvz-stagecrt .tvb-verb{position:static;margin-top:10px;font-size:var(--fs-micro);letter-spacing:.24em;opacity:.85}
+/* meters = the broadcast lower-third, anchored inside the stage bottom (app parity) */
+.tvz-stagecrt .tvb-meters{position:absolute;left:clamp(10px,1.5vw,20px);right:clamp(10px,1.5vw,20px);bottom:clamp(10px,1.5vw,18px);z-index:4;margin:0;justify-content:center}
+.tvz-stagecrt .tvb-m{background:linear-gradient(180deg,rgba(16,13,8,.86),rgba(6,5,3,.9));backdrop-filter:blur(3px);box-shadow:inset 0 1px 0 rgba(240,192,96,.08),0 6px 18px rgba(0,0,0,.4)}
+.tvz-rail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tvz-panel{border:1px solid var(--tvz-edge);border-radius:14px;background:rgba(10,9,6,.55);padding:11px 13px;display:flex;flex-direction:column;gap:9px;min-height:0;transition:border-color .5s}
+.tvz-panel-grow{flex:1 1 auto}
+.tvz-panel-h{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-dim,#a07830)}
+.tvz-panel-h::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--tvz-edge),transparent)}
+.tvz-jewel{width:1.4em;height:1.4em;object-fit:contain;flex:none;filter:drop-shadow(0 0 5px rgba(240,192,96,.55));animation:tvzJewel 3.6s ease-in-out infinite}
+@keyframes tvzJewel{0%,100%{filter:drop-shadow(0 0 4px rgba(240,192,96,.4))}50%{filter:drop-shadow(0 0 9px rgba(240,192,96,.7))}}
+.tvz-panel .tvb-story{margin:0;flex:none}
+.tvz-panel .tvb-story[hidden]{display:none}
+.tvz-panel .tvb-log{height:auto;flex:1 1 auto;min-height:154px;max-height:300px}
+.tvz-panel-empty{font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-dim);font-style:italic}
+.tvz-panel:has(#tvb-story:not([hidden])) #tvz-story-empty{display:none}
+/* ── SIGNAL FEED ticker header (AGENT MIND band treatment) ── */
+.tvz-feedwrap{margin-top:4px}
+.tvz-ticker-h{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(102,255,136,.16);background:linear-gradient(180deg,rgba(12,20,12,.7),rgba(6,10,6,.8));color:#7fae87}
+.tvz-ticker-p{width:9px;height:9px;border-radius:50%;background:#2c5a34;flex:none}
+.tvz-shell[data-tvstate="live"] .tvz-ticker-p{background:#8fe6a0;box-shadow:0 0 8px #8fe6a0;animation:tvnLiveBug 1.6s ease-out infinite}
+@media (max-width:900px){.tvz-body{grid-template-columns:1fr}.tvz-stagecrt{min-height:340px}.tvz-phase{font-size:clamp(34px,10vw,64px)}.tvz-center{padding-bottom:clamp(110px,20vh,160px)}.tvz-panel .tvb-log{max-height:220px}}
+/* ══ 🎞 THE THEATRE overlay (site) — mirrors the app's player ══ */
+.tvz-theatre{position:fixed;inset:0;z-index:99991;background:#050403;display:flex;flex-direction:column;overflow:hidden}
+.tvz-theatre[hidden]{display:none!important}
+.tvz-th-film{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transition:opacity .3s}
+.tvz-theatre::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.14) 2px 4px);opacity:.35;mix-blend-mode:multiply}
+.tvz-th-topline{position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:14px 20px;background:linear-gradient(180deg,rgba(5,4,3,.92),transparent)}
+.tvz-th-tag{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:.24em;color:var(--gold-bright);font-weight:800;text-transform:uppercase;text-shadow:0 0 14px rgba(240,192,96,.4)}
+.tvz-th-sess{margin-left:auto;font-family:var(--mono);font-size:var(--fs-meta);color:var(--text-muted);letter-spacing:.1em;font-variant-numeric:tabular-nums}
+.tvz-th-x{appearance:none;border:1px solid var(--border-light);background:rgba(0,0,0,.5);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:13px;transition:.15s}
+.tvz-th-x:hover{color:var(--gold-bright);border-color:var(--gold-bright)}
+.tvz-th-caption{position:absolute;left:0;right:0;bottom:64px;z-index:2;text-align:center;padding:12px clamp(16px,4vw,60px);font-family:var(--mono);font-size:var(--fs-body);color:var(--text);letter-spacing:.02em;text-shadow:0 2px 8px rgba(0,0,0,.9);background:linear-gradient(0deg,rgba(5,4,3,.85),transparent)}
+.tvz-th-caption b{color:var(--gold-bright)}
+.tvz-th-chip{display:inline-block;margin:0 4px;padding:2px 9px;border-radius:999px;border:1px solid rgba(240,192,96,.4);background:rgba(240,192,96,.1);color:var(--gold-bright);font-weight:700;font-size:.92em}
+.tvz-th-strip{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:10px;padding:12px 20px;background:linear-gradient(0deg,rgba(5,4,3,.95),rgba(5,4,3,.6) 80%,transparent)}
+.tvz-th-btn{appearance:none;border:1px solid var(--border-light);background:rgba(0,0,0,.5);color:var(--gold-bright);min-width:38px;height:34px;border-radius:9px;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:700;transition:.15s}
+.tvz-th-btn:hover{border-color:var(--gold-bright);box-shadow:0 0 12px rgba(240,192,96,.2)}
+.tvz-th-timeline{flex:1;height:22px;display:flex;align-items:center;gap:2px;cursor:pointer}
+.tvz-th-beat{flex:1;height:6px;border-radius:3px;background:rgba(240,192,96,.18);transition:.12s;min-width:3px}
+.tvz-th-beat.named{background:rgba(240,192,96,.55);height:10px}
+.tvz-th-beat.cur{background:var(--gold-bright);height:14px;box-shadow:0 0 10px rgba(255,223,154,.6)}
+.tvz-th-beat.noframe{background:rgba(255,255,255,.08)}
 </style>
 <style id="v704-sys-tray">
 /* v704 — SYSTEM TRAY (Grok wave P2): the bottom-right corner had FIVE chrome families at five
@@ -32926,7 +33177,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v765', name:'Now On Air', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
+  window.D2R_BUILD = { id:'v766', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33118,11 +33369,40 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     try { render(true); } catch(e){}   // v736 — state transitions repaint the empty-state copy
     var scr=document.getElementById('tvb-screen');
     if(scr){
-      scr.className='tvb-screen tvb-'+(s==='live'?'live':s==='conn'?'conn':s==='offline'?'offline':'off');
+      scr.className='tvb-screen'+(scr.classList.contains('tvz-stagecrt')?' tvz-stagecrt':'')+' tvb-'+(s==='live'?'live':s==='conn'?'conn':s==='offline'?'offline':'off');
       var v=document.getElementById('tvb-verb');
       if(v) v.textContent = s==='live'?'👁 WATCHING':s==='conn'?'📡 TUNING…':s==='offline'?'⛔ NO SIGNAL · python3 tv/tv_diablo.py':'⛔ DISCONNECTED';
     }
     try { renderNowStage(); } catch(e){}   // v747 — off/conn/offline hides the NOW ON AIR stage at once
+    // v766 — stamp the console shell so the header/stage/rail state-tint (and the ON/OFF-AIR bug)
+    // follow the bridge truth; keyed off .tvz-shell[data-tvstate] in CSS (no per-node paint).
+    try {
+      var _shz=document.getElementById('tvz-shell');
+      if(_shz){
+        _shz.setAttribute('data-tvstate', s==='live'?'live':s==='conn'?'conn':s==='offline'?'offline':'off');
+        var _bz=document.getElementById('tvz-bug-txt');
+        if(_bz) _bz.textContent = s==='live'?'ON AIR':s==='conn'?'TUNING':s==='offline'?'OFF AIR':'OFF AIR';
+        // v766 — drive the app-style stage: giant phase word + kicker + marquee + caption
+        var _ph=document.getElementById('tvz-phase');
+        if(_ph) _ph.textContent = s==='live'?'LIVE':s==='conn'?'TUNING':s==='offline'?'NO SIGNAL':'STANDBY';
+        var _ki=document.getElementById('tvz-kicker');
+        if(_ki) _ki.textContent = s==='live'?'Signal Live':s==='conn'?'Acquiring Signal':s==='offline'?'Link Lost':'Signal Idle';
+        var _mq=document.getElementById('tvz-marquee-t');
+        if(_mq) _mq.textContent = s==='live'?'On Air · Recording':s==='conn'?'Connecting':s==='offline'?'Offline':'Standby';
+        var _cap=document.getElementById('tvz-caption');
+        if(_cap) _cap.innerHTML = s==='live'?'Scanner hidden · bridge live — the stage is showing what the AI sees. Play D2R fullscreen for clean reads.'
+          :s==='conn'?'Acquiring the bridge — tuning to the scanner…'
+          :s==='offline'?'Agent not running — launch the <b>TV DIABLO</b> app or run <code>tvd</code>. Read-only · your Claude subscription.'
+          :'Press <b>ON</b> in the TV DIABLO app — the scanner wakes and this board takes over. Vision on <b>your</b> Claude subscription; nothing touches the game.';
+      }
+      // v766 — the SESSION-cockpit card mirrors the same ON/OFF-AIR pill (toggle hidden there too)
+      var _scc=document.getElementById('sc-card-tvd');
+      if(_scc){
+        _scc.setAttribute('data-tvstate', s==='live'?'live':s==='conn'?'conn':s==='offline'?'offline':'off');
+        var _scb=document.getElementById('tvd-sc-bug-txt');
+        if(_scb) _scb.textContent = s==='live'?'ON AIR':s==='conn'?'TUNING':'OFF AIR';
+      }
+    } catch(e){}
   }
   function route(name){
     var n=String(name||'').trim(); if(!n) return null;
@@ -33748,6 +34028,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         scr.classList.toggle('tvb-reading', !!(fresh&&bt.phase==='reading'));
         var apMode=ap.mode||'';
         if(v) v.textContent = !fresh?'👁 WATCHING':bt.phase==='reading'?'🧠 READING…':bt.phase==='loading'?'⏳ ZONE LOADING':apMode==='hunt'?'⚡ HUNTING STOP…':apMode==='settle'?'🎯 SETTLING…':'👁 WATCHING';
+        // v766 — the giant stage phase word rides the live beat (app parity)
+        var _phw=document.getElementById('tvz-phase');
+        if(_phw) _phw.textContent = !fresh?'WATCHING':bt.phase==='reading'?'READING':bt.phase==='loading'?'LOADING':apMode==='hunt'?'HUNTING':apMode==='settle'?'SETTLING':'WATCHING';
       }
       var rc=document.getElementById('tvb-reads');
       if(rc){
@@ -33983,6 +34266,141 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   try {
     document.addEventListener('visibilitychange', function(){ if(document.hidden) return; if(T) poll(); else if(!navigator.webdriver) _tvdProbe(); });
     window.addEventListener('focus', function(){ if(T) poll(); else if(!navigator.webdriver) _tvdProbe(); });
+  } catch(e){}
+
+  // ══ v766 — 🎞 THE THEATRE (site): replays archived sessions from THIS board's own history
+  // (loadHist → d2r_tvdHist). Real frames come from the agent bridge via frameSrc(id) =
+  // /frame?id=<frameId>, with the same fallback the lightbox uses (tv/frames/hist/<id>.jpg), then
+  // an honest dim when neither resolves. Reads with no frame stay caption-only. No sessions at all
+  // → an honest empty state. Player pattern mirrors tv/control_ui.html (film · caption · beat
+  // timeline · session pagination · play/speed). Closure access to loadHist / frameSrc / escAttr. ══
+  var THZ = { open:false, sessions:[], sn:0, beats:[], i:0, playing:true, speed:1, timer:null };
+  var THZ_SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
+  function thzT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
+  function thzBeats(sess){
+    var reads = (sess && sess.reads) || [];
+    return reads.map(function(r){
+      var names = [];
+      (r.items||[]).forEach(function(it){ if(it && it.kind && it.kind!=='note' && it.label) names.push(String(it.label).replace(/^\S+\s+/,'')); });
+      if(!names.length && Array.isArray(r.names)) names = r.names.slice(0,6);
+      return { ts:r.ts, n:r.n, area:r.area||'', scene:r.scene||'',
+        note:r.note||(r.transition_from?('through the portal — leaving '+r.transition_from):''),
+        names:names, frame:(r.frameId||r.frame_id||'') };
+    });
+  }
+  function thzCaption(b){
+    if(!b) return '';
+    var bits = ['<b>'+escAttr(thzT(b.ts))+'</b>', 'read #'+(b.n||'?')];
+    if(b.area) bits.push('🗺 <b>'+escAttr(b.area)+'</b>');
+    if(b.scene) bits.push((THZ_SCENE_IC[b.scene]||'')+' '+escAttr(b.scene));
+    var line = bits.join(' · ');
+    if(b.note) line += '<br>⏳ '+escAttr(b.note);
+    if(b.names && b.names.length) line += '<br>'+b.names.slice(0,6).map(function(n){ return '<span class="tvz-th-chip">'+escAttr(n)+'</span>'; }).join('');
+    return line;
+  }
+  function thzPaint(){
+    var b = THZ.beats[THZ.i]; if(!b) return;
+    var film = document.getElementById('tvz-th-film');
+    if(film){
+      if(b.frame){
+        film.__fb = 0; film.style.opacity = 1; film.src = frameSrc(b.frame);
+        film.onerror = function(){ if(!film.__fb){ film.__fb = 1; film.src = 'tv/frames/hist/'+String(b.frame)+'.jpg'; } else { film.style.opacity = .12; } };
+      } else { film.removeAttribute('src'); film.style.opacity = .12; }   // honest: caption-only beat
+    }
+    var capEl = document.getElementById('tvz-th-caption'); if(capEl) capEl.innerHTML = thzCaption(b);
+    var tl = document.getElementById('tvz-th-timeline');
+    if(tl) [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === THZ.i); });
+    var meta = THZ.sessions[THZ.sn] || {};
+    var sessEl = document.getElementById('tvz-th-sess');
+    if(sessEl) sessEl.textContent = 'session '+(THZ.sn+1)+'/'+THZ.sessions.length
+      + (meta.startedAt ? (' · '+new Date(meta.startedAt).toLocaleString()) : '')
+      + ' · beat '+(THZ.i+1)+'/'+THZ.beats.length;
+  }
+  function thzTimeline(){
+    var tl = document.getElementById('tvz-th-timeline'); if(!tl) return;
+    tl.innerHTML = THZ.beats.map(function(b, k){
+      return '<span class="tvz-th-beat'+(b.names && b.names.length ? ' named':'')+(b.frame?'':' noframe')
+        +'" data-i="'+k+'" title="read #'+(b.n||'?')+(b.area?(' · '+escAttr(b.area)):'')+'"></span>';
+    }).join('');
+  }
+  function thzStep(){ if(!THZ.open || !THZ.playing || !THZ.beats.length) return; THZ.i = (THZ.i+1) % THZ.beats.length; thzPaint(); thzSchedule(); }
+  function thzSchedule(){
+    clearTimeout(THZ.timer); if(!THZ.playing) return;
+    var cur = THZ.beats[THZ.i], nxt = THZ.beats[THZ.i+1];
+    var gap = (cur && nxt) ? Math.max(600, Math.min(2600, nxt.ts - cur.ts)) : 1400;
+    THZ.timer = setTimeout(thzStep, gap / THZ.speed);
+  }
+  function thzLoad(sn){
+    THZ.sn = sn; THZ.i = 0; THZ.beats = thzBeats(THZ.sessions[sn]);
+    if(!THZ.beats.length){
+      var c = document.getElementById('tvz-th-caption'); if(c) c.innerHTML = '🎞 this session has no journaled reads';
+      var t = document.getElementById('tvz-th-timeline'); if(t) t.innerHTML = '';
+      return;
+    }
+    thzTimeline(); thzPaint(); thzSchedule();
+  }
+  function thzOpen(){
+    var h = loadHist(), s = [];
+    if(h.live && (h.live.reads||[]).length) s.push(h.live);               // newest first: live, then archives
+    (h.sessions||[]).forEach(function(x){ if(x && (x.reads||[]).length) s.push(x); });
+    THZ.sessions = s; THZ.open = true; THZ.playing = true;
+    var ov = document.getElementById('tvz-theatre'); if(ov) ov.hidden = false;
+    var btn = document.getElementById('tvz-theatre-btn'); if(btn) btn.classList.add('on');
+    var play = document.getElementById('tvz-th-play'); if(play) play.textContent = '⏸';
+    if(!s.length){
+      var c = document.getElementById('tvz-th-caption');
+      if(c) c.innerHTML = '🎞 no journaled sessions yet — flip the scanner on in the TV DIABLO app, farm a bit, and the theatre fills with real film';
+      var t = document.getElementById('tvz-th-timeline'); if(t) t.innerHTML = '';
+      var sess = document.getElementById('tvz-th-sess'); if(sess) sess.textContent = '—';
+      var film = document.getElementById('tvz-th-film'); if(film){ film.removeAttribute('src'); film.style.opacity = .12; }
+      return;
+    }
+    thzLoad(0);
+  }
+  function thzClose(){ THZ.open = false; clearTimeout(THZ.timer); var ov = document.getElementById('tvz-theatre'); if(ov) ov.hidden = true; var btn = document.getElementById('tvz-theatre-btn'); if(btn) btn.classList.remove('on'); }
+  window._tvdTheatre = { open: thzOpen, close: thzClose, state: function(){ return THZ; } };
+  // v766 — the tab-content (#tab-tvd) carries a transform (tab fade), which TRAPS position:fixed to
+  // the tab box. Reparent the overlay to <body> once so the theatre is a true full-viewport layer
+  // (above the dock), same as a real cinema. The id is unchanged — every handler resolves by id.
+  try { var _thov = document.getElementById('tvz-theatre'); if(_thov && _thov.parentElement !== document.body) document.body.appendChild(_thov); } catch(e){}
+  try {
+    var _thBtn = document.getElementById('tvz-theatre-btn');
+    if(_thBtn) _thBtn.addEventListener('click', function(){ if(THZ.open) thzClose(); else thzOpen(); });
+    var _thX = document.getElementById('tvz-th-close'); if(_thX) _thX.addEventListener('click', thzClose);
+    var _thPlay = document.getElementById('tvz-th-play');
+    if(_thPlay) _thPlay.addEventListener('click', function(){ THZ.playing = !THZ.playing; this.textContent = THZ.playing ? '⏸' : '▶'; if(THZ.playing) thzSchedule(); });
+    var _thSpeed = document.getElementById('tvz-th-speed');
+    if(_thSpeed) _thSpeed.addEventListener('click', function(){ THZ.speed = THZ.speed===1?2:(THZ.speed===2?4:1); this.textContent = THZ.speed+'×'; });
+    var _thPrev = document.getElementById('tvz-th-prev-s'); if(_thPrev) _thPrev.addEventListener('click', function(){ if(THZ.sn < THZ.sessions.length-1) thzLoad(THZ.sn+1); });
+    var _thNext = document.getElementById('tvz-th-next-s'); if(_thNext) _thNext.addEventListener('click', function(){ if(THZ.sn > 0) thzLoad(THZ.sn-1); });
+    var _thTl = document.getElementById('tvz-th-timeline');
+    if(_thTl) _thTl.addEventListener('click', function(e){ var b = e.target.closest('.tvz-th-beat'); if(!b) return; THZ.i = Number(b.dataset.i)||0; thzPaint(); thzSchedule(); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && THZ.open) thzClose(); });
+  } catch(e){}
+  // v766 — GET THE APP: copy the install one-liner (navigator.clipboard + execCommand fallback + ✓ flash)
+  function tvzCopy(btn){
+    var code = document.getElementById(btn.getAttribute('data-copy'));
+    var txt = code ? code.textContent : '';
+    if(!txt) return;
+    var flash = function(){ btn.classList.add('copied'); var was = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(function(){ btn.classList.remove('copied'); btn.textContent = was; }, 1600); };
+    try {
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(flash, function(){ tvzCopyFallback(txt, flash); }); }
+      else tvzCopyFallback(txt, flash);
+    } catch(e){ tvzCopyFallback(txt, flash); }
+  }
+  function tvzCopyFallback(txt, ok){
+    try {
+      var ta = document.createElement('textarea'); ta.value = txt;
+      ta.style.position = 'fixed'; ta.style.opacity = '0'; ta.style.top = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); ok();
+    } catch(e){}
+  }
+  try { document.querySelectorAll('.tvz-ga-copy').forEach(function(b){ b.addEventListener('click', function(){ tvzCopy(b); }); }); } catch(e){}
+  // v766 — header clock (app fidelity; passive)
+  try {
+    var _tvzClk = document.getElementById('tvz-clock');
+    if(_tvzClk){ var _tvzTick = function(){ var d = new Date(), p = function(n){ return (n<10?'0':'')+n; }; _tvzClk.textContent = p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }; _tvzTick(); setInterval(_tvzTick, 1000); }
   } catch(e){}
 })();
 </script>
