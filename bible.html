@@ -4219,7 +4219,7 @@ try {
         </span>
         <span class="tvz-bug tvz-bug-sc" id="tvd-sc-bug" title="auto-synced to the TV DIABLO app — this follows its ON/OFF (not a button)"><span class="tvz-bug-dot"></span><span class="tvz-bug-txt" id="tvd-sc-bug-txt">OFF AIR</span></span>
       </div>
-      <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">flip the switch — the scanner reads what you stop to look at, and it tallies itself</div></div>
+      <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">app ON · board auto-syncs — the scanner reads what you stop to look at, and it tallies itself</div></div>
     </section>
   </div>
 
@@ -7400,7 +7400,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <div class="tvb-hist-eye-h">👁 last frame the AI read <span class="tvb-feed-sub">(live agent · /frame · click any row thumb for ~1920 fullscreen)</span></div>
       <img id="tvb-hist-frame" alt="last vision frame" loading="lazy" decoding="async" style="cursor:zoom-in" title="click to enlarge" onclick="window._tvdOpenFrame&&window._tvdOpenFrame('',{title:'last frame'})">
     </div>
-    <div id="tvb-hist"><div class="sc-empty">flip the scanner on — reads archive here by time so you can debug after the agent restarts</div></div>
+    <div id="tvb-hist"><div class="sc-empty">press ON in the TV DIABLO app — reads archive here by time so you can debug after the agent restarts</div></div>
   </div>
   <!-- v735 — fullscreen frame lightbox (per-read eye on the AI) -->
   <div class="tvd-frame-lb" id="tvd-frame-lb" hidden>
@@ -33177,7 +33177,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v766', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
+  window.D2R_BUILD = { id:'v767', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33320,6 +33320,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   function pushHistRead(entry){
     try {
       var h = ensureLiveSession(AGENT_START || entry.ts);
+      // v767 — identity belt (two LIVE tabs share this store): same frame/read never lands twice
+      var dup = (h.live.reads||[]).some(function(r){
+        return (entry.frameId && r.frameId === entry.frameId && r.n === entry.n)
+            || (r.ts === entry.ts && r.n === entry.n);
+      });
+      if (dup) return;
       h.live.reads.push(entry);
       h.live.endedAt = entry.ts;
       // cap live reads
@@ -33675,7 +33681,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       opts = opts || {};
       var el = document.getElementById('tvb-story'); if (!el) return false;
       var reads = sessReads || [];
-      if (reads.length < 2){ el.hidden = true; return false; }
+      if (!reads.length){ el.hidden = true; return false; }
       var nodes = [], lastArea = null;
       reads.forEach(function(r, i){
         if (r.area && r.area !== lastArea){ lastArea = r.area; nodes.push({ ic: '🗺', txt: r.area, cls: 'st-area', i: i }); }
@@ -33692,7 +33698,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       });
       // collapse runs of identical ⏳/⚔️ ticks so long sessions stay one reel
       var out = []; nodes.forEach(function(nd){ var pv = out[out.length-1]; if (pv && pv.ic === nd.ic && pv.txt === nd.txt && nd.ic !== '🗺') return; out.push(nd); });
-      if (out.length < 2){ el.hidden = true; return false; }
+      if (!out.length){ el.hidden = true; return false; }
       // fingerprint-skip: the strip repaints ONLY when its nodes changed (poll calls land every 250ms)
       var sfp = (opts.label||'') + '§' + out.map(function(nd){ return nd.ic + nd.txt + nd.i; }).join('|');
       if (el.__sfp === sfp){ el.hidden = false; return true; }
@@ -33902,7 +33908,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       ? '👁 watching — stop on a drop pile or hover a tooltip and the read lands here'
       : STATE==='offline'
       ? 'agent not running — terminal: <code>tvd</code> · read-only · your Claude subscription'
-      : 'flip the switch — the scanner reads what you stop to look at, and it tallies itself')+'</div>';
+      : 'app ON · board auto-syncs — the scanner reads what you stop to look at, and it tallies itself')+'</div>';
   }
   // v735 — per-read frame URL (agent serves frames/hist/{id}.jpg while online)
   function frameSrc(id){
@@ -34115,7 +34121,15 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (st.startedAt && st.startedAt !== AGENT_START){
         if (AGENT_START){ archiveLive('agent restart'); SEEN=0; FEED=[]; }
         AGENT_START = st.startedAt;
-        ensureLiveSession(AGENT_START);
+        var _h = ensureLiveSession(AGENT_START);
+        // v767 — re-ingest identity (Grok R1 sleeper, stress-CONFIRMED): a hard refresh kills
+        // in-memory SEEN but not the durable history — resume SEEN from the persisted session
+        // for THIS agentStart so reloads/multi-tab never re-mint rows or re-fire engines.
+        try {
+          if (_h && _h.live && _h.live.agentStart === AGENT_START && (_h.live.reads||[]).length){
+            _h.live.reads.forEach(function(r){ if (r.ts > SEEN) SEEN = r.ts; });
+          }
+        } catch(e){}
       }
       paintBeat(st);
       var grew=false;
@@ -34349,7 +34363,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var play = document.getElementById('tvz-th-play'); if(play) play.textContent = '⏸';
     if(!s.length){
       var c = document.getElementById('tvz-th-caption');
-      if(c) c.innerHTML = '🎞 no journaled sessions yet — flip the scanner on in the TV DIABLO app, farm a bit, and the theatre fills with real film';
+      if(c) c.innerHTML = '🎞 no journaled sessions yet — press ON in the TV DIABLO app in the TV DIABLO app, farm a bit, and the theatre fills with real film';
       var t = document.getElementById('tvz-th-timeline'); if(t) t.innerHTML = '';
       var sess = document.getElementById('tvz-th-sess'); if(sess) sess.textContent = '—';
       var film = document.getElementById('tvz-th-film'); if(film){ film.removeAttribute('src'); film.style.opacity = .12; }

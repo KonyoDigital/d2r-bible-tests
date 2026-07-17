@@ -443,6 +443,33 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(vaultStamp).toBe(true);
   });
 
+  test('v767 re-ingest identity: a hard refresh must NOT re-mint history rows or re-fire vault/chronicle effects', async ({ page }) => {
+    const T = 1_700_000_300_000;
+    const body = JSON.stringify(state({
+      startedAt: 77,
+      reads: [{ ts: T, n: 1, area: 'Cold Plains', scene: 'stash', ms: 2000,
+                names: ['Nagelring'], vault_names: ['Nagelring'], frameId: '1_x' }],
+    }));
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle()); await page.waitForTimeout(1400);
+    const first = await page.evaluate(() => ({
+      rows: ((JSON.parse((window as any).LSR.getItem('d2r_tvdHist') || '{}').live || { reads: [] }).reads).length,
+    }));
+    expect(first.rows).toBe(1);
+
+    // the sleeper: reload kills SEEN, history + engines are durable
+    await page.reload(); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle()); await page.waitForTimeout(1400);
+    const second = await page.evaluate(() => ({
+      rows: ((JSON.parse((window as any).LSR.getItem('d2r_tvdHist') || '{}').live || { reads: [] }).reads).length,
+    }));
+    expect(second.rows).toBe(1);   // identity-deduped — no re-mint
+  });
+
   test('v744 RUN STORY strip: chapters + moments from the persisted session; click jumps + pulses the row', async ({ page }) => {
     const T = 1234567890000;
     await page.addInitScript((t: number) => {

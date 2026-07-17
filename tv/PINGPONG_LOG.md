@@ -599,3 +599,18 @@ route() labels. Next-session queue: reading-ghosts polish only.
 - Gates: board **14/14 UNCHANGED** + v766 locks **4/4** + smoke 8/8 (my re-run: 18/18) · html
   clean · agent suite untouched · setState className-rewrite trap caught and defused (stage class
   preserved like tvb-bigswitch).
+
+### 🏓 R21 · v767 — Grok round 1/5 implemented (the re-ingest sleeper + version truth) ✅
+- **THE SLEEPER, CONFIRMED then killed** (Grok's hypothesis, my stress-repro: 1 read → reload →
+  2 rows): a hard refresh kills in-memory SEEN but not the durable d2r_tvdHist — the poll re-walks
+  the agent's reads[] ring and re-mints history (and could re-knock the vault/chronicle doors).
+  Fix: on the agentStart handshake, SEEN resumes from the persisted session (reload identity);
+  pushHistRead gets an identity belt (frameId+n / ts+n) for the two-LIVE-tabs case. Spec locked
+  (reload → still exactly 1 row). Same class as REG-019's cousin: durable-vs-memory identity.
+- **ONE VERSION TRUTH**: agent VERSION · control payload/banner · UI footer fallbacks · D2R_BUILD
+  all stamp v767 in one ship (Grok: "screenshots lie" — no more v753/v759/v765 drift).
+- **Dead copy sweep**: every remaining "flip the switch/scanner on" phrase → lamp truth
+  ("app ON · board auto-syncs"). grep flip-the-switch = 0.
+- **RUN STORY lights on chapter one** (was hidden until 2 nodes — first loot now starts the reel).
+- Gates: board+console **19/19** · agent 57/57 · control 7/7 · html clean.
+- R1 pick #1 (film-first live stage) + Konyo's side-by-side alignment ask → the v768 architect pass.
