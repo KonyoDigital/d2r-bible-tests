@@ -32292,6 +32292,8 @@ html{overflow-x:clip}
 .tvz-th-timeline{flex:1;height:22px;display:flex;align-items:center;gap:2px;cursor:pointer}
 .tvz-th-beat{flex:1;height:6px;border-radius:3px;background:rgba(240,192,96,.18);transition:.12s;min-width:3px}
 .tvz-th-beat.named{background:rgba(240,192,96,.55);height:10px}
+.tvz-th-beat.vaulted{background:#8fe6a0;height:14px;box-shadow:0 0 8px rgba(143,230,160,.5)}
+.tvz-th-beat.holding{background:#ffd97a;height:12px}
 .tvz-th-beat.cur{background:var(--gold-bright);height:14px;box-shadow:0 0 10px rgba(255,223,154,.6)}
 .tvz-th-beat.noframe{background:rgba(255,255,255,.08)}
 /* ══ v768 — app-style micro-footer stamp (tv/control_ui.html footer parity) ══ */
@@ -33224,7 +33226,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v770', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
+  window.D2R_BUILD = { id:'v771', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34289,6 +34291,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           frameId: rd.frameId || rd.frame_id || '',
           note: rd.note || '', transition_from: rd.transition_from || '',   // v747 — carry the transition story so the live feed/history/NOW stage show the real portal note (not the 'new area' fallback)
           vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
+          discovered_names: (rd.discovered_names||[]).slice(),   // v771 (Grok R5 sleeper) — the hist boundary was the third silent break of the chain-truth path
           lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
           items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, discovered:!!x.discovered, lc:x.lc||'', muleName:x.muleName||'' }; }) };
         FEED.push(entry);
@@ -34404,8 +34407,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   function thzTimeline(){
     var tl = document.getElementById('tvz-th-timeline'); if(!tl) return;
     tl.innerHTML = THZ.beats.map(function(b, k){
-      return '<span class="tvz-th-beat'+(b.names && b.names.length ? ' named':'')+(b.frame?'':' noframe')
-        +'" data-i="'+k+'" title="read #'+(b.n||'?')+(b.area?(' · '+escAttr(b.area)):'')+'"></span>';
+      var cls = '';
+      if((b.vault_names||[]).length) cls = ' vaulted';
+      else if((b.pending_names||[]).length) cls = ' holding';
+      else if(b.names && b.names.length) cls = ' named';
+      return '<span class="tvz-th-beat'+cls+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+escAttr(b.n||'?')+(b.area?(' · '+escAttr(b.area)):'')+'"></span>';
     }).join('');
   }
   function thzStep(){ if(!THZ.open || !THZ.playing || !THZ.beats.length) return; THZ.i = (THZ.i+1) % THZ.beats.length; thzPaint(); thzSchedule(); }
@@ -34416,7 +34422,18 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     THZ.timer = setTimeout(thzStep, gap / THZ.speed);
   }
   function thzLoad(sn){
-    THZ.sn = sn; THZ.i = 0; THZ.beats = thzBeats(THZ.sessions[sn]);
+    THZ.sn = sn; THZ.i = 0;
+    var raw = thzBeats(THZ.sessions[sn]);
+    // v771 — same-frame OCR+deep pairs coalesce (richer wins), matching the app theatre
+    var byF = {}, out = [];
+    raw.forEach(function(b){
+      if(!b.frame){ out.push(b); return; }
+      if(byF[b.frame] === undefined){ byF[b.frame] = out.length; out.push(b); return; }
+      var prev = out[byF[b.frame]];
+      var sc = function(x){ return ((x.names||[]).length?1:0) + ((x.vault_names||[]).length?2:0) + ((x.discovered_names||[]).length?2:0); };
+      if(sc(b) >= sc(prev)) out[byF[b.frame]] = b;
+    });
+    THZ.beats = out;
     if(!THZ.beats.length){
       var c = document.getElementById('tvz-th-caption'); if(c) c.innerHTML = '🎞 this session has no journaled reads';
       var t = document.getElementById('tvz-th-timeline'); if(t) t.innerHTML = '';

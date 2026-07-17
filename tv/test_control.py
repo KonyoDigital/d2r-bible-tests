@@ -126,5 +126,16 @@ class TestStopDiscipline(unittest.TestCase):
         self.assertIn("_MAC_BROWSERS", src)                  # fragment-surviving spawn path
 
 
+class TestVersionTruth(unittest.TestCase):
+    """v771 (Grok R5) — ONE ship tag: agent VERSION == control payload ver. Drift = red."""
+    def test_stamps_match(self):
+        import re
+        import tv_diablo as tvmod
+        src = open(os.path.join(HERE, "control_app.py")).read()
+        m = re.search(r'"ver": "(v\d+)"', src)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1), tvmod.VERSION)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

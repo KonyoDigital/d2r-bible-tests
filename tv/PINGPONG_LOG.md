@@ -681,3 +681,30 @@ route() labels. Next-session queue: reading-ghosts polish only.
   parse a 200-read ring every tick inside the pywebview WebView; the board sends since=SEEN once
   warm, cold polls stay full. Long farm sessions stop paying the JSON/GC tax.
 - Gates: agent **65/65** · board+console 20/20 · control 7/7 · html clean.
+
+### 🏓 R26 · v771 — Grok round 5/5, THE CLOSER (series sealed) ✅
+- **THIRD BOUNDARY STRIKE, closed**: hist entries never stored discovered_names — the site
+  theatre's 💬🏆 seals were dead while the app's (journal-fed) worked. entry now carries the
+  slice; the chain-truth path is whole on every surface. Three rounds, three silent breaks of
+  ONE truth path — the round-trip doctrine now includes DURABLE HIST explicitly.
+- **Site theatre = app theatre for real**: timeline chain classes (vaulted mint-tall / holding
+  amber) + same-frame OCR+deep coalescing ported to the board (the R3 half-port finished).
+- **Version identity can't drift again**: all stamps → v771 + a PARITY LOCK in the control suite
+  (agent VERSION must equal the control payload ver — drift = red suite, not a screenshot lie).
+
+## 🏆 GROK R1–R5 ARC VERDICT (capstone, verbatim)
+"The product is no longer a scanner tab — it is a broadcast console with memory: live film,
+object-permanence loot chain, dual-surface theatre, native Mac/Windows shell, and a board that
+auto-syncs as a lamp. Strongest surfaces: the lifecycle chain (seen→hold→vault / throw-out
+honesty), the cinema language (NOW stage · RUN STORY · Theatre), and the cousin install path
+(one paste, subscription-only vision). Weakest surfaces: dual-film archives (d2r_tvdHist vs
+sessions.jsonl) still diverge under incomplete field projection; version identity regressed
+after v767 [fixed + locked this round]; the control shell is TV-complete but still hollow next
+to Session/Tools/Forge/grail engines that actually hold the player's life [the 20:02 night
+project]. Protect at all costs: the vault/chronicle wire — agent vault_names/discovered_names →
+board engines only through tvVaultRegister/tvChronicleRoute, never a second ledger — every
+incomplete boundary this arc found was a silent break of that single truth path."
+## Night-project handoff flags (Grok R5, for the 20:02 arc): host/deep-link the bible engines,
+## never fork them · round-trip is law incl durable hist · file:// vs https LSR origin story ·
+## TV wires stay first-class · unify the two film archives before expanding the shell · stamp
+## truth before screenshots.
