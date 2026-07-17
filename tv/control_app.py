@@ -718,7 +718,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v771",
+        "ver": "v772",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -741,6 +741,8 @@ def status_payload():
         "logPath": LOG_PATH,
         "agentPort": AGENT_PORT,
         "controlPort": CONTROL_PORT,
+        # v772 — pin status (CrossOver on Mac · native D2R on Windows)
+        "captureTarget": (st or {}).get("captureTarget") or {},
     }
 
 
@@ -1050,7 +1052,7 @@ def main():
         return
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v771 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v772 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

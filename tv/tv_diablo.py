@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v771"   # ONE truth — banner, autopilot HUD, and state all read this
+VERSION = "v772"   # ONE truth — banner, autopilot HUD, and state all read this
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -179,6 +179,7 @@ def bridge():
                 with _state_lock:
                     st = _load(); st["online"] = True; st["now"] = int(time.time()*1000)
                     st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
+                    st["captureTarget"] = dict(_CAP_TARGET)  # v772 — window pin (CrossOver/D2R) or full
                 if _since:
                     st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
                     st.pop("seen", None); st.pop("farmed", None)
@@ -222,12 +223,128 @@ def bridge():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
-def capture_mac(path, timeout=12):
-    """One silent full-screen capture. BMP = deterministic pixels → md5 frame-diff works.
-    v753 — hard timeout: a wedged screencapture must never hang the farewell/stop path."""
+# ── v772 — pin capture to the GAME WINDOW ────────────────────────────────────
+# Mac (Konyo): CrossOver bottle → window owner often CrossOver/Wine, title Diablo…
+# Windows (cousin): native D2R.exe / "Diablo II: Resurrected".
+# TV_CAPTURE=auto|window|full  (default auto: window if found, else full screen)
+# TV_WINDOW_MATCH=extra,comma,tokens  (optional extra title/owner needles)
+_CAP_TARGET = {"mode": "full", "label": "", "wid": None}  # last capture target (UI/status)
+
+# Owner / title tokens — CrossOver + native D2R. Avoid bare "wine" alone (too broad).
+_D2R_OWNER_HINTS = (
+    "crossover", "cross over", "cxpatcher", "winebottler",
+    "diablo", "d2r", "battle.net", "battle net",
+)
+_D2R_TITLE_HINTS = (
+    "diablo ii", "diablo 2", "diablo ii: resurrected", "diablo ii resurrected",
+    "d2r", "resurrected",
+)
+# Prefer these process/owner names when several match
+_D2R_OWNER_PRIORITY = (
+    "crossover", "diablo", "d2r", "wine", "wineloader", "cxstart",
+)
+
+
+def _match_tokens():
+    extra = [t.strip().lower() for t in (os.environ.get("TV_WINDOW_MATCH") or "").split(",") if t.strip()]
+    return list(_D2R_TITLE_HINTS) + list(_D2R_OWNER_HINTS) + extra
+
+
+def find_d2r_window_mac():
+    """Return (window_id:int, label:str) for the best on-screen D2R/CrossOver game window, or None.
+    Uses Quartz (already on machine via pywebview/pyobjc). Read-only window list."""
     try:
-        r = subprocess.run(["screencapture", "-x", "-t", "bmp", path], capture_output=True, timeout=timeout)
-        return r.returncode == 0 and os.path.exists(path)
+        from Quartz import (
+            CGWindowListCopyWindowInfo,
+            kCGWindowListOptionOnScreenOnly,
+            kCGNullWindowID,
+        )
+    except Exception:
+        return None
+    try:
+        wins = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID) or []
+    except Exception:
+        return None
+    tokens = _match_tokens()
+    best = None  # (score, area, wid, label)
+    for w in wins:
+        try:
+            layer = int(w.get("kCGWindowLayer") or 0)
+            if layer != 0:
+                continue  # skip menus/overlays
+            owner = (w.get("kCGWindowOwnerName") or "").strip()
+            title = (w.get("kCGWindowName") or "").strip()
+            # skip our own control/board chrome
+            if owner.lower() == "python" and "tv diablo" in (title or "").lower():
+                continue
+            blob = f"{owner} {title}".lower()
+            if not any(t in blob for t in tokens):
+                continue
+            # must look like a game-sized window
+            b = w.get("kCGWindowBounds") or {}
+            ww, hh = int(b.get("Width") or 0), int(b.get("Height") or 0)
+            if ww < 640 or hh < 400:
+                continue
+            wid = w.get("kCGWindowNumber")
+            if not wid:
+                continue
+            score = 0
+            if any(t in title.lower() for t in _D2R_TITLE_HINTS):
+                score += 50
+            if any(t in owner.lower() for t in _D2R_OWNER_PRIORITY):
+                score += 30
+            if "crossover" in owner.lower() or "crossover" in blob:
+                score += 40  # Konyo's Mac path
+            if "diablo" in blob:
+                score += 20
+            area = ww * hh
+            score += min(area // 100000, 20)  # prefer larger
+            label = f"{owner}" + (f" · {title}" if title else "")
+            cand = (score, area, int(wid), label[:80])
+            if best is None or cand > best:
+                best = cand
+        except Exception:
+            continue
+    if not best:
+        return None
+    return best[2], best[3]
+
+
+def capture_mac(path, timeout=12):
+    """Capture the D2R/CrossOver game window when found; else full screen.
+    BMP = deterministic pixels for md5 settle. v753 hard timeout. v772 window pin."""
+    global _CAP_TARGET
+    mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()
+    # 1) window pin (CrossOver / Diablo)
+    if mode in ("auto", "window", "win", "game"):
+        hit = find_d2r_window_mac()
+        if hit:
+            wid, label = hit
+            try:
+                r = subprocess.run(
+                    ["screencapture", "-l", str(wid), "-o", "-x", "-t", "bmp", path],
+                    capture_output=True, timeout=timeout,
+                )
+                if r.returncode == 0 and os.path.exists(path) and os.path.getsize(path) > 10000:
+                    _CAP_TARGET = {"mode": "window", "label": label, "wid": wid}
+                    return True
+            except Exception:
+                pass
+        elif mode in ("window", "win", "game"):
+            _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
+            return False
+    # 2) full-screen fallback (auto/full)
+    if mode in ("window", "win", "game"):
+        return False
+    try:
+        r = subprocess.run(
+            ["screencapture", "-x", "-t", "bmp", path],
+            capture_output=True, timeout=timeout,
+        )
+        ok = r.returncode == 0 and os.path.exists(path)
+        if ok:
+            _CAP_TARGET = {"mode": "full", "label": "full screen (no D2R window)", "wid": None}
+        return ok
     except Exception:
         return False
 
@@ -1299,6 +1416,7 @@ def main():
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
     print(f"📺 TV DIABLO Autopilot {VERSION} — replay · journal · farewell · chain vault · frame hist")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
+    print("   capture: pin Diablo II window (Mac CrossOver / Windows D2R) · TV_CAPTURE=auto|window|full")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")

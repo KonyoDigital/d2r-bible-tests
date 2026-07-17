@@ -789,5 +789,28 @@ class TestReplay(unittest.TestCase):
         self.assertEqual(man["1_100.jpg"]["area"], "Cold Plains")
 
 
+class TestWindowPin(unittest.TestCase):
+    """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""
+
+    def test_match_tokens_include_crossover_and_d2r(self):
+        toks = tv._match_tokens()
+        self.assertTrue(any("crossover" in t or "diablo" in t for t in toks))
+        self.assertTrue(any("d2r" in t or "resurrected" in t for t in toks))
+
+    def test_find_d2r_window_mac_skips_tv_diablo_ui(self):
+        """Even when TV DIABLO control windows are open, they must never be the capture target."""
+        hit = tv.find_d2r_window_mac()
+        if hit is None:
+            self.assertIsNone(hit)  # game not running — fine
+            return
+        wid, label = hit
+        self.assertNotIn("tv diablo", label.lower())
+        self.assertIsInstance(wid, int)
+
+    def test_capture_target_dict_shape(self):
+        self.assertIn("mode", tv._CAP_TARGET)
+        self.assertIn("label", tv._CAP_TARGET)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
