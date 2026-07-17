@@ -982,5 +982,37 @@ class TestVigilantFilm(unittest.TestCase):
             import shutil; shutil.rmtree(d, ignore_errors=True)
 
 
+
+class TestHonestReplay(unittest.TestCase):
+    """v787 — TV_NO_JOURNAL runs stamp sim:true on every published read (R3 sleeper:
+    the board must be able to tell a replay from real loot, or it re-vaults history)."""
+
+    def test_replay_read_carries_sim_flag(self):
+        old = os.environ.get("TV_NO_JOURNAL")
+        os.environ["TV_NO_JOURNAL"] = "1"
+        try:
+            rec = tv.emit_deep_read({"area": "Cold Plains", "scene": "loot",
+                                     "names": ["Ist"], "tz": [], "conf": 0.9,
+                                     "vault_names": ["Ist"]}, 1, "1_123", capture_ts=123)
+            st = tv._load()
+            reads = st.get("reads") or []
+            self.assertTrue(reads, "no read published")
+            self.assertTrue(reads[-1].get("sim"), "replay read missing sim:true")
+        finally:
+            if old is None:
+                os.environ.pop("TV_NO_JOURNAL", None)
+            else:
+                os.environ["TV_NO_JOURNAL"] = old
+
+    def test_live_read_has_no_sim_flag(self):
+        os.environ.pop("TV_NO_JOURNAL", None)
+        rec = tv.emit_deep_read({"area": "Cold Plains", "scene": "loot",
+                                 "names": ["Shael"], "tz": [], "conf": 0.9}, 2, "2_456", capture_ts=456)
+        st = tv._load()
+        reads = st.get("reads") or []
+        self.assertTrue(reads)
+        self.assertFalse(reads[-1].get("sim"), "live read must NOT be sim")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

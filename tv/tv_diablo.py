@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v786"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v787"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2066,6 +2066,9 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     """
     global LAST_AREA
     rd = rd or {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None, "mode": "empty"}
+    if os.environ.get("TV_NO_JOURNAL"):
+        rd = dict(rd)
+        rd["sim"] = True   # v787 (R3 sleeper) — a replay/harness read must TELL the board it is not real loot
     if rd.get("area"): LAST_AREA = rd["area"]
     names = rd.get("names") or []
     intent = rd.get("intent") or _intent_for(rd.get("scene"))
@@ -2137,6 +2140,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "intent": intent, "stashTab": stash_tab, "frameId": frame_id, "sessionId": SESSION_ID,
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
         "provisional": False, "farewell": bool(farewell),
+        "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
         "confirmed_names": confirmed,
         "discovered_names": rd.get("discovered") or [],   # v763 — chat discovery broadcasts: chronicle-only, never vault

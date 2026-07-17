@@ -895,3 +895,11 @@ v786_deeplinks.spec.ts walks the REAL consumer path (6/6). Plus two Konyo live f
   ok:false with the REASON + fix command; UI toasts it loudly. No more silent spinner.
 Deferred to next ships: R3 pick 2 (installer copy/plist v761 drift), pick 3 (vault double-register),
 sleeper (replay sim-flag). Suites 77+16 OK, matrix stamped v786.
+
+## 🌙 Night → v787 "Honest Replay" (Fable, ~03:50)
+R3 picks 2+sleeper: replay/harness reads now stamp sim:true (agent emit → rec field — the flag
+initially died at the rec-builder allowlist, the EXACT boundary class R3 warned about; caught by
+the new round-trip lock before ship). Board vault-commit path returns early on rd.sim: replay is
+view-only, NEVER re-vaults history. Installer truth: plist 761→787, last-line copy is app-truth
+('press ON AIR' — 'flip the switch' extinct repo-wide). 2 new locks (sim flag travels · live reads
+clean). Suites 79/79 + 16/16.

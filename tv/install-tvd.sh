@@ -144,9 +144,9 @@ APP
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleVersion</key>
-  <string>761</string>
+  <string>787</string>
   <key>CFBundleShortVersionString</key>
-  <string>761</string>
+  <string>787</string>
   <key>LSUIElement</key>
   <false/>
   <key>LSMinimumSystemVersion</key>
@@ -182,7 +182,7 @@ done
 if [[ "$CRED_HIT" -eq 0 ]]; then
   Warn "first run may ask you to log into your own Claude account (once)."
 fi
-Say "then the board opens → 📺 TV·D → flip the switch. Farm."
+Say "then double-click TV DIABLO -> press ON AIR. Farm."
 echo ""
 echo "   Mac:      curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash"
 echo "   Windows:  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"
