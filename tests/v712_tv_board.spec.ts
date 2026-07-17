@@ -484,4 +484,89 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(r.crossbow).toBe(true);    // socketed base — throwout is a TAG, never a disappearance
     expect(r.blood).toBe(true);       // RotW custom — universe guarantee
   });
+
+  test('v747 NOW ON AIR stage: hidden off; live cast tiles + area caption + boss accent; honesty gate; lifecycle rings; transition portal; read # sync', async ({ page }) => {
+    // Frozen read timestamps — route.fulfill fires every 250ms; a live Date.now() there would
+    // mint an endless stream of "new" reads (the board-spec recurring bug). One read per ts.
+    const T = 1_700_000_000_000;
+    let body = JSON.stringify(state({
+      reads: [{ ts: T, n: 7, area: 'Durance of Hate Level 2', scene: 'loot', intent: 'seen',
+                tz: ['Durance of Hate'], ms: 3000,
+                names: ['Ist Rune', 'Harlequin Crest', 'Superior Mage Plate'],
+                pending_names: ['Harlequin Crest'] }],
+    }));
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+
+    // (a) OFF → the stage is hidden entirely (the CRT static owns the off story)
+    expect(await page.evaluate(() => document.getElementById('tvn-stage')!.hidden)).toBe(true);
+
+    // ON → LIVE
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1200);
+    const live = await page.evaluate(() => {
+      const st = document.getElementById('tvn-stage')!;
+      return {
+        hidden: st.hidden,
+        area: (st.querySelector('.tvn-area') as HTMLElement)?.textContent || '',
+        cap: (st.querySelector('.tvn-cap') as HTMLElement)?.textContent || '',
+        readN: (st.querySelector('.tvn-read-n') as HTMLElement)?.textContent || '',
+        names: [...st.querySelectorAll('.tvn-cast-tile .tvn-cast-name')].map((n) => n.textContent || ''),
+        hold: !!st.querySelector('.tvn-cast-tile.tvn-lc-hold'),
+        boss: (st.querySelector('.tvn-boss') as HTMLElement)?.textContent || '',
+      };
+    });
+    // (b) visible with area caption + cast art tiles on a live read with named items
+    expect(live.hidden).toBe(false);
+    expect(live.area).toContain('Durance of Hate Level 2');
+    expect(live.cap).toContain('Durance of Hate Level 2');          // caption prefers area+scene+intent
+    // (f) stage read # matches the newest feed entry
+    expect(live.readN).toContain('7');
+    expect(live.names.find((n) => n.includes('Ist'))).toBeTruthy();
+    expect(live.names.find((n) => n.includes('Harlequin'))).toBeTruthy();
+    // (c) honesty gate — the note (📋 Superior Mage Plate, db:false) produces NO cast tile
+    expect(live.names.find((n) => n.includes('Superior Mage Plate'))).toBeFalsy();
+    // (d) lifecycle — pending → holding ring
+    expect(live.hold).toBe(true);
+    // (P2) boss zone accent — Durance of Hate → Mephisto portrait chip
+    expect(live.boss).toContain('Mephisto');
+
+    // (d) vault lifecycle ring — same agent session (startedAt unchanged) so FEED grows
+    body = JSON.stringify(state({
+      reads: [{ ts: T + 1000, n: 8, area: 'Harrogath', scene: 'stash', intent: 'farmed', ms: 2000,
+                names: ['Harlequin Crest'], vault_names: ['Harlequin Crest'] }],
+    }));
+    await page.waitForTimeout(1400);
+    const vault = await page.evaluate(() => ({
+      ring: !!document.querySelector('#tvn-stage .tvn-cast-tile.tvn-lc-vault'),
+      readN: document.querySelector('#tvn-stage .tvn-read-n')?.textContent || '',
+    }));
+    expect(vault.ring).toBe(true);
+    expect(vault.readN).toContain('8');
+
+    // (e) transition read → portal wash + honest note (never a "nothing readable" shrug)
+    body = JSON.stringify(state({
+      reads: [{ ts: T + 2000, n: 9, area: '', scene: 'transition', ms: 20, names: [],
+                transition_from: 'Harrogath', note: 'through the portal — leaving Harrogath' }],
+    }));
+    await page.waitForTimeout(1400);
+    const trans = await page.evaluate(() => {
+      const st = document.getElementById('tvn-stage')!;
+      return {
+        skin: !!st.querySelector('.tvn-skin-transition'),
+        portal: !!st.querySelector('.tvn-portal'),
+        text: st.textContent || '',
+      };
+    });
+    expect(trans.skin).toBe(true);
+    expect(trans.portal).toBe(true);
+    expect(trans.text).toContain('through the portal — leaving Harrogath');
+
+    // toggle OFF → stage hides again
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => document.getElementById('tvn-stage')!.hidden)).toBe(true);
+  });
 });

@@ -366,3 +366,26 @@ Grok's verdict pre-dawn: "you're past the hard ships."
   and the story reel's ⏳ tick says "portal" when it knows the from-area.
 - Gates: agent **49/49** (transition_note context · should_learn_dead · prompt vocabulary) ·
   board **10/10** (transition-honesty locks) · real-loop e2e proof · his known_frames.json intact.
+
+### 📡 R9 · v747 — NOW ON AIR: the Live Chapter stage (Grok's design, Konyo: "ship NOW stage —
+### flagship, subagents, TDD, pingpong after") ✅
+- Built by the Fable **visual-coding-architect** subagent, TDD-first; audited by the Fable
+  **code-reviewer** subagent (verdict SHIP, all 8 recurring bug classes clean).
+- **P0 THE STAGE**: full-width live chapter card between the CRT hero and THE RUN STORY. Only
+  exists while LIVE (CRT static owns the off story). NOW ON AIR ● + read #N (synapse-synced),
+  per-scene skin (loot cold-blue · inventory gold · stash purple · town camp · transition amber),
+  big 🗺 area line, caption = area + scene + intent ("Durance of Hate Level 2 · floor loot ·
+  eyes open") — never just an item list.
+- **P1 THE CAST**: one HD-art tile per resolved name — rarity ring (unique gold · set green ·
+  rune orange), lifecycle truth on the art (⚡ocr shimmer → ✓deep solid · ⏳hold breathing ring ·
+  🏦 vault green seal · 🗑 struck grey). READING… = type-on caption + ghost silhouettes. Honesty
+  gate: notes/garble never cast.
+- **P2 THE SCENARIO**: boss portrait chip when the area is a boss house (Meph/Baal/Diablo/Andy/
+  Duriel/Nihlathak/Summoner/Countess, tight regexes) · 🔥 purple terror tick when tz[] agrees.
+- **P3 ONE STORY LANGUAGE**: stage rides the same read # as the SYNAPSE; the same truth flows on
+  into the reel + history untouched.
+- **Latent v746 gap fixed** (architect's catch): live FEED entries never carried note/
+  transition_from — the portal note only worked from persisted history. Now consistent live.
+- Gates: board **11/11** (new NOW-stage lock: hidden-off · cast honesty · lifecycle rings ·
+  portal wash · read-# sync) · agent 49/49 · reviewer nit folded (fp commits only after a
+  successful render) · 4-state screenshots verified.
