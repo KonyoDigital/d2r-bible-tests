@@ -52,7 +52,7 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 ## Active stream — TV-KAI (Grok owns `tv/**` + TV receiver slice)
 
 **Restore freeze:** `restore-point-pre-tv-speed-loot-lifecycle-2026-07-16_201534` @ v722  
-**Shipped (commit `6d0f8b3` when pushed):** v723 Haiku+genius · farmed vault wire · v724 session history  
+**Shipped (arc tip `3b9c766` = v765):** v752–v765 TV DIABLO product arc — 📼 REPLAY · Windows cousin install · 🎛 broadcast CONTROL CONSOLE · native pywebview shell · Windows twin + .icns/.ico icon · TV→THE CHRONICLES routing + AUTO-SYNC lamps · 🎞 THE THEATRE (eyes-on-history in the app)  
 
 ### Open backlog (ordered)
 
@@ -77,10 +77,13 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 | TV-B23 | **done** | 📡 NOW ON AIR live chapter stage + hero band + cast credits + chapter memory + portal chrome | v747–v751 |
 | TV-B24 | **done** | 📼 REPLAY: sessions.jsonl journal + `tvd replay` (real frames, recorded reads, no journal echo) + `tvd sim` | v752 |
 | TV-B25 | **done** | Frame archive: 2560px · keep 600 · 500MB ceiling · farewell hard-timeout+fallbacks · gameplay+names=loot-class | v753 |
-| TV-B7 | in-ship | History/stage: click art → open the bible card (deliberate user click only) | v754 board pass |
+| TV-B7 | **done** | History/stage: click art → open the bible card (deliberate user click only) | v754/v758 — chip→card ↗ affordances, scoped listeners |
+| TV-B27 | **done** | 🎛 CONTROL APP: hidden agent + broadcast HD window · native pywebview shell · Windows twin · .icns/.ico icon | v757–v761 (v759 fullscreen face · v760 Win twin+farewell signal · v761 native shell · v762 icon) |
+| TV-B28 | **done** | 🎞 THE THEATRE: eyes-on-history inside the app (real archived frames + recorded reads replayed, scrubber/pagination/play/speed) | v765 — /api/sessions · /api/session · path-safe /hist |
 | TV-B8 | open | Multi-frame confirm (low-interest only) | |
 | TV-B9 | open | Shadow metrics (pile-to-chip p50) | |
 | TV-B10 | partial | Board Autopilot HUD polish | v744 meter hierarchy; full pass open |
+| TV-B29 | in-ship | Board tab = app structure (site theatre + download block) | v766 — agent building |
 | TV-B26 | open | Personal/shared stash art-intake (the Worsuk's End class — no hovers) | next big feature |
 | TV-B12 | later | Public product path | Out of scope until Konyo says go |
 
@@ -111,4 +114,4 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 
 ---
 
-*Last updated: 2026-07-16 — Grok (TV-KAI tracking contract established).*
+*Last updated: 2026-07-17 — housekeeping: v752–v765 TV product arc closed; TV-B7/B27/B28 done, TV-B29 in-ship (v766).*

@@ -31,6 +31,195 @@
 - Dead-fork strays (`H_sweep.js`/`K_perf.js`/`J_screens.js`/`L_integrity.js`) get
   spurious local edits — `git checkout --` them, NEVER commit. `git status` before commits.
 
+## 2026-07-17 — v765 THE THEATRE (eyes on history, in the app)
+
+- **What:** the SIM button reborn as THE THEATRE — replays REAL past sessions in the
+  control app: archived frames full-bleed w/ scanline grade, caption bar (time · read # ·
+  🗺 area · scene · name chips · portal notes), beat timeline scrubber (named reads stand
+  taller), play/pause · 1×/2×/4× · 9-session paginator. Zero agents — pure eyes-on-history.
+- **Why:** "it's not really simulated anymore… its own independent VIEW." Plus two live
+  bugs: /api/stop no longer opens a phantom board window and skips the 90s farewell wait
+  for sim agents (the stuck-SIM screen); restart uses the open-once guard.
+- **Also:** toggle-glow buttons (lit while their mode runs, re-click = off) · Grok-audit
+  batch — ONE version truth v765 everywhere, chronicle NEGATIVES locked (garble/'Ring'/
+  'Grand Charm' never chronicle), control_agent.log 2MB rotation, dead "flip the switch" copy.
+- **Server:** /api/sessions · /api/session?n · /hist/<id>.jpg (path-safe).
+- **Tests:** control **7/7** (new `tv/test_control.py`: theatre endpoints · hist traversal
+  block · stop-never-opens-board · open-once) · agent 57/57 · board 14/14 · live on his 9-session archive.
+
+---
+
+## 2026-07-17 — v763+v764 TV → THE CHRONICLES + the switch becomes a LAMP
+
+- **v763 chronicle routing:** ONE head `window.tvChronicleRoute` knocks on each engine's
+  door — uniques→toggleOwned (dated foundLog), set pieces→toggleSetPiece — with suffix-
+  tolerant canonical resolution (ticks 'Harlequin Crest (Shako)', never a duplicate). Two
+  feeders: vault commits stamp the ledger LIVE, and a NEW chat DISCOVERY lane ('<player>
+  has found <item>' → discovered_names, chronicle-only 💬🏆 chip, NEVER vaulted).
+- **v764 auto-sync:** the board SENSES the agent — a light /ping probe every 2.5s auto-
+  engages the live poll when the app's ON/SIM starts the bridge; both switches are passive
+  LAMPS now (clicks/keys removed). `_tvdToggle` stays as the spec/manual seam; probe webdriver-gated.
+- **Also:** SIM wrong-page bug fixed (macOS `open` drops file:// fragments → direct browser
+  spawn + open-once per control session).
+- **Tests:** board **14/14** (new chronicle lock: canonical uni+set stamps · discovery chip ·
+  never-vault · idempotent re-broadcast · live vault stamp) · agent **57/57** · html clean.
+
+---
+
+## 2026-07-17 — v757–v762 CONTROL APP + native shell + Windows twin + icon
+
+- **v757:** TV DIABLO control app (Mac) — hidden agent + HD window, one-click launch.
+- **v759 broadcast console:** true fullscreen 100dvh grid face — giant state-tinted serif
+  phase (STANDBY/SIMULATION/LIVE), breathing Diablo silhouette from the HD art DB, scanlines/
+  sweep/vignette, five state-ringed action cards, /art/<name> route (realpath-safe, mime
+  whitelist, traversal→404). Konyo's mandate: "stretched, structured, breathing, full screen."
+- **v760+v760.1 Windows twin:** cross-platform spawns (CREATE_NO_WINDOW/NEW_PROCESS_GROUP,
+  netstat detection). Trap fixed: Windows soft-stop was `taskkill` w/o /F → windowless console
+  never gets WM_CLOSE → farewell lost (run-#7 class). Agent registers SIGBREAK; app soft-stops
+  its own child via CTRL_BREAK_EVENT, taskkill only for foreign pids.
+- **v761+v761.1 native shell:** the console opens in a REAL OS window via pywebview (WKWebView/
+  WebView2), pip-installed by both installers with PEP-668 resilience (--break-system-packages
+  retry + re-probe); Chrome/Edge --app demoted to fallback; headless bare-run preserved.
+- **v762 the icon:** Diablo-on-grimoire-CRT tile → .icns (Mac .app) + .ico (Windows shortcut),
+  bundled by both installers; live apps re-iconized. No more white box.
+- **Tests:** agent 55/55 across the wave · py ast clean · art route 200 + traversal blocked ·
+  screenshots at 2000/1440/1280 looked at.
+
+---
+
+## 2026-07-17 — v758 the v754 board pass lands complete
+
+- **What:** all 8 v754 audit items landed (badge identity · scanning ghosts · light thumbs ·
+  mobile hero band 760+640 · TV-B7 chip→card ↗ affordances with scoped listeners · overflow
+  root cause = .tvd-switch stretched by column-flex ×1.35 → align-self:flex-start).
+- **Item 7 routines jump root-caused** (Konyo: "all the routines are jumping"): the 60s status
+  counter was the only variable-width element in a right-anchored fixed pill, shoving the whole
+  G–T strip every refresh; two warring !important right-offsets broke narrow screens. One clean
+  dock rule + counter locked to 150px tabular-nums; strip position now constant at 1440+720.
+- **Item 8:** CI flake killed — toggle-OFF assert condition-waits (waitForFunction) not a 300ms sleep.
+- **v758.1 / REG-019 (the product race behind the flake):** a late in-flight poll response could
+  `setState('live')` AFTER the switch was flipped OFF → the stage stayed up forever (Routine I
+  shard-6, and "the switch was already on"). Guard: `if(!T) return` in the poll's then+catch;
+  every call site sets `T` synchronously. Stress: v747 test 6×@workers=2 all green.
+- **Tests:** board **13/13** · agent 55/55 · html clean · D2R_BUILD → v758.
+
+---
+
+## 2026-07-17 — v755 THE COUSIN MOVE: one-line Windows install
+
+- **What:** `irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex` — one paste: winget-installs
+  Git + Python + Claude Code if missing, clones/updates the public repo, drops a "TV DIABLO"
+  Desktop shortcut. The one unskippable human step (the cousin's own Claude login) is walked on
+  first run. His subscription, zero API keys.
+- **tv/start_tvd_win.ps1:** strips API-key env (v720 lesson, Windows edition) · pull-first ·
+  capture_win.ps1 minimized + reader --watch in one window · Ctrl-C stops both, farewell included.
+- **Serving:** deploy.sh copies the installer into the dist scaffold; `functions/_middleware.js`
+  exempts exactly /d2r/install-tvd.ps1 from the password gate (zero secrets — public repo anyway).
+- **Follow-ups:** v755.1 harden + serve as text/plain · v755.2 `$args` rename + Store-stub-aware
+  Python pick · v755.3 portable frame archive (sips wrapped, raw-copy fallback for Windows/Linux).
+
+---
+
+## 2026-07-17 — v752+v753 REPLAY + the full-audit agent batch
+
+- **v752 📼 REPLAY:** `tvd sim` (canned demo) · `tvd replay` (--list/--n/--pace/--exit-after) —
+  re-runs a REAL past session through the REAL loop (archived frames + recorded reads via the
+  TV_STUB manifest + TV_FRAMES_DIR watch seams). Persistent journal `tv/sessions.jsonl`
+  (gitignored, 4MB rotation), seeded with his 97 frame-backed browser-history reads —
+  `replay --n 1` re-broadcasts the 03:18 Meph run incl. the Civerb's Ward + Face of Horror
+  double-grail. Honesty: never journals itself, never OCRs replayed pixels, only replays extant frames.
+- **v753 audit batch:** ONE version truth (VERSION const → banner/HUD/state) · frame archive
+  1920→2560px, keep 80→600 + 500MB ceiling (the pruner was eating his photos — the "not
+  openable" class) · farewell can never hang (capture timeout → read.jpg → newest-archived
+  fallback chain) · run-#8 fix: gameplay+names = loot-class (grail piles enter the SEEN chain) ·
+  journal lane field · watch accepts .jpg · journal-write failure surfaces once.
+- **Tests:** agent **55/55** (lifecycle-class + replay manifest + journal + seam locks) · replay
+  e2e proven on the real Meph session.
+- **Non-goals (whole arc):** no forge rewrite · no fabricated names · don't loosen settle ·
+  don't rewire the vault photo-intake.
+
+---
+
+## 2026-07-17 — v747–v751 NOW ON AIR arc (the live chapter stage)
+
+- **v747 THE STAGE** (Grok design · Fable visual-coding-architect built · Fable code-reviewer
+  SHIP): full-width live chapter card between the CRT hero and THE RUN STORY, LIVE-only. NOW ON
+  AIR ● + read #N (synapse-synced), per-scene skin (loot/inventory/stash/town/transition), big
+  🗺 area line, caption = area + scene + intent. Cast = one HD-art tile per resolved name w/
+  rarity ring + lifecycle-on-art (⚡ocr→✓deep · ⏳hold · 🏦vault · 🗑struck); READING… = type-on +
+  ghosts; honesty gate keeps notes/garble off the cast. Boss portrait chip + 🔥 terror tick when
+  tz agrees. Latent v746 gap fixed: live FEED entries now carry note/transition_from.
+- **v748–v750 (Grok's post-ship trio):** v748 CAST=CREDITS (66px mid-token ellipsis murdered
+  names → autosize 96px, 2-line wrap; asserts full "Harlequin Crest") · v749 CHAPTER CAST MEMORY
+  (union of honest routes in the current area, cap 12, latest-lifecycle-per-name wins, cleared on
+  area change — never invents) · v750 PORTAL KEEPS THE CHROME (boss/tz resolve from
+  transition_from/chapter memory, ONE hourglass, chapter cast dims to ghosts under the wash).
+- **v751 THE HERO BAND:** the stage rebuilt as a full-bleed broadcast lower-third (edge-to-edge
+  CRT grimoire plate, serif display headline, on-air bug, jeweled boss/terror pills, phosphor
+  vault glow, portal flare, teleprompter-caret reading ghosts). A latent 337px horizontal
+  overflow (predates the pass, present on v750) contained by `html{overflow-x:clip}`.
+- **Tests:** board **11/11** (NOW-stage lock: hidden-off · cast honesty · lifecycle rings ·
+  portal wash · read-# sync; all three v748–v750 locks folded in) · agent 49/49 · screenshots verified.
+- **Ops note:** the Grok MCP XAI_API_KEY was dead this arc — both pingpong rounds ran through the
+  signed-in Grok CLI instead. Rotate at console.x.ai to restore the MCP path.
+
+---
+
+## 2026-07-17 — v741–v746 THE CINEMA ARC (the run never goes dark)
+
+- **v741 lightbox surgery + THE SYNAPSE:** two live lightbox bugs fixed (ancestor-containment
+  trap → fixed overlays moved to document.body on open, the v512 forge-legend lesson; stuck
+  archive-fallback flag → reset per open, one clean bridge→archive→missing chain). KNOWN-DEAD
+  FRAMES: an empty deep read teaches that frame's signature (cap 8) so a re-match is recognized
+  locally in ~0ms, zero vision. THE SYNAPSE: the brain log reborn as a thought-spine — typed
+  glowing orbs (⚡pulse 👁sense 📦result ⏳transition ⛔fault), newest = the breathing active thought.
+- **v742 Esc stack + persistent learning:** the lightbox's Escape acts ONLY as the visible top
+  layer (capture-phase consume) so vault/search underneath don't close in the same press; learned
+  transition frames survive restarts (tv/known_frames.json, gitignored) — loading screen learned once.
+- **v743 synapse burst readability:** identical repeated thoughts collapse into one node w/ an
+  amber ×N counter (skip-storms = one quiet line).
+- **v744 THE CINEMA ARC (Grok's dawn audit):** CRT FACE — the live /frame breathes inside the TV
+  bezel (4s throttle), click = fullscreen LIVE view · THE RUN STORY — the session as a film strip
+  above SIGNAL FEED (🗺 area chapters · seen/held/vaulted/tossed/transition ticks from the same
+  persisted reads; click a tick → history row scrolls+pulses; identical ticks collapse) · friction
+  calm (honest tab copy · NO DB → quiet `base` badge · ONE primary MOTION meter).
+- **v745 the story never goes dark:** the v744 reel followed the LIVE/LAST toggle and hid when the
+  agent was off (looked invisible). Fallback narrates the newest ARCHIVED session (`📼 RUN STORY ·
+  LAST SESSION`); clicking a fallback tick flips to LAST first. History list storylined with 🗺
+  chapter dividers on area change.
+- **v746 ⏳ ENTERING, pinpoint:** the real bug — `known_dead_match` was defined (v741) but NEVER
+  CALLED (parallel-edit merge casualty), so the agent paid 7.2s of Sonnet on the learned portal
+  frame. Wired into the live loop: a learned frame publishes an honest ⏳ transition read at 0ms,
+  zero vision. LAST_AREA rides every deep read so the label reads the story ("through the portal —
+  leaving <area>" / "entering a new game"); vision prompt gains scene `transition`; the board
+  renders ⏳ ENTERING in feed + history instead of "nothing readable".
+- **Tests:** agent 46/46 → **49/49** (transition context · should_learn_dead · prompt vocab) ·
+  board 9/9 → **10/10** (fallback cap · chapter · transition-honesty locks) · real-loop e2e proof.
+
+---
+
+## 2026-07-17 — v747–v751 NOW ON AIR arc (the live chapter stage)
+**What:** 📡 NOW ON AIR (v747, Grok design · Fable architect build · Fable review): full-width
+live chapter stage — scene skins, area·scene·intent caption, HD-art cast with rarity rings +
+lifecycle truth, boss portrait chips, terror tick, synapse read-# sync. v748 cast=credits (full
+names) · v749 chapter cast memory (area-scoped union) · v750 portal keeps the chrome (ONE ⏳,
+dim ghost cast) · v751 full-bleed HERO BAND (edge-to-edge plate; overflow-x:clip guard).
+**Why:** the middle of a read was mono text — Konyo ordered the thought process as cinema.
+**Tests:** board spec grew to 11 (stage locks: hidden-off · cast honesty · lifecycle rings ·
+portal wash + chrome · read-# sync · credits · chapter memory).
+
+## 2026-07-17 — v741–v746 cinema arc (the board learns to tell the story)
+**What:** v741 lightbox surgery (body-append fullscreen + per-open fallback reset) + known-dead
+frame learning + THE SYNAPSE thought-spine · v742 Esc stack + learned-frame persistence · v743
+synapse burst collapse (×N) · v744 CRT face + RUN STORY reel + friction calm · v745 reel
+never dark + history chapter dividers · v746 known-dead WIRED into the live loop (the v741 match
+fn was never called — merge casualty) + ⏳ ENTERING story labels (leaving-area context) + scene
+`transition` in the vision prompt.
+**Why:** Konyo's all-night order: TV-D visual+coding polished, portals recognized as story beats.
+**Tests:** agent suite 46→49 (known-dead + transition context + prompt vocab), board 9→10.
+**Also:** v758.1 REG-019 (see BUGS.md) — the toggle-OFF late-poll race found by stress-repro,
+killed at source with the if(!T) guard; Routine I went FULL GREEN on that push.
+
 ## 2026-07-17 — Grok: v740 farewell read (run #7 end-stash race)
 
 - **Miss:** garbage stashed then agent killed within seconds → no settle/gap/deep → nothing
