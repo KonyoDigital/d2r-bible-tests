@@ -520,12 +520,14 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     });
     // (b) visible with area caption + cast art tiles on a live read with named items
     expect(live.hidden).toBe(false);
-    expect(live.area).toContain('Durance of Hate Level 2');
-    expect(live.cap).toContain('Durance of Hate Level 2');          // caption prefers area+scene+intent
+    expect(live.area).toContain('Durance of Hate Level 2');         // AREA is the big headline
+    expect(live.cap).toContain('floor loot');                        // caption narrates scene…
+    expect(live.cap).toContain('eyes open');                         // …+ intent (no redundant area repeat)
     // (f) stage read # matches the newest feed entry
     expect(live.readN).toContain('7');
     expect(live.names.find((n) => n.includes('Ist'))).toBeTruthy();
-    expect(live.names.find((n) => n.includes('Harlequin'))).toBeTruthy();
+    // v748 (Grok R10 #1) — the cast is CREDITS: the FULL name renders, never a mid-token ellipsis
+    expect(live.names.find((n) => n.trim() === 'Harlequin Crest')).toBeTruthy();
     // (c) honesty gate — the note (📋 Superior Mage Plate, db:false) produces NO cast tile
     expect(live.names.find((n) => n.includes('Superior Mage Plate'))).toBeFalsy();
     // (d) lifecycle — pending → holding ring
@@ -546,9 +548,26 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(vault.ring).toBe(true);
     expect(vault.readN).toContain('8');
 
+    // v749 (Grok R10 #2) — CHAPTER CAST MEMORY: an empty gameplay read in the SAME area must NOT
+    // wipe the pile story; an area change starts a fresh chapter cast.
+    body = JSON.stringify(state({
+      reads: [{ ts: T + 1400, n: 9, area: 'Harrogath', scene: 'gameplay', ms: 1500, names: [] }],
+    }));
+    await page.waitForTimeout(1400);
+    const memory = await page.evaluate(() =>
+      [...document.querySelectorAll('#tvn-stage .tvn-cast-tile .tvn-cast-name')].map((n) => n.textContent!.trim()));
+    expect(memory.find((n) => n === 'Harlequin Crest')).toBeTruthy();   // still on stage
+    body = JSON.stringify(state({
+      reads: [{ ts: T + 1700, n: 10, area: 'Chaos Sanctuary', scene: 'gameplay', ms: 1500, names: [] }],
+    }));
+    await page.waitForTimeout(1400);
+    const fresh = await page.evaluate(() =>
+      [...document.querySelectorAll('#tvn-stage .tvn-cast-tile:not(.tvn-ghost) .tvn-cast-name')].map((n) => n.textContent!.trim()));
+    expect(fresh.length).toBe(0);                                       // new chapter, empty cast
+
     // (e) transition read → portal wash + honest note (never a "nothing readable" shrug)
     body = JSON.stringify(state({
-      reads: [{ ts: T + 2000, n: 9, area: '', scene: 'transition', ms: 20, names: [],
+      reads: [{ ts: T + 2000, n: 11, area: '', scene: 'transition', ms: 20, names: [],
                 transition_from: 'Harrogath', note: 'through the portal — leaving Harrogath' }],
     }));
     await page.waitForTimeout(1400);
@@ -563,6 +582,22 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(trans.skin).toBe(true);
     expect(trans.portal).toBe(true);
     expect(trans.text).toContain('through the portal — leaving Harrogath');
+    // v750 (Grok R10 #3) — ONE hourglass on the whole stage (ENTERING flare folded)
+    expect((trans.text.match(/⏳/g) || []).length).toBe(1);
+
+    // v750 — the portal doesn't blink the chapter off: leaving a BOSS zone keeps the portrait chip
+    body = JSON.stringify(state({
+      reads: [{ ts: T + 2400, n: 12, area: '', scene: 'transition', ms: 20, names: [],
+                transition_from: 'Durance of Hate Level 2',
+                note: 'through the portal — leaving Durance of Hate Level 2' }],
+    }));
+    await page.waitForTimeout(1400);
+    const bossThrough = await page.evaluate(() => ({
+      boss: document.querySelector('#tvn-stage .tvn-boss')?.textContent || '',
+      hg: (document.getElementById('tvn-stage')!.textContent!.match(/⏳/g) || []).length,
+    }));
+    expect(bossThrough.boss).toContain('Mephisto');
+    expect(bossThrough.hg).toBe(1);
 
     // toggle OFF → stage hides again
     await page.evaluate(() => (window as any)._tvdToggle());

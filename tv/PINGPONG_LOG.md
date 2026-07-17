@@ -389,3 +389,27 @@ Grok's verdict pre-dawn: "you're past the hard ships."
 - Gates: board **11/11** (new NOW-stage lock: hidden-off · cast honesty · lifecycle rings ·
   portal wash · read-# sync) · agent 49/49 · reviewer nit folded (fp commits only after a
   successful render) · 4-state screenshots verified.
+
+### 🏓 R10 · v748–v750 — Grok's post-ship critique, all three implemented ✅
+Grok's verdict on shipped v747: "Ships the design… v747.1 plate polish > original sketch. Name/
+continuity discipline < sketch." His TOP 3, each TDD-locked:
+- **v748 CAST = CREDITS**: 66px mid-token ellipsis killed the names ("Harlequin_"). Tiles now
+  autosize to 96px, names wrap 2 lines, runes stay short — spec asserts the FULL "Harlequin
+  Crest" renders.
+- **v749 CHAPTER CAST MEMORY**: the stage narrated the last packet, not the chapter. Now the
+  cast is the union of honest routes seen in the current area (cap 12, latest lifecycle per name
+  wins — thrown>vault>hold>conf>ocr), cleared on area change. Spec: empty gameplay read keeps
+  the pile on stage; area change starts a fresh cast. Never invents — only prior honest routes.
+- **v750 THE PORTAL KEEPS THE CHROME**: transitions dropped Mephisto + terror mid-chapter and
+  stacked three ⏳. Boss/tz now resolve from transition_from/chapter memory, ONE hourglass
+  (ENTERING flare folded), and the chapter cast dims to ghosts under the wash. Spec: leaving
+  Durance keeps the Mephisto chip; exactly 1 ⏳ on stage.
+- Gates: board **11/11** (all three locks folded into the NOW-stage spec) · screenshots verified
+  (portal frame: chrome survives, reel continues the same story language below).
+
+## GROK INSIGHTS (R10, verbatim picks)
+- "Cast as readable trophies — 66px ellipsis murders names" → credits discipline.
+- "Stage is 'latest packet', not 'this chapter'" → chapter cast memory, lifecycle-latest-wins.
+- "Story identity blinks off mid-Meph" → context chrome through transitions, display-only,
+  never fabricated.
+- Reading-state ghosts "read as empty/broken, not scanning" — queued for a later polish round.
