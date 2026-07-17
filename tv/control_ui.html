@@ -375,8 +375,13 @@
     display: flex; flex-direction: column;
     gap: clamp(8px, .9vw, 14px);
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;               /* v774.3 — the BIBLE rail made the column taller than the
+    viewport at some sizes; scroll honestly instead of letting panels overlap the buttons */
+    overflow-x: hidden;
+    scrollbar-width: thin;
   }
+  .primary { flex: 0 0 auto; }      /* buttons keep natural height; no flex-crush overlap */
+  .primary button.act { flex: 0 0 auto; min-height: clamp(44px, 5.4vh, 64px); }
   .rail-h {
     font-size: clamp(9px,.78vw,12px); letter-spacing: .32em; text-transform: uppercase;
     color: var(--gold-dim); padding: 0 4px clamp(2px,.4vw,6px);
