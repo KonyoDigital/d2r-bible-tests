@@ -3360,7 +3360,10 @@ window.LSR = (function(){
 // v768 (item 9) — the control-app deep link (#tvd / #tvd-on / #tvd-off) is INTENT, not residue, even
 // though it carries no subpath. Exempt it from the bare-hash→#tools normalization so it survives to
 // the router (paired with the _tvLive honor-unconditionally fix); every other bare tab hash still homes.
-try { var _h680 = window.location.hash || ''; var _tv680 = (_h680 === '#tvd' || _h680 === '#tvd-on' || _h680 === '#tvd-off'); if (_h680 && _h680 !== '#tools' && !_tv680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
+// v786 (night R3 pick 1) — ?app=1 = the APP RAIL sent this hash. That is INTENT, not residue:
+// 4 of 5 family tabs (#session/#forge/#funi/#fsets) were being clobbered to #tools here before
+// the router ever saw them. Plain-browser refresh still homes to tools (v680 behavior intact).
+try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd' || _h680 === '#tvd-on' || _h680 === '#tvd-off'); if (_h680 && _h680 !== '#tools' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -33332,7 +33335,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v785', name:'The Vigilant Film', date:'2026-07-18', note:'v785: film drops LIVE on stale eye (never a dead frame) · eye 1280 fidelity · SIM glow = theatre truth' };
+  window.D2R_BUILD = { id:'v786', name:'The Open Doors', date:'2026-07-18', note:'v786: app rail deep-links open their real tab · SIM story pacing · loud Windows boot errors' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

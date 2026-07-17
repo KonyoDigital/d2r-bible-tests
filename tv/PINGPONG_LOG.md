@@ -882,3 +882,16 @@ Round-2 critique (Fable third-eye, banked during Grok's v779–v784 arc) → imp
   still ~100ms sips on localhost, Theatre stays 2560 archival.
 - Dropped round-2 pick #2 (tabs → singleton board): overruled by Konyo's explicit one-window decision (v781).
 - 3 new unit locks (eye age fresh/stale/none · clear idempotent). Suites 77/77 + 16/16.
+
+## 🌙 Night round 3 → v786 "The Open Doors" (Fable, ~03:30)
+R3 pick 1 (CRITICAL): 4 of 5 app-rail tabs were dead doors — v680 bare-hash normalizer clobbered
+#session/#forge/#funi/#fsets → #tools before the router ran; family tripwire drove switchTab()
+directly so it stayed green. Fix: ?app=1 = INTENT, normalizer exempts app context; new
+v786_deeplinks.spec.ts walks the REAL consumer path (6/6). Plus two Konyo live fires:
+- SIM story pacing: real 6-30s read gaps pinned the 4s cap → crawl. Now story-time (raw/8,
+  clamp 500-2200ms); reel pick needs SUBSTANCE (reads>=3 + named first) — restart shards
+  no longer win "newest"; matrix runs send test:true → TV_NO_JOURNAL (no more shard pollution).
+- Windows cousin 'ON AIR just spins': claude-CLI preflight + dead-at-boot detection return
+  ok:false with the REASON + fix command; UI toasts it loudly. No more silent spinner.
+Deferred to next ships: R3 pick 2 (installer copy/plist v761 drift), pick 3 (vault double-register),
+sleeper (replay sim-flag). Suites 77+16 OK, matrix stamped v786.

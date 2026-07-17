@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v785)
+# 📺 TV DIABLO — Control App (Mac + Windows · v786)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -308,7 +308,7 @@ def _stop_capture():
         pass
 
 
-def start_agent(sim=False):
+def start_agent(sim=False, test=False):
     global _agent_proc, _agent_mode, _log_fp
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
@@ -340,6 +340,22 @@ def start_agent(sim=False):
         _log_fp.flush()
 
         env = _env_clean(sim=sim)
+        if test:
+            # v786 - button-matrix / harness runs must NEVER become theatre reels
+            env["TV_NO_JOURNAL"] = "1"
+        # v786 (cousin: 'ON AIR just spins') - LOUD preflight: the #1 silent killer is a
+        # missing claude CLI; the agent dies at boot and the UI spun forever with no reason.
+        if not sim and not env.get("TV_STUB") and not env.get("TV_CLAUDE_BIN"):
+            import shutil as _sh
+            if not _sh.which("claude", path=env.get("PATH", "")):
+                _agent_mode = "off"
+                _log_fp.write("!! claude CLI not found on PATH - agent cannot see\n")
+                _log_fp.flush()
+                return {"ok": False,
+                        "error": "Claude Code CLI not found - install it, then press ON AIR again",
+                        "fix": ("irm https://claude.ai/install.ps1 | iex" if IS_WIN
+                                else "curl -fsSL https://claude.ai/install.sh | bash"),
+                        "mode": "off"}
         # Windows needs the capture half; Mac agent uses screencapture itself
         if IS_WIN:
             _start_capture(env, _log_fp)
@@ -372,6 +388,17 @@ def start_agent(sim=False):
         if _bridge_ping() is not None:
             break
         time.sleep(0.15)
+    # v786 - a dead-at-boot agent must SAY SO, not leave the lamp spinning (cousin's Windows hang)
+    if _bridge_ping() is None and (_agent_proc is None or _agent_proc.poll() is not None):
+        with _lock:
+            _agent_mode = "off"
+        tail = ""
+        try:
+            with open(LOG_PATH, "rb") as _lf:
+                tail = _lf.read()[-1500:].decode("utf-8", "replace")
+        except Exception:
+            pass
+        return {"ok": False, "error": "agent died at boot - see log", "logTail": tail, "mode": "off"}
     return {
         "ok": True,
         "msg": "started",
@@ -763,7 +790,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v785",
+        "ver": "v786",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1028,14 +1055,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         length = int(self.headers.get("Content-Length") or 0)
+        body = {}
         if length:
-            self.rfile.read(length)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+            except Exception:
+                body = {}
 
         if path == "/api/on":
             if _stop_inflight:
                 self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
                 return
-            r = start_agent(sim=False)
+            r = start_agent(sim=False, test=bool(body.get("test")))
             self._json(200, r)   # v778-pre — ON opens NOTHING (one-window world)
             return
         if path == "/api/sim":
@@ -1196,7 +1227,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v785 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v786 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

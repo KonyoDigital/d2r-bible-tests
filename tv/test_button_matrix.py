@@ -24,8 +24,9 @@ def get(url, t=3):
         return json.loads(r.read().decode())
 
 
-def post(path, t=30):
-    req = urllib.request.Request(CTRL + path, data=b"", method="POST")
+def post(path, t=30, body=None):
+    data = json.dumps(body).encode() if body else b""
+    req = urllib.request.Request(CTRL + path, data=data, method="POST")
     with urllib.request.urlopen(req, timeout=t) as r:
         return json.loads(r.read().decode())
 
@@ -77,7 +78,7 @@ def main():
     print("══ BUTTON MATRIX · control API (mirrors every app button) ══")
     st = get(CTRL + "/api/status")
     check("control up", st.get("ok") is True, st)
-    check("version stamp", st.get("ver") == "v785", st.get("ver"))
+    check("version stamp", st.get("ver") == "v786", st.get("ver"))
 
     # ensure clean off
     print("\n· OFF (ensure dark)")
@@ -111,7 +112,7 @@ def main():
     check("SIM cut → off", s and s.get("mode") == "off" and s.get("bridge") is False)
 
     print("\n· ON (live agent — may need screen permission; bridge must still start)")
-    r = post("/api/on")
+    r = post("/api/on", body={"test": True})   # v786 — matrix runs never become theatre reels
     check("ON start ok", r.get("ok") is True, r)
     s = wait_mode("live", 20, bridge=True)
     # mode may be live even if capture fails
