@@ -7273,6 +7273,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   <div class="tvb-hero">
     <div class="tvb-left">
     <div class="tvb-screen tvb-off" id="tvb-screen">
+      <img class="tvb-face" id="tvb-face" alt="" hidden>
       <div class="tvb-scan"></div>
       <div class="tvb-noise"></div>
       <div class="tvb-static"></div>
@@ -7286,7 +7287,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     </div>
     <div class="tvb-side">
       <div class="tvb-title">📺 TV DIABLO <span class="tvb-badge">LIVE SCANNER</span></div>
-      <div class="tvb-sub">Read-only sight on your own game screen — vision on <b>your</b> Claude subscription, zero API keys, nothing touches the game. Terminal: <code>python3 tv/tv_diablo.py</code> → flip the switch. It watches every half-second; it reads the moment you stop on loot, a tooltip, or your stash.</div>
+      <div class="tvb-sub">Read-only sight on your own game screen — vision on <b>your</b> Claude subscription, zero API keys, nothing touches the game. Terminal: <code>tvd</code> → flip the switch. It watches every quarter-second; it reads the moment you stop on loot, a tooltip, or your stash.</div>
       <span class="tvd-switch tvd-off tvb-bigswitch" role="switch" aria-checked="false" tabindex="0" title="power" onclick="window._tvdToggle&&window._tvdToggle()">
         <span class="tvd-track"><span class="tvd-knob"></span></span><span class="tvd-word">OFF</span>
       </span>
@@ -7301,6 +7302,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       </div>
     </div>
   </div>
+  <!-- v744 — THE RUN STORY (Grok's #2): the session as a film strip — Town → Durance → loot →
+       hold → 🏦. Each tick is a moment; click jumps to that history row. -->
+  <div class="tvb-story" id="tvb-story" hidden></div>
   <div class="tvb-feedwrap">
     <div class="tvb-feed-h">SIGNAL FEED <span class="tvb-feed-sub">every read · routed to your engines · ✓ to apply</span></div>
     <div id="tvb-feed"><div class="sc-empty">the feed lights up when the scanner comes online</div></div>
@@ -31598,11 +31602,30 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-chip.tc-done{opacity:.55;border-style:dashed}
 .tvd-chip.tc-note{opacity:.75}
 .tvd-hint{font-size:var(--fs-micro);color:var(--text-dim);font-family:var(--mono);margin-top:7px}
-.tvd-applyall{margin:2px 0 8px;font:inherit;font-size:var(--fs-meta);font-weight:700;color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);border-radius:999px;padding:3px 14px;cursor:pointer}
+/* v744 — apply-all becomes a QUIET text action (Grok: 'loud mint slab steals focus') */
+.tvd-applyall{margin:2px 0 6px;font:inherit;font-size:var(--fs-micro);font-weight:700;letter-spacing:.06em;color:var(--acc-done);background:none;border:none;border-bottom:1px dotted rgba(102,255,136,.4);border-radius:0;padding:0 1px 1px;cursor:pointer}
+.tvd-applyall:hover{border-bottom-style:solid;text-shadow:0 0 8px rgba(102,255,136,.5)}
+/* v744 — chip TROPHIES: bigger art with a rarity rim + a lifecycle ring (grimoire, not debugger) */
+.tvd-chip .tvc-art{width:30px;height:30px;border-radius:7px;padding:1px;background:rgba(0,0,0,.35);border:1.5px solid transparent}
+.tvd-chip[data-k-uni] .tvc-art,.tvd-chip .tvc-art.tvc-uni{border-color:rgba(199,179,119,.8)}
+.tvd-db{opacity:.85}
+.tvd-db-base{color:#8a8a96;background:rgba(160,160,180,.08);font-weight:600 !important}
+/* v744 — history clears the dock chrome (last rows were hiding under the MF bar) */
+#tvb-hist{padding-bottom:calc(var(--dock-h,84px) - 40px)}
+/* v744 — missing frames = a thin ghost line, not a dead dashed box */
+.tvd-frame-ph{height:22px!important;border:none!important;border-left:2px solid rgba(150,150,170,.25)!important;border-radius:0!important;color:#6a6a7c;font-size:9px;display:flex;align-items:center;padding-left:8px;background:none!important}
+/* v744 — meter hierarchy: MOTION is the primary instrument, the rest are readouts */
+.tvb-m-wide{border-color:rgba(102,255,136,.28)}
+.tvb-m:not(.tvb-m-wide){padding:5px 10px;opacity:.88}
+.tvb-m:not(.tvb-m-wide) b{font-size:var(--fs-meta)}
 /* v710.4 — the FLAGSHIP BOARD (#tab-tvd): a screen that breathes with the agent's real pulse */
 .tvb-hero{display:flex;gap:26px;align-items:stretch;margin:14px 0 18px;flex-wrap:wrap}
 .tvb-screen{position:relative;flex:0 0 380px;min-height:250px;border-radius:18px;border:2px solid var(--border-light);background:radial-gradient(ellipse at 50% 42%,#10130f,#050604 78%);overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 60px rgba(0,0,0,.8),0 10px 40px -18px rgba(0,0,0,.9);transition:border-color .4s,box-shadow .5s}
-.tvb-eye{font-size:64px;filter:grayscale(.9) brightness(.5);transition:filter .5s,transform .4s}
+/* v744 — THE TV SHOWS WHAT THE AI SEES (Grok's #1): the live frame IS the CRT face,
+   dimmed under the scanline; click = the fullscreen lightbox. The 📺 eye yields when live. */
+.tvb-face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.78;filter:saturate(.9) brightness(.85);cursor:zoom-in}
+.tvb-screen.tvb-live:has(.tvb-face:not([hidden])) .tvb-eye{display:none}
+.tvb-eye{font-size:64px;filter:grayscale(.9) brightness(.5);transition:filter .5s,transform .4s;position:relative;z-index:1}
 .tvb-verb{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:var(--fs-meta);font-weight:800;letter-spacing:.3em;color:var(--text-dim);transition:color .3s}
 .tvb-scan{position:absolute;left:0;right:0;top:-40%;height:34%;background:linear-gradient(180deg,transparent,rgba(102,255,136,.06) 45%,rgba(102,255,136,.14) 50%,rgba(102,255,136,.06) 55%,transparent);opacity:0;pointer-events:none}
 .tvb-noise{position:absolute;inset:0;opacity:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);pointer-events:none}
@@ -31653,6 +31676,14 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvb-m b{font-size:var(--fs-body);color:var(--gold-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tvb-bar{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;min-width:80px}
 .tvb-bar i{display:block;height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#39c96a,#b7ecc4);box-shadow:0 0 8px rgba(102,255,136,.6);transition:width .45s ease}
+/* v744 — THE RUN STORY strip: CRT ticks on a horizontal reel */
+.tvb-story{display:flex;align-items:center;gap:0;margin:2px 0 12px;padding:9px 12px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,rgba(10,13,9,.9),rgba(6,8,5,.9));overflow-x:auto;scrollbar-width:thin;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,#000 94%,transparent);mask-image:linear-gradient(90deg,#000 94%,transparent)}
+.tvb-story .st-node{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-muted);cursor:pointer;padding:3px 8px;border-radius:7px;transition:background .12s,color .12s}
+.tvb-story .st-node:hover{background:rgba(240,192,96,.08);color:var(--gold-bright)}
+.tvb-story .st-node .st-ic{font-size:12px}
+.tvb-story .st-area{color:#9fd4ff;font-weight:800;letter-spacing:.04em}
+.tvb-story .st-vault{color:#8fe6a0;font-weight:800}
+.tvb-story .st-link{flex:0 0 auto;width:16px;height:1px;background:linear-gradient(90deg,rgba(240,192,96,.35),rgba(240,192,96,.1))}
 .tvb-feedwrap{border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.012);overflow:hidden}
 .tvb-feed-h{display:flex;align-items:baseline;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:var(--fs-meta);font-weight:800;letter-spacing:.22em;color:var(--gold-dim)}
 .tvb-feed-sub{font-weight:400;letter-spacing:.02em;color:var(--text-dim);text-transform:none}
@@ -31712,7 +31743,6 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-intent.tvd-seen{color:#ffd97a;font-weight:800}
 .tvd-db{font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.06em;padding:1px 6px;border-radius:999px;margin-left:4px}
 .tvd-db-hit{background:rgba(102,255,136,.15);color:#8fe6a0;border:1px solid rgba(102,255,136,.35)}
-.tvd-db-miss{background:rgba(224,138,138,.12);color:#e08a8a;border:1px solid rgba(224,138,138,.35)}
 .tvd-db-item{background:rgba(127,212,255,.12);color:#7fd4ff;border:1px solid rgba(127,212,255,.35)}
 .tvd-vault-tag{font-family:var(--mono);font-size:9px;color:#f0c060;margin-left:4px}
 .tvd-read-farmed{border-color:rgba(102,255,136,.28);background:rgba(40,100,55,.06)}
@@ -32652,7 +32682,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v743', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v744', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32912,9 +32942,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     return ' data-arttip="'+escAttr(clean)+'"';
   }
   function dbBadge(x){
-    if (x.kind==='note' || x.db===false) return '<span class="tvd-db tvd-db-miss" title="not in bible engines / ITEMS DB">NO DB</span>';
-    if (x.kind==='item') return '<span class="tvd-db tvd-db-item" title="matched ITEMS database">DB</span>';
-    return '<span class="tvd-db tvd-db-hit" title="matched rune/gem/unique/set engine">HIT</span>';
+    // v744 — tones, not alarms (Grok: 'NO DB reads broken, not base-vs-rune'): HIT = an engine
+    // tracks it · DB = the items database knows it · base = ordinary gear, nothing wrong with it
+    if (x.kind==='note' || x.db===false) return '<span class="tvd-db tvd-db-base" title="ordinary gear/misc — outside the tracked engines (that\'s fine)">base</span>';
+    if (x.kind==='item') return '<span class="tvd-db tvd-db-item" title="in the items database">DB</span>';
+    return '<span class="tvd-db tvd-db-hit" title="tracked by a bible engine (rune/gem/unique/set)">HIT</span>';
   }
   function histChip(x, vaulted){
     var tip = chipTip(x);
@@ -32938,6 +32970,51 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // #tvb-hist.innerHTML and snapping scrollTop to 0. Skip unchanged paints; preserve scroll;
   // LAST SESSION is static after archive so never thrash while the user is reading it.
   var _histFp = '';
+  // v744 — THE RUN STORY: area chapters + key moments from the session, click jumps the history
+  function renderStory(sessReads){
+    try {
+      var el = document.getElementById('tvb-story'); if (!el) return;
+      var reads = sessReads || [];
+      if (reads.length < 2){ el.hidden = true; return; }
+      var nodes = [], lastArea = null;
+      reads.forEach(function(r, i){
+        if (r.area && r.area !== lastArea){ lastArea = r.area; nodes.push({ ic: '🗺', txt: r.area, cls: 'st-area', i: i }); }
+        var vaulted = (r.vault_names || []).length, thrown = (r.thrown_names || []).length,
+            held = (r.pending_names || []).length,
+            hits = (r.items || []).filter(function(it){ return it.kind && it.kind !== 'note'; }).length;
+        if (vaulted) nodes.push({ ic: '🏦', txt: vaulted + ' vaulted', cls: 'st-vault', i: i });
+        else if (thrown) nodes.push({ ic: '🗑', txt: thrown + ' tossed', cls: '', i: i });
+        else if (held) nodes.push({ ic: '🎒', txt: held + ' held', cls: '', i: i });
+        else if (hits && (r.scene === 'loot' || r.scene === 'inventory' || r.scene === 'gameplay'))
+          nodes.push({ ic: '⚔️', txt: hits + ' seen', cls: '', i: i });
+        else if (r.scene === 'transition') nodes.push({ ic: '⏳', txt: '', cls: '', i: i });
+        if (r.intent === 'farewell') nodes.push({ ic: '👋', txt: 'farewell', cls: '', i: i });
+      });
+      // collapse runs of identical ⏳/⚔️ ticks so long sessions stay one reel
+      var out = []; nodes.forEach(function(nd){ var pv = out[out.length-1]; if (pv && pv.ic === nd.ic && pv.txt === nd.txt && nd.ic !== '🗺') return; out.push(nd); });
+      if (out.length < 2){ el.hidden = true; return; }
+      // fingerprint-skip: the strip repaints ONLY when its nodes changed (poll calls land every 250ms)
+      var sfp = out.map(function(nd){ return nd.ic + nd.txt + nd.i; }).join('|');
+      if (el.__sfp === sfp){ el.hidden = false; return; }
+      el.__sfp = sfp;
+      var keepX = el.scrollLeft;
+      el.innerHTML = out.map(function(nd, k){
+        return (k ? '<span class="st-link"></span>' : '')
+          + '<span class="st-node '+nd.cls+'" data-ri="'+nd.i+'" title="jump to this moment"><span class="st-ic">'+nd.ic+'</span>'+(nd.txt||'')+'</span>';
+      }).join('');
+      el.hidden = false;
+      el.scrollLeft = keepX;
+      if (!el.__wired){
+        el.__wired = true;
+        el.addEventListener('click', function(e){
+          var nd = e.target.closest('.st-node'); if (!nd) return;
+          var rows = document.querySelectorAll('#tvb-hist .tvd-read');
+          var row = rows[rows.length - 1 - Number(nd.dataset.ri)] || rows[Number(nd.dataset.ri)];
+          if (row){ row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('tool-jump-pulse'); setTimeout(function(){ row.classList.remove('tool-jump-pulse'); }, 1400); }
+        });
+      }
+    } catch(e){}
+  }
   function renderHistory(force){
     var root = document.getElementById('tvb-hist');
     var meta = document.getElementById('tvb-hist-meta');
@@ -32958,6 +33035,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     }
     var reads = (sess && sess.reads) || [];
     var fp = HIST_TAB + '|' + (sess && (sess.agentStart || sess.startedAt) || 0) + '|' + reads.length + '|' + (reads.length ? (reads[reads.length-1].ts||0) : 0) + '|' + (h.sessions ? h.sessions.length : 0);
+    renderStory(reads);   // v744 — the film strip follows whichever session the history shows
     // stats (meta can update lightly even when body skipped — but skip whole paint if unchanged)
     var dbHits=0, dbTotal=0, farmedN=0, seenN=0, vaultN=0;
     reads.forEach(function(r){
@@ -33017,6 +33095,18 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   var _frameEyeAt = 0;
   function refreshFrameEye(){
     try {
+      // v744 — the CRT face rides the same throttle: the TV literally shows what the AI sees
+      var face = document.getElementById('tvb-face');
+      if (face){
+        if (STATE !== 'live'){ face.hidden = true; face.removeAttribute('src'); }
+        else if (Date.now() - (window.__tvbFaceAt||0) >= 4000){   // same 4s cadence as the eye — never a 250ms fetch storm
+          window.__tvbFaceAt = Date.now();
+          face.onerror = function(){ face.hidden = true; };
+          face.onload = function(){ face.hidden = false; };
+          face.src = FRAME0 + '?t=' + Date.now();
+          if (!face.__wired){ face.__wired = true; face.onclick = function(){ window._tvdOpenFrame('', { title: 'LIVE — what the AI sees right now' }); }; }
+        }
+      }
       var eye = document.getElementById('tvb-hist-eye');
       var img = document.getElementById('tvb-hist-frame');
       if (!eye || !img) return;
@@ -33386,7 +33476,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;
         if(FEED.length>60) FEED=FEED.slice(-60);
       });
-      if(grew) refreshFrameEye();
+      refreshFrameEye();   // v744 — the CRT face breathes on the poll (throttled inside)
       if(grew) render();   // v736 — paints only on change; meters/beat update separately (targeted nodes)
     }).catch(function(){ if(to) clearTimeout(to); if(STATE==='live'){ digestFlush('agent closed'); } if(STATE==='live'||STATE==='conn') setState('offline'); render(); });
   }

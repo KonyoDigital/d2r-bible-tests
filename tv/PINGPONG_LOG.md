@@ -317,3 +317,20 @@ v741 lightbox surgery + known-dead learning + THE SYNAPSE · R2 MCP user pass gr
 tab · R3 vault e2e green (hold→commit→unvault) · v742 Esc stack + persistent learning (Grok's
 picks) · v743 burst collapse. Suites: agent 46/46 · board 9/9 · every round shipped + gated.
 Grok's verdict pre-dawn: "you're past the hard ships."
+
+### 🌅 DAWN R6 · v744 — THE CINEMA ARC (Grok's dawn audit, all 3 ordered by Konyo) ✅
+- **CRT FACE (Grok #1 — 'the TV shows what the AI sees')**: the live /frame now breathes inside
+  the TV bezel under the scanline (4s throttle — no fetch storms), click = fullscreen LIVE view.
+  The 👁 placeholder retires whenever a real face is on screen.
+- **THE RUN STORY (Grok #2)**: the session as a film strip above SIGNAL FEED — 🗺 area chapters ·
+  ⚔️ seen · 🎒 held · 🏦 vaulted · 🗑 tossed · ⏳ transitions, built from the SAME persisted reads
+  the history shows (schema-true: items[].kind/key/label + vault/pending/thrown_names). Click any
+  tick → the matching history row scrolls in and pulses. Repeated identical ticks collapse so a
+  long Meph night stays one readable reel. Verified LIVE on Konyo's real Durance session:
+  🗺 Durance of Hate Level 2 → ⚔️ 2 seen, click-jump pulsed read #5.
+- **FRICTION CALM (Grok's list)**: honest tab copy (terminal `tvd` → flip the switch) · NO DB →
+  quiet `base` badge (ordinary gear isn't an alarm) · apply-all = quiet text action · 30px chip
+  trophies · history clears the dock · ghost frame placeholders · ONE primary meter (MOTION).
+- Gates: board **10/10** (new v744 RUN STORY spec — seeded with the true persisted schema after
+  the first seed's `name` vs `key/label` lie surfaced as 'undefined' in a row) · agent **46/46** ·
+  html clean · headless screenshots verified · Fable code-reviewer pass on the diff.

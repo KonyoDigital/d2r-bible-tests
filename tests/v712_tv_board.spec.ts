@@ -387,6 +387,47 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(frameIdHits).toBeGreaterThanOrEqual(1);
   });
 
+  test('v744 RUN STORY strip: chapters + moments from the persisted session; click jumps + pulses the row', async ({ page }) => {
+    const T = 1234567890000;
+    await page.addInitScript((t: number) => {
+      const reads = [
+        { ts: t,        n: 1, area: '',                        scene: 'loot',      items: [{ kind: 'rune', key: 'Ist', label: 'Ist Rune', db: true }], names: ['Ist Rune'] },
+        { ts: t + 8000, n: 2, area: 'Durance of Hate Level 2', scene: 'gameplay',  items: [] },
+        { ts: t + 16000, n: 3, area: 'Durance of Hate Level 2', scene: 'transition', items: [] },
+        { ts: t + 24000, n: 4, area: 'Durance of Hate Level 2', scene: 'inventory', items: [{ kind: 'uni', key: 'Harlequin Crest', label: 'Harlequin Crest', db: true, holding: true, lc: 'holding' }], pending_names: ['Harlequin Crest'] },
+        { ts: t + 32000, n: 5, area: '',                        scene: 'stash',     items: [{ kind: 'uni', key: 'Harlequin Crest', label: 'Harlequin Crest', db: true, vault: true, lc: 'vault' }], vault_names: ['Harlequin Crest'] },
+      ];
+      localStorage.setItem('d2r_tvdHist', JSON.stringify({ live: null, sessions: [{ agentStart: t, startedAt: t, endedAt: t + 40000, reads }] }));
+    }, T);
+    await page.route(BRIDGE + '**', (route) => route.abort());   // agent off — story reads persisted history
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.click('#tvb-hist-last'); await page.waitForTimeout(600);
+
+    const story = await page.evaluate(() => {
+      const el = document.getElementById('tvb-story')!;
+      return { hidden: el.hidden, nodes: [...el.querySelectorAll('.st-node')].map((n) => n.textContent!.trim()) };
+    });
+    expect(story.hidden).toBe(false);
+    expect(story.nodes.some((n) => n.includes('1 seen'))).toBe(true);              // ⚔️ loot moment
+    expect(story.nodes.some((n) => n.includes('Durance of Hate Level 2'))).toBe(true); // 🗺 chapter
+    expect(story.nodes.some((n) => n.includes('1 held'))).toBe(true);              // 🎒 hold
+    expect(story.nodes.some((n) => n.includes('1 vaulted'))).toBe(true);           // 🏦 commit
+
+    // click the chapter node → the matching history row pulses into view
+    await page.evaluate(() => {
+      const nd = [...document.querySelectorAll('#tvb-story .st-node')].find((n) => n.textContent!.includes('Durance'))!;
+      (nd as HTMLElement).click();
+    });
+    await page.waitForTimeout(500);
+    const pulsed = await page.evaluate(() => {
+      const r = document.querySelector('#tvb-hist .tvd-read.tool-jump-pulse');
+      return r ? r.textContent!.slice(0, 120) : null;
+    });
+    expect(pulsed).toBeTruthy();
+    expect(pulsed).toContain('Durance of Hate Level 2');
+  });
+
   test('v739 THE VAULT MIRROR: every stashed class lands VISIBLE in the Vault Manager — unique, socketed base (throwout=tag), RotW custom', async ({ page }) => {
     const T = 1234567890;
     await page.route(BRIDGE + '**', (route) =>
