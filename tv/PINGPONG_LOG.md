@@ -481,3 +481,23 @@ route() labels. Next-session queue: reading-ghosts polish only.
 - **Item 8 — CI flake killed**: the stage test's toggle-OFF assert now condition-waits
   (waitForFunction, 5s) instead of racing a 300ms sleep; same sweep applied to the new tests.
 - Gates: board **13/13** · agent 55/55 · html clean · D2R_BUILD → v758 (badge stays honest).
+
+### 🎛 R15 · v759 — the CONTROL CONSOLE goes broadcast (Konyo: "stretched and full screen…
+### breathing… really feel full screen… upgrade any HD art") ✅
+- Grok's v757 control app UI (a centered dialog floating in void) rebuilt by the Fable
+  visual-coding-architect + finished/gated by the session: a TRUE fullscreen broadcast face —
+  100dvh grid (header · stage · console rail · AGENT MIND ticker · footer), everything clamp()-
+  fluid so it breathes at any size.
+- **THE STAGE**: giant serif phase title (STANDBY/SIMULATION/LIVE) with state-tinted glow ·
+  Diablo silhouette from the HD art DB floating/breathing behind it (ember halo, state-colored) ·
+  drifting scanlines + soft CRT sweep + vignette pulse · broadcast lower-third meters
+  (MODE/READS/AREA/SCENE) · REC marquee.
+- **THE CONSOLE RAIL**: five big action cards (ON AIR / OFF / STOP / RESTART / SIM) with state
+  rings — the active mode literally glows · bridge/model signal panel with a live bar · board +
+  log utilities. Keyboard: Space = on/off, L = log.
+- **HD art route**: GET /art/<name> on the control server — read-only, realpath-checked inside
+  art/, mime whitelist (traversal probe → 404, verified). Emblem = Ohm rune, hero = Diablo.
+- Verify pass caught: a STALE control server holding :17772 made the art route look 404 and the
+  footer look v757 (kill-then-test lesson) · ver payload/banner/footer all stamped v759.
+- Gates: py ast clean · art route 200 + traversal blocked · screenshots at 2000/1440/1280 LOOKED
+  at · board suite untouched (13/13 at v758.1) · agent 55/55 untouched.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac first · v757)
+# 📺 TV DIABLO — Control App (Mac first · v758)
 #
 #   A real windowed control surface: HD grimoire UI, buttons for
 #   ON / OFF / STOP / RESTART / SIM. The agent runs HIDDEN (logs to file).
@@ -32,6 +32,16 @@ LOG_PATH = os.path.join(HERE, "control_agent.log")
 PID_PATH = os.path.join(HERE, "control_agent.pid")
 UI_PATH = os.path.join(HERE, "control_ui.html")
 BIBLE = os.path.join(REPO, "bible.html")
+ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
+
+_ART_MIME = {
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+}
 
 _lock = threading.Lock()
 _agent_proc: subprocess.Popen | None = None
@@ -280,7 +290,7 @@ def status_payload() -> dict:
         )
     return {
         "ok": True,
-        "ver": "v757",
+        "ver": "v759",
         "mode": mode,
         "agent": mode != "off" and bridge,
         "bridge": bridge,
@@ -331,6 +341,38 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _serve_art(self, name: str):
+        """Serve a read-only image from the repo art/ dir. Path-traversal-safe."""
+        from urllib.parse import unquote
+
+        rel = unquote(name).split("?", 1)[0].split("#", 1)[0]
+        target = os.path.realpath(os.path.join(ART_DIR, rel))
+        # must stay inside ART_DIR and be a real file
+        if not (target == ART_DIR or target.startswith(ART_DIR + os.sep)):
+            self._json(403, {"ok": False, "msg": "forbidden"})
+            return
+        if not os.path.isfile(target):
+            self._json(404, {"ok": False, "msg": "not found"})
+            return
+        ext = os.path.splitext(target)[1].lower()
+        ctype = _ART_MIME.get(ext)
+        if ctype is None:
+            self._json(415, {"ok": False, "msg": "unsupported"})
+            return
+        try:
+            with open(target, "rb") as f:
+                data = f.read()
+        except Exception as e:
+            self._json(500, {"ok": False, "msg": str(e)})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self._cors()
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_OPTIONS(self):
         self.send_response(204)
         self._cors()
@@ -349,6 +391,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/status":
             self._json(200, status_payload())
+            return
+        if path.startswith("/art/"):
+            self._serve_art(path[len("/art/"):])
             return
         if path == "/api/log":
             try:
@@ -423,7 +468,7 @@ def main():
             open_control_window()
         sys.exit(1)
 
-    print(f"📺 TV DIABLO Control v757 · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v759 · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     print("   window UI — agent stays hidden. Ctrl-C quits control (not the agent).")
 
