@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v787"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v788"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1936,9 +1936,17 @@ def main():
             if stable == need_ticks:
                 ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since last read (gap {gap}s · {'PRIORITY' if priority else 'cruise'})")
             continue
-        if reads >= SESSION_CAP:
-            ev("cap", f"session cap {SESSION_CAP} reached — restart to continue")
-            print(f"  ⛔ session cap ({SESSION_CAP} reads) reached — restart to continue"); time.sleep(60); continue
+        # v788 (Grok R4 #4) — THE CLIFF IS DEAD. 240 reads used to hard-halt the eye
+        # (sleep-60 loop forever) while the console still said ON AIR — product-ending on a
+        # long night. Now: soft cruise throttle. The eye NEVER stops; it just breathes slower,
+        # and the scoreboard shows density change instead of a silent death.
+        soft_over = reads - SESSION_CAP
+        if soft_over >= 0:
+            if soft_over == 0:
+                ev("cap", f"soft threshold {SESSION_CAP} reads — cruise throttle on (eye never stops)")
+                print(f"  🌙 soft threshold ({SESSION_CAP} reads) — cruising slower, never stopping")
+            extra_gap = min(30.0, 6.0 + soft_over * 0.05)   # +6s at cap, creeping to +30s max
+            time.sleep(extra_gap)
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
         read_ts = int(time.time() * 1000)

@@ -1014,5 +1014,18 @@ class TestHonestReplay(unittest.TestCase):
         self.assertFalse(reads[-1].get("sim"), "live read must NOT be sim")
 
 
+
+class TestNoCliff(unittest.TestCase):
+    """v788 — the 240-read cliff is dead: emit still publishes past SESSION_CAP."""
+
+    def test_publish_past_cap(self):
+        n = tv.SESSION_CAP + 5
+        tv.emit_deep_read({"area": "Cold Plains", "scene": "loot", "names": ["Ral"],
+                           "tz": [], "conf": 0.9}, n, "%d_999" % n, capture_ts=999)
+        st = tv._load()
+        reads = st.get("reads") or []
+        self.assertTrue(any(r.get("n") == n for r in reads), "read past cap not published")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

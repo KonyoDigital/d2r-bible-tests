@@ -903,3 +903,10 @@ the new round-trip lock before ship). Board vault-commit path returns early on r
 view-only, NEVER re-vaults history. Installer truth: plist 761→787, last-line copy is app-truth
 ('press ON AIR' — 'flip the switch' extinct repo-wide). 2 new locks (sim flag travels · live reads
 clean). Suites 79/79 + 16/16.
+
+## 🏓 Grok R4 (SuperGrok CLI back!) → v788 "No Cliff" (~04:05)
+Grok's console-perfection round, grounded in real code (he read SESSION_CAP): TOP 5 = fault lamp/
+scoreboard · kill the 240-read cliff · theatre highlight-cut · endurance paint · Windows twin lane.
+v788 ships #4 first (product-ending): the sleep(60)-forever halt at 240 reads is dead — soft cruise
+throttle (+6s→+30s gap creep), eye NEVER stops, scoreboard will show density. Lock: publish past cap.
+80/80 + 16/16. Grok's remaining picks queued as v789+.
