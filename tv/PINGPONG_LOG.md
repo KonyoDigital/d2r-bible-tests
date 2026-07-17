@@ -413,3 +413,10 @@ continuity discipline < sketch." His TOP 3, each TDD-locked:
 - "Story identity blinks off mid-Meph" → context chrome through transitions, display-only,
   never fabricated.
 - Reading-state ghosts "read as empty/broken, not scanning" — queued for a later polish round.
+
+### 🏓 R10 VERIFY (Grok, post-ship) ✅
+All three gates PASS on the shipped code + screenshot: "R10 v748–v750 SHIP — all three Grok asks
+TDD-locked; portal chrome holds Meph + terror with one hourglass." No honesty or render-doctrine
+violations. Noted nits (non-blocking, queued): lifecycle merge is last-write not priority-merge ·
+hold-⏳ could stack with the portal ⏳ if you portal mid-hold · credits emoji-strip assumes
+route() labels. Next-session queue: reading-ghosts polish only.
