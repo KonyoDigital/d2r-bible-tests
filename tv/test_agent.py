@@ -610,6 +610,26 @@ class TestKnownFrames(unittest.TestCase):
             tv.learn_dead_frame(self._sig(bytes([i * 12 % 250] * 90000)))
         self.assertLessEqual(len(tv._KNOWN_DEAD), tv.KNOWN_DEAD_CAP)
 
+    # v746 — Konyo: 'this photo is ENTERING a PORTAL or ENTERING A NEW GAME, depending on the
+    # photos beforehand' — the transition label reads the story so far.
+    def test_transition_note_reads_context(self):
+        self.assertIn("leaving Durance of Hate Level 2",
+                      tv.transition_note("Durance of Hate Level 2", 5))
+        self.assertEqual("entering a new game", tv.transition_note("", 0))
+        self.assertIn("loading", tv.transition_note("", 3))
+
+    def test_should_learn_dead_covers_transition_scene(self):
+        # vision now labels the portal art scene='transition' — that read must ALSO teach the cache
+        self.assertTrue(tv.should_learn_dead({"scene": "transition", "names": [], "area": ""}))
+        self.assertTrue(tv.should_learn_dead({"scene": "gameplay", "names": [], "area": ""}))
+        self.assertTrue(tv.should_learn_dead({"scene": "", "names": [], "area": ""}))
+        self.assertFalse(tv.should_learn_dead({"scene": "loot", "names": ["Ist Rune"], "area": ""}))
+        self.assertFalse(tv.should_learn_dead({"scene": "gameplay", "names": [], "area": "Durance of Hate Level 2"}))
+
+    def test_transition_prompt_vocabulary(self):
+        # the vision prompt must offer the transition scene, or Sonnet can never say it
+        self.assertIn("transition", tv.READ_PROMPT)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

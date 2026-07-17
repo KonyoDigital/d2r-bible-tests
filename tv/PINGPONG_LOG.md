@@ -347,3 +347,22 @@ Grok's verdict pre-dawn: "you're past the hard ships."
 - Verified on Konyo's real tab: default view shows the capped reel, click flipped live→last and
   pulsed read #5, chapter divider rendered. Gates: board 10/10 (spec extended: fallback cap +
   chapter locks) · agent 46/46 · html clean.
+
+### 🌅 DAWN R8 · v746 — ⏳ ENTERING, pinpoint (Konyo: "this photo is ENTERING a PORTAL or
+### ENTERING A NEW GAME, depending on the photos beforehand") ✅
+- **THE REAL BUG**: `known_dead_match` was defined (v741) but NEVER CALLED — lost in a parallel-
+  edit merge. The agent learned the portal frame and then paid 7.2s of Sonnet on it anyway
+  (his read #2). Now wired into the live loop: a learned frame is recognized locally, publishes
+  an honest ⏳ transition read at 0ms, and consumes zero vision.
+- **The label reads the story so far**: LAST_AREA rides every deep read — the portal frame says
+  "through the portal — leaving Durance of Hate Level 2"; with no prior reads it says "entering
+  a new game"; otherwise "loading — next area coming". Proven by driving the REAL main loop:
+  pre-learned frame → `⏳ through the portal — leaving Durance of Hate Level 2 [known frame · 0ms]`.
+- **Sonnet can say it too**: the vision prompt gains scene `transition` (burning portal art /
+  act loading screen / dark no-HUD frame) — and an empty transition read ALSO teaches the local
+  cache (should_learn_dead covers gameplay + unknown + transition).
+- **The board stops shrugging**: transition reads render `⏳ ENTERING — through the portal —
+  leaving <area>` in the feed AND history (never "nothing readable"), the where-line carries ⏳,
+  and the story reel's ⏳ tick says "portal" when it knows the from-area.
+- Gates: agent **49/49** (transition_note context · should_learn_dead · prompt vocabulary) ·
+  board **10/10** (transition-honesty locks) · real-loop e2e proof · his known_frames.json intact.

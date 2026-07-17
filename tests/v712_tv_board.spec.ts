@@ -393,7 +393,7 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       const reads = [
         { ts: t,        n: 1, area: '',                        scene: 'loot',      items: [{ kind: 'rune', key: 'Ist', label: 'Ist Rune', db: true }], names: ['Ist Rune'] },
         { ts: t + 8000, n: 2, area: 'Durance of Hate Level 2', scene: 'gameplay',  items: [] },
-        { ts: t + 16000, n: 3, area: 'Durance of Hate Level 2', scene: 'transition', items: [] },
+        { ts: t + 16000, n: 3, area: '', scene: 'transition', items: [], transition_from: 'Durance of Hate Level 2', note: 'through the portal — leaving Durance of Hate Level 2' },
         { ts: t + 24000, n: 4, area: 'Durance of Hate Level 2', scene: 'inventory', items: [{ kind: 'uni', key: 'Harlequin Crest', label: 'Harlequin Crest', db: true, holding: true, lc: 'holding' }], pending_names: ['Harlequin Crest'] },
         { ts: t + 32000, n: 5, area: '',                        scene: 'stash',     items: [{ kind: 'uni', key: 'Harlequin Crest', label: 'Harlequin Crest', db: true, vault: true, lc: 'vault' }], vault_names: ['Harlequin Crest'] },
       ];
@@ -420,6 +420,17 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       [...document.querySelectorAll('#tvb-hist .tvd-chapter')].map((c) => c.textContent!.trim()));
     expect(chapters.length).toBe(1);
     expect(chapters[0]).toContain('Durance of Hate Level 2');
+
+    // v746 — a transition read is honest about WHAT it is (Konyo: 'this photo is ENTERING a
+    // PORTAL or ENTERING A NEW GAME') — never a 'nothing readable' shrug
+    const transRow = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('#tvb-hist .tvd-read')];
+      const r = rows.find((x) => x.textContent!.includes('ENTERING'));
+      return r ? { text: r.textContent!.slice(0, 200), shrug: r.textContent!.includes('nothing readable') } : null;
+    });
+    expect(transRow).toBeTruthy();
+    expect(transRow!.text).toContain('through the portal — leaving Durance of Hate Level 2');
+    expect(transRow!.shrug).toBe(false);
 
     const story = await page.evaluate(() => {
       const el = document.getElementById('tvb-story')!;

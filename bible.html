@@ -31688,6 +31688,7 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-chapter{display:flex;align-items:center;gap:7px;margin:10px 0 2px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.08em;color:#9fd4ff;opacity:.9}
 .tvd-chapter::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(159,212,255,.3),transparent)}
 .tvd-chapter-ic{font-size:11px}
+.tvd-chip.tc-trans{color:#e8b96a;border-color:rgba(232,185,106,.35);background:rgba(232,185,106,.06);font-style:italic}
 .tvb-feedwrap{border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.012);overflow:hidden}
 .tvb-feed-h{display:flex;align-items:baseline;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:var(--fs-meta);font-weight:800;letter-spacing:.22em;color:var(--gold-dim)}
 .tvb-feed-sub{font-weight:400;letter-spacing:.02em;color:var(--text-dim);text-transform:none}
@@ -32686,7 +32687,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v745', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v746', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32992,7 +32993,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         else if (held) nodes.push({ ic: '🎒', txt: held + ' held', cls: '', i: i });
         else if (hits && (r.scene === 'loot' || r.scene === 'inventory' || r.scene === 'gameplay'))
           nodes.push({ ic: '⚔️', txt: hits + ' seen', cls: '', i: i });
-        else if (r.scene === 'transition') nodes.push({ ic: '⏳', txt: '', cls: '', i: i });
+        else if (r.scene === 'transition') nodes.push({ ic: '⏳', txt: (r.transition_from ? 'portal' : ''), cls: '', i: i });
         if (r.intent === 'farewell') nodes.push({ ic: '👋', txt: 'farewell', cls: '', i: i });
       });
       // collapse runs of identical ⏳/⚔️ ticks so long sessions stay one reel
@@ -33096,7 +33097,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var model = r.model ? (' · '+r.model+(r.escalated?'⬆':'')) : '';
       var lane = r.lane==='ocr' ? ' · ⚡ocr' : (r.lane==='deep' ? ' · deep' : '');
       var ms = r.ms ? (' · '+fmtMs(r.ms)) : '';
-      var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+escAttr(r.scene)):'')+intentTag+lane+model+ms;
+      var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+(r.scene==='transition'?'⏳ ':'')+escAttr(r.scene)):'')+intentTag+lane+model+ms;
       var chapter = '';
       if (r.area && r.area !== lastEmittedArea){
         lastEmittedArea = r.area;
@@ -33106,7 +33107,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         + histFrameCell(r)
         +'<div class="tvd-read-body">'
         +'<div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+(r.n||'?')+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
-        +(chips||'<span class="tvd-chip tc-note">nothing readable</span>')
+        +(chips||(r.scene==='transition'
+            ? '<span class="tvd-chip tc-trans">⏳ ENTERING — '+escAttr(r.note||(r.transition_from?('portal — leaving '+r.transition_from):'portal / new area'))+'</span>'
+            : '<span class="tvd-chip tc-note">nothing readable</span>'))
         +'</div></div>';
     }).join('');
     root.innerHTML = '<div class="tvd-feed">'+rows+'</div>';
@@ -33164,7 +33167,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var where=(r.area?('🗺 '+r.area):'')+(r.scene&&r.scene!=='gameplay'?((r.area?' · ':'')+sceneIco+' '+r.scene):'')+intentTag+autoTag+laneTag;
       return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'"><div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+r.n+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
         + (applyable?'<button type="button" class="tvd-applyall" onclick="window._tvdApplyAll(this)">✓ apply all</button>':'')
-        + (chips||'<span class="tvd-chip tc-note">nothing readable (gameplay frame)</span>')+'</div>';
+        + (chips||(r.scene==='transition'
+            ? '<span class="tvd-chip tc-trans">⏳ ENTERING — '+escAttr(r.note||(r.transition_from?('portal — leaving '+r.transition_from):'portal / new area'))+'</span>'
+            : '<span class="tvd-chip tc-note">nothing readable (gameplay frame)</span>'))+'</div>';
     }).join('')+'</div>';
   }
   function wireApplies(rootEl){

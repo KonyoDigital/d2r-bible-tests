@@ -61,7 +61,10 @@ SETTLE       = 0.03
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
     "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"conf\":0.0}}\n"
-    "scene = one of: town | stash | inventory | loot | gameplay.\n"
+    "scene = one of: town | stash | inventory | loot | gameplay | transition.\n"
+    "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
+    "dark frame with NO HUD (no belt/orbs/automap). The player is entering a portal, waypoint, or a "
+    "new game — names/area are expected empty.\n"
     "area = zone name from top-right Game block / ENTERING banner / automap, else \"\".\n"
     "tz = purple terror-zone lines in that block, else [].\n"
     "stashTab = ONLY when scene=stash: which LEFT stash tab is active — "
@@ -248,6 +251,18 @@ def learn_dead_frame(sig):
     _KNOWN_DEAD.append(sig)
     del _KNOWN_DEAD[:-KNOWN_DEAD_CAP]
     _known_dead_save()
+
+# v746 — the transition label reads the story so far (Konyo: 'ENTERING a PORTAL or ENTERING A
+# NEW GAME, depending on the photos beforehand'). LAST_AREA is the last zone a deep read saw.
+LAST_AREA = ""
+def transition_note(last_area, n_reads):
+    if last_area: return f"through the portal — leaving {last_area}"
+    if n_reads == 0: return "entering a new game"
+    return "loading — next area coming"
+
+def should_learn_dead(rd):
+    """An empty read of gameplay/unknown/transition art = a dead frame worth learning."""
+    return (not rd.get("names")) and rd.get("scene") in ("gameplay", "", "transition") and not rd.get("area")
 
 def known_dead_match(sig):
     if sig is None: return None
@@ -1191,6 +1206,38 @@ def main():
                 ev("skip", "settled, but same view I already read — waiting for something new")
             peak = max(0.0, peak * 0.5)
             continue
+        # v746 — a LEARNED dead frame (portal fire / loading art) is recognized locally in ~0ms:
+        # no vision spent, an honest ⏳ transition lands in the story with the right label.
+        if known_dead_match(cur) is not None:
+            note = transition_note(LAST_AREA, reads)
+            ev("transition", f"⏳ {note} · recognized instantly (learned frame)")
+            print(f"  ⏳ {note}  [known frame · 0ms]")
+            t_ts = int(time.time() * 1000)
+            t_fid = archive_read_frame(frame, reads + 1, t_ts)
+            with _state_lock:
+                st = _load()
+                st["reads"].append({
+                    "ts": t_ts, "names": [], "n": reads + 1, "area": "", "scene": "transition",
+                    "tz": [], "ms": 0, "mode": "known", "lane": "known", "model": "learned",
+                    "conf": 1.0, "intent": "context", "transition_from": LAST_AREA,
+                    "note": note, "frameId": t_fid,
+                    "escalated": False, "interest": interest, "priority": False,
+                    "provisional": False,
+                    "vault_names": [], "farmed_names": [], "pending_names": [],
+                    "thrown_names": [], "unvault_names": [], "lifecycle_tags": {},
+                    "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
+                })
+                st["reads"] = st["reads"][-200:]
+                reads += 1
+                st["readCount"] = reads
+                st["ap"] = dict(_AP)
+                _save(st)
+            beat("loading", motion)
+            _AP["mode"] = "load"
+            last_sent_md5 = cur
+            peak = 0.0
+            priority = False
+            continue
         gap = PRIORITY_GAP_S if priority else MIN_GAP_S
         if time.time() - last_read_t < gap:
             if stable == need_ticks:
@@ -1259,8 +1306,8 @@ def main():
         # ── DEEP LANE: Claude (scene/area/verify; 3–8s) ──
         rd = claude_read(frame)
         beat("watching", 0.0)
-        if not rd.get("names") and rd.get("scene") in ("gameplay", "") and not rd.get("area"):
-            learn_dead_frame(cur)   # v741 — this exact screen (loading/portal art) is now known-dead; next match costs 0ms
+        if should_learn_dead(rd):
+            learn_dead_frame(cur)   # v741/v746 — this exact screen (loading/portal art) is now known-dead; next match costs 0ms
         rec = emit_deep_read(rd, n=reads, frame_id=frame_id, interest=interest,
                              used_priority=used_priority, ocr_rd=ocr_rd, farewell=False)
         names = (rec or {}).get("names") or []
@@ -1277,7 +1324,9 @@ def main():
 
 def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False):
     """Publish one deep-lane record (main settle + v740 farewell). Returns the record dict."""
+    global LAST_AREA
     rd = rd or {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None, "mode": "empty"}
+    if rd.get("area"): LAST_AREA = rd["area"]
     names = rd.get("names") or []
     intent = rd.get("intent") or _intent_for(rd.get("scene"))
     lc = _LIFECYCLE.process(rd.get("scene") or "gameplay", names, rd.get("area") or "", rd.get("conf"))
@@ -1351,6 +1400,9 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "gone_candidates": lc.get("gone_candidates") or [],
         "holdMs": HOLD_MS,
     }
+    if (rd.get("scene") or "") == "transition":
+        rec["transition_from"] = LAST_AREA
+        rec["note"] = transition_note(LAST_AREA, n)
     with _state_lock:
         st = _load()
         st.setdefault("seen", []); st.setdefault("farmed", [])
