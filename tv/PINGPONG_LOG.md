@@ -433,3 +433,22 @@ route() labels. Next-session queue: reading-ghosts polish only.
   that latent quirk; inner scroll rails unaffected.
 - ⚠️ OPS: the Grok MCP XAI_API_KEY is DEAD (rotated/expired) — both pingpong rounds tonight ran
   through the signed-in Grok CLI instead. Rotate the key at console.x.ai to restore the MCP path.
+
+### 📼 R12 · v752+v753 — REPLAY + the full-audit agent batch (Grok audit, Konyo: "implement all,
+### ship end to end") ✅
+- **v752 📼 REPLAY**: `tvd sim` (canned demo) · `tvd replay` (--list/--n/--pace/--exit-after) —
+  re-runs a REAL past session: the frames the agent archived + the reads it recorded drip
+  through the REAL loop (TV_STUB manifest seam + TV_FRAMES_DIR watch seam). Persistent journal
+  tv/sessions.jsonl (gitignored, newline-safe, 4MB rotation), seeded with his 97 frame-backed
+  reads from the browser history — `tvd replay --n 1` re-broadcasts the 03:18 Meph run incl. the
+  Civerb's Ward + Face of Horror double-grail read. Honesty: replay never journals itself
+  (TV_NO_JOURNAL), never OCRs replayed pixels (TV_OCR=0), only replays frames that still exist.
+- **v753 audit batch**: ONE version truth (VERSION const → banner/HUD/state; the v740 stale
+  stamps are gone) · frame archive 1920→2560px, keep 80→600 + 500MB disk ceiling (the pruner was
+  silently eating his photos — the "not openable" class) · farewell can never hang (capture hard
+  timeout → read.jpg → newest archived frame fallback chain) · run-#8 fix: gameplay+names =
+  loot-class for the lifecycle (grail piles enter the SEEN chain) · journal lane field · watch
+  mode accepts .jpg (never re-eats read.jpg) · journal-write failure surfaces once · tests never
+  touch the real journal · TRACKING refreshed (runs #4–8 + cinema arc closed, TV-B26 opened).
+- Gates: agent **55/55** (lifecycle-class + replay manifest + journal + seam locks) · replay
+  e2e proven on the real Meph session · board pass (v754) running with the architect.

@@ -21,3 +21,4 @@ bible.html.EDIT_LOCK
 tv/frames/
 tv/state.json
 tv/known_frames.json
+tv/sessions.jsonl

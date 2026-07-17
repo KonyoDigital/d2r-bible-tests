@@ -6,6 +6,7 @@ import io, json, os, struct, sys, tempfile, threading, time, unittest, urllib.re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["TV_PORT"] = "17971"          # never collide with a live agent
 import tv_diablo as tv
+tv.JOURNAL = os.path.join(tempfile.gettempdir(), "tvd_test_journal.jsonl")   # v753 — tests NEVER write the real session journal
 
 
 def make_bmp(path, payload):
@@ -629,6 +630,70 @@ class TestKnownFrames(unittest.TestCase):
     def test_transition_prompt_vocabulary(self):
         # the vision prompt must offer the transition scene, or Sonnet can never say it
         self.assertIn("transition", tv.READ_PROMPT)
+
+
+class TestLifecycleSceneClass(unittest.TestCase):
+    """v753 — run #8: the grail pile Sonnet called 'gameplay' must still enter the SEEN chain."""
+    def test_gameplay_with_names_is_loot_class(self):
+        self.assertEqual(tv.effective_lc_scene("gameplay", ["The Grandfather"]), "loot")
+
+    def test_gameplay_empty_stays_gameplay(self):
+        self.assertEqual(tv.effective_lc_scene("gameplay", []), "gameplay")
+
+    def test_real_scenes_untouched(self):
+        for sc in ("stash", "inventory", "loot", "town", "transition"):
+            self.assertEqual(tv.effective_lc_scene(sc, ["x"]), sc)
+
+
+class TestReplay(unittest.TestCase):
+    """v752 — REPLAY: re-run a REAL past session (Konyo: 'use the screenshots it used…
+    re-run a test on the history — real based on real simulation ingame')."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+
+    def test_stub_manifest_env_seam(self):
+        # TV_STUB_MANIFEST points claude_read at a REPLAY manifest, not the canned demo one
+        man = os.path.join(self.d, "replay_manifest.json")
+        with open(man, "w") as f:
+            json.dump({"7_123.jpg": {"area": "Durance of Hate Level 2", "scene": "loot",
+                                     "names": ["Harlequin Crest"], "tz": []}}, f)
+        frame = os.path.join(self.d, "7_123.jpg"); open(frame, "wb").write(b"x")
+        os.environ["TV_STUB"] = "1"; os.environ["TV_STUB_MANIFEST"] = man
+        try:
+            rd = tv.claude_read(frame)
+        finally:
+            os.environ.pop("TV_STUB", None); os.environ.pop("TV_STUB_MANIFEST", None)
+        self.assertEqual(rd.get("area"), "Durance of Hate Level 2")
+        self.assertEqual(rd.get("names"), ["Harlequin Crest"])
+
+    def test_journal_appends_reads(self):
+        # every published read lands in the persistent journal (replay's source of truth)
+        j = os.path.join(self.d, "sessions.jsonl")
+        old = tv.JOURNAL; tv.JOURNAL = j
+        try:
+            tv._journal({"ts": 1, "n": 1, "scene": "loot", "names": ["Ist Rune"], "frameId": "1_1"})
+            tv._journal({"ts": 2, "n": 2, "scene": "stash", "names": [], "frameId": "2_2"})
+        finally:
+            tv.JOURNAL = old
+        lines = [json.loads(x) for x in open(j) if x.strip()]
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0]["names"], ["Ist Rune"])
+
+    def test_replay_manifest_builder(self):
+        # the builder keeps only reads whose frame file EXISTS, keyed by basename, recorded truth
+        import replay as rp
+        frames = os.path.join(self.d, "hist"); os.makedirs(frames)
+        open(os.path.join(frames, "1_100.jpg"), "wb").write(b"x")
+        reads = [
+            {"ts": 100, "n": 1, "frameId": "1_100", "area": "Cold Plains", "scene": "loot",
+             "names": ["Vex Rune"], "tz": []},
+            {"ts": 200, "n": 2, "frameId": "2_200", "area": "", "scene": "gameplay", "names": []},  # frame missing
+            {"ts": 300, "n": 3, "frameId": "", "area": "", "scene": "loot", "names": ["ghost"]},     # no frame
+        ]
+        man, order = rp.build_manifest(reads, frames)
+        self.assertEqual(order, ["1_100.jpg"])
+        self.assertEqual(man["1_100.jpg"]["names"], ["Vex Rune"])
+        self.assertEqual(man["1_100.jpg"]["area"], "Cold Plains")
 
 
 if __name__ == "__main__":

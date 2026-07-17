@@ -26,13 +26,14 @@
 #   Frugality (protects your plan limits): a read fires ONLY when the screen
 #   goes STABLE (two identical captures in a row = you stopped to look at
 #   items) after having changed. Running around = every frame differs = zero
-#   reads. Hard caps: ≥20s between reads, 120 reads per session.
+#   reads. Live pacing: 6s cruise gap · 2.5s priority gap · 240 reads/session cap.
 # ═══════════════════════════════════════════════════════════════════════════════
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+VERSION = "v753"   # ONE truth — banner, autopilot HUD, and state all read this
 HERE   = os.path.dirname(os.path.abspath(__file__))
-FRAMES = os.path.join(HERE, "frames")
+FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
 MIN_GAP_S    = 6      # baseline gap between vision fires
@@ -77,6 +78,34 @@ READ_PROMPT = (
     "conf = 0.0-1.0 confidence. Be fast and precise."
 )
 
+# v752 — persistent session journal (tv/sessions.jsonl, gitignored): every published read
+# appended as one JSON line. This is what `tvd replay` re-runs — real frames, real reads.
+JOURNAL = os.path.join(HERE, "sessions.jsonl")
+_JOURNAL_WARNED = False
+def _journal(rec):
+    global _JOURNAL_WARNED
+    if os.environ.get("TV_NO_JOURNAL"):   # v753 — a REPLAY is a re-broadcast, never a new session
+        return
+    try:
+        need_nl = False
+        try:
+            if os.path.getsize(JOURNAL) > 0:
+                with open(JOURNAL, "rb") as f:
+                    f.seek(-1, 2); need_nl = f.read(1) != b"\n"
+        except Exception:
+            pass
+        with open(JOURNAL, "a", encoding="utf-8") as f:
+            if need_nl: f.write("\n")
+            f.write(json.dumps(rec) + "\n")
+        if os.path.getsize(JOURNAL) > 4_000_000:   # ~4MB → keep the newest half
+            with open(JOURNAL, encoding="utf-8") as f: lines = f.readlines()
+            with open(JOURNAL, "w", encoding="utf-8") as f: f.writelines(lines[len(lines)//2:])
+    except Exception as e:
+        if not _JOURNAL_WARNED:
+            _JOURNAL_WARNED = True
+            try: ev("cap", f"journal write failed ({e}) — replay of this session won't be available")
+            except Exception: pass
+
 _state_lock = threading.Lock()
 def _load():
     try:
@@ -101,7 +130,7 @@ _AP = {
     "namedStreak": 0,
     "lastNamed": "",
     "gap": MIN_GAP_S,
-    "ver": "v740",
+    "ver": VERSION,
 }
 def ev(kind, text):
     """v710.6 — the BRAIN LOG: the scanner's real decisions, streamed to the board
@@ -180,15 +209,20 @@ def bridge():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
-def capture_mac(path):
-    """One silent full-screen capture. BMP = deterministic pixels → md5 frame-diff works."""
-    r = subprocess.run(["screencapture", "-x", "-t", "bmp", path], capture_output=True)
-    return r.returncode == 0 and os.path.exists(path)
+def capture_mac(path, timeout=12):
+    """One silent full-screen capture. BMP = deterministic pixels → md5 frame-diff works.
+    v753 — hard timeout: a wedged screencapture must never hang the farewell/stop path."""
+    try:
+        r = subprocess.run(["screencapture", "-x", "-t", "bmp", path], capture_output=True, timeout=timeout)
+        return r.returncode == 0 and os.path.exists(path)
+    except Exception:
+        return False
 
 def newest_watched_frame():
     """Windows mode: capture_win.ps1 drops frames into tv/frames — consume the newest."""
     try:
-        fs = [os.path.join(FRAMES, f) for f in os.listdir(FRAMES) if f.lower().endswith((".bmp", ".png"))]
+        fs = [os.path.join(FRAMES, f) for f in os.listdir(FRAMES)
+              if f.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")) and f != "read.jpg"]   # v753 — replay drips .jpg; never re-eat our own vision copy
         return max(fs, key=os.path.getmtime) if fs else None
     except Exception:
         return None
@@ -213,11 +247,13 @@ def sig_diff(a, b, tol=28):
 # v735 — per-read frame ring for session history (human eye ~1920; AI still uses 1568)
 HIST_DIR = os.path.join(FRAMES, "hist")
 try:
-    HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "80")))
+    HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "600")))   # v753 — Konyo: EVERY photo openable; 80 was silently eating the archive
+    HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "500")))       # v753 — AND a disk ceiling: oldest pruned past ~500MB
 except Exception:
-    HIST_KEEP = 80
+    HIST_KEEP = 600
+    HIST_MB = 500
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
-HIST_MAX_PX = 1920
+HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-crisp fullscreen (was 1920)
 
 # v741 — KNOWN-DEAD FRAMES (Konyo: the loading/portal screen 'is always the same photo — it
 # should be recognized'): an empty deep read teaches the agent that frame's signature; when it
@@ -323,12 +359,18 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     ok = os.path.isfile(dest)
         if not ok:
             return ""
-        # prune oldest beyond HIST_KEEP
+        # prune oldest beyond HIST_KEEP — and beyond the TV_HIST_MB disk ceiling (v753)
         try:
             files = [os.path.join(HIST_DIR, f) for f in os.listdir(HIST_DIR)
                      if f.lower().endswith(".jpg")]
             files.sort(key=lambda p: os.path.getmtime(p))
-            for old in files[:-HIST_KEEP]:
+            total = sum(os.path.getsize(f) for f in files)
+            over_mb = []
+            while total > HIST_MB * 1_000_000 and len(files) - len(over_mb) > 10:
+                f0 = files[len(over_mb)]
+                total -= os.path.getsize(f0)
+                over_mb.append(f0)
+            for old in set(over_mb) | set(files[:-HIST_KEEP]):
                 try: os.remove(old)
                 except Exception: pass
         except Exception:
@@ -563,7 +605,7 @@ def filter_ocr_lines(lines):
 
 def ocr_fast(path):
     """Fast lane: local OCR → provisional names. Target warm p50 < 50ms, p99 < 200ms."""
-    if not OCR_ENABLED:
+    if not OCR_ENABLED or os.environ.get("TV_OCR") == "0":
         return None
     t0 = time.time()
     raw = _OCR.read(path)
@@ -1050,7 +1092,8 @@ def claude_read(path):
     # vision cost, in tests and in CI. Never set in real play.
     if os.environ.get("TV_STUB"):
         try:
-            with open(os.path.join(HERE, "stub_manifest.json"), encoding="utf-8") as f: man = json.load(f)
+            man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
+            with open(man_path, encoding="utf-8") as f: man = json.load(f)
         except Exception:
             man = {}
         base = os.path.basename(path)
@@ -1115,7 +1158,7 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print("📺 TV DIABLO Autopilot v740 — farewell read on stop · chain vault · frame hist")
+    print(f"📺 TV DIABLO Autopilot {VERSION} — replay · journal · farewell · chain vault · frame hist")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
@@ -1214,6 +1257,9 @@ def main():
             print(f"  ⏳ {note}  [known frame · 0ms]")
             t_ts = int(time.time() * 1000)
             t_fid = archive_read_frame(frame, reads + 1, t_ts)
+            _journal({"ts": t_ts, "n": reads + 1, "scene": "transition", "names": [], "area": "",
+                      "frameId": t_fid, "note": note, "transition_from": LAST_AREA, "ms": 0,
+                      "mode": "known", "lane": "known"})
             with _state_lock:
                 st = _load()
                 st["reads"].append({
@@ -1322,6 +1368,12 @@ def main():
                 _AP["namedStreak"] = 0
         _AP["emptyStreak"] = empty_streak
 
+def effective_lc_scene(scene, names):
+    """v753 — run-#8 lesson: a pile read Sonnet labels 'gameplay' but NAMES items is loot-class
+    for the lifecycle (else stash can never vault what was honestly seen). Display keeps the label."""
+    scene = scene or "gameplay"
+    return "loot" if (scene == "gameplay" and names) else scene
+
 def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False):
     """Publish one deep-lane record (main settle + v740 farewell). Returns the record dict."""
     global LAST_AREA
@@ -1329,7 +1381,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     if rd.get("area"): LAST_AREA = rd["area"]
     names = rd.get("names") or []
     intent = rd.get("intent") or _intent_for(rd.get("scene"))
-    lc = _LIFECYCLE.process(rd.get("scene") or "gameplay", names, rd.get("area") or "", rd.get("conf"))
+    lc = _LIFECYCLE.process(effective_lc_scene(rd.get("scene"), names), names, rd.get("area") or "", rd.get("conf"))
     vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
     pending_names = lc.get("pending_names") or []
     thrown_names = lc.get("thrown_names") or []
@@ -1403,6 +1455,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     if (rd.get("scene") or "") == "transition":
         rec["transition_from"] = LAST_AREA
         rec["note"] = transition_note(LAST_AREA, n)
+    _journal(rec)
     with _state_lock:
         st = _load()
         st.setdefault("seen", []); st.setdefault("farmed", [])
@@ -1457,9 +1510,19 @@ def farewell_read(force_frame=None):
                         frame = jp
                         ev("skip", "farewell: capture failed — using last read.jpg")
                     else:
-                        ev("cap", "farewell capture failed")
-                        print("  👋 farewell: capture failed — skipping")
-                        return None
+                        # v753 — deepest fallback: the newest archived hist frame
+                        try:
+                            hs = sorted((os.path.join(HIST_DIR, f) for f in os.listdir(HIST_DIR)
+                                         if f.lower().endswith(".jpg")), key=os.path.getmtime)
+                        except Exception:
+                            hs = []
+                        if hs:
+                            frame = hs[-1]
+                            ev("skip", "farewell: capture failed — using newest archived frame")
+                        else:
+                            ev("cap", "farewell capture failed")
+                            print("  👋 farewell: capture failed — skipping")
+                            return None
         except Exception as e:
             ev("cap", f"farewell capture error: {e}")
             print(f"  👋 farewell: capture error — {e}")

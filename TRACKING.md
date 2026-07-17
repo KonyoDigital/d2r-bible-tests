@@ -72,11 +72,16 @@ There is **no** separate GitHub Project board yet. Until one exists, **this file
 | TV-B18 | **done** | Per-read frame history + fullscreen lightbox (~1920) | v735 — eyes on AI |
 | TV-B19 | **done** | Chain vault: stash only SEEN/HOLDING; ban Unidentified | v738 — run #4 Crossbow+Jewel |
 | TV-B20 | **done** | Farewell read on Ctrl-C / tvd stop (end-stash race) | v740 — run #7 miss |
-| TV-B7 | open | History: click chip → openDrop / vault card | UX polish |
+| TV-B21 | **done** | Runs #4–#8 live proofs: ⚡ocr flash · hold→vault · stash-intake · Meph double-grail (Face of Horror + Civerb's) · Baal narration | supersedes TV-B11 |
+| TV-B22 | **done** | Cinema arc: CRT face · RUN STORY reel · chapters · ⏳ ENTERING known-frames wired | v744–v746 |
+| TV-B23 | **done** | 📡 NOW ON AIR live chapter stage + hero band + cast credits + chapter memory + portal chrome | v747–v751 |
+| TV-B24 | **done** | 📼 REPLAY: sessions.jsonl journal + `tvd replay` (real frames, recorded reads, no journal echo) + `tvd sim` | v752 |
+| TV-B25 | **done** | Frame archive: 2560px · keep 600 · 500MB ceiling · farewell hard-timeout+fallbacks · gameplay+names=loot-class | v753 |
+| TV-B7 | in-ship | History/stage: click art → open the bible card (deliberate user click only) | v754 board pass |
 | TV-B8 | open | Multi-frame confirm (low-interest only) | |
 | TV-B9 | open | Shadow metrics (pile-to-chip p50) | |
-| TV-B10 | open | Board Autopilot HUD polish | partial v727 |
-| TV-B11 | open | **Run #5** live proof: ⚡ocr flash + hold→vault · stash · throw-out | after v732 ship |
+| TV-B10 | partial | Board Autopilot HUD polish | v744 meter hierarchy; full pass open |
+| TV-B26 | open | Personal/shared stash art-intake (the Worsuk's End class — no hovers) | next big feature |
 | TV-B12 | later | Public product path | Out of scope until Konyo says go |
 
 ### Rules for TV work
