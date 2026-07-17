@@ -258,13 +258,17 @@ def find_d2r_window_mac():
     try:
         from Quartz import (
             CGWindowListCopyWindowInfo,
-            kCGWindowListOptionOnScreenOnly,
+            kCGWindowListOptionAll,
             kCGNullWindowID,
         )
     except Exception:
         return None
     try:
-        wins = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID) or []
+        # v779-pre (Konyo live: 'it looks full screen') — THE SPACES PROBLEM: a fullscreen D2R
+        # lives on its OWN macOS Space, so OnScreenOnly never saw it and auto fell back to
+        # desktop capture. All-spaces listing finds the game wherever it lives; screencapture
+        # -l captures a window across Spaces.
+        wins = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID) or []
     except Exception:
         return None
     tokens = _match_tokens()

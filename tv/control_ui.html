@@ -728,6 +728,7 @@
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
         <div class="bar"><i id="sig-bar"></i></div>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_ith_rune.png" alt="" onerror="this.style.display='none'">Model</span><span class="val" id="sig-model">—</span></div>
+        <div class="row"><span class="k">🎯 Capture</span><span class="val" id="sig-capture">—</span></div>
       </div>
       <div class="rail-h" style="margin-top:6px">Bible</div>
       <div class="bible-rail" id="bible-rail">
@@ -919,6 +920,14 @@
 
     $('sig-bridge').textContent = on ? 'LINKED' : 'DOWN';
     $('sig-model').textContent = st.model || '—';
+    // v779-pre (Konyo: 'is it targeting the diablo II window? I don't see that it is') —
+    // the eye's target is VISIBLE truth now: window pin vs full screen
+    var capEl = $('sig-capture');
+    if (capEl){
+      var ct = st.captureTarget || {};
+      capEl.textContent = ct.mode === 'window' ? ('🎯 ' + (ct.label || 'game window')) : (on ? 'full screen' : '—');
+      capEl.style.color = ct.mode === 'window' ? 'var(--mint)' : '';
+    }
     if (rc > readMax) readMax = rc;
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
