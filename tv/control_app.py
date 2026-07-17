@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac first · v758)
+# 📺 TV DIABLO — Control App (Mac + Windows twin · v760)
 #
-#   A real windowed control surface: HD grimoire UI, buttons for
+#   Real windowed control surface: HD grimoire UI, buttons for
 #   ON / OFF / STOP / RESTART / SIM. The agent runs HIDDEN (logs to file).
 #   The board auto-connects via bible.html#tvd-on.
 #
-#   Launch:  python3 tv/control_app.py --open
-#   Or:      double-click TV DIABLO.app (installer wires this)
+#   Mac:     python3 tv/control_app.py --open   (or TV DIABLO.app)
+#   Windows: python tv/control_app.py --open    (or Desktop "TV DIABLO" shortcut)
+#            ON starts capture_win.ps1 (hidden) + tv_diablo.py --watch
 #
-#   Zero deps — stdlib only. Agent = tv_diablo.py (same engine).
+#   Zero deps — stdlib only. Same UI (control_ui.html) on both platforms.
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
 
@@ -20,7 +21,6 @@ import subprocess
 import sys
 import threading
 import time
-import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -30,9 +30,15 @@ CONTROL_PORT = int(os.environ.get("TV_CONTROL_PORT", "17772"))
 AGENT_PORT = int(os.environ.get("TV_PORT", "17771"))
 LOG_PATH = os.path.join(HERE, "control_agent.log")
 PID_PATH = os.path.join(HERE, "control_agent.pid")
+CAP_PID_PATH = os.path.join(HERE, "control_capture.pid")
 UI_PATH = os.path.join(HERE, "control_ui.html")
 BIBLE = os.path.join(REPO, "bible.html")
 ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
+CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
+
+IS_WIN = sys.platform.startswith("win")
+# Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+_WIN_CREATE = 0x00000200 | 0x08000000 if IS_WIN else 0
 
 _ART_MIME = {
     ".png": "image/png",
@@ -44,21 +50,36 @@ _ART_MIME = {
 }
 
 _lock = threading.Lock()
-_agent_proc: subprocess.Popen | None = None
-_agent_mode: str = "off"  # off | live | sim
+_agent_proc = None  # type: ignore
+_capture_proc = None  # type: ignore
+_agent_mode = "off"  # off | live | sim
 _log_fp = None
 
 
-def _env_clean(sim: bool = False) -> dict:
+def _env_clean(sim=False):
     env = os.environ.copy()
     env.pop("ANTHROPIC_API_KEY", None)
     env.pop("ANTHROPIC_AUTH_TOKEN", None)
-    env["PATH"] = (
-        "/opt/homebrew/bin:/usr/local/bin:"
-        + os.path.expanduser("~/.local/bin")
-        + ":"
-        + env.get("PATH", "")
-    )
+    extras = []
+    if IS_WIN:
+        extras = [
+            os.path.expandvars(r"%LocalAppData%\Programs\Python\Python312"),
+            os.path.expandvars(r"%LocalAppData%\Programs\Python\Python312\Scripts"),
+            os.path.expandvars(r"%LocalAppData%\Programs\Python\Python313"),
+            os.path.expandvars(r"%LocalAppData%\Programs\Python\Python313\Scripts"),
+            os.path.expandvars(r"%LocalAppData%\Microsoft\WinGet\Links"),
+            os.path.expandvars(r"%ProgramFiles%\Git\cmd"),
+            os.path.expanduser(r"~\.local\bin"),
+        ]
+    else:
+        extras = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            os.path.expanduser("~/.local/bin"),
+        ]
+    head = os.pathsep.join([p for p in extras if p and os.path.isdir(p)])
+    if head:
+        env["PATH"] = head + os.pathsep + env.get("PATH", "")
     if sim:
         env["TV_STUB"] = "1"
     else:
@@ -67,7 +88,7 @@ def _env_clean(sim: bool = False) -> dict:
     return env
 
 
-def _bridge_ping() -> dict | None:
+def _bridge_ping():
     try:
         with urllib.request.urlopen(
             f"http://127.0.0.1:{AGENT_PORT}/ping", timeout=0.6
@@ -77,7 +98,7 @@ def _bridge_ping() -> dict | None:
         return None
 
 
-def _bridge_state() -> dict | None:
+def _bridge_state():
     try:
         with urllib.request.urlopen(
             f"http://127.0.0.1:{AGENT_PORT}/state", timeout=0.8
@@ -87,11 +108,43 @@ def _bridge_state() -> dict | None:
         return None
 
 
-def _port_listener_pid() -> int | None:
-    """Any process holding the agent bridge (ours or a bare `tvd`)."""
+def _port_listener_pid(port=None):
+    """PID listening on TCP port (cross-platform)."""
+    port = int(port or AGENT_PORT)
+    if IS_WIN:
+        try:
+            # netstat -ano: find LISTENING on :port
+            out = subprocess.check_output(
+                ["netstat", "-ano", "-p", "tcp"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+                creationflags=_WIN_CREATE,
+            )
+            needle = f":{port}"
+            for line in out.splitlines():
+                if "LISTENING" not in line.upper():
+                    continue
+                if needle not in line:
+                    continue
+                # only care about local bind
+                parts = line.split()
+                if len(parts) < 5:
+                    continue
+                local = parts[1] if parts[0].upper() == "TCP" else parts[0]
+                if not local.endswith(needle) and f"]{needle}" not in local:
+                    # also accept 0.0.0.0:port / [::]:port
+                    if needle not in local:
+                        continue
+                try:
+                    return int(parts[-1])
+                except ValueError:
+                    continue
+        except Exception:
+            return None
+        return None
     try:
         out = subprocess.check_output(
-            ["lsof", f"-tiTCP:{AGENT_PORT}", "-sTCP:LISTEN"],
+            ["lsof", f"-tiTCP:{port}", "-sTCP:LISTEN"],
             stderr=subprocess.DEVNULL,
             text=True,
         ).strip()
@@ -102,7 +155,7 @@ def _port_listener_pid() -> int | None:
         return None
 
 
-def _agent_alive() -> bool:
+def _agent_alive():
     global _agent_proc
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
@@ -110,12 +163,143 @@ def _agent_alive() -> bool:
     return _port_listener_pid() is not None
 
 
-def start_agent(sim: bool = False) -> dict:
+def _write_pid(path, pid):
+    try:
+        with open(path, "w") as f:
+            f.write(str(pid))
+    except Exception:
+        pass
+
+
+def _read_pid(path):
+    try:
+        with open(path) as f:
+            return int(f.read().strip())
+    except Exception:
+        return None
+
+
+def _kill_pid(pid, force=False):
+    if pid is None:
+        return
+    if IS_WIN:
+        args = ["taskkill", "/PID", str(pid), "/T"]
+        if force:
+            args.append("/F")
+        try:
+            subprocess.run(
+                args,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=_WIN_CREATE,
+            )
+        except Exception:
+            pass
+        return
+    sig = signal.SIGKILL if force else signal.SIGTERM
+    try:
+        os.killpg(pid, sig)
+    except ProcessLookupError:
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            pass
+    except Exception:
+        try:
+            os.kill(pid, sig)
+        except Exception:
+            pass
+
+
+def _pid_alive(pid):
+    if pid is None:
+        return False
+    if IS_WIN:
+        try:
+            out = subprocess.check_output(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+                creationflags=_WIN_CREATE,
+            )
+            return str(pid) in out
+        except Exception:
+            return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except Exception:
+        return False
+
+
+def _start_capture(env, log_fp):
+    """Windows only: hidden capture_win.ps1 loop."""
+    global _capture_proc
+    if not IS_WIN:
+        return None
+    if not os.path.isfile(CAPTURE_PS1):
+        log_fp.write("!! capture_win.ps1 missing — Windows ON will have no frames\n")
+        log_fp.flush()
+        return None
+    # already running?
+    old = _read_pid(CAP_PID_PATH)
+    if old and _pid_alive(old):
+        return old
+    try:
+        _capture_proc = subprocess.Popen(
+            [
+                "powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-File",
+                CAPTURE_PS1,
+            ],
+            cwd=REPO,
+            env=env,
+            stdout=log_fp,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            creationflags=_WIN_CREATE,
+        )
+        _write_pid(CAP_PID_PATH, _capture_proc.pid)
+        log_fp.write(f"capture_win.ps1 pid {_capture_proc.pid}\n")
+        log_fp.flush()
+        return _capture_proc.pid
+    except Exception as e:
+        log_fp.write(f"!! capture start failed: {e}\n")
+        log_fp.flush()
+        return None
+
+
+def _stop_capture():
+    global _capture_proc
+    pid = None
+    with _lock:
+        if _capture_proc is not None and _capture_proc.poll() is None:
+            pid = _capture_proc.pid
+        else:
+            pid = _read_pid(CAP_PID_PATH)
+        _capture_proc = None
+    if pid:
+        _kill_pid(pid, force=True)
+    try:
+        if os.path.isfile(CAP_PID_PATH):
+            os.remove(CAP_PID_PATH)
+    except Exception:
+        pass
+
+
+def start_agent(sim=False):
     global _agent_proc, _agent_mode, _log_fp
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
             return {"ok": True, "msg": "already running", "mode": _agent_mode}
-        # foreign agent already on the port
         if _port_listener_pid() is not None:
             _agent_mode = "sim" if sim else "live"
             return {"ok": True, "msg": "bridge already live", "mode": _agent_mode}
@@ -127,31 +311,40 @@ def start_agent(sim: bool = False) -> dict:
             except Exception:
                 pass
         _log_fp = open(LOG_PATH, "a", buffering=1)
+        plat = "windows" if IS_WIN else "mac"
         _log_fp.write(
             f"\n—— control start {time.strftime('%Y-%m-%d %H:%M:%S')} "
-            f"mode={'sim' if sim else 'live'} ——\n"
+            f"mode={'sim' if sim else 'live'} · {plat} ——\n"
         )
         _log_fp.flush()
 
+        env = _env_clean(sim=sim)
+        # Windows needs the capture half; Mac agent uses screencapture itself
+        if IS_WIN:
+            _start_capture(env, _log_fp)
+
         cmd = [sys.executable, os.path.join(HERE, "tv_diablo.py")]
-        _agent_proc = subprocess.Popen(
-            cmd,
+        if IS_WIN:
+            cmd.append("--watch")
+
+        popen_kw = dict(
+            args=cmd,
             cwd=REPO,
-            env=_env_clean(sim=sim),
+            env=env,
             stdout=_log_fp,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
-            start_new_session=True,
         )
-        try:
-            with open(PID_PATH, "w") as f:
-                f.write(str(_agent_proc.pid))
-        except Exception:
-            pass
+        if IS_WIN:
+            popen_kw["creationflags"] = _WIN_CREATE
+        else:
+            popen_kw["start_new_session"] = True
+
+        _agent_proc = subprocess.Popen(**popen_kw)
+        _write_pid(PID_PATH, _agent_proc.pid)
         _agent_mode = "sim" if sim else "live"
 
-    # wait briefly for bridge
-    for _ in range(40):
+    for _ in range(50):
         if _bridge_ping() is not None:
             break
         time.sleep(0.15)
@@ -160,51 +353,40 @@ def start_agent(sim: bool = False) -> dict:
         "msg": "started",
         "mode": _agent_mode,
         "pid": _agent_proc.pid if _agent_proc else None,
+        "platform": "windows" if IS_WIN else "mac",
+        "watch": IS_WIN,
     }
 
 
-def stop_agent(farewell: bool = True) -> dict:
+def stop_agent(farewell=True):
     global _agent_proc, _agent_mode
     pid = None
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
             pid = _agent_proc.pid
         else:
-            pid = _port_listener_pid()
+            pid = _port_listener_pid() or _read_pid(PID_PATH)
 
-    if pid is None:
+    if pid is None and not IS_WIN:
         _agent_mode = "off"
+        _stop_capture()
         return {"ok": True, "msg": "already off"}
 
-    try:
-        os.killpg(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-    except Exception:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except Exception:
-            pass
+    if pid is not None:
+        # SIGTERM / taskkill (soft first) so farewell can run on both platforms
+        _kill_pid(pid, force=False)
 
-    wait_s = 90 if farewell else 12
-    deadline = time.time() + wait_s
-    while time.time() < deadline:
-        try:
-            os.kill(pid, 0)
+        wait_s = 90 if farewell else 12
+        deadline = time.time() + wait_s
+        while time.time() < deadline:
+            if not _pid_alive(pid):
+                break
             time.sleep(0.25)
-        except ProcessLookupError:
-            break
-    else:
-        try:
-            os.killpg(pid, signal.SIGKILL)
-        except Exception:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except Exception:
-                pass
+        else:
+            _kill_pid(pid, force=True)
+
+    # always stop Windows capture with the agent
+    _stop_capture()
 
     with _lock:
         _agent_proc = None
@@ -217,13 +399,26 @@ def stop_agent(farewell: bool = True) -> dict:
     return {"ok": True, "msg": "stopped", "farewell": farewell}
 
 
-def open_board(auto_on: bool = True) -> dict:
+def _file_url(path, fragment=""):
+    ap = os.path.abspath(path).replace("\\", "/")
+    if IS_WIN:
+        # file:///C:/Users/...
+        if not ap.startswith("/"):
+            ap = "/" + ap
+        url = "file://" + ap
+    else:
+        url = "file://" + ap
+    if fragment:
+        url += "#" + fragment
+    return url
+
+
+def open_board(auto_on=True):
     """Open the bible TV·D tab; #tvd-on flips the board switch via bible boot."""
     if not os.path.isfile(BIBLE):
         return {"ok": False, "msg": "bible.html missing"}
-    # file URL — hash works; query often stripped on file://
     tag = "tvd-on" if auto_on else "tvd-off"
-    url = f"file://{BIBLE}#{tag}"
+    url = _file_url(BIBLE, tag)
     try:
         if sys.platform == "darwin":
             subprocess.Popen(
@@ -231,8 +426,23 @@ def open_board(auto_on: bool = True) -> dict:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-        elif sys.platform.startswith("win"):
-            os.startfile(url)  # type: ignore[attr-defined]
+        elif IS_WIN:
+            # Prefer a real browser so the #hash survives (os.startfile often drops it)
+            opened = False
+            for browser in _windows_browsers():
+                try:
+                    subprocess.Popen(
+                        [browser, url],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=_WIN_CREATE,
+                    )
+                    opened = True
+                    break
+                except Exception:
+                    continue
+            if not opened:
+                os.startfile(url)  # type: ignore[attr-defined]
         else:
             subprocess.Popen(["xdg-open", url])
         return {"ok": True, "msg": "board opened", "url": url}
@@ -240,10 +450,24 @@ def open_board(auto_on: bool = True) -> dict:
         return {"ok": False, "msg": str(e)}
 
 
-def open_control_window() -> None:
+def _windows_browsers():
+    """Ordered Chrome/Edge/Brave paths for --app windows."""
+    cands = [
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+        os.path.expandvars(r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+    ]
+    return [c for c in cands if c and os.path.isfile(c)]
+
+
+def open_control_window():
     url = f"http://127.0.0.1:{CONTROL_PORT}/"
     if sys.platform == "darwin":
-        # Prefer Chrome/Edge/Brave app window (no browser chrome). Fall back to default.
         for app in (
             "Google Chrome",
             "Chromium",
@@ -262,21 +486,40 @@ def open_control_window() -> None:
             except Exception:
                 continue
         subprocess.Popen(["open", url])
-    else:
-        try:
-            import webbrowser
+        return
 
-            webbrowser.open(url)
+    if IS_WIN:
+        for browser in _windows_browsers():
+            try:
+                subprocess.Popen(
+                    [browser, f"--app={url}", f"--window-size=1100,780"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=_WIN_CREATE,
+                )
+                return
+            except Exception:
+                continue
+        try:
+            os.startfile(url)  # type: ignore[attr-defined]
         except Exception:
             pass
+        return
+
+    try:
+        import webbrowser
+
+        webbrowser.open(url)
+    except Exception:
+        pass
 
 
-def status_payload() -> dict:
+def status_payload():
     bridge = _bridge_ping() is not None
     st = _bridge_state() if bridge else None
     mode = _agent_mode
     if bridge and mode == "off":
-        mode = "live"  # foreign or orphaned bridge
+        mode = "live"
     beat = (st or {}).get("beat") or {}
     events = (st or {}).get("events") or []
     tail = []
@@ -290,11 +533,13 @@ def status_payload() -> dict:
         )
     return {
         "ok": True,
-        "ver": "v759",
+        "ver": "v760",
+        "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "mode": mode,
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "pid": _port_listener_pid(),
+        "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
         "readCount": (
             (st or {}).get("readCount")
             if (st or {}).get("readCount") is not None
@@ -315,7 +560,7 @@ def status_payload() -> dict:
 
 # ── HTTP ─────────────────────────────────────────────────────────────────────
 
-def _read_ui() -> bytes:
+def _read_ui():
     if os.path.isfile(UI_PATH):
         with open(UI_PATH, "rb") as f:
             return f.read()
@@ -324,14 +569,14 @@ def _read_ui() -> bytes:
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
-        pass  # silent
+        pass
 
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
-    def _json(self, code: int, obj: dict):
+    def _json(self, code, obj):
         body = json.dumps(obj).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -341,13 +586,11 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _serve_art(self, name: str):
-        """Serve a read-only image from the repo art/ dir. Path-traversal-safe."""
+    def _serve_art(self, name):
         from urllib.parse import unquote
 
         rel = unquote(name).split("?", 1)[0].split("#", 1)[0]
         target = os.path.realpath(os.path.join(ART_DIR, rel))
-        # must stay inside ART_DIR and be a real file
         if not (target == ART_DIR or target.startswith(ART_DIR + os.sep)):
             self._json(403, {"ok": False, "msg": "forbidden"})
             return
@@ -393,7 +636,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, status_payload())
             return
         if path.startswith("/art/"):
-            self._serve_art(path[len("/art/"):])
+            self._serve_art(path[len("/art/") :])
             return
         if path == "/api/log":
             try:
@@ -418,7 +661,6 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {**r, "board": "auto-on"})
             return
         if path == "/api/sim":
-            # restart into sim if needed
             if _agent_alive():
                 stop_agent(farewell=False)
                 time.sleep(0.4)
@@ -427,7 +669,6 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {**r, "board": "auto-on"})
             return
         if path == "/api/off":
-            # board off + stop agent (soft, short wait)
             open_board(auto_on=False)
             r = stop_agent(farewell=False)
             self._json(200, r)
@@ -448,8 +689,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, open_board(auto_on=True))
             return
         if path == "/api/quit":
-            # stop control server only — leave agent if running
-            threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
+            threading.Thread(
+                target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True
+            ).start()
             self._json(200, {"ok": True, "msg": "control quitting"})
             return
         self._json(404, {"ok": False, "msg": "not found"})
@@ -459,17 +701,21 @@ def main():
     open_ui = "--open" in sys.argv or "-o" in sys.argv
     no_open = "--no-open" in sys.argv
 
-    # bind control port
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
-        print(f"⛔ cannot bind 127.0.0.1:{CONTROL_PORT} — control app already running?\n   {e}")
+        print(
+            f"⛔ cannot bind 127.0.0.1:{CONTROL_PORT} — control app already running?\n   {e}"
+        )
         if open_ui and not no_open:
             open_control_window()
         sys.exit(1)
 
-    print(f"📺 TV DIABLO Control v759 · http://127.0.0.1:{CONTROL_PORT}/")
+    plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
+    print(f"📺 TV DIABLO Control v760 · {plat} · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
+    if IS_WIN:
+        print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
     print("   window UI — agent stays hidden. Ctrl-C quits control (not the agent).")
 
     t = threading.Thread(target=srv.serve_forever, daemon=True)
@@ -483,7 +729,9 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n📺 control UI server stopping (agent left as-is — use STOP in the app).")
+        print(
+            "\n📺 control UI server stopping (agent left as-is — use STOP in the app)."
+        )
         srv.shutdown()
 
 

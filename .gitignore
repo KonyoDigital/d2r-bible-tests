@@ -27,3 +27,4 @@ tv/sessions.jsonl
 tv/control_agent.log
 tv/control_app.log
 tv/control_agent.pid
+tv/control_capture.pid

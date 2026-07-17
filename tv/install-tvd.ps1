@@ -1,15 +1,13 @@
-# 📺 TV DIABLO — one-shot Windows installer (the cousin move)
+# 📺 TV DIABLO — one-shot Windows installer (the cousin move · v760 twin)
 #
 #     irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 #
-# One paste does everything: installs Git + Python + Claude Code if missing (winget /
-# Anthropic's official installer), clones or updates the bible repo, and drops a
-# "TV DIABLO" shortcut on the Desktop. The ONE human step left is the first-run
-# Claude login — your own subscription, in your own browser; the shortcut walks you
-# through it. Zero API keys, read-only by construction (screen capture only).
+# One paste: Git + Python + Claude Code if missing, clones/updates the bible repo,
+# drops a Desktop "TV DIABLO" shortcut that opens the SAME HD control app as Mac
+# (ON / OFF / STOP / RESTART / SIM · hidden agent + capture · board auto-connect).
+# Zero API keys, read-only screen capture.
 #
-# Served as text/plain (not octet-stream) so Windows PowerShell's `irm | iex` always
-# gets a string. (The BOM lives in start_tvd_win.ps1 — the file PS 5.1 runs via -File.)
+# Served as text/plain so `irm | iex` always gets a string.
 $ErrorActionPreference = 'Stop'
 $repoUrl  = 'https://github.com/KonyoDigital/d2r-bible-tests.git'
 $repoDir  = Join-Path $HOME 'd2r_bible_tests'
@@ -18,7 +16,6 @@ function Say($m)  { Write-Host "TV DIABLO  $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "   OK  $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "   !!  $m" -ForegroundColor Yellow }
 
-# Older Windows PowerShell defaults can block TLS1.2 against GitHub / Claude / CF.
 try {
   [Net.ServicePointManager]::SecurityProtocol = `
     [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -28,7 +25,6 @@ function Refresh-Path {
   $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
   $user    = [Environment]::GetEnvironmentVariable('Path', 'User')
   $env:Path = @($machine, $user) -join ';'
-  # winget often finishes before the new PATH is visible in this shell — seed the usual homes
   $extras = @(
     (Join-Path $env:ProgramFiles 'Git\cmd'),
     (Join-Path $env:ProgramFiles 'Git\bin'),
@@ -54,7 +50,6 @@ function Have($cmd) {
   return [bool](Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
-# Windows Store "python" App Execution Alias is a stub that opens the Store — not a real interpreter.
 function Real-Python {
   foreach ($c in @('python', 'py')) {
     $cmd = Get-Command $c -ErrorAction SilentlyContinue
@@ -88,15 +83,13 @@ function Winget-Install($id, $label) {
   Refresh-Path
 }
 
-Say "installer — one shot, then the Desktop shortcut does the rest"
+Say "installer (Windows twin) — one shot, then Desktop TV DIABLO = the control app"
 
-# ── winget is the package backbone (ships with Windows 10/11) ─────────────────
 if (-not (Have 'winget')) {
   Warn "winget not found — install 'App Installer' from the Microsoft Store, then re-run this line."
   return
 }
 
-# ── Git ──────────────────────────────────────────────────────────────────────
 Refresh-Path
 if (-not (Have 'git')) {
   Winget-Install 'Git.Git' 'Git'
@@ -106,7 +99,6 @@ if (Have 'git') { Ok "git $((git --version) -replace 'git version ','')" } else 
   return
 }
 
-# ── Python ───────────────────────────────────────────────────────────────────
 $py = Real-Python
 if (-not $py) {
   Winget-Install 'Python.Python.3.12' 'Python 3.12'
@@ -118,12 +110,10 @@ if ($py) { Ok "python ($py)" } else {
   return
 }
 
-# ── Claude Code (the vision brain — runs on YOUR subscription) ───────────────
 Refresh-Path
 if (-not (Have 'claude')) {
   Say "installing Claude Code (Anthropic's official installer)…"
   try {
-    # iwr -UseBasicParsing is more reliable than irm on older PS when content-type is odd
     $install = (Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -UseBasicParsing).Content
     Invoke-Expression $install
   } catch {
@@ -140,7 +130,6 @@ if (Have 'claude') { Ok "claude code" } else {
   return
 }
 
-# ── The bible repo (public) — clone once, pull forever ───────────────────────
 if (Test-Path (Join-Path $repoDir '.git')) {
   Say "updating the bible repo…"
   try {
@@ -152,27 +141,60 @@ if (Test-Path (Join-Path $repoDir '.git')) {
   Say "cloning the bible repo…"
   git clone --depth 1 $repoUrl $repoDir | Out-Null
 }
-if (-not (Test-Path (Join-Path $repoDir 'tv\start_tvd_win.ps1'))) {
-  Warn "clone looks incomplete — missing tv\start_tvd_win.ps1 at $repoDir"
-  return
-}
-Ok "repo at $repoDir"
 
-# ── Desktop shortcut → the launcher (capture + reader in one) ────────────────
+# v760 twin requires the control app surface
+$need = @(
+  'tv\start_tvd_win.ps1',
+  'tv\control_app.py',
+  'tv\control_ui.html',
+  'tv\capture_win.ps1',
+  'tv\tv_diablo.py',
+  'bible.html'
+)
+foreach ($rel in $need) {
+  if (-not (Test-Path (Join-Path $repoDir $rel))) {
+    Warn "clone incomplete — missing $rel at $repoDir"
+    Warn "git pull main (need v760+). Re-run this install line after the repo updates."
+    return
+  }
+}
+Ok "repo at $repoDir (control app present)"
+
+# Desktop shortcut → silent launcher → HD control window (Mac parity)
 $ws  = New-Object -ComObject WScript.Shell
-$lnkPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'TV DIABLO.lnk'
+$desktop = [Environment]::GetFolderPath('Desktop')
+$lnkPath = Join-Path $desktop 'TV DIABLO.lnk'
 $lnk = $ws.CreateShortcut($lnkPath)
 $lnk.TargetPath       = 'powershell.exe'
-$lnk.Arguments        = "-NoLogo -ExecutionPolicy Bypass -File `"$repoDir\tv\start_tvd_win.ps1`""
+# Hidden PowerShell → start_tvd_win.ps1 opens Chrome/Edge --app control UI (no agent console)
+$lnk.Arguments        = "-NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$repoDir\tv\start_tvd_win.ps1`""
 $lnk.WorkingDirectory = $repoDir
 $lnk.IconLocation     = 'shell32.dll,238'
-$lnk.Description      = 'TV DIABLO — read-only loot scanner on your own Claude subscription'
+$lnk.Description      = 'TV DIABLO — HD control app (hidden scanner · your Claude subscription)'
 $lnk.Save()
 Ok "Desktop shortcut: TV DIABLO"
 
-Say "DONE. Double-click the TV DIABLO shortcut on your Desktop."
+# Also Start Menu for discoverability
+try {
+  $startDir = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+  if (Test-Path $startDir) {
+    $sl = $ws.CreateShortcut((Join-Path $startDir 'TV DIABLO.lnk'))
+    $sl.TargetPath       = $lnk.TargetPath
+    $sl.Arguments        = $lnk.Arguments
+    $sl.WorkingDirectory = $lnk.WorkingDirectory
+    $sl.IconLocation     = $lnk.IconLocation
+    $sl.Description      = $lnk.Description
+    $sl.Save()
+    Ok "Start Menu: TV DIABLO"
+  }
+} catch {}
+
+Say "DONE. Double-click TV DIABLO on your Desktop."
+Say "Same as Mac: HD control window · ON / OFF / STOP / RESTART / SIM · board auto-connects."
 $credFile = Join-Path $HOME '.claude\.credentials.json'
 if (-not (Test-Path $credFile)) {
-  Warn "first run will walk you through the ONE human step: logging into your own Claude account."
+  Warn "first run may walk you through logging into your own Claude account (once)."
 }
-Say "then open the bible → TV·D tab → flip the switch. Farm."
+echo ""
+echo "   Windows:  irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex"
+echo "   Mac:      curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash"

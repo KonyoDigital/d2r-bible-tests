@@ -61,16 +61,27 @@ One-shot vision check (no bridge):
 python3 tv/tv_diablo.py --test tests/golden/intake/chronicle_mid.jpg
 ```
 
-## Windows (the cousin) — one-click install
+## Windows (the cousin) — one-click install · **same control app as Mac**
 
 ```powershell
 irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 ```
 
-Desktop shortcut **TV DIABLO** → capture + reader together, API keys stripped,
-first-run Claude login. Then bible → 📺 TV·D → flip the switch.
+That installs Git/Python/Claude if needed, clones the repo, and drops
+**TV DIABLO** on the Desktop (+ Start Menu).
 
-Manual two-terminal form (same under the hood):
+**Double-click TV DIABLO** → **same HD control window as Mac** (Chrome/Edge
+`--app` window, no PowerShell dump). Buttons **ON · OFF · STOP · RESTART · SIM**.
+
+| Button | Windows under the hood |
+|--------|-------------------------|
+| **ON** | Hidden `capture_win.ps1` + `tv_diablo.py --watch` + board `#tvd-on` |
+| **OFF** | Soft stop capture + reader + board off |
+| **STOP** | Full stop + farewell read |
+| **RESTART** | Stop → ON |
+| **SIM** | Stub reads (zero vision $) + board auto-on |
+
+Manual two-terminal debug form (optional):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tv\capture_win.ps1   # terminal 1
