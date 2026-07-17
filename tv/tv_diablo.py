@@ -801,6 +801,33 @@ class LootLifecycle:
         self.thrown = []         # ring of throw-out events
         self.confirmed = []      # ring of vault commits
 
+    def restore(self, snap, keyfn):
+        """v768 (Grok R2) — the lifecycle survives OFF→ON/crash restarts: rehydrate the chain
+        from the last persisted snapshot so a stash read after a restart still finds its
+        floor-proven names (no more 'stash-no-chain' for items the run honestly SAW)."""
+        try:
+            now_ms = int(time.time() * 1000)
+            for v in (snap.get("seen") or []):
+                n = v.get("name");  k = keyfn(n)
+                if n and k not in self.seen:
+                    self.seen[k] = {"name": n, "area": v.get("area", ""), "ts": now_ms}
+            for v in (snap.get("pending") or []):
+                n = v.get("name");  k = keyfn(n)
+                if n and k not in self.pending:
+                    self.pending[k] = {"name": n, "firstHeld": now_ms, "lastHeld": now_ms,
+                                       "tag": v.get("tag", "")}
+            for v in (snap.get("candidates") or []):
+                n = v.get("name");  k = keyfn(n)
+                if n and k not in self.candidates:
+                    self.candidates[k] = {"name": n, "ts": now_ms}
+            for v in (snap.get("vaulted") or []):
+                n = v.get("name");  k = keyfn(n)
+                if n and k not in self.vaulted:
+                    self.vaulted[k] = {"name": n, "reason": v.get("reason", ""), "ts": now_ms}
+            return True
+        except Exception:
+            return False
+
     def snapshot(self):
         return {
             "holdMs": HOLD_MS,
@@ -1155,6 +1182,19 @@ def main():
     global _LIFECYCLE
     os.makedirs(FRAMES, exist_ok=True)
     _LIFECYCLE = LootLifecycle()
+    # v768 (Grok R2) — restart continuity: if the previous run ended within the session window,
+    # rehydrate the loot chain so OFF→ON / crash restarts don't orphan floor-proven items.
+    try:
+        prev = _load()
+        prev_ts = 0
+        for r in (prev.get("reads") or [])[-1:]:
+            prev_ts = r.get("ts") or 0
+        if prev_ts and (int(time.time() * 1000) - prev_ts) < 10 * 60 * 1000 and prev.get("lifecycle"):
+            if _LIFECYCLE.restore(prev["lifecycle"], _norm_name):
+                print("  ♻ lifecycle rehydrated from the last run (%d seen · %d holding)" % (
+                    len(_LIFECYCLE.seen), len(_LIFECYCLE.pending)))
+    except Exception:
+        pass
     with _state_lock:
         _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0,
                "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,

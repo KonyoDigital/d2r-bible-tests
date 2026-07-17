@@ -48,6 +48,7 @@ _ART_MIME = {
 
 _lock = threading.Lock()
 _agent_proc = None  # type: ignore
+_stop_inflight = False   # v768 (Grok R2) — a threaded stop/farewell is running; ON/RESTART must wait
 _capture_proc = None  # type: ignore
 _agent_mode = "off"  # off | live | sim
 _log_fp = None
@@ -364,7 +365,8 @@ def start_agent(sim=False):
 
 
 def stop_agent(farewell=True):
-    global _agent_proc, _agent_mode
+    global _agent_proc, _agent_mode, _stop_inflight
+    _stop_inflight = True
     pid = None
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
@@ -375,6 +377,7 @@ def stop_agent(farewell=True):
     if pid is None and not IS_WIN:
         _agent_mode = "off"
         _stop_capture()
+        _stop_inflight = False
         return {"ok": True, "msg": "already off"}
 
     if pid is not None:
@@ -413,6 +416,7 @@ def stop_agent(farewell=True):
             os.remove(PID_PATH)
     except Exception:
         pass
+    _stop_inflight = False
     return {"ok": True, "msg": "stopped", "farewell": farewell}
 
 
@@ -707,7 +711,7 @@ def status_payload():
         "ver": "v767",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
-        "mode": mode,
+        "mode": ("stopping" if _stop_inflight else mode),
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "pid": _port_listener_pid(),
@@ -909,6 +913,9 @@ class Handler(BaseHTTPRequestHandler):
             self.rfile.read(length)
 
         if path == "/api/on":
+            if _stop_inflight:
+                self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
+                return
             r = start_agent(sim=False)
             board = _open_board_once()
             self._json(200, {**r, "board": board})
@@ -935,6 +942,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "msg": "stopping — farewell read may take up to ~90s"})
             return
         if path == "/api/restart":
+            if _stop_inflight:
+                self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
+                return
             stop_agent(farewell=False)
             time.sleep(0.5)
             r = start_agent(sim=False)

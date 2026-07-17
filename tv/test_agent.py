@@ -667,6 +667,32 @@ class TestDiscovered(unittest.TestCase):
             tv.STATE, tv.JOURNAL = old_state, old_j
 
 
+class TestLifecycleRestore(unittest.TestCase):
+    """v768 (Grok R2) — the loot chain survives an agent restart: floor-proven names must not
+    become 'stash-no-chain' because the process cycled mid-run."""
+    def test_restore_rehydrates_chain(self):
+        lc = tv.LootLifecycle()
+        snap = {"seen": [{"name": "Harlequin Crest", "area": "Durance of Hate Level 2"}],
+                "pending": [{"name": "Vex Rune", "tag": "keep"}],
+                "candidates": [{"name": "Skin of the Vipermagi"}],
+                "vaulted": [{"name": "Nagelring", "reason": "stash"}]}
+        self.assertTrue(lc.restore(snap, tv._norm_name))
+        self.assertIn(tv._norm_name("Harlequin Crest"), lc.seen)
+        self.assertIn(tv._norm_name("Vex Rune"), lc.pending)
+        self.assertIn(tv._norm_name("Skin of the Vipermagi"), lc.candidates)
+        self.assertIn(tv._norm_name("Nagelring"), lc.vaulted)
+
+    def test_restore_never_clobbers_live_entries(self):
+        lc = tv.LootLifecycle()
+        lc.pending[tv._norm_name("Vex Rune")] = {"name": "Vex Rune", "firstHeld": 111, "lastHeld": 222, "tag": "live"}
+        lc.restore({"pending": [{"name": "Vex Rune", "tag": "stale"}]}, tv._norm_name)
+        self.assertEqual(lc.pending[tv._norm_name("Vex Rune")]["tag"], "live")
+
+    def test_restore_tolerates_garbage(self):
+        lc = tv.LootLifecycle()
+        self.assertTrue(lc.restore({"seen": [{}], "pending": None}, tv._norm_name) in (True, False))
+
+
 class TestReplay(unittest.TestCase):
     """v752 — REPLAY: re-run a REAL past session (Konyo: 'use the screenshots it used…
     re-run a test on the history — real based on real simulation ingame')."""

@@ -614,3 +614,16 @@ route() labels. Next-session queue: reading-ghosts polish only.
 - **RUN STORY lights on chapter one** (was hidden until 2 nodes — first loot now starts the reel).
 - Gates: board+console **19/19** · agent 57/57 · control 7/7 · html clean.
 - R1 pick #1 (film-first live stage) + Konyo's side-by-side alignment ask → the v768 architect pass.
+
+### 🏓 R22 · v768-pre — Grok round 2/5, my half shipped (stop-race gate + lifecycle continuity) ✅
+- **The stop-race gate** (Grok R2 #2): threaded stops now raise _stop_inflight — /api/on and
+  /api/restart answer "farewell still finishing" instead of lying "bridge already live" at a
+  dying agent; status mode reports **stopping** so the UI can dim honestly (UI half in the
+  align768 round). Both stop paths clear the flag on every exit.
+- **Lifecycle continuity** (Grok R2 #3 — the R1 sleeper's agent-side twin): LootLifecycle.restore()
+  rehydrates seen/pending/candidates/vaulted from the last persisted snapshot when the previous
+  run ended <10min ago — an OFF→ON or crash restart no longer orphans floor-proven items into
+  'stash-no-chain'. Boot prints "♻ lifecycle rehydrated". Never clobbers live entries.
+- Grok R2 #1 (app film wrong-origin — control :17772 has no /frame; must point at the agent
+  bridge) + the UI stopping-state → folded into align768's v768 round with items 8-9.
+- Gates: agent **60/60** (3 new restore locks) · control **7/7** · align768 mid-build.
