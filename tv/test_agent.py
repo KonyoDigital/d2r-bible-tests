@@ -932,5 +932,55 @@ class TestWindowPin(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+
+class TestVigilantFilm(unittest.TestCase):
+    """v785 — eye.jpg lifecycle: age surfaces, death is clean, no LIVE on a dead frame."""
+
+    def test_eye_age_no_file(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        old = tv.FRAMES
+        try:
+            tv.FRAMES = d
+            self.assertEqual(tv._eye_age_ms(), -1)
+        finally:
+            tv.FRAMES = old
+            import shutil; shutil.rmtree(d, ignore_errors=True)
+
+    def test_eye_age_fresh_and_stale(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        old = tv.FRAMES
+        try:
+            tv.FRAMES = d
+            eye = os.path.join(d, "eye.jpg")
+            with open(eye, "wb") as f:
+                f.write(b"J" * 100)
+            age = tv._eye_age_ms()
+            self.assertGreaterEqual(age, 0)
+            self.assertLess(age, 3000)
+            os.utime(eye, (time.time() - 60, time.time() - 60))
+            self.assertGreater(tv._eye_age_ms(), 50000)
+        finally:
+            tv.FRAMES = old
+            import shutil; shutil.rmtree(d, ignore_errors=True)
+
+    def test_eye_clear(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        old = tv.FRAMES
+        try:
+            tv.FRAMES = d
+            eye = os.path.join(d, "eye.jpg")
+            with open(eye, "wb") as f:
+                f.write(b"J" * 100)
+            tv._eye_clear()
+            self.assertFalse(os.path.exists(eye))
+            tv._eye_clear()   # idempotent on missing file
+        finally:
+            tv.FRAMES = old
+            import shutil; shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

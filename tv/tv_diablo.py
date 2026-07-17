@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v784"   # ONE truth — banner, autopilot HUD, and state all read this  · SIM exact ts↔frame
+VERSION = "v785"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -165,6 +165,29 @@ def ap_interest(peak, stable_ticks, priority, empty_streak, named_recent):
     if stable_ticks >= 1: s += 0.1
     return max(0.0, min(1.0, s))
 
+def _eye_age_ms():
+    """v785 — how old is the film frame? -1 = no eye at all. The stage uses this to DROP
+    film-on instead of claiming LIVE on a dead frame (round-2 sleeper: eye.jpg had no
+    lifecycle discipline — it outlived sessions and froze silently when capture died)."""
+    try:
+        eye = os.path.join(FRAMES, "eye.jpg")
+        if not os.path.isfile(eye):
+            return -1
+        return max(0, int((time.time() - os.path.getmtime(eye)) * 1000))
+    except Exception:
+        return -1
+
+
+def _eye_clear():
+    """v785 — a session's film dies with the session; next ON never flashes yesterday."""
+    try:
+        eye = os.path.join(FRAMES, "eye.jpg")
+        if os.path.isfile(eye):
+            os.remove(eye)
+    except Exception:
+        pass
+
+
 def bridge():
     """localhost bridge the bible polls. GET /state → JSON. CORS: any origin may READ."""
     class H(BaseHTTPRequestHandler):
@@ -189,6 +212,7 @@ def bridge():
                     st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
                     st["stopping"] = _STOPPING   # v777.2 — 1-1 sync: the board drops the INSTANT the farewell begins
                     st["captureTarget"] = dict(_CAP_TARGET)  # v772 — window pin (CrossOver/D2R) or full
+                    st["eyeAgeMs"] = _eye_age_ms()   # v785 — film honesty: stage drops LIVE when this goes stale
                 if _since:
                     st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
                     st.pop("seen", None); st.pop("farmed", None)
@@ -478,10 +502,11 @@ def refresh_eye_preview(bmp_path, min_interval=0.35):
         return
     try:
         eye = os.path.join(FRAMES, "eye.jpg")
-        # v783 — smaller/faster JPEG for the console stage (~720px)
+        # v785 — 1280/q65: the stage star was the softest image in the pipeline (720/q55
+        # while Theatre archives 2560/q82). sips at 1280 is still ~100ms on localhost.
         r = subprocess.run(
-            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "55",
-             "--resampleHeightWidthMax", "720", bmp_path, "--out", eye],
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "65",
+             "--resampleHeightWidthMax", "1280", bmp_path, "--out", eye],
             capture_output=True, timeout=8,
         )
         if r.returncode == 0 and os.path.isfile(eye):
@@ -511,8 +536,8 @@ def _film_loop():
                 # huge frames (retina full-desk) — light shrink so the WebView paints fast
                 if os.path.getsize(tmp) > 700_000:
                     subprocess.run(
-                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "55",
-                         "--resampleHeightWidthMax", "900", tmp, "--out", eye],
+                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "65",
+                         "--resampleHeightWidthMax", "1280", tmp, "--out", eye],
                         capture_output=True, timeout=6,
                     )
                     try:
@@ -2257,6 +2282,7 @@ def _shutdown_handler(signum, frame):
             st = _load(); st["online"] = False; _save(st)
         except Exception:
             pass
+    _eye_clear()   # v785 — the film dies with the session; next ON never flashes yesterday
     print("\n📺 TV DIABLO off — good hunting.")
     # hard exit so we don't re-enter the main loop mid-sleep
     os._exit(0)

@@ -870,3 +870,15 @@ film showed desktop; version drift v774 stamps vs tip v778+.
 - Agent `--watch`: prefers live.bmp for settle; reads cap_target into `_CAP_TARGET` (🎯 pin events).
 - control `_env_clean`: sets `TV_CAPTURE=auto` on Windows when unset.
 - Launchers/install/README stamped for one-window + SIM exact reel product (same as Mac).
+
+## 🌙 Night round 2 → v785 "The Vigilant Film" (Fable, 2026-07-18 ~02:30)
+Round-2 critique (Fable third-eye, banked during Grok's v779–v784 arc) → implemented:
+- **Film honesty governor** (the round-2 sleeper): agent surfaces `eyeAgeMs` on /state, control passes it,
+  stage DROPS `film-on` when the eye is >4s stale — the film never claims LIVE on a dead frame.
+  Eye.jpg lifecycle: `_eye_clear()` on farewell + control-side belt in stop_agent (force-kill path).
+- **SIM glow truth**: `.lit` now follows `TH.open` (paint + thLit); Grok's `.on` toggle was styleless
+  on `.act` buttons — the primary SIM card finally glows on its own click path (button-truth doctrine).
+- **Eye fidelity 1280/q65** (was 720/q55): the stage star is no longer the softest image in the pipeline;
+  still ~100ms sips on localhost, Theatre stays 2560 archival.
+- Dropped round-2 pick #2 (tabs → singleton board): overruled by Konyo's explicit one-window decision (v781).
+- 3 new unit locks (eye age fresh/stale/none · clear idempotent). Suites 77/77 + 16/16.

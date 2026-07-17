@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v784)
+# 📺 TV DIABLO — Control App (Mac + Windows · v785)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -439,6 +439,14 @@ def stop_agent(farewell=True):
                 os.remove(PID_PATH)
         except Exception:
             pass
+        # v785 — belt for the agent's own _eye_clear: a force-killed agent can't clean up,
+        # and a stale eye.jpg makes the next ON flash yesterday's film as LIVE.
+        try:
+            _eye = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames", "eye.jpg")
+            if os.path.isfile(_eye):
+                os.remove(_eye)
+        except Exception:
+            pass
         # v773 — next ON/SIM may open the board again; session is dark
         _BOARD_OPENED = False
         return {"ok": True, "msg": "stopped", "farewell": farewell}
@@ -755,7 +763,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v784",
+        "ver": "v785",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -780,6 +788,7 @@ def status_payload():
         "controlPort": CONTROL_PORT,
         # v772 — pin status (CrossOver on Mac · native D2R on Windows)
         "captureTarget": (st or {}).get("captureTarget") or {},
+        "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),   # v785 — film honesty for the stage
     }
 
 
@@ -1187,7 +1196,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v784 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v785 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
