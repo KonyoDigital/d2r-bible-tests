@@ -204,3 +204,17 @@ already identifies stash screenshots — v342 locate+crop machinery). Same per-v
 as runes/gems/materials. Icons become items; rushed end-of-run stashing catches everything.
 
 Owner: Grok codes · Fable gates · verify: stash something WITHOUT hovering, watch it register.
+
+---
+
+## THE FAREWELL READ (run #7 miss — 2026-07-17 03:00)
+
+Second end-of-session miss in a row (garbage stash → agent closed within seconds → no stash
+read ever fired; the settle+gap+read pipeline needs ~15s the shutdown didn't give it).
+
+Fix: on Ctrl-C / shutdown, the agent takes ONE final capture + deep read ("the farewell read")
+before exiting — the last look at the screen always lands, so end-of-run stashing is never
+lost to the race. Prints '👋 farewell read: …' and publishes it like any read.
+Pairs with the PERSONAL-TAB intake (art-based, no hovers) for full end-of-run coverage.
+
+Owner: Grok codes · Fable gates · verify: stash + instant Ctrl-C → item still registers.
