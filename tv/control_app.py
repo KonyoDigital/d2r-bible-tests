@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows twin · v760)
+# 📺 TV DIABLO — Control App (Mac + Windows · v761 real native window)
 #
-#   Real windowed control surface: HD grimoire UI, buttons for
-#   ON / OFF / STOP / RESTART / SIM. The agent runs HIDDEN (logs to file).
-#   The board auto-connects via bible.html#tvd-on.
-#
-#   Mac:     python3 tv/control_app.py --open   (or TV DIABLO.app)
-#   Windows: python tv/control_app.py --open    (or Desktop "TV DIABLO" shortcut)
-#            ON starts capture_win.ps1 (hidden) + tv_diablo.py --watch
-#
-#   Zero deps — stdlib only. Same UI (control_ui.html) on both platforms.
+#   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
+#   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
+#   Mac:     python3 tv/control_app.py --open  ·  TV DIABLO.app
+#   Windows: pythonw tv/control_app.py --open · Desktop shortcut
+#            ON = capture_win.ps1 (hidden) + tv_diablo.py --watch
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
 
@@ -463,7 +459,7 @@ def open_board(auto_on=True):
 
 
 def _windows_browsers():
-    """Ordered Chrome/Edge/Brave paths for --app windows."""
+    """Ordered Chrome/Edge/Brave paths for --app fallback only."""
     cands = [
         os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
         os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
@@ -477,8 +473,44 @@ def _windows_browsers():
     return [c for c in cands if c and os.path.isfile(c)]
 
 
-def open_control_window():
-    url = f"http://127.0.0.1:{CONTROL_PORT}/"
+def ensure_webview():
+    """Import pywebview; try a one-shot user pip install if missing."""
+    try:
+        import webview  # noqa: F401
+
+        return True
+    except ImportError:
+        pass
+    # one attempt — installers also pre-install; this covers first-run edge cases
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--user",
+                "--quiet",
+                "pywebview>=5.0",
+            ],
+            check=False,
+            timeout=180,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+    except Exception:
+        pass
+    try:
+        import webview  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def _open_browser_app_fallback(url):
+    """Last resort if pywebview is unavailable — Chrome/Edge app mode."""
     if sys.platform == "darwin":
         for app in (
             "Google Chrome",
@@ -499,12 +531,11 @@ def open_control_window():
                 continue
         subprocess.Popen(["open", url])
         return
-
     if IS_WIN:
         for browser in _windows_browsers():
             try:
                 subprocess.Popen(
-                    [browser, f"--app={url}", f"--window-size=1100,780"],
+                    [browser, f"--app={url}", "--window-size=1100,780"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     creationflags=_WIN_CREATE,
@@ -517,13 +548,76 @@ def open_control_window():
         except Exception:
             pass
         return
-
     try:
         import webbrowser
 
         webbrowser.open(url)
     except Exception:
         pass
+
+
+def open_control_window():
+    """Open the real native app window (pywebview). Blocks until the user closes it."""
+    url = f"http://127.0.0.1:{CONTROL_PORT}/"
+    # wait for the local server to answer (up to ~3s)
+    for _ in range(30):
+        try:
+            with urllib.request.urlopen(url, timeout=0.3) as r:
+                if r.status == 200:
+                    break
+        except Exception:
+            time.sleep(0.1)
+
+    if not ensure_webview():
+        print("⚠ pywebview not installed — falling back to browser app window")
+        print("   fix:  python3 -m pip install --user pywebview")
+        _open_browser_app_fallback(url)
+        return
+
+    import webview
+
+    icon = None
+    for cand in (
+        os.path.join(HERE, "tv_diablo_icon.png"),
+        os.path.join(REPO, "art", "diablo_icon.png"),
+    ):
+        if os.path.isfile(cand):
+            icon = cand
+            break
+
+    kwargs = dict(
+        title="TV DIABLO",
+        url=url,
+        width=1120,
+        height=800,
+        min_size=(880, 600),
+        background_color="#070605",
+        text_select=False,
+        confirm_close=False,
+        easy_drag=False,
+    )
+    # icon= supported on some backends; ignore if it errors
+    try:
+        if icon:
+            webview.create_window(**kwargs, icon=icon)
+        else:
+            webview.create_window(**kwargs)
+    except TypeError:
+        webview.create_window(
+            title="TV DIABLO",
+            url=url,
+            width=1120,
+            height=800,
+            min_size=(880, 600),
+            background_color="#070605",
+        )
+
+    # private_mode=False so localStorage works if we ever need it in the UI
+    try:
+        webview.start(debug=False)
+    except Exception as e:
+        print(f"⚠ pywebview failed ({e}) — browser fallback")
+        _open_browser_app_fallback(url)
 
 
 def status_payload():
@@ -545,8 +639,9 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v760",
+        "ver": "v761",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
+        "shell": "pywebview",
         "mode": mode,
         "agent": mode != "off" and bridge,
         "bridge": bridge,
@@ -712,31 +807,46 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     open_ui = "--open" in sys.argv or "-o" in sys.argv
     no_open = "--no-open" in sys.argv
+    # --window-only: attach a native window to an already-running control server
+    window_only = "--window-only" in sys.argv
+
+    if window_only:
+        open_control_window()
+        return
 
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
         print(
-            f"⛔ cannot bind 127.0.0.1:{CONTROL_PORT} — control app already running?\n   {e}"
+            f"📺 control already on :{CONTROL_PORT} — opening another app window\n   ({e})"
         )
         if open_ui and not no_open:
             open_control_window()
-        sys.exit(1)
+        else:
+            sys.exit(1)
+        return
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v760 · {plat} · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v761 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
-    print("   window UI — agent stays hidden. Ctrl-C quits control (not the agent).")
+    print("   close the app window to quit control (agent left as-is unless you STOP).")
 
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
+    time.sleep(0.2)
 
     if open_ui and not no_open:
-        time.sleep(0.25)
+        # Blocks until the native window is closed
         open_control_window()
+        try:
+            srv.shutdown()
+        except Exception:
+            pass
+        return
 
+    # headless server mode (tests / --no-open)
     try:
         while True:
             time.sleep(1)

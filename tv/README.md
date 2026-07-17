@@ -27,9 +27,11 @@ curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash
 That installs git/python/Claude Code if needed, clones the repo, puts `tvd` on
 your PATH, and drops **TV DIABLO.app** on your Desktop (+ `~/Applications`).
 
-**Double-click the app** → HD **control window** (no Terminal). Buttons:
-**ON · OFF · STOP · RESTART · SIM**. ON starts the **hidden** agent and
+**Double-click the app** → **real native window** via **pywebview** (not Chrome).
+Buttons **ON · OFF · STOP · RESTART · SIM**. ON starts the **hidden** agent and
 auto-connects the bible **📺 TV·D** board (`#tvd-on`).
+
+Requires once: `python3 -m pip install --user pywebview` (installers do this).
 
 **One-word launcher** (also installed at `~/.local/bin/tvd`):
 
@@ -70,8 +72,8 @@ irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 That installs Git/Python/Claude if needed, clones the repo, and drops
 **TV DIABLO** on the Desktop (+ Start Menu).
 
-**Double-click TV DIABLO** → **same HD control window as Mac** (Chrome/Edge
-`--app` window, no PowerShell dump). Buttons **ON · OFF · STOP · RESTART · SIM**.
+**Double-click TV DIABLO** → **same native pywebview window as Mac** (Edge
+WebView2 under the hood — not a Chrome tab). Buttons **ON · OFF · STOP · RESTART · SIM**.
 
 | Button | Windows under the hood |
 |--------|-------------------------|

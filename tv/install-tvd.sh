@@ -3,10 +3,9 @@
 #
 #     curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash
 #
-# One paste: ensures git + python3 + Claude Code, clones/updates the bible repo,
-# installs the `tvd` command, and drops a real "TV DIABLO.app" on your Desktop
-# (and in ~/Applications). Double-click → same product Windows gets: scanner +
-# board. Your Claude subscription, zero API keys, read-only screen capture.
+# One paste: ensures git + python3 + pywebview + Claude Code, clones the repo,
+# installs `tvd`, drops TV DIABLO.app on Desktop. Double-click → real native
+# app window (pywebview, not Chrome). Same product as Windows.
 set -euo pipefail
 
 REPO_URL="${TVD_REPO_URL:-https://github.com/KonyoDigital/d2r-bible-tests.git}"
@@ -41,6 +40,14 @@ if ! command -v python3 >/dev/null 2>&1; then
   fi
 fi
 Ok "python3 $(python3 --version 2>&1 | head -1)"
+
+# ── pywebview (real native app window — not Chrome) ──────────────────────────
+Say "installing pywebview (native app window)…"
+if python3 -m pip install --user --quiet 'pywebview>=5.0' 2>/dev/null; then
+  Ok "pywebview (native window)"
+else
+  Warn "pywebview pip install failed — app will try again on first launch / browser fallback"
+fi
 
 # ── Claude Code (vision brain — YOUR subscription) ───────────────────────────
 if ! command -v claude >/dev/null 2>&1; then
@@ -106,7 +113,7 @@ make_app() {
   # launcher: NO Terminal — start_tvd_mac.sh opens the HD control window (v757)
   cat > "$macexe" <<APP
 #!/bin/bash
-export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:/usr/bin:/bin:\$PATH"
+export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.12/bin:/usr/bin:/bin:\$PATH"
 SCRIPT="$script_path"
 if [[ ! -f "\$SCRIPT" ]]; then
   /usr/bin/osascript -e 'display alert "TV DIABLO" message "Missing launcher script. Re-run: curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash" as critical'
@@ -132,9 +139,11 @@ APP
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleVersion</key>
-  <string>757</string>
+  <string>761</string>
   <key>CFBundleShortVersionString</key>
-  <string>757</string>
+  <string>761</string>
+  <key>LSUIElement</key>
+  <false/>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
   <key>NSHighResolutionCapable</key>

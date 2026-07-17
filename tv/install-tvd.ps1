@@ -2,10 +2,9 @@
 #
 #     irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 #
-# One paste: Git + Python + Claude Code if missing, clones/updates the bible repo,
-# drops a Desktop "TV DIABLO" shortcut that opens the SAME HD control app as Mac
-# (ON / OFF / STOP / RESTART / SIM · hidden agent + capture · board auto-connect).
-# Zero API keys, read-only screen capture.
+# One paste: Git + Python + pywebview + Claude Code, clones the bible repo,
+# drops Desktop "TV DIABLO" → real native app window (pywebview / Edge WebView2,
+# NOT Chrome). Same control UI as Mac: ON/OFF/STOP/RESTART/SIM · hidden agent.
 #
 # Served as text/plain so `irm | iex` always gets a string.
 $ErrorActionPreference = 'Stop'
@@ -110,6 +109,15 @@ if ($py) { Ok "python ($py)" } else {
   return
 }
 
+# ── pywebview (real native window via Edge WebView2 — not Chrome) ────────────
+Say "installing pywebview (native app window)…"
+try {
+  & $py -m pip install --user --quiet 'pywebview>=5.0' | Out-Null
+  Ok "pywebview (native window · WebView2)"
+} catch {
+  Warn "pywebview pip install failed — app will retry on first launch / browser fallback"
+}
+
 Refresh-Path
 if (-not (Have 'claude')) {
   Say "installing Claude Code (Anthropic's official installer)…"
@@ -142,7 +150,7 @@ if (Test-Path (Join-Path $repoDir '.git')) {
   git clone --depth 1 $repoUrl $repoDir | Out-Null
 }
 
-# v760 twin requires the control app surface
+# v761 twin requires the control app surface
 $need = @(
   'tv\start_tvd_win.ps1',
   'tv\control_app.py',
@@ -154,23 +162,23 @@ $need = @(
 foreach ($rel in $need) {
   if (-not (Test-Path (Join-Path $repoDir $rel))) {
     Warn "clone incomplete — missing $rel at $repoDir"
-    Warn "git pull main (need v760+). Re-run this install line after the repo updates."
+    Warn "git pull main (need v761+). Re-run this install line after the repo updates."
     return
   }
 }
 Ok "repo at $repoDir (control app present)"
 
-# Desktop shortcut → silent launcher → HD control window (Mac parity)
+# Desktop shortcut → start_tvd_win.ps1 → pythonw + pywebview native window
 $ws  = New-Object -ComObject WScript.Shell
 $desktop = [Environment]::GetFolderPath('Desktop')
 $lnkPath = Join-Path $desktop 'TV DIABLO.lnk'
 $lnk = $ws.CreateShortcut($lnkPath)
 $lnk.TargetPath       = 'powershell.exe'
-# Hidden PowerShell → start_tvd_win.ps1 opens Chrome/Edge --app control UI (no agent console)
+# Hidden host shell only — the app window is pywebview (pythonw), not this console
 $lnk.Arguments        = "-NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$repoDir\tv\start_tvd_win.ps1`""
 $lnk.WorkingDirectory = $repoDir
 $lnk.IconLocation     = 'shell32.dll,238'
-$lnk.Description      = 'TV DIABLO — HD control app (hidden scanner · your Claude subscription)'
+$lnk.Description      = 'TV DIABLO — native control app (pywebview · hidden scanner · your Claude)'
 $lnk.Save()
 Ok "Desktop shortcut: TV DIABLO"
 
@@ -190,7 +198,7 @@ try {
 } catch {}
 
 Say "DONE. Double-click TV DIABLO on your Desktop."
-Say "Same as Mac: HD control window · ON / OFF / STOP / RESTART / SIM · board auto-connects."
+Say "Native app window (not Chrome) · ON / OFF / STOP / RESTART / SIM · board auto-connects."
 $credFile = Join-Path $HOME '.claude\.credentials.json'
 if (-not (Test-Path $credFile)) {
   Warn "first run may walk you through logging into your own Claude account (once)."

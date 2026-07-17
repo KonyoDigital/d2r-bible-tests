@@ -1,12 +1,11 @@
-﻿# 📺 TV DIABLO — Windows launcher (Desktop shortcut · v760)
-# Opens the SAME HD control window as Mac (no PowerShell agent dump).
-# Agent + capture run HIDDEN behind ON/OFF/STOP/RESTART/SIM.
-# Read-only · your Claude subscription · zero API keys.
+﻿# 📺 TV DIABLO — Windows launcher (Desktop · v761 native pywebview window)
+# Real OS app window via Edge WebView2 (NOT Chrome). Agent + capture stay hidden.
 $ErrorActionPreference = 'Continue'
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path   # …\d2r_bible_tests\tv
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repo = Split-Path -Parent $here
 
 function Real-Python {
+  # Prefer pythonw for GUI-only (no console flash)
   foreach ($c in @('pythonw', 'python', 'py')) {
     $cmd = Get-Command $c -ErrorAction SilentlyContinue
     if (-not $cmd) { continue }
@@ -16,61 +15,26 @@ function Real-Python {
       try {
         $v = & $c -3 -c "import sys; print(sys.version)" 2>$null
         if (-not $v) { continue }
-        return @{ Cmd = 'py'; ArgsPrefix = @('-3') }
+        return @{ Cmd = 'py'; Prefix = @('-3') }
       } catch { continue }
     }
-    if ($c -eq 'pythonw' -or $c -eq 'python') {
-      try {
-        # pythonw has no stdout — probe with python if needed
-        if ($c -eq 'pythonw') {
-          $py = Get-Command python -ErrorAction SilentlyContinue
-          if ($py -and ([string]$py.Source) -notmatch 'WindowsApps\\') {
-            return @{ Cmd = 'pythonw'; ArgsPrefix = @() }
-          }
-          # fall through to python
-          continue
-        }
-        $v = & $c -c "import sys; print(sys.version)" 2>$null
-        if (-not $v) { continue }
-        return @{ Cmd = $c; ArgsPrefix = @() }
-      } catch { continue }
+    if ($c -eq 'pythonw') {
+      $py = Get-Command python -ErrorAction SilentlyContinue
+      if ($py -and ([string]$py.Source) -notmatch 'WindowsApps\\') {
+        return @{ Cmd = 'pythonw'; Prefix = @() }
+      }
+      continue
     }
+    try {
+      $v = & $c -c "import sys; print(sys.version)" 2>$null
+      if (-not $v) { continue }
+      return @{ Cmd = $c; Prefix = @() }
+    } catch { continue }
   }
   return $null
 }
 
-function Control-Listening {
-  try {
-    $c = Get-NetTCPConnection -LocalPort 17772 -State Listen -ErrorAction SilentlyContinue
-    return [bool]$c
-  } catch {
-    $net = netstat -ano -p tcp 2>$null | Select-String ':17772' | Select-String 'LISTENING'
-    return [bool]$net
-  }
-}
-
-function Open-ControlWindow {
-  $url = 'http://127.0.0.1:17772/'
-  $browsers = @(
-    "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-    "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
-    "$env:LocalAppData\Google\Chrome\Application\chrome.exe",
-    "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
-    "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
-    "$env:LocalAppData\Microsoft\Edge\Application\msedge.exe",
-    "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe",
-    "$env:LocalAppData\BraveSoftware\Brave-Browser\Application\brave.exe"
-  )
-  foreach ($b in $browsers) {
-    if (Test-Path -LiteralPath $b) {
-      Start-Process -FilePath $b -ArgumentList @("--app=$url", "--window-size=1100,780") -WindowStyle Normal | Out-Null
-      return
-    }
-  }
-  Start-Process $url | Out-Null
-}
-
-# ── PATH seed (same homes as the installer) ──────────────────────────────────
+# PATH seed
 $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' +
             [Environment]::GetEnvironmentVariable('Path','User')
 foreach ($p in @(
@@ -87,7 +51,6 @@ foreach ($p in @(
   }
 }
 
-# subscription contract
 Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
 Remove-Item Env:ANTHROPIC_AUTH_TOKEN -ErrorAction SilentlyContinue
 
@@ -99,7 +62,32 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
   return
 }
 
-# Soft first-run login (credentials file OR Keychain-style later — just open claude once)
+$py = Real-Python
+if (-not $py) {
+  Add-Type -AssemblyName PresentationFramework
+  [System.Windows.MessageBox]::Show(
+    "No real Python found. Re-run the installer.",
+    "TV DIABLO", 'OK', 'Error') | Out-Null
+  return
+}
+
+# Ensure pywebview (Edge WebView2 backend on Windows)
+$probe = if ($py.Cmd -eq 'py') { @('py','-3','-c','import webview') }
+         elseif ($py.Cmd -eq 'pythonw') { @('python','-c','import webview') }
+         else { @($py.Cmd,'-c','import webview') }
+$ok = $false
+try {
+  & $probe[0] $probe[1..($probe.Length-1)] 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) { $ok = $true }
+} catch {}
+if (-not $ok) {
+  $pip = if ($py.Cmd -eq 'py') { @('py','-3','-m','pip','install','--user','--quiet','pywebview>=5.0') }
+         elseif ($py.Cmd -eq 'pythonw') { @('python','-m','pip','install','--user','--quiet','pywebview>=5.0') }
+         else { @($py.Cmd,'-m','pip','install','--user','--quiet','pywebview>=5.0') }
+  try { & $pip[0] $pip[1..($pip.Length-1)] 2>$null | Out-Null } catch {}
+}
+
+# Soft first-run Claude login
 $credHit = $false
 foreach ($c in @(
   (Join-Path $HOME '.claude\.credentials.json'),
@@ -112,7 +100,6 @@ if (-not $credHit) {
   Start-Process -Wait powershell -ArgumentList '-NoLogo','-Command','claude' -ErrorAction SilentlyContinue
 }
 
-# pull-first
 try { git -C $repo pull --ff-only 2>$null | Out-Null } catch {}
 
 $control = Join-Path $here 'control_app.py'
@@ -120,55 +107,22 @@ $ui = Join-Path $here 'control_ui.html'
 if (-not (Test-Path -LiteralPath $control) -or -not (Test-Path -LiteralPath $ui)) {
   Add-Type -AssemblyName PresentationFramework
   [System.Windows.MessageBox]::Show(
-    "Control app files missing. Re-run the installer so git pull gets v760+.",
+    "Control app files missing. Re-run installer (need v761+).",
     "TV DIABLO", 'OK', 'Error') | Out-Null
   return
 }
 
-# Already live → just re-open the window (same as Mac)
-if (Control-Listening) {
-  Open-ControlWindow
-  return
-}
+# Foreground app process: pythonw shows the native window (no console)
+$args = @()
+$args += $py.Prefix
+$args += $control
+$args += '--open'
 
-$py = Real-Python
-if (-not $py) {
-  Add-Type -AssemblyName PresentationFramework
-  [System.Windows.MessageBox]::Show(
-    "No real Python found (Windows Store stub?). Re-run the installer.",
-    "TV DIABLO", 'OK', 'Error') | Out-Null
-  return
-}
-
-# Prefer pythonw (no console). Fall back to python -WindowStyle Hidden via Start-Process.
-$exe = $py.Cmd
-$prefix = $py.ArgsPrefix
-$argList = @()
-$argList += $prefix
-$argList += $control
-$argList += '--open'
-
-# pythonw = no console (preferred). Do not Redirect* on pythonw (it has no stdio).
-if ($exe -eq 'pythonw') {
-  Start-Process -FilePath $exe -ArgumentList $argList -WorkingDirectory $repo -WindowStyle Hidden | Out-Null
-} elseif ($exe -eq 'py') {
-  Start-Process -FilePath 'py' -ArgumentList (@('-3', $control, '--open')) -WorkingDirectory $repo `
-    -WindowStyle Hidden | Out-Null
+if ($py.Cmd -eq 'pythonw') {
+  # Wait so this host script doesn't exit before the window is up
+  Start-Process -FilePath 'pythonw' -ArgumentList $args -WorkingDirectory $repo -Wait
+} elseif ($py.Cmd -eq 'py') {
+  Start-Process -FilePath 'py' -ArgumentList (@('-3', $control, '--open')) -WorkingDirectory $repo -Wait -WindowStyle Normal
 } else {
-  Start-Process -FilePath $exe -ArgumentList @($control, '--open') -WorkingDirectory $repo `
-    -WindowStyle Hidden | Out-Null
-}
-
-# Give the server a beat, then ensure the app window is up (control also --open's)
-Start-Sleep -Milliseconds 500
-if (Control-Listening) {
-  # control_app --open already tried; open again is fine if first missed
-} else {
-  Start-Sleep -Seconds 1
-  if (-not (Control-Listening)) {
-    Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show(
-      "Control server did not start on :17772.`nSee tv\control_app.log",
-      "TV DIABLO", 'OK', 'Error') | Out-Null
-  }
+  Start-Process -FilePath $py.Cmd -ArgumentList @($control, '--open') -WorkingDirectory $repo -Wait -WindowStyle Normal
 }

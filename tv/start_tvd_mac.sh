@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# 📺 TV DIABLO — Mac launcher (Desktop app entry · v757)
-# Opens the HD control window (no Terminal UI). Agent runs hidden behind the scenes.
-# Buttons: ON / OFF / STOP / RESTART / SIM · board auto-connects on ON.
+# 📺 TV DIABLO — Mac launcher (Desktop app · v761 native pywebview window)
+# Real OS app window (not Chrome). Agent stays hidden behind ON/OFF/STOP/RESTART/SIM.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
-export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/Library/Python/3.9/bin:$PATH"
+# user-site packages (pywebview) for system python3
+export PYTHONPATH="${PYTHONPATH:-}"
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
 
 cd "$REPO"
@@ -21,28 +22,16 @@ if ! command -v claude >/dev/null 2>&1; then
   exit 1
 fi
 
+# ensure pywebview (silent if already present)
+python3 -c "import webview" 2>/dev/null || \
+  python3 -m pip install --user --quiet 'pywebview>=5.0' 2>/dev/null || true
+
 # pull-first (quiet)
 if [[ -d "$REPO/.git" ]]; then
   git -C "$REPO" pull --ff-only >/dev/null 2>&1 || true
 fi
 
-open_control_window() {
-  local url="http://127.0.0.1:17772/"
-  open -na "Google Chrome" --args --app="$url" --new-window 2>/dev/null && return 0
-  open -na "Microsoft Edge" --args --app="$url" --new-window 2>/dev/null && return 0
-  open -na "Brave Browser" --args --app="$url" --new-window 2>/dev/null && return 0
-  open -na "Arc" --args --app="$url" --new-window 2>/dev/null && return 0
-  open "$url" 2>/dev/null || true
-}
-
-# If control server already up, just re-open the window
-if lsof -tiTCP:17772 -sTCP:LISTEN >/dev/null 2>&1; then
-  open_control_window
-  exit 0
-fi
-
-# Detached control server + app window (no Terminal)
+# Foreground: this process IS the app window (must not nohup/disown)
+# If control server already up, --open still attaches a second window then exits when closed.
 LOG="$HERE/control_app.log"
-nohup python3 "$HERE/control_app.py" --open >>"$LOG" 2>&1 &
-disown 2>/dev/null || true
-exit 0
+exec python3 "$HERE/control_app.py" --open >>"$LOG" 2>&1
