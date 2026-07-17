@@ -452,3 +452,16 @@ route() labels. Next-session queue: reading-ghosts polish only.
   touch the real journal · TRACKING refreshed (runs #4–8 + cinema arc closed, TV-B26 opened).
 - Gates: agent **55/55** (lifecycle-class + replay manifest + journal + seam locks) · replay
   e2e proven on the real Meph session · board pass (v754) running with the architect.
+
+### 🪟 R13 · v755 — THE COUSIN MOVE: one-line Windows install ✅
+- **`irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex`** — one paste: winget-installs Git +
+  Python + Claude Code (Anthropic's official installer) if missing, clones/updates the public
+  repo, drops a "TV DIABLO" Desktop shortcut. The ONE human step that can never be skipped:
+  the cousin's own Claude login — the shortcut's first run walks him through it (opens claude,
+  waits for credentials, verifies). His subscription, his limits, zero API keys.
+- **tv/start_tvd_win.ps1** (the shortcut): strips API-key env (the v720 lesson, Windows
+  edition) · pull-first · starts capture_win.ps1 minimized + the reader --watch in one window ·
+  Ctrl-C stops both, farewell read included.
+- **Serving**: deploy.sh copies the installer into the dist scaffold; functions/_middleware.js
+  exempts exactly /d2r/install-tvd.ps1 from the password gate (zero secrets in the file — it's
+  in the PUBLIC repo anyway; everything else stays gated).

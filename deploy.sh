@@ -33,6 +33,7 @@ mkdir -p "$DIST/d2r"
 cp bible.html "$DIST/d2r/index.html"   # served at /d2r/
 cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
 cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
+cp tv/install-tvd.ps1 "$DIST/d2r/install-tvd.ps1"   # 📺 cousin one-liner: irm …/d2r/install-tvd.ps1 | iex
 # v687 — do NOT ship orphan /d2r/v44/* (Session Cockpit is native in bible.html; external
 # v44 CSS/JS/SW were a dead layer and caused ghost/404 confusion). Dist is only index+art+functions.
 # v696 — GHOST EXORCISM (live audit): the Phase-Z service worker + a 41KB v44 orphan were STILL
