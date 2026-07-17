@@ -225,8 +225,8 @@ def bridge():
 
 # ── v772.1 — capture target ──────────────────────────────────────────────────
 # DEFAULT = full screen (Konyo plays CrossOver D2R fullscreen — whole display = game).
-# Optional window pin (TV_CAPTURE=window|auto) exists for edge cases only — not the product default.
-# TV_CAPTURE=full|auto|window   default full
+# TV_CAPTURE=full|auto|window — default AUTO (v777.1): pin the live D2R/CrossOver window when
+# present (the eye watches the GAME, not the desktop), full-screen when no game window exists.
 # TV_WINDOW_MATCH=extra,comma,tokens  (only used when window/auto)
 _CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
 
@@ -315,7 +315,7 @@ def capture_mac(path, timeout=12):
     """Full-screen capture by default (fullscreen D2R / CrossOver).
     Optional TV_CAPTURE=window|auto pins CrossOver/D2R window. v753 hard timeout."""
     global _CAP_TARGET
-    mode = (os.environ.get("TV_CAPTURE") or "full").strip().lower()
+    mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()   # v777.1 (Konyo live: 'it's showing the desktop') — AUTO pins the D2R window when one exists; full-screen only as fallback
     # Optional window pin only when explicitly asked (or auto)
     if mode in ("auto", "window", "win", "game"):
         hit = find_d2r_window_mac()
@@ -1416,7 +1416,7 @@ def main():
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
     print(f"📺 TV DIABLO Autopilot {VERSION} — replay · journal · farewell · chain vault · frame hist")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
-    print("   capture: FULL SCREEN (default) · optional TV_CAPTURE=window for window-pin")
+    print("   capture: AUTO (pins the D2R window when live; TV_CAPTURE=full to force full-screen)")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
