@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v793"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v794"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -815,8 +815,15 @@ def transition_note(last_area, n_reads):
     return "loading — next area coming"
 
 def should_learn_dead(rd):
-    """An empty read of gameplay/unknown/transition art = a dead frame worth learning."""
-    return (not rd.get("names")) and rd.get("scene") in ("gameplay", "", "transition") and not rd.get("area")
+    """v794 (Grok R5 #4) — learn a dead frame ONLY on an explicit vision-confirmed transition.
+    The old gate also learned mode:empty / parse-fail shapes — ONE chatty-CLI hiccup on a real
+    inventory freeze wrote that panel into known_frames.json and the eye stayed blind to that
+    whole panel class for the rest of the night (and across restarts)."""
+    if rd.get("names") or rd.get("area"):
+        return False
+    if rd.get("mode") in ("empty", "error", "timeout"):
+        return False
+    return rd.get("scene") == "transition"
 
 def known_dead_match(sig):
     if sig is None: return None
@@ -1240,11 +1247,43 @@ def _norm_stash_tab(raw, scene=None):
     return _STASH_TAB_ALIASES.get(lo, "") if lo in _STASH_TAB_ALIASES else ""
 
 def _parse_read(out):
-    """extract + normalize the read JSON from model text; None if no JSON object found."""
-    a, b = out.find("{"), out.rfind("}")
-    if a < 0 or b <= a: return None
-    try: j = json.loads(out[a:b+1])
-    except Exception: return None
+    """extract + normalize the read JSON from model text; None if no JSON object found.
+    v794 (Grok R5 #4) — first-{ to last-} dies on worker chatter/truncation around the real
+    payload. Scan for BALANCED candidate objects (right-to-left) and take the first that
+    parses AND looks like a read (has a known key)."""
+    j = None
+    try:
+        a, b = out.find("{"), out.rfind("}")
+        if a < 0 or b <= a:
+            return None
+        try:
+            j = json.loads(out[a:b + 1])
+        except Exception:
+            j = None
+        if j is None:
+            # right-to-left balanced scan: the REAL payload is usually the last clean object
+            starts = [k for k, ch in enumerate(out) if ch == "{"]
+            for st in reversed(starts):
+                depth = 0
+                for k in range(st, len(out)):
+                    if out[k] == "{":
+                        depth += 1
+                    elif out[k] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            try:
+                                cand = json.loads(out[st:k + 1])
+                                if isinstance(cand, dict) and any(x in cand for x in ("names", "scene", "area", "conf")):
+                                    j = cand
+                            except Exception:
+                                pass
+                            break
+                if j is not None:
+                    break
+        if not isinstance(j, dict):
+            return None
+    except Exception:
+        return None
     names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
     scene = str(j.get("scene", "gameplay")).lower()
     if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition"): scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)

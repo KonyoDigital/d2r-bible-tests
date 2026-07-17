@@ -622,8 +622,10 @@ class TestKnownFrames(unittest.TestCase):
     def test_should_learn_dead_covers_transition_scene(self):
         # vision now labels the portal art scene='transition' — that read must ALSO teach the cache
         self.assertTrue(tv.should_learn_dead({"scene": "transition", "names": [], "area": ""}))
-        self.assertTrue(tv.should_learn_dead({"scene": "gameplay", "names": [], "area": ""}))
-        self.assertTrue(tv.should_learn_dead({"scene": "", "names": [], "area": ""}))
+        # v794 recal — empty gameplay must NOT learn dead (one bad parse used to blind
+        # the eye to a whole panel class); only explicit vision-confirmed transition learns.
+        self.assertFalse(tv.should_learn_dead({"scene": "gameplay", "names": [], "area": ""}))
+        self.assertFalse(tv.should_learn_dead({"scene": "", "names": [], "area": ""}))   # v794 recal — unknown scene never learns dead
         self.assertFalse(tv.should_learn_dead({"scene": "loot", "names": ["Ist Rune"], "area": ""}))
         self.assertFalse(tv.should_learn_dead({"scene": "gameplay", "names": [], "area": "Durance of Hate Level 2"}))
 
@@ -1049,6 +1051,29 @@ class TestFaultLamp(unittest.TestCase):
         h = tv._health({})
         self.assertEqual(h["lastReadAgeMs"], -1)
         self.assertEqual(h["named"], 0)
+
+
+
+class TestNoPoison(unittest.TestCase):
+    """v794 (Grok R5 #4) — one bad parse must never blind the eye permanently."""
+
+    def test_learn_dead_only_on_explicit_transition(self):
+        self.assertTrue(tv.should_learn_dead({"scene": "transition", "names": [], "area": ""}))
+        self.assertFalse(tv.should_learn_dead({"scene": "gameplay", "names": [], "area": ""}))
+        self.assertFalse(tv.should_learn_dead({"scene": "", "names": [], "area": ""}))
+        self.assertFalse(tv.should_learn_dead({"scene": "transition", "names": [], "area": "", "mode": "empty"}))
+        self.assertFalse(tv.should_learn_dead({"scene": "transition", "names": [], "area": "", "mode": "timeout"}))
+        self.assertFalse(tv.should_learn_dead({"scene": "transition", "names": ["Shako"], "area": ""}))
+
+    def test_parse_survives_chatty_cli(self):
+        chatter = 'worker log {"pid": 12} noise\n{"area":"Cold Plains","scene":"loot","names":["Ist"],"conf":0.9}\ntrailing {broken'
+        p = tv._parse_read(chatter)
+        self.assertIsNotNone(p)
+        self.assertEqual(p["names"], ["Ist"])
+        self.assertEqual(p["area"], "Cold Plains")
+
+    def test_parse_none_on_garbage(self):
+        self.assertIsNone(tv._parse_read("no json here at all"))
 
 
 if __name__ == "__main__":

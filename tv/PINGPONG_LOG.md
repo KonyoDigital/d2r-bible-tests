@@ -940,3 +940,10 @@ match + canonical set-piece name (same as tvChronicleRoute) so 'Harlequin Crest'
 Windows capture_win.ps1 death is now first-class: _capture_health() → LINKED/DEAD/RESTARTED on
 /api/status, auto-restart ONCE with loud log, UI fault 'NO CAPTURE' outranks NO EYE. (OCR twin
 lane = queued for cousin-night, needs a Windows box to verify.) 82/82 + 16/16.
+
+## 🏓 Grok R5 #4 → v794 "No Poison" (~05:35)
+Learn-dead gate: ONLY explicit vision-confirmed scene=transition (mode empty/error/timeout NEVER
+learns — one chatty-CLI hiccup on a real inventory freeze used to blind that panel class for the
+night + across restarts via known_frames.json). _parse_read: right-to-left balanced-object scan
+with known-key check survives worker chatter/truncation. Old test asserting the poison behavior
+RECALIBRATED. 85/85 + 16/16.
