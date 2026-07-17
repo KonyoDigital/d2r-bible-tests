@@ -421,19 +421,51 @@ def _file_url(path, fragment=""):
     return url
 
 
+_MAC_BROWSERS = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+]
+
+_BOARD_OPENED = False
+def _open_board_once():
+    """v764 — ON/SIM auto-open the board only ONCE per control session; afterwards the
+    already-open tab lights up by itself (the board's auto-sync probe). No duplicate tabs."""
+    global _BOARD_OPENED
+    if _BOARD_OPENED:
+        return "already-open (auto-sync)"
+    _BOARD_OPENED = True
+    open_board(auto_on=True)
+    return "opened"
+
 def open_board(auto_on=True):
-    """Open the bible TV·D tab; #tvd-on flips the board switch via bible boot."""
+    """Open the bible TV·D tab. v764: the board AUTO-SYNCS to the bridge now (lamp + probe),
+    so the deep link only needs to LAND on #tvd — and macOS `open` DROPS file:// fragments
+    (the 'routes me to the wrong page' bug), so prefer a direct browser spawn like Windows."""
     if not os.path.isfile(BIBLE):
         return {"ok": False, "msg": "bible.html missing"}
-    tag = "tvd-on" if auto_on else "tvd-off"
-    url = _file_url(BIBLE, tag)
+    url = _file_url(BIBLE, "tvd")
     try:
         if sys.platform == "darwin":
-            subprocess.Popen(
-                ["open", url],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            opened = False
+            for browser in _MAC_BROWSERS:
+                if os.path.isfile(browser):
+                    try:
+                        subprocess.Popen(
+                            [browser, url],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                        opened = True
+                        break
+                    except Exception:
+                        continue
+            if not opened:
+                subprocess.Popen(
+                    ["open", url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
         elif IS_WIN:
             # Prefer a real browser so the #hash survives (os.startfile often drops it)
             opened = False
@@ -765,16 +797,16 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/on":
             r = start_agent(sim=False)
-            open_board(auto_on=True)
-            self._json(200, {**r, "board": "auto-on"})
+            board = _open_board_once()
+            self._json(200, {**r, "board": board})
             return
         if path == "/api/sim":
             if _agent_alive():
                 stop_agent(farewell=False)
                 time.sleep(0.4)
             r = start_agent(sim=True)
-            open_board(auto_on=True)
-            self._json(200, {**r, "board": "auto-on"})
+            board = _open_board_once()
+            self._json(200, {**r, "board": board})
             return
         if path == "/api/off":
             open_board(auto_on=False)

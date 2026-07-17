@@ -645,6 +645,28 @@ class TestLifecycleSceneClass(unittest.TestCase):
             self.assertEqual(tv.effective_lc_scene(sc, ["x"]), sc)
 
 
+class TestDiscovered(unittest.TestCase):
+    """v763 — Konyo: 'in chat some other player finds a chronicle for me… DISCOVERED → route
+    it to the beginning of our system'. The prompt must ask for discovery broadcasts, and the
+    published record must carry them — separate from names (no vault, chronicle only)."""
+    def test_prompt_asks_for_discoveries(self):
+        self.assertIn("discovered", tv.READ_PROMPT)
+
+    def test_emit_carries_discovered_names(self):
+        old_state, old_j = tv.STATE, tv.JOURNAL
+        d = tempfile.mkdtemp()
+        tv.STATE = os.path.join(d, "state.json"); tv.JOURNAL = os.path.join(d, "j.jsonl")
+        try:
+            rec = tv.emit_deep_read({"area": "Durance of Hate Level 2", "scene": "gameplay",
+                                     "names": [], "tz": [], "conf": 0.9, "ms": 100,
+                                     "discovered": ["Harlequin Crest", "Sigon's Guard"]},
+                                    n=1, frame_id="")
+            self.assertEqual(rec.get("discovered_names"), ["Harlequin Crest", "Sigon's Guard"])
+            self.assertEqual(rec.get("vault_names"), [])   # a chat discovery NEVER vaults
+        finally:
+            tv.STATE, tv.JOURNAL = old_state, old_j
+
+
 class TestReplay(unittest.TestCase):
     """v752 — REPLAY: re-run a REAL past session (Konyo: 'use the screenshots it used…
     re-run a test on the history — real based on real simulation ingame')."""

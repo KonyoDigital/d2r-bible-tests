@@ -4212,7 +4212,7 @@ try {
          the EXISTING engines (grail tick · set tick · rune tally) — review-first, never silent. -->
     <section class="sc-card sc-card-tvd" id="sc-card-tvd">
       <div class="sc-card-h">📺 TV DIABLO
-        <span class="tvd-switch tvd-off" id="tvd-switch" role="switch" aria-checked="false" tabindex="0" title="the live scanner — run tv/tv_diablo.py in a terminal, then flip this" onclick="window._tvdToggle&&window._tvdToggle()">
+        <span class="tvd-switch tvd-off" id="tvd-switch" role="switch" aria-checked="false" tabindex="0" title="auto-synced to the TV DIABLO app — press ON there; this lamp follows" data-tvd-lamp="1">
           <span class="tvd-track"><span class="tvd-knob"></span></span><span class="tvd-word" id="tvd-word">OFF</span>
         </span>
       </div>
@@ -7288,7 +7288,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <div class="tvb-side">
       <div class="tvb-title">📺 TV DIABLO <span class="tvb-badge">LIVE SCANNER</span></div>
       <div class="tvb-sub">Read-only sight on your own game screen — vision on <b>your</b> Claude subscription, zero API keys, nothing touches the game. Launch: <code>TV DIABLO</code> app (ON auto-connects) or <code>tvd</code>. It watches every quarter-second; it reads the moment you stop on loot, a tooltip, or your stash.</div>
-      <span class="tvd-switch tvd-off tvb-bigswitch" role="switch" aria-checked="false" tabindex="0" title="power" onclick="window._tvdToggle&&window._tvdToggle()">
+      <span class="tvd-switch tvd-off tvb-bigswitch" role="switch" aria-checked="false" tabindex="0" title="power" data-tvd-lamp="1">
         <span class="tvd-track"><span class="tvd-knob"></span></span><span class="tvd-word">OFF</span>
       </span>
       <div class="tvb-meters">
@@ -27834,6 +27834,47 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
   };
   // v731 — reverse a mistaken vault when player drops the item back to the floor
+  // v763 — TV → THE CHRONICLES (Konyo: 'route it to the beginning of our system and let the
+  // engine do its work'). ONE head: uniques → toggleOwned (dated foundLog, calc, undo — the
+  // grailFoundUni path), set pieces → toggleSetPiece (setPieces store + the same ledger).
+  // Chronicles stay separate coding-wise; this only knocks on each engine's front door.
+  // src: 'vault' (his stash commit) · 'chat' (a DISCOVERED broadcast — knowledge, never vault).
+  window.tvChronicleRoute = function(name, src){
+    try {
+      name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+      var already = !!(window._gFound && window._gFound(name));
+      var piece = window.findSetPiece && window.findSetPiece(name);
+      if (piece){
+        // tick the CANONICAL piece name (slot-suffixed, e.g. "Sigon's Guard (shield)") so the
+        // ledger/setPieces keys line up with the engine — never mint a duplicate raw key.
+        var pieceName = (piece && piece.piece) || name;
+        if (window._gFound && window._gFound(pieceName)) return { ok:true, kind:'set', already:true, name: pieceName };
+        if (typeof window.toggleSetPiece !== 'function') return { ok:false, why:'no-engine' };
+        window.toggleSetPiece(pieceName);
+        try { window._grailToast && window._grailToast('🧩', '<b>'+pieceName+'</b> '+(src==='chat'?'DISCOVERED in game':'chronicled!'), 'the set grail grows'); } catch(e){}
+        return { ok:true, kind:'set', name: pieceName };
+      }
+      // grail universe names carry base suffixes ('Harlequin Crest (Shako)') — resolve
+      // suffix-tolerantly and tick the CANONICAL name so the engine's ledger keys line up.
+      var _cn = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+      var canonical = null;
+      if (typeof ITEMS !== 'undefined'){
+        var qn = _cn(name);
+        var hit = ITEMS.find(function(i){ return i.n === name || _cn(i.n) === qn; });
+        if (hit) canonical = hit.n;
+      }
+      if (!canonical && window._UNI_EXTRA && window._UNI_EXTRA[name]) canonical = name;
+      if (canonical){
+        if (window._gFound && window._gFound(canonical)) return { ok:true, kind:'uni', already:true };
+        if (typeof toggleOwned !== 'function') return { ok:false, why:'no-engine' };
+        toggleOwned(canonical);
+        try { window._grailToast && window._grailToast('🏆', '<b>'+canonical+'</b> '+(src==='chat'?'DISCOVERED in game':'found!'), 'the unique chronicle grows'); } catch(e){}
+        return { ok:true, kind:'uni', name: canonical };
+      }
+      return { ok:false, why:'not-chronicle' };
+    } catch(e){ return { ok:false, why:String(e && e.message || e) }; }
+  };
+
   window.tvVaultUnregister = function(name){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false };
@@ -31743,6 +31784,7 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvd-chapter::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(159,212,255,.3),transparent)}
 .tvd-chapter-ic{font-size:11px}
 .tvd-chip.tc-trans{color:#e8b96a;border-color:rgba(232,185,106,.35);background:rgba(232,185,106,.06);font-style:italic}
+.tvc-lc.tvc-disc{color:#ffd76a;text-shadow:0 0 8px rgba(255,215,106,.5)}
 /* v747 — 📡 NOW ON AIR: the live chapter stage. All classes namespaced tvn- (no global collisions).
    Background-tab honesty: the global html.z-bg rule (animation-play-state:paused) freezes every
    animation below when the page is hidden — no per-rule guard needed.
@@ -33160,7 +33202,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var openAff = (x.kind!=='note' && x.db!==false && openClean)
       ? ' <span class="tvd-open" role="button" tabindex="0" data-open="'+escAttr(openClean)+'" title="open '+escAttr(openClean)+' card">↗</span>' : '';
     var vtag = '';
-    if (x.thrown) vtag = '<span class="tvd-vault-tag" style="color:#e08a8a" title="thrown back to floor — not kept">🗑 throw</span>';
+    if (x.discovered) vtag = '<span class="tvd-vault-tag" style="color:#ffd76a" title="chat discovery broadcast — chronicled (F·Uniques/F·Sets), never vaulted">💬🏆 discovered</span>';
+    else if (x.thrown) vtag = '<span class="tvd-vault-tag" style="color:#e08a8a" title="thrown back to floor — not kept">🗑 throw</span>';
     else if (vaulted || x.vault) vtag = '<span class="tvd-vault-tag" title="'+(x.muleName?('filed → '+x.muleName):'filed to vault shelf')+'">🏦 vault</span>';
     else if (x.holding) vtag = '<span class="tvd-vault-tag" style="color:#ffd97a" title="holding in inv — vault after ~30s still held or town stash">⏳ hold</span>';
     else if (x.confirmed) vtag = '<span class="tvd-vault-tag" style="color:#8fe6a0" title="Claude confirmed the OCR flash">✓ conf</span>';
@@ -33535,7 +33578,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         if(x.kind==='item') return '<span class="tvd-chip"'+chipTip(x)+' title="in ITEMS DB — vault-fileable base/misc">'+chipArt(x)+x.label+dbBadge(x)+'</span>';
         if(x.done) return '<span class="tvd-chip tc-done"'+chipTip(x)+' title="already in your chronicle">'+chipArt(x)+x.label+' ✓'+dbBadge(x)+(x.vault?' <span class="tvc-lc tvc-vault" title="vaulted'+(x.muleName?(' → '+escAttr(x.muleName)):'')+'">🏦'+(x.muleName?' '+escAttr(x.muleName):'')+'</span>':'')+'</span>';
         var lc='';
-        if(x.thrown) lc=' <span class="tvc-lc tvc-thrown" title="lifecycle: thrown out / vendored">🗑</span>';
+        if(x.discovered) lc=' <span class="tvc-lc tvc-disc" title="chat discovery broadcast — chronicled, never vaulted">💬🏆</span>';
+        else if(x.thrown) lc=' <span class="tvc-lc tvc-thrown" title="lifecycle: thrown out / vendored">🗑</span>';
         else if(x.vault) lc=' <span class="tvc-lc tvc-vault" title="lifecycle: vaulted'+(x.muleName?(' → '+escAttr(x.muleName)):'')+'">🏦'+(x.muleName?' '+escAttr(x.muleName):'')+'</span>';
         else if(x.holding) lc=' <span class="tvc-lc tvc-hold" title="lifecycle: in hand — waiting for stash">⏳</span>';
         else if(x.confirmed) lc=' <span class="tvc-lc tvc-conf" title="deep-read confirmed">✓</span>';
@@ -33796,6 +33840,18 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         if(!rd || rd.ts<=SEEN) return; SEEN=rd.ts; grew=true;
         var intent=rd.intent||(rd.scene==='inventory'||rd.scene==='stash'?'farmed':rd.scene==='loot'?'seen':'context');
         var routes=(rd.names||[]).map(route).filter(Boolean);
+        // v763 — chat DISCOVERED broadcasts ride their own lane: chronicle-only, chip visible
+        (rd.discovered_names||[]).forEach(function(dn){
+          dn = String(dn||'').trim(); if (dn.length < 4) return;
+          var cr = null;
+          try { if (typeof window.tvChronicleRoute === 'function') cr = window.tvChronicleRoute(dn, 'chat'); } catch(e){}
+          var rx = null;
+          try { rx = route(dn); } catch(e){}
+          if (!rx) rx = { kind:'note', key:dn, label:'💬 '+dn, db:false };
+          rx.discovered = true; rx.done = true;   // knowledge, not an apply task
+          rx.lc = (cr && cr.ok) ? 'discovered' : (rx.lc||'');
+          routes.push(rx);
+        });
         var auto=false;
         // v729 — LOOT LIFECYCLE v2: only auto-apply farmed_names from agent (baseline/anchors excluded).
         // Fallback: if farmed_names missing (old agent), keep v723 "all inv/stash names".
@@ -33864,6 +33920,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           // belt: every committed vault_name must hit owned/vault UI even if route() missed
           vaultList.forEach(function(n){
             try { if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(n); } catch(e){}
+            try { if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(n, 'vault'); } catch(e){}
           });
           auto=true;
         }
@@ -33884,7 +33941,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           note: rd.note || '', transition_from: rd.transition_from || '',   // v747 — carry the transition story so the live feed/history/NOW stage show the real portal note (not the 'new area' fallback)
           vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
           lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
-          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, lc:x.lc||'', muleName:x.muleName||'' }; }) };
+          items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, discovered:!!x.discovered, lc:x.lc||'', muleName:x.muleName||'' }; }) };
         FEED.push(entry);
         pushHistRead(entry);
         DIGEST.reads++; if(rd.area) DIGEST.areas[rd.area]=1;
@@ -33901,9 +33958,21 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     poll(); T=setInterval(poll, 250);
   };
   window._tvdRefreshTab=function(){ setState(STATE); render(); renderHistory(); refreshFrameEye(); };
-  document.querySelectorAll('.tvd-switch').forEach(function(sw){
-    sw.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); window._tvdToggle(); } });
-  });
+  // v764 — AUTO-SYNC (Konyo: 'i dont need an ON/OFF button on the website — sync it to the app').
+  // The board SENSES the agent: a light /ping probe every 2.5s while dark; the moment the app's
+  // ON/SIM starts the bridge, every open board tab goes live by itself — and the existing poll
+  // catch already drops to OFFLINE when the app stops it. The switch is a lamp now, not a control.
+  function _tvdProbe(){
+    if (T || document.hidden) return;
+    var ac = (typeof AbortController!=='undefined') ? new AbortController() : null;
+    var to = ac && setTimeout(function(){ ac.abort(); }, 900);
+    fetch('http://127.0.0.1:17771/ping', { signal: ac && ac.signal, cache:'no-store' })
+      .then(function(r){ if(to) clearTimeout(to); if (!r.ok || T) return;
+        setState('conn'); render(); poll(); T=setInterval(poll, 250); })
+      .catch(function(){ if(to) clearTimeout(to); });
+  }
+  try { if (!navigator.webdriver){ setInterval(_tvdProbe, 2500); _tvdProbe(); } } catch(e){}
+  // v764 — the switch is a LAMP: auto-synced to the app, never hand-flipped (clicks/keys removed).
   // paint any archived history immediately (even with switch OFF)
   try { HIST_TAB='live'; renderHistory(); } catch(e){}
   // resume if it was on last session — never in automation (specs must not poll localhost)
@@ -33912,8 +33981,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // interval timers — the board looked dead until an off/on toggle forced a poll. Any return to the
   // tab now polls IMMEDIATELY, so agent-came-online is never stuck behind the throttle.
   try {
-    document.addEventListener('visibilitychange', function(){ if(!document.hidden && T) poll(); });
-    window.addEventListener('focus', function(){ if(T) poll(); });
+    document.addEventListener('visibilitychange', function(){ if(document.hidden) return; if(T) poll(); else if(!navigator.webdriver) _tvdProbe(); });
+    window.addEventListener('focus', function(){ if(T) poll(); else if(!navigator.webdriver) _tvdProbe(); });
   } catch(e){}
 })();
 </script>

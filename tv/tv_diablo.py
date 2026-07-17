@@ -61,7 +61,7 @@ SETTLE       = 0.03
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
-    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"conf\":0.0}}\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"discovered\":[],\"conf\":0.0}}\n"
     "scene = one of: town | stash | inventory | loot | gameplay | transition.\n"
     "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
     "dark frame with NO HUD (no belt/orbs/automap). The player is entering a portal, waypoint, or a "
@@ -74,6 +74,9 @@ READ_PROMPT = (
     "names = READABLE text labels only (tooltips first line, ground loot labels, open inventory/stash "
     "name text). Never invent from icons alone. Never complete partial names.\n"
     "Never put merc/NPC/player names, HP bars, waypoint labels, or chat into names.\n"
+    "discovered = ITEM names from chat DISCOVERY broadcasts only (lines like "
+    "'<player> has found <item>' / 'has discovered'). Just the item names; [] if none. "
+    "Normal chat/trade text is NEVER a discovery.\n"
     "inventory/stash: also list anchors if visible — Horadric Cube, Tome of Town Portal, Tome of Identify.\n"
     "conf = 0.0-1.0 confidence. Be fast and precise."
 )
@@ -1457,6 +1460,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
         "confirmed_names": confirmed,
+        "discovered_names": rd.get("discovered") or [],   # v763 — chat discovery broadcasts: chronicle-only, never vault
         "vault_names": vault_names, "farmed_names": vault_names,
         "pending_names": pending_names, "thrown_names": thrown_names,
         "unvault_names": unvault_names,

@@ -387,6 +387,51 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(frameIdHits).toBeGreaterThanOrEqual(1);
   });
 
+  test('v763 TV → THE CHRONICLES: vault commit stamps the found ledger live; chat DISCOVERED broadcasts chronicle (uni + set) but never vault', async ({ page }) => {
+    const T = 1_700_000_100_000;
+    let body = JSON.stringify(state({
+      reads: [{ ts: T, n: 5, area: 'Durance of Hate Level 2', scene: 'gameplay', ms: 900,
+                names: [],
+                discovered: ['Harlequin Crest'],
+                discovered_names: ['Harlequin Crest', "Sigon's Guard"] }],
+    }));
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.waitForTimeout(1400);
+
+    const after = await page.evaluate(() => {
+      const fl = JSON.parse((window as any).LSR.getItem('d2r_foundLog') || '{}');
+      const assign = JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}');
+      return {
+        uniStamped: !!fl['Harlequin Crest (Shako)'],   // unique → dated ledger under the CANONICAL grail name
+        setStamped: !!fl["Sigon's Guard (shield)"],    // set piece → same ledger, CANONICAL slot-suffixed key
+        harlequinMuled: !!assign['Harlequin Crest'],   // NEVER vaulted from a chat discovery
+        discChip: !!document.querySelector('.tvc-disc, .tvd-vault-tag[title*="discovery"]'),
+      };
+    });
+    expect(after.uniStamped).toBe(true);
+    expect(after.setStamped).toBe(true);
+    expect(after.harlequinMuled).toBe(false);
+    expect(after.discChip).toBe(true);
+
+    // idempotent: the same broadcast again must not un-tick (toggle) the chronicle
+    const again = await page.evaluate(() => (window as any).tvChronicleRoute('Harlequin Crest', 'chat'));
+    expect(again.already).toBe(true);
+    const still = await page.evaluate(() => !!JSON.parse((window as any).LSR.getItem('d2r_foundLog') || '{}')['Harlequin Crest (Shako)']);
+    expect(still).toBe(true);
+
+    // vault commit path: a stashed grail unique stamps the ledger LIVE (not next boot)
+    const vaultStamp = await page.evaluate(() => {
+      const r = (window as any).tvChronicleRoute('Nagelring', 'vault');
+      const fl = JSON.parse((window as any).LSR.getItem('d2r_foundLog') || '{}');
+      return !!(r && r.ok && fl[r.name || 'Nagelring']);
+    });
+    expect(vaultStamp).toBe(true);
+  });
+
   test('v744 RUN STORY strip: chapters + moments from the persisted session; click jumps + pulses the row', async ({ page }) => {
     const T = 1234567890000;
     await page.addInitScript((t: number) => {

@@ -529,3 +529,28 @@ route() labels. Next-session queue: reading-ghosts polish only.
   the import between attempts.
 - Verified on Konyo's Mac: pywebview imports clean · headless server + /api/status healthy ·
   py ast + sh -n gates green · agent 55/55. The true native window = his next double-click.
+
+### 🏆 R18 · v763+v764 — TV → THE CHRONICLES + the switch becomes a LAMP ✅
+- **v763 CHRONICLE ROUTING** (Konyo: "route it to the beginning of our system and let the engine
+  do its work"): ONE head — window.tvChronicleRoute — knocks on each engine's front door:
+  uniques → toggleOwned (dated foundLog, the grailFoundUni path), set pieces → toggleSetPiece
+  (setPieces + the same ledger). Suffix-tolerant canonical resolution (the grail keys are
+  'Harlequin Crest (Shako)' / "Sigon's Guard (shield)" — raw names now resolve and tick the
+  CANONICAL key, never a duplicate). Chronicles stay separate coding-wise. Two feeders:
+  vault commits stamp the ledger LIVE (was next-boot), and the NEW chat lane — the vision
+  prompt reads DISCOVERY broadcasts ('<player> has found <item>') into discovered_names:
+  chronicle-only, 💬🏆 chip, NEVER vaulted (knowledge, not possession).
+- **v764 AUTO-SYNC** (Konyo: "i don't need an ON/OFF button on the website — sync it to the
+  app"): the board SENSES the agent — a light /ping probe every 2.5s while dark auto-engages
+  the live poll the moment the app's ON/SIM starts the bridge; the poll's catch already drops
+  to OFFLINE on stop. Both switches are passive LAMPS now (clicks/keys removed, honest title).
+  _tvdToggle stays as the spec/manual seam; probe is webdriver-gated so specs stay deterministic.
+- **SIM wrong-page bug fixed** (his repro): macOS `open` DROPS file:// fragments → the board
+  landed on the wrong tab; ON/SIM also minted a new tab every press. Now: direct browser spawn
+  (Chrome/Edge/Brave, fragment survives, `open` fallback) + open-once per control session —
+  afterwards the already-open tab lights up by itself.
+- Debug war story: a three-part edit died mid-script BEFORE its file write (assert threw) — the
+  feed badge/items-flag/CSS silently missing while the ledger side worked. Re-grep-then-verify
+  saved it; the DOM dump beat guessing.
+- Gates: board **14/14** (new v763 chronicle lock: canonical uni+set stamps · discovery chip ·
+  never-vault · idempotent re-broadcast · live vault stamp) · agent **57/57** · html clean.
