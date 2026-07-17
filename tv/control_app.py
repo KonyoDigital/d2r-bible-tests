@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v761 real native window)
+# 📺 TV DIABLO — Control App (Mac + Windows · v771)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
 #   Mac:     python3 tv/control_app.py --open  ·  TV DIABLO.app
 #   Windows: pythonw tv/control_app.py --open · Desktop shortcut
 #            ON = capture_win.ps1 (hidden) + tv_diablo.py --watch
+#   ver stamp MUST match tv_diablo.VERSION (parity lock in test_control).
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
 
@@ -367,57 +368,63 @@ def start_agent(sim=False):
 def stop_agent(farewell=True):
     global _agent_proc, _agent_mode, _stop_inflight
     _stop_inflight = True
-    pid = None
-    with _lock:
-        if _agent_proc is not None and _agent_proc.poll() is None:
-            pid = _agent_proc.pid
-        else:
-            pid = _port_listener_pid() or _read_pid(PID_PATH)
-
-    if pid is None and not IS_WIN:
-        _agent_mode = "off"
-        _stop_capture()
-        _stop_inflight = False
-        return {"ok": True, "msg": "already off"}
-
-    if pid is not None:
-        # Soft first so the farewell can run. Windows: taskkill-soft sends WM_CLOSE, which a
-        # CREATE_NO_WINDOW console app never receives — our OWN child must get CTRL_BREAK_EVENT
-        # (it was spawned CREATE_NEW_PROCESS_GROUP; the agent handles SIGBREAK since v760.1).
-        sent_break = False
-        if IS_WIN:
-            with _lock:
-                if _agent_proc is not None and _agent_proc.poll() is None and _agent_proc.pid == pid:
-                    try:
-                        _agent_proc.send_signal(signal.CTRL_BREAK_EVENT)
-                        sent_break = True
-                    except Exception:
-                        pass
-        if not sent_break:
-            _kill_pid(pid, force=False)
-
-        wait_s = 90 if farewell else 12
-        deadline = time.time() + wait_s
-        while time.time() < deadline:
-            if not _pid_alive(pid):
-                break
-            time.sleep(0.25)
-        else:
-            _kill_pid(pid, force=True)
-
-    # always stop Windows capture with the agent
-    _stop_capture()
-
-    with _lock:
-        _agent_proc = None
-        _agent_mode = "off"
     try:
-        if os.path.isfile(PID_PATH):
-            os.remove(PID_PATH)
-    except Exception:
-        pass
-    _stop_inflight = False
-    return {"ok": True, "msg": "stopped", "farewell": farewell}
+        pid = None
+        with _lock:
+            if _agent_proc is not None and _agent_proc.poll() is None:
+                pid = _agent_proc.pid
+            else:
+                pid = _port_listener_pid() or _read_pid(PID_PATH)
+
+        if pid is None and not IS_WIN:
+            _agent_mode = "off"
+            _stop_capture()
+            return {"ok": True, "msg": "already off"}
+
+        if pid is not None:
+            # Soft first so the farewell can run. Windows: taskkill-soft sends WM_CLOSE, which a
+            # CREATE_NO_WINDOW console app never receives — our OWN child must get CTRL_BREAK_EVENT
+            # (it was spawned CREATE_NEW_PROCESS_GROUP; the agent handles SIGBREAK since v760.1).
+            sent_break = False
+            if IS_WIN:
+                with _lock:
+                    if (
+                        _agent_proc is not None
+                        and _agent_proc.poll() is None
+                        and _agent_proc.pid == pid
+                    ):
+                        try:
+                            _agent_proc.send_signal(signal.CTRL_BREAK_EVENT)
+                            sent_break = True
+                        except Exception:
+                            pass
+            if not sent_break:
+                _kill_pid(pid, force=False)
+
+            wait_s = 90 if farewell else 12
+            deadline = time.time() + wait_s
+            while time.time() < deadline:
+                if not _pid_alive(pid):
+                    break
+                time.sleep(0.25)
+            else:
+                _kill_pid(pid, force=True)
+
+        # always stop Windows capture with the agent
+        _stop_capture()
+
+        with _lock:
+            _agent_proc = None
+            _agent_mode = "off"
+        try:
+            if os.path.isfile(PID_PATH):
+                os.remove(PID_PATH)
+        except Exception:
+            pass
+        return {"ok": True, "msg": "stopped", "farewell": farewell}
+    finally:
+        # never leave the gate stuck if anything above raises
+        _stop_inflight = False
 
 
 def _file_url(path, fragment=""):
@@ -931,6 +938,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {**r, "board": board})
             return
         if path == "/api/sim":
+            if _stop_inflight:
+                self._json(200, {
+                    "ok": False,
+                    "msg": "farewell still finishing — try again in a moment",
+                    "mode": "stopping",
+                })
+                return
             if _agent_alive():
                 stop_agent(farewell=False)
                 time.sleep(0.4)
@@ -989,15 +1003,24 @@ def _loud_fail(title, msg):
 
 def board_window():
     """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd)."""
-    import webview
-    webview.create_window(
-        "TV DIABLO — Board", url=_file_url(BIBLE, "tvd"),
-        width=1500, height=980, min_size=(1080, 700), background_color="#060504",
-    )
+    url = _file_url(BIBLE, "tvd")
     try:
+        import webview
+        webview.create_window(
+            "TV DIABLO — Board",
+            url=url,
+            width=1500,
+            height=980,
+            min_size=(1080, 700),
+            background_color="#060504",
+        )
         webview.start()
     except Exception as e:
-        _loud_fail("TV DIABLO", f"Native window crashed: {e}\n\nOpening in your browser instead.\nLog: {LOG_PATH}")
+        _loud_fail(
+            "TV DIABLO",
+            f"Native board window crashed: {e}\n\n"
+            f"Opening in your browser instead.\nLog: {LOG_PATH}",
+        )
         _open_browser_app_fallback(url)
 
 

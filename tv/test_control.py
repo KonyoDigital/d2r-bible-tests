@@ -131,10 +131,18 @@ class TestVersionTruth(unittest.TestCase):
     def test_stamps_match(self):
         import re
         import tv_diablo as tvmod
-        src = open(os.path.join(HERE, "control_app.py")).read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
+            src = f.read()
         m = re.search(r'"ver": "(v\d+)"', src)
         self.assertIsNotNone(m)
         self.assertEqual(m.group(1), tvmod.VERSION)
+
+    def test_board_window_fallback_defines_url(self):
+        """Regression: board_window except used undefined `url` → NameError on crash path."""
+        import inspect
+        src = inspect.getsource(ca.board_window)
+        self.assertIn("url = _file_url", src)
+        self.assertIn("_open_browser_app_fallback(url)", src)
 
 
 if __name__ == "__main__":

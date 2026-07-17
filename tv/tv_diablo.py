@@ -475,10 +475,26 @@ class VisionWorker:
             q.put(None)
         threading.Thread(target=_pump, args=(self.p, self.q), daemon=True).start()
     def stop(self):
-        try:
-            if self.p and self.p.poll() is None: self.p.kill()
-        except Exception: pass
+        """Kill the warm claude child and close pipes (avoids ResourceWarning leaks)."""
+        p = self.p
         self.p = None
+        if not p:
+            return
+        try:
+            if p.poll() is None:
+                p.kill()
+            try:
+                p.wait(timeout=2)
+            except Exception:
+                pass
+            for stream in (p.stdin, p.stdout, p.stderr):
+                try:
+                    if stream:
+                        stream.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
     def ask(self, prompt, timeout=75):
         """one turn → the result text, or None (caller falls back to one-shot). Serialized."""
         with self.lock:
@@ -550,17 +566,35 @@ class OcrWorker:
             return False
 
     def stop(self):
-        try:
-            if self.p and self.p.poll() is None:
-                try:
-                    self.p.stdin.write("quit\n"); self.p.stdin.flush()
-                except Exception:
-                    pass
-                self.p.kill()
-        except Exception:
-            pass
+        p = self.p
         self.p = None
         self.ok = False
+        if not p:
+            return
+        try:
+            if p.poll() is None:
+                try:
+                    if p.stdin:
+                        p.stdin.write("quit\n")
+                        p.stdin.flush()
+                except Exception:
+                    pass
+                try:
+                    p.kill()
+                except Exception:
+                    pass
+            try:
+                p.wait(timeout=2)
+            except Exception:
+                pass
+            for stream in (p.stdin, p.stdout, p.stderr):
+                try:
+                    if stream:
+                        stream.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def read(self, path, timeout=1.2):
         """Return {ms, lines, confs, mode} or None. Never raises into the scan loop."""
