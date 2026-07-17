@@ -4276,6 +4276,15 @@ try {
   .header .tabs{max-width:1472px!important}
   .header .gsearch-wrap{margin-left:calc((100% - 1472px)/2)!important;margin-right:auto!important}
 }
+/* v776 course-correct — ⌂ CONSOLE return pill. Only in app context (?app=1, injected by the boot
+   script); the browser tab + file:// never get it. tvz console language: gold-on-dark, gold border,
+   a subtle breathing glow. Top-left, above the header; the build badge steps down to make room. */
+.tvf-console-pill{position:fixed;top:8px;left:10px;z-index:10050;display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-bright,#f0c060);background:radial-gradient(130% 210% at 0% 0%,rgba(240,192,96,.15),rgba(10,8,5,.92));border:1px solid rgba(240,192,96,.5);border-radius:999px;padding:6px 15px;cursor:pointer;box-shadow:0 2px 16px rgba(240,192,96,.25),inset 0 1px 0 rgba(255,255,255,.06);animation:tvfConsoleBreathe 3.6s ease-in-out infinite}
+.tvf-console-pill .tvf-cp-home{font-size:13px;line-height:1}
+.tvf-console-pill:hover{color:#ffe6a8;border-color:rgba(255,224,150,.8);box-shadow:0 2px 22px rgba(240,192,96,.5),inset 0 1px 0 rgba(255,255,255,.1)}
+@keyframes tvfConsoleBreathe{0%,100%{box-shadow:0 2px 14px rgba(240,192,96,.22),inset 0 1px 0 rgba(255,255,255,.06)}50%{box-shadow:0 2px 22px rgba(240,192,96,.48),inset 0 1px 0 rgba(255,255,255,.08)}}
+@media(prefers-reduced-motion:reduce){.tvf-console-pill{animation:none}}
+body.app-ctx #v687-build-badge{top:40px}
 </style>
 <div class="tab-content" id="tab-tools">
   <div class="tvf-spine" id="tools-spine">
@@ -33318,6 +33327,28 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', badge);
   else badge();
+})();
+</script>
+<script id="tvf-console-pill-boot">
+// v776 course-correct — ⌂ CONSOLE return pill. The app rail now navigates THIS window to
+// /board?app=1#<tab>; that ?app=1 is the only signal we render the pill on. The plain browser
+// tab (8686) and file:// carry no ?app=1 flag, so they never see it. Click returns to the console ('/').
+(function(){
+  function appCtx(){ try { return new URLSearchParams(location.search).get('app') === '1'; } catch(e){ return false; } }
+  function pill(){
+    if (!appCtx() || document.getElementById('tvf-console-return')) return;
+    document.body.classList.add('app-ctx');
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.id = 'tvf-console-return';
+    b.className = 'tvf-console-pill';
+    b.title = 'Back to the TV DIABLO console';
+    b.innerHTML = '<span class="tvf-cp-home">⌂</span>CONSOLE';
+    b.addEventListener('click', function(){ location.href = '/'; });
+    document.body.appendChild(b);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pill);
+  else pill();
 })();
 </script>
 <script>
