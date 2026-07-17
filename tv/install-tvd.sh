@@ -109,7 +109,9 @@ make_app() {
   local script_path="$REPO_DIR/tv/start_tvd_mac.sh"
 
   rm -rf "$dest"
-  mkdir -p "$dest/Contents/MacOS"
+  mkdir -p "$dest/Contents/MacOS" "$dest/Contents/Resources"
+  # v762 — the real icon (extracted Diablo on a grimoire CRT tile), not a white box
+  [[ -f "$REPO_DIR/tv/appicon.icns" ]] && cp "$REPO_DIR/tv/appicon.icns" "$dest/Contents/Resources/AppIcon.icns"
 
   # launcher: NO Terminal — start_tvd_mac.sh opens the HD control window (v757)
   cat > "$macexe" <<APP
@@ -135,6 +137,8 @@ APP
   <string>com.konyo.tvdiablo</string>
   <key>CFBundleName</key>
   <string>TV DIABLO</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleDisplayName</key>
   <string>TV DIABLO</string>
   <key>CFBundlePackageType</key>

@@ -177,7 +177,7 @@ $lnk.TargetPath       = 'powershell.exe'
 # Hidden host shell only — the app window is pywebview (pythonw), not this console
 $lnk.Arguments        = "-NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$repoDir\tv\start_tvd_win.ps1`""
 $lnk.WorkingDirectory = $repoDir
-$lnk.IconLocation     = 'shell32.dll,238'
+$lnk.IconLocation     = "$repoDir\tv\appicon.ico"
 $lnk.Description      = 'TV DIABLO — native control app (pywebview · hidden scanner · your Claude)'
 $lnk.Save()
 Ok "Desktop shortcut: TV DIABLO"
