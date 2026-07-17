@@ -1,11 +1,11 @@
-﻿# 📺 TV DIABLO — Windows capture loop (v772: pin to native D2R window)
+﻿# 📺 TV DIABLO — Windows capture loop (v772.1: FULL SCREEN default)
 # Zero installs: .NET System.Drawing. Read-only screenshots only.
 #
-#   TV_CAPTURE=auto|window|full   (default auto)
-#   TV_WINDOW_MATCH=extra,tokens  optional title needles
+#   TV_CAPTURE=full|auto|window   (default full — whole display = fullscreen D2R)
+#   TV_WINDOW_MATCH=extra,tokens  only used when window/auto
 #
-# Prefers the native Diablo II Resurrected window (D2R.exe). Falls back to
-# full virtual screen if the game isn't found (unless TV_CAPTURE=window).
+# Product default = full virtual screen (cousin plays fullscreen).
+# Optional: TV_CAPTURE=window pins native D2R.exe only.
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type @"
@@ -29,7 +29,7 @@ $here   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $frames = Join-Path $here 'frames'
 New-Item -ItemType Directory -Force -Path $frames | Out-Null
 
-$mode = if ($env:TV_CAPTURE) { $env:TV_CAPTURE.ToLower() } else { 'auto' }
+$mode = if ($env:TV_CAPTURE) { $env:TV_CAPTURE.ToLower() } else { 'full' }
 $extra = @()
 if ($env:TV_WINDOW_MATCH) {
   $extra = $env:TV_WINDOW_MATCH.Split(',') | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ }
@@ -95,15 +95,16 @@ function Find-D2RWindow {
   return $script:best
 }
 
-Write-Host "📺 TV DIABLO capture (Windows) — pin D2R window when found · mode=$mode"
+Write-Host "📺 TV DIABLO capture (Windows) — mode=$mode (default full screen)"
 $lastLabel = ''
 while ($true) {
   try {
     $target = $null
-    if ($mode -ne 'full') {
+    # window pin only if explicitly requested (or auto)
+    if ($mode -eq 'window' -or $mode -eq 'auto' -or $mode -eq 'win' -or $mode -eq 'game') {
       $target = Find-D2RWindow
     }
-    if ($target) {
+    if ($target -and $mode -ne 'full') {
       if ($target.Label -ne $lastLabel) {
         Write-Host "  🎯 window: $($target.Label) ($($target.W)x$($target.H))"
         $lastLabel = $target.Label
@@ -111,8 +112,7 @@ while ($true) {
       $bmp = New-Object System.Drawing.Bitmap $target.W, $target.H
       $g = [System.Drawing.Graphics]::FromImage($bmp)
       $g.CopyFromScreen($target.Left, $target.Top, 0, 0, $bmp.Size)
-    } elseif ($mode -eq 'window') {
-      # strict: wait for game
+    } elseif ($mode -eq 'window' -or $mode -eq 'win' -or $mode -eq 'game') {
       if ($lastLabel -ne '__waiting__') {
         Write-Host "  ⏳ waiting for Diablo II (D2R.exe) window…"
         $lastLabel = '__waiting__'
@@ -120,8 +120,9 @@ while ($true) {
       Start-Sleep -Milliseconds 500
       continue
     } else {
+      # DEFAULT: full virtual screen (fullscreen D2R)
       if ($lastLabel -ne '__full__') {
-        Write-Host "  🖥 full virtual screen (D2R window not found)"
+        Write-Host "  🖥 full virtual screen"
         $lastLabel = '__full__'
       }
       $b = [System.Windows.Forms.SystemInformation]::VirtualScreen

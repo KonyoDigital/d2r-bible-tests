@@ -223,12 +223,13 @@ def bridge():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
-# ── v772 — pin capture to the GAME WINDOW ────────────────────────────────────
-# Mac (Konyo): CrossOver bottle → window owner often CrossOver/Wine, title Diablo…
-# Windows (cousin): native D2R.exe / "Diablo II: Resurrected".
-# TV_CAPTURE=auto|window|full  (default auto: window if found, else full screen)
-# TV_WINDOW_MATCH=extra,comma,tokens  (optional extra title/owner needles)
-_CAP_TARGET = {"mode": "full", "label": "", "wid": None}  # last capture target (UI/status)
+# ── v772.1 — capture target ──────────────────────────────────────────────────
+# DEFAULT = full screen (Konyo plays CrossOver D2R fullscreen — whole display = game).
+# Optional window pin (TV_CAPTURE=window|auto) exists for edge cases only — not the product default.
+# TV_CAPTURE=full|auto|window   default full
+# TV_WINDOW_MATCH=extra,comma,tokens  (only used when window/auto)
+_CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
+
 
 # Owner / title tokens — CrossOver + native D2R. Avoid bare "wine" alone (too broad).
 _D2R_OWNER_HINTS = (
@@ -311,11 +312,11 @@ def find_d2r_window_mac():
 
 
 def capture_mac(path, timeout=12):
-    """Capture the D2R/CrossOver game window when found; else full screen.
-    BMP = deterministic pixels for md5 settle. v753 hard timeout. v772 window pin."""
+    """Full-screen capture by default (fullscreen D2R / CrossOver).
+    Optional TV_CAPTURE=window|auto pins CrossOver/D2R window. v753 hard timeout."""
     global _CAP_TARGET
-    mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()
-    # 1) window pin (CrossOver / Diablo)
+    mode = (os.environ.get("TV_CAPTURE") or "full").strip().lower()
+    # Optional window pin only when explicitly asked (or auto)
     if mode in ("auto", "window", "win", "game"):
         hit = find_d2r_window_mac()
         if hit:
@@ -330,12 +331,11 @@ def capture_mac(path, timeout=12):
                     return True
             except Exception:
                 pass
-        elif mode in ("window", "win", "game"):
+        if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
             return False
-    # 2) full-screen fallback (auto/full)
-    if mode in ("window", "win", "game"):
-        return False
+        # auto with no window → fall through to full screen
+    # DEFAULT / fallback: entire display (fullscreen game)
     try:
         r = subprocess.run(
             ["screencapture", "-x", "-t", "bmp", path],
@@ -343,7 +343,7 @@ def capture_mac(path, timeout=12):
         )
         ok = r.returncode == 0 and os.path.exists(path)
         if ok:
-            _CAP_TARGET = {"mode": "full", "label": "full screen (no D2R window)", "wid": None}
+            _CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
         return ok
     except Exception:
         return False
@@ -1416,7 +1416,7 @@ def main():
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
     print(f"📺 TV DIABLO Autopilot {VERSION} — replay · journal · farewell · chain vault · frame hist")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
-    print("   capture: pin Diablo II window (Mac CrossOver / Windows D2R) · TV_CAPTURE=auto|window|full")
+    print("   capture: FULL SCREEN (default) · optional TV_CAPTURE=window for window-pin")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
