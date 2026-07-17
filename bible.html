@@ -4285,6 +4285,9 @@ try {
 @keyframes tvfConsoleBreathe{0%,100%{box-shadow:0 2px 14px rgba(240,192,96,.22),inset 0 1px 0 rgba(255,255,255,.06)}50%{box-shadow:0 2px 22px rgba(240,192,96,.48),inset 0 1px 0 rgba(255,255,255,.08)}}
 @media(prefers-reduced-motion:reduce){.tvf-console-pill{animation:none}}
 body.app-ctx #v687-build-badge{top:40px}
+/* v778 — dock clearance: the family cards land ABOVE the live-measured MF dock when scrolled to
+   (only .boss-card + deep targets carried the bottom guard). Cheap scroll-margin, zero layout shift. */
+#tab-session .sc-card,#tab-session .sc-mission,:is(#tab-forge,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero,:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed{scroll-margin-bottom:calc(var(--dock-h,84px) + 24px)}
 </style>
 <div class="tab-content" id="tab-tools">
   <div class="tvf-spine" id="tools-spine">
@@ -33329,7 +33332,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v777', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
+  window.D2R_BUILD = { id:'v778', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34295,6 +34298,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     fetch(URL0 + (SEEN ? ('?since=' + SEEN) : ''), { signal: ac && ac.signal, cache:'no-store' }).then(function(r){ return r.json(); }).then(function(st){
       if(to) clearTimeout(to);
       if(!T) return;   // v758.1 — toggled OFF while this fetch was in flight: a late response must never un-toggle the switch (the CI-flake race, and the class behind 'the switch was already on')
+      // v778 — the agent stamps st.stopping the instant shutdown begins, even while its bridge keeps
+      // answering online:true through the ≤90s farewell. Drop the board the moment the farewell starts
+      // so the website never glows after the app shows stopped; keep polling — the dead-bridge catch
+      // holds it offline. Flush the live digest once on the way down.
+      if (st.stopping){ if(STATE==='live'){ try { digestFlush('farewell'); } catch(e){} } setState('offline'); render(); return; }
       if(STATE!=='live') setState('live');
       // v724 — new agent boot (startedAt change) archives previous live session for LAST SESSION tab
       if (st.startedAt && st.startedAt !== AGENT_START){

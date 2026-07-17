@@ -781,3 +781,15 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
   Grok's canned-feed revert; `tvd sim` keeps the canned feed for devs.
 - API truth matrix after fixes: ON→live ✓ · STOP→off 0.6s ✓ · OFF→off 0.6s ✓ · RESTART→live ✓ ·
   SIM→sim/off ✓ · windows spawned: ZERO across the whole run.
+
+### 🌙 N6 · v778 — WAVE D: the family locked (build waves COMPLETE) ✅
+- Dock-clearance via scroll-margin on every family card (live-measured --dock-h+24) · Funi/Fsets
+  LOWs re-verified resolved · the 1-1 stop sync board half CONFIRMED in (st.stopping → instant
+  OFF AIR on the site).
+- **THE FAMILY LOCK SPEC** (tests/v775_tab_family.spec.ts, 9 red-tripwires): per-tab spine +
+  GOLD accent + no-overflow at three widths · unclipped subs · the ⌂ CONSOLE pill contract
+  (?app=1 only).
+- NIGHT BUILD ARC COMPLETE: v774 host+rail → v775 spine → v776 Tools chrome → v777 sealed Forge
+  → v778 locks. Plus the live-run battle round: v776.1/777.1/777.2/778-pre (SIM toggle, window-pin
+  auto, ON spawns nothing, zombie stare, SIM=last-session theatre).
+- Gate: 29/29 (family 9 + board 15 + console 5) + prior wave suites green.
