@@ -126,26 +126,7 @@ try {
   Warn "pywebview pip install failed — app will retry on first launch / browser fallback"
 }
 
-Refresh-Path
-if (-not (Have 'claude')) {
-  Say "installing Claude Code (Anthropic's official installer)…"
-  try {
-    $install = (Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -UseBasicParsing).Content
-    Invoke-Expression $install
-  } catch {
-    Warn "native installer failed ($_)."
-    Warn "install manually: https://docs.anthropic.com/en/docs/claude-code — then re-run this line."
-    return
-  }
-  Refresh-Path
-  Start-Sleep -Seconds 1
-  Refresh-Path
-}
-if (Have 'claude') { Ok "claude code" } else {
-  Warn "claude still missing after install — close this window, open a NEW PowerShell, re-run."
-  return
-}
-
+# ── bible repo FIRST (so Desktop shortcut always lands even if Claude install flakes) ──
 if (Test-Path (Join-Path $repoDir '.git')) {
   Say "updating the bible repo…"
   try {
@@ -158,7 +139,7 @@ if (Test-Path (Join-Path $repoDir '.git')) {
   git clone --depth 1 $repoUrl $repoDir | Out-Null
 }
 
-# v761 twin requires the control app surface
+# v761+ twin requires the control app surface
 $need = @(
   'tv\start_tvd_win.ps1',
   'tv\control_app.py',
@@ -176,19 +157,108 @@ foreach ($rel in $need) {
 }
 Ok "repo at $repoDir (control app present)"
 
+# ── Claude Code (needed for vision ON AIR) ───────────────────────────────────
+# v784.1 — Windows PowerShell 5.1 often returns .Content as Byte[] for install.ps1;
+#          Invoke-Expression then dies with "Cannot convert System.Byte[] to String".
+#          Decode to UTF-8 string; fall backs: irm|iex, winget. NEVER abort before Desktop.
+function Install-ClaudeCode {
+  if (Have 'claude') { return $true }
+  Say "installing Claude Code (Anthropic's official installer)…"
+
+  # Path A — robust download + decode (fixes Byte[] crash on PS 5.1)
+  try {
+    $resp = Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -UseBasicParsing
+    $scriptText = $null
+    if ($null -eq $resp.Content) {
+      throw "empty install.ps1 body"
+    } elseif ($resp.Content -is [byte[]]) {
+      $scriptText = [System.Text.Encoding]::UTF8.GetString($resp.Content)
+    } else {
+      $scriptText = [string]$resp.Content
+    }
+    if (-not $scriptText -or $scriptText.Length -lt 20) {
+      throw "install.ps1 body too short"
+    }
+    Invoke-Expression $scriptText
+  } catch {
+    Warn "official install.ps1 path failed ($($_.Exception.Message))"
+    # Path B — irm | iex (PowerShell may coerce bytes differently)
+    try {
+      Invoke-Expression (Invoke-RestMethod -Uri 'https://claude.ai/install.ps1')
+    } catch {
+      Warn "irm/iex path failed ($($_.Exception.Message))"
+      # Path C — winget (when published)
+      try {
+        if (Have 'winget') {
+          Say "trying winget Anthropic.ClaudeCode…"
+          winget install -e --id Anthropic.ClaudeCode --silent --accept-package-agreements --accept-source-agreements 2>$null | Out-Null
+        }
+      } catch {}
+    }
+  }
+
+  Refresh-Path
+  Start-Sleep -Seconds 2
+  Refresh-Path
+  # common install locations not yet on PATH in this shell
+  foreach ($p in @(
+    (Join-Path $env:USERPROFILE '.local\bin'),
+    (Join-Path $env:LocalAppData 'Programs\claude'),
+    (Join-Path $env:LocalAppData 'claude'),
+    (Join-Path $env:APPDATA 'npm')
+  )) {
+    if ((Test-Path -LiteralPath $p) -and ($env:Path -notlike "*$p*")) {
+      $env:Path = "$p;$env:Path"
+    }
+  }
+  return (Have 'claude')
+}
+
+Refresh-Path
+$claudeOk = Install-ClaudeCode
+if ($claudeOk) {
+  Ok "claude code"
+} else {
+  Warn "claude still missing — vision ON AIR needs it."
+  Warn "install manually: https://docs.anthropic.com/en/docs/claude-code"
+  Warn "or in a NEW PowerShell:  irm https://claude.ai/install.ps1 | iex"
+  Warn "Desktop app will still be created — log into Claude before ON."
+}
+
 # Desktop shortcut → start_tvd_win.ps1 → pythonw + pywebview native window
 $ws  = New-Object -ComObject WScript.Shell
 $desktop = [Environment]::GetFolderPath('Desktop')
-$lnkPath = Join-Path $desktop 'TV DIABLO.lnk'
+# OneDrive Desktop redirect (common on Windows 11)
+$deskCandidates = @(
+  $desktop,
+  (Join-Path $env:USERPROFILE 'Desktop'),
+  (Join-Path $env:USERPROFILE 'OneDrive\Desktop'),
+  (Join-Path $env:USERPROFILE 'OneDrive - Personal\Desktop')
+) | Select-Object -Unique
+$lnkPath = $null
+foreach ($d in $deskCandidates) {
+  if ($d -and (Test-Path -LiteralPath $d)) {
+    $lnkPath = Join-Path $d 'TV DIABLO.lnk'
+    break
+  }
+}
+if (-not $lnkPath) {
+  $lnkPath = Join-Path $desktop 'TV DIABLO.lnk'
+}
 $lnk = $ws.CreateShortcut($lnkPath)
 $lnk.TargetPath       = 'powershell.exe'
 # Hidden host shell only — the app window is pywebview (pythonw), not this console
 $lnk.Arguments        = "-NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$repoDir\tv\start_tvd_win.ps1`""
 $lnk.WorkingDirectory = $repoDir
-$lnk.IconLocation     = "$repoDir\tv\appicon.ico"
+$ico = Join-Path $repoDir 'tv\appicon.ico'
+if (Test-Path -LiteralPath $ico) {
+  $lnk.IconLocation = $ico
+} else {
+  $lnk.IconLocation = 'powershell.exe,0'
+}
 $lnk.Description      = 'TV DIABLO — native control app (pywebview · hidden scanner · your Claude)'
 $lnk.Save()
-Ok "Desktop shortcut: TV DIABLO"
+Ok "Desktop shortcut: $lnkPath"
 
 # Also Start Menu for discoverability
 try {
@@ -205,8 +275,11 @@ try {
   }
 } catch {}
 
-Say "DONE. Double-click TV DIABLO on your Desktop."
-Say "Native app window (not Chrome) · ON / OFF / STOP / RESTART / SIM · board auto-connects."
+Say "DONE. Double-click TV DIABLO on your Desktop (or Start Menu)."
+Say "Native app window (not Chrome) · ON / OFF / STOP / RESTART / SIM · one window."
+if (-not $claudeOk) {
+  Warn "finish Claude Code install, then re-open TV DIABLO and press ON AIR."
+}
 $credFile = Join-Path $HOME '.claude\.credentials.json'
 if (-not (Test-Path $credFile)) {
   Warn "first run may walk you through logging into your own Claude account (once)."
