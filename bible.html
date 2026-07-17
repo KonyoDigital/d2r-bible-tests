@@ -3209,15 +3209,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* v705 — TOOLS INDEX + RANKED CHROME (Grok wave P3): a wayfinding chip row over the 17 cards
    (grouped by job, chip = jump + pulse), and TWO card voices — the four do-now planners keep
    the full premium glow, everything else drops to a quieter shelf tone. Nothing moves. */
-.tools-index{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 14px;padding:9px 13px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.015)}
+/* v776 — the wayfinding rail restyled as a CONSOLE chip strip (family language): a gold-tinted
+   dark band echoing the tvf- spine, mono group labels, console-dark chips with gold hover. Behavior
+   (jump + pulse), class names and grouping are untouched — pure chrome. */
+.tools-index{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 16px;padding:10px 14px;border:1px solid rgba(240,192,96,.16);border-radius:12px;background:radial-gradient(120% 200% at 3% -40%,rgba(240,192,96,.05),transparent 46%),linear-gradient(180deg,rgba(20,16,10,.6),rgba(8,7,5,.55))}
 .tools-index .ti-g{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
-.tools-index .ti-gl{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);margin-right:2px;white-space:nowrap}
-.tools-index .ti-chip{font:inherit;font-size:var(--fs-meta);color:var(--text);background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;white-space:nowrap;transition:border-color .13s,background .13s,color .13s}
-.tools-index .ti-chip:hover{border-color:var(--gold-dim);color:var(--gold-bright);background:rgba(240,192,96,.07)}
-.tools-index .ti-chip.ti-hot{border-color:rgba(240,192,96,.45);color:var(--gold-bright);background:rgba(240,192,96,.06);font-weight:600}
+.tools-index .ti-gl{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);margin-right:2px;white-space:nowrap}
+.tools-index .ti-chip{font:inherit;font-size:var(--fs-meta);color:var(--text-muted);background:rgba(0,0,0,.28);border:1px solid rgba(240,192,96,.16);border-radius:999px;padding:4px 11px;cursor:pointer;white-space:nowrap;transition:border-color .13s,background .13s,color .13s,transform .1s}
+.tools-index .ti-chip:hover{border-color:var(--gold-dim);color:var(--gold-bright);background:rgba(240,192,96,.09);transform:translateY(-1px)}
+.tools-index .ti-chip.ti-hot{border-color:rgba(240,192,96,.5);color:var(--gold-bright);background:rgba(240,192,96,.08);font-weight:600}
 #tab-tools .tool-premium:not(.tool-primary){border-color:color-mix(in srgb,var(--tc,#f0c060) 16%,var(--border));box-shadow:0 5px 18px -16px color-mix(in srgb,var(--tc,#f0c060) 40%,transparent)}
 #tab-tools .tool-premium:not(.tool-primary) .boss-header .boss-emoji{opacity:.72;transform:scale(.88)}
 #tab-tools .tool-primary{border-color:color-mix(in srgb,var(--tc,#f0c060) 45%,var(--border));box-shadow:0 10px 30px -14px color-mix(in srgb,var(--tc,#f0c060) 85%,transparent),inset 0 1px 0 rgba(255,255,255,.04)}
+/* v776 — the 16 Tools accordions inherit the Funi/Fsets .f-card chrome: the 12px radius, a 4px per-card
+   accent spine (keyed off each card's --tc), and the same hover lift. The global editorial card reset
+   (L25333: flat 3px / border / box-shadow all !important) governs boss-cards, so these are !important-
+   scoped to #tab-tools to win by specificity. Collapse/expand behavior + content untouched; the AI
+   flagship keeps its own hero chrome. */
+#tab-tools .boss-card:not(#ask-bible-card){border-left:4px solid color-mix(in srgb,var(--tc,#f0c060) 55%,var(--border))!important;border-radius:12px!important;transition:transform .14s ease,box-shadow .16s ease,border-color .16s ease!important}
+#tab-tools .boss-card:not(#ask-bible-card):hover{transform:translateY(-2px)!important;box-shadow:0 8px 24px -10px rgba(0,0,0,.6)!important;border-color:color-mix(in srgb,var(--tc,#f0c060) 30%,var(--border))!important;border-left-color:color-mix(in srgb,var(--tc,#f0c060) 70%,var(--border))!important}
 .tool-jump-pulse{animation:tjpulse 1.2s ease 1}
 @keyframes tjpulse{0%{outline:2px solid rgba(240,192,96,.0);outline-offset:2px}25%{outline:2px solid rgba(240,192,96,.85)}100%{outline:2px solid rgba(240,192,96,0)}}
 /* v707 — LORE TOC: one sticky chip rail on the encyclopedia tabs (ref · binds · RotW). Single
@@ -33285,7 +33295,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v775', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
+  window.D2R_BUILD = { id:'v776', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

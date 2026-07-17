@@ -749,3 +749,12 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
 - Scout thesis honored: no content rebuilds this wave — spine + consistency only.
 - Gates: 71 specs green across 9 suites (board/console/smoke + the forge-family regression set) ·
   0 h-overflow, 0 console errors at 1280/1500/1920 through the SAME-ORIGIN app host (/board).
+
+### 🌙 N3 · v776 — WAVE B: TOOLS wears the family chrome ✅
+- #tools-index chip rail → console chip band (mono group labels, gold-hover chips, behavior
+  untouched) · the 16 tool accordions inherit the Funi/Fsets card chrome (12px radius, per-tool
+  --tc accent left-spine, hover lift) · the AI flagship keeps its hero chrome.
+- Specificity fight documented: the v-old global .boss-card!important reset was silently flattening
+  the v705 premium accents too — scoped Tools-local win, global cleanup left as a conscious call.
+- Gates: 43 specs green (board/console/smoke + tools regression set) · computed-style verified per
+  card · 0 h-overflow 1500/1280.
