@@ -78,8 +78,23 @@ class TestTheatre(unittest.TestCase):
         beats = json.loads(body)["beats"]
         self.assertEqual(len(beats), 3)
         self.assertEqual(beats[1]["names"], ["Harlequin Crest"])
-        self.assertEqual(beats[1]["frame"], "2_a.jpg")       # playable
+
+    def test_session_beats_expose_capture_and_frame_lock(self):
+        """v784 — every beat carries captureTs + frameId for exact SIM scrub."""
+        # session n=2 = older fixture with 3 beats (2 framed, 1 empty frame)
+        st, body, _ = _get(self.port, "/api/session?n=2")
+        j = json.loads(body)
+        beats = j["beats"]
+        self.assertEqual(len(beats), 3)
+        for b in beats:
+            self.assertIn("captureTs", b)
+            self.assertIn("frameId", b)
+            self.assertIn("frameOk", b)
+        self.assertEqual(beats[0]["frame"], "1_a.jpg")
+        self.assertTrue(beats[0]["frameOk"])
+        self.assertEqual(beats[1]["frame"], "2_a.jpg")
         self.assertEqual(beats[2]["frame"], "")              # honest: no frame archived
+        self.assertFalse(beats[2]["frameOk"])
 
     def test_hist_serving_and_traversal(self):
         st, body, hdr = _get(self.port, "/hist/1_a.jpg")

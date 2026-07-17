@@ -803,6 +803,29 @@ class TestReplay(unittest.TestCase):
         self.assertEqual([r["names"] for r in sess[0] if r.get("names")], [["B"], ["C"]])
         self.assertEqual(sess[1][0]["sessionId"], "s_a")
 
+    def test_capture_ts_matches_frame_id(self):
+        """v784 — journal ts is the capture clock embedded in frameId, not AI completion."""
+        self.assertEqual(tv._capture_ts_from_frame_id("3_1784329241093"), 1784329241093)
+        self.assertIsNone(tv._capture_ts_from_frame_id(""))
+        # emit_deep_read with capture_ts must journal that exact clock
+        j = os.path.join(self.d, "sessions.jsonl")
+        old_j, old_sid = tv.JOURNAL, tv.SESSION_ID
+        tv.JOURNAL = j
+        tv.SESSION_ID = "s_test"
+        try:
+            rec = tv.emit_deep_read(
+                {"area": "Cold Plains", "scene": "loot", "names": ["Vex Rune"], "tz": [],
+                 "conf": 0.9, "mode": "warm", "model": "test", "ms": 5000},
+                n=1, frame_id="1_1111111111111", capture_ts=1111111111111,
+            )
+            self.assertEqual(rec["ts"], 1111111111111)
+            self.assertEqual(rec["captureTs"], 1111111111111)
+            self.assertGreaterEqual(rec["completedTs"], rec["ts"])
+            self.assertEqual(rec["frameId"], "1_1111111111111")
+        finally:
+            tv.JOURNAL = old_j
+            tv.SESSION_ID = old_sid
+
 
 class TestWindowPin(unittest.TestCase):
     """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""

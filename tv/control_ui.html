@@ -706,9 +706,11 @@
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
         <div class="th-strip">
-          <button class="th-btn" id="th-prev-s" type="button" title="older session">⏮</button>
+          <button class="th-btn" id="th-prev-s" type="button" title="older session">⏮ sess</button>
+          <button class="th-btn" id="th-prev-b" type="button" title="previous beat (back in time)">‹</button>
           <button class="th-btn th-play" id="th-play" type="button" title="play/pause">⏸</button>
-          <button class="th-btn" id="th-next-s" type="button" title="newer session">⏭</button>
+          <button class="th-btn" id="th-next-b" type="button" title="next beat (forward in time)">›</button>
+          <button class="th-btn" id="th-next-s" type="button" title="newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
           <button class="th-btn" id="th-speed" type="button" title="playback speed">1×</button>
         </div>
@@ -722,7 +724,7 @@
         <button class="act b-off" id="btn-off" type="button"><span class="ic">❚❚</span><span class="lab"><b>Off</b><span>soft stop · no farewell</span></span></button>
         <button class="act b-stop" id="btn-stop" type="button"><span class="ic">■</span><span class="lab"><b>Stop</b><span>full shutdown · farewell</span></span></button>
         <button class="act b-restart" id="btn-restart" type="button"><span class="ic">↻</span><span class="lab"><b>Restart</b><span>cycle the bridge</span></span></button>
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>last session film in-console · click again = off</span></span></button>
+        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <div class="signal">
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
@@ -751,7 +753,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v783 control</span>
+      <span id="foot-ver">v784 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -933,7 +935,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v783') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v784') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -991,9 +993,9 @@
     } catch (e) {}
   }
 
-  // ══ v765 — 🎞 THE THEATRE player: real frames + recorded reads, timeline + pagination ══
-  // v780 — exact wall-clock stamps + frameId cross-ref on every beat (SIM = this reel)
-  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:true, speed:1, timer:null, sessionId:'' };
+  // ══ v765 — 🎞 THE THEATRE / SIM: real frames + recorded reads ══
+  // v784 — CAPTURE ts is the scrub key; frameId hist JPEG is THE photo for that AI row.
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'' };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   function thFmtFull(ts){
@@ -1002,9 +1004,14 @@
       return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
     } catch(e){ return ''; }
   }
+  function thFmtMs(ts){
+    try {
+      var d = new Date(ts);
+      var p = function(n){ return (n<10?'0':'')+n; };
+      return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+'.'+String(d.getMilliseconds()).padStart(3,'0');
+    } catch(e){ return String(ts||''); }
+  }
   function thSeal(b, n){
-    // v769 — the chain truth ON the caption chip, RUN STORY language: 🏦 vaulted · ⏳ held ·
-    // 🗑 thrown · 💬🏆 discovered · plain = seen
     if ((b.vault_names||[]).indexOf(n) >= 0) return ' 🏦';
     if ((b.thrown_names||[]).indexOf(n) >= 0) return ' 🗑';
     if ((b.pending_names||[]).indexOf(n) >= 0) return ' ⏳';
@@ -1013,24 +1020,36 @@
   }
   function thCaption(b){
     if (!b) return '';
-    // v780 — wall-clock + epoch ms + frameId so every tooltip maps to hist/{frameId}.jpg
-    var bits = ['<b>'+thFmtFull(b.ts)+'</b>', '<span style="opacity:.7">'+esc(String(b.ts||''))+'</span>', 'read #'+esc(b.n||'?')];
-    if (b.frameId || b.frame) bits.push('🖼 <code style="font-size:11px">'+esc(b.frameId || String(b.frame||'').replace(/\\.jpg$/,''))+'</code>');
+    var cap = b.captureTs || b.ts;
+    var done = b.completedTs || null;
+    var fid = b.frameId || String(b.frame||'').replace(/\.jpg$/,'');
+    // ACCURACY strip: capture clock · AI complete · frame file · lock badge
+    var lock = (b.frameOk !== false && b.frame)
+      ? '<span style="color:#8fe6a0">🔒 frame locked</span>'
+      : '<span style="color:#f88">⚠ no hist frame</span>';
+    var bits = [
+      '<b>CAPTURE '+thFmtMs(cap)+'</b>',
+      '<span style="opacity:.75">epoch '+esc(String(cap||''))+'</span>',
+      'read #'+esc(b.n||'?')
+    ];
+    if (done && done !== cap) bits.push('AI done '+thFmtMs(done));
+    if (b.ms) bits.push(esc(String(Math.round(b.ms)))+'ms vision');
+    if (fid) bits.push('🖼 <code style="font-size:11px">'+esc(fid)+'.jpg</code>');
+    bits.push(lock);
     if (b.area) bits.push('🗺 <b>'+esc(b.area)+'</b>');
     if (b.scene) bits.push((SCENE_IC[b.scene]||'')+' '+esc(b.scene));
     if (b.lane) bits.push(esc(b.lane));
-    if (b.ms) bits.push(esc(String(Math.round(b.ms)))+'ms');
+    if (b.model) bits.push(esc(b.model));
     if (b.intent === 'farmed') bits.push('🛍 farmed');
     if (b.farewell) bits.push('👋 farewell');
     if (b.stashTab) bits.push('🏦 tab:'+esc(b.stashTab));
     var line = bits.join(' · ');
     if (b.note) line += '<br>⏳ '+esc(b.note);
-    // tooltip / loot history chips for THIS frame
     var cast = (b.names||[]).slice(0,8).map(function(n){ return '<span class="th-chip">'+esc(n)+thSeal(b,n)+'</span>'; });
     (b.discovered_names||[]).slice(0,4).forEach(function(n){
       if ((b.names||[]).indexOf(n) < 0) cast.push('<span class="th-chip">💬🏆 '+esc(n)+'</span>');
     });
-    if (cast.length) line += '<br>' + cast.join('');
+    if (cast.length) line += '<br><span style="opacity:.7">AI names @ this frame:</span> ' + cast.join('');
     else line += '<br><span style="opacity:.55">no tooltip text on this frame</span>';
     return line;
   }
@@ -1038,11 +1057,23 @@
     var b = TH.beats[TH.i];
     if (!b) return;
     var film = $('th-film');
-    if (b.frame){ film.style.opacity = 1; film.src = '/hist/' + encodeURIComponent(b.frame); film.title = (b.frameId||b.frame)+' · '+thFmtFull(b.ts); }
-    else { film.style.opacity = .25; film.removeAttribute('src'); film.title = ''; }   // v769 — honest: never show the PREVIOUS photo under a frameless beat
+    if (b.frame){
+      // cache-bust never: hist is immutable per frameId — exact photo for that read
+      film.style.opacity = 1;
+      var src = '/hist/' + encodeURIComponent(b.frame);
+      if (film.getAttribute('src') !== src) film.src = src;
+      film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts);
+    } else {
+      film.style.opacity = .25; film.removeAttribute('src'); film.title = '';
+    }
     $('th-caption').innerHTML = thCaption(b);
     var tl = $('th-timeline');
     [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
+    // keep current beat in view on dense timelines
+    try {
+      var cur = tl.children[TH.i];
+      if (cur && cur.scrollIntoView) cur.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+    } catch(e){}
     var meta = TH.sessions[TH.sn-1] || {};
     var range = '';
     if (meta.t0 && meta.t1) range = ' · ' + thFmtFull(meta.t0) + ' → ' + thFmtT(meta.t1);
@@ -1051,11 +1082,24 @@
       + range
       + ' · beat ' + (TH.i+1) + '/' + TH.beats.length
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
-      + (meta.frames != null ? ' · ' + meta.frames + ' frames' : '');
+      + (meta.frames != null ? ' · ' + meta.frames + ' frames' : '')
+      + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : '');
+  }
+  function thGo(i, autoplay){
+    if (!TH.beats.length) return;
+    TH.i = Math.max(0, Math.min(TH.beats.length - 1, i));
+    thPaint();
+    if (autoplay !== false && TH.playing) thSchedule();
+    else { clearTimeout(TH.timer); }
   }
   function thStep(){
     if (!TH.open || !TH.playing || !TH.beats.length) return;
-    TH.i = (TH.i + 1) % TH.beats.length;
+    if (TH.i >= TH.beats.length - 1){
+      TH.playing = false;
+      $('th-play').textContent = '▶';
+      return; // stop at end — don't loop (backwards scrub stays honest)
+    }
+    TH.i += 1;
     thPaint();
     thSchedule();
   }
@@ -1063,7 +1107,9 @@
     clearTimeout(TH.timer);
     if (!TH.playing) return;
     var cur = TH.beats[TH.i], nxt = TH.beats[TH.i+1];
-    var gap = (cur && nxt) ? Math.max(600, Math.min(2600, nxt.ts - cur.ts)) : 1400;
+    // real inter-capture gap scaled (truthful pacing, capped for watchability)
+    var raw = (cur && nxt) ? Math.max(0, (nxt.ts||0) - (cur.ts||0)) : 1200;
+    var gap = Math.max(400, Math.min(4000, raw));
     TH.timer = setTimeout(thStep, gap / TH.speed);
   }
   function thTimeline(){
@@ -1073,20 +1119,21 @@
       if ((b.vault_names||[]).length) cls = ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
-      var tip = thFmtFull(b.ts)
+      if (!b.frame) cls += ' noframe';
+      var tip = 'CAPTURE ' + thFmtMs(b.captureTs||b.ts)
         + ' · read #' + (b.n||'?')
-        + (b.frameId ? (' · 🖼 ' + b.frameId) : '')
+        + (b.frameId ? (' · 🖼 ' + b.frameId + '.jpg') : ' · NO FRAME')
         + (b.area ? (' · ' + b.area) : '')
         + (b.scene ? (' · ' + b.scene) : '')
         + ((b.names&&b.names.length) ? (' · ' + b.names.slice(0,4).join(', ')) : ' · (no tooltips)');
-      return '<span class="th-beat'+cls+(b.frame?'':' noframe')+'" data-i="'+k+'" title="'+esc(tip)+'"></span>';
+      return '<span class="th-beat'+cls+'" data-i="'+k+'" title="'+esc(tip)+'"></span>';
     }).join('');
   }
   async function thLoadSession(n){
     var r = await fetch('/api/session?n=' + n); var j = await r.json();
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
     var raw = j.beats || [];
-    // v769 (Grok R3) — coalesce same-frame pairs (OCR flash + deep confirm): the richer row wins
+    // v769 — coalesce same-frame OCR+deep: richer row wins (frame photo is identical)
     var byFrame = {}, beats = [];
     raw.forEach(function(b){
       if (!b.frame){ beats.push(b); return; }
@@ -1096,27 +1143,39 @@
       var score = function(x){ return (x.lane==='deep'?2:0) + ((x.names||[]).length?1:0) + ((x.vault_names||[]).length?2:0); };
       if (score(b) >= score(prev)) beats[byFrame[k]] = b;
     });
+    // chronological by CAPTURE ts
+    beats.sort(function(a,b){ return (a.ts||0)-(b.ts||0) || (a.n||0)-(b.n||0); });
     TH.sn = n; TH.beats = beats; TH.i = 0; TH.sessionId = j.sessionId || '';
-    thTimeline(); thPaint(); thSchedule();
+    TH.playing = false; $('th-play').textContent = '▶'; // start paused so user can scrub backwards
+    thTimeline(); thPaint();
   }
   async function thOpen(){
     var r = await fetch('/api/sessions'); var j = await r.json();
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
     if (!TH.sessions.length){
       $('theatre').hidden = false; TH.open = true;
-      $('th-caption').textContent = '🎞 no journaled sessions yet — press ON AIR, play a run (hover loot), then SIM replays it with frames';
+      $('th-caption').textContent = '🎞 no journaled sessions yet — press ON AIR, play a run (hover loot), then SIM replays it with locked frames';
       document.body.classList.add('theatre-open'); thLit(); return;
     }
-    TH.open = true; TH.playing = true;
+    TH.open = true;
     $('theatre').hidden = false;
     document.body.classList.add('theatre-open');
-    $('th-play').textContent = '⏸';
-    // always open on NEWEST session (n=1) — SIM = preview of how the last run went
-    await thLoadSession(1);
+    // Prefer newest session with named loot (the run that "worked"), else newest with frames
+    var pick = 1;
+    for (var i = 0; i < TH.sessions.length; i++){
+      var s = TH.sessions[i];
+      if ((s.named||0) > 0 && (s.frames||0) > 0){ pick = s.n || (i+1); break; }
+    }
+    if (pick === 1){
+      for (var j2 = 0; j2 < TH.sessions.length; j2++){
+        if ((TH.sessions[j2].frames||0) > 0){ pick = TH.sessions[j2].n || (j2+1); break; }
+      }
+    }
+    await thLoadSession(pick);
     thLit();
   }
   function thClose(){
-    TH.open = false; clearTimeout(TH.timer);
+    TH.open = false; clearTimeout(TH.timer); TH.playing = false;
     $('theatre').hidden = true;
     document.body.classList.remove('theatre-open');
     thLit();
@@ -1125,17 +1184,32 @@
     var bt = $('btn-theatre');
     if (bt) bt.classList.toggle('on', TH.open);
     var sim = $('btn-sim');
-    if (sim) sim.classList.toggle('on', TH.open);   // v780 — SIM lights while theatre is the last-session preview
+    if (sim) sim.classList.toggle('on', TH.open);
   }
   $('th-close').onclick = thClose;
-  $('th-play').onclick = function(){ TH.playing = !TH.playing; this.textContent = TH.playing ? '⏸' : '▶'; if (TH.playing) thSchedule(); };
+  $('th-play').onclick = function(){
+    TH.playing = !TH.playing;
+    this.textContent = TH.playing ? '⏸' : '▶';
+    if (TH.playing) thSchedule(); else clearTimeout(TH.timer);
+  };
   $('th-speed').onclick = function(){ TH.speed = TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 1); this.textContent = TH.speed + '×'; };
   $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
   $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
+  $('th-prev-b').onclick = function(){ thGo(TH.i - 1, false); TH.playing = false; $('th-play').textContent = '▶'; };
+  $('th-next-b').onclick = function(){ thGo(TH.i + 1, false); TH.playing = false; $('th-play').textContent = '▶'; };
   $('th-timeline').onclick = function(e){
     var b = e.target.closest('.th-beat'); if (!b) return;
-    TH.i = Number(b.dataset.i) || 0; thPaint(); thSchedule();
+    TH.playing = false; $('th-play').textContent = '▶';
+    thGo(Number(b.dataset.i) || 0, false);
   };
+  // arrow keys while theatre open: scrub beats backwards/forwards
+  document.addEventListener('keydown', function(e){
+    if (!TH.open) return;
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (e.key === 'ArrowLeft'){ e.preventDefault(); $('th-prev-b').click(); }
+    if (e.key === 'ArrowRight'){ e.preventDefault(); $('th-next-b').click(); }
+    if (e.key === ' '){ e.preventDefault(); $('th-play').click(); }
+  });
 
   // v773 — BUTTON TRUTH (stuck-online loop fix):
   // · ON while on OR sim → soft stop (cuts agent + board must go dark)

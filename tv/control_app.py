@@ -751,7 +751,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v783",
+        "ver": "v784",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -880,22 +880,50 @@ class Handler(BaseHTTPRequestHandler):
             for r in sess:
                 fid = r.get("frameId") or ""
                 has = bool(fid) and os.path.isfile(os.path.join(HIST_DIR, fid + ".jpg"))
-                beats.append({"ts": r.get("ts"), "n": r.get("n"), "scene": r.get("scene", ""),
-                              "area": r.get("area", ""), "names": r.get("names", []),
-                              "note": r.get("note", ""), "frame": (fid + ".jpg") if has else "",
-                              "frameId": fid,  # v780 — exact cross-ref for caption/timeline tooltips
-                              "sessionId": r.get("sessionId") or "",
-                              "ms": r.get("ms", 0), "lane": r.get("lane", ""),
-                              # v769 (Grok R3) — the flagship shows the CHAIN, not just names
-                              "vault_names": r.get("vault_names") or [],
-                              "pending_names": r.get("pending_names") or [],
-                              "thrown_names": r.get("thrown_names") or [],
-                              "discovered_names": r.get("discovered_names") or [],
-                              "intent": r.get("intent", ""), "stashTab": r.get("stashTab", ""),
-                              "farewell": bool(r.get("farewell"))})
+                # v784 — capture clock is source of truth for scrub order + film lock
+                fts = None
+                if fid and "_" in str(fid):
+                    try:
+                        fts = int(str(fid).rsplit("_", 1)[-1])
+                    except Exception:
+                        fts = None
+                if r.get("captureTs"):
+                    cap_ts = int(r["captureTs"])
+                elif fts is not None:
+                    # pre-v784 rows often stored completion as ts — frameId suffix is the photo clock
+                    raw_ts = int(r.get("ts") or 0)
+                    if raw_ts and abs(raw_ts - fts) > 2000:
+                        cap_ts = fts
+                    else:
+                        cap_ts = raw_ts or fts
+                else:
+                    cap_ts = r.get("ts")
+                done_ts = r.get("completedTs") or r.get("ts") or cap_ts
+                beats.append({
+                    "ts": cap_ts,  # primary scrub key = CAPTURE
+                    "captureTs": cap_ts,
+                    "completedTs": done_ts,
+                    "n": r.get("n"), "scene": r.get("scene", ""),
+                    "area": r.get("area", ""), "names": r.get("names", []),
+                    "note": r.get("note", ""), "frame": (fid + ".jpg") if has else "",
+                    "frameId": fid,
+                    "frameOk": has,  # exact hist file present
+                    "sessionId": r.get("sessionId") or "",
+                    "ms": r.get("ms", 0), "lane": r.get("lane", ""),
+                    "model": r.get("model", ""),
+                    "vault_names": r.get("vault_names") or [],
+                    "pending_names": r.get("pending_names") or [],
+                    "thrown_names": r.get("thrown_names") or [],
+                    "discovered_names": r.get("discovered_names") or [],
+                    "intent": r.get("intent", ""), "stashTab": r.get("stashTab", ""),
+                    "farewell": bool(r.get("farewell")),
+                })
+            # chronological by capture time (never scramble OCR/deep order)
+            beats.sort(key=lambda b: (b.get("ts") or 0, b.get("n") or 0))
             sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
             return {"n": n, "beats": beats, "sessionId": sid,
-                    "t0": sess[0].get("ts"), "t1": sess[-1].get("ts")}
+                    "t0": beats[0].get("ts") if beats else sess[0].get("ts"),
+                    "t1": beats[-1].get("ts") if beats else sess[-1].get("ts")}
         except Exception as e:
             return {"error": str(e)}
 
@@ -1155,7 +1183,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v783 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v784 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

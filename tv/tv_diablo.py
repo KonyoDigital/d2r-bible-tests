@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v783"   # ONE truth — banner, autopilot HUD, and state all read this  · film thread + snappy gaps
+VERSION = "v784"   # ONE truth — banner, autopilot HUD, and state all read this  · SIM exact ts↔frame
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1958,7 +1958,8 @@ def main():
                 if should_learn_dead(rd):
                     learn_dead_frame(cur_snap)
                 rec = emit_deep_read(rd, n=n_this, frame_id=fid_this, interest=interest_this,
-                                     used_priority=used_priority, ocr_rd=ocr_rd, farewell=False)
+                                     used_priority=used_priority, ocr_rd=ocr_rd, farewell=False,
+                                     capture_ts=read_ts)
                 names = (rec or {}).get("names") or []
                 if names:
                     empty_streak = 0
@@ -1987,8 +1988,23 @@ def effective_lc_scene(scene, names):
     scene = scene or "gameplay"
     return "loot" if (scene == "gameplay" and names) else scene
 
-def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False):
-    """Publish one deep-lane record (main settle + v740 farewell). Returns the record dict."""
+def _capture_ts_from_frame_id(frame_id):
+    """frameId = '{n}_{captureMs}' — the exact settle freeze time of the archived photo."""
+    try:
+        if frame_id and "_" in str(frame_id):
+            return int(str(frame_id).rsplit("_", 1)[-1])
+    except Exception:
+        pass
+    return None
+
+
+def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False, capture_ts=None):
+    """Publish one deep-lane record (main settle + v740 farewell). Returns the record dict.
+
+    v784 — ACCURACY: journal `ts` is the CAPTURE/settle clock (matches frameId suffix and the
+    hist JPEG). `completedTs` is when Claude finished. Theatre scrubs by capture time so the
+    photo and the AI row are the same moment, not 'photo at T, answer at T+8s' confusion.
+    """
     global LAST_AREA
     rd = rd or {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None, "mode": "empty"}
     if rd.get("area"): LAST_AREA = rd["area"]
@@ -2048,9 +2064,16 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         print(f"  🗺 {(rd.get('area') or '?')} · {tag} {rd.get('scene')}{tab_note}  "
               f"{'📦 ' + ' · '.join(names[:6]) + (' …' if len(names) > 6 else '') if names else '· nothing readable'}"
               f"{lc_note}{conf_note}  [{model_tag}{esc}{pri}]")
+    completed_ts = int(time.time() * 1000)
+    # capture clock wins: frameId suffix → explicit capture_ts → completed (last resort)
+    cap_ts = capture_ts or _capture_ts_from_frame_id(frame_id) or completed_ts
+    vision_ms = int(rd.get("ms") or 0) or max(0, completed_ts - cap_ts)
     rec = {
-        "ts": int(time.time() * 1000), "names": names, "n": n, "area": rd.get("area") or "",
-        "scene": rd.get("scene") or "gameplay", "tz": rd.get("tz", []), "ms": rd.get("ms", 0),
+        "ts": cap_ts,                    # v784 — CAPTURE moment (matches hist photo)
+        "captureTs": cap_ts,
+        "completedTs": completed_ts,     # when AI answer landed
+        "names": names, "n": n, "area": rd.get("area") or "",
+        "scene": rd.get("scene") or "gameplay", "tz": rd.get("tz", []), "ms": vision_ms,
         "mode": rd.get("mode", ""), "lane": "deep", "model": model_tag, "conf": rd.get("conf"),
         "intent": intent, "stashTab": stash_tab, "frameId": frame_id, "sessionId": SESSION_ID,
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
@@ -2162,7 +2185,8 @@ def farewell_read(force_frame=None):
         rd = {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None,
               "mode": "empty", "model": FAST_MODEL, "ms": 0}
     rec = emit_deep_read(rd, n=n, frame_id=frame_id, interest=1.0,
-                         used_priority=True, ocr_rd=None, farewell=True)
+                         used_priority=True, ocr_rd=None, farewell=True,
+                         capture_ts=read_ts)
     names = rec.get("names") or []
     scene = rec.get("scene") or "?"
     tab = rec.get("stashTab") or ""
