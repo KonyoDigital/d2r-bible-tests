@@ -231,6 +231,43 @@ def capture_mac(path, timeout=12):
     except Exception:
         return False
 
+# v771.2 — SIM without Screen Recording: synthetic BMPs so settle+stub reads still fire.
+# Real play never sets TV_STUB; this only kicks in when capture fails under stub.
+_STUB_CAP_I = 0
+def capture_stub_synth(path):
+    """Write a valid 24-bit BMP that alternates (motion) then holds (settle).
+    Hold ~8 polls (~2s) then hard-switch palette so sig_diff ≫ SETTLE/MOTION_PEAK."""
+    global _STUB_CAP_I
+    import struct
+    _STUB_CAP_I += 1
+    slot = (_STUB_CAP_I // 8) % 4
+    # far-apart RGB so every sampled byte jumps well past tol=28
+    palette = [
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
+        (255, 255, 0),
+    ]
+    r, g, b = palette[slot]
+    w, h = 640, 400
+    row = w * 3
+    pad = (4 - (row % 4)) % 4
+    pixel_size = (row + pad) * h
+    file_size = 54 + pixel_size
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(b"BM")
+            f.write(struct.pack("<IHHI", file_size, 0, 0, 54))
+            f.write(struct.pack("<IIIHHIIIIII", 40, w, h, 1, 24, 0, pixel_size, 2835, 2835, 0, 0))
+            # BGR rows — solid block, maximum sig_diff between slots
+            row_bytes = bytes([b, g, r]) * w + (b"\x00" * pad)
+            for _y in range(h):
+                f.write(row_bytes)
+        return os.path.isfile(path) and os.path.getsize(path) > 200000
+    except Exception:
+        return False
+
 def newest_watched_frame():
     """Windows mode: capture_win.ps1 drops frames into tv/frames — consume the newest."""
     try:
@@ -1305,13 +1342,28 @@ def main():
             if not f: continue
             frame = f
         elif not capture_mac(frame):
-            print("  ⚠ screencapture failed (grant Terminal screen-recording permission in System Settings)"); continue
+            if os.environ.get("TV_STUB"):
+                # SIM: no Screen Recording on the control app's Python.app — still drive the loop
+                if not capture_stub_synth(frame):
+                    time.sleep(0.2)
+                    continue
+                if not globals().get("_STUB_CAP_WARNED"):
+                    globals()["_STUB_CAP_WARNED"] = True
+                    ev("cap", "SIM synthetic frames — grant Screen Recording to Python for live play")
+                    print("  📺 SIM: no Screen Recording for this process — using synthetic frames + canned reads")
+            else:
+                print("  ⚠ screencapture failed (grant Screen Recording to the TV DIABLO / Python app in System Settings → Privacy)"); continue
         elif (not WATCH_MODE) and os.path.getsize(frame) < 200000:
-            if not globals().get("_PERM_WARNED"):
-                globals()["_PERM_WARNED"] = True
-                ev("cap", "capture looks EMPTY — grant Screen Recording to your terminal (System Settings → Privacy) and relaunch")
-                print("  ⚠ capture is suspiciously tiny — screen-recording permission is probably missing")
-            continue
+            if os.environ.get("TV_STUB") and capture_stub_synth(frame):
+                if not globals().get("_STUB_CAP_WARNED"):
+                    globals()["_STUB_CAP_WARNED"] = True
+                    ev("cap", "SIM synthetic frames (tiny capture) — Screen Recording likely missing")
+            else:
+                if not globals().get("_PERM_WARNED"):
+                    globals()["_PERM_WARNED"] = True
+                    ev("cap", "capture looks EMPTY — grant Screen Recording to TV DIABLO / Python (System Settings → Privacy) and relaunch")
+                    print("  ⚠ capture is suspiciously tiny — screen-recording permission is probably missing")
+                continue
         try: cur = frame_sig(frame)
         except Exception: continue
         motion = sig_diff(cur, last_md5)
