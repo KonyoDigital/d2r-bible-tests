@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# 📺 tvd — one-word launcher for TV DIABLO (like `claude` / `grok`)
+# Installed to ~/.local/bin/tvd by install-tvd.sh; also used from the repo.
+#
+#   tvd              start the live scanner (Mac: opens board + agent)
+#   tvd sim          SIMULATION — canned reads, zero vision cost
+#   tvd replay       REPLAY a real past session — tvd replay --list
+#   tvd restart      kill :17771 and start fresh
+#   tvd status       ping the bridge
+#   tvd stop         stop the agent (farewell read, up to ~90s)
+#   tvd --test IMG   one-shot vision check
+#
+# Always strips API-key env so vision rides YOUR Claude subscription login.
+set -euo pipefail
+
+# Resolve repo: env → sibling of this script → default home clone
+if [[ -n "${TVD_REPO:-}" ]]; then
+  REPO="$TVD_REPO"
+elif [[ -f "$(cd "$(dirname "$0")" && pwd)/tv_diablo.py" ]]; then
+  REPO="$(cd "$(dirname "$0")/.." && pwd)"
+elif [[ -f "$(cd "$(dirname "$0")" && pwd)/../tv/tv_diablo.py" ]]; then
+  REPO="$(cd "$(dirname "$0")/.." && pwd)"
+else
+  REPO="${HOME}/d2r_bible_tests"
+fi
+
+PORT="${TV_PORT:-17771}"
+PY="${TVD_PYTHON:-python3}"
+export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:$PATH"
+
+die() { echo "⛔ $*" >&2; exit 1; }
+info() { echo "📺 $*"; }
+
+[[ -d "$REPO" ]] || die "repo not found: $REPO  (set TVD_REPO=...)"
+[[ -f "$REPO/tv/tv_diablo.py" ]] || die "missing $REPO/tv/tv_diablo.py"
+cd "$REPO"
+
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
+
+listener_pid() {
+  lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true
+}
+
+cmd_status() {
+  local pid
+  pid="$(listener_pid)"
+  if [[ -n "$pid" ]]; then
+    info "LIVE · pid $pid · http://127.0.0.1:$PORT"
+    curl -sS --max-time 2 "http://127.0.0.1:$PORT/ping" 2>/dev/null || echo '(ping failed)'
+    echo
+    curl -sS --max-time 2 "http://127.0.0.1:$PORT/state" 2>/dev/null \
+      | "$PY" -c 'import json,sys; st=json.load(sys.stdin); print("reads", st.get("readCount"), "· model", st.get("model"), "· beat", (st.get("beat") or {}).get("phase"));
+[print(" ", e.get("k"), e.get("t")[:90]) for e in (st.get("events") or [])[-5:]]' 2>/dev/null || true
+  else
+    info "OFF · nothing on :$PORT"
+  fi
+}
+
+cmd_stop() {
+  local pid
+  pid="$(listener_pid)"
+  if [[ -z "$pid" ]]; then
+    info "already off"
+    return 0
+  fi
+  info "stopping pid $pid — farewell read may take up to ~90s…"
+  kill -TERM "$pid" 2>/dev/null || true
+  local i
+  for i in $(seq 1 90); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      info "stopped pid $pid (farewell finished in ~${i}s)"
+      return 0
+    fi
+    sleep 1
+  done
+  for c in $(ps -o pid= -ax 2>/dev/null | true); do :; done
+  # children of agent
+  while read -r c; do
+    [[ -n "$c" ]] && kill -9 "$c" 2>/dev/null || true
+  done < <(pgrep -P "$pid" 2>/dev/null || true)
+  kill -9 "$pid" 2>/dev/null || true
+  info "stopped pid $pid (forced after 90s)"
+}
+
+cmd_start_cli() {
+  local pid
+  pid="$(listener_pid)"
+  if [[ -n "$pid" ]]; then
+    info "already LIVE · pid $pid  (use: tvd restart)"
+    cmd_status
+    exit 0
+  fi
+  info "TV DIABLO — bare terminal · your Claude subscription · no API keys"
+  echo "   bridge  http://127.0.0.1:$PORT/state"
+  echo "   models  fast=${TV_MODEL:-sonnet} · genius=${TV_MODEL_ESCALATE:-sonnet}"
+  echo "   bible → 📺 TV·D tab → flip the switch ON"
+  echo "   stop with Ctrl-C  ·  or another terminal: tvd stop"
+  echo ""
+  exec env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN \
+    TV_MODEL="${TV_MODEL:-sonnet}" \
+    "$PY" tv/tv_diablo.py "$@"
+}
+
+case "${1:-}" in
+  "" | start )
+    # Desktop-parity entry: board + first-run login + agent (same as the .app)
+    if [[ -f "$REPO/tv/start_tvd_mac.sh" ]]; then
+      exec bash "$REPO/tv/start_tvd_mac.sh"
+    fi
+    shift || true
+    cmd_start_cli "$@"
+    ;;
+  bare | agent )
+    # agent only, no browser open (old tvd behavior)
+    shift || true
+    cmd_start_cli "$@"
+    ;;
+  restart | -r )
+    shift || true
+    cmd_stop
+    sleep 0.4
+    if [[ -f "$REPO/tv/start_tvd_mac.sh" ]]; then
+      exec bash "$REPO/tv/start_tvd_mac.sh"
+    fi
+    cmd_start_cli "$@"
+    ;;
+  replay | --replay )
+    shift || true
+    pid="$(listener_pid)"
+    [[ -n "$pid" ]] && die "agent already LIVE on :$PORT — run 'tvd stop' first, then replay"
+    exec env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN "$PY" tv/replay.py "$@"
+    ;;
+  sim | --sim | simulate )
+    shift || true
+    info "SIMULATION RUN — canned reads · zero vision cost"
+    export TV_STUB=1
+    cmd_start_cli "$@"
+    ;;
+  stop | kill )
+    cmd_stop
+    ;;
+  status | st | ping )
+    cmd_status
+    ;;
+  --test | test )
+    shift
+    [[ -n "${1:-}" ]] || die "usage: tvd --test <image.jpg>"
+    exec env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN \
+      "$PY" tv/tv_diablo.py --test "$@"
+    ;;
+  -h | --help | help )
+    sed -n '2,14p' "$0" | sed 's/^# \?//'
+    ;;
+  * )
+    cmd_start_cli "$@"
+    ;;
+esac

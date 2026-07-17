@@ -18,23 +18,30 @@ at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
    stopped moving = you're reading items). Hard caps: ≥20s between reads,
    120 reads/session.
 
-## Mac (Konyo)
-
-**One-word launcher** (like `claude` / `grok`) — installed at `~/.local/bin/tvd`:
+## Mac (Konyo) — one-click install (mirrors Windows)
 
 ```bash
-tvd              # start live scanner (this terminal)
+curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash
+```
+
+That installs git/python/Claude Code if needed, clones the repo, puts `tvd` on
+your PATH, and drops **TV DIABLO.app** on your Desktop (+ `~/Applications`).
+**Double-click the app** → Terminal opens (live scanner log) + the bible board
+opens → flip **📺 TV·D** ON. Same product surface as the Windows Desktop shortcut.
+
+**One-word launcher** (also installed at `~/.local/bin/tvd`):
+
+```bash
+tvd              # start live scanner + open board (same as the app)
+tvd bare         # agent only, no browser
 tvd status       # ping bridge + last brain lines
 tvd restart      # kill :17771 + start fresh
-tvd stop         # stop agent
+tvd stop         # stop agent (farewell read)
 tvd --test img   # one-shot vision check
 ```
 
-Or the long form:
+Or the long form: `python3 tv/tv_diablo.py`
 
-```bash
-python3 tv/tv_diablo.py
-```
 **Use a bare Terminal window** — not a shell inside a Claude Code session (nested
 `claude -p` calls hang; your first live run proved it).
 
@@ -51,16 +58,20 @@ One-shot vision check (no bridge):
 python3 tv/tv_diablo.py --test tests/golden/intake/chronicle_mid.jpg
 ```
 
-## Windows (the cousin)
-
-Prereqs once: install Python 3 + Claude Code, then `claude` login with **your
-own** account (your subscription pays for your reads — nothing rides Konyo's).
+## Windows (the cousin) — one-click install
 
 ```powershell
-# terminal 1 — capture loop (zero installs, built-in .NET)
-powershell -ExecutionPolicy Bypass -File tv\capture_win.ps1
-# terminal 2 — reader + bridge
-python tv\tv_diablo.py --watch
+irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
+```
+
+Desktop shortcut **TV DIABLO** → capture + reader together, API keys stripped,
+first-run Claude login. Then bible → 📺 TV·D → flip the switch.
+
+Manual two-terminal form (same under the hood):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tv\capture_win.ps1   # terminal 1
+python tv\tv_diablo.py --watch                                # terminal 2
 ```
 
 ## Then, in the bible

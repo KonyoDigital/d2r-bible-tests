@@ -90,7 +90,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   # deploy trigger: pushing main, and a deployable asset changed
   # v755.1 — also ship when the cousin installer (or deploy.sh headers) changes
   if [ "$remote_ref" = "refs/heads/main" ]; then
-    if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|art/.*|functions/.*|tv/install-tvd\.ps1|deploy\.sh)$'; then
+    if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|art/.*|functions/.*|tv/install-tvd\.ps1|tv/install-tvd\.sh|deploy\.sh)$'; then
       deploy=1
     fi
   fi

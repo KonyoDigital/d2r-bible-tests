@@ -33,7 +33,8 @@ mkdir -p "$DIST/d2r"
 cp bible.html "$DIST/d2r/index.html"   # served at /d2r/
 cp -R art "$DIST/d2r/art"              # MUST include — self-hosted item art
 cp -R functions "$DIST/functions"      # MUST include — api/intake.js (AI vision)
-cp tv/install-tvd.ps1 "$DIST/d2r/install-tvd.ps1"   # 📺 cousin one-liner: irm …/d2r/install-tvd.ps1 | iex
+cp tv/install-tvd.ps1 "$DIST/d2r/install-tvd.ps1"   # 📺 Windows: irm …/d2r/install-tvd.ps1 | iex
+cp tv/install-tvd.sh  "$DIST/d2r/install-tvd.sh"    # 📺 Mac:     curl -fsSL …/d2r/install-tvd.sh | bash
 # v687 — do NOT ship orphan /d2r/v44/* (Session Cockpit is native in bible.html; external
 # v44 CSS/JS/SW were a dead layer and caused ghost/404 confusion). Dist is only index+art+functions.
 # v696 — GHOST EXORCISM (live audit): the Phase-Z service worker + a 41KB v44 orphan were STILL
@@ -71,9 +72,13 @@ cat > "$DIST/_headers" <<'HDRS'
   Cache-Control: no-cache, must-revalidate
 /d2r/art/*
   Cache-Control: public, max-age=604800, immutable
-# v755.1 — cousin installer must be text/plain so `irm … | iex` always gets a string
-# (Pages defaults .ps1 → application/octet-stream, which breaks PS 5.1/7 irm on some boxes)
+# v755.1 / v756 — installers must be text/plain so irm|iex and curl|bash get strings
+# (Pages defaults .ps1 → application/octet-stream on some boxes)
 /d2r/install-tvd.ps1
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: no-cache, must-revalidate
+  Access-Control-Allow-Origin: *
+/d2r/install-tvd.sh
   Content-Type: text/plain; charset=utf-8
   Cache-Control: no-cache, must-revalidate
   Access-Control-Allow-Origin: *

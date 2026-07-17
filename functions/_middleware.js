@@ -30,9 +30,9 @@ export async function onRequest(context) {
   // bot recorder + public TZ endpoint: always open
   if (url.pathname === '/api/tz') return next();
 
-  // TV DIABLO one-shot installer: must be `irm`-able with zero credentials (the
-  // cousin move). The script holds no secrets — it's in the PUBLIC repo anyway.
-  if (url.pathname === '/d2r/install-tvd.ps1') return next();
+  // TV DIABLO one-shot installers: must be fetchable with zero credentials
+  // (Windows irm|iex + Mac curl|bash). Scripts hold no secrets — public repo.
+  if (url.pathname === '/d2r/install-tvd.ps1' || url.pathname === '/d2r/install-tvd.sh') return next();
 
   // decode the Basic Auth username — ignored for AUTH, but recorded so Konyo can
   // label who's who (tell a cousin to log in as e.g. "cuz" and visits show it).
