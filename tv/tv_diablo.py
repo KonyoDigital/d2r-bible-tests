@@ -179,6 +179,7 @@ def bridge():
                 with _state_lock:
                     st = _load(); st["online"] = True; st["now"] = int(time.time()*1000)
                     st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
+                    st["stopping"] = _STOPPING   # v777.2 — 1-1 sync: the board drops the INSTANT the farewell begins
                     st["captureTarget"] = dict(_CAP_TARGET)  # v772 — window pin (CrossOver/D2R) or full
                 if _since:
                     st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
@@ -1838,7 +1839,10 @@ def farewell_read(force_frame=None):
     return rec
 
 _FAREWELL_DONE = False
+_STOPPING = False
 def _shutdown_handler(signum, frame):
+    global _STOPPING
+    _STOPPING = True
     """SIGINT/SIGTERM → farewell read then clean exit (tvd stop sends SIGTERM)."""
     global _FAREWELL_DONE
     if _FAREWELL_DONE:
