@@ -548,3 +548,20 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause:** the suite grew to ~1400 tests (3-way sharding sized for ~946): shard 3 needed ~60m vs `timeout-minutes: 50`, and the runner's SIGKILL killed playwright before the blob report was written; `retries:2 × 180s` amplified each failing test to up to 9 minutes, which is what pushed red shards past the cap.
 - **Fix:** v684 — 6-way sharding (~15m/shard), CI `globalTimeout` 45m (graceful exit always writes the blob), CI `retries:1` + 120s per-test, and merge-report FAILS unless all 6 blobs are present.
 - **Prevention:** the blob-count guard makes a reportless shard a loud red forever; shard budget documented in the workflow header (re-shard when a clean shard passes ~20m).
+
+## REG-019 — v747-v758 toggle-OFF undone by a late in-flight poll response (stage stuck visible)
+- **Symptom:** flipping the TV switch OFF sometimes left the NOW ON AIR stage (and live state) up
+  forever; surfaced as the Routine I shard-6 flake (the OFF assert timing out), and is the same
+  race class as Konyo's oldest live complaint ("the flip switch was already on").
+- **Caught by:** board754 (Fable code-review agent) stress-running the v747 spec 6×@workers=2
+  after the first waitForFunction fix did NOT kill the flake — the wait was honest, the product
+  was not.
+- **Root cause:** poll()'s fetch .then() ran `setState('live')` unguarded; toggle-OFF cleared the
+  interval but an already-in-flight response resolved afterwards and re-lit the board with no
+  future poll to correct it. The .catch() path had the same late-fire hole.
+- **Fix (v758.1):** `if(!T) return;` at the top of both .then() and .catch() — a response that
+  lands after the switch is OFF is discarded. All four poll() call sites set T synchronously
+  before any response can resolve, so no legit response is ever dropped.
+- **Prevention:** stress repro is the lesson — a "flaky test" that survives an honest
+  condition-wait is a PRODUCT race until proven otherwise; run repeat-each before recalibrating
+  the spec.
