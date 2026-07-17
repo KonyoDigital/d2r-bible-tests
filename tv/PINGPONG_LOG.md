@@ -420,3 +420,16 @@ TDD-locked; portal chrome holds Meph + terror with one hourglass." No honesty or
 violations. Noted nits (non-blocking, queued): lifecycle merge is last-write not priority-merge ·
 hold-⏳ could stack with the portal ⏳ if you portal mid-hold · credits emoji-strip assumes
 route() labels. Next-session queue: reading-ghosts polish only.
+
+### 🎬 R11 · v751 — THE HERO BAND (visual-coding-architect's autonomous polish pass) ✅
+- The architect ran its own visual pingpong (Grok CLI third-eye) and shipped the stage as a
+  **full-bleed broadcast lower-third**: edge-to-edge CRT grimoire plate (scanlines + vignette +
+  gold hairlines), serif display headline (🗺 DURANCE OF HATE LEVEL 2), pulsing on-air bug,
+  jeweled boss/terror pills, LIVE CAST strip label, phosphor vault glow, portal ENTERING flare,
+  dashed-gold reading ghosts w/ teleprompter caret.
+- Verified before ship: my v748–v750 work fully intact underneath · board 11/11 · renderer emits
+  the .tvn-content column the CSS expects · geometry probed: the 337px horizontal overflow
+  predates this pass (exists on v750) — the new html{overflow-x:clip} guard actually contains
+  that latent quirk; inner scroll rails unaffected.
+- ⚠️ OPS: the Grok MCP XAI_API_KEY is DEAD (rotated/expired) — both pingpong rounds tonight ran
+  through the signed-in Grok CLI instead. Rotate the key at console.x.ai to restore the MCP path.

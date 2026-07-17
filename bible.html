@@ -31701,14 +31701,21 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
    v747.1 — VISUAL PINGPONG (Grok third-eye pass): broadcast lower-third plate (CRT vignette +
    scanlines), a pulsing LIVE bug, jeweled cast tiles (inner well + rarity bloom + phosphor
    lifecycle), a menace terror pill, and a humming portal — 'dark UI row' → 'on-air lower-third'. */
-.tvn-stage{margin:2px 0 14px;border-radius:15px;overflow:hidden;position:relative;padding:0;
-  background:radial-gradient(120% 140% at 12% 0%,rgba(240,192,96,.07),transparent 42%),radial-gradient(90% 120% at 100% 100%,rgba(0,0,0,.55),transparent 55%),linear-gradient(180deg,#14110c 0%,#0a0907 55%,#070605 100%);
-  border:1px solid rgba(240,192,96,.22);
-  box-shadow:inset 0 1px 0 rgba(240,192,96,.14),inset 0 -20px 40px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.8),0 12px 40px rgba(0,0,0,.5);
+/* v747.2 — FULL-BLEED HERO BAND (Konyo: 'middle of the page, front and center, stretch left→right,
+   breathing at me'): the stage breaks out of the 1500px column to span the whole page edge-to-edge,
+   content centered in a max-width column with generous vertical breathing. overflow-x:clip on <html>
+   is the safe full-bleed guard (no scroll-container / sticky side effects, unlike overflow:hidden). */
+html{overflow-x:clip}
+.tvn-stage{margin:14px 0 26px;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-radius:0;overflow:hidden;position:relative;padding:0;
+  background:radial-gradient(120% 160% at 12% 0%,rgba(240,192,96,.08),transparent 44%),radial-gradient(90% 140% at 100% 100%,rgba(0,0,0,.55),transparent 55%),linear-gradient(180deg,#14110c 0%,#0a0907 55%,#070605 100%);
+  border:1px solid rgba(240,192,96,.22);border-left:0;border-right:0;
+  box-shadow:inset 0 1px 0 rgba(240,192,96,.14),inset 0 -26px 50px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.8),0 14px 46px rgba(0,0,0,.5);
   animation:tvnStageIn .5s ease}
-.tvn-stage::before{content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.12) 2px 3px);opacity:.32;mix-blend-mode:multiply}
-.tvn-stage::after{content:"";pointer-events:none;position:absolute;inset:0;box-shadow:inset 0 0 60px 12px rgba(0,0,0,.55);border-radius:inherit}
-.tvn-inner{position:relative;z-index:1;padding:14px 18px 16px;min-height:118px;transition:background .55s ease}
+.tvn-stage::before{content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.12) 2px 3px);opacity:.3;mix-blend-mode:multiply}
+.tvn-stage::after{content:"";pointer-events:none;position:absolute;inset:0;box-shadow:inset 0 0 90px 18px rgba(0,0,0,.5);border-radius:inherit}
+.tvn-inner{position:relative;z-index:1;padding:34px 0 38px;min-height:220px;transition:background .55s ease;display:flex;flex-direction:column;justify-content:center}
+/* the centered content column — full-bleed plate, front-and-center content */
+.tvn-content{width:100%;max-width:1460px;margin:0 auto;padding:0 26px;display:flex;flex-direction:column;align-items:center;text-align:center}
 /* scene skins — a subtle rim tint per scene, layered over the plate */
 .tvn-skin-loot{background:radial-gradient(ellipse at 16% -14%,rgba(70,130,210,.15),transparent 60%)}
 .tvn-skin-inventory{background:radial-gradient(ellipse at 16% -14%,rgba(210,168,66,.15),transparent 60%)}
@@ -31716,7 +31723,7 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvn-skin-town{background:radial-gradient(ellipse at 16% -14%,rgba(214,150,72,.13),transparent 60%)}
 .tvn-skin-gameplay{background:radial-gradient(ellipse at 16% -14%,rgba(130,140,130,.08),transparent 60%)}
 .tvn-skin-transition{background:radial-gradient(80% 120% at 30% 50%,rgba(255,217,122,.18),transparent 55%),radial-gradient(60% 80% at 72% 82%,rgba(255,160,40,.1),transparent 50%),linear-gradient(180deg,rgba(26,20,8,.55),transparent);animation:tvnPortalHum 3.2s ease-in-out infinite}
-.tvn-topline{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.tvn-topline{display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:14px;flex-wrap:wrap}
 /* the LIVE bug — network-broadcast lockup: gold tracking + a pulsing green on-air dot */
 .tvn-live-dot{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#f0c060;text-shadow:0 0 12px rgba(240,192,96,.35)}
 .tvn-air-dot{width:8px;height:8px;border-radius:50%;background:#8fe6a0;box-shadow:0 0 0 0 rgba(143,230,160,.55),0 0 10px 2px rgba(143,230,160,.6);animation:tvnLiveBug 1.6s ease-out infinite}
@@ -31724,15 +31731,16 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvn-boss{display:inline-flex;align-items:center;gap:6px;padding:2px 10px 2px 3px;border-radius:999px;border:1px solid rgba(226,80,42,.42);background:linear-gradient(180deg,rgba(90,30,20,.5),rgba(40,14,10,.7));font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;color:#f0a58c;letter-spacing:.05em;box-shadow:inset 0 1px 0 rgba(240,120,90,.16),0 0 0 1px rgba(0,0,0,.5),0 0 12px rgba(226,80,42,.2)}
 .tvn-boss img{width:24px;height:24px;object-fit:contain;border-radius:5px;background:rgba(0,0,0,.4);box-shadow:0 0 0 1px rgba(0,0,0,.6)}
 .tvn-tz{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.04em;color:#c9a8ff;background:linear-gradient(180deg,rgba(80,40,120,.45),rgba(30,16,48,.72));border:1px solid rgba(201,168,255,.42);box-shadow:inset 0 1px 0 rgba(201,168,255,.18),0 0 0 1px rgba(0,0,0,.5),0 0 14px rgba(160,80,255,.22);animation:tvnTerrorPulse 2.6s ease-in-out infinite}
-.tvn-area{font-size:var(--fs-title);font-weight:800;color:#ece6d4;display:flex;align-items:center;gap:9px;flex-wrap:wrap;line-height:1.2;text-shadow:0 1px 8px rgba(0,0,0,.5)}
-.tvn-scene-ic{font-size:17px}
-.tvn-scene{color:var(--text-muted);font-size:var(--fs-body);font-weight:700;text-transform:capitalize;letter-spacing:.02em}
-.tvn-cap{margin-top:5px;color:var(--text-dim);font-size:var(--fs-meta);font-family:var(--mono);letter-spacing:.03em;min-height:16px;text-transform:lowercase}
-/* the LIVE CAST strip */
-.tvn-cast-h{margin-top:13px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.2em;color:rgba(240,192,96,.45);text-transform:uppercase}
-.tvn-cast{display:flex;gap:13px;margin-top:8px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin}
-.tvn-cast-tile{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;width:auto;min-width:66px;max-width:96px;position:relative;cursor:help;animation:tvnCastIn .48s cubic-bezier(.2,.9,.3,1.15) both}
-.tvn-cast-art,.tvn-cast-glyph{width:52px;height:52px;display:flex;align-items:center;justify-content:center;object-fit:contain;border-radius:11px;padding:3px;font-size:25px;
+.tvn-area{font-family:var(--serif-display,serif);font-size:clamp(23px,2.3vw,33px);font-weight:700;color:#f2e8cf;display:flex;align-items:center;justify-content:center;gap:13px;flex-wrap:wrap;line-height:1.15;letter-spacing:.01em;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.tvn-scene-ic{font-size:24px}
+.tvn-scene{color:var(--text-muted);font-family:var(--mono);font-size:var(--fs-title);font-weight:700;text-transform:capitalize;letter-spacing:.02em}
+.tvn-cap{margin-top:9px;color:var(--text-dim);font-size:var(--fs-body);font-family:var(--mono);letter-spacing:.05em;min-height:16px;text-transform:lowercase}
+/* the LIVE CAST strip — centered, framed by hairlines */
+.tvn-cast-h{margin-top:24px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.28em;color:rgba(240,192,96,.5);text-transform:uppercase}
+.tvn-cast-h::before,.tvn-cast-h::after{content:"";display:inline-block;width:34px;height:1px;vertical-align:middle;margin:0 12px;background:linear-gradient(90deg,transparent,rgba(240,192,96,.4),transparent)}
+.tvn-cast{display:flex;gap:17px;margin-top:14px;justify-content:center;max-width:100%;overflow-x:auto;padding:6px 2px 10px;scrollbar-width:thin}
+.tvn-cast-tile{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:7px;width:auto;min-width:76px;max-width:112px;position:relative;cursor:help;animation:tvnCastIn .48s cubic-bezier(.2,.9,.3,1.15) both}
+.tvn-cast-art,.tvn-cast-glyph{width:60px;height:60px;display:flex;align-items:center;justify-content:center;object-fit:contain;border-radius:13px;padding:3px;font-size:29px;
   background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.06),transparent 55%),linear-gradient(180deg,#1a1610,#0c0a08);
   border:2px solid var(--tvn-ring,rgba(255,255,255,.22));
   box-shadow:0 0 0 1px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.08),inset 0 -8px 14px rgba(0,0,0,.5),0 0 14px color-mix(in srgb,var(--tvn-ring,transparent) 34%,transparent),0 5px 14px rgba(0,0,0,.4);
@@ -32773,7 +32781,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v750', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v751', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33160,11 +33168,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       tvnChapterCast(last);   // keeps the chapter's tz/cast memory warm through the portal
       var note = (last && (last.note || (last.transition_from ? ('through the portal — leaving '+last.transition_from) : ''))) || 'entering a new area';
       var dimCast = _chapCast.map(function(c){ return tvnCastTile(c.x); }).filter(Boolean).join('');
-      el.innerHTML='<div class="tvn-inner tvn-skin-transition"><div class="tvn-portal"></div>'+topline
+      el.innerHTML='<div class="tvn-inner tvn-skin-transition"><div class="tvn-portal"></div><div class="tvn-content">'+topline
         +'<div class="tvn-area">ENTERING</div>'
         +'<div class="tvn-portal-note"><span class="tvn-portal-ic">⏳</span>'+escAttr(note)+'</div>'
         +(dimCast?('<div class="tvn-cast tvn-cast-dim">'+dimCast+'</div>'):'')
-        +'</div>';
+        +'</div></div>';
       el.__nfp=fp;
       return;
     }
@@ -33184,7 +33192,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       body='<div class="tvn-cap">'+escAttr(cap)+'</div>'
         + (tiles ? ('<div class="tvn-cast-h">Live Cast</div><div class="tvn-cast">'+tiles+'</div>') : '<div class="tvn-watch">👁 watching — the read lands the moment you stop on loot or a tooltip</div>');
     }
-    el.innerHTML='<div class="tvn-inner tvn-skin-'+(scene||'gameplay')+(reading?' tvn-reading':'')+'">'+topline+areaLine+body+'</div>';
+    el.innerHTML='<div class="tvn-inner tvn-skin-'+(scene||'gameplay')+(reading?' tvn-reading':'')+'"><div class="tvn-content">'+topline+areaLine+body+'</div></div>';
     el.__nfp=fp;
     var cast=el.querySelector('.tvn-cast'); if(cast){ try{ cast.scrollLeft=keepX; }catch(e){} }
   }
