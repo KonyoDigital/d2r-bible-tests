@@ -27965,6 +27965,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.tvVaultRegister = function(name){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+      // v792 (R3 pick 3) — ONE identity across both engines: resolve to the same canonical
+      // key the chronicle uses (suffix-tolerant ITEMS match + canonical set-piece name), so
+      // 'Harlequin Crest' and 'Harlequin Crest (Shako)' are never two vault tiles.
+      try {
+        var _cnV = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+        if (typeof ITEMS !== 'undefined' && !ITEMS.some(function(i){ return i.n === name; })){
+          var _qnV = _cnV(name);
+          var _hitV = ITEMS.find(function(i){ return _cnV(i.n) === _qnV; });
+          if (_hitV) name = _hitV.n;
+        }
+        if (typeof window.findSetPiece === 'function'){
+          var _pV = window.findSetPiece(name);
+          if (_pV && _pV.piece) name = _pV.piece;
+        }
+      } catch(e){}
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(name);
       // v739 — UNIVERSE GUARANTEE: anything TV registers must be drawable by the Vault Manager.
       // Unknown names (RotW customs like 'Blood Shield' / 'Compendium') get a minimal reference
@@ -33335,7 +33350,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v791', name:'Endurance', date:'2026-07-18', note:'v791: adaptive poll (300ms hot / 1.5s idle) · no film thrash on a still eye · 10min endurance mode freezes decor' };
+  window.D2R_BUILD = { id:'v792', name:'One Name', date:'2026-07-18', note:'v792: vault + chronicle share ONE canonical identity — no dual tiles, belt fills gaps only' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34392,13 +34407,14 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           try { if (typeof window.tvVaultUnregister === 'function') window.tvVaultUnregister(n); } catch(e){}
         });
         if (vaultList.length){
+          var _regd = {};   // v792 — names the routes-loop already registered (single-path truth)
           routes.forEach(function(x){
             try {
               var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
               if (!vaultSet[_nN(x.key)] && !vaultSet[_nN(vaultName)]) return;
               if(x.kind!=='note' && x.kind!=='item' && !x.done){ apply(x.kind, x.key, null); x.done=true; }
               var vr = null;
-              if(vaultName && typeof window.tvVaultRegister==='function') vr = window.tvVaultRegister(vaultName);
+              if(vaultName && typeof window.tvVaultRegister==='function'){ vr = window.tvVaultRegister(vaultName); _regd[_nN(vaultName)] = true; _regd[_nN(x.key)] = true; }
               x.vault = !!(vr && vr.ok && vr.mode !== 'throwout');
               x.holding = false;
               x.lc = (rd.lifecycle_tags && (rd.lifecycle_tags[vaultName] || rd.lifecycle_tags[x.key])) || 'vault';
@@ -34407,7 +34423,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           });
           // belt: every committed vault_name must hit owned/vault UI even if route() missed
           vaultList.forEach(function(n){
-            try { if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(n); } catch(e){}
+            // v792 — belt fills GAPS only: a name the routes-loop already registered must not
+            // land twice under two forms ('Ist' + 'Ist Rune'). Chronicle still fires once here.
+            try { if (!_regd[_nN(n)] && typeof window.tvVaultRegister === 'function') window.tvVaultRegister(n); } catch(e){}
             try { if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(n, 'vault'); } catch(e){}
           });
           auto=true;

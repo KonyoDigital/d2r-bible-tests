@@ -929,3 +929,9 @@ raw epoch demoted to film tooltip. 82/82 + 16/16.
 fresh <2.5s; else 1.5s), film cache-bust skipped when the eye is still (>2.5s), endurance mode
 after 10min continuous ON freezes decorative keyframes (LIVE bug + film + fault banner stay
 animated), prefers-reduced-motion = instant endurance. 82/82 + 16/16.
+
+## 🌙 R3 pick 3 → v792 "One Name" (~05:05)
+Vault + chronicle share ONE canonical identity: tvVaultRegister resolves suffix-tolerant ITEMS
+match + canonical set-piece name (same as tvChronicleRoute) so 'Harlequin Crest' vs
+'(Shako)'-suffixed are never two tiles; belt-loop fills gaps only (_regd set from routes-loop) —
+'Ist' + 'Ist Rune' dual registration dead. Board specs 21/21 + suites 82/82 + 16/16.
