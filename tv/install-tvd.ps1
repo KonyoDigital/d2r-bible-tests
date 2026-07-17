@@ -9,7 +9,7 @@
 # through it. Zero API keys, read-only by construction (screen capture only).
 #
 # Served as text/plain (not octet-stream) so Windows PowerShell's `irm | iex` always
-# gets a string. UTF-8 with BOM so Desktop-shortcut -File runs clean on PS 5.1.
+# gets a string. (The BOM lives in start_tvd_win.ps1 — the file PS 5.1 runs via -File.)
 $ErrorActionPreference = 'Stop'
 $repoUrl  = 'https://github.com/KonyoDigital/d2r-bible-tests.git'
 $repoDir  = Join-Path $HOME 'd2r_bible_tests'
@@ -79,10 +79,10 @@ function Real-Python {
 
 function Winget-Install($id, $label) {
   Say "installing $label…"
-  $args = @('install', '-e', '--id', $id, '--silent',
-            '--accept-package-agreements', '--accept-source-agreements',
-            '--disable-interactivity')
-  & winget @args | Out-Null
+  $wingetArgs = @('install', '-e', '--id', $id, '--silent',
+                  '--accept-package-agreements', '--accept-source-agreements',
+                  '--disable-interactivity')
+  & winget @wingetArgs | Out-Null
   Refresh-Path
   Start-Sleep -Seconds 1
   Refresh-Path

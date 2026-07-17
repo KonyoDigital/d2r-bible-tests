@@ -39,7 +39,15 @@ $cap = Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$
 Say "capture loop running (minimized window, pid $($cap.Id))"
 
 # ── the reader (this window) ─────────────────────────────────────────────────
-$py = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'py' }
+$py = $null
+foreach ($c in @('python','py')) {
+  $cmd = Get-Command $c -ErrorAction SilentlyContinue
+  if ($cmd -and ([string]$cmd.Source) -notmatch 'WindowsApps\\(?:python|python3)\.exe$') { $py = $c; break }
+}
+if (-not $py) {
+  Say "no real Python found (only the Windows Store stub?) — re-run the installer line."
+  Read-Host "press Enter to close"; return
+}
 Say "reader starting — open the bible → 📺 TV·D tab → flip the switch. Ctrl-C here stops (farewell read included)."
 try {
   & $py "$here\tv_diablo.py" --watch
