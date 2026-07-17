@@ -1,6 +1,6 @@
 # 🏓 HANDOFF CLOSED · v779 The Honest Eye · 2026-07-18
 
-**Status: SOLVED and live-verified.** Grok took over from Fable's v779-pre2 mystery.
+**Status: SOLVED → SHIPPED through v783.** Grok closed the pin mystery (v779), then one-window (v781), async vision (v782), snappy film (v783). See PINGPONG v779–v783.
 
 ## Root cause (two stacked bugs)
 

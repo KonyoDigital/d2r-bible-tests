@@ -806,3 +806,58 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
 - **ONE version truth**: agent/control/UI/`D2R_BUILD` → **v779**.
 - Live-verified: pin `D2R.exe · Diablo II: Resurrected`, film = Rogue Encampment, read #1 lands.
 - Gates: agent+control **83/83**.
+
+
+### 🎯 v779–v783 — GROK SHIP ARC (Konyo: finish Claude stuck path · one window · live film) ✅
+
+**Entry:** Fable handoff `HANDOFF_TO_GROK_capture_pin_2026-07-18.md` — window pin claimed D2R,
+film showed desktop; version drift v774 stamps vs tip v778+.
+
+#### Root causes closed
+1. **STALE-FILE LIE (v779)** — `screencapture` fail left old `live.bmp`; exists+size trust gate
+   claimed pin success. Fix: temp → promote only. Screen Recording preflight + Mac no-setsid.
+2. **Chrome/CrossOver pin steal (v779.1)** — bible tab title "D2R" / CrossOver Home out-scored
+   game. Fix: browser blocklist + bare CrossOver launcher ban + D2R.exe absolute score.
+3. **ON flapping (ops)** — 3 control apps fought one port. Clean single process.
+4. **Second window (v781)** — Open Board → `/api/board` spawned `--board-window`; dual Desktop
+   launch opened another pywebview. Fix: same-window nav; port-in-use refuses second window.
+5. **Film freeze on READING (v782)** — `claude_read` blocked capture loop. Fix: vision worker
+   thread + snap.bmp; capture continues.
+6. **Film lag (v783)** — dedicated ~5fps JPEG film thread, pick TTL cache, UI poll 300ms,
+   priority gap 1.2s / cruise 4s. Measured ~2fps eye updates live.
+
+#### Product wires locked
+| Surface | Truth |
+|---------|--------|
+| Capture | AUTO pin `D2R.exe · Diablo II: Resurrected` |
+| Film | `eye.jpg` via film thread → `/frame` |
+| Session | `sessionId` per ON → theatre pages |
+| SIM | In-console theatre = newest journaled session |
+| Board rail / TV·D | Same window `/board?app=1#tab` |
+| Journal | `sessions.jsonl` + `hist/{frameId}.jpg` cross-ref |
+| Stamps | agent · control · UI · D2R_BUILD = **v783** |
+
+#### Gates (this ship)
+- `tv.test_agent` + `tv.test_control` → **87/87 OK**
+- Live button matrix (v781): ON/OFF/RESTART/STOP/BOARD-nav · **0 board-window spawns** · 1 control
+- Live: mode live · bridge · pin D2R · film updating · sessionId minting
+
+#### Honest limits (do not lie to Konyo)
+- Console **film** tracks game (~0.5s class).
+- **OCR** provisional names ~50–150ms when text is still + readable.
+- **Claude deep** still multi-second (subscription vision) — stop on piles, don't expect 60fps ID.
+
+#### Commits (main, ship stack)
+- `6f55cee` v779 Honest Eye (stale-file + TCC)
+- `2e6e5cd` v780 Session Film Truth (sessionId + theatre stamps)
+- `7be215b` v781 One Window Console
+- `c6509df` v782 Live Eye Never Freezes
+- `7d6dcbc` v783 Snappy Film
+
+#### Operator notes
+- One TV DIABLO window only (Desktop re-launch refuses second).
+- SIM = last session reel in-console (not canned agent; `tvd sim` still for dev).
+- Pop-out board only via `/api/board?popout=1` (UI never calls it).
+- Grant **Python** Screen Recording if capture dies after app relaunch.
+
+🏓 **PING → Konyo:** stack is online at v783, suites green, ready for a real pile-hover farm run.
