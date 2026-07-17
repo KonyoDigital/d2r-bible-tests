@@ -380,7 +380,6 @@
     overflow-x: hidden;
     scrollbar-width: thin;
   }
-  .primary { flex: 0 0 auto; }      /* buttons keep natural height; no flex-crush overlap */
   .primary button.act { flex: 0 0 auto; min-height: clamp(44px, 5.4vh, 64px); }
   .rail-h {
     font-size: clamp(9px,.78vw,12px); letter-spacing: .32em; text-transform: uppercase;
@@ -391,7 +390,7 @@
   .rail-h .jewel { width: 1.5em; height: 1.5em; object-fit: contain; flex: none; margin-right: 2px;
     filter: drop-shadow(0 0 5px rgba(240,192,96,.55)); opacity: .92; animation: jewelGlow 3.6s ease-in-out infinite; }
   @keyframes jewelGlow { 0%,100% { filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); } 50% { filter: drop-shadow(0 0 9px rgba(240,192,96,.7)); } }
-  .primary { display: flex; flex-direction: column; gap: clamp(8px, .9vw, 13px); flex: 1; min-height: 0; }
+  .primary { display: flex; flex-direction: column; gap: clamp(8px, .9vw, 13px); flex: 0 0 auto; }
   button.act {
     appearance: none;
     flex: 1;
