@@ -1025,7 +1025,21 @@ def _loud_fail(title, msg):
 
 
 def board_window():
-    """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd)."""
+    """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd).
+    v773.2 — orphan guard: if the control server disappears for ~60s, this window self-closes
+    (the REG-020 swarm can never rebuild from forgotten windows)."""
+    def _orphan_watch():
+        misses = 0
+        while True:
+            time.sleep(20)
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{CONTROL_PORT}/api/status", timeout=3):
+                    misses = 0
+            except Exception:
+                misses += 1
+                if misses >= 3:
+                    os._exit(0)
+    threading.Thread(target=_orphan_watch, daemon=True).start()
     url = _file_url(BIBLE, "tvd")
     try:
         import webview
