@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV DIABLO</title>
+<style>
+  :root {
+    --bg0: #070605;
+    --bg1: #100e0a;
+    --gold: #f0c060;
+    --gold-dim: #a07830;
+    --mint: #8fe6a0;
+    --mint-dim: rgba(143,230,160,.35);
+    --danger: #ff7a7a;
+    --info: #7ec8ff;
+    --sim: #c9a8ff;
+    --text: #e8dcc4;
+    --muted: #8a7e68;
+    --serif: "Cinzel", "Palatino Linotype", Palatino, "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg0);
+    color: var(--text);
+    font-family: var(--mono);
+    overflow: hidden;
+    user-select: none;
+  }
+  body {
+    background:
+      radial-gradient(120% 80% at 10% -10%, rgba(240,192,96,.12), transparent 50%),
+      radial-gradient(90% 70% at 100% 100%, rgba(0,0,0,.7), transparent 55%),
+      linear-gradient(180deg, #14110c 0%, #0a0907 55%, #050403 100%);
+  }
+
+  .shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 22px 16px;
+    max-width: 920px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .shell::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.08) 2px 3px);
+    opacity: .35;
+    mix-blend-mode: multiply;
+  }
+
+  /* ── header ── */
+  header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-ic {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(160deg, #2a2214, #100e0a);
+    border: 1px solid rgba(240,192,96,.35);
+    box-shadow: 0 0 18px rgba(240,192,96,.2), inset 0 1px 0 rgba(255,255,255,.06);
+    display: grid; place-items: center;
+    font-size: 22px;
+    animation: pulseIc 3s ease-in-out infinite;
+  }
+  @keyframes pulseIc {
+    0%,100% { box-shadow: 0 0 12px rgba(240,192,96,.15), inset 0 1px 0 rgba(255,255,255,.06); }
+    50% { box-shadow: 0 0 22px rgba(240,192,96,.4), inset 0 1px 0 rgba(255,255,255,.08); }
+  }
+  .brand h1 {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--gold);
+    text-shadow: 0 0 18px rgba(240,192,96,.35);
+  }
+  .brand .sub {
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .live-bug {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(240,192,96,.28);
+    background: rgba(0,0,0,.35);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    color: var(--gold);
+  }
+  .live-bug .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #555;
+    box-shadow: none;
+    transition: .25s;
+  }
+  .live-bug.on .dot {
+    background: var(--mint);
+    box-shadow: 0 0 0 0 rgba(143,230,160,.55), 0 0 10px 2px rgba(143,230,160,.55);
+    animation: bug 1.6s ease-out infinite;
+  }
+  .live-bug.sim .dot {
+    background: var(--sim);
+    box-shadow: 0 0 10px rgba(201,168,255,.6);
+    animation: bug 1.6s ease-out infinite;
+  }
+  @keyframes bug {
+    0% { box-shadow: 0 0 0 0 rgba(143,230,160,.55), 0 0 10px 2px rgba(143,230,160,.55); }
+    70% { box-shadow: 0 0 0 9px rgba(143,230,160,0), 0 0 8px 1px rgba(143,230,160,.3); }
+    100% { box-shadow: 0 0 0 0 rgba(143,230,160,0), 0 0 10px 2px rgba(143,230,160,.55); }
+  }
+
+  /* ── CRT stage ── */
+  .stage {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    min-height: 180px;
+    border-radius: 16px;
+    border: 1px solid rgba(240,192,96,.22);
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(240,192,96,.08), transparent 55%),
+      linear-gradient(180deg, #12100c, #080706);
+    box-shadow:
+      inset 0 1px 0 rgba(240,192,96,.12),
+      inset 0 -30px 50px rgba(0,0,0,.45),
+      0 14px 40px rgba(0,0,0,.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 18px;
+    margin-bottom: 14px;
+  }
+  .stage::after {
+    content: "";
+    position: absolute; inset: 0;
+    box-shadow: inset 0 0 80px 16px rgba(0,0,0,.45);
+    pointer-events: none;
+  }
+  .crt-face {
+    width: 88px; height: 72px;
+    border-radius: 12px;
+    background: #0a0a0a;
+    border: 2px solid rgba(240,192,96,.25);
+    display: grid; place-items: center;
+    font-size: 36px;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 0 24px rgba(0,0,0,.6);
+  }
+  .crt-face.on {
+    border-color: rgba(143,230,160,.5);
+    box-shadow: 0 0 28px rgba(143,230,160,.25);
+  }
+  .crt-face.sim {
+    border-color: rgba(201,168,255,.55);
+    box-shadow: 0 0 28px rgba(201,168,255,.28);
+  }
+  .phase {
+    position: relative; z-index: 1;
+    font-family: var(--serif);
+    font-size: 28px;
+    letter-spacing: .08em;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(240,192,96,.4);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .caption {
+    position: relative; z-index: 1;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: .04em;
+    text-align: center;
+    max-width: 520px;
+    line-height: 1.45;
+  }
+  .caption b { color: var(--text); font-weight: 600; }
+
+  /* meters */
+  .meters {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 640px;
+    margin-top: 18px;
+  }
+  .m {
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(240,192,96,.12);
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .m .l {
+    font-size: 9px;
+    letter-spacing: .14em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .m .v {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── buttons ── */
+  .pad {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 640px) {
+    .pad { grid-template-columns: repeat(3, 1fr); }
+    .meters { grid-template-columns: repeat(2, 1fr); }
+  }
+  button.act {
+    appearance: none;
+    border: 1px solid rgba(240,192,96,.28);
+    background: linear-gradient(180deg, rgba(40,32,18,.9), rgba(14,12,8,.95));
+    color: var(--gold);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: 16px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform .12s, box-shadow .18s, border-color .18s, background .18s;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 6px 18px rgba(0,0,0,.35);
+  }
+  button.act:hover {
+    transform: translateY(-1px);
+    border-color: rgba(240,192,96,.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(240,192,96,.15), 0 8px 22px rgba(0,0,0,.4);
+  }
+  button.act:active { transform: translateY(1px); }
+  button.act:disabled {
+    opacity: .4;
+    cursor: wait;
+    transform: none;
+  }
+  button.act.on {
+    border-color: rgba(143,230,160,.55);
+    color: var(--mint);
+    background: linear-gradient(180deg, rgba(24,48,32,.95), rgba(8,14,10,.98));
+    box-shadow: inset 0 1px 0 rgba(143,230,160,.15), 0 0 20px rgba(143,230,160,.12);
+  }
+  button.act.off {
+    border-color: rgba(160,150,130,.3);
+    color: #c8bba0;
+  }
+  button.act.stop {
+    border-color: rgba(255,122,122,.45);
+    color: var(--danger);
+    background: linear-gradient(180deg, rgba(48,18,18,.9), rgba(14,8,8,.95));
+  }
+  button.act.restart {
+    border-color: rgba(126,200,255,.4);
+    color: var(--info);
+  }
+  button.act.sim {
+    border-color: rgba(201,168,255,.45);
+    color: var(--sim);
+    background: linear-gradient(180deg, rgba(36,24,52,.95), rgba(12,8,18,.98));
+  }
+  button.act .ic { display: block; font-size: 18px; margin-bottom: 6px; }
+
+  .row2 {
+    position: relative; z-index: 1;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  button.ghost {
+    flex: 1;
+    appearance: none;
+    border: 1px solid rgba(240,192,96,.18);
+    background: rgba(0,0,0,.25);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button.ghost:hover { color: var(--gold); border-color: rgba(240,192,96,.4); }
+
+  /* brain strip */
+  .brain {
+    position: relative; z-index: 1;
+    height: 92px;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid rgba(102,255,136,.12);
+    background: linear-gradient(180deg, #060805, #040604);
+    padding: 8px 12px;
+    font-size: 10px;
+    line-height: 1.55;
+    color: #7fae87;
+  }
+  .brain .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+  .brain .line.hi { color: #b7ecc4; font-weight: 700; opacity: 1; }
+  .brain .empty { color: #41523f; font-style: italic; }
+
+  footer {
+    position: relative; z-index: 1;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: .08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(20,16,10,.95);
+    border: 1px solid rgba(240,192,96,.4);
+    color: var(--gold);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 11px;
+    letter-spacing: .06em;
+    opacity: 0;
+    pointer-events: none;
+    transition: .3s;
+    z-index: 50;
+    max-width: 90%;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="brand-ic">📺</div>
+        <div>
+          <h1>TV DIABLO</h1>
+          <div class="sub">Control · hidden autopilot</div>
+        </div>
+      </div>
+      <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
+    </header>
+
+    <section class="stage" id="stage">
+      <div class="crt-face" id="crt">📺</div>
+      <div class="phase" id="phase">STANDBY</div>
+      <div class="caption" id="caption">Press <b>ON</b> to start the hidden scanner and open the board live.</div>
+      <div class="meters">
+        <div class="m"><div class="l">Mode</div><div class="v" id="m-mode">—</div></div>
+        <div class="m"><div class="l">Reads</div><div class="v" id="m-reads">0</div></div>
+        <div class="m"><div class="l">Area</div><div class="v" id="m-area">—</div></div>
+        <div class="m"><div class="l">Scene</div><div class="v" id="m-scene">—</div></div>
+      </div>
+    </section>
+
+    <div class="pad">
+      <button class="act on" id="btn-on" type="button"><span class="ic">▶</span>On</button>
+      <button class="act off" id="btn-off" type="button"><span class="ic">❚❚</span>Off</button>
+      <button class="act stop" id="btn-stop" type="button"><span class="ic">■</span>Stop</button>
+      <button class="act restart" id="btn-restart" type="button"><span class="ic">↻</span>Restart</button>
+      <button class="act sim" id="btn-sim" type="button"><span class="ic">✦</span>Sim</button>
+    </div>
+
+    <div class="row2">
+      <button class="ghost" id="btn-board" type="button">Open board · TV·D</button>
+      <button class="ghost" id="btn-log" type="button">Toggle log</button>
+    </div>
+
+    <div class="brain" id="brain"><div class="empty">— brain strip · agent thoughts appear here —</div></div>
+
+    <footer>
+      <span id="foot-ver">v757 control</span>
+      <span id="foot-ports">:17772 · agent :17771</span>
+    </footer>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var API = '';
+  var busy = false;
+  var showLog = false;
+
+  function $(id){ return document.getElementById(id); }
+  function toast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function(){ t.classList.remove('show'); }, 2400);
+  }
+  function setBusy(v){
+    busy = v;
+    ['btn-on','btn-off','btn-stop','btn-restart','btn-sim'].forEach(function(id){
+      $(id).disabled = v;
+    });
+  }
+  async function post(path){
+    setBusy(true);
+    try {
+      var r = await fetch(API + path, { method: 'POST' });
+      var j = await r.json();
+      toast((j.msg || path) + (j.mode ? ' · ' + j.mode : ''));
+      await refresh();
+      return j;
+    } catch (e) {
+      toast('failed · ' + e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function paint(st){
+    var mode = st.mode || 'off';
+    var on = !!st.bridge;
+    var bug = $('bug');
+    bug.className = 'live-bug' + (mode === 'sim' ? ' sim' : (on ? ' on' : ''));
+    $('bug-txt').textContent = mode === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR');
+
+    var crt = $('crt');
+    crt.className = 'crt-face' + (mode === 'sim' ? ' sim' : (on ? ' on' : ''));
+    crt.textContent = mode === 'sim' ? '✦' : (on ? '📡' : '📺');
+
+    var phase = 'STANDBY';
+    if (mode === 'sim') phase = 'SIMULATION';
+    else if (on) phase = (st.phase || 'LIVE').toString().toUpperCase();
+    else phase = 'STANDBY';
+    $('phase').textContent = phase;
+
+    var cap = 'Press ON to start the hidden scanner and open the board live.';
+    if (on && mode === 'sim') cap = 'Simulation running · canned reads · zero vision cost. Flip D2R or just watch the cinema.';
+    else if (on) cap = 'Scanner hidden · bridge live. Board should be on TV·D. Play D2R fullscreen for clean reads.';
+    else if (st.pid) cap = 'Process signal without bridge — try RESTART.';
+    $('caption').innerHTML = cap;
+
+    $('m-mode').textContent = mode.toUpperCase();
+    $('m-reads').textContent = st.readCount != null ? st.readCount : '0';
+    $('m-area').textContent = st.area || '—';
+    $('m-scene').textContent = st.scene || st.phase || '—';
+    $('foot-ver').textContent = (st.ver || 'v757') + ' control';
+    $('foot-ports').textContent = ':' + (st.controlPort||17772) + ' · agent :' + (st.agentPort||17771);
+
+    var brain = $('brain');
+    if (showLog) return; // log mode handled elsewhere
+    var ev = st.events || [];
+    if (!ev.length) {
+      brain.innerHTML = '<div class="empty">— brain strip · agent thoughts appear here —</div>';
+    } else {
+      brain.innerHTML = ev.map(function(e, i){
+        var hi = i === ev.length - 1 ? ' hi' : '';
+        return '<div class="line'+hi+'">'+esc(e.k||'·')+' · '+esc(e.t||'')+'</div>';
+      }).join('');
+      brain.scrollTop = brain.scrollHeight;
+    }
+  }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+    });
+  }
+  async function refresh(){
+    try {
+      var r = await fetch(API + '/api/status');
+      var st = await r.json();
+      if (!showLog) paint(st);
+      else paint(st);
+    } catch (e) {
+      $('phase').textContent = 'NO CONTROL';
+      $('caption').textContent = 'Control server unreachable.';
+    }
+  }
+  async function loadLog(){
+    try {
+      var r = await fetch(API + '/api/log');
+      var j = await r.json();
+      var brain = $('brain');
+      var lines = (j.log || '').trim().split('\n').slice(-12);
+      brain.innerHTML = lines.map(function(l){
+        return '<div class="line">'+esc(l)+'</div>';
+      }).join('') || '<div class="empty">— empty log —</div>';
+      brain.scrollTop = brain.scrollHeight;
+    } catch (e) {}
+  }
+
+  $('btn-on').onclick = function(){ post('/api/on'); };
+  $('btn-off').onclick = function(){ post('/api/off'); };
+  $('btn-stop').onclick = function(){ post('/api/stop'); };
+  $('btn-restart').onclick = function(){ post('/api/restart'); };
+  $('btn-sim').onclick = function(){ post('/api/sim'); };
+  $('btn-board').onclick = function(){ post('/api/board'); };
+  $('btn-log').onclick = function(){
+    showLog = !showLog;
+    $('btn-log').textContent = showLog ? 'Live brain' : 'Toggle log';
+    if (showLog) loadLog(); else refresh();
+  };
+
+  refresh();
+  setInterval(function(){
+    if (showLog) loadLog();
+    else refresh();
+  }, 500);
+})();
+</script>
+</body>
+</html>

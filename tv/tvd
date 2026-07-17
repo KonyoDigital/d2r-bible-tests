@@ -101,26 +101,27 @@ cmd_start_cli() {
 }
 
 case "${1:-}" in
-  "" | start )
-    # Desktop-parity entry: board + first-run login + agent (same as the .app)
+  "" | start | app | control )
+    # v757 — HD control app (hidden agent). No Terminal UI.
     if [[ -f "$REPO/tv/start_tvd_mac.sh" ]]; then
       exec bash "$REPO/tv/start_tvd_mac.sh"
     fi
-    shift || true
-    cmd_start_cli "$@"
+    exec "$PY" "$REPO/tv/control_app.py" --open
     ;;
   bare | agent )
-    # agent only, no browser open (old tvd behavior)
+    # agent only in this terminal (debug)
     shift || true
     cmd_start_cli "$@"
     ;;
   restart | -r )
     shift || true
+    # prefer control API if control server is up
+    if curl -sS --max-time 1 -X POST "http://127.0.0.1:17772/api/restart" >/dev/null 2>&1; then
+      info "restart via control app"
+      exit 0
+    fi
     cmd_stop
     sleep 0.4
-    if [[ -f "$REPO/tv/start_tvd_mac.sh" ]]; then
-      exec bash "$REPO/tv/start_tvd_mac.sh"
-    fi
     cmd_start_cli "$@"
     ;;
   replay | --replay )
@@ -131,14 +132,26 @@ case "${1:-}" in
     ;;
   sim | --sim | simulate )
     shift || true
+    if curl -sS --max-time 1 -X POST "http://127.0.0.1:17772/api/sim" >/dev/null 2>&1; then
+      info "SIM via control app"
+      exit 0
+    fi
     info "SIMULATION RUN — canned reads · zero vision cost"
     export TV_STUB=1
     cmd_start_cli "$@"
     ;;
   stop | kill )
+    if curl -sS --max-time 2 -X POST "http://127.0.0.1:17772/api/stop" >/dev/null 2>&1; then
+      info "stop via control app"
+      exit 0
+    fi
     cmd_stop
     ;;
   status | st | ping )
+    if curl -sS --max-time 1 "http://127.0.0.1:17772/api/status" 2>/dev/null | head -c 200 | grep -q ok; then
+      curl -sS --max-time 1 "http://127.0.0.1:17772/api/status" 2>/dev/null \
+        | "$PY" -c 'import json,sys; st=json.load(sys.stdin); print("control", st.get("ver"), "· mode", st.get("mode"), "· bridge", st.get("bridge"), "· reads", st.get("readCount"))' 2>/dev/null || true
+    fi
     cmd_status
     ;;
   --test | test )
@@ -148,7 +161,15 @@ case "${1:-}" in
       "$PY" tv/tv_diablo.py --test "$@"
     ;;
   -h | --help | help )
-    sed -n '2,14p' "$0" | sed 's/^# \?//'
+    cat <<'H'
+📺 tvd — TV DIABLO
+  tvd            open HD control app (hidden agent)
+  tvd bare       agent in this terminal (debug)
+  tvd status     control + bridge status
+  tvd stop       stop agent (farewell)
+  tvd sim        simulation via control app
+  tvd restart    restart agent
+H
     ;;
   * )
     cmd_start_cli "$@"

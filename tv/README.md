@@ -26,17 +26,20 @@ curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash
 
 That installs git/python/Claude Code if needed, clones the repo, puts `tvd` on
 your PATH, and drops **TV DIABLO.app** on your Desktop (+ `~/Applications`).
-**Double-click the app** → Terminal opens (live scanner log) + the bible board
-opens → flip **📺 TV·D** ON. Same product surface as the Windows Desktop shortcut.
+
+**Double-click the app** → HD **control window** (no Terminal). Buttons:
+**ON · OFF · STOP · RESTART · SIM**. ON starts the **hidden** agent and
+auto-connects the bible **📺 TV·D** board (`#tvd-on`).
 
 **One-word launcher** (also installed at `~/.local/bin/tvd`):
 
 ```bash
-tvd              # start live scanner + open board (same as the app)
-tvd bare         # agent only, no browser
-tvd status       # ping bridge + last brain lines
-tvd restart      # kill :17771 + start fresh
+tvd              # open HD control app (same as Desktop)
+tvd bare         # agent in this terminal (debug)
+tvd status       # control + bridge status
+tvd restart      # restart agent
 tvd stop         # stop agent (farewell read)
+tvd sim          # simulation mode
 tvd --test img   # one-shot vision check
 ```
 

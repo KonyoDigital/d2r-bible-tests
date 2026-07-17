@@ -22,3 +22,8 @@ tv/frames/
 tv/state.json
 tv/known_frames.json
 tv/sessions.jsonl
+
+# TV control app runtime
+tv/control_agent.log
+tv/control_app.log
+tv/control_agent.pid

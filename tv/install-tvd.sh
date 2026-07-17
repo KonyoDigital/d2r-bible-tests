@@ -103,8 +103,7 @@ make_app() {
   rm -rf "$dest"
   mkdir -p "$dest/Contents/MacOS"
 
-  # launcher: open Terminal running the Mac start script (same live log Windows shows)
-  # Bake absolute paths at install time so the .app is self-contained for this user.
+  # launcher: NO Terminal — start_tvd_mac.sh opens the HD control window (v757)
   cat > "$macexe" <<APP
 #!/bin/bash
 export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:/usr/bin:/bin:\$PATH"
@@ -113,12 +112,7 @@ if [[ ! -f "\$SCRIPT" ]]; then
   /usr/bin/osascript -e 'display alert "TV DIABLO" message "Missing launcher script. Re-run: curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash" as critical'
   exit 1
 fi
-/usr/bin/osascript <<OSA
-tell application "Terminal"
-  activate
-  do script "export PATH=\\"/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:\$PATH\\"; clear; exec bash \\"$script_path\\""
-end tell
-OSA
+exec bash "\$SCRIPT"
 APP
   chmod +x "$macexe"
 
@@ -138,9 +132,9 @@ APP
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleVersion</key>
-  <string>756</string>
+  <string>757</string>
   <key>CFBundleShortVersionString</key>
-  <string>756</string>
+  <string>757</string>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
   <key>NSHighResolutionCapable</key>

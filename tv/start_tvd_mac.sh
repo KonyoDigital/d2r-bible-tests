@@ -1,91 +1,48 @@
 #!/usr/bin/env bash
-# 📺 TV DIABLO — Mac launcher (what the Desktop "TV DIABLO" app runs)
-# Same product surface as Windows start_tvd_win.ps1: strip API keys, first-run
-# Claude login, pull latest, open the board, start the live scanner.
-# Capture is macOS screencapture (built into the agent) — no second process.
-# Read-only by construction · your Claude subscription · zero API keys.
+# 📺 TV DIABLO — Mac launcher (Desktop app entry · v757)
+# Opens the HD control window (no Terminal UI). Agent runs hidden behind the scenes.
+# Buttons: ON / OFF / STOP / RESTART / SIM · board auto-connects on ON.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
-PORT="${TV_PORT:-17771}"
-PY="${TVD_PYTHON:-python3}"
-
-Say() { printf '\033[36m📺 %s\033[0m\n' "$*"; }
-Warn() { printf '\033[33m   !!  %s\033[0m\n' "$*"; }
-
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
-# subscription contract: never let a shell API key outrank the login
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
 
 cd "$REPO"
 
-if ! command -v claude >/dev/null 2>&1; then
-  Say "claude not found — re-run the installer:"
-  echo "   curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash"
-  read -r -p "press Enter to close…" _
+if ! command -v python3 >/dev/null 2>&1; then
+  osascript -e 'display alert "TV DIABLO" message "python3 not found. Re-run: curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash" as critical' || true
   exit 1
 fi
 
-# ── the ONE human step: your own Claude login, once ──────────────────────────
-# Claude Code stores auth in a few places across versions; any one is enough.
-CRED_OK=0
-for c in \
-  "${HOME}/.claude/.credentials.json" \
-  "${HOME}/.config/claude/.credentials.json" \
-  "${HOME}/.claude.json"
-do
-  [[ -f "$c" ]] && CRED_OK=1 && break
-done
-if [[ "$CRED_OK" -eq 0 ]]; then
-  Say "FIRST RUN — log into YOUR Claude account (your subscription pays for vision, no API keys)."
-  Say "a Claude session opens now: complete the login it offers, then type /exit to come back here."
-  claude || true
-  CRED_OK=0
-  for c in \
-    "${HOME}/.claude/.credentials.json" \
-    "${HOME}/.config/claude/.credentials.json" \
-    "${HOME}/.claude.json"
-  do
-    [[ -f "$c" ]] && CRED_OK=1 && break
-  done
-  if [[ "$CRED_OK" -eq 0 ]]; then
-    Warn "no credentials file seen yet — continuing anyway (many installs keep auth in Keychain)."
-    Warn "if vision fails, run:  claude   then /login, then re-open TV DIABLO."
-  else
-    Say "login detected ✓"
-  fi
+if ! command -v claude >/dev/null 2>&1; then
+  osascript -e 'display alert "TV DIABLO" message "Claude Code not found. Re-run the installer, then log into claude once." as critical' || true
+  exit 1
 fi
 
-# pull-first doctrine (Mac ships, Windows follows — both sides stay current)
+# pull-first (quiet)
 if [[ -d "$REPO/.git" ]]; then
-  git -C "$REPO" pull --ff-only 2>/dev/null || true
+  git -C "$REPO" pull --ff-only >/dev/null 2>&1 || true
 fi
 
-# ── open the same board Windows sees (TV·D tab) ──────────────────────────────
-# Prefer local bible.html (full offline board, polls localhost:17771). Live site as fallback.
-BOARD_LOCAL="$REPO/bible.html"
-if [[ -f "$BOARD_LOCAL" ]]; then
-  # ONE open only (two tabs = the stale-tab ghost-build class) — deep-link with #tvd,
-  # plain-file fallback if this macOS drops the hash form entirely.
-  open "file://${BOARD_LOCAL}#tvd" 2>/dev/null || open "$BOARD_LOCAL"
-else
-  open "https://bull-4-u.com/d2r/#tvd" 2>/dev/null || true
-fi
+open_control_window() {
+  local url="http://127.0.0.1:17772/"
+  open -na "Google Chrome" --args --app="$url" --new-window 2>/dev/null && return 0
+  open -na "Microsoft Edge" --args --app="$url" --new-window 2>/dev/null && return 0
+  open -na "Brave Browser" --args --app="$url" --new-window 2>/dev/null && return 0
+  open -na "Arc" --args --app="$url" --new-window 2>/dev/null && return 0
+  open "$url" 2>/dev/null || true
+}
 
-Say "board opening — click 📺 TV·D → flip the switch ON (green LIVE when the bridge answers)."
-Say "scanner starting on http://127.0.0.1:${PORT}/state"
-Say "Screen Recording: if macOS asks, Allow for Terminal (or iTerm) — read-only screenshots only."
-echo "   stop with Ctrl-C  ·  or another terminal: tvd stop"
-echo ""
-
-# already live?
-if lsof -tiTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-  Say "already LIVE on :$PORT — leaving it running. Flip the TV·D switch."
-  read -r -p "press Enter to close this window…" _
+# If control server already up, just re-open the window
+if lsof -tiTCP:17772 -sTCP:LISTEN >/dev/null 2>&1; then
+  open_control_window
   exit 0
 fi
 
-exec env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN \
-  TV_MODEL="${TV_MODEL:-sonnet}" \
-  "$PY" "$HERE/tv_diablo.py"
+# Detached control server + app window (no Terminal)
+LOG="$HERE/control_app.log"
+nohup python3 "$HERE/control_app.py" --open >>"$LOG" 2>&1 &
+disown 2>/dev/null || true
+exit 0
