@@ -708,3 +708,21 @@ incomplete boundary this arc found was a silent break of that single truth path.
 ## never fork them · round-trip is law incl durable hist · file:// vs https LSR origin story ·
 ## TV wires stay first-class · unify the two film archives before expanding the shell · stamp
 ## truth before screenshots.
+
+## 🌙 NIGHT ARC — THE FIVE TABS (started 2026-07-17 20:00, Konyo's order; target ~20 versions)
+### ARCHITECTURE DECISION (ledgered before code, per the workflow + Grok's handoff flags)
+The app gains Session · Tools · Forge · F-Uniques · F-Sets — and per the "host, never fork"
+flag, the app will NOT reimplement those engines. Decision: **THE APP HOSTS THE BOARD**:
+1. The control server serves the LOCAL bible.html (and art/) same-origin at /board — one stable
+   http origin for app users (kills the file:// LSR split for the app world; Konyo's own 8686
+   tab stays his dev surface).
+2. control_ui gains a BIBLE rail — five console-styled tabs; each opens THE ONE board window
+   (v773.1 singleton) deep-linked at that tab (#session/#tools/#forge/#funi/#fsets — hash
+   routing exists and is spec-locked since v768).
+3. The night's real work = per-tab perfection waves: each of the five surfaces verified +
+   polished INSIDE the native WebView at app geometry (fonts, dock clearance, scroll, art),
+   TDD locks per tab, one version per wave, reviewer audit per ship.
+4. After the build arc: SEVEN third-eye rounds (Grok CLI if its auth allows — Konyo's chat quota
+   is capped; Fable reviewer rounds substitute where needed).
+Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Session → v776 Tools
+→ v777 Forge → v778 F-Uniques → v779 F-Sets → v780+ integration polish + the seven rounds.
