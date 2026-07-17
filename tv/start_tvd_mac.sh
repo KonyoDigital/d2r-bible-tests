@@ -66,10 +66,9 @@ fi
 # Prefer local bible.html (full offline board, polls localhost:17771). Live site as fallback.
 BOARD_LOCAL="$REPO/bible.html"
 if [[ -f "$BOARD_LOCAL" ]]; then
-  # hash #tvd lands on the TV·D tab (honored when TV was on / on explicit deep link)
-  open "$BOARD_LOCAL"
-  # second open with hash — some macOS versions drop hash on file://; best-effort
-  open "file://${BOARD_LOCAL}#tvd" 2>/dev/null || true
+  # ONE open only (two tabs = the stale-tab ghost-build class) — deep-link with #tvd,
+  # plain-file fallback if this macOS drops the hash form entirely.
+  open "file://${BOARD_LOCAL}#tvd" 2>/dev/null || open "$BOARD_LOCAL"
 else
   open "https://bull-4-u.com/d2r/#tvd" 2>/dev/null || true
 fi

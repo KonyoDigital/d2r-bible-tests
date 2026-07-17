@@ -73,7 +73,6 @@ cmd_stop() {
     fi
     sleep 1
   done
-  for c in $(ps -o pid= -ax 2>/dev/null | true); do :; done
   # children of agent
   while read -r c; do
     [[ -n "$c" ]] && kill -9 "$c" 2>/dev/null || true
