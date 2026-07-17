@@ -1,4 +1,4 @@
-# 📺 TV DIABLO — Windows launcher (what the Desktop shortcut runs)
+﻿# 📺 TV DIABLO — Windows launcher (what the Desktop shortcut runs)
 # Starts BOTH halves: the .NET screen-capture loop (minimized window) and the
 # reader agent (this window). First run walks through the one-time Claude login.
 # Read-only by construction · your own Claude subscription · zero API keys.

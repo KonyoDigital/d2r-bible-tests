@@ -21,8 +21,8 @@
 # truth for code; going live is a convenience on top.
 #
 # Scope: smoke only runs when the push touches bible.html or a *.spec.ts; deploy
-# only runs for refs/heads/main touching bible.html / art / functions. Docs-only
-# pushes skip both.
+# only runs for refs/heads/main touching bible.html / art / functions /
+# tv/install-tvd.ps1 / deploy.sh. Docs-only pushes skip both.
 #
 # Emergency bypass (use sparingly):  git push --no-verify
 set -u
@@ -88,8 +88,9 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 
   # deploy trigger: pushing main, and a deployable asset changed
+  # v755.1 — also ship when the cousin installer (or deploy.sh headers) changes
   if [ "$remote_ref" = "refs/heads/main" ]; then
-    if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|art/.*|functions/.*)$'; then
+    if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|art/.*|functions/.*|tv/install-tvd\.ps1|deploy\.sh)$'; then
       deploy=1
     fi
   fi

@@ -1,4 +1,4 @@
-# 📺 TV DIABLO — Windows capture loop (the cousin's side)
+﻿# 📺 TV DIABLO — Windows capture loop (the cousin's side)
 # Zero installs: uses .NET System.Drawing (built into Windows). Read-only by
 # construction — this only screenshots what is already on screen. It never
 # touches the game process.

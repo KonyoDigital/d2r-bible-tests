@@ -71,6 +71,12 @@ cat > "$DIST/_headers" <<'HDRS'
   Cache-Control: no-cache, must-revalidate
 /d2r/art/*
   Cache-Control: public, max-age=604800, immutable
+# v755.1 — cousin installer must be text/plain so `irm … | iex` always gets a string
+# (Pages defaults .ps1 → application/octet-stream, which breaks PS 5.1/7 irm on some boxes)
+/d2r/install-tvd.ps1
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: no-cache, must-revalidate
+  Access-Control-Allow-Origin: *
 HDRS
 
 echo "deploy: publishing to Cloudflare Pages (d2r-bible → bull-4-u.com)…"
