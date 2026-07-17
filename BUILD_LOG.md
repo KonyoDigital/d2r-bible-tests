@@ -198,28 +198,6 @@
 
 ---
 
-## 2026-07-17 — v747–v751 NOW ON AIR arc (the live chapter stage)
-**What:** 📡 NOW ON AIR (v747, Grok design · Fable architect build · Fable review): full-width
-live chapter stage — scene skins, area·scene·intent caption, HD-art cast with rarity rings +
-lifecycle truth, boss portrait chips, terror tick, synapse read-# sync. v748 cast=credits (full
-names) · v749 chapter cast memory (area-scoped union) · v750 portal keeps the chrome (ONE ⏳,
-dim ghost cast) · v751 full-bleed HERO BAND (edge-to-edge plate; overflow-x:clip guard).
-**Why:** the middle of a read was mono text — Konyo ordered the thought process as cinema.
-**Tests:** board spec grew to 11 (stage locks: hidden-off · cast honesty · lifecycle rings ·
-portal wash + chrome · read-# sync · credits · chapter memory).
-
-## 2026-07-17 — v741–v746 cinema arc (the board learns to tell the story)
-**What:** v741 lightbox surgery (body-append fullscreen + per-open fallback reset) + known-dead
-frame learning + THE SYNAPSE thought-spine · v742 Esc stack + learned-frame persistence · v743
-synapse burst collapse (×N) · v744 CRT face + RUN STORY reel + friction calm · v745 reel
-never dark + history chapter dividers · v746 known-dead WIRED into the live loop (the v741 match
-fn was never called — merge casualty) + ⏳ ENTERING story labels (leaving-area context) + scene
-`transition` in the vision prompt.
-**Why:** Konyo's all-night order: TV-D visual+coding polished, portals recognized as story beats.
-**Tests:** agent suite 46→49 (known-dead + transition context + prompt vocab), board 9→10.
-**Also:** v758.1 REG-019 (see BUGS.md) — the toggle-OFF late-poll race found by stress-repro,
-killed at source with the if(!T) guard; Routine I went FULL GREEN on that push.
-
 ## 2026-07-17 — Grok: v740 farewell read (run #7 end-stash race)
 
 - **Miss:** garbage stashed then agent killed within seconds → no settle/gap/deep → nothing
