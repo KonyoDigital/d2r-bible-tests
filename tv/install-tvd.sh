@@ -43,7 +43,8 @@ Ok "python3 $(python3 --version 2>&1 | head -1)"
 
 # ── pywebview (real native app window — not Chrome) ──────────────────────────
 Say "installing pywebview (native app window)…"
-if python3 -m pip install --user --quiet 'pywebview>=5.0' 2>/dev/null; then
+if python3 -m pip install --user --quiet 'pywebview>=5.0' 2>/dev/null \
+   || python3 -m pip install --user --quiet --break-system-packages 'pywebview>=5.0' 2>/dev/null; then
   Ok "pywebview (native window)"
 else
   Warn "pywebview pip install failed — app will try again on first launch / browser fallback"

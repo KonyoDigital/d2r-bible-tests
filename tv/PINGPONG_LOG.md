@@ -516,3 +516,16 @@ route() labels. Next-session queue: reading-ghosts polish only.
   (it is spawned CREATE_NEW_PROCESS_GROUP), keeping taskkill only for foreign pids.
 - Gates: py ast both files · agent 55/55 · Mac control server boots + /api/status healthy post-
   edit · true Windows farewell e2e = cousin's first `tvd stop` (flagged for his install run).
+
+### 🖼 R17 · v761+v761.1 — the NATIVE SHELL, verified ✅
+- **Grok's v761**: the control console opens in a REAL OS window — pywebview (WKWebView on Mac,
+  Edge WebView2 on Windows), pip-installed by both installers, ensure_webview() one-shot retry
+  at first launch, Chrome/Edge --app demoted to emergency fallback, --window-only attach mode
+  for a second window onto a running server. Headless bare-run preserved (CI/screenshot flows
+  unaffected — verified).
+- **Third-eye fix (v761.1)**: PEP 668 managed pythons (Homebrew) reject even `pip --user` —
+  a cousin-Mac would silently live in the browser fallback forever. Both the installer and
+  ensure_webview() now retry with --break-system-packages (user-scoped GUI dep) and re-probe
+  the import between attempts.
+- Verified on Konyo's Mac: pywebview imports clean · headless server + /api/status healthy ·
+  py ast + sh -n gates green · agent 55/55. The true native window = his next double-click.

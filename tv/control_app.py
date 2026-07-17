@@ -482,25 +482,26 @@ def ensure_webview():
     except ImportError:
         pass
     # one attempt — installers also pre-install; this covers first-run edge cases
-    try:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--user",
-                "--quiet",
-                "pywebview>=5.0",
-            ],
-            check=False,
-            timeout=180,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=_WIN_CREATE if IS_WIN else 0,
-        )
-    except Exception:
-        pass
+    # PEP 668 (Homebrew/managed pythons) blocks even --user installs — try plain first,
+    # then once more with --break-system-packages (a user-scoped GUI dep, not a system change).
+    for extra in ([], ["--break-system-packages"]):
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--user", "--quiet",
+                 "pywebview>=5.0", *extra],
+                check=False,
+                timeout=180,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=_WIN_CREATE if IS_WIN else 0,
+            )
+        except Exception:
+            continue
+        try:
+            import webview  # noqa: F401
+            break
+        except ImportError:
+            continue
     try:
         import webview  # noqa: F401
 
