@@ -57,6 +57,12 @@
   body[data-state="off"] { --accent: var(--gold); --accent-soft: rgba(240,192,96,.5); --halo: rgba(255,120,40,.14); }
   body[data-state="on"]  { --accent: var(--mint); --accent-soft: rgba(143,230,160,.5); --halo: rgba(255,70,40,.20); }
   body[data-state="sim"] { --accent: var(--sim);  --accent-soft: rgba(201,168,255,.5); --halo: rgba(180,120,255,.22); }
+  /* v768 (Grok R2) — STOPPING: a threaded farewell is finishing. Muted amber, nothing reads green. */
+  body[data-state="stopping"] { --accent: var(--gold-dim); --accent-soft: rgba(160,120,60,.45); --halo: rgba(255,120,40,.12); }
+  body[data-state="stopping"] .live-bug { color: var(--gold-dim); border-color: rgba(160,120,60,.45); animation: none; }
+  body[data-state="stopping"] .live-bug .dot { background: var(--gold-dim); box-shadow: none; animation: none; }
+  body[data-state="stopping"] .phase { color: #d8b06a; text-shadow: 0 0 30px rgba(216,176,106,.4), 0 4px 6px rgba(0,0,0,.7); }
+  body[data-state="stopping"] .marquee .rec { background: var(--gold-dim); box-shadow: none; animation: none; }
 
   .shell {
     height: 100dvh;
@@ -223,6 +229,32 @@
   /* per-state color grade on the silhouette itself */
   body[data-state="on"]  .hero { filter: drop-shadow(0 0 46px var(--halo)) drop-shadow(0 0 16px rgba(255,70,40,.5)) brightness(1.16) saturate(1.25) hue-rotate(-6deg); }
   body[data-state="sim"] .hero { filter: drop-shadow(0 0 46px var(--halo)) drop-shadow(0 0 18px rgba(180,120,255,.55)) brightness(1.14) saturate(1.15) hue-rotate(30deg); }
+
+  /* ══ v768 — FILM-FIRST live stage (Grok R1 pick #1) ══
+     the live frame film sits above the hero, below the phase overlay. Hidden until a frame resolves.
+     When body.film-on: film → full opacity (the FRAME is the star), hero + aura + caption fade,
+     the giant phase word demotes to a small corner bug. No frame (or off) → the giant word stays. */
+  .stage-film {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; background: #000;
+    opacity: 0; z-index: 1; pointer-events: none;
+    transition: opacity .5s ease;
+  }
+  body.film-on .stage-film { opacity: 1; }
+  body.film-on .hero, body.film-on .aura { opacity: 0 !important; }
+  body.film-on .caption, body.film-on .kicker {
+    opacity: 0; height: 0; margin: 0; overflow: hidden; pointer-events: none;
+  }
+  body.film-on .center {
+    justify-content: flex-start; align-items: flex-start; text-align: left;
+    padding: clamp(14px,2vw,24px) clamp(14px,2vw,24px) 0; z-index: 4;
+  }
+  body.film-on .phase {
+    font-size: clamp(16px, 2vw, 26px) !important; letter-spacing: .16em; line-height: 1;
+    opacity: .92; padding: 6px 14px; border-radius: 999px;
+    background: rgba(6,5,4,.5); border: 1px solid var(--edge);
+    backdrop-filter: blur(3px); text-shadow: 0 2px 8px rgba(0,0,0,.85);
+  }
 
   /* drifting scanlines */
   .stage .scan {
@@ -418,9 +450,8 @@
   button.act.b-restart { border-color: rgba(126,200,255,.4); color: var(--info); }
   button.act.b-sim { border-color: rgba(201,168,255,.42); color: var(--sim); background: linear-gradient(180deg, rgba(34,24,50,.92), rgba(12,8,18,.96)); }
   /* active-state cue: the button matching current state gets a lit ring */
-  body[data-state="on"]  button.b-on  { box-shadow: inset 0 1px 0 rgba(143,230,160,.2), 0 0 22px rgba(143,230,160,.22); animation: liveRing 3s ease-in-out infinite; }
-  body[data-state="sim"] button.b-sim { box-shadow: inset 0 1px 0 rgba(201,168,255,.2), 0 0 22px rgba(201,168,255,.22); animation: liveRing 3s ease-in-out infinite; }
-  body[data-state="off"] button.b-off { box-shadow: inset 0 1px 0 rgba(200,187,158,.14), 0 0 16px rgba(200,187,158,.1); }
+  /* v768 (item 8) — the old per-state CSS rings are RETIRED. ONE lit/dim mechanism now: paint()/thLit()
+     add .lit to the truly-active button; the rules live with button.act.lit below. */
   @keyframes liveRing { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.14); } }
 
   .util { display: flex; gap: clamp(8px,.9vw,12px); }
@@ -550,6 +581,9 @@
   /* ══ v765 — 🎞 THE THEATRE ══ */
   .theatre { position: absolute; inset: 0; z-index: 6; background: #050403;
     display: flex; flex-direction: column; border-radius: inherit; overflow: hidden; }
+  /* v768 — the [hidden] attr must actually hide it: author display:flex above was overriding the
+     UA [hidden]{display:none}, so the theatre permanently covered the stage (site had this guard). */
+  .theatre[hidden] { display: none !important; }
   .th-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
     background: #000; }
   .theatre::after { content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -588,8 +622,15 @@
   .th-beat.cur { background: var(--gold-hi); height: 14px; box-shadow: 0 0 10px rgba(255,223,154,.6); }
   .th-beat.noframe { background: rgba(255,255,255,.08); }
   body.theatre-open .live-bug { color: var(--gold); border-color: rgba(240,192,96,.5); }
-  /* v765 — toggle-glow buttons: lit while their mode runs; click again = off */
-  button.act.lit { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 26px var(--accent-soft); filter: brightness(1.12); }
+  /* v768 (item 8) — ONE lit/dim truth (Konyo: 'glowing for on, grey dim for off'). Every primary
+     console button is DIM by default; the truly-active one is .lit (full opacity + glow, driven by
+     paint()/thLit). Hover/focus lift the dim so it's never dead. */
+  .primary button.act { opacity: .5; transition: transform .11s cubic-bezier(.3,.9,.35,1), box-shadow .18s, border-color .18s, background .18s, filter .18s, opacity .25s; }
+  .primary button.act:hover, .primary button.act:focus-visible { opacity: 1; }
+  .primary button.act:disabled { opacity: .32; }
+  button.act.lit { opacity: 1; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 26px var(--accent-soft); filter: brightness(1.12); animation: liveRing 3s ease-in-out infinite; }
+  /* OFF is a resting state, not a broadcast — its lit cue is subtle (no pulsing ring, gentle glow) */
+  button.act.lit.b-off { box-shadow: inset 0 1px 0 rgba(200,187,158,.16), 0 0 14px rgba(200,187,158,.14); filter: none; opacity: .92; animation: none; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; }
@@ -618,6 +659,8 @@
       <img class="rune tl" src="/art/hd_ber_rune.png" alt="" onerror="this.style.display='none'">
       <img class="rune tr" src="/art/hd_jah_rune.png" alt="" onerror="this.style.display='none'">
       <img class="hero" id="hero" src="/art/diablo_hell_graphic.png" alt="" onerror="this.style.display='none'">
+      <!-- v768 — film-first live stage: when ON and a frame resolves, THIS becomes the star -->
+      <img class="stage-film" id="stage-film" alt="" onerror="this.style.opacity=0">
       <div class="scan"></div>
       <div class="sweep"></div>
 
@@ -787,25 +830,59 @@
 
   function paint(st){
     var mode = st.mode || 'off';
-    var on = !!st.bridge;
-    var state = mode === 'sim' ? 'sim' : (on ? 'on' : 'off');
+    var stopping = mode === 'stopping';                 // v768 (Grok R2) — a threaded farewell is in flight
+    var on = !!st.bridge && !stopping;
+    var state = stopping ? 'stopping' : (mode === 'sim' ? 'sim' : (on ? 'on' : 'off'));
     document.body.setAttribute('data-state', state);
 
-    $('bug-txt').textContent = state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR');
+    $('bug-txt').textContent = stopping ? 'FAREWELL…' : (state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR'));
 
     var phase = 'STANDBY';
-    if (state === 'sim') phase = 'SIMULATION';
+    if (stopping) phase = 'SIGNING OFF';
+    else if (state === 'sim') phase = 'SIMULATION';
     else if (on) phase = (st.phase || 'LIVE').toString().toUpperCase();
     $('phase').textContent = phase;
 
-    $('marquee-t').textContent = state === 'sim' ? 'Simulation' : (on ? 'On Air · Recording' : 'Standby');
-    $('kicker').textContent = state === 'sim' ? 'Canned Feed' : (on ? 'Signal Live' : 'Signal Idle');
+    $('marquee-t').textContent = stopping ? 'Signing Off' : (state === 'sim' ? 'Simulation' : (on ? 'On Air · Recording' : 'Standby'));
+    $('kicker').textContent = stopping ? 'Farewell' : (state === 'sim' ? 'Canned Feed' : (on ? 'Signal Live' : 'Signal Idle'));
 
     var cap = 'Press <b>ON</b> to wake the hidden scanner and take the board live.';
-    if (on && state === 'sim') cap = 'Simulation running · canned reads · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
+    if (stopping) cap = 'Signing off — the last farewell read is finishing. The lamp falls on its own.';
+    else if (on && state === 'sim') cap = 'Simulation running · canned reads · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
     else if (on) cap = 'Scanner hidden · bridge live. Board should be on <b>TV·D</b> — play D2R fullscreen for clean reads.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
+
+    // v768 (item 8) — ONE lit/dim truth for every console button: the button whose mode is truly
+    // active glows (.lit); every other button reads clearly dim. OFF gets a subtle resting cue.
+    // THEATRE (btn-sim) owns its own .lit via thLit() while the reel is open — don't fight it here.
+    $('btn-on').classList.toggle('lit', state === 'on');
+    $('btn-off').classList.toggle('lit', state === 'off');
+    $('btn-stop').classList.remove('lit');
+    $('btn-restart').classList.remove('lit');
+    // stop in flight: ON/RESTART are inert (nothing lights green) until the state truly falls to off —
+    // the server rejects them mid-farewell anyway; busy covers the brief in-request disable.
+    $('btn-on').disabled = stopping || busy;
+    $('btn-restart').disabled = stopping || busy;
+
+    // v768 (Grok R2) — film-first: while truly ON (not sim/stopping), pull the live frame from the
+    // AGENT bridge (:agentPort — the CONTROL server has NO /frame). A resolved frame flips the stage
+    // to FRAME-as-star (phase → corner bug). No frame (or off/sim/stopping) → the giant word stays.
+    var film = $('stage-film');
+    if (film) {
+      if (on && state !== 'sim') {
+        var fsrc = st.frame || ('http://127.0.0.1:' + (st.agentPort || 17771) + '/frame');
+        if (film.__src !== fsrc || Date.now() - (film.__at || 0) >= 3500) {
+          film.__at = Date.now(); film.__src = fsrc;
+          film.onload = function(){ document.body.classList.add('film-on'); };
+          film.onerror = function(){ document.body.classList.remove('film-on'); };
+          film.src = st.frame ? fsrc : (fsrc + '?t=' + Date.now());
+        }
+      } else {
+        document.body.classList.remove('film-on');
+        film.removeAttribute('src'); film.__src = '';
+      }
+    }
 
     setMeter('m-mode', mode.toUpperCase());
     var rc = st.readCount != null ? st.readCount : 0;
@@ -852,6 +929,9 @@
       $('phase').textContent = 'NO SIGNAL';
       $('caption').textContent = 'Control server unreachable.';
       $('kicker').textContent = 'Link Lost';
+      // v768 — link lost is not 'live': drop every glow and free ON so it never sticks lit/disabled
+      ['btn-on','btn-off','btn-stop','btn-restart','btn-sim'].forEach(function(id){ $(id).classList.remove('lit'); });
+      if (!busy) $('btn-on').disabled = $('btn-restart').disabled = false;
     }
   }
   async function loadLog(){
@@ -953,9 +1033,15 @@
 
   // v765 — toggle semantics (Konyo: 'lights on… click again and it goes dim'):
   // ON while live = OFF · SIM opens/closes THE THEATRE (real history, zero agents involved)
-  $('btn-on').onclick = function(e){
+  // v768 (item 8) — ON→off routes through the FAREWELL path (/api/stop), not the hard /api/off, so
+  // the last read finishes; the server returns immediately and the state lamp falls on its own. Same
+  // 'farewell…' label treatment as STOP so the button reads honestly while state → stopping → off.
+  $('btn-on').onclick = async function(e){
     var st = document.body.getAttribute('data-state');
-    post(st === 'on' ? '/api/off' : '/api/on', this, e);
+    if (st !== 'on') { post('/api/on', this, e); return; }
+    var lab = this.querySelector('.lab b'); var old = lab ? lab.textContent : '';
+    if (lab) lab.textContent = 'farewell…';
+    try { await post('/api/stop', this, e); } finally { if (lab) lab.textContent = old || 'On Air'; }
   };
   $('btn-off').onclick = function(e){ post('/api/off', this, e); };
   $('btn-stop').onclick = async function(e){

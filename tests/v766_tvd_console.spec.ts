@@ -207,4 +207,30 @@ test.describe('v766 TV·D console architecture', () => {
     await page.waitForTimeout(100);
     expect(await page.evaluate(() => document.getElementById('tvz-theatre')!.hidden)).toBe(true);
   });
+
+  // v768 (item 9) — an explicit #tvd hash is USER INTENT and must land on the TV·D tab UNCONDITIONALLY,
+  // independent of any stored switch state (v764 made the switches passive lamps, so nothing sets
+  // d2r_tvdOn — the old gate stole every deep link and always-landed-home). No-hash default unchanged.
+  test('#tvd deep link lands on the TV·D tab with no stored switch state', async ({ page }) => {
+    await page.route(BRIDGE + '**', (route) => route.abort());
+    // fresh context: d2r_tvdOn is unset — reproduce Konyo's "routes me to the wrong page"
+    await page.goto(URL + '#tvd');
+    await page.waitForTimeout(700);   // boot reconcile: home @0ms, routeFromHash @250ms
+    const active = await page.evaluate(() => {
+      const t = document.querySelector('.tab.active') as HTMLElement | null;
+      const stored = (() => { try { return localStorage.getItem('d2r_tvdOn'); } catch (e) { return null; } })();
+      return { tab: t ? t.getAttribute('data-tab') : null, stored };
+    });
+    expect(active.stored).not.toBe('1');     // proves the gate isn't what carried us here
+    expect(active.tab).toBe('tvd');
+
+    // no-hash default is untouched: lands on the home tab (session), NOT tvd
+    await page.goto(URL);
+    await page.waitForTimeout(700);
+    const home = await page.evaluate(() => {
+      const t = document.querySelector('.tab.active') as HTMLElement | null;
+      return t ? t.getAttribute('data-tab') : null;
+    });
+    expect(home).not.toBe('tvd');
+  });
 });

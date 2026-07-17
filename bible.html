@@ -3347,7 +3347,10 @@ window.LSR = (function(){
 // (the last-visited tab riding the URL) is normalized at PARSE time, before the v39 routers
 // register. True deep-links keep working: a hash WITH a subpath (#bosses/baal, #item/…) is intent,
 // not residue, and routes normally.
-try { var _h680 = window.location.hash || ''; if (_h680 && _h680 !== '#tools' && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
+// v768 (item 9) — the control-app deep link (#tvd / #tvd-on / #tvd-off) is INTENT, not residue, even
+// though it carries no subpath. Exempt it from the bare-hash→#tools normalization so it survives to
+// the router (paired with the _tvLive honor-unconditionally fix); every other bare tab hash still homes.
+try { var _h680 = window.location.hash || ''; var _tv680 = (_h680 === '#tvd' || _h680 === '#tvd-on' || _h680 === '#tvd-off'); if (_h680 && _h680 !== '#tools' && !_tv680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -7302,20 +7305,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     </div>
   </header>
 
-  <!-- v766 — GET THE APP: one-paste install, flagship-styled to match the console (Konyo-ordered). -->
-  <div class="tvz-getapp">
-    <div class="tvz-getapp-h"><img class="tvz-jewel" src="art/hd_ber_rune.png" alt="" onerror="this.style.display='none'">GET THE APP<span class="tvz-getapp-sub">one paste installs everything (Git · Python · Claude Code if missing) + the TV DIABLO app — the only human step is your own Claude login</span></div>
-    <div class="tvz-getapp-cards">
-      <div class="tvz-ga-card">
-        <div class="tvz-ga-top">🖥 <b>MacBook</b><span class="tvz-ga-os">Terminal</span></div>
-        <div class="tvz-ga-cmd"><code id="tvz-ga-mac">curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash</code><button type="button" class="tvz-ga-copy" data-copy="tvz-ga-mac" title="copy to clipboard">Copy</button></div>
-      </div>
-      <div class="tvz-ga-card">
-        <div class="tvz-ga-top">🪟 <b>Windows</b><span class="tvz-ga-os">PowerShell</span></div>
-        <div class="tvz-ga-cmd"><code id="tvz-ga-win">irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex</code><button type="button" class="tvz-ga-copy" data-copy="tvz-ga-win" title="copy to clipboard">Copy</button></div>
-      </div>
-    </div>
-  </div>
+  <!-- v768 — GET THE APP re-homed to the tab bottom (below the body+ticker) so the STAGE sits
+       RIGHT under the header exactly like the app; header→stage relationship now matches. -->
 
   <!-- ══ STAGE + CONSOLE RAIL ══ -->
   <div class="tvz-body">
@@ -7379,10 +7370,14 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
        the receiver IIFE (fingerprint-skip, click-contained; full-bleed margin math unchanged). -->
   <div class="tvn-stage" id="tvn-stage" hidden></div>
 
-  <!-- ══ SIGNAL FEED ticker (styled like the app's AGENT MIND band) + archive below ══ -->
-  <div class="tvb-feedwrap tvz-feedwrap">
-    <div class="tvb-feed-h tvz-ticker-h"><span class="tvz-ticker-p"></span>SIGNAL FEED <span class="tvb-feed-sub">every read · routed to your engines · ✓ to apply</span></div>
-    <div id="tvb-feed"><div class="sc-empty">the feed lights up when the scanner comes online</div></div>
+  <!-- ══ SIGNAL FEED — the app's AGENT MIND ticker band: full-width, tag cell + content, directly
+       under the stage+rail body. .tvz-ticker-h is RETAINED (spec-locked) as the left tag cell. ══ -->
+  <div class="tvb-feedwrap tvz-feedwrap tvz-ticker">
+    <div class="tvb-feed-h tvz-ticker-h tvz-ticker-tag"><span class="tvz-ticker-p"></span>SIGNAL FEED</div>
+    <div class="tvz-ticker-content">
+      <div class="tvb-feed-sub tvz-ticker-sub">every read · routed to your engines · ✓ to apply</div>
+      <div id="tvb-feed"><div class="sc-empty">the feed lights up when the scanner comes online</div></div>
+    </div>
   </div>
   <!-- v724 — SESSION HISTORY: survives agent restarts · time-ordered · HD art · DB match · vault trail -->
   <div class="tvb-histwrap" id="tvb-histwrap">
@@ -7402,6 +7397,29 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     </div>
     <div id="tvb-hist"><div class="sc-empty">press ON in the TV DIABLO app — reads archive here by time so you can debug after the agent restarts</div></div>
   </div>
+
+  <!-- v768 — GET THE APP re-homed here (was between header and stage): one-paste install, flagship-styled. -->
+  <div class="tvz-getapp">
+    <div class="tvz-getapp-h"><img class="tvz-jewel" src="art/hd_ber_rune.png" alt="" onerror="this.style.display='none'">GET THE APP<span class="tvz-getapp-sub">one paste installs everything (Git · Python · Claude Code if missing) + the TV DIABLO app — the only human step is your own Claude login</span></div>
+    <div class="tvz-getapp-cards">
+      <div class="tvz-ga-card">
+        <div class="tvz-ga-top">🖥 <b>MacBook</b><span class="tvz-ga-os">Terminal</span></div>
+        <div class="tvz-ga-cmd"><code id="tvz-ga-mac">curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash</code><button type="button" class="tvz-ga-copy" data-copy="tvz-ga-mac" title="copy to clipboard">Copy</button></div>
+      </div>
+      <div class="tvz-ga-card">
+        <div class="tvz-ga-top">🪟 <b>Windows</b><span class="tvz-ga-os">PowerShell</span></div>
+        <div class="tvz-ga-cmd"><code id="tvz-ga-win">irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex</code><button type="button" class="tvz-ga-copy" data-copy="tvz-ga-win" title="copy to clipboard">Copy</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v768 — app-style micro-footer stamp (mirrors tv/control_ui.html footer). #tvz-foot-ver reads
+       D2R_BUILD.id at runtime so it never drifts from the ship. -->
+  <footer class="tvz-foot">
+    <span id="tvz-foot-ver">CONSOLE</span>
+    <span class="tvz-foot-ports">MAC/WINDOWS follows profile<span class="tvz-foot-dot">·</span>agent :17771</span>
+  </footer>
+
   <!-- v735 — fullscreen frame lightbox (per-read eye on the AI) -->
   <div class="tvd-frame-lb" id="tvd-frame-lb" hidden>
     <div class="tvd-frame-lb-bar">
@@ -22781,8 +22799,10 @@ _v39_whenReady(() => {
   const _tvLive = (function(){
     try {
       var h = (location.hash || '').replace('#','');
-      if (h !== 'tvd' && h !== 'tvd-on') return false;
-      return localStorage.getItem('d2r_tvdOn') === '1';
+      // v768 (item 9) — an EXPLICIT #tvd / #tvd-on hash is user intent: honor it UNCONDITIONALLY.
+      // (v764 made the switches passive lamps, so nothing sets d2r_tvdOn anymore — the old
+      //  d2r_tvdOn==='1' gate here stole every #tvd deep link and always-landed-home instead.)
+      return (h === 'tvd' || h === 'tvd-on');
     } catch(e){ return false; }
   })();
   if (!_deep && !_tvLive) {
@@ -32171,12 +32191,13 @@ html{overflow-x:clip}
 .tvz-ga-copy.copied{border-color:rgba(143,230,160,.6);color:#8fe6a0;background:linear-gradient(180deg,rgba(22,46,30,.9),rgba(8,15,10,.95))}
 @media (max-width:760px){.tvz-getapp-cards{grid-template-columns:1fr}}
 /* ── STAGE + CONSOLE RAIL ── */
-.tvz-body{display:grid;grid-template-columns:1fr clamp(260px,26%,362px);gap:16px;align-items:stretch;margin-bottom:20px}
+/* v768 — app-exact geometry: rail clamp + gap reused verbatim from tv/control_ui.html .shell */
+.tvz-body{display:grid;grid-template-columns:1fr clamp(238px,22vw,360px);gap:clamp(9px,1.3vw,20px);align-items:stretch;margin-bottom:clamp(9px,1.3vw,20px)}
 .tvz-stage{position:relative;display:flex;min-width:0}
 /* v766 — THE STAGE surface = #tvb-screen repurposed as the app's .stage (tv/control_ui.html):
    tall, state-tinted, giant serif phase over the breathing Diablo silhouette + lower-third meters.
    When LIVE, refreshFrameEye() paints #tvb-face = /frame as the film beneath the phase overlay. */
-.tvz-stagecrt{flex:1 1 auto;width:100%;min-height:clamp(360px,46vh,520px);border-radius:18px;border:1px solid var(--tvz-edge);overflow:hidden;position:relative;display:block;
+.tvz-stagecrt{flex:1 1 auto;width:100%;min-height:clamp(420px,66vh,760px);border-radius:clamp(14px,1.4vw,22px);border:1px solid var(--tvz-edge);overflow:hidden;position:relative;display:block;
   background:radial-gradient(ellipse at 50% 6%,rgba(240,192,96,.07),transparent 52%),linear-gradient(180deg,#13110c,#0a0806 68%,#070605);
   box-shadow:inset 0 1px 0 rgba(240,192,96,.12),inset 0 -40px 80px rgba(0,0,0,.5),0 18px 54px rgba(0,0,0,.55);transition:border-color .5s,box-shadow .5s}
 /* scanlines + vignette (app parity); the dead-channel snow set is retired — the hero owns standby */
@@ -32216,9 +32237,16 @@ html{overflow-x:clip}
 .tvz-caption code{color:var(--gold-bright);background:rgba(255,255,255,.05);padding:1px 6px;border-radius:5px;font-size:.92em}
 /* verb — the small technical status line under the caption (specs read DISCONNECTED / NO SIGNAL) */
 .tvz-stagecrt .tvb-verb{position:static;margin-top:10px;font-size:var(--fs-micro);letter-spacing:.24em;opacity:.85}
-/* meters = the broadcast lower-third, anchored inside the stage bottom (app parity) */
-.tvz-stagecrt .tvb-meters{position:absolute;left:clamp(10px,1.5vw,20px);right:clamp(10px,1.5vw,20px);bottom:clamp(10px,1.5vw,18px);z-index:4;margin:0;justify-content:center}
-.tvz-stagecrt .tvb-m{background:linear-gradient(180deg,rgba(16,13,8,.86),rgba(6,5,3,.9));backdrop-filter:blur(3px);box-shadow:inset 0 1px 0 rgba(240,192,96,.08),0 6px 18px rgba(0,0,0,.4)}
+/* meters = the broadcast lower-third, anchored inside the stage bottom (app parity: .meters grid) */
+.tvz-stagecrt .tvb-meters{position:absolute;left:clamp(10px,1.5vw,22px);right:clamp(10px,1.5vw,22px);bottom:clamp(10px,1.5vw,22px);z-index:4;margin:0;gap:clamp(8px,1vw,16px);justify-content:stretch}
+/* v768 — the outlined pills become the app's FILLED cards: label OVER serif value (.l/.v hierarchy),
+   linear-gradient panel, same padding/radius/shadow/hover as tv/control_ui.html .m */
+.tvz-stagecrt .tvb-m{flex:1 1 clamp(92px,10vw,140px);flex-direction:column;align-items:flex-start;gap:3px;padding:clamp(9px,1vw,15px) clamp(10px,1vw,17px);border-radius:clamp(10px,1vw,14px);border:1px solid var(--tvz-edge);background:linear-gradient(180deg,rgba(16,13,8,.86),rgba(6,5,3,.9));backdrop-filter:blur(3px);box-shadow:inset 0 1px 0 rgba(240,192,96,.08),0 6px 18px rgba(0,0,0,.4);opacity:1;overflow:hidden;transition:border-color .4s}
+.tvz-stagecrt .tvb-m:hover{border-color:var(--tvz-edge-hi)}
+.tvz-stagecrt .tvb-m-wide{flex:2 1 clamp(160px,22vw,260px)}
+.tvz-stagecrt .tvb-ml{font-size:clamp(8px,.72vw,11px);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim,#a07830);margin:0}
+.tvz-stagecrt .tvb-m b{font-family:var(--serif-display,'Cinzel',serif);font-size:clamp(15px,1.9vw,30px);font-weight:700;color:var(--text);line-height:1;text-shadow:0 0 18px rgba(240,192,96,.16);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tvz-stagecrt .tvb-m .tvb-bar{width:100%;flex:none;align-self:stretch;margin-top:3px;min-width:0}
 .tvz-rail{display:flex;flex-direction:column;gap:14px;min-width:0}
 .tvz-panel{border:1px solid var(--tvz-edge);border-radius:14px;background:rgba(10,9,6,.55);padding:11px 13px;display:flex;flex-direction:column;gap:9px;min-height:0;transition:border-color .5s}
 .tvz-panel-grow{flex:1 1 auto}
@@ -32232,9 +32260,17 @@ html{overflow-x:clip}
 .tvz-panel-empty{font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-dim);font-style:italic}
 .tvz-panel:has(#tvb-story:not([hidden])) #tvz-story-empty{display:none}
 /* ── SIGNAL FEED ticker header (AGENT MIND band treatment) ── */
-.tvz-feedwrap{margin-top:4px}
+.tvz-feedwrap{margin-top:clamp(9px,1.3vw,20px)}
 .tvz-ticker-h{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(102,255,136,.16);background:linear-gradient(180deg,rgba(12,20,12,.7),rgba(6,10,6,.8));color:#7fae87}
 .tvz-ticker-p{width:9px;height:9px;border-radius:50%;background:#2c5a34;flex:none}
+/* v768 — the SIGNAL FEED band = tv/control_ui.html .ticker geometry: full-width, left TAG cell
+   (border-right) + content column. The feed list stays, scrolling inside the content. */
+.tvz-ticker{display:flex;align-items:stretch;border:1px solid rgba(102,255,136,.14);border-radius:clamp(10px,1vw,14px);background:linear-gradient(180deg,#070906,#040604);overflow:hidden;box-shadow:inset 0 1px 0 rgba(143,230,160,.06)}
+.tvz-ticker .tvz-ticker-h{flex:none;border-bottom:none;border-right:1px solid rgba(102,255,136,.16);align-items:center;padding:0 clamp(12px,1.2vw,20px);letter-spacing:.24em;text-transform:uppercase;white-space:nowrap;font-weight:800}
+.tvz-ticker-content{flex:1;min-width:0;display:flex;flex-direction:column}
+.tvz-ticker-sub{padding:clamp(8px,.9vw,12px) clamp(12px,1.2vw,18px) 4px;font-family:var(--mono);color:var(--text-dim);letter-spacing:.02em}
+.tvz-ticker-content #tvb-feed{border-top:none;flex:1 1 auto}
+@media (max-width:760px){.tvz-ticker{flex-direction:column}.tvz-ticker .tvz-ticker-h{border-right:none;border-bottom:1px solid rgba(102,255,136,.16);padding:9px clamp(12px,1.2vw,18px)}}
 .tvz-shell[data-tvstate="live"] .tvz-ticker-p{background:#8fe6a0;box-shadow:0 0 8px #8fe6a0;animation:tvnLiveBug 1.6s ease-out infinite}
 @media (max-width:900px){.tvz-body{grid-template-columns:1fr}.tvz-stagecrt{min-height:340px}.tvz-phase{font-size:clamp(34px,10vw,64px)}.tvz-center{padding-bottom:clamp(110px,20vh,160px)}.tvz-panel .tvb-log{max-height:220px}}
 /* ══ 🎞 THE THEATRE overlay (site) — mirrors the app's player ══ */
@@ -32258,6 +32294,17 @@ html{overflow-x:clip}
 .tvz-th-beat.named{background:rgba(240,192,96,.55);height:10px}
 .tvz-th-beat.cur{background:var(--gold-bright);height:14px;box-shadow:0 0 10px rgba(255,223,154,.6)}
 .tvz-th-beat.noframe{background:rgba(255,255,255,.08)}
+/* ══ v768 — app-style micro-footer stamp (tv/control_ui.html footer parity) ══ */
+.tvz-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:clamp(9px,1.3vw,20px);padding:0 clamp(4px,.6vw,10px);font-family:var(--mono);font-size:clamp(8px,.72vw,11px);letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.tvz-foot-dot{color:var(--gold-dim,#a07830);margin:0 .5em}
+/* ══ v768 — FILM-FIRST live stage (Grok R1 pick #1): when LIVE and the frame film has a loaded src,
+   the giant phase word demotes to a corner bug, caption + hero + aura fade, the FRAME is the star.
+   No frame yet (or off) → .tvz-filmon absent → the giant-word standby composition stays. ══ */
+.tvz-shell.tvz-filmon .tvz-stagecrt .tvb-face{opacity:1!important;filter:none!important;z-index:1}
+.tvz-shell.tvz-filmon .tvz-hero,.tvz-shell.tvz-filmon .tvz-aura{opacity:0!important}
+.tvz-shell.tvz-filmon .tvz-kicker,.tvz-shell.tvz-filmon .tvz-caption,.tvz-shell.tvz-filmon .tvz-stagecrt .tvb-verb{opacity:0;height:0;margin:0;overflow:hidden;pointer-events:none}
+.tvz-shell.tvz-filmon .tvz-center{justify-content:flex-start;align-items:flex-start;text-align:left;padding:clamp(12px,2vw,22px) clamp(12px,2vw,22px) 0;z-index:4}
+.tvz-shell.tvz-filmon .tvz-phase{font-size:clamp(15px,1.8vw,26px)!important;letter-spacing:.16em;line-height:1;opacity:.92;padding:5px 12px;border-radius:999px;background:rgba(6,5,3,.5);border:1px solid var(--tvz-edge);backdrop-filter:blur(3px);text-shadow:0 2px 8px rgba(0,0,0,.85)}
 </style>
 <style id="v704-sys-tray">
 /* v704 — SYSTEM TRAY (Grok wave P2): the bottom-right corner had FIVE chrome families at five
@@ -33177,7 +33224,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v767', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
+  window.D2R_BUILD = { id:'v768', name:'Broadcast Console', date:'2026-07-17', note:'v747-751 NOW ON AIR stage + hero band; v752 replay/journal; v753 frame archive 2560px/600-keep' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33194,6 +33241,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var mb = document.querySelector('meta[name="d2r-build"]'); if (mb) mb.setAttribute('content', B.id);
       var mn = document.querySelector('meta[name="d2r-build-note"]'); if (mn) mn.setAttribute('content', B.note || '');
       var md = document.querySelector('meta[name="d2r-build-date"]'); if (md) md.setAttribute('content', B.date || '');
+      // v768 — the TV·D micro-footer stamp reads D2R_BUILD.id so it never drifts from the ship
+      var fv = document.getElementById('tvz-foot-ver'); if (fv) fv.textContent = (B.id || '').toUpperCase() + ' CONSOLE';
     } catch(e){}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', badge);
@@ -33386,6 +33435,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var _shz=document.getElementById('tvz-shell');
       if(_shz){
         _shz.setAttribute('data-tvstate', s==='live'?'live':s==='conn'?'conn':s==='offline'?'offline':'off');
+        if(s!=='live') _shz.classList.remove('tvz-filmon');   // v768 — leaving air drops film-first at once
         var _bz=document.getElementById('tvz-bug-txt');
         if(_bz) _bz.textContent = s==='live'?'ON AIR':s==='conn'?'TUNING':s==='offline'?'OFF AIR':'OFF AIR';
         // v766 — drive the app-style stage: giant phase word + kicker + marquee + caption
@@ -33834,12 +33884,14 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     try {
       // v744 — the CRT face rides the same throttle: the TV literally shows what the AI sees
       var face = document.getElementById('tvb-face');
+      var _shf = document.getElementById('tvz-shell');
       if (face){
-        if (STATE !== 'live'){ face.hidden = true; face.removeAttribute('src'); }
+        if (STATE !== 'live'){ face.hidden = true; face.removeAttribute('src'); if(_shf) _shf.classList.remove('tvz-filmon'); }
         else if (Date.now() - (window.__tvbFaceAt||0) >= 4000){   // same 4s cadence as the eye — never a 250ms fetch storm
           window.__tvbFaceAt = Date.now();
-          face.onerror = function(){ face.hidden = true; };
-          face.onload = function(){ face.hidden = false; };
+          // v768 — film-first: a resolved frame flips the stage to FRAME-as-star (phase → corner bug)
+          face.onerror = function(){ face.hidden = true; if(_shf) _shf.classList.remove('tvz-filmon'); };
+          face.onload = function(){ face.hidden = false; if(_shf && STATE==='live') _shf.classList.add('tvz-filmon'); };
           face.src = FRAME0 + '?t=' + Date.now();
           if (!face.__wired){ face.__wired = true; face.onclick = function(){ window._tvdOpenFrame('', { title: 'LIVE — what the AI sees right now' }); }; }
         }

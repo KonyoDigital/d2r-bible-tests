@@ -627,3 +627,25 @@ route() labels. Next-session queue: reading-ghosts polish only.
 - Grok R2 #1 (app film wrong-origin — control :17772 has no /frame; must point at the agent
   bridge) + the UI stopping-state → folded into align768's v768 round with items 8-9.
 - Gates: agent **60/60** (3 new restore locks) · control **7/7** · align768 mid-build.
+
+### 🎯 R23 · v768 — THE ALIGNMENT SHIP (Konyo's side-by-side + his button audit + Grok R2, all in) ✅
+- **PIXEL PARITY**: site TV·D = the app's exact geometry — stage right under the header (GET THE
+  APP re-homed to the tab bottom), the app's clamp values verbatim (cols/gaps/radii/stage
+  height), meters = the app's filled lower-third cards, SIGNAL FEED = the AGENT MIND ticker
+  band, app-style micro-footer reading D2R_BUILD live. Side-by-side @2000: ONE product.
+- **FILM-FIRST, both surfaces**: live + loaded frame → the giant phase word demotes to a corner
+  bug, hero/caption fade, the FRAME is the star. Standby keeps the giant word.
+- **KONYO'S BUTTON AUDIT closed** (matrix 22/22): ON→off routes the FAREWELL stop (was the
+  no-farewell path) · ONE lit/dim mechanism (paint()-driven .lit; idle buttons truly grey-dim —
+  his "glowing on, dim grey off") · mode:"stopping" → dimmed ON + FAREWELL… bug — no more
+  stuck-green glow (server gate from v768-pre pairs).
+- **TWO deep-link gates dead** (his "routes me to the wrong page", root-caused twice): the lamp
+  change orphaned d2r_tvdOn (gate A) AND the v680 parse-time normalizer rewrote ANY bare hash →
+  #tools BEFORE routers ran (gate B — #tvd literally became #tools). Explicit #tvd now lands
+  TV·D unconditionally; spec-locked both directions.
+- **App stage un-buried** (bonus root-cause): THE THEATRE had no [hidden] display guard — it
+  permanently covered the app stage (the stuck-SIM screen). Guard added.
+- **Grok R2 fully landed**: film wrong-origin fixed (agent bridge :17771, not :17772) ·
+  stopping-state UI · + the v768-pre server gate & lifecycle continuity.
+- Gates: board+console+smoke **28/28** (console spec now 5 incl the #tvd lock) · agent 60/60 ·
+  control 7/7 · button matrix 22/22 · html clean both files.
