@@ -126,6 +126,38 @@ class TestStopDiscipline(unittest.TestCase):
         self.assertIn("_MAC_BROWSERS", src)                  # fragment-surviving spawn path
 
 
+class TestBoardHost(unittest.TestCase):
+    """🌙 v774 — THE APP HOSTS THE BOARD: /board serves the local bible same-origin."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        cls.port = cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def test_board_serves_bible(self):
+        st, body, hdr = _get(self.port, "/board")
+        self.assertEqual(st, 200)
+        self.assertIn("text/html", hdr.get("Content-Type", ""))
+        self.assertIn(b"D2R_BUILD", body)
+
+    def test_hist_alias_traversal_blocked(self):
+        try:
+            st, _, _ = _get(self.port, "/tv/frames/hist/..%2Fcontrol_app.py")
+        except urllib.error.HTTPError as e:
+            st = e.code
+        self.assertIn(st, (403, 404))
+
+    def test_api_board_tab_whitelist(self):
+        import inspect
+        src = inspect.getsource(ca.Handler.do_POST)
+        self.assertIn('"session", "tools", "forge", "funi", "fsets"', src)
+
+
 class TestVersionTruth(unittest.TestCase):
     """v771 (Grok R5) — ONE ship tag: agent VERSION == control payload ver. Drift = red."""
     def test_stamps_match(self):
@@ -141,7 +173,7 @@ class TestVersionTruth(unittest.TestCase):
         """Regression: board_window except used undefined `url` → NameError on crash path."""
         import inspect
         src = inspect.getsource(ca.board_window)
-        self.assertIn("url = _file_url", src)
+        self.assertIn("/board#", src)   # v774 — board window is SAME-ORIGIN (/board), not file://
         self.assertIn("_open_browser_app_fallback(url)", src)
 
 

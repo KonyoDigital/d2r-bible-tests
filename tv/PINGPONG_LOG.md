@@ -726,3 +726,15 @@ flag, the app will NOT reimplement those engines. Decision: **THE APP HOSTS THE 
    is capped; Fable reviewer rounds substitute where needed).
 Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Session → v776 Tools
 → v777 Forge → v778 F-Uniques → v779 F-Sets → v780+ integration polish + the seven rounds.
+
+### 🌙 N1 · v774 — THE APP HOSTS THE BOARD (night foundation) ✅
+- **/board same-origin serve**: the control server serves the LOCAL bible.html (art/ + theatre
+  hist fallback resolve same-origin too, traversal-blocked) — the native window now lives on ONE
+  stable http origin; the file:// localStorage split is dead for the app world.
+- **THE BIBLE RAIL**: five console-styled tabs in the app (⚡Session 🧰Tools 🔨Forge 🏆F·Uniques
+  🧩F·Sets) — each opens THE ONE singleton board window (v773.1 pid-tracked) deep-linked at its
+  tab via /api/board?tab= (whitelisted) + --hash= (rides the v768 unconditional-hash fix).
+- Spec-drift honestly updated: the Grok-era lock asserting the file:// URL now asserts /board#.
+- Gates: control **12/12** (3 new host locks) · py ast · ui js clean · live-verified (200 html
+  w/ D2R_BUILD · hist traversal 403).
+- REG-020 postscript shipped first: v773.1 singleton + v773.2 belt-sweep + orphan self-close.

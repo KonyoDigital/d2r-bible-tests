@@ -1112,6 +1112,11 @@
     post('/api/sim', this, e);
   };
   $('btn-board').onclick = function(){ post('/api/board'); };
+  // 🌙 v774 — the bible rail: each tab opens THE ONE board window deep-linked there
+  document.getElementById('bible-rail').addEventListener('click', function(e){
+    var b = e.target.closest('.brl'); if (!b) return;
+    post('/api/board?tab=' + encodeURIComponent(b.dataset.tab), b, e);
+  });
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
   $('btn-log').onclick = function(){

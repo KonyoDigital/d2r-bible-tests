@@ -462,7 +462,7 @@ def _open_board_once():
     open_board(auto_on=True)
     return "opened"
 
-def _open_board_native():
+def _open_board_native(tab="tvd"):
     """v767.1 (Konyo: 'no need for Chrome anymore') — the BOARD opens in its own native
     window too: a sibling process runs pywebview on the LOCAL bible.html#tvd. Returns True
     if the native window spawned; False → caller falls back to a browser."""
@@ -485,7 +485,7 @@ def _open_board_native():
         pass
     try:
         proc = subprocess.Popen(
-            [sys.executable, os.path.abspath(__file__), "--board-window"],
+            [sys.executable, os.path.abspath(__file__), "--board-window", "--hash=" + (tab or "tvd")],
             cwd=REPO,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -500,14 +500,14 @@ def _open_board_native():
     except Exception:
         return False
 
-def open_board(auto_on=True):
+def open_board(auto_on=True, tab="tvd"):
     """Open the bible TV·D tab. v764: the board AUTO-SYNCS to the bridge now (lamp + probe),
     so the deep link only needs to LAND on #tvd — and macOS `open` DROPS file:// fragments
     (the 'routes me to the wrong page' bug), so prefer a direct browser spawn like Windows."""
     if not os.path.isfile(BIBLE):
         return {"ok": False, "msg": "bible.html missing"}
-    if _open_board_native():
-        return {"ok": True, "msg": "board opened (native window)"}
+    if _open_board_native(tab):
+        return {"ok": True, "msg": "board opened (native window)", "tab": tab}
     url = _file_url(BIBLE, "tvd")
     try:
         if sys.platform == "darwin":
@@ -920,6 +920,27 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])
             return
+        if path in ("/board", "/board/"):
+            # v774 🌙 — THE APP HOSTS THE BOARD: serve the local bible.html same-origin so the
+            # native window lives on ONE http origin (no more file:// localStorage split for
+            # app users). Engines are never forked — this IS the board.
+            try:
+                with open(BIBLE, "rb") as f:
+                    body = f.read()
+            except Exception:
+                self._json(404, {"ok": False, "msg": "bible.html missing"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path.startswith("/tv/frames/hist/"):
+            # the board's theatre fallback path resolves same-origin too
+            self._serve_hist(path[len("/tv/frames/hist/"):])
+            return
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
             return
@@ -999,7 +1020,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {**r, "board": board})
             return
         if path == "/api/board":
-            self._json(200, open_board(auto_on=True))
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            tab = (q.get("tab") or ["tvd"])[0]
+            if tab not in ("tvd", "session", "tools", "forge", "funi", "fsets"):
+                tab = "tvd"
+            self._json(200, open_board(auto_on=True, tab=tab))
             return
         if path == "/api/quit":
             threading.Thread(
@@ -1040,7 +1066,12 @@ def board_window():
                 if misses >= 3:
                     os._exit(0)
     threading.Thread(target=_orphan_watch, daemon=True).start()
-    url = _file_url(BIBLE, "tvd")
+    # v774 🌙 — same-origin host + deep-link hash (--hash=forge etc.)
+    tab = "tvd"
+    for a in sys.argv:
+        if a.startswith("--hash="):
+            tab = a.split("=", 1)[1] or "tvd"
+    url = "http://127.0.0.1:%d/board#%s" % (CONTROL_PORT, tab)
     try:
         import webview
         webview.create_window(
