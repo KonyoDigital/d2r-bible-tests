@@ -766,7 +766,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v792 control</span>
+      <span id="foot-ver">v793 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -922,7 +922,8 @@
     window._lastEyeAge = (st.eyeAgeMs != null) ? st.eyeAgeMs : -1;   // v791 — adaptive poll heuristic
     var fault = '';
     if (on) {
-      if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
+      if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture process died';   // v793
+      else if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
       else if ((H.visionBusyMs || 0) > 45000) fault = 'VISION SLOW — read in flight ' + Math.round(H.visionBusyMs / 1000) + 's';
       else if ((H.lastReadAgeMs || 0) > 180000) fault = 'STALLED — no read for ' + Math.round(H.lastReadAgeMs / 60000) + 'min';
     }
@@ -980,7 +981,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v792') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v793') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {

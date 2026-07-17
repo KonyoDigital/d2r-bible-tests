@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v792)
+# 📺 TV DIABLO — Control App (Mac + Windows · v793)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -288,6 +288,38 @@ def _start_capture(env, log_fp):
         log_fp.write(f"!! capture start failed: {e}\n")
         log_fp.flush()
         return None
+
+
+_CAP_RESTARTED = False
+def _capture_health():
+    """v793 (Grok R4 #5a) — Windows capture lamp: LINKED / DEAD / n/a. A dead capture_win.ps1
+    used to leave a frozen eye with the lamp still mint. Auto-restart ONCE, loudly."""
+    global _CAP_RESTARTED
+    if not IS_WIN:
+        return ""
+    if _agent_mode not in ("live", "sim"):
+        _CAP_RESTARTED = False
+        return ""
+    pid = None
+    try:
+        with _lock:
+            if _capture_proc is not None and _capture_proc.poll() is None:
+                return "LINKED"
+        pid = _read_pid(CAP_PID_PATH)
+    except Exception:
+        pass
+    if pid and _pid_alive(pid):
+        return "LINKED"
+    if not _CAP_RESTARTED and _log_fp:
+        _CAP_RESTARTED = True
+        try:
+            _log_fp.write("!! capture_win.ps1 DIED mid-session — auto-restarting once\n")
+            _log_fp.flush()
+            _start_capture(_env_clean(sim=(_agent_mode == "sim")), _log_fp)
+            return "RESTARTED"
+        except Exception:
+            pass
+    return "DEAD"
 
 
 def _stop_capture():
@@ -790,7 +822,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v792",
+        "ver": "v793",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -817,6 +849,7 @@ def status_payload():
         "captureTarget": (st or {}).get("captureTarget") or {},
         "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),   # v785 — film honesty for the stage
         "health": (st or {}).get("health") or {},     # v789 — fault-lamp truth
+        "captureProc": _capture_health(),             # v793 — Windows capture lamp (LINKED/DEAD/RESTARTED)
     }
 
 
@@ -1228,7 +1261,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v792 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v793 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

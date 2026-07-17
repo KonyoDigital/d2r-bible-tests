@@ -935,3 +935,8 @@ Vault + chronicle share ONE canonical identity: tvVaultRegister resolves suffix-
 match + canonical set-piece name (same as tvChronicleRoute) so 'Harlequin Crest' vs
 '(Shako)'-suffixed are never two tiles; belt-loop fills gaps only (_regd set from routes-loop) —
 'Ist' + 'Ist Rune' dual registration dead. Board specs 21/21 + suites 82/82 + 16/16.
+
+## 🏓 Grok R4 #5a → v793 "Capture Lamp" (~05:15)
+Windows capture_win.ps1 death is now first-class: _capture_health() → LINKED/DEAD/RESTARTED on
+/api/status, auto-restart ONCE with loud log, UI fault 'NO CAPTURE' outranks NO EYE. (OCR twin
+lane = queued for cousin-night, needs a Windows box to verify.) 82/82 + 16/16.
