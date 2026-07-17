@@ -497,15 +497,24 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     }));
     await page.route(BRIDGE + '**', (route) =>
       route.fulfill({ contentType: 'application/json', body }));
-    await page.goto(URL); await page.waitForTimeout(1200);
-    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.goto(URL);
+    // v754 item 8 sweep — the v747 test flaked under workers=2 because every transition below waited a
+    // FLAT 1200/1400ms for the 250ms poll to fetch the new body + re-render. Replace each with a
+    // condition wait keyed on the stage read # (.tvn-read-n), which advances on every new read.
+    const readIs = (n: number) => page.waitForFunction((num) => {
+      const el = document.querySelector('#tvn-stage .tvn-read-n');
+      return !!el && (el.textContent || '').trim().endsWith('#' + num);
+    }, n, { timeout: 5000 });
+    // receiver booted before we drive it
+    await page.waitForFunction(() => typeof (window as any)._tvdToggle === 'function' && !!document.getElementById('tvn-stage'), undefined, { timeout: 5000 });
+    await page.evaluate(() => (window as any).switchTab('tvd'));
 
     // (a) OFF → the stage is hidden entirely (the CRT static owns the off story)
     expect(await page.evaluate(() => document.getElementById('tvn-stage')!.hidden)).toBe(true);
 
     // ON → LIVE
     await page.evaluate(() => (window as any)._tvdToggle());
-    await page.waitForTimeout(1200);
+    await readIs(7);
     const live = await page.evaluate(() => {
       const st = document.getElementById('tvn-stage')!;
       return {
@@ -540,7 +549,7 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       reads: [{ ts: T + 1000, n: 8, area: 'Harrogath', scene: 'stash', intent: 'farmed', ms: 2000,
                 names: ['Harlequin Crest'], vault_names: ['Harlequin Crest'] }],
     }));
-    await page.waitForTimeout(1400);
+    await readIs(8);
     const vault = await page.evaluate(() => ({
       ring: !!document.querySelector('#tvn-stage .tvn-cast-tile.tvn-lc-vault'),
       readN: document.querySelector('#tvn-stage .tvn-read-n')?.textContent || '',
@@ -553,14 +562,14 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     body = JSON.stringify(state({
       reads: [{ ts: T + 1400, n: 9, area: 'Harrogath', scene: 'gameplay', ms: 1500, names: [] }],
     }));
-    await page.waitForTimeout(1400);
+    await readIs(9);
     const memory = await page.evaluate(() =>
       [...document.querySelectorAll('#tvn-stage .tvn-cast-tile .tvn-cast-name')].map((n) => n.textContent!.trim()));
     expect(memory.find((n) => n === 'Harlequin Crest')).toBeTruthy();   // still on stage
     body = JSON.stringify(state({
       reads: [{ ts: T + 1700, n: 10, area: 'Chaos Sanctuary', scene: 'gameplay', ms: 1500, names: [] }],
     }));
-    await page.waitForTimeout(1400);
+    await readIs(10);
     const fresh = await page.evaluate(() =>
       [...document.querySelectorAll('#tvn-stage .tvn-cast-tile:not(.tvn-ghost) .tvn-cast-name')].map((n) => n.textContent!.trim()));
     expect(fresh.length).toBe(0);                                       // new chapter, empty cast
@@ -570,7 +579,7 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       reads: [{ ts: T + 2000, n: 11, area: '', scene: 'transition', ms: 20, names: [],
                 transition_from: 'Harrogath', note: 'through the portal — leaving Harrogath' }],
     }));
-    await page.waitForTimeout(1400);
+    await readIs(11);
     const trans = await page.evaluate(() => {
       const st = document.getElementById('tvn-stage')!;
       return {
@@ -599,9 +608,88 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(bossThrough.boss).toContain('Mephisto');
     expect(bossThrough.hg).toBe(1);
 
-    // toggle OFF → stage hides again
+    // toggle OFF → stage hides again (v754 item 8: condition-wait, not a fixed 300ms that races slow CI)
     await page.evaluate(() => (window as any)._tvdToggle());
-    await page.waitForTimeout(300);
+    await page.waitForFunction(() => document.getElementById('tvn-stage')!.hidden, undefined, { timeout: 5000 });
     expect(await page.evaluate(() => document.getElementById('tvn-stage')!.hidden)).toBe(true);
+  });
+
+  test('v754 TV-B7: cast tile ↗ affordance opens the card via openDrop; the tile body never routes', async ({ page }) => {
+    const T = 1_700_000_000_000;
+    const body = JSON.stringify(state({
+      reads: [{ ts: T, n: 5, area: 'The Pit Level 1', scene: 'loot', intent: 'seen', ms: 3000,
+                names: ['Ist Rune', 'Harlequin Crest'] }],
+    }));
+    await page.route(BRIDGE + '**', (route) =>
+      route.fulfill({ contentType: 'application/json', body }));
+    await page.goto(URL); await page.waitForTimeout(1200);
+    await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any)._tvdToggle());
+    // condition-wait on the live render (item 8: no fixed wait that races slow CI)
+    await page.waitForFunction(() => !!document.querySelector('#tvn-stage .tvn-cast-tile'), undefined, { timeout: 5000 });
+
+    // the cast tile carries an explicit ↗ affordance + a data-open route name (never on notes)
+    const aff = await page.evaluate(() => {
+      const tile = document.querySelector('#tvn-stage .tvn-cast-tile') as HTMLElement | null;
+      return tile ? {
+        open: tile.getAttribute('data-open'),
+        hasBtn: !!tile.querySelector('.tvn-open'),
+        routeExists: typeof (window as any).findRune === 'function' && !!(window as any).findRune(tile.getAttribute('data-open') || ''),
+      } : null;
+    });
+    expect(aff).toBeTruthy();
+    expect(aff!.hasBtn).toBe(true);
+    expect(aff!.open).toBe('Ist Rune');       // cast tile routes the full rune name (findRune normalizes it)
+    expect(aff!.routeExists).toBe(true);      // routing target exists (Grok's ask: verify the card)
+
+    // spy openDrop: a deliberate ↗ click routes; a click on the tile ART is CONTAINED (no route)
+    await page.evaluate(() => {
+      (window as any).__od = [];
+      (window as any).openDrop = function(n: string){ (window as any).__od.push(n); };
+    });
+    await page.evaluate(() => (document.querySelector('#tvn-stage .tvn-cast-tile .tvn-cast-art, #tvn-stage .tvn-cast-tile .tvn-cast-glyph') as HTMLElement)?.click());
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => (window as any).__od.length)).toBe(0);   // body click never routes
+    await page.evaluate(() => (document.querySelector('#tvn-stage .tvn-cast-tile .tvn-open') as HTMLElement).click());
+    await page.waitForFunction(() => (window as any).__od.length > 0, undefined, { timeout: 5000 });
+    const routed = await page.evaluate(() => (window as any).__od);
+    expect(routed).toEqual(['Ist Rune']);     // ONLY the affordance routes
+  });
+
+  test('v754 TV-B7: history chip ↗ affordance routes through the scoped #tvb-hist listener only', async ({ page }) => {
+    const T = 1_700_000_000_000;
+    await page.route(BRIDGE + '**', (route) => route.abort());   // agent off — read from persisted history
+    await page.addInitScript((t: number) => {
+      const reads = [{ ts: t, n: 1, area: 'The Pit Level 1', scene: 'loot', intent: 'seen', model: 'sonnet', ms: 2000,
+        items: [
+          { kind: 'rune', key: 'Ist', label: '🪨 Ist Rune', db: true },
+          { kind: 'uni', key: 'Harlequin Crest (Shako)', label: '🏆 Harlequin Crest', db: true },
+          { kind: 'note', key: 'Superior Mage Plate', label: '📋 Superior Mage Plate', db: false },
+        ] }];
+      localStorage.setItem('d2r_tvdHist', JSON.stringify({ live: null, sessions: [{ agentStart: t, startedAt: t, endedAt: t + 1000, reads }] }));
+    }, T);
+    await page.goto(URL); await page.waitForTimeout(1000);
+    await page.evaluate(() => { (window as any).switchTab('tvd'); (window as any)._tvdHistTab('last'); });
+    await page.waitForFunction(() => !!document.querySelector('#tvb-hist .tvd-open'), undefined, { timeout: 5000 });
+
+    const chips = await page.evaluate(() => {
+      const opens = [...document.querySelectorAll('#tvb-hist .tvd-open')].map((o) => o.getAttribute('data-open'));
+      // note (db:false) must NOT get an affordance
+      const noteChip = [...document.querySelectorAll('#tvb-hist .tvd-chip.tc-note')].some((c) => c.querySelector('.tvd-open'));
+      return { opens, noteHasOpen: noteChip };
+    });
+    expect(chips.opens).toContain('Ist');
+    expect(chips.opens).toContain('Harlequin Crest');
+    expect(chips.noteHasOpen).toBe(false);
+
+    await page.evaluate(() => { (window as any).__od = []; (window as any).openDrop = function(n: string){ (window as any).__od.push(n); }; });
+    // a chip click that is NOT the affordance must not route
+    await page.evaluate(() => (document.querySelector('#tvb-hist .tvd-chip') as HTMLElement)?.click());
+    await page.waitForTimeout(80);
+    expect(await page.evaluate(() => (window as any).__od.length)).toBe(0);
+    // the ↗ affordance routes
+    await page.evaluate(() => (document.querySelector('#tvb-hist .tvd-open') as HTMLElement).click());
+    await page.waitForTimeout(80);
+    expect(await page.evaluate(() => (window as any).__od.length)).toBe(1);
   });
 });

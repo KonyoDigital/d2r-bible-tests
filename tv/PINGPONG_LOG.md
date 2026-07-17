@@ -465,3 +465,19 @@ route() labels. Next-session queue: reading-ghosts polish only.
 - **Serving**: deploy.sh copies the installer into the dist scaffold; functions/_middleware.js
   exempts exactly /d2r/install-tvd.ps1 from the password gate (zero secrets in the file — it's
   in the PUBLIC repo anyway; everything else stays gated).
+
+### 🛠 R14 · v758 — the v754 board pass lands complete (all 8 audit items + Konyo's routines fix) ✅
+- Items 1–6 (badge identity · scanning ghosts · light thumbs · mobile hero band 760+640 ·
+  TV-B7 chip→card ↗ affordances with scoped listeners · overflow ROOT CAUSE = .tvd-switch
+  stretched by column-flex then ×1.35 scaled → align-self:flex-start) shipped inside v757's
+  absorb; verified intact marker-by-marker.
+- **Item 7 — THE ROUTINES JUMP, root-caused** (Konyo: "all the routines are jumping"): the
+  60s status counter ('status…' → 'N/M fires today') was the ONLY variable width in a
+  right-anchored fixed pill — every refresh shoved the whole G–T strip leftward. Plus TWO
+  warring !important right-offsets broke narrow screens. Fixed at source: one clean dock rule
+  (dock-aware bottom, tray-clearing right, responsive max-width), counter locked to 150px
+  tabular-nums (124px @760), the !important pair removed. Strip position now CONSTANT across
+  all status texts at 1440 + 720, on TVD and lore tabs.
+- **Item 8 — CI flake killed**: the stage test's toggle-OFF assert now condition-waits
+  (waitForFunction, 5s) instead of racing a 300ms sleep; same sweep applied to the new tests.
+- Gates: board **13/13** · agent 55/55 · html clean · D2R_BUILD → v758 (badge stays honest).
