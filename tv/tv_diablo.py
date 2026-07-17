@@ -345,18 +345,31 @@ def archive_read_frame(src_path, n, ts_ms=None):
         if src and os.path.isfile(src):
             # Prefer full capture → 1920 for human eyes (AI path stays 1568 via _readable_frame)
             if src.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")):
-                r = subprocess.run(
-                    ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82",
-                     "--resampleHeightWidthMax", str(HIST_MAX_PX), src, "--out", dest],
-                    capture_output=True, timeout=25)
-                ok = r.returncode == 0 and os.path.isfile(dest)
+                try:
+                    r = subprocess.run(
+                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82",
+                         "--resampleHeightWidthMax", str(HIST_MAX_PX), src, "--out", dest],
+                        capture_output=True, timeout=25)
+                    ok = r.returncode == 0 and os.path.isfile(dest)
+                except Exception:
+                    ok = False   # sips is macOS-only — Windows/Linux land in the copy fallbacks
             if not ok:
-                # last resort: copy vision read.jpg if present
+                # portable fallback #1: the vision JPEG (already converted+downscaled)
                 jp = os.path.join(FRAMES, "read.jpg")
                 if os.path.isfile(jp):
                     import shutil
                     shutil.copy2(jp, dest)
                     ok = os.path.isfile(dest)
+            if not ok:
+                # portable fallback #2 (v755.3 — Windows/CI truth): raw copy of the frame.
+                # Browsers sniff content, so a PNG/BMP body behind the .jpg name still renders;
+                # an archived photo ALWAYS beats an empty history cell.
+                try:
+                    import shutil
+                    shutil.copy2(src, dest)
+                    ok = os.path.isfile(dest)
+                except Exception:
+                    ok = False
         if not ok:
             return ""
         # prune oldest beyond HIST_KEEP — and beyond the TV_HIST_MB disk ceiling (v753)
