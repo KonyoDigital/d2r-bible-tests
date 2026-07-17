@@ -402,7 +402,24 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     await page.route(BRIDGE + '**', (route) => route.abort());   // agent off — story reads persisted history
     await page.goto(URL); await page.waitForTimeout(1200);
     await page.evaluate(() => (window as any).switchTab('tvd')); await page.waitForTimeout(300);
+
+    // v745 — the strip never goes dark: LIVE tab is empty (agent off), so the reel narrates
+    // the newest ARCHIVED session, capped 📼 RUN STORY · LAST SESSION
+    const fallback = await page.evaluate(() => {
+      const el = document.getElementById('tvb-story')!;
+      return { hidden: el.hidden, cap: el.querySelector('.st-cap')?.textContent || '' };
+    });
+    expect(fallback.hidden).toBe(false);
+    expect(fallback.cap).toContain('RUN STORY');
+    expect(fallback.cap).toContain('LAST SESSION');
+
     await page.click('#tvb-hist-last'); await page.waitForTimeout(600);
+
+    // v745 — the history list is storylined too: 🗺 chapter dividers where the area changes
+    const chapters = await page.evaluate(() =>
+      [...document.querySelectorAll('#tvb-hist .tvd-chapter')].map((c) => c.textContent!.trim()));
+    expect(chapters.length).toBe(1);
+    expect(chapters[0]).toContain('Durance of Hate Level 2');
 
     const story = await page.evaluate(() => {
       const el = document.getElementById('tvb-story')!;

@@ -334,3 +334,16 @@ Grok's verdict pre-dawn: "you're past the hard ships."
 - Gates: board **10/10** (new v744 RUN STORY spec — seeded with the true persisted schema after
   the first seed's `name` vs `key/label` lie surfaced as 'undefined' in a row) · agent **46/46** ·
   html clean · headless screenshots verified · Fable code-reviewer pass on the diff.
+
+### 🌅 DAWN R7 · v745 — the story never goes dark (Konyo: "i dont see any changes... session
+### history timelined with that same logic?") ✅
+- **The v744 reel was honest to a fault**: it followed the LIVE/LAST toggle, and with the agent
+  off the default LIVE view is empty — so the strip hid and the whole arc looked invisible.
+- **v745 fallback**: when LIVE has no story, the reel narrates the newest ARCHIVED session,
+  capped `📼 RUN STORY · LAST SESSION` — it introduces itself now. Clicking a tick on a fallback
+  reel flips history to LAST first, then jumps + pulses the row.
+- **The history list is storylined with the same logic**: 🗺 chapter divider rows wherever the
+  area changes — a Meph night reads Town → Durance → Chaos as chapters, not a flat list.
+- Verified on Konyo's real tab: default view shows the capped reel, click flipped live→last and
+  pulsed read #5, chapter divider rendered. Gates: board 10/10 (spec extended: fallback cap +
+  chapter locks) · agent 46/46 · html clean.

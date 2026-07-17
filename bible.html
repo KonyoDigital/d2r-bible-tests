@@ -31684,6 +31684,10 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 .tvb-story .st-area{color:#9fd4ff;font-weight:800;letter-spacing:.04em}
 .tvb-story .st-vault{color:#8fe6a0;font-weight:800}
 .tvb-story .st-link{flex:0 0 auto;width:16px;height:1px;background:linear-gradient(90deg,rgba(240,192,96,.35),rgba(240,192,96,.1))}
+.tvb-story .st-cap{flex:0 0 auto;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.12em;color:var(--gold);opacity:.75;padding-right:10px;margin-right:4px;border-right:1px solid var(--border)}
+.tvd-chapter{display:flex;align-items:center;gap:7px;margin:10px 0 2px;font-family:var(--mono);font-size:var(--fs-micro);font-weight:800;letter-spacing:.08em;color:#9fd4ff;opacity:.9}
+.tvd-chapter::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(159,212,255,.3),transparent)}
+.tvd-chapter-ic{font-size:11px}
 .tvb-feedwrap{border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.012);overflow:hidden}
 .tvb-feed-h{display:flex;align-items:baseline;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:var(--fs-meta);font-weight:800;letter-spacing:.22em;color:var(--gold-dim)}
 .tvb-feed-sub{font-weight:400;letter-spacing:.02em;color:var(--text-dim);text-transform:none}
@@ -32682,7 +32686,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v744', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v745', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -32971,11 +32975,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // LAST SESSION is static after archive so never thrash while the user is reading it.
   var _histFp = '';
   // v744 — THE RUN STORY: area chapters + key moments from the session, click jumps the history
-  function renderStory(sessReads){
+  function renderStory(sessReads, opts){
     try {
-      var el = document.getElementById('tvb-story'); if (!el) return;
+      opts = opts || {};
+      var el = document.getElementById('tvb-story'); if (!el) return false;
       var reads = sessReads || [];
-      if (reads.length < 2){ el.hidden = true; return; }
+      if (reads.length < 2){ el.hidden = true; return false; }
       var nodes = [], lastArea = null;
       reads.forEach(function(r, i){
         if (r.area && r.area !== lastArea){ lastArea = r.area; nodes.push({ ic: '🗺', txt: r.area, cls: 'st-area', i: i }); }
@@ -32992,13 +32997,15 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       });
       // collapse runs of identical ⏳/⚔️ ticks so long sessions stay one reel
       var out = []; nodes.forEach(function(nd){ var pv = out[out.length-1]; if (pv && pv.ic === nd.ic && pv.txt === nd.txt && nd.ic !== '🗺') return; out.push(nd); });
-      if (out.length < 2){ el.hidden = true; return; }
+      if (out.length < 2){ el.hidden = true; return false; }
       // fingerprint-skip: the strip repaints ONLY when its nodes changed (poll calls land every 250ms)
-      var sfp = out.map(function(nd){ return nd.ic + nd.txt + nd.i; }).join('|');
-      if (el.__sfp === sfp){ el.hidden = false; return; }
+      var sfp = (opts.label||'') + '§' + out.map(function(nd){ return nd.ic + nd.txt + nd.i; }).join('|');
+      if (el.__sfp === sfp){ el.hidden = false; return true; }
       el.__sfp = sfp;
+      el.__fallback = !!opts.fallback;
       var keepX = el.scrollLeft;
-      el.innerHTML = out.map(function(nd, k){
+      el.innerHTML = '<span class="st-cap">📼 RUN STORY'+(opts.label?(' · '+opts.label):'')+'</span>'
+        + out.map(function(nd, k){
         return (k ? '<span class="st-link"></span>' : '')
           + '<span class="st-node '+nd.cls+'" data-ri="'+nd.i+'" title="jump to this moment"><span class="st-ic">'+nd.ic+'</span>'+(nd.txt||'')+'</span>';
       }).join('');
@@ -33008,12 +33015,18 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         el.__wired = true;
         el.addEventListener('click', function(e){
           var nd = e.target.closest('.st-node'); if (!nd) return;
-          var rows = document.querySelectorAll('#tvb-hist .tvd-read');
-          var row = rows[rows.length - 1 - Number(nd.dataset.ri)] || rows[Number(nd.dataset.ri)];
-          if (row){ row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('tool-jump-pulse'); setTimeout(function(){ row.classList.remove('tool-jump-pulse'); }, 1400); }
+          var jump = function(){
+            var rows = document.querySelectorAll('#tvb-hist .tvd-read');
+            var row = rows[rows.length - 1 - Number(nd.dataset.ri)] || rows[Number(nd.dataset.ri)];
+            if (row){ row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('tool-jump-pulse'); setTimeout(function(){ row.classList.remove('tool-jump-pulse'); }, 1400); }
+          };
+          // a fallback reel narrates the ARCHIVED session — flip the history there first, then jump
+          if (el.__fallback && HIST_TAB !== 'last' && window._tvdHistTab){ window._tvdHistTab('last'); setTimeout(jump, 350); }
+          else jump();
         });
       }
-    } catch(e){}
+      return true;
+    } catch(e){ return false; }
   }
   function renderHistory(force){
     var root = document.getElementById('tvb-hist');
@@ -33035,7 +33048,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     }
     var reads = (sess && sess.reads) || [];
     var fp = HIST_TAB + '|' + (sess && (sess.agentStart || sess.startedAt) || 0) + '|' + reads.length + '|' + (reads.length ? (reads[reads.length-1].ts||0) : 0) + '|' + (h.sessions ? h.sessions.length : 0);
-    renderStory(reads);   // v744 — the film strip follows whichever session the history shows
+    // v745 — the film strip never goes dark: live story when it has one, else the newest archive
+    if (!renderStory(reads, { label: label }) && HIST_TAB === 'live' && h.sessions && h.sessions[0])
+      renderStory((h.sessions[0].reads) || [], { label: 'LAST SESSION', fallback: true });
     // stats (meta can update lightly even when body skipped — but skip whole paint if unchanged)
     var dbHits=0, dbTotal=0, farmedN=0, seenN=0, vaultN=0;
     reads.forEach(function(r){
@@ -33068,7 +33083,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         : 'live history is empty — when the scanner reads, every item lands here with time + HD art + DB match')+'</div>';
       return;
     }
-    // newest first
+    // newest first — v745: 🗺 chapter dividers storyline the list with the reel's logic
+    var lastEmittedArea = null;
     var rows = reads.slice().reverse().map(function(r){
       var chips = (r.items||[]).filter(function(it){
         // v735 — never re-paint OCR garble notes in history (honesty gate for archives too)
@@ -33081,7 +33097,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var lane = r.lane==='ocr' ? ' · ⚡ocr' : (r.lane==='deep' ? ' · deep' : '');
       var ms = r.ms ? (' · '+fmtMs(r.ms)) : '';
       var where = (r.area?('🗺 '+escAttr(r.area)):'')+(r.scene?((r.area?' · ':'')+escAttr(r.scene)):'')+intentTag+lane+model+ms;
-      return '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'">'
+      var chapter = '';
+      if (r.area && r.area !== lastEmittedArea){
+        lastEmittedArea = r.area;
+        chapter = '<div class="tvd-chapter"><span class="tvd-chapter-ic">🗺</span>'+escAttr(r.area)+'</div>';
+      }
+      return chapter + '<div class="tvd-read'+(intent==='farmed'?' tvd-read-farmed':intent==='seen'?' tvd-read-seen':'')+'">'
         + histFrameCell(r)
         +'<div class="tvd-read-body">'
         +'<div class="tvd-read-ts">'+new Date(r.ts).toLocaleTimeString()+' · read #'+(r.n||'?')+(where?' · <span class="tvd-where">'+where+'</span>':'')+'</div>'
