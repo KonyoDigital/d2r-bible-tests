@@ -273,3 +273,10 @@ correct). No uniques dropped (RNG, not the scanner). System is routine now — r
 (Barbed Shield · Legendary Mallet · Flawless Diamond · Small Charm) → pickup (holding) →
 stash return + materials auto-tally. Area tracking followed the whole route. Six live runs:
 the scanner is a daily-driver now.
+
+## RUN #8 — Terrorized Durance / Mephisto (2026-07-17 ~04:50) 🏆🏆
+The night's crown: OCR caught the red ENTERING banner (TERRORIZED Durance L2), then the pile —
+**The Face of Horror (unique) + Civerb's Ward (set) in ONE drop** [deep 12.8s]. Chronicle ticked
+the unique · set tracker registered the Ward (Civerb's now 3/3 pieces). Vault filing pending the
+farewell-read fix (agent closed before a stash read — third occurrence, spec already queued).
+Konyo: "i was doing mephisto runs and it noticed them ausome!" — the product statement.
