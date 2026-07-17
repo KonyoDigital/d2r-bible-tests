@@ -33,6 +33,7 @@ BIBLE = os.path.join(REPO, "bible.html")
 ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
 CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
 HIST_DIR = os.path.join(HERE, "frames", "hist")   # v765 — the theatre's film archive
+BOARD_PID_PATH = os.path.join(HERE, "board_window.pid")   # v773.1 — the ONE board window
 
 IS_WIN = sys.platform.startswith("win")
 # Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
@@ -470,14 +471,31 @@ def _open_board_native():
     except ImportError:
         if not ensure_webview():
             return False
+    # v773.1 — SINGLETON: Grok's button-testing spawned 26 accumulated board windows (each a
+    # python+WebKit tree) and lagged the whole Mac. Exactly ONE board window may live.
     try:
-        subprocess.Popen(
+        if os.path.isfile(BOARD_PID_PATH):
+            try:
+                old = int(open(BOARD_PID_PATH).read().strip() or 0)
+                if old:
+                    os.kill(old, signal.SIGKILL)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        proc = subprocess.Popen(
             [sys.executable, os.path.abspath(__file__), "--board-window"],
             cwd=REPO,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
+        try:
+            with open(BOARD_PID_PATH, "w") as f:
+                f.write(str(proc.pid))
+        except Exception:
+            pass
         return True
     except Exception:
         return False
