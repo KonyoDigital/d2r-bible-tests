@@ -1139,7 +1139,9 @@
   var _brl = document.getElementById('bible-rail');
   if (_brl) _brl.addEventListener('click', function(e){
     var b = e.target.closest('.brl'); if (!b) return;
-    post('/api/board?tab=' + encodeURIComponent(b.dataset.tab), b, e);
+    // v776 (Konyo: 'shouldn't it all be in the same app?') — SAME WINDOW: we're same-origin
+    // since v774, so the console simply BECOMES the bible; the board's ⌂ CONSOLE pill returns.
+    window.location.href = '/board?app=1#' + encodeURIComponent(b.dataset.tab);
   });
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
