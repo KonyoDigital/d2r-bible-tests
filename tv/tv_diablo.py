@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v788"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v789"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -165,6 +165,26 @@ def ap_interest(peak, stable_ticks, priority, empty_streak, named_recent):
     if stable_ticks >= 1: s += 0.1
     return max(0.0, min(1.0, s))
 
+def _health(st):
+    """v789 (Grok R4 #1) — one small truth object for the fault lamp. A 2-hour farm used to
+    die quietly (vision stall, game quit, capture death) while the lamp said ON AIR."""
+    now = time.time()
+    h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
+         "visionBusyMs": int((now - _VISION_BUSY_AT) * 1000) if (_VISION_BUSY and _VISION_BUSY_AT) else 0,
+         "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0}
+    try:
+        if st.get("startedAt"):
+            h["sessionMs"] = max(0, int(now * 1000) - int(st["startedAt"]))
+        reads = st.get("reads") or []
+        if reads:
+            h["lastReadAgeMs"] = max(0, int(now * 1000) - int(reads[-1].get("ts") or 0))
+            h["named"] = sum(1 for r in reads if r.get("names"))
+            h["vaulted"] = sum(len(r.get("vault_names") or []) for r in reads)
+    except Exception:
+        pass
+    return h
+
+
 def _eye_age_ms():
     """v785 — how old is the film frame? -1 = no eye at all. The stage uses this to DROP
     film-on instead of claiming LIVE on a dead frame (round-2 sleeper: eye.jpg had no
@@ -213,6 +233,7 @@ def bridge():
                     st["stopping"] = _STOPPING   # v777.2 — 1-1 sync: the board drops the INSTANT the farewell begins
                     st["captureTarget"] = dict(_CAP_TARGET)  # v772 — window pin (CrossOver/D2R) or full
                     st["eyeAgeMs"] = _eye_age_ms()   # v785 — film honesty: stage drops LIVE when this goes stale
+                    st["health"] = _health(st)   # v789 — fault-lamp truth (Grok R4 #1)
                 if _since:
                     st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
                     st.pop("seen", None); st.pop("farmed", None)
@@ -1008,6 +1029,7 @@ _WORKER = VisionWorker()
 # v782 — vision must NOT freeze the eye: capture loop keeps writing live.bmp/eye.jpg while
 # Claude thinks. (Konyo: ON AIR + moving but film stuck on READING.)
 _VISION_BUSY = False
+_VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall detection)
 
 # ═══ v732 — OCR FAST LANE (Konyo: pile→chip in ~0.1–0.2s; LLM floors at 3–6s)
 # Local macOS Vision OCR (warm worker ~10–50ms). Claude stays the deep brain.
@@ -1974,6 +1996,7 @@ def main():
         n_this, fid_this, interest_this = reads, frame_id, interest
         cur_snap = cur
         _VISION_BUSY = True
+        globals()["_VISION_BUSY_AT"] = time.time()
 
         def _vision_job():
             nonlocal empty_streak, named_until

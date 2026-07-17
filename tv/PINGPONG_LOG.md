@@ -910,3 +910,10 @@ scoreboard · kill the 240-read cliff · theatre highlight-cut · endurance pain
 v788 ships #4 first (product-ending): the sleep(60)-forever halt at 240 reads is dead — soft cruise
 throttle (+6s→+30s gap creep), eye NEVER stops, scoreboard will show density. Lock: publish past cap.
 80/80 + 16/16. Grok's remaining picks queued as v789+.
+
+## 🏓 Grok R4 #1 → v789 "The Fault Lamp" (~04:20)
+Agent _health() on /state (eyeAgeMs · visionBusyMs since _VISION_BUSY_AT · lastReadAgeMs ·
+sessionMs · named/vaulted tallies) → control passthrough → stage FAULT BANNER (NO EYE >6s ·
+VISION SLOW >45s · STALLED >3min) + LIVE bug greys while faulted + 👁 Vision / ⏱ Last-read
+signal rows. Quiet death is forbidden. NOTE: first patch died on an ambiguous anchor
+(_VISION_BUSY ×2) — partial-apply caught by suite, re-anchored. 82/82 + 16/16.

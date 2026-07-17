@@ -1027,5 +1027,29 @@ class TestNoCliff(unittest.TestCase):
         self.assertTrue(any(r.get("n") == n for r in reads), "read past cap not published")
 
 
+
+class TestFaultLamp(unittest.TestCase):
+    """v789 — _health() truth object: ages numeric, tallies real."""
+
+    def test_health_shape(self):
+        import time as _t
+        st = {"startedAt": int(_t.time() * 1000) - 60000,
+              "reads": [{"ts": int(_t.time() * 1000) - 5000, "names": ["Shako"], "vault_names": ["Shako"]},
+                        {"ts": int(_t.time() * 1000) - 2000, "names": [], "vault_names": []}]}
+        h = tv._health(st)
+        self.assertGreaterEqual(h["sessionMs"], 59000)
+        self.assertGreaterEqual(h["lastReadAgeMs"], 1500)
+        self.assertLess(h["lastReadAgeMs"], 30000)
+        self.assertEqual(h["named"], 1)
+        self.assertEqual(h["vaulted"], 1)
+        self.assertIn("captureMode", h)
+        self.assertIn("visionBusyMs", h)
+
+    def test_health_empty(self):
+        h = tv._health({})
+        self.assertEqual(h["lastReadAgeMs"], -1)
+        self.assertEqual(h["named"], 0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
