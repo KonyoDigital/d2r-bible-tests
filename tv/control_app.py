@@ -993,8 +993,8 @@ class Handler(BaseHTTPRequestHandler):
                 stop_agent(farewell=False)
                 time.sleep(0.4)
             r = start_agent(sim=True)
-            board = _open_board_once()
-            self._json(200, {**r, "board": board})
+            # v776.1 (Konyo) — SIM opens NOTHING: one-window world, the app IS the view
+            self._json(200, r)
             return
         if path == "/api/off":
             # v767.1 (Konyo's button audit) — OFF opens NOTHING (the board auto-syncs dark), and

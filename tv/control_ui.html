@@ -1127,11 +1127,13 @@
   $('btn-stop').onclick = async function(e){ await cutFeed(this, e, true); };
   $('btn-restart').onclick = function(e){ post('/api/restart', this, e); };
   // SIM = agent canned feed toggle (NOT theatre)
+  var _simStarting = false;   // v776.1 — a fast second click must mean OFF, not re-start
   $('btn-sim').onclick = async function(e){
     var st = document.body.getAttribute('data-state');
-    if (st === 'sim') { await cutFeed(this, e, false); return; }
+    if (st === 'sim' || _simStarting) { _simStarting = false; await cutFeed(this, e, false); return; }
     if (st === 'stopping') return;
-    // starting sim stops live first (server-side)
+    _simStarting = true;
+    setTimeout(function(){ _simStarting = false; }, 6000);   // state takes over once the bridge is up
     post('/api/sim', this, e);
   };
   $('btn-board').onclick = function(){ post('/api/board'); };
