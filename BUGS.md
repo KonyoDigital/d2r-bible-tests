@@ -565,3 +565,16 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Prevention:** stress repro is the lesson — a "flaky test" that survives an honest
   condition-wait is a PRODUCT race until proven otherwise; run repeat-each before recalibrating
   the spec.
+
+## REG-020 — v761-v773 board-window spawn had no singleton (26-window WebKit swarm froze the Mac)
+- **Symptom:** Konyo's Mac became barely usable ("something is lagging the hell out of my pc") —
+  dozens of minimized python windows in the Dock, WindowServer at 57% CPU.
+- **Caught by:** Konyo live; ps sweep found 27 control_app instances + 26 --board-window
+  processes, each with WebKit children.
+- **Root cause:** _open_board_native spawned a NEW pywebview sibling process on every call and
+  never reaped the previous; rapid ON/OFF button testing (Grok's v773 verification) multiplied
+  them. The _BOARD_OPENED once-guard resets per control restart, so restart loops amplified it.
+- **Fix (v773.1):** pid-tracked SINGLETON — board_window.pid written on spawn, previous pid
+  SIGKILLed before a new spawn.
+- **Prevention:** any spawn-per-click surface needs a reap-or-reuse story from day one; process
+  accumulation is invisible until the OS chokes — check `pgrep -c` in verification passes.
