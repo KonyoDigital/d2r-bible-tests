@@ -582,7 +582,7 @@
     color: var(--gold); min-width: 36px; height: 32px; border-radius: 9px; cursor: pointer;
     font-family: var(--mono); font-size: 12px; font-weight: 700; transition: .15s; }
   .th-btn:hover { border-color: var(--edge-hi); box-shadow: 0 0 12px rgba(240,192,96,.2); }
-  .th-timeline { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; cursor: pointer; }
+  .th-timeline { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; cursor: pointer; overflow-x: auto; scrollbar-width: none; }
   .th-beat { flex: 1; height: 6px; border-radius: 3px; background: rgba(240,192,96,.18); transition: .12s; min-width: 3px; }
   .th-beat.named { background: rgba(240,192,96,.55); height: 10px; }
   .th-beat.cur { background: var(--gold-hi); height: 14px; box-shadow: 0 0 10px rgba(255,223,154,.6); }
@@ -638,7 +638,7 @@
       <!-- v765 — 🎞 THE THEATRE: eyes on history. Not a simulation — the REAL session replayed:
            archived frames + recorded reads, timeline-scrubbed, session-paginated. -->
       <div class="theatre" id="theatre" hidden>
-        <img class="th-film" id="th-film" alt="">
+        <img class="th-film" id="th-film" alt="" onerror="this.style.opacity=.15">
         <div class="th-topline">
           <span class="th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
           <span class="th-sess" id="th-sess">—</span>
@@ -872,7 +872,7 @@
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   function thCaption(b){
     if (!b) return '';
-    var bits = ['<b>'+thFmtT(b.ts)+'</b>', 'read #'+(b.n||'?')];
+    var bits = ['<b>'+thFmtT(b.ts)+'</b>', 'read #'+esc(b.n||'?')];
     if (b.area) bits.push('🗺 <b>'+esc(b.area)+'</b>');
     if (b.scene) bits.push((SCENE_IC[b.scene]||'')+' '+esc(b.scene));
     var line = bits.join(' · ');
@@ -910,7 +910,7 @@
   function thTimeline(){
     var tl = $('th-timeline');
     tl.innerHTML = TH.beats.map(function(b, k){
-      return '<span class="th-beat'+(b.names && b.names.length ? ' named':'')+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+(b.n||'?')+(b.area?(' · '+esc(b.area)):'')+'"></span>';
+      return '<span class="th-beat'+(b.names && b.names.length ? ' named':'')+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+esc(b.n||'?')+(b.area?(' · '+esc(b.area)):'')+'"></span>';
     }).join('');
   }
   async function thLoadSession(n){

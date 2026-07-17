@@ -51,6 +51,8 @@ class TestTheatre(unittest.TestCase):
             with open(os.path.join(cls.hist, fid + ".jpg"), "wb") as f:
                 f.write(b"\xff\xd8\xff\xe0FAKEJPG")
         cls._old_hist, cls._old_journal = ca.HIST_DIR, rp.JOURNAL
+        cls.addClassCleanup(lambda: setattr(ca, "HIST_DIR", cls._old_hist))
+        cls.addClassCleanup(lambda: setattr(rp, "JOURNAL", cls._old_journal))
         ca.HIST_DIR = cls.hist
         rp.JOURNAL = cls.journal
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
@@ -60,7 +62,6 @@ class TestTheatre(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.srv.shutdown()
-        ca.HIST_DIR, rp.JOURNAL = cls._old_hist, cls._old_journal
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def test_sessions_listing(self):
