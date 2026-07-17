@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v782"   # ONE truth — banner, autopilot HUD, and state all read this
+VERSION = "v783"   # ONE truth — banner, autopilot HUD, and state all read this  · film thread + snappy gaps
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -39,15 +39,17 @@ PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests
 # v780 — one ON cycle = one theatre session. Every journal row carries this id so SIM/theatre
 # never glues multiple restarts into one mega-run (the 10min gap alone was too soft).
 SESSION_ID = ""
-MIN_GAP_S    = 6      # baseline gap between vision fires
-PRIORITY_GAP_S = 2.5  # v727 Autopilot: after HARD motion then settle → near-instant eyes
+# v783 — snappier autopilot (Konyo: film + reads felt laggy vs live play)
+MIN_GAP_S    = 4.0    # was 6 — cruise still frugal; piles use PRIORITY_GAP
+PRIORITY_GAP_S = 1.2  # was 2.5 — after hard motion→stop, eyes fire sooner
 # v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
 SESSION_CAP  = 240
-POLL_S       = 0.25
+POLL_S       = 0.18   # was 0.25 — intelligence loop a bit tighter
 WATCH_MODE   = "--watch" in sys.argv
 # v727 — motion “wow” threshold: walking/panel open swings past this
-MOTION_PEAK  = 0.12
+MOTION_PEAK  = 0.10   # was 0.12 — slightly more sensitive to walk/stop
 SETTLE       = 0.03
+FILM_INTERVAL_S = 0.20  # v783 — dedicated film thread target ~5 fps JPEG eye
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
 # coded to flag farming when not in town — the corner always shows where we are on the map").
@@ -302,8 +304,12 @@ def _match_tokens():
 
 def find_d2r_window_mac():
     """Return (window_id:int, label:str) for the best on-screen D2R/CrossOver game window, or None.
-    Uses Quartz (already on machine via pywebview/pyobjc). Read-only window list."""
-    global _PICK_WHY
+    Uses Quartz (already on machine via pywebview/pyobjc). Read-only window list.
+    v783 — short TTL cache so capture doesn't re-scan the whole window tree every frame."""
+    global _PICK_WHY, _PICK_CACHE
+    now = time.monotonic()
+    if _PICK_CACHE and (now - _PICK_CACHE[1]) < _PICK_TTL_S:
+        return _PICK_CACHE[0]
     try:
         from Quartz import (
             CGWindowListCopyWindowInfo,
@@ -390,8 +396,11 @@ def find_d2r_window_mac():
         except Exception:
             continue
     if not best:
+        _PICK_CACHE = (None, now)
         return None
-    return best[2], best[3]
+    hit = (best[2], best[3])
+    _PICK_CACHE = (hit, now)
+    return hit
 
 
 def screen_recording_ok():
@@ -455,8 +464,12 @@ def _cap_promote(tmp, path, min_bytes=10000):
 
 
 _EYE_PREVIEW_AT = 0.0
-def refresh_eye_preview(bmp_path, min_interval=1.0):
-    """v779 — keep frames/eye.jpg fresh so /frame film tracks the LIVE pin, not last vision."""
+_FILM_THREAD = None
+_PICK_CACHE = None   # (hit, monotonic_t) — avoid Quartz every frame
+_PICK_TTL_S = 1.2
+
+def refresh_eye_preview(bmp_path, min_interval=0.35):
+    """v779/v783 — fallback eye from intelligence frame (film thread is primary)."""
     global _EYE_PREVIEW_AT
     now = time.time()
     if now - _EYE_PREVIEW_AT < min_interval:
@@ -465,15 +478,70 @@ def refresh_eye_preview(bmp_path, min_interval=1.0):
         return
     try:
         eye = os.path.join(FRAMES, "eye.jpg")
+        # v783 — smaller/faster JPEG for the console stage (~720px)
         r = subprocess.run(
-            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "70",
-             "--resampleHeightWidthMax", "1280", bmp_path, "--out", eye],
-            capture_output=True, timeout=12,
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "55",
+             "--resampleHeightWidthMax", "720", bmp_path, "--out", eye],
+            capture_output=True, timeout=8,
         )
         if r.returncode == 0 and os.path.isfile(eye):
             _EYE_PREVIEW_AT = now
     except Exception:
         pass
+
+
+def _film_loop():
+    """v783 — dedicated ~5fps JPEG capture for the console film.
+    Intelligence still uses BMP+frame_sig (JPEG entropy is useless for settle). This thread
+    only feeds /frame so the stage tracks the game while Claude thinks."""
+    eye = os.path.join(FRAMES, "eye.jpg")
+    tmp = eye + ".part.jpg"
+    while True:
+        t0 = time.time()
+        try:
+            os.makedirs(FRAMES, exist_ok=True)
+            wid = _CAP_TARGET.get("wid") if (_CAP_TARGET or {}).get("mode") == "window" else None
+            if wid:
+                cmd = ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp]
+            else:
+                # full display while waiting / auto-fallback — still better than a frozen frame
+                cmd = ["screencapture", "-x", "-t", "jpg", tmp]
+            r = subprocess.run(cmd, capture_output=True, timeout=6)
+            if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
+                # huge frames (retina full-desk) — light shrink so the WebView paints fast
+                if os.path.getsize(tmp) > 700_000:
+                    subprocess.run(
+                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "55",
+                         "--resampleHeightWidthMax", "900", tmp, "--out", eye],
+                        capture_output=True, timeout=6,
+                    )
+                    try:
+                        os.remove(tmp)
+                    except Exception:
+                        pass
+                else:
+                    os.replace(tmp, eye)
+                globals()["_EYE_PREVIEW_AT"] = time.time()
+            else:
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        dt = time.time() - t0
+        time.sleep(max(0.04, FILM_INTERVAL_S - dt))
+
+
+def start_film_thread():
+    global _FILM_THREAD
+    if WATCH_MODE or sys.platform != "darwin":
+        return
+    if _FILM_THREAD and _FILM_THREAD.is_alive():
+        return
+    _FILM_THREAD = threading.Thread(target=_film_loop, daemon=True, name="tv-film")
+    _FILM_THREAD.start()
 
 
 def capture_mac(path, timeout=12):
@@ -1614,7 +1682,8 @@ def main():
                "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,
                "lifecycle": _LIFECYCLE.snapshot(), "sessionId": SESSION_ID, "ver": VERSION})
     bridge()
-    ev("boot", f"scanner online — session {SESSION_ID} · eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
+    start_film_thread()
+    ev("boot", f"scanner online — session {SESSION_ID} · eyes {POLL_S}s · film ~{int(1/FILM_INTERVAL_S)}fps · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
     _known_dead_load()
     if _KNOWN_DEAD: ev("boot", f"{len(_KNOWN_DEAD)} learned transition frame(s) loaded — they cost 0ms now")
     if not os.environ.get("TV_STUB"):
@@ -1715,9 +1784,9 @@ def main():
                     print("  ⚠ capture is suspiciously tiny — screen-recording permission is probably missing")
                 continue
         else:
-            # v779/v782 — live film tracks the pin always (including while vision is busy)
-            if not WATCH_MODE:
-                try: refresh_eye_preview(frame, min_interval=0.6)
+            # v783 — film thread owns eye.jpg; only backfill if film thread is cold
+            if not WATCH_MODE and (time.time() - _EYE_PREVIEW_AT) > 1.5:
+                try: refresh_eye_preview(frame, min_interval=0.5)
                 except Exception: pass
         try: cur = frame_sig(frame)
         except Exception: continue
