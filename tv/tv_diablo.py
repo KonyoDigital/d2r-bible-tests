@@ -31,11 +31,14 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v779"   # ONE truth — banner, autopilot HUD, and state all read this
+VERSION = "v780"   # ONE truth — banner, autopilot HUD, and state all read this
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
 PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests · port conflicts)
+# v780 — one ON cycle = one theatre session. Every journal row carries this id so SIM/theatre
+# never glues multiple restarts into one mega-run (the 10min gap alone was too soft).
+SESSION_ID = ""
 MIN_GAP_S    = 6      # baseline gap between vision fires
 PRIORITY_GAP_S = 2.5  # v727 Autopilot: after HARD motion then settle → near-instant eyes
 # v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
@@ -90,6 +93,9 @@ def _journal(rec):
     if os.environ.get("TV_NO_JOURNAL"):   # v753 — a REPLAY is a re-broadcast, never a new session
         return
     try:
+        if isinstance(rec, dict) and SESSION_ID and not rec.get("sessionId"):
+            rec = dict(rec)
+            rec["sessionId"] = SESSION_ID
         need_nl = False
         try:
             if os.path.getsize(JOURNAL) > 0:
@@ -271,6 +277,22 @@ _D2R_TITLE_HINTS = (
 _D2R_OWNER_PRIORITY = (
     "crossover", "diablo", "d2r", "wine", "wineloader", "cxstart",
 )
+# v779.1 (live test): Chrome tab "Konyo's D2R Farming Bible" out-scored D2R.exe because
+# title tokens matched. Browsers / editors / our own chrome are NEVER the eye.
+_PICK_OWNER_BLOCK = (
+    "google chrome", "chrome", "chromium", "safari", "firefox", "arc", "brave browser",
+    "microsoft edge", "opera", "vivaldi", "orion", "comet",
+    "code", "cursor", "visual studio code", "sublime text", "atom",
+    "terminal", "iterm2", "warp", "kitty", "alacritty",
+    "slack", "discord", "zoom", "figma", "notion",
+)
+_PICK_TITLE_BLOCK = (
+    "farming bible", "d2r bible", "tv diablo", "localhost", "127.0.0.1",
+)
+# Bare CrossOver shell / launcher Home — never the game (D2R.exe owns the real window).
+_PICK_LAUNCHER_TITLES = (
+    "crossover", "cross over", "battle.net", "battle net",
+)
 
 
 def _match_tokens():
@@ -309,10 +331,24 @@ def find_d2r_window_mac():
                 continue  # skip menus/overlays
             owner = (w.get("kCGWindowOwnerName") or "").strip()
             title = (w.get("kCGWindowName") or "").strip()
+            ol, tl = owner.lower(), title.lower()
             # skip our own control/board chrome
-            if owner.lower() == "python" and "tv diablo" in (title or "").lower():
+            if ol == "python" and "tv diablo" in tl:
                 continue
-            blob = f"{owner} {title}".lower()
+            # v779.1 — never pin browsers/editors (bible tab title contains "D2R"/"Diablo")
+            if any(b in ol for b in _PICK_OWNER_BLOCK):
+                continue
+            if any(b in tl for b in _PICK_TITLE_BLOCK):
+                continue
+            # v779.1 — bare CrossOver Home / Battle.net shell is NOT the game
+            # (Konyo live: film showed CrossOver launcher while he was in Rogue Encampment)
+            is_game_exe = ("d2r" in ol or "diablo" in ol) and ol.endswith(".exe")
+            if not is_game_exe:
+                if ol in ("crossover", "cross over") and (not tl or tl in _PICK_LAUNCHER_TITLES):
+                    continue
+                if tl in _PICK_LAUNCHER_TITLES and "diablo" not in tl and "d2r" not in tl and "resurrected" not in tl:
+                    continue
+            blob = f"{ol} {tl}"
             if not any(t in blob for t in tokens):
                 continue
             # must look like a game-sized window
@@ -327,8 +363,12 @@ def find_d2r_window_mac():
             # v779 (live pick bug): the CrossOver LAUNCHER out-scored the actual game
             # window (12752 beat 'D2R.exe · Diablo II: Resurrected'). Game identity is
             # ABSOLUTE — a diablo/d2r title or a D2R.exe owner beats any launcher math.
-            tl, ol = title.lower(), owner.lower()
-            if "diablo" in tl or "d2r" in tl:
+            # Process owner beats title (Chrome bible tabs also say "D2R").
+            if "d2r.exe" in ol or ol.endswith("d2r.exe") or ol == "d2r.exe":
+                score += 5000   # the real game process — absolute winner
+            if ol.endswith(".exe") and ("d2r" in ol or "diablo" in ol):
+                score += 2000
+            if "diablo" in tl or "d2r" in tl or "resurrected" in tl:
                 score += 1000
             if "d2r" in ol or "diablo" in ol:
                 score += 500
@@ -336,8 +376,9 @@ def find_d2r_window_mac():
                 score += 50
             if any(t in ol for t in _D2R_OWNER_PRIORITY):
                 score += 30
-            if "crossover" in ol or "crossover" in blob:
-                score += 5  # weak tiebreak only — launcher chrome must never beat the game
+            # CrossOver host process alone is NOT a pin target — only a tiny tiebreak if somehow still here
+            if "crossover" in ol and not is_game_exe:
+                score -= 200
             if w.get("kCGWindowIsOnscreen"):
                 score += 40
             area = ww * hh
@@ -1563,12 +1604,14 @@ def main():
                     len(_LIFECYCLE.seen), len(_LIFECYCLE.pending)))
     except Exception:
         pass
+    global SESSION_ID
+    SESSION_ID = "s_%d_%d" % (int(time.time() * 1000), os.getpid())
     with _state_lock:
         _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0,
                "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,
-               "lifecycle": _LIFECYCLE.snapshot()})
+               "lifecycle": _LIFECYCLE.snapshot(), "sessionId": SESSION_ID, "ver": VERSION})
     bridge()
-    ev("boot", f"scanner online — eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
+    ev("boot", f"scanner online — session {SESSION_ID} · eyes {POLL_S}s · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
     _known_dead_load()
     if _KNOWN_DEAD: ev("boot", f"{len(_KNOWN_DEAD)} learned transition frame(s) loaded — they cost 0ms now")
     if not os.environ.get("TV_STUB"):
@@ -1722,14 +1765,14 @@ def main():
             t_fid = archive_read_frame(frame, reads + 1, t_ts)
             _journal({"ts": t_ts, "n": reads + 1, "scene": "transition", "names": [], "area": "",
                       "frameId": t_fid, "note": note, "transition_from": LAST_AREA, "ms": 0,
-                      "mode": "known", "lane": "known"})
+                      "mode": "known", "lane": "known", "sessionId": SESSION_ID})
             with _state_lock:
                 st = _load()
                 st["reads"].append({
                     "ts": t_ts, "names": [], "n": reads + 1, "area": "", "scene": "transition",
                     "tz": [], "ms": 0, "mode": "known", "lane": "known", "model": "learned",
                     "conf": 1.0, "intent": "context", "transition_from": LAST_AREA,
-                    "note": note, "frameId": t_fid,
+                    "note": note, "frameId": t_fid, "sessionId": SESSION_ID,
                     "escalated": False, "interest": interest, "priority": False,
                     "provisional": False,
                     "vault_names": [], "farmed_names": [], "pending_names": [],
@@ -1791,7 +1834,7 @@ def main():
                         "conf": ocr_rd.get("conf"), "intent": "seen",
                         "escalated": False, "interest": interest, "priority": used_priority,
                         "provisional": True,
-                        "frameId": frame_id,
+                        "frameId": frame_id, "sessionId": SESSION_ID,
                         "vault_names": [], "farmed_names": [],  # NEVER vault from OCR alone
                         "pending_names": [], "thrown_names": [], "unvault_names": [],
                         "lifecycle_tags": {nm: "ocr" for nm in onames},
@@ -1902,7 +1945,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "ts": int(time.time() * 1000), "names": names, "n": n, "area": rd.get("area") or "",
         "scene": rd.get("scene") or "gameplay", "tz": rd.get("tz", []), "ms": rd.get("ms", 0),
         "mode": rd.get("mode", ""), "lane": "deep", "model": model_tag, "conf": rd.get("conf"),
-        "intent": intent, "stashTab": stash_tab, "frameId": frame_id,
+        "intent": intent, "stashTab": stash_tab, "frameId": frame_id, "sessionId": SESSION_ID,
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
         "provisional": False, "farewell": bool(farewell),
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],

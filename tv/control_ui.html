@@ -722,7 +722,7 @@
         <button class="act b-off" id="btn-off" type="button"><span class="ic">❚❚</span><span class="lab"><b>Off</b><span>board dark · soft stop</span></span></button>
         <button class="act b-stop" id="btn-stop" type="button"><span class="ic">■</span><span class="lab"><b>Stop</b><span>full shutdown · farewell</span></span></button>
         <button class="act b-restart" id="btn-restart" type="button"><span class="ic">↻</span><span class="lab"><b>Restart</b><span>cycle the bridge</span></span></button>
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>replay the last session · click again = off</span></span></button>
+        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>last session film · ts + frame per beat · click again = off</span></span></button>
       </div>
       <div class="signal">
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
@@ -751,7 +751,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v779 control</span>
+      <span id="foot-ver">v780 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -932,7 +932,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v779') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v780') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -991,9 +991,16 @@
   }
 
   // ══ v765 — 🎞 THE THEATRE player: real frames + recorded reads, timeline + pagination ══
-  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:true, speed:1, timer:null };
+  // v780 — exact wall-clock stamps + frameId cross-ref on every beat (SIM = this reel)
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:true, speed:1, timer:null, sessionId:'' };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
+  function thFmtFull(ts){
+    try {
+      var d = new Date(ts);
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    } catch(e){ return ''; }
+  }
   function thSeal(b, n){
     // v769 — the chain truth ON the caption chip, RUN STORY language: 🏦 vaulted · ⏳ held ·
     // 🗑 thrown · 💬🏆 discovered · plain = seen
@@ -1005,34 +1012,45 @@
   }
   function thCaption(b){
     if (!b) return '';
-    var bits = ['<b>'+thFmtT(b.ts)+'</b>', 'read #'+esc(b.n||'?')];
+    // v780 — wall-clock + epoch ms + frameId so every tooltip maps to hist/{frameId}.jpg
+    var bits = ['<b>'+thFmtFull(b.ts)+'</b>', '<span style="opacity:.7">'+esc(String(b.ts||''))+'</span>', 'read #'+esc(b.n||'?')];
+    if (b.frameId || b.frame) bits.push('🖼 <code style="font-size:11px">'+esc(b.frameId || String(b.frame||'').replace(/\\.jpg$/,''))+'</code>');
     if (b.area) bits.push('🗺 <b>'+esc(b.area)+'</b>');
     if (b.scene) bits.push((SCENE_IC[b.scene]||'')+' '+esc(b.scene));
+    if (b.lane) bits.push(esc(b.lane));
+    if (b.ms) bits.push(esc(String(Math.round(b.ms)))+'ms');
     if (b.intent === 'farmed') bits.push('🛍 farmed');
     if (b.farewell) bits.push('👋 farewell');
     if (b.stashTab) bits.push('🏦 tab:'+esc(b.stashTab));
     var line = bits.join(' · ');
     if (b.note) line += '<br>⏳ '+esc(b.note);
-    var cast = (b.names||[]).slice(0,6).map(function(n){ return '<span class="th-chip">'+esc(n)+thSeal(b,n)+'</span>'; });
+    // tooltip / loot history chips for THIS frame
+    var cast = (b.names||[]).slice(0,8).map(function(n){ return '<span class="th-chip">'+esc(n)+thSeal(b,n)+'</span>'; });
     (b.discovered_names||[]).slice(0,4).forEach(function(n){
       if ((b.names||[]).indexOf(n) < 0) cast.push('<span class="th-chip">💬🏆 '+esc(n)+'</span>');
     });
     if (cast.length) line += '<br>' + cast.join('');
+    else line += '<br><span style="opacity:.55">no tooltip text on this frame</span>';
     return line;
   }
   function thPaint(){
     var b = TH.beats[TH.i];
     if (!b) return;
     var film = $('th-film');
-    if (b.frame){ film.style.opacity = 1; film.src = '/hist/' + encodeURIComponent(b.frame); }
-    else { film.style.opacity = .25; film.removeAttribute('src'); }   // v769 — honest: never show the PREVIOUS photo under a frameless beat
+    if (b.frame){ film.style.opacity = 1; film.src = '/hist/' + encodeURIComponent(b.frame); film.title = (b.frameId||b.frame)+' · '+thFmtFull(b.ts); }
+    else { film.style.opacity = .25; film.removeAttribute('src'); film.title = ''; }   // v769 — honest: never show the PREVIOUS photo under a frameless beat
     $('th-caption').innerHTML = thCaption(b);
     var tl = $('th-timeline');
     [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
     var meta = TH.sessions[TH.sn-1] || {};
+    var range = '';
+    if (meta.t0 && meta.t1) range = ' · ' + thFmtFull(meta.t0) + ' → ' + thFmtT(meta.t1);
+    else if (meta.t0) range = ' · ' + thFmtFull(meta.t0);
     $('th-sess').textContent = 'session ' + TH.sn + '/' + TH.sessions.length
-      + (meta.t0 ? ' · ' + new Date(meta.t0).toLocaleString() : '')
-      + ' · beat ' + (TH.i+1) + '/' + TH.beats.length;
+      + range
+      + ' · beat ' + (TH.i+1) + '/' + TH.beats.length
+      + (meta.named != null ? ' · ' + meta.named + ' named' : '')
+      + (meta.frames != null ? ' · ' + meta.frames + ' frames' : '');
   }
   function thStep(){
     if (!TH.open || !TH.playing || !TH.beats.length) return;
@@ -1054,7 +1072,13 @@
       if ((b.vault_names||[]).length) cls = ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
-      return '<span class="th-beat'+cls+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+esc(b.n||'?')+(b.area?(' · '+esc(b.area)):'')+'"></span>';
+      var tip = thFmtFull(b.ts)
+        + ' · read #' + (b.n||'?')
+        + (b.frameId ? (' · 🖼 ' + b.frameId) : '')
+        + (b.area ? (' · ' + b.area) : '')
+        + (b.scene ? (' · ' + b.scene) : '')
+        + ((b.names&&b.names.length) ? (' · ' + b.names.slice(0,4).join(', ')) : ' · (no tooltips)');
+      return '<span class="th-beat'+cls+(b.frame?'':' noframe')+'" data-i="'+k+'" title="'+esc(tip)+'"></span>';
     }).join('');
   }
   async function thLoadSession(n){
@@ -1071,7 +1095,7 @@
       var score = function(x){ return (x.lane==='deep'?2:0) + ((x.names||[]).length?1:0) + ((x.vault_names||[]).length?2:0); };
       if (score(b) >= score(prev)) beats[byFrame[k]] = b;
     });
-    TH.sn = n; TH.beats = beats; TH.i = 0;
+    TH.sn = n; TH.beats = beats; TH.i = 0; TH.sessionId = j.sessionId || '';
     thTimeline(); thPaint(); thSchedule();
   }
   async function thOpen(){
@@ -1079,13 +1103,14 @@
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
     if (!TH.sessions.length){
       $('theatre').hidden = false; TH.open = true;
-      $('th-caption').textContent = '🎞 no journaled sessions yet — run the scanner once, then the theatre has film';
+      $('th-caption').textContent = '🎞 no journaled sessions yet — press ON AIR, play a run (hover loot), then SIM replays it with frames';
       document.body.classList.add('theatre-open'); thLit(); return;
     }
     TH.open = true; TH.playing = true;
     $('theatre').hidden = false;
     document.body.classList.add('theatre-open');
     $('th-play').textContent = '⏸';
+    // always open on NEWEST session (n=1) — SIM = preview of how the last run went
     await thLoadSession(1);
     thLit();
   }
@@ -1098,6 +1123,8 @@
   function thLit(){
     var bt = $('btn-theatre');
     if (bt) bt.classList.toggle('on', TH.open);
+    var sim = $('btn-sim');
+    if (sim) sim.classList.toggle('on', TH.open);   // v780 — SIM lights while theatre is the last-session preview
   }
   $('th-close').onclick = thClose;
   $('th-play').onclick = function(){ TH.playing = !TH.playing; this.textContent = TH.playing ? '⏸' : '▶'; if (TH.playing) thSchedule(); };

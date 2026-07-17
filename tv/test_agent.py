@@ -788,6 +788,21 @@ class TestReplay(unittest.TestCase):
         self.assertEqual(man["1_100.jpg"]["names"], ["Vex Rune"])
         self.assertEqual(man["1_100.jpg"]["area"], "Cold Plains")
 
+    def test_session_id_splits_theatre_reels(self):
+        """v780 — each ON cycle (sessionId) is its own theatre page, even inside 10min."""
+        import replay as rp
+        reads = [
+            {"ts": 1000, "n": 1, "sessionId": "s_a", "frameId": "1_a", "names": ["A"]},
+            {"ts": 2000, "n": 2, "sessionId": "s_a", "frameId": "2_a", "names": []},
+            {"ts": 3000, "n": 1, "sessionId": "s_b", "frameId": "1_b", "names": ["B"]},  # new ON, <10min
+            {"ts": 4000, "n": 2, "sessionId": "s_b", "frameId": "2_b", "names": ["C"]},
+        ]
+        sess = rp.split_sessions(reads)
+        self.assertEqual(len(sess), 2)
+        self.assertEqual([r["sessionId"] for r in sess[0]], ["s_b", "s_b"])  # newest first
+        self.assertEqual([r["names"] for r in sess[0] if r.get("names")], [["B"], ["C"]])
+        self.assertEqual(sess[1][0]["sessionId"], "s_a")
+
 
 class TestWindowPin(unittest.TestCase):
     """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""

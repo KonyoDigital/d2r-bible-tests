@@ -36,15 +36,35 @@ def load_journal(path=None):
 
 
 def split_sessions(reads):
-    """Chronological journal → list of sessions (newest first)."""
-    sessions, cur, last_ts = [], [], None
+    """Chronological journal → list of sessions (newest first).
+
+    v780 — prefer explicit sessionId (one ON cycle = one theatre reel). Fall back to the
+    classic ≥10min silence split for pre-v780 journal rows that lack sessionId.
+    """
+    sessions, cur, last_ts, last_sid = [], [], None, None
     for r in sorted(reads, key=lambda x: x.get("ts") or 0):
         ts = r.get("ts") or 0
-        if last_ts is not None and ts - last_ts > SESSION_GAP_MS and cur:
+        sid = r.get("sessionId") or None
+        cut = False
+        if cur:
+            if sid and last_sid and sid != last_sid:
+                cut = True
+            elif sid and not last_sid:
+                # first stamped row after unstamped history — new reel
+                cut = True
+            elif (not sid) and last_ts is not None and ts - last_ts > SESSION_GAP_MS:
+                cut = True
+            elif sid and last_sid is None and last_ts is not None and ts - last_ts > SESSION_GAP_MS:
+                cut = True
+        if cut:
             sessions.append(cur)
             cur = []
         cur.append(r)
         last_ts = ts
+        if sid:
+            last_sid = sid
+        elif cut:
+            last_sid = None
     if cur:
         sessions.append(cur)
     sessions.reverse()

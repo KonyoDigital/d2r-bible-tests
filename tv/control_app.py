@@ -751,7 +751,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v779",
+        "ver": "v780",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -858,10 +858,11 @@ class Handler(BaseHTTPRequestHandler):
                     a = r.get("area")
                     if a and a not in areas:
                         areas.append(a)
+                sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len(sess), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
-                            "areas": areas[:6]})
+                            "areas": areas[:6], "sessionId": sid})
             return out
         except Exception as e:
             return {"error": str(e)}
@@ -882,6 +883,8 @@ class Handler(BaseHTTPRequestHandler):
                 beats.append({"ts": r.get("ts"), "n": r.get("n"), "scene": r.get("scene", ""),
                               "area": r.get("area", ""), "names": r.get("names", []),
                               "note": r.get("note", ""), "frame": (fid + ".jpg") if has else "",
+                              "frameId": fid,  # v780 — exact cross-ref for caption/timeline tooltips
+                              "sessionId": r.get("sessionId") or "",
                               "ms": r.get("ms", 0), "lane": r.get("lane", ""),
                               # v769 (Grok R3) — the flagship shows the CHAIN, not just names
                               "vault_names": r.get("vault_names") or [],
@@ -890,7 +893,9 @@ class Handler(BaseHTTPRequestHandler):
                               "discovered_names": r.get("discovered_names") or [],
                               "intent": r.get("intent", ""), "stashTab": r.get("stashTab", ""),
                               "farewell": bool(r.get("farewell"))})
-            return {"n": n, "beats": beats}
+            sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
+            return {"n": n, "beats": beats, "sessionId": sid,
+                    "t0": sess[0].get("ts"), "t1": sess[-1].get("ts")}
         except Exception as e:
             return {"error": str(e)}
 
@@ -1128,7 +1133,7 @@ def main():
         return
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v779 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v780 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
