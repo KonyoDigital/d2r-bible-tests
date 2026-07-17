@@ -280,3 +280,16 @@ The night's crown: OCR caught the red ENTERING banner (TERRORIZED Durance L2), t
 the unique · set tracker registered the Ward (Civerb's now 3/3 pieces). Vault filing pending the
 farewell-read fix (agent closed before a stash read — third occurrence, spec already queued).
 Konyo: "i was doing mephisto runs and it noticed them ausome!" — the product statement.
+
+### 🌙 NIGHT R1 · v741 — lightbox surgery + known-dead frames + THE SYNAPSE ✅
+- **Lightbox, both live bugs fixed**: (a) fullscreen was trapped by ancestor containment (the
+  v512 forge-legend lesson — fixed overlays live on document.body, moved on open); (b) the
+  archive-fallback flag stuck on the reused <img> — only the FIRST opened frame ever fell back;
+  now resets per open with one clean chain: bridge → archive → honest missing.
+- **KNOWN-DEAD FRAMES (Konyo: 'the loading photo is always the same — recognize it')**: an empty
+  deep read teaches the agent that frame's signature (cap 8); a re-match is recognized locally in
+  ~0ms — no vision spent, history registers an honest ⏳ transition row. 4 new agent tests (46/46).
+- **THE SYNAPSE**: the brain log reborn as a thought-spine — typed glowing orbs (⚡pulse 👁sense
+  📦result ⏳transition ⛔fault), newest = the active thought (enlarged, breathing), verb-first
+  grammar, timestamps ghosted right. Screenshot-verified. Gated: board 9/9 + agent 46/46.
+- Grok's v740 farewell read GATED ✓ (suite includes his farewell tests — the run-#7 gap is closed).

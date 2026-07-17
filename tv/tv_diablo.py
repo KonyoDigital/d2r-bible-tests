@@ -216,6 +216,25 @@ except Exception:
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
 HIST_MAX_PX = 1920
 
+# v741 — KNOWN-DEAD FRAMES (Konyo: the loading/portal screen 'is always the same photo — it
+# should be recognized'): an empty deep read teaches the agent that frame's signature; when it
+# reappears (any zone transition), it is recognized locally in ~0ms — no vision spent, and the
+# history registers an honest '⏳ transition' row instead of another 'nothing readable'.
+KNOWN_DEAD_CAP = 8
+_KNOWN_DEAD = []
+def learn_dead_frame(sig):
+    if sig is None: return
+    for k in _KNOWN_DEAD:
+        if sig_diff(sig, k) <= 0.04: return   # already known
+    _KNOWN_DEAD.append(sig)
+    del _KNOWN_DEAD[:-KNOWN_DEAD_CAP]
+
+def known_dead_match(sig):
+    if sig is None: return None
+    for k in _KNOWN_DEAD:
+        if sig_diff(sig, k) <= 0.04: return k
+    return None
+
 def _readable_frame(ap):
     """v710.6 LIVE-SESSION FIX (Konyo's first real run): claude's Read tool chokes on a 16MB
     raw BMP — both live reads timed out at 180s. Convert to a 1568px JPEG (the locked intake
@@ -1218,6 +1237,8 @@ def main():
         # ── DEEP LANE: Claude (scene/area/verify; 3–8s) ──
         rd = claude_read(frame)
         beat("watching", 0.0)
+        if not rd.get("names") and rd.get("scene") in ("gameplay", "") and not rd.get("area"):
+            learn_dead_frame(cur)   # v741 — this exact screen (loading/portal art) is now known-dead; next match costs 0ms
         rec = emit_deep_read(rd, n=reads, frame_id=frame_id, interest=interest,
                              used_priority=used_priority, ocr_rd=ocr_rd, farewell=False)
         names = (rec or {}).get("names") or []

@@ -580,5 +580,36 @@ class TestVisionWorker(unittest.TestCase):
         w.stop()
 
 
+class TestKnownFrames(unittest.TestCase):
+    """v741 — the agent LEARNS dead frames (loading/portal screens are the same pixels every
+    time): an empty deep read caches the frame signature; a re-match skips vision entirely
+    and registers a 'transition' read. (Konyo: 'always the same photo — recognize it')."""
+    def setUp(self):
+        tv._KNOWN_DEAD.clear()
+        self.d = tempfile.mkdtemp()
+
+    def _sig(self, payload):
+        p = os.path.join(self.d, "f.bmp"); make_bmp(p, payload)
+        return tv.frame_sig(p)
+
+    def test_learn_then_recognize(self):
+        sig = self._sig(bytes([60, 80, 100] * 100000))
+        self.assertIsNone(tv.known_dead_match(sig))          # unknown at first
+        tv.learn_dead_frame(sig)
+        self.assertIsNotNone(tv.known_dead_match(sig))       # exact re-match recognized
+        near = self._sig(bytes([62, 82, 102] * 100000))      # ±2 noise — same screen
+        self.assertIsNotNone(tv.known_dead_match(near))
+
+    def test_different_screen_not_matched(self):
+        tv.learn_dead_frame(self._sig(bytes([60, 80, 100] * 100000)))
+        other = self._sig(bytes([200, 30, 150] * 100000))
+        self.assertIsNone(tv.known_dead_match(other))        # loot on screen = different pixels
+
+    def test_cache_capped(self):
+        for i in range(20):
+            tv.learn_dead_frame(self._sig(bytes([i * 12 % 250] * 90000)))
+        self.assertLessEqual(len(tv._KNOWN_DEAD), tv.KNOWN_DEAD_CAP)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

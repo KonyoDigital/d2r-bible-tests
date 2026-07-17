@@ -31660,7 +31660,29 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
 #tvb-feed .tvd-read{margin-bottom:8px}
 .tvb-left{display:flex;flex-direction:column;gap:10px;flex:0 0 380px}
 .tvb-left .tvb-screen{flex:0 0 auto}
-.tvb-log{height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#050704;padding:8px 11px;font-family:var(--mono);font-size:var(--fs-micro);line-height:1.7;scrollbar-width:thin}
+.tvb-log{height:170px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#060805,#040604);padding:10px 12px 10px 14px;font-family:var(--mono);font-size:var(--fs-micro);line-height:1.6;scrollbar-width:thin;position:relative}
+/* v741 — THE SYNAPSE: the thought-spine. Nodes hang off a living vertical filament. */
+.syn-node{position:relative;display:flex;align-items:baseline;gap:8px;padding:3px 0 3px 22px;color:#7fae87;animation:synPop .3s cubic-bezier(.3,1.4,.5,1) 1}
+.syn-node::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:linear-gradient(180deg,rgba(102,255,136,.25),rgba(102,255,136,.08))}
+.syn-orb{position:absolute;left:1px;top:50%;transform:translateY(-50%);width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;background:#0a0f0a;border:1px solid rgba(102,255,136,.3);z-index:1}
+.syn-txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.syn-ts{flex:0 0 auto;color:#41523f;font-size:9px}
+.syn-sense .syn-orb{border-color:rgba(255,200,90,.6);color:#ffd97a;box-shadow:0 0 6px rgba(255,200,90,.35)}
+.syn-sense .syn-txt{color:#d9c08a}
+.syn-result .syn-orb{border-color:rgba(102,255,136,.7);color:#8fe6a0;box-shadow:0 0 8px rgba(102,255,136,.45)}
+.syn-result .syn-txt{color:#b7ecc4;font-weight:700}
+.syn-pulse .syn-orb{border-color:rgba(159,212,255,.6);color:#9fd4ff;box-shadow:0 0 6px rgba(120,180,240,.4)}
+.syn-pulse .syn-txt{color:#a8cfe8}
+.syn-fault .syn-orb{border-color:rgba(255,110,110,.7);color:#ff8f8f;box-shadow:0 0 8px rgba(255,90,90,.4)}
+.syn-fault .syn-txt{color:#e8a0a0;font-weight:700}
+.syn-trans .syn-orb{border-color:rgba(150,150,170,.4);color:#9a9ab0}
+.syn-trans .syn-txt{color:#8a8aa0;font-style:italic}
+.syn-quiet{opacity:.55}
+.syn-active{background:linear-gradient(90deg,rgba(102,255,136,.05),transparent 70%);border-radius:6px}
+.syn-active .syn-txt{white-space:normal}
+.syn-active .syn-orb{animation:synGlow 2s ease-in-out infinite}
+@keyframes synPop{0%{opacity:0;transform:translateX(-6px)}100%{opacity:1;transform:none}}
+@keyframes synGlow{0%,100%{box-shadow:0 0 5px rgba(102,255,136,.4)}50%{box-shadow:0 0 12px rgba(102,255,136,.85)}}
 .tvb-log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#7fae87}
 .tvb-log-line .lg-ts{color:#4a5d4e;margin-right:7px}
 .tvb-lg-boot{color:#8fe6a0;font-weight:700}
@@ -32629,7 +32651,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v740', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
+  window.D2R_BUILD = { id:'v741', name:'Farewell Read', date:'2026-07-17', note:'v740: farewell capture+deep on Ctrl-C/tvd stop so end-of-run stash never races out; chain vault + vault mirror kept' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33022,7 +33044,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         return '<span class="tvd-chip'+(x.thrown?' tc-thrown':'')+'"'+chipTip(x)+'>'+chipArt(x)+x.label+dbBadge(x)+lc+' <span class="tc-apply" role="button" tabindex="0" data-k="'+escAttr(x.kind)+'" data-v="'+escAttr(x.key)+'">✓ apply</span></span>';
       }).join('');
       var applyable=r.routes.some(function(x){ return x.kind!=='note' && x.kind!=='item' && !x.done; });
-      var sceneIco={town:'🏘',loot:'⚔️',inventory:'🎒',stash:'🏦',gameplay:'🌫'}[r.scene]||'';
+      var sceneIco={town:'🏘',loot:'⚔️',inventory:'🎒',stash:'🏦',gameplay:'🌫',transition:'⏳'}[r.scene]||'';
       var intent=r.intent||'';
       var intentTag=intent==='farmed'?' · <span class="tvd-intent tvd-farmed">🛍 FARMED</span>':intent==='seen'?' · <span class="tvd-intent tvd-seen">👁 SEEN (floor)</span>':'';
       var autoTag=r.auto?' · auto-vault':'';
@@ -33069,14 +33091,22 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var img = document.getElementById('tvd-frame-lb-img');
       var tit = document.getElementById('tvd-frame-lb-title');
       if (!lb || !img) return;
+      // v741 — ESCAPE CONTAINMENT (the v512 forge-legend lesson): an ancestor of #tab-tvd
+      // creates a containing block, trapping this position:fixed overlay at y≈189 / w<viewport
+      // (Konyo: 'not full screen'). Fixed overlays live on document.body, period.
+      if (lb.parentElement !== document.body) document.body.appendChild(lb);
       var label = meta.title || ('read #' + (meta.n || '?') + (meta.scene ? (' · ' + meta.scene) : '') + (id ? (' · ' + id) : ''));
       if (tit) tit.textContent = '👁 ' + label + ' · click outside / Esc to close';
+      // v741 — the fallback flag RESETS per open (it stuck on the reused <img>, so only the
+      // FIRST frame ever fell back to the archive — every later open died: Konyo's 'each photo
+      // isn't rendering'). One clean chain: bridge → archived file → honest missing message.
+      img.__fb = 0;
       img.onload = function(){ lb.hidden = false; };
       img.onerror = function(){
+        if (!img.__fb){ img.__fb = 1; img.src = 'tv/frames/hist/' + String(id) + '.jpg'; return; }
         lb.hidden = false;
-        if (tit) tit.textContent = '👁 frame missing — start tvd (agent serves /frame?id=…) · ' + (id || 'latest');
+        if (tit) tit.textContent = '👁 frame missing (agent off + no archive) · ' + (id || 'latest');
       };
-      img.onerror = function(){ if(!img.__fb){ img.__fb=1; img.src='tv/frames/hist/'+String(id)+'.jpg'; } };   // v737 — archived fallback
       img.src = frameSrc(id);
       lb.hidden = false;
       lb.onclick = function(e){ if (e.target === lb) window._tvdCloseFrame(); };
@@ -33179,14 +33209,23 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var fresh=st.events.filter(function(e){ return e.ts>window.__tvdLogSeen; });
         if(fresh.length){
           window.__tvdLogSeen=st.events[st.events.length-1].ts;
-          var ico={boot:'⚡',settle:'👁',read:'📦',skip:'·',cap:'⛔'};
+          // v741 — THE SYNAPSE: each thought is a typed NODE on a pulsing spine — sense (amber),
+          // reason (blue), result (green), transition (dim), fault (red). Newest node is the
+          // ACTIVE thought (enlarged, glowing); older ones settle into the stream.
+          var kinds={boot:'pulse',settle:'sense',read:'result',skip:'quiet',cap:'fault',transition:'trans'};
+          var glyphs={boot:'⚡',settle:'👁',read:'📦',skip:'·',cap:'⛔',transition:'⏳'};
           fresh.forEach(function(e){
+            var kind=kinds[e.k]||'quiet';
             var d=document.createElement('div');
-            d.className='tvb-log-line tvb-lg-'+(e.k||'idle');
-            d.textContent=''; var tsp=document.createElement('span'); tsp.className='lg-ts';
-            tsp.textContent=new Date(e.ts).toLocaleTimeString();
-            d.appendChild(tsp); d.appendChild(document.createTextNode((ico[e.k]||'·')+' '+e.t));
+            d.className='syn-node syn-'+kind;
+            var orb=document.createElement('span'); orb.className='syn-orb'; orb.textContent=glyphs[e.k]||'·';
+            var body=document.createElement('span'); body.className='syn-txt'; body.textContent=e.t;
+            var tsp=document.createElement('span'); tsp.className='syn-ts';
+            tsp.textContent=new Date(e.ts).toLocaleTimeString().replace(/\s?[AP]M$/i,'');
+            d.appendChild(orb); d.appendChild(body); d.appendChild(tsp);
             d.title=e.t;
+            var prev=lg.querySelector('.syn-active'); if(prev) prev.classList.remove('syn-active');
+            d.classList.add('syn-active');
             lg.appendChild(d);
           });
           while(lg.children.length>80) lg.removeChild(lg.firstChild);
