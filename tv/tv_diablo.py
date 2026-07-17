@@ -1614,6 +1614,11 @@ if __name__ == "__main__":
     try:
         signal.signal(signal.SIGINT, _shutdown_handler)
         signal.signal(signal.SIGTERM, _shutdown_handler)
+        # v760.1 — Windows: the control app's soft-stop arrives as CTRL_BREAK (SIGBREAK);
+        # without this the farewell NEVER fires on the cousin's box (taskkill-soft can't
+        # reach a windowless console app, and SIGTERM does not exist on Windows).
+        if hasattr(signal, "SIGBREAK"):
+            signal.signal(signal.SIGBREAK, _shutdown_handler)
     except Exception:
         pass
     try:

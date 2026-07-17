@@ -501,3 +501,18 @@ route() labels. Next-session queue: reading-ghosts polish only.
   footer look v757 (kill-then-test lesson) · ver payload/banner/footer all stamped v759.
 - Gates: py ast clean · art route 200 + traversal blocked · screenshots at 2000/1440/1280 LOOKED
   at · board suite untouched (13/13 at v758.1) · agent 55/55 untouched.
+
+### 🪟 R16 · v760+v760.1 — the Windows twin, verified (third-eye supervision) ✅
+- **Grok's v760**: control app goes cross-platform — netstat port detection · CREATE_NO_WINDOW/
+  CREATE_NEW_PROCESS_GROUP hidden spawns · capture_win.ps1 auto-started/stopped with the agent ·
+  --watch on Windows · installer shortcut → hidden control UI (Chrome/Edge --app kiosk) ·
+  pythonw-aware Real-Python · platform + capture surfaced in the footer. 4 of the 5 pre-review
+  traps covered clean.
+- **Trap 2 confirmed + fixed (v760.1)**: Windows soft-stop was `taskkill` without /F — WM_CLOSE
+  that a windowless console app never receives → 90s of nothing, then hard-kill = FAREWELL NEVER
+  RUNS on the cousin's box (the run-#7 stash-loss class, silently reborn). Fix both sides: the
+  agent now registers SIGBREAK (CTRL_BREAK arrives as SIGBREAK on Windows; SIGTERM does not
+  exist there), and the control app soft-stops its OWN child via send_signal(CTRL_BREAK_EVENT)
+  (it is spawned CREATE_NEW_PROCESS_GROUP), keeping taskkill only for foreign pids.
+- Gates: py ast both files · agent 55/55 · Mac control server boots + /api/status healthy post-
+  edit · true Windows farewell e2e = cousin's first `tvd stop` (flagged for his install run).

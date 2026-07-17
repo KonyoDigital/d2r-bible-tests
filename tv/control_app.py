@@ -373,8 +373,20 @@ def stop_agent(farewell=True):
         return {"ok": True, "msg": "already off"}
 
     if pid is not None:
-        # SIGTERM / taskkill (soft first) so farewell can run on both platforms
-        _kill_pid(pid, force=False)
+        # Soft first so the farewell can run. Windows: taskkill-soft sends WM_CLOSE, which a
+        # CREATE_NO_WINDOW console app never receives — our OWN child must get CTRL_BREAK_EVENT
+        # (it was spawned CREATE_NEW_PROCESS_GROUP; the agent handles SIGBREAK since v760.1).
+        sent_break = False
+        if IS_WIN:
+            with _lock:
+                if _agent_proc is not None and _agent_proc.poll() is None and _agent_proc.pid == pid:
+                    try:
+                        _agent_proc.send_signal(signal.CTRL_BREAK_EVENT)
+                        sent_break = True
+                    except Exception:
+                        pass
+        if not sent_break:
+            _kill_pid(pid, force=False)
 
         wait_s = 90 if farewell else 12
         deadline = time.time() + wait_s
