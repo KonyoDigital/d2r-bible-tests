@@ -7099,6 +7099,20 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:var(--fs-body);cursor:pointer;transition:background .15s ease,transform .12s ease}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
+/* v777 — the ✕ dismiss on a completed row is position:absolute (correct on a .f-card, which is
+   position:relative). A .f-donerow was NOT positioned, so all 99 escaped to the nearest positioned
+   ancestor and STACKED at the tab's top-right — reading as one stray × close. Anchor them per-row. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow{position:relative}
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow .f-skip{position:static;top:auto;right:auto;flex:none;opacity:.55}
+/* v777 — SEALED completed-state: the 99/99 hero owns the view; the full roll folds behind ONE disclosure. */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{margin-top:8px}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid rgba(212,168,71,.24);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--gold-dim,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.05)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::-webkit-details-marker{display:none}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::before{content:'▸';font-size:11px;transition:transform .16s ease}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll[open]>summary::before{transform:rotate(90deg)}
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll .fsr-body{padding:2px 14px 12px;border-top:1px solid rgba(212,168,71,.14)}
 /* v686 ⚡ SESSION COCKPIT */
 #tab-session .sc-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:6px 0 14px}
 #tab-session .sc-title{font-family:var(--serif-display);font-variant-caps:small-caps;letter-spacing:.14em;font-size:26px;color:var(--gold-bright);text-shadow:0 0 18px rgba(240,192,96,.35)}
@@ -30822,19 +30836,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var made=_madeRw().filter(function(n){ return !_doneHidden.has(n); })
         .map(function(n){ return {n:n, d:(rwMade&&rwMade[n])||''}; })
         .sort(function(a,b){ return _forgeDate(b.d)-_forgeDate(a.d) || a.n.localeCompare(b.n); });
-      H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">✅ Completed <span class="forge-sec-ct">'+made.length+'</span><span class="forge-sec-sub">runewords you\'ve created — the end of the line</span></div>');
-      if (skip.size) H.push('<div class="forge-note">↩ You have <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+' — <button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ restore skipped</button></div>');
-      H.push('<div class="f-donetools"><button class="f-btn f-btn-mini" onclick="window.forgeClearCompleted()">✕ Clear list</button><button class="f-btn f-btn-mini" onclick="window.forgeRestoreCompleted()">↺ Restore all</button></div>');
-      if (!made.length){
-        H.push('<div class="forge-empty">Nothing here yet — forge a runeword and tick <b>✓ created</b>, or hit <b>↺ Restore all</b> to bring back a cleared list.</div>');
-      } else {
-        made.forEach(function(m){
-          H.push('<div class="f-donerow"><span class="f-doneck">✓</span><span class="f-donename" style="color:'+(_qC(m.n)||'')+'">'+_fEsc(m.n)+'</span><span class="f-donedate">'+_fEsc(m.d||'')+'</span>'
+      // v777 — is the WHOLE catalog forged? A sealed chronicle earns a triumphant hero and folds the
+      // 99-row restore wall behind ONE disclosure (the flat wall + the top-stacked ✕ read as broken).
+      var _cSealT=0,_cSealed=false; try { _cSealT=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:0; _cSealed=(_cSealT>0 && _madeRw().length>=_cSealT); } catch(e){}
+      var _skipNote = skip.size ? '<div class="forge-note">↩ You have <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+' — <button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ restore skipped</button></div>' : '';
+      var _doneTools = '<div class="f-donetools"><button class="f-btn f-btn-mini" onclick="window.forgeClearCompleted()">✕ Clear list</button><button class="f-btn f-btn-mini" onclick="window.forgeRestoreCompleted()">↺ Restore all</button></div>';
+      var _doneList = made.length ? made.map(function(m){
+          return '<div class="f-donerow"><span class="f-doneck">✓</span><span class="f-donename" style="color:'+(_qC(m.n)||'')+'">'+_fEsc(m.n)+'</span><span class="f-donedate">'+_fEsc(m.d||'')+'</span>'
             +'<button class="f-donebtn" title="restore '+_fEsc(m.n)+' to your active tasks (un-mark created)" onclick="window.rwToggleMade&&window.rwToggleMade(\''+_fJs(m.n)+'\')">↺ restore</button>'
-            +'<button class="f-skip" title="clear from this list (stays created in the Chronicle)" onclick="window.forgeDismissDone(\''+_fJs(m.n)+'\')">✕</button></div>');
-        });
+            +'<button class="f-skip" title="clear from this list (stays created in the Chronicle)" onclick="window.forgeDismissDone(\''+_fJs(m.n)+'\')">✕</button></div>';
+        }).join('') : '<div class="forge-empty">Nothing here yet — forge a runeword and tick <b>✓ created</b>, or hit <b>↺ Restore all</b> to bring back a cleared list.</div>';
+      if (_cSealed && made.length){
+        H.push('<div class="forge-sealed forge-sealed-done"><div class="fs-crest">⚒👑⚒</div>'
+          +'<div class="fs-title">Chronicle Sealed · '+_madeRw().length+' / '+_cSealT+'</div>'
+          +'<div class="fs-sub">Every runeword in the catalog stands forged — this is the end of the line.<br>The hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div>'
+          +'<div class="fs-btns"><button class="fs-btn" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
+          +'<button class="fs-btn" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button></div></div>');
+        if (_skipNote) H.push(_skipNote);
+        H.push('<details class="forge-sealed-roll"><summary>📜 show the sealed chronicle · '+made.length+' runeword'+(made.length===1?'':'s')+'</summary><div class="fsr-body">'+_doneTools+_doneList+'</div></details>');
+      } else {
+        H.push('<div class="forge-sec forge-sec-done"><div class="forge-sec-h">✅ Completed <span class="forge-sec-ct">'+made.length+'</span><span class="forge-sec-sub">runewords you\'ve created — the end of the line</span></div>');
+        if (_skipNote) H.push(_skipNote);
+        H.push(_doneTools + _doneList);
+        H.push('</div>');
       }
-      H.push('</div>');
       box.innerHTML=H.join(''); return;
     }
     if (!total && !(s.farm||[]).length){
@@ -33304,7 +33329,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v776', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
+  window.D2R_BUILD = { id:'v777', name:'The Family Spine', date:'2026-07-17', note:'v773: SIM/ON/OFF cut agent + board hard-disconnect (no stuck ON AIR); full-screen capture default' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

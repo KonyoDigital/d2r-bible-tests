@@ -758,3 +758,12 @@ Wave plan: v774 /board serve + bible rail + deep-link singleton nav → v775 Ses
   the v705 premium accents too — scoped Tools-local win, global cleanup left as a conscious call.
 - Gates: 43 specs green (board/console/smoke + tools regression set) · computed-style verified per
   card · 0 h-overflow 1500/1280.
+
+### 🌙 N4 · v777 — WAVE C: FORGE'S CHRONICLE SEALED (+ the 99-× bug) ✅
+- **The stray × was 99 stacked bugs**: every done-row's absolute ✕ escaped its unpositioned row
+  and PILED at the tab's top-right — the visible one dismissed whichever row topped the z-stack.
+  Fixed at source (.f-donerow position:relative; ✕ inline static per row).
+- **The triumph state** (100% only; active-forge byte-identical): ⚒👑⚒ crest · CHRONICLE
+  SEALED · 99/99 · grail-wall buttons — and the 99 restore rows fold behind ONE 📜 disclosure.
+- Gates: 64 specs green incl the full forge lifecycle set · 20/20 blocks parse · before/after
+  screenshots archived.
