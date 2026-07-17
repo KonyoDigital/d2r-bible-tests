@@ -53,6 +53,11 @@
   }
   @keyframes vign { 0%,100% { opacity: .7; } 50% { opacity: .95; } }
 
+  /* state accent wiring — retints focus rings, toast, glows coherently */
+  body[data-state="off"] { --accent: var(--gold); --accent-soft: rgba(240,192,96,.5); --halo: rgba(255,120,40,.14); }
+  body[data-state="on"]  { --accent: var(--mint); --accent-soft: rgba(143,230,160,.5); --halo: rgba(255,70,40,.20); }
+  body[data-state="sim"] { --accent: var(--sim);  --accent-soft: rgba(201,168,255,.5); --halo: rgba(180,120,255,.22); }
+
   .shell {
     height: 100dvh;
     width: 100vw;
@@ -200,6 +205,24 @@
     0%,100% { filter: drop-shadow(0 0 34px rgba(255,60,24,.38)) drop-shadow(0 0 12px rgba(240,192,96,.28)); }
     50%     { filter: drop-shadow(0 0 70px rgba(255,70,26,.7))  drop-shadow(0 0 20px rgba(240,192,96,.4)); }
   }
+  /* colored aura pooled behind the hero — retinted per broadcast state */
+  .aura {
+    position: absolute; left: 50%; bottom: clamp(40px, 9%, 120px);
+    width: clamp(320px, 60%, 720px); aspect-ratio: 1;
+    transform: translateX(-50%);
+    z-index: 0; pointer-events: none;
+    background: radial-gradient(circle at 50% 55%, var(--aura-c, rgba(255,120,40,.20)), transparent 62%);
+    opacity: .8;
+    transition: background .7s ease, opacity .7s ease;
+    animation: auraBreathe 6s ease-in-out infinite;
+  }
+  @keyframes auraBreathe { 0%,100% { opacity: .6; transform: translateX(-50%) scale(1); } 50% { opacity: .95; transform: translateX(-50%) scale(1.06); } }
+  body[data-state="off"] .aura { --aura-c: rgba(255,120,40,.16); }
+  body[data-state="on"]  .aura { --aura-c: rgba(255,52,30,.30); animation: auraBreathe 4s ease-in-out infinite; }
+  body[data-state="sim"] .aura { --aura-c: rgba(168,110,255,.30); }
+  /* per-state color grade on the silhouette itself */
+  body[data-state="on"]  .hero { filter: drop-shadow(0 0 46px var(--halo)) drop-shadow(0 0 16px rgba(255,70,40,.5)) brightness(1.16) saturate(1.25) hue-rotate(-6deg); }
+  body[data-state="sim"] .hero { filter: drop-shadow(0 0 46px var(--halo)) drop-shadow(0 0 18px rgba(180,120,255,.55)) brightness(1.14) saturate(1.15) hue-rotate(30deg); }
 
   /* drifting scanlines */
   .stage .scan {
@@ -304,7 +327,11 @@
     font-size: clamp(16px, 2vw, 34px); font-weight: 700; color: var(--text);
     line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     text-shadow: 0 0 18px rgba(240,192,96,.16);
+    transition: color .4s;
   }
+  /* one-shot pop when a meter value changes — anchored left so it never clips */
+  .m .v.bump { animation: vBump .5s cubic-bezier(.2,.9,.3,1); transform-origin: left center; }
+  @keyframes vBump { 0% { transform: scale(1); } 34% { transform: scale(1.09); filter: brightness(1.5); } 100% { transform: scale(1); } }
   .m.big .v { color: var(--gold); }
   body[data-state="on"]  .m.big .v { color: var(--mint); text-shadow: 0 0 20px rgba(143,230,160,.4); animation: numGlow 2.2s ease-in-out infinite; }
   @keyframes numGlow { 0%,100% { opacity: .82; } 50% { opacity: 1; } }
@@ -324,10 +351,15 @@
     display: flex; align-items: center; gap: 8px;
   }
   .rail-h::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--edge), transparent); }
+  .rail-h .jewel { width: 1.5em; height: 1.5em; object-fit: contain; flex: none; margin-right: 2px;
+    filter: drop-shadow(0 0 5px rgba(240,192,96,.55)); opacity: .92; animation: jewelGlow 3.6s ease-in-out infinite; }
+  @keyframes jewelGlow { 0%,100% { filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); } 50% { filter: drop-shadow(0 0 9px rgba(240,192,96,.7)); } }
   .primary { display: flex; flex-direction: column; gap: clamp(8px, .9vw, 13px); flex: 1; min-height: 0; }
   button.act {
     appearance: none;
     flex: 1;
+    position: relative;
+    overflow: hidden;
     min-height: clamp(48px, 6.5vh, 82px);
     display: flex; align-items: center; gap: clamp(10px,1vw,16px);
     text-align: left;
@@ -338,16 +370,47 @@
     padding: clamp(8px,1vw,16px) clamp(12px,1.2vw,20px);
     border-radius: clamp(11px,1.1vw,16px);
     cursor: pointer;
-    transition: transform .12s, box-shadow .18s, border-color .18s, background .18s;
+    transition: transform .11s cubic-bezier(.3,.9,.35,1), box-shadow .18s, border-color .18s, background .18s, filter .18s;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 6px 18px rgba(0,0,0,.35);
   }
-  button.act .ic { font-size: clamp(18px,1.8vw,28px); line-height: 1; flex: none; width: 1.4em; text-align: center; opacity: .92; }
+  /* sheen that sweeps across on hover */
+  button.act::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,240,210,.10) 48%, transparent 62%);
+    transform: translateX(-120%);
+    transition: transform .5s ease;
+  }
+  button.act:hover::before { transform: translateX(120%); }
+  button.act > * { position: relative; z-index: 1; }
+  button.act .ic { font-size: clamp(18px,1.8vw,28px); line-height: 1; flex: none; width: 1.4em; text-align: center; opacity: .92; transition: transform .18s, text-shadow .18s; }
+  button.act:hover .ic { transform: scale(1.12); text-shadow: 0 0 14px currentColor; }
   button.act .lab { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   button.act .lab b { font-size: clamp(12px,1.05vw,17px); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
   button.act .lab span { font-size: clamp(8px,.72vw,11px); letter-spacing: .06em; color: var(--muted); font-weight: 500; }
-  button.act:hover { transform: translateY(-1px); border-color: var(--edge-hi); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 20px rgba(240,192,96,.16), 0 10px 26px rgba(0,0,0,.42); }
-  button.act:active { transform: translateY(1px); }
-  button.act:disabled { opacity: .4; cursor: wait; transform: none; }
+  button.act:hover { transform: translateY(-2px); border-color: var(--edge-hi); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 24px rgba(240,192,96,.20), 0 14px 30px rgba(0,0,0,.46); }
+  button.act:active { transform: translateY(2px) scale(.992); box-shadow: inset 0 3px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04), 0 3px 10px rgba(0,0,0,.3); }
+  button.act:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 4px var(--accent-soft), 0 0 22px var(--accent-soft); }
+  button.act:disabled { opacity: .5; cursor: wait; }
+  button.act:disabled:hover { transform: none; }
+  /* click flash — one-shot overlay toggled by JS .flash class */
+  button.act.flash::after {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--fx,50%) 50%, rgba(255,246,224,.6), rgba(255,246,224,0) 60%);
+    animation: clickFlash .5s ease-out forwards;
+  }
+  @keyframes clickFlash { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(1.5); } }
+  /* busy — the invoked card reads as 'working' with a sweeping bar + spinner */
+  button.act.working { cursor: wait; }
+  button.act.working .ic { animation: spinIc 1s linear infinite; }
+  @keyframes spinIc { to { transform: rotate(360deg); } }
+  button.act.working::after {
+    content: ""; position: absolute; left: 0; bottom: 0; height: 2px; z-index: 2;
+    width: 40%; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, currentColor, transparent);
+    animation: workBar 1.05s ease-in-out infinite;
+  }
+  @keyframes workBar { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
   button.act.b-on { border-color: rgba(143,230,160,.5); color: var(--mint); background: linear-gradient(180deg, rgba(22,46,30,.92), rgba(8,15,10,.96)); }
   button.act.b-on:hover { box-shadow: inset 0 1px 0 rgba(143,230,160,.14), 0 0 24px rgba(143,230,160,.2), 0 10px 26px rgba(0,0,0,.42); }
   button.act.b-off { color: #cabb9e; border-color: rgba(160,150,130,.3); background: linear-gradient(180deg, rgba(30,27,20,.85), rgba(11,10,7,.92)); }
@@ -362,7 +425,8 @@
 
   .util { display: flex; gap: clamp(8px,.9vw,12px); }
   button.ghost {
-    flex: 1; appearance: none;
+    flex: 1; appearance: none; position: relative; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
     border: 1px solid rgba(240,192,96,.16);
     background: rgba(0,0,0,.28);
     color: var(--muted);
@@ -370,9 +434,14 @@
     font-size: clamp(9px,.78vw,12px); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
     padding: clamp(10px,1vw,15px) 8px;
     border-radius: clamp(9px,.9vw,13px);
-    cursor: pointer; transition: color .18s, border-color .18s, background .18s;
+    cursor: pointer; transition: color .18s, border-color .18s, background .18s, transform .11s, box-shadow .18s;
   }
-  button.ghost:hover { color: var(--gold); border-color: var(--edge-hi); background: rgba(240,192,96,.06); }
+  button.ghost .gjewel { width: 1.05em; height: 1.05em; object-fit: contain; opacity: .7; filter: drop-shadow(0 0 4px rgba(240,192,96,.5)); transition: opacity .18s, transform .18s; flex: none; }
+  button.ghost:hover { color: var(--gold); border-color: var(--edge-hi); background: rgba(240,192,96,.07); transform: translateY(-1px); box-shadow: 0 0 16px rgba(240,192,96,.12), 0 6px 16px rgba(0,0,0,.34); }
+  button.ghost:hover .gjewel { opacity: 1; transform: scale(1.12) rotate(-4deg); }
+  button.ghost:active { transform: translateY(1px); box-shadow: inset 0 2px 6px rgba(0,0,0,.45); }
+  button.ghost:focus-visible { outline: none; color: var(--gold); border-color: var(--accent); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px var(--accent-soft); }
+  button.ghost.on { color: var(--info); border-color: rgba(126,200,255,.4); background: rgba(126,200,255,.08); }
 
   /* signal readout mini-panel */
   .signal {
@@ -382,8 +451,11 @@
     display: flex; flex-direction: column; gap: clamp(6px,.7vw,10px);
   }
   .signal .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: clamp(9px,.8vw,12px); }
-  .signal .row .k { color: var(--gold-dim); letter-spacing: .14em; text-transform: uppercase; }
-  .signal .row .val { color: var(--text); font-weight: 700; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+  .signal .row .k { color: var(--gold-dim); letter-spacing: .14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; }
+  .signal .row .k .sjewel { width: 1.25em; height: 1.25em; object-fit: contain; opacity: .8; filter: drop-shadow(0 0 4px rgba(240,192,96,.5)); flex: none; }
+  .signal .row .val { color: var(--text); font-weight: 700; letter-spacing: .06em; font-variant-numeric: tabular-nums; transition: color .4s; }
+  body[data-state="on"]  .signal .row .val#sig-bridge { color: var(--mint); }
+  body[data-state="sim"] .signal .row .val#sig-bridge { color: var(--sim); }
   .bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,.06); overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 12%; border-radius: 4px; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); transition: width .5s; }
   body[data-state="on"]  .bar > i { background: linear-gradient(90deg, rgba(143,230,160,.5), var(--mint)); animation: barPulse 2.4s ease-in-out infinite; }
@@ -412,6 +484,7 @@
   }
   .ticker .tag .p { width: 8px; height: 8px; border-radius: 50%; background: #2c5a34; }
   body[data-state="on"] .ticker .tag .p { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: numGlow 1.6s ease-in-out infinite; }
+  .ticker .tag .tjewel { width: 1.5em; height: 1.5em; object-fit: contain; opacity: .8; filter: drop-shadow(0 0 5px rgba(102,255,136,.5)); flex: none; }
   .brain {
     flex: 1; min-width: 0;
     overflow: hidden;
@@ -420,7 +493,17 @@
     display: flex; flex-direction: column; justify-content: center;
   }
   .brain .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .8; }
+  .brain .line.in { animation: lineIn .4s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes lineIn {
+    0%   { opacity: 0; transform: translateX(-14px); }
+    100% { opacity: .8; transform: translateX(0); }
+  }
   .brain .line.hi { color: #b7ecc4; font-weight: 700; opacity: 1; }
+  .brain .line.hi.in { animation: lineInHi .45s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes lineInHi {
+    0%   { opacity: 0; transform: translateX(-16px); text-shadow: 0 0 12px rgba(143,230,160,.8); }
+    100% { opacity: 1; transform: translateX(0); text-shadow: none; }
+  }
   .brain .line .k { color: var(--gold-dim); margin-right: .5em; }
   .brain .empty { color: #45563f; font-style: italic; }
 
@@ -436,16 +519,22 @@
 
   .toast {
     position: fixed; bottom: clamp(90px,14vh,150px); left: 50%;
-    transform: translateX(-50%) translateY(16px);
-    background: rgba(20,16,10,.96);
-    border: 1px solid var(--edge-hi);
+    transform: translateX(-50%) translateY(16px) scale(.98);
+    display: flex; align-items: center; gap: 11px;
+    background: linear-gradient(180deg, rgba(24,19,12,.97), rgba(14,11,7,.97));
+    border: 1px solid var(--accent-soft);
+    border-left: 3px solid var(--accent);
     color: var(--gold);
-    padding: 12px 22px; border-radius: 12px;
+    padding: 12px 22px 12px 18px; border-radius: 12px;
     font-size: clamp(11px,.95vw,14px); letter-spacing: .06em;
-    opacity: 0; pointer-events: none; transition: .3s; z-index: 60; max-width: 88vw;
-    box-shadow: 0 12px 40px rgba(0,0,0,.6);
+    opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s cubic-bezier(.2,.9,.3,1); z-index: 60; max-width: 88vw;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 24px var(--halo);
   }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 
   /* ── stacked layout on narrow / portrait ── */
   @media (max-width: 900px) {
@@ -458,6 +547,50 @@
     button.act { flex: 1 1 30%; min-height: 64px; }
     .meters { grid-template-columns: repeat(2, 1fr); }
   }
+  /* ══ v765 — 🎞 THE THEATRE ══ */
+  .theatre { position: absolute; inset: 0; z-index: 6; background: #050403;
+    display: flex; flex-direction: column; border-radius: inherit; overflow: hidden; }
+  .th-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+    background: #000; }
+  .theatre::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.14) 2px 4px);
+    opacity: .35; mix-blend-mode: multiply; }
+  .th-topline { position: relative; z-index: 2; display: flex; align-items: center;
+    gap: 12px; padding: clamp(10px,1.2vw,16px) clamp(12px,1.4vw,20px);
+    background: linear-gradient(180deg, rgba(5,4,3,.92), transparent); }
+  .th-tag { font-size: clamp(9px,.8vw,12px); letter-spacing: .28em; color: var(--gold);
+    font-weight: 800; text-transform: uppercase; text-shadow: 0 0 14px rgba(240,192,96,.4); }
+  .th-sess { margin-left: auto; font-size: clamp(9px,.8vw,12px); color: var(--muted);
+    letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+  .th-x { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.5);
+    color: var(--muted); width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; transition: .15s; }
+  .th-x:hover { color: var(--gold); border-color: var(--edge-hi); }
+  .th-caption { position: absolute; left: 0; right: 0; bottom: clamp(56px,8vh,74px); z-index: 2;
+    text-align: center; padding: 10px clamp(14px,3vw,40px);
+    font-size: clamp(11px,1vw,15px); color: var(--text); letter-spacing: .02em;
+    text-shadow: 0 2px 8px rgba(0,0,0,.9); background: linear-gradient(0deg, rgba(5,4,3,.85), transparent); }
+  .th-caption b { color: var(--gold-hi); }
+  .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
+    border: 1px solid rgba(240,192,96,.4); background: rgba(240,192,96,.1); color: var(--gold-hi);
+    font-weight: 700; font-size: .92em; }
+  .th-strip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+    display: flex; align-items: center; gap: 10px;
+    padding: clamp(8px,1vw,14px) clamp(12px,1.4vw,20px);
+    background: linear-gradient(0deg, rgba(5,4,3,.95), rgba(5,4,3,.6) 80%, transparent); }
+  .th-btn { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.5);
+    color: var(--gold); min-width: 36px; height: 32px; border-radius: 9px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; font-weight: 700; transition: .15s; }
+  .th-btn:hover { border-color: var(--edge-hi); box-shadow: 0 0 12px rgba(240,192,96,.2); }
+  .th-timeline { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; cursor: pointer; }
+  .th-beat { flex: 1; height: 6px; border-radius: 3px; background: rgba(240,192,96,.18); transition: .12s; min-width: 3px; }
+  .th-beat.named { background: rgba(240,192,96,.55); height: 10px; }
+  .th-beat.cur { background: var(--gold-hi); height: 14px; box-shadow: 0 0 10px rgba(255,223,154,.6); }
+  .th-beat.noframe { background: rgba(255,255,255,.08); }
+  body.theatre-open .live-bug { color: var(--gold); border-color: rgba(240,192,96,.5); }
+  /* v765 — toggle-glow buttons: lit while their mode runs; click again = off */
+  button.act.lit { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 26px var(--accent-soft); filter: brightness(1.12); }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; }
   }
@@ -481,6 +614,9 @@
     </header>
 
     <section class="stage" id="stage">
+      <div class="aura"></div>
+      <img class="rune tl" src="/art/hd_ber_rune.png" alt="" onerror="this.style.display='none'">
+      <img class="rune tr" src="/art/hd_jah_rune.png" alt="" onerror="this.style.display='none'">
       <img class="hero" id="hero" src="/art/diablo_hell_graphic.png" alt="" onerror="this.style.display='none'">
       <div class="scan"></div>
       <div class="sweep"></div>
@@ -499,35 +635,53 @@
         <div class="m"><div class="l">Area</div><div class="v" id="m-area">—</div></div>
         <div class="m"><div class="l">Scene</div><div class="v" id="m-scene">—</div></div>
       </div>
+      <!-- v765 — 🎞 THE THEATRE: eyes on history. Not a simulation — the REAL session replayed:
+           archived frames + recorded reads, timeline-scrubbed, session-paginated. -->
+      <div class="theatre" id="theatre" hidden>
+        <img class="th-film" id="th-film" alt="">
+        <div class="th-topline">
+          <span class="th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
+          <span class="th-sess" id="th-sess">—</span>
+          <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
+        </div>
+        <div class="th-caption" id="th-caption">loading the reel…</div>
+        <div class="th-strip">
+          <button class="th-btn" id="th-prev-s" type="button" title="older session">⏮</button>
+          <button class="th-btn th-play" id="th-play" type="button" title="play/pause">⏸</button>
+          <button class="th-btn" id="th-next-s" type="button" title="newer session">⏭</button>
+          <div class="th-timeline" id="th-timeline"></div>
+          <button class="th-btn" id="th-speed" type="button" title="playback speed">1×</button>
+        </div>
+      </div>
     </section>
 
     <aside class="rail">
-      <div class="rail-h">Console</div>
+      <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console</div>
       <div class="primary">
         <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>wake scanner · board live</span></span></button>
         <button class="act b-off" id="btn-off" type="button"><span class="ic">❚❚</span><span class="lab"><b>Off</b><span>board dark · soft stop</span></span></button>
         <button class="act b-stop" id="btn-stop" type="button"><span class="ic">■</span><span class="lab"><b>Stop</b><span>full shutdown · farewell</span></span></button>
         <button class="act b-restart" id="btn-restart" type="button"><span class="ic">↻</span><span class="lab"><b>Restart</b><span>cycle the bridge</span></span></button>
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Sim</b><span>canned reads · no vision cost</span></span></button>
+        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Theatre</b><span>replay real sessions · eyes on history</span></span></button>
       </div>
       <div class="signal">
-        <div class="row"><span class="k">Bridge</span><span class="val" id="sig-bridge">—</span></div>
+        <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
         <div class="bar"><i id="sig-bar"></i></div>
-        <div class="row"><span class="k">Model</span><span class="val" id="sig-model">—</span></div>
+        <div class="row"><span class="k"><img class="sjewel" src="/art/hd_ith_rune.png" alt="" onerror="this.style.display='none'">Model</span><span class="val" id="sig-model">—</span></div>
       </div>
       <div class="util">
-        <button class="ghost" id="btn-board" type="button">Open Board · TV·D</button>
-        <button class="ghost" id="btn-log" type="button">Toggle Log</button>
+        <button class="ghost" id="btn-board" type="button"><img class="gjewel" src="/art/hd_lo_rune.png" alt="" onerror="this.style.display='none'">Open Board · TV·D</button>
+        <button class="ghost" id="btn-log" type="button"><img class="gjewel" src="/art/hd_tal_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Toggle Log</span></button>
       </div>
     </aside>
 
     <section class="ticker">
-      <div class="tag"><span class="p"></span>Agent Mind</div>
+      <div class="tag"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind</div>
       <div class="brain" id="brain"><div class="empty">— agent thoughts appear here when live —</div></div>
     </section>
 
     <footer>
-      <span id="foot-ver">v761 control</span>
+      <span id="foot-ver">v765 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -540,8 +694,42 @@
   var busy = false;
   var showLog = false;
   var readMax = 1;
+  var brainSig = '';
+  var _shown = {};
 
   function $(id){ return document.getElementById(id); }
+
+  // update a text meter only when its value changes, with a one-shot pop
+  function setMeter(id, txt){
+    txt = String(txt);
+    if (_shown[id] === txt) return;
+    var first = !(id in _shown);
+    _shown[id] = txt;
+    var el = $(id);
+    el.textContent = txt;
+    if (first) return;
+    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  }
+
+  // ease the reads counter toward its target instead of snapping
+  var _reads = 0, _readsRaf = null, _readsTarget = -1;
+  function tweenReads(target){
+    if (target === _readsTarget) return;
+    _readsTarget = target;
+    if (_readsRaf) cancelAnimationFrame(_readsRaf);
+    var el = $('m-reads');
+    if (typeof performance === 'undefined' || !window.requestAnimationFrame) { _reads = target; el.textContent = target; return; }
+    var from = _reads, start = performance.now(), dur = 550;
+    function step(now){
+      var p = Math.min(1, (now - start) / dur);
+      var e = 1 - Math.pow(1 - p, 3);
+      _reads = Math.round(from + (target - from) * e);
+      el.textContent = _reads;
+      if (p < 1) { _readsRaf = requestAnimationFrame(step); }
+      else { _reads = target; el.textContent = target; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+    }
+    _readsRaf = requestAnimationFrame(step);
+  }
   function esc(s){
     return String(s).replace(/[&<>"']/g, function(c){
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
@@ -558,7 +746,23 @@
     busy = v;
     ['btn-on','btn-off','btn-stop','btn-restart','btn-sim'].forEach(function(id){ $(id).disabled = v; });
   }
-  async function post(path){
+  function flash(btn, ev){
+    if (!btn) return;
+    if (ev && ev.clientX != null) {
+      var rect = btn.getBoundingClientRect();
+      btn.style.setProperty('--fx', ((ev.clientX - rect.left) / rect.width * 100).toFixed(1) + '%');
+    } else {
+      btn.style.setProperty('--fx', '50%');
+    }
+    btn.classList.remove('flash');
+    void btn.offsetWidth;      // restart the animation
+    btn.classList.add('flash');
+    setTimeout(function(){ btn.classList.remove('flash'); }, 520);
+  }
+  async function post(path, btn, ev){
+    if (busy) return;
+    flash(btn, ev);
+    if (btn) btn.classList.add('working');
     setBusy(true);
     try {
       var r = await fetch(API + path, { method: 'POST' });
@@ -570,6 +774,7 @@
       toast('failed · ' + e);
     } finally {
       setBusy(false);
+      if (btn) btn.classList.remove('working');
     }
   }
 
@@ -602,11 +807,11 @@
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
 
-    $('m-mode').textContent = mode.toUpperCase();
+    setMeter('m-mode', mode.toUpperCase());
     var rc = st.readCount != null ? st.readCount : 0;
-    $('m-reads').textContent = rc;
-    $('m-area').textContent = st.area || '—';
-    $('m-scene').textContent = st.scene || st.phase || '—';
+    tweenReads(rc);
+    setMeter('m-area', st.area || '—');
+    setMeter('m-scene', st.scene || st.phase || '—');
 
     $('sig-bridge').textContent = on ? 'LINKED' : 'DOWN';
     $('sig-model').textContent = st.model || '—';
@@ -614,7 +819,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v761') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v765') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     $('foot-ports').innerHTML = ':' + (st.controlPort||17772) + '<span class="dot">·</span>agent :' + (st.agentPort||17771)
       + (st.capture ? '<span class="dot">·</span>capture' : '');
@@ -622,12 +827,17 @@
     if (showLog) return;
     var brain = $('brain');
     var ev = st.events || [];
+    var sig = ev.slice(-4).map(function(e){ return (e.k||'')+'|'+(e.t||''); }).join('¦');
+    if (sig === brainSig) return;   // no change — skip rebuild, avoids re-animating every 500ms
+    var advanced = brainSig !== '';
+    brainSig = sig;
     if (!ev.length) {
       brain.innerHTML = '<div class="empty">— agent thoughts appear here when live —</div>';
     } else {
       brain.innerHTML = ev.slice(-4).map(function(e, i, a){
-        var hi = i === a.length - 1 ? ' hi' : '';
-        return '<div class="line'+hi+'"><span class="k">'+esc(e.k||'·')+'</span>'+esc(e.t||'')+'</div>';
+        var last = i === a.length - 1;
+        var cls = 'line' + (last ? ' hi' : '') + (last && advanced ? ' in' : '');
+        return '<div class="'+cls+'"><span class="k">'+esc(e.k||'·')+'</span>'+esc(e.t||'')+'</div>';
       }).join('');
     }
   }
@@ -656,15 +866,112 @@
     } catch (e) {}
   }
 
-  $('btn-on').onclick = function(){ post('/api/on'); };
-  $('btn-off').onclick = function(){ post('/api/off'); };
-  $('btn-stop').onclick = function(){ post('/api/stop'); };
-  $('btn-restart').onclick = function(){ post('/api/restart'); };
-  $('btn-sim').onclick = function(){ post('/api/sim'); };
+  // ══ v765 — 🎞 THE THEATRE player: real frames + recorded reads, timeline + pagination ══
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:true, speed:1, timer:null };
+  var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
+  function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
+  function thCaption(b){
+    if (!b) return '';
+    var bits = ['<b>'+thFmtT(b.ts)+'</b>', 'read #'+(b.n||'?')];
+    if (b.area) bits.push('🗺 <b>'+esc(b.area)+'</b>');
+    if (b.scene) bits.push((SCENE_IC[b.scene]||'')+' '+esc(b.scene));
+    var line = bits.join(' · ');
+    if (b.note) line += '<br>⏳ '+esc(b.note);
+    if (b.names && b.names.length) line += '<br>' + b.names.slice(0,6).map(function(n){ return '<span class="th-chip">'+esc(n)+'</span>'; }).join('');
+    return line;
+  }
+  function thPaint(){
+    var b = TH.beats[TH.i];
+    if (!b) return;
+    var film = $('th-film');
+    if (b.frame){ film.style.opacity = 1; film.src = '/hist/' + encodeURIComponent(b.frame); }
+    else { film.style.opacity = .25; }   // honest: caption-only beat (no photo archived)
+    $('th-caption').innerHTML = thCaption(b);
+    var tl = $('th-timeline');
+    [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
+    var meta = TH.sessions[TH.sn-1] || {};
+    $('th-sess').textContent = 'session ' + TH.sn + '/' + TH.sessions.length
+      + (meta.t0 ? ' · ' + new Date(meta.t0).toLocaleString() : '')
+      + ' · beat ' + (TH.i+1) + '/' + TH.beats.length;
+  }
+  function thStep(){
+    if (!TH.open || !TH.playing || !TH.beats.length) return;
+    TH.i = (TH.i + 1) % TH.beats.length;
+    thPaint();
+    thSchedule();
+  }
+  function thSchedule(){
+    clearTimeout(TH.timer);
+    if (!TH.playing) return;
+    var cur = TH.beats[TH.i], nxt = TH.beats[TH.i+1];
+    var gap = (cur && nxt) ? Math.max(600, Math.min(2600, nxt.ts - cur.ts)) : 1400;
+    TH.timer = setTimeout(thStep, gap / TH.speed);
+  }
+  function thTimeline(){
+    var tl = $('th-timeline');
+    tl.innerHTML = TH.beats.map(function(b, k){
+      return '<span class="th-beat'+(b.names && b.names.length ? ' named':'')+(b.frame?'':' noframe')+'" data-i="'+k+'" title="read #'+(b.n||'?')+(b.area?(' · '+esc(b.area)):'')+'"></span>';
+    }).join('');
+  }
+  async function thLoadSession(n){
+    var r = await fetch('/api/session?n=' + n); var j = await r.json();
+    if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
+    TH.sn = n; TH.beats = j.beats || []; TH.i = 0;
+    thTimeline(); thPaint(); thSchedule();
+  }
+  async function thOpen(){
+    var r = await fetch('/api/sessions'); var j = await r.json();
+    TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
+    if (!TH.sessions.length){
+      $('theatre').hidden = false; TH.open = true;
+      $('th-caption').textContent = '🎞 no journaled sessions yet — run the scanner once, then the theatre has film';
+      document.body.classList.add('theatre-open'); thLit(); return;
+    }
+    TH.open = true; TH.playing = true;
+    $('theatre').hidden = false;
+    document.body.classList.add('theatre-open');
+    $('th-play').textContent = '⏸';
+    await thLoadSession(1);
+    thLit();
+  }
+  function thClose(){
+    TH.open = false; clearTimeout(TH.timer);
+    $('theatre').hidden = true;
+    document.body.classList.remove('theatre-open');
+    thLit();
+  }
+  function thLit(){ $('btn-sim').classList.toggle('lit', TH.open); }
+  $('th-close').onclick = thClose;
+  $('th-play').onclick = function(){ TH.playing = !TH.playing; this.textContent = TH.playing ? '⏸' : '▶'; if (TH.playing) thSchedule(); };
+  $('th-speed').onclick = function(){ TH.speed = TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 1); this.textContent = TH.speed + '×'; };
+  $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
+  $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
+  $('th-timeline').onclick = function(e){
+    var b = e.target.closest('.th-beat'); if (!b) return;
+    TH.i = Number(b.dataset.i) || 0; thPaint(); thSchedule();
+  };
+
+  // v765 — toggle semantics (Konyo: 'lights on… click again and it goes dim'):
+  // ON while live = OFF · SIM opens/closes THE THEATRE (real history, zero agents involved)
+  $('btn-on').onclick = function(e){
+    var st = document.body.getAttribute('data-state');
+    post(st === 'on' ? '/api/off' : '/api/on', this, e);
+  };
+  $('btn-off').onclick = function(e){ post('/api/off', this, e); };
+  $('btn-stop').onclick = async function(e){
+    // v765 — honest farewell feedback: the stop can hold up to ~90s for the last read
+    var lab = this.querySelector('.lab b'); var old = lab ? lab.textContent : '';
+    if (lab) lab.textContent = 'farewell…';
+    try { await post('/api/stop', this, e); } finally { if (lab) lab.textContent = old || 'Stop'; }
+  };
+  $('btn-restart').onclick = function(e){ post('/api/restart', this, e); };
+  $('btn-sim').onclick = function(){ if (TH.open) thClose(); else thOpen(); };
   $('btn-board').onclick = function(){ post('/api/board'); };
   $('btn-log').onclick = function(){
     showLog = !showLog;
-    $('btn-log').textContent = showLog ? 'Live Brain' : 'Toggle Log';
+    $('btn-log').classList.toggle('on', showLog);
+    $('btn-log').querySelector('.glab').textContent = showLog ? 'Live Brain' : 'Toggle Log';
+    brainSig = '';   // force the brain panel to repaint after a view switch
     if (showLog) loadLog(); else refresh();
   };
 

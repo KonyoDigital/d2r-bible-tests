@@ -31,6 +31,7 @@ UI_PATH = os.path.join(HERE, "control_ui.html")
 BIBLE = os.path.join(REPO, "bible.html")
 ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
 CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
+HIST_DIR = os.path.join(HERE, "frames", "hist")   # v765 — the theatre's film archive
 
 IS_WIN = sys.platform.startswith("win")
 # Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
@@ -306,6 +307,14 @@ def start_agent(sim=False):
                 _log_fp.close()
             except Exception:
                 pass
+        try:   # v765 — cap the agent log (~2MB keeps months; never grows unbounded)
+            if os.path.isfile(LOG_PATH) and os.path.getsize(LOG_PATH) > 2_000_000:
+                with open(LOG_PATH) as _lf:
+                    _tail = _lf.readlines()[-4000:]
+                with open(LOG_PATH, "w") as _lf:
+                    _lf.writelines(_tail)
+        except Exception:
+            pass
         _log_fp = open(LOG_PATH, "a", buffering=1)
         plat = "windows" if IS_WIN else "mac"
         _log_fp.write(
@@ -672,7 +681,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v761",
+        "ver": "v765",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": mode,
@@ -761,6 +770,72 @@ class Handler(BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
 
+    def _theatre_sessions(self):
+        """v765 — REPLAY THEATRE: list journaled sessions (newest first) from tv/sessions.jsonl."""
+        try:
+            if HERE not in sys.path:
+                sys.path.insert(0, HERE)
+            import replay as _rp
+            sessions = _rp.split_sessions(_rp.load_journal())
+            out = []
+            for i, sess in enumerate(sessions, 1):
+                frames = [r for r in sess if r.get("frameId")
+                          and os.path.isfile(os.path.join(HIST_DIR, r["frameId"] + ".jpg"))]
+                areas = []
+                for r in sess:
+                    a = r.get("area")
+                    if a and a not in areas:
+                        areas.append(a)
+                out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
+                            "reads": len(sess), "frames": len(frames),
+                            "named": sum(1 for r in sess if r.get("names")),
+                            "areas": areas[:6]})
+            return out
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _theatre_session(self, n):
+        try:
+            if HERE not in sys.path:
+                sys.path.insert(0, HERE)
+            import replay as _rp
+            sessions = _rp.split_sessions(_rp.load_journal())
+            if n < 1 or n > len(sessions):
+                return {"error": "no such session"}
+            sess = sessions[n - 1]
+            beats = []
+            for r in sess:
+                fid = r.get("frameId") or ""
+                has = bool(fid) and os.path.isfile(os.path.join(HIST_DIR, fid + ".jpg"))
+                beats.append({"ts": r.get("ts"), "n": r.get("n"), "scene": r.get("scene", ""),
+                              "area": r.get("area", ""), "names": r.get("names", []),
+                              "note": r.get("note", ""), "frame": (fid + ".jpg") if has else "",
+                              "ms": r.get("ms", 0), "lane": r.get("lane", "")})
+            return {"n": n, "beats": beats}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _serve_hist(self, name):
+        """Serve an archived session frame (tv/frames/hist) — path-safe, jpg only."""
+        from urllib.parse import unquote
+        rel = unquote(name).split("?", 1)[0].split("#", 1)[0]
+        target = os.path.realpath(os.path.join(HIST_DIR, rel))
+        if not target.startswith(os.path.realpath(HIST_DIR) + os.sep) or not target.endswith(".jpg"):
+            self._json(403, {"ok": False}); return
+        if not os.path.isfile(target):
+            self._json(404, {"ok": False}); return
+        try:
+            with open(target, "rb") as f:
+                data = f.read()
+        except Exception:
+            self._json(500, {"ok": False}); return
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "max-age=3600")
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html", "/ui"):
@@ -777,6 +852,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/art/"):
             self._serve_art(path[len("/art/") :])
+            return
+        if path == "/api/sessions":
+            self._json(200, {"sessions": self._theatre_sessions()})
+            return
+        if path.startswith("/api/session"):
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                num = int((q.get("n") or ["1"])[0])
+            except Exception:
+                num = 1
+            self._json(200, self._theatre_session(num))
+            return
+        if path.startswith("/hist/"):
+            self._serve_hist(path[len("/hist/"):])
             return
         if path == "/api/log":
             try:
@@ -814,16 +904,17 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, r)
             return
         if path == "/api/stop":
-            open_board(auto_on=False)
-            r = stop_agent(farewell=True)
+            # v765 — STOP never opens windows (the board auto-syncs to OFFLINE by itself);
+            # a SIM agent has nothing worth a farewell wait — only live runs get the 90s grace.
+            r = stop_agent(farewell=(_agent_mode != "sim"))
             self._json(200, r)
             return
         if path == "/api/restart":
             stop_agent(farewell=False)
             time.sleep(0.5)
             r = start_agent(sim=False)
-            open_board(auto_on=True)
-            self._json(200, {**r, "board": "auto-on"})
+            board = _open_board_once()
+            self._json(200, {**r, "board": board})
             return
         if path == "/api/board":
             self._json(200, open_board(auto_on=True))
@@ -860,7 +951,7 @@ def main():
         return
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v761 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v765 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

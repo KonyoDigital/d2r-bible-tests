@@ -424,6 +424,17 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     expect(still).toBe(true);
 
     // vault commit path: a stashed grail unique stamps the ledger LIVE (not next boot)
+    // v765 (Grok P0.3) — NEGATIVES: OCR garble and generic base words must never chronicle
+    const negatives = await page.evaluate(() => {
+      const before = JSON.stringify(JSON.parse((window as any).LSR.getItem('d2r_foundLog') || '{}'));
+      const rs = ["'ned world. Dlabio's nnloll4", 'Ring', 'Grand Charm', 'left channel. Lobby']
+        .map((n) => (window as any).tvChronicleRoute(n, 'chat'));
+      const after = JSON.stringify(JSON.parse((window as any).LSR.getItem('d2r_foundLog') || '{}'));
+      return { anyOk: rs.some((r) => r && r.ok), ledgerUnchanged: before === after };
+    });
+    expect(negatives.anyOk).toBe(false);
+    expect(negatives.ledgerUnchanged).toBe(true);
+
     const vaultStamp = await page.evaluate(() => {
       const r = (window as any).tvChronicleRoute('Nagelring', 'vault');
       const fl = JSON.parse((window as any).LSR.getItem('d2r_foundLog') || '{}');

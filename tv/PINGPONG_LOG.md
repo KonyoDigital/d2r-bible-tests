@@ -554,3 +554,25 @@ route() labels. Next-session queue: reading-ghosts polish only.
   saved it; the DOM dump beat guessing.
 - Gates: board **14/14** (new v763 chronicle lock: canonical uni+set stamps · discovery chip ·
   never-vault · idempotent re-broadcast · live vault stamp) · agent **57/57** · html clean.
+
+### 🎞 R19 · v765 — THE THEATRE: eyes on history (Konyo: "its not really simulated anymore…
+### its own independent VIEW") + the full Grok-audit batch ✅
+- **THE THEATRE**: the SIM button reborn — replays REAL sessions in the app: archived frames
+  full-bleed with scanline grade, caption bar (time · read # · 🗺 area · scene · name chips ·
+  portal notes), beat timeline scrubber (named reads stand taller; frameless beats honest-dim),
+  play/pause · 1×/2×/4× · session paginator (9 sessions deep tonight). Zero agents involved —
+  pure eyes-on-history. Server: /api/sessions · /api/session?n · /hist/<id>.jpg (path-safe).
+- **His two live bugs fixed**: /api/stop no longer calls open_board (the phantom window) and
+  skips the 90s farewell wait for sim agents (the stuck-SIM screen); restart uses the
+  open-once guard.
+- **Toggle-glow buttons**: lit while their mode runs, click again = off (ON AIR toggles OFF;
+  THEATRE re-click closes); STOP shows honest "farewell…" while it waits.
+- **Grok-audit batch folded**: ONE version truth v765 (app payload/banner/UI footer/D2R_BUILD)
+  · chronicle NEGATIVES locked (OCR garble/'Ring'/'Grand Charm' never chronicle, ledger
+  byte-identical) · control_agent.log 2MB rotation · copy truth ("flip the switch" is dead —
+  the board syncs itself).
+- polish762's v762 interaction-depth pass (press/flash/focus rings/working states/rune jewels/
+  meter tweens/brain slide-ins) verified intact underneath.
+- Gates: control **7/7** (NEW tv/test_control.py: theatre endpoints on fixtures · hist traversal
+  block · stop-never-opens-board · open-once) · agent 57/57 · board 14/14 · theatre verified
+  LIVE on his real 9-session archive (screenshot: session 1/9 playing, lit button, clean close).
