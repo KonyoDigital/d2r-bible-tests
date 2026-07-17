@@ -923,3 +923,9 @@ Theatre = broadcast reel, not slideshow: default 🎬 CUT keeps loot-chain/disco
 farewell/bookend beats with content-weighted dwell (vault 2.2s · discovery 1.8s · named 1.4s ·
 empty 550ms); 📼 FULL one click, position preserved across toggle; gold chapter ticks on area change;
 raw epoch demoted to film tooltip. 82/82 + 16/16.
+
+## 🏓 Grok R4 #3 → v791 "Endurance" (~04:50)
+2-hour ON without thrash: adaptive self-scheduling poll (300ms only while data-state=on AND eye
+fresh <2.5s; else 1.5s), film cache-bust skipped when the eye is still (>2.5s), endurance mode
+after 10min continuous ON freezes decorative keyframes (LIVE bug + film + fault banner stay
+animated), prefers-reduced-motion = instant endurance. 82/82 + 16/16.
