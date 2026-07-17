@@ -751,7 +751,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v781 control</span>
+      <span id="foot-ver">v782 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -900,7 +900,8 @@
     if (film) {
       if (on && state !== 'sim') {
         var fsrc = st.frame || ('http://127.0.0.1:' + (st.agentPort || 17771) + '/frame');
-        if (film.__src !== fsrc || Date.now() - (film.__at || 0) >= 3500) {
+        // v782 — refresh live eye often so film tracks motion while vision is still thinking
+        if (film.__src !== fsrc || Date.now() - (film.__at || 0) >= 900) {
           film.__at = Date.now(); film.__src = fsrc;
           film.onload = function(){ document.body.classList.add('film-on'); };
           film.onerror = function(){ document.body.classList.remove('film-on'); };
@@ -932,7 +933,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v781') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v782') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {

@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v781"   # ONE truth — banner, autopilot HUD, and state all read this
+VERSION = "v782"   # ONE truth — banner, autopilot HUD, and state all read this
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -884,6 +884,9 @@ class VisionWorker:
                 self.stop()
                 return None
 _WORKER = VisionWorker()
+# v782 — vision must NOT freeze the eye: capture loop keeps writing live.bmp/eye.jpg while
+# Claude thinks. (Konyo: ON AIR + moving but film stuck on READING.)
+_VISION_BUSY = False
 
 # ═══ v732 — OCR FAST LANE (Konyo: pile→chip in ~0.1–0.2s; LLM floors at 3–6s)
 # Local macOS Vision OCR (warm worker ~10–50ms). Claude stays the deep brain.
@@ -1588,7 +1591,7 @@ def claude_read(path):
         return EMPTY
 
 def main():
-    global _LIFECYCLE
+    global _LIFECYCLE, _VISION_BUSY, SESSION_ID
     os.makedirs(FRAMES, exist_ok=True)
     _LIFECYCLE = LootLifecycle()
     # v768 (Grok R2) — restart continuity: if the previous run ended within the session window,
@@ -1604,8 +1607,8 @@ def main():
                     len(_LIFECYCLE.seen), len(_LIFECYCLE.pending)))
     except Exception:
         pass
-    global SESSION_ID
     SESSION_ID = "s_%d_%d" % (int(time.time() * 1000), os.getpid())
+    _VISION_BUSY = False
     with _state_lock:
         _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0,
                "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,
@@ -1712,9 +1715,9 @@ def main():
                     print("  ⚠ capture is suspiciously tiny — screen-recording permission is probably missing")
                 continue
         else:
-            # v779 — live film tracks the pin even while vision is fingerprint-skipping
+            # v779/v782 — live film tracks the pin always (including while vision is busy)
             if not WATCH_MODE:
-                try: refresh_eye_preview(frame)
+                try: refresh_eye_preview(frame, min_interval=0.6)
                 except Exception: pass
         try: cur = frame_sig(frame)
         except Exception: continue
@@ -1734,7 +1737,17 @@ def main():
         interest = ap_interest(peak, stable, priority, empty_streak, named_recent)
         _AP.update({"interest": round(interest, 3), "peak": round(peak, 3), "priority": priority,
                     "emptyStreak": empty_streak, "gap": PRIORITY_GAP_S if priority else MIN_GAP_S})
-        beat("watching" if motion > SETTLE else "watching", motion)
+        # v782 — while Claude is busy, still report live motion so the film stage stays honest
+        if _VISION_BUSY:
+            beat("reading", motion)
+            if motion > SETTLE:
+                stable = 0
+                last_md5 = cur
+            else:
+                stable = stable + 1
+                last_md5 = cur
+            continue
+        beat("watching", motion)
         if motion > SETTLE:
             stable = 0
             last_md5 = cur
@@ -1801,7 +1814,7 @@ def main():
         last_read_t, last_sent_md5 = time.time(), cur
         reads += 1
         read_ts = int(time.time() * 1000)
-        # v735 — archive THIS settle's frame for history click-to-enlarge (before vision mutates)
+        # v735 — archive THIS settle's frame for history (snapshot — live.bmp keeps updating)
         frame_id = archive_read_frame(frame, reads, read_ts)
         ptag = "⚡PRIORITY " if priority else ""
         print(f"  👁 {ptag}screen settled — reading ({reads}/{SESSION_CAP}) interest={interest:.2f} …"
@@ -1814,65 +1827,90 @@ def main():
         peak = 0.0
         priority = False
 
-        # ── FAST LANE: local OCR first (target ~10–50ms warm; board poll 250ms) ──
-        ocr_rd = ocr_fast(frame)
-        if ocr_rd is not None:
-            oms = ocr_rd.get("ms") or ocr_rd.get("wall_ms") or 0
-            onames = ocr_rd.get("names") or []
-            ev("ocr", f"⚡ocr {oms}ms · {len(onames)} name(s)" +
-               ((" — " + ", ".join(onames[:4])) if onames else " — no item-ish text") +
-               f" (raw {ocr_rd.get('raw_n', 0)})")
-            print(f"  ⚡ ocr {oms}ms  {('· ' + ' · '.join(onames[:6])) if onames else '· no item-ish text'}")
-            if onames:
-                with _state_lock:
-                    st = _load()
-                    st.setdefault("seen", []); st.setdefault("farmed", [])
-                    prec = {
-                        "ts": read_ts, "names": onames, "n": reads,
-                        "area": "", "scene": "loot", "tz": [],
-                        "ms": oms, "mode": "ocr", "lane": "ocr", "model": "ocr-mac",
-                        "conf": ocr_rd.get("conf"), "intent": "seen",
-                        "escalated": False, "interest": interest, "priority": used_priority,
-                        "provisional": True,
-                        "frameId": frame_id, "sessionId": SESSION_ID,
-                        "vault_names": [], "farmed_names": [],  # NEVER vault from OCR alone
-                        "pending_names": [], "thrown_names": [], "unvault_names": [],
-                        "lifecycle_tags": {nm: "ocr" for nm in onames},
-                        "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
-                    }
-                    st["reads"].append(prec)
-                    st["reads"] = st["reads"][-200:]
-                    st["readCount"] = reads
-                    st["ap"] = dict(_AP)
-                    st["lifecycle"] = _LIFECYCLE.snapshot()
-                    for nm in onames:
-                        if not _is_anchor(nm) and not _is_junk(nm):
-                            st["seen"].append({"ts": prec["ts"], "name": nm, "area": "", "scene": "loot", "src": "ocr"})
-                            del st["seen"][:-200]
-                    _save(st)
-                empty_streak = 0
-                named_until = time.time() + 45
-                _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
-                _AP["lastNamed"] = ", ".join(onames[:4])
+        # v782 — snapshot + background vision so capture/film never freeze for 7–90s
+        import shutil
+        snap = os.path.join(FRAMES, "snap.bmp")
+        try:
+            shutil.copy2(frame, snap)
+            snap_path = snap
+        except Exception:
+            snap_path = frame
+        n_this, fid_this, interest_this = reads, frame_id, interest
+        cur_snap = cur
+        _VISION_BUSY = True
 
-        # ── DEEP LANE: Claude (scene/area/verify; 3–8s) ──
-        rd = claude_read(frame)
-        beat("watching", 0.0)
-        if should_learn_dead(rd):
-            learn_dead_frame(cur)   # v741/v746 — this exact screen (loading/portal art) is now known-dead; next match costs 0ms
-        rec = emit_deep_read(rd, n=reads, frame_id=frame_id, interest=interest,
-                             used_priority=used_priority, ocr_rd=ocr_rd, farewell=False)
-        names = (rec or {}).get("names") or []
-        if names:
-            empty_streak = 0
-            named_until = time.time() + 45
-            _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
-            _AP["lastNamed"] = ", ".join(names[:4])
-        else:
-            if not (ocr_rd and ocr_rd.get("names")):
-                empty_streak += 1
-                _AP["namedStreak"] = 0
-        _AP["emptyStreak"] = empty_streak
+        def _vision_job():
+            nonlocal empty_streak, named_until
+            global _VISION_BUSY
+            try:
+                # ── FAST LANE: local OCR first ──
+                ocr_rd = ocr_fast(snap_path)
+                if ocr_rd is not None:
+                    oms = ocr_rd.get("ms") or ocr_rd.get("wall_ms") or 0
+                    onames = ocr_rd.get("names") or []
+                    ev("ocr", f"⚡ocr {oms}ms · {len(onames)} name(s)" +
+                       ((" — " + ", ".join(onames[:4])) if onames else " — no item-ish text") +
+                       f" (raw {ocr_rd.get('raw_n', 0)})")
+                    print(f"  ⚡ ocr {oms}ms  {('· ' + ' · '.join(onames[:6])) if onames else '· no item-ish text'}")
+                    if onames:
+                        with _state_lock:
+                            st = _load()
+                            st.setdefault("seen", []); st.setdefault("farmed", [])
+                            prec = {
+                                "ts": read_ts, "names": onames, "n": n_this,
+                                "area": "", "scene": "loot", "tz": [],
+                                "ms": oms, "mode": "ocr", "lane": "ocr", "model": "ocr-mac",
+                                "conf": ocr_rd.get("conf"), "intent": "seen",
+                                "escalated": False, "interest": interest_this, "priority": used_priority,
+                                "provisional": True,
+                                "frameId": fid_this, "sessionId": SESSION_ID,
+                                "vault_names": [], "farmed_names": [],
+                                "pending_names": [], "thrown_names": [], "unvault_names": [],
+                                "lifecycle_tags": {nm: "ocr" for nm in onames},
+                                "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
+                            }
+                            st["reads"].append(prec)
+                            st["reads"] = st["reads"][-200:]
+                            st["readCount"] = n_this
+                            st["ap"] = dict(_AP)
+                            st["lifecycle"] = _LIFECYCLE.snapshot()
+                            for nm in onames:
+                                if not _is_anchor(nm) and not _is_junk(nm):
+                                    st["seen"].append({"ts": prec["ts"], "name": nm, "area": "", "scene": "loot", "src": "ocr"})
+                                    del st["seen"][:-200]
+                            _save(st)
+                        empty_streak = 0
+                        named_until = time.time() + 45
+                        _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+                        _AP["lastNamed"] = ", ".join(onames[:4])
+
+                # ── DEEP LANE: Claude ──
+                rd = claude_read(snap_path)
+                if should_learn_dead(rd):
+                    learn_dead_frame(cur_snap)
+                rec = emit_deep_read(rd, n=n_this, frame_id=fid_this, interest=interest_this,
+                                     used_priority=used_priority, ocr_rd=ocr_rd, farewell=False)
+                names = (rec or {}).get("names") or []
+                if names:
+                    empty_streak = 0
+                    named_until = time.time() + 45
+                    _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+                    _AP["lastNamed"] = ", ".join(names[:4])
+                else:
+                    if not (ocr_rd and ocr_rd.get("names")):
+                        empty_streak += 1
+                        _AP["namedStreak"] = 0
+                _AP["emptyStreak"] = empty_streak
+            except Exception as e:
+                try: ev("cap", "vision job failed: %s" % e)
+                except Exception: pass
+            finally:
+                _VISION_BUSY = False
+                _AP["mode"] = "drive"
+                beat("watching", 0.0)
+
+        threading.Thread(target=_vision_job, daemon=True, name="tv-vision").start()
+        continue
 
 def effective_lc_scene(scene, names):
     """v753 — run-#8 lesson: a pile read Sonnet labels 'gameplay' but NAMES items is loot-class
