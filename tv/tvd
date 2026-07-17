@@ -136,8 +136,9 @@ case "${1:-}" in
       info "SIM via control app"
       exit 0
     fi
-    info "SIMULATION RUN — canned reads · zero vision cost"
+    info "SIMULATION RUN — canned reads · zero vision cost · never journaled"
     export TV_STUB=1
+    export TV_NO_JOURNAL=1   # v771.1 — a demo must never pollute THE THEATRE's real film archive
     cmd_start_cli "$@"
     ;;
   stop | kill )
