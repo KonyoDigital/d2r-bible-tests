@@ -632,6 +632,7 @@
   .th-beat.holding { background: #ffd97a; height: 12px; }
   .th-beat.cur { background: var(--gold-hi); height: 14px; box-shadow: 0 0 10px rgba(255,223,154,.6); }
   .th-beat.noframe { background: rgba(255,255,255,.08); }
+  .th-beat.chap { border-left: 2px solid var(--gold, #c8a24a); margin-left: 3px; }
   body.theatre-open .live-bug { color: var(--gold); border-color: rgba(240,192,96,.5); }
   /* v768 (item 8) — ONE lit/dim truth (Konyo: 'glowing for on, grey dim for off'). Every primary
      console button is DIM by default; the truly-active one is .lit (full opacity + glow, driven by
@@ -719,6 +720,7 @@
           <button class="th-btn" id="th-next-s" type="button" title="newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
           <button class="th-btn" id="th-speed" type="button" title="playback speed">1×</button>
+          <button class="th-btn" id="th-mode" type="button" title="highlight cut / full reel">🎬 CUT</button>
         </div>
       </div>
     </section>
@@ -761,7 +763,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v789 control</span>
+      <span id="foot-ver">v790 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -973,7 +975,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v789') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v790') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -1033,7 +1035,7 @@
 
   // ══ v765 — 🎞 THE THEATRE / SIM: real frames + recorded reads ══
   // v784 — CAPTURE ts is the scrub key; frameId hist JPEG is THE photo for that AI row.
-  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'' };
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'highlight', allBeats:[] };   // v790 — highlight cut default
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   function thFmtFull(ts){
@@ -1067,9 +1069,8 @@
       : '<span style="color:#f88">⚠ no hist frame</span>';
     var bits = [
       '<b>CAPTURE '+thFmtMs(cap)+'</b>',
-      '<span style="opacity:.75">epoch '+esc(String(cap||''))+'</span>',
       'read #'+esc(b.n||'?')
-    ];
+    ];   // v790 — epoch demoted to film tooltip (broadcast headline, not a debug dump)
     if (done && done !== cap) bits.push('AI done '+thFmtMs(done));
     if (b.ms) bits.push(esc(String(Math.round(b.ms)))+'ms vision');
     if (fid) bits.push('🖼 <code style="font-size:11px">'+esc(fid)+'.jpg</code>');
@@ -1148,15 +1149,45 @@
     // v786 (Konyo: 'too slow.. play is not synced') — STORY TIME, not wall time: reads land
     // 6-30s apart, so raw gaps pinned the old 4s cap on every beat and the reel crawled.
     // Compress truthfully (order + proportion kept, 8x faster), clamp for watchability.
-    var raw = (cur && nxt) ? Math.max(0, (nxt.ts||0) - (cur.ts||0)) : 1200;
-    var gap = Math.max(500, Math.min(2200, raw / 8));
+    var gap;
+    if (TH.mode === 'highlight'){
+      gap = thDwell(cur || {});   // v790 — broadcast cut: content decides the dwell
+    } else {
+      var raw = (cur && nxt) ? Math.max(0, (nxt.ts||0) - (cur.ts||0)) : 1200;
+      gap = Math.max(500, Math.min(2200, raw / 8));
+    }
     TH.timer = setTimeout(thStep, gap / TH.speed);
+  }
+  // v790 (Grok R4 #2) — HIGHLIGHT CUT: a real session is hundreds of empty floor beats.
+  // The cut keeps the story: loot chain, discoveries, area changes, farewell, bookends.
+  function thFilter(beats){
+    if (TH.mode !== 'highlight' || beats.length <= 8) return beats;
+    var keep = [], lastArea = null;
+    beats.forEach(function(b, k){
+      var why = false;
+      if (k === 0 || k === beats.length - 1) why = true;
+      if ((b.vault_names||[]).length || (b.pending_names||[]).length) why = true;
+      if ((b.names||[]).length || (b.discovered_names||[]).length) why = true;
+      if (b.farewell) why = true;
+      if (b.area && b.area !== lastArea) why = true;
+      if (b.area) lastArea = b.area;
+      if (why) keep.push(b);
+    });
+    return keep.length >= 2 ? keep : beats;
+  }
+  function thDwell(b){
+    if ((b.vault_names||[]).length) return 2200;
+    if ((b.discovered_names||[]).length) return 1800;
+    if ((b.names||[]).length) return 1400;
+    if (b.farewell) return 1600;
+    return 550;
   }
   function thTimeline(){
     var tl = $('th-timeline');
     tl.innerHTML = TH.beats.map(function(b, k){
       var cls = '';
-      if ((b.vault_names||[]).length) cls = ' vaulted';
+      if (k > 0 && b.area && TH.beats[k-1] && b.area !== TH.beats[k-1].area) cls += ' chap';   // v790 — chapter tick
+      if ((b.vault_names||[]).length) cls = cls + ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
       if (!b.frame) cls += ' noframe';
@@ -1185,7 +1216,7 @@
     });
     // chronological by CAPTURE ts
     beats.sort(function(a,b){ return (a.ts||0)-(b.ts||0) || (a.n||0)-(b.n||0); });
-    TH.sn = n; TH.beats = beats; TH.i = 0; TH.sessionId = j.sessionId || '';
+    TH.sn = n; TH.allBeats = beats; TH.beats = thFilter(beats); TH.i = 0; TH.sessionId = j.sessionId || '';   // v790 — cut applied
     TH.playing = false; $('th-play').textContent = '▶'; // start paused so user can scrub backwards
     thTimeline(); thPaint();
   }
@@ -1238,6 +1269,15 @@
     if (TH.playing) thSchedule(); else clearTimeout(TH.timer);
   };
   $('th-speed').onclick = function(){ TH.speed = TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 1); this.textContent = TH.speed + '×'; };
+  $('th-mode').onclick = function(){
+    TH.mode = TH.mode === 'highlight' ? 'full' : 'highlight';
+    this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : '📼 FULL';
+    var keepTs = (TH.beats[TH.i] || {}).ts;
+    TH.beats = thFilter(TH.allBeats.slice());
+    TH.i = 0;
+    if (keepTs){ for (var k = 0; k < TH.beats.length; k++){ if ((TH.beats[k].ts||0) >= keepTs){ TH.i = k; break; } } }
+    thTimeline(); thPaint(); thSchedule();
+  };
   $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
   $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
   $('th-prev-b').onclick = function(){ thGo(TH.i - 1, false); TH.playing = false; $('th-play').textContent = '▶'; };

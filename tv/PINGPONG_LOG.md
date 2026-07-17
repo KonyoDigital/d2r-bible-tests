@@ -917,3 +917,9 @@ sessionMs · named/vaulted tallies) → control passthrough → stage FAULT BANN
 VISION SLOW >45s · STALLED >3min) + LIVE bug greys while faulted + 👁 Vision / ⏱ Last-read
 signal rows. Quiet death is forbidden. NOTE: first patch died on an ambiguous anchor
 (_VISION_BUSY ×2) — partial-apply caught by suite, re-anchored. 82/82 + 16/16.
+
+## 🏓 Grok R4 #2 → v790 "The Highlight Cut" (~04:35)
+Theatre = broadcast reel, not slideshow: default 🎬 CUT keeps loot-chain/discovery/named/area-change/
+farewell/bookend beats with content-weighted dwell (vault 2.2s · discovery 1.8s · named 1.4s ·
+empty 550ms); 📼 FULL one click, position preserved across toggle; gold chapter ticks on area change;
+raw epoch demoted to film tooltip. 82/82 + 16/16.
