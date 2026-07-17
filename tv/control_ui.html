@@ -634,6 +634,17 @@
   /* OFF is a resting state, not a broadcast — its lit cue is subtle (no pulsing ring, gentle glow) */
   button.act.lit.b-off { box-shadow: inset 0 1px 0 rgba(200,187,158,.16), 0 0 14px rgba(200,187,158,.14); filter: none; opacity: .92; animation: none; }
 
+  /* 🌙 v774 — THE BIBLE RAIL */
+  .bible-rail { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(6px,.7vw,10px); }
+  .bible-rail .brl { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
+    color: var(--gold-dim); font-family: var(--mono); font-size: clamp(9px,.8vw,12px);
+    font-weight: 700; letter-spacing: .08em; padding: clamp(8px,.9vw,12px) 6px;
+    border-radius: clamp(9px,.9vw,12px); cursor: pointer; transition: .15s; text-align: center; }
+  .bible-rail .brl:hover { color: var(--gold); border-color: var(--edge-hi);
+    background: rgba(240,192,96,.07); box-shadow: 0 0 14px rgba(240,192,96,.15); }
+  .bible-rail .brl:active { transform: translateY(1px); }
+  .bible-rail .brl:nth-child(5) { grid-column: 1 / -1; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; }
   }
@@ -713,6 +724,14 @@
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
         <div class="bar"><i id="sig-bar"></i></div>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_ith_rune.png" alt="" onerror="this.style.display='none'">Model</span><span class="val" id="sig-model">—</span></div>
+      </div>
+      <div class="rail-h" style="margin-top:6px">Bible</div>
+      <div class="bible-rail" id="bible-rail">
+        <button class="brl" type="button" data-tab="session">⚡ Session</button>
+        <button class="brl" type="button" data-tab="tools">🧰 Tools</button>
+        <button class="brl" type="button" data-tab="forge">🔨 Forge</button>
+        <button class="brl" type="button" data-tab="funi">🏆 F·Uniques</button>
+        <button class="brl" type="button" data-tab="fsets">🧩 F·Sets</button>
       </div>
       <div class="util">
         <button class="ghost" id="btn-board" type="button"><img class="gjewel" src="/art/hd_lo_rune.png" alt="" onerror="this.style.display='none'">Open Board · TV·D</button>
@@ -1113,7 +1132,8 @@
   };
   $('btn-board').onclick = function(){ post('/api/board'); };
   // 🌙 v774 — the bible rail: each tab opens THE ONE board window deep-linked there
-  document.getElementById('bible-rail').addEventListener('click', function(e){
+  var _brl = document.getElementById('bible-rail');
+  if (_brl) _brl.addEventListener('click', function(e){
     var b = e.target.closest('.brl'); if (!b) return;
     post('/api/board?tab=' + encodeURIComponent(b.dataset.tab), b, e);
   });
