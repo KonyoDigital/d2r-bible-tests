@@ -751,7 +751,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v780",
+        "ver": "v781",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1035,12 +1035,25 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, r)   # v778-pre — RESTART opens NOTHING either
             return
         if path == "/api/board":
+            # v781 — ONE WINDOW by default: return a same-origin nav target. The UI navigates
+            # THIS pywebview to /board?app=1#tab. Spawning a second native window is opt-in
+            # only (?popout=1) for the rare explicit pop-out case — never for console buttons.
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
             tab = (q.get("tab") or ["tvd"])[0]
             if tab not in ("tvd", "session", "tools", "forge", "funi", "fsets"):
                 tab = "tvd"
-            self._json(200, open_board(auto_on=True, tab=tab))
+            popout = (q.get("popout") or ["0"])[0] in ("1", "true", "yes")
+            if popout:
+                self._json(200, open_board(auto_on=True, tab=tab))
+                return
+            self._json(200, {
+                "ok": True,
+                "msg": "same-window nav",
+                "nav": "/board?app=1#%s" % tab,
+                "tab": tab,
+                "spawned": False,
+            })
             return
         if path == "/api/quit":
             threading.Thread(
@@ -1123,17 +1136,26 @@ def main():
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", CONTROL_PORT), Handler)
     except OSError as e:
+        # v781 — ONE WINDOW: a second Desktop launch used to open another pywebview on the
+        # already-running control (Konyo: 'another window open sometimes'). Refuse.
         print(
-            f"📺 control already on :{CONTROL_PORT} — opening another app window\n   ({e})"
+            f"📺 TV DIABLO is already running on :{CONTROL_PORT} — not opening a second window.\n"
+            f"   Use the existing app (or STOP/quit it first).\n   ({e})"
         )
-        if open_ui and not no_open:
-            open_control_window()
-        else:
-            sys.exit(1)
-        return
+        try:
+            if sys.platform == "darwin":
+                subprocess.run(
+                    ["osascript", "-e",
+                     'display notification "TV DIABLO is already open — use the existing window." '
+                     'with title "TV DIABLO"'],
+                    capture_output=True, timeout=5,
+                )
+        except Exception:
+            pass
+        sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v780 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v781 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

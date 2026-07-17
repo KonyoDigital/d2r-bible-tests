@@ -107,11 +107,31 @@ class TestStopDiscipline(unittest.TestCase):
         stop_block = src.split('"/api/stop"')[1].split('"/api/restart"')[0]
         self.assertNotIn("open_board", stop_block)
 
+    def test_on_restart_sim_never_open_board(self):
+        """v781 — primary console buttons must never spawn a second window."""
+        import inspect
+        src = inspect.getsource(ca.Handler.do_POST)
+        for key in ('"/api/on"', '"/api/sim"', '"/api/restart"', '"/api/off"'):
+            # slice until next path key
+            i = src.find(key)
+            self.assertGreater(i, 0, key)
+            chunk = src[i:i + 400]
+            self.assertNotIn("open_board(", chunk, f"{key} must not call open_board")
+
+    def test_api_board_default_is_nav_not_spawn(self):
+        """Default /api/board returns same-window nav; popout only with ?popout=1."""
+        import inspect
+        src = inspect.getsource(ca.Handler.do_POST)
+        board = src.split('"/api/board"')[1].split('"/api/quit"')[0]
+        self.assertIn("same-window nav", board)
+        self.assertIn("spawned", board)
+        self.assertIn("popout", board)
+
     def test_board_opens_once_per_session(self):
         ca._BOARD_OPENED = False
         calls = []
         orig = ca.open_board
-        ca.open_board = lambda auto_on=True: calls.append(1)
+        ca.open_board = lambda auto_on=True, tab="tvd": calls.append(1)
         try:
             self.assertEqual(ca._open_board_once(), "opened")
             self.assertEqual(ca._open_board_once(), "already-open (auto-sync)")
@@ -124,6 +144,15 @@ class TestStopDiscipline(unittest.TestCase):
         import inspect
         src = inspect.getsource(ca.open_board)
         self.assertIn("_MAC_BROWSERS", src)                  # fragment-surviving spawn path
+
+    def test_second_control_launch_does_not_open_window(self):
+        """v781 — port-in-use path must exit, not open_control_window()."""
+        import inspect
+        src = inspect.getsource(ca.main)
+        # the OSError branch should refuse a second window
+        self.assertIn("not opening a second window", src)
+        # ensure the old "opening another app window" path is gone
+        self.assertNotIn("opening another app window", src)
 
 
 class TestBoardHost(unittest.TestCase):

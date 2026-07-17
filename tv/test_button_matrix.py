@@ -77,7 +77,7 @@ def main():
     print("══ BUTTON MATRIX · control API (mirrors every app button) ══")
     st = get(CTRL + "/api/status")
     check("control up", st.get("ok") is True, st)
-    check("version stamp", st.get("ver") == "v780", st.get("ver"))
+    check("version stamp", st.get("ver") == "v781", st.get("ver"))
 
     # ensure clean off
     print("\n· OFF (ensure dark)")
@@ -148,9 +148,11 @@ def main():
     s = wait_mode("off", 20, bridge=False)
     check("STOP → dark", s and s.get("mode") == "off")
 
-    print("\n· BOARD open endpoint")
+    print("\n· BOARD endpoint (same-window nav — does NOT spawn)")
     r = post("/api/board")
-    check("BOARD open returns ok", r.get("ok") is True, r)
+    check("BOARD ok", r.get("ok") is True, r)
+    check("BOARD same-window", r.get("spawned") is False, r)
+    check("BOARD nav path", isinstance(r.get("nav"), str) and r.get("nav", "").startswith("/board"), r)
 
     print("\n· STATUS / LOG endpoints")
     s = get(CTRL + "/api/status")
