@@ -1,5 +1,6 @@
-﻿# 📺 TV DIABLO — Windows launcher (Desktop · v761 native pywebview window)
+# 📺 TV DIABLO — Windows launcher (Desktop · v784 native pywebview window)
 # Real OS app window via Edge WebView2 (NOT Chrome). Agent + capture stay hidden.
+# Same one-window product as Mac: ON/OFF/STOP/RESTART/SIM · board same-origin · no dual launch.
 $ErrorActionPreference = 'Continue'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repo = Split-Path -Parent $here

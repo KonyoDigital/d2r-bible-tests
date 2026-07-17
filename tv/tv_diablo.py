@@ -665,11 +665,39 @@ def capture_stub_synth(path):
 def newest_watched_frame():
     """Windows mode: capture_win.ps1 drops frames into tv/frames — consume the newest."""
     try:
+        # Prefer live.bmp (intelligence); ignore eye.jpg / read.jpg (film / vision transport)
+        skip = {"read.jpg", "eye.jpg", "cap_target.json"}
         fs = [os.path.join(FRAMES, f) for f in os.listdir(FRAMES)
-              if f.lower().endswith((".bmp", ".png", ".jpg", ".jpeg")) and f != "read.jpg"]   # v753 — replay drips .jpg; never re-eat our own vision copy
+              if f.lower().endswith((".bmp", ".png", ".jpg", ".jpeg"))
+              and f.lower() not in skip
+              and not f.lower().endswith(".part.jpg")
+              and "tmp" not in f.lower()]
         return max(fs, key=os.path.getmtime) if fs else None
     except Exception:
         return None
+
+
+def _refresh_cap_target_from_disk():
+    """v784 — Windows capture_win.ps1 writes frames/cap_target.json; surface it on /state."""
+    global _CAP_TARGET
+    try:
+        p = os.path.join(FRAMES, "cap_target.json")
+        if not os.path.isfile(p):
+            return
+        with open(p, encoding="utf-8") as f:
+            j = json.load(f)
+        mode = (j.get("mode") or "full").strip()
+        label = (j.get("label") or mode)[:80]
+        nxt = {"mode": mode, "label": label, "wid": j.get("wid")}
+        if nxt != _CAP_TARGET:
+            if mode == "window" and label and _CAP_TARGET.get("label") != label:
+                try:
+                    ev("cap", "🎯 eye pinned to %s" % label)
+                except Exception:
+                    pass
+            _CAP_TARGET = nxt
+    except Exception:
+        pass
 
 def frame_sig(path):
     """~4k byte samples across the BMP pixel data — cheap fuzzy fingerprint, stdlib only."""
@@ -1748,9 +1776,15 @@ def main():
     while True:
         time.sleep(POLL_S)
         if WATCH_MODE:
+            # v784 — Windows capture half reports pin status via cap_target.json
+            _refresh_cap_target_from_disk()
             f = newest_watched_frame()
             if not f: continue
             frame = f
+            # prefer stable live.bmp path for settle when present
+            live_bmp = os.path.join(FRAMES, "live.bmp")
+            if os.path.isfile(live_bmp):
+                frame = live_bmp
         elif not capture_mac(frame):
             if os.environ.get("TV_STUB"):
                 # SIM: no Screen Recording on the control app's Python.app — still drive the loop

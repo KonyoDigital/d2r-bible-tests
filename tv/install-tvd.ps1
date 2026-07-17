@@ -1,4 +1,4 @@
-# 📺 TV DIABLO — one-shot Windows installer (the cousin move · v760 twin)
+# 📺 TV DIABLO — one-shot Windows installer (the cousin move · v784 twin)
 #
 #     irm https://bull-4-u.com/d2r/install-tvd.ps1 | iex
 #

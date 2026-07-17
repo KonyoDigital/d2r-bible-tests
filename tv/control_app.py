@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v771)
+# 📺 TV DIABLO — Control App (Mac + Windows · v784)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
+#   ONE WINDOW: board = same-origin /board?app=1 · dual-launch refused.
 #   Mac:     python3 tv/control_app.py --open  ·  TV DIABLO.app
 #   Windows: pythonw tv/control_app.py --open · Desktop shortcut
-#            ON = capture_win.ps1 (hidden) + tv_diablo.py --watch
+#            ON = capture_win.ps1 (hidden, auto-pin D2R + eye.jpg) + tv_diablo.py --watch
 #   ver stamp MUST match tv_diablo.VERSION (parity lock in test_control).
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
@@ -85,6 +86,9 @@ def _env_clean(sim=False):
     else:
         env.pop("TV_STUB", None)
     env["TV_PORT"] = str(AGENT_PORT)
+    # v784 — Windows capture default AUTO (pin D2R.exe); Mac agent reads TV_CAPTURE itself
+    if IS_WIN and not (env.get("TV_CAPTURE") or "").strip():
+        env["TV_CAPTURE"] = "auto"
     return env
 
 

@@ -15,8 +15,8 @@ at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
    `ANTHROPIC_AUTH_TOKEN` from vision subprocesses** so a shell API key cannot
    steal auth from your login (v720 / live run #2).
 3. **Frugal by design.** A read fires only when the screen *settles* (you
-   stopped moving = you're reading items). Hard caps: ≥20s between reads,
-   120 reads/session.
+   stopped moving = you're reading items). Cruise gap ~4s · priority ~1.2s ·
+   session cap 240. OCR is fast; Claude deep is multi-second (subscription).
 
 ## Mac (Konyo) — one-click install (mirrors Windows)
 
@@ -77,7 +77,12 @@ WebView2 under the hood — not a Chrome tab). Buttons **ON · OFF · STOP · RE
 
 | Button | Windows under the hood |
 |--------|-------------------------|
-| **ON** | Hidden `capture_win.ps1` + `tv_diablo.py --watch` + board `#tvd-on` |
+| **ON** | Hidden `capture_win.ps1` (auto-pin D2R.exe + `eye.jpg` film) + `tv_diablo.py --watch` — **no second window** |
+| **OFF / STOP / RESTART** | Same control APIs as Mac (farewell on STOP) |
+| **SIM** | In-console theatre: last session, capture-ts locked to `hist/{frameId}.jpg` |
+| **Bible rail / TV·D** | Same window → `/board?app=1#…` (⌂ CONSOLE returns) |
+
+Capture default on Windows: **`TV_CAPTURE=auto`** (pin native D2R when present; full virtual screen as fallback). Set `TV_CAPTURE=full` to force desktop-wide.
 | **OFF** | Soft stop capture + reader + board off |
 | **STOP** | Full stop + farewell read |
 | **RESTART** | Stop → ON |

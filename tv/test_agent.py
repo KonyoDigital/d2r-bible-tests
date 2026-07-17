@@ -826,6 +826,29 @@ class TestReplay(unittest.TestCase):
             tv.JOURNAL = old_j
             tv.SESSION_ID = old_sid
 
+    def test_watch_mode_ignores_eye_jpg_for_settle(self):
+        """Windows film (eye.jpg) must not starve intelligence of live.bmp."""
+        d = tempfile.mkdtemp()
+        try:
+            old = tv.FRAMES
+            tv.FRAMES = d
+            open(os.path.join(d, "eye.jpg"), "wb").write(b"eye" + b"x" * 100)
+            time.sleep(0.02)
+            open(os.path.join(d, "live.bmp"), "wb").write(b"BM" + b"y" * 200)
+            hit = tv.newest_watched_frame()
+            self.assertTrue(hit and hit.endswith("live.bmp"), hit)
+            # cap_target status file
+            with open(os.path.join(d, "cap_target.json"), "w") as f:
+                f.write('{"mode":"window","label":"D2R · Diablo II: Resurrected"}')
+            tv._CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
+            tv._refresh_cap_target_from_disk()
+            self.assertEqual(tv._CAP_TARGET.get("mode"), "window")
+            self.assertIn("D2R", tv._CAP_TARGET.get("label") or "")
+        finally:
+            tv.FRAMES = old
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+
 
 class TestWindowPin(unittest.TestCase):
     """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""

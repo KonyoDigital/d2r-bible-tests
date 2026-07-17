@@ -861,3 +861,12 @@ film showed desktop; version drift v774 stamps vs tip v778+.
 - Grant **Python** Screen Recording if capture dies after app relaunch.
 
 🏓 **PING → Konyo:** stack is online at v783, suites green, ready for a real pile-hover farm run.
+
+
+### 🎯 v784.W — Windows twin parity (cousin app) ✅
+- `capture_win.ps1` → **v784**: default `TV_CAPTURE=auto` (pin native D2R.exe), browser/editor
+  blocklist, absolute D2R scoring, temp→promote live.bmp, writes **eye.jpg** for console film,
+  `cap_target.json` for status row, ~200ms poll.
+- Agent `--watch`: prefers live.bmp for settle; reads cap_target into `_CAP_TARGET` (🎯 pin events).
+- control `_env_clean`: sets `TV_CAPTURE=auto` on Windows when unset.
+- Launchers/install/README stamped for one-window + SIM exact reel product (same as Mac).
