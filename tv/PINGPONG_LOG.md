@@ -293,3 +293,10 @@ Konyo: "i was doing mephisto runs and it noticed them ausome!" — the product s
   📦result ⏳transition ⛔fault), newest = the active thought (enlarged, breathing), verb-first
   grammar, timestamps ghosted right. Screenshot-verified. Gated: board 9/9 + agent 46/46.
 - Grok's v740 farewell read GATED ✓ (suite includes his farewell tests — the run-#7 gap is closed).
+
+### 🌙 NIGHT R2+R3 — MCP user pass + vault e2e ✅
+- R2 (Konyo's real tab, v741): all 13 history frames render ✓ · true fullscreen ✓ (the earlier
+  'not full' remainder was an 11px scrollbar-naive audit check, not the app) · LIVE(0=agent off)/
+  LAST(13) toggle ✓ · Esc closes lightbox ✓ · chip hover-cards wired ✓ · switch keyboard-access ✓.
+- R3 (headless full-session e2e): floor/holding commits NOTHING (his doctrine) → stash commit =
+  vaulted + Vault-Manager-visible + Chronicle ✓ → dropped-back = tvVaultUnregister full reversal ✓.
