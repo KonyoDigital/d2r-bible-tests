@@ -972,3 +972,9 @@ speed×real-ms (2×/4× = dp/dt only, never rebuilds the axis), binary-search be
 T+mm:ss.mmm + wall dual clock in the header, timeline widths ∝ theatre time (equal dots lie),
 OCR+deep same-frame rows MERGE into one two-lane beat (no more discard). Axis sanity-tested in
 node: vault holds 2s, 38s quiet → 0.6s. 89/89 + 17/17.
+
+## 🏓 Grok R6 V3 → v799 "The Film Engine" (~07:05)
+WebView traps closed: decode-before-swap (probe Image warms the decoder, film.src flips only
+when ready — no white flash at 4×), bounded 3-slot preload pool (±2 neighbors, never a decoded-
+bitmap pileup), /hist Cache-Control immutable, ?w=1280 disk-cached theatre derivative (sips,
+cache1280/) — full 2560 original = click the film. 89/89 + 17/17.

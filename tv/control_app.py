@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v798)
+# 📺 TV DIABLO — Control App (Mac + Windows · v799)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -822,7 +822,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v798",
+        "ver": "v799",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1009,14 +1009,33 @@ class Handler(BaseHTTPRequestHandler):
             return {"error": str(e)}
 
     def _serve_hist(self, name):
-        """Serve an archived session frame (tv/frames/hist) — path-safe, jpg only."""
-        from urllib.parse import unquote
+        """Serve an archived session frame (tv/frames/hist) — path-safe, jpg only.
+        v799 (Grok R6 trap 2) — ?w=1280 serves a disk-cached theatre derivative: a decoded
+        2560px JPEG is ~14MB RGBA in the WebView; playback at 4x on full frames = memory death.
+        Full 2560 stays one click away (forensics 'open original')."""
+        from urllib.parse import unquote, urlparse, parse_qs
+        qs = parse_qs(urlparse(name).query or "")
         rel = unquote(name).split("?", 1)[0].split("#", 1)[0]
         target = os.path.realpath(os.path.join(HIST_DIR, rel))
         if not target.startswith(os.path.realpath(HIST_DIR) + os.sep) or not target.endswith(".jpg"):
             self._json(403, {"ok": False}); return
         if not os.path.isfile(target):
             self._json(404, {"ok": False}); return
+        want_w = (qs.get("w") or [""])[0]
+        if want_w == "1280" and not IS_WIN:
+            cache_dir = os.path.join(HIST_DIR, "cache1280")
+            cached = os.path.join(cache_dir, os.path.basename(target))
+            try:
+                if not os.path.isfile(cached):
+                    os.makedirs(cache_dir, exist_ok=True)
+                    r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72",
+                                        "--resampleHeightWidthMax", "1280", target, "--out", cached],
+                                       capture_output=True, timeout=10)
+                    if r.returncode != 0 or not os.path.isfile(cached):
+                        cached = target
+                target = cached
+            except Exception:
+                pass
         try:
             with open(target, "rb") as f:
                 data = f.read()
@@ -1025,7 +1044,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "max-age=3600")
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable")   # v799 — frameId is content-addressed
         self.end_headers()
         self.wfile.write(data)
 
@@ -1268,7 +1287,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v798 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v799 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

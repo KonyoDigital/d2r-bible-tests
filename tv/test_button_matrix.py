@@ -78,7 +78,7 @@ def main():
     print("══ BUTTON MATRIX · control API (mirrors every app button) ══")
     st = get(CTRL + "/api/status")
     check("control up", st.get("ok") is True, st)
-    check("version stamp", st.get("ver") == "v798", st.get("ver"))
+    check("version stamp", st.get("ver") == "v799", st.get("ver"))
 
     # ensure clean off
     print("\n· OFF (ensure dark)")
