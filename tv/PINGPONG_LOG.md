@@ -1469,3 +1469,13 @@ real guard); (2) FOOTAGE NEVER STARVES — failed window ticks archive a FULL-SC
 0.5s cadence (something beats blindness); (3) Grok back-pass's new-bug fix: drag coalesce now
 seeks the LATEST pointer per frame (v859 dropped the trail — jumpy). Grok starvation round
 (root-cause + heartbeat-read design) in flight → v861. 138/138 + 27/27.
+
+## 💓 v861 "No Caps, No Blindness" (Grok surgical + Konyo's cap insight, ~02:50 Jul 19)
+Konyo called it: 'so much smarter without a cap — it's locally stored.' COUNT CAPS ABOLISHED —
+the ONE retention governor is free disk (TV_MIN_FREE_GB=8): evict only under the floor, footage
+oldest-first then unprotected reads; every frame that fits LIVES (v813 count test recal'd to the
+new doctrine). Grok's forensic chokes shipped: sips tax killed (`or FILM_MAX_PX<3000` was always
+true — every frame paid a subprocess), dead pins release the wid (film full-screens instead of
+hammering a corpse), 💓 HEARTBEAT_S=8 forced dual-lane reads when combat never settles (146s
+blindness dead; settle/queue always win; origin+note journaled), health.footageFps + UI floors
+(FOOTAGE STARVE <0.8fps · READ BLIND >20s, was 180s). 138/138 + 27/27.

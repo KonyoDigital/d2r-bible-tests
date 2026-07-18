@@ -1341,7 +1341,8 @@ class TestOneBudget(unittest.TestCase):
             fid = tv.archive_read_frame(src, 99, 999999)
             live = {f for f in os.listdir(d) if f.endswith(".jpg")}
             cached = set(os.listdir(os.path.join(d, "cache1280")))
-            self.assertLessEqual(len(live), tv.HIST_KEEP + 1)
+            # v861.1 recal — COUNT CAPS ABOLISHED (Konyo): with free disk, EVERY frame lives.
+            self.assertGreaterEqual(len(live), 12, "frames must survive when the disk is fine")
             for c in cached:
                 self.assertIn(c, live, "derivative %s survived its source" % c)
             self.assertNotIn("999_999.jpg", cached, "orphan derivative survived")

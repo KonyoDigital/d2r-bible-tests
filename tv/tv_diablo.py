@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v860"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v861"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -40,6 +40,7 @@ PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests
 SESSION_ID = ""
 # v846 — TESLA DRIVE pacing (Konyo: ultra smooth / self-driving feel)
 MIN_GAP_S    = float(os.environ.get("TV_MIN_GAP", "2.0") or 2.0)       # was 4 — cruise re-reads sooner
+HEARTBEAT_S = max(4.0, min(20.0, float(os.environ.get("TV_HEARTBEAT", "8") or 8)))   # v861 (Grok c) — never blind >8s in combat
 PRIORITY_GAP_S = float(os.environ.get("TV_PRIORITY_GAP", "0.55") or 0.55)  # was 1.2 — pile snaps hard
 # v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
 SESSION_CAP  = 240
@@ -212,7 +213,16 @@ def _health(st):
     """v789 (Grok R4 #1) — one small truth object for the fault lamp. A 2-hour farm used to
     die quietly (vision stall, game quit, capture death) while the lamp said ON AIR."""
     now = time.time()
+    try:
+        _hd = os.path.join(FRAMES, "hist")
+        _nowf = time.time() * 1000
+        _recent = [f for f in os.listdir(_hd) if f.startswith("f_") and f.endswith(".jpg")
+                   and _nowf - int(f[2:-4]) < 10000]
+        _foot_fps = round(len(_recent) / 10.0, 2)
+    except Exception:
+        _foot_fps = None
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
+         "footageFps": _foot_fps,   # v861 — the archive floor, alarmed by the UI
          "visionBusyMs": int((now - _VISION_BUSY_AT) * 1000) if (_VISION_BUSY and _VISION_BUSY_AT) else 0,
          "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
          # v846 — Tesla-drive dashboard truth
@@ -808,7 +818,9 @@ def _film_loop():
                     wrote = False
             if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                 # Retina 2940+ → polish to FILM_MAX_PX @ FILM_JPEG_Q (default 2560 / q82)
-                if os.path.getsize(tmp) > 450_000 or FILM_MAX_PX < 3000:
+                # v861 (Grok #3 amplifier) — `or FILM_MAX_PX < 3000` was ALWAYS true: every good
+                # frame paid a sips subprocess. Only genuinely oversize frames pay now.
+                if os.path.getsize(tmp) > 450_000:
                     if _sips_hd_jpeg(tmp, eye):
                         try:
                             os.remove(tmp)
@@ -837,12 +849,14 @@ def _film_loop():
                         _sh.copyfile(eye, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
                         # v849 (audit-core #5) — reap footage HERE too: if reads stall while the
                         # film runs, footage no longer grows unbounded until the next read.
-                        if int(now_f) % 60 == 0:
+                        if int(now_f) % 120 == 0:
                             try:
-                                ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg"))
-                                for dead in ff[:-FOOT_KEEP]:
-                                    try: os.remove(os.path.join(hist_dir, dead))
-                                    except Exception: pass
+                                import shutil as _shu2
+                                if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
+                                    ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg"))
+                                    for dead in ff[:600]:   # shed oldest footage until the disk breathes
+                                        try: os.remove(os.path.join(hist_dir, dead))
+                                        except Exception: pass
                             except Exception:
                                 pass
                 except Exception:
@@ -921,7 +935,7 @@ def capture_mac(path, timeout=12):
                     _LAST_GOOD_WIN = None
                 _CAP_WHY = "window capture failed (screencapture+quartz) wid=%s" % wid
                 # keep wid so film thread can still try Quartz on this game window
-                _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY, "wid": wid}
+                _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY, "wid": None}   # v861 (Grok #2 choke) — dead pin releases the wid; film full-screens instead of hammering a corpse
             except Exception as e:
                 _CAP_WHY = "window capture exc: %s" % e
         if mode in ("window", "win", "game"):
@@ -1051,11 +1065,13 @@ try:
     HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "1500")))      # v839 — footage era: ceiling raised (REG-025)
     FOOT_MB = max(50, int(os.environ.get("TV_FOOT_MB", "400")))       # v840 — footage dies sooner (was 900; 2600 f_ drowned the night)
     FOOT_KEEP = max(60, int(os.environ.get("TV_FOOT_KEEP", "28800")))  # v860 (Konyo: 'change the global cap!') — ~4h @2fps; the MB budget (FOOT_MB) is the real guard, count can never eat older sessions
+    MIN_FREE_GB = max(2, int(os.environ.get("TV_MIN_FREE_GB", "8")))   # v861.1 — the ONLY retention governor
 except Exception:
     HIST_KEEP = 800
     HIST_MB = 1500
     FOOT_MB = 400
     FOOT_KEEP = 28800
+    MIN_FREE_GB = 8
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
 HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-crisp fullscreen (was 1920)
 
@@ -1267,22 +1283,25 @@ def archive_read_frame(src_path, n, ts_ms=None):
             foot_files = [f for f in files if os.path.basename(f).startswith("f_")]
             # v840 — journal shield: never delete a read frame still named in sessions.jsonl
             protected = _journal_frame_ids()
-            # v839/v840 (REG-025): footage dies FIRST under its own FOOT_MB + FOOT_KEEP
+            # v861.1 (Konyo: 'so much smarter without a cap — it's locally stored') — COUNT CAPS
+            # ABOLISHED. The one governor is FREE DISK: evict only when under MIN_FREE_GB,
+            # footage first (oldest→newest), then oldest UNPROTECTED reads. Every frame that
+            # fits on disk LIVES. Journal-named frames stay shielded.
             doomed = set()
-            foot_total = sum(_size_all(f) for f in foot_files)
-            k = 0
-            while foot_total > FOOT_MB * 1_000_000 and k < len(foot_files) - 60:
-                doomed.add(foot_files[k]); foot_total -= _size_all(foot_files[k]); k += 1
-            doomed |= set(foot_files[:-FOOT_KEEP])
-            # READ frames: count + MB, but NEVER journal-protected keys
             unprotected = [f for f in read_files if os.path.basename(f) not in protected]
-            read_total = sum(_size_all(f) for f in read_files)
-            k = 0
-            while read_total > HIST_MB * 1_000_000 and k < len(unprotected) - 60:
-                doomed.add(unprotected[k]); read_total -= _size_all(unprotected[k]); k += 1
-            # HIST_KEEP only applies to unprotected (journal wins over FIFO)
-            if len(unprotected) > HIST_KEEP:
-                doomed |= set(unprotected[:-HIST_KEEP])
+            try:
+                import shutil as _shu
+                free_gb = _shu.disk_usage(HIST_DIR).free / 1e9
+            except Exception:
+                free_gb = 999
+            if free_gb < MIN_FREE_GB:
+                need = (MIN_FREE_GB - free_gb) * 1e9
+                freed = 0
+                for f in list(foot_files) + list(unprotected):
+                    if freed >= need:
+                        break
+                    freed += _size_all(f)
+                    doomed.add(f)
             for old in doomed:
                 if os.path.basename(old) in protected and not os.path.basename(old).startswith("f_"):
                     continue  # belt: never unlink a journaled AI frame
@@ -2756,6 +2775,32 @@ def main():
         need_ticks = 1 if (priority or interest >= 0.55) else 2
         if stable < need_ticks:
             _AP["mode"] = "settle"
+            continue
+        # v861 (Grok c) — 💓 HEARTBEAT: constant combat never settles; reads starved 146s.
+        # No read for HEARTBEAT_S with vision free → force a dual-lane read of the CURRENT view
+        # (settle/queue still win whenever available; heartbeat never preempts them).
+        if (not _VISION_BUSY) and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S \
+                and not _SETTLE_QUEUE and stable < need_ticks:
+            _hb_gap = int((time.time() - last_read_t) * 1000)
+            reads += 1
+            read_ts = int(time.time() * 1000)
+            frame_id = archive_read_frame(frame, reads, read_ts)
+            ev("heartbeat", f"💓 heartbeat · no settle for {_hb_gap//1000}s (combat) · dual-lane read #{reads}"
+               + (f" · frame {frame_id}" if frame_id else ""))
+            print(f"  💓 heartbeat read #{reads} — {_hb_gap//1000}s since last (motion thrash)")
+            beat("reading", motion)
+            last_read_t = time.time()
+            last_sent_md5 = cur
+            globals()["_LAST_EMIT_SIG"] = cur
+            globals()["_DISPATCH_CTX"] = {"origin": "heartbeat", "apMode": "heartbeat",
+                                          "frameSrc": "live", "gapMs": _hb_gap,
+                                          "heartbeatS": HEARTBEAT_S,
+                                          "motion": round(float(motion), 4), "peak": round(float(peak), 4),
+                                          "settleTicks": int(stable),
+                                          "priority": bool(priority), "queueDepth": len(_SETTLE_QUEUE),
+                                          "note": "forced read — no settle for %ds (combat/motion thrash)" % (_hb_gap // 1000)}
+            _launch_vision(frame, cur, reads, frame_id, 0.6, priority, read_ts)
+            peak = 0.0
             continue
         if sig_diff(cur, last_sent_md5) <= SETTLE:
             # v795 — OCR-won / Claude-lost views get ONE re-fire instead of a permanent burn
