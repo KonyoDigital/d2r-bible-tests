@@ -1036,3 +1036,8 @@ every blocker in the toast as 'id: detail → fix'. Fable gate: 24/24 control (7
 session 1 (10 beats, Chaos Sanctuary, Annihilus in the stash reads). Marathon II = v800-v809,
 10 versions: Read Card · Feel Pack · Scrub Thumbs · Instant Replay · Loot of the Night ·
 Durable Night · Full Deck · One Engine · The Doctor · Night Card. 92/92 + 24/24.
+
+## 🏃 MARATHON III opens → v810 "The Chain Story" (~10:00)
+Hover any cast chip in the theatre caption → floating popover with the item's chain for that beat
+(ocr › floor › hold › vaulted 🏦 / thrown 🗑 / discovered 💬🏆) + short-label tag (owned/skip/
+no-chain map). Delegated hover, fixed-position, pointer-safe. 92/92 + 24/24.
