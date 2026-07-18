@@ -1015,3 +1015,10 @@ torn-line tolerance locked. .gitignore: tv/sessions.*.jsonl. Fable gate: patch a
 ## 🏃 v806 "Full Deck" (~09:00)
 0.5× slow-mo joins the speed cycle (0.5→1→2→4), Home/End = reel bookends, J/K = ±5 beat jumps.
 The transport deck is complete (Grok R7 #4 spec). 92/92 + 17/17.
+
+## 🏃 ARMY MERGE 2/3 → v807 "One Engine" (site-parity-agent, ~09:15)
+The website theatre runs the SAME v798 playhead as the app (thz- port, 9 anchors, drift-abort
+guard): piecewise axis, rAF playhead, dual T+/wall clock in the topline, proportional dots,
+press-at-end rewind, click-seek moves the playhead. Dual-engine drift is dead. New guard spec
+v807_site_playhead (fails on unpatched — verified genuine). Fable gate: 7 specs + 24 board/family
++ 92/92 + 17/17 all green.
