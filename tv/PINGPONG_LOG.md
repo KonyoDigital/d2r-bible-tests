@@ -1545,3 +1545,12 @@ cache; sticky bridge (live agent + bridge seen <10s = ON); (2) UI: failed fetch 
 good picture, 4 straight misses earn NO SIGNAL; on→off placard needs 3 consecutive off-polls;
 (3) hot poll 300→800ms. Also REG-027 (headless cycle stole the console window) logged earlier.
 145/145 + 27/27 + parity ×4.
+
+## 💾 v872.1 "THE 4GB NIGHT" (root cause of the choppy recording, Jul 19)
+THE disk was the deep villain all along: 4GB free vs MIN_FREE_GB=8 → the reaper ran in
+PERMANENT EMERGENCY, shedding footage as fast as the film loop archived it. Explains the
+mid-session gaps AND two suite reds (tests ran on the real, nearly-full disk). Fixes:
+freeGB/minFreeGB in agent health + console fault lamp 'DISK FULL — footage is being SHED';
+disk-touching tests stub a healthy disk (suite tests LOGIC, not Konyo's free space).
+Reclaimables found for Konyo (his call): ~2.2GB old screen recordings on Desktop, 2.8GB
+caches, 1GB Downloads. 145/145 + 27/27.

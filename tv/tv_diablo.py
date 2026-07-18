@@ -231,7 +231,13 @@ def _health(st):
                 _pool_oldest = min(int(j.get("startedAt") or 0) for j in _in_flight.values())
     except Exception:
         pass
+    try:
+        import shutil as _shf
+        _free_gb = round(_shf.disk_usage(FRAMES).free / 1e9, 1)
+    except Exception:
+        _free_gb = None
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
+         "freeGB": _free_gb, "minFreeGB": MIN_FREE_GB,   # v872.1 — disk emergency is LOUD, never silent
          "footageFps": _foot_fps,   # v861 — the archive floor, alarmed by the UI
          "visionBusyMs": (max(0, int(now * 1000) - _pool_oldest) if (_pool_pin and _pool_oldest) else 0),
          "poolInFlight": _pool_pin, "poolN": POOL_N,

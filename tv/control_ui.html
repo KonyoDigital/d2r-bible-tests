@@ -1176,6 +1176,7 @@
       if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture process died';   // v793
       else if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
       else if ((H.visionBusyMs || 0) > 45000) fault = 'VISION SLOW — read in flight ' + Math.round(H.visionBusyMs / 1000) + 's';
+      else if (H.freeGB != null && H.minFreeGB != null && H.freeGB < H.minFreeGB) fault = 'DISK FULL — ' + H.freeGB + 'GB free (<' + H.minFreeGB + 'GB): footage is being SHED as it records — free disk space';   // v872.1 — THE 4GB night
       else if (H.footageFps != null && H.footageFps < 0.8 && (H.sessionMs || 0) > 15000) fault = 'FOOTAGE STARVE — ' + H.footageFps + 'fps archive';   // v861
       else if ((H.lastReadAgeMs || 0) > 20000) fault = 'READ BLIND — no read for ' + Math.round(H.lastReadAgeMs / 1000) + 's';   // v861 — heartbeat makes 20s the honest floor
     }

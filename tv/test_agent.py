@@ -269,6 +269,16 @@ class TestLootLifecycleV2(unittest.TestCase):
         self.assertEqual(r["vault_names"], [])
 
 
+def _healthy_disk(cls_self):
+    """v872.1 (the 4GB night) — reaper paths read shutil.disk_usage; stub a healthy disk so
+    the suite tests the LOGIC, not how full Konyo's Mac happens to be."""
+    import shutil as _sh, collections as _co, unittest.mock as _mo
+    fake = _co.namedtuple("usage", "total used free")(500e9, 100e9, 400e9)
+    pat = _mo.patch.object(_sh, "disk_usage", return_value=fake)
+    pat.start()
+    cls_self.addCleanup(pat.stop)
+
+
 class TestFrameArchive(unittest.TestCase):
     """v735 — per-read frame hist for click-to-enlarge eyes-on-AI."""
     def setUp(self):
@@ -277,6 +287,7 @@ class TestFrameArchive(unittest.TestCase):
         self._old_hist = tv.HIST_DIR
         tv.FRAMES = self.d
         tv.HIST_DIR = os.path.join(self.d, "hist")
+        _healthy_disk(self)
 
     def tearDown(self):
         tv.FRAMES = self._old_frames
@@ -1318,6 +1329,7 @@ class TestOneBudget(unittest.TestCase):
 
     def test_prune_kills_derivative_twins_and_orphans(self):
         import shutil as sh
+        _healthy_disk(self)   # v872.1 — prune LOGIC under test, not the host's real free space
         d = tempfile.mkdtemp()
         old_hist = tv.HIST_DIR
         old_keep = tv.HIST_KEEP
@@ -1390,6 +1402,7 @@ class TestSettleQueue(unittest.TestCase):
     drained through the same pipeline the moment the read frees up — instead of vanishing at
     the `if _VISION_BUSY:` continue."""
     def setUp(self):
+        _healthy_disk(self)
         self.d = tempfile.mkdtemp()
         self._old = {k: getattr(tv, k) for k in
                      ("FRAMES", "SETTLE_QUEUE_CAP", "SETTLE_QUEUE_STALE_MS")}
