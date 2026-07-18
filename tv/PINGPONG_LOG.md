@@ -1067,3 +1067,8 @@ the cut admits it skipped. 94/94 + 24/24.
 Doctor session_integrity check: % of journal-tail reads whose hist frame EXISTS + sessionId
 coverage (live probe: frames 100% of 200 · sid 38/200 — pre-v780 rows unstamped, expected).
 24/24 + 94/94.
+
+## 🏃 v816 "Triple Lamp" (~11:05)
+Status carries bibleVer (30s-cached regex of D2R_BUILD); footer reads 'v816 control · board v816'
+and turns AMBER on drift; TestTripleParity locks bible==agent (test_stamps_match already locks
+agent==control) — the three stamps can never silently fork again. 25/25 + 94/94.

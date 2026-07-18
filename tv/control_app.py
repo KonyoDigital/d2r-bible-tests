@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v815)
+# 📺 TV DIABLO — Control App (Mac + Windows · v816)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v815",
+        "ver": "v816",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -854,6 +854,7 @@ def status_payload():
         "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),   # v785 — film honesty for the stage
         "health": (st or {}).get("health") or {},     # v789 — fault-lamp truth
         "captureProc": _capture_health(),             # v793 — Windows capture lamp (LINKED/DEAD/RESTARTED)
+        "bibleVer": _bible_ver(),                     # v816 — triple drift lamp (agent·app·board)
     }
 
 
@@ -861,6 +862,27 @@ def status_payload():
 # Windows self-diagnosis. Read-mostly, cross-platform, MUST return <2s, and NEVER
 # spawns the Claude CLI (claude_probe is a stub). ok == no severity-'block' failure.
 # D2R / the agent never have to be running for ok — pin & frame issues are 'warn'.
+
+_BIBLE_VER_CACHE = {"t": 0.0, "v": ""}
+def _bible_ver():
+    """v816 (Grok R8 #9) — the board's D2R_BUILD id, cached 30s (34k-line file, cheap regex)."""
+    now = time.time()
+    if now - _BIBLE_VER_CACHE["t"] < 30:
+        return _BIBLE_VER_CACHE["v"]
+    v = ""
+    try:
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8") as f:
+            for line in f:
+                if "window.D2R_BUILD" in line:
+                    m = re.search(r"id:'(v\d+)'", line)
+                    if m:
+                        v = m.group(1)
+                        break   # v816.1 — first MATCHING line, not first mention
+    except Exception:
+        pass
+    _BIBLE_VER_CACHE["t"] = now; _BIBLE_VER_CACHE["v"] = v
+    return v
+
 
 def _app_ver():
     """Doctor's ver mirrors status_payload's stamp (parity-locked to tv_diablo.VERSION)
@@ -1580,7 +1602,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v815 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v816 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

@@ -307,5 +307,24 @@ class TestDoctor(unittest.TestCase):
         finally:
             srv.shutdown()
 
+
+class TestTripleParity(unittest.TestCase):
+    """v816 (Grok R8 #9) — agent VERSION == control ver == bible D2R_BUILD id. Drift = red."""
+
+    def test_bible_matches_agent(self):
+        import re
+        import tv_diablo as tvmod
+        bib = os.path.join(os.path.dirname(HERE), "bible.html")
+        v = ""
+        with open(bib, encoding="utf-8") as f:
+            for line in f:
+                if "window.D2R_BUILD" in line:
+                    m = re.search(r"id:'(v\d+)'", line)
+                    if m:
+                        v = m.group(1)
+                        break   # v816.1 — keep scanning past bare mentions until the stamp line
+        self.assertEqual(v, tvmod.VERSION, "bible D2R_BUILD drifted from agent VERSION")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
