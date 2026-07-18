@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v867"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v868"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -656,6 +656,22 @@ def _quartz_grab_screen(dest_path, uti="public.jpeg"):
             CGImageDestinationFinalize, CGImageGetWidth,
             CFURLCreateFromFileSystemRepresentation,
         )
+        import objc as _objc   # v868 (Grok h) — 15fps retina CGImages need a pool, not GC luck
+        with _objc.autorelease_pool():
+            return _quartz_finish_screen(dest_path, uti)
+    except Exception:
+        return False
+
+
+def _quartz_finish_screen(dest_path, uti="public.jpeg"):
+    try:
+        from Quartz import (
+            CGWindowListCreateImage, CGRectInfinite,
+            kCGWindowListOptionOnScreenOnly, kCGWindowImageDefault, kCGNullWindowID,
+            CGImageDestinationCreateWithURL, CGImageDestinationAddImage,
+            CGImageDestinationFinalize, CGImageGetWidth,
+            CFURLCreateFromFileSystemRepresentation,
+        )
         img = CGWindowListCreateImage(
             CGRectInfinite, kCGWindowListOptionOnScreenOnly, kCGNullWindowID, kCGWindowImageDefault)
         if img is None or int(CGImageGetWidth(img) or 0) < 32:
@@ -686,11 +702,19 @@ def _quartz_grab_screen(dest_path, uti="public.jpeg"):
 
 
 def _quartz_grab_window(wid, dest_path, uti="public.png"):
-    """v844 — grab a single window via CGWindowListCreateImage (bypasses flaky screencapture -l
-    under TCC / launchd-orphaned agents). Writes PNG (or jpeg) to dest_path. Returns True on
-    a real multi-KB image. Read-only — no game input."""
+    """v844 — grab a single window via CGWindowListCreateImage. v868 — body under an
+    autorelease pool: this is the 15fps lane; retina CGImages must not wait for GC."""
     if not wid:
         return False
+    try:
+        import objc as _objc
+        with _objc.autorelease_pool():
+            return _quartz_finish_window(wid, dest_path, uti)
+    except Exception:
+        return False
+
+
+def _quartz_finish_window(wid, dest_path, uti="public.png"):
     try:
         from Quartz import (
             CGWindowListCreateImage, CGRectNull,
@@ -870,9 +894,13 @@ def _film_loop():
                     _lane_fail = 0
                 else:
                     _lane_fail += 1
-                    if _lane_fail >= 3:   # v867 — stop paying the corpse; full-screen for 30s
-                        _lane_full_until = time.time() + 30.0
+                    # v868 (Grok f) — first demotion needs 3 fails; after that, ONE fail
+                    # re-demotes (each probe costs up to ~4s — bound the tax) · 15s window
+                    _need = 1 if globals().get("_LANE_DEMOTED_ONCE") else 3
+                    if _lane_fail >= _need:
+                        _lane_full_until = time.time() + 15.0
                         _lane_fail = 0
+                        globals()["_LANE_DEMOTED_ONCE"] = True
                         globals()["_FILM_LANE"] = "full(demoted)"
             else:
                 # v867 — Quartz full screen first (~50ms), screencapture subprocess fallback
@@ -913,7 +941,10 @@ def _film_loop():
                 _FILM_TIMES.append(now_f)
                 # Footage ~2fps for theatre (was 1fps) — denser REAL video between AI reads
                 try:
-                    if now_f - globals().get("_FOOTAGE_AT", 0) >= 0.5:
+                    _due = globals().get("_FOOTAGE_DUE", 0.0)
+                    if now_f >= _due:
+                        # v868 — absolute 0.5s schedule (quantization-free 2fps); clamp catch-up
+                        globals()["_FOOTAGE_DUE"] = max(_due + 0.5, now_f - 0.49) if _due else now_f + 0.5
                         globals()["_FOOTAGE_AT"] = now_f
                         hist_dir = os.path.join(FRAMES, "hist")
                         os.makedirs(hist_dir, exist_ok=True)
@@ -939,9 +970,13 @@ def _film_loop():
                 # beats blindness; the theatre labels it footage either way).
                 try:
                     now_f2 = time.time()
-                    if now_f2 - globals().get("_FOOTAGE_AT", 0) >= 0.5:
-                        r2 = subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
-                                            capture_output=True, timeout=5)
+                    if now_f2 >= globals().get("_FOOTAGE_DUE", 0.0):
+                        globals()["_FOOTAGE_DUE"] = now_f2 + 0.5
+                        # v868 (Grok #5) — Quartz first: the window lane already burned its
+                        # subprocess; don't pay a second one for the never-starve frame
+                        if not _quartz_grab_screen(tmp, uti="public.jpeg"):
+                            subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
+                                           capture_output=True, timeout=5)
                         if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                             globals()["_FOOTAGE_AT"] = now_f2
                             hist_dir2 = os.path.join(FRAMES, "hist")
@@ -3082,8 +3117,11 @@ def main():
         # v866 (Konyo live: '4 reads in 149s, zero heartbeats') — the v861 heartbeat was DOUBLY
         # dead after the pool relocation: below the motion-continue (combat never reached it) and
         # behind an always-false stable guard. It lives HERE now — before motion can skip it.
+        _hb_static = sig_diff(cur, last_sent_md5) <= SETTLE if last_sent_md5 else False
         if (_vision_in_flight_n() < POOL_N) and (_heartbeat_in_flight_n() < _heartbeat_cap()) \
-                and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S and not _SETTLE_QUEUE:
+                and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S and not _SETTLE_QUEUE \
+                and not _in_flight_has_sig(cur) \
+                and ((not _hb_static) or (time.time() - last_read_t) >= 10.0):
             _hb_gap = int((time.time() - last_read_t) * 1000)
             reads += 1
             read_ts = int(time.time() * 1000)
@@ -3093,6 +3131,7 @@ def main():
             beat("reading", motion)
             last_read_t = time.time()
             last_sent_md5 = cur
+            last_md5 = cur   # v868 (Grok #4) — no phantom motion spike on the next poll
             globals()["_LAST_EMIT_SIG"] = cur
             globals()["_DISPATCH_CTX"] = {"origin": "heartbeat", "apMode": "heartbeat",
                                           "frameSrc": "live", "gapMs": _hb_gap,
