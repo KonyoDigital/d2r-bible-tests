@@ -1560,3 +1560,16 @@ Disk RESCUED: npm cache purge (7.1GB, fully regenerable) + pip/brew — 4GB → 
 the 8GB floor. Code: BOTH reapers (main + film-loop inline) now shed only frames older than
 15min — an emergency can starve NEW recording (loud DISK FULL fault says so) but can never
 retro-eat the session being recorded. 145/145 + 27/27 + parity ×4.
+
+## 🔌 v874+v875 "HOME LINE" (Konyo live reports, Jul 19)
+v874 — Forge intake DEAD in the app console (both machines): board posts relative /api/intake
+which only exists on the live site → local 404. Fixed with TWO lanes in control_app:
+(1) SUBSCRIPTION lane (his ask: 'use the subscription, not API tokens') — tv/intake_local.mjs
+runs the REAL locked intake.js/ask.js with a fetch shim that translates the Anthropic call
+into local `claude -p --allowedTools Read` (API keys stripped, exact agent auth pattern);
+proven e2e: real frame → sonnet → locked post-processing → clean JSON, 7.6s, 0 tokens.
+(2) website proxy fallback (Basic gate, UA fix — CF WAF 403s python-urllib; do_POST double-read
+hang fixed). Forge ROUTING verified fine on Mac (Playwright probe: tab activates; Windows =
+stale build, needs update/pull). v875 — console presence tracker: /api/console beacon
+(boot/onair/off/4-min hb, 10-min TTL presence) + /console?k= dashboard (online machines,
+mode badges, 30-day event log) — the console twin of /visits. 145/145 + 27/27 + parity ×4.

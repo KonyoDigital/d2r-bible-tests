@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v873)
+# 📺 TV DIABLO — Control App (Mac + Windows · v875)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -111,6 +111,47 @@ def _pid_cached():
         _PID_CACHE["pid"] = _port_listener_pid()
         _PID_CACHE["ts"] = now
     return _PID_CACHE["pid"]
+
+
+def _console_beacon(event="hb"):
+    """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
+    phone the presence beacon home. Silent on any failure; never blocks a caller."""
+    try:
+        import base64 as _b64, socket as _sock
+        st = status_payload()
+        body = json.dumps({
+            "machine": _sock.gethostname().split(".")[0],
+            "platform": st.get("platform"), "ver": st.get("ver"),
+            "mode": st.get("mode"), "event": event,
+            "user": os.environ.get("TVD_USER", ""),
+            "reads": st.get("readCount") or 0,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://bull-4-u.com/api/console", data=body,
+            headers={"Content-Type": "application/json", "User-Agent": "TVD-Console/1.0",
+                     "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()},
+            method="POST")
+        with urllib.request.urlopen(req, timeout=8) as r:
+            r.read()
+    except Exception:
+        pass
+
+
+def _console_beacon_async(event):
+    threading.Thread(target=_console_beacon, args=(event,), daemon=True).start()
+
+
+def _console_beacon_loop():
+    _console_beacon("boot")
+    _last_mode = [None]
+    while True:
+        time.sleep(240)
+        try:
+            m = status_payload().get("mode")
+            _console_beacon("mode:" + str(m) if m != _last_mode[0] and _last_mode[0] is not None else "hb")
+            _last_mode[0] = m
+        except Exception:
+            pass
 
 
 def _bridge_prober():
@@ -927,7 +968,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v873",
+        "ver": "v875",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1614,6 +1655,61 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path in ("/api/intake", "/api/ask"):
+            # v874 (Konyo: 'Forge image AI intake uploads broken in the app console') — the board
+            # posts to a RELATIVE /api/intake, which only exists as a Cloudflare function on the
+            # live site. In-app (Mac AND Windows) that hit this server and 404'd. Proxy to
+            # production with the site's Basic gate (password-only check, username free).
+            # v874 — SUBSCRIPTION LANE FIRST (Konyo: 'use the subscription, not API tokens'):
+            # tv/intake_local.mjs runs the REAL intake.js/ask.js with a fetch shim that rides
+            # the locally-authorized `claude` CLI. Website proxy = fallback only.
+            _runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intake_local.mjs")
+            if os.environ.get("TV_INTAKE_LOCAL", "1") != "0" and os.path.isfile(_runner):
+                try:
+                    _pr = subprocess.run(
+                        ["node", _runner],
+                        input=json.dumps({"path": path, "body": body}).encode("utf-8"),
+                        capture_output=True, timeout=150)
+                    if _pr.returncode == 0 and _pr.stdout:
+                        _out = json.loads(_pr.stdout.decode("utf-8", "replace"))
+                        _pl = (_out.get("body") or "").encode("utf-8")
+                        self.send_response(int(_out.get("status") or 200))
+                        self.send_header("Content-Type", "application/json")
+                        self.send_header("X-Intake-Lane", "subscription")
+                        self.send_header("Content-Length", str(len(_pl)))
+                        self.end_headers()
+                        self.wfile.write(_pl)
+                        return
+                except Exception:
+                    pass   # any local failure → website proxy below
+            try:
+                # do_POST already consumed rfile into `body` — a second read blocks forever
+                body_in = json.dumps(body).encode("utf-8")
+                import base64 as _b64
+                req = urllib.request.Request(
+                    "https://bull-4-u.com" + path,
+                    data=body_in,
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "TVD-Console/1.0",   # CF WAF 403s python-urllib's default UA
+                        "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode(),
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    out = r.read()
+                    self.send_response(r.status)
+                    self.send_header("Content-Type", r.headers.get("Content-Type") or "application/json")
+                    self.send_header("Content-Length", str(len(out)))
+                    self.end_headers()
+                    self.wfile.write(out)
+            except urllib.error.HTTPError as e:
+                out = e.read() if hasattr(e, "read") else b'{"ok":false}'
+                self._json(e.code, {"ok": False, "msg": "intake upstream %d" % e.code,
+                                    "detail": out.decode("utf-8", "replace")[:300]})
+            except Exception as e:
+                self._json(502, {"ok": False, "msg": "intake proxy failed — is the Mac online? " + str(e)[:200]})
+            return
         if path == "/api/session/delete":
             # v834 (Konyo: 'an option to delete a session if i want to') — POST {n} removes that
             # session's journal rows (across the generation ring) + its hist frames + footage in
@@ -1689,6 +1785,7 @@ class Handler(BaseHTTPRequestHandler):
                                  "mode": "stopping", "error": "still stopping"})
                 return
             r = start_agent(sim=False, test=bool(body.get("test")))
+            _console_beacon_async("onair")   # v875 — the dashboard flips 🔴 within seconds
             self._json(200, r)   # v778-pre — ON opens NOTHING (one-window world)
             return
         if path == "/api/sim":
@@ -1709,6 +1806,7 @@ class Handler(BaseHTTPRequestHandler):
             # v847 — OFF seals the session (session_end) WITHOUT long farewell vision, then kills.
             # Synchronous so the UI can wait for bridgeDown (no ghost ON AIR).
             r = stop_agent(farewell=False)
+            _console_beacon_async("off")   # v875
             self._json(200, r)
             return
         if path == "/api/stop":
@@ -1846,13 +1944,14 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v873 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v875 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
     print("   close the app window to quit control (agent left as-is unless you STOP).")
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
+    threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     time.sleep(0.2)
