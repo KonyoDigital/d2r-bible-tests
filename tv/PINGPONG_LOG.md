@@ -1430,3 +1430,14 @@ tab strip = ONLY the five engine tabs + TV·D, sticky full-width with even flex;
 stretched (max-width:none); pills compacted; routines widget/shortcut hints/stray chips hidden;
 no horizontal scroll at 1120×800. Visual-verified Session + F·Uniques. Family/deeplink specs
 green. 138/138 + 27/27.
+
+## 👁 v858 "The Tiny Eye" (Konyo LIVE ×2 + UX audit, ~00:30 Jul 19)
+(1) Konyo mid-run: the READING banner 'keeps jumping at me, cutting my feed' → while film-on the
+status chip collapses to a small corner 👁 badge (pulse dot, hover reveals words). (2) UX driver
+caught TWO real traps: .th-drawer-x float+sticky = INVISIBLE box in WebKit (30s unclickable — the
+drawer trap reborn; now absolute top-right + padding clearance, close verified 231ms) and the
+📚 shelf overlay burying the whole transport deck (now stops above the strip; 📚 toggles 40/25ms).
+(3) Full latency card measured: status RT 24ms · simOpen 86 · arrowStep 70 · cinema 36 · mode 30 —
+latency-free confirmed. Matrix ALL PASSED. ALSO REG-026 lesson: my backgrounded ship-chain
+cycled the app MID-RUN and killed Konyo's session after read #1 — restored live; DOCTRINE: no
+app cycles inside background chains; cycle only with mode=off.

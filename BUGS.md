@@ -627,3 +627,10 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   honest '⚠ photo pruned from disk' marker. Journals intact.
 - **Prevention**: any new archive class MUST declare its own budget + eviction priority before
   sharing a directory with the read archive.
+
+## REG-026 · background ship-chain killed a live session (2026-07-18)
+- **Symptom**: Konyo ON AIR got 1 read then silence; agent bridge dead.
+- **Root cause**: an operator (me) background chain contained kill+relaunch of control; it
+  completed mid-run and took the agent with it.
+- **Fix**: session restored via /api/on immediately; operational doctrine added — app cycles
+  NEVER ride background chains; cycle only when /api/status mode=off.

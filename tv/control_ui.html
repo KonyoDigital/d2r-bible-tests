@@ -279,6 +279,19 @@
     letter-spacing: .04em;
   }
   body.film-on .status-chip { display: inline-flex; }
+  /* v858 (Konyo LIVE: 'it keeps jumping at me — i want a tiny corner eye, not a banner
+     cutting my feed') — while the film plays, the chip COLLAPSES to a small pulsing eye.
+     Hover reveals the words; the feed stays clean. */
+  body.film-on .status-chip {
+    top: auto; left: auto; right: clamp(10px, 1.4vw, 18px); bottom: clamp(10px, 1.4vw, 18px);
+    max-width: none; padding: 7px; gap: 0; border-radius: 999px;
+    background: rgba(6, 8, 7, .72); transition: padding 160ms ease, gap 160ms ease; }
+  body.film-on .status-chip::before { content: '👁'; font-size: 15px; line-height: 1;
+    filter: drop-shadow(0 0 6px rgba(140, 230, 170, .5)); }
+  body.film-on .status-chip .sc-phase, body.film-on .status-chip .sc-note { display: none; }
+  body.film-on .status-chip .sc-dot { width: 6px; height: 6px; margin-left: 5px; }
+  body.film-on .status-chip:hover { padding: 6px 12px 6px 9px; gap: 8px; }
+  body.film-on .status-chip:hover .sc-phase { display: inline; }
   .status-chip .sc-dot {
     width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
     background: #7aef9a; box-shadow: 0 0 8px rgba(122,239,154,.65);
@@ -684,15 +697,18 @@
      strip buttons including its own ℹ toggle. It now stops above the transport, carries its own
      ✕, and never outranks the controls. */
   .th-drawer { position: absolute; top: 0; right: 0; bottom: clamp(54px, 9vh, 72px); width: min(380px, 44%);
+    padding-top: 38px;   /* v858.1 — clearance for the absolute ✕ */
     z-index: 5; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
     padding: 14px 16px; font: 500 11px/1.7 var(--mono); color: #b9c9be;
     letter-spacing: .02em; box-shadow: -12px 0 30px rgba(0,0,0,.5); }
   .th-drawer h4 { color: #d8bd7c; font: 700 10px/1 var(--mono);
     letter-spacing: .18em; margin: 12px 0 5px; text-transform: uppercase; }
   .th-drawer h4:first-child { margin-top: 0; }
-  .th-drawer-x { position: sticky; top: 0; float: right; background: rgba(20,24,20,.9);
-    border: 1px solid var(--edge); color: #d8bd7c; border-radius: 4px; padding: 2px 10px;
-    cursor: pointer; font: 700 12px/1.4 var(--mono); margin-left: 10px; margin-bottom: 6px; }
+  /* v858.1 — float+sticky collapses to an INVISIBLE box in WebKit (the latency driver caught
+     the ✕ unclickable for 30s — the drawer trap reborn). Absolute inside the drawer, always. */
+  .th-drawer-x { position: absolute; top: 8px; right: 12px; z-index: 2; background: rgba(20,24,20,.95);
+    border: 1px solid var(--edge); color: #d8bd7c; border-radius: 4px; padding: 3px 10px;
+    cursor: pointer; font: 700 12px/1.4 var(--mono); }
   .th-drawer .kv { display: flex; justify-content: space-between; gap: 10px; }
   .th-drawer .kv .k { opacity: .55; } .th-drawer .kv .v { text-align: right; word-break: break-all; }
   .th-drawer .col { margin: 2px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
@@ -736,7 +752,8 @@
     background: repeating-linear-gradient(0deg, rgba(0,0,0,.88) 0 2px, rgba(14,16,14,.88) 2px 4px);
     color: #d8bd7c; font: 800 clamp(16px,2vw,26px)/1 var(--serif); letter-spacing: .3em; }
   #th-slate.go { animation: thSlate 620ms ease-out; }
-  #th-shelfov { position: absolute; inset: 0; z-index: 14; overflow-y: auto; background: rgba(4,6,5,.94);
+  /* v858.2 — the shelf must never bury the transport deck (📚 stays a true toggle) */
+  #th-shelfov { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(54px, 9vh, 72px); z-index: 14; overflow-y: auto; background: rgba(4,6,5,.94);
     padding: clamp(16px,3vh,30px); display: block; }
   #th-shelfov[hidden] { display: none !important; }
   #th-shelfov .sh-head { font: 800 clamp(15px,1.8vw,22px)/1.4 var(--serif); color: #e8cf96; letter-spacing: .2em; margin-bottom: 14px; }
@@ -934,7 +951,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v856 control</span>
+      <span id="foot-ver">v858 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1200,7 +1217,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v856') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v858') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
