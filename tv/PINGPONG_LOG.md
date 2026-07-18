@@ -1313,3 +1313,15 @@ time-synced machine.
 - Bottle path truth: `~/CXPBottles/Battle.net Desktop App/`.
 
 **Gates:** agent+control suite · stamps v843.
+
+
+### 🎯 v844 — LIVE EYE GRAB (forensic ON AIR fix) ✅
+**Root cause (proven):** stuck v842 agent had Screen Recording deny at boot →
+`screencapture -l` forever `rc=1 size=0` while Quartz still saw D2R.exe wid.
+eye.jpg missing · film dead · captureTarget lied "full screen".
+
+**Fix:** `_quartz_grab_window` / `_capture_window_to_bmp` fallback after SC fails;
+film uses wid whenever known; restart agent v844.
+
+**Verified live:** pin `D2R.exe · Diablo II: Resurrected` · eyeAge <1s · reads in
+Rogue Encampment · control status v844 · eye frame is actual town (not desktop).

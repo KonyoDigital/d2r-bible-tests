@@ -966,6 +966,15 @@ class TestWindowPin(unittest.TestCase):
         # thin chrome bars under D2R.exe still lose on size
         self.assertIsNone(tv.score_d2r_window_candidate("D2R.exe", "", 1470, 33))
 
+    def test_quartz_grab_helpers_exist(self):
+        """v844 — capture stack has Quartz fallback + window BMP path (no live grab required)."""
+        self.assertTrue(callable(tv._quartz_grab_window))
+        self.assertTrue(callable(tv._capture_window_to_bmp))
+        self.assertTrue(callable(tv._screencapture_window))
+        # bad wid must not crash
+        self.assertFalse(tv._quartz_grab_window(0, "/tmp/nope_tvd.png"))
+        self.assertFalse(tv._quartz_grab_window(None, "/tmp/nope_tvd.png"))
+
     def test_capture_target_dict_shape(self):
         self.assertIn("mode", tv._CAP_TARGET)
         self.assertIn("label", tv._CAP_TARGET)

@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v843"   # ONE truth — pin D2R.exe only (never CrossOver Home / Battle.net shell)
+VERSION = "v844"   # ONE truth — Quartz window grab fallback; pin D2R.exe; live film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -568,6 +568,116 @@ def _cap_promote(tmp, path, min_bytes=10000):
             pass
 
 
+def _quartz_grab_window(wid, dest_path, uti="public.png"):
+    """v844 — grab a single window via CGWindowListCreateImage (bypasses flaky screencapture -l
+    under TCC / launchd-orphaned agents). Writes PNG (or jpeg) to dest_path. Returns True on
+    a real multi-KB image. Read-only — no game input."""
+    if not wid:
+        return False
+    try:
+        from Quartz import (
+            CGWindowListCreateImage, CGRectNull,
+            kCGWindowListOptionIncludingWindow, kCGWindowImageDefault,
+            CGImageDestinationCreateWithURL, CGImageDestinationAddImage,
+            CGImageDestinationFinalize, CGImageGetWidth, CGImageGetHeight,
+            CFURLCreateFromFileSystemRepresentation,
+        )
+        img = CGWindowListCreateImage(
+            CGRectNull, kCGWindowListOptionIncludingWindow, int(wid), kCGWindowImageDefault)
+        if img is None:
+            return False
+        w, h = int(CGImageGetWidth(img) or 0), int(CGImageGetHeight(img) or 0)
+        if w < 32 or h < 32:
+            return False
+        dest_path = os.path.abspath(dest_path)
+        parent = os.path.dirname(dest_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        # write atomically via .part then replace
+        part = dest_path + ".part"
+        try:
+            if os.path.exists(part):
+                os.remove(part)
+        except Exception:
+            pass
+        bpath = part.encode("utf-8")
+        url = CFURLCreateFromFileSystemRepresentation(None, bpath, len(bpath), False)
+        if url is None:
+            return False
+        dest = CGImageDestinationCreateWithURL(url, uti, 1, None)
+        if dest is None:
+            return False
+        CGImageDestinationAddImage(dest, img, None)
+        if not CGImageDestinationFinalize(dest):
+            return False
+        if not (os.path.isfile(part) and os.path.getsize(part) > 4000):
+            return False
+        os.replace(part, dest_path)
+        return True
+    except Exception:
+        try:
+            part = dest_path + ".part"
+            if os.path.exists(part):
+                os.remove(part)
+        except Exception:
+            pass
+        return False
+
+
+def _screencapture_window(wid, tmp_path, fmt="bmp", timeout=12):
+    """Try macOS screencapture -l. Returns True if tmp_path has real bytes."""
+    try:
+        r = subprocess.run(
+            ["screencapture", "-l", str(int(wid)), "-o", "-x", "-t", fmt, tmp_path],
+            capture_output=True, timeout=timeout,
+        )
+        return os.path.isfile(tmp_path) and os.path.getsize(tmp_path) > 10000
+    except Exception:
+        return False
+
+
+def _capture_window_to_bmp(wid, path, timeout=12):
+    """v844 — pin a window to BMP for the intelligence loop.
+    1) screencapture -l  2) Quartz grab → PNG → sips BMP. Prefer Quartz when SC fails."""
+    tmp = _cap_tmp(path)
+    try:
+        if _screencapture_window(wid, tmp, fmt="bmp", timeout=timeout):
+            if _cap_promote(tmp, path):
+                return True
+        # clean failed tmp
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+        # Quartz path
+        png = path + ".qz.png"
+        if not _quartz_grab_window(wid, png, uti="public.png"):
+            return False
+        # convert PNG → BMP for frame_sig (samples BMP body)
+        try:
+            r = subprocess.run(
+                ["sips", "-s", "format", "bmp", png, "--out", tmp],
+                capture_output=True, timeout=timeout,
+            )
+        except Exception:
+            r = None
+        try:
+            if os.path.exists(png):
+                os.remove(png)
+        except Exception:
+            pass
+        if _cap_promote(tmp, path, min_bytes=8000):
+            return True
+        return False
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+
+
 _EYE_PREVIEW_AT = 0.0
 _FILM_THREAD = None
 _PICK_CACHE = None   # (hit, monotonic_t) — avoid Quartz every frame
@@ -606,14 +716,35 @@ def _film_loop():
         t0 = time.time()
         try:
             os.makedirs(FRAMES, exist_ok=True)
-            wid = _CAP_TARGET.get("wid") if (_CAP_TARGET or {}).get("mode") == "window" else None
+            # v844 — use wid whenever we know the game window (even if mode fell back to "full"
+            # after a transient SC failure — film must still show D2R, not the desktop)
+            wid = (_CAP_TARGET or {}).get("wid")
+            if (_CAP_TARGET or {}).get("mode") == "waiting":
+                wid = None
+            wrote = False
             if wid:
-                cmd = ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp]
+                # v844 — screencapture first; Quartz window grab if SC returns empty (TCC flaky)
+                try:
+                    r = subprocess.run(
+                        ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
+                        capture_output=True, timeout=6,
+                    )
+                    wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+                except Exception:
+                    wrote = False
+                if not wrote:
+                    wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
             else:
                 # full display while waiting / auto-fallback — still better than a frozen frame
-                cmd = ["screencapture", "-x", "-t", "jpg", tmp]
-            r = subprocess.run(cmd, capture_output=True, timeout=6)
-            if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
+                try:
+                    subprocess.run(
+                        ["screencapture", "-x", "-t", "jpg", tmp],
+                        capture_output=True, timeout=6,
+                    )
+                    wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+                except Exception:
+                    wrote = False
+            if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                 # huge frames (retina full-desk) — light shrink so the WebView paints fast
                 if os.path.getsize(tmp) > 700_000:
                     subprocess.run(
@@ -683,16 +814,11 @@ def capture_mac(path, timeout=12):
             _CAP_WHY = "no game window: %s" % (_PICK_WHY or "no match in list")
         if hit:
             wid, label = hit
-            tmp = _cap_tmp(path)
             try:
-                r = subprocess.run(
-                    ["screencapture", "-l", str(wid), "-o", "-x", "-t", "bmp", tmp],
-                    capture_output=True, timeout=timeout,
-                )
-                # v779 — screencapture -l can exit 1 while writing a PERFECT frame (cross-Space
-                # window): trust the OUTPUT FILE (tmp), not the exit code — and never the old path.
-                if _cap_promote(tmp, path):
-                    if _CAP_TARGET.get("wid") != wid:
+                # v844 — screencapture -l OR Quartz CGWindowListCreateImage (SC alone was
+                # dying all night with rc=1 size=0 while D2R.exe was right there)
+                if _capture_window_to_bmp(wid, path, timeout=timeout):
+                    if _CAP_TARGET.get("wid") != wid or _CAP_TARGET.get("mode") != "window":
                         try: ev("cap", "🎯 eye pinned to %s" % label)
                         except Exception: pass
                     _CAP_TARGET = {"mode": "window", "label": label, "wid": wid}
@@ -700,21 +826,11 @@ def capture_mac(path, timeout=12):
                 # this wid failed for real — drop the cache so full-screen can take over
                 if _LAST_GOOD_WIN and _LAST_GOOD_WIN[0] == wid:
                     _LAST_GOOD_WIN = None
-                sz = os.path.getsize(tmp) if os.path.exists(tmp) else 0
-                try:
-                    if os.path.exists(tmp):
-                        os.remove(tmp)
-                except Exception:
-                    pass
-                _CAP_WHY = "window capture failed rc=%s size=%s" % (getattr(r, "returncode", "?"), sz)
+                _CAP_WHY = "window capture failed (screencapture+quartz) wid=%s" % wid
+                # keep wid so film thread can still try Quartz on this game window
                 _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY, "wid": wid}
             except Exception as e:
                 _CAP_WHY = "window capture exc: %s" % e
-                try:
-                    if os.path.exists(tmp):
-                        os.remove(tmp)
-                except Exception:
-                    pass
         if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
             return False
