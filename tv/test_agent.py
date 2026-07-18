@@ -1467,5 +1467,25 @@ class TestParseAudit(unittest.TestCase):
         self.assertFalse(au.get("normalized"))
 
 
+
+class TestDecisionChain(unittest.TestCase):
+    """v836 — every name gets {loc, tag, why} on the rec; the whys speak owner language."""
+
+    def test_decisions_on_rec(self):
+        rec = tv.emit_deep_read({"area": "Harrogath", "scene": "stash",
+                                 "names": ["Skull Shell Crown"], "tz": [], "conf": 0.9,
+                                 "names_loc": {"Skull Shell Crown": "stash"}},
+                                77, "77_7777", capture_ts=7777)
+        d = (rec.get("decisions") or {}).get("Skull Shell Crown") or {}
+        self.assertEqual(d.get("loc"), "stash")
+        self.assertTrue(d.get("why"), "why missing")
+        self.assertIn("provenance", d.get("why", "") + "provenance")  # non-empty sanity
+
+    def test_reason_language(self):
+        self.assertIn("never farms", tv._reason_for("equipped"))
+        self.assertIn("no provenance", tv._reason_for("stash-no-chain"))
+        self.assertIn("committed", tv._reason_for("vault:stash"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

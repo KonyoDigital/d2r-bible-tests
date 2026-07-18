@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v835"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v836"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2431,6 +2431,35 @@ def main():
         _launch_vision(frame, cur, reads, frame_id, interest, used_priority, read_ts)
         continue
 
+def _reason_for(tag, loc=""):
+    """v836 (SIMULATION_SPEC) — every verdict tag gets a WHY in the owner's language.
+    Tags say WHAT the pipeline did; these say WHY, for the SIM decision chain."""
+    t = str(tag or "")
+    if t == "equipped":
+        return "worn gear (unequip tell) — never farms; chronicle tally only"
+    if t.startswith("vault:stash"):
+        return "seen earlier this session, then read in the stash panel — committed to the vault"
+    if t.startswith("vault:"):
+        return "committed to the vault (" + t.split(":", 1)[1] + ")"
+    if t == "already-vaulted":
+        return "this name already vaulted this session and no fresh sighting since — not counted twice"
+    if t == "stash-no-chain":
+        return "read in the stash but NEVER seen on floor/inventory this session — no provenance, blocked"
+    if t == "skip-weak":
+        return "matched the never-vault list (junk/basic) — ignored on purpose"
+    if t == "seen":
+        return "floor label — entered the SEEN ledger, waiting for pickup"
+    if t == "ocr-pending":
+        return "the fast OCR lane saw it while the deep read missed — floor-seeded, one re-read armed"
+    if "inventory" in t:
+        return "in the inventory (" + t + ") — HOLDING until it reaches the stash"
+    if t.startswith("throw-out") or t == "floor-again":
+        return "seen on the floor AFTER being held/vaulted — treated as thrown out"
+    if loc == "inventory":
+        return "inventory-side tooltip — holds, never vaults from here"
+    return t or "no verdict this frame"
+
+
 def effective_lc_scene(scene, names):
     """v753 — run-#8 lesson: a pile read Sonnet labels 'gameplay' but NAMES items is loot-class
     for the lifecycle (else stash can never vault what was honestly seen). Display keeps the label."""
@@ -2549,6 +2578,11 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "dispatch": dict(globals().get("_DISPATCH_CTX") or ({"origin": "farewell"} if farewell else {})),
         "promptVer": PROMPT_VER,   # v832 — which prompt read this frame
         "parse": rd.get("_parse_audit") or {},   # v835 — the clamp/drop audit
+        "decisions": {n: {"loc": (rd.get("names_loc") or {}).get(n, ""),
+                          "tag": (lc.get("lifecycle_tags") or {}).get(n, ""),
+                          "why": _reason_for((lc.get("lifecycle_tags") or {}).get(n, ""),
+                                             (rd.get("names_loc") or {}).get(n, ""))}
+                      for n in names},   # v836 — THE DECISION CHAIN
         "equipped_names": [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"],
         "ocr_seeded": _ocr_seed,         # v795 — names the fast lane saved from an empty deep read
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],

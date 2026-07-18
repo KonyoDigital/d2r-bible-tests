@@ -1196,3 +1196,8 @@ Parse audit through _parse_read: strategy (first-last/balanced), rawLen, normali
 clamps with from→to→why), dropped[] (invalid locs, name truncation) — journaled per read,
 drawer section renders ⚠/✂ lines or 'clean — everything the model said survived'. 3 locks.
 113/113 + 26/26.
+
+## 🏓 R14 → v836 "The Decision Chain" (~19:55)
+_reason_for(tag, loc): every verdict speaks WHY in Konyo's language ('read in the stash but
+NEVER seen on floor/inventory this session — no provenance, blocked'); rec.decisions =
+{name: {loc, tag, why}}; drawer chain section: name 🎽/🎒/🏦/🧱 › tag › why. 115/115 + 26/26.

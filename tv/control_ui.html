@@ -858,7 +858,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v835 control</span>
+      <span id="foot-ver">v836 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1098,7 +1098,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v835') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v836') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1638,7 +1638,21 @@
       + col('deep', b.names) + col('ocr', b.ocr_names) + col('confirmed', b.confirmed_names)
       + col('vault', b.vault_names) + col('holding', b.pending_names) + col('thrown', b.thrown_names)
       + col('discovered', b.discovered_names) + col('ocr-rescued', b.ocr_seeded)
-      + '<h4>lifecycle</h4>';
+      + '<h4>the decision chain — what · where · why</h4>';
+    var dec = b.decisions || {};
+    var dk = Object.keys(dec);
+    if (dk.length){
+      dk.forEach(function(nm){
+        var d = dec[nm] || {};
+        var locB = d.loc === 'equipped' ? '🎽' : (d.loc === 'inventory' ? '🎒' : (d.loc === 'stash' ? '🏦' : (d.loc === 'floor' ? '🧱' : '')));
+        h += '<div class="col"><b style="color:#d9c9a0">' + esc(nm) + '</b> ' + locB
+          + (d.tag ? ' <span style="color:#bfae7f">› ' + esc(d.tag) + '</span>' : '')
+          + '<br><em style="opacity:.7">' + esc(d.why || '') + '</em></div>';
+      });
+    } else {
+      h += '<div class="col"><em>' + (b.promptVer ? 'no names this frame' : 'not recorded before v836') + '</em></div>';
+    }
+    h += '<h4>lifecycle tags (raw)</h4>';
     var tags = b.lifecycle_tags || {};
     var tk = Object.keys(tags);
     h += tk.length ? tk.map(function(nm){ return '<div class="col">' + esc(nm) + ' <em>› ' + esc(tags[nm]) + '</em></div>'; }).join('') : '<div class="col">—</div>';
