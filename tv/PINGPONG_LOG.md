@@ -1517,3 +1517,11 @@ called it; production confirmed). v866 moves the heartbeat ABOVE the motion gate
 DURING combat onto free pool slots (that's its whole purpose), pool telemetry in the ev line.
 145/145 + 27/27. NEXT RUN EXPECTATION: 2:29 → ~70 heartbeat+settle reads across 8 readers +
 ~300 footage frames, reel opens as video.
+
+## 🎞 v867 "180 IN 3" (Konyo: 'verify 1fps floor FOR REAL — 3 min = 180+ frames', Jul 18)
+Benchmarked the REAL stage costs on his Mac: full-screen screencapture 312ms · sips 98ms ·
+Quartz window grab 12ms. His 0.52fps run = the loop paying a FAILING `screencapture -l` (1-4s
+burn on a CrossOver surface) every iteration before the fallback fired. v867: LANE BRAIN — 3
+straight window-lane failures demote to full-screen lane for 30s; full-screen lane goes Quartz-
+first (~50ms, no subprocess); health gains filmLane + filmCapMs. 145/145 + 27/27 + parity ×4.
+ACCEPTANCE: live 3-min run — footage ≥180 frames, gap stats, reader spread, heartbeat count.

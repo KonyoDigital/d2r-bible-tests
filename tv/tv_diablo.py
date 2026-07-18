@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v866"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v867"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -237,6 +237,7 @@ def _health(st):
          "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
          # v846 — Tesla-drive dashboard truth
          "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
+         "filmLane": globals().get("_FILM_LANE", ""), "filmCapMs": globals().get("_FILM_CAP_MS"),   # v867
          "filmMaxPx": FILM_MAX_PX, "pollMs": int(POLL_S * 1000),
          "gapCruiseS": MIN_GAP_S, "gapPriorityS": PRIORITY_GAP_S}
     try:
@@ -644,6 +645,46 @@ def _cap_promote(tmp, path, min_bytes=10000):
             pass
 
 
+def _quartz_grab_screen(dest_path, uti="public.jpeg"):
+    """v867 — full-screen grab via Quartz (no subprocess): ~50ms vs screencapture's ~300ms.
+    The film loop's full-screen lane runs here first; screencapture stays as fallback."""
+    try:
+        from Quartz import (
+            CGWindowListCreateImage, CGRectInfinite,
+            kCGWindowListOptionOnScreenOnly, kCGWindowImageDefault, kCGNullWindowID,
+            CGImageDestinationCreateWithURL, CGImageDestinationAddImage,
+            CGImageDestinationFinalize, CGImageGetWidth,
+            CFURLCreateFromFileSystemRepresentation,
+        )
+        img = CGWindowListCreateImage(
+            CGRectInfinite, kCGWindowListOptionOnScreenOnly, kCGNullWindowID, kCGWindowImageDefault)
+        if img is None or int(CGImageGetWidth(img) or 0) < 32:
+            return False
+        dest_path = os.path.abspath(dest_path)
+        part = dest_path + ".part"
+        try:
+            if os.path.exists(part):
+                os.remove(part)
+        except Exception:
+            pass
+        bpath = part.encode("utf-8")
+        url = CFURLCreateFromFileSystemRepresentation(None, bpath, len(bpath), False)
+        if url is None:
+            return False
+        dest = CGImageDestinationCreateWithURL(url, uti, 1, None)
+        if dest is None:
+            return False
+        CGImageDestinationAddImage(dest, img, None)
+        if not CGImageDestinationFinalize(dest):
+            return False
+        if not (os.path.isfile(part) and os.path.getsize(part) > 4000):
+            return False
+        os.replace(part, dest_path)
+        return True
+    except Exception:
+        return False
+
+
 def _quartz_grab_window(wid, dest_path, uti="public.png"):
     """v844 — grab a single window via CGWindowListCreateImage (bypasses flaky screencapture -l
     under TCC / launchd-orphaned agents). Writes PNG (or jpeg) to dest_path. Returns True on
@@ -797,6 +838,12 @@ def _film_loop():
     Claude thinking never freezes this thread."""
     eye = os.path.join(FRAMES, "eye.jpg")
     tmp = eye + ".part.jpg"
+    # v867 (Konyo: '180 frames minimum in 3 minutes, verify FOR REAL') — his 0.52fps run was the
+    # loop paying a FAILING window grab (screencapture -l on a CrossOver surface burns 1-4s
+    # failing) every iteration before the fallback fired. Lane brain: 3 straight window-lane
+    # failures demote to the full-screen lane for 30s (~300ms/frame → honest 2fps footage).
+    _lane_fail = 0
+    _lane_full_until = 0.0
     while True:
         t0 = time.time()
         try:
@@ -804,6 +851,8 @@ def _film_loop():
             wid = (_CAP_TARGET or {}).get("wid")
             if (_CAP_TARGET or {}).get("mode") == "waiting":
                 wid = None
+            if time.time() < _lane_full_until:
+                wid = None   # demoted — full-screen lane only, no doomed -l attempts
             wrote = False
             if wid:
                 # v846 — Quartz first (fast path when TCC ok), screencapture fallback
@@ -817,15 +866,28 @@ def _film_loop():
                         wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
                     except Exception:
                         wrote = False
+                if wrote:
+                    _lane_fail = 0
+                else:
+                    _lane_fail += 1
+                    if _lane_fail >= 3:   # v867 — stop paying the corpse; full-screen for 30s
+                        _lane_full_until = time.time() + 30.0
+                        _lane_fail = 0
+                        globals()["_FILM_LANE"] = "full(demoted)"
             else:
-                try:
-                    subprocess.run(
-                        ["screencapture", "-x", "-t", "jpg", tmp],
-                        capture_output=True, timeout=4,
-                    )
-                    wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
-                except Exception:
-                    wrote = False
+                # v867 — Quartz full screen first (~50ms), screencapture subprocess fallback
+                wrote = _quartz_grab_screen(tmp, uti="public.jpeg")
+                if not wrote:
+                    try:
+                        subprocess.run(
+                            ["screencapture", "-x", "-t", "jpg", tmp],
+                            capture_output=True, timeout=4,
+                        )
+                        wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+                    except Exception:
+                        wrote = False
+            globals()["_FILM_LANE"] = ("window" if wid else ("full(demoted)" if time.time() < _lane_full_until else "full"))
+            globals()["_FILM_CAP_MS"] = int((time.time() - t0) * 1000)
             if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                 # Retina 2940+ → polish to FILM_MAX_PX @ FILM_JPEG_Q (default 2560 / q82)
                 # v861 (Grok #3 amplifier) — `or FILM_MAX_PX < 3000` was ALWAYS true: every good
