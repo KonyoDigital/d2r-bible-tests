@@ -1554,3 +1554,9 @@ freeGB/minFreeGB in agent health + console fault lamp 'DISK FULL — footage is 
 disk-touching tests stub a healthy disk (suite tests LOGIC, not Konyo's free space).
 Reclaimables found for Konyo (his call): ~2.2GB old screen recordings on Desktop, 2.8GB
 caches, 1GB Downloads. 145/145 + 27/27.
+
+## 🛡 v873 "YOUTH SHIELD" (autonomous, Jul 19)
+Disk RESCUED: npm cache purge (7.1GB, fully regenerable) + pip/brew — 4GB → 13GB free, above
+the 8GB floor. Code: BOTH reapers (main + film-loop inline) now shed only frames older than
+15min — an emergency can starve NEW recording (loud DISK FULL fault says so) but can never
+retro-eat the session being recorded. 145/145 + 27/27 + parity ×4.

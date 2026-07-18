@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v872"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v873"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -977,8 +977,11 @@ def _film_loop():
                             try:
                                 import shutil as _shu2
                                 if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
-                                    ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg"))
-                                    for dead in ff[:600]:   # shed oldest footage until the disk breathes
+                                    # v873 — youth shield here too: only frames older than 15min shed
+                                    _yc = (time.time() - 900.0) * 1000
+                                    ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg")
+                                                and int(f[2:-4]) < _yc)
+                                    for dead in ff[:600]:   # shed oldest OLD footage until the disk breathes
                                         try: os.remove(os.path.join(hist_dir, dead))
                                         except Exception: pass
                             except Exception:
@@ -1424,9 +1427,19 @@ def archive_read_frame(src_path, n, ts_ms=None):
             except Exception:
                 free_gb = 999
             if free_gb < MIN_FREE_GB:
+                # v873 (THE 4GB NIGHT) — YOUTH SHIELD: an emergency may NEVER eat the session
+                # being recorded. Frames younger than 15min survive every shed; old sessions
+                # die first. If everything is young, we shed nothing and the DISK FULL fault
+                # (v872.1) tells Konyo the truth instead of silently chewing his recording.
+                _young_cut = time.time() - 900.0
+                def _is_old(_f):
+                    try:
+                        return os.path.getmtime(_f) < _young_cut
+                    except Exception:
+                        return True
                 need = (MIN_FREE_GB - free_gb) * 1e9
                 freed = 0
-                for f in list(foot_files) + list(unprotected):
+                for f in [x for x in foot_files if _is_old(x)] + [x for x in unprotected if _is_old(x)]:
                     if freed >= need:
                         break
                     freed += _size_all(f)
