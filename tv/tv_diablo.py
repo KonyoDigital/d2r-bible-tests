@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v864"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v866"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3017,6 +3017,31 @@ def main():
             continue
         beat("watching", motion)
 
+        # v866 (Konyo live: '4 reads in 149s, zero heartbeats') — the v861 heartbeat was DOUBLY
+        # dead after the pool relocation: below the motion-continue (combat never reached it) and
+        # behind an always-false stable guard. It lives HERE now — before motion can skip it.
+        if (_vision_in_flight_n() < POOL_N) and (_heartbeat_in_flight_n() < _heartbeat_cap()) \
+                and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S and not _SETTLE_QUEUE:
+            _hb_gap = int((time.time() - last_read_t) * 1000)
+            reads += 1
+            read_ts = int(time.time() * 1000)
+            frame_id = archive_read_frame(frame, reads, read_ts)
+            ev("heartbeat", f"💓 heartbeat · {_hb_gap//1000}s since last read · dual-lane #{reads} · pool {_vision_in_flight_n()}/{POOL_N}")
+            print(f"  💓 heartbeat read #{reads} — {_hb_gap//1000}s since last · pool {_vision_in_flight_n()}/{POOL_N}")
+            beat("reading", motion)
+            last_read_t = time.time()
+            last_sent_md5 = cur
+            globals()["_LAST_EMIT_SIG"] = cur
+            globals()["_DISPATCH_CTX"] = {"origin": "heartbeat", "apMode": "heartbeat",
+                                          "frameSrc": "live", "gapMs": _hb_gap,
+                                          "heartbeatS": HEARTBEAT_S,
+                                          "motion": round(float(motion), 4), "peak": round(float(peak), 4),
+                                          "settleTicks": int(stable),
+                                          "priority": bool(priority), "queueDepth": len(_SETTLE_QUEUE),
+                                          "note": "forced read — %ds since last (combat/motion)" % (_hb_gap // 1000)}
+            _launch_vision(frame, cur, reads, frame_id, 0.6, priority, read_ts)
+            continue
+
         if motion > SETTLE:
             stable = 0
             last_md5 = cur
@@ -3030,32 +3055,7 @@ def main():
         if stable < need_ticks:
             _AP["mode"] = "settle"
             continue
-        # v861 (Grok c) — 💓 HEARTBEAT: constant combat never settles; reads starved 146s.
-        # No read for HEARTBEAT_S with vision free → force a dual-lane read of the CURRENT view
-        # (settle/queue still win whenever available; heartbeat never preempts them).
-        if (_vision_in_flight_n() < POOL_N) and (_heartbeat_in_flight_n() < _heartbeat_cap()) and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S \
-                and not _SETTLE_QUEUE and stable < need_ticks:
-            _hb_gap = int((time.time() - last_read_t) * 1000)
-            reads += 1
-            read_ts = int(time.time() * 1000)
-            frame_id = archive_read_frame(frame, reads, read_ts)
-            ev("heartbeat", f"💓 heartbeat · no settle for {_hb_gap//1000}s (combat) · dual-lane read #{reads}"
-               + (f" · frame {frame_id}" if frame_id else ""))
-            print(f"  💓 heartbeat read #{reads} — {_hb_gap//1000}s since last (motion thrash)")
-            beat("reading", motion)
-            last_read_t = time.time()
-            last_sent_md5 = cur
-            globals()["_LAST_EMIT_SIG"] = cur
-            globals()["_DISPATCH_CTX"] = {"origin": "heartbeat", "apMode": "heartbeat",
-                                          "frameSrc": "live", "gapMs": _hb_gap,
-                                          "heartbeatS": HEARTBEAT_S,
-                                          "motion": round(float(motion), 4), "peak": round(float(peak), 4),
-                                          "settleTicks": int(stable),
-                                          "priority": bool(priority), "queueDepth": len(_SETTLE_QUEUE),
-                                          "note": "forced read — no settle for %ds (combat/motion thrash)" % (_hb_gap // 1000)}
-            _launch_vision(frame, cur, reads, frame_id, 0.6, priority, read_ts)
-            peak = 0.0
-            continue
+        # v866 — heartbeat moved ABOVE the motion gate (see the watching block)
         if sig_diff(cur, last_sent_md5) <= SETTLE:
             # v795 — OCR-won / Claude-lost views get ONE re-fire instead of a permanent burn
             global _REFIRE_SIG

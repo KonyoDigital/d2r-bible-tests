@@ -808,6 +808,11 @@
   .primary button.act:hover, .primary button.act:focus-visible { opacity: 1; }
   .primary button.act:disabled { opacity: .32; }
   button.act.lit { opacity: 1; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 26px var(--accent-soft); filter: brightness(1.12); animation: liveRing 3s ease-in-out infinite; }
+  .util-strip { display: flex; gap: 6px; margin: 2px 0 4px; }
+  .util-btn { flex: 1; background: rgba(0,0,0,.25); border: 1px solid var(--edge); color: #7f958a;
+    border-radius: 6px; padding: 4px 6px; cursor: pointer; font: 600 9px/1.4 var(--mono);
+    letter-spacing: .08em; transition: color 120ms, border-color 120ms; }
+  .util-btn:hover { color: var(--gold); border-color: var(--edge-hi, rgba(240,192,96,.4)); }
   /* OFF is a resting state, not a broadcast — its lit cue is subtle (no pulsing ring, gentle glow) */
   button.act.lit.b-off { box-shadow: inset 0 1px 0 rgba(200,187,158,.16), 0 0 14px rgba(200,187,158,.14); filter: none; opacity: .92; animation: none; }
 
@@ -917,9 +922,13 @@
       <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console</div>
       <div class="primary">
         <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>wake scanner · same window</span></span></button>
-        <button class="act b-off" id="btn-off" type="button"><span class="ic">❚❚</span><span class="lab"><b>Off</b><span>soft stop · no farewell</span></span></button>
-        <button class="act b-stop" id="btn-stop" type="button"><span class="ic">■</span><span class="lab"><b>Stop</b><span>full shutdown · farewell</span></span></button>
-        <button class="act b-restart" id="btn-restart" type="button"><span class="ic">↻</span><span class="lab"><b>Restart</b><span>cycle the bridge</span></span></button>
+        <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
+             The utility strip keeps the rare paths one small click away, out of the flow. -->
+        <div class="util-strip">
+          <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
+          <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
+          <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
+        </div>
         <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <div class="signal">
@@ -951,7 +960,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v864 control</span>
+      <span id="foot-ver">v866 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1201,6 +1210,16 @@
 
     setMeter('m-mode', mode.toUpperCase());
     var rc = st.readCount != null ? st.readCount : 0;
+    window.__lastReadCount = rc;   // v865 — the smart toggle chooses seal-vs-instant by this
+    try {   // v865 — ONE button, morphing label
+      var onB = $('btn-on').querySelector('.lab b'), onS = $('btn-on').querySelector('.lab span');
+      if (onB && !$('btn-on').classList.contains('working')){
+        if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' reads · farewell') : 'nothing recorded · instant off'; }
+        else if (state === 'sim'){ onB.textContent = 'End Sim'; onS.textContent = 'close the canned feed'; }
+        else if (state === 'stopping'){ onB.textContent = 'Sealing…'; onS.textContent = 'saving the session'; }
+        else { onB.textContent = 'On Air'; onS.textContent = 'wake scanner · same window'; }
+      }
+    } catch (e2) {}
     tweenReads(rc);
     setMeter('m-area', st.area || '—');
     setMeter('m-scene', st.scene || st.phase || '—');
@@ -1221,7 +1240,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v864') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v866') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1708,6 +1727,10 @@
     // chronological by CAPTURE ts
     beats.sort(function(a,b){ return (a.ts||0)-(b.ts||0) || (a.n||0)-(b.n||0); });
     TH.sn = n; TH.allBeats = beats; TH.beats = thFilter(beats); TH.i = 0; TH.sessionId = j.sessionId || '';   // v790 — cut applied
+    // v866 (Konyo: '300+ frames within that video') — a footage-rich reel opens as the VIDEO:
+    // ⏱ REAL is the default when footage exists; 🎬 CUT stays default for reads-only reels.
+    var _footN = beats.filter(function(x){ return x.footage; }).length;
+    if (_footN > 10 && !TH.__modeTouched){ TH.mode = 'real'; var _mb = $('th-mode'); if (_mb) _mb.textContent = '⏱ REAL'; }
     TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;   // v804
     setTimeout(function(){ try { thClock(); } catch(e){} }, 0);   // v820 — clock lights at open
     thBuildAxis();   // v798 — one time engine, both modes
@@ -2076,6 +2099,7 @@
   };
   $('th-speed').onclick = function(){ TH.speed = TH.speed === 0.5 ? 1 : (TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 0.5)); this.textContent = TH.speed + '×'; };   // v806 — 0.5× joins the deck (slow-mo forensics)
   $('th-mode').onclick = function(){
+    TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
     TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // v831 — CUT → FULL → ⏱ REAL
     this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
     var keepTs = (TH.beats[TH.i] || {}).ts;
@@ -2185,8 +2209,9 @@
   }
   $('btn-on').onclick = async function(e){
     var st = document.body.getAttribute('data-state');
-    // live → full STOP (save session + farewell); sim → soft OFF
-    if (st === 'on') { await cutFeed(this, e, true); return; }
+    // v865 (Konyo: 'ON AIR toggles; smart multi-functional') — live end is SMART:
+    // a session with reads gets the full farewell seal; an empty one just goes dark.
+    if (st === 'on') { await cutFeed(this, e, (window.__lastReadCount || 0) > 0); return; }
     if (st === 'sim') { await cutFeed(this, e, false); return; }
     if (st === 'stopping') {
       toast('still shutting down — wait for session save');

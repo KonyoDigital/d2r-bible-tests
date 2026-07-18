@@ -1507,3 +1507,13 @@ INSIDE the parsed result (_raw_txt) — the _LAST_RAW global race across 8 reade
 Deferred with eyes open: Grok suggested default 3 on 16GB — Konyo explicitly ordered 8; the
 cleanup+oneshot-cap reduce pressure, TV_POOL=3 is one env flip if the night runs hot.
 145/145 + 27/27. LIVE ACCEPTANCE NEXT: Konyo's ON AIR run.
+
+## 💓 v866 "The Living Pulse" (Konyo live: '2:29 video, 3-5 frames, not 300+', ~06:00 Jul 19)
+His run proved TWO truths: (1) footage DID record (77 frames in-window) but 🎬 CUT default hid it
+— footage-rich reels now open in ⏱ REAL (manual toggle outranks); (2) THE POOL NEVER FIRED —
+4 reads/149s, all settle, all reader 0, ZERO heartbeats: the pool relocation left the v861
+heartbeat below the motion-continue AND behind an always-false stable guard (Grok's back-pass
+called it; production confirmed). v866 moves the heartbeat ABOVE the motion gate — it fires
+DURING combat onto free pool slots (that's its whole purpose), pool telemetry in the ev line.
+145/145 + 27/27. NEXT RUN EXPECTATION: 2:29 → ~70 heartbeat+settle reads across 8 readers +
+~300 footage frames, reel opens as video.
