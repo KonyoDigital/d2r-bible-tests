@@ -960,7 +960,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v871 control</span>
+      <span id="foot-ver">v872 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1097,6 +1097,14 @@
     var stopping = mode === 'stopping';                 // v768 (Grok R2) — a threaded farewell is in flight
     var on = !!st.bridge && !stopping;
     var state = stopping ? 'stopping' : (mode === 'sim' ? 'sim' : (on ? 'on' : 'off'));
+    // v872 — placard hysteresis: a live console only drops to STANDBY after 3 straight
+    // off-polls (a real OFF lands within ~2s; a load blip never flashes the placard).
+    var _prevState = document.body.getAttribute('data-state');
+    if (state === 'off' && _prevState === 'on'){
+      window.__offN = (window.__offN || 0) + 1;
+      if (window.__offN < 3){ state = 'on'; on = true; }
+      else window.__offN = 0;
+    } else { window.__offN = 0; }
     document.body.setAttribute('data-state', state);
 
     $('bug-txt').textContent = stopping ? 'FAREWELL…' : (state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR'));
@@ -1240,7 +1248,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v871') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v872') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1272,17 +1280,23 @@
     }
   }
 
+  var _fetchFails = 0;   // v872 — consecutive status failures
   async function refresh(){
     try {
       var r = await fetch(API + '/api/status');
       var st = await r.json();
+      _fetchFails = 0;
       paint(st);
     } catch (e) {
+      // v872 (Konyo: 'STANDBY keeps jumping at me mid session') — one missed poll under game
+      // load must NOT cut the feed. Hold the last good picture; only 4 straight misses
+      // (~several seconds truly dark) earn the NO SIGNAL placard.
+      _fetchFails++;
+      if (_fetchFails < 4) return;
       document.body.setAttribute('data-state', 'off');
       $('phase').textContent = 'NO SIGNAL';
       $('caption').textContent = 'Control server unreachable.';
       $('kicker').textContent = 'Link Lost';
-      // v768 — link lost is not 'live': drop every glow and free ON so it never sticks lit/disabled
       ['btn-on','btn-off','btn-stop','btn-restart','btn-sim'].forEach(function(id){ $(id).classList.remove('lit'); });
       if (!busy) $('btn-on').disabled = $('btn-restart').disabled = false;
     }
@@ -2279,7 +2293,7 @@
       var fresh = (window._lastEyeAge != null && window._lastEyeAge >= 0 && window._lastEyeAge < 2500);
       hot = on && fresh;
     } catch (e) {}
-    var wait = hot ? 300 : 1500;
+    var wait = hot ? 800 : 1500;   // v872 — server caches status at 1.2s; 300ms was pure heat
     setTimeout(function(){
       (showLog ? loadLog() : refresh());
       _pollTick();

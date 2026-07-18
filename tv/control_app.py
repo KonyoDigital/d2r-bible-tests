@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v871)
+# 📺 TV DIABLO — Control App (Mac + Windows · v872)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -94,6 +94,39 @@ def _env_clean(sim=False):
     if IS_WIN and not (env.get("TV_CAPTURE") or "").strip():
         env["TV_CAPTURE"] = "auto"
     return env
+
+
+_BR_CACHE = {"ping": False, "st": None, "ts": 0.0}
+_PID_CACHE = {"pid": None, "ts": 0.0}
+
+
+def _pid_cached():
+    """v872 — the status poll must NEVER pay an lsof subprocess. Prefer the tracked child;
+    fall back to a port scan at most every 10s."""
+    with _lock:
+        if _agent_proc is not None and _agent_proc.poll() is None:
+            return int(_agent_proc.pid)
+    now = time.time()
+    if now - _PID_CACHE["ts"] > 10.0:
+        _PID_CACHE["pid"] = _port_listener_pid()
+        _PID_CACHE["ts"] = now
+    return _PID_CACHE["pid"]
+
+
+def _bridge_prober():
+    """v872 (Konyo: 'STANDBY keeps jumping at me mid session') — ONE background thread probes
+    the agent bridge every 1.2s; every /api/status poll reads the cache. Under full game load
+    the console poll went 300ms × (ping 0.6s + state 0.8s + lsof) and choked itself."""
+    while True:
+        try:
+            ping = _bridge_ping() is not None
+            st = _bridge_state() if ping else None
+            _BR_CACHE["ping"], _BR_CACHE["st"], _BR_CACHE["ts"] = ping, st, time.time()
+            if ping:
+                globals()["_BRIDGE_LAST_OK"] = time.time()
+        except Exception:
+            pass
+        time.sleep(1.2)
 
 
 def _bridge_ping():
@@ -871,8 +904,13 @@ def open_control_window():
 
 
 def status_payload():
-    bridge = _bridge_ping() is not None
-    st = _bridge_state() if bridge else None
+    # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
+    # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
+    # process with a bridge seen in the last 10s stays ON; only a truly dead bridge drops it.
+    bridge_now = bool(_BR_CACHE["ping"]) and (time.time() - _BR_CACHE["ts"]) < 6.0
+    bridge = bridge_now or (
+        _agent_alive() and (time.time() - globals().get("_BRIDGE_LAST_OK", 0.0)) < 10.0)
+    st = _BR_CACHE["st"] if bridge_now else None
     mode = _agent_mode
     if bridge and mode == "off":
         mode = "live"
@@ -889,14 +927,14 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v871",
+        "ver": "v872",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "stopping": bool(_stop_inflight),
-        "pid": _port_listener_pid(),
+        "pid": _pid_cached(),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
         "readCount": (
             (st or {}).get("readCount")
@@ -1808,12 +1846,13 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v871 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v872 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
     print("   close the app window to quit control (agent left as-is unless you STOP).")
 
+    threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     time.sleep(0.2)

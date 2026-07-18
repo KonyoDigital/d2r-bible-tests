@@ -1535,3 +1535,13 @@ blocked on a TCC prompt): **243 frames/122s = 1.99fps — 2FPS TARGET HIT** · g
 max 0.99s · 0 holes · session 270 beats (31 reads + 239 footage) · 25 heartbeats · readers
 0-3. Cadence one per 3.9s at HB cap 2 → v869 "SIX HEARTS": cap = 3/4 pool (6@8), test lock
 updated. Konyo's bar "180 frames in 3 min": at 1.99fps a 3-min video = ~358. ✅
+
+## 📡 v872 "SMOOTH AIR" (Konyo live: 'STANDBY/IDLE keep cutting the feed mid session', Jul 19)
+Live forensics DURING his farm session: /api/status took >3s under game load — every 300ms UI
+poll paid ping(0.6s)+state(0.8s)+lsof subprocess, probes piled up, polls failed, and BOTH
+failure paths cut straight to STANDBY/'NO SIGNAL'. Triple fix: (1) background prober thread
+caches bridge+state at 1.2s — /api/status is now pure memory; pid via tracked child + 10s lsof
+cache; sticky bridge (live agent + bridge seen <10s = ON); (2) UI: failed fetch holds the last
+good picture, 4 straight misses earn NO SIGNAL; on→off placard needs 3 consecutive off-polls;
+(3) hot poll 300→800ms. Also REG-027 (headless cycle stole the console window) logged earlier.
+145/145 + 27/27 + parity ×4.
