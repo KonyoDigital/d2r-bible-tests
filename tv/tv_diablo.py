@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v832"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v833"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -172,15 +172,20 @@ def beat(phase, motion):
     _BEAT["ts"] = int(time.time()*1000); _BEAT["phase"] = phase; _BEAT["motion"] = round(float(motion), 3)
     _AP["mode"] = {"loading": "load", "watching": "drive", "reading": "read"}.get(phase, phase)
 
-def ap_interest(peak, stable_ticks, priority, empty_streak, named_recent):
-    """0–1 score: hard motion → stop is the 'money moment' (pile / panel)."""
+def ap_interest(peak, stable_ticks, priority, empty_streak, named_recent, parts=None):
+    """0–1 score: hard motion → stop is the 'money moment' (pile / panel).
+    v833 (Grok addendum A2.1) — pass parts={} to receive the DECOMPOSITION: almost every real
+    fire scores 1.0, so forensics need the inputs that built it, not the flat number."""
     s = 0.15
-    if peak >= MOTION_PEAK: s += 0.45
-    elif peak >= 0.06: s += 0.2
-    if priority: s += 0.25
-    if named_recent: s += 0.1
-    if empty_streak >= 3: s -= 0.08   # slight downrank only — never blocks
-    if stable_ticks >= 1: s += 0.1
+    p = {"base": 0.15, "peak": 0.0, "priority": 0.0, "named": 0.0, "empty": 0.0, "stable": 0.0}
+    if peak >= MOTION_PEAK: s += 0.45; p["peak"] = 0.45
+    elif peak >= 0.06: s += 0.2; p["peak"] = 0.2
+    if priority: s += 0.25; p["priority"] = 0.25
+    if named_recent: s += 0.1; p["named"] = 0.1
+    if empty_streak >= 3: s -= 0.08; p["empty"] = -0.08   # slight downrank only — never blocks
+    if stable_ticks >= 1: s += 0.1; p["stable"] = 0.1
+    if isinstance(parts, dict):
+        parts.update(p)
     return max(0.0, min(1.0, s))
 
 def _health(st):
@@ -2281,7 +2286,8 @@ def main():
             if _AP.get("mode") != "hunt":
                 _AP["mode"] = "hunt"
         named_recent = time.time() < named_until
-        interest = ap_interest(peak, stable, priority, empty_streak, named_recent)
+        _iparts = {}
+        interest = ap_interest(peak, stable, priority, empty_streak, named_recent, parts=_iparts)
         _AP.update({"interest": round(interest, 3), "peak": round(peak, 3), "priority": priority,
                     "emptyStreak": empty_streak, "gap": PRIORITY_GAP_S if priority else MIN_GAP_S})
         # v782 — while Claude is busy, still report live motion so the film stage stays honest
@@ -2396,8 +2402,15 @@ def main():
         priority = False
 
         # v832 (SIMULATION_SPEC) — THE DISPATCH: why this frame fired, journaled with the read
-        globals()["_DISPATCH_CTX"] = {"motion": round(float(motion), 4), "settleTicks": int(stable),
-                                      "interest": round(float(interest), 3), "priority": bool(priority),
+        globals()["_DISPATCH_CTX"] = {"motion": round(float(motion), 4), "peak": round(float(peak), 4),
+                                      "settleTicks": int(stable),
+                                      "interest": round(float(interest), 3),
+                                      "interestParts": dict(_iparts),
+                                      "priority": bool(priority),
+                                      "gapMs": int((time.time() - last_read_t) * 1000) if last_read_t else 0,
+                                      "emptyStreak": int(empty_streak),
+                                      "apMode": str(_AP.get("mode", "")),
+                                      "queueDepth": len(_SETTLE_QUEUE),
                                       "origin": "live"}
         # v782/v825 — snapshot + background dual-lane read, now via _launch_vision so the
         # settle-queue drain shares this exact pipeline (serialized by _VISION_BUSY).

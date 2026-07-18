@@ -1426,5 +1426,21 @@ class TestLocationTruth(unittest.TestCase):
         self.assertNotIn("Harlequin Crest", rec.get("vault_names") or [])
 
 
+
+class TestDispatchDecomposition(unittest.TestCase):
+    """v833 (Grok addendum A2.1) — the interest score exposes its parts; parts sum to score."""
+
+    def test_parts_sum(self):
+        parts = {}
+        s = tv.ap_interest(0.5, 2, True, 0, True, parts=parts)
+        self.assertAlmostEqual(min(1.0, sum(parts.values())), s, places=5)
+        self.assertGreater(parts["peak"], 0)
+        self.assertGreater(parts["priority"], 0)
+
+    def test_parts_optional(self):
+        self.assertEqual(tv.ap_interest(0.0, 0, False, 5, False),
+                         tv.ap_interest(0.0, 0, False, 5, False, parts={}))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

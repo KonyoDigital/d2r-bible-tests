@@ -1179,3 +1179,8 @@ live/settle-queue/farewell}, promptVer p830; drawer grows THE DISPATCH + THE THO
 pre-v784 rows stored COMPLETION time as ts; 10-22s latencies interleaved captures → film jumped
 non-logically. Beats now sort by the PHOTO's own clock (frameId suffix ms) with ts pinned to it.
 108/108 + 25/25.
+
+## 🏓 R11 (Grok addendum A2.1) → v833 "Dispatch Anatomy" (~19:00)
+ap_interest exposes its decomposition (parts= out-param; parts sum == score, lock added);
+dispatch ctx grows peak/gapMs/emptyStreak/apMode/queueDepth/interestParts; drawer DISPATCH
+section renders '= parts peak +0.45 · priority +0.25 …'. 110/110 + 25/25.
