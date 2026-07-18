@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v838"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v839"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -802,10 +802,12 @@ def sig_diff(a, b, tol=28):
 HIST_DIR = os.path.join(FRAMES, "hist")
 try:
     HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "600")))   # v753 — Konyo: EVERY photo openable; 80 was silently eating the archive
-    HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "500")))       # v753 — AND a disk ceiling: oldest pruned past ~500MB
+    HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "1500")))      # v839 — footage era: ceiling raised (REG-025: 500MB let footage evict the archive)
+    FOOT_MB = max(50, int(os.environ.get("TV_FOOT_MB", "900")))       # v839 — footage's OWN sub-ceiling inside HIST_MB
 except Exception:
     HIST_KEEP = 600
-    HIST_MB = 500
+    HIST_MB = 1500
+    FOOT_MB = 900
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
 HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-crisp fullscreen (was 1920)
 
@@ -951,17 +953,24 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     try: t += os.path.getsize(f)
                     except Exception: pass
                 return t
-            total = sum(_size_all(f) for f in files)
-            over_mb = []
-            while total > HIST_MB * 1_000_000 and len(files) - len(over_mb) > 10:
-                f0 = files[len(over_mb)]
-                total -= _size_all(f0)
-                over_mb.append(f0)
             # v826 — footage frames (f_*.jpg) have their OWN count cap (~1h at 1fps) and
             # never push READ frames out of HIST_KEEP; both still share the MB ceiling.
             read_files = [f for f in files if not os.path.basename(f).startswith("f_")]
             foot_files = [f for f in files if os.path.basename(f).startswith("f_")]
-            doomed = set(over_mb) | set(read_files[:-HIST_KEEP]) | set(foot_files[:-3600])
+            # v839 (REG-025 — footage EVICTED THE ARCHIVE): under MB pressure, footage dies
+            # FIRST (own FOOT_MB sub-ceiling + count cap); READ frames are only ever pruned by
+            # their own HIST_KEEP count, never by footage-driven MB pressure.
+            doomed = set()
+            foot_total = sum(_size_all(f) for f in foot_files)
+            k = 0
+            while foot_total > FOOT_MB * 1_000_000 and k < len(foot_files) - 60:
+                doomed.add(foot_files[k]); foot_total -= _size_all(foot_files[k]); k += 1
+            doomed |= set(foot_files[:-3600])
+            read_total = sum(_size_all(f) for f in read_files)
+            k = 0
+            while read_total > HIST_MB * 1_000_000 and k < len(read_files) - 60:
+                doomed.add(read_files[k]); read_total -= _size_all(read_files[k]); k += 1
+            doomed |= set(read_files[:-HIST_KEEP])
             for old in doomed:
                 for f in [old] + _twins(old):
                     try: os.remove(f)

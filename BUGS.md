@@ -614,3 +614,16 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   T+ clock was empty until first play (now lights at open).
 - **Prevention**: overlay doctrine — any `display:` on a hideable element ships WITH its
   `[hidden]{display:none!important}` twin; visual verify (screenshot) joins the theatre gate.
+
+## REG-025 · footage evicted the archive (v839, 2026-07-18)
+- **Symptom**: session history all black — old sessions' read frames deleted.
+- **Caught by**: Konyo ("i cant see any videos/screenshots its all black").
+- **Root cause**: v826 footage (1fps, ~480MB/day) shared the 500MB hist ceiling; MB eviction ran
+  oldest-first across ALL files — old sessions' read frames were the oldest → wiped (2599 footage
+  vs 11 surviving reads). v813's count-caps protected counts, not the MB path.
+- **Fix**: v839 — footage has its OWN sub-ceiling (FOOT_MB=900 default) and dies FIRST; read
+  frames are pruned ONLY by their own count/MB, never by footage pressure; HIST_MB default 1500.
+- **Data**: pre-v839 pruned photos are unrecoverable; those beats play caption-only with an
+  honest '⚠ photo pruned from disk' marker. Journals intact.
+- **Prevention**: any new archive class MUST declare its own budget + eviction priority before
+  sharing a directory with the read archive.

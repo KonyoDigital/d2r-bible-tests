@@ -1216,3 +1216,10 @@ honest ('queued freeze — live motion fields n/a' + heldMs); _reason_for holdin
 NaN audit rows; agentVer + promptHash identity (A2.9, bisectable eyes). Remaining A2 gaps (pre-
 triage, chain, board-write, vision, ocr_raw, skip events, decision river chrome) = the arc's
 next ships, logged. 115/115 + 26/26.
+
+## 🛡 v839 "Archive Shield" (Konyo: 'history all black' — REG-025, ~20:50)
+Footage's MB pressure DELETED the old sessions' read frames (2599 f_ vs 11 surviving reads,
+482MB). v839: footage gets FOOT_MB=900 sub-ceiling and evicts FIRST; reads pruned only by their
+own budgets; HIST_MB default 1500; pruned beats say '⚠ photo pruned from disk' honestly; film
+element clears stale url after frameless beats. Lost photos unrecoverable — journals intact.
+115/115 + 26/26.
