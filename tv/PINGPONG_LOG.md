@@ -947,3 +947,8 @@ learns — one chatty-CLI hiccup on a real inventory freeze used to blind that p
 night + across restarts via known_frames.json). _parse_read: right-to-left balanced-object scan
 with known-key check survives worker chatter/truncation. Old test asserting the poison behavior
 RECALIBRATED. 85/85 + 16/16.
+
+## 🏓 Grok R5 #2 → v795 "OCR Rescue" (~05:50)
+OCR-won / Claude-lost frames no longer vanish: empty deep + OCR names → seed floor-SEEN into
+LootLifecycle (never vault from seed) + ocr_seeded on the rec + ONE re-fire ticket (_REFIRE_SIG)
+so the same-view burn allows a second read of that freeze. 87/87 + 16/16.

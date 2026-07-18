@@ -1076,5 +1076,27 @@ class TestNoPoison(unittest.TestCase):
         self.assertIsNone(tv._parse_read("no json here at all"))
 
 
+
+class TestOcrSeed(unittest.TestCase):
+    """v795 (Grok R5 #2) — OCR-won / Claude-lost frames still enter the loot chain."""
+
+    def test_empty_deep_with_ocr_names_seeds_seen(self):
+        rec = tv.emit_deep_read({"area": "Cold Plains", "scene": "gameplay", "names": [],
+                                 "tz": [], "conf": None, "mode": "empty"},
+                                7, "7_777", ocr_rd={"names": ["Harlequin Crest"], "ms": 60},
+                                capture_ts=777)
+        self.assertIn("Harlequin Crest", rec.get("ocr_seeded") or [])
+        snap = tv._LIFECYCLE.snapshot()
+        blob = str(snap).lower()
+        self.assertIn("harlequin crest", blob, "OCR seed missing from lifecycle chain")
+
+    def test_named_deep_does_not_seed(self):
+        rec = tv.emit_deep_read({"area": "Cold Plains", "scene": "loot", "names": ["Ist"],
+                                 "tz": [], "conf": 0.9},
+                                8, "8_888", ocr_rd={"names": ["Ist", "Ghost"], "ms": 60},
+                                capture_ts=888)
+        self.assertEqual(rec.get("ocr_seeded") or [], [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v794"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v795"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1037,6 +1037,7 @@ _WORKER = VisionWorker()
 # Claude thinks. (Konyo: ON AIR + moving but film stuck on READING.)
 _VISION_BUSY = False
 _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall detection)
+_REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back empty: allow ONE re-read of that view
 
 # ═══ v732 — OCR FAST LANE (Konyo: pile→chip in ~0.1–0.2s; LLM floors at 3–6s)
 # Local macOS Vision OCR (warm worker ~10–50ms). Claude stays the deep brain.
@@ -1952,11 +1953,17 @@ def main():
             _AP["mode"] = "settle"
             continue
         if sig_diff(cur, last_sent_md5) <= SETTLE:
-            # same view — reset peak so we don't stay priority forever on one freeze
-            if stable == need_ticks:
-                ev("skip", "settled, but same view I already read — waiting for something new")
-            peak = max(0.0, peak * 0.5)
-            continue
+            # v795 — OCR-won / Claude-lost views get ONE re-fire instead of a permanent burn
+            global _REFIRE_SIG
+            if _REFIRE_SIG is not None and sig_diff(cur, _REFIRE_SIG) <= SETTLE:
+                _REFIRE_SIG = None
+                ev("cap", "🔁 re-reading — OCR saw names the deep read missed")
+            else:
+                # same view — reset peak so we don't stay priority forever on one freeze
+                if stable == need_ticks:
+                    ev("skip", "settled, but same view I already read — waiting for something new")
+                peak = max(0.0, peak * 0.5)
+                continue
         # v746 — a LEARNED dead frame (portal fire / loading art) is recognized locally in ~0ms:
         # no vision spent, an honest ⏳ transition lands in the story with the right label.
         if known_dead_match(cur) is not None:
@@ -2009,6 +2016,7 @@ def main():
             extra_gap = min(30.0, 6.0 + soft_over * 0.05)   # +6s at cap, creeping to +30s max
             time.sleep(extra_gap)
         last_read_t, last_sent_md5 = time.time(), cur
+        globals()["_LAST_EMIT_SIG"] = cur   # v795 — the re-fire ticket points at THIS view
         reads += 1
         read_ts = int(time.time() * 1000)
         # v735 — archive THIS settle's frame for history (snapshot — live.bmp keeps updating)
@@ -2142,6 +2150,18 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     if rd.get("area"): LAST_AREA = rd["area"]
     names = rd.get("names") or []
     intent = rd.get("intent") or _intent_for(rd.get("scene"))
+    # v795 (Grok R5 #2) — OCR truth is not garbage: when the deep read comes back EMPTY but
+    # the fast lane read real names, seed them as floor-SEEN (never vault from here) so a later
+    # stash of that item still has its chain, and arm one re-read of this view.
+    _ocr_seed = []
+    if not names:
+        _ocr_seed = [x for x in ((ocr_rd or {}).get("names") or []) if str(x).strip()][:12]
+    if _ocr_seed:
+        try:
+            _LIFECYCLE.process("loot", _ocr_seed, rd.get("area") or "", None)
+            globals()["_REFIRE_SIG"] = globals().get("_LAST_EMIT_SIG")
+        except Exception:
+            pass
     lc = _LIFECYCLE.process(effective_lc_scene(rd.get("scene"), names), names, rd.get("area") or "", rd.get("conf"))
     vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
     pending_names = lc.get("pending_names") or []
@@ -2211,6 +2231,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
+        "ocr_seeded": _ocr_seed,         # v795 — names the fast lane saved from an empty deep read
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
         "confirmed_names": confirmed,
         "discovered_names": rd.get("discovered") or [],   # v763 — chat discovery broadcasts: chronicle-only, never vault
