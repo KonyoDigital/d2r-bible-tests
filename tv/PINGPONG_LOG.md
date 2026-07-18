@@ -1451,3 +1451,12 @@ aperture reflow, debounced drawer rebuild); SIM opens its shell before network; 
 coalesced with thumb off + trailing click eaten; thLoadSession gen token; drawer padding self-
 overwrite fixed; #th-drawer/#th-shelfov [hidden] guards; stage film never thrashes under the open
 theatre. My driver's numbers: status 24ms · buttons 25-86ms. 138/138 + 27/27.
+
+## 🧼 THE RINSE (Konyo: 'check it a couple of times in different ways', ~01:40)
+Three independent lanes over v859, all green:
+1. RINSE driver 13/13 — SIM toggle ×3 · Space toggles play AND never touches the agent ·
+   arrows single-step exact (Home→+1→back) · 10 rapid arrows · drawer via ℹ/I/✕ all three ·
+   shelf all 4 paths · cinema all 4 paths · mode 3-cycle home · double-click settles · 0 errors.
+2. API matrix ALL PASSED.
+3. v851 spec pack 6/6 (transport spec recal'd for footage-heavy reels: beat-index not read#).
+Grok verify back-pass fired on the v859 diff.

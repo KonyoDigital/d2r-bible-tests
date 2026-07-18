@@ -51,15 +51,16 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await page.click('#btn-sim');
     await page.waitForTimeout(1400);
-    const readNo = async () => ((await page.locator('#th-caption').textContent()) ?? '').match(/read #(\d+)/)?.[1];
-    const a = await readNo();
+    // v859.1 — footage-heavy reels have beats with no 'read #'; track the beat index instead
+    const beatNo = async () => Number((((await page.locator('#th-sess').textContent()) ?? '').match(/beat (\d+)\//) || [])[1] || 0);
+    const a = await beatNo();
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(250);
-    const b = await readNo();
-    expect(b).not.toBe(a);
+    const b = await beatNo();
+    expect(b).toBe(a + 1);
     await page.keyboard.press('End'); await page.waitForTimeout(250);
     await page.click('#th-play'); await page.waitForTimeout(600);
-    const c = await readNo();
-    expect(Number(c)).toBeLessThanOrEqual(Number(b) + 2); // rewound to the reel head region
+    const c = await beatNo();
+    expect(c).toBeLessThanOrEqual(b + 2); // End+play rewound to the reel head region
   });
 
   test('mode button cycles CUT → FULL → REAL and the axis rebuilds', async ({ page }) => {
