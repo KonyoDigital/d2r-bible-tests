@@ -1058,3 +1058,7 @@ gone_candidates/farmed_names on session 1. 24/24 + 93/93.
 cache1280/cache160 derivatives are counted in the HIST_MB ceiling, pruned as twins of their
 source, and orphans (source already pruned) are swept. Lock: derivative-survives-source +
 orphan-sweep. 94/94 + 24/24.
+
+## 🏃 v814 "The Chapter Slate" (~10:45)
+Highlight-cut area jumps flash a 620ms scanline slate (🗺 new area, Cinzel gold over CRT lines) —
+the cut admits it skipped. 94/94 + 24/24.
