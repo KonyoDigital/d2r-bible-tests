@@ -1168,3 +1168,14 @@ Now ▶-at-end REWINDS and plays (verified: End → play → read #1 → rolling
 the last beat toasts 'end of the reel'. (2) ⏱ REAL mode joins the cycle (🎬 CUT → 📼 FULL →
 ⏱ REAL): theatre-ms == wall-ms, the reel runs EXACTLY the session's true duration at 1×
 (2×/4× compress) — with v826 footage sessions this is literal video playback. 108/108 + 25/25.
+
+## 🧠 SIMULATION ARC opens → v832 "Journal the Brain" (+order fix, ~18:40)
+SIMULATION_SPEC.md committed (Konyo's north star: SIM = visual debugger of the AI's mind, ~50
+versions, ON AIR frozen; Grok appended a full addendum DIRECTLY into the spec — dispatch
+decomposition, parse audit, pre-triage designs). v832: every read journals raw model words
+(2KB, ring-stripped/journal-kept), dispatch ctx {motion·settleTicks·interest·priority·origin
+live/settle-queue/farewell}, promptVer p830; drawer grows THE DISPATCH + THE THOUGHT sections
+('not recorded before v832' for old rows — never fake). v832.1: Konyo's scramble report —
+pre-v784 rows stored COMPLETION time as ts; 10-22s latencies interleaved captures → film jumped
+non-logically. Beats now sort by the PHOTO's own clock (frameId suffix ms) with ts pinned to it.
+108/108 + 25/25.

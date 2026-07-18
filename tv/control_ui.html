@@ -857,7 +857,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v831 control</span>
+      <span id="foot-ver">v832 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1097,7 +1097,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v831') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v832') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1644,6 +1644,21 @@
     if (b.note || b.stashTab || b.intent || b.farewell){
       h += '<h4>context</h4>' + kv('note', b.note) + kv('stash tab', b.stashTab) + kv('intent', b.intent) + kv('farewell', b.farewell ? 'yes' : '');
     }
+    // v832 (SIMULATION_SPEC) — THE DISPATCH: why this frame fired
+    var dp = b.dispatch || {};
+    if (Object.keys(dp).length){
+      h += '<h4>the dispatch — why this frame fired</h4>'
+        + kv('origin', dp.origin) + kv('motion', dp.motion != null ? dp.motion : '')
+        + kv('settle ticks', dp.settleTicks != null ? dp.settleTicks : '')
+        + kv('interest', dp.interest != null ? dp.interest : '')
+        + kv('priority', dp.priority ? 'YES' : '');
+    } else {
+      h += '<h4>the dispatch</h4><div class="col"><em>not recorded before v832</em></div>';
+    }
+    // v832 — THE THOUGHT: the model's literal words
+    h += '<h4>the thought — the model\'s literal words' + (b.promptVer ? ' <em>(' + esc(b.promptVer) + ')</em>' : '') + '</h4>';
+    h += b.raw ? ('<div class="col" style="white-space:pre-wrap;word-break:break-word;opacity:.85">' + esc(String(b.raw).slice(0, 1600)) + '</div>')
+               : '<div class="col"><em>not recorded before v832</em></div>';
     el.innerHTML = '<button id="th-drawer-x" type="button" title="close (I)" style="position:sticky;top:0;float:right;background:rgba(20,24,20,.9);border:1px solid var(--edge);color:#d8bd7c;border-radius:4px;padding:2px 10px;cursor:pointer;font:700 12px/1.4 ui-monospace,monospace">✕ close</button>' + h;
     var x = document.getElementById('th-drawer-x');
     if (x) x.onclick = function(){ if (CARD.open) thCardToggle(); };

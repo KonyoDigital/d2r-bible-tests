@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v831"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v832"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -64,6 +64,8 @@ FILM_INTERVAL_S = 0.20  # v783 — dedicated film thread target ~5 fps JPEG eye
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
+PROMPT_VER = "p830"   # v832 — bump whenever READ_PROMPT changes; every read journals which prompt read it
+_LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
     "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"names_loc\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
@@ -1909,6 +1911,7 @@ def _oneshot(ap, model, timeout=90):
         if r.returncode != 0:
             print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
         return None
+    globals()["_LAST_RAW"] = str(out)[:2048]   # v832 — THE THOUGHT (one-shot lane)
     return _parse_read(out)
 
 def _maybe_genius(ap, parsed, t0, mode):
@@ -1968,6 +1971,7 @@ def claude_read(path):
         base = os.path.basename(path)
         rd = man.get(base) or man.get("*") or {}
         scene = rd.get("scene", "gameplay")
+        globals()["_LAST_RAW"] = "«stub read — no model call»"
         return {"area": rd.get("area", ""), "scene": scene,
                 "names": rd.get("names", []), "tz": rd.get("tz", []),
                 "conf": rd.get("conf", 1.0), "intent": _intent_for(scene),
@@ -1983,6 +1987,7 @@ def claude_read(path):
     t0 = time.time()
     out_w = _WORKER.ask(READ_PROMPT.format(path=ap))
     if out_w is not None:
+        globals()["_LAST_RAW"] = str(out_w)[:2048]   # v832 — THE THOUGHT, verbatim
         parsed = _parse_read(out_w)
         if parsed is not None:
             return _maybe_genius(ap, parsed, t0, "warm") or EMPTY
@@ -2204,6 +2209,10 @@ def main():
                 last_read_t = time.time()
                 last_sent_md5 = _q["sig"]
                 globals()["_LAST_EMIT_SIG"] = _q["sig"]
+                globals()["_DISPATCH_CTX"] = {"motion": 0.0, "settleTicks": 0,
+                                              "interest": _q.get("interest", 0.0),
+                                              "priority": bool(_q.get("priority")),
+                                              "origin": "settle-queue"}
                 used = _launch_vision(_q["path"], _q["sig"], reads, q_fid,
                                       _q.get("interest", 0.0), _q.get("priority", False), q_ts)
                 if used != _q["path"]:
@@ -2386,6 +2395,10 @@ def main():
         peak = 0.0
         priority = False
 
+        # v832 (SIMULATION_SPEC) — THE DISPATCH: why this frame fired, journaled with the read
+        globals()["_DISPATCH_CTX"] = {"motion": round(float(motion), 4), "settleTicks": int(stable),
+                                      "interest": round(float(interest), 3), "priority": bool(priority),
+                                      "origin": "live"}
         # v782/v825 — snapshot + background dual-lane read, now via _launch_vision so the
         # settle-queue drain shares this exact pipeline (serialized by _VISION_BUSY).
         _launch_vision(frame, cur, reads, frame_id, interest, used_priority, read_ts)
@@ -2505,6 +2518,9 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
+        "raw": ("" if farewell else globals().get("_LAST_RAW", "")) or ("«farewell read»" if farewell else ""),
+        "dispatch": dict(globals().get("_DISPATCH_CTX") or ({"origin": "farewell"} if farewell else {})),
+        "promptVer": PROMPT_VER,   # v832 — which prompt read this frame
         "equipped_names": [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"],
         "ocr_seeded": _ocr_seed,         # v795 — names the fast lane saved from an empty deep read
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
@@ -2525,7 +2541,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     with _state_lock:
         st = _load()
         st.setdefault("seen", []); st.setdefault("farmed", [])
-        st["reads"].append(rec)
+        st["reads"].append(dict(rec, raw=""))   # v832 — the ring stays thin; the JOURNAL keeps the thought
         st["reads"] = st["reads"][-200:]
         st["readCount"] = n
         st["ap"] = dict(_AP)

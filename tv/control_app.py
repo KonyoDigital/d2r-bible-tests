@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v831)
+# 📺 TV DIABLO — Control App (Mac + Windows · v832)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v831",
+        "ver": "v832",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1225,6 +1225,9 @@ class Handler(BaseHTTPRequestHandler):
                     "ocr_ms": r.get("ocr_ms") or 0,   # v823 (Grok R9 sleeper #8) — the fast lane gets its clock
                     "names_loc": r.get("names_loc") or {},          # v830 — per-name location truth
                     "equipped_names": r.get("equipped_names") or [],
+                    "raw": r.get("raw") or "",                      # v832 — THE THOUGHT
+                    "dispatch": r.get("dispatch") or {},            # v832 — THE DISPATCH
+                    "promptVer": r.get("promptVer") or "",
                     "confirmed_names": r.get("confirmed_names") or [],
                     "ocr_seeded": r.get("ocr_seeded") or [],
                     "conf": r.get("conf"),
@@ -1251,8 +1254,24 @@ class Handler(BaseHTTPRequestHandler):
                                           "scene": "", "area": "", "lane": "footage"})
             except Exception:
                 pass
-            # chronological by capture time (never scramble OCR/deep order)
-            beats.sort(key=lambda b: (b.get("ts") or 0, b.get("n") or 0))
+            # v832.1 (Konyo: 'pictures are NOT organized by time — jumping all over') — the
+            # PHOTO's own clock (frameId suffix ms) is the ground truth for order. Pre-v784
+            # rows stored COMPLETION time as ts, and 10-22s vision latencies interleave those
+            # past each other's captures — sorting by ts scrambled the film. Sort by the frame
+            # clock, and pin ts to it so the caption/T+ match the picture.
+            def _photo_clock(b):
+                fid = b.get("frameId") or ""
+                if "_" in str(fid):
+                    try:
+                        return int(str(fid).rsplit("_", 1)[1])
+                    except Exception:
+                        pass
+                return b.get("ts") or 0
+            for b in beats:
+                pc = _photo_clock(b)
+                if pc and abs(pc - (b.get("ts") or 0)) > 1500:
+                    b["ts"] = pc   # caption/T+ tell the photo's moment, not the answer's
+            beats.sort(key=lambda b: (_photo_clock(b), b.get("n") or 0))
             sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
             return {"n": n, "beats": beats, "sessionId": sid,
                     "t0": beats[0].get("ts") if beats else sess[0].get("ts"),
@@ -1645,7 +1664,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v831 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v832 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
