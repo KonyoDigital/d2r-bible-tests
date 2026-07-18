@@ -1623,3 +1623,15 @@ floor+telemetry); j — seal pre-warm of cache1280 (mac, nice 15, cap 400). Plus
 9 sips/screencapture spawns + node runner (BELOW_NORMAL on win), control journal cache,
 thClock 4Hz + O(1) cur-swap + playback drawer debounce, CRT pause when the set is dark.
 149/149 + 30/30 + parity ×4. Back-pass next.
+
+## 🎞 v880 "THE HONEST REEL" (round-3 back-pass + SIM A2 remainder, Jul 19 night)
+Grok back-pass on v879 returned NO-SHIP with 4 real defects — ALL FIXED: P0 /state?since=
+mutated the now-authoritative _STATE_MEM (truncated the ring, popped seen/farmed — continuity
+killer; now filters a COPY, serialized UNDER the lock), _journal_flush was queue.empty()
+(false-done before fsync; now a real Queue.join with timeout), _prewarm_seal_cache was CALLED
+but never DEFINED (the aborted-script trap, again — now defined), lean beats kept the
+caption's 🛟 ocr_seeded. SIM spec A2 remainder shipped: A2.5 board record (vault/chronicle/
+seen/unvault/nothing-with-why per name), A2.6 vision record (path/bytes/timeout/model),
+A2.8 skip events (gap-wait · parse-null · order-straggler, 5s throttle per why) journaled and
+rendered as dim no-eyes ticks in the reel (CUT drops them, REAL shows the texture of waiting).
+149/149 + 30/30 + parity ×4.

@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v879"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v880"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -119,12 +119,20 @@ def _journal_writer_loop():
 
 
 def _journal_flush(timeout=10.0):
-    """Join the writer queue — Grok farewell flush item 2."""
+    """v880 (Grok back-pass #3) — a REAL join: queue.empty() goes true before the fsync
+    finishes; task_done() fires only after the write. join() in a helper thread + timeout."""
     try:
-        if _JQ is not None:
-            deadline = time.time() + timeout
-            while not _JQ.empty() and time.time() < deadline:
-                time.sleep(0.05)
+        if _JQ is None:
+            return
+        done = threading.Event()
+        def _j():
+            try:
+                _JQ.join()
+            except Exception:
+                pass
+            done.set()
+        threading.Thread(target=_j, daemon=True).start()
+        done.wait(timeout)
     except Exception:
         pass
 
@@ -382,10 +390,16 @@ def bridge():
                     st["eyeAgeMs"] = _eye_age_ms()   # v785 — film honesty: stage drops LIVE when this goes stale
                     st["health"] = _health(st)   # v789 — fault-lamp truth (Grok R4 #1)
                     st["sessionId"] = SESSION_ID
-                if _since:
-                    st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
-                    st.pop("seen", None); st.pop("farmed", None)
-                self._hdr(); self.wfile.write(json.dumps(st).encode())
+                    # v880 (Grok back-pass P0) — _STATE_MEM is AUTHORITATIVE now: the ?since=
+                    # thin-delta must filter a COPY (the old code truncated the live ring and
+                    # popped seen/farmed from the real state), and serialization happens under
+                    # the lock so a concurrent apply can't resize dicts mid-dump.
+                    out = dict(st)
+                    if _since:
+                        out["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
+                        out.pop("seen", None); out.pop("farmed", None)
+                    payload = json.dumps(out).encode()
+                self._hdr(); self.wfile.write(payload)
             elif self.path.startswith("/ping"):
                 try:
                     self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
@@ -1830,6 +1844,7 @@ def _order_drain():
             disp = dict(job.get("dispatch") or {})
             if straggler:
                 disp["orderSkip"] = "straggler"
+                journal_skip("order-straggler", "applied out of order after hold")   # v880 A2.8
             disp["appliedTs"] = now_ms
             disp["orderHoldMs"] = ORDER_HOLD_MS
             try:
@@ -2783,6 +2798,7 @@ def _oneshot_inner(ap, model, timeout=90):
     if a < 0 or b <= a:
         err = (r.stderr or "").strip()[:160]
         ev("cap", f"vision returned no JSON ({model} exit {r.returncode})" + (f": {err}" if err else ""))
+        journal_skip("parse-null", f"{model} exit {r.returncode}")   # v880 A2.8
         if r.returncode != 0:
             print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
         return None
@@ -3427,6 +3443,7 @@ def main():
         if time.time() - last_read_t < gap:
             if stable == need_ticks:
                 ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since last read (gap {gap}s · {'PRIORITY' if priority else 'cruise'})")
+                journal_skip("gap-wait", f"{int(time.time()-last_read_t)}s since last · gap {gap}s")   # v880 A2.8
             continue
         # v863 — anti double-spend: never fire a view another reader is already reading
         if _in_flight_has_sig(cur):
@@ -3554,6 +3571,21 @@ def _capture_ts_from_frame_id(frame_id):
     except Exception:
         pass
     return None
+
+
+_SKIP_AT = {}
+def journal_skip(why, detail=""):
+    """v880 (SIM spec A2.8) — negative events: the reel must show 'agent chose to wait' as a
+    dim tick, not a 40s hole that reads as blindness. Throttled 5s per why."""
+    try:
+        now = time.time()
+        if now - _SKIP_AT.get(why, 0.0) < 5.0:
+            return
+        _SKIP_AT[why] = now
+        _journal({"ts": int(now * 1000), "kind": "skip", "lane": "skip", "why": str(why)[:40],
+                  "note": str(detail)[:120], "sessionId": SESSION_ID, "n": 0})
+    except Exception:
+        pass
 
 
 def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False, capture_ts=None, dispatch=None, raw=None):
@@ -3684,6 +3716,28 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "anchor": lc.get("anchor", "n/a"),
         "gone_candidates": lc.get("gone_candidates") or [],
         "holdMs": HOLD_MS,
+        # v880 (SIM spec A2.5) — BOARD: what actually left the agent, per name. Verdict ≠
+        # board effect; this is the effect, with 'nothing' names carrying their why.
+        "board": {
+            "vault": list(vault_names),
+            "chronicle": sorted(set((rd.get("discovered") or [])
+                                    + [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"])),
+            "seen": ([n for n in names if not _is_anchor(n) and not _is_junk(n)] if intent == "seen" else []),
+            "unvault": list(unvault_names),
+            "nothing": [{"name": n, "why": (lc.get("lifecycle_tags") or {}).get(n, "no-verdict")}
+                        for n in names
+                        if n not in vault_names and n not in (unvault_names or [])
+                        and not (intent == "seen" and not _is_anchor(n) and not _is_junk(n))],
+        },
+        # v880 (SIM spec A2.6) — VISION: which image the model actually ate
+        "vision": {
+            "path": ("frames/hist/%s.jpg" % frame_id) if frame_id else "",
+            "bytes": (os.path.getsize(os.path.join(HIST_DIR, str(frame_id) + ".jpg"))
+                      if frame_id and os.path.isfile(os.path.join(HIST_DIR, str(frame_id) + ".jpg")) else 0),
+            "timeoutMs": 75000,
+            "escalated": bool(rd.get("escalated")),
+            "finalModel": model_tag,
+        },
     }
     if (rd.get("scene") or "") == "transition":
         rec["transition_from"] = LAST_AREA

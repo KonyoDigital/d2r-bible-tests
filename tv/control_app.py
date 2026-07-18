@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v879)
+# 📺 TV DIABLO — Control App (Mac + Windows · v880)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -561,6 +561,43 @@ def start_agent(sim=False, test=False):
     }
 
 
+def _prewarm_seal_cache():
+    """v880 (Grok j / back-pass #4) — build the theatre's ?w=1280 derivatives for the NEWEST
+    sealed session in a low-priority background thread: first playback pays no sips storm.
+    Mac only, concurrency 1, errors swallowed, never blocks the seal."""
+    if IS_WIN:
+        return
+    def _run():
+        try:
+            time.sleep(2.0)
+            if HERE not in sys.path:
+                sys.path.insert(0, HERE)
+            import replay as _rp
+            try:
+                sessions = _rp.split_sessions(_rp.load_journal())
+                rows = sessions[-1] if sessions else []
+            except Exception:
+                rows = []
+            fids = [str(r.get("frameId")) + ".jpg" for r in (rows or []) if r.get("frameId")]
+            cache_dir = os.path.join(HIST_DIR, "cache1280")
+            os.makedirs(cache_dir, exist_ok=True)
+            for fb in fids[:400]:
+                src = os.path.join(HIST_DIR, fb)
+                dst = os.path.join(cache_dir, fb)
+                if not os.path.isfile(src) or os.path.isfile(dst):
+                    continue
+                try:
+                    subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72",
+                                    "--resampleHeightWidthMax", "1280", src, "--out", dst],
+                                   capture_output=True, timeout=10,
+                                   preexec_fn=(lambda: os.nice(15)))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    threading.Thread(target=_run, daemon=True, name="tvd-prewarm").start()
+
+
 def stop_agent(farewell=True):
     """v847 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
     STOP: farewell vision (up to ~90s). OFF: seal reel only (fast). Then hard-kill orphans."""
@@ -972,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v879",
+        "ver": "v880",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1359,6 +1396,12 @@ class Handler(BaseHTTPRequestHandler):
             sess = sessions[n - 1]
             beats = []
             for r in sess:
+                if r.get("kind") == "skip":
+                    # v880 (SIM A2.8) — a dim 'agent chose to wait' tick, never an empty read
+                    beats.append({"ts": int(r.get("ts") or 0), "captureTs": int(r.get("ts") or 0),
+                                  "skip": True, "why": r.get("why") or "", "note": r.get("note") or "",
+                                  "names": [], "scene": "", "area": "", "lane": "skip"})
+                    continue
                 fid = r.get("frameId") or ""
                 has = bool(fid) and os.path.isfile(os.path.join(HIST_DIR, fid + ".jpg"))
                 # v784 — capture clock is source of truth for scrub order + film lock
@@ -1413,6 +1456,7 @@ class Handler(BaseHTTPRequestHandler):
                                  for k in ("origin", "readerId")
                                  if (r.get("dispatch") or {}).get(k) is not None},
                     "confirmed_names": r.get("confirmed_names") or [],
+                    "ocr_seeded": r.get("ocr_seeded") or [],   # v880 (Grok #5) — the caption's 🛟 chip reads it
                     "conf": r.get("conf"),
                     "lifecycle_tags": r.get("lifecycle_tags") or {},
                     "sim": bool(r.get("sim")),
@@ -2004,7 +2048,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v879 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v880 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
