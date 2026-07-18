@@ -1646,3 +1646,10 @@ incremental shield, hard links, footage gate) · board breather · Grok round-3 
 NO-SHIP back-pass fixes (P0 state copy, real join, prewarm) · SIM A2.5/6/8 honest reel ·
 header tabs. Remaining for daylight: decision-river visual, site theatre ports, visual
 snapshots + 30-min soak, Windows pull + cousin verify.
+
+## 🧹 v882 "ONE NAV" (Konyo live: 'wipe the right-rail buttons — we moved them to the top', Jul 19)
+BIBLE rail retired (Session/Tools/Forge/F·Uniques/F·Sets pills gone from the right column);
+the v881 header tabs are the single nav truth. Util row (TV·D/Theatre/Log) inherits the room
+and now sits fully visible (his screenshot showed it clipped). Narrow windows shrink the tabs
+instead of hiding them (the rail fallback no longer exists). Playwright-verified: railGone ·
+5 head tabs · util fully on-screen; screenshot looked at. 149/149 + 30/30 + parity ×4.

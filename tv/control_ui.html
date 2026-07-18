@@ -825,7 +825,7 @@
     padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
   .head-tabs .ht:hover { color: var(--gold); border-color: var(--edge-hi); box-shadow: 0 0 10px rgba(240,192,96,.18); }
   .head-tabs .ht:active { transform: translateY(1px); }
-  @media (max-width: 900px){ .head-tabs { display: none; } }   /* narrow window: the rail below still serves */
+  @media (max-width: 900px){ .head-tabs { gap: 3px; } .head-tabs .ht { padding: 7px 8px; font-size: 11px; } }   /* v882 — tabs shrink, never vanish (the rail is gone) */
   .bible-rail { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(6px,.7vw,10px); }
   .bible-rail .brl { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
     color: var(--gold-dim); font-family: var(--mono); font-size: clamp(9px,.8vw,12px);
@@ -953,15 +953,9 @@
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_ith_rune.png" alt="" onerror="this.style.display='none'">Model</span><span class="val" id="sig-model">—</span></div>
         <div class="row"><span class="k">🎯 Capture</span><span class="val" id="sig-capture">—</span></div>
       </div>
-      <div class="rail-h" style="margin-top:6px">Bible</div>
-      <div class="bible-rail" id="bible-rail">
-        <button class="brl" type="button" data-tab="session">⚡ Session</button>
-        <button class="brl" type="button" data-tab="tools">🧰 Tools</button>
-        <button class="brl" type="button" data-tab="forge">🔨 Forge</button>
-        <button class="brl" type="button" data-tab="funi">🏆 F·Uniques</button>
-        <button class="brl" type="button" data-tab="fsets">🧩 F·Sets</button>
-      </div>
-      <div class="util">
+      <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
+           the header tabs are the one nav. The util row inherits the room. -->
+      <div class="util" style="margin-top:8px">
         <button class="ghost" id="btn-board" type="button"><img class="gjewel" src="/art/hd_lo_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">TV·D · same window</span></button>
         <button class="ghost" id="btn-theatre" type="button"><img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Theatre · history</span></button>
         <button class="ghost" id="btn-log" type="button"><img class="gjewel" src="/art/hd_tal_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Toggle Log</span></button>
@@ -974,7 +968,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v881 control</span>
+      <span id="foot-ver">v882 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1279,7 +1273,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v881') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v882') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
