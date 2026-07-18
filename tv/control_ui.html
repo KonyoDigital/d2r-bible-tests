@@ -697,9 +697,9 @@
      strip buttons including its own ℹ toggle. It now stops above the transport, carries its own
      ✕, and never outranks the controls. */
   .th-drawer { position: absolute; top: 0; right: 0; bottom: clamp(54px, 9vh, 72px); width: min(380px, 44%);
-    padding-top: 38px;   /* v858.1 — clearance for the absolute ✕ */
+
     z-index: 5; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
-    padding: 14px 16px; font: 500 11px/1.7 var(--mono); color: #b9c9be;
+    padding: 38px 16px 14px;   /* v859 — ✕ clearance survives the shorthand */ font: 500 11px/1.7 var(--mono); color: #b9c9be;
     letter-spacing: .02em; box-shadow: -12px 0 30px rgba(0,0,0,.5); }
   .th-drawer h4 { color: #d8bd7c; font: 700 10px/1 var(--mono);
     letter-spacing: .18em; margin: 12px 0 5px; text-transform: uppercase; }
@@ -735,7 +735,7 @@
   /* v820 (Konyo: 'simulation is a black screen') — the hidden ATTRIBUTE loses to any author
      display: declaration; these full-stage overlays were rendering their near-black backgrounds
      over the film even while hidden=true. hidden wins, always. */
-  #th-credits[hidden], #th-slate[hidden], #th-lower[hidden], #th-thumb[hidden], #th-pop[hidden] { display: none !important; }
+  #th-credits[hidden], #th-slate[hidden], #th-lower[hidden], #th-thumb[hidden], #th-pop[hidden], #th-drawer[hidden], #th-shelfov[hidden] { display: none !important; }
   #th-credits { position: absolute; inset: 0; z-index: 12; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 6px; background: rgba(4,6,5,.9);
     backdrop-filter: blur(3px); cursor: pointer; animation: thChipIn 400ms ease-out; }
@@ -951,7 +951,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v858 control</span>
+      <span id="foot-ver">v859 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1174,6 +1174,8 @@
 
     var film = $('stage-film');
     if (film) {
+      if (typeof TH !== 'undefined' && TH.open){ document.body.classList.remove('film-on'); }   // v859 — theatre covers the stage; no film thrash under it
+      else {
       var eyeStale = (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 4000);
       if (on && state !== 'sim' && eyeStale) {
         // v785 — the film NEVER claims LIVE on a dead frame (round-2 sleeper: frozen eye.jpg
@@ -1192,6 +1194,7 @@
       } else {
         document.body.classList.remove('film-on');
         film.removeAttribute('src'); film.__src = '';
+      }
       }
     }
 
@@ -1217,7 +1220,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v858') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v859') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1380,6 +1383,13 @@
     var film = $('th-film'); if (!film) return;
     if (film.__url === url) return;
     film.__want = url;
+    // v859 (Grok UX #3) — the preload pool finally FEEDS the film: any warm complete slot
+    // swaps instantly; only cold URLs pay the probe decode.
+    for (var pi = 0; pi < _thPool.length; pi++){
+      if (_thPool[pi].complete && _thPool[pi].src && _thPool[pi].src.indexOf(url) >= 0){
+        film.src = url; film.__url = url; return;
+      }
+    }
     var probe = _thPool[0];
     probe.onload = function(){ if (film.__want === url){ film.src = url; film.__url = url; } };
     probe.onerror = function(){ if (film.__want === url){ film.src = url; film.__url = url; } };
@@ -1405,7 +1415,7 @@
       // v799 (Grok R6 traps) — decode-before-swap + 1280 theatre derivative: no white flash
       // at 4x, no 14MB-RGBA-per-frame memory climb. Full 2560 = click the film.
       film.style.opacity = 1;
-      film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut');   // v801 — aperture
+      if (!TH.__manual){ film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut'); }   // v801/v859 — aperture only on playback, never on seeks (forced reflow)
       thShowFrame('/hist/' + encodeURIComponent(b.frame) + '?w=1280');
       thPreload();
       film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts)+' · click = full 2560';
@@ -1428,7 +1438,11 @@
     } else {
       $('th-caption').innerHTML = thCaption(b);
     }
-    if (typeof thCardRender === 'function') thCardRender();   // v800 — drawer follows the playhead
+    if (typeof thCardRender === 'function'){   // v859 — debounced on manual seeks (full innerHTML rebuild)
+      clearTimeout(window.__thCardT);
+      if (TH.__manual) window.__thCardT = setTimeout(thCardRender, 80);
+      else thCardRender();
+    }
     var tl = $('th-timeline');
     [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
     // keep current beat in view on dense timelines
@@ -1458,7 +1472,9 @@
     if (!TH.beats.length) return;
     TH.i = Math.max(0, Math.min(TH.beats.length - 1, i));
     if (TH.P) TH.p = TH.P[TH.i];   // v798 — seek the playhead with the beat
+    TH.__manual = true;            // v859 — manual seeks take the LIGHT paint path
     thPaint(); thClock();
+    TH.__manual = false;
     if (autoplay === false){ TH.playing = false; $('th-play').textContent = '▶'; }
   }
   // ═══ v798 (Grok R6 V1) — THE PLAYHEAD: two clocks, one surface. No more timeout slideshow.
@@ -1662,7 +1678,9 @@
     }).join('');
   }
   async function thLoadSession(n){
+    var gen = (TH.loadGen = (TH.loadGen || 0) + 1);   // v859 — stale responses never paint
     var r = await fetch('/api/session?n=' + n); var j = await r.json();
+    if (gen !== TH.loadGen) return;
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
     var raw = j.beats || [];
     // v769 — coalesce same-frame OCR+deep: richer row wins (frame photo is identical)
@@ -1696,6 +1714,12 @@
     thTimeline(); thPaint();
   }
   async function thOpen(){
+    // v859 (Grok UX #4) — pixels BEFORE network: the theatre shell opens instantly
+    TH.open = true;
+    $('theatre').hidden = false;
+    document.body.classList.add('theatre-open');
+    try { $('th-caption').textContent = '🎞 loading the reel…'; } catch (e) {}
+    thLit();
     var r = await fetch('/api/sessions'); var j = await r.json();
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
     if (!TH.sessions.length){
@@ -2080,7 +2104,7 @@
     }
     tl.addEventListener('pointerdown', function(e){ dragging = true; TH.playing = false; $('th-play').textContent = '▶'; tl.setPointerCapture(e.pointerId); seekAt(e); });
     tl.addEventListener('pointermove', function(e){
-      if (dragging) seekAt(e);
+      if (dragging){ if (!tl.__raf){ tl.__raf = requestAnimationFrame(function(){ tl.__raf = null; }); seekAt(e); } return; }   // v859 — rAF-coalesced drag, thumb skipped
       // v802 — SCRUB THUMB: hover any point of the reel, see that exact frame (160px derivative)
       try {
         var r2 = tl.getBoundingClientRect();
@@ -2099,21 +2123,16 @@
       } catch (err) {}
     });
     tl.addEventListener('pointerleave', function(){ var tb = $('th-thumb'); if (tb) tb.hidden = true; });
-    tl.addEventListener('pointerup', function(){ dragging = false; });
+    tl.addEventListener('pointerup', function(){ dragging = false; tl.__suppress = true; setTimeout(function(){ tl.__suppress = false; }, 120); thPaint(); });   // v859 — full paint once, trailing click eaten
   })();
   $('th-timeline').onclick = function(e){
+    if (this.__suppress) return;   // v859 — drag release is not a click
     var b = e.target.closest('.th-beat'); if (!b) return;
     TH.playing = false; $('th-play').textContent = '▶';
     thGo(Number(b.dataset.i) || 0, false);
   };
-  // arrow keys while theatre open: scrub beats backwards/forwards
-  document.addEventListener('keydown', function(e){
-    if (!TH.open) return;
-    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
-    if (e.key === 'ArrowLeft'){ e.preventDefault(); $('th-prev-b').click(); }
-    if (e.key === 'ArrowRight'){ e.preventDefault(); $('th-next-b').click(); }
-    if (e.key === ' '){ e.preventDefault(); $('th-play').click(); }
-  });
+  // v859 (Grok UX #1) — the duplicate theatre keydown is DEAD: Space was toggling twice
+  // (self-cancel) and arrows double-stepped every press. One handler owns the theatre keys.
 
   // v847 — BUTTON TRUTH (session save + clean exit):
   // · OFF = seal session_end (no long farewell) · kill agent · wait until bridge down
@@ -2196,6 +2215,7 @@
   document.addEventListener('keydown', function(e){
     if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (e.code === 'Space') {
+      if (TH.open) return;   // v859 — the theatre owns Space; it must NEVER cut a live agent
       e.preventDefault();
       if (busy) return;
       var st = document.body.getAttribute('data-state');

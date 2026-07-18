@@ -1441,3 +1441,13 @@ drawer trap reborn; now absolute top-right + padding clearance, close verified 2
 latency-free confirmed. Matrix ALL PASSED. ALSO REG-026 lesson: my backgrounded ship-chain
 cycled the app MID-RUN and killed Konyo's session after read #1 — restored live; DOCTRINE: no
 app cycles inside background chains; cycle only with mode=off.
+
+## 🏓 GROK SURGICAL UX → v859 "Surgical Sync" (~01:15 Jul 19)
+Grok read the interaction layer button-by-button; 13 findings, headline CRITICAL: THREE keydown
+handlers — Space in the theatre toggled play twice AND fired the global ON/OFF (could CUT A LIVE
+AGENT from the reel); arrows double-stepped. v859: dup handler dead + theatre owns Space; preload
+pool finally FEEDS the film (warm slots swap instantly); manual seeks take a light paint (no
+aperture reflow, debounced drawer rebuild); SIM opens its shell before network; drag scrub rAF-
+coalesced with thumb off + trailing click eaten; thLoadSession gen token; drawer padding self-
+overwrite fixed; #th-drawer/#th-shelfov [hidden] guards; stage film never thrashes under the open
+theatre. My driver's numbers: status 24ms · buttons 25-86ms. 138/138 + 27/27.
