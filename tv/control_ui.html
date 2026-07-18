@@ -703,6 +703,7 @@
   .th-beat.cur { background: var(--gold-hi); height: 14px; box-shadow: 0 0 10px rgba(255,223,154,.6); }
   .th-beat.noframe { background: rgba(255,255,255,.08); }
   .th-beat.chap { border-left: 2px solid var(--gold, #c8a24a); margin-left: 3px; }
+  .th-beat.foot { opacity: .28; }
   .th-fx { display: inline-block; margin-top: 4px; font: 500 11px/1.6 ui-monospace, monospace;
     color: #9fb5a8; letter-spacing: .03em; }
   .th-chip.th-tag { opacity: .85; } .th-chip.th-tag i { font-style: normal; opacity: .65; font-size: 10px; }
@@ -856,7 +857,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v825 control</span>
+      <span id="foot-ver">v826 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1096,7 +1097,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v825') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v826') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1262,6 +1263,7 @@
   function thPaint(){
     var b = TH.beats[TH.i];
     if (!b) return;
+    if (!b.footage) TH.lastRead = b;   // v826 — the standing AI read annotates the footage
     var film = $('th-film');
     if (b.frame){
       // v799 (Grok R6 traps) — decode-before-swap + 1280 theatre derivative: no white flash
@@ -1282,7 +1284,13 @@
         try { localStorage.removeItem('tvd_card_pref'); } catch (e) {}
       }
     } catch (e) {}
-    $('th-caption').innerHTML = thCaption(b);
+    if (b.footage){
+      var lr = TH.lastRead;
+      var foot = '<span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + ' · the eye, 1 frame/sec</span>';
+      $('th-caption').innerHTML = lr ? (foot + '<br>' + thCaption(lr)) : foot;
+    } else {
+      $('th-caption').innerHTML = thCaption(b);
+    }
     if (typeof thCardRender === 'function') thCardRender();   // v800 — drawer follows the playhead
     var tl = $('th-timeline');
     [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
@@ -1328,6 +1336,7 @@
   }
   function thEdgeMs(b, nxt){
     var gapWall = Math.max(0, (nxt.ts||0) - (b.ts||0));
+    if (b.footage || nxt.footage) return Math.min(1500, Math.max(120, gapWall));   // v826 — footage = REAL time (1fps → literal video at 1×)
     var sameArea = b.area && nxt.area && b.area === nxt.area;
     var bothQuiet = thInterest(b) < 0.25 && thInterest(nxt) < 0.25;
     if (sameArea && bothQuiet && gapWall > 8000) return 80;    // area-gap collapse
@@ -1461,6 +1470,7 @@
     var keep = [], lastArea = null;
     beats.forEach(function(b, k){
       var why = false;
+      if (b.footage) { return; }   // v826 — the CUT tells the story; 📼 FULL plays the footage
       if (k === 0 || k === beats.length - 1) why = true;
       if ((b.vault_names||[]).length || (b.pending_names||[]).length) why = true;
       if ((b.names||[]).length || (b.discovered_names||[]).length) why = true;
@@ -1483,6 +1493,7 @@
     tl.innerHTML = TH.beats.map(function(b, k){
       var cls = '';
       if (k > 0 && b.area && TH.beats[k-1] && b.area !== TH.beats[k-1].area) cls += ' chap';   // v790 — chapter tick
+      if (b.footage) cls += ' foot';   // v826 — hairline footage tick
       if ((b.vault_names||[]).length) cls = cls + ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
@@ -1505,6 +1516,7 @@
     // v769 — coalesce same-frame OCR+deep: richer row wins (frame photo is identical)
     var byFrame = {}, beats = [];
     raw.forEach(function(b){
+      if (b.footage){ beats.push(b); return; }   // v826 — footage is film, never merged
       if (!b.frame){ beats.push(b); return; }
       var k = b.frame;
       if (byFrame[k] === undefined){ byFrame[k] = beats.length; beats.push(b); return; }

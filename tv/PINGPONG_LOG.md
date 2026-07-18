@@ -1131,3 +1131,11 @@ Drawer trap fixed (it covered its own ℹ toggle): drawer stops above the transp
 ✕ close + I preference. ⛶ FULLSCREEN cinema: theatre fills the entire window (F toggles, Esc
 exits, true requestFullscreen attempted, auto-exits with theatre close). UX-verified headless:
 open→✕→closed, cinema 1120×800 full-window, Esc off. 97/97 + 25/25.
+
+## 📹 v826 "The Footage" (Konyo: 'every frame per second', ~16:30)
+The reel is now LITERAL video: agent film loop archives the eye at 1fps (f_<ms>.jpg, own 3600-
+frame cap inside the shared MB ceiling, twins pruned); /api/session interleaves footage frames
+into the session window as film-only beats; 📼 FULL plays them at REAL time (gap-clamped 120-
+1500ms → 1s/frame at 1×, 2×/4× speed it) with the STANDING AI read + '📹 footage · hh:mm:ss.ms ·
+the eye, 1 frame/sec' annotation; 🎬 CUT still tells the story (footage dropped); hairline
+timeline ticks. Next sessions recorded from v826 onward carry footage. 97/97 + 25/25.

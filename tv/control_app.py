@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v825)
+# 📺 TV DIABLO — Control App (Mac + Windows · v826)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v825",
+        "ver": "v826",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1229,6 +1229,26 @@ class Handler(BaseHTTPRequestHandler):
                     "lifecycle_tags": r.get("lifecycle_tags") or {},
                     "sim": bool(r.get("sim")),
                 })
+            # v826 — FOOTAGE interleave: 1fps eye frames within this session's window become
+            # film-only beats; the reel plays as real video with AI reads annotating over it.
+            try:
+                t0f = (sess[0].get("ts") or 0) - 2000
+                t1f = (sess[-1].get("ts") or 0) + 2000
+                hist_dir = os.path.join(HERE, "frames", "hist")
+                if os.path.isdir(hist_dir):
+                    for fn in os.listdir(hist_dir):
+                        if not (fn.startswith("f_") and fn.endswith(".jpg")):
+                            continue
+                        try:
+                            fts = int(fn[2:-4])
+                        except Exception:
+                            continue
+                        if t0f <= fts <= t1f:
+                            beats.append({"ts": fts, "captureTs": fts, "footage": True,
+                                          "frame": fn, "frameId": fn[:-4], "names": [],
+                                          "scene": "", "area": "", "lane": "footage"})
+            except Exception:
+                pass
             # chronological by capture time (never scramble OCR/deep order)
             beats.sort(key=lambda b: (b.get("ts") or 0, b.get("n") or 0))
             sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
@@ -1623,7 +1643,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v825 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v826 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

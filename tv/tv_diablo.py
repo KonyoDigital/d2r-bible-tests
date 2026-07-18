@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v825"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v826"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -578,6 +578,19 @@ def _film_loop():
                 else:
                     os.replace(tmp, eye)
                 globals()["_EYE_PREVIEW_AT"] = time.time()
+                # v826 (Konyo: 'AI shows whats happening every frame per second') — FOOTAGE:
+                # archive the live eye at ~1fps so the theatre replays REAL VIDEO between AI
+                # reads. Own budget (count-capped), pruned with the hist sweep.
+                try:
+                    now_f = time.time()
+                    if now_f - globals().get("_FOOTAGE_AT", 0) >= 1.0:
+                        globals()["_FOOTAGE_AT"] = now_f
+                        hist_dir = os.path.join(FRAMES, "hist")
+                        os.makedirs(hist_dir, exist_ok=True)
+                        import shutil as _sh
+                        _sh.copyfile(eye, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
+                except Exception:
+                    pass
             else:
                 try:
                     if os.path.exists(tmp):
@@ -931,12 +944,17 @@ def archive_read_frame(src_path, n, ts_ms=None):
                 f0 = files[len(over_mb)]
                 total -= _size_all(f0)
                 over_mb.append(f0)
-            for old in set(over_mb) | set(files[:-HIST_KEEP]):
+            # v826 — footage frames (f_*.jpg) have their OWN count cap (~1h at 1fps) and
+            # never push READ frames out of HIST_KEEP; both still share the MB ceiling.
+            read_files = [f for f in files if not os.path.basename(f).startswith("f_")]
+            foot_files = [f for f in files if os.path.basename(f).startswith("f_")]
+            doomed = set(over_mb) | set(read_files[:-HIST_KEEP]) | set(foot_files[:-3600])
+            for old in doomed:
                 for f in [old] + _twins(old):
                     try: os.remove(f)
                     except Exception: pass
             # orphan derivatives (source already gone) die too
-            keep = {os.path.basename(f) for f in files if f not in set(over_mb) | set(files[:-HIST_KEEP])}
+            keep = {os.path.basename(f) for f in files if f not in doomed}
             for cd in cache_dirs:
                 for f in os.listdir(cd):
                     if f.lower().endswith(".jpg") and f not in keep:
