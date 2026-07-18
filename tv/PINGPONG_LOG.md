@@ -1373,3 +1373,10 @@ data'); wine/CrossOver-owned windows with unambiguous game title+size pass ALL t
 gates (3 scorer locks); footage self-reaps in the film loop (reads stalling no longer let f_
 grow unbounded); glob precedence parenthesized. Also: freed two marching-version test pins
 (sibling's v846 pin + matrix v839) → regex, tv/*.log gitignored. 127/127 + 27/27.
+
+## 🏃 ARMY-UI wave → v850 "Broadcast Polish" (~21:00)
+audit-ui's 8, shipped: Cinzel→var(--serif) (was falling to Times — Cinzel never loaded);
+gold-hi fallback traps → parchment literals; parch/antique tokens in :root; caption max-height
+44vh + read-card max-width 560px (busy beats can't climb the film); mono token unification;
+chips lighter than the IT SAW hero; drawer ✕ classed + cleared; dead .th-fx removed; signing/sim
+phase dots colored. Visual-verified. 127/127 + 27/27.
