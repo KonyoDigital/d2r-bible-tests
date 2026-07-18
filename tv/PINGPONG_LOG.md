@@ -964,3 +964,11 @@ Beat payload now carries the FULL read truth (ocr_names/confirmed/ocr_seeded/con
 sim/model/completedTs) + theatre caption grows a forensics strip: T+mm:ss.mmm session clock ·
 ⚡OCR lane vs 🧠 deep lane names · latency ms · ✓confirmed count · 🛟 ocr-rescued · conf · 🕐 answer
 delay · per-name lifecycle tag chips. 89/89 + 17/17.
+
+## 🏓 Grok R6 V1 → v798 "The Playhead" (~06:45)
+The slideshow is dead: piecewise-linear theatre axis P[] (content-weighted holds 320-2400ms,
+quiet-gap collapse 60-180ms, same-area 8s+ quiet → 80ms sliver), rAF playhead p advances at
+speed×real-ms (2×/4× = dp/dt only, never rebuilds the axis), binary-search beat binding,
+T+mm:ss.mmm + wall dual clock in the header, timeline widths ∝ theatre time (equal dots lie),
+OCR+deep same-frame rows MERGE into one two-lane beat (no more discard). Axis sanity-tested in
+node: vault holds 2s, 38s quiet → 0.6s. 89/89 + 17/17.

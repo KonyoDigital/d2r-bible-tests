@@ -714,6 +714,7 @@
         <img class="th-film" id="th-film" alt="" onerror="this.style.opacity=.15">
         <div class="th-topline">
           <span class="th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
+          <span class="th-clock" id="th-clock" style="font:600 11px/1 ui-monospace,monospace;color:#bfae7f;letter-spacing:.06em;margin-left:10px"></span>
           <span class="th-sess" id="th-sess">—</span>
           <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
         </div>
@@ -769,7 +770,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v797 control</span>
+      <span id="foot-ver">v798 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -984,7 +985,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v797') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v798') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -1157,37 +1158,76 @@
   function thGo(i, autoplay){
     if (!TH.beats.length) return;
     TH.i = Math.max(0, Math.min(TH.beats.length - 1, i));
-    thPaint();
-    if (autoplay !== false && TH.playing) thSchedule();
-    else { clearTimeout(TH.timer); }
+    if (TH.P) TH.p = TH.P[TH.i];   // v798 — seek the playhead with the beat
+    thPaint(); thClock();
+    if (autoplay === false){ TH.playing = false; $('th-play').textContent = '▶'; }
   }
-  function thStep(){
-    if (!TH.open || !TH.playing || !TH.beats.length) return;
-    if (TH.i >= TH.beats.length - 1){
-      TH.playing = false;
-      $('th-play').textContent = '▶';
-      return; // stop at end — don't loop (backwards scrub stays honest)
+  // ═══ v798 (Grok R6 V1) — THE PLAYHEAD: two clocks, one surface. No more timeout slideshow.
+  // Wall time (captureTs span) maps piecewise-linearly onto a compressed theatre axis P[];
+  // an rAF playhead advances p at speed×real-ms. Quiet collapses, loot holds, order is truth.
+  function thInterest(b){
+    if ((b.vault_names||[]).length) return 1.0;
+    if ((b.discovered_names||[]).length) return 0.9;
+    if (b.farewell) return 0.8;
+    if ((b.names||[]).length) return 0.75;
+    if (b.scene === 'stash' || b.scene === 'inventory') return 0.4;
+    if (b.scene === 'loot') return 0.35;
+    return 0.15;
+  }
+  function thHoldMs(b, gapWall){
+    var base = 320 + thInterest(b) * (2400 - 320);
+    var prop = Math.min((gapWall || 0) * 0.12, 1200);
+    return Math.min(2400, Math.max(320, base * 0.7 + prop * 0.3));
+  }
+  function thEdgeMs(b, nxt){
+    var gapWall = Math.max(0, (nxt.ts||0) - (b.ts||0));
+    var sameArea = b.area && nxt.area && b.area === nxt.area;
+    var bothQuiet = thInterest(b) < 0.25 && thInterest(nxt) < 0.25;
+    if (sameArea && bothQuiet && gapWall > 8000) return 80;    // area-gap collapse
+    if (bothQuiet) return Math.min(180, Math.max(60, gapWall * 0.02));
+    return thHoldMs(b, gapWall);
+  }
+  function thBuildAxis(){
+    var P = [0], bs = TH.beats;
+    for (var i = 0; i < bs.length; i++){
+      var dur = bs[i+1] ? thEdgeMs(bs[i], bs[i+1]) : thHoldMs(bs[i], 1200);
+      P.push(P[i] + dur);
     }
-    TH.i += 1;
-    thPaint();
-    thSchedule();
+    TH.P = P; TH.Tplay = P[P.length - 1] || 1; TH.p = TH.P[TH.i] || 0;
   }
-  function thSchedule(){
-    clearTimeout(TH.timer);
-    if (!TH.playing) return;
-    var cur = TH.beats[TH.i], nxt = TH.beats[TH.i+1];
-    // v786 (Konyo: 'too slow.. play is not synced') — STORY TIME, not wall time: reads land
-    // 6-30s apart, so raw gaps pinned the old 4s cap on every beat and the reel crawled.
-    // Compress truthfully (order + proportion kept, 8x faster), clamp for watchability.
-    var gap;
-    if (TH.mode === 'highlight'){
-      gap = thDwell(cur || {});   // v790 — broadcast cut: content decides the dwell
-    } else {
-      var raw = (cur && nxt) ? Math.max(0, (nxt.ts||0) - (cur.ts||0)) : 1200;
-      gap = Math.max(500, Math.min(2200, raw / 8));
+  function thBeatAt(p){
+    var P = TH.P || [0];
+    var lo = 0, hi = P.length - 2;
+    while (lo < hi){ var mid = (lo + hi + 1) >> 1; if (P[mid] <= p) lo = mid; else hi = mid - 1; }
+    return lo;
+  }
+  function thClock(){
+    var el = $('th-clock'); if (!el) return;
+    var b = TH.beats[TH.i] || {};
+    var meta = TH.sessions[TH.sn-1] || {};
+    var t0 = meta.t0 || (TH.beats[0] || {}).ts || 0;
+    var rel = Math.max(0, (b.ts || 0) - t0);
+    var mm = Math.floor(rel / 60000), ss = Math.floor((rel % 60000) / 1000), ms3 = ('00' + (rel % 1000)).slice(-3);
+    el.textContent = 'T+' + mm + ':' + ('0' + ss).slice(-2) + '.' + ms3 + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '—');
+  }
+  var _thLast = 0;
+  function _thTick(now){
+    if (TH.open && TH.playing && TH.beats.length && TH.P){
+      TH.p = Math.min(TH.Tplay, TH.p + (now - (_thLast || now)) * TH.speed);
+      var i = thBeatAt(TH.p);
+      if (i !== TH.i){ TH.i = i; thPaint(); }
+      thClock();
+      if (TH.p >= TH.Tplay){ TH.playing = false; $('th-play').textContent = '▶'; }
     }
-    TH.timer = setTimeout(thStep, gap / TH.speed);
+    _thLast = now;
+    requestAnimationFrame(_thTick);
   }
+  requestAnimationFrame(_thTick);
+  function thStep(){   // manual next — beat snap
+    if (!TH.beats.length) return;
+    thGo(Math.min(TH.beats.length - 1, TH.i + 1), false);
+  }
+  function thSchedule(){ /* v798 — rAF playhead owns time now; nothing to schedule */ }
   // v790 (Grok R4 #2) — HIGHLIGHT CUT: a real session is hundreds of empty floor beats.
   // The cut keeps the story: loot chain, discoveries, area changes, farewell, bookends.
   function thFilter(beats){
@@ -1227,7 +1267,9 @@
         + (b.area ? (' · ' + b.area) : '')
         + (b.scene ? (' · ' + b.scene) : '')
         + ((b.names&&b.names.length) ? (' · ' + b.names.slice(0,4).join(', ')) : ' · (no tooltips)');
-      return '<span class="th-beat'+cls+'" data-i="'+k+'" title="'+esc(tip)+'"></span>';
+      var w = '';
+      if (TH.P && TH.Tplay){ w = ' style="flex:0 0 ' + Math.max(0.35, ((TH.P[k+1]-TH.P[k]) / TH.Tplay) * 100).toFixed(2) + '%"'; }   // v798 — width ∝ theatre time (equal dots lie)
+      return '<span class="th-beat'+cls+'" data-i="'+k+'"'+w+' title="'+esc(tip)+'"></span>';
     }).join('');
   }
   async function thLoadSession(n){
@@ -1241,12 +1283,23 @@
       var k = b.frame;
       if (byFrame[k] === undefined){ byFrame[k] = beats.length; beats.push(b); return; }
       var prev = beats[byFrame[k]];
-      var score = function(x){ return (x.lane==='deep'?2:0) + ((x.names||[]).length?1:0) + ((x.vault_names||[]).length?2:0); };
-      if (score(b) >= score(prev)) beats[byFrame[k]] = b;
+      // v798 (Grok R6) — MERGE lanes, never discard: one film beat, two lane layers.
+      var deep = (b.lane === 'deep') ? b : (prev.lane === 'deep' ? prev : null);
+      var ocr  = (b.lane === 'ocr')  ? b : (prev.lane === 'ocr'  ? prev : null);
+      var m = Object.assign({}, prev, b);
+      if (deep){ Object.assign(m, deep); }
+      if (ocr){
+        if (!(m.ocr_names||[]).length) m.ocr_names = ocr.names || ocr.ocr_names || [];
+        if (!m.ms && ocr.ms) m.ocr_ms = ocr.ms;
+        if (!(m.names||[]).length && (ocr.names||[]).length && !deep) m.names = ocr.names;
+      }
+      m.ts = Math.min(prev.ts || b.ts || 0, b.ts || prev.ts || 0);
+      beats[byFrame[k]] = m;
     });
     // chronological by CAPTURE ts
     beats.sort(function(a,b){ return (a.ts||0)-(b.ts||0) || (a.n||0)-(b.n||0); });
     TH.sn = n; TH.allBeats = beats; TH.beats = thFilter(beats); TH.i = 0; TH.sessionId = j.sessionId || '';   // v790 — cut applied
+    thBuildAxis();   // v798 — one time engine, both modes
     TH.playing = false; $('th-play').textContent = '▶'; // start paused so user can scrub backwards
     thTimeline(); thPaint();
   }
@@ -1306,7 +1359,8 @@
     TH.beats = thFilter(TH.allBeats.slice());
     TH.i = 0;
     if (keepTs){ for (var k = 0; k < TH.beats.length; k++){ if ((TH.beats[k].ts||0) >= keepTs){ TH.i = k; break; } } }
-    thTimeline(); thPaint(); thSchedule();
+    thBuildAxis();   // v798 — same engine on the new beat set
+    thTimeline(); thPaint(); thClock();
   };
   $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
   $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
