@@ -1099,3 +1099,10 @@ while hidden=true. Fix: [hidden]{display:none!important} for all five theatre ov
 asserted in gate). Same debug also fixed: /hist ?w= derivative (router stripped the query —
 now 1280px/244KB actually serves, was 2560/1MB) + T+ clock lights at open. VISUAL VERIFY:
 headless screenshot shows the full Chaos frame + forensics + timeline. 97/97 + 25/25.
+
+## 🎬 v821 "The AI Read Line" (~12:25) — Konyo: 'WHERE is the AI read at the time of'
+The model's answer is now the HEADLINE of every beat, dual-stamped: 📸 CAPTURE wall-clock.ms +
+T+ session clock + frameId › 🧠 AI READ wall-clock.ms (+Ns after the frame) + model/latency/conf
+› 📖 IT SAW <verbatim names in mint> (or 'honest empty') › ⚡ OCR lane when present › SIM badge.
+READ CARD drawer opens BY DEFAULT with the theatre (I closes). VISUAL-VERIFIED: screenshot shows
+CAPTURE 2:51:18.128 → AI READ 2:51:25.036 (+6.9s) on the Chaos frame. 97/97 + 25/25.
