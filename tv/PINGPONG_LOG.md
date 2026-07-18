@@ -1184,3 +1184,9 @@ non-logically. Beats now sort by the PHOTO's own clock (frameId suffix ms) with 
 ap_interest exposes its decomposition (parts= out-param; parts sum == score, lock added);
 dispatch ctx grows peak/gapMs/emptyStreak/apMode/queueDepth/interestParts; drawer DISPATCH
 section renders '= parts peak +0.45 · priority +0.25 …'. 110/110 + 25/25.
+
+## 🏓 R12 → v834 "The Eraser" (Konyo: 'option to delete a session', ~19:15)
+POST /api/session/delete {n}: removes that session's journal rows across the generation ring
+(atomic tmp+replace per file), its read frames by frameId, footage in its window, derivative
+twins — other reels untouched. 🗑 in the strip with two-click arm (3.5s, no native dialogs),
+reloads the picker after. 110/110 + 26/26.

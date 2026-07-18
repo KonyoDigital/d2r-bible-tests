@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v833)
+# 📺 TV DIABLO — Control App (Mac + Windows · v834)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v833",
+        "ver": "v834",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1499,6 +1499,75 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/session/delete":
+            # v834 (Konyo: 'an option to delete a session if i want to') — POST {n} removes that
+            # session's journal rows (across the generation ring) + its hist frames + footage in
+            # its window. User-initiated, session-scoped, never touches other reels.
+            try:
+                n = int(body.get("n") or 0)
+                sess = self._theatre_session(n)
+                if not isinstance(sess, dict) or not sess.get("beats"):
+                    self._json(404, {"ok": False, "msg": "no such session"})
+                    return
+                sid = sess.get("sessionId") or ""
+                t0d = (sess.get("t0") or 0) - 2000
+                t1d = (sess.get("t1") or 0) + 2000
+                _root = os.path.join(HERE, "sessions")
+                removed = 0
+                fids = set()
+                for _p in [_root + ".%d.jsonl" % g for g in range(5, 0, -1)] + [_root + ".jsonl"]:
+                    if not os.path.isfile(_p):
+                        continue
+                    keep_lines = []
+                    with open(_p, encoding="utf-8") as jf:
+                        for line in jf:
+                            raw_l = line.rstrip("\n")
+                            if not raw_l.strip():
+                                continue
+                            try:
+                                row = json.loads(raw_l)
+                            except Exception:
+                                keep_lines.append(raw_l)
+                                continue
+                            mine = (sid and row.get("sessionId") == sid) or \
+                                   ((not sid) and t0d <= (row.get("ts") or 0) <= t1d)
+                            if mine:
+                                removed += 1
+                                if row.get("frameId"):
+                                    fids.add(str(row["frameId"]))
+                            else:
+                                keep_lines.append(raw_l)
+                    tmp_p = _p + ".tmp"
+                    with open(tmp_p, "w", encoding="utf-8") as jf:
+                        jf.write("\n".join(keep_lines) + ("\n" if keep_lines else ""))
+                    os.replace(tmp_p, _p)
+                # frames: read frames by id + footage frames inside the window
+                hist_dir = os.path.join(HERE, "frames", "hist")
+                killed_frames = 0
+                if os.path.isdir(hist_dir):
+                    for fn in os.listdir(hist_dir):
+                        if not fn.endswith(".jpg"):
+                            continue
+                        base = fn[:-4]
+                        kill = base in fids
+                        if not kill and fn.startswith("f_"):
+                            try:
+                                kill = t0d <= int(base[2:]) <= t1d
+                            except Exception:
+                                kill = False
+                        if kill:
+                            for sub in ("", "cache1280", "cache160"):
+                                try:
+                                    os.remove(os.path.join(hist_dir, sub, fn) if sub else os.path.join(hist_dir, fn))
+                                    if not sub:
+                                        killed_frames += 1
+                                except Exception:
+                                    pass
+                self._json(200, {"ok": True, "removedReads": removed, "removedFrames": killed_frames,
+                                 "sessionId": sid})
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)})
+            return
         if path == "/api/on":
             if _stop_inflight:
                 self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
@@ -1664,7 +1733,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v833 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v834 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

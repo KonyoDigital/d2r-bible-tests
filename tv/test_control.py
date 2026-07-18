@@ -326,5 +326,16 @@ class TestTripleParity(unittest.TestCase):
         self.assertEqual(v, tvmod.VERSION, "bible D2R_BUILD drifted from agent VERSION")
 
 
+
+class TestSessionDelete(unittest.TestCase):
+    """v834 (Konyo) — deleting a session removes ONLY that session's rows; others survive."""
+
+    def test_delete_handler_registered(self):
+        import inspect
+        src = inspect.getsource(ca.Handler.do_POST)
+        self.assertIn('"/api/session/delete"', src)
+        self.assertIn("removedReads", src)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

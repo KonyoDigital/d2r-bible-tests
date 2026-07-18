@@ -815,6 +815,7 @@
           <button class="th-btn" id="th-replay" type="button" title="instant replay — rewind to the moments before this find (R)" hidden>⏪</button>
           <button class="th-btn" id="th-export" type="button" title="night card — export this session's recap to the Desktop">📼</button>
           <button class="th-btn" id="th-fs" type="button" title="fullscreen — watch like a video (F / Esc exits)">⛶</button>
+          <button class="th-btn" id="th-del" type="button" title="delete this session (two clicks — reads + frames, forever)">🗑</button>
         </div>
       </div>
     </section>
@@ -857,7 +858,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v833 control</span>
+      <span id="foot-ver">v834 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1097,7 +1098,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v833') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v834') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1730,6 +1731,26 @@
     } catch (e) {}
   }
   $('th-fs').onclick = function(){ thCinema(); };
+  // v834 (Konyo) — DELETE SESSION: two-click arm (no native dialogs), then the reel + its
+  // frames are gone forever and the next session loads.
+  $('th-del').onclick = async function(){
+    var btn = this;
+    if (!btn.__armed){
+      btn.__armed = true; btn.textContent = '🗑 sure?'; btn.style.color = '#f88';
+      clearTimeout(btn.__t); btn.__t = setTimeout(function(){ btn.__armed = false; btn.textContent = '🗑'; btn.style.color = ''; }, 3500);
+      return;
+    }
+    btn.__armed = false; btn.textContent = '🗑'; btn.style.color = '';
+    try {
+      var meta = TH.sessions[TH.sn - 1] || {};
+      var r = await fetch('/api/session/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: meta.n || TH.sn }) });
+      var j = await r.json();
+      if (j.ok){
+        toast('🗑 session deleted — ' + j.removedReads + ' reads · ' + j.removedFrames + ' frames gone');
+        thClose(); thOpen();
+      } else toast('⚠ delete failed · ' + (j.msg || ''));
+    } catch (e) { toast('⚠ delete failed · ' + e); }
+  };
   document.addEventListener('fullscreenchange', function(){
     if (!document.fullscreenElement && document.body.classList.contains('cinema')) document.body.classList.remove('cinema');
   });
