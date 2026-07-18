@@ -1867,7 +1867,9 @@ class TestReaderPool(unittest.TestCase):
         self.assertEqual(pooln("0"), 1)
 
     def test_heartbeat_cap_scales_with_pool(self):
-        for n, cap in [(1, 1), (2, 1), (3, 1), (4, 1), (5, 2), (8, 2)]:
+        # v869 — cap = 3/4 of the pool (farm-video acceptance: cap 2 measured one read per
+        # 3.9s; Konyo's bar is ~2s). Settle + queue drains keep the remaining quarter.
+        for n, cap in [(1, 1), (2, 1), (3, 2), (4, 3), (5, 3), (8, 6)]:
             tv.POOL_N = n
             self.assertEqual(tv._heartbeat_cap(), cap, "cap wrong at POOL_N=%d" % n)
 

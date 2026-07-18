@@ -1525,3 +1525,13 @@ burn on a CrossOver surface) every iteration before the fallback fired. v867: LA
 straight window-lane failures demote to full-screen lane for 30s; full-screen lane goes Quartz-
 first (~50ms, no subprocess); health gains filmLane + filmCapMs. 145/145 + 27/27 + parity ×4.
 ACCEPTANCE: live 3-min run — footage ≥180 frames, gap stats, reader spread, heartbeat count.
+
+## 🎬 v868-v869 FARM-VIDEO ACCEPTANCE (Konyo's real 1:51 farming recording, Jul 18 night)
+v868 "TRUE TWO": absolute 0.5s footage schedule (relative gate quantized vs loop tick — live
+1.12fps) + Grok round folded in (HB in-flight sig de-dupe [blocker], static-view 10s idle
+throttle, HB stamps last_md5, starve lane Quartz-first, 1-fail re-demote after first demotion
+@15s, autorelease pools on both Quartz lanes). VIDEO RUN (ffplay -fs; QuickTime AppleScript
+blocked on a TCC prompt): **243 frames/122s = 1.99fps — 2FPS TARGET HIT** · gap avg 0.50s ·
+max 0.99s · 0 holes · session 270 beats (31 reads + 239 footage) · 25 heartbeats · readers
+0-3. Cadence one per 3.9s at HB cap 2 → v869 "SIX HEARTS": cap = 3/4 pool (6@8), test lock
+updated. Konyo's bar "180 frames in 3 min": at 1.99fps a 3-min video = ~358. ✅

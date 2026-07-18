@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v868"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v869"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1589,9 +1589,10 @@ def _vision_busy():
 
 
 def _heartbeat_cap():
-    """v863 — heartbeat concurrency scales with the pool but never owns it: ceil(POOL_N/4)
-    (2 at N=8). Settle + queue drains own the rest of the readers."""
-    return max(1, (POOL_N + 3) // 4)
+    """v869 (farm-video acceptance: cadence one per 3.9s at cap 2, Konyo wants ~2s) — heartbeat
+    owns up to 3/4 of the pool (6 at N=8); settle + queue drains keep the remaining readers.
+    With ~10s vision latency, 6 slots at a 2s dispatch tick ≈ one applied read every ~1.7s."""
+    return max(1, (POOL_N * 3) // 4)
 
 
 def _heartbeat_in_flight_n():
