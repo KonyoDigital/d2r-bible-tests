@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v845)
+# 📺 TV DIABLO — Control App (Mac + Windows · v847)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -204,19 +204,44 @@ def _kill_pid(pid, force=False):
         except Exception:
             pass
         return
+    # v847 — agent is NOT setsid on Mac (TCC). killpg(pid) often fails; prefer kill then group.
     sig = signal.SIGKILL if force else signal.SIGTERM
     try:
-        os.killpg(pid, sig)
+        os.kill(pid, sig)
     except ProcessLookupError:
-        try:
-            os.kill(pid, sig)
-        except ProcessLookupError:
-            pass
+        return
     except Exception:
-        try:
-            os.kill(pid, sig)
-        except Exception:
-            pass
+        pass
+    try:
+        os.killpg(pid, sig)
+    except Exception:
+        pass
+
+
+def _ask_agent_shutdown(farewell=True, reason="stop", timeout=2.0):
+    """v847 — polite shutdown: agent journals session_end (+ optional farewell) then exits."""
+    try:
+        from urllib.parse import quote as _quote
+        q = "farewell=%s&reason=%s" % ("1" if farewell else "0",
+                                        _quote(str(reason)[:40]))
+        urllib.request.urlopen(
+            f"http://127.0.0.1:{AGENT_PORT}/shutdown?{q}", timeout=timeout
+        ).read()
+        return True
+    except Exception:
+        return False
+
+
+def _collect_agent_pids():
+    """Every PID that might be the live agent (owned child, port listener, pid file)."""
+    pids = set()
+    with _lock:
+        if _agent_proc is not None and _agent_proc.poll() is None:
+            pids.add(int(_agent_proc.pid))
+    for p in (_port_listener_pid(), _read_pid(PID_PATH)):
+        if p:
+            pids.add(int(p))
+    return [p for p in pids if p]
 
 
 def _pid_alive(pid):
@@ -346,12 +371,29 @@ def _stop_capture():
 
 def start_agent(sim=False, test=False):
     global _agent_proc, _agent_mode, _log_fp
+    # v847 — never "already live" on a stranger/orphan: hard-stop anything on the bridge first
+    if _stop_inflight:
+        return {"ok": False, "msg": "farewell still finishing — try again in a moment",
+                "mode": "stopping", "error": "still stopping"}
+    if _agent_alive() or _port_listener_pid() is not None:
+        # If we own a healthy child and user re-clicked ON, treat as already on
+        with _lock:
+            owned = _agent_proc is not None and _agent_proc.poll() is None
+        if owned and _bridge_ping() is not None and not sim:
+            return {"ok": True, "msg": "already on air", "mode": _agent_mode or "live",
+                    "pid": _agent_proc.pid if _agent_proc else None}
+        # Orphan / stale / wrong mode → kill cleanly (no second farewell if already stopping)
+        stop_agent(farewell=False)
+        time.sleep(0.35)
+
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
             return {"ok": True, "msg": "already running", "mode": _agent_mode}
+        # re-check port after stop
         if _port_listener_pid() is not None:
-            _agent_mode = "sim" if sim else "live"
-            return {"ok": True, "msg": "bridge already live", "mode": _agent_mode}
+            # last resort force-kill port holder
+            _kill_pid(_port_listener_pid(), force=True)
+            time.sleep(0.2)
 
         os.makedirs(HERE, exist_ok=True)
         if _log_fp:
@@ -446,33 +488,40 @@ def start_agent(sim=False, test=False):
 
 
 def stop_agent(farewell=True):
+    """v847 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
+    STOP: farewell vision (up to ~90s). OFF: seal reel only (fast). Then hard-kill orphans."""
     global _agent_proc, _agent_mode, _stop_inflight, _BOARD_OPENED
+    if _stop_inflight:
+        # another stop is running — wait briefly for it
+        deadline = time.time() + (90 if farewell else 15)
+        while _stop_inflight and time.time() < deadline:
+            time.sleep(0.2)
+        if not _agent_alive() and _port_listener_pid() is None:
+            return {"ok": True, "msg": "already off", "farewell": farewell}
     _stop_inflight = True
     try:
-        pid = None
-        with _lock:
-            if _agent_proc is not None and _agent_proc.poll() is None:
-                pid = _agent_proc.pid
-            else:
-                pid = _port_listener_pid() or _read_pid(PID_PATH)
-
-        if pid is None and not IS_WIN:
+        pids = _collect_agent_pids()
+        if not pids and not IS_WIN:
             _agent_mode = "off"
             _stop_capture()
             _BOARD_OPENED = False
-            return {"ok": True, "msg": "already off"}
+            return {"ok": True, "msg": "already off", "farewell": farewell, "sessionSaved": True}
 
-        if pid is not None:
-            # Soft first so the farewell can run. Windows: taskkill-soft sends WM_CLOSE, which a
-            # CREATE_NO_WINDOW console app never receives — our OWN child must get CTRL_BREAK_EVENT
-            # (it was spawned CREATE_NEW_PROCESS_GROUP; the agent handles SIGBREAK since v760.1).
+        # 1) Polite shutdown — agent seals sessions.jsonl (session_end) then exits
+        asked = _ask_agent_shutdown(
+            farewell=bool(farewell),
+            reason=("stop" if farewell else "off"),
+            timeout=1.5,
+        )
+
+        # 2) If polite path didn't engage, fall back to signals
+        if not asked and pids:
             sent_break = False
             if IS_WIN:
                 with _lock:
                     if (
                         _agent_proc is not None
                         and _agent_proc.poll() is None
-                        and _agent_proc.pid == pid
                     ):
                         try:
                             _agent_proc.send_signal(signal.CTRL_BREAK_EVENT)
@@ -480,21 +529,31 @@ def stop_agent(farewell=True):
                         except Exception:
                             pass
             if not sent_break:
-                _kill_pid(pid, force=False)
+                for pid in pids:
+                    _kill_pid(pid, force=False)
 
-            wait_s = 90 if farewell else 12
-            deadline = time.time() + wait_s
-            while time.time() < deadline:
-                if not _pid_alive(pid):
-                    break
-                time.sleep(0.25)
-            else:
+        # 3) Wait for bridge death (farewell vision can take a while)
+        wait_s = 95 if farewell else 14
+        deadline = time.time() + wait_s
+        while time.time() < deadline:
+            if _port_listener_pid() is None and not any(_pid_alive(p) for p in pids):
+                break
+            time.sleep(0.2)
+        else:
+            # force-kill every remaining agent pid + port holder
+            for pid in set(pids) | set(filter(None, [_port_listener_pid(), _read_pid(PID_PATH)])):
                 _kill_pid(pid, force=True)
+            time.sleep(0.25)
 
         # always stop Windows capture with the agent
         _stop_capture()
 
         with _lock:
+            if _agent_proc is not None:
+                try:
+                    _agent_proc.poll()  # reap zombie
+                except Exception:
+                    pass
             _agent_proc = None
             _agent_mode = "off"
         try:
@@ -502,19 +561,23 @@ def stop_agent(farewell=True):
                 os.remove(PID_PATH)
         except Exception:
             pass
-        # v785 — belt for the agent's own _eye_clear: a force-killed agent can't clean up,
-        # and a stale eye.jpg makes the next ON flash yesterday's film as LIVE.
+        # v785 — belt for the agent's own _eye_clear
         try:
             _eye = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames", "eye.jpg")
             if os.path.isfile(_eye):
                 os.remove(_eye)
         except Exception:
             pass
-        # v773 — next ON/SIM may open the board again; session is dark
         _BOARD_OPENED = False
-        return {"ok": True, "msg": "stopped", "farewell": farewell}
+        dead = _port_listener_pid() is None
+        return {
+            "ok": True,
+            "msg": "session saved · off" if dead else "stop requested · forcing",
+            "farewell": bool(farewell),
+            "sessionSaved": True,
+            "bridgeDown": dead,
+        }
     finally:
-        # never leave the gate stuck if anything above raises
         _stop_inflight = False
 
 
@@ -826,12 +889,13 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v845",
+        "ver": "v847",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
         "agent": mode != "off" and bridge,
         "bridge": bridge,
+        "stopping": bool(_stop_inflight),
         "pid": _port_listener_pid(),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
         "readCount": (
@@ -1580,7 +1644,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/on":
             if _stop_inflight:
-                self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
+                self._json(200, {"ok": False, "msg": "still shutting down — session saving; try ON again in a moment",
+                                 "mode": "stopping", "error": "still stopping"})
                 return
             r = start_agent(sim=False, test=bool(body.get("test")))
             self._json(200, r)   # v778-pre — ON opens NOTHING (one-window world)
@@ -1589,7 +1654,7 @@ class Handler(BaseHTTPRequestHandler):
             if _stop_inflight:
                 self._json(200, {
                     "ok": False,
-                    "msg": "farewell still finishing — try again in a moment",
+                    "msg": "still shutting down — try again in a moment",
                     "mode": "stopping",
                 })
                 return
@@ -1597,30 +1662,27 @@ class Handler(BaseHTTPRequestHandler):
                 stop_agent(farewell=False)
                 time.sleep(0.4)
             r = start_agent(sim=True)
-            # v776.1 (Konyo) — SIM opens NOTHING: one-window world, the app IS the view
             self._json(200, r)
             return
         if path == "/api/off":
-            # v767.1 (Konyo's button audit) — OFF opens NOTHING (the board auto-syncs dark), and
-            # the response returns IMMEDIATELY: the stop runs in a thread so the UI's lamp/glow
-            # can follow the state honestly instead of jamming in 'working'.
-            threading.Thread(target=stop_agent, kwargs={"farewell": False}, daemon=True).start()
-            self._json(200, {"ok": True, "msg": "stopping (no farewell)"})
+            # v847 — OFF seals the session (session_end) WITHOUT long farewell vision, then kills.
+            # Synchronous so the UI can wait for bridgeDown (no ghost ON AIR).
+            r = stop_agent(farewell=False)
+            self._json(200, r)
             return
         if path == "/api/stop":
-            # v765/v767.1 — STOP never opens windows; farewell only for live runs; async so the
-            # button shows 'farewell…' while the STATE (not a stuck spinner) tells the story.
-            threading.Thread(target=stop_agent, kwargs={"farewell": (_agent_mode != "sim")}, daemon=True).start()
-            self._json(200, {"ok": True, "msg": "stopping — farewell read may take up to ~90s"})
+            # v847 — STOP: farewell vision + session_end save + full kill (sync for honesty).
+            r = stop_agent(farewell=(_agent_mode != "sim"))
+            self._json(200, r)
             return
         if path == "/api/restart":
             if _stop_inflight:
-                self._json(200, {"ok": False, "msg": "farewell still finishing — try again in a moment", "mode": "stopping"})
+                self._json(200, {"ok": False, "msg": "still shutting down — try again in a moment", "mode": "stopping"})
                 return
             stop_agent(farewell=False)
-            time.sleep(0.5)
+            time.sleep(0.4)
             r = start_agent(sim=False)
-            self._json(200, r)   # v778-pre — RESTART opens NOTHING either
+            self._json(200, r)
             return
         if path == "/api/board":
             # v781 — ONE WINDOW by default: return a same-origin nav target. The UI navigates
@@ -1743,7 +1805,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v845 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v847 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

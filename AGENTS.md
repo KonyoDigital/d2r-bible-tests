@@ -27,4 +27,4 @@ Hardcoded operational truth. Do **not** invent alternate play or capture paths.
 
 - TV DIABLO code lives under `tv/` — version stamps must stay ONE truth: agent `VERSION` · control `ver` · UI footer · `bible.html` `D2R_BUILD`.
 - If the user cannot open the game: diagnose CrossOver_patched + bottle + broken Mac launcher tiles — **do not** reinstall or wipe CXPBottles.
-- **One AI reader (v845+):** settle freeze → dual-lane only. Scout / secondary mid-play reader is **removed** (too slow). Do not re-add a second freestyle OCR→deep path unless Konyo asks.
+- **One AI reader (v845+ / v846 Tesla Drive):** settle freeze → dual-lane only. Scout secondary is **removed**. Film is high-FPS HD; ON AIR status is a tiny chip (never giant READING over the game). Do not re-add a freestyle second deep path unless Konyo asks.

@@ -230,15 +230,14 @@
   body[data-state="on"]  .hero { filter: drop-shadow(0 0 46px var(--halo)) drop-shadow(0 0 16px rgba(255,70,40,.5)) brightness(1.16) saturate(1.25) hue-rotate(-6deg); }
   body[data-state="sim"] .hero { filter: drop-shadow(0 0 46px var(--halo)) drop-shadow(0 0 18px rgba(180,120,255,.55)) brightness(1.14) saturate(1.15) hue-rotate(30deg); }
 
-  /* ══ v768 — FILM-FIRST live stage (Grok R1 pick #1) ══
-     the live frame film sits above the hero, below the phase overlay. Hidden until a frame resolves.
-     When body.film-on: film → full opacity (the FRAME is the star), hero + aura + caption fade,
-     the giant phase word demotes to a small corner bug. No frame (or off) → the giant word stays. */
+  /* ══ v768/v846 — FILM-FIRST live stage ══
+     When body.film-on: the GAME FRAME is the star. Giant READING/WATCHING words
+     NEVER swallow the film — status lives in a tiny professional chip (top-left). */
   .stage-film {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; background: #000;
     opacity: 0; z-index: 1; pointer-events: none;
-    transition: opacity .5s ease;
+    transition: opacity .35s ease;
   }
   body.film-on .stage-film { opacity: 1; }
   #fault-banner { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
@@ -250,18 +249,68 @@
   body[data-endurance="1"] .onair-bug, body[data-endurance="1"] #fault-banner,
   body[data-endurance="1"] .stage-film { animation-play-state: running !important; }
   body.film-on .hero, body.film-on .aura { opacity: 0 !important; }
-  body.film-on .caption, body.film-on .kicker {
-    opacity: 0; height: 0; margin: 0; overflow: hidden; pointer-events: none;
-  }
+  /* Hide giant center copy entirely while film is live — game must stay readable */
   body.film-on .center {
-    justify-content: flex-start; align-items: flex-start; text-align: left;
-    padding: clamp(14px,2vw,24px) clamp(14px,2vw,24px) 0; z-index: 4;
+    opacity: 0 !important; pointer-events: none !important;
+    visibility: hidden;
   }
-  body.film-on .phase {
-    font-size: clamp(16px, 2vw, 26px) !important; letter-spacing: .16em; line-height: 1;
-    opacity: .92; padding: 6px 14px; border-radius: 999px;
-    background: rgba(6,5,4,.5); border: 1px solid var(--edge);
-    backdrop-filter: blur(3px); text-shadow: 0 2px 8px rgba(0,0,0,.85);
+  body.film-on .marquee { opacity: .55; font-size: 9px; letter-spacing: .18em; }
+  body.film-on .rune { opacity: .06 !important; }
+  /* Soften FX so they don't veil loot text / HUD */
+  body.film-on .stage .scan { opacity: .12; mix-blend-mode: soft-light; }
+  body.film-on .stage .sweep { opacity: .15; }
+
+  /* v846 — professional status chip (film-on only). Tiny · structured · never covers mid-frame */
+  .status-chip {
+    display: none;
+    position: absolute; top: clamp(10px, 1.4vw, 18px); left: clamp(10px, 1.4vw, 18px);
+    z-index: 6; max-width: min(42%, 320px);
+    align-items: center; gap: 8px;
+    padding: 6px 11px 6px 9px;
+    border-radius: 999px;
+    background: rgba(6, 8, 7, .58);
+    border: 1px solid rgba(232, 207, 150, .22);
+    box-shadow: 0 4px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter: blur(8px) saturate(1.1);
+    -webkit-backdrop-filter: blur(8px) saturate(1.1);
+    pointer-events: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .04em;
+  }
+  body.film-on .status-chip { display: inline-flex; }
+  .status-chip .sc-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    background: #7aef9a; box-shadow: 0 0 8px rgba(122,239,154,.65);
+  }
+  body.film-on[data-phase="reading"] .status-chip .sc-dot {
+    background: #f0c060; box-shadow: 0 0 10px rgba(240,192,96,.7);
+    animation: rec 1.1s steps(1) infinite;
+  }
+  body.film-on[data-phase="settle"] .status-chip .sc-dot,
+  body.film-on[data-phase="hunt"] .status-chip .sc-dot {
+    background: #9ec8ff; box-shadow: 0 0 8px rgba(158,200,255,.55);
+  }
+  body.film-on[data-phase="load"] .status-chip .sc-dot {
+    background: #c9a8ff; box-shadow: 0 0 8px rgba(201,168,255,.5);
+  }
+  .status-chip .sc-phase {
+    font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: #e8cf96; white-space: nowrap;
+  }
+  body.film-on[data-phase="reading"] .status-chip .sc-phase { color: #f5d78a; }
+  .status-chip .sc-note {
+    font-size: 9px; font-weight: 500; letter-spacing: .04em;
+    color: rgba(185, 201, 190, .88); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 180px; border-left: 1px solid rgba(255,255,255,.08); padding-left: 8px;
+  }
+  /* Meters become a glass lower-third — never a solid wall over loot */
+  body.film-on .meters {
+    background: linear-gradient(180deg, transparent, rgba(4,6,5,.35) 30%, rgba(4,6,5,.55));
+    padding-top: 18px; margin: 0; border-radius: 0;
+  }
+  body.film-on .meters .m {
+    background: rgba(8,10,9,.42); border-color: rgba(232,207,150,.12);
+    backdrop-filter: blur(4px);
   }
 
   /* drifting scanlines */
@@ -781,6 +830,13 @@
       <div class="scan"></div>
       <div class="sweep"></div>
 
+      <!-- v846 — tiny professional status chip (film-on only; never covers mid-game) -->
+      <div class="status-chip" id="status-chip" aria-live="polite">
+        <span class="sc-dot" aria-hidden="true"></span>
+        <span class="sc-phase" id="sc-phase">WATCHING</span>
+        <span class="sc-note" id="sc-note">eyes open</span>
+      </div>
+
       <div class="marquee"><span class="rec"></span><span id="marquee-t">Standby</span></div>
 
       <div class="center">
@@ -870,7 +926,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v845 control</span>
+      <span id="foot-ver">v847 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1011,11 +1067,37 @@
 
     $('bug-txt').textContent = stopping ? 'FAREWELL…' : (state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR'));
 
-    var phase = 'STANDBY';
-    if (stopping) phase = 'SIGNING OFF';
-    else if (state === 'sim') phase = 'SIMULATION';
-    else if (on) phase = (st.phase || 'LIVE').toString().toUpperCase();
-    $('phase').textContent = phase;
+    // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
+    var rawPhase = stopping ? 'signing' : (state === 'sim' ? 'sim' : (on ? String(st.phase || 'watching').toLowerCase() : 'standby'));
+    var PHASE_COPY = {
+      watching:  { title: 'WATCHING',  note: 'eyes open · waiting for a freeze' },
+      reading:   { title: 'READING',   note: 'deep look in flight' },
+      settle:    { title: 'SETTLING',  note: 'screen held · arming a read' },
+      hunt:      { title: 'HUNTING',   note: 'motion peak · pile likely' },
+      drive:     { title: 'DRIVING',   note: 'on the move' },
+      load:      { title: 'LOADING',   note: 'zone / portal hold' },
+      boot:      { title: 'BOOT',      note: 'warming eyes' },
+      live:      { title: 'LIVE',      note: 'broadcast open' },
+      signing:   { title: 'SIGNING OFF', note: 'farewell read finishing' },
+      sim:       { title: 'SIMULATION', note: 'replay reel' },
+      standby:   { title: 'STANDBY',   note: 'press ON to go live' }
+    };
+    var pc = PHASE_COPY[rawPhase] || { title: rawPhase.toUpperCase(), note: 'autopilot' };
+    // vision busy upgrades the chip note without a second giant word
+    var vbMs = (st.health && st.health.visionBusyMs) || 0;
+    if (on && vbMs > 1200 && rawPhase !== 'reading') {
+      pc = { title: 'READING', note: 'deep look · ' + Math.round(vbMs / 1000) + 's' };
+      rawPhase = 'reading';
+    }
+    document.body.setAttribute('data-phase', rawPhase);
+    $('phase').textContent = pc.title;
+    var scp = $('sc-phase'), scn = $('sc-note');
+    if (scp) scp.textContent = pc.title;
+    if (scn) {
+      var note = pc.note;
+      if (st.area) note = (st.area + ' · ' + note).slice(0, 48);
+      scn.textContent = note;
+    }
 
     $('marquee-t').textContent = stopping ? 'Signing Off' : (state === 'sim' ? 'Simulation' : (on ? 'On Air · Recording' : 'Standby'));
     $('kicker').textContent = stopping ? 'Farewell' : (state === 'sim' ? 'Canned Feed' : (on ? 'Signal Live' : 'Signal Idle'));
@@ -1110,7 +1192,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v845') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v847') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1951,27 +2033,52 @@
     if (e.key === ' '){ e.preventDefault(); $('th-play').click(); }
   });
 
-  // v773 — BUTTON TRUTH (stuck-online loop fix):
-  // · ON while on OR sim → soft stop (cuts agent + board must go dark)
-  // · OFF always soft-stops (no board window)
-  // · SIM toggles: off/on → /api/sim · sim → /api/off (click again = dim / feed cut)
+  // v847 — BUTTON TRUTH (session save + clean exit):
+  // · OFF = seal session_end (no long farewell) · kill agent · wait until bridge down
+  // · STOP = farewell vision + session_end · kill agent · wait
+  // · ON while on = STOP (save + off); while stopping = ignore; while off = start fresh
   // · Theatre is a separate history player (not the agent)
+  async function waitUntilOff(maxMs){
+    var t0 = Date.now();
+    maxMs = maxMs || 20000;
+    while (Date.now() - t0 < maxMs) {
+      try {
+        var r = await fetch(API + '/api/status');
+        var st = await r.json();
+        paint(st);
+        if (!st.bridge && st.mode !== 'stopping' && !st.stopping) return true;
+      } catch (e) { return true; }  // control gone = off enough
+      await new Promise(function(res){ setTimeout(res, 280); });
+    }
+    return false;
+  }
   async function cutFeed(btn, e, farewell){
     var lab = btn && btn.querySelector ? btn.querySelector('.lab b') : null;
     var old = lab ? lab.textContent : '';
-    if (lab) lab.textContent = farewell ? 'farewell…' : 'cutting…';
+    if (lab) lab.textContent = farewell ? 'saving…' : 'cutting…';
     try {
-      await post(farewell ? '/api/stop' : '/api/off', btn, e);
+      var j = await post(farewell ? '/api/stop' : '/api/off', btn, e);
+      if (lab) lab.textContent = farewell ? 'sealing…' : 'closing…';
+      // post() already finished the HTTP call; keep busy feel until bridge is down
+      setBusy(true);
+      await waitUntilOff(farewell ? 100000 : 18000);
+      await refresh();
+      if (j && j.sessionSaved) toast('session saved · off air');
+      else toast((j && j.msg) || 'off air');
     } finally {
+      setBusy(false);
       if (lab) lab.textContent = old || (farewell ? 'Stop' : 'Off');
     }
   }
   $('btn-on').onclick = async function(e){
     var st = document.body.getAttribute('data-state');
-    // live or sim → turn OFF (sim uses soft cut; live uses farewell via stop)
+    // live → full STOP (save session + farewell); sim → soft OFF
     if (st === 'on') { await cutFeed(this, e, true); return; }
     if (st === 'sim') { await cutFeed(this, e, false); return; }
-    if (st === 'stopping') return;
+    if (st === 'stopping') {
+      toast('still shutting down — wait for session save');
+      return;
+    }
     post('/api/on', this, e);
   };
   $('btn-off').onclick = async function(e){ await cutFeed(this, e, false); };

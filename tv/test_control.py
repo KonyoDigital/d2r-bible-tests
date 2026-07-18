@@ -122,6 +122,18 @@ class TestStopDiscipline(unittest.TestCase):
         stop_block = src.split('"/api/stop"')[1].split('"/api/restart"')[0]
         self.assertNotIn("open_board", stop_block)
 
+    def test_off_and_stop_call_stop_agent_sync(self):
+        """v847 — OFF/STOP must run stop_agent (session save), not fire-and-forget only."""
+        import inspect
+        src = inspect.getsource(ca.Handler.do_POST)
+        off = src.split('"/api/off"')[1].split('"/api/stop"')[0]
+        stop = src.split('"/api/stop"')[1].split('"/api/restart"')[0]
+        self.assertIn("stop_agent", off)
+        self.assertIn("stop_agent", stop)
+        # no async thread hide for off (must wait for session seal)
+        self.assertNotIn("threading.Thread(target=stop_agent", off)
+        self.assertIn("_ask_agent_shutdown", inspect.getsource(ca))
+
     def test_on_restart_sim_never_open_board(self):
         """v781 — primary console buttons must never spawn a second window."""
         import inspect

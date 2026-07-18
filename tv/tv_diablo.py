@@ -23,14 +23,14 @@
 #                   python3 tv/tv_diablo.py --watch  in another (reads+bridge)
 #   Then in the bible: ⚡ session → 📺 TV DIABLO → flip the switch.
 #
-#   ONE AI READER (v845): settle freeze → dual-lane (local OCR flash + Claude deep).
-#   No scout / secondary mid-play reader (removed — too slow / complicated).
-#   One vision worker · settle-queue while deep is busy · cruise + priority gaps.
+#   ONE AI READER (v846 TESLA DRIVE): settle freeze → dual-lane (OCR flash + Claude deep).
+#   No scout secondary. Film is high-FPS HD; intel is snappy settle + one deep at a time.
+#   Claude deep is multi-second by nature — OCR chips + smooth film are the "live drive" feel.
 # ═══════════════════════════════════════════════════════════════════════════════
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v845"   # ONE truth — one AI reader (settle→dual-lane); scout removed
+VERSION = "v847"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -38,17 +38,22 @@ PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests
 # v780 — one ON cycle = one theatre session. Every journal row carries this id so SIM/theatre
 # never glues multiple restarts into one mega-run (the 10min gap alone was too soft).
 SESSION_ID = ""
-# v783 — snappier autopilot (Konyo: film + reads felt laggy vs live play)
-MIN_GAP_S    = 4.0    # was 6 — cruise still frugal; piles use PRIORITY_GAP
-PRIORITY_GAP_S = 1.2  # was 2.5 — after hard motion→stop, eyes fire sooner
+# v846 — TESLA DRIVE pacing (Konyo: ultra smooth / self-driving feel)
+MIN_GAP_S    = float(os.environ.get("TV_MIN_GAP", "2.0") or 2.0)       # was 4 — cruise re-reads sooner
+PRIORITY_GAP_S = float(os.environ.get("TV_PRIORITY_GAP", "0.55") or 0.55)  # was 1.2 — pile snaps hard
 # v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
 SESSION_CAP  = 240
-POLL_S       = 0.18   # was 0.25 — intelligence loop a bit tighter
+POLL_S       = float(os.environ.get("TV_POLL", "0.10") or 0.10)         # was 0.18 — tighter settle clock
 WATCH_MODE   = "--watch" in sys.argv
 # v727 — motion “wow” threshold: walking/panel open swings past this
 MOTION_PEAK  = 0.10   # was 0.12 — slightly more sensitive to walk/stop
 SETTLE       = 0.03
-FILM_INTERVAL_S = 0.20  # v783 — dedicated film thread target ~5 fps JPEG eye
+# v846 film: target FPS (default 15) · HD+ JPEG (up to 2560px) — console stage + footage
+_FILM_FPS = max(5, min(30, int(float(os.environ.get("TV_FILM_FPS", "15") or 15))))
+FILM_INTERVAL_S = 1.0 / float(_FILM_FPS)
+FILM_MAX_PX = max(1280, min(3840, int(os.environ.get("TV_FILM_MAX_PX", "2560") or 2560)))
+FILM_JPEG_Q = max(55, min(95, int(os.environ.get("TV_FILM_Q", "82") or 82)))
+_FILM_TIMES = []   # rolling capture timestamps for filmFps health
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
 # coded to flag farming when not in town — the corner always shows where we are on the map").
@@ -187,13 +192,33 @@ def ap_interest(peak, stable_ticks, priority, empty_streak, named_recent, parts=
         parts.update(p)
     return max(0.0, min(1.0, s))
 
+def _film_fps_now():
+    """Rolling film FPS over the last ~1.5s of successful eye frames."""
+    try:
+        now = time.time()
+        # prune old
+        while _FILM_TIMES and (now - _FILM_TIMES[0]) > 1.5:
+            _FILM_TIMES.pop(0)
+        n = len(_FILM_TIMES)
+        if n < 2:
+            return 0.0
+        span = max(0.001, _FILM_TIMES[-1] - _FILM_TIMES[0])
+        return round((n - 1) / span, 1)
+    except Exception:
+        return 0.0
+
+
 def _health(st):
     """v789 (Grok R4 #1) — one small truth object for the fault lamp. A 2-hour farm used to
     die quietly (vision stall, game quit, capture death) while the lamp said ON AIR."""
     now = time.time()
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
          "visionBusyMs": int((now - _VISION_BUSY_AT) * 1000) if (_VISION_BUSY and _VISION_BUSY_AT) else 0,
-         "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0}
+         "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
+         # v846 — Tesla-drive dashboard truth
+         "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
+         "filmMaxPx": FILM_MAX_PX, "pollMs": int(POLL_S * 1000),
+         "gapCruiseS": MIN_GAP_S, "gapPriorityS": PRIORITY_GAP_S}
     try:
         if st.get("startedAt"):
             h["sessionMs"] = max(0, int(now * 1000) - int(st["startedAt"]))
@@ -241,10 +266,10 @@ def bridge():
             self.send_header("cache-control", "no-store")
             self.end_headers()
         def do_GET(self):
+            from urllib.parse import urlparse, parse_qs
             if self.path.startswith("/state"):
                 # v770 (Grok R4 perf) — ?since=<ts> returns a THIN delta: full reads ring only
                 # when asked from cold; 4 polls/sec no longer parse 200 rich reads every tick.
-                from urllib.parse import urlparse, parse_qs
                 _q = parse_qs(urlparse(self.path).query or "")
                 _since = 0
                 try: _since = int((_q.get("since") or ["0"])[0])
@@ -256,6 +281,7 @@ def bridge():
                     st["captureTarget"] = dict(_CAP_TARGET)  # v772 — window pin (CrossOver/D2R) or full
                     st["eyeAgeMs"] = _eye_age_ms()   # v785 — film honesty: stage drops LIVE when this goes stale
                     st["health"] = _health(st)   # v789 — fault-lamp truth (Grok R4 #1)
+                    st["sessionId"] = SESSION_ID
                 if _since:
                     st["reads"] = [r for r in (st.get("reads") or []) if (r.get("ts") or 0) > _since]
                     st.pop("seen", None); st.pop("farmed", None)
@@ -265,6 +291,26 @@ def bridge():
                     self._hdr(); self.wfile.write(b'{"ok":true,"tv":"diablo"}')
                 except (BrokenPipeError, ConnectionResetError):
                     pass
+            elif self.path.startswith("/shutdown"):
+                # v847 — control OFF/STOP asks politely: save session, optional farewell, exit.
+                # ?farewell=1 (STOP) · ?farewell=0 (OFF soft cut — still seals the reel)
+                _q = parse_qs(urlparse(self.path).query or "")
+                fare = (_q.get("farewell") or ["1"])[0] not in ("0", "false", "no")
+                reason = (_q.get("reason") or ["stop"])[0][:40]
+                try:
+                    self._hdr()
+                    self.wfile.write(json.dumps({
+                        "ok": True, "msg": "shutdown accepted",
+                        "farewell": fare, "sessionId": SESSION_ID,
+                    }).encode())
+                except Exception:
+                    pass
+                def _go():
+                    try:
+                        close_session(reason=reason, farewell=fare)
+                    except Exception:
+                        os._exit(0)
+                threading.Thread(target=_go, daemon=True, name="tv-shutdown").start()
             elif self.path.startswith("/frame"):
                 # v724 — last vision JPEG · v735 — ?id=N_ts for per-read hist archive (1920 eye)
                 # v779 — bare /frame prefers the LIVE eye preview (eye.jpg) so fingerprint-skip
@@ -680,10 +726,25 @@ def _capture_window_to_bmp(wid, path, timeout=12):
 _EYE_PREVIEW_AT = 0.0
 _FILM_THREAD = None
 _PICK_CACHE = None   # (hit, monotonic_t) — avoid Quartz every frame
-_PICK_TTL_S = 1.2
+_PICK_TTL_S = 0.55   # v846 — re-pin faster when windows flip
 
-def refresh_eye_preview(bmp_path, min_interval=0.35):
-    """v779/v783 — fallback eye from intelligence frame (film thread is primary)."""
+def _sips_hd_jpeg(src, dest, max_px=None, quality=None, timeout=6):
+    """HD+ JPEG for film stage. Default 2560px / q82 (4K-class polish, still WebView-friendly)."""
+    max_px = FILM_MAX_PX if max_px is None else max_px
+    quality = FILM_JPEG_Q if quality is None else quality
+    try:
+        r = subprocess.run(
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality),
+             "--resampleHeightWidthMax", str(max_px), src, "--out", dest],
+            capture_output=True, timeout=timeout,
+        )
+        return r.returncode == 0 and os.path.isfile(dest) and os.path.getsize(dest) > 4000
+    except Exception:
+        return False
+
+
+def refresh_eye_preview(bmp_path, min_interval=0.12):
+    """v779/v846 — fallback eye from intelligence frame (film thread is primary). HD."""
     global _EYE_PREVIEW_AT
     now = time.time()
     if now - _EYE_PREVIEW_AT < min_interval:
@@ -692,78 +753,72 @@ def refresh_eye_preview(bmp_path, min_interval=0.35):
         return
     try:
         eye = os.path.join(FRAMES, "eye.jpg")
-        # v785 — 1280/q65: the stage star was the softest image in the pipeline (720/q55
-        # while Theatre archives 2560/q82). sips at 1280 is still ~100ms on localhost.
-        r = subprocess.run(
-            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "65",
-             "--resampleHeightWidthMax", "1280", bmp_path, "--out", eye],
-            capture_output=True, timeout=8,
-        )
-        if r.returncode == 0 and os.path.isfile(eye):
+        if _sips_hd_jpeg(bmp_path, eye):
             _EYE_PREVIEW_AT = now
+            _FILM_TIMES.append(now)
     except Exception:
         pass
 
 
 def _film_loop():
-    """v783 — dedicated ~5fps JPEG capture for the console film.
-    Intelligence still uses BMP+frame_sig (JPEG entropy is useless for settle). This thread
-    only feeds /frame so the stage tracks the game while Claude thinks."""
+    """v846 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
+    Target ~15fps (TV_FILM_FPS). Intelligence still uses BMP+frame_sig on the poll loop.
+    Claude thinking never freezes this thread."""
     eye = os.path.join(FRAMES, "eye.jpg")
     tmp = eye + ".part.jpg"
     while True:
         t0 = time.time()
         try:
             os.makedirs(FRAMES, exist_ok=True)
-            # v844 — use wid whenever we know the game window (even if mode fell back to "full"
-            # after a transient SC failure — film must still show D2R, not the desktop)
             wid = (_CAP_TARGET or {}).get("wid")
             if (_CAP_TARGET or {}).get("mode") == "waiting":
                 wid = None
             wrote = False
             if wid:
-                # v844 — screencapture first; Quartz window grab if SC returns empty (TCC flaky)
-                try:
-                    r = subprocess.run(
-                        ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
-                        capture_output=True, timeout=6,
-                    )
-                    wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
-                except Exception:
-                    wrote = False
+                # v846 — Quartz first (fast path when TCC ok), screencapture fallback
+                wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
                 if not wrote:
-                    wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
+                    try:
+                        r = subprocess.run(
+                            ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
+                            capture_output=True, timeout=4,
+                        )
+                        wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+                    except Exception:
+                        wrote = False
             else:
-                # full display while waiting / auto-fallback — still better than a frozen frame
                 try:
                     subprocess.run(
                         ["screencapture", "-x", "-t", "jpg", tmp],
-                        capture_output=True, timeout=6,
+                        capture_output=True, timeout=4,
                     )
                     wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
                 except Exception:
                     wrote = False
             if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
-                # huge frames (retina full-desk) — light shrink so the WebView paints fast
-                if os.path.getsize(tmp) > 700_000:
-                    subprocess.run(
-                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "65",
-                         "--resampleHeightWidthMax", "1280", tmp, "--out", eye],
-                        capture_output=True, timeout=6,
-                    )
+                # Retina 2940+ → polish to FILM_MAX_PX @ FILM_JPEG_Q (default 2560 / q82)
+                if os.path.getsize(tmp) > 450_000 or FILM_MAX_PX < 3000:
+                    if _sips_hd_jpeg(tmp, eye):
+                        try:
+                            os.remove(tmp)
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            os.replace(tmp, eye)
+                        except Exception:
+                            pass
+                else:
                     try:
-                        os.remove(tmp)
+                        os.replace(tmp, eye)
                     except Exception:
                         pass
-                else:
-                    os.replace(tmp, eye)
-                globals()["_EYE_PREVIEW_AT"] = time.time()
-                # v826 (Konyo: 'AI shows whats happening every frame per second') — FOOTAGE:
-                # archive the live eye at ~1fps so the theatre replays REAL VIDEO between AI
-                # reads. Own budget (count-capped), pruned with the hist sweep.
+                now_f = time.time()
+                globals()["_EYE_PREVIEW_AT"] = now_f
+                _FILM_TIMES.append(now_f)
+                # Footage ~2fps for theatre (was 1fps) — denser REAL video between AI reads
                 try:
-                    now_f = time.time()
-                    if now_f - globals().get("_FOOTAGE_AT", 0) >= 1.0:
+                    if now_f - globals().get("_FOOTAGE_AT", 0) >= 0.5:
                         globals()["_FOOTAGE_AT"] = now_f
                         hist_dir = os.path.join(FRAMES, "hist")
                         os.makedirs(hist_dir, exist_ok=True)
@@ -780,7 +835,7 @@ def _film_loop():
         except Exception:
             pass
         dt = time.time() - t0
-        time.sleep(max(0.04, FILM_INTERVAL_S - dt))
+        time.sleep(max(0.02, FILM_INTERVAL_S - dt))
 
 
 def start_film_thread():
@@ -2295,10 +2350,11 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print(f"📺 TV DIABLO Autopilot {VERSION} — ONE AI reader · settle → dual-lane")
+    print(f"📺 TV DIABLO Autopilot {VERSION} — TESLA DRIVE · one AI reader · HD film ~{_FILM_FPS}fps")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print("   capture: AUTO (pins D2R.exe only — never CrossOver Home / Battle.net; TV_CAPTURE=full for display)")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s · poll {POLL_S}s")
+    print(f"   film: ~{_FILM_FPS}fps · max {FILM_MAX_PX}px · jpeg q{FILM_JPEG_Q} · env TV_FILM_FPS / TV_FILM_MAX_PX / TV_FILM_Q")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag} (flash inside the one dual-lane — not a second reader)")
     print("   tip: pause on loot / panels so the screen settles — one Claude deep at a time")
@@ -2948,30 +3004,77 @@ def farewell_read(force_frame=None):
 
 _FAREWELL_DONE = False
 _STOPPING = False
-def _shutdown_handler(signum, frame):
-    global _STOPPING
-    _STOPPING = True
-    """SIGINT/SIGTERM → farewell read then clean exit (tvd stop sends SIGTERM)."""
-    global _FAREWELL_DONE
+
+def close_session(reason="stop", farewell=True):
+    """v847 — seal the theatre reel then exit.
+    Always journals session_end (sessions list + SIM shelf). Optional farewell vision on STOP.
+    OFF uses farewell=False for a fast cut that still SAVES the session."""
+    global _FAREWELL_DONE, _STOPPING
     if _FAREWELL_DONE:
         os._exit(0)
     _FAREWELL_DONE = True
-    sig_name = "SIGINT" if signum == signal.SIGINT else ("SIGTERM" if signum == signal.SIGTERM else str(signum))
-    print(f"\n  👋 shutdown ({sig_name}) — farewell read…")
+    _STOPPING = True
+    reason = str(reason or "stop")[:60]
+    print(f"\n  👋 closing session ({reason})" + (" — farewell read…" if farewell else " — sealing reel…"))
+    ev("boot", "session close · " + reason + (" · farewell" if farewell else " · soft off"))
+    # Seal the reel FIRST so a force-kill mid-farewell still leaves a complete session on disk
     try:
-        farewell_read()
+        _journal({
+            "ts": int(time.time() * 1000),
+            "n": 0,
+            "scene": "session_end",
+            "names": [],
+            "sessionId": SESSION_ID,
+            "note": reason,
+            "farewell": bool(farewell),
+            "mode": "session_end",
+            "lane": "system",
+            "ver": VERSION,
+        })
     except Exception as e:
-        print(f"  👋 farewell failed: {e}")
+        print(f"  👋 session_end journal failed: {e}")
+    if farewell:
+        try:
+            farewell_read()
+        except Exception as e:
+            print(f"  👋 farewell failed: {e}")
     with _state_lock:
         try:
-            st = _load(); st["online"] = False; _save(st)
+            st = _load()
+            st["online"] = False
+            st["stopping"] = False
+            st["sessionId"] = SESSION_ID
+            _save(st)
         except Exception:
             pass
-    _eye_clear()   # v785 — the film dies with the session; next ON never flashes yesterday
-    _settle_queue_clear()   # v825 — the held-freeze queue dies with the session too
-    print("\n📺 TV DIABLO off — good hunting.")
-    # hard exit so we don't re-enter the main loop mid-sleep
+    try:
+        _eye_clear()
+    except Exception:
+        pass
+    try:
+        _settle_queue_clear()
+    except Exception:
+        pass
+    print("\n📺 TV DIABLO off — session saved · good hunting.")
     os._exit(0)
+
+
+def _shutdown_handler(signum, frame):
+    """SIGINT/SIGTERM/SIGBREAK → close session (farewell when possible)."""
+    global _STOPPING
+    _STOPPING = True
+    if _FAREWELL_DONE:
+        os._exit(0)
+    # Force-kill paths often send a second SIGKILL — first signal gets full farewell when possible
+    sig_name = "SIGINT" if signum == signal.SIGINT else (
+        "SIGTERM" if signum == signal.SIGTERM else (
+            "SIGBREAK" if getattr(signal, "SIGBREAK", None) == signum else str(signum)))
+    # Env TV_FAREWELL=0 lets control request a soft seal without vision (OFF button)
+    fare = os.environ.get("TV_FAREWELL", "1") not in ("0", "false", "no")
+    try:
+        close_session(reason="signal:" + sig_name, farewell=fare)
+    except Exception:
+        os._exit(0)
 
 if __name__ == "__main__":
     # one-shot validation: python3 tv/tv_diablo.py --test <image>  (run in YOUR terminal —

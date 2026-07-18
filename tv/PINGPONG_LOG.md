@@ -1336,3 +1336,26 @@ TV_SCOUT_* clock, unit-engine scout sense phase.
 busy · D2R.exe pin · Quartz grab fallback.
 
 **Gates:** agent+control suite · stamps v845.
+
+### 🎯 v846 — TESLA DRIVE ship (one reader + HD film + quiet status) ✅
+**Konyo:** DO IT — finish optimize + ship.
+
+**Engine:** one settle→dual-lane AI path (scout gone in v845). OCR flash + Claude deep, one worker.
+**Film:** ~15fps target · up to 2560px JPEG q82 · Quartz-first grab · filmFps in health.
+**Pacing:** MIN_GAP 2.0s · PRIORITY 0.55s · poll 0.10s.
+**UI:** giant READING/WATCHING never swallows film — tiny professional status chip top-left.
+
+**Stamps:** agent · control · UI · D2R_BUILD = v846.
+
+### 🎯 v847 — OFF/STOP session save + clean kill + fresh ON ✅
+**Konyo:** buttons don't close out; need session saved on stop.
+
+**Agent:**  →  journals  then exits.
+OFF seals reel fast; STOP adds farewell vision. Signal path same.
+
+**Control:** OFF/STOP sync  (no fire-and-forget). Polite /shutdown first,
+then force-kill orphans. ON never attaches to a stranger bridge — stops first.
+
+**UI:** cutFeed waits until bridge down; toast "session saved · off air".
+
+**Stamps:** v847.

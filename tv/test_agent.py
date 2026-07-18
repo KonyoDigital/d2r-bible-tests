@@ -873,6 +873,25 @@ class TestReplay(unittest.TestCase):
         self.assertFalse(hasattr(tv, "_engine_due_scout"))
         self.assertFalse(hasattr(tv, "SCOUT_GAP_S"))
 
+    def test_tesla_drive_film_and_gaps(self):
+        """v846 — snappy one-reader gaps + HD film knobs present."""
+        self.assertIn(tv.VERSION, ("v846", "v847"))
+        self.assertLessEqual(tv.MIN_GAP_S, 2.5)
+        self.assertLessEqual(tv.PRIORITY_GAP_S, 1.0)
+        self.assertLessEqual(tv.POLL_S, 0.15)
+        self.assertGreaterEqual(tv._FILM_FPS, 10)
+        self.assertGreaterEqual(tv.FILM_MAX_PX, 1920)
+        h = tv._health({"reads": [], "startedAt": int(time.time() * 1000)})
+        for k in ("filmFps", "filmTargetFps", "filmMaxPx", "pollMs", "gapCruiseS", "gapPriorityS"):
+            self.assertIn(k, h)
+
+    def test_close_session_helper_exists(self):
+        """v847 — OFF/STOP seal via close_session + /shutdown (not just kill)."""
+        self.assertTrue(callable(tv.close_session))
+        src = open(tv.__file__).read()
+        self.assertIn('"/shutdown"', src)
+        self.assertIn("session_end", src)
+
     def test_settle_queue_tags_origin(self):
         """Settle freezes keep origin tags on the one-reader queue."""
         d = tempfile.mkdtemp()
