@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v876"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v877"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -53,9 +53,9 @@ SETTLE       = 0.03
 # v846 film: target FPS (default 15) · HD+ JPEG (up to 2560px) — console stage + footage
 _FILM_FPS = max(5, min(30, int(float(os.environ.get("TV_FILM_FPS", "15") or 15))))
 FILM_INTERVAL_S = 1.0 / float(_FILM_FPS)
-FILM_MAX_PX = max(1280, min(3840, int(os.environ.get("TV_FILM_MAX_PX", "2560") or 2560)))
+FILM_MAX_PX = max(1280, min(3840, int(os.environ.get("TV_FILM_MAX_PX", "2048") or 2048)))   # v877 — 2560 burned 4.4GB/hr of footage
 FILM_JPEG_Q = max(55, min(95, int(os.environ.get("TV_FILM_Q", "82") or 82)))
-_FILM_TIMES = []   # rolling capture timestamps for filmFps health
+_FILM_TIMES = deque(maxlen=64)   # v877 — bounded ring; the old plain list grew ~432k floats overnight
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
 # coded to flag farming when not in town — the corner always shows where we are on the map").
@@ -102,7 +102,7 @@ READ_PROMPT = (
 
 # v752 — persistent session journal (tv/sessions.jsonl, gitignored): every published read
 # appended as one JSON line. This is what `tvd replay` re-runs — real frames, real reads.
-JOURNAL = os.path.join(HERE, "sessions.jsonl")
+JOURNAL = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877 — CI harness override
 _JOURNAL_WARNED = False
 def _journal(rec):
     global _JOURNAL_WARNED
@@ -123,6 +123,12 @@ def _journal(rec):
             if need_nl: f.write("\n")
             f.write(json.dumps(rec) + "\n")
             f.flush(); os.fsync(f.fileno())   # v779 (Grok R5/R7) — durable append: a crash mid-write can't erase the night
+        try:
+            _fid = isinstance(rec, dict) and rec.get("frameId")
+            if _fid and isinstance(_JFID_STATE.get("ids"), set) and _JFID_STATE.get("path") == JOURNAL:
+                _JFID_STATE["ids"].add(str(_fid) + ".jpg")   # v877 — grows AT APPEND; suffix matches the shield
+        except Exception:
+            pass
         if os.path.getsize(JOURNAL) > 4_000_000:   # ~4MB → ROTATE (never half-truncate the live file)
             # v811 (Grok R8 #6 + sleeper) — GENERATIONS, not one slot: .1 is newest rotation,
             # older shift up to .5 (~20MB ≈ months). A second heavy night can no longer erase
@@ -198,13 +204,11 @@ def _film_fps_now():
     """Rolling film FPS over the last ~1.5s of successful eye frames."""
     try:
         now = time.time()
-        # prune old
-        while _FILM_TIMES and (now - _FILM_TIMES[0]) > 1.5:
-            _FILM_TIMES.pop(0)
-        n = len(_FILM_TIMES)
+        recent = [t for t in _FILM_TIMES if now - t <= 1.5]   # v877 — deque, no destructive prune
+        n = len(recent)
         if n < 2:
             return 0.0
-        span = max(0.001, _FILM_TIMES[-1] - _FILM_TIMES[0])
+        span = max(0.001, recent[-1] - recent[0])
         return round((n - 1) / span, 1)
     except Exception:
         return 0.0
@@ -214,14 +218,9 @@ def _health(st):
     """v789 (Grok R4 #1) — one small truth object for the fault lamp. A 2-hour farm used to
     die quietly (vision stall, game quit, capture death) while the lamp said ON AIR."""
     now = time.time()
-    try:
-        _hd = os.path.join(FRAMES, "hist")
-        _nowf = time.time() * 1000
-        _recent = [f for f in os.listdir(_hd) if f.startswith("f_") and f.endswith(".jpg")
-                   and _nowf - int(f[2:-4]) < 10000]
-        _foot_fps = round(len(_recent) / 10.0, 2)
-    except Exception:
-        _foot_fps = None
+    # v877 (army audit #5) — footage fps from the in-memory archive deque; the old
+    # os.listdir over ~30k files ran 4×/s from the board poll.
+    _foot_fps = _foot_fps_now()
     # v863 (READER POOL) — busy lamp = oldest in-flight reader's age; expose pool depth.
     _pool_pin, _pool_oldest = 0, 0
     try:
@@ -966,14 +965,18 @@ def _film_loop():
                         # v868 — absolute 0.5s schedule (quantization-free 2fps); clamp catch-up
                         globals()["_FOOTAGE_DUE"] = max(_due + 0.5, now_f - 0.49) if _due else now_f + 0.5
                         globals()["_FOOTAGE_AT"] = now_f
-                        _FOOT_TIMES.append(now_f)   # v871 — adaptive-cap telemetry
                         hist_dir = os.path.join(FRAMES, "hist")
                         os.makedirs(hist_dir, exist_ok=True)
                         import shutil as _sh
-                        _sh.copyfile(eye, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
+                        # v877 (army §4) — below the floor the youth shield can't shed anything
+                        # young; the copy itself must stop (the DISK FULL fault lamp explains)
+                        if _sh.disk_usage(hist_dir).free / 1e9 >= MIN_FREE_GB:
+                            _FOOT_TIMES.append(now_f)   # v871 — adaptive-cap telemetry
+                            _sh.copyfile(eye, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
                         # v849 (audit-core #5) — reap footage HERE too: if reads stall while the
                         # film runs, footage no longer grows unbounded until the next read.
-                        if int(now_f) % 120 == 0:
+                        if now_f >= globals().get("_REAP_DUE", 0.0):
+                            globals()["_REAP_DUE"] = now_f + 120.0
                             try:
                                 import shutil as _shu2
                                 if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
@@ -1174,11 +1177,27 @@ def _refresh_cap_target_from_disk():
         pass
 
 def frame_sig(path):
-    """~4k byte samples across the BMP pixel data — cheap fuzzy fingerprint, stdlib only."""
-    with open(path, "rb") as f: data = f.read()
-    body = data[54:]
-    step = max(1, len(body) // 4096)
-    return bytes(body[::step][:4096])
+    """~4k byte samples across the BMP pixel data — cheap fuzzy fingerprint, stdlib only.
+    v877 (army audit #2) — SAMPLED SEEKS: the old full-file read + slice churned ~0.5-1GB/s
+    of memory at poll cadence on retina BMPs. Same fingerprint, 4096 × 1-byte reads."""
+    try:
+        import mmap as _mmap
+        with open(path, "rb") as f:
+            mm = _mmap.mmap(f.fileno(), 0, access=_mmap.ACCESS_READ)
+            try:
+                body = memoryview(mm)[54:]
+                step = max(1, len(body) // 4096)
+                out = bytes(body[::step][:4096])
+                body.release()
+                return out
+            finally:
+                mm.close()
+    except Exception:
+        with open(path, "rb") as f:
+            data = f.read()
+        body = data[54:]
+        step = max(1, len(body) // 4096)
+        return bytes(body[::step][:4096])
 
 def sig_diff(a, b, tol=28):
     """fraction of samples that MEANINGFULLY differ. Real-game calibration (Konyo's town
@@ -1187,6 +1206,7 @@ def sig_diff(a, b, tol=28):
     when its value moved by more than `tol` (ambient flicker stays under it; opening a
     panel / a tooltip / walking moves whole regions far past it)."""
     if a is None or b is None or len(a) == 0 or len(b) == 0: return 1.0
+    if a is b or a == b: return 0.0   # v877 — identical frames skip the 4096-sample loop
     m = min(len(a), len(b))
     return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
@@ -1290,51 +1310,47 @@ def _readable_frame(ap, out_jpg=None):
         pass
     return ap
 
-_JFI_CACHE = {"key": None, "ids": set()}
+_JFID_STATE = {"path": None, "ids": None}   # v877 — cold parse keyed on the journal PATH
+# The v849 mtime-key cache defeated itself: every append changed the live journal's mtime,
+# so the "cache" re-parsed ~24MB of JSONL on nearly every read, forever.
 def _journal_frame_ids():
     """v840 — every frameId still referenced by the session journal is UN-PRUNABLE.
-    v849 (audit-core #1+#3): OUTER CEILING — only the NEWEST TV_PROTECT_CAP journaled fids
-    stay shielded (an infinite shield defeated HIST_KEEP/HIST_MB → unbounded HD frames,
-    Mac-choke class); ring scan CACHED on journal mtimes (full multi-MB parse ran in the
-    read path every fire)."""
-    ids = set()
-    try:
-        paths = [JOURNAL]
+    v877 — incremental: one cold parse per process; appends feed the set directly."""
+    if _JFID_STATE["ids"] is None or _JFID_STATE["path"] != JOURNAL:
+        ids = set()
         try:
-            d = os.path.dirname(JOURNAL) or "."
-            base = os.path.basename(JOURNAL)
-            for name in os.listdir(d):
-                if name.startswith(base) or (name.startswith("sessions") and name.endswith(".jsonl")):
-                    paths.append(os.path.join(d, name))
-        except Exception:
-            pass
-        try:
-            key = tuple(sorted((jp, os.path.getmtime(jp)) for jp in set(paths) if os.path.isfile(jp)))
-        except Exception:
-            key = None
-        if key is not None and key == _JFI_CACHE["key"]:
-            return set(_JFI_CACHE["ids"])
-        seen_p = set()
-        for jp in paths:
-            if jp in seen_p or not os.path.isfile(jp):
-                continue
-            seen_p.add(jp)
+            paths = [JOURNAL]
             try:
-                with open(jp, encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            fid = json.loads(line).get("frameId")
-                        except Exception:
-                            continue
-                        if fid:
-                            ids.add(str(fid) + ".jpg")
+                d = os.path.dirname(JOURNAL) or "."
+                base = os.path.basename(JOURNAL)
+                for name in os.listdir(d):
+                    if name.startswith(base) or (name.startswith("sessions") and name.endswith(".jsonl")):
+                        paths.append(os.path.join(d, name))
             except Exception:
                 pass
-    except Exception:
-        pass
+            seen_p = set()
+            for jp in paths:
+                if jp in seen_p or not os.path.isfile(jp):
+                    continue
+                seen_p.add(jp)
+                try:
+                    with open(jp, encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                fid = json.loads(line).get("frameId")
+                            except Exception:
+                                continue
+                            if fid:
+                                ids.add(str(fid) + ".jpg")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        _JFID_STATE["path"], _JFID_STATE["ids"] = JOURNAL, ids
+    ids = _JFID_STATE["ids"]
     PROTECT_CAP = max(200, int(os.environ.get("TV_PROTECT_CAP", "2000") or 2000))
     if len(ids) > PROTECT_CAP:
         def _fid_ms(x):
@@ -1343,12 +1359,7 @@ def _journal_frame_ids():
             except Exception:
                 return 0
         ids = set(sorted(ids, key=_fid_ms)[-PROTECT_CAP:])
-    try:
-        _JFI_CACHE["key"] = key
-        _JFI_CACHE["ids"] = set(ids)
-    except Exception:
-        pass
-    return ids
+    return set(ids)
 
 
 def archive_read_frame(src_path, n, ts_ms=None):
@@ -1392,6 +1403,16 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     ok = False
         if not ok:
             return ""
+        # v877 (army #6) — the eviction below only ever ACTS when free < MIN_FREE_GB; skip the
+        # whole 30k-file listing + mtime sort + journal-shield load when the disk is healthy.
+        try:
+            import shutil as _shq
+            if _shq.disk_usage(HIST_DIR).free / 1e9 >= MIN_FREE_GB \
+                    and time.time() < globals().get("_ORPHAN_DUE", 0.0):
+                return fid   # healthy disk + orphans swept recently → skip the 30k-file walk
+            globals()["_ORPHAN_DUE"] = time.time() + 600.0   # full sweep at most every 10min
+        except Exception:
+            pass
         # prune oldest beyond HIST_KEEP — and beyond the TV_HIST_MB disk ceiling (v753)
         # v813 (Grok R8 #7) — ONE budget: theatre derivative caches (cache1280/cache160) are
         # counted in the ceiling AND deleted with their source frame — no more disk lie.
@@ -1480,6 +1501,11 @@ def frame_path_for_id(fid):
 # and falls back to the one-shot path. TV_CLAUDE_BIN overrides the binary — the TDD seam
 # (tests run a fake bin that speaks stream-json).
 CLAUDE_BIN = os.environ.get("TV_CLAUDE_BIN", "claude")
+try:
+    import shutil as _shw
+    CLAUDE_BIN = _shw.which(CLAUDE_BIN) or CLAUDE_BIN   # v877 — resolves claude.cmd on Windows npm installs
+except Exception:
+    pass
 WORKER_MAX_TURNS = 8
 # v723/v725 — SPEED + GENIUS LADDER (subscription only):
 #   LIVE RUN #3 finding: Haiku warm was 13–16s; Sonnet warm was 6–10s — economics flipped.
@@ -1828,7 +1854,12 @@ def _settle_enqueue(src_frame, sig, interest=0.0, priority=False, origin="settle
             dest = os.path.join(_settle_queue_dir(), sig8 + ".bmp")
             try:
                 import shutil
-                shutil.copy2(src_frame, dest)
+                try:
+                    if os.path.exists(dest):
+                        os.remove(dest)
+                    os.link(src_frame, dest)   # v877 — held freezes link, not copy
+                except Exception:
+                    shutil.copy2(src_frame, dest)
             except Exception:
                 return
             _SETTLE_QUEUE.append({"path": dest, "sig": sig, "ts": now,
@@ -2164,7 +2195,12 @@ def _parse_read(out):
             return None
     except Exception:
         return None
-    _all_names = [str(x).strip() for x in j.get("names", []) if str(x).strip()]
+    _names_raw = j.get("names")
+    if not isinstance(_names_raw, (list, tuple)):   # v877 fuzz — null/str names crashed or char-split
+        if _names_raw not in (None, [], ""):
+            _audit["dropped"].append({"field": "names", "why": "not-a-list", "from": str(_names_raw)[:40]})
+        _names_raw = []
+    _all_names = [str(x).strip() for x in _names_raw if str(x).strip()]
     names = _all_names[:60]
     if len(_all_names) > 60:
         _audit["dropped"].append({"field": "names", "why": "truncated-at-60", "count": len(_all_names) - 60})
@@ -2173,7 +2209,10 @@ def _parse_read(out):
     if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition"):
         _audit["normalized"].append({"field": "scene", "from": _scene_raw, "to": "gameplay", "why": "unknown-scene-clamp"})
         scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
-    tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
+    _tz_raw = j.get("tz")
+    if not isinstance(_tz_raw, (list, tuple)):
+        _tz_raw = []
+    tz = [str(x).strip()[:40] for x in _tz_raw if str(x).strip()][:8]
     conf = j.get("conf", None)
     try:
         _conf_raw = conf
@@ -2818,6 +2857,11 @@ def main():
                "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,
                "lifecycle": _LIFECYCLE.snapshot(), "sessionId": SESSION_ID, "ver": VERSION})
     bridge()
+    try:
+        if sys.platform == "darwin":
+            os.nice(5)   # v877 (army §2) — the whole agent yields to D2R; workers add nice(10) on top
+    except Exception:
+        pass
     start_film_thread()
     ev("boot", f"scanner online — session {SESSION_ID} · eyes {POLL_S}s · film ~{int(1/FILM_INTERVAL_S)}fps · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
     _known_dead_load()
@@ -2917,7 +2961,12 @@ def main():
             return snap_src
         snap_path, read_jpg = _job_files(rid, n_this)
         try:
-            shutil.copy2(snap_src, snap_path)
+            try:
+                if os.path.exists(snap_path):
+                    os.remove(snap_path)
+                os.link(snap_src, snap_path)   # v877 (army #8) — 0-byte snapshot vs a 17-60MB copy
+            except Exception:
+                shutil.copy2(snap_src, snap_path)
         except Exception:
             snap_path = snap_src
         _job_seq[0] += 1

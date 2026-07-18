@@ -28,6 +28,21 @@
 set -u
 
 REPO="$(git rev-parse --show-toplevel)" || exit 1
+
+# v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
+# no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
+if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
+  echo "pre-push: tv/ python touched — running the agent+control suites…"
+  if ! python3 "$REPO/tv/test_agent.py" >/dev/null 2>&1; then
+    echo "pre-push: ❌ tv/test_agent.py FAILED — push blocked. Run: python3 tv/test_agent.py"
+    exit 1
+  fi
+  if ! python3 "$REPO/tv/test_control.py" >/dev/null 2>&1; then
+    echo "pre-push: ❌ tv/test_control.py FAILED — push blocked. Run: python3 tv/test_control.py"
+    exit 1
+  fi
+  echo "pre-push: ✅ tv suites green."
+fi
 cd "$REPO" || exit 1
 
 SMOKE_SPECS=(

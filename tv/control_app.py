@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v876)
+# 📺 TV DIABLO — Control App (Mac + Windows · v877)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -242,7 +242,7 @@ def _agent_alive():
     with _lock:
         if _agent_proc is not None and _agent_proc.poll() is None:
             return True
-    return _port_listener_pid() is not None
+    return _pid_cached() is not None   # v877 (army B#1) — the fallback ran a fresh lsof PER POLL
 
 
 def _write_pid(path, pid):
@@ -968,7 +968,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v876",
+        "ver": "v877",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1168,7 +1168,7 @@ def doctor_payload():
     # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
     # journal tail (last ~200 rows): % beats whose hist frame exists, sessionId coverage.
     try:
-        _jl = os.path.join(HERE, "sessions.jsonl")
+        _jl = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877
         _hist = os.path.join(HERE, "frames", "hist")
         rows = []
         if os.path.isfile(_jl):
@@ -1238,6 +1238,7 @@ def _read_ui():
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"   # v877 (army B#7) — keep-alive: no new TCP+thread per poll
     def log_message(self, fmt, *args):
         pass
 
@@ -1944,7 +1945,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v876 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v877 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

@@ -1581,3 +1581,20 @@ cadence ~2.5-4s), ≥24GB → 8; TV_POOL explicit always wins, clamp 1-8, TV_POO
 hook; (2) every vision subprocess (warm workers + oneshots) spawns nice(10) — the game owns
 the CPU, reads absorb the slack. Test lock updated honestly. 145/145 + 27/27 + parity ×4.
 
+
+## ⚔️ v877 "THE ARMY ROUND" (Konyo: 'spawn an army of agents for what can be optimized', Jul 19)
+5 read-only audit agents (agent-core / console / board / footprint+windows / suite-gaps) → 40+
+ranked findings; implemented the high-impact tier: AGENT — mmap frame_sig (full 30-60MB BMP
+read per 0.1s tick → 5.6ms sampled), sig_diff identity fast-path, _FILM_TIMES deque, health
+footage-fps from memory (was 30k-file listdir 4×/s), prune early-return + 10min orphan sweep,
+hard-link snapshots (0-byte vs 17-60MB copies), incremental journal shield (mtime cache
+defeated itself — re-parsed ~24MB per read), footage write-gate at the floor, FILM_MAX_PX
+2048 (4.4 → ~2.8GB/hr), agent os.nice(5), CLAUDE_BIN which() (Windows .cmd trap). CONSOLE —
+_agent_alive lsof-per-poll dead, HTTP/1.1 keep-alive, film decode-before-swap (main-thread
+JPEG decode 1.25×/s dead), endurance pauses idle consoles + pseudo-elements. SUITES — RINSE
+permanent self-hosted spec (tests/v877_rinse.spec.ts, own port + fixture journal via
+TV_SESSIONS), source-shape locks (heartbeat above motion gate + cap/de-dupe wiring),
+youth-shield starvation lock, parse fuzz corpus — WHICH CAUGHT A REAL BUG ('names': null
+crashed _parse_read; hardened), pre-push tv fast lane, control suite + intake smoke in CI.
+149/149 + 27/27 + parity ×4. Remaining audit tiers → v878 (board app-ctx round + theatre
+throttles + control unit locks + /api/session lazy forensics + Windows footage parity).

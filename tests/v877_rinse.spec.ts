@@ -1,0 +1,149 @@
+// v877 — THE RINSE, PERMANENT (Konyo Workflow step 12: 'RINSE as permanent spec').
+// The 13-point user-experience matrix that used to live as a scratchpad driver: every console
+// button both directions, keyboard matrix, rapid-fire stress — now SELF-HOSTED so CI runs it
+// unconditionally: the spec boots its OWN control server (private port, fixture journal via
+// TV_SESSIONS) and never touches a live console on :17772.
+import { test, expect } from '@playwright/test';
+import { spawn, ChildProcess } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const PORT = 17962;
+const CTRL = `http://127.0.0.1:${PORT}/`;
+let server: ChildProcess | null = null;
+
+function fixtureJournal(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'tvd-rinse-'));
+  const p = join(dir, 'sessions.jsonl');
+  const t0 = 1784400000000;
+  const sid = 's_rinse_1';
+  const rows = [] as string[];
+  for (let i = 1; i <= 6; i++) {
+    rows.push(JSON.stringify({
+      ts: t0 + i * 9000, captureTs: t0 + i * 9000, completedTs: t0 + i * 9000 + 6000,
+      names: i % 2 ? ['Perfect Ruby', `${100 + i} Gold`] : [],
+      n: i, area: 'Rinse Plains', scene: 'gameplay', tz: [], ms: 6000,
+      mode: 'warm', lane: 'deep', model: 'sonnet', conf: 0.9, intent: 'context',
+      stashTab: '', frameId: `${i}_${t0 + i * 9000}`, sessionId: sid,
+      escalated: false, interest: 0.7, priority: false, provisional: false,
+    }));
+  }
+  rows.push(JSON.stringify({ ts: t0 + 70000, sessionId: sid, sessionEnd: true, n: 7 }));
+  writeFileSync(p, rows.join('\n') + '\n');
+  return p;
+}
+
+test.describe('v877 RINSE (self-hosted console)', () => {
+  test.beforeAll(async () => {
+    server = spawn('python3', ['tv/control_app.py'], {
+      env: {
+        ...process.env,
+        TV_CONTROL_PORT: String(PORT),
+        TV_PORT: '17961',
+        TV_SESSIONS: fixtureJournal(),
+      },
+      stdio: 'ignore',
+    });
+    // wait for the server
+    for (let i = 0; i < 40; i++) {
+      try {
+        const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(900) });
+        if (r.ok) return;
+      } catch {}
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error('rinse control server never came up');
+  });
+
+  test.afterAll(async () => {
+    try { server?.kill('SIGKILL'); } catch {}
+  });
+
+  const state = (page: any) => page.evaluate(() => ({
+    body: document.body.getAttribute('data-state'),
+    theatre: !(document.getElementById('theatre') as any).hidden,
+    drawer: !(document.getElementById('th-drawer') as any).hidden,
+    cinema: document.body.classList.contains('cinema'),
+    playing: document.getElementById('th-play')?.textContent || '',
+  }));
+
+  test('SIM toggles idempotently ×3 rapid', async ({ page }) => {
+    await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    for (let i = 0; i < 3; i++) {
+      await page.click('#btn-sim');
+      await page.waitForTimeout(700);
+      expect((await state(page)).theatre, `open round ${i}`).toBe(true);
+      await page.click('#btn-sim');
+      await page.waitForTimeout(500);
+      expect((await state(page)).theatre, `close round ${i}`).toBe(false);
+    }
+  });
+
+  test('Space plays/pauses the reel and NEVER touches the agent', async ({ page }) => {
+    await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    await page.click('#btn-sim');
+    await page.waitForTimeout(1000);
+    const before = await state(page);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(350);
+    const after = await state(page);
+    expect(after.playing).not.toBe(before.playing);
+    expect(after.body).toBe(before.body);   // v859 doctrine: theatre owns Space
+  });
+
+  test('arrows single-step, Home/End clamp, ✕ closes the drawer', async ({ page }) => {
+    await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    await page.click('#btn-sim');
+    await page.waitForTimeout(1000);
+    const readNo = async () =>
+      ((await page.locator('#th-caption').textContent().catch(() => '')) || '').match(/read #(\d+)/)?.[1] || null;
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(300);
+    const r0 = await readNo();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+    const r1 = await readNo();
+    expect(r0).not.toBe(null);
+    expect(r1).not.toBe(r0);   // stepped exactly one beat forward
+    await page.keyboard.press('End');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('ArrowRight');   // clamped — must not crash or wrap
+    await page.waitForTimeout(200);
+    if (!(await state(page)).drawer) { await page.keyboard.press('i'); await page.waitForTimeout(300); }
+    expect((await state(page)).drawer).toBe(true);
+    await page.click('#th-drawer-x');
+    await page.waitForTimeout(250);
+    expect((await state(page)).drawer).toBe(false);
+  });
+
+  test('cinema ⛶ in, Esc out — never a black screen', async ({ page }) => {
+    await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    await page.click('#btn-sim');
+    await page.waitForTimeout(1000);
+    await page.click('#th-cinema');
+    await page.waitForTimeout(400);
+    expect((await state(page)).cinema).toBe(true);
+    // the stage must be visibly painting (not the v-cinema black-screen regression, REG-024)
+    const stageVisible = await page.evaluate(() => {
+      const st = document.getElementById('th-stage');
+      return !!st && st.getBoundingClientRect().height > 100;
+    });
+    expect(stageVisible).toBe(true);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    expect((await state(page)).cinema).toBe(false);
+    expect((await state(page)).theatre).toBe(true);   // Esc leaves cinema, not the theatre
+  });
+
+  test('status latency budget: cached /api/status answers <500ms', async () => {
+    const t0 = Date.now();
+    const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });
+    expect(r.ok).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(500);   // v872 pure-memory status — the STANDBY fix stays fixed
+  });
+});

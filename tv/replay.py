@@ -13,7 +13,7 @@
 import json, os, shutil, signal, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-JOURNAL = os.path.join(HERE, "sessions.jsonl")
+JOURNAL = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877 — CI harness override
 HIST = os.path.join(HERE, "frames", "hist")
 SESSION_GAP_MS = 10 * 60 * 1000   # ≥10min silence = a new session
 

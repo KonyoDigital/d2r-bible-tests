@@ -1330,6 +1330,7 @@ class TestOneBudget(unittest.TestCase):
     def test_prune_kills_derivative_twins_and_orphans(self):
         import shutil as sh
         _healthy_disk(self)   # v872.1 — prune LOGIC under test, not the host's real free space
+        tv._ORPHAN_DUE = 0.0   # v877 — force the periodic orphan sweep in this test
         d = tempfile.mkdtemp()
         old_hist = tv.HIST_DIR
         old_keep = tv.HIST_KEEP
@@ -1922,6 +1923,87 @@ class TestReaderPool(unittest.TestCase):
             tv.POOL_N = old_n
             tv._FOOT_TIMES.clear()
             tv._FILM_CAP_MS = 0
+
+class TestSourceShapeLocks(unittest.TestCase):
+    """v877 (army suite-audit #1/#2) — SOURCE-ORDER locks for the two bugs Konyo caught LIVE:
+    the v861 heartbeat was dead below the motion-continue twice; a regression would pass every
+    behavior test (the loop is unexitable). Lock the SHAPE of main() itself."""
+
+    def _main_src(self):
+        import inspect
+        return inspect.getsource(tv.main)
+
+    def test_heartbeat_fires_before_the_motion_gate(self):
+        src = self._main_src()
+        hb = src.find("_heartbeat_cap()")
+        self.assertGreater(hb, 0, "heartbeat gate missing from main()")
+        # the FIRST motion-continue after the watching beat must come AFTER the heartbeat gate
+        watch = src.find('beat("watching", motion)')
+        self.assertGreater(watch, 0)
+        motion_gate = src.find("if motion > SETTLE:", watch)
+        self.assertGreater(motion_gate, 0)
+        self.assertLess(hb, motion_gate,
+                        "v866 REGRESSION: heartbeat sits below the motion-continue again (dead in combat)")
+
+    def test_heartbeat_gate_wires_the_adaptive_cap_and_dedupe(self):
+        src = self._main_src()
+        hb_at = src.find("_heartbeat_cap()")
+        gate = src[hb_at - 600:hb_at + 600]
+        self.assertIn("_heartbeat_in_flight_n()", gate, "cap not compared against heartbeat in-flight")
+        self.assertIn("_in_flight_has_sig", gate, "v868 REGRESSION: same-view double-dispatch de-dupe gone")
+
+    def test_youth_shield_survives_disk_emergency(self):
+        """v873 — an emergency shed may NEVER eat frames younger than 15min."""
+        import collections, unittest.mock, shutil as sh, time as _t
+        d = tempfile.mkdtemp()
+        old_hist, old_j = tv.HIST_DIR, tv.JOURNAL
+        tv.HIST_DIR, tv.JOURNAL = d, os.path.join(d, "nope.jsonl")
+        tv._JFID_STATE = {"path": None, "ids": None}
+        tv._ORPHAN_DUE = 0.0
+        try:
+            now = _t.time()
+            for i in range(6):   # OLD footage (1h) — legitimate shed fuel
+                fp = os.path.join(d, "f_%d.jpg" % (int((now - 3600) * 1000) + i))
+                open(fp, "wb").write(b"J" * 4000)
+                os.utime(fp, (now - 3600, now - 3600))
+            young = []
+            for i in range(6):   # YOUNG footage (2min) — must be untouchable
+                fp = os.path.join(d, "f_%d.jpg" % (int((now - 120) * 1000) + i))
+                open(fp, "wb").write(b"J" * 4000)
+                young.append(os.path.basename(fp))
+            starving = collections.namedtuple("usage", "total used free")(500e9, 499e9, 1e9)
+            src = os.path.join(d, "seed.bmp")
+            open(src, "wb").write(b"BM" + b"D" * 60000)
+            with unittest.mock.patch.object(sh, "disk_usage", return_value=starving):
+                tv.archive_read_frame(src, 1, 12345)
+            left = set(os.listdir(d))
+            for y in young:
+                self.assertIn(y, left, "YOUTH SHIELD BREACH: young frame %s was shed" % y)
+        finally:
+            tv.HIST_DIR, tv.JOURNAL = old_hist, old_j
+            tv._JFID_STATE = {"path": None, "ids": None}
+
+    def test_parse_fuzz_corpus_never_raises(self):
+        """v877 — _parse_read survives every garbage shape the CLI has ever produced."""
+        corpus = [
+            '```json\n{"names": ["Shako"], "scene": "gameplay"}\n```',
+            '{"names": ["Shako"]',                       # truncated
+            '{"names": []}{"names": ["Twice"]}',          # doubled objects
+            '\ufeff{"names": ["BOM"]}',                  # BOM prefix
+            '\x1b[32m{"names": ["ANSI"]}\x1b[0m',       # ANSI escapes
+            '{"names": null, "scene": 7}',                # wrong types
+            '{"names": "not-a-list"}',
+            'I could not read the screen, sorry!',
+            '{"names": ["War Scythe (6os)"], "scene": "gameplay"}',
+            '', '   ', 'null', '[]', '{}', '0',
+        ]
+        for c in corpus:
+            try:
+                r = tv._parse_read(c)
+            except Exception as e:
+                self.fail("_parse_read raised on %r: %s" % (c[:40], e))
+            self.assertTrue(r is None or isinstance(r, dict), repr(c[:40]))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
