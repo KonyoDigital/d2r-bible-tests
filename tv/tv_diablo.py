@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v869"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v870"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -234,6 +234,7 @@ def _health(st):
          "footageFps": _foot_fps,   # v861 — the archive floor, alarmed by the UI
          "visionBusyMs": (max(0, int(now * 1000) - _pool_oldest) if (_pool_pin and _pool_oldest) else 0),
          "poolInFlight": _pool_pin, "poolN": POOL_N,
+         "poolWarm": sum(1 for _w9 in _WORKERS if getattr(_w9, "warm_ok", False)),   # v870
          "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
          # v846 — Tesla-drive dashboard truth
          "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
@@ -2758,18 +2759,26 @@ def main():
     if _KNOWN_DEAD: ev("boot", f"{len(_KNOWN_DEAD)} learned transition frame(s) loaded — they cost 0ms now")
     if not os.environ.get("TV_STUB"):
         def _warm():
-            # v863 — stagger POOL_N logins ~400ms apart so a full pool of cold `claude -p`
-            # spawns doesn't thundering-herd the subscription; each reader warms independently.
+            # v870 (farm-video run 2: pool cold 60s, reads blind) — the v863 warm was
+            # SEQUENTIAL: each reader's boot blocked the next (~8×8s). Now the STARTS stagger
+            # 400ms (no login herd) but the boots run in parallel — full pool warm in ~boot+3s.
             t0 = time.time()
-            ok = 0
+            _wt = []
+            def _warm_one(_wk):
+                try:
+                    if _wk.ask("Reply with exactly: ok", timeout=60) is not None:
+                        setattr(_wk, "warm_ok", True)
+                except Exception:
+                    pass
             for i, _wk in enumerate(_WORKERS):
                 if i:
                     time.sleep(0.4)
-                try:
-                    if _wk.ask("Reply with exactly: ok", timeout=60) is not None:
-                        ok += 1
-                except Exception:
-                    pass
+                _t = threading.Thread(target=_warm_one, args=(_wk,), daemon=True)
+                _t.start()
+                _wt.append(_t)
+            for _t in _wt:
+                _t.join(timeout=75)
+            ok = sum(1 for _wk in _WORKERS if getattr(_wk, "warm_ok", False))
             if ok:
                 ev("boot", f"vision warm — {ok}/{POOL_N} reader(s) ready in {int(time.time()-t0)}s (first reads fast)")
             else:
@@ -2822,7 +2831,9 @@ def main():
         ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
 
     frame = os.path.join(FRAMES, "live.bmp")
-    last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, 0.0, 0
+    # v870 — last_read_t starts NOW, not 0: the heartbeat's `and last_read_t` guard meant a
+    # constant-motion session (his farm video, run 2) stayed BLIND until the first settle read.
+    last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, time.time(), 0
     peak = 0.0            # recent max motion while hunting
     priority = False      # hard motion seen since last read → short gap + 1-tick settle
     empty_streak = 0
