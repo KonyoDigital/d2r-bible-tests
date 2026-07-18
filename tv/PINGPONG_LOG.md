@@ -1580,3 +1580,11 @@ The lag anatomy on his 16GB Mac: 8 warm claude workers pin ~1.6-4.8GB before D2R
 cadence ~2.5-4s), ≥24GB → 8; TV_POOL explicit always wins, clamp 1-8, TV_POOL_ASSUME_GB test
 hook; (2) every vision subprocess (warm workers + oneshots) spawns nice(10) — the game owns
 the CPU, reads absorb the slack. Test lock updated honestly. 145/145 + 27/27 + parity ×4.
+
+## 🎮 v876 "GAME FIRST" (Konyo: 'lags a lot when everything is running', Jul 19)
+Lag anatomy on his 16GB Mac: 8 warm claude workers pin ~1.6-4.8GB before D2R breathes (Grok's
+16GB warning, proven live). (1) machine-fit pool: <24GB → 4 warm readers, ≥24GB → 8; TV_POOL
+explicit always wins, clamp 1-8, TV_POOL_ASSUME_GB test hook; (2) every vision subprocess
+spawns nice(10) — the game owns the CPU. Test lock updated honestly. 145/145 + 27/27.
+Ship note: NOT cycling his live console — the agent reads tv_diablo.py fresh on each ON AIR,
+so v876 applies on his next click; push batched to avoid a Chromium smoke while he games.
