@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v851"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v852"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -459,7 +459,11 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
         return None
     if ol == "python" and "tv diablo" in tl:
         return None
-    _title_is_game = ("resurrected" in tl or "diablo ii" in tl) and ww >= 800 and hh >= 500
+    # v852 (Grok R17 (b) — browsers re-entered the pin race): the game-title override applies
+    # ONLY to wine-family owners; Chrome/Safari/editors stay hard-dead no matter the title.
+    _wine_owner = any(w in ol for w in ("crossover", "wine", "cxstart", "cxpatcher"))
+    _title_is_game = (("resurrected" in tl or "diablo ii" in tl or tl == "d2r")
+                      and ww >= 800 and hh >= 500 and _wine_owner)
     if any(b in ol for b in _PICK_OWNER_BLOCK) and not _is_d2r_game_owner(ol):
         # block list includes crossover/battle.net — game exe still allowed
         # v849 — and an unambiguous game TITLE at game size passes even under a wine/CrossOver owner
@@ -2459,7 +2463,7 @@ def main():
                 ocr_rd = ocr_fast(snap_path)
                 if ocr_rd is not None:
                     oms = ocr_rd.get("ms") or ocr_rd.get("wall_ms") or 0
-                    onames = ocr_rd.get("names") or []
+                    onames = [n for n in (ocr_rd.get("names") or []) if _itemish(n)]   # v852 — one predicate everywhere; garbage never flashes seen
                     ev("ocr", f"⚡ocr {oms}ms · {len(onames)} name(s)" +
                        ((" — " + ", ".join(onames[:4])) if onames else " — no item-ish text") +
                        f" (raw {ocr_rd.get('raw_n', 0)})")
@@ -2770,6 +2774,12 @@ def _itemish(name):
     stage). Item names are wordy: mostly letters, a vowel, no glyph junk. The drawer keeps
     RAW ocr truth — this only guards what gets seeded/headlined."""
     t = str(name or "").strip()
+    # v852 (Grok R17) — bare runes are REAL loot names ('Ist', 'Ber', 'Io', 'El'…)
+    _RUNES = {"el","eld","tir","nef","eth","ith","tal","ral","ort","thul","amn","sol","shael",
+              "dol","hel","io","lum","ko","fal","lem","pul","um","mal","ist","gul","vex","ohm",
+              "lo","sur","ber","jah","cham","zod"}
+    if t.lower() in _RUNES or t.lower().replace(" rune", "") in _RUNES:
+        return True
     if len(t) < 4 or len(t) > 40:
         return False
     if any(c in t for c in "•*&#@$%{}[]<>|\\_=+~^"):

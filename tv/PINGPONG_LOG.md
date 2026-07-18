@@ -1389,3 +1389,13 @@ axis · 📚 shelf lists+loads · ⛶ cinema on/Esc-off. 6/6 green against the r
 table + top-5 site ports queued as v852+ (hist producer fields first: names_loc/ocr_ms/frameOk/
 confirmed_names — drawer stays app-only until the heavy fields land, per the data-blocked note).
 127/127 + 27/27 + 6/6.
+
+## 🏓 R17 HOTFIX → v852 "The Narrow Gate" (~21:45)
+Grok's verify caught THE regression: my v849 owner-block override let BROWSERS with diablo-titled
+tabs re-enter the pin race (Chrome 'Diablo II: Resurrected build guide' scored 2103). v852:
+override is wine-family-scoped (crossover/wine/cxstart/cxpatcher) — browsers hard-dead again;
+CrossOver+'D2R' short title now passes; _itemish learns the 33 runes (Ist/Ber/Io were false-neg);
+UI predicate parity (same rune regex); provisional OCR 'seen' path gated (garbage never flashes);
+chip-weight cascade actually applied (6 rules swept); mono literals tokenized. 3 pin-race locks.
+NOTE-TO-SELF: a patch script without a WRITE is a no-op — part 1 silently never saved (caught by
+the locks). 130/130 + 27/27.

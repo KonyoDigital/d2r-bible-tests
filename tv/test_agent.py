@@ -1611,5 +1611,22 @@ class TestScorerOverride(unittest.TestCase):
         self.assertIsNone(tv.score_d2r_window_candidate("Google Chrome", "Konyo's D2R Farming Bible", 1470, 900, True))
 
 
+
+class TestPinRaceHotfix(unittest.TestCase):
+    """v852 (Grok R17 b) — the override is wine-scoped: browsers stay DEAD; runes are itemish."""
+
+    def test_browser_with_game_title_stays_dead(self):
+        self.assertIsNone(tv.score_d2r_window_candidate("Google Chrome", "Diablo II: Resurrected build guide", 1470, 900, True))
+        self.assertIsNone(tv.score_d2r_window_candidate("Safari", "resurrected wiki", 1200, 800, True))
+
+    def test_crossover_short_title_passes(self):
+        self.assertIsNotNone(tv.score_d2r_window_candidate("CrossOver", "D2R", 1470, 956, True))
+
+    def test_bare_runes_are_itemish(self):
+        for r in ("Ist", "Ber", "Io", "El", "Jah", "Ist Rune"):
+            self.assertTrue(tv._itemish(r), r)
+        self.assertFalse(tv._itemish("QvfST L\u2022"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
