@@ -1382,5 +1382,49 @@ class TestSettleQueue(unittest.TestCase):
         if os.path.isdir(qd):
             self.assertFalse([f for f in os.listdir(qd) if f.endswith(".bmp")])
 
+
+class TestLocationTruth(unittest.TestCase):
+    """v830 (Konyo forensics) — equipped gear never farms; inventory-side holds; stash vaults."""
+
+    def test_parse_roundtrip_names_loc(self):
+        raw = ('{"area":"","tz":[],"scene":"stash","names":["Harlequin Crest","Flame Rift Grand Charm"],'
+               '"names_loc":{"Harlequin Crest":"equipped","Flame Rift Grand Charm":"inventory"},'
+               '"discovered":[],"conf":0.9}')
+        pr = tv._parse_read(raw)
+        self.assertEqual(pr["names_loc"].get("Harlequin Crest"), "equipped")
+        self.assertEqual(pr["names_loc"].get("Flame Rift Grand Charm"), "inventory")
+
+    def test_equipped_shako_never_vaults(self):
+        lc = tv.LootLifecycle()
+        r = lc.process("stash", ["Harlequin Crest"], "Harrogath", 0.9,
+                       names_loc={"Harlequin Crest": "equipped"})
+        self.assertNotIn("Harlequin Crest", r["vault_names"])
+        self.assertNotIn("Harlequin Crest", r["pending_names"])
+        self.assertEqual(r["lifecycle_tags"].get("Harlequin Crest"), "equipped")
+
+    def test_inventory_charm_holds_not_vaults(self):
+        lc = tv.LootLifecycle()
+        lc.process("loot", ["Flame Rift Grand Charm"], "Chaos", 0.9)
+        r = lc.process("stash", ["Flame Rift Grand Charm"], "Harrogath", 0.9,
+                       names_loc={"Flame Rift Grand Charm": "inventory"})
+        self.assertNotIn("Flame Rift Grand Charm", r["vault_names"], "inventory-side must NOT vault")
+        self.assertIn("Flame Rift Grand Charm", r["pending_names"], "inventory-side holds")
+
+    def test_true_stash_still_vaults(self):
+        lc = tv.LootLifecycle()
+        lc.process("loot", ["Ist Rune"], "Chaos", 0.9)
+        r = lc.process("stash", ["Ist Rune"], "Harrogath", 0.9,
+                       names_loc={"Ist Rune": "stash"})
+        self.assertIn("Ist Rune", r["vault_names"])
+
+    def test_emit_carries_equipped_names(self):
+        rec = tv.emit_deep_read({"area": "Harrogath", "scene": "stash",
+                                 "names": ["Harlequin Crest"], "tz": [], "conf": 0.9,
+                                 "names_loc": {"Harlequin Crest": "equipped"}},
+                                42, "42_4242", capture_ts=4242)
+        self.assertIn("Harlequin Crest", rec.get("equipped_names") or [])
+        self.assertNotIn("Harlequin Crest", rec.get("vault_names") or [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

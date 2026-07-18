@@ -1147,3 +1147,17 @@ view excluded) and the NEWEST drains through the identical dual-lane pipeline th
 read frees (drain re-arms _VISION_BUSY — a second concurrent call is impossible); inline dispatch
 lifted into _launch_vision shared by both paths; queue dies with the session. 6 new locks.
 Fable gate: 103/103 + 25/25.
+
+## 🎯 v830 "Location Truth" (Konyo timestamp forensics, ~17:30)
+His two frame-exact reports fixed at the root: (1) Flame Rift GC hovered in INVENTORY while
+stash open → was scene-stamped 'stash'; (2) EQUIPPED Shako ('Shift+Left Click to Unequip')
+treated as farm loot. Now: prompt asks names_loc per name (equipped/inventory/stash/floor,
+with the panel-side + unequip tells), parse round-trips it (allowlisted), LootLifecycle:
+equipped = tag-only (never vault/hold), inventory-side during stash = HOLD flow, only true
+stash-panel names commit; board: equipped_names → quiet idempotent tvChronicleRoute (the
+'tallies on the way' he asked for), NEVER vault; IT SAW badges 🎽🎒🏦🧱 per name. 5 locks
+encode his scenarios verbatim. Neither original case falsely vaulted (stash-no-chain gate
+held) — this fixes classification + future truth. 108/108 + 25/25.
+
+Also this stretch: v829 Pinpoint Seek (stale-probe race — arrows always land the right frame;
+honest run-span '· ran 3m41s · 10 AI reads' in the header).

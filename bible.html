@@ -33360,7 +33360,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v829', name:'Pinpoint Seek', date:'2026-07-18', note:'v829: stale-probe race killed (arrows always land the right frame) + honest run-span/coverage in the session header' };
+  window.D2R_BUILD = { id:'v830', name:'Location Truth', date:'2026-07-18', note:'v830: every tooltip knows WHERE it lived — equipped gear never farms (quiet chronicle tally), inventory holds, only true stash vaults' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34408,6 +34408,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var confList = Array.isArray(rd.confirmed_names) ? rd.confirmed_names : [];
         var vaultSet = {}, pendSet = {}, confSet = {};
         if (rd && rd.sim) { return; }   // v787 (R3 sleeper) — replay re-broadcast: view-only, NEVER re-vault old loot into the real engines
+        // v830 (Konyo: 'its literally my EQUIPMENT') — worn gear tallies the chronicle quietly
+        // on the way (idempotent), and NEVER enters the vault flow.
+        try {
+          (rd.equipped_names || []).forEach(function(n){
+            if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(n, 'equipped');
+          });
+        } catch (e) {}
         function _nN(s){ return String(s||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); }
         vaultList.forEach(function(n){ vaultSet[_nN(n)] = true; });
         pendingList.forEach(function(n){ pendSet[_nN(n)] = true; });

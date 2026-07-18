@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v829)
+# 📺 TV DIABLO — Control App (Mac + Windows · v830)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v829",
+        "ver": "v830",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1223,6 +1223,8 @@ class Handler(BaseHTTPRequestHandler):
                     # v797 — FULL FORENSICS (Konyo: 'exactly what was analyzed per frame')
                     "ocr_names": r.get("ocr_names") or [],
                     "ocr_ms": r.get("ocr_ms") or 0,   # v823 (Grok R9 sleeper #8) — the fast lane gets its clock
+                    "names_loc": r.get("names_loc") or {},          # v830 — per-name location truth
+                    "equipped_names": r.get("equipped_names") or [],
                     "confirmed_names": r.get("confirmed_names") or [],
                     "ocr_seeded": r.get("ocr_seeded") or [],
                     "conf": r.get("conf"),
@@ -1643,7 +1645,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v829 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v830 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v829"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v830"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -66,7 +66,7 @@ FILM_INTERVAL_S = 0.20  # v783 — dedicated film thread target ~5 fps JPEG eye
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
-    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"discovered\":[],\"conf\":0.0}}\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"names_loc\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
     "scene = one of: town | stash | inventory | loot | gameplay | transition.\n"
     "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
     "dark frame with NO HUD (no belt/orbs/automap). The player is entering a portal, waypoint, or a "
@@ -78,6 +78,12 @@ READ_PROMPT = (
     "Stash tell: left panel tabs + inventory often open on the right.\n"
     "names = READABLE text labels only (tooltips first line, ground loot labels, open inventory/stash "
     "name text). Never invent from icons alone. Never complete partial names.\n"
+    "names_loc = for EVERY name: WHERE its tooltip/label lives — one of "
+    "equipped | inventory | stash | floor. Tells: tooltip says 'to Unequip' or hovers the character "
+    "equipment doll = equipped (the player's WORN gear, not loot). Tooltip anchored over the RIGHT "
+    "inventory grid = inventory (charms saying 'Keep in Inventory' are inventory). Tooltip over the "
+    "LEFT stash panel grid = stash. Ground label / detached top-left label = floor. When stash+inventory "
+    "are BOTH open, judge by WHICH panel the tooltip covers — never assume stash.\n"
     "Never put merc/NPC/player names, HP bars, waypoint labels, or chat into names.\n"
     "discovered = ITEM names from chat DISCOVERY broadcasts only (lines like "
     "'<player> has found <item>' / 'has discovered'). Just the item names; [] if none. "
@@ -1472,9 +1478,20 @@ def _parse_read(out):
         conf = None
     stash_tab = _norm_stash_tab(j.get("stashTab") or j.get("stash_tab"), scene)
     discovered = [str(x).strip() for x in (j.get("discovered") or []) if str(x).strip()][:12]
+    names_loc = {}
+    try:
+        raw_loc = j.get("names_loc") or {}
+        if isinstance(raw_loc, dict):
+            for k2, v2 in list(raw_loc.items())[:60]:
+                v2 = str(v2).strip().lower()
+                if v2 in ("equipped", "inventory", "stash", "floor"):
+                    names_loc[str(k2).strip()] = v2
+    except Exception:
+        names_loc = {}
     return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names,
             "tz": tz, "conf": conf, "stashTab": stash_tab,
-            "discovered": discovered}   # v769 — the v763 chat lane finally flows through parse
+            "discovered": discovered,
+            "names_loc": names_loc}   # v830 — per-name location truth (equipped/inventory/stash/floor)
 
 def _intent_for(scene):
     """v723 — loot lifecycle: floor labels = seen (not farmed); inv/stash = farmed for real."""
@@ -1618,9 +1635,17 @@ class LootLifecycle:
             "confirmed": self.confirmed[-40:],
         }
 
-    def process(self, scene, names, area, conf, now_ms=None):
+    def process(self, scene, names, area, conf, now_ms=None, names_loc=None):
         now_ms = now_ms if now_ms is not None else int(time.time() * 1000)
         names = [str(n).strip() for n in (names or []) if str(n).strip()]
+        # v830 (Konyo forensics) — LOCATION TRUTH: equipped gear is the player's OWN worn kit
+        # (never vault, never hold — tag only); an inventory-side tooltip while the stash is
+        # open is HELD loot (hold flow), not a stash commit.
+        names_loc = names_loc or {}
+        equipped = [n for n in names if names_loc.get(n) == "equipped"]
+        inv_side = [n for n in names if names_loc.get(n) == "inventory"]
+        if equipped:
+            names = [n for n in names if n not in equipped]
         out = {
             "vault_names": [],      # ONLY these may hit tvVaultRegister
             "pending_names": [],    # holding — show HOLDING, not vault
@@ -1635,10 +1660,19 @@ class LootLifecycle:
         elif scene == "inventory":
             self._on_inventory(names, area, conf, now_ms, out)
         elif scene == "stash":
-            self._on_stash(names, area, conf, now_ms, out)
+            # v830 — inventory-side names route to the HOLD flow; only true stash-panel
+            # names may commit to the vault.
+            if inv_side:
+                stash_side = [n for n in names if n not in inv_side]
+                self._on_inventory(inv_side, area, conf, now_ms, out)
+                self._on_stash(stash_side, area, conf, now_ms, out)
+            else:
+                self._on_stash(names, area, conf, now_ms, out)
         # refresh pending heldMs for snapshot consumers
         for k, p in self.pending.items():
             p["heldMs"] = max(0, now_ms - p["firstHeld"])
+        for n in equipped:
+            out["lifecycle_tags"][n] = "equipped"   # v830 — worn gear: tag only, chronicle-tally on the board
         out["farmed_names"] = list(out["vault_names"])
         out["pending_names"] = [p["name"] for p in self.pending.values()]
         return out
@@ -2400,7 +2434,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
             globals()["_REFIRE_SIG"] = globals().get("_LAST_EMIT_SIG")
         except Exception:
             pass
-    lc = _LIFECYCLE.process(effective_lc_scene(rd.get("scene"), names), names, rd.get("area") or "", rd.get("conf"))
+    lc = _LIFECYCLE.process(effective_lc_scene(rd.get("scene"), names), names, rd.get("area") or "", rd.get("conf"),
+                            names_loc=rd.get("names_loc") or {})
     vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
     pending_names = lc.get("pending_names") or []
     thrown_names = lc.get("thrown_names") or []
@@ -2469,6 +2504,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
+        "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
+        "equipped_names": [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"],
         "ocr_seeded": _ocr_seed,         # v795 — names the fast lane saved from an empty deep read
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
         "confirmed_names": confirmed,
