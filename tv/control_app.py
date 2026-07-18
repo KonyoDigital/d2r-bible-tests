@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v812)
+# 📺 TV DIABLO — Control App (Mac + Windows · v813)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v812",
+        "ver": "v813",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1549,7 +1549,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v812 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v813 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

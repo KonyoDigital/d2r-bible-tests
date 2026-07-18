@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v812"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v813"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -908,19 +908,40 @@ def archive_read_frame(src_path, n, ts_ms=None):
         if not ok:
             return ""
         # prune oldest beyond HIST_KEEP — and beyond the TV_HIST_MB disk ceiling (v753)
+        # v813 (Grok R8 #7) — ONE budget: theatre derivative caches (cache1280/cache160) are
+        # counted in the ceiling AND deleted with their source frame — no more disk lie.
         try:
             files = [os.path.join(HIST_DIR, f) for f in os.listdir(HIST_DIR)
                      if f.lower().endswith(".jpg")]
             files.sort(key=lambda p: os.path.getmtime(p))
-            total = sum(os.path.getsize(f) for f in files)
+            cache_dirs = [os.path.join(HIST_DIR, d) for d in ("cache1280", "cache160")
+                          if os.path.isdir(os.path.join(HIST_DIR, d))]
+            def _twins(src):
+                b = os.path.basename(src)
+                return [os.path.join(cd, b) for cd in cache_dirs]
+            def _size_all(src):
+                t = 0
+                for f in [src] + _twins(src):
+                    try: t += os.path.getsize(f)
+                    except Exception: pass
+                return t
+            total = sum(_size_all(f) for f in files)
             over_mb = []
             while total > HIST_MB * 1_000_000 and len(files) - len(over_mb) > 10:
                 f0 = files[len(over_mb)]
-                total -= os.path.getsize(f0)
+                total -= _size_all(f0)
                 over_mb.append(f0)
             for old in set(over_mb) | set(files[:-HIST_KEEP]):
-                try: os.remove(old)
-                except Exception: pass
+                for f in [old] + _twins(old):
+                    try: os.remove(f)
+                    except Exception: pass
+            # orphan derivatives (source already gone) die too
+            keep = {os.path.basename(f) for f in files if f not in set(over_mb) | set(files[:-HIST_KEEP])}
+            for cd in cache_dirs:
+                for f in os.listdir(cd):
+                    if f.lower().endswith(".jpg") and f not in keep:
+                        try: os.remove(os.path.join(cd, f))
+                        except Exception: pass
         except Exception:
             pass
         return fid

@@ -1053,3 +1053,8 @@ R8's sibling claim-gap closed: /api/export json now includes sess.raw = the RAW 
 (sessionId-filtered across the generation ring, ts-range fallback) with every field the theatre
 projection drops; .md story seals ⏳ holds. LIVE-VERIFIED: 10 raw rows with anchor/
 gone_candidates/farmed_names on session 1. 24/24 + 93/93.
+
+## 🏃 v813 "One Budget" (~10:35)
+cache1280/cache160 derivatives are counted in the HIST_MB ceiling, pruned as twins of their
+source, and orphans (source already pruned) are swept. Lock: derivative-survives-source +
+orphan-sweep. 94/94 + 24/24.

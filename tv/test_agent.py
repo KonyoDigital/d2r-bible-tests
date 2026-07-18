@@ -1217,5 +1217,44 @@ class TestJournalGenerations(unittest.TestCase):
             tv.JOURNAL, replay.JOURNAL = old_j, old_rj
 
 
+
+class TestOneBudget(unittest.TestCase):
+    """v813 (Grok R8 #7) — derivative caches share the hist budget and die with their source."""
+
+    def test_prune_kills_derivative_twins_and_orphans(self):
+        import shutil as sh
+        d = tempfile.mkdtemp()
+        old_hist = tv.HIST_DIR
+        old_keep = tv.HIST_KEEP
+        tv.HIST_DIR = d
+        tv.HIST_KEEP = 5
+        try:
+            os.makedirs(os.path.join(d, "cache1280"), exist_ok=True)
+            for i in range(12):
+                fid = "%d_%d" % (i, 1000 + i)
+                with open(os.path.join(d, fid + ".jpg"), "wb") as f:
+                    f.write(b"J" * 2000)
+                with open(os.path.join(d, "cache1280", fid + ".jpg"), "wb") as f:
+                    f.write(b"j" * 500)
+                os.utime(os.path.join(d, fid + ".jpg"), (1000 + i, 1000 + i))
+            # orphan derivative with no source
+            with open(os.path.join(d, "cache1280", "999_999.jpg"), "wb") as f:
+                f.write(b"o" * 100)
+            src = os.path.join(d, "seed.bmp")
+            with open(src, "wb") as f:
+                f.write(b"BM" + b"D" * 60000)
+            fid = tv.archive_read_frame(src, 99, 999999)
+            live = {f for f in os.listdir(d) if f.endswith(".jpg")}
+            cached = set(os.listdir(os.path.join(d, "cache1280")))
+            self.assertLessEqual(len(live), tv.HIST_KEEP + 1)
+            for c in cached:
+                self.assertIn(c, live, "derivative %s survived its source" % c)
+            self.assertNotIn("999_999.jpg", cached, "orphan derivative survived")
+        finally:
+            tv.HIST_DIR = old_hist
+            tv.HIST_KEEP = old_keep
+            sh.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
