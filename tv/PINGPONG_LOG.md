@@ -1280,3 +1280,23 @@ walking.
 - Env: `TV_SCOUT_S`, `TV_SCOUT_MOTION`, `TV_SCOUT_GAP`.
 
 **Gates:** 143/143 agent+control.
+
+
+### 🎯 v842 — UNIT ENGINE (Konyo: "synced timebased… unit engine not randomly/separately") ✅
+**Complaint:** scout felt like a second random reader. Want scout + settle + deep as **one**
+time-synced machine.
+
+**Design (one clock, three phases):**
+| Phase | What |
+|-------|------|
+| **SENSE** | every poll tick: capture · motion · every N ticks light OCR (scout) |
+| **DECIDE** | same tick: scout text OR settle freeze → one job |
+| **ACT** | one dual-lane worker · `_VISION_BUSY` · shared unit queue |
+
+**Guarantees:**
+- Scout samples on **engine ticks** (`_ENGINE_TICK` / `_scout_every_ticks()`), not freestyle wall clock alone.
+- Shared **gap family**: scout deep uses `PRIORITY_GAP_S` (optional `TV_SCOUT_GAP` override).
+- Scout + settle freezes share **one ring queue** with `origin` tags; drain → same `_engine_fire` → same `_launch_vision`.
+- Never two concurrent deeps. Dispatch stamps `engineTick` + `origin`.
+
+**Gates:** 146/146 agent+control · stamps v842 (agent · control · UI · D2R_BUILD).

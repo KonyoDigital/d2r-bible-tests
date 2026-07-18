@@ -875,6 +875,56 @@ class TestReplay(unittest.TestCase):
         b = tv._scout_fresh_names(["Vex Rune", "Perfect Ruby"])
         self.assertEqual(b, ["Perfect Ruby"])
 
+    def test_unit_engine_scout_locked_to_poll_ticks(self):
+        """v842 — scout samples on the unit clock (every N poll ticks), not freestyle wall time."""
+        every = tv._scout_every_ticks()
+        self.assertGreaterEqual(every, 1)
+        # ~0.45s / 0.18s poll ≈ 2–3 ticks
+        self.assertLessEqual(every, 6)
+        old_tick, old_at = tv._ENGINE_TICK, tv._SCOUT_TICK_AT
+        try:
+            tv._ENGINE_TICK = 10
+            tv._SCOUT_TICK_AT = 10
+            self.assertFalse(tv._engine_due_scout())
+            tv._ENGINE_TICK = 10 + every - 1
+            self.assertFalse(tv._engine_due_scout())
+            tv._ENGINE_TICK = 10 + every
+            self.assertTrue(tv._engine_due_scout())
+        finally:
+            tv._ENGINE_TICK, tv._SCOUT_TICK_AT = old_tick, old_at
+
+    def test_unit_engine_shared_gap_clock(self):
+        """v842 — scout + priority settle share priority family; cruise settle uses MIN_GAP."""
+        self.assertAlmostEqual(tv._engine_gap_s(priority=True, origin="settle"), tv.PRIORITY_GAP_S)
+        self.assertAlmostEqual(tv._engine_gap_s(priority=False, origin="settle"), tv.MIN_GAP_S)
+        g_scout = tv._engine_gap_s(priority=True, origin="scout")
+        self.assertAlmostEqual(g_scout, tv.SCOUT_GAP_S)
+        # default SCOUT_GAP equals PRIORITY (one family unless cousin overrides TV_SCOUT_GAP)
+        self.assertAlmostEqual(tv.SCOUT_GAP_S, tv.PRIORITY_GAP_S)
+
+    def test_unit_queue_tags_origin(self):
+        """v842 — scout and settle freezes share one queue and keep origin tags."""
+        d = tempfile.mkdtemp()
+        old_f, old_emit = tv.FRAMES, tv.__dict__.get("_LAST_EMIT_SIG")
+        try:
+            tv.FRAMES = d
+            tv._SETTLE_QUEUE[:] = []
+            tv._LAST_EMIT_SIG = None
+            src = os.path.join(d, "live.bmp")
+            open(src, "wb").write(b"x" * 64)
+            sig = bytes([7]) * 4096
+            tv._settle_enqueue(src, sig, interest=0.9, priority=True, origin="scout")
+            self.assertEqual(len(tv._SETTLE_QUEUE), 1)
+            self.assertEqual(tv._SETTLE_QUEUE[0]["origin"], "scout")
+            e = tv._settle_drain_pop()
+            self.assertEqual(e["origin"], "scout")
+        finally:
+            tv.FRAMES = old_f
+            tv._LAST_EMIT_SIG = old_emit
+            tv._SETTLE_QUEUE[:] = []
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+
 
 class TestWindowPin(unittest.TestCase):
     """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""

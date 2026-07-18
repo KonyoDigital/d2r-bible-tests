@@ -23,15 +23,15 @@
 #                   python3 tv/tv_diablo.py --watch  in another (reads+bridge)
 #   Then in the bible: ⚡ session → 📺 TV DIABLO → flip the switch.
 #
-#   Frugality (protects your plan limits): a read fires ONLY when the screen
-#   goes STABLE (two identical captures in a row = you stopped to look at
-#   items) after having changed. Running around = every frame differs = zero
-#   reads. Live pacing: 6s cruise gap · 2.5s priority gap · 240 reads/session cap.
+#   UNIT ENGINE (v842): one poll clock · one sense→decide→act machine · one dual-lane.
+#   Scout (mid-play OCR text) and settle (stop/context freeze) are phases of the SAME
+#   engine — not separate random readers. Shared last_read_t gap · one vision worker ·
+#   one settle-queue. Live pacing: cruise gap · priority gap · soft session cap.
 # ═══════════════════════════════════════════════════════════════════════════════
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v841"   # ONE truth — banner, autopilot HUD, and state all read this  · scout lane (no stop-hover)
+VERSION = "v842"   # ONE truth — unit engine: scout+settle+deep share one clock
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1159,19 +1159,39 @@ _VISION_BUSY = False
 _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall detection)
 _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back empty: allow ONE re-read of that view
 
-# v841 — SCOUT LANE (Konyo: cut "stop + hover" out of the product)
-# Continuous LIGHT OCR on a rolling snapshot — when item-ish text appears (ground labels,
-# brief tooltips, panels), fire dual-lane WITHOUT waiting for a multi-tick full settle.
-# Hard game limit remains: icons alone still never invent names (read-only screen truth).
-# Best play: loot labels / show-items on the ground; scout still catches mid-play text.
+# v842 — UNIT ENGINE (Konyo: "synced timebased… work as a unit engine not randomly")
+# ─────────────────────────────────────────────────────────────────────────────
+# ONE machine. Three phases on the SAME poll clock (POLL_S). Not three readers.
+#
+#   SENSE  every tick: capture · motion · (every SCOUT_EVERY_TICKS) light OCR sample
+#   DECIDE same tick:  scout text OR settle ticks → ONE job (queue or fire)
+#   ACT    serialized: dual-lane OCR flash + Claude deep · _VISION_BUSY gate · one worker
+#
+# Scout is NOT a side process. It is the mid-play SENSE path of this engine.
+# Settle is the stop/context SENSE path. Both share last_read_t + PRIORITY/MIN gap.
+# Hard limit: icons alone never invent names (read-only screen truth).
+# Best play: loot labels / show-items on the ground.
 SCOUT_INTERVAL_S = float(os.environ.get("TV_SCOUT_S", "0.45") or 0.45)
 SCOUT_MOTION_MAX = float(os.environ.get("TV_SCOUT_MOTION", "0.20") or 0.20)  # skip pure sprint blur
-SCOUT_GAP_S = float(os.environ.get("TV_SCOUT_GAP", "1.4") or 1.4)            # min between scout deep reads
-_SCOUT_AT = 0.0
-_SCOUT_HIT_UNTIL = {}   # norm_name -> unix expire (dedupe spam)
+# Scout deep-reads use PRIORITY_GAP_S (same family as hard motion→stop) — NOT a freestyle gap.
+# TV_SCOUT_GAP kept as optional override so cousins can slow scout without forking the engine.
+SCOUT_GAP_S = float(os.environ.get("TV_SCOUT_GAP") or PRIORITY_GAP_S or 1.2)
+_ENGINE_TICK = 0            # monotonic poll counter (unit clock)
+_SCOUT_TICK_AT = 0          # last engine tick that ran a scout SENSE sample
+_SCOUT_HIT_UNTIL = {}       # norm_name -> unix expire (dedupe spam)
+
+def _scout_every_ticks():
+    """How many poll ticks between scout OCR samples — locks scout to the unit clock."""
+    return max(1, int(round(SCOUT_INTERVAL_S / max(0.05, POLL_S))))
+
+def _engine_due_scout(tick=None):
+    """True when this engine tick should run the light OCR SENSE sample."""
+    t = _ENGINE_TICK if tick is None else tick
+    every = _scout_every_ticks()
+    return (t - _SCOUT_TICK_AT) >= every
 
 def _scout_fresh_names(names, now=None, ttl=40.0):
-    """Return names not recently scout-fired (avoids re-reading the same tooltip every 0.5s)."""
+    """Return names not recently engine-scouted (avoids re-reading the same tooltip every sample)."""
     now = time.time() if now is None else now
     dead = [k for k, exp in _SCOUT_HIT_UNTIL.items() if exp <= now]
     for k in dead:
@@ -1202,6 +1222,12 @@ def _scout_snap_path():
         pass
     return os.path.join(d, "hit.bmp")
 
+def _engine_gap_s(priority=False, origin="settle"):
+    """Shared gap clock for the whole unit engine. Scout text = priority family."""
+    if origin in ("scout", "scout-queue") or priority:
+        return float(SCOUT_GAP_S if origin.startswith("scout") else PRIORITY_GAP_S)
+    return float(MIN_GAP_S)
+
 # v825 (Grok R5 #1 / R9 #2) — SETTLE QUEUE ring buffer ──────────────────────────
 # A 7–90s Claude vision call runs on a background thread; meanwhile the main loop keeps
 # capturing. Distinct freezes that landed during that window used to hit the `if _VISION_BUSY:`
@@ -1227,11 +1253,10 @@ def _settle_file_del(entry):
     except Exception:
         pass
 
-def _settle_enqueue(src_frame, sig, interest=0.0, priority=False):
-    """Copy the live frame to frames/queue/<sig8>.bmp and ring-buffer it. Deduped by sig
-    (skip the view Claude is reading right now, and anything already queued, within SETTLE);
-    FIFO cap SETTLE_QUEUE_CAP; entries older than SETTLE_QUEUE_STALE_MS pruned with a `cap` ev.
-    Never raises into the scan loop."""
+def _settle_enqueue(src_frame, sig, interest=0.0, priority=False, origin="settle"):
+    """Unit-engine work queue: copy live frame to frames/queue/<sig8>.bmp. Scout text freezes
+    and settle freezes share this ring — same clock, same drain. Deduped by sig; FIFO cap;
+    stale pruned. Never raises into the scan loop."""
     try:
         now = int(time.time() * 1000)
         reading = globals().get("_LAST_EMIT_SIG")
@@ -1246,7 +1271,7 @@ def _settle_enqueue(src_frame, sig, interest=0.0, priority=False):
                     fresh.append(e)
             _SETTLE_QUEUE[:] = fresh
             if dropped:
-                ev("cap", "settle-queue — dropped %d stale freeze(s) (>%ds) waiting for a read"
+                ev("cap", "unit-queue — dropped %d stale freeze(s) (>%ds) waiting for a read"
                    % (dropped, SETTLE_QUEUE_STALE_MS // 1000))
             for e in _SETTLE_QUEUE:
                 if sig_diff(sig, e["sig"]) <= SETTLE:
@@ -1259,7 +1284,8 @@ def _settle_enqueue(src_frame, sig, interest=0.0, priority=False):
             except Exception:
                 return
             _SETTLE_QUEUE.append({"path": dest, "sig": sig, "ts": now,
-                                  "interest": round(float(interest), 3), "priority": bool(priority)})
+                                  "interest": round(float(interest), 3), "priority": bool(priority),
+                                  "origin": str(origin or "settle")})
             while len(_SETTLE_QUEUE) > SETTLE_QUEUE_CAP:   # newest freeze evicts the oldest held view
                 _settle_file_del(_SETTLE_QUEUE.pop(0))
     except Exception:
@@ -2182,13 +2208,14 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print(f"📺 TV DIABLO Autopilot {VERSION} — replay · journal · farewell · chain vault · frame hist")
+    print(f"📺 TV DIABLO Autopilot {VERSION} — UNIT ENGINE · scout+settle+deep · one clock")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print("   capture: AUTO (pins the D2R window when live; TV_CAPTURE=full to force full-screen)")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
+    print(f"   unit clock: poll {POLL_S}s · scout every {_scout_every_ticks()} ticks (~{SCOUT_INTERVAL_S}s) · scout gap {SCOUT_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
     print(f"   ocr lane: {ocr_tag}")
-    print("   tip: fullscreen D2R · stop on piles — ⚡ocr chips flash first, Claude confirms behind")
+    print("   tip: show-items / ground labels · unit engine reads mid-play text + settle freezes as ONE machine")
     print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
     # v779 — ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant;
     # Terminal's checkbox does not cover the control-app child agent).
@@ -2230,14 +2257,14 @@ def main():
     priority = False      # hard motion seen since last read → short gap + 1-tick settle
     empty_streak = 0
     named_until = 0.0     # boost interest after a named hit
+    global _ENGINE_TICK, _SCOUT_TICK_AT
+    _ENGINE_TICK = 0
+    _SCOUT_TICK_AT = 0
 
     def _launch_vision(snap_src, cur_snap, n_this, fid_this, interest_this, used_priority, read_ts):
-        """v825 (Grok R5 #1 / R9 #2) — snapshot the settled frame + run the dual-lane
-        (OCR fast + Claude deep) read on a background thread. Called by BOTH the live settle
-        path and the settle-queue drain, so a freeze held during a 7–90s vision call flows
-        through the identical pipeline. One read at a time — the _VISION_BUSY gate serializes
-        it, so a second concurrent vision call is never launched. Returns the path actually
-        handed to the vision thread (snap.bmp on success) so the caller can free the source."""
+        """Unit ACT phase — dual-lane (OCR fast + Claude deep) on ONE background worker.
+        Scout freezes, settle freezes, and queue drains all enter here. _VISION_BUSY makes
+        concurrent vision impossible. Returns the path handed to the vision thread."""
         global _VISION_BUSY
         import shutil
         snap = os.path.join(FRAMES, "snap.bmp")
@@ -2323,35 +2350,71 @@ def main():
         threading.Thread(target=_vision_job, daemon=True, name="tv-vision").start()
         return snap_path
 
+    def _engine_fire(origin, snap_src, sig, interest_this, used_priority, note="",
+                     motion_v=0.0, peak_v=0.0, settle_ticks=0, gap_ms=0,
+                     empty_s=0, named_s=0, ap_mode="", interest_parts=None):
+        """Unit DECIDE→ACT arm: shared last_read_t, one dual-lane, one dispatch stamp.
+        Called by live scout, live settle, and unit-queue drain — never a second reader."""
+        nonlocal last_read_t, last_sent_md5, reads, peak, priority
+        soft_over = reads - SESSION_CAP
+        if soft_over >= 0:
+            time.sleep(min(8.0, 2.0 + soft_over * 0.02) if origin.startswith("scout")
+                       else min(30.0, 6.0 + soft_over * 0.05))
+        last_read_t, last_sent_md5 = time.time(), sig
+        globals()["_LAST_EMIT_SIG"] = sig
+        reads += 1
+        read_ts = int(time.time() * 1000)
+        frame_id = archive_read_frame(snap_src, reads, read_ts)
+        tag = "🔭 scout" if origin.startswith("scout") else ("⏭ queue" if "queue" in origin else "👁 settle")
+        print(f"  {tag} — unit dual-lane #{reads}/{SESSION_CAP}"
+              + (f" · {note}" if note else "")
+              + (f" · frame={frame_id}" if frame_id else ""))
+        ev("settle", f"{tag} · unit engine · dual-lane read #{reads}"
+           + (f" · {note}" if note else "")
+           + (f" · frame {frame_id}" if frame_id else ""))
+        beat("reading", 0.0)
+        _AP["mode"] = "read"
+        globals()["_DISPATCH_CTX"] = {
+            "motion": round(float(motion_v), 4), "peak": round(float(peak_v), 4),
+            "settleTicks": int(settle_ticks),
+            "interest": round(float(interest_this), 3),
+            "interestParts": dict(interest_parts or {}),
+            "priority": bool(used_priority),
+            "gapMs": int(gap_ms),
+            "emptyStreak": int(empty_s),
+            "namedStreak": int(named_s),
+            "apMode": str(ap_mode or origin),
+            "queueDepth": len(_SETTLE_QUEUE),
+            "frameSrc": "scout-snap" if origin.startswith("scout") else (
+                "settle-queue" if "queue" in origin else "live"),
+            "origin": origin,
+            "engineTick": int(_ENGINE_TICK),
+            "note": note or ("unit engine — " + origin),
+        }
+        used = _launch_vision(snap_src, sig, reads, frame_id, interest_this, used_priority, read_ts)
+        if origin.startswith("scout") or "queue" in origin:
+            peak = 0.0
+            priority = False
+        return used
+
     while True:
         time.sleep(POLL_S)
-        # v825 (Grok R5 #1 / R9 #2) — SETTLE-QUEUE DRAIN. The instant the in-flight vision
-        # call frees up, read the NEWEST freeze that landed during it (Konyo's most-current
-        # view) through the same dual-lane pipeline. Runs before capture and drains one at a
-        # time — a second concurrent vision call is impossible (the drain re-arms _VISION_BUSY).
+        _ENGINE_TICK += 1
+        # ── ACT: unit-queue drain (held freezes from scout OR settle while deep was busy) ──
+        # One job · one dual-lane · re-arms _VISION_BUSY. Newest view wins.
         if (not _VISION_BUSY) and _SETTLE_QUEUE:
             _q = _settle_drain_pop()
             if _q is not None:
-                reads += 1
-                q_ts = _q["ts"]
-                q_fid = archive_read_frame(_q["path"], reads, q_ts)
-                print(f"  ⏭ settle-queue — reading a freeze held during the last read ({reads}/{SESSION_CAP})")
-                ev("settle", f"⏭ settle-queue drain · a view held during the last vision call · dual-lane read #{reads}"
-                   + (f" · frame {q_fid}" if q_fid else ""))
-                beat("reading", 0.0)
-                _AP["mode"] = "read"
-                last_read_t = time.time()
-                last_sent_md5 = _q["sig"]
-                globals()["_LAST_EMIT_SIG"] = _q["sig"]
-                globals()["_DISPATCH_CTX"] = {"interest": _q.get("interest", 0.0),
-                                              "priority": bool(_q.get("priority")),
-                                              "queueDepth": len(_SETTLE_QUEUE),
-                                              "heldMs": max(0, int(time.time() * 1000) - _q.get("ts", 0)),
-                                              "frameSrc": "settle-queue",
-                                              "origin": "settle-queue",
-                                              "note": "queued freeze — live motion fields n/a by nature"}
-                used = _launch_vision(_q["path"], _q["sig"], reads, q_fid,
-                                      _q.get("interest", 0.0), _q.get("priority", False), q_ts)
+                q_origin = str(_q.get("origin") or "settle-queue")
+                if not q_origin.endswith("queue") and "queue" not in q_origin:
+                    q_origin = q_origin + "-queue"
+                used = _engine_fire(
+                    q_origin, _q["path"], _q["sig"],
+                    _q.get("interest", 0.0), bool(_q.get("priority")),
+                    note="held during last deep read · drained on free",
+                    gap_ms=max(0, int(time.time() * 1000) - _q.get("ts", 0)),
+                    ap_mode="queue-drain",
+                )
                 if used != _q["path"]:
                     try: os.remove(_q["path"])
                     except Exception: pass
@@ -2430,17 +2493,15 @@ def main():
         interest = ap_interest(peak, stable, priority, empty_streak, named_recent, parts=_iparts)
         _AP.update({"interest": round(interest, 3), "peak": round(peak, 3), "priority": priority,
                     "emptyStreak": empty_streak, "gap": PRIORITY_GAP_S if priority else MIN_GAP_S})
-        # v782 — while Claude is busy, still report live motion so the film stage stays honest
+        # ── deep ACT busy: still SENSE (motion + scout on unit clock) → unit queue ──
         if _VISION_BUSY:
             beat("reading", motion)
             if motion > SETTLE:
                 stable = 0
                 last_md5 = cur
-                # v841 — SCOUT while busy: if item text appears mid-play, queue that SNAPSHOT
-                # (secondary system) so it drains the instant Claude frees — no deliberate stop.
-                global _SCOUT_AT
-                if time.time() - _SCOUT_AT >= SCOUT_INTERVAL_S and motion <= SCOUT_MOTION_MAX:
-                    _SCOUT_AT = time.time()
+                # SENSE scout on engine ticks only — queue job, never a second deep
+                if _engine_due_scout() and motion <= SCOUT_MOTION_MAX:
+                    _SCOUT_TICK_AT = _ENGINE_TICK
                     try:
                         sp = _scout_snap_path()
                         import shutil
@@ -2449,29 +2510,25 @@ def main():
                         if ocr_s and ocr_s.get("names"):
                             fresh = _scout_fresh_names(ocr_s["names"])
                             if fresh:
-                                _settle_enqueue(sp, cur, interest=max(interest, 0.85), priority=True)
-                                ev("ocr", "🔭 scout (mid-vision) · queued freeze with %s" % ", ".join(fresh[:3]))
+                                _scout_mark_names(fresh)
+                                _settle_enqueue(sp, cur, interest=max(interest, 0.85),
+                                                priority=True, origin="scout")
+                                ev("ocr", "🔭 unit-sense (mid-deep) · queued %s" % ", ".join(fresh[:3]))
                     except Exception:
                         pass
             else:
                 stable = stable + 1
                 last_md5 = cur
-                # v825 (Grok R5 #1 / R9 #2) — SETTLE QUEUE: a distinct freeze that
-                # lands WHILE Claude is mid-read used to hit this `continue` and vanish.
-                # Ring-buffer a COPIED snapshot (the live frame is about to be
-                # overwritten) so the busy gate can drain the newest view the instant
-                # the in-flight read frees up.
-                _settle_enqueue(frame, cur, interest, priority)
+                # settle freeze while deep busy → same unit queue (origin=settle)
+                _settle_enqueue(frame, cur, interest, priority, origin="settle")
             continue
         beat("watching", motion)
 
-        # ── v841 SCOUT LANE ────────────────────────────────────────────────────
-        # Secondary snapshot system: light OCR on a copied frame every ~0.45s even while
-        # walking (as long as not full-sprint blur). Item text → dual-lane NOW, no multi-tick
-        # settle. Does NOT invent from icons — needs real on-screen text (labels / tooltips).
-        if (time.time() - _SCOUT_AT) >= SCOUT_INTERVAL_S and motion <= SCOUT_MOTION_MAX:
-            _SCOUT_AT = time.time()
-            if (time.time() - last_read_t) >= SCOUT_GAP_S and reads < SESSION_CAP + 500:
+        # ── SENSE: scout OCR on unit clock (aligned to engine ticks, not freestyle) ──
+        if _engine_due_scout() and motion <= SCOUT_MOTION_MAX:
+            _SCOUT_TICK_AT = _ENGINE_TICK
+            gap_need = _engine_gap_s(priority=True, origin="scout")
+            if (time.time() - last_read_t) >= gap_need and reads < SESSION_CAP + 500:
                 try:
                     import shutil
                     sp = _scout_snap_path()
@@ -2481,39 +2538,18 @@ def main():
                         fresh = _scout_fresh_names(ocr_s["names"])
                         if fresh:
                             _scout_mark_names(fresh)
-                            soft_over = reads - SESSION_CAP
-                            if soft_over >= 0:
-                                time.sleep(min(8.0, 2.0 + soft_over * 0.02))
                             _d_gap = int((time.time() - last_read_t) * 1000) if last_read_t else 0
-                            last_read_t, last_sent_md5 = time.time(), cur
-                            globals()["_LAST_EMIT_SIG"] = cur
-                            reads += 1
-                            read_ts = int(time.time() * 1000)
-                            frame_id = archive_read_frame(sp, reads, read_ts)
-                            print(f"  🔭 scout hit — {', '.join(fresh[:4])} · dual-lane #{reads}/{SESSION_CAP}")
-                            ev("settle", f"🔭 scout · item text mid-play · {', '.join(fresh[:3])} · dual-lane read #{reads}"
-                               + (f" · frame {frame_id}" if frame_id else ""))
-                            beat("reading", motion)
-                            _AP["mode"] = "read"
-                            globals()["_DISPATCH_CTX"] = {
-                                "motion": round(float(motion), 4), "peak": round(float(peak), 4),
-                                "settleTicks": int(stable), "interest": 0.9,
-                                "interestParts": {"scout": 0.9},
-                                "priority": True, "gapMs": _d_gap,
-                                "emptyStreak": int(empty_streak),
-                                "namedStreak": 1, "apMode": "scout",
-                                "queueDepth": len(_SETTLE_QUEUE),
-                                "frameSrc": "scout-snap", "origin": "scout",
-                                "note": "scout lane — OCR text without full stop-hover",
-                            }
-                            # provisional OCR board flash is inside _launch_vision
-                            _launch_vision(sp, cur, reads, frame_id, 0.9, True, read_ts)
-                            peak = 0.0
-                            priority = False
+                            _engine_fire(
+                                "scout", sp, cur, 0.9, True,
+                                note="item text mid-play · " + ", ".join(fresh[:3]),
+                                motion_v=motion, peak_v=peak, settle_ticks=stable,
+                                gap_ms=_d_gap, empty_s=empty_streak, named_s=1,
+                                ap_mode="scout", interest_parts={"scout": 0.9},
+                            )
                             continue
                 except Exception as e:
                     try:
-                        ev("skip", "scout err: %s" % e)
+                        ev("skip", "unit scout sense err: %s" % e)
                     except Exception:
                         pass
 
@@ -2525,9 +2561,8 @@ def main():
             continue
         stable = stable + 1
         last_md5 = cur
-        # Adaptive settle: priority (hard motion→stop) fires on first stable tick;
-        # low-interest needs 2 stable ticks (filters ambient flicker without 20s cools)
-        # v841 — scout already covers text mid-play; settle remains the deep/context path
+        # DECIDE settle: priority (hard motion→stop) = 1 tick; low-interest = 2 ticks
+        # Scout already covered mid-play text on the same clock; settle = context path.
         need_ticks = 1 if (priority or interest >= 0.55) else 2
         if stable < need_ticks:
             _AP["mode"] = "settle"
@@ -2539,13 +2574,11 @@ def main():
                 _REFIRE_SIG = None
                 ev("cap", "🔁 re-reading — OCR saw names the deep read missed")
             else:
-                # same view — reset peak so we don't stay priority forever on one freeze
                 if stable == need_ticks:
                     ev("skip", "settled, but same view I already read — waiting for something new")
                 peak = max(0.0, peak * 0.5)
                 continue
-        # v746 — a LEARNED dead frame (portal fire / loading art) is recognized locally in ~0ms:
-        # no vision spent, an honest ⏳ transition lands in the story with the right label.
+        # v746 — LEARNED dead frame: local 0ms transition, no vision spend
         if known_dead_match(cur) is not None:
             note = transition_note(LAST_AREA, reads)
             ev("transition", f"⏳ {note} · recognized instantly (learned frame)")
@@ -2579,60 +2612,33 @@ def main():
             peak = 0.0
             priority = False
             continue
-        gap = PRIORITY_GAP_S if priority else MIN_GAP_S
+        gap = _engine_gap_s(priority=priority, origin="settle")
         if time.time() - last_read_t < gap:
             if stable == need_ticks:
                 ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since last read (gap {gap}s · {'PRIORITY' if priority else 'cruise'})")
             continue
-        # v788 (Grok R4 #4) — THE CLIFF IS DEAD. 240 reads used to hard-halt the eye
-        # (sleep-60 loop forever) while the console still said ON AIR — product-ending on a
-        # long night. Now: soft cruise throttle. The eye NEVER stops; it just breathes slower,
-        # and the scoreboard shows density change instead of a silent death.
+        # soft session throttle — eye never hard-stops
         soft_over = reads - SESSION_CAP
         if soft_over >= 0:
             if soft_over == 0:
                 ev("cap", f"soft threshold {SESSION_CAP} reads — cruise throttle on (eye never stops)")
                 print(f"  🌙 soft threshold ({SESSION_CAP} reads) — cruising slower, never stopping")
-            extra_gap = min(30.0, 6.0 + soft_over * 0.05)   # +6s at cap, creeping to +30s max
-            time.sleep(extra_gap)
-        _d_gap = int((time.time() - last_read_t) * 1000) if last_read_t else 0   # v838 — gap BEFORE the clock resets
-        _d_apmode = str(_AP.get("mode", ""))                                       # v838 — mode BEFORE 'read'
-        last_read_t, last_sent_md5 = time.time(), cur
-        globals()["_LAST_EMIT_SIG"] = cur   # v795 — the re-fire ticket points at THIS view
-        reads += 1
-        read_ts = int(time.time() * 1000)
-        # v735 — archive THIS settle's frame for history (snapshot — live.bmp keeps updating)
-        frame_id = archive_read_frame(frame, reads, read_ts)
-        ptag = "⚡PRIORITY " if priority else ""
-        print(f"  👁 {ptag}screen settled — reading ({reads}/{SESSION_CAP}) interest={interest:.2f} …"
-              + (f" frame={frame_id}" if frame_id else ""))
-        ev("settle", f"{ptag}settle · interest {interest:.2f} · peak {peak:.2f} · dual-lane read #{reads}"
-           + (f" · frame {frame_id}" if frame_id else ""))
-        beat("reading", 0.0)
-        _AP["mode"] = "read"
+        _d_gap = int((time.time() - last_read_t) * 1000) if last_read_t else 0
+        _d_apmode = str(_AP.get("mode", ""))
         used_priority = priority
-        used_peak = peak          # v838 — the anatomy records the PRE-WIPE truth
+        used_peak = peak
+        used_interest = interest
+        used_parts = dict(_iparts)
         peak = 0.0
         priority = False
-
-        # v838 (Grok R16 verify — 'dispatch journaled after the resets zero its inputs'):
-        # every field is the PRE-RESET truth. used_priority/peak were captured above the wipe;
-        # gap/apMode snapshotted before the clock and mode moved. The anatomy no longer lies.
-        globals()["_DISPATCH_CTX"] = {"motion": round(float(motion), 4), "peak": round(float(used_peak), 4),
-                                      "settleTicks": int(stable),
-                                      "interest": round(float(interest), 3),
-                                      "interestParts": dict(_iparts),
-                                      "priority": bool(used_priority),
-                                      "gapMs": _d_gap,
-                                      "emptyStreak": int(empty_streak),
-                                      "namedStreak": 1 if named_recent else 0,
-                                      "apMode": _d_apmode,
-                                      "queueDepth": len(_SETTLE_QUEUE),
-                                      "frameSrc": "live",
-                                      "origin": "live"}
-        # v782/v825 — snapshot + background dual-lane read, now via _launch_vision so the
-        # settle-queue drain shares this exact pipeline (serialized by _VISION_BUSY).
-        _launch_vision(frame, cur, reads, frame_id, interest, used_priority, read_ts)
+        _engine_fire(
+            "settle", frame, cur, used_interest, used_priority,
+            note=("PRIORITY " if used_priority else "") + f"interest {used_interest:.2f} · peak {used_peak:.2f}",
+            motion_v=motion, peak_v=used_peak, settle_ticks=stable,
+            gap_ms=_d_gap, empty_s=empty_streak,
+            named_s=1 if named_recent else 0,
+            ap_mode=_d_apmode, interest_parts=used_parts,
+        )
         continue
 
 def _reason_for(tag, loc=""):
