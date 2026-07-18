@@ -578,3 +578,25 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   SIGKILLed before a new spawn.
 - **Prevention:** any spawn-per-click surface needs a reap-or-reuse story from day one; process
   accumulation is invisible until the OS chokes — check `pgrep -c` in verification passes.
+
+## REG-021 · the stale-frame capture lie (v779, 2026-07-18)
+- **Symptom**: film showed the DESKTOP while the agent claimed "🎯 eye pinned to D2R.exe".
+- **Caught by**: Konyo live ("its not targetting the D2R.exe"); Grok root-caused after GitHub handoff.
+- **Root cause**: `screencapture -l` can exit 1 writing NOTHING; the old success gate trusted
+  `os.path.exists(path)` — a previous desktop BMP at the target path masqueraded as a fresh window capture.
+- **Fix**: v779 temp-path capture + `_cap_promote` (os.replace only on real bytes) + TCC preflight.
+- **Prevention**: promote-gate unit locks; doctrine "trust the OUTPUT of THIS call, never the path".
+
+## REG-022 · launcher outranked the game (v779.1/v780, 2026-07-18)
+- **Symptom**: window pin grabbed the CrossOver launcher (and later a Chrome bible tab) over D2R.exe.
+- **Caught by**: live window-list dump during Konyo's session.
+- **Root cause**: additive scoring let launcher/browser bonuses beat game identity.
+- **Fix**: game identity absolute (+1000 title / +500 owner.exe), browser/editor/launcher blocklists.
+- **Prevention**: picker scoring comments carry the incident; blocklists in `_PICK_OWNER_BLOCK`.
+
+## REG-023 · journal rotation erased the previous night (v805→v811, 2026-07-18)
+- **Symptom**: second 4MB rotation overwrote `sessions.1.jsonl` — months of theatre feedstock could vanish silently.
+- **Caught by**: Grok R8 sleeper hunt (claim-at-consumer class), before any real loss.
+- **Root cause**: single rotation slot (`os.replace` onto .1 unconditionally).
+- **Fix**: v811 generation ring .1→.5 with shift, cap event on rotate, reader concats all gens.
+- **Prevention**: `TestJournalGenerations` lock (GEN1 survives a second rotation); doctor `journal_gens`.

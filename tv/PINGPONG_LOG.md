@@ -1085,3 +1085,10 @@ agent _ocr_worker_cmd() dispatches per platform (TV_OCR_BIN override > win ps1 >
 failure emits mode:err so the fast lane degrades to vision-only, never dies. No per-line
 confidence in the Windows API — flat 0.8 documented. NEEDS COUSIN-BOX LIVE VERIFY.
 Locks: mac/win/env-override dispatch. 97/97 + 25/25.
+
+## 🏁 v819 "Marathon Close" (~11:55)
+MARATHON II (v800-809) + III (v810-819) COMPLETE. Closer ships: COUSIN_CHECKLIST.md (10-step E2E
+with truth surfaces at every step) + BUGS.md REG-021/022/023 (capture lie · launcher outrank ·
+rotation erasure). Remaining for next arc: cousin-box live verify (twin lane + checklist run) ·
+cousin state isolation (R8 #10, invasive) · site READ-CARD/forensics parity ride-along.
+97/97 + 25/25.
