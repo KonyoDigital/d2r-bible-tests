@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v885)
+# 📺 TV DIABLO — Control App (Mac + Windows · v886)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1009,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v885",
+        "ver": "v886",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1474,7 +1474,14 @@ class Handler(BaseHTTPRequestHandler):
             # v826 — FOOTAGE interleave: 1fps eye frames within this session's window become
             # film-only beats; the reel plays as real video with AI reads annotating over it.
             try:
-                t0f = (sess[0].get("ts") or 0) - 2000
+                # v886 (Grok #2 + roundtrip proof) — the window OPENS at agent boot (the sid
+                # encodes boot ms): film recorded before the first read belongs to the run.
+                _sid0 = str(sess[0].get("sessionId") or "")
+                try:
+                    _boot_ms = int(_sid0.split("_")[1]) if _sid0.startswith("s_") else 0
+                except Exception:
+                    _boot_ms = 0
+                t0f = (_boot_ms or (sess[0].get("ts") or 0)) - 2000
                 # v885 (Grok #2) — a LIVE (unsealed) session keeps filming past its last read:
                 # the window ends NOW, not at the last journal row (mid-session SIM truncated).
                 _sealed = any(r2.get("sessionEnd") for r2 in sess)
@@ -2078,7 +2085,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v885 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v886 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

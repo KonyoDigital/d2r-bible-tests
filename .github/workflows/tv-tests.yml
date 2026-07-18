@@ -13,6 +13,8 @@ jobs:
         run: python3 tv/test_agent.py
       - name: Run the control suite (lazy webview imports — headless-safe)
         run: python3 tv/test_control.py
+      - name: Roundtrip acceptance (ON AIR → seal → SIM, stub mode)
+        run: python3 tv/test_roundtrip_sim.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
           echo '{"path":"/api/intake","body":{"ping":1}}' | node tv/intake_local.mjs | grep -q '"missing image"' && echo "intake runner OK"

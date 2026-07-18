@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v885"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v886"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -113,8 +113,13 @@ def _journal_writer_loop():
             return
         try:
             _journal_write(rec)
-        except Exception:
-            pass
+        except Exception as e:
+            # v886 — a lost journal row is a lost read FOREVER: say so, loudly
+            try:
+                print(f"  ⚠ JOURNAL WRITE FAILED ({type(e).__name__}: {str(e)[:120]}) — read row lost", flush=True)
+                ev("cap", f"journal write failed: {type(e).__name__}")
+            except Exception:
+                pass
         _JQ.task_done()
 
 
@@ -1046,7 +1051,7 @@ def _film_loop():
                         # v868 — absolute 0.5s schedule (quantization-free 2fps); clamp catch-up
                         globals()["_FOOTAGE_DUE"] = max(_due + 0.5, now_f - 0.49) if _due else now_f + 0.5
                         globals()["_FOOTAGE_AT"] = now_f
-                        hist_dir = os.path.join(FRAMES, "hist")
+                        hist_dir = HIST_DIR
                         os.makedirs(hist_dir, exist_ok=True)
                         import shutil as _sh
                         # v877 (army §4) — below the floor the youth shield can't shed anything
@@ -1088,7 +1093,7 @@ def _film_loop():
                         if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                             globals()["_FOOTAGE_AT"] = now_f2
                             _FOOT_TIMES.append(now_f2)   # v871
-                            hist_dir2 = os.path.join(FRAMES, "hist")
+                            hist_dir2 = HIST_DIR
                             os.makedirs(hist_dir2, exist_ok=True)
                             import shutil as _sh2
                             _sh2.copyfile(tmp, os.path.join(hist_dir2, "f_%d.jpg" % int(now_f2 * 1000)))
@@ -1291,7 +1296,7 @@ def sig_diff(a, b, tol=28):
     return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
 # v735 — per-read frame ring for session history (human eye ~1920; AI still uses 1568)
-HIST_DIR = os.path.join(FRAMES, "hist")
+HIST_DIR = os.environ.get("TV_HIST") or os.path.join(FRAMES, "hist")   # v886 — ONE hist root, harness-overridable
 try:
     HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "800")))   # v840 — more AI-read photos protected
     HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "1500")))      # v839 — footage era: ceiling raised (REG-025)
@@ -3120,6 +3125,9 @@ def main():
                                 "lifecycle_tags": {nm: "ocr" for nm in onames},
                                 "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
                             }
+                            _journal(dict(prec))   # v886 (Konyo: 'reads must be SYNCED') — a
+                            # counted read that never journals can never appear in the SIM reel;
+                            # the provisional flag travels so the theatre shows the fast lane honestly.
                             st["reads"].append(prec)
                             st["reads"] = st["reads"][-200:]
                             st["readCount"] = n_this
@@ -3274,7 +3282,7 @@ def main():
                     globals()["_FOOTAGE_DUE"] = max(globals().get("_FOOTAGE_DUE", 0.0) + 0.5, _wnow - 0.49) \
                         if globals().get("_FOOTAGE_DUE") else _wnow + 0.5
                     import shutil as _shwz
-                    _whd = os.path.join(FRAMES, "hist")
+                    _whd = HIST_DIR
                     os.makedirs(_whd, exist_ok=True)
                     if _shwz.disk_usage(_whd).free / 1e9 >= MIN_FREE_GB:
                         _FOOT_TIMES.append(_wnow)
@@ -3910,7 +3918,7 @@ def close_session(reason="stop", farewell=True):
         # f_*.jpg footage was a shared pool the reaper shed FIRST, so every sealed run went
         # hollow within hours. Fold this session's window into frames/hist/reel_<sid>/ —
         # rename on the same volume, instant — and the reaper retires whole old reels last.
-        _hd = os.path.join(FRAMES, "hist")
+        _hd = HIST_DIR
         _t0 = int(globals().get("_SESSION_T0_MS") or (SESSION_ID.split("_")[1] if "_" in SESSION_ID else 0) or 0)
         _t1 = int(time.time() * 1000) + 2000
         if os.path.isdir(_hd) and _t0:

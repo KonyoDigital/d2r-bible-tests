@@ -1690,3 +1690,15 @@ read counts; (6) shelf truth: '📹 N frames · full video' or 'footage retired'
 override. 149/149 + 30/30 + parity ×4. NEXT per task #52: roundtrip acceptance harness (v886),
 util-strip restructure (v887), console polish (v888), shelf HD art (v889), then the 20+
 pingpong versions on SIM/ON AIR/TOOLS.
+
+## ⚖️ v886 "THE ROUNDTRIP LAW" (Grok acceptance harness + Konyo's read-sync law, Jul 19 ~03:00)
+tv/test_roundtrip_sim.py GREEN and wired into CI: ON AIR → double-click-safe → 12 injected
+frames visible MID-SESSION → OFF/seal → session_end journaled → reel folded with the EXACT
+frame set → shelf non-stub + footageN honest → beats == reel, capture-sorted → reel frame
+serves JPEG → READS COUNTED == READS JOURNALED (his sync law). The harness flushed FOUR real
+production bugs before going green: (1) OCR provisional lane bumped readCount + console ring
+WITHOUT journaling — those reads could never appear in a reel (now journaled, provisional flag
+travels); (2) live interleave window truncated at BOTH ends — now boot-anchored (sid ms) to
+NOW; (3) the agent and control disagreed on the hist root (TV_HIST now honored by both);
+(4) journal writer failures were silent — now loud (a lost row is a lost read forever).
+149/149 + 30/30 + parity ×4.
