@@ -1004,3 +1004,10 @@ Sports-broadcast dopamine, zero new capture — pure P[] reuse. 89/89 + 17/17.
 Reel end = credits roll: 🏆 slate over the film with session stats (duration/reads/named) +
 every vault ranked with count and T+ timestamp; 8s auto-hide, SPACE/click closes, resets per
 session load. Empty-vault run gets 'the grind continues'. 89/89 + 17/17.
+
+## 🏃 ARMY MERGE 1/3 → v805 "The Durable Night" (journal-agent, ~08:50)
+fsync on every journal append (crash mid-write can't erase the night); 4MB cap now ROTATES
+(sessions.jsonl → sessions.1.jsonl via os.replace, prior rotation overwritten) instead of the
+racy half-truncate rewrite; replay.load_journal() concatenates rotated+live chronologically;
+torn-line tolerance locked. .gitignore: tv/sessions.*.jsonl. Fable gate: patch anchors 1-match,
+92/92 + 17/17.

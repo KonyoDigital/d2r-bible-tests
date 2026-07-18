@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v804"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v805"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -108,9 +108,10 @@ def _journal(rec):
         with open(JOURNAL, "a", encoding="utf-8") as f:
             if need_nl: f.write("\n")
             f.write(json.dumps(rec) + "\n")
-        if os.path.getsize(JOURNAL) > 4_000_000:   # ~4MB → keep the newest half
-            with open(JOURNAL, encoding="utf-8") as f: lines = f.readlines()
-            with open(JOURNAL, "w", encoding="utf-8") as f: f.writelines(lines[len(lines)//2:])
+            f.flush(); os.fsync(f.fileno())   # v779 (Grok R5/R7) — durable append: a crash mid-write can't erase the night
+        if os.path.getsize(JOURNAL) > 4_000_000:   # ~4MB → ROTATE (never half-truncate the live file)
+            _root, _ext = os.path.splitext(JOURNAL)
+            os.replace(JOURNAL, _root + ".1" + _ext)   # sessions.jsonl → sessions.1.jsonl (overwrites prior rotation; readers concat both)
     except Exception as e:
         if not _JOURNAL_WARNED:
             _JOURNAL_WARNED = True

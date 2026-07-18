@@ -19,19 +19,27 @@ SESSION_GAP_MS = 10 * 60 * 1000   # ≥10min silence = a new session
 
 
 def load_journal(path=None):
+    # v779 (Grok R5/R7) — read the ROTATED half first, then the live file, concatenated in
+    # chronological order, so a rotation (sessions.jsonl → sessions.1.jsonl) never hides history.
+    if path is not None:
+        paths = [path]
+    else:
+        _root, _ext = os.path.splitext(JOURNAL)
+        paths = [_root + ".1" + _ext, JOURNAL]
     reads = []
-    try:
-        with open(path or JOURNAL, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    reads.append(json.loads(line))
-                except Exception:
-                    pass
-    except FileNotFoundError:
-        pass
+    for p in paths:
+        try:
+            with open(p, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:                       # torn/empty line — skip, never break loading
+                        continue
+                    try:
+                        reads.append(json.loads(line))
+                    except Exception:
+                        pass                           # partial JSON from a mid-write crash — skip
+        except FileNotFoundError:
+            pass
     return reads
 
 

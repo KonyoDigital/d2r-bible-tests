@@ -1128,5 +1128,63 @@ class TestMultisetLedger(unittest.TestCase):
         self.assertNotEqual(tag, "stash-no-chain", "prefix broke the chain")
 
 
+
+class TestJournalRotation(unittest.TestCase):
+    """v805 (Grok R5/R7, journal-agent) — a ~4MB journal ROTATES (sessions.jsonl → sessions.1.jsonl),
+    never half-truncates the live file; the reader concatenates rotated + live."""
+    def _rot(self, j):
+        root, ext = os.path.splitext(j)
+        return root + ".1" + ext
+
+    def test_oversize_rotates_and_reader_concatenates(self):
+        import replay
+        old_j, old_rj = tv.JOURNAL, replay.JOURNAL
+        d = tempfile.mkdtemp()
+        j = os.path.join(d, "sessions.jsonl")
+        tv.JOURNAL = j
+        replay.JOURNAL = j
+        rot = self._rot(j)
+        try:
+            line = json.dumps({"m": "OLD", "pad": "x" * 200}) + "\n"
+            with open(j, "w", encoding="utf-8") as f:
+                while os.path.getsize(j) < 4_050_000:
+                    f.write(line * 500)
+                    f.flush()
+            tv._journal({"m": "TRIGGER"})
+            self.assertTrue(os.path.exists(rot), "rotated file was not created")
+            self.assertFalse(os.path.exists(j), "live file should be renamed away by rotation")
+            tv._journal({"m": "AFTER"})
+            self.assertTrue(os.path.exists(j), "live file was not recreated after rotation")
+            self.assertLess(os.path.getsize(j), 4_000_000)
+            reads = replay.load_journal()
+            markers = {r.get("m") for r in reads}
+            self.assertIn("OLD", markers)
+            self.assertIn("TRIGGER", markers)
+            self.assertIn("AFTER", markers)
+            self.assertEqual(reads[-1].get("m"), "AFTER")
+        finally:
+            tv.JOURNAL, replay.JOURNAL = old_j, old_rj
+
+
+class TestReplayTornLineTolerance(unittest.TestCase):
+    """v805 — torn last line / blank lines are skipped, never break loading."""
+    def test_torn_and_blank_lines_are_skipped(self):
+        import replay
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "torn.jsonl")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"a": 1}) + "\n")
+            f.write("\n")
+            f.write(json.dumps({"b": 2}) + "\n")
+            f.write('{"c": 3, "half')
+        got = replay.load_journal(path=p)
+        self.assertEqual(got, [{"a": 1}, {"b": 2}])
+
+    def test_missing_file_returns_empty(self):
+        import replay
+        got = replay.load_journal(path=os.path.join(tempfile.mkdtemp(), "nope.jsonl"))
+        self.assertEqual(got, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
