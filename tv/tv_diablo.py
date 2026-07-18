@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v795"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v796"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1337,6 +1337,13 @@ def _norm_name(n):
     s = str(n or "").strip().lower()
     if s.endswith(")") and "(" in s:
         s = s[:s.rfind("(")].strip()
+    # v796 (Grok R5 #3) — floor says 'Superior Colossus Crossbow', panel says 'Colossus
+    # Crossbow': same physical item, two ledger keys, broken chain. Strip leading quality
+    # prefixes (compound-safe, repeatable).
+    for _ in range(2):
+        for pre in ("ethereal ", "superior ", "eth "):
+            if s.startswith(pre):
+                s = s[len(pre):]
     return s
 
 def _is_anchor(n):
@@ -1474,11 +1481,26 @@ class LootLifecycle:
                 out["lifecycle_tags"][n] = "skip-weak"
             return
         if k in self.vaulted:
-            out["lifecycle_tags"][n] = "already-vaulted"
+            # v796 (Grok R5 #3) — MULTISET: a SECOND physical drop of the same name re-enters
+            # the chain (commit cleared its provenance, so seen/candidates/pending presence
+            # means a genuinely new sighting). Re-vault + count. No fresh provenance = the
+            # same instance echoing → still already-vaulted.
+            if not (k in self.seen or k in self.candidates or k in self.pending):
+                out["lifecycle_tags"][n] = "already-vaulted"
+                return
+            v = self.vaulted[k]
+            v["count"] = int(v.get("count") or 1) + 1
+            v["ts"] = now_ms
+            self.pending.pop(k, None); self.candidates.pop(k, None); self.seen.pop(k, None)
+            self.confirmed.append({"ts": now_ms, "name": n, "reason": reason, "tag": tag or reason, "instance": v["count"]})
+            del self.confirmed[:-80]
+            out["vault_names"].append(n)
+            out["lifecycle_tags"][n] = "vault:" + reason + " ×" + str(v["count"])
             return
-        self.vaulted[k] = {"name": n, "reason": reason, "ts": now_ms}
+        self.vaulted[k] = {"name": n, "reason": reason, "ts": now_ms, "count": 1}
         self.pending.pop(k, None)
         self.candidates.pop(k, None)
+        self.seen.pop(k, None)   # v796 — commit consumes provenance; only a FRESH sighting re-vaults
         self.confirmed.append({"ts": now_ms, "name": n, "reason": reason, "tag": tag or reason})
         del self.confirmed[:-80]
         out["vault_names"].append(n)
@@ -1545,9 +1567,10 @@ class LootLifecycle:
 
     def _track_pending(self, n, tag, now_ms, out):
         k = _norm_name(n)
-        if not k or k in self.vaulted:
-            if k in self.vaulted:
-                out["lifecycle_tags"][n] = "already-vaulted"
+        if not k:
+            return
+        if k in self.vaulted and not (k in self.seen or k in self.candidates):
+            out["lifecycle_tags"][n] = "already-vaulted"   # v796 — fresh floor provenance may hold a 2nd instance
             return
         if _is_never_vault(n):
             out["lifecycle_tags"][n] = "skip-weak"
@@ -1619,8 +1642,8 @@ class LootLifecycle:
             k = _norm_name(n)
             if not k:
                 continue
-            if k in self.vaulted:
-                out["lifecycle_tags"][n] = "already-vaulted"
+            if k in self.vaulted and not (k in self.candidates or k in self.seen or k in self.pending):
+                out["lifecycle_tags"][n] = "already-vaulted"   # v796 — a fresh 2nd instance flows to _commit instead
                 continue
             was_cand = k in self.candidates
             was_seen = k in self.seen

@@ -1098,5 +1098,35 @@ class TestOcrSeed(unittest.TestCase):
         self.assertEqual(rec.get("ocr_seeded") or [], [])
 
 
+
+class TestMultisetLedger(unittest.TestCase):
+    """v796 (Grok R5 #3) — a second physical drop of the same name COUNTS."""
+
+    def test_second_instance_revaults_with_count(self):
+        lc = tv.LootLifecycle()
+        # first drop: floor → stash
+        lc.process("loot", ["Ist Rune"], "Cold Plains", 0.9)
+        r1 = lc.process("stash", ["Ist Rune"], "Cold Plains", 0.9)
+        self.assertIn("Ist Rune", r1["vault_names"])
+        # echo with NO new provenance: blocked
+        r2 = lc.process("stash", ["Ist Rune"], "Cold Plains", 0.9)
+        self.assertNotIn("Ist Rune", r2["vault_names"])
+        self.assertEqual(r2["lifecycle_tags"].get("Ist Rune"), "already-vaulted")
+        # SECOND physical drop: fresh floor sighting → re-vault, count 2
+        lc.process("loot", ["Ist Rune"], "Cold Plains", 0.9)
+        r3 = lc.process("stash", ["Ist Rune"], "Cold Plains", 0.9)
+        self.assertIn("Ist Rune", r3["vault_names"], "second instance must count")
+        # either path is doctrine-true: floor-again throw-out → fresh re-vault ('vault:stash'),
+        # or the multiset branch ('vault:stash ×2') when provenance coexists with the ledger entry
+        self.assertIn("vault:stash", r3["lifecycle_tags"].get("Ist Rune", ""))
+
+    def test_prefix_canonical_chain(self):
+        lc = tv.LootLifecycle()
+        lc.process("loot", ["Superior Colossus Crossbow"], "Cold Plains", 0.9)
+        r = lc.process("stash", ["Colossus Crossbow"], "Cold Plains", 0.9)
+        tag = r["lifecycle_tags"].get("Colossus Crossbow", "")
+        self.assertNotEqual(tag, "stash-no-chain", "prefix broke the chain")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

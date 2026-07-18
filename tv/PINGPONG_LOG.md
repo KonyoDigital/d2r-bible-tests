@@ -952,3 +952,9 @@ RECALIBRATED. 85/85 + 16/16.
 OCR-won / Claude-lost frames no longer vanish: empty deep + OCR names → seed floor-SEEN into
 LootLifecycle (never vault from seed) + ocr_seeded on the rec + ONE re-fire ticket (_REFIRE_SIG)
 so the same-view burn allows a second read of that freeze. 87/87 + 16/16.
+
+## 🏓 Grok R5 #3 → v796 "The Multiset" (~06:05)
+Second drop of the same name COUNTS: instance-aware vaulted ledger (count/ts), commit consumes
+provenance (seen popped too — the echo-revault bug caught by the new lock), fresh sighting
+re-vaults via floor-again doctrine or multiset branch; _norm_name strips Superior/Ethereal
+prefixes so floor↔panel names share one chain key. 89/89 + 16/16.
