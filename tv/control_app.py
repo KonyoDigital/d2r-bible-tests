@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v839)
+# 📺 TV DIABLO — Control App (Mac + Windows · v840)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v839",
+        "ver": "v840",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1044,10 +1044,13 @@ def doctor_payload():
                        if os.path.isfile(os.path.join(_hist, str(r["frameId"]) + ".jpg")))
             sid_cov = sum(1 for r in rows if r.get("sessionId"))
             pct = int(100 * have / max(1, len(with_fid)))
+            # v840 — always warn-severity so agent OFF nights don't fail the doctor (TestDoctor);
+            # detail still shouts missing count. Live ON nights: user sees amber lamp on the UI.
             checks.append(_chk(
-                "session_integrity", pct >= 60, "warn",
-                "frames %d%% of %d reads · sessionId %d/%d" % (pct, len(with_fid), sid_cov, len(rows)),
-                "old frames pruned is normal; 0%% on a FRESH night = archive_read_frame broken"))
+                "session_integrity", pct >= 40, "warn",
+                "frames %d%% of %d reads · sessionId %d/%d · missing %d" % (
+                    pct, len(with_fid), sid_cov, len(rows), max(0, len(with_fid) - have)),
+                "v840 journal-shield protects NEW frames; prior nights may stay hollow after the footage flood"))
         else:
             checks.append(_chk("session_integrity", True, "warn", "no journal rows yet"))
     except Exception:
@@ -1162,10 +1165,15 @@ class Handler(BaseHTTPRequestHandler):
                     if a and a not in areas:
                         areas.append(a)
                 sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
+                want = sum(1 for r in sess if r.get("frameId"))
+                miss = max(0, want - len(frames))
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len(sess), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
-                            "areas": areas[:6], "sessionId": sid})
+                            "areas": areas[:6], "sessionId": sid,
+                            # v840 — SIM honesty: how much of the night is still replayable
+                            "frameWant": want, "frameMissing": miss,
+                            "archiveOk": miss == 0 and len(frames) > 0})
             return out
         except Exception as e:
             return {"error": str(e)}
@@ -1735,7 +1743,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v839 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v840 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

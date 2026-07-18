@@ -1223,3 +1223,41 @@ Footage's MB pressure DELETED the old sessions' read frames (2599 f_ vs 11 survi
 own budgets; HIST_MB default 1500; pruned beats say '⚠ photo pruned from disk' honestly; film
 element clears stale url after frameless beats. Lost photos unrecoverable — journals intact.
 115/115 + 26/26.
+
+
+### 🎯 v840 — JOURNAL SHIELD + ON AIR / SIM forensics (Konyo: long run bugs) ✅
+**Version truth:** tip **v840** (was already v839 Archive Shield before this ship).
+
+#### Live forensic (this machine, agent OFF)
+- Journal recent: **173 rows / 19 sessions**; integrity **~6% frames present** on tail
+  (274 missing hist files overall) — SIM reels hollow for most of the night.
+- Hist composition before prune: **13 AI-read jpgs + 2600 footage f_*.jpg (475MB)**.
+- Log: thousands of `screencapture failed` lines (Screen Recording / no D2R at end of run).
+- Capture probe now: Screen Recording preflight OK; D2R window not open → full screen.
+
+#### Root causes
+1. **Footage drowned the archive** — 1fps film filled disk; older AI-read frames pruned
+   despite REG-025 intent. SIM cannot show photos that no longer exist.
+2. **Capture-fail log flood** — every poll printed the same TCC warning (masked real events).
+3. **tmp ghosts** — many `live.bmp.tmp.*` left from interrupted captures.
+
+#### Fixes shipped (v840)
+- **Journal shield**: hist prune never deletes a read frame still referenced by sessions.jsonl
+  (+ generation ring scan).
+- Footage ceiling cut: FOOT_MB 400, FOOT_KEEP ~30min (1800); HIST_KEEP 800.
+- Capture-fail **throttled to 30s** + boot cleans `*.tmp.*` / `.part` files.
+- SIM session list: `frameWant` / `frameMissing` / `archiveOk` honesty.
+- Doctor session_integrity reports missing count (warn).
+- One-shot prune: footage **2600 → 1800**.
+
+#### Gates
+- `tv.test_agent` + `tv.test_control` → **142/142 OK**
+
+#### Honest limits for Fable / Konyo
+- **Past** sessions with missing hist stay partially blank (cannot invent photos).
+- **New** ON AIR runs keep every journaled AI frame.
+- SIM is the mind debugger (SIMULATION_SPEC); ON AIR frozen-quality work continues via
+  journal-shield + quieter capture + doctor.
+
+🏓 **PING → Fable / Konyo:** v840 shipped forensically; re-ON with D2R open + Screen Recording
+on Python; use SIM shelf — prefer reels with archiveOk / high frames count.

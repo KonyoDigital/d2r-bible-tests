@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v839"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v840"   # ONE truth — banner, autopilot HUD, and state all read this  · journal-shield hist
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -801,13 +801,15 @@ def sig_diff(a, b, tol=28):
 # v735 — per-read frame ring for session history (human eye ~1920; AI still uses 1568)
 HIST_DIR = os.path.join(FRAMES, "hist")
 try:
-    HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "600")))   # v753 — Konyo: EVERY photo openable; 80 was silently eating the archive
-    HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "1500")))      # v839 — footage era: ceiling raised (REG-025: 500MB let footage evict the archive)
-    FOOT_MB = max(50, int(os.environ.get("TV_FOOT_MB", "900")))       # v839 — footage's OWN sub-ceiling inside HIST_MB
+    HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "800")))   # v840 — more AI-read photos protected
+    HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "1500")))      # v839 — footage era: ceiling raised (REG-025)
+    FOOT_MB = max(50, int(os.environ.get("TV_FOOT_MB", "400")))       # v840 — footage dies sooner (was 900; 2600 f_ drowned the night)
+    FOOT_KEEP = max(60, int(os.environ.get("TV_FOOT_KEEP", "1800")))  # v840 — ~30min @1fps (was 3600)
 except Exception:
-    HIST_KEEP = 600
+    HIST_KEEP = 800
     HIST_MB = 1500
-    FOOT_MB = 900
+    FOOT_MB = 400
+    FOOT_KEEP = 1800
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
 HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-crisp fullscreen (was 1920)
 
@@ -894,6 +896,47 @@ def _readable_frame(ap):
         pass
     return ap
 
+def _journal_frame_ids():
+    """v840 — every frameId still referenced by the session journal is UN-PRUNABLE.
+    Live forensic: 2600 footage frames + only 13 AI reads left → SIM reels blank for the
+    long night. Journal is the SIMULATION source of truth; hist must never drop its keys."""
+    ids = set()
+    try:
+        # generation ring (v811) + primary journal
+        paths = [JOURNAL]
+        try:
+            d = os.path.dirname(JOURNAL) or "."
+            base = os.path.basename(JOURNAL)
+            for name in os.listdir(d):
+                if name.startswith(base) or name.startswith("sessions") and name.endswith(".jsonl"):
+                    paths.append(os.path.join(d, name))
+        except Exception:
+            pass
+        seen_p = set()
+        for jp in paths:
+            if jp in seen_p or not os.path.isfile(jp):
+                continue
+            seen_p.add(jp)
+            try:
+                with open(jp, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or '"frameId"' not in line:
+                            continue
+                        try:
+                            r = json.loads(line)
+                        except Exception:
+                            continue
+                        fid = r.get("frameId") or ""
+                        if fid and all(c.isdigit() or c == "_" for c in fid):
+                            ids.add(fid + ".jpg")
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return ids
+
+
 def archive_read_frame(src_path, n, ts_ms=None):
     """v735 — snapshot the settled screen into frames/hist/{n}_{ts}.jpg (~1920 JPEG).
     Returns frame id string for /frame?id=… so each history row can reopen what the AI saw.
@@ -953,30 +996,36 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     try: t += os.path.getsize(f)
                     except Exception: pass
                 return t
-            # v826 — footage frames (f_*.jpg) have their OWN count cap (~1h at 1fps) and
-            # never push READ frames out of HIST_KEEP; both still share the MB ceiling.
+            # v826 — footage frames (f_*.jpg) have their OWN count cap
             read_files = [f for f in files if not os.path.basename(f).startswith("f_")]
             foot_files = [f for f in files if os.path.basename(f).startswith("f_")]
-            # v839 (REG-025 — footage EVICTED THE ARCHIVE): under MB pressure, footage dies
-            # FIRST (own FOOT_MB sub-ceiling + count cap); READ frames are only ever pruned by
-            # their own HIST_KEEP count, never by footage-driven MB pressure.
+            # v840 — journal shield: never delete a read frame still named in sessions.jsonl
+            protected = _journal_frame_ids()
+            # v839/v840 (REG-025): footage dies FIRST under its own FOOT_MB + FOOT_KEEP
             doomed = set()
             foot_total = sum(_size_all(f) for f in foot_files)
             k = 0
             while foot_total > FOOT_MB * 1_000_000 and k < len(foot_files) - 60:
                 doomed.add(foot_files[k]); foot_total -= _size_all(foot_files[k]); k += 1
-            doomed |= set(foot_files[:-3600])
+            doomed |= set(foot_files[:-FOOT_KEEP])
+            # READ frames: count + MB, but NEVER journal-protected keys
+            unprotected = [f for f in read_files if os.path.basename(f) not in protected]
             read_total = sum(_size_all(f) for f in read_files)
             k = 0
-            while read_total > HIST_MB * 1_000_000 and k < len(read_files) - 60:
-                doomed.add(read_files[k]); read_total -= _size_all(read_files[k]); k += 1
-            doomed |= set(read_files[:-HIST_KEEP])
+            while read_total > HIST_MB * 1_000_000 and k < len(unprotected) - 60:
+                doomed.add(unprotected[k]); read_total -= _size_all(unprotected[k]); k += 1
+            # HIST_KEEP only applies to unprotected (journal wins over FIFO)
+            if len(unprotected) > HIST_KEEP:
+                doomed |= set(unprotected[:-HIST_KEEP])
             for old in doomed:
+                if os.path.basename(old) in protected and not os.path.basename(old).startswith("f_"):
+                    continue  # belt: never unlink a journaled AI frame
                 for f in [old] + _twins(old):
                     try: os.remove(f)
                     except Exception: pass
             # orphan derivatives (source already gone) die too
             keep = {os.path.basename(f) for f in files if f not in doomed}
+            keep |= protected
             for cd in cache_dirs:
                 for f in os.listdir(cd):
                     if f.lower().endswith(".jpg") and f not in keep:
@@ -2044,6 +2093,16 @@ def claude_read(path):
 def main():
     global _LIFECYCLE, _VISION_BUSY, SESSION_ID
     os.makedirs(FRAMES, exist_ok=True)
+    # v840 — clean stuck capture temps (live night left many live.bmp.tmp.* ghosts)
+    try:
+        for name in os.listdir(FRAMES):
+            if ".tmp." in name or name.endswith(".part.jpg") or name.endswith(".part"):
+                try:
+                    os.remove(os.path.join(FRAMES, name))
+                except Exception:
+                    pass
+    except Exception:
+        pass
     _LIFECYCLE = LootLifecycle()
     # v768 (Grok R2) — restart continuity: if the previous run ended within the session window,
     # rehydrate the loot chain so OFF→ON / crash restarts don't orphan floor-proven items.
@@ -2275,16 +2334,24 @@ def main():
                     ev("cap", "SIM synthetic frames — grant Screen Recording to Python for live play")
                     print("  📺 SIM: no Screen Recording for this process — using synthetic frames + canned reads")
             else:
-                if not globals().get("_PERM_WARNED"):
-                    globals()["_PERM_WARNED"] = True
-                    # re-request + deep-link Settings once so Konyo is not stuck on a silent desktop film
-                    try:
-                        screen_recording_ok()
-                        open_screen_recording_settings()
-                    except Exception:
-                        pass
-                    ev("cap", "⚠ capture failed — grant Screen Recording to Python / TV DIABLO (System Settings → Privacy → Screen Recording), then RESTART")
-                print("  ⚠ screencapture failed (grant Screen Recording to the TV DIABLO / Python app in System Settings → Privacy)"); continue
+                # v840 — do NOT spam the log every poll (last night: thousands of identical lines)
+                now = time.time()
+                last = float(globals().get("_PERM_WARN_AT") or 0)
+                if now - last > 30:
+                    globals()["_PERM_WARN_AT"] = now
+                    if not globals().get("_PERM_WARNED"):
+                        globals()["_PERM_WARNED"] = True
+                        try:
+                            screen_recording_ok()
+                            open_screen_recording_settings()
+                        except Exception:
+                            pass
+                        ev("cap", "⚠ capture failed — grant Screen Recording to Python / TV DIABLO (System Settings → Privacy → Screen Recording), then RESTART")
+                    else:
+                        ev("cap", "⚠ capture still failing — Screen Recording / D2R window?")
+                    print("  ⚠ screencapture failed (grant Screen Recording to the TV DIABLO / Python app in System Settings → Privacy)")
+                time.sleep(0.5)
+                continue
         elif (not WATCH_MODE) and os.path.getsize(frame) < 200000:
             if os.environ.get("TV_STUB") and capture_stub_synth(frame):
                 if not globals().get("_STUB_CAP_WARNED"):

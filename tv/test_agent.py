@@ -851,6 +851,21 @@ class TestReplay(unittest.TestCase):
             import shutil
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_journal_shield_lists_frame_ids(self):
+        """v840 — prune must see journaled frame basenames."""
+        j = os.path.join(self.d, "sessions_shield.jsonl")
+        old = tv.JOURNAL
+        tv.JOURNAL = j
+        try:
+            with open(j, "w") as f:
+                f.write(json.dumps({"ts": 1, "frameId": "7_99", "names": ["Vex Rune"]}) + "\n")
+                f.write(json.dumps({"ts": 2, "frameId": "8_100", "names": []}) + "\n")
+            ids = tv._journal_frame_ids()
+            self.assertIn("7_99.jpg", ids)
+            self.assertIn("8_100.jpg", ids)
+        finally:
+            tv.JOURNAL = old
+
 
 class TestWindowPin(unittest.TestCase):
     """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""
