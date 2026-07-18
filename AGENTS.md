@@ -27,4 +27,4 @@ Hardcoded operational truth. Do **not** invent alternate play or capture paths.
 
 - TV DIABLO code lives under `tv/` — version stamps must stay ONE truth: agent `VERSION` · control `ver` · UI footer · `bible.html` `D2R_BUILD`.
 - If the user cannot open the game: diagnose CrossOver_patched + bottle + broken Mac launcher tiles — **do not** reinstall or wipe CXPBottles.
-- Unit engine (v842+): scout + settle + deep share one poll clock; stop+hover is **not** the required playstyle.
+- **One AI reader (v845+):** settle freeze → dual-lane only. Scout / secondary mid-play reader is **removed** (too slow). Do not re-add a second freestyle OCR→deep path unless Konyo asks.

@@ -866,44 +866,15 @@ class TestReplay(unittest.TestCase):
         finally:
             tv.JOURNAL = old
 
-    def test_scout_dedupes_recent_names(self):
-        """v841 — scout does not re-fire the same tooltip every half-second."""
-        tv._SCOUT_HIT_UNTIL.clear()
-        a = tv._scout_fresh_names(["Vex Rune", "Perfect Ruby"])
-        self.assertEqual(set(a), {"Vex Rune", "Perfect Ruby"})
-        tv._scout_mark_names(["Vex Rune"])
-        b = tv._scout_fresh_names(["Vex Rune", "Perfect Ruby"])
-        self.assertEqual(b, ["Perfect Ruby"])
+    def test_scout_lane_removed(self):
+        """v845 — no secondary scout reader (one AI reader = settle → dual-lane only)."""
+        self.assertFalse(hasattr(tv, "_scout_fresh_names"))
+        self.assertFalse(hasattr(tv, "SCOUT_INTERVAL_S"))
+        self.assertFalse(hasattr(tv, "_engine_due_scout"))
+        self.assertFalse(hasattr(tv, "SCOUT_GAP_S"))
 
-    def test_unit_engine_scout_locked_to_poll_ticks(self):
-        """v842 — scout samples on the unit clock (every N poll ticks), not freestyle wall time."""
-        every = tv._scout_every_ticks()
-        self.assertGreaterEqual(every, 1)
-        # ~0.45s / 0.18s poll ≈ 2–3 ticks
-        self.assertLessEqual(every, 6)
-        old_tick, old_at = tv._ENGINE_TICK, tv._SCOUT_TICK_AT
-        try:
-            tv._ENGINE_TICK = 10
-            tv._SCOUT_TICK_AT = 10
-            self.assertFalse(tv._engine_due_scout())
-            tv._ENGINE_TICK = 10 + every - 1
-            self.assertFalse(tv._engine_due_scout())
-            tv._ENGINE_TICK = 10 + every
-            self.assertTrue(tv._engine_due_scout())
-        finally:
-            tv._ENGINE_TICK, tv._SCOUT_TICK_AT = old_tick, old_at
-
-    def test_unit_engine_shared_gap_clock(self):
-        """v842 — scout + priority settle share priority family; cruise settle uses MIN_GAP."""
-        self.assertAlmostEqual(tv._engine_gap_s(priority=True, origin="settle"), tv.PRIORITY_GAP_S)
-        self.assertAlmostEqual(tv._engine_gap_s(priority=False, origin="settle"), tv.MIN_GAP_S)
-        g_scout = tv._engine_gap_s(priority=True, origin="scout")
-        self.assertAlmostEqual(g_scout, tv.SCOUT_GAP_S)
-        # default SCOUT_GAP equals PRIORITY (one family unless cousin overrides TV_SCOUT_GAP)
-        self.assertAlmostEqual(tv.SCOUT_GAP_S, tv.PRIORITY_GAP_S)
-
-    def test_unit_queue_tags_origin(self):
-        """v842 — scout and settle freezes share one queue and keep origin tags."""
+    def test_settle_queue_tags_origin(self):
+        """Settle freezes keep origin tags on the one-reader queue."""
         d = tempfile.mkdtemp()
         old_f, old_emit = tv.FRAMES, tv.__dict__.get("_LAST_EMIT_SIG")
         try:
@@ -913,11 +884,11 @@ class TestReplay(unittest.TestCase):
             src = os.path.join(d, "live.bmp")
             open(src, "wb").write(b"x" * 64)
             sig = bytes([7]) * 4096
-            tv._settle_enqueue(src, sig, interest=0.9, priority=True, origin="scout")
+            tv._settle_enqueue(src, sig, interest=0.9, priority=True, origin="settle")
             self.assertEqual(len(tv._SETTLE_QUEUE), 1)
-            self.assertEqual(tv._SETTLE_QUEUE[0]["origin"], "scout")
+            self.assertEqual(tv._SETTLE_QUEUE[0]["origin"], "settle")
             e = tv._settle_drain_pop()
-            self.assertEqual(e["origin"], "scout")
+            self.assertEqual(e["origin"], "settle")
         finally:
             tv.FRAMES = old_f
             tv._LAST_EMIT_SIG = old_emit

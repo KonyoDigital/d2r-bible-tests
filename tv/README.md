@@ -3,10 +3,9 @@
 Play Diablo II. TV DIABLO watches the screen and streams the tally into the
 Farming Bible's ⚡ session → 📺 panel.
 
-**Playstyle (v842 unit engine):** you farm *normally*. You do **not** need a
-deliberate stop+hover ritual. Mid-play on-screen loot **text** is snagged by the
-scout sense path; full freezes (stash/panels/optional pauses) still go through
-settle. Same clock, one dual-lane — not separate random readers.
+**Playstyle (v845 one AI reader):** pause so the screen *settles* (loot pile,
+panel, stash). One dual-lane fires: local OCR flash + Claude deep. No secondary
+mid-play scout reader.
 
 ## The three rules (why this is clean)
 
@@ -19,9 +18,8 @@ settle. Same clock, one dual-lane — not separate random readers.
    rotate, nothing in the repo. The agent **strips `ANTHROPIC_API_KEY` /
    `ANTHROPIC_AUTH_TOKEN` from vision subprocesses** so a shell API key cannot
    steal auth from your login (v720 / live run #2).
-3. **Frugal unit engine.** One poll clock · sense→decide→act. Scout samples
-   mid-play text; settle catches context freezes; one Claude deep at a time.
-   Cruise gap ~4s · priority/scout ~1.2s · soft session cap 240.
+3. **Frugal one AI reader.** Settle freeze → dual-lane (OCR + Claude). One deep
+   at a time. Cruise gap ~4s · priority ~1.2s · soft session cap 240.
 
 ## Mac (Konyo) — one-click install (mirrors Windows)
 

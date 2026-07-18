@@ -1325,3 +1325,14 @@ film uses wid whenever known; restart agent v844.
 
 **Verified live:** pin `D2R.exe · Diablo II: Resurrected` · eyeAge <1s · reads in
 Rogue Encampment · control status v844 · eye frame is actual town (not desktop).
+
+### 🎯 v845 — REMOVE SCOUT · ONE AI READER ONLY ✅
+**Konyo:** scout secondary path too slow — keep one AI reader.
+
+**Removed:** mid-play scout OCR samples, scout→dual-lane fire, scout mid-deep queue,
+TV_SCOUT_* clock, unit-engine scout sense phase.
+
+**Kept:** settle freeze → dual-lane (OCR flash + Claude deep) · settle-queue while
+busy · D2R.exe pin · Quartz grab fallback.
+
+**Gates:** agent+control suite · stamps v845.
