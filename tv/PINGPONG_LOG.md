@@ -1635,3 +1635,14 @@ seen/unvault/nothing-with-why per name), A2.6 vision record (path/bytes/timeout/
 A2.8 skip events (gap-wait · parse-null · order-straggler, 5s throttle per why) journaled and
 rendered as dim no-eyes ticks in the reel (CUT drops them, REAL shows the texture of waiting).
 149/149 + 30/30 + parity ×4.
+
+## 🗂 v881 "FIRST-CLASS TABS" (round 5 · Konyo #47, Jul 19 night)
+The console header IS the nav now: emblem left, ⚡Session/🧰Tools/🔨Forge/🏆F·Uniques/🧩F·Sets
+as first-class buttons (same-window /board?app=1#tab), clock + ON AIR bug right, the TV DIABLO
+title retired (Konyo: 'pointless, this is an engine console'). Narrow windows fall back to the
+right-rail pills. Verified with a real screenshot, actually looked at. 149/149 + 30/30.
+NIGHT LEDGER v876→v881: machine-fit pool + nice(5/10/15) everywhere · army sweep (mmap sig,
+incremental shield, hard links, footage gate) · board breather · Grok round-3 A/B/C/i/j +
+NO-SHIP back-pass fixes (P0 state copy, real join, prewarm) · SIM A2.5/6/8 honest reel ·
+header tabs. Remaining for daylight: decision-river visual, site theatre ports, visual
+snapshots + 30-min soak, Windows pull + cousin verify.
