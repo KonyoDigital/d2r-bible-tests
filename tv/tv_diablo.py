@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v853"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v854"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
