@@ -1628,5 +1628,29 @@ class TestPinRaceHotfix(unittest.TestCase):
         self.assertFalse(tv._itemish("QvfST L\u2022"))
 
 
+
+class TestPreTriage(unittest.TestCase):
+    """v853 (A2.3+A2.7) — the silent filters get a journal."""
+
+    def test_gate_matrix(self):
+        pre = tv._pre_triage(["Harlequin Crest", "Healing Potion"],
+                             {"names": ["Ber", "QvfST L\u2022"],
+                              "dropped": [{"line": "Keop INvENT", "why": "line-filter"}]})
+        by = {(x["name"], x["lane"]): x["gate"] for x in pre}
+        self.assertEqual(by[("Harlequin Crest", "deep")], "pass")
+        self.assertEqual(by[("Ber", "ocr")], "pass")
+        self.assertEqual(by[("QvfST L\u2022", "ocr")], "not-itemish")
+        self.assertIn(("Keop INvENT", "ocr"), [(x["name"], x["lane"]) for x in pre])
+
+    def test_rec_carries_pre_and_raw(self):
+        rec = tv.emit_deep_read({"area": "Chaos", "scene": "loot", "names": ["Ist"],
+                                 "tz": [], "conf": 0.9},
+                                88, "88_8888",
+                                ocr_rd={"names": ["Ist"], "raw_lines": ["Ist", "xx"], "ms": 30},
+                                capture_ts=8888)
+        self.assertTrue(rec.get("pre"))
+        self.assertEqual(rec.get("ocr_raw"), ["Ist", "xx"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

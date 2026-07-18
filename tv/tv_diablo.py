@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v852"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v853"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1686,7 +1686,10 @@ def ocr_fast(path):
     wall = int((time.time() - t0) * 1000)
     if not raw:
         return None
+    _raw_lines = [str(x)[:60] for x in (raw.get("lines") or [])][:40]
     lines = filter_ocr_lines(raw.get("lines") or [])
+    _kept = set(lines)
+    _ocr_dropped = [{"line": x, "why": "line-filter"} for x in _raw_lines if x not in _kept][:20]
     confs = raw.get("confs") or []
     avg_c = None
     if confs:
@@ -1696,6 +1699,8 @@ def ocr_fast(path):
             avg_c = None
     return {
         "names": lines,
+        "raw_lines": _raw_lines,        # v853 (A2.7) — what the OCR literally saw
+        "dropped": _ocr_dropped,        # v853 — what the line-filter ate, with why
         "ms": int(raw.get("ms") or wall),
         "wall_ms": wall,
         "conf": avg_c if avg_c is not None else 0.45,
@@ -2792,6 +2797,37 @@ def _itemish(name):
     return True
 
 
+def _pre_triage(deep_names, ocr_rd):
+    """v853 (Grok R17 c / A2.3) — the SILENT FILTERS get a journal: every name that hit a
+    gate (itemish/junk/anchor/never-vault) is recorded with its verdict, so SIM can prove
+    'the gate saved us' vs 'the gate ate a Ber'."""
+    pre = []
+    seen = set()
+    def _gate(n, lane):
+        k = (str(n), lane)
+        if k in seen:
+            return
+        seen.add(k)
+        if not _itemish(n):
+            g = "not-itemish"
+        elif _is_junk(n):
+            g = "junk"
+        elif _is_anchor(n):
+            g = "anchor"
+        elif _is_never_vault(n):
+            g = "never-vault"
+        else:
+            g = "pass"
+        pre.append({"name": str(n)[:48], "gate": g, "lane": lane})
+    for n in (deep_names or []):
+        _gate(n, "deep")
+    for n in ((ocr_rd or {}).get("names") or []):
+        _gate(n, "ocr")
+    for d in ((ocr_rd or {}).get("dropped") or [])[:12]:
+        pre.append({"name": str(d.get("line", ""))[:48], "gate": "ocr-line-filter", "lane": "ocr"})
+    return pre[:40]
+
+
 def _reason_for(tag, loc=""):
     """v836 (SIMULATION_SPEC) — every verdict tag gets a WHY in the owner's language.
     Tags say WHAT the pipeline did; these say WHY, for the SIM decision chain."""
@@ -2941,6 +2977,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "agentVer": VERSION,
         "promptHash": hashlib.md5(READ_PROMPT.encode()).hexdigest()[:10],   # v838 (A2.9) — bisectable eyes
         "parse": rd.get("_parse_audit") or {},   # v835 — the clamp/drop audit
+        "pre": _pre_triage(names, ocr_rd),                       # v853 — the gates, journaled
+        "ocr_raw": ((ocr_rd or {}).get("raw_lines") or [])[:16], # v853 — OCR's literal sight
         "decisions": {n: {"loc": (rd.get("names_loc") or {}).get(n, ""),
                           "tag": (lc.get("lifecycle_tags") or {}).get(n, ""),
                           "why": _reason_for((lc.get("lifecycle_tags") or {}).get(n, ""),

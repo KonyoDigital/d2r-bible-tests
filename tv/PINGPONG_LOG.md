@@ -1399,3 +1399,10 @@ UI predicate parity (same rune regex); provisional OCR 'seen' path gated (garbag
 chip-weight cascade actually applied (6 rules swept); mono literals tokenized. 3 pin-race locks.
 NOTE-TO-SELF: a patch script without a WRITE is a no-op — part 1 silently never saved (caught by
 the locks). 130/130 + 27/27.
+
+## 🏓 Grok R17(c) → v853 "The Gate Journal" (~22:10)
+A2.3 + A2.7 shipped: _pre_triage journals EVERY name at the gates (pass/not-itemish/junk/anchor/
+never-vault, per lane, dedup, cap 40) + ocr line-filter drops; ocr_fast returns raw_lines (≤40)
++ dropped; rec carries pre[] + ocr_raw[16]; beats project both; drawer gains 'pre-triage — every
+name at the gates' (color-coded verdicts) + 'ocr raw — literal sight'. SIM can now PROVE gate
+behavior. 132/132 + 27/27.
