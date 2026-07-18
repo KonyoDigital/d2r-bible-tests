@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v875"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v876"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1525,7 +1525,8 @@ class VisionWorker:
             [CLAUDE_BIN, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
              "--verbose", "--model", self.model, "--allowedTools", "Read", "--strict-mcp-config"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, bufsize=1, env=env)
+            text=True, bufsize=1, env=env,
+            preexec_fn=(None if sys.platform == "win32" else (lambda: os.nice(10))))   # v876 — D2R owns the CPU
         self.q = queue.Queue(); self.turns = 0
         def _pump(proc, q):
             try:
@@ -1595,7 +1596,28 @@ _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall
 # a throttled/queued reader's ask() returns None → one-shot bridge + THAT slot rewarms; the
 # slot is always released in finally, so a degraded reader shrinks effective capacity, never
 # stalls the pool.
-POOL_N = max(1, min(8, int(os.environ.get("TV_POOL", "8") or 8)))
+def _pool_default():
+    """v876 (Konyo: 'lags a lot when everything is running') — the pool fits the MACHINE:
+    8 warm claude workers pin ~1.6-4.8GB; with D2R + CrossOver on a 16GB Mac that IS the lag.
+    ≥24GB → 8 workers; below → 4 (the proven cadence at 4 is ~2.5-4s anyway). TV_POOL always wins."""
+    gb = 0.0
+    try:
+        gb = float(os.environ.get("TV_POOL_ASSUME_GB", "") or 0)   # test hook
+    except Exception:
+        gb = 0.0
+    if not gb:
+        try:
+            if sys.platform == "darwin":
+                gb = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"], timeout=3)) / 1e9
+            else:
+                gb = (os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")) / 1e9
+        except Exception:
+            gb = 16
+    return 8 if gb >= 24 else 4
+
+
+_TP_ENV = os.environ.get("TV_POOL", "").strip()
+POOL_N = max(1, min(8, int(_TP_ENV))) if _TP_ENV else max(1, min(8, _pool_default()))
 ORDER_HOLD_MS = max(5000, int(os.environ.get("TV_ORDER_HOLD_MS", "90000") or 90000))
 _WORKERS = [_WORKER] + [VisionWorker() for _ in range(POOL_N - 1)]
 _pool_lock = threading.Lock()
@@ -2642,7 +2664,8 @@ def _oneshot_inner(ap, model, timeout=90):
         [CLAUDE_BIN, "-p", READ_PROMPT.format(path=ap),
          "--model", model, "--allowedTools", "Read", "--output-format", "text",
          "--strict-mcp-config"],
-        capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env)
+        capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, env=env,
+        preexec_fn=(None if sys.platform == "win32" else (lambda: os.nice(10))))   # v876
     out = (r.stdout or "").strip()
     a, b = out.find("{"), out.rfind("}")
     if a < 0 or b <= a:

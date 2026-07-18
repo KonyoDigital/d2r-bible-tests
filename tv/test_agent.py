@@ -1872,7 +1872,17 @@ class TestReaderPool(unittest.TestCase):
                 cwd=tvdir, env=e, text=True)
             return int(out.strip())
 
-        self.assertEqual(pooln(None), 8, "owner default must be 8 readers")
+        # v876 (Konyo: 'lags a lot when everything is running') — default fits the MACHINE:
+        # ≤16GB Macs get 4 warm readers (8 pinned ~1.6-4.8GB and lagged D2R); ≥24GB gets 8.
+        # TV_POOL stays the explicit override, clamped 1-8.
+        def pooln_gb(gb):
+            e = dict(os.environ); e.pop("TV_POOL", None); e["TV_POOL_ASSUME_GB"] = gb
+            out = sp.check_output([sys.executable, "-c",
+                "import tv_diablo,sys; sys.stdout.write(str(tv_diablo.POOL_N))"],
+                cwd=tvdir, env=e, text=True)
+            return int(out.strip())
+        self.assertEqual(pooln_gb("16"), 4, "16GB machine → 4 readers")
+        self.assertEqual(pooln_gb("32"), 8, "big machine → the full 8")
         self.assertEqual(pooln("1"), 1)
         self.assertEqual(pooln("3"), 3)
         self.assertEqual(pooln("8"), 8)

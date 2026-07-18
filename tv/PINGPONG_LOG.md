@@ -1573,3 +1573,10 @@ hang fixed). Forge ROUTING verified fine on Mac (Playwright probe: tab activates
 stale build, needs update/pull). v875 — console presence tracker: /api/console beacon
 (boot/onair/off/4-min hb, 10-min TTL presence) + /console?k= dashboard (online machines,
 mode badges, 30-day event log) — the console twin of /visits. 145/145 + 27/27 + parity ×4.
+
+## 🎮 v876 "GAME FIRST" (Konyo: 'lags a lot when everything is running', Jul 19)
+The lag anatomy on his 16GB Mac: 8 warm claude workers pin ~1.6-4.8GB before D2R breathes
+(Grok's 16GB warning, now proven live). (1) machine-fit pool: <24GB → 4 warm readers (proven
+cadence ~2.5-4s), ≥24GB → 8; TV_POOL explicit always wins, clamp 1-8, TV_POOL_ASSUME_GB test
+hook; (2) every vision subprocess (warm workers + oneshots) spawns nice(10) — the game owns
+the CPU, reads absorb the slack. Test lock updated honestly. 145/145 + 27/27 + parity ×4.
