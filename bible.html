@@ -32399,6 +32399,15 @@ html{overflow-x:clip}
 .tvz-th-caption{position:absolute;left:0;right:0;bottom:64px;z-index:2;text-align:center;padding:12px clamp(16px,4vw,60px);font-family:var(--mono);font-size:var(--fs-body);color:var(--text);letter-spacing:.02em;text-shadow:0 2px 8px rgba(0,0,0,.9);background:linear-gradient(0deg,rgba(5,4,3,.85),transparent)}
 .tvz-th-caption b{color:var(--gold-bright)}
 .tvz-th-chip{display:inline-block;margin:0 4px;padding:2px 9px;border-radius:999px;border:1px solid rgba(240,192,96,.4);background:rgba(240,192,96,.1);color:var(--gold-bright);font-weight:700;font-size:.92em}
+  .tvz-airead { display:inline-block; text-align:left; margin-top:6px; padding:8px 14px;
+    background:rgba(6,9,7,.82); border:1px solid rgba(200,180,120,.22); border-left:3px solid #c8a24a;
+    border-radius:4px; font:500 11.5px/1.75 ui-monospace,monospace; color:#bcc9c0; }
+  .tvz-airead .ar-row { white-space:nowrap; }
+  .tvz-airead .ar-k { display:inline-block; min-width:86px; color:#8fa398; letter-spacing:.08em; font-size:10px; }
+  .tvz-airead b { color:#e4d2a4; font-variant-numeric:tabular-nums; }
+  .tvz-airead .ar-names { color:#9df0bd; }
+  .tvz-airead .ar-dim { opacity:.6; }
+  .tvz-airead[hidden] { display:none !important; }
 .tvz-th-strip{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:10px;padding:12px 20px;background:linear-gradient(0deg,rgba(5,4,3,.95),rgba(5,4,3,.6) 80%,transparent)}
 .tvz-th-btn{appearance:none;border:1px solid var(--border-light);background:rgba(0,0,0,.5);color:var(--gold-bright);min-width:38px;height:34px;border-radius:9px;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:700;transition:.15s}
 .tvz-th-btn:hover{border-color:var(--gold-bright);box-shadow:0 0 12px rgba(240,192,96,.2)}
@@ -33351,7 +33360,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v821', name:'The AI Read Line', date:'2026-07-18', note:'v821: every beat headlines CAPTURE clock vs AI READ clock with the verbatim answer — in-depth by default' };
+  window.D2R_BUILD = { id:'v822', name:'Site Read Line', date:'2026-07-18', note:'v822: the website theatre carries the same AI-read cross-reference — capture clock vs AI clock, verbatim answer' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34449,6 +34458,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           vault_names: vaultList, farmed_names: vaultList, pending_names: pendingList, thrown_names: thrownList,
           discovered_names: (rd.discovered_names||[]).slice(),   // v771 (Grok R5 sleeper) — the hist boundary was the third silent break of the chain-truth path
           lifecycle_tags: rd.lifecycle_tags || {}, anchor: rd.anchor || '',
+          // v822 — AI READ LINE parity: the site archive keeps the clocks + lanes the app shows
+          completedTs: rd.completedTs || 0, names: (rd.names||[]).slice(),
+          ocr_names: (rd.ocr_names||[]).slice(), ocr_seeded: (rd.ocr_seeded||[]).slice(), sim: !!rd.sim,
           items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, discovered:!!x.discovered, lc:x.lc||'', muleName:x.muleName||'' }; }) };
         FEED.push(entry);
         pushHistRead(entry);
@@ -34538,6 +34550,29 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if((b.discovered_names||[]).indexOf(n) >= 0) return ' 💬🏆';
     return '';
   }
+  function thzAiRead(b){
+    // v822 (Konyo: 'WHERE is the AI read at the time of') — site parity with app v821:
+    // 📸 CAPTURE clock vs 🧠 AI READ clock + 📖 verbatim answer. Old rows degrade gracefully.
+    try {
+      function wallMs(t){ return t ? (new Date(t).toLocaleTimeString() + '.' + ('00' + (t % 1000)).slice(-3)) : '—'; }
+      var meta = THZ.sessions[THZ.sn] || {};
+      var t0 = meta.startedAt || (THZ.beats[0]||{}).ts || b.ts;
+      var rel = Math.max(0, (b.ts||0) - t0);
+      var mm = Math.floor(rel/60000), ss = Math.floor((rel%60000)/1000), ms3 = ('00'+(rel%1000)).slice(-3);
+      var deepN = b.names || [];
+      var h = '<div class="tvz-airead">'
+        + '<div class="ar-row"><span class="ar-k">📸 CAPTURE</span><b>' + wallMs(b.ts) + '</b> <span class="ar-dim">T+' + mm + ':' + ('0'+ss).slice(-2) + '.' + ms3 + (b.frameId ? ' · 🖼 ' + escAttr(b.frameId) : '') + '</span></div>';
+      if (b.completedTs){
+        h += '<div class="ar-row"><span class="ar-k">🧠 AI READ</span><b>' + wallMs(b.completedTs) + '</b> <span class="ar-dim">(+' + ((b.completedTs - b.ts)/1000).toFixed(1) + 's after the frame)' + (b.model ? ' · ' + escAttr(b.model) : '') + (b.ms ? ' · ' + Math.round(b.ms) + 'ms' : '') + (b.conf != null ? ' · conf ' + Number(b.conf).toFixed(2) : '') + '</span></div>';
+      }
+      h += '<div class="ar-row"><span class="ar-k">📖 IT SAW</span>'
+        + (deepN.length ? ('<b class="ar-names">' + escAttr(deepN.join(' · ')) + '</b>') : '<span class="ar-dim">no item text on this frame</span>')
+        + (b.scene ? ' <span class="ar-dim">· ' + escAttr(b.scene) + (b.area ? ' @ ' + escAttr(b.area) : '') + '</span>' : '') + '</div>';
+      if ((b.ocr_names||[]).length) h += '<div class="ar-row"><span class="ar-k">⚡ OCR</span><span class="ar-dim">' + escAttr(b.ocr_names.slice(0,6).join(' · ')) + '</span></div>';
+      if (b.sim) h += '<div class="ar-row"><span class="ar-k">SIM</span><span class="ar-dim">replay — view only</span></div>';
+      return h + '</div>';
+    } catch(e){ return ''; }
+  }
   function thzCaption(b){
     if(!b) return '';
     var bits = ['<b>'+escAttr(thzT(b.ts))+'</b>', 'read #'+(b.n||'?')];
@@ -34552,6 +34587,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if((b.names||[]).indexOf(n) < 0) cast.push('<span class="tvz-th-chip">💬🏆 '+escAttr(n)+'</span>');
     });
     if(cast.length) line += '<br>'+cast.join('');
+    line += '<br>' + thzAiRead(b);   // v822 — the AI read line, site parity
     return line;
   }
   function thzPaint(){

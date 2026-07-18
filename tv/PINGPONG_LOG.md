@@ -1106,3 +1106,8 @@ T+ session clock + frameId › 🧠 AI READ wall-clock.ms (+Ns after the frame) 
 › 📖 IT SAW <verbatim names in mint> (or 'honest empty') › ⚡ OCR lane when present › SIM badge.
 READ CARD drawer opens BY DEFAULT with the theatre (I closes). VISUAL-VERIFIED: screenshot shows
 CAPTURE 2:51:18.128 → AI READ 2:51:25.036 (+6.9s) on the Chaos frame. 97/97 + 25/25.
+
+## 🏃 MARATHON IV opens → v822 "Site Read Line" (~12:45)
+Website theatre parity with v821: hist entries now carry completedTs/names/ocr_names/ocr_seeded/
+sim (producer) + thzAiRead block in the caption (consumer) — 📸 CAPTURE vs 🧠 AI READ vs 📖 IT SAW
+on the site reel, old rows degrade gracefully. 16 board specs + 97/97 + 25/25.
