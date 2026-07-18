@@ -999,3 +999,8 @@ real video player scrubber. Server derivative whitelist widened to 160 (cache160
 ⏪ appears on any vault beat (film + strip, R key): binary-seek 8s of wall time back, play 0.5×,
 freeze 1.2s on the find with a mint lower-third 'NEW FIND · <names>', then restore speed.
 Sports-broadcast dopamine, zero new capture — pure P[] reuse. 89/89 + 17/17.
+
+## 🏃 Grok R7 wow #2 → v804 "Loot of the Night" (~08:35)
+Reel end = credits roll: 🏆 slate over the film with session stats (duration/reads/named) +
+every vault ranked with count and T+ timestamp; 8s auto-hide, SPACE/click closes, resets per
+session load. Empty-vault run gets 'the grind continues'. 89/89 + 17/17.
