@@ -53,6 +53,13 @@ by protocol, gets the full cycle — no exceptions, no skipping under momentum:
     of the shipped feature (curl the endpoint / drive the button) as acceptance.
 11. Army of agents when scale demands (one owner per surface, patches delivered for MY gate);
     live-session sanctity: never restart anything while Konyo is ON AIR.
+12. SELF-ENFORCING SUITE LAYER (Konyo 'add them too', 2026-07-19): the RINSE is a PERMANENT
+    spec (tests/rinse.spec.ts), not an ad-hoc script · latency budgets are ASSERTED (status
+    <100ms, button ack <200ms — regressions fail, never 'feel slow') · visual regression
+    snapshots (Playwright toHaveScreenshot) on theatre/drawer/console · parse fuzz corpus on
+    _parse_read · 30-min soak test asserting flat memory/fps (Grok endurance acceptance) ·
+    CI stub-control harness so live-app e2e runs in CI too · pre-push hook auto-runs the tv
+    fast lane (the gate becomes physically unskippable).
 This protocol caught real catastrophes when followed (R16 dispatch-lie, R17 browser pin-race,
 UX-driver's invisible-✕) — treat skipping ANY step as a doctrine break.
 
