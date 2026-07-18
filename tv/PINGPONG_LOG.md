@@ -1206,3 +1206,13 @@ NEVER seen on floor/inventory this session — no provenance, blocked'); rec.dec
 📚/S opens the shelf: every recorded run as a card (session#, date+time, span, reads, named,
 areas; current reel ringed mint) — click to load, click-away to close. Verified live: 26 cards.
 115/115 + 26/26.
+
+## 🏓 R16 (Grok VERIFY) → v838 "Honest Anatomy" (~20:30)
+Grok read the v833-v837 diffs and caught a forensic POISON: the dispatch ctx was journaled AFTER
+the loop reset its inputs — peak always 0.0, priority always False, gapMs ~0, apMode always
+'read' on every live row (the anatomy shipped to fix forensics was itself lying). v838: pre-reset
+snapshots (used_peak/used_priority/_d_gap/_d_apmode) + namedStreak/frameSrc; queue-drain ctx now
+honest ('queued freeze — live motion fields n/a' + heldMs); _reason_for holding case; conf-clip +
+NaN audit rows; agentVer + promptHash identity (A2.9, bisectable eyes). Remaining A2 gaps (pre-
+triage, chain, board-write, vision, ocr_raw, skip events, decision river chrome) = the arc's
+next ships, logged. 115/115 + 26/26.

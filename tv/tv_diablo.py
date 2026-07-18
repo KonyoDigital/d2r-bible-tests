@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v837"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v838"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1489,11 +1489,15 @@ def _parse_read(out):
     tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
     conf = j.get("conf", None)
     try:
+        _conf_raw = conf
         conf = float(conf) if conf is not None else None
         if conf is not None:
+            if conf < 0.0 or conf > 1.0:
+                _audit["normalized"].append({"field": "conf", "from": str(_conf_raw)[:12], "to": str(max(0.0, min(1.0, conf))), "why": "clip-0-1"})
             conf = max(0.0, min(1.0, conf))
     except Exception:
         conf = None
+        _audit["dropped"].append({"field": "conf", "from": str(_conf_raw)[:12], "why": "not-a-number"})
     stash_tab = _norm_stash_tab(j.get("stashTab") or j.get("stash_tab"), scene)
     discovered = [str(x).strip() for x in (j.get("discovered") or []) if str(x).strip()][:12]
     names_loc = {}
@@ -2228,10 +2232,13 @@ def main():
                 last_read_t = time.time()
                 last_sent_md5 = _q["sig"]
                 globals()["_LAST_EMIT_SIG"] = _q["sig"]
-                globals()["_DISPATCH_CTX"] = {"motion": 0.0, "settleTicks": 0,
-                                              "interest": _q.get("interest", 0.0),
+                globals()["_DISPATCH_CTX"] = {"interest": _q.get("interest", 0.0),
                                               "priority": bool(_q.get("priority")),
-                                              "origin": "settle-queue"}
+                                              "queueDepth": len(_SETTLE_QUEUE),
+                                              "heldMs": max(0, int(time.time() * 1000) - _q.get("ts", 0)),
+                                              "frameSrc": "settle-queue",
+                                              "origin": "settle-queue",
+                                              "note": "queued freeze — live motion fields n/a by nature"}
                 used = _launch_vision(_q["path"], _q["sig"], reads, q_fid,
                                       _q.get("interest", 0.0), _q.get("priority", False), q_ts)
                 if used != _q["path"]:
@@ -2398,6 +2405,8 @@ def main():
                 print(f"  🌙 soft threshold ({SESSION_CAP} reads) — cruising slower, never stopping")
             extra_gap = min(30.0, 6.0 + soft_over * 0.05)   # +6s at cap, creeping to +30s max
             time.sleep(extra_gap)
+        _d_gap = int((time.time() - last_read_t) * 1000) if last_read_t else 0   # v838 — gap BEFORE the clock resets
+        _d_apmode = str(_AP.get("mode", ""))                                       # v838 — mode BEFORE 'read'
         last_read_t, last_sent_md5 = time.time(), cur
         globals()["_LAST_EMIT_SIG"] = cur   # v795 — the re-fire ticket points at THIS view
         reads += 1
@@ -2412,19 +2421,24 @@ def main():
         beat("reading", 0.0)
         _AP["mode"] = "read"
         used_priority = priority
+        used_peak = peak          # v838 — the anatomy records the PRE-WIPE truth
         peak = 0.0
         priority = False
 
-        # v832 (SIMULATION_SPEC) — THE DISPATCH: why this frame fired, journaled with the read
-        globals()["_DISPATCH_CTX"] = {"motion": round(float(motion), 4), "peak": round(float(peak), 4),
+        # v838 (Grok R16 verify — 'dispatch journaled after the resets zero its inputs'):
+        # every field is the PRE-RESET truth. used_priority/peak were captured above the wipe;
+        # gap/apMode snapshotted before the clock and mode moved. The anatomy no longer lies.
+        globals()["_DISPATCH_CTX"] = {"motion": round(float(motion), 4), "peak": round(float(used_peak), 4),
                                       "settleTicks": int(stable),
                                       "interest": round(float(interest), 3),
                                       "interestParts": dict(_iparts),
-                                      "priority": bool(priority),
-                                      "gapMs": int((time.time() - last_read_t) * 1000) if last_read_t else 0,
+                                      "priority": bool(used_priority),
+                                      "gapMs": _d_gap,
                                       "emptyStreak": int(empty_streak),
-                                      "apMode": str(_AP.get("mode", "")),
+                                      "namedStreak": 1 if named_recent else 0,
+                                      "apMode": _d_apmode,
                                       "queueDepth": len(_SETTLE_QUEUE),
+                                      "frameSrc": "live",
                                       "origin": "live"}
         # v782/v825 — snapshot + background dual-lane read, now via _launch_vision so the
         # settle-queue drain shares this exact pipeline (serialized by _VISION_BUSY).
@@ -2451,8 +2465,8 @@ def _reason_for(tag, loc=""):
         return "floor label — entered the SEEN ledger, waiting for pickup"
     if t == "ocr-pending":
         return "the fast OCR lane saw it while the deep read missed — floor-seeded, one re-read armed"
-    if "inventory" in t:
-        return "in the inventory (" + t + ") — HOLDING until it reaches the stash"
+    if t == "holding" or "inventory" in t:
+        return "in the inventory (" + (t or "holding") + ") — HOLDING until it reaches the stash"
     if t.startswith("throw-out") or t == "floor-again":
         return "seen on the floor AFTER being held/vaulted — treated as thrown out"
     if loc == "inventory":
@@ -2577,6 +2591,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "raw": ("" if farewell else globals().get("_LAST_RAW", "")) or ("«farewell read»" if farewell else ""),
         "dispatch": dict(globals().get("_DISPATCH_CTX") or ({"origin": "farewell"} if farewell else {})),
         "promptVer": PROMPT_VER,   # v832 — which prompt read this frame
+        "agentVer": VERSION,
+        "promptHash": hashlib.md5(READ_PROMPT.encode()).hexdigest()[:10],   # v838 (A2.9) — bisectable eyes
         "parse": rd.get("_parse_audit") or {},   # v835 — the clamp/drop audit
         "decisions": {n: {"loc": (rd.get("names_loc") or {}).get(n, ""),
                           "tag": (lc.get("lifecycle_tags") or {}).get(n, ""),
