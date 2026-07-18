@@ -27,10 +27,10 @@
 #   No scout secondary. Film is high-FPS HD; intel is snappy settle + one deep at a time.
 #   Claude deep is multi-second by nature — OCR chips + smooth film are the "live drive" feel.
 # ═══════════════════════════════════════════════════════════════════════════════
-import json, os, subprocess, sys, threading, time, hashlib, signal
+import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v862"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v863"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -221,9 +221,19 @@ def _health(st):
         _foot_fps = round(len(_recent) / 10.0, 2)
     except Exception:
         _foot_fps = None
+    # v863 (READER POOL) — busy lamp = oldest in-flight reader's age; expose pool depth.
+    _pool_pin, _pool_oldest = 0, 0
+    try:
+        with _pool_lock:
+            _pool_pin = len(_in_flight)
+            if _in_flight:
+                _pool_oldest = min(int(j.get("startedAt") or 0) for j in _in_flight.values())
+    except Exception:
+        pass
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
          "footageFps": _foot_fps,   # v861 — the archive floor, alarmed by the UI
-         "visionBusyMs": int((now - _VISION_BUSY_AT) * 1000) if (_VISION_BUSY and _VISION_BUSY_AT) else 0,
+         "visionBusyMs": (max(0, int(now * 1000) - _pool_oldest) if (_pool_pin and _pool_oldest) else 0),
+         "poolInFlight": _pool_pin, "poolN": POOL_N,
          "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
          # v846 — Tesla-drive dashboard truth
          "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
@@ -1133,7 +1143,7 @@ def known_dead_match(sig):
         if sig_diff(sig, k) <= 0.04: return k
     return None
 
-def _readable_frame(ap):
+def _readable_frame(ap, out_jpg=None):
     """v710.6 LIVE-SESSION FIX (Konyo's first real run): claude's Read tool chokes on a 16MB
     raw BMP — both live reads timed out at 180s. Convert to a 1568px JPEG (the locked intake
     spec) before the vision call. Mac: sips (built-in). Windows: capture_win.ps1 saves live.png
@@ -1141,7 +1151,7 @@ def _readable_frame(ap):
     try:
         if not ap.lower().endswith(".bmp"):
             return ap
-        jp = os.path.join(FRAMES, "read.jpg")
+        jp = out_jpg or os.path.join(FRAMES, "read.jpg")
         r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80",
                             "--resampleHeightWidthMax", "1568", ap, "--out", jp],
                            capture_output=True, timeout=20)
@@ -1442,6 +1452,158 @@ _WORKER = VisionWorker()
 # Claude thinks. (Konyo: ON AIR + moving but film stuck on READING.)
 _VISION_BUSY = False
 _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall detection)
+
+# v863 (READER POOL) — up to POOL_N concurrent Claude vision readers with ORDERED APPLY.
+# Each reader keeps its OWN warm VisionWorker (Popen/lock/turns/restart-at-8) and reads a
+# PRIVATE snap/read file, so two readers never collide on snap.bmp/read.jpg. Completions are
+# buffered by captureTs and applied only when no OLDER read is still in flight (the
+# floor-before-stash lock). Worker 0 == _WORKER (the farewell / POOL_N=1 fast path).
+# OWNER DEFAULT = 8 readers. MEMORY: each warm `claude -p` child is ~200-600MB, so a full
+# pool of 8 can hold ~1.6-4.8GB resident — set TV_POOL lower on a tight machine. Fail-soft:
+# a throttled/queued reader's ask() returns None → one-shot bridge + THAT slot rewarms; the
+# slot is always released in finally, so a degraded reader shrinks effective capacity, never
+# stalls the pool.
+POOL_N = max(1, min(8, int(os.environ.get("TV_POOL", "8") or 8)))
+ORDER_HOLD_MS = max(5000, int(os.environ.get("TV_ORDER_HOLD_MS", "90000") or 90000))
+_WORKERS = [_WORKER] + [VisionWorker() for _ in range(POOL_N - 1)]
+_pool_lock = threading.Lock()
+_pool_free = list(range(POOL_N))   # reader ids currently idle
+_in_flight = {}                    # job_id -> {readerId, captureTs, sig, origin, startedAt}
+_order_buf = []                    # heapq of (captureTs, seq, payload) awaiting ordered apply
+_order_seq = [0]
+_emit_lock = threading.Lock()
+_job_seq = [0]
+
+
+def _job_files(rid, n):
+    """PRIVATE per-job capture + read paths — concurrent readers never share snap.bmp/read.jpg."""
+    return (os.path.join(FRAMES, "snap_%d_%d.bmp" % (int(rid), int(n))),
+            os.path.join(FRAMES, "read_%d_%d.jpg" % (int(rid), int(n))))
+
+
+def _vision_in_flight_n():
+    with _pool_lock:
+        return len(_in_flight)
+
+
+def _vision_busy():
+    """Compat shim for the old single-reader gate: True only when EVERY reader is busy."""
+    return _vision_in_flight_n() >= POOL_N
+
+
+def _heartbeat_cap():
+    """v863 — heartbeat concurrency scales with the pool but never owns it: ceil(POOL_N/4)
+    (2 at N=8). Settle + queue drains own the rest of the readers."""
+    return max(1, (POOL_N + 3) // 4)
+
+
+def _heartbeat_in_flight_n():
+    with _pool_lock:
+        return sum(1 for j in _in_flight.values() if j.get("origin") == "heartbeat")
+
+
+def _heartbeat_in_flight():
+    return _heartbeat_in_flight_n() > 0
+
+
+def _in_flight_has_sig(sig):
+    """Anti double-spend: is this exact view already on a reader?"""
+    with _pool_lock:
+        for j in _in_flight.values():
+            try:
+                if sig_diff(sig, j.get("sig")) <= SETTLE:
+                    return True
+            except Exception:
+                pass
+    return False
+
+
+def _in_flight_min_capture():
+    with _pool_lock:
+        if not _in_flight:
+            return None
+        return min(int(j.get("captureTs") or 0) for j in _in_flight.values())
+
+
+def _pool_acquire():
+    """Reserve a free reader id (caller must release via _pool_release), or None if all busy."""
+    with _pool_lock:
+        if not _pool_free:
+            return None
+        return _pool_free.pop(0)
+
+
+def _pool_release(rid):
+    with _pool_lock:
+        if rid not in _pool_free:
+            _pool_free.append(rid)
+            _pool_free.sort()
+
+
+def _order_push(capture_ts, job, rd, ocr_rd):
+    """v863 — enqueue a completed deep read for ordered apply, keyed by captureTs."""
+    with _emit_lock:
+        _order_seq[0] += 1
+        heapq.heappush(_order_buf, (int(capture_ts), _order_seq[0],
+                       {"job": job, "rd": rd, "ocr_rd": ocr_rd,
+                        "captureTs": int(capture_ts), "bufferedAt": int(time.time() * 1000)}))
+
+
+def _order_drain():
+    """v863 — apply buffered deep reads in captureTs order. A buffered completion emits only when
+    NO in-flight reader holds a strictly SMALLER captureTs (floor-before-stash lock); a completion
+    that has waited past ORDER_HOLD_MS applies anyway (dispatch.orderSkip='straggler'). Returns
+    the list of records applied this call."""
+    applied = []
+    with _emit_lock:
+        now_ms = int(time.time() * 1000)
+        while _order_buf:
+            capture_ts, seq, payload = _order_buf[0]
+            floor = _in_flight_min_capture()
+            straggler = (now_ms - int(payload.get("bufferedAt") or now_ms)) >= ORDER_HOLD_MS
+            if floor is not None and floor < capture_ts and not straggler:
+                break   # an OLDER read is still pending — hold the line
+            heapq.heappop(_order_buf)
+            job = payload["job"]
+            disp = dict(job.get("dispatch") or {})
+            if straggler:
+                disp["orderSkip"] = "straggler"
+            disp["appliedTs"] = now_ms
+            disp["orderHoldMs"] = ORDER_HOLD_MS
+            try:
+                rec = emit_deep_read(payload["rd"], n=job.get("n"), frame_id=job.get("fid"),
+                                     interest=job.get("interest", 0.0),
+                                     used_priority=job.get("priority", False),
+                                     ocr_rd=payload.get("ocr_rd"), farewell=False,
+                                     capture_ts=int(capture_ts),
+                                     dispatch=disp, raw=job.get("raw"))
+                if rec is not None:
+                    applied.append(rec)
+            except Exception as e:
+                try: ev("cap", "ordered apply failed: %s" % e)
+                except Exception: pass
+    return applied
+
+
+def _pool_shutdown(timeout=8.0):
+    """Farewell path — let in-flight readers finish (up to timeout), force-flush the order buffer
+    so nothing buffered is lost, then stop the extra pool workers (worker 0 stays for farewell)."""
+    deadline = time.time() + max(0.0, timeout)
+    while time.time() < deadline:
+        with _pool_lock:
+            if not _in_flight:
+                break
+        time.sleep(0.1)
+    try:
+        _prev = ORDER_HOLD_MS
+        globals()["ORDER_HOLD_MS"] = 0
+        _order_drain()
+        globals()["ORDER_HOLD_MS"] = _prev
+    except Exception:
+        pass
+    for w in _WORKERS[1:]:
+        try: w.stop()
+        except Exception: pass
 _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back empty: allow ONE re-read of that view
 
 # v845 — ONE AI READER: settle freeze → dual-lane (OCR flash + Claude deep).
@@ -1753,17 +1915,24 @@ def ocr_fast(path):
         "raw_n": len(raw.get("lines") or []),
     }
 
-_REWARM_T = [0.0]
-def _rewarm():
-    """after a worker death, quietly warm a fresh session in the background (60s debounce)
-    so the NEXT pause reads warm again — one-shot is a bridge, never the new normal."""
-    if time.time() - _REWARM_T[0] < 60: return
-    _REWARM_T[0] = time.time()
-    def _w():
+_REWARM_T = [0.0]        # legacy compat (unused by the pool path)
+_REWARM_AT = {}          # v863 — per-worker last-rewarm ts (id(worker) -> time), independent debounce
+def _rewarm(worker=None):
+    """v863 — after a reader death/throttle, quietly warm THAT slot's fresh session (60s
+    per-worker debounce). One-shot is a bridge; a degraded reader recovers on its own without
+    ever stalling the other 7. Defaults to worker 0 for old callers."""
+    w = worker or _WORKER
+    key = id(w)
+    if time.time() - _REWARM_AT.get(key, 0.0) < 60: return
+    _REWARM_AT[key] = time.time()
+    def _run():
         t0 = time.time()
-        if _WORKER.ask("Reply with exactly: ok", timeout=60) is not None:
-            ev("boot", f"vision re-warmed in {int(time.time()-t0)}s — back to fast reads")
-    threading.Thread(target=_w, daemon=True).start()
+        try:
+            if w.ask("Reply with exactly: ok", timeout=60) is not None:
+                ev("boot", f"vision re-warmed in {int(time.time()-t0)}s — that reader is fast again")
+        except Exception:
+            pass
+    threading.Thread(target=_run, daemon=True).start()
 
 _STASH_TABS = frozenset(("personal", "shared", "gems", "materials", "runes"))
 _STASH_TAB_ALIASES = {
@@ -2371,7 +2540,7 @@ def _maybe_genius(ap, parsed, t0, mode):
         parsed["escalated"] = False
     return parsed
 
-def claude_read(path):
+def claude_read(path, worker=None, out_jpg=None):
     """One vision read on YOUR Claude subscription. Fast model first; genius escalate if needed."""
     # v711 — TV_STUB: the TDD seam. TV_STUB=1 returns canned reads from tv/stub_manifest.json
     # (keyed by frame basename, '*' fallback) — the FULL agent loop runs end-to-end with zero
@@ -2391,7 +2560,7 @@ def claude_read(path):
                 "conf": rd.get("conf", 1.0), "intent": _intent_for(scene),
                 "stashTab": _norm_stash_tab(rd.get("stashTab") or rd.get("stash_tab"), scene),
                 "model": "stub", "mode": "stub", "escalated": False, "ms": 0}
-    ap = _readable_frame(os.path.abspath(path))
+    ap = _readable_frame(os.path.abspath(path), out_jpg)
     EMPTY = {"area": "", "scene": "gameplay", "names": [], "tz": [], "conf": None,
              "intent": "context", "stashTab": "",
              "model": FAST_MODEL, "mode": "empty", "escalated": False, "ms": 0}
@@ -2399,7 +2568,8 @@ def claude_read(path):
         print(f"  ⚠ image missing: {ap}")
         return EMPTY
     t0 = time.time()
-    out_w = _WORKER.ask(READ_PROMPT.format(path=ap))
+    w = worker or _WORKER
+    out_w = w.ask(READ_PROMPT.format(path=ap))
     if out_w is not None:
         globals()["_LAST_RAW"] = str(out_w)[:2048]   # v832 — THE THOUGHT, verbatim
         parsed = _parse_read(out_w)
@@ -2408,7 +2578,7 @@ def claude_read(path):
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
         ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
-        _rewarm()   # v718 (Grok R10 pick #2): fallback never permanently demotes the session
+        _rewarm(w)  # v718 (Grok R10 pick #2) + v863: rewarm THIS reader's slot only, pool degrades soft
     try:
         parsed = _oneshot(ap, FAST_MODEL, timeout=90)
         if parsed is None:
@@ -2452,6 +2622,11 @@ def main():
         pass
     SESSION_ID = "s_%d_%d" % (int(time.time() * 1000), os.getpid())
     _VISION_BUSY = False
+    with _pool_lock:
+        _in_flight.clear()
+        _pool_free[:] = list(range(POOL_N))
+    with _emit_lock:
+        _order_buf[:] = []
     with _state_lock:
         _save({"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0,
                "cap": SESSION_CAP, "seen": [], "farmed": [], "model": FAST_MODEL, "genius": GENIUS_MODEL,
@@ -2463,11 +2638,22 @@ def main():
     if _KNOWN_DEAD: ev("boot", f"{len(_KNOWN_DEAD)} learned transition frame(s) loaded — they cost 0ms now")
     if not os.environ.get("TV_STUB"):
         def _warm():
+            # v863 — stagger POOL_N logins ~400ms apart so a full pool of cold `claude -p`
+            # spawns doesn't thundering-herd the subscription; each reader warms independently.
             t0 = time.time()
-            if _WORKER.ask("Reply with exactly: ok", timeout=60) is not None:
-                ev("boot", f"vision warm — {FAST_MODEL} ready in {int(time.time()-t0)}s (first read will be fast)")
+            ok = 0
+            for i, _wk in enumerate(_WORKERS):
+                if i:
+                    time.sleep(0.4)
+                try:
+                    if _wk.ask("Reply with exactly: ok", timeout=60) is not None:
+                        ok += 1
+                except Exception:
+                    pass
+            if ok:
+                ev("boot", f"vision warm — {ok}/{POOL_N} reader(s) ready in {int(time.time()-t0)}s (first reads fast)")
             else:
-                ev("skip", "warm-up didn't answer — first read may be slow (one-shot fallback armed)")
+                ev("skip", "warm-up didn't answer — first reads may be slow (one-shot fallback armed)")
         threading.Thread(target=_warm, daemon=True).start()
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
@@ -2523,16 +2709,35 @@ def main():
     named_until = 0.0     # boost interest after a named hit
 
     def _launch_vision(snap_src, cur_snap, n_this, fid_this, interest_this, used_priority, read_ts):
-        """ONE AI reader ACT — dual-lane (OCR flash + Claude deep) on ONE background worker.
-        Live settle freezes and queue drains enter here. _VISION_BUSY serializes: never two deeps."""
+        """v863 READER POOL — one reader ACT on ITS OWN worker + PRIVATE snap/read files. Builds
+        the job (captureTs, origin, dispatch, sig) at fire time and carries it through to the
+        ordered apply. Acquires a free reader id; the main loop gates on a free slot."""
         global _VISION_BUSY
         import shutil
-        snap = os.path.join(FRAMES, "snap.bmp")
+        rid = _pool_acquire()
+        if rid is None:
+            # defensive — the main loop only fires with a free slot; hold the freeze instead
+            _settle_enqueue(snap_src, cur_snap, interest_this, used_priority, origin="settle")
+            return snap_src
+        snap_path, read_jpg = _job_files(rid, n_this)
         try:
-            shutil.copy2(snap_src, snap)
-            snap_path = snap
+            shutil.copy2(snap_src, snap_path)
         except Exception:
             snap_path = snap_src
+        _job_seq[0] += 1
+        job_id = "j%d_%d" % (rid, _job_seq[0])
+        _base_ctx = dict(globals().get("_DISPATCH_CTX") or {})
+        _origin = _base_ctx.get("origin") or "settle"
+        _disp = dict(_base_ctx)
+        _disp["readerId"] = rid
+        _disp["poolN"] = POOL_N
+        with _pool_lock:
+            _disp["poolInFlight"] = len(_in_flight) + 1
+            _in_flight[job_id] = {"readerId": rid, "captureTs": int(read_ts), "sig": cur_snap,
+                                  "origin": _origin, "startedAt": int(time.time() * 1000)}
+        job = {"n": n_this, "fid": fid_this, "interest": interest_this,
+               "priority": used_priority, "dispatch": _disp, "raw": "",
+               "captureTs": int(read_ts), "readerId": rid}
         _VISION_BUSY = True
         globals()["_VISION_BUSY_AT"] = time.time()
 
@@ -2581,33 +2786,43 @@ def main():
                         _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
                         _AP["lastNamed"] = ", ".join(onames[:4])
 
-                # ── DEEP LANE: Claude ──
-                rd = claude_read(snap_path)
+                # ── DEEP LANE: Claude (this reader's OWN worker + private read.jpg) ──
+                rd = claude_read(snap_path, worker=_WORKERS[rid], out_jpg=read_jpg)
+                job["raw"] = globals().get("_LAST_RAW", "") or ""   # v863 — per-job THOUGHT (global races across readers)
                 if should_learn_dead(rd):
                     learn_dead_frame(cur_snap)
-                rec = emit_deep_read(rd, n=n_this, frame_id=fid_this, interest=interest_this,
-                                     used_priority=used_priority, ocr_rd=ocr_rd, farewell=False,
-                                     capture_ts=read_ts)
-                names = (rec or {}).get("names") or []
-                if names:
-                    empty_streak = 0
-                    named_until = time.time() + 45
-                    _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
-                    _AP["lastNamed"] = ", ".join(names[:4])
-                else:
-                    if not (ocr_rd and ocr_rd.get("names")):
-                        empty_streak += 1
-                        _AP["namedStreak"] = 0
+                # v863 — ORDERED APPLY: buffer this completion; emit only when no OLDER read is
+                # still in flight (the floor-before-stash lock). Stragglers apply after ORDER_HOLD_MS.
+                _order_push(int(read_ts), job, rd, ocr_rd)
+                for rec in _order_drain():
+                    names = (rec or {}).get("names") or []
+                    if names:
+                        empty_streak = 0
+                        named_until = time.time() + 45
+                        _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+                        _AP["lastNamed"] = ", ".join(names[:4])
+                    else:
+                        if not (ocr_rd and ocr_rd.get("names")):
+                            empty_streak += 1
+                            _AP["namedStreak"] = 0
                 _AP["emptyStreak"] = empty_streak
             except Exception as e:
                 try: ev("cap", "vision job failed: %s" % e)
                 except Exception: pass
             finally:
-                _VISION_BUSY = False
+                with _pool_lock:
+                    _in_flight.pop(job_id, None)
+                    if rid not in _pool_free:
+                        _pool_free.append(rid); _pool_free.sort()
+                    _VISION_BUSY = len(_in_flight) >= 1
                 _AP["mode"] = "drive"
                 beat("watching", 0.0)
+                try:
+                    _order_drain()   # a slot freed → a held straggler may now apply
+                except Exception:
+                    pass
 
-        threading.Thread(target=_vision_job, daemon=True, name="tv-vision").start()
+        threading.Thread(target=_vision_job, daemon=True, name="tv-vision-r%d" % rid).start()
         return snap_path
 
     def _fire_read(origin, snap_src, sig, interest_this, used_priority, note="",
@@ -2661,21 +2876,30 @@ def main():
 
     while True:
         time.sleep(POLL_S)
-        # ── queue drain: freezes held while the one deep was busy ──
-        if (not _VISION_BUSY) and _SETTLE_QUEUE:
+        # ── straggler flush + queue drain: freezes held while readers were busy ──
+        try: _order_drain()
+        except Exception: pass
+        _drained_any = False
+        while _vision_in_flight_n() < POOL_N and _SETTLE_QUEUE:
             _q = _settle_drain_pop()
-            if _q is not None:
-                used = _fire_read(
-                    "settle-queue", _q["path"], _q["sig"],
-                    _q.get("interest", 0.0), bool(_q.get("priority")),
-                    note="held during last deep read · drained on free",
-                    gap_ms=max(0, int(time.time() * 1000) - _q.get("ts", 0)),
-                    ap_mode="queue-drain",
-                )
-                if used != _q["path"]:
-                    try: os.remove(_q["path"])
-                    except Exception: pass
+            if _q is None:
+                break
+            if _in_flight_has_sig(_q["sig"]):
+                _settle_file_del(_q)   # this exact view is already on a reader
                 continue
+            used = _fire_read(
+                "settle-queue", _q["path"], _q["sig"],
+                _q.get("interest", 0.0), bool(_q.get("priority")),
+                note="held while readers busy · drained on free",
+                gap_ms=max(0, int(time.time() * 1000) - _q.get("ts", 0)),
+                ap_mode="queue-drain",
+            )
+            if used != _q["path"]:
+                try: os.remove(_q["path"])
+                except Exception: pass
+            _drained_any = True
+        if _drained_any:
+            continue
         if WATCH_MODE:
             # v784 — Windows capture half reports pin status via cap_target.json
             _refresh_cap_target_from_disk()
@@ -2750,8 +2974,8 @@ def main():
         interest = ap_interest(peak, stable, priority, empty_streak, named_recent, parts=_iparts)
         _AP.update({"interest": round(interest, 3), "peak": round(peak, 3), "priority": priority,
                     "emptyStreak": empty_streak, "gap": PRIORITY_GAP_S if priority else MIN_GAP_S})
-        # ── deep busy: queue distinct freezes only (never a second concurrent deep) ──
-        if _VISION_BUSY:
+        # ── all readers busy: queue distinct freezes only (never a duplicate concurrent read) ──
+        if _vision_busy():
             beat("reading", motion)
             if motion > SETTLE:
                 stable = 0
@@ -2779,7 +3003,7 @@ def main():
         # v861 (Grok c) — 💓 HEARTBEAT: constant combat never settles; reads starved 146s.
         # No read for HEARTBEAT_S with vision free → force a dual-lane read of the CURRENT view
         # (settle/queue still win whenever available; heartbeat never preempts them).
-        if (not _VISION_BUSY) and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S \
+        if (_vision_in_flight_n() < POOL_N) and (_heartbeat_in_flight_n() < _heartbeat_cap()) and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S \
                 and not _SETTLE_QUEUE and stable < need_ticks:
             _hb_gap = int((time.time() - last_read_t) * 1000)
             reads += 1
@@ -2851,6 +3075,11 @@ def main():
         if time.time() - last_read_t < gap:
             if stable == need_ticks:
                 ev("skip", f"settled, but only {int(time.time()-last_read_t)}s since last read (gap {gap}s · {'PRIORITY' if priority else 'cruise'})")
+            continue
+        # v863 — anti double-spend: never fire a view another reader is already reading
+        if _in_flight_has_sig(cur):
+            if stable == need_ticks:
+                ev("skip", "already reading this exact view on another reader — waiting for something new")
             continue
         # soft session throttle — eye never hard-stops
         soft_over = reads - SESSION_CAP
@@ -2975,7 +3204,7 @@ def _capture_ts_from_frame_id(frame_id):
     return None
 
 
-def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False, capture_ts=None):
+def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=None, farewell=False, capture_ts=None, dispatch=None, raw=None):
     """Publish one deep-lane record (main settle + v740 farewell). Returns the record dict.
 
     v784 — ACCURACY: journal `ts` is the CAPTURE/settle clock (matches frameId suffix and the
@@ -2989,6 +3218,9 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         rd["sim"] = True   # v787 (R3 sleeper) — a replay/harness read must TELL the board it is not real loot
     if rd.get("area"): LAST_AREA = rd["area"]
     names = rd.get("names") or []
+    # v863 — feed the CAPTURE clock into the lifecycle so out-of-order reader completions still
+    # age holds by when the shot was TAKEN, not when the AI answered.
+    _cap_ms = capture_ts or _capture_ts_from_frame_id(frame_id) or int(time.time() * 1000)
     intent = rd.get("intent") or _intent_for(rd.get("scene"))
     # v795 (Grok R5 #2) — OCR truth is not garbage: when the deep read comes back EMPTY but
     # the fast lane read real names, seed them as floor-SEEN (never vault from here) so a later
@@ -2998,12 +3230,12 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         _ocr_seed = [x for x in ((ocr_rd or {}).get("names") or []) if _itemish(x)][:12]   # v848 — garbage never seeds the chain
     if _ocr_seed:
         try:
-            _LIFECYCLE.process("loot", _ocr_seed, rd.get("area") or "", None)
+            _LIFECYCLE.process("loot", _ocr_seed, rd.get("area") or "", None, now_ms=_cap_ms)
             globals()["_REFIRE_SIG"] = globals().get("_LAST_EMIT_SIG")
         except Exception:
             pass
     lc = _LIFECYCLE.process(effective_lc_scene(rd.get("scene"), names), names, rd.get("area") or "", rd.get("conf"),
-                            names_loc=rd.get("names_loc") or {})
+                            now_ms=_cap_ms, names_loc=rd.get("names_loc") or {})
     vault_names = lc.get("vault_names") or lc.get("farmed_names") or []
     pending_names = lc.get("pending_names") or []
     thrown_names = lc.get("thrown_names") or []
@@ -3073,8 +3305,8 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
-        "raw": ("" if farewell else globals().get("_LAST_RAW", "")) or ("«farewell read»" if farewell else ""),
-        "dispatch": dict(globals().get("_DISPATCH_CTX") or ({"origin": "farewell"} if farewell else {})),
+        "raw": ("" if farewell else (raw if raw is not None else globals().get("_LAST_RAW", ""))) or ("«farewell read»" if farewell else ""),
+        "dispatch": dict((dispatch if dispatch is not None else globals().get("_DISPATCH_CTX")) or ({"origin": "farewell"} if farewell else {})),
         "promptVer": PROMPT_VER,   # v832 — which prompt read this frame
         "agentVer": VERSION,
         "promptHash": hashlib.md5(READ_PROMPT.encode()).hexdigest()[:10],   # v838 (A2.9) — bisectable eyes
@@ -3245,6 +3477,10 @@ def close_session(reason="stop", farewell=True):
         })
     except Exception as e:
         print(f"  👋 session_end journal failed: {e}")
+    try:
+        _pool_shutdown()   # v863 — drain-or-cancel the reader pool, then farewell on worker 0
+    except Exception:
+        pass
     if farewell:
         try:
             farewell_read()

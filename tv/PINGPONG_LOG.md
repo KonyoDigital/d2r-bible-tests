@@ -1485,3 +1485,13 @@ TV_HEARTBEAT default → 2s (floor 1s): with vision free, a read fires every ~2s
 still win. Effective cadence now bounded by ONE reader's vision latency (5-20s deep) — the
 reader-pool architecture round (Grok, in flight) is what unlocks true 2s sustained.
 138/138 + 27/27.
+
+## ⚡ v863 "The Relay Team" (Konyo: 'ship the 8', ~04:30 Jul 19)
+EIGHT staggered Claude readers (pool-agent build from Grok's architecture, 27 anchors):
+_WORKERS[8] each own process+lock+private snap/read paths · captureTs HOLD-AND-RELEASE order
+buffer before lifecycle/journal (floor-before-stash lock PROVEN in tests) · per-slot fail-soft
+(throttled reader rewars alone, capacity degrades never stalls) · staggered 400ms warm ·
+heartbeat capped at 2/8 slots · POOL_N=1 bit-compat · readerId/poolN/appliedTs/orderHoldMs
+journaled. Gates: 145/145 agent (7 new pool locks) + 27/27 control + matrix ALL PASSED +
+RINSE ALL OK + parity v863. LIVE ACCEPTANCE = Konyo's next ON AIR (watch poolInFlight→8,
+answers ~1/s, memory 1.6-4.8GB note). AGENTS.md doctrine updated below. Grok back-pass next.

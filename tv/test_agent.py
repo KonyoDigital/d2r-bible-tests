@@ -1716,5 +1716,160 @@ class TestChainClasses(unittest.TestCase):
         self.assertEqual((d.get("chain") or {}).get("class"), "never-seen")
 
 
+class TestReaderPool(unittest.TestCase):
+    """v863 — READER POOL: ordered apply (floor-before-stash lock), stragglers, private files,
+    job-carried dispatch identity, and POOL_N=1 regression parity."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._state, self._journal = tv.STATE, tv.JOURNAL
+        tv.STATE = os.path.join(self.d, "state.json")
+        tv.JOURNAL = os.path.join(self.d, "j.jsonl")
+        with open(tv.STATE, "w") as f:
+            json.dump({"reads": [], "seen": [], "farmed": []}, f)
+        self._life = tv._LIFECYCLE
+        tv._LIFECYCLE = tv.LootLifecycle()
+        self._pool_n, self._hold = tv.POOL_N, tv.ORDER_HOLD_MS
+        with tv._pool_lock:
+            tv._in_flight.clear()
+            tv._pool_free[:] = list(range(tv.POOL_N))
+        with tv._emit_lock:
+            tv._order_buf[:] = []
+
+    def tearDown(self):
+        tv.STATE, tv.JOURNAL = self._state, self._journal
+        tv._LIFECYCLE = self._life
+        tv.POOL_N, tv.ORDER_HOLD_MS = self._pool_n, self._hold
+        with tv._pool_lock:
+            tv._in_flight.clear()
+            tv._pool_free[:] = list(range(tv.POOL_N))
+        with tv._emit_lock:
+            tv._order_buf[:] = []
+
+    def _mark_inflight(self, jid, rid, cap):
+        with tv._pool_lock:
+            tv._in_flight[jid] = {"readerId": rid, "captureTs": cap, "sig": [],
+                                  "origin": "settle", "startedAt": cap}
+
+    def _pop_inflight(self, jid):
+        with tv._pool_lock:
+            tv._in_flight.pop(jid, None)
+
+    def _job(self, n, rid):
+        return {"n": n, "fid": "", "interest": 0.5, "priority": False,
+                "dispatch": {"readerId": rid, "poolN": tv.POOL_N, "poolInFlight": 1,
+                             "origin": "settle"}, "raw": ""}
+
+    def test_order_buffer_floor_before_stash_lock(self):
+        """T2(stash) completes before T1(floor). Ordered apply must HOLD the stash read until
+        the older floor read lands — then the stash finds its chain and the item VAULTS."""
+        item = "Colossus Crossbow"
+        now = int(time.time() * 1000)
+        t1, t2 = now, now + 1
+        self._mark_inflight("a", 0, t1)   # floor read — OLDER
+        self._mark_inflight("b", 1, t2)   # stash read — newer
+        rd_floor = {"area": "Black Marsh", "scene": "loot", "names": [item], "conf": 0.9, "ms": 10}
+        rd_stash = {"area": "town", "scene": "stash", "stashTab": "shared",
+                    "names": [item], "conf": 0.9, "ms": 10}
+        self._pop_inflight("b")
+        tv._order_push(t2, self._job(2, 1), rd_stash, None)
+        held = tv._order_drain()
+        self.assertEqual(held, [], "stash read applied out of order — floor lock broken")
+        self.assertNotIn(tv._norm_name(item), tv._LIFECYCLE.vaulted)
+        self._pop_inflight("a")
+        tv._order_push(t1, self._job(1, 0), rd_floor, None)
+        applied = tv._order_drain()
+        self.assertEqual(len(applied), 2, "both reads should apply once the floor read lands")
+        self.assertEqual(applied[0].get("scene"), "loot")
+        self.assertEqual(applied[-1].get("scene"), "stash")
+        self.assertIn(item, applied[-1].get("vault_names") or [],
+                      "stash must VAULT after ordered floor-first apply")
+        self.assertIn(tv._norm_name(item), tv._LIFECYCLE.vaulted)
+
+    def test_straggler_applies_after_order_hold(self):
+        """An older read wedges in flight forever. The newer buffered read must NOT wait past
+        ORDER_HOLD_MS — it applies anyway, flagged dispatch.orderSkip='straggler'."""
+        item = "Vex Rune"
+        now = int(time.time() * 1000)
+        t1, t2 = now, now + 1
+        self._mark_inflight("a", 0, t1)   # STUCK older reader (never completes)
+        rd = {"area": "River of Flame", "scene": "loot", "names": [item], "conf": 0.9, "ms": 10}
+        tv._order_push(t2, self._job(2, 1), rd, None)
+        self.assertEqual(tv._order_drain(), [])
+        tv.ORDER_HOLD_MS = 0
+        applied = tv._order_drain()
+        self.assertEqual(len(applied), 1)
+        disp = applied[0].get("dispatch") or {}
+        self.assertEqual(disp.get("orderSkip"), "straggler")
+        self.assertIn("appliedTs", disp)
+        self.assertEqual(disp.get("orderHoldMs"), 0)
+
+    def test_private_job_files_distinct(self):
+        """Two concurrent readers must never share snap.bmp / read.jpg."""
+        s0, r0 = tv._job_files(0, 5)
+        s1, r1 = tv._job_files(1, 5)
+        self.assertNotEqual(s0, s1)
+        self.assertNotEqual(r0, r1)
+        self.assertTrue(os.path.basename(s0).startswith("snap_0_5"))
+        self.assertTrue(os.path.basename(s1).startswith("snap_1_5"))
+        self.assertTrue(os.path.basename(r0).startswith("read_0_5"))
+        self.assertTrue(r0.endswith(".jpg") and s0.endswith(".bmp"))
+        self.assertNotEqual(tv._job_files(0, 5)[0], tv._job_files(0, 6)[0])
+
+    def test_dispatch_carries_reader_identity(self):
+        now = int(time.time() * 1000)
+        rd = {"area": "town", "scene": "gameplay", "names": [], "conf": 0.9, "ms": 5}
+        job = {"n": 7, "fid": "", "interest": 0.5, "priority": False,
+               "dispatch": {"readerId": 2, "poolN": 3, "poolInFlight": 2, "origin": "settle"},
+               "raw": "the-thought"}
+        tv._order_push(now, job, rd, None)
+        applied = tv._order_drain()
+        self.assertEqual(len(applied), 1)
+        disp = applied[0].get("dispatch") or {}
+        self.assertEqual(disp.get("readerId"), 2)
+        self.assertEqual(disp.get("poolN"), 3)
+        self.assertIn("appliedTs", disp)
+        self.assertEqual(applied[0].get("raw"), "the-thought")
+
+    def test_pool_n_one_busy_semantics(self):
+        tv.POOL_N = 1
+        with tv._pool_lock:
+            tv._in_flight.clear()
+            tv._pool_free[:] = [0]
+        self.assertFalse(tv._vision_busy())
+        self.assertEqual(tv._vision_in_flight_n(), 0)
+        self._mark_inflight("solo", 0, int(time.time() * 1000))
+        self.assertTrue(tv._vision_busy())
+        self.assertEqual(tv._vision_in_flight_n(), 1)
+        self._pop_inflight("solo")
+        self.assertFalse(tv._vision_busy())
+
+    def test_pool_default_is_8_and_clamps_1_to_8(self):
+        import subprocess as sp
+        tvdir = os.path.dirname(os.path.abspath(tv.__file__))
+
+        def pooln(env_val):
+            e = dict(os.environ)
+            e.pop("TV_POOL", None)
+            if env_val is not None:
+                e["TV_POOL"] = env_val
+            out = sp.check_output(
+                [sys.executable, "-c",
+                 "import tv_diablo,sys; sys.stdout.write(str(tv_diablo.POOL_N))"],
+                cwd=tvdir, env=e, text=True)
+            return int(out.strip())
+
+        self.assertEqual(pooln(None), 8, "owner default must be 8 readers")
+        self.assertEqual(pooln("1"), 1)
+        self.assertEqual(pooln("3"), 3)
+        self.assertEqual(pooln("8"), 8)
+        self.assertEqual(pooln("12"), 8)
+        self.assertEqual(pooln("0"), 1)
+
+    def test_heartbeat_cap_scales_with_pool(self):
+        for n, cap in [(1, 1), (2, 1), (3, 1), (4, 1), (5, 2), (8, 2)]:
+            tv.POOL_N = n
+            self.assertEqual(tv._heartbeat_cap(), cap, "cap wrong at POOL_N=%d" % n)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

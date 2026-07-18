@@ -889,7 +889,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v862",
+        "ver": "v863",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
