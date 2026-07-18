@@ -1479,3 +1479,9 @@ true — every frame paid a subprocess), dead pins release the wid (film full-sc
 hammering a corpse), 💓 HEARTBEAT_S=8 forced dual-lane reads when combat never settles (146s
 blindness dead; settle/queue always win; origin+note journaled), health.footageFps + UI floors
 (FOOTAGE STARVE <0.8fps · READ BLIND >20s, was 180s). 138/138 + 27/27.
+
+## 💓 v862 "Two-Second Pulse" (Konyo: 'every 2 secs', ~03:10)
+TV_HEARTBEAT default → 2s (floor 1s): with vision free, a read fires every ~2s + settle/queue
+still win. Effective cadence now bounded by ONE reader's vision latency (5-20s deep) — the
+reader-pool architecture round (Grok, in flight) is what unlocks true 2s sustained.
+138/138 + 27/27.

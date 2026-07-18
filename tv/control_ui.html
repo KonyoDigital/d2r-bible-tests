@@ -951,7 +951,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v861 control</span>
+      <span id="foot-ver">v862 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1221,7 +1221,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v861') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v862') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)

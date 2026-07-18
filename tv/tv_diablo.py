@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v861"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v862"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -40,7 +40,7 @@ PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests
 SESSION_ID = ""
 # v846 — TESLA DRIVE pacing (Konyo: ultra smooth / self-driving feel)
 MIN_GAP_S    = float(os.environ.get("TV_MIN_GAP", "2.0") or 2.0)       # was 4 — cruise re-reads sooner
-HEARTBEAT_S = max(4.0, min(20.0, float(os.environ.get("TV_HEARTBEAT", "8") or 8)))   # v861 (Grok c) — never blind >8s in combat
+HEARTBEAT_S = max(1.0, min(20.0, float(os.environ.get("TV_HEARTBEAT", "2") or 2)))   # v862 (Konyo: 'every 2 secs') — 2s default heartbeat
 PRIORITY_GAP_S = float(os.environ.get("TV_PRIORITY_GAP", "0.55") or 0.55)  # was 1.2 — pile snaps hard
 # v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
 SESSION_CAP  = 240
