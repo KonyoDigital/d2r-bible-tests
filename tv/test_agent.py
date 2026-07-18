@@ -943,6 +943,28 @@ class TestWindowPin(unittest.TestCase):
         wid, label = hit
         self.assertNotIn("tv diablo", label.lower())
         self.assertIsInstance(wid, int)
+        # v843 — if a game is up, pin must be D2R.exe (not CrossOver / Battle.net)
+        low = label.lower()
+        if "d2r" in low or "diablo" in low:
+            self.assertIn("d2r.exe", low)
+            self.assertNotIn("crossover", low.split("·")[0])
+            self.assertNotIn("battle.net", low.split("·")[0])
+
+    def test_score_rejects_crossover_home_and_battle_net(self):
+        """v843 — CrossOver Home + Battle.net lobby must never outrank the game."""
+        self.assertIsNone(tv.score_d2r_window_candidate("CrossOver", "CrossOver", 1150, 700))
+        self.assertIsNone(tv.score_d2r_window_candidate("CrossOver", "Home", 1150, 700))
+        self.assertIsNone(tv.score_d2r_window_candidate("Battle.net.exe", "Battle.net", 1470, 805))
+        self.assertIsNone(tv.score_d2r_window_candidate("Google Chrome", "D2R Farming Bible", 1400, 900))
+
+    def test_score_prefers_d2r_exe_game(self):
+        """v843 — D2R.exe · Diablo II: Resurrected is the absolute pin winner."""
+        game = tv.score_d2r_window_candidate(
+            "D2R.exe", "Diablo II: Resurrected", 1470, 956, onscreen=True)
+        self.assertIsNotNone(game)
+        self.assertGreater(game, 10000)
+        # thin chrome bars under D2R.exe still lose on size
+        self.assertIsNone(tv.score_d2r_window_candidate("D2R.exe", "", 1470, 33))
 
     def test_capture_target_dict_shape(self):
         self.assertIn("mode", tv._CAP_TARGET)

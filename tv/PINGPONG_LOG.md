@@ -1300,3 +1300,16 @@ time-synced machine.
 - Never two concurrent deeps. Dispatch stamps `engineTick` + `origin`.
 
 **Gates:** 146/146 agent+control · stamps v842 (agent · control · UI · D2R_BUILD).
+
+
+### 🎯 v843 — PIN D2R.exe ONLY + hardcoded CrossOver_patched path ✅
+**Konyo:** game opens via CrossOver_patched → Battle.net → D2R. TV-D must film the
+**correct** window — not CrossOver Home / Battle.net shell. Agents must remember the path.
+
+**Code:**
+- `score_d2r_window_candidate()` pure scorer; `D2R.exe` absolute winner (+10000).
+- Hard reject: CrossOver, Battle.net.exe, browsers, thin bars (&lt;480h).
+- `AGENTS.md` + `.grok/rules/mac-crossover-d2r.md` durable play-path memory.
+- Bottle path truth: `~/CXPBottles/Battle.net Desktop App/`.
+
+**Gates:** agent+control suite · stamps v843.

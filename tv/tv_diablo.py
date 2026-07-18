@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v842"   # ONE truth — unit engine: scout+settle+deep share one clock
+VERSION = "v843"   # ONE truth — pin D2R.exe only (never CrossOver Home / Battle.net shell)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -323,29 +323,32 @@ def bridge():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
-# ── v772.1 — capture target ──────────────────────────────────────────────────
-# DEFAULT = full screen (Konyo plays CrossOver D2R fullscreen — whole display = game).
-# TV_CAPTURE=full|auto|window — default AUTO (v777.1): pin the live D2R/CrossOver window when
-# present (the eye watches the GAME, not the desktop), full-screen when no game window exists.
+# ── v772.1 / v843 — capture target ───────────────────────────────────────────
+# Konyo Mac play path (HARDCODED — agents must never invent another):
+#   Desktop/CrossOver_patched.app → bottle "Battle.net Desktop App" → Battle.net
+#   tile → Diablo II Resurrected Play. Bottle lives at ~/CXPBottles/…
+# TV_CAPTURE=full|auto|window — default AUTO: pin D2R.exe game window only.
+# NEVER pin: CrossOver Home UI, Battle.net lobby shell, browsers, TV DIABLO UI.
 # TV_WINDOW_MATCH=extra,comma,tokens  (only used when window/auto)
 _CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
 
 
-# Owner / title tokens — CrossOver + native D2R. Avoid bare "wine" alone (too broad).
+# Owner / title tokens — game process first. Bare "wine" alone is too broad.
 _PICK_WHY = ""   # v779-pre diag — why the last pick returned None
 _CAP_WHY = ""
 _LAST_GOOD_WIN = None   # v779 — the pin survives flaky window listings
 _D2R_OWNER_HINTS = (
-    "crossover", "cross over", "cxpatcher", "winebottler",
-    "diablo", "d2r", "battle.net", "battle net",
+    "d2r.exe", "d2r", "diablo",
+    # host apps only as last-resort match tokens (scoring still rejects bare Home)
+    "crossover", "cross over", "cxpatcher",
 )
 _D2R_TITLE_HINTS = (
-    "diablo ii", "diablo 2", "diablo ii: resurrected", "diablo ii resurrected",
+    "diablo ii: resurrected", "diablo ii resurrected", "diablo ii", "diablo 2",
     "d2r", "resurrected",
 )
-# Prefer these process/owner names when several match
+# Prefer these process/owner names when several match (game exe first)
 _D2R_OWNER_PRIORITY = (
-    "crossover", "diablo", "d2r", "wine", "wineloader", "cxstart",
+    "d2r.exe", "d2r", "diablo", "wine", "wineloader", "cxstart",
 )
 # v779.1 (live test): Chrome tab "Konyo's D2R Farming Bible" out-scored D2R.exe because
 # title tokens matched. Browsers / editors / our own chrome are NEVER the eye.
@@ -355,13 +358,17 @@ _PICK_OWNER_BLOCK = (
     "code", "cursor", "visual studio code", "sublime text", "atom",
     "terminal", "iterm2", "warp", "kitty", "alacritty",
     "slack", "discord", "zoom", "figma", "notion",
+    # v843 — CrossOver *app* and Battle.net *shell* are never the film target
+    "crossover", "cross over",
+    "battle.net.exe", "battle.net", "battle net",
 )
 _PICK_TITLE_BLOCK = (
     "farming bible", "d2r bible", "tv diablo", "localhost", "127.0.0.1",
+    "crossover", "battle.net", "battle net",  # Home / lobby chrome titles
 )
 # Bare CrossOver shell / launcher Home — never the game (D2R.exe owns the real window).
 _PICK_LAUNCHER_TITLES = (
-    "crossover", "cross over", "battle.net", "battle net",
+    "crossover", "cross over", "battle.net", "battle net", "home",
 )
 
 
@@ -370,10 +377,85 @@ def _match_tokens():
     return list(_D2R_TITLE_HINTS) + list(_D2R_OWNER_HINTS) + extra
 
 
+def _is_d2r_game_owner(owner_l):
+    """True when the process is the real game binary (CrossOver-hosted D2R.exe)."""
+    ol = (owner_l or "").strip().lower()
+    if not ol:
+        return False
+    if ol == "d2r.exe" or ol.endswith("/d2r.exe") or ol.endswith("\\d2r.exe"):
+        return True
+    if ol.endswith(".exe") and ("d2r" in ol or "diablo ii" in ol or "diabloii" in ol):
+        return True
+    return False
+
+
+def _is_launcher_shell(owner_l, title_l):
+    """v843 — CrossOver Home / Battle.net lobby / thin chrome — NEVER the eye."""
+    ol, tl = (owner_l or "").lower(), (title_l or "").lower()
+    if ol in ("crossover", "cross over") or ol.startswith("crossover"):
+        return True
+    if "battle.net" in ol or ol in ("battle.net.exe", "battle net"):
+        return True
+    if tl in _PICK_LAUNCHER_TITLES:
+        return True
+    if tl in ("home", "crossover", "battle.net"):
+        return True
+    return False
+
+
+def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
+    """v843 — pure scorer for unit tests + find_d2r_window_mac.
+    Returns int score, or None if this window must never be pinned.
+    Absolute winner: D2R.exe with a Diablo/Resurrected title and game-sized bounds."""
+    ol = (owner or "").strip().lower()
+    tl = (title or "").strip().lower()
+    ww, hh = int(width or 0), int(height or 0)
+    if ww < 640 or hh < 480:
+        return None
+    if ol == "python" and "tv diablo" in tl:
+        return None
+    if any(b in ol for b in _PICK_OWNER_BLOCK) and not _is_d2r_game_owner(ol):
+        # block list includes crossover/battle.net — game exe still allowed
+        return None
+    if any(b in tl for b in _PICK_TITLE_BLOCK) and not _is_d2r_game_owner(ol):
+        return None
+    if _is_launcher_shell(ol, tl) and not _is_d2r_game_owner(ol):
+        return None
+    # Must be the game process OR a clear Diablo game title (never lobby alone)
+    is_game = _is_d2r_game_owner(ol)
+    title_game = ("diablo" in tl or "resurrected" in tl or tl == "d2r"
+                  or any(t in tl for t in _D2R_TITLE_HINTS))
+    if not is_game and not title_game:
+        return None
+    # Title-only without game owner: reject if it still looks like a shell
+    if not is_game and _is_launcher_shell(ol, tl):
+        return None
+    score = 0
+    if is_game:
+        score += 10000          # absolute — always beats CrossOver/Battle.net/Chrome
+    if "d2r.exe" in ol:
+        score += 2000
+    if title_game:
+        score += 1500
+    if "diablo ii: resurrected" in tl or "diablo ii resurrected" in tl:
+        score += 500
+    if any(t in ol for t in _D2R_OWNER_PRIORITY):
+        score += 30
+    if onscreen:
+        score += 40
+    area = ww * hh
+    score += min(area // 100000, 20)
+    # Prefer taller gameplay view over thin bars that slip past min height
+    if hh >= 700:
+        score += 50
+    return score
+
+
 def find_d2r_window_mac():
-    """Return (window_id:int, label:str) for the best on-screen D2R/CrossOver game window, or None.
-    Uses Quartz (already on machine via pywebview/pyobjc). Read-only window list.
-    v783 — short TTL cache so capture doesn't re-scan the whole window tree every frame."""
+    """Return (window_id:int, label:str) for the best on-screen D2R game window, or None.
+    Uses Quartz. Read-only. NEVER returns CrossOver Home or Battle.net shell.
+    v783 — short TTL cache so capture doesn't re-scan every frame.
+    v843 — score_d2r_window_candidate hard-prefers D2R.exe · Diablo II: Resurrected."""
     global _PICK_WHY, _PICK_CACHE
     now = time.monotonic()
     if _PICK_CACHE and (now - _PICK_CACHE[1]) < _PICK_TTL_S:
@@ -388,15 +470,11 @@ def find_d2r_window_mac():
         _PICK_WHY = "quartz-import: %s" % e
         return None
     try:
-        # v779-pre (Konyo live: 'it looks full screen') — THE SPACES PROBLEM: a fullscreen D2R
-        # lives on its OWN macOS Space, so OnScreenOnly never saw it and auto fell back to
-        # desktop capture. All-spaces listing finds the game wherever it lives; screencapture
-        # -l captures a window across Spaces.
+        # Fullscreen D2R can live on its own Space — list ALL spaces.
         wins = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID) or []
     except Exception as e:
         _PICK_WHY = "winlist: %s" % e
         return None
-    tokens = _match_tokens()
     best = None  # (score, area, wid, label)
     for w in wins:
         try:
@@ -405,65 +483,24 @@ def find_d2r_window_mac():
                 continue  # skip menus/overlays
             owner = (w.get("kCGWindowOwnerName") or "").strip()
             title = (w.get("kCGWindowName") or "").strip()
-            ol, tl = owner.lower(), title.lower()
-            # skip our own control/board chrome
-            if ol == "python" and "tv diablo" in tl:
-                continue
-            # v779.1 — never pin browsers/editors (bible tab title contains "D2R"/"Diablo")
-            if any(b in ol for b in _PICK_OWNER_BLOCK):
-                continue
-            if any(b in tl for b in _PICK_TITLE_BLOCK):
-                continue
-            # v779.1 — bare CrossOver Home / Battle.net shell is NOT the game
-            # (Konyo live: film showed CrossOver launcher while he was in Rogue Encampment)
-            is_game_exe = ("d2r" in ol or "diablo" in ol) and ol.endswith(".exe")
-            if not is_game_exe:
-                if ol in ("crossover", "cross over") and (not tl or tl in _PICK_LAUNCHER_TITLES):
-                    continue
-                if tl in _PICK_LAUNCHER_TITLES and "diablo" not in tl and "d2r" not in tl and "resurrected" not in tl:
-                    continue
-            blob = f"{ol} {tl}"
-            if not any(t in blob for t in tokens):
-                continue
-            # must look like a game-sized window
             b = w.get("kCGWindowBounds") or {}
             ww, hh = int(b.get("Width") or 0), int(b.get("Height") or 0)
-            if ww < 640 or hh < 400:
+            sc = score_d2r_window_candidate(
+                owner, title, ww, hh, onscreen=bool(w.get("kCGWindowIsOnscreen")))
+            if sc is None:
                 continue
             wid = w.get("kCGWindowNumber")
             if not wid:
                 continue
-            score = 0
-            # v779 (live pick bug): the CrossOver LAUNCHER out-scored the actual game
-            # window (12752 beat 'D2R.exe · Diablo II: Resurrected'). Game identity is
-            # ABSOLUTE — a diablo/d2r title or a D2R.exe owner beats any launcher math.
-            # Process owner beats title (Chrome bible tabs also say "D2R").
-            if "d2r.exe" in ol or ol.endswith("d2r.exe") or ol == "d2r.exe":
-                score += 5000   # the real game process — absolute winner
-            if ol.endswith(".exe") and ("d2r" in ol or "diablo" in ol):
-                score += 2000
-            if "diablo" in tl or "d2r" in tl or "resurrected" in tl:
-                score += 1000
-            if "d2r" in ol or "diablo" in ol:
-                score += 500
-            if any(t in tl for t in _D2R_TITLE_HINTS):
-                score += 50
-            if any(t in ol for t in _D2R_OWNER_PRIORITY):
-                score += 30
-            # CrossOver host process alone is NOT a pin target — only a tiny tiebreak if somehow still here
-            if "crossover" in ol and not is_game_exe:
-                score -= 200
-            if w.get("kCGWindowIsOnscreen"):
-                score += 40
             area = ww * hh
-            score += min(area // 100000, 20)  # prefer larger
             label = f"{owner}" + (f" · {title}" if title else "")
-            cand = (score, area, int(wid), label[:80])
+            cand = (sc, area, int(wid), label[:80])
             if best is None or cand > best:
                 best = cand
         except Exception:
             continue
     if not best:
+        _PICK_WHY = "no D2R.exe game window (CrossOver Home / Battle.net never pin)"
         _PICK_CACHE = (None, now)
         return None
     hit = (best[2], best[3])
@@ -2210,7 +2247,7 @@ def main():
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
     print(f"📺 TV DIABLO Autopilot {VERSION} — UNIT ENGINE · scout+settle+deep · one clock")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
-    print("   capture: AUTO (pins the D2R window when live; TV_CAPTURE=full to force full-screen)")
+    print("   capture: AUTO (pins D2R.exe only — never CrossOver Home / Battle.net; TV_CAPTURE=full for display)")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s")
     print(f"   unit clock: poll {POLL_S}s · scout every {_scout_every_ticks()} ticks (~{SCOUT_INTERVAL_S}s) · scout gap {SCOUT_GAP_S}s")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
