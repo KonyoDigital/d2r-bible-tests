@@ -1359,3 +1359,8 @@ then force-kill orphans. ON never attaches to a stranger bridge — stops first.
 **UI:** cutFeed waits until bridge down; toast "session saved · off air".
 
 **Stamps:** v847.
+
+## 🏃 ARMY WAVE opens → v848 "The Garbage Gate" (~20:15)
+Visual-verify catch: OCR junk ('QvfST L•') reached the seed path + the ⚡ headline. _itemish()
+gate (length/glyphs/letter-ratio/vowel) guards the SEED (garbage never enters the chain) and the
+read-line display ('+N raw (drawer)' keeps forensic truth one click away). 124/124 + 27/27.

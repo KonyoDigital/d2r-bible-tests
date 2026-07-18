@@ -1582,5 +1582,18 @@ class TestDecisionChain(unittest.TestCase):
         self.assertIn("committed", tv._reason_for("vault:stash"))
 
 
+
+class TestItemishGate(unittest.TestCase):
+    """v848 — OCR garbage never seeds the chain."""
+
+    def test_gate(self):
+        self.assertTrue(tv._itemish("Harlequin Crest"))
+        self.assertTrue(tv._itemish("Ist Rune"))
+        self.assertFalse(tv._itemish("QvfST L\u2022"))
+        self.assertFalse(tv._itemish("y$-."))
+        self.assertFalse(tv._itemish("xyz"))
+        self.assertFalse(tv._itemish("FLAfflQ R{}"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v847"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v848"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2722,6 +2722,23 @@ def main():
         )
         continue
 
+def _itemish(name):
+    """v848 — OCR garbage gate for the SEED path + short displays ('QvfST L•' reached the
+    stage). Item names are wordy: mostly letters, a vowel, no glyph junk. The drawer keeps
+    RAW ocr truth — this only guards what gets seeded/headlined."""
+    t = str(name or "").strip()
+    if len(t) < 4 or len(t) > 40:
+        return False
+    if any(c in t for c in "•*&#@$%{}[]<>|\\_=+~^"):
+        return False
+    letters = sum(1 for c in t if c.isalpha() or c in " '-")
+    if letters / max(1, len(t)) < 0.8:
+        return False
+    if not any(c in "aeiouAEIOU" for c in t):
+        return False
+    return True
+
+
 def _reason_for(tag, loc=""):
     """v836 (SIMULATION_SPEC) — every verdict tag gets a WHY in the owner's language.
     Tags say WHAT the pipeline did; these say WHY, for the SIM decision chain."""
@@ -2787,7 +2804,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     # stash of that item still has its chain, and arm one re-read of this view.
     _ocr_seed = []
     if not names:
-        _ocr_seed = [x for x in ((ocr_rd or {}).get("names") or []) if str(x).strip()][:12]
+        _ocr_seed = [x for x in ((ocr_rd or {}).get("names") or []) if _itemish(x)][:12]   # v848 — garbage never seeds the chain
     if _ocr_seed:
         try:
             _LIFECYCLE.process("loot", _ocr_seed, rd.get("area") or "", None)
