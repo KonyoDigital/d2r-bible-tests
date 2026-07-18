@@ -1,7 +1,12 @@
 # 📺 TV DIABLO — live game-screen scanner
 
-Play Diablo II. TV DIABLO watches the screen, reads the items you stop to look
-at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
+Play Diablo II. TV DIABLO watches the screen and streams the tally into the
+Farming Bible's ⚡ session → 📺 panel.
+
+**Playstyle (v842 unit engine):** you farm *normally*. You do **not** need a
+deliberate stop+hover ritual. Mid-play on-screen loot **text** is snagged by the
+scout sense path; full freezes (stash/panels/optional pauses) still go through
+settle. Same clock, one dual-lane — not separate random readers.
 
 ## The three rules (why this is clean)
 
@@ -14,9 +19,9 @@ at, and streams the tally into the Farming Bible's ⚡ session → 📺 panel.
    rotate, nothing in the repo. The agent **strips `ANTHROPIC_API_KEY` /
    `ANTHROPIC_AUTH_TOKEN` from vision subprocesses** so a shell API key cannot
    steal auth from your login (v720 / live run #2).
-3. **Frugal by design.** A read fires only when the screen *settles* (you
-   stopped moving = you're reading items). Cruise gap ~4s · priority ~1.2s ·
-   session cap 240. OCR is fast; Claude deep is multi-second (subscription).
+3. **Frugal unit engine.** One poll clock · sense→decide→act. Scout samples
+   mid-play text; settle catches context freezes; one Claude deep at a time.
+   Cruise gap ~4s · priority/scout ~1.2s · soft session cap 240.
 
 ## Mac (Konyo) — one-click install (mirrors Windows)
 
@@ -53,9 +58,9 @@ Or the long form: `python3 tv/tv_diablo.py`
 First run: macOS will ask for Screen Recording permission for your terminal —
 grant it (System Settings → Privacy & Security → Screen Recording).
 
-**Fullscreen D2R** works best: the settle detector is a strict pixel md5, so a
-visible menu-bar clock (or any ticking HUD) keeps every frame “different” and
-reads never fire. Fullscreen game → stable frames when you stop on loot.
+**Fullscreen D2R** works best (menu-bar clocks thrash settle). For max mid-play
+hits: enable **show-items / ground loot name labels** — the engine reads *text on
+screen*, never invents names from bare icons (read-only doctrine).
 
 One-shot vision check (no bridge):
 

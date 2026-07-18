@@ -1585,7 +1585,7 @@
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
     if (!TH.sessions.length){
       $('theatre').hidden = false; TH.open = true;
-      $('th-caption').textContent = '🎞 no journaled sessions yet — press ON AIR, play a run (hover loot), then SIM replays it with locked frames';
+      $('th-caption').textContent = '🎞 no journaled sessions yet — press ON AIR, farm normally (unit engine snags on-screen loot text), then SIM replays locked frames';
       document.body.classList.add('theatre-open'); thLit(); return;
     }
     TH.open = true;
