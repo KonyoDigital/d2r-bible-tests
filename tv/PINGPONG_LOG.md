@@ -1201,3 +1201,8 @@ drawer section renders ⚠/✂ lines or 'clean — everything the model said sur
 _reason_for(tag, loc): every verdict speaks WHY in Konyo's language ('read in the stash but
 NEVER seen on floor/inventory this session — no provenance, blocked'); rec.decisions =
 {name: {loc, tag, why}}; drawer chain section: name 🎽/🎒/🏦/🧱 › tag › why. 115/115 + 26/26.
+
+## 🏓 R15 → v837 "The Session Shelf" (~20:10)
+📚/S opens the shelf: every recorded run as a card (session#, date+time, span, reads, named,
+areas; current reel ringed mint) — click to load, click-away to close. Verified live: 26 cards.
+115/115 + 26/26.
