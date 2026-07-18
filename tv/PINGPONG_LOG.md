@@ -1139,3 +1139,11 @@ into the session window as film-only beats; 📼 FULL plays them at REAL time (g
 1500ms → 1s/frame at 1×, 2×/4× speed it) with the STANDING AI read + '📹 footage · hh:mm:ss.ms ·
 the eye, 1 frame/sec' annotation; 🎬 CUT still tells the story (footage dropped); hairline
 timeline ticks. Next sessions recorded from v826 onward carry footage. 97/97 + 25/25.
+
+## 🏃 ARMY MERGE → v827 "No Freeze Left Behind" (settle-agent, ~16:50)
+The last big loot-truth hole is closed (Grok R5 #1 / R9 #2): distinct freezes landing during a
+7-90s vision call are COPIED to frames/queue (ring cap 4, sig-deduped, 120s stale-drop, reading-
+view excluded) and the NEWEST drains through the identical dual-lane pipeline the instant the
+read frees (drain re-arms _VISION_BUSY — a second concurrent call is impossible); inline dispatch
+lifted into _launch_vision shared by both paths; queue dies with the session. 6 new locks.
+Fable gate: 103/103 + 25/25.

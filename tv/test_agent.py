@@ -1287,5 +1287,100 @@ class TestOcrTwinLane(unittest.TestCase):
             os.environ.pop("TV_OCR_BIN", None)
 
 
+
+class TestSettleQueue(unittest.TestCase):
+    """v827 (Grok R5 #1 / R9 #2) — the settle-queue ring buffer: freezes that land WHILE a
+    Claude vision call is in flight are captured (a copied snapshot) and the NEWEST one is
+    drained through the same pipeline the moment the read frees up — instead of vanishing at
+    the `if _VISION_BUSY:` continue."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._old = {k: getattr(tv, k) for k in
+                     ("FRAMES", "SETTLE_QUEUE_CAP", "SETTLE_QUEUE_STALE_MS")}
+        self._old_emit = tv.__dict__.get("_LAST_EMIT_SIG")
+        tv.FRAMES = self.d
+        tv._SETTLE_QUEUE[:] = []
+        tv._LAST_EMIT_SIG = None
+        self.src = os.path.join(self.d, "live.bmp")
+        open(self.src, "wb").write(b"x" * 128)
+
+    def tearDown(self):
+        for k, v in self._old.items():
+            setattr(tv, k, v)
+        tv._LAST_EMIT_SIG = self._old_emit
+        tv._SETTLE_QUEUE[:] = []
+        import shutil
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    @staticmethod
+    def _sig(v):
+        return bytes([v]) * 4096
+
+    def test_capture_during_busy_and_dedupe(self):
+        tv._settle_enqueue(self.src, self._sig(0), interest=0.5, priority=True)
+        tv._settle_enqueue(self.src, self._sig(0), interest=0.5, priority=True)
+        tv._settle_enqueue(self.src, self._sig(90), interest=0.2, priority=False)
+        self.assertEqual(len(tv._SETTLE_QUEUE), 2)
+        first = tv._SETTLE_QUEUE[0]
+        self.assertEqual(first["interest"], 0.5)
+        self.assertTrue(first["priority"])
+        self.assertTrue(all(os.path.isfile(e["path"]) for e in tv._SETTLE_QUEUE))
+        self.assertTrue(first["path"].startswith(os.path.join(self.d, "queue")))
+        self.assertNotEqual(first["path"], self.src)
+
+    def test_reading_view_not_requeued(self):
+        tv._LAST_EMIT_SIG = self._sig(0)
+        tv._settle_enqueue(self.src, self._sig(0))
+        self.assertEqual(len(tv._SETTLE_QUEUE), 0)
+        tv._settle_enqueue(self.src, self._sig(120))
+        self.assertEqual(len(tv._SETTLE_QUEUE), 1)
+
+    def test_cap_eviction_is_fifo(self):
+        tv.SETTLE_QUEUE_CAP = 2
+        for v in (0, 80, 160):
+            tv._settle_enqueue(self.src, self._sig(v))
+        self.assertEqual([e["sig"] for e in tv._SETTLE_QUEUE],
+                         [self._sig(80), self._sig(160)])
+        qd = os.path.join(self.d, "queue")
+        self.assertEqual(sorted(os.listdir(qd)),
+                         sorted(os.path.basename(e["path"]) for e in tv._SETTLE_QUEUE))
+
+    def test_drain_pops_newest_and_cleans_the_rest(self):
+        for v in (0, 80, 160):
+            tv._settle_enqueue(self.src, self._sig(v))
+        older = [e["path"] for e in tv._SETTLE_QUEUE[:-1]]
+        entry = tv._settle_drain_pop()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry["sig"], self._sig(160))
+        self.assertEqual(len(tv._SETTLE_QUEUE), 0)
+        self.assertTrue(os.path.isfile(entry["path"]))
+        for p in older:
+            self.assertFalse(os.path.isfile(p))
+        self.assertIsNone(tv._settle_drain_pop())
+
+    def test_stale_entries_dropped(self):
+        tv._settle_enqueue(self.src, self._sig(0))
+        stale_path = tv._SETTLE_QUEUE[0]["path"]
+        tv._SETTLE_QUEUE[0]["ts"] -= (tv.SETTLE_QUEUE_STALE_MS + 5000)
+        tv._settle_enqueue(self.src, self._sig(80))
+        self.assertEqual([e["sig"] for e in tv._SETTLE_QUEUE], [self._sig(80)])
+        self.assertFalse(os.path.isfile(stale_path))
+        tv._SETTLE_QUEUE[0]["ts"] -= (tv.SETTLE_QUEUE_STALE_MS + 5000)
+        p2 = tv._SETTLE_QUEUE[0]["path"]
+        self.assertIsNone(tv._settle_drain_pop())
+        self.assertFalse(os.path.isfile(p2))
+
+    def test_clear_wipes_files_on_farewell(self):
+        for v in (0, 80):
+            tv._settle_enqueue(self.src, self._sig(v))
+        paths = [e["path"] for e in tv._SETTLE_QUEUE]
+        tv._settle_queue_clear()
+        self.assertEqual(len(tv._SETTLE_QUEUE), 0)
+        for p in paths:
+            self.assertFalse(os.path.isfile(p))
+        qd = os.path.join(self.d, "queue")
+        if os.path.isdir(qd):
+            self.assertFalse([f for f in os.listdir(qd) if f.endswith(".bmp")])
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

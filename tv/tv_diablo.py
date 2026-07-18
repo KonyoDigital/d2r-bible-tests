@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v826"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v827"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1088,6 +1088,110 @@ _VISION_BUSY = False
 _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall detection)
 _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back empty: allow ONE re-read of that view
 
+# v825 (Grok R5 #1 / R9 #2) — SETTLE QUEUE ring buffer ──────────────────────────
+# A 7–90s Claude vision call runs on a background thread; meanwhile the main loop keeps
+# capturing. Distinct freezes that landed during that window used to hit the `if _VISION_BUSY:`
+# `continue` and vanish forever (hover A→B→C while A is read: B, C never reached OCR / hist /
+# lifecycle / journal). We ring-buffer a COPIED snapshot of each new freeze (the live frame is
+# about to be overwritten) and, the instant the in-flight read frees up, drain the NEWEST held
+# view (Konyo's most-current screen) through the same dual-lane pipeline.
+SETTLE_QUEUE_CAP = max(1, int(os.environ.get("TV_SETTLE_QUEUE_CAP", "4") or 4))
+SETTLE_QUEUE_STALE_MS = max(1000, int(os.environ.get("TV_SETTLE_QUEUE_STALE_MS", "120000") or 120000))
+_SETTLE_QUEUE = []              # FIFO, newest last; each: {"path","sig","ts","interest","priority"}
+_settle_q_lock = threading.Lock()
+
+def _settle_queue_dir():
+    d = os.path.join(FRAMES, "queue")
+    try: os.makedirs(d, exist_ok=True)
+    except Exception: pass
+    return d
+
+def _settle_file_del(entry):
+    try:
+        p = entry.get("path") if isinstance(entry, dict) else entry
+        if p and os.path.isfile(p): os.remove(p)
+    except Exception:
+        pass
+
+def _settle_enqueue(src_frame, sig, interest=0.0, priority=False):
+    """Copy the live frame to frames/queue/<sig8>.bmp and ring-buffer it. Deduped by sig
+    (skip the view Claude is reading right now, and anything already queued, within SETTLE);
+    FIFO cap SETTLE_QUEUE_CAP; entries older than SETTLE_QUEUE_STALE_MS pruned with a `cap` ev.
+    Never raises into the scan loop."""
+    try:
+        now = int(time.time() * 1000)
+        reading = globals().get("_LAST_EMIT_SIG")
+        if reading is not None and sig_diff(sig, reading) <= SETTLE:
+            return   # this is the very view being read — don't re-queue it
+        with _settle_q_lock:
+            fresh, dropped = [], 0
+            for e in _SETTLE_QUEUE:
+                if now - e["ts"] > SETTLE_QUEUE_STALE_MS:
+                    _settle_file_del(e); dropped += 1
+                else:
+                    fresh.append(e)
+            _SETTLE_QUEUE[:] = fresh
+            if dropped:
+                ev("cap", "settle-queue — dropped %d stale freeze(s) (>%ds) waiting for a read"
+                   % (dropped, SETTLE_QUEUE_STALE_MS // 1000))
+            for e in _SETTLE_QUEUE:
+                if sig_diff(sig, e["sig"]) <= SETTLE:
+                    return   # already holding this view
+            sig8 = hashlib.md5(bytes(sig)).hexdigest()[:8]
+            dest = os.path.join(_settle_queue_dir(), sig8 + ".bmp")
+            try:
+                import shutil
+                shutil.copy2(src_frame, dest)
+            except Exception:
+                return
+            _SETTLE_QUEUE.append({"path": dest, "sig": sig, "ts": now,
+                                  "interest": round(float(interest), 3), "priority": bool(priority)})
+            while len(_SETTLE_QUEUE) > SETTLE_QUEUE_CAP:   # newest freeze evicts the oldest held view
+                _settle_file_del(_SETTLE_QUEUE.pop(0))
+    except Exception:
+        pass
+
+def _settle_drain_pop():
+    """Pop the NEWEST held freeze (most-current view). Stale entries (>SETTLE_QUEUE_STALE_MS)
+    are dropped first with a `cap` ev; the remaining older views are superseded, so their files
+    are cleaned too. Returns the entry dict (its snapshot file still on disk) or None."""
+    now = int(time.time() * 1000)
+    with _settle_q_lock:
+        fresh, dropped = [], 0
+        for e in _SETTLE_QUEUE:
+            if now - e["ts"] > SETTLE_QUEUE_STALE_MS:
+                _settle_file_del(e); dropped += 1
+            else:
+                fresh.append(e)
+        _SETTLE_QUEUE[:] = fresh
+        if dropped:
+            ev("cap", "settle-queue — dropped %d stale freeze(s) (>%ds) before a read freed up"
+               % (dropped, SETTLE_QUEUE_STALE_MS // 1000))
+        if not _SETTLE_QUEUE:
+            return None
+        entry = _SETTLE_QUEUE.pop()      # newest = most-current view
+        for e in _SETTLE_QUEUE:          # older held views are moot now — clean their files
+            _settle_file_del(e)
+        _SETTLE_QUEUE[:] = []
+        return entry
+
+def _settle_queue_clear():
+    """v825 — the queue dies with the session (farewell/shutdown), _eye_clear-style: drop every
+    held file so a fresh ON never drains yesterday's freezes. Never raises."""
+    with _settle_q_lock:
+        for e in _SETTLE_QUEUE:
+            _settle_file_del(e)
+        _SETTLE_QUEUE[:] = []
+    try:
+        d = os.path.join(FRAMES, "queue")
+        if os.path.isdir(d):
+            for f in os.listdir(d):
+                if f.endswith(".bmp"):
+                    try: os.remove(os.path.join(d, f))
+                    except Exception: pass
+    except Exception:
+        pass
+
 # ═══ v732 — OCR FAST LANE (Konyo: pile→chip in ~0.1–0.2s; LLM floors at 3–6s)
 # Local macOS Vision OCR (warm worker ~10–50ms). Claude stays the deep brain.
 # Honesty: OCR names are provisional (review-first, never vault_names) until deep/lifecycle.
@@ -1953,8 +2057,125 @@ def main():
     priority = False      # hard motion seen since last read → short gap + 1-tick settle
     empty_streak = 0
     named_until = 0.0     # boost interest after a named hit
+
+    def _launch_vision(snap_src, cur_snap, n_this, fid_this, interest_this, used_priority, read_ts):
+        """v825 (Grok R5 #1 / R9 #2) — snapshot the settled frame + run the dual-lane
+        (OCR fast + Claude deep) read on a background thread. Called by BOTH the live settle
+        path and the settle-queue drain, so a freeze held during a 7–90s vision call flows
+        through the identical pipeline. One read at a time — the _VISION_BUSY gate serializes
+        it, so a second concurrent vision call is never launched. Returns the path actually
+        handed to the vision thread (snap.bmp on success) so the caller can free the source."""
+        global _VISION_BUSY
+        import shutil
+        snap = os.path.join(FRAMES, "snap.bmp")
+        try:
+            shutil.copy2(snap_src, snap)
+            snap_path = snap
+        except Exception:
+            snap_path = snap_src
+        _VISION_BUSY = True
+        globals()["_VISION_BUSY_AT"] = time.time()
+
+        def _vision_job():
+            nonlocal empty_streak, named_until
+            global _VISION_BUSY
+            try:
+                # ── FAST LANE: local OCR first ──
+                ocr_rd = ocr_fast(snap_path)
+                if ocr_rd is not None:
+                    oms = ocr_rd.get("ms") or ocr_rd.get("wall_ms") or 0
+                    onames = ocr_rd.get("names") or []
+                    ev("ocr", f"⚡ocr {oms}ms · {len(onames)} name(s)" +
+                       ((" — " + ", ".join(onames[:4])) if onames else " — no item-ish text") +
+                       f" (raw {ocr_rd.get('raw_n', 0)})")
+                    print(f"  ⚡ ocr {oms}ms  {('· ' + ' · '.join(onames[:6])) if onames else '· no item-ish text'}")
+                    if onames:
+                        with _state_lock:
+                            st = _load()
+                            st.setdefault("seen", []); st.setdefault("farmed", [])
+                            prec = {
+                                "ts": read_ts, "names": onames, "n": n_this,
+                                "area": "", "scene": "loot", "tz": [],
+                                "ms": oms, "mode": "ocr", "lane": "ocr", "model": "ocr-mac",
+                                "conf": ocr_rd.get("conf"), "intent": "seen",
+                                "escalated": False, "interest": interest_this, "priority": used_priority,
+                                "provisional": True,
+                                "frameId": fid_this, "sessionId": SESSION_ID,
+                                "vault_names": [], "farmed_names": [],
+                                "pending_names": [], "thrown_names": [], "unvault_names": [],
+                                "lifecycle_tags": {nm: "ocr" for nm in onames},
+                                "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
+                            }
+                            st["reads"].append(prec)
+                            st["reads"] = st["reads"][-200:]
+                            st["readCount"] = n_this
+                            st["ap"] = dict(_AP)
+                            st["lifecycle"] = _LIFECYCLE.snapshot()
+                            for nm in onames:
+                                if not _is_anchor(nm) and not _is_junk(nm):
+                                    st["seen"].append({"ts": prec["ts"], "name": nm, "area": "", "scene": "loot", "src": "ocr"})
+                                    del st["seen"][:-200]
+                            _save(st)
+                        empty_streak = 0
+                        named_until = time.time() + 45
+                        _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+                        _AP["lastNamed"] = ", ".join(onames[:4])
+
+                # ── DEEP LANE: Claude ──
+                rd = claude_read(snap_path)
+                if should_learn_dead(rd):
+                    learn_dead_frame(cur_snap)
+                rec = emit_deep_read(rd, n=n_this, frame_id=fid_this, interest=interest_this,
+                                     used_priority=used_priority, ocr_rd=ocr_rd, farewell=False,
+                                     capture_ts=read_ts)
+                names = (rec or {}).get("names") or []
+                if names:
+                    empty_streak = 0
+                    named_until = time.time() + 45
+                    _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
+                    _AP["lastNamed"] = ", ".join(names[:4])
+                else:
+                    if not (ocr_rd and ocr_rd.get("names")):
+                        empty_streak += 1
+                        _AP["namedStreak"] = 0
+                _AP["emptyStreak"] = empty_streak
+            except Exception as e:
+                try: ev("cap", "vision job failed: %s" % e)
+                except Exception: pass
+            finally:
+                _VISION_BUSY = False
+                _AP["mode"] = "drive"
+                beat("watching", 0.0)
+
+        threading.Thread(target=_vision_job, daemon=True, name="tv-vision").start()
+        return snap_path
+
     while True:
         time.sleep(POLL_S)
+        # v825 (Grok R5 #1 / R9 #2) — SETTLE-QUEUE DRAIN. The instant the in-flight vision
+        # call frees up, read the NEWEST freeze that landed during it (Konyo's most-current
+        # view) through the same dual-lane pipeline. Runs before capture and drains one at a
+        # time — a second concurrent vision call is impossible (the drain re-arms _VISION_BUSY).
+        if (not _VISION_BUSY) and _SETTLE_QUEUE:
+            _q = _settle_drain_pop()
+            if _q is not None:
+                reads += 1
+                q_ts = _q["ts"]
+                q_fid = archive_read_frame(_q["path"], reads, q_ts)
+                print(f"  ⏭ settle-queue — reading a freeze held during the last read ({reads}/{SESSION_CAP})")
+                ev("settle", f"⏭ settle-queue drain · a view held during the last vision call · dual-lane read #{reads}"
+                   + (f" · frame {q_fid}" if q_fid else ""))
+                beat("reading", 0.0)
+                _AP["mode"] = "read"
+                last_read_t = time.time()
+                last_sent_md5 = _q["sig"]
+                globals()["_LAST_EMIT_SIG"] = _q["sig"]
+                used = _launch_vision(_q["path"], _q["sig"], reads, q_fid,
+                                      _q.get("interest", 0.0), _q.get("priority", False), q_ts)
+                if used != _q["path"]:
+                    try: os.remove(_q["path"])
+                    except Exception: pass
+                continue
         if WATCH_MODE:
             # v784 — Windows capture half reports pin status via cap_target.json
             _refresh_cap_target_from_disk()
@@ -2029,6 +2250,12 @@ def main():
             else:
                 stable = stable + 1
                 last_md5 = cur
+                # v825 (Grok R5 #1 / R9 #2) — SETTLE QUEUE: a distinct freeze that
+                # lands WHILE Claude is mid-read used to hit this `continue` and vanish.
+                # Ring-buffer a COPIED snapshot (the live frame is about to be
+                # overwritten) so the busy gate can drain the newest view the instant
+                # the in-flight read frees up.
+                _settle_enqueue(frame, cur, interest, priority)
             continue
         beat("watching", motion)
         if motion > SETTLE:
@@ -2125,91 +2352,9 @@ def main():
         peak = 0.0
         priority = False
 
-        # v782 — snapshot + background vision so capture/film never freeze for 7–90s
-        import shutil
-        snap = os.path.join(FRAMES, "snap.bmp")
-        try:
-            shutil.copy2(frame, snap)
-            snap_path = snap
-        except Exception:
-            snap_path = frame
-        n_this, fid_this, interest_this = reads, frame_id, interest
-        cur_snap = cur
-        _VISION_BUSY = True
-        globals()["_VISION_BUSY_AT"] = time.time()
-
-        def _vision_job():
-            nonlocal empty_streak, named_until
-            global _VISION_BUSY
-            try:
-                # ── FAST LANE: local OCR first ──
-                ocr_rd = ocr_fast(snap_path)
-                if ocr_rd is not None:
-                    oms = ocr_rd.get("ms") or ocr_rd.get("wall_ms") or 0
-                    onames = ocr_rd.get("names") or []
-                    ev("ocr", f"⚡ocr {oms}ms · {len(onames)} name(s)" +
-                       ((" — " + ", ".join(onames[:4])) if onames else " — no item-ish text") +
-                       f" (raw {ocr_rd.get('raw_n', 0)})")
-                    print(f"  ⚡ ocr {oms}ms  {('· ' + ' · '.join(onames[:6])) if onames else '· no item-ish text'}")
-                    if onames:
-                        with _state_lock:
-                            st = _load()
-                            st.setdefault("seen", []); st.setdefault("farmed", [])
-                            prec = {
-                                "ts": read_ts, "names": onames, "n": n_this,
-                                "area": "", "scene": "loot", "tz": [],
-                                "ms": oms, "mode": "ocr", "lane": "ocr", "model": "ocr-mac",
-                                "conf": ocr_rd.get("conf"), "intent": "seen",
-                                "escalated": False, "interest": interest_this, "priority": used_priority,
-                                "provisional": True,
-                                "frameId": fid_this, "sessionId": SESSION_ID,
-                                "vault_names": [], "farmed_names": [],
-                                "pending_names": [], "thrown_names": [], "unvault_names": [],
-                                "lifecycle_tags": {nm: "ocr" for nm in onames},
-                                "anchor": "n/a", "gone_candidates": [], "holdMs": HOLD_MS,
-                            }
-                            st["reads"].append(prec)
-                            st["reads"] = st["reads"][-200:]
-                            st["readCount"] = n_this
-                            st["ap"] = dict(_AP)
-                            st["lifecycle"] = _LIFECYCLE.snapshot()
-                            for nm in onames:
-                                if not _is_anchor(nm) and not _is_junk(nm):
-                                    st["seen"].append({"ts": prec["ts"], "name": nm, "area": "", "scene": "loot", "src": "ocr"})
-                                    del st["seen"][:-200]
-                            _save(st)
-                        empty_streak = 0
-                        named_until = time.time() + 45
-                        _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
-                        _AP["lastNamed"] = ", ".join(onames[:4])
-
-                # ── DEEP LANE: Claude ──
-                rd = claude_read(snap_path)
-                if should_learn_dead(rd):
-                    learn_dead_frame(cur_snap)
-                rec = emit_deep_read(rd, n=n_this, frame_id=fid_this, interest=interest_this,
-                                     used_priority=used_priority, ocr_rd=ocr_rd, farewell=False,
-                                     capture_ts=read_ts)
-                names = (rec or {}).get("names") or []
-                if names:
-                    empty_streak = 0
-                    named_until = time.time() + 45
-                    _AP["namedStreak"] = _AP.get("namedStreak", 0) + 1
-                    _AP["lastNamed"] = ", ".join(names[:4])
-                else:
-                    if not (ocr_rd and ocr_rd.get("names")):
-                        empty_streak += 1
-                        _AP["namedStreak"] = 0
-                _AP["emptyStreak"] = empty_streak
-            except Exception as e:
-                try: ev("cap", "vision job failed: %s" % e)
-                except Exception: pass
-            finally:
-                _VISION_BUSY = False
-                _AP["mode"] = "drive"
-                beat("watching", 0.0)
-
-        threading.Thread(target=_vision_job, daemon=True, name="tv-vision").start()
+        # v782/v825 — snapshot + background dual-lane read, now via _launch_vision so the
+        # settle-queue drain shares this exact pipeline (serialized by _VISION_BUSY).
+        _launch_vision(frame, cur, reads, frame_id, interest, used_priority, read_ts)
         continue
 
 def effective_lc_scene(scene, names):
@@ -2471,6 +2616,7 @@ def _shutdown_handler(signum, frame):
         except Exception:
             pass
     _eye_clear()   # v785 — the film dies with the session; next ON never flashes yesterday
+    _settle_queue_clear()   # v825 — the held-freeze queue dies with the session too
     print("\n📺 TV DIABLO off — good hunting.")
     # hard exit so we don't re-enter the main loop mid-sleep
     os._exit(0)
