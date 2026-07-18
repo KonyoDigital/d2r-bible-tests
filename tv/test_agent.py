@@ -1256,5 +1256,36 @@ class TestOneBudget(unittest.TestCase):
             sh.rmtree(d, ignore_errors=True)
 
 
+
+class TestOcrTwinLane(unittest.TestCase):
+    """v818 (Grok R8 #3) — the fast lane exists on both platforms (worker cmd dispatch)."""
+
+    def test_mac_cmd(self):
+        import unittest.mock as mock
+        with mock.patch.object(tv.sys, "platform", "darwin"):
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("TV_OCR_BIN", None)
+                cmd = tv._ocr_worker_cmd()
+                if os.path.isfile(tv.OCR_BIN):
+                    self.assertEqual(cmd[0], tv.OCR_BIN)
+
+    def test_win_cmd_uses_ps1(self):
+        import unittest.mock as mock
+        with mock.patch.object(tv.sys, "platform", "win32"):
+            os.environ.pop("TV_OCR_BIN", None)
+            cmd = tv._ocr_worker_cmd()
+            self.assertIsNotNone(cmd, "windows worker cmd missing (ocr_win.ps1 not found?)")
+            self.assertIn("powershell.exe", cmd[0])
+            self.assertIn("ocr_win.ps1", cmd[-1])
+
+    def test_env_override_wins(self):
+        os.environ["TV_OCR_BIN"] = "/tmp/fake_ocr"
+        try:
+            cmd = tv._ocr_worker_cmd()
+            self.assertEqual(cmd, ["/tmp/fake_ocr", "--worker"])
+        finally:
+            os.environ.pop("TV_OCR_BIN", None)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

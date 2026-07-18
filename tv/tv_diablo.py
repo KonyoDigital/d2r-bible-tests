@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v817"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v818"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1074,6 +1074,23 @@ _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back em
 # Local macOS Vision OCR (warm worker ~10–50ms). Claude stays the deep brain.
 # Honesty: OCR names are provisional (review-first, never vault_names) until deep/lifecycle.
 OCR_BIN = os.environ.get("TV_OCR_BIN") or os.path.join(HERE, "bin", "ocr_mac")
+OCR_WIN_PS1 = os.path.join(HERE, "ocr_win.ps1")   # v818 — cousin twin (Windows.Media.Ocr)
+
+
+def _ocr_worker_cmd():
+    """v818 (Grok R8 #3) — the fast lane exists on BOTH platforms. Mac: ocr_mac --worker.
+    Windows: powershell ocr_win.ps1 speaking the SAME stdin-path → stdout-JSON protocol.
+    Returns None when no worker is available (fast lane off, vision-only)."""
+    if os.environ.get("TV_OCR_BIN"):
+        return [os.environ["TV_OCR_BIN"], "--worker"]
+    if sys.platform.startswith("win"):
+        if os.path.isfile(OCR_WIN_PS1):
+            return ["powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", OCR_WIN_PS1]
+        return None
+    if os.path.isfile(OCR_BIN) and os.access(OCR_BIN, os.X_OK):
+        return [OCR_BIN, "--worker"]
+    return None
 OCR_ENABLED = os.environ.get("TV_OCR", "1") != "0"
 
 class OcrWorker:
@@ -1085,7 +1102,7 @@ class OcrWorker:
         self.ok = False
 
     def available(self):
-        return bool(OCR_ENABLED and os.path.isfile(OCR_BIN) and os.access(OCR_BIN, os.X_OK))
+        return bool(OCR_ENABLED and _ocr_worker_cmd() is not None)   # v818 — platform-aware
 
     def _spawn(self):
         import queue
@@ -1093,8 +1110,12 @@ class OcrWorker:
             self.ok = False
             return False
         try:
+            cmd = _ocr_worker_cmd()
+            if not cmd:
+                self.ok = False
+                return False
             self.p = subprocess.Popen(
-                [OCR_BIN, "--worker"],
+                cmd,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 text=True, bufsize=1)
             self.q = queue.Queue()

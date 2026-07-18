@@ -1077,3 +1077,11 @@ agent==control) — the three stamps can never silently fork again. 25/25 + 94/9
 GET /api/update: git fetch + rev-list count behind origin + latest ship subject; footer is now
 clickable → toast '✓ up to date' or '⟳ N behind — latest: … · git pull, then relaunch'.
 94/94 + 25/25.
+
+## 🏃 v818 "The Twin Lane" (~11:40) — DARK SHIP
+Windows OCR fast lane: tv/ocr_win.ps1 (Windows.Media.Ocr, inbox, WinRT await helper) speaks the
+EXACT ocr_mac worker protocol (stdin path → stdout {"ms","lines","confs","mode"} JSON line);
+agent _ocr_worker_cmd() dispatches per platform (TV_OCR_BIN override > win ps1 > mac bin), every
+failure emits mode:err so the fast lane degrades to vision-only, never dies. No per-line
+confidence in the Windows API — flat 0.8 documented. NEEDS COUSIN-BOX LIVE VERIFY.
+Locks: mac/win/env-override dispatch. 97/97 + 25/25.
