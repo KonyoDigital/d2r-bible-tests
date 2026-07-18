@@ -1676,3 +1676,17 @@ blocks on bare ubuntu runners; the TEST now ships a hermetic claude shim on PATH
 stays real in prod). Routine I: v643 tooltip flake (isolation re-run rule applies) + the
 ECONNREFUSED class = v773_app_site_sync had NO Mac-gate skip — guarded now like v851.
 Routine I on v883 pending — watch the fresh verdict on v884.
+
+## 🎯 v885 "THE RIGHT REEL" (Grok third-eye surgical tier, Jul 19 ~02:40)
+Grok's verdict on 'SIM/ON AIR still bugged': NOT playback — SELECTION + live-window + hollow
+past. Shipped: (1) default pick is footage-aware and stub-blind (server flags 1-read ghosts:
+reads<3 & no reel; shelf dims them '· ghost'; tiers prefer sealed reels with video);
+(2) live session interleave window opens to NOW — newest session only (mid-session SIM no
+longer truncates at the last read; old crashed sessions can't swallow the pool — the sealed
+rule was also the fix for a 182-beat fixture bleed the suite caught); (3) reel fold spans from
+agent BOOT ms (pre-first-read film no longer orphaned); (4) OFF sets the placard hysteresis
+past threshold (deliberate off ≠ blip); (5) session_end + skip rows no longer inflate shelf
+read counts; (6) shelf truth: '📹 N frames · full video' or 'footage retired', TV_HIST harness
+override. 149/149 + 30/30 + parity ×4. NEXT per task #52: roundtrip acceptance harness (v886),
+util-strip restructure (v887), console polish (v888), shelf HD art (v889), then the 20+
+pingpong versions on SIM/ON AIR/TOOLS.

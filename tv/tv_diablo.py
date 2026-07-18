@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v884"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v885"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2945,6 +2945,7 @@ def main():
     except Exception:
         pass
     SESSION_ID = "s_%d_%d" % (int(time.time() * 1000), os.getpid())
+    globals()["_SESSION_T0_MS"] = int(time.time() * 1000)   # v885 (Grok #2) — reel fold spans from BOOT, not first read
     _VISION_BUSY = False
     with _pool_lock:
         _in_flight.clear()

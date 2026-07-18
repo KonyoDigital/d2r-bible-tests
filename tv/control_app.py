@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v884)
+# 📺 TV DIABLO — Control App (Mac + Windows · v885)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -37,7 +37,7 @@ UI_PATH = os.path.join(HERE, "control_ui.html")
 BIBLE = os.path.join(REPO, "bible.html")
 ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
 CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
-HIST_DIR = os.path.join(HERE, "frames", "hist")   # v765 — the theatre's film archive
+HIST_DIR = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")   # v765 · v885 — TV_HIST = harness isolation
 BOARD_PID_PATH = os.path.join(HERE, "board_window.pid")   # v773.1 — the ONE board window
 
 IS_WIN = sys.platform.startswith("win")
@@ -1009,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v884",
+        "ver": "v885",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1382,9 +1382,11 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
-                            "reads": len(sess), "frames": len(frames),
+                            "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("kind") != "skip"]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
-                            "areas": areas[:6], "footageN": _reeln,   # v883 — the shelf tells the truth about video
+                            "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("kind") != "skip"]) < 3
+                             and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
+                    "footageN": _reeln,   # v883 — the shelf tells the truth about video
                     "sessionId": sid,
                             # v840 — SIM honesty: how much of the night is still replayable
                             "frameWant": want, "frameMissing": miss,
@@ -1473,8 +1475,12 @@ class Handler(BaseHTTPRequestHandler):
             # film-only beats; the reel plays as real video with AI reads annotating over it.
             try:
                 t0f = (sess[0].get("ts") or 0) - 2000
-                t1f = (sess[-1].get("ts") or 0) + 2000
-                hist_dir = os.path.join(HERE, "frames", "hist")
+                # v885 (Grok #2) — a LIVE (unsealed) session keeps filming past its last read:
+                # the window ends NOW, not at the last journal row (mid-session SIM truncated).
+                _sealed = any(r2.get("sessionEnd") for r2 in sess)
+                _is_newest = (n == 1)   # sessions list is newest-first; only the LIVE run opens to now
+                t1f = int(time.time() * 1000) if (not _sealed and _is_newest) else ((sess[-1].get("ts") or 0) + 2000)
+                hist_dir = HIST_DIR
                 sid_here = (sess[0].get("sessionId") or "")
                 # v883 (Konyo: 'frame-by-frame is not working') — the SEALED REEL is the truth:
                 # reel_<sid>/ holds this run's footage immortal-until-retired-whole. Loose
@@ -1881,7 +1887,7 @@ class Handler(BaseHTTPRequestHandler):
                         jf.write("\n".join(keep_lines) + ("\n" if keep_lines else ""))
                     os.replace(tmp_p, _p)
                 # frames: read frames by id + footage frames inside the window
-                hist_dir = os.path.join(HERE, "frames", "hist")
+                hist_dir = HIST_DIR
                 killed_frames = 0
                 if os.path.isdir(hist_dir):
                     for fn in os.listdir(hist_dir):
@@ -2072,7 +2078,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v884 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v885 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
