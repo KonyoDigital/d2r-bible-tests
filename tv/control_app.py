@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v810)
+# 📺 TV DIABLO — Control App (Mac + Windows · v811)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v810",
+        "ver": "v811",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -999,6 +999,17 @@ def doctor_payload():
         "pid_files", not stale, "warn",
         "; ".join(stale) if stale else "no stale pid files",
         "Harmless — STOP then ON rewrites them"))
+
+    # v811 (Grok R8 #6) — journal generation truth: how many rotated nights exist
+    try:
+        _jroot = os.path.join(HERE, "sessions")
+        _gens = [g for g in range(1, 6) if os.path.isfile(_jroot + ".%d.jsonl" % g)]
+        _live = os.path.isfile(_jroot + ".jsonl")
+        checks.append(_chk("journal_gens", True, "warn",
+                           "live=%s gens=%s" % ("yes" if _live else "no",
+                                                (",".join(str(g) for g in _gens) or "none"))))
+    except Exception:
+        pass
 
     ok = not any((not c["ok"]) and c["severity"] == "block" for c in checks)
 
@@ -1505,7 +1516,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v810 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v811 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

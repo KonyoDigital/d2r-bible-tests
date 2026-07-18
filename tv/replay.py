@@ -25,7 +25,8 @@ def load_journal(path=None):
         paths = [path]
     else:
         _root, _ext = os.path.splitext(JOURNAL)
-        paths = [_root + ".1" + _ext, JOURNAL]
+        # v811 — generation ring: oldest first (.5 … .1), then the live file
+        paths = [_root + ".%d" % g + _ext for g in range(5, 0, -1)] + [JOURNAL]
     reads = []
     for p in paths:
         try:

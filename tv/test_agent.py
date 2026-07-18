@@ -1186,5 +1186,36 @@ class TestReplayTornLineTolerance(unittest.TestCase):
         self.assertEqual(got, [])
 
 
+
+class TestJournalGenerations(unittest.TestCase):
+    """v811 (Grok R8 sleeper) — the second rotation SHIFTS the ring; gen-1 is never erased."""
+
+    def test_second_rotation_shifts_not_overwrites(self):
+        import replay
+        old_j, old_rj = tv.JOURNAL, replay.JOURNAL
+        d = tempfile.mkdtemp()
+        j = os.path.join(d, "sessions.jsonl")
+        tv.JOURNAL = j; replay.JOURNAL = j
+        root, ext = os.path.splitext(j)
+        try:
+            def fill(marker):
+                with open(j, "w", encoding="utf-8") as f:
+                    line = (json.dumps({"m": marker, "pad": "x" * 200}) + "\n") * 500
+                    while os.path.getsize(j) < 4_050_000:
+                        f.write(line); f.flush()
+            fill("GEN1"); tv._journal({"m": "T1"})
+            fill("GEN2"); tv._journal({"m": "T2"})
+            g1 = open(root + ".1" + ext, encoding="utf-8").read()
+            g2 = open(root + ".2" + ext, encoding="utf-8").read()
+            self.assertIn("GEN2", g1)          # newest rotation in .1
+            self.assertIn("GEN1", g2)          # older night SURVIVES in .2
+            reads = replay.load_journal()
+            markers = {r.get("m") for r in reads}
+            self.assertIn("GEN1", markers)
+            self.assertIn("GEN2", markers)
+        finally:
+            tv.JOURNAL, replay.JOURNAL = old_j, old_rj
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

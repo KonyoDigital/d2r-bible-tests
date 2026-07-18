@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v810"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v811"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -110,8 +110,17 @@ def _journal(rec):
             f.write(json.dumps(rec) + "\n")
             f.flush(); os.fsync(f.fileno())   # v779 (Grok R5/R7) — durable append: a crash mid-write can't erase the night
         if os.path.getsize(JOURNAL) > 4_000_000:   # ~4MB → ROTATE (never half-truncate the live file)
+            # v811 (Grok R8 #6 + sleeper) — GENERATIONS, not one slot: .1 is newest rotation,
+            # older shift up to .5 (~20MB ≈ months). A second heavy night can no longer erase
+            # the first with zero lamp.
             _root, _ext = os.path.splitext(JOURNAL)
-            os.replace(JOURNAL, _root + ".1" + _ext)   # sessions.jsonl → sessions.1.jsonl (overwrites prior rotation; readers concat both)
+            for _g in range(4, 0, -1):
+                _src = _root + ".%d" % _g + _ext
+                if os.path.exists(_src):
+                    os.replace(_src, _root + ".%d" % (_g + 1) + _ext)
+            os.replace(JOURNAL, _root + ".1" + _ext)
+            try: ev("cap", "journal rotated — generation ring .1-.5 (~20MB of nights kept)")
+            except Exception: pass
     except Exception as e:
         if not _JOURNAL_WARNED:
             _JOURNAL_WARNED = True

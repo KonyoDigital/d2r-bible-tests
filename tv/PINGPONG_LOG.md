@@ -1041,3 +1041,9 @@ Durable Night · Full Deck · One Engine · The Doctor · Night Card. 92/92 + 24
 Hover any cast chip in the theatre caption → floating popover with the item's chain for that beat
 (ocr › floor › hold › vaulted 🏦 / thrown 🗑 / discovered 💬🏆) + short-label tag (owned/skip/
 no-chain map). Delegated hover, fixed-position, pointer-safe. 92/92 + 24/24.
+
+## 🏃 Grok R8 sleeper → v811 "The Generation Ring" (~10:15)
+The R8 sleeper was real: second rotation OVERWROTE sessions.1.jsonl (months of nights, zero lamp).
+Now: ring shift .4→.5 … .1→.2, live→.1 (~20MB ≈ months), cap event on rotate, replay concats
+.5→.1→live oldest-first, doctor journal_gens check. Lock: GEN1 survives a second rotation.
+93/93 + 24/24.
