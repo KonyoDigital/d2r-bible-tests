@@ -1125,3 +1125,9 @@ rows wrap; IT SAW hero-sized; drawer default-CLOSED, auto-opens on the FIRST sto
 (names/vault/discovery/farewell), `I` preference persists in localStorage; film SHARES the stage
 with the open drawer (right offset, 200ms ease) instead of being painted over. VISUAL-VERIFIED:
 full Chaos frame + clean card + ⚡ OCR 249ms line. 97/97 + 25/25.
+
+## 🎬 v825 "Cinema Mode" (Konyo live ×2, ~16:10)
+Drawer trap fixed (it covered its own ℹ toggle): drawer stops above the transport strip + sticky
+✕ close + I preference. ⛶ FULLSCREEN cinema: theatre fills the entire window (F toggles, Esc
+exits, true requestFullscreen attempted, auto-exits with theatre close). UX-verified headless:
+open→✕→closed, cinema 1120×800 full-window, Esc off. 97/97 + 25/25.
