@@ -234,5 +234,78 @@ class TestForensicBeats(unittest.TestCase):
             self.assertIn('"%s"' % field, src, "beat payload missing " + field)
 
 
+
+class TestDoctor(unittest.TestCase):
+    """v801 (Grok R7) — Windows self-diagnosis. /api/doctor is fast, read-only, and
+    NEVER spawns the CLI; agent OFF / no D2R must never fail it (pin issues = warn)."""
+
+    _CONTRACT = ("ok", "platform", "checks", "logTail", "logPath", "ver")
+    _IDS = ("claude_cli", "claude_probe", "port_agent", "port_control", "python",
+            "webview2", "capture_proc", "live_frames", "bridge", "pid_files")
+
+    def test_doctor_route_registered(self):
+        import inspect
+        src = inspect.getsource(ca.Handler.do_GET)
+        self.assertIn('"/api/doctor"', src)
+        self.assertIn("doctor_payload()", src)
+
+    def test_doctor_payload_contract(self):
+        d = ca.doctor_payload()
+        for key in self._CONTRACT:
+            self.assertIn(key, d, "doctor payload missing " + key)
+        self.assertIsInstance(d["checks"], list)
+        self.assertTrue(d["checks"])
+        ids = {c["id"] for c in d["checks"]}
+        for cid in self._IDS:
+            self.assertIn(cid, ids, "doctor missing check " + cid)
+        for c in d["checks"]:
+            self.assertIn(c["severity"], ("block", "warn"))
+            self.assertIn("detail", c)
+            self.assertIsInstance(c["ok"], bool)
+            if "fix" in c:                       # fix only ever rides a FAILING check
+                self.assertFalse(c["ok"])
+
+    def test_doctor_ok_is_no_block_failure(self):
+        d = ca.doctor_payload()
+        blockers = [c for c in d["checks"] if c["severity"] == "block" and not c["ok"]]
+        self.assertEqual(d["ok"], not blockers)
+
+    def test_doctor_ok_ignores_offline_agent(self):
+        """Agent OFF (no bridge / no frames) must NEVER flip ok to False."""
+        old = ca._agent_mode
+        ca._agent_mode = "off"
+        try:
+            d = ca.doctor_payload()
+            self.assertTrue(d["ok"], "doctor blocked with the agent merely OFF: "
+                            + repr([c for c in d["checks"]
+                                    if c["severity"] == "block" and not c["ok"]]))
+        finally:
+            ca._agent_mode = old
+
+    def test_doctor_never_spawns_cli(self):
+        import inspect
+        src = inspect.getsource(ca.doctor_payload)
+        self.assertIn("never spawns the CLI", src)
+        self.assertIn("not probed", src)
+        probe = next(c for c in ca.doctor_payload()["checks"] if c["id"] == "claude_probe")
+        self.assertTrue(probe["ok"])
+
+    def test_doctor_ver_mirrors_status(self):
+        """Doctor's ver is derived from status_payload's stamp — it can never drift."""
+        self.assertEqual(ca.doctor_payload()["ver"], ca._app_ver())
+
+    def test_doctor_endpoint_live(self):
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            st, body, _ = _get(port, "/api/doctor")
+            self.assertEqual(st, 200)
+            j = json.loads(body)
+            self.assertIn("checks", j)
+            self.assertRegex(str(j["ver"]), r"^v")
+        finally:
+            srv.shutdown()
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -1022,3 +1022,10 @@ guard): piecewise axis, rAF playhead, dual T+/wall clock in the topline, proport
 press-at-end rewind, click-seek moves the playhead. Dual-engine drift is dead. New guard spec
 v807_site_playhead (fails on unpatched — verified genuine). Fable gate: 7 specs + 24 board/family
 + 92/92 + 17/17 all green.
+
+## 🏃 ARMY MERGE 3/3 → v808 "The Doctor" (doctor-agent, ~09:30)
+GET /api/doctor: 10 checks (claude_cli via _env_clean PATH · probe-stub (never spawns CLI) ·
+agent/control ports · python Store-stub detection · WebView2 registry · capture lamp · live-frame
+freshness (blocks only when LIVE) · bridge · stale pids), ok = no block-failures, agent-OFF never
+fails it, ver mirrors status stamp at runtime (drift-proof). UI: boot failure → doctor runs →
+every blocker in the toast as 'id: detail → fix'. Fable gate: 24/24 control (7 new locks) + 92/92.

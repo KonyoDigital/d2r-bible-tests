@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v807)
+# 📺 TV DIABLO — Control App (Mac + Windows · v808)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -12,9 +12,13 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
 
+import inspect
 import json
 import os
+import re
+import shutil
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -822,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v807",
+        "ver": "v808",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -850,6 +854,167 @@ def status_payload():
         "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),   # v785 — film honesty for the stage
         "health": (st or {}).get("health") or {},     # v789 — fault-lamp truth
         "captureProc": _capture_health(),             # v793 — Windows capture lamp (LINKED/DEAD/RESTARTED)
+    }
+
+
+# ── DOCTOR (v801, Grok R7) ─────────────────────────────────────────────────────
+# Windows self-diagnosis. Read-mostly, cross-platform, MUST return <2s, and NEVER
+# spawns the Claude CLI (claude_probe is a stub). ok == no severity-'block' failure.
+# D2R / the agent never have to be running for ok — pin & frame issues are 'warn'.
+
+def _app_ver():
+    """Doctor's ver mirrors status_payload's stamp (parity-locked to tv_diablo.VERSION)
+    so it can never drift from the ship tag — read the literal, spawn nothing."""
+    try:
+        m = re.search(r'"ver": "(v\d+)"', inspect.getsource(status_payload))
+        return m.group(1) if m else "v?"
+    except Exception:
+        return "v?"
+
+
+def _sock_open(port, host="127.0.0.1", timeout=0.35):
+    """True if something is LISTENING on host:port (localhost, fast, never blocks)."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    try:
+        s.connect((host, int(port)))
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
+def _chk(cid, ok, severity, detail, fix=None):
+    d = {"id": cid, "ok": bool(ok), "severity": severity, "detail": detail}
+    if fix and not ok:
+        d["fix"] = fix
+    return d
+
+
+def doctor_payload():
+    """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
+    logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
+    checks = []
+
+    # 1) claude CLI on the SAME cleaned PATH the agent boots with
+    env = _env_clean()
+    exe = shutil.which("claude", path=env.get("PATH")) or shutil.which("claude")
+    checks.append(_chk(
+        "claude_cli", bool(exe), "block",
+        exe or "claude CLI not found on PATH",
+        "Install Claude Code CLI and put it on PATH (npm i -g @anthropic-ai/claude-code)"))
+
+    # 2) claude probe — deliberately NOT run: the doctor must never spawn the CLI
+    checks.append(_chk("claude_probe", True, "warn",
+                       "not probed (doctor never spawns the CLI)"))
+
+    # 3) agent bridge port — OFF is normal, so warn only
+    ap = _sock_open(AGENT_PORT)
+    checks.append(_chk(
+        "port_agent", ap, "warn",
+        "listening on 127.0.0.1:%d" % AGENT_PORT if ap
+        else "no listener on 127.0.0.1:%d (agent OFF is normal)" % AGENT_PORT))
+
+    # 4) control port — we are answering this very request, so it is up by definition
+    checks.append(_chk("port_control", True, "block",
+                       "control server up on 127.0.0.1:%d" % CONTROL_PORT))
+
+    # 5) python — reject the Windows Store stub (its python.exe alias breaks child spawns)
+    pexe = sys.executable or ""
+    pver = "%d.%d.%d" % sys.version_info[:3]
+    stub = "WindowsApps" in pexe
+    checks.append(_chk(
+        "python", bool(pexe) and not stub, "block",
+        ("Windows Store stub python: %s" % pexe) if stub
+        else "%s (%s)" % (pexe or "unknown", pver),
+        "Install real Python from python.org and turn OFF the python.exe 'App execution alias'"))
+
+    # 6) WebView2 runtime (Windows app window). Mac = native WKWebView, always fine.
+    if not IS_WIN:
+        checks.append(_chk("webview2", True, "block", "n/a (mac uses native WKWebView)"))
+    else:
+        pv = None
+        try:
+            import winreg
+            key = (r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients"
+                   r"\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}")
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key) as k:
+                pv, _ = winreg.QueryValueEx(k, "pv")
+        except Exception:
+            pv = None
+        checks.append(_chk(
+            "webview2", bool(pv), "block",
+            "WebView2 runtime %s" % pv if pv else "WebView2 runtime not found",
+            "Install the Microsoft Edge WebView2 Runtime (Evergreen)"))
+
+    # 7) capture loop lamp (Windows only) — reuse the live health probe
+    if not IS_WIN:
+        checks.append(_chk("capture_proc", True, "warn", "n/a (Windows-only capture loop)"))
+    else:
+        h = _capture_health()
+        checks.append(_chk(
+            "capture_proc", h in ("", "LINKED", "RESTARTED"), "warn",
+            h or "idle (agent off)",
+            "Press RESTART; if it recurs, check capture_win.ps1 and the D2R window"))
+
+    # 8) live frames — freshness only MATTERS (blocks) when we claim to be LIVE
+    live = (_agent_mode == "live")
+    now = time.time()
+    newest, ages = None, []
+    for label in ("eye.jpg", "live.bmp"):
+        fp = os.path.join(HERE, "frames", label)
+        if os.path.isfile(fp):
+            age = now - os.path.getmtime(fp)
+            ages.append("%s=%.1fs" % (label, age))
+            newest = age if newest is None else min(newest, age)
+    fresh = newest is not None and newest <= 10
+    if live and not fresh:
+        checks.append(_chk(
+            "live_frames", False, "block",
+            ("frames stale: %s" % ", ".join(ages)) if ages else "no eye.jpg / live.bmp while LIVE",
+            "Capture is frozen — check the D2R window and capture_win.ps1"))
+    else:
+        checks.append(_chk(
+            "live_frames", True, "warn",
+            ", ".join(ages) if ages else "no frames yet (agent off)"))
+
+    # 9) agent bridge heartbeat — OFF is normal, so warn only
+    bp = _bridge_ping()
+    checks.append(_chk(
+        "bridge", bp is not None, "warn",
+        "agent bridge responding on :%d" % AGENT_PORT if bp is not None
+        else "agent bridge silent (agent OFF is normal)"))
+
+    # 10) stale pid files whose recorded pid is already dead
+    stale = []
+    for label, p in (("control_agent.pid", PID_PATH), ("control_capture.pid", CAP_PID_PATH)):
+        pid = _read_pid(p)
+        if pid is not None and not _pid_alive(pid):
+            stale.append("%s->pid %d dead" % (label, pid))
+    checks.append(_chk(
+        "pid_files", not stale, "warn",
+        "; ".join(stale) if stale else "no stale pid files",
+        "Harmless — STOP then ON rewrites them"))
+
+    ok = not any((not c["ok"]) and c["severity"] == "block" for c in checks)
+
+    try:
+        with open(LOG_PATH, "rb") as f:
+            log_tail = f.read()[-2048:].decode("utf-8", "replace")
+    except Exception:
+        log_tail = "(no log yet)"
+
+    return {
+        "ok": ok,
+        "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
+        "checks": checks,
+        "logTail": log_tail,
+        "logPath": LOG_PATH,
+        "ver": _app_ver(),
     }
 
 
@@ -1110,6 +1275,10 @@ class Handler(BaseHTTPRequestHandler):
                 text = "(no log yet)"
             self._json(200, {"ok": True, "log": text})
             return
+        if path == "/api/doctor":
+            # v801 (Grok R7) — Windows self-diagnosis: fast, read-only, never spawns the CLI.
+            self._json(200, doctor_payload())
+            return
         self._json(404, {"ok": False, "msg": "not found"})
 
     def do_POST(self):
@@ -1287,7 +1456,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v807 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v808 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
