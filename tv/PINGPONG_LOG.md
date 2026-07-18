@@ -1062,3 +1062,8 @@ orphan-sweep. 94/94 + 24/24.
 ## 🏃 v814 "The Chapter Slate" (~10:45)
 Highlight-cut area jumps flash a 620ms scanline slate (🗺 new area, Cinzel gold over CRT lines) —
 the cut admits it skipped. 94/94 + 24/24.
+
+## 🏃 v815 "Replay Integrity" (~10:55)
+Doctor session_integrity check: % of journal-tail reads whose hist frame EXISTS + sessionId
+coverage (live probe: frames 100% of 200 · sid 38/200 — pre-v780 rows unstamped, expected).
+24/24 + 94/94.
