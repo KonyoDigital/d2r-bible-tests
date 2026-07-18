@@ -1406,3 +1406,10 @@ never-vault, per lane, dedup, cap 40) + ocr line-filter drops; ocr_fast returns 
 + dropped; rec carries pre[] + ocr_raw[16]; beats project both; drawer gains 'pre-triage — every
 name at the gates' (color-coded verdicts) + 'ocr raw — literal sight'. SIM can now PROVE gate
 behavior. 132/132 + 27/27.
+
+## 🏓 A2.4 → v855 "Chain Provenance" (~22:45)
+_chain_snapshot at STASH-decision time: seen/pending/candidate/vaulted flags + firstSeen ts/area/
+count + firstHeld + vaultedTs/count — journaled per name on the rec, projected to beats, drawer
+tells the story in owner language ('seen on the floor @ Stony Field ×2 · first 8:55:10' vs
+'NEVER seen this session — no chain existed'). stash-no-chain is now diagnosable. 2 locks.
+134/134 + 27/27.

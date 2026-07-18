@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v854)
+# 📺 TV DIABLO — Control App (Mac + Windows · v855)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -889,7 +889,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v854",
+        "ver": "v855",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1303,6 +1303,7 @@ class Handler(BaseHTTPRequestHandler):
                     "parse": r.get("parse") or {},              # v835 — parse audit
                     "decisions": r.get("decisions") or {},      # v836 — the decision chain
                     "pre": r.get("pre") or [],                  # v853 — pre-triage
+                    "chain": r.get("chain") or {},              # v855 — provenance
                     "ocr_raw": r.get("ocr_raw") or [],          # v853 — OCR literal sight
                     "confirmed_names": r.get("confirmed_names") or [],
                     "ocr_seeded": r.get("ocr_seeded") or [],
@@ -1807,7 +1808,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v854 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v855 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

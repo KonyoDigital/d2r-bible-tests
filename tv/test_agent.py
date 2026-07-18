@@ -1652,5 +1652,28 @@ class TestPreTriage(unittest.TestCase):
         self.assertEqual(rec.get("ocr_raw"), ["Ist", "xx"])
 
 
+
+class TestChainProvenance(unittest.TestCase):
+    """v855 (A2.4) — provenance at decision time makes stash-no-chain diagnosable."""
+
+    def test_never_seen_vs_seen(self):
+        lc = tv.LootLifecycle()
+        lc.process("loot", ["Ist Rune"], "Chaos", 0.9)
+        r = lc.process("stash", ["Ist Rune", "Blood Shield"], "Harrogath", 0.9,
+                       names_loc={"Ist Rune": "stash", "Blood Shield": "stash"})
+        ch = r.get("chain") or {}
+        self.assertTrue(ch.get("Ist Rune", {}).get("seen") or ch.get("Ist Rune", {}).get("vaulted"))
+        bs = ch.get("Blood Shield") or {}
+        self.assertFalse(bs.get("seen") or bs.get("pending") or bs.get("candidate") or bs.get("vaulted"),
+                         "never-seen must snapshot as chainless")
+        self.assertEqual(r["lifecycle_tags"].get("Blood Shield"), "stash-no-chain")
+
+    def test_rec_carries_chain(self):
+        rec = tv.emit_deep_read({"area": "Harrogath", "scene": "stash", "names": ["Widowmaker"],
+                                 "tz": [], "conf": 0.9, "names_loc": {"Widowmaker": "stash"}},
+                                91, "91_9191", capture_ts=9191)
+        self.assertIn("Widowmaker", rec.get("chain") or {})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

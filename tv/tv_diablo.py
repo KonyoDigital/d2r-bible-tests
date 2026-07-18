@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v854"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v855"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2173,10 +2173,33 @@ class LootLifecycle:
                 # keep pending; user may have put in cube or closed panel mid-ID
                 pass
 
+    def _chain_snapshot(self, k, n):
+        """v855 (A2.4) — provenance AT DECISION TIME, so 'stash-no-chain' is diagnosable:
+        never-seen vs seen-then-lost vs already-owned. Journaled with the read."""
+        c = {"seen": k in self.seen, "pending": k in self.pending,
+             "candidate": k in self.candidates, "vaulted": k in self.vaulted}
+        try:
+            e = self.seen.get(k) or {}
+            if e.get("firstSeen"):
+                c["firstSeen"] = e["firstSeen"]
+                c["seenArea"] = e.get("area", "")
+                c["seenCount"] = e.get("count", 1)
+            p = self.pending.get(k) or {}
+            if p.get("firstHeld"):
+                c["firstHeld"] = p["firstHeld"]
+            v = self.vaulted.get(k) or {}
+            if v.get("ts"):
+                c["vaultedTs"] = v["ts"]
+                c["vaultCount"] = v.get("count", 1)
+        except Exception:
+            pass
+        return c
+
     def _on_stash(self, names, area, conf, now_ms, out):
         # v738 — stash-commit ONLY with object-permanence chain (SEEN / HOLDING / candidate).
         # Panel-greedy vault of random shared-tab tooltips caused run #4 false farmed.
         out["anchor"] = "ok" if names else "missing"
+        out.setdefault("chain", {})
         for n in names:
             if _is_anchor(n):
                 out["lifecycle_tags"][n] = "anchor"
@@ -2190,6 +2213,7 @@ class LootLifecycle:
             k = _norm_name(n)
             if not k:
                 continue
+            out["chain"][n] = self._chain_snapshot(k, n)   # v855 — provenance at the moment of decision
             if k in self.vaulted and not (k in self.candidates or k in self.seen or k in self.pending):
                 out["lifecycle_tags"][n] = "already-vaulted"   # v796 — a fresh 2nd instance flows to _commit instead
                 continue
@@ -2978,6 +3002,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "promptHash": hashlib.md5(READ_PROMPT.encode()).hexdigest()[:10],   # v838 (A2.9) — bisectable eyes
         "parse": rd.get("_parse_audit") or {},   # v835 — the clamp/drop audit
         "pre": _pre_triage(names, ocr_rd),                       # v853 — the gates, journaled
+        "chain": lc.get("chain") or {},                          # v855 — provenance at decision time
         "ocr_raw": ((ocr_rd or {}).get("raw_lines") or [])[:16], # v853 — OCR's literal sight
         "decisions": {n: {"loc": (rd.get("names_loc") or {}).get(n, ""),
                           "tag": (lc.get("lifecycle_tags") or {}).get(n, ""),
