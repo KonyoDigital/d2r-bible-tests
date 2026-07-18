@@ -33388,7 +33388,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v870', name:'Warm Start', date:'2026-07-18', note:'v870: parallel staggered pool warm (was sequential ~60s cold), poolWarm in health, heartbeat armed from t=0 (constant-motion sessions no longer wait for a first settle read)' };
+  window.D2R_BUILD = { id:'v871', name:'Footage Is King', date:'2026-07-18', note:'v871: ADAPTIVE heartbeat cap — base 2, earn 4 while film healthy (>=1.8fps, <200ms captures), shed to 1 on starve; fixed cap 6 choked the 16GB Mac (run 3: 0.34fps, 13s captures)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

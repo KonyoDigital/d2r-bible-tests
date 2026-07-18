@@ -1866,12 +1866,39 @@ class TestReaderPool(unittest.TestCase):
         self.assertEqual(pooln("12"), 8)
         self.assertEqual(pooln("0"), 1)
 
-    def test_heartbeat_cap_scales_with_pool(self):
-        # v869 — cap = 3/4 of the pool (farm-video acceptance: cap 2 measured one read per
-        # 3.9s; Konyo's bar is ~2s). Settle + queue drains keep the remaining quarter.
-        for n, cap in [(1, 1), (2, 1), (3, 2), (4, 3), (5, 3), (8, 6)]:
-            tv.POOL_N = n
-            self.assertEqual(tv._heartbeat_cap(), cap, "cap wrong at POOL_N=%d" % n)
+    def test_heartbeat_cap_adaptive(self):
+        # v871 — footage is king (farm-video runs 1-3: fixed cap 6 choked the machine).
+        # No telemetry → conservative 2. Healthy film → 4. Starving film → 1. Ceiling 3/4 pool.
+        import time as _t
+        old_n = tv.POOL_N
+        try:
+            tv.POOL_N = 8
+            tv._FOOT_TIMES.clear()
+            tv._FILM_CAP_MS = 0
+            self.assertEqual(tv._heartbeat_cap(), 2, "no telemetry → base 2")
+            now = _t.time()
+            for i in range(20):                      # 2fps healthy archive
+                tv._FOOT_TIMES.append(now - i * 0.5)
+            tv._FILM_CAP_MS = 100
+            self.assertEqual(tv._heartbeat_cap(), 4, "healthy film → 4")
+            tv._FILM_CAP_MS = 900
+            self.assertEqual(tv._heartbeat_cap(), 1, "slow captures → shed to 1")
+            tv._FILM_CAP_MS = 100
+            tv._FOOT_TIMES.clear()
+            for i in range(8):                       # 0.8fps starving archive
+                tv._FOOT_TIMES.append(now - i * 1.25)
+            self.assertEqual(tv._heartbeat_cap(), 1, "footage starve → shed to 1")
+            tv.POOL_N = 4                            # ceiling: 3/4 pool clamps the healthy tier
+            tv._FOOT_TIMES.clear()
+            for i in range(20):
+                tv._FOOT_TIMES.append(now - i * 0.5)
+            self.assertEqual(tv._heartbeat_cap(), 3, "healthy at N=4 → min(3, 4) = 3")
+            tv.POOL_N = 1
+            self.assertEqual(tv._heartbeat_cap(), 1, "N=1 → 1 always")
+        finally:
+            tv.POOL_N = old_n
+            tv._FOOT_TIMES.clear()
+            tv._FILM_CAP_MS = 0
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -28,9 +28,10 @@
 #   Claude deep is multi-second by nature — OCR chips + smooth film are the "live drive" feel.
 # ═══════════════════════════════════════════════════════════════════════════════
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v870"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v871"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -857,6 +858,18 @@ def refresh_eye_preview(bmp_path, min_interval=0.12):
         pass
 
 
+_FOOT_TIMES = deque(maxlen=60)   # v871 — archive timestamps (footage fps without dir scans)
+
+
+def _foot_fps_now():
+    """v871 — archived-footage fps over the last 10s (None until 2 archives)."""
+    now = time.time()
+    recent = [t for t in _FOOT_TIMES if now - t <= 10.0]
+    if len(recent) < 2:
+        return None
+    return round(len(recent) / 10.0, 2)
+
+
 def _film_loop():
     """v846 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
     Target ~15fps (TV_FILM_FPS). Intelligence still uses BMP+frame_sig on the poll loop.
@@ -947,6 +960,7 @@ def _film_loop():
                         # v868 — absolute 0.5s schedule (quantization-free 2fps); clamp catch-up
                         globals()["_FOOTAGE_DUE"] = max(_due + 0.5, now_f - 0.49) if _due else now_f + 0.5
                         globals()["_FOOTAGE_AT"] = now_f
+                        _FOOT_TIMES.append(now_f)   # v871 — adaptive-cap telemetry
                         hist_dir = os.path.join(FRAMES, "hist")
                         os.makedirs(hist_dir, exist_ok=True)
                         import shutil as _sh
@@ -980,6 +994,7 @@ def _film_loop():
                                            capture_output=True, timeout=5)
                         if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                             globals()["_FOOTAGE_AT"] = now_f2
+                            _FOOT_TIMES.append(now_f2)   # v871
                             hist_dir2 = os.path.join(FRAMES, "hist")
                             os.makedirs(hist_dir2, exist_ok=True)
                             import shutil as _sh2
@@ -1590,10 +1605,18 @@ def _vision_busy():
 
 
 def _heartbeat_cap():
-    """v869 (farm-video acceptance: cadence one per 3.9s at cap 2, Konyo wants ~2s) — heartbeat
-    owns up to 3/4 of the pool (6 at N=8); settle + queue drains keep the remaining readers.
-    With ~10s vision latency, 6 slots at a 2s dispatch tick ≈ one applied read every ~1.7s."""
-    return max(1, (POOL_N * 3) // 4)
+    """v871 — ADAPTIVE (farm-video runs 1-3): fixed cap 6 CHOKED the 16GB Mac — capture spiked
+    to 13s, footage collapsed 1.99→0.34fps, reads slowed to 30-50s. FOOTAGE IS KING (Konyo's
+    300+ frames): base 2; earn 4 while the film lane is provably healthy (≥1.8fps archive,
+    <200ms captures); shed to 1 the moment footage starves. Ceiling 3/4 pool for big machines."""
+    hi = max(1, (POOL_N * 3) // 4)
+    fps = _foot_fps_now()
+    cap_ms = globals().get("_FILM_CAP_MS") or 0
+    if (fps is not None and fps < 1.2) or cap_ms > 800:
+        return 1
+    if fps is not None and fps >= 1.8 and cap_ms < 200:
+        return min(hi, 4)
+    return min(hi, 2)
 
 
 def _heartbeat_in_flight_n():
