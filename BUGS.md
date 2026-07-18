@@ -634,3 +634,10 @@ Format: what broke · how it was caught · root cause · fix · prevention.
   completed mid-run and took the agent with it.
 - **Fix**: session restored via /api/on immediately; operational doctrine added — app cycles
   NEVER ride background chains; cycle only when /api/status mode=off.
+
+## REG-027 — console "already opened" with no window (2026-07-18)
+- **Symptom**: Konyo double-clicks the console; it refuses — "already opened" — but no window exists.
+- **Caught by**: Konyo, live, right before a farm session.
+- **Root cause**: ship-chain app cycles relaunched `control_app.py` WITHOUT `--open` (headless server holds :17772; launcher's single-instance check sees the port and bails).
+- **Fix**: killed + relaunched with `--open`.
+- **Prevention**: every scripted cycle MUST pass `--open` unless the chain explicitly needs headless; cycle snippets updated.
