@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v811)
+# 📺 TV DIABLO — Control App (Mac + Windows · v812)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v811",
+        "ver": "v812",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1307,6 +1307,37 @@ class Handler(BaseHTTPRequestHandler):
             desk = os.path.expanduser("~/Desktop")
             base = os.path.join(desk, "TVDIABLO_" + sid)
             try:
+                # v812 (Grok R8 sleeper sibling) — the Night Card claims FULL: include the RAW
+                # journal rows (farmed/unvault/gone_candidates/ocr_ms/interest/mode/tz/…), not
+                # just the theatre projection. Filter by sessionId, else by capture-ts range.
+                raw_rows = []
+                try:
+                    want_sid = sess.get("sessionId") or ""
+                    t0r = (sess.get("t0") or 0) - 5000
+                    t1r = (sess.get("t1") or 0) + 5000
+                    _root = os.path.join(HERE, "sessions")
+                    _paths = [_root + ".%d.jsonl" % g for g in range(5, 0, -1)] + [_root + ".jsonl"]
+                    for _p in _paths:
+                        if not os.path.isfile(_p):
+                            continue
+                        with open(_p, encoding="utf-8") as jf:
+                            for line in jf:
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                try:
+                                    row = json.loads(line)
+                                except Exception:
+                                    continue
+                                if want_sid:
+                                    if row.get("sessionId") == want_sid:
+                                        raw_rows.append(row)
+                                elif t0r <= (row.get("ts") or 0) <= t1r:
+                                    raw_rows.append(row)
+                except Exception:
+                    raw_rows = []
+                sess = dict(sess)
+                sess["raw"] = raw_rows
                 with open(base + ".json", "w", encoding="utf-8") as f:
                     json.dump(sess, f, indent=1)
                 beats = sess.get("beats") or []
@@ -1327,6 +1358,8 @@ class Handler(BaseHTTPRequestHandler):
                         bits.append("💬🏆 " + nm)
                     for nm in (b.get("thrown_names") or []):
                         bits.append("🗑 " + nm)
+                    for nm in (b.get("pending_names") or []):
+                        bits.append("⏳ " + nm)   # v812 — holds are part of the story
                     if not bits:
                         bits = [", ".join((b.get("names") or [])[:5]) or ("👋 farewell" if b.get("farewell") else "")]
                     lines.append("- `%s` · %s%s%s" % (stamp, (b.get("area") or "?"),
@@ -1516,7 +1549,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v811 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v812 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

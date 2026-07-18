@@ -1047,3 +1047,9 @@ The R8 sleeper was real: second rotation OVERWROTE sessions.1.jsonl (months of n
 Now: ring shift .4→.5 … .1→.2, live→.1 (~20MB ≈ months), cap event on rotate, replay concats
 .5→.1→live oldest-first, doctor journal_gens check. Lock: GEN1 survives a second rotation.
 93/93 + 24/24.
+
+## 🏃 v812 "Whole Truth Export" (~10:25)
+R8's sibling claim-gap closed: /api/export json now includes sess.raw = the RAW journal rows
+(sessionId-filtered across the generation ring, ts-range fallback) with every field the theatre
+projection drops; .md story seals ⏳ holds. LIVE-VERIFIED: 10 raw rows with anchor/
+gone_candidates/farmed_names on session 1. 24/24 + 93/93.
