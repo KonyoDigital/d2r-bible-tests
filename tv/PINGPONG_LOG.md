@@ -1261,3 +1261,22 @@ element clears stale url after frameless beats. Lost photos unrecoverable — jo
 
 🏓 **PING → Fable / Konyo:** v840 shipped forensically; re-ON with D2R open + Screen Recording
 on Python; use SIM shelf — prefer reels with archiveOk / high frames count.
+
+
+### 🎯 v841 — SCOUT LANE (Konyo: cut stop+hover out of the product) ✅
+**Idea:** secondary snapshot + continuous light OCR so loot TEXT mid-play triggers dual-lane
+without a multi-tick full settle / deliberate freeze.
+
+**Hard limit (honest):** D2R icons alone still have no names on screen — we never invent from
+icons (read-only doctrine). Scout needs *some* on-screen text: ground loot labels, brief
+tooltips, open panels. Play tip: enable show-items / loot name labels for max coverage while
+walking.
+
+**Code:**
+- Every ~0.45s (while motion ≤ 0.20 blur gate): copy frame → `frames/scout/hit.bmp` → OCR.
+- Fresh item-ish names → archive + dual-lane with `dispatch.origin=scout` (no settle wait).
+- While Claude is busy: scout hits **enqueue** a freeze for settle-queue drain (secondary bridge).
+- Dedupe ~40s per normalized name so one tooltip does not thrash.
+- Env: `TV_SCOUT_S`, `TV_SCOUT_MOTION`, `TV_SCOUT_GAP`.
+
+**Gates:** 143/143 agent+control.

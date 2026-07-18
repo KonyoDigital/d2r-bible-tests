@@ -866,6 +866,15 @@ class TestReplay(unittest.TestCase):
         finally:
             tv.JOURNAL = old
 
+    def test_scout_dedupes_recent_names(self):
+        """v841 — scout does not re-fire the same tooltip every half-second."""
+        tv._SCOUT_HIT_UNTIL.clear()
+        a = tv._scout_fresh_names(["Vex Rune", "Perfect Ruby"])
+        self.assertEqual(set(a), {"Vex Rune", "Perfect Ruby"})
+        tv._scout_mark_names(["Vex Rune"])
+        b = tv._scout_fresh_names(["Vex Rune", "Perfect Ruby"])
+        self.assertEqual(b, ["Perfect Ruby"])
+
 
 class TestWindowPin(unittest.TestCase):
     """v772 — Mac CrossOver / Windows native D2R window targeting helpers."""

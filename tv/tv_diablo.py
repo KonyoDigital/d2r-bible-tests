@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v840"   # ONE truth — banner, autopilot HUD, and state all read this  · journal-shield hist
+VERSION = "v841"   # ONE truth — banner, autopilot HUD, and state all read this  · scout lane (no stop-hover)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1158,6 +1158,49 @@ _WORKER = VisionWorker()
 _VISION_BUSY = False
 _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall detection)
 _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back empty: allow ONE re-read of that view
+
+# v841 — SCOUT LANE (Konyo: cut "stop + hover" out of the product)
+# Continuous LIGHT OCR on a rolling snapshot — when item-ish text appears (ground labels,
+# brief tooltips, panels), fire dual-lane WITHOUT waiting for a multi-tick full settle.
+# Hard game limit remains: icons alone still never invent names (read-only screen truth).
+# Best play: loot labels / show-items on the ground; scout still catches mid-play text.
+SCOUT_INTERVAL_S = float(os.environ.get("TV_SCOUT_S", "0.45") or 0.45)
+SCOUT_MOTION_MAX = float(os.environ.get("TV_SCOUT_MOTION", "0.20") or 0.20)  # skip pure sprint blur
+SCOUT_GAP_S = float(os.environ.get("TV_SCOUT_GAP", "1.4") or 1.4)            # min between scout deep reads
+_SCOUT_AT = 0.0
+_SCOUT_HIT_UNTIL = {}   # norm_name -> unix expire (dedupe spam)
+
+def _scout_fresh_names(names, now=None, ttl=40.0):
+    """Return names not recently scout-fired (avoids re-reading the same tooltip every 0.5s)."""
+    now = time.time() if now is None else now
+    dead = [k for k, exp in _SCOUT_HIT_UNTIL.items() if exp <= now]
+    for k in dead:
+        _SCOUT_HIT_UNTIL.pop(k, None)
+    fresh = []
+    for n in names or []:
+        k = _norm_name(n)
+        if not k:
+            continue
+        if _SCOUT_HIT_UNTIL.get(k, 0) > now:
+            continue
+        fresh.append(n)
+    return fresh
+
+def _scout_mark_names(names, now=None, ttl=40.0):
+    now = time.time() if now is None else now
+    for n in names or []:
+        k = _norm_name(n)
+        if k:
+            _SCOUT_HIT_UNTIL[k] = now + ttl
+
+
+def _scout_snap_path():
+    d = os.path.join(FRAMES, "scout")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception:
+        pass
+    return os.path.join(d, "hit.bmp")
 
 # v825 (Grok R5 #1 / R9 #2) — SETTLE QUEUE ring buffer ──────────────────────────
 # A 7–90s Claude vision call runs on a background thread; meanwhile the main loop keeps
@@ -2393,6 +2436,23 @@ def main():
             if motion > SETTLE:
                 stable = 0
                 last_md5 = cur
+                # v841 — SCOUT while busy: if item text appears mid-play, queue that SNAPSHOT
+                # (secondary system) so it drains the instant Claude frees — no deliberate stop.
+                global _SCOUT_AT
+                if time.time() - _SCOUT_AT >= SCOUT_INTERVAL_S and motion <= SCOUT_MOTION_MAX:
+                    _SCOUT_AT = time.time()
+                    try:
+                        sp = _scout_snap_path()
+                        import shutil
+                        shutil.copy2(frame, sp)
+                        ocr_s = ocr_fast(sp)
+                        if ocr_s and ocr_s.get("names"):
+                            fresh = _scout_fresh_names(ocr_s["names"])
+                            if fresh:
+                                _settle_enqueue(sp, cur, interest=max(interest, 0.85), priority=True)
+                                ev("ocr", "🔭 scout (mid-vision) · queued freeze with %s" % ", ".join(fresh[:3]))
+                    except Exception:
+                        pass
             else:
                 stable = stable + 1
                 last_md5 = cur
@@ -2404,6 +2464,59 @@ def main():
                 _settle_enqueue(frame, cur, interest, priority)
             continue
         beat("watching", motion)
+
+        # ── v841 SCOUT LANE ────────────────────────────────────────────────────
+        # Secondary snapshot system: light OCR on a copied frame every ~0.45s even while
+        # walking (as long as not full-sprint blur). Item text → dual-lane NOW, no multi-tick
+        # settle. Does NOT invent from icons — needs real on-screen text (labels / tooltips).
+        if (time.time() - _SCOUT_AT) >= SCOUT_INTERVAL_S and motion <= SCOUT_MOTION_MAX:
+            _SCOUT_AT = time.time()
+            if (time.time() - last_read_t) >= SCOUT_GAP_S and reads < SESSION_CAP + 500:
+                try:
+                    import shutil
+                    sp = _scout_snap_path()
+                    shutil.copy2(frame, sp)
+                    ocr_s = ocr_fast(sp)
+                    if ocr_s and ocr_s.get("names"):
+                        fresh = _scout_fresh_names(ocr_s["names"])
+                        if fresh:
+                            _scout_mark_names(fresh)
+                            soft_over = reads - SESSION_CAP
+                            if soft_over >= 0:
+                                time.sleep(min(8.0, 2.0 + soft_over * 0.02))
+                            _d_gap = int((time.time() - last_read_t) * 1000) if last_read_t else 0
+                            last_read_t, last_sent_md5 = time.time(), cur
+                            globals()["_LAST_EMIT_SIG"] = cur
+                            reads += 1
+                            read_ts = int(time.time() * 1000)
+                            frame_id = archive_read_frame(sp, reads, read_ts)
+                            print(f"  🔭 scout hit — {', '.join(fresh[:4])} · dual-lane #{reads}/{SESSION_CAP}")
+                            ev("settle", f"🔭 scout · item text mid-play · {', '.join(fresh[:3])} · dual-lane read #{reads}"
+                               + (f" · frame {frame_id}" if frame_id else ""))
+                            beat("reading", motion)
+                            _AP["mode"] = "read"
+                            globals()["_DISPATCH_CTX"] = {
+                                "motion": round(float(motion), 4), "peak": round(float(peak), 4),
+                                "settleTicks": int(stable), "interest": 0.9,
+                                "interestParts": {"scout": 0.9},
+                                "priority": True, "gapMs": _d_gap,
+                                "emptyStreak": int(empty_streak),
+                                "namedStreak": 1, "apMode": "scout",
+                                "queueDepth": len(_SETTLE_QUEUE),
+                                "frameSrc": "scout-snap", "origin": "scout",
+                                "note": "scout lane — OCR text without full stop-hover",
+                            }
+                            # provisional OCR board flash is inside _launch_vision
+                            _launch_vision(sp, cur, reads, frame_id, 0.9, True, read_ts)
+                            peak = 0.0
+                            priority = False
+                            continue
+                except Exception as e:
+                    try:
+                        ev("skip", "scout err: %s" % e)
+                    except Exception:
+                        pass
+
         if motion > SETTLE:
             stable = 0
             last_md5 = cur
@@ -2414,6 +2527,7 @@ def main():
         last_md5 = cur
         # Adaptive settle: priority (hard motion→stop) fires on first stable tick;
         # low-interest needs 2 stable ticks (filters ambient flicker without 20s cools)
+        # v841 — scout already covers text mid-play; settle remains the deep/context path
         need_ticks = 1 if (priority or interest >= 0.55) else 2
         if stable < need_ticks:
             _AP["mode"] = "settle"
