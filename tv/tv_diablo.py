@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v882"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v883"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1528,6 +1528,16 @@ def archive_read_frame(src_path, n, ts_ms=None):
             except Exception:
                 free_gb = 999
             if free_gb < MIN_FREE_GB:
+                # v883 — REELS DIE WHOLE, LAST: if loose shedding still can't breathe, retire
+                # the OLDEST sealed reels in one piece (a run keeps its full video or is gone —
+                # never a half-eaten reel).
+                try:
+                    reels = sorted(d2 for d2 in os.listdir(HIST_DIR) if d2.startswith("reel_"))
+                    if len(reels) > 2 and not foot_files:   # loose pool empty → oldest whole reel goes
+                        import shutil as _shr
+                        _shr.rmtree(os.path.join(HIST_DIR, reels[0]), ignore_errors=True)
+                except Exception:
+                    pass
                 # v873 (THE 4GB NIGHT) — YOUTH SHIELD: an emergency may NEVER eat the session
                 # being recorded. Frames younger than 15min survive every shed; old sessions
                 # die first. If everything is young, we shed nothing and the DISK FULL fault
@@ -3894,6 +3904,36 @@ def close_session(reason="stop", farewell=True):
         except Exception as e:
             print(f"  👋 farewell failed: {e}")
     _journal_flush(timeout=10.0)   # v879 — Grok flush list #2: session_end + late applies hit disk
+    try:
+        # v883 (Konyo: 'sessions are not showing the real frame-by-frame') — REEL FOLD: loose
+        # f_*.jpg footage was a shared pool the reaper shed FIRST, so every sealed run went
+        # hollow within hours. Fold this session's window into frames/hist/reel_<sid>/ —
+        # rename on the same volume, instant — and the reaper retires whole old reels last.
+        _hd = os.path.join(FRAMES, "hist")
+        _t0 = int(globals().get("_SESSION_T0_MS") or (SESSION_ID.split("_")[1] if "_" in SESSION_ID else 0) or 0)
+        _t1 = int(time.time() * 1000) + 2000
+        if os.path.isdir(_hd) and _t0:
+            _reel = os.path.join(_hd, "reel_" + SESSION_ID)
+            _moved = 0
+            for _fn in os.listdir(_hd):
+                if not (_fn.startswith("f_") and _fn.endswith(".jpg")):
+                    continue
+                try:
+                    _fts = int(_fn[2:-4])
+                except Exception:
+                    continue
+                if _t0 - 2000 <= _fts <= _t1:
+                    if not _moved:
+                        os.makedirs(_reel, exist_ok=True)
+                    try:
+                        os.replace(os.path.join(_hd, _fn), os.path.join(_reel, _fn))
+                        _moved += 1
+                    except Exception:
+                        pass
+            if _moved:
+                print(f"  🎞 reel folded — {_moved} footage frames sealed into reel_{SESSION_ID}")
+    except Exception:
+        pass
     with _state_lock:
         try:
             st = _load()

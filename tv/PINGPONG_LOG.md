@@ -1653,3 +1653,19 @@ the v881 header tabs are the single nav truth. Util row (TV·D/Theatre/Log) inhe
 and now sits fully visible (his screenshot showed it clipped). Narrow windows shrink the tabs
 instead of hiding them (the rail fallback no longer exists). Playwright-verified: railGone ·
 5 head tabs · util fully on-screen; screenshot looked at. 149/149 + 30/30 + parity ×4.
+
+## 🎞 v883 "SEALED REELS" (Konyo: 'sessions not showing real frame-by-frame — fix THOROUGHLY', Jul 19)
+ROOT CAUSE of every hollow session: footage f_*.jpg was a shared pool the reaper sheds FIRST
+(only read frames were journal-shielded) — any sealed run lost its video within hours. FIX:
+(1) REEL FOLD at seal — the session window's footage renames into frames/hist/reel_<sid>/;
+(2) reels die WHOLE and LAST (oldest entire reel, only after the loose pool is empty);
+(3) theatre interleaves the reel first (dedup by capture-ts), loose scan = live fallback;
+(4) shelf reports footageN truth; (5) one-time migration folded 61 surviving frames. VERIFIED
+END-TO-END: session n=3 → 70 beats (9 reads + 61 footage), reel frame HTTP 200. Found+fixed
+along the way: /api/session ignored ?id= silently (n= is the real param — my own probes lied).
+ALSO: decision river (spec §C) live in the drawer; site theatre drag-scrub + keyboard matrix +
+producer fields (origin/readerId) into the hist archive; 30-min soak harness (tv/soak_test.py
++ tv-soak.yml nightly, 2-min local proof PASS, flat RSS, 0 bad journal lines); visual snapshot
+test in the RINSE spec. GitHub issue #1 filed for the SuperGrok verify round per Konyo.
+149/149 + 30/30 + parity ×4. NEXT: Grok third-eye on the SIM/ON-AIR roundtrip (Konyo:
+'something there is still bugged').

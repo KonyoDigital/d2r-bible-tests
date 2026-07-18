@@ -33413,7 +33413,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v882', name:'One Nav', date:'2026-07-19', note:'v882 (Konyo): BIBLE rail wiped — header tabs are the one nav; util row inherits the room; tabs shrink but never vanish on narrow windows; screenshot-verified' };
+  window.D2R_BUILD = { id:'v883', name:'Sealed Reels', date:'2026-07-19', note:'v883 (Konyo: frame-by-frame not working): footage folds into reel_<sessionId>/ at seal — reels die whole and last, theatre reads the reel first (verified: 70 beats, 61 footage, reel frames serve); decision river in the drawer; site theatre drag-scrub + keyboard + producer fields; soak harness (2-min proof PASS) + visual snapshot spec; GitHub issue #1 for the SuperGrok verify round' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34521,6 +34521,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           // v822 — AI READ LINE parity: the site archive keeps the clocks + lanes the app shows
           completedTs: rd.completedTs || 0, names: (rd.names||[]).slice(),
           ocr_names: (rd.ocr_names||[]).slice(), ocr_seeded: (rd.ocr_seeded||[]).slice(), sim: !!rd.sim,
+          origin: (rd.dispatch||{}).origin || '', readerId: (rd.dispatch||{}).readerId,   // v883 — producer fields: WHY it fired + which reader
           items: routes.map(function(x){ return { kind:x.kind, key:x.key, label:x.label, done:!!x.done, db:x.db!==false && x.kind!=='note', vault:!!x.vault, holding:!!x.holding, thrown:!!x.thrown, ocr:!!x.ocr, provisional:!!x.provisional, confirmed:!!x.confirmed, discovered:!!x.discovered, lc:x.lc||'', muleName:x.muleName||'' }; }) };
         FEED.push(entry);
         pushHistRead(entry);
@@ -34820,6 +34821,32 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     var _thNext = document.getElementById('tvz-th-next-s'); if(_thNext) _thNext.addEventListener('click', function(){ if(THZ.sn > 0) thzLoad(THZ.sn-1); });
     var _thTl = document.getElementById('tvz-th-timeline');
     if(_thTl) _thTl.addEventListener('click', function(e){ var b = e.target.closest('.tvz-th-beat'); if(!b) return; THZ.i = Number(b.dataset.i)||0; if(THZ.P) THZ.p = THZ.P[THZ.i]||0; thzPaint(); });   // v807 — seek playhead with the pick
+    // v883 — DRAG-SCRUB (console port): hold + sweep = rAF-coalesced seek, latest pointer wins
+    if(_thTl){
+      var _sc = { down:false, x:0, raf:0 };
+      var _seekAtX = function(x){
+        var r = _thTl.getBoundingClientRect(); if(r.width < 4) return;
+        var frac = Math.max(0, Math.min(1, (x - r.left) / r.width));
+        var k = Math.round(frac * (THZ.beats.length - 1)) || 0;
+        if(k !== THZ.i){ THZ.i = k; if(THZ.P) THZ.p = THZ.P[k] || 0; thzPaint(); }
+      };
+      _thTl.addEventListener('pointerdown', function(e){ _sc.down = true; _sc.x = e.clientX; try{_thTl.setPointerCapture(e.pointerId);}catch(err){} });
+      _thTl.addEventListener('pointermove', function(e){
+        if(!_sc.down) return; _sc.x = e.clientX;
+        if(!_sc.raf) _sc.raf = requestAnimationFrame(function(){ _sc.raf = 0; _seekAtX(_sc.x); });
+      });
+      ['pointerup','pointercancel'].forEach(function(ev){ _thTl.addEventListener(ev, function(){ _sc.down = false; }); });
+    }
+    // v883 — keyboard transport (console port): only while the theatre is open; never touches the page
+    document.addEventListener('keydown', function(e){
+      if(!THZ.open) return;
+      if(e.key === ' '){ e.preventDefault(); THZ.playing = !THZ.playing; var pb = document.getElementById('tvz-th-play'); if(pb) pb.textContent = THZ.playing ? '⏸' : '▶'; }
+      else if(e.key === 'ArrowRight'){ e.preventDefault(); THZ.playing = false; THZ.i = Math.min(THZ.beats.length - 1, THZ.i + 1); if(THZ.P) THZ.p = THZ.P[THZ.i] || 0; thzPaint(); }
+      else if(e.key === 'ArrowLeft'){ e.preventDefault(); THZ.playing = false; THZ.i = Math.max(0, THZ.i - 1); if(THZ.P) THZ.p = THZ.P[THZ.i] || 0; thzPaint(); }
+      else if(e.key === 'Home'){ e.preventDefault(); THZ.i = 0; if(THZ.P) THZ.p = 0; thzPaint(); }
+      else if(e.key === 'End'){ e.preventDefault(); THZ.i = Math.max(0, THZ.beats.length - 1); if(THZ.P) THZ.p = THZ.P[THZ.i] || 0; thzPaint(); }
+      else if(e.key === 'Escape'){ thzClose(); }
+    });
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && THZ.open) thzClose(); });
   } catch(e){}
   // v766 — GET THE APP: copy the install one-liner (navigator.clipboard + execCommand fallback + ✓ flash)

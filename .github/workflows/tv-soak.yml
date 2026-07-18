@@ -1,0 +1,17 @@
+name: 📺 TV DIABLO — 30-min soak
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: soak minutes
+        default: "30"
+  schedule:
+    - cron: "30 3 * * *"   # nightly, quiet hours
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the soak (stub mode — no vision cost)
+        run: TV_SOAK_MINUTES=${{ github.event.inputs.minutes || '30' }} python3 tv/soak_test.py

@@ -140,6 +140,24 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     expect((await state(page)).theatre).toBe(true);   // Esc leaves cinema, not the theatre
   });
 
+  test('visual snapshot sanity: stage paints, header tabs present, nothing black', async ({ page }) => {
+    // v883 (#49) — deterministic visual floor (no pixel-diff flake): the console must LOOK alive
+    await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    const vis = await page.evaluate(() => {
+      const tabs = document.querySelectorAll('#head-tabs .ht').length;
+      const stage = document.getElementById('stage');
+      const r = stage ? stage.getBoundingClientRect() : { width: 0, height: 0 };
+      const phase = (document.getElementById('phase') || {}).textContent || '';
+      return { tabs, stageW: r.width, stageH: r.height, phase };
+    });
+    expect(vis.tabs).toBe(5);
+    expect(vis.stageW).toBeGreaterThan(400);
+    expect(vis.stageH).toBeGreaterThan(300);
+    expect(vis.phase.length).toBeGreaterThan(2);   // STANDBY/WATCHING — never empty
+    await page.screenshot({ path: 'test-results/rinse-visual.png' });   // artifact for the humans
+  });
+
   test('status latency budget: cached /api/status answers <500ms', async () => {
     const t0 = Date.now();
     const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });

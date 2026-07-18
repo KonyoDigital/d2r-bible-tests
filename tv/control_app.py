@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v882)
+# 📺 TV DIABLO — Control App (Mac + Windows · v883)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1009,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v882",
+        "ver": "v883",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1374,10 +1374,18 @@ class Handler(BaseHTTPRequestHandler):
                 sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
                 want = sum(1 for r in sess if r.get("frameId"))
                 miss = max(0, want - len(frames))
+                _reeln = 0
+                try:
+                    _rd2 = os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or ""))
+                    if os.path.isdir(_rd2):
+                        _reeln = len([f2 for f2 in os.listdir(_rd2) if f2.endswith(".jpg")])
+                except Exception:
+                    pass
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len(sess), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
-                            "areas": areas[:6], "sessionId": sid,
+                            "areas": areas[:6], "footageN": _reeln,   # v883 — the shelf tells the truth about video
+                    "sessionId": sid,
                             # v840 — SIM honesty: how much of the night is still replayable
                             "frameWant": want, "frameMissing": miss,
                             "archiveOk": miss == 0 and len(frames) > 0})
@@ -1467,17 +1475,31 @@ class Handler(BaseHTTPRequestHandler):
                 t0f = (sess[0].get("ts") or 0) - 2000
                 t1f = (sess[-1].get("ts") or 0) + 2000
                 hist_dir = os.path.join(HERE, "frames", "hist")
+                sid_here = (sess[0].get("sessionId") or "")
+                # v883 (Konyo: 'frame-by-frame is not working') — the SEALED REEL is the truth:
+                # reel_<sid>/ holds this run's footage immortal-until-retired-whole. Loose
+                # window-scan stays as the fallback for the LIVE (unsealed) session.
+                _srcs = []
+                _reel_dir = os.path.join(hist_dir, "reel_" + sid_here) if sid_here else ""
+                if _reel_dir and os.path.isdir(_reel_dir):
+                    _srcs.append(("reel_" + sid_here + "/", _reel_dir))
                 if os.path.isdir(hist_dir):
-                    for fn in os.listdir(hist_dir):
+                    _srcs.append(("", hist_dir))
+                _seen_fts = set()
+                for _pref, _dir in _srcs:
+                    for fn in os.listdir(_dir):
                         if not (fn.startswith("f_") and fn.endswith(".jpg")):
                             continue
                         try:
                             fts = int(fn[2:-4])
                         except Exception:
                             continue
-                        if t0f <= fts <= t1f:
+                        if fts in _seen_fts:
+                            continue
+                        if _pref or (t0f <= fts <= t1f):
+                            _seen_fts.add(fts)
                             beats.append({"ts": fts, "captureTs": fts, "footage": True,
-                                          "frame": fn, "frameId": fn[:-4], "names": [],
+                                          "frame": _pref + fn, "frameId": _pref + fn[:-4], "names": [],
                                           "scene": "", "area": "", "lane": "footage"})
             except Exception:
                 pass
@@ -1615,7 +1637,9 @@ class Handler(BaseHTTPRequestHandler):
                                  "chain": row.get("chain") or {},
                                  "ocr_raw": row.get("ocr_raw") or [],
                                  "ocr_seeded": row.get("ocr_seeded") or [],
-                                 "equipped_names": row.get("equipped_names") or []})
+                                 "equipped_names": row.get("equipped_names") or [],
+                                 "board": row.get("board") or {},       # v883 — A2.5 feeds the river's BOARD stage
+                                 "vision": row.get("vision") or {}})
             except Exception as e:
                 self._json(500, {"ok": False, "msg": str(e)})
             return
@@ -2048,7 +2072,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v882 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v883 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
