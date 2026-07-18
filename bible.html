@@ -4312,6 +4312,10 @@ body.app-ctx .tab-content,body.app-ctx .gsearch-wrap{max-width:none;margin-left:
 body.app-ctx .tvf-spine{border-radius:10px;margin:8px 0 12px}
 body.app-ctx{scrollbar-width:thin}
 body.app-ctx #shortcut-hint{display:none !important}   /* v857.1 — site power-hints off in the console */
+/* v879 (army board #5) — CRT cosmetics rest when the set is dark: static snow, scan drift,
+   aura, sweep, ember all pause while TV·D reports OFF/offline */
+#tab-tvd [data-tvstate="off"] *, #tab-tvd [data-tvstate="off"] *::before, #tab-tvd [data-tvstate="off"] *::after,
+[data-tvstate="off"] .tvz-crt *, [data-tvstate="off"] .tvz-crt *::before, [data-tvstate="off"] .tvz-crt *::after{animation-play-state:paused !important}
 /* v878 (army board #4) — sticky chrome must not repaint every frame in the console:
    tab-bar glow/sheen + ⌂ pill breathe are box-shadow keyframes on always-visible surfaces */
 body.app-ctx .tabs, body.app-ctx .tabs::before, body.app-ctx .tabs::after,
@@ -22328,12 +22332,18 @@ window._promoteUnknownBases = function(){
 try { window._promoteUnknownBases(); } catch(e){}
 updateEffMF();
 updatePlayers();
-renderHero();
-renderMostWanted();
-renderGrailProgress();
-renderBossNav();
-renderBossCards();
-renderCalc();
+// v879 (Grok C — GO, plain skip) — the CONSOLE (?app=1) never shows hero/bosses/calc surfaces;
+// their ~68k-node boot render was pure tax. Search runs on v42BuildCommands() DATA, not this
+// DOM. Tools-tab renders (runes/gems/craft/runewords/vault/journal) stay — the console uses them.
+var _APPCTX_BOOT = /(\?|&)app=1(&|$)/.test(location.search || '');
+if (!_APPCTX_BOOT){
+  renderHero();
+  renderMostWanted();
+  renderGrailProgress();
+  renderBossNav();
+  renderBossCards();
+  renderCalc();
+}
 renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderAllRunewords();
 try { renderRwBases(); } catch(e){}
@@ -33403,7 +33413,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v878', name:'Board Breather', date:'2026-07-19', note:'v878: board app-ctx optimization — relic observer 1s debounce (was 68k-node scan per feed repaint), TVD poll relaxes off-tab, app-ctx chrome animations off, f-card content-visibility, persist debounce + pagehide flush, site-theatre rAF dies with the curtain; sticky-bridge + beacon test locks' };
+  window.D2R_BUILD = { id:'v879', name:'Night Round III', date:'2026-07-19', note:'v879 (Grok-approved): in-memory state + write-behind + ordered journal-writer thread (emit lock now pure compute), lean /api/session + /api/beat lazy forensics with drawer prefetch, app-ctx boot skips (Grok-corrected list), Windows footage parity, seal pre-warm, journal cache, theatre throttles, nice coverage everywhere, CRT rest' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

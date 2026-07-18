@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v878)
+# 📺 TV DIABLO — Control App (Mac + Windows · v879)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -653,6 +653,10 @@ def stop_agent(farewell=True):
         }
     finally:
         _stop_inflight = False
+        try:
+            _prewarm_seal_cache()   # v879 (Grok j) — theatre derivatives warm while the Mac is quiet
+        except Exception:
+            pass
 
 
 def _file_url(path, fragment=""):
@@ -968,7 +972,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v878",
+        "ver": "v879",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1292,13 +1296,35 @@ class Handler(BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
 
+    def _load_journal_cached(self):
+        """v879 (army B#5) — theatre endpoints re-parsed every generation file per call.
+        Control never appends, so an mtime key is honest HERE (unlike the agent side)."""
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        import replay as _rp
+        try:
+            d = os.path.dirname(_rp.JOURNAL) or "."
+            base = os.path.basename(_rp.JOURNAL)
+            key = tuple(sorted(
+                (n, os.path.getmtime(os.path.join(d, n)))
+                for n in os.listdir(d)
+                if n.startswith(base) or (n.startswith("sessions") and n.endswith(".jsonl"))))
+        except Exception:
+            key = None
+        c = globals().setdefault("_JRNL_CACHE", {"key": object(), "rows": None})
+        if key is not None and key == c["key"] and c["rows"] is not None:
+            return c["rows"]
+        rows = _rp.load_journal()
+        c["key"], c["rows"] = key, rows
+        return rows
+
     def _theatre_sessions(self):
         """v765 — REPLAY THEATRE: list journaled sessions (newest first) from tv/sessions.jsonl."""
         try:
             if HERE not in sys.path:
                 sys.path.insert(0, HERE)
             import replay as _rp
-            sessions = _rp.split_sessions(_rp.load_journal())
+            sessions = _rp.split_sessions(self._load_journal_cached())
             out = []
             for i, sess in enumerate(sessions, 1):
                 frames = [r for r in sess if r.get("frameId")
@@ -1327,7 +1353,7 @@ class Handler(BaseHTTPRequestHandler):
             if HERE not in sys.path:
                 sys.path.insert(0, HERE)
             import replay as _rp
-            sessions = _rp.split_sessions(_rp.load_journal())
+            sessions = _rp.split_sessions(self._load_journal_cached())
             if n < 1 or n > len(sessions):
                 return {"error": "no such session"}
             sess = sessions[n - 1]
@@ -1377,16 +1403,16 @@ class Handler(BaseHTTPRequestHandler):
                     "ocr_ms": r.get("ocr_ms") or 0,   # v823 (Grok R9 sleeper #8) — the fast lane gets its clock
                     "names_loc": r.get("names_loc") or {},          # v830 — per-name location truth
                     "equipped_names": r.get("equipped_names") or [],
-                    "raw": r.get("raw") or "",                      # v832 — THE THOUGHT
-                    "dispatch": r.get("dispatch") or {},            # v832 — THE DISPATCH
-                    "promptVer": r.get("promptVer") or "",
-                    "parse": r.get("parse") or {},              # v835 — parse audit
-                    "decisions": r.get("decisions") or {},      # v836 — the decision chain
-                    "pre": r.get("pre") or [],                  # v853 — pre-triage
-                    "chain": r.get("chain") or {},              # v855 — provenance
-                    "ocr_raw": r.get("ocr_raw") or [],          # v853 — OCR literal sight
+                    # v879 (Grok B — GO) — LAZY FORENSICS: raw/parse/decisions/chain/pre/ocr_raw
+                    # travel per-beat via /api/beat when the READ CARD opens. The lean beat
+                    # keeps dispatch.origin/readerId for chips + every story field Grok listed
+                    # (vault/pending/thrown/discovered/ocr_names/names_loc — credits/cut/replay
+                    # all feed off those and stay client-side).
+                    "lean": True,
+                    "dispatch": {k: (r.get("dispatch") or {}).get(k)
+                                 for k in ("origin", "readerId")
+                                 if (r.get("dispatch") or {}).get(k) is not None},
                     "confirmed_names": r.get("confirmed_names") or [],
-                    "ocr_seeded": r.get("ocr_seeded") or [],
                     "conf": r.get("conf"),
                     "lifecycle_tags": r.get("lifecycle_tags") or {},
                     "sim": bool(r.get("sim")),
@@ -1517,6 +1543,37 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
+            return
+        if path.startswith("/api/beat"):
+            # v879 (Grok B) — the READ CARD's forensic blob, one beat at a time
+            try:
+                from urllib.parse import urlparse as _up, parse_qs as _pq
+                q = _pq(_up(self.path).query or "")
+                sid = (q.get("id") or [""])[0]
+                bn = int((q.get("n") or ["0"])[0])
+                if HERE not in sys.path:
+                    sys.path.insert(0, HERE)
+                import replay as _rp
+                row = None
+                for r in self._load_journal_cached():
+                    if (r.get("sessionId") or "") == sid and int(r.get("n") or -1) == bn:
+                        row = r
+                if row is None:
+                    self._json(404, {"ok": False, "msg": "no such beat"})
+                    return
+                self._json(200, {"ok": True,
+                                 "raw": row.get("raw") or "",
+                                 "dispatch": row.get("dispatch") or {},
+                                 "promptVer": row.get("promptVer") or "",
+                                 "parse": row.get("parse") or {},
+                                 "decisions": row.get("decisions") or {},
+                                 "pre": row.get("pre") or [],
+                                 "chain": row.get("chain") or {},
+                                 "ocr_raw": row.get("ocr_raw") or [],
+                                 "ocr_seeded": row.get("ocr_seeded") or [],
+                                 "equipped_names": row.get("equipped_names") or []})
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)})
             return
         if path.startswith("/api/session"):
             from urllib.parse import parse_qs, urlparse
@@ -1667,10 +1724,12 @@ class Handler(BaseHTTPRequestHandler):
             _runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intake_local.mjs")
             if os.environ.get("TV_INTAKE_LOCAL", "1") != "0" and os.path.isfile(_runner):
                 try:
+                    _nice_kw = ({"creationflags": 0x4000 | _WIN_CREATE} if IS_WIN
+                                else {"preexec_fn": (lambda: os.nice(10))})   # v879 — intake yields to the game
                     _pr = subprocess.run(
                         ["node", _runner],
                         input=json.dumps({"path": path, "body": body}).encode("utf-8"),
-                        capture_output=True, timeout=150)
+                        capture_output=True, timeout=150, **_nice_kw)
                     if _pr.returncode == 0 and _pr.stdout:
                         _out = json.loads(_pr.stdout.decode("utf-8", "replace"))
                         _pl = (_out.get("body") or "").encode("utf-8")
@@ -1945,7 +2004,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v878 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v879 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

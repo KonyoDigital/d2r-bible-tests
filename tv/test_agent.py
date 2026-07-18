@@ -370,7 +370,8 @@ class TestFarewellRead(unittest.TestCase):
         self.assertEqual(rec.get("lane"), "deep")
         self.assertEqual(rec.get("n"), 3)  # readCount was 2 → +1
         self.assertEqual(rec.get("scene"), "stash")
-        # state on disk
+        # state on disk — v879 write-behind: flush first (the seal path always does)
+        tv._state_flush()
         st = json.load(open(tv.STATE, encoding="utf-8"))
         self.assertEqual(st["readCount"], 3)
         self.assertTrue(st["reads"][-1].get("farewell"))

@@ -1609,3 +1609,17 @@ loop lives only while the curtain is up. Control locks: sticky-bridge (both dire
 beacon shape/silence units. DEFERRED to Grok pingpong: boot-render laziness for hidden tabs
 (cross-tab DOM deps: search/forge feed off other tabs' renders), /api/session lazy forensics,
 Windows footage parity, theatre thClock/cur-tracking throttles. 149/149 + 30/30 + parity ×4.
+
+## 🌙 v879 "NIGHT ROUND III" (Grok front-pass GO ×5, Jul 19 night)
+Grok verdicts implemented exactly: A — state lives in memory (path-keyed), write-behind 1s
+saver + flush at seal/farewell (Grok flush list), ONE ordered journal-writer thread (fsync off
+the emit path; _emit_lock now holds pure computation); B — lean /api/session (story fields per
+Grok's corrected list — vault/pending/thrown/discovered stay lean so credits/cut/replay live)
++ /api/beat forensic blob per beat + drawer fetch-on-open with next-read prefetch (verified
+live on the fixture harness); C — app-ctx boot skips EXACTLY Grok's table (hero/most-wanted/
+grail/boss-nav/boss-cards/calc; ALL tools renders kept — my draft list was wrong, Grok caught
+it); i — Windows footage parity (watch branch archives eye.jpg, 0.5s absolute schedule, same
+floor+telemetry); j — seal pre-warm of cache1280 (mac, nice 15, cap 400). Plus: NICE_KW on all
+9 sips/screencapture spawns + node runner (BELOW_NORMAL on win), control journal cache,
+thClock 4Hz + O(1) cur-swap + playback drawer debounce, CRT pause when the set is dark.
+149/149 + 30/30 + parity ×4. Back-pass next.

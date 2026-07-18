@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v878"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v879"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -104,7 +104,43 @@ READ_PROMPT = (
 # appended as one JSON line. This is what `tvd replay` re-runs — real frames, real reads.
 JOURNAL = os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")   # v877 — CI harness override
 _JOURNAL_WARNED = False
+_JQ = None   # v879 (Grok A-(a)) — ONE writer thread preserves apply order; emit never blocks on fsync
+def _journal_writer_loop():
+    while True:
+        rec = _JQ.get()
+        if rec is None:
+            _JQ.task_done()
+            return
+        try:
+            _journal_write(rec)
+        except Exception:
+            pass
+        _JQ.task_done()
+
+
+def _journal_flush(timeout=10.0):
+    """Join the writer queue — Grok farewell flush item 2."""
+    try:
+        if _JQ is not None:
+            deadline = time.time() + timeout
+            while not _JQ.empty() and time.time() < deadline:
+                time.sleep(0.05)
+    except Exception:
+        pass
+
+
 def _journal(rec):
+    """v879 — enqueue when the writer runs; direct write otherwise (tests/replay)."""
+    if _JQ is not None:
+        try:
+            _JQ.put(dict(rec) if isinstance(rec, dict) else rec)
+            return
+        except Exception:
+            pass
+    _journal_write(rec)
+
+
+def _journal_write(rec):
     global _JOURNAL_WARNED
     if os.environ.get("TV_NO_JOURNAL"):   # v753 — a REPLAY is a re-broadcast, never a new session
         return
@@ -148,16 +184,52 @@ def _journal(rec):
             except Exception: pass
 
 _state_lock = threading.Lock()
+_STATE_MEM = None          # v879 (Grok A) — the AUTHORITATIVE state lives in memory
+_STATE_PATH = None         # path key: tests/replay repoint STATE — the cache follows
+_STATE_DIRTY = [False]
 def _load():
-    try:
-        with open(STATE, encoding="utf-8") as f: return json.load(f)
-    except Exception:
-        return {"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0}
+    """v879 — one cold disk read per process; every later _load() is the in-memory dict.
+    The old per-call json.load ran at 4Hz from /state AND inside every apply."""
+    global _STATE_MEM, _STATE_PATH
+    if _STATE_MEM is None or _STATE_PATH != STATE:
+        _STATE_PATH = STATE
+        _STATE_MEM = None
+    if _STATE_MEM is None:
+        try:
+            with open(STATE, encoding="utf-8") as f:
+                _STATE_MEM = json.load(f)
+        except Exception:
+            _STATE_MEM = {"online": True, "startedAt": int(time.time()*1000), "reads": [], "readCount": 0}
+    return _STATE_MEM
 
 def _save(st):
+    """v879 — WRITE-BEHIND: callers mark dirty; the saver thread (or a flush) hits disk.
+    st is the in-memory dict (or replaces it — replay/tests pass fresh dicts)."""
+    global _STATE_MEM, _STATE_PATH
+    _STATE_MEM = st
+    _STATE_PATH = STATE
+    _STATE_DIRTY[0] = True
+
+def _state_flush():
+    """Serialize the in-memory state to disk (atomic replace). Called by the saver thread,
+    at seal, and at farewell — Grok flush list items 3/6."""
+    st = _STATE_MEM
+    if st is None:
+        return
     tmp = STATE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f: json.dump(st, f)
     os.replace(tmp, STATE)
+    _STATE_DIRTY[0] = False
+
+def _state_saver_loop():
+    while True:
+        time.sleep(1.0)
+        try:
+            if _STATE_DIRTY[0]:
+                with _state_lock:
+                    _state_flush()
+        except Exception:
+            pass
 
 _BEAT = {"ts": 0, "phase": "idle", "motion": 0.0}
 _EVENTS = []
@@ -777,8 +849,7 @@ def _screencapture_window(wid, tmp_path, fmt="bmp", timeout=12):
     try:
         r = subprocess.run(
             ["screencapture", "-l", str(int(wid)), "-o", "-x", "-t", fmt, tmp_path],
-            capture_output=True, timeout=timeout,
-        )
+            capture_output=True, timeout=timeout, **NICE_KW)
         return os.path.isfile(tmp_path) and os.path.getsize(tmp_path) > 10000
     except Exception:
         return False
@@ -806,8 +877,7 @@ def _capture_window_to_bmp(wid, path, timeout=12):
         try:
             r = subprocess.run(
                 ["sips", "-s", "format", "bmp", png, "--out", tmp],
-                capture_output=True, timeout=timeout,
-            )
+                capture_output=True, timeout=timeout, **NICE_KW)
         except Exception:
             r = None
         try:
@@ -839,8 +909,7 @@ def _sips_hd_jpeg(src, dest, max_px=None, quality=None, timeout=6):
         r = subprocess.run(
             ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality),
              "--resampleHeightWidthMax", str(max_px), src, "--out", dest],
-            capture_output=True, timeout=timeout,
-        )
+            capture_output=True, timeout=timeout, **NICE_KW)
         return r.returncode == 0 and os.path.isfile(dest) and os.path.getsize(dest) > 4000
     except Exception:
         return False
@@ -904,8 +973,7 @@ def _film_loop():
                     try:
                         r = subprocess.run(
                             ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
-                            capture_output=True, timeout=4,
-                        )
+                            capture_output=True, timeout=4, **NICE_KW)
                         wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
                     except Exception:
                         wrote = False
@@ -928,8 +996,7 @@ def _film_loop():
                     try:
                         subprocess.run(
                             ["screencapture", "-x", "-t", "jpg", tmp],
-                            capture_output=True, timeout=4,
-                        )
+                            capture_output=True, timeout=4, **NICE_KW)
                         wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
                     except Exception:
                         wrote = False
@@ -1003,7 +1070,7 @@ def _film_loop():
                         # subprocess; don't pay a second one for the never-starve frame
                         if not _quartz_grab_screen(tmp, uti="public.jpeg"):
                             subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
-                                           capture_output=True, timeout=5)
+                                           capture_output=True, timeout=5, **NICE_KW)
                         if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                             globals()["_FOOTAGE_AT"] = now_f2
                             _FOOT_TIMES.append(now_f2)   # v871
@@ -1082,8 +1149,7 @@ def capture_mac(path, timeout=12):
     try:
         r = subprocess.run(
             ["screencapture", "-x", "-t", "bmp", tmp],
-            capture_output=True, timeout=timeout,
-        )
+            capture_output=True, timeout=timeout, **NICE_KW)
         ok = _cap_promote(tmp, path)
         if ok:
             _CAP_TARGET = {"mode": "full", "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")), "wid": None}
@@ -1296,7 +1362,7 @@ def _readable_frame(ap, out_jpg=None):
         jp = out_jpg or os.path.join(FRAMES, "read.jpg")
         r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80",
                             "--resampleHeightWidthMax", "1568", ap, "--out", jp],
-                           capture_output=True, timeout=20)
+                           capture_output=True, timeout=20, **NICE_KW)
         if r.returncode == 0 and os.path.isfile(jp):
             global _JPEG_LOGGED
             if not globals().get("_JPEG_LOGGED"):
@@ -1380,7 +1446,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     r = subprocess.run(
                         ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82",
                          "--resampleHeightWidthMax", str(HIST_MAX_PX), src, "--out", dest],
-                        capture_output=True, timeout=25)
+                        capture_output=True, timeout=25, **NICE_KW)
                     ok = r.returncode == 0 and os.path.isfile(dest)
                 except Exception:
                     ok = False   # sips is macOS-only — Windows/Linux land in the copy fallbacks
@@ -1525,6 +1591,13 @@ _ESCALATE_N = [0]
 # login. A dead/rate-limited key hangs past 40–90s with empty stdout — exactly run #2's
 # warm + oneshot timeouts. Strip API-key auth so vision rides the *logged-in* claude plan
 # (the product contract: "your subscription, not API keys"). Keep OAuth tokens if present.
+# v879 (army §2) — EVERY helper subprocess yields to the game. Mac/Linux: nice(10) via
+# preexec_fn. Windows: BELOW_NORMAL_PRIORITY_CLASS folded into creationflags.
+if sys.platform == "win32":
+    NICE_KW = {"creationflags": 0x4000}   # BELOW_NORMAL_PRIORITY_CLASS
+else:
+    NICE_KW = {"preexec_fn": (lambda: os.nice(10))}
+
 _API_AUTH_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
 def _claude_env():
     """Env for vision subprocesses: subscription login, not shell API keys."""
@@ -2862,6 +2935,10 @@ def main():
             os.nice(5)   # v877 (army §2) — the whole agent yields to D2R; workers add nice(10) on top
     except Exception:
         pass
+    import queue as _qmod
+    globals()["_JQ"] = _qmod.Queue()
+    threading.Thread(target=_journal_writer_loop, daemon=True, name="tv-journal").start()   # v879 — Grok A(a): one ordered writer
+    threading.Thread(target=_state_saver_loop, daemon=True, name="tv-statesave").start()    # v879 — write-behind 1s
     start_film_thread()
     ev("boot", f"scanner online — session {SESSION_ID} · eyes {POLL_S}s · film ~{int(1/FILM_INTERVAL_S)}fps · fast={FAST_MODEL} · genius={GENIUS_MODEL} · lifecycle v2")
     _known_dead_load()
@@ -3159,6 +3236,24 @@ def main():
             f = newest_watched_frame()
             if not f: continue
             frame = f
+            # v879 (Grok i) — WINDOWS FOOTAGE PARITY: the mac film thread never runs here, so
+            # Windows reels had zero f_*.jpg. Archive the capture half's eye.jpg on the same
+            # 0.5s absolute schedule, same disk floor, same telemetry. Never blocks settle.
+            try:
+                _weye = os.path.join(FRAMES, "eye.jpg")
+                _wnow = time.time()
+                if os.path.isfile(_weye) and (_wnow - os.path.getmtime(_weye)) < 3.0 \
+                        and _wnow >= globals().get("_FOOTAGE_DUE", 0.0):
+                    globals()["_FOOTAGE_DUE"] = max(globals().get("_FOOTAGE_DUE", 0.0) + 0.5, _wnow - 0.49) \
+                        if globals().get("_FOOTAGE_DUE") else _wnow + 0.5
+                    import shutil as _shwz
+                    _whd = os.path.join(FRAMES, "hist")
+                    os.makedirs(_whd, exist_ok=True)
+                    if _shwz.disk_usage(_whd).free / 1e9 >= MIN_FREE_GB:
+                        _FOOT_TIMES.append(_wnow)
+                        _shwz.copyfile(_weye, os.path.join(_whd, "f_%d.jpg" % int(_wnow * 1000)))
+            except Exception:
+                pass
             # prefer stable live.bmp path for settle when present
             live_bmp = os.path.join(FRAMES, "live.bmp")
             if os.path.isfile(live_bmp):
@@ -3744,6 +3839,7 @@ def close_session(reason="stop", farewell=True):
                 farewell_read()
         except Exception as e:
             print(f"  👋 farewell failed: {e}")
+    _journal_flush(timeout=10.0)   # v879 — Grok flush list #2: session_end + late applies hit disk
     with _state_lock:
         try:
             st = _load()
@@ -3751,6 +3847,7 @@ def close_session(reason="stop", farewell=True):
             st["stopping"] = False
             st["sessionId"] = SESSION_ID
             _save(st)
+            _state_flush()   # v879 — Grok flush list #3/#6: never exit with a dirty write-behind
         except Exception:
             pass
     try:
