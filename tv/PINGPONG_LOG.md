@@ -958,3 +958,9 @@ Second drop of the same name COUNTS: instance-aware vaulted ledger (count/ts), c
 provenance (seen popped too — the echo-revault bug caught by the new lock), fresh sighting
 re-vaults via floor-again doctrine or multiset branch; _norm_name strips Superior/Ethereal
 prefixes so floor↔panel names share one chain key. 89/89 + 16/16.
+
+## 🌙 Konyo order (theatre = video + forensics) → v797 "Frame Forensics" (~06:20)
+Beat payload now carries the FULL read truth (ocr_names/confirmed/ocr_seeded/conf/lifecycle_tags/
+sim/model/completedTs) + theatre caption grows a forensics strip: T+mm:ss.mmm session clock ·
+⚡OCR lane vs 🧠 deep lane names · latency ms · ✓confirmed count · 🛟 ocr-rescued · conf · 🕐 answer
+delay · per-name lifecycle tag chips. 89/89 + 17/17.

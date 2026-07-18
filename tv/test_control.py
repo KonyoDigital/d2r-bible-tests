@@ -221,5 +221,18 @@ class TestVersionTruth(unittest.TestCase):
         self.assertIn("_open_browser_app_fallback(url)", src)
 
 
+
+class TestForensicBeats(unittest.TestCase):
+    """v797 — every beat carries the FULL read truth (Konyo: in-depth per-frame detail)."""
+
+    def test_beat_payload_fields(self):
+        import control_app as ca
+        import inspect
+        src = inspect.getsource(ca.Handler)
+        for field in ("ocr_names", "confirmed_names", "ocr_seeded", "completedTs",
+                      "lifecycle_tags", "conf", "model"):
+            self.assertIn('"%s"' % field, src, "beat payload missing " + field)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v796)
+# 📺 TV DIABLO — Control App (Mac + Windows · v797)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -822,7 +822,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v796",
+        "ver": "v797",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -991,6 +991,13 @@ class Handler(BaseHTTPRequestHandler):
                     "discovered_names": r.get("discovered_names") or [],
                     "intent": r.get("intent", ""), "stashTab": r.get("stashTab", ""),
                     "farewell": bool(r.get("farewell")),
+                    # v797 — FULL FORENSICS (Konyo: 'exactly what was analyzed per frame')
+                    "ocr_names": r.get("ocr_names") or [],
+                    "confirmed_names": r.get("confirmed_names") or [],
+                    "ocr_seeded": r.get("ocr_seeded") or [],
+                    "conf": r.get("conf"),
+                    "lifecycle_tags": r.get("lifecycle_tags") or {},
+                    "sim": bool(r.get("sim")),
                 })
             # chronological by capture time (never scramble OCR/deep order)
             beats.sort(key=lambda b: (b.get("ts") or 0, b.get("n") or 0))
@@ -1261,7 +1268,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v796 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v797 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
