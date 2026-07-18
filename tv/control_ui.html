@@ -617,6 +617,16 @@
     font-size: clamp(11px,1vw,15px); color: var(--text); letter-spacing: .02em;
     text-shadow: 0 2px 8px rgba(0,0,0,.9); background: linear-gradient(0deg, rgba(5,4,3,.85), transparent); }
   .th-caption b { color: var(--gold-hi); }
+  .th-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(380px, 44%);
+    z-index: 5; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
+    padding: 14px 16px; font: 500 11px/1.7 ui-monospace, monospace; color: #b9c9be;
+    letter-spacing: .02em; box-shadow: -12px 0 30px rgba(0,0,0,.5); }
+  .th-drawer h4 { color: var(--gold-hi, #d8bd7c); font: 700 10px/1 ui-monospace, monospace;
+    letter-spacing: .18em; margin: 12px 0 5px; text-transform: uppercase; }
+  .th-drawer h4:first-child { margin-top: 0; }
+  .th-drawer .kv { display: flex; justify-content: space-between; gap: 10px; }
+  .th-drawer .kv .k { opacity: .55; } .th-drawer .kv .v { text-align: right; word-break: break-all; }
+  .th-drawer .col { margin: 2px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
   .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
     border: 1px solid rgba(240,192,96,.4); background: rgba(240,192,96,.1); color: var(--gold-hi);
     font-weight: 700; font-size: .92em; }
@@ -719,6 +729,7 @@
           <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
+        <div class="th-drawer" id="th-drawer" hidden></div>
         <div class="th-strip">
           <button class="th-btn" id="th-prev-s" type="button" title="older session">⏮ sess</button>
           <button class="th-btn" id="th-prev-b" type="button" title="previous beat (back in time)">‹</button>
@@ -728,6 +739,7 @@
           <div class="th-timeline" id="th-timeline"></div>
           <button class="th-btn" id="th-speed" type="button" title="playback speed">1×</button>
           <button class="th-btn" id="th-mode" type="button" title="highlight cut / full reel">🎬 CUT</button>
+          <button class="th-btn" id="th-card" type="button" title="READ CARD — full truth for this beat (I)">ℹ</button>
         </div>
       </div>
     </section>
@@ -770,7 +782,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v799 control</span>
+      <span id="foot-ver">v800 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -985,7 +997,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v799') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v800') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -1158,6 +1170,7 @@
       film.style.opacity = .25; film.removeAttribute('src'); film.title = '';
     }
     $('th-caption').innerHTML = thCaption(b);
+    if (typeof thCardRender === 'function') thCardRender();   // v800 — drawer follows the playhead
     var tl = $('th-timeline');
     [].forEach.call(tl.children, function(el, k){ el.classList.toggle('cur', k === TH.i); });
     // keep current beat in view on dense timelines
@@ -1366,6 +1379,49 @@
     var sim = $('btn-sim');
     if (sim) sim.classList.toggle('lit', TH.open);   // v785 — '.on' was styleless on .act buttons; '.lit' is the one glow mechanism
   }
+  // ═══ v800 (Grok R6 V2) — READ CARD: the full truth drawer. Film stage stays broadcast;
+  // the drawer is where monospace data lives. Toggle: ℹ button or `I`.
+  var CARD = { open: false };
+  function thCardRender(){
+    var el = $('th-drawer'); if (!el || !CARD.open) return;
+    var b = TH.beats[TH.i] || {};
+    function kv(k, v){ return (v === undefined || v === null || v === '') ? '' : '<div class="kv"><span class="k">' + k + '</span><span class="v">' + esc(String(v)) + '</span></div>'; }
+    function col(label, arr){ arr = arr || []; return '<div class="col"><em>' + label + '</em> ' + (arr.length ? esc(arr.join(', ')) : '—') + '</div>'; }
+    var h = '<h4>identity</h4>'
+      + kv('read', '#' + (b.n || '?')) + kv('frame', b.frameId ? b.frameId + '.jpg' : '(none)')
+      + kv('session', (b.sessionId || '').slice(0, 22)) + kv('lane', b.lane) + kv('model', b.model) + kv('sim', b.sim ? 'YES — view only' : '')
+      + '<h4>clocks</h4>'
+      + kv('capture', b.ts ? new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) : '')
+      + kv('answered', b.completedTs ? '+' + ((b.completedTs - b.ts) / 1000).toFixed(2) + 's' : '')
+      + kv('vision ms', b.ms ? Math.round(b.ms) : '') + kv('ocr ms', b.ocr_ms ? Math.round(b.ocr_ms) : '')
+      + kv('conf', b.conf != null ? Number(b.conf).toFixed(2) : '')
+      + '<h4>name sets</h4>'
+      + col('deep', b.names) + col('ocr', b.ocr_names) + col('confirmed', b.confirmed_names)
+      + col('vault', b.vault_names) + col('holding', b.pending_names) + col('thrown', b.thrown_names)
+      + col('discovered', b.discovered_names) + col('ocr-rescued', b.ocr_seeded)
+      + '<h4>lifecycle</h4>';
+    var tags = b.lifecycle_tags || {};
+    var tk = Object.keys(tags);
+    h += tk.length ? tk.map(function(nm){ return '<div class="col">' + esc(nm) + ' <em>› ' + esc(tags[nm]) + '</em></div>'; }).join('') : '<div class="col">—</div>';
+    if (b.note || b.stashTab || b.intent || b.farewell){
+      h += '<h4>context</h4>' + kv('note', b.note) + kv('stash tab', b.stashTab) + kv('intent', b.intent) + kv('farewell', b.farewell ? 'yes' : '');
+    }
+    el.innerHTML = h;
+  }
+  function thCardToggle(){
+    CARD.open = !CARD.open;
+    $('th-drawer').hidden = !CARD.open;
+    $('th-card').classList.toggle('on', CARD.open);
+    thCardRender();
+  }
+  $('th-card').onclick = thCardToggle;
+  document.addEventListener('keydown', function(e){
+    if (!TH.open) return;
+    if (e.key === 'i' || e.key === 'I'){ thCardToggle(); e.preventDefault(); }
+    else if (e.key === 'ArrowRight'){ thGo(TH.i + 1, false); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft'){ thGo(TH.i - 1, false); e.preventDefault(); }
+    else if (e.key === ' '){ $('th-play').click(); e.preventDefault(); }
+  });   // v800 — broadcast transport: ←/→ beat snap · space play/pause · I card
   $('th-close').onclick = thClose;
   (function(){ var f = $('th-film'); if (f) f.onclick = function(){
     var b = TH.beats[TH.i]; if (b && b.frame) window.open('/hist/' + encodeURIComponent(b.frame), '_blank');

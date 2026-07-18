@@ -978,3 +978,10 @@ WebView traps closed: decode-before-swap (probe Image warms the decoder, film.sr
 when ready — no white flash at 4×), bounded 3-slot preload pool (±2 neighbors, never a decoded-
 bitmap pileup), /hist Cache-Control immutable, ?w=1280 disk-cached theatre derivative (sips,
 cache1280/) — full 2560 original = click the film. 89/89 + 17/17.
+
+## 🏃 MARATHON II opens → v800 "The Read Card" (~07:40)
+Grok R6 V2 drawer: ℹ / `I` toggles a monospace right-drawer with the COMPLETE beat truth —
+identity (read#/frame/session/lane/model/sim) · clocks (capture ms, answer delay, vision+ocr
+latency, conf) · nine name-set columns · lifecycle chain per name · context (note/stash/intent/
+farewell). Follows the playhead live. Keyboard transport: ←/→ beat snap · space play/pause.
+89/89 + 17/17.
