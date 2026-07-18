@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v801)
+# 📺 TV DIABLO — Control App (Mac + Windows · v802)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -822,7 +822,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v801",
+        "ver": "v802",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1022,14 +1022,14 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isfile(target):
             self._json(404, {"ok": False}); return
         want_w = (qs.get("w") or [""])[0]
-        if want_w == "1280" and not IS_WIN:
-            cache_dir = os.path.join(HIST_DIR, "cache1280")
+        if want_w in ("1280", "160") and not IS_WIN:   # v802 — 160 = scrub thumbnails
+            cache_dir = os.path.join(HIST_DIR, "cache" + want_w)
             cached = os.path.join(cache_dir, os.path.basename(target))
             try:
                 if not os.path.isfile(cached):
                     os.makedirs(cache_dir, exist_ok=True)
                     r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72",
-                                        "--resampleHeightWidthMax", "1280", target, "--out", cached],
+                                        "--resampleHeightWidthMax", want_w, target, "--out", cached],
                                        capture_output=True, timeout=10)
                     if r.returncode != 0 or not os.path.isfile(cached):
                         cached = target
@@ -1287,7 +1287,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v801 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v802 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

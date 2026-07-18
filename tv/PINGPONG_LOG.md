@@ -990,3 +990,7 @@ farewell). Follows the playhead live. Keyboard transport: ←/→ beat snap · s
 Drag-scrub (pointer capture, playhead follows the sweep live, auto-pause), 110ms aperture cut
 on beat change (opacity+scale, never a blurry dissolve), vault beats glow mint ON the film,
 cast chips stagger in 30ms apart ('read aloud' feel). 89/89 + 17/17.
+
+## 🏃 v802 "Scrub Thumbs" (~08:05)
+Hover the timeline → floating 160px thumbnail of that exact frame (+read#/area caption), like a
+real video player scrubber. Server derivative whitelist widened to 160 (cache160/). 89/89 + 17/17.
