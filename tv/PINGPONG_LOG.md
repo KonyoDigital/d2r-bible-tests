@@ -1423,3 +1423,10 @@ is UPSTREAM') + aggregation strip ('3 names · 1 vaulted · 1 blocked'). 4 locks
 wipe-retention lock (journaled chain keeps wasSeen AFTER commit pops it). R18 ranked next:
 A2.5 board-write records → decision-river visual → skip events → vision telemetry → site ports.
 138/138 + 27/27.
+
+## 🖥 v857 "The Engine Console" (Konyo: 'remove the title — it's an engine backend', ~23:45)
+App-ctx board = pure console: masthead/title/tagline GONE (site keeps its editorial face);
+tab strip = ONLY the five engine tabs + TV·D, sticky full-width with even flex; every container
+stretched (max-width:none); pills compacted; routines widget/shortcut hints/stray chips hidden;
+no horizontal scroll at 1120×800. Visual-verified Session + F·Uniques. Family/deeplink specs
+green. 138/138 + 27/27.

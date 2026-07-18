@@ -4288,6 +4288,34 @@ try {
 @keyframes tvfConsoleBreathe{0%,100%{box-shadow:0 2px 14px rgba(240,192,96,.22),inset 0 1px 0 rgba(255,255,255,.06)}50%{box-shadow:0 2px 22px rgba(240,192,96,.48),inset 0 1px 0 rgba(255,255,255,.08)}}
 @media(prefers-reduced-motion:reduce){.tvf-console-pill{animation:none}}
 body.app-ctx #v687-build-badge{top:40px}
+/* ═══ v857 — THE ENGINE CONSOLE (Konyo: 'remove the title, it's a console app — an engine
+   backend for Diablo II; stretch, use every empty space, no scrollbar to reach the tabs').
+   App context ONLY (?app=1) — the browser site keeps its editorial face. ═══ */
+body.app-ctx .h-title, body.app-ctx .masthead-art, body.app-ctx .masthead-rule,
+body.app-ctx .masthead-tagline{display:none !important}
+body.app-ctx .masthead{display:flex;align-items:center;gap:10px;margin:0}
+body.app-ctx .header{padding:4px 12px 0}
+body.app-ctx .header-top{max-width:none;margin:0;gap:10px}
+body.app-ctx .profile-pill{transform:scale(.86);transform-origin:left center;margin:0}
+/* only the five engine tabs + TV·D exist in the console */
+body.app-ctx .tabs{position:sticky;top:0;z-index:60;max-width:none;margin:0;padding:6px 12px;
+  background:linear-gradient(180deg,rgba(10,9,7,.98),rgba(10,9,7,.92));backdrop-filter:blur(6px);
+  border-bottom:1px solid rgba(240,192,96,.18);overflow:visible;flex-wrap:nowrap}
+body.app-ctx .tabs .tab{display:none}
+body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
+body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
+body.app-ctx .tabs .tab[data-tab="fsets"],body.app-ctx .tabs .tab[data-tab="tvd"]{
+  display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
+  letter-spacing:.08em}
+/* full-bleed surfaces — every container stretches to the window */
+body.app-ctx .tab-content,body.app-ctx .gsearch-wrap{max-width:none;margin-left:14px;margin-right:14px}
+body.app-ctx .tvf-spine{border-radius:10px;margin:8px 0 12px}
+body.app-ctx{scrollbar-width:thin}
+body.app-ctx #shortcut-hint{display:none !important}   /* v857.1 — site power-hints off in the console */
+body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:none !important}   /* dev routines off in the console */
+body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
+
+
 /* v778 — dock clearance: the family cards land ABOVE the live-measured MF dock when scrolled to
    (only .boss-card + deep targets carried the bottom guard). Cheap scroll-margin, zero layout shift. */
 #tab-session .sc-card,#tab-session .sc-mission,:is(#tab-forge,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero,:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed{scroll-margin-bottom:calc(var(--dock-h,84px) + 24px)}
@@ -33360,7 +33388,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v856', name:'The Chain Verdict', date:'2026-07-18', note:'v856: closed class enum (● CHAIN / ◐ HOLD / ○ NO CHAIN / ✓ OWNED) + diagnosis lines + aggregation strip — one glance = which failure class' };
+  window.D2R_BUILD = { id:'v857', name:'The Engine Console', date:'2026-07-18', note:'v857: app-ctx board = pure engine — masthead gone, five tabs sticky full-width, every surface stretched' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
