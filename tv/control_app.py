@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v816)
+# 📺 TV DIABLO — Control App (Mac + Windows · v817)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v816",
+        "ver": "v817",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1339,6 +1339,25 @@ class Handler(BaseHTTPRequestHandler):
                 text = "(no log yet)"
             self._json(200, {"ok": True, "log": text})
             return
+        if path == "/api/update":
+            # v817 (Grok R8 #2) — ops truth: how far behind origin is this install?
+            # Cousins are git clones (installer does git clone/pull) — fetch is cheap + safe.
+            try:
+                subprocess.run(["git", "fetch", "origin", "main", "--quiet"],
+                               cwd=REPO, capture_output=True, timeout=20)
+                r = subprocess.run(["git", "rev-list", "HEAD..origin/main", "--count"],
+                                   cwd=REPO, capture_output=True, timeout=10, text=True)
+                behind = int((r.stdout or "0").strip() or 0)
+                subj = ""
+                if behind:
+                    r2 = subprocess.run(["git", "log", "origin/main", "-1", "--format=%s"],
+                                        cwd=REPO, capture_output=True, timeout=10, text=True)
+                    subj = (r2.stdout or "").strip()[:120]
+                self._json(200, {"ok": True, "behind": behind, "latest": subj,
+                                 "howTo": ("git pull, then relaunch TV DIABLO" if behind else "")})
+            except Exception as e:
+                self._json(200, {"ok": False, "msg": "update check failed: %s" % e})
+            return
         if path == "/api/doctor":
             # v801 (Grok R7) — Windows self-diagnosis: fast, read-only, never spawns the CLI.
             self._json(200, doctor_payload())
@@ -1602,7 +1621,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v816 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v817 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

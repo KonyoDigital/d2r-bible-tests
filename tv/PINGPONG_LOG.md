@@ -1072,3 +1072,8 @@ coverage (live probe: frames 100% of 200 · sid 38/200 — pre-v780 rows unstamp
 Status carries bibleVer (30s-cached regex of D2R_BUILD); footer reads 'v816 control · board v816'
 and turns AMBER on drift; TestTripleParity locks bible==agent (test_stamps_match already locks
 agent==control) — the three stamps can never silently fork again. 25/25 + 94/94.
+
+## 🏃 v817 "Update Truth" (~11:20)
+GET /api/update: git fetch + rev-list count behind origin + latest ship subject; footer is now
+clickable → toast '✓ up to date' or '⟳ N behind — latest: … · git pull, then relaunch'.
+94/94 + 25/25.
