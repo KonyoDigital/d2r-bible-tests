@@ -994,3 +994,8 @@ cast chips stagger in 30ms apart ('read aloud' feel). 89/89 + 17/17.
 ## 🏃 v802 "Scrub Thumbs" (~08:05)
 Hover the timeline → floating 160px thumbnail of that exact frame (+read#/area caption), like a
 real video player scrubber. Server derivative whitelist widened to 160 (cache160/). 89/89 + 17/17.
+
+## 🏃 Grok R7 wow #1 → v803 "Instant Replay" (~08:20)
+⏪ appears on any vault beat (film + strip, R key): binary-seek 8s of wall time back, play 0.5×,
+freeze 1.2s on the find with a mint lower-third 'NEW FIND · <names>', then restore speed.
+Sports-broadcast dopamine, zero new capture — pure P[] reuse. 89/89 + 17/17.
