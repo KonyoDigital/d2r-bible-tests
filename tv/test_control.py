@@ -230,7 +230,7 @@ class TestForensicBeats(unittest.TestCase):
         import inspect
         src = inspect.getsource(ca.Handler)
         for field in ("ocr_names", "confirmed_names", "ocr_seeded", "completedTs",
-                      "lifecycle_tags", "conf", "model"):
+                      "lifecycle_tags", "conf", "model", "ocr_ms"):
             self.assertIn('"%s"' % field, src, "beat payload missing " + field)
 
 

@@ -1111,3 +1111,9 @@ CAPTURE 2:51:18.128 → AI READ 2:51:25.036 (+6.9s) on the Chaos frame. 97/97 + 
 Website theatre parity with v821: hist entries now carry completedTs/names/ocr_names/ocr_seeded/
 sim (producer) + thzAiRead block in the caption (consumer) — 📸 CAPTURE vs 🧠 AI READ vs 📖 IT SAW
 on the site reel, old rows degrade gracefully. 16 board specs + 97/97 + 25/25.
+
+## 🏃 Grok R9 sleeper #8 → v823 "Fast Lane Clock" (~13:00)
+ocr_ms now projected on theatre beats (claim/consumer 8-for-8: journal had it, theatre dropped
+it); lane-merge keeps the fast clock unconditionally; ⚡ OCR row reads '31ms (instant, at the
+frame)' vs 🧠 seconds later — the dual-lane timing story is complete. Forensic-fields lock
+extended. 25/25 + 97/97.
