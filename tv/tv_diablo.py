@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v859"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v860"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -848,6 +848,24 @@ def _film_loop():
                 except Exception:
                     pass
             else:
+                # v860 (Konyo: '3 frames in 3 minutes') — FOOTAGE NEVER STARVES: when the window
+                # path fails, the footage tick still archives a FULL-SCREEN frame (something
+                # beats blindness; the theatre labels it footage either way).
+                try:
+                    now_f2 = time.time()
+                    if now_f2 - globals().get("_FOOTAGE_AT", 0) >= 0.5:
+                        r2 = subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
+                                            capture_output=True, timeout=5)
+                        if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
+                            globals()["_FOOTAGE_AT"] = now_f2
+                            hist_dir2 = os.path.join(FRAMES, "hist")
+                            os.makedirs(hist_dir2, exist_ok=True)
+                            import shutil as _sh2
+                            _sh2.copyfile(tmp, os.path.join(hist_dir2, "f_%d.jpg" % int(now_f2 * 1000)))
+                            os.replace(tmp, eye)
+                            globals()["_EYE_PREVIEW_AT"] = now_f2
+                except Exception:
+                    pass
                 try:
                     if os.path.exists(tmp):
                         os.remove(tmp)
@@ -1032,12 +1050,12 @@ try:
     HIST_KEEP = max(10, int(os.environ.get("TV_HIST_KEEP", "800")))   # v840 — more AI-read photos protected
     HIST_MB = max(50, int(os.environ.get("TV_HIST_MB", "1500")))      # v839 — footage era: ceiling raised (REG-025)
     FOOT_MB = max(50, int(os.environ.get("TV_FOOT_MB", "400")))       # v840 — footage dies sooner (was 900; 2600 f_ drowned the night)
-    FOOT_KEEP = max(60, int(os.environ.get("TV_FOOT_KEEP", "1800")))  # v840 — ~30min @1fps (was 3600)
+    FOOT_KEEP = max(60, int(os.environ.get("TV_FOOT_KEEP", "28800")))  # v860 (Konyo: 'change the global cap!') — ~4h @2fps; the MB budget (FOOT_MB) is the real guard, count can never eat older sessions
 except Exception:
     HIST_KEEP = 800
     HIST_MB = 1500
     FOOT_MB = 400
-    FOOT_KEEP = 1800
+    FOOT_KEEP = 28800
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
 HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-crisp fullscreen (was 1920)
 

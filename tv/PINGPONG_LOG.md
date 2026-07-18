@@ -1460,3 +1460,12 @@ Three independent lanes over v859, all green:
 2. API matrix ALL PASSED.
 3. v851 spec pack 6/6 (transport spec recal'd for footage-heavy reels: beat-index not read#).
 Grok verify back-pass fired on the v859 diff.
+
+## 📹 v860 "Never Blind" (Konyo: '3 frames in 3 minutes?!' + 'change the global cap!', ~02:20)
+FORENSICS: 181 footage frames over 39 min (0.08fps vs 2fps target) — the film loop's window
+capture fails almost every iteration and footage only archived on success; FOOT_KEEP=1800 global
+count could also eat older sessions. v860: (1) cap ×16 → 28800 (~4h @2fps; FOOT_MB stays the
+real guard); (2) FOOTAGE NEVER STARVES — failed window ticks archive a FULL-SCREEN frame at the
+0.5s cadence (something beats blindness); (3) Grok back-pass's new-bug fix: drag coalesce now
+seeks the LATEST pointer per frame (v859 dropped the trail — jumpy). Grok starvation round
+(root-cause + heartbeat-read design) in flight → v861. 138/138 + 27/27.
