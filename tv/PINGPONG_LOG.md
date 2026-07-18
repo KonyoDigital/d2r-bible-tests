@@ -1161,3 +1161,10 @@ held) — this fixes classification + future truth. 108/108 + 25/25.
 
 Also this stretch: v829 Pinpoint Seek (stale-probe race — arrows always land the right frame;
 honest run-span '· ran 3m41s · 10 AI reads' in the header).
+
+## ⏱ v831 "Real Time" (Konyo live: 'stuck going right' + 'timeframe span based', ~17:55)
+(1) The stuck reel: ▶ at the end silently re-paused on the last frame (and → was dead there).
+Now ▶-at-end REWINDS and plays (verified: End → play → read #1 → rolling to #4), ArrowRight at
+the last beat toasts 'end of the reel'. (2) ⏱ REAL mode joins the cycle (🎬 CUT → 📼 FULL →
+⏱ REAL): theatre-ms == wall-ms, the reel runs EXACTLY the session's true duration at 1×
+(2×/4× compress) — with v826 footage sessions this is literal video playback. 108/108 + 25/25.

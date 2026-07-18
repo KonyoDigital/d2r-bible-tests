@@ -857,7 +857,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v830 control</span>
+      <span id="foot-ver">v831 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1097,7 +1097,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v830') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v831') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1361,7 +1361,14 @@
   function thBuildAxis(){
     var P = [0], bs = TH.beats;
     for (var i = 0; i < bs.length; i++){
-      var dur = bs[i+1] ? thEdgeMs(bs[i], bs[i+1]) : thHoldMs(bs[i], 1200);
+      var dur;
+      if (TH.mode === 'real'){
+        // v831 (Konyo: 'timeframe span based for exactly the amount of time the session was')
+        // — REAL TIME: theatre-ms == wall-ms. At 1× the reel runs the session's true duration.
+        dur = bs[i+1] ? Math.max(40, (bs[i+1].ts || 0) - (bs[i].ts || 0)) : 1500;
+      } else {
+        dur = bs[i+1] ? thEdgeMs(bs[i], bs[i+1]) : thHoldMs(bs[i], 1200);
+      }
       P.push(P[i] + dur);
     }
     TH.P = P; TH.Tplay = P[P.length - 1] || 1; TH.p = TH.P[TH.i] || 0;
@@ -1481,6 +1488,7 @@
   // v790 (Grok R4 #2) — HIGHLIGHT CUT: a real session is hundreds of empty floor beats.
   // The cut keeps the story: loot chain, discoveries, area changes, farewell, bookends.
   function thFilter(beats){
+    if (TH.mode === 'real') return beats;   // v831 — REAL mode plays everything, true time
     if (TH.mode !== 'highlight' || beats.length <= 8) return beats;
     var keep = [], lastArea = null;
     beats.forEach(function(b, k){
@@ -1738,7 +1746,11 @@
     else if (e.key === 'End'){ thGo(TH.beats.length - 1, false); e.preventDefault(); }
     else if (e.key === 'j' || e.key === 'J'){ thGo(TH.i - 5, false); e.preventDefault(); }
     else if (e.key === 'k' || e.key === 'K'){ thGo(TH.i + 5, false); e.preventDefault(); }
-    else if (e.key === 'ArrowRight'){ thGo(TH.i + 1, false); e.preventDefault(); }
+    else if (e.key === 'ArrowRight'){
+      if (TH.i >= TH.beats.length - 1){ toast('🎞 end of the reel — press ▶ to replay · ⏮ sess for the previous session'); }
+      else thGo(TH.i + 1, false);
+      e.preventDefault();
+    }
     else if (e.key === 'ArrowLeft'){ thGo(TH.i - 1, false); e.preventDefault(); }
     else if (e.key === ' '){
       var cr = $('th-credits');
@@ -1754,12 +1766,18 @@
   $('th-play').onclick = function(){
     TH.playing = !TH.playing;
     this.textContent = TH.playing ? '⏸' : '▶';
-    if (TH.playing) thSchedule(); else clearTimeout(TH.timer);
+    // v831 (Konyo: 'it gets stuck') — ▶ at the end of the reel REWINDS and plays; it never
+    // re-pauses silently on the last frame again.
+    if (TH.playing && TH.P && (TH.i >= TH.beats.length - 1 || TH.p >= TH.Tplay - 1)){
+      TH.p = 0; TH.i = 0;
+      var cr = $('th-credits'); if (cr) cr.hidden = true;
+      thPaint(); thClock();
+    }
   };
   $('th-speed').onclick = function(){ TH.speed = TH.speed === 0.5 ? 1 : (TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 0.5)); this.textContent = TH.speed + '×'; };   // v806 — 0.5× joins the deck (slow-mo forensics)
   $('th-mode').onclick = function(){
-    TH.mode = TH.mode === 'highlight' ? 'full' : 'highlight';
-    this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : '📼 FULL';
+    TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // v831 — CUT → FULL → ⏱ REAL
+    this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
     var keepTs = (TH.beats[TH.i] || {}).ts;
     TH.beats = thFilter(TH.allBeats.slice());
     TH.i = 0;
