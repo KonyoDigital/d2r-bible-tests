@@ -1011,3 +1011,7 @@ fsync on every journal append (crash mid-write can't erase the night); 4MB cap n
 racy half-truncate rewrite; replay.load_journal() concatenates rotated+live chronologically;
 torn-line tolerance locked. .gitignore: tv/sessions.*.jsonl. Fable gate: patch anchors 1-match,
 92/92 + 17/17.
+
+## 🏃 v806 "Full Deck" (~09:00)
+0.5× slow-mo joins the speed cycle (0.5→1→2→4), Home/End = reel bookends, J/K = ±5 beat jumps.
+The transport deck is complete (Grok R7 #4 spec). 92/92 + 17/17.
