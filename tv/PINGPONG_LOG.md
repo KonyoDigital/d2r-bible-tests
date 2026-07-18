@@ -1029,3 +1029,10 @@ agent/control ports · python Store-stub detection · WebView2 registry · captu
 freshness (blocks only when LIVE) · bridge · stale pids), ok = no block-failures, agent-OFF never
 fails it, ver mirrors status stamp at runtime (drift-proof). UI: boot failure → doctor runs →
 every blocker in the toast as 'id: detail → fix'. Fable gate: 24/24 control (7 new locks) + 92/92.
+
+## 🏃 Grok R7 wow #3 → v809 "The Night Card" (~09:45)
+📼 in the theatre strip: GET /api/export?n= writes Desktop/TVDIABLO_<sid>.json (full beats) +
+.md story recap (T+ stamps · area · 🏦/💬🏆/🗑 seals · farewell). LIVE-VERIFIED on Konyo's real
+session 1 (10 beats, Chaos Sanctuary, Annihilus in the stash reads). Marathon II = v800-v809,
+10 versions: Read Card · Feel Pack · Scrub Thumbs · Instant Replay · Loot of the Night ·
+Durable Night · Full Deck · One Engine · The Doctor · Night Card. 92/92 + 24/24.

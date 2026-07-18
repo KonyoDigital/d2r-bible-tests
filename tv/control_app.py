@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v808)
+# 📺 TV DIABLO — Control App (Mac + Windows · v809)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -826,7 +826,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v808",
+        "ver": "v809",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1279,6 +1279,55 @@ class Handler(BaseHTTPRequestHandler):
             # v801 (Grok R7) — Windows self-diagnosis: fast, read-only, never spawns the CLI.
             self._json(200, doctor_payload())
             return
+        if path.startswith("/api/export"):
+            # v809 (Grok R7 wow #3) — 📼 NIGHT CARD: write the session recap to the Desktop.
+            # User-triggered only (theatre button); JSON (full beats) + recap.md (CUT story).
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query or "")
+            try:
+                n = int((q.get("n") or ["1"])[0])
+            except Exception:
+                n = 1
+            sess = self._theatre_session(n)
+            if not isinstance(sess, dict) or not sess.get("beats"):
+                self._json(404, {"ok": False, "msg": "no such session"})
+                return
+            sid = (sess.get("sessionId") or ("session%d" % n)).replace("/", "_")[:40]
+            desk = os.path.expanduser("~/Desktop")
+            base = os.path.join(desk, "TVDIABLO_" + sid)
+            try:
+                with open(base + ".json", "w", encoding="utf-8") as f:
+                    json.dump(sess, f, indent=1)
+                beats = sess.get("beats") or []
+                t0 = sess.get("t0") or (beats[0].get("ts") if beats else 0)
+                lines = ["# 📼 TV DIABLO — Night Card · session %d" % n,
+                         "_%s · %d reads_" % (time.strftime("%Y-%m-%d %H:%M", time.localtime((t0 or 0) / 1000)), len(beats)), ""]
+                for b in beats:
+                    keep = (b.get("vault_names") or b.get("discovered_names")
+                            or b.get("thrown_names") or b.get("names") or b.get("farewell"))
+                    if not keep:
+                        continue
+                    rel = max(0, (b.get("ts") or 0) - (t0 or 0))
+                    stamp = "T+%d:%02d" % (rel // 60000, (rel % 60000) // 1000)
+                    bits = []
+                    for nm in (b.get("vault_names") or []):
+                        bits.append("🏦 **" + nm + "**")
+                    for nm in (b.get("discovered_names") or []):
+                        bits.append("💬🏆 " + nm)
+                    for nm in (b.get("thrown_names") or []):
+                        bits.append("🗑 " + nm)
+                    if not bits:
+                        bits = [", ".join((b.get("names") or [])[:5]) or ("👋 farewell" if b.get("farewell") else "")]
+                    lines.append("- `%s` · %s%s%s" % (stamp, (b.get("area") or "?"),
+                                 (" · " + b.get("scene")) if b.get("scene") else "",
+                                 (" — " + " · ".join(bits)) if any(bits) else ""))
+                with open(base + ".md", "w", encoding="utf-8") as f:
+                    f.write("\n".join(lines) + "\n")
+                self._json(200, {"ok": True, "json": base + ".json", "md": base + ".md",
+                                 "beats": len(beats)})
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)})
+            return
         self._json(404, {"ok": False, "msg": "not found"})
 
     def do_POST(self):
@@ -1456,7 +1505,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v808 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v809 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
