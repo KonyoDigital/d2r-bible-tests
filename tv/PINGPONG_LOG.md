@@ -985,3 +985,8 @@ identity (read#/frame/session/lane/model/sim) · clocks (capture ms, answer dela
 latency, conf) · nine name-set columns · lifecycle chain per name · context (note/stash/intent/
 farewell). Follows the playhead live. Keyboard transport: ←/→ beat snap · space play/pause.
 89/89 + 17/17.
+
+## 🏃 v801 "The Feel Pack" (~07:55) — Konyo: 'CONSOLE + SIMULATIONS, perfected'
+Drag-scrub (pointer capture, playhead follows the sweep live, auto-pause), 110ms aperture cut
+on beat change (opacity+scale, never a blurry dissolve), vault beats glow mint ON the film,
+cast chips stagger in 30ms apart ('read aloud' feel). 89/89 + 17/17.

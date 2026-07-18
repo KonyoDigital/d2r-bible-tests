@@ -627,6 +627,13 @@
   .th-drawer .kv { display: flex; justify-content: space-between; gap: 10px; }
   .th-drawer .kv .k { opacity: .55; } .th-drawer .kv .v { text-align: right; word-break: break-all; }
   .th-drawer .col { margin: 2px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
+  @keyframes thAperture { 0% { opacity: .35; transform: scale(1.012); } 100% { opacity: 1; transform: scale(1); } }
+  #th-film.cut { animation: thAperture 110ms ease-out; }
+  #th-film.vaultglow { box-shadow: 0 0 0 1px rgba(120,220,160,.6), 0 0 34px rgba(90,210,150,.35); }
+  @keyframes thChipIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
+  .th-caption .th-chip { animation: thChipIn 240ms ease-out backwards; }
+  .th-caption .th-chip:nth-child(2) { animation-delay: 30ms; } .th-caption .th-chip:nth-child(3) { animation-delay: 60ms; }
+  .th-caption .th-chip:nth-child(4) { animation-delay: 90ms; } .th-caption .th-chip:nth-child(5) { animation-delay: 120ms; }
   .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
     border: 1px solid rgba(240,192,96,.4); background: rgba(240,192,96,.1); color: var(--gold-hi);
     font-weight: 700; font-size: .92em; }
@@ -782,7 +789,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v800 control</span>
+      <span id="foot-ver">v801 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -997,7 +1004,7 @@
     var frac = on ? Math.max(0.12, Math.min(1, rc / Math.max(8, readMax))) : 0;
     $('sig-bar').style.width = (frac * 100).toFixed(0) + '%';
 
-    $('foot-ver').textContent = (st.ver || 'v800') + ' control' + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v801') + ' control' + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     // v772 — show what we're pointed at (CrossOver window vs full screen)
     try {
@@ -1163,12 +1170,14 @@
       // v799 (Grok R6 traps) — decode-before-swap + 1280 theatre derivative: no white flash
       // at 4x, no 14MB-RGBA-per-frame memory climb. Full 2560 = click the film.
       film.style.opacity = 1;
+      film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut');   // v801 — aperture
       thShowFrame('/hist/' + encodeURIComponent(b.frame) + '?w=1280');
       thPreload();
       film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts)+' · click = full 2560';
     } else {
       film.style.opacity = .25; film.removeAttribute('src'); film.title = '';
     }
+    try { film.classList.toggle('vaultglow', !!(b.vault_names || []).length); } catch (e) {}   // v801 — vault beats glow mint on the film itself
     $('th-caption').innerHTML = thCaption(b);
     if (typeof thCardRender === 'function') thCardRender();   // v800 — drawer follows the playhead
     var tl = $('th-timeline');
@@ -1446,6 +1455,24 @@
   $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
   $('th-prev-b').onclick = function(){ thGo(TH.i - 1, false); TH.playing = false; $('th-play').textContent = '▶'; };
   $('th-next-b').onclick = function(){ thGo(TH.i + 1, false); TH.playing = false; $('th-play').textContent = '▶'; };
+  // v801 — DRAG SCRUB: hold and sweep the timeline like a video player; playhead follows live.
+  (function(){
+    var tl = $('th-timeline'); if (!tl) return;
+    var dragging = false;
+    function seekAt(e){
+      var r = tl.getBoundingClientRect();
+      var frac = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+      if (TH.P && TH.Tplay){
+        TH.p = frac * TH.Tplay;
+        var i = thBeatAt(TH.p);
+        if (i !== TH.i){ TH.i = i; thPaint(); }
+        thClock();
+      }
+    }
+    tl.addEventListener('pointerdown', function(e){ dragging = true; TH.playing = false; $('th-play').textContent = '▶'; tl.setPointerCapture(e.pointerId); seekAt(e); });
+    tl.addEventListener('pointermove', function(e){ if (dragging) seekAt(e); });
+    tl.addEventListener('pointerup', function(){ dragging = false; });
+  })();
   $('th-timeline').onclick = function(e){
     var b = e.target.closest('.th-beat'); if (!b) return;
     TH.playing = false; $('th-play').textContent = '▶';
