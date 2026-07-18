@@ -1380,3 +1380,12 @@ gold-hi fallback traps → parchment literals; parch/antique tokens in :root; ca
 44vh + read-card max-width 560px (busy beats can't climb the film); mono token unification;
 chips lighter than the IT SAW hero; drawer ✕ classed + cleared; dead .th-fx removed; signing/sim
 phase dots colored. Visual-verified. 127/127 + 27/27.
+
+## 🏃 ARMY-BOARD wave 1 → v851 "The Guard Pack" (~21:20)
+audit-board's bombshell: everything v790→v847 was spec-UNGUARDED. v851: six specs drive the
+LIVE control app (CI-safe auto-skip when no server): AI read line renders+degrades · READ CARD
+opens/follows/closes · transport arrows + End+play-rewind · CUT→FULL→REAL cycles rebuild the
+axis · 📚 shelf lists+loads · ⛶ cinema on/Esc-off. 6/6 green against the real app. Board's gap
+table + top-5 site ports queued as v852+ (hist producer fields first: names_loc/ocr_ms/frameOk/
+confirmed_names — drawer stays app-only until the heavy fields land, per the data-blocked note).
+127/127 + 27/27 + 6/6.
