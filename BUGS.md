@@ -600,3 +600,17 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause**: single rotation slot (`os.replace` onto .1 unconditionally).
 - **Fix**: v811 generation ring .1→.5 with shift, cap event on rotate, reader concats all gens.
 - **Prevention**: `TestJournalGenerations` lock (GEN1 survives a second rotation); doctor `journal_gens`.
+
+## REG-024 · the black-screen curtain (v820, 2026-07-18)
+- **Symptom**: clicking SIMULATION showed a black stage — no film, no caption.
+- **Caught by**: Konyo live; reproduced headless (screenshot showed DOM-present-but-invisible).
+- **Root cause**: v804 #th-credits and v814 #th-slate declare `display:flex` — any author
+  `display` OVERRIDES the `hidden` attribute, so both full-stage near-black overlays rendered
+  permanently above the film (slate escaped hit-testing via pointer-events:none, hiding it from
+  elementsFromPoint until credits was found first).
+- **Fix**: `#…[hidden] { display: none !important; }` for every theatre overlay; rule presence
+  is asserted in the ship gate. Bonus finds in the same debug: /hist ?w= query was stripped by
+  the router before _serve_hist (derivative never served — now parsed from self.path), and the
+  T+ clock was empty until first play (now lights at open).
+- **Prevention**: overlay doctrine — any `display:` on a hideable element ships WITH its
+  `[hidden]{display:none!important}` twin; visual verify (screenshot) joins the theatre gate.

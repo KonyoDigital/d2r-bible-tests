@@ -1092,3 +1092,10 @@ with truth surfaces at every step) + BUGS.md REG-021/022/023 (capture lie · lau
 rotation erasure). Remaining for next arc: cousin-box live verify (twin lane + checklist run) ·
 cousin state isolation (R8 #10, invasive) · site READ-CARD/forensics parity ride-along.
 97/97 + 25/25.
+
+## 🎬 v820 "The Curtain Falls" (~12:10) — Konyo live: 'simulation is a black screen'
+REG-024: hidden attribute loses to author display: — credits+slate overlays blacked the film
+while hidden=true. Fix: [hidden]{display:none!important} for all five theatre overlays (rule
+asserted in gate). Same debug also fixed: /hist ?w= derivative (router stripped the query —
+now 1280px/244KB actually serves, was 2560/1MB) + T+ clock lights at open. VISUAL VERIFY:
+headless screenshot shows the full Chaos frame + forensics + timeline. 97/97 + 25/25.
