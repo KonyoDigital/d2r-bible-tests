@@ -1190,3 +1190,9 @@ POST /api/session/delete {n}: removes that session's journal rows across the gen
 (atomic tmp+replace per file), its read frames by frameId, footage in its window, derivative
 twins — other reels untouched. 🗑 in the strip with two-click arm (3.5s, no native dialogs),
 reloads the picker after. 110/110 + 26/26.
+
+## 🏓 R13 (Grok A2.2) → v835 "Said vs Survived" (~19:35)
+Parse audit through _parse_read: strategy (first-last/balanced), rawLen, normalized[] (scene
+clamps with from→to→why), dropped[] (invalid locs, name truncation) — journaled per read,
+drawer section renders ⚠/✂ lines or 'clean — everything the model said survived'. 3 locks.
+113/113 + 26/26.

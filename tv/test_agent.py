@@ -1442,5 +1442,30 @@ class TestDispatchDecomposition(unittest.TestCase):
                          tv.ap_interest(0.0, 0, False, 5, False, parts={}))
 
 
+
+class TestParseAudit(unittest.TestCase):
+    """v835 (Grok A2.2) — clamps and drops are RECORDED, never silent."""
+
+    def test_scene_clamp_recorded(self):
+        pr = tv._parse_read('{"area":"","scene":"loading","names":[],"conf":0.5}')
+        au = pr.get("_parse_audit") or {}
+        self.assertTrue(au.get("ok"))
+        norm = au.get("normalized") or []
+        self.assertTrue(any(x.get("field") == "scene" and x.get("from") == "loading" for x in norm))
+        self.assertEqual(pr["scene"], "gameplay")
+
+    def test_invalid_loc_drop_recorded(self):
+        pr = tv._parse_read('{"scene":"stash","names":["Foo"],"names_loc":{"Foo":"bag"},"conf":0.5}')
+        au = pr.get("_parse_audit") or {}
+        self.assertTrue(any("names_loc" in (x.get("field") or "") for x in au.get("dropped") or []))
+
+    def test_clean_parse_clean_audit(self):
+        pr = tv._parse_read('{"scene":"loot","names":["Ist"],"names_loc":{"Ist":"floor"},"conf":0.9}')
+        au = pr.get("_parse_audit") or {}
+        self.assertTrue(au.get("ok"))
+        self.assertFalse(au.get("dropped"))
+        self.assertFalse(au.get("normalized"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

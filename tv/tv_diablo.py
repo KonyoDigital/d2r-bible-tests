@@ -31,7 +31,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v834"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
+VERSION = "v835"   # ONE truth — banner, autopilot HUD, and state all read this  · vigilant film
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1438,14 +1438,18 @@ def _parse_read(out):
     """extract + normalize the read JSON from model text; None if no JSON object found.
     v794 (Grok R5 #4) — first-{ to last-} dies on worker chatter/truncation around the real
     payload. Scan for BALANCED candidate objects (right-to-left) and take the first that
-    parses AND looks like a read (has a known key)."""
+    parses AND looks like a read (has a known key).
+    v835 (Grok addendum A2.2) — PARSE AUDIT: every clamp/normalize/drop is recorded so SIM
+    shows what the model SAID vs what survived (silent clamps burned us before: v769)."""
     j = None
+    _audit = {"ok": False, "strategy": "none", "rawLen": len(out or ""), "dropped": [], "normalized": []}
     try:
         a, b = out.find("{"), out.rfind("}")
         if a < 0 or b <= a:
             return None
         try:
             j = json.loads(out[a:b + 1])
+            _audit["strategy"] = "first-last"
         except Exception:
             j = None
         if j is None:
@@ -1463,6 +1467,7 @@ def _parse_read(out):
                                 cand = json.loads(out[st:k + 1])
                                 if isinstance(cand, dict) and any(x in cand for x in ("names", "scene", "area", "conf")):
                                     j = cand
+                                    _audit["strategy"] = "balanced"
                             except Exception:
                                 pass
                             break
@@ -1472,9 +1477,15 @@ def _parse_read(out):
             return None
     except Exception:
         return None
-    names = [str(x).strip() for x in j.get("names", []) if str(x).strip()][:60]
-    scene = str(j.get("scene", "gameplay")).lower()
-    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition"): scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
+    _all_names = [str(x).strip() for x in j.get("names", []) if str(x).strip()]
+    names = _all_names[:60]
+    if len(_all_names) > 60:
+        _audit["dropped"].append({"field": "names", "why": "truncated-at-60", "count": len(_all_names) - 60})
+    _scene_raw = str(j.get("scene", "gameplay")).lower()
+    scene = _scene_raw
+    if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition"):
+        _audit["normalized"].append({"field": "scene", "from": _scene_raw, "to": "gameplay", "why": "unknown-scene-clamp"})
+        scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
     tz = [str(x).strip()[:40] for x in j.get("tz", []) if str(x).strip()][:8]
     conf = j.get("conf", None)
     try:
@@ -1493,12 +1504,15 @@ def _parse_read(out):
                 v2 = str(v2).strip().lower()
                 if v2 in ("equipped", "inventory", "stash", "floor"):
                     names_loc[str(k2).strip()] = v2
+                else:
+                    _audit["dropped"].append({"field": "names_loc." + str(k2)[:30], "from": v2[:20], "why": "invalid-loc"})
     except Exception:
         names_loc = {}
     return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names,
             "tz": tz, "conf": conf, "stashTab": stash_tab,
             "discovered": discovered,
-            "names_loc": names_loc}   # v830 — per-name location truth (equipped/inventory/stash/floor)
+            "names_loc": names_loc,
+            "_parse_audit": dict(_audit, ok=True)}   # v835 — what the model SAID vs what survived
 
 def _intent_for(scene):
     """v723 — loot lifecycle: floor labels = seen (not farmed); inv/stash = farmed for real."""
@@ -2534,6 +2548,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "raw": ("" if farewell else globals().get("_LAST_RAW", "")) or ("«farewell read»" if farewell else ""),
         "dispatch": dict(globals().get("_DISPATCH_CTX") or ({"origin": "farewell"} if farewell else {})),
         "promptVer": PROMPT_VER,   # v832 — which prompt read this frame
+        "parse": rd.get("_parse_audit") or {},   # v835 — the clamp/drop audit
         "equipped_names": [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"],
         "ocr_seeded": _ocr_seed,         # v795 — names the fast lane saved from an empty deep read
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
