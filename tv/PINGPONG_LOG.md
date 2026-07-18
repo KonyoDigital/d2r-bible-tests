@@ -1495,3 +1495,15 @@ heartbeat capped at 2/8 slots · POOL_N=1 bit-compat · readerId/poolN/appliedTs
 journaled. Gates: 145/145 agent (7 new pool locks) + 27/27 control + matrix ALL PASSED +
 RINSE ALL OK + parity v863. LIVE ACCEPTANCE = Konyo's next ON AIR (watch poolInFlight→8,
 answers ~1/s, memory 1.6-4.8GB note). AGENTS.md doctrine updated below. Grok back-pass next.
+
+## 🏓 GROK BACK-PASS → v864 "Live-Safe Relay" (~05:15 Jul 19)
+Back-pass verdict: architecture claims 1-9 PASS (with caveats); 4 pre-live fixes shipped:
+(1) [HIGH] farewell ∩ in-flight — _pool_shutdown waits a full vision timeout (was 8s), sets
+_POOL_STOPPING so late vision threads only release their slot (no ghost applies), farewell
+emits under _emit_lock (one apply mutex for everything); (2) throttle herd — one-shot bridge
+serialized (semaphore 1): 8 simultaneous timeouts can't stampede the throttle; (3) private
+snap_/read_ job files unlink in finally (BMP×8×reads was silent disk growth); (4) raw travels
+INSIDE the parsed result (_raw_txt) — the _LAST_RAW global race across 8 readers is dead.
+Deferred with eyes open: Grok suggested default 3 on 16GB — Konyo explicitly ordered 8; the
+cleanup+oneshot-cap reduce pressure, TV_POOL=3 is one env flip if the night runs hot.
+145/145 + 27/27. LIVE ACCEPTANCE NEXT: Konyo's ON AIR run.

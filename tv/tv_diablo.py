@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v863"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v864"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1585,9 +1585,12 @@ def _order_drain():
     return applied
 
 
-def _pool_shutdown(timeout=8.0):
-    """Farewell path — let in-flight readers finish (up to timeout), force-flush the order buffer
-    so nothing buffered is lost, then stop the extra pool workers (worker 0 stays for farewell)."""
+_POOL_STOPPING = False
+def _pool_shutdown(timeout=90.0):
+    """v864 (Grok back-pass #1) — farewell must NEVER race in-flight applies: wait up to a full
+    vision timeout (not 8s), mark the pool STOPPING so late vision threads only release their
+    slot (no order_push, no emit), then force-flush the buffer and stop workers 1..N-1."""
+    globals()["_POOL_STOPPING"] = True
     deadline = time.time() + max(0.0, timeout)
     while time.time() < deadline:
         with _pool_lock:
@@ -2477,7 +2480,20 @@ def _needs_escalate(rd):
     if scene in ("inventory", "stash") and names and conf is not None and conf < 0.7: return True
     return False
 
+_ONESHOT_GATE = threading.Semaphore(1)   # v864 — a throttled pool must not herd 8 oneshots
+_ASK_NONE_STREAK = 0
 def _oneshot(ap, model, timeout=90):
+    """v864 — serialized: under subscription throttle all 8 workers can time out together;
+    eight parallel one-shot bridges would herd the same throttle. One at a time."""
+    if not _ONESHOT_GATE.acquire(timeout=timeout):
+        return None
+    try:
+        return _oneshot_inner(ap, model, timeout)
+    finally:
+        _ONESHOT_GATE.release()
+
+
+def _oneshot_inner(ap, model, timeout=90):
     """One cold `claude -p` on subscription (strict-mcp, no API key)."""
     env, stripped = _claude_env()
     _log_auth_once(stripped)
@@ -2495,7 +2511,10 @@ def _oneshot(ap, model, timeout=90):
             print(f"  ⚠ claude exit {r.returncode}" + (f": {err}" if err else ""))
         return None
     globals()["_LAST_RAW"] = str(out)[:2048]   # v832 — THE THOUGHT (one-shot lane)
-    return _parse_read(out)
+    _pr = _parse_read(out)
+    if _pr is not None:
+        _pr["_raw_txt"] = str(out)[:2048]
+    return _pr
 
 def _maybe_genius(ap, parsed, t0, mode):
     """v723 — automatic Sonnet escalate when Haiku looks weak (session-capped)."""
@@ -2571,8 +2590,11 @@ def claude_read(path, worker=None, out_jpg=None):
     w = worker or _WORKER
     out_w = w.ask(READ_PROMPT.format(path=ap))
     if out_w is not None:
-        globals()["_LAST_RAW"] = str(out_w)[:2048]   # v832 — THE THOUGHT, verbatim
+        globals()["_LAST_RAW"] = str(out_w)[:2048]   # v832 — THE THOUGHT, verbatim (single-reader compat)
+        _raw_local = str(out_w)[:2048]
         parsed = _parse_read(out_w)
+        if parsed is not None:
+            parsed["_raw_txt"] = _raw_local   # v864 — raw travels WITH the result, no global race
         if parsed is not None:
             return _maybe_genius(ap, parsed, t0, "warm") or EMPTY
         ev("cap", "worker returned non-JSON — falling back to one-shot")
@@ -2788,11 +2810,13 @@ def main():
 
                 # ── DEEP LANE: Claude (this reader's OWN worker + private read.jpg) ──
                 rd = claude_read(snap_path, worker=_WORKERS[rid], out_jpg=read_jpg)
-                job["raw"] = globals().get("_LAST_RAW", "") or ""   # v863 — per-job THOUGHT (global races across readers)
+                job["raw"] = (rd or {}).get("_raw_txt") or globals().get("_LAST_RAW", "") or ""   # v864 — result-carried raw wins; global only as single-reader fallback
                 if should_learn_dead(rd):
                     learn_dead_frame(cur_snap)
                 # v863 — ORDERED APPLY: buffer this completion; emit only when no OLDER read is
                 # still in flight (the floor-before-stash lock). Stragglers apply after ORDER_HOLD_MS.
+                if globals().get("_POOL_STOPPING"):
+                    return   # v864 — shutdown in progress: release the slot (finally), never apply late
                 _order_push(int(read_ts), job, rd, ocr_rd)
                 for rec in _order_drain():
                     names = (rec or {}).get("names") or []
@@ -2810,6 +2834,12 @@ def main():
                 try: ev("cap", "vision job failed: %s" % e)
                 except Exception: pass
             finally:
+                try:   # v864 (Grok c) — private job files die with the job (BMP×8×reads was disk growth)
+                    for _jf in (locals().get("snap_path"), locals().get("read_jpg")):
+                        if _jf and isinstance(_jf, str) and ("snap_" in os.path.basename(_jf) or "read_" in os.path.basename(_jf)) and os.path.isfile(_jf):
+                            os.remove(_jf)
+                except Exception:
+                    pass
                 with _pool_lock:
                     _in_flight.pop(job_id, None)
                     if rid not in _pool_free:
@@ -3478,12 +3508,13 @@ def close_session(reason="stop", farewell=True):
     except Exception as e:
         print(f"  👋 session_end journal failed: {e}")
     try:
-        _pool_shutdown()   # v863 — drain-or-cancel the reader pool, then farewell on worker 0
+        _pool_shutdown()   # v863/v864 — join in-flight (≤90s), inert late threads, then farewell
     except Exception:
         pass
     if farewell:
         try:
-            farewell_read()
+            with _emit_lock:   # v864 — the farewell applies under the same mutex as every pooled emit
+                farewell_read()
         except Exception as e:
             print(f"  👋 farewell failed: {e}")
     with _state_lock:
