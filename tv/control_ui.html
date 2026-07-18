@@ -597,7 +597,8 @@
      UA [hidden]{display:none}, so the theatre permanently covered the stage (site had this guard). */
   .theatre[hidden] { display: none !important; }
   .th-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
-    background: #000; }
+    background: #000; transition: right 200ms ease; }
+  #theatre.card-open .th-film { right: min(380px, 44%); width: auto; }   /* v824 — the drawer shares, never covers */
   .theatre::after { content: ""; position: absolute; inset: 0; pointer-events: none;
     background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.14) 2px 4px);
     opacity: .35; mix-blend-mode: multiply; }
@@ -696,7 +697,8 @@
   .th-airead { display: inline-block; text-align: left; margin-top: 6px; padding: 8px 14px;
     background: rgba(6,9,7,.82); border: 1px solid rgba(200,180,120,.22); border-left: 3px solid var(--gold, #c8a24a);
     border-radius: 4px; font: 500 11.5px/1.75 ui-monospace, monospace; color: #bcC9c0; }
-  .th-airead .ar-row { white-space: nowrap; }
+  .th-airead .ar-row { white-space: normal; }   /* v824 — long lines wrap, never clip */
+  .th-airead .ar-row:nth-child(3) b { font-size: 14px; }   /* IT SAW = the hero line */
   .th-airead .ar-k { display: inline-block; min-width: 86px; color: #8fa398; letter-spacing: .08em; font-size: 10px; }
   .th-airead b { color: #e4d2a4; font-variant-numeric: tabular-nums; }
   .th-airead .ar-names { color: #9df0bd; }
@@ -841,7 +843,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v823 control</span>
+      <span id="foot-ver">v824 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1081,7 +1083,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v823') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v824') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1174,18 +1176,10 @@
     var lock = (b.frameOk !== false && b.frame)
       ? '<span style="color:#8fe6a0">🔒 frame locked</span>'
       : '<span style="color:#f88">⚠ no hist frame</span>';
-    var bits = [
-      '<b>CAPTURE '+thFmtMs(cap)+'</b>',
-      'read #'+esc(b.n||'?')
-    ];   // v790 — epoch demoted to film tooltip (broadcast headline, not a debug dump)
-    if (done && done !== cap) bits.push('AI done '+thFmtMs(done));
-    if (b.ms) bits.push(esc(String(Math.round(b.ms)))+'ms vision');
-    if (fid) bits.push('🖼 <code style="font-size:11px">'+esc(fid)+'.jpg</code>');
+    // v824 (Grok R9a) — ONE read card: the old accuracy strip carried the same clocks twice.
+    // It shrinks to identity + lock + story flags; all timing lives in the AI Read Line.
+    var bits = ['read #'+esc(b.n||'?')];
     bits.push(lock);
-    if (b.area) bits.push('🗺 <b>'+esc(b.area)+'</b>');
-    if (b.scene) bits.push((SCENE_IC[b.scene]||'')+' '+esc(b.scene));
-    if (b.lane) bits.push(esc(b.lane));
-    if (b.model) bits.push(esc(b.model));
     if (b.intent === 'farmed') bits.push('🛍 farmed');
     if (b.farewell) bits.push('👋 farewell');
     if (b.stashTab) bits.push('🏦 tab:'+esc(b.stashTab));
@@ -1201,7 +1195,7 @@
       var deepN = b.names || [], ocrN = b.ocr_names || [];
       var readLine = '<div class="th-airead">'
         + '<div class="ar-row"><span class="ar-k">📸 CAPTURE</span><b>' + wallMs(b.ts) + '</b>'
-        + ' <span class="ar-dim">T+' + mm + ':' + ('0' + ss).slice(-2) + '.' + ms3 + ' · 🖼 ' + esc(b.frameId || '?') + '</span></div>'
+        + ' <span class="ar-dim">🖼 ' + esc(b.frameId || '?') + '</span></div>' 
         + '<div class="ar-row"><span class="ar-k">🧠 AI READ</span><b>' + wallMs(b.completedTs) + '</b>'
         + (b.completedTs && b.ts ? ' <span class="ar-dim">(+' + ((b.completedTs - b.ts) / 1000).toFixed(1) + 's after the frame)</span>' : '')
         + ' <span class="ar-dim">' + esc(b.model || 'deep') + (b.ms ? ' · ' + Math.round(b.ms) + 'ms' : '') + (b.conf != null ? ' · conf ' + Number(b.conf).toFixed(2) : '') + '</span></div>'
@@ -1221,7 +1215,10 @@
       });
       if (tagChips.length) line += tagChips.join('');
     } catch (e) {}
-    var cast = (b.names||[]).slice(0,8).map(function(n){ return '<span class="th-chip">'+esc(n)+thSeal(b,n)+'</span>'; });
+    var cast = (b.names||[]).slice(0,8).map(function(n){
+      var seal = thSeal(b,n);
+      return seal ? '<span class="th-chip">'+esc(n)+seal+'</span>' : '';   // v824 — chips only when a seal ADDS info
+    }).filter(Boolean);
     (b.discovered_names||[]).slice(0,4).forEach(function(n){
       if ((b.names||[]).indexOf(n) < 0) cast.push('<span class="th-chip">💬🏆 '+esc(n)+'</span>');
     });
@@ -1266,6 +1263,12 @@
     }
     try { film.classList.toggle('vaultglow', !!(b.vault_names || []).length); } catch (e) {}   // v801 — vault beats glow mint on the film itself
     try { var rb = $('th-replay'); if (rb) rb.hidden = !(b.vault_names || []).length; } catch (e) {}   // v803 — ⏪ appears on find beats
+    try {
+      if (CARD.autoArmed && !CARD.open && ((b.names||[]).length || (b.vault_names||[]).length || (b.discovered_names||[]).length || b.farewell)){
+        CARD.autoArmed = false; thCardToggle();   // v824 — depth arrives WITH the first story beat
+        try { localStorage.removeItem('tvd_card_pref'); } catch (e) {}
+      }
+    } catch (e) {}
     $('th-caption').innerHTML = thCaption(b);
     if (typeof thCardRender === 'function') thCardRender();   // v800 — drawer follows the playhead
     var tl = $('th-timeline');
@@ -1543,7 +1546,13 @@
       }
     }
     await thLoadSession(pick);
-    if (!CARD.open) thCardToggle();   // v821 — in-depth by DEFAULT (I closes it)
+    // v824 (Grok R9a) — film-first: drawer opens on the FIRST content beat (or remembered pref),
+    // not on every quiet floor frame. `I` preference persists.
+    try {
+      var pref = localStorage.getItem('tvd_card_pref');
+      if (pref === 'open' && !CARD.open) thCardToggle();
+      else CARD.autoArmed = (pref !== 'closed');
+    } catch (e) { CARD.autoArmed = true; }
     thLit();
   }
   function thClose(){
@@ -1589,6 +1598,9 @@
   }
   function thCardToggle(){
     CARD.open = !CARD.open;
+    CARD.autoArmed = false;
+    try { localStorage.setItem('tvd_card_pref', CARD.open ? 'open' : 'closed'); } catch (e) {}
+    try { document.getElementById('theatre').classList.toggle('card-open', CARD.open); } catch (e) {}
     $('th-drawer').hidden = !CARD.open;
     $('th-card').classList.toggle('on', CARD.open);
     thCardRender();

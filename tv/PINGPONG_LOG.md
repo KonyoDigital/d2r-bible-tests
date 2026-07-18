@@ -1117,3 +1117,11 @@ ocr_ms now projected on theatre beats (claim/consumer 8-for-8: journal had it, t
 it); lane-merge keeps the fast clock unconditionally; ⚡ OCR row reads '31ms (instant, at the
 frame)' vs 🧠 seconds later — the dual-lane timing story is complete. Forensic-fields lock
 extended. 25/25 + 97/97.
+
+## 🏃 Grok R9a → v824 "Broadcast Hierarchy" (~13:20)
+One read card: old accuracy strip shrunk to read#+lock+story flags (clocks live in the read line
+only); cast chips render ONLY with seals (IT SAW is the one cast row); T+ deduped to the topline;
+rows wrap; IT SAW hero-sized; drawer default-CLOSED, auto-opens on the FIRST story beat
+(names/vault/discovery/farewell), `I` preference persists in localStorage; film SHARES the stage
+with the open drawer (right offset, 200ms ease) instead of being painted over. VISUAL-VERIFIED:
+full Chaos frame + clean card + ⚡ OCR 249ms line. 97/97 + 25/25.
