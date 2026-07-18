@@ -1364,3 +1364,12 @@ then force-kill orphans. ON never attaches to a stranger bridge — stops first.
 Visual-verify catch: OCR junk ('QvfST L•') reached the seed path + the ⚡ headline. _itemish()
 gate (length/glyphs/letter-ratio/vowel) guards the SEED (garbage never enters the chain) and the
 read-line display ('+N raw (drawer)' keeps forensic truth one click away). 124/124 + 27/27.
+
+## 🏃 ARMY-CORE wave → v849 "Shield With a Ceiling" (~20:40)
+audit-core's five, shipped: [HIGH] journal shield outer ceiling (TV_PROTECT_CAP=2000 newest fids;
+infinite shield had defeated HIST_KEEP+HIST_MB → unbounded HD frames) + mtime-cached ring scan
+(full multi-MB parse ran per read); queue-drain omits unmeasured motion/peak/settle ('no invented
+data'); wine/CrossOver-owned windows with unambiguous game title+size pass ALL three blocklist
+gates (3 scorer locks); footage self-reaps in the film loop (reads stalling no longer let f_
+grow unbounded); glob precedence parenthesized. Also: freed two marching-version test pins
+(sibling's v846 pin + matrix v839) → regex, tv/*.log gitignored. 127/127 + 27/27.

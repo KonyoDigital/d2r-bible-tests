@@ -78,7 +78,8 @@ def main():
     print("══ BUTTON MATRIX · control API (mirrors every app button) ══")
     st = get(CTRL + "/api/status")
     check("control up", st.get("ok") is True, st)
-    check("version stamp", st.get("ver") == "v839", st.get("ver"))
+    import re as _re
+    check("version stamp", bool(_re.match(r"^v8\d\d", st.get("ver") or "")), st.get("ver"))   # v849 — matches the march
 
     # ensure clean off
     print("\n· OFF (ensure dark)")

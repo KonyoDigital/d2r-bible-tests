@@ -875,7 +875,7 @@ class TestReplay(unittest.TestCase):
 
     def test_tesla_drive_film_and_gaps(self):
         """v846 — snappy one-reader gaps + HD film knobs present."""
-        self.assertIn(tv.VERSION, ("v846", "v847"))
+        self.assertRegex(tv.VERSION, r"^v8\d\d")   # v849 recal — never pin a marching version
         self.assertLessEqual(tv.MIN_GAP_S, 2.5)
         self.assertLessEqual(tv.PRIORITY_GAP_S, 1.0)
         self.assertLessEqual(tv.POLL_S, 0.15)
@@ -1593,6 +1593,22 @@ class TestItemishGate(unittest.TestCase):
         self.assertFalse(tv._itemish("y$-."))
         self.assertFalse(tv._itemish("xyz"))
         self.assertFalse(tv._itemish("FLAfflQ R{}"))
+
+
+
+class TestScorerOverride(unittest.TestCase):
+    """v849 (audit-core #4) — a wine/CrossOver-owned window with an unambiguous game title
+    at game size must PASS the blocklists (Quartz sometimes reports the owner that way)."""
+
+    def test_crossover_owner_with_game_title_passes(self):
+        sc = tv.score_d2r_window_candidate("CrossOver", "Diablo II: Resurrected", 1470, 956, True)
+        self.assertIsNotNone(sc, "game title + size must override the shell owner")
+
+    def test_crossover_launcher_still_rejected(self):
+        self.assertIsNone(tv.score_d2r_window_candidate("CrossOver", "CrossOver", 1150, 700, False))
+
+    def test_browser_bible_tab_still_rejected(self):
+        self.assertIsNone(tv.score_d2r_window_candidate("Google Chrome", "Konyo's D2R Farming Bible", 1470, 900, True))
 
 
 if __name__ == "__main__":

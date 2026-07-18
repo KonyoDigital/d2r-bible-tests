@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v848"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v849"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -459,21 +459,28 @@ def score_d2r_window_candidate(owner, title, width, height, onscreen=True):
         return None
     if ol == "python" and "tv diablo" in tl:
         return None
+    _title_is_game = ("resurrected" in tl or "diablo ii" in tl) and ww >= 800 and hh >= 500
     if any(b in ol for b in _PICK_OWNER_BLOCK) and not _is_d2r_game_owner(ol):
         # block list includes crossover/battle.net — game exe still allowed
-        return None
+        # v849 — and an unambiguous game TITLE at game size passes even under a wine/CrossOver owner
+        if not _title_is_game:
+            return None
     if any(b in tl for b in _PICK_TITLE_BLOCK) and not _is_d2r_game_owner(ol):
         return None
     if _is_launcher_shell(ol, tl) and not _is_d2r_game_owner(ol):
-        return None
+        # v849 (audit-core #4) — an unambiguous GAME TITLE on a game-sized window overrides
+        # the shell reject: Quartz sometimes reports the game's owner as CrossOver/wine.
+        if not _title_is_game:
+            return None
     # Must be the game process OR a clear Diablo game title (never lobby alone)
     is_game = _is_d2r_game_owner(ol)
     title_game = ("diablo" in tl or "resurrected" in tl or tl == "d2r"
                   or any(t in tl for t in _D2R_TITLE_HINTS))
     if not is_game and not title_game:
         return None
-    # Title-only without game owner: reject if it still looks like a shell
-    if not is_game and _is_launcher_shell(ol, tl):
+    # Title-only without game owner: reject if it still looks like a shell —
+    # v849: UNLESS the title is unambiguously the game at game size (wine-owner case)
+    if not is_game and _is_launcher_shell(ol, tl) and not _title_is_game:
         return None
     score = 0
     if is_game:
@@ -824,6 +831,16 @@ def _film_loop():
                         os.makedirs(hist_dir, exist_ok=True)
                         import shutil as _sh
                         _sh.copyfile(eye, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
+                        # v849 (audit-core #5) — reap footage HERE too: if reads stall while the
+                        # film runs, footage no longer grows unbounded until the next read.
+                        if int(now_f) % 60 == 0:
+                            try:
+                                ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg"))
+                                for dead in ff[:-FOOT_KEEP]:
+                                    try: os.remove(os.path.join(hist_dir, dead))
+                                    except Exception: pass
+                            except Exception:
+                                pass
                 except Exception:
                     pass
             else:
@@ -1103,22 +1120,30 @@ def _readable_frame(ap):
         pass
     return ap
 
+_JFI_CACHE = {"key": None, "ids": set()}
 def _journal_frame_ids():
     """v840 — every frameId still referenced by the session journal is UN-PRUNABLE.
-    Live forensic: 2600 footage frames + only 13 AI reads left → SIM reels blank for the
-    long night. Journal is the SIMULATION source of truth; hist must never drop its keys."""
+    v849 (audit-core #1+#3): OUTER CEILING — only the NEWEST TV_PROTECT_CAP journaled fids
+    stay shielded (an infinite shield defeated HIST_KEEP/HIST_MB → unbounded HD frames,
+    Mac-choke class); ring scan CACHED on journal mtimes (full multi-MB parse ran in the
+    read path every fire)."""
     ids = set()
     try:
-        # generation ring (v811) + primary journal
         paths = [JOURNAL]
         try:
             d = os.path.dirname(JOURNAL) or "."
             base = os.path.basename(JOURNAL)
             for name in os.listdir(d):
-                if name.startswith(base) or name.startswith("sessions") and name.endswith(".jsonl"):
+                if name.startswith(base) or (name.startswith("sessions") and name.endswith(".jsonl")):
                     paths.append(os.path.join(d, name))
         except Exception:
             pass
+        try:
+            key = tuple(sorted((jp, os.path.getmtime(jp)) for jp in set(paths) if os.path.isfile(jp)))
+        except Exception:
+            key = None
+        if key is not None and key == _JFI_CACHE["key"]:
+            return set(_JFI_CACHE["ids"])
         seen_p = set()
         for jp in paths:
             if jp in seen_p or not os.path.isfile(jp):
@@ -1128,17 +1153,29 @@ def _journal_frame_ids():
                 with open(jp, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
-                        if not line or '"frameId"' not in line:
+                        if not line:
                             continue
                         try:
-                            r = json.loads(line)
+                            fid = json.loads(line).get("frameId")
                         except Exception:
                             continue
-                        fid = r.get("frameId") or ""
-                        if fid and all(c.isdigit() or c == "_" for c in fid):
-                            ids.add(fid + ".jpg")
+                        if fid:
+                            ids.add(str(fid) + ".jpg")
             except Exception:
                 pass
+    except Exception:
+        pass
+    PROTECT_CAP = max(200, int(os.environ.get("TV_PROTECT_CAP", "2000") or 2000))
+    if len(ids) > PROTECT_CAP:
+        def _fid_ms(x):
+            try:
+                return int(str(x).split(".")[0].rsplit("_", 1)[-1])
+            except Exception:
+                return 0
+        ids = set(sorted(ids, key=_fid_ms)[-PROTECT_CAP:])
+    try:
+        _JFI_CACHE["key"] = key
+        _JFI_CACHE["ids"] = set(ids)
     except Exception:
         pass
     return ids
@@ -2510,9 +2547,9 @@ def main():
            + (f" · frame {frame_id}" if frame_id else ""))
         beat("reading", 0.0)
         _AP["mode"] = "read"
-        globals()["_DISPATCH_CTX"] = {
-            "motion": round(float(motion_v), 4), "peak": round(float(peak_v), 4),
-            "settleTicks": int(settle_ticks),
+        # v849 (audit-core #2 · 'no invented data') — a queued freeze was never measured for
+        # motion/peak/settle: OMIT them instead of journaling 0.0000 as if measured.
+        _ctx = {
             "interest": round(float(interest_this), 3),
             "interestParts": dict(interest_parts or {}),
             "priority": bool(used_priority),
@@ -2525,6 +2562,12 @@ def main():
             "origin": origin,
             "note": note or ("one AI reader — " + origin),
         }
+        if "queue" not in origin:
+            _ctx.update({"motion": round(float(motion_v), 4), "peak": round(float(peak_v), 4),
+                         "settleTicks": int(settle_ticks)})
+        else:
+            _ctx["note"] = "queued freeze — motion fields n/a by nature"
+        globals()["_DISPATCH_CTX"] = _ctx
         used = _launch_vision(snap_src, sig, reads, frame_id, interest_this, used_priority, read_ts)
         if "queue" in origin:
             peak = 0.0
