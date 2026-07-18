@@ -10,6 +10,18 @@ const BIBLE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 const CTRL = 'http://127.0.0.1:17772';
 const AGENT = 'http://127.0.0.1:17771';
 
+// v884 (routines-in-check) — CI has no live control server: skip instead of ECONNREFUSED.
+// Same contract as v851_theatre_pack: Mac gate runs this for real.
+async function controlUp(): Promise<boolean> {
+  try {
+    const r = await fetch(CTRL + '/api/status', { signal: AbortSignal.timeout(1500) });
+    return r.ok;
+  } catch { return false; }
+}
+test.beforeEach(async () => {
+  test.skip(!(await controlUp()), 'control app not running — Mac-gate-only spec');
+});
+
 function post(p: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const u = new URL(CTRL + p);

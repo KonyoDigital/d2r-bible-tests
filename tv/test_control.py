@@ -282,7 +282,21 @@ class TestDoctor(unittest.TestCase):
         blockers = [c for c in d["checks"] if c["severity"] == "block" and not c["ok"]]
         self.assertEqual(d["ok"], not blockers)
 
+    def _shim_claude_on_path(self):
+        """v884 — CI runners have no claude CLI; the doctor's claude_cli check is REAL and
+        should stay — the TEST supplies a fake executable so it stays hermetic everywhere."""
+        import tempfile, stat
+        d = tempfile.mkdtemp()
+        fake = os.path.join(d, "claude")
+        with open(fake, "w") as f:
+            f.write("#!/bin/sh\necho ok\n")
+        os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
+        old = os.environ.get("PATH", "")
+        os.environ["PATH"] = d + os.pathsep + old
+        self.addCleanup(lambda: os.environ.__setitem__("PATH", old))
+
     def test_doctor_ok_ignores_offline_agent(self):
+        self._shim_claude_on_path()
         """Agent OFF (no bridge / no frames) must NEVER flip ok to False."""
         old = ca._agent_mode
         ca._agent_mode = "off"

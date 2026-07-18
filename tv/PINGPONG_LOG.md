@@ -1669,3 +1669,10 @@ producer fields (origin/readerId) into the hist archive; 30-min soak harness (tv
 test in the RINSE spec. GitHub issue #1 filed for the SuperGrok verify round per Konyo.
 149/149 + 30/30 + parity ×4. NEXT: Grok third-eye on the SIM/ON-AIR roundtrip (Konyo:
 'something there is still bugged').
+
+## ✅ v884 "ROUTINES IN CHECK" (Konyo: 'put routines in check', Jul 19)
+CI audit of the night: tv-tests RED since v878 — the doctor's claude_cli check (correctly)
+blocks on bare ubuntu runners; the TEST now ships a hermetic claude shim on PATH (the check
+stays real in prod). Routine I: v643 tooltip flake (isolation re-run rule applies) + the
+ECONNREFUSED class = v773_app_site_sync had NO Mac-gate skip — guarded now like v851.
+Routine I on v883 pending — watch the fresh verdict on v884.
