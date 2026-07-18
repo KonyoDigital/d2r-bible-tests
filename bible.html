@@ -4312,6 +4312,13 @@ body.app-ctx .tab-content,body.app-ctx .gsearch-wrap{max-width:none;margin-left:
 body.app-ctx .tvf-spine{border-radius:10px;margin:8px 0 12px}
 body.app-ctx{scrollbar-width:thin}
 body.app-ctx #shortcut-hint{display:none !important}   /* v857.1 — site power-hints off in the console */
+/* v878 (army board #4) — sticky chrome must not repaint every frame in the console:
+   tab-bar glow/sheen + ⌂ pill breathe are box-shadow keyframes on always-visible surfaces */
+body.app-ctx .tabs, body.app-ctx .tabs::before, body.app-ctx .tabs::after,
+body.app-ctx .tab.active, body.app-ctx .tvf-console-pill{animation:none !important}
+/* v878 (army board #6) — forge/funi/fsets card walls skip offscreen paint (their per-card
+   shine/ember animations stop painting below the fold too) */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-card{content-visibility:auto;contain-intrinsic-size:auto 120px}
 body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:none !important}   /* dev routines off in the console */
 body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 
@@ -14275,7 +14282,9 @@ window.markEndgameRelics = markEndgameRelics;
   const run = () => { queued = false; try { markEndgameRelics(document); } catch(e){} };
   const start = () => {
     markEndgameRelics(document);
-    new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(run); })
+    // v878 (army board #2) — 1s debounce: the TV·D feed repaints mutated at rAF cadence and
+    // every tick re-scanned all ~68k nodes for [onclick*=openDrop]. Relics don't move that fast.
+    new MutationObserver(() => { if (queued) return; queued = true; setTimeout(run, 1000); })
       .observe(document.body, { childList:true, subtree:true });
   };
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
@@ -14746,7 +14755,13 @@ const fmtHours = h => {
   if (h < 24) return `${h.toFixed(1)}h`;
   return `${(h/24).toFixed(1)}d`;
 };
-const persist = () => {
+let _persistT = null;
+try { window.addEventListener('pagehide', () => { if (_persistT){ clearTimeout(_persistT); _persistT = null; _persistNow(); } }); } catch(e){}
+const persist = () => {   // v878 (army board #7) — debounce: sliders fired ~20 sync writes per drag tick
+  if (_persistT) return;
+  _persistT = setTimeout(() => { _persistT = null; _persistNow(); }, 250);
+};
+const _persistNow = () => {
   LS.setItem('d2r_mf', mf);
   LS.setItem('d2r_players', players);
   LS.setItem('d2r_wishlist', JSON.stringify([...wishlist]));
@@ -33388,7 +33403,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v877', name:'The Army Round', date:'2026-07-19', note:'v877: 5-agent optimization sweep implemented — mmap frame_sig (1GB/s churn dead), incremental journal shield, prune early-return, hard-link snapshots, footage write-gate + 2048px film, agent nice(5), lsof-per-poll dead, HTTP/1.1 keep-alive, decode-before-swap film, endurance covers idle+pseudo, RINSE permanent spec self-hosted, source-shape heartbeat locks, youth-shield lock, parse fuzz (caught a real null-names crash), pre-push tv fast lane, CI control suite' };
+  window.D2R_BUILD = { id:'v878', name:'Board Breather', date:'2026-07-19', note:'v878: board app-ctx optimization — relic observer 1s debounce (was 68k-node scan per feed repaint), TVD poll relaxes off-tab, app-ctx chrome animations off, f-card content-visibility, persist debounce + pagehide flush, site-theatre rAF dies with the curtain; sticky-bridge + beacon test locks' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34523,6 +34538,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     // v732 — 250ms live poll so OCR chips land in ~0.1–0.3s (was 2s — that alone felt "slow")
     poll(); T=setInterval(poll, 250);
   };
+  // v878 (army board #1) — the 250ms lane belongs to the TV·D/session surfaces; on any other
+  // tab the poll relaxes to 1s (data stays fresh, 4×/s DOM paint of an invisible feed stops).
+  setInterval(function(){
+    if (!T) return;
+    var el = document.querySelector('.tab[data-tab="tvd"].active, .tab[data-tab="session"].active');
+    var want = el ? 250 : 1000;
+    if (want !== (window.__tvdPollMs || 250)){
+      window.__tvdPollMs = want;
+      clearInterval(T); T = setInterval(poll, want);
+    }
+  }, 1500);
   window._tvdRefreshTab=function(){ setState(STATE); render(); renderHistory(); refreshFrameEye(); };
   // v764/v773 — AUTO-SYNC to the app. Probe only while dark; when the agent dies the poll
   // catch HARD-CUTS (clears T + NO SIGNAL) so the next probe can re-arm cleanly.
@@ -34716,9 +34742,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if(THZ.p >= THZ.Tplay){ THZ.playing = false; var pb = document.getElementById('tvz-th-play'); if(pb) pb.textContent = '▶'; }
     }
     _thzLast = now;
-    requestAnimationFrame(_thzTick);
+    if (THZ.open) requestAnimationFrame(_thzTick);   // v878 — the loop dies with the curtain
   }
-  try { requestAnimationFrame(_thzTick); } catch(e){}
+  try { window.__thzArm = function(){ requestAnimationFrame(_thzTick); }; } catch(e){}
   function thzStep(){   // manual next — beat snap (playhead seeks with the beat)
     if(!THZ.beats.length) return;
     THZ.i = Math.min(THZ.beats.length - 1, THZ.i + 1);
@@ -34751,6 +34777,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if(h.live && (h.live.reads||[]).length) s.push(h.live);               // newest first: live, then archives
     (h.sessions||[]).forEach(function(x){ if(x && (x.reads||[]).length) s.push(x); });
     THZ.sessions = s; THZ.open = true; THZ.playing = true;
+    try { window.__thzArm && window.__thzArm(); } catch(e){}   // v878 — rAF starts at curtain-up
     var ov = document.getElementById('tvz-theatre'); if(ov) ov.hidden = false;
     var btn = document.getElementById('tvz-theatre-btn'); if(btn) btn.classList.add('on');
     var play = document.getElementById('tvz-th-play'); if(play) play.textContent = '⏸';

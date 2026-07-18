@@ -349,5 +349,70 @@ class TestSessionDelete(unittest.TestCase):
         self.assertIn("removedReads", src)
 
 
+class TestV872StickyBridge(unittest.TestCase):
+    """v877 (army suite-audit #6) — the STANDBY-flash fix must stay fixed."""
+
+    def test_sticky_bridge_survives_one_missed_probe(self):
+        import time as _t
+        old_cache = dict(ca._BR_CACHE)
+        old_ok = getattr(ca, "_BRIDGE_LAST_OK", 0.0)
+        old_alive = ca._agent_alive
+        try:
+            ca._BR_CACHE.update({"ping": False, "st": None, "ts": _t.time()})   # probe just missed
+            ca._BRIDGE_LAST_OK = _t.time() - 3.0                                 # but seen 3s ago
+            ca._agent_alive = lambda: True                                       # and the process lives
+            st = ca.status_payload()
+            self.assertTrue(st.get("bridge"), "one missed probe flipped the console to STANDBY")
+        finally:
+            ca._BR_CACHE.update(old_cache)
+            ca._BRIDGE_LAST_OK = old_ok
+            ca._agent_alive = old_alive
+
+    def test_dead_bridge_goes_dark_after_the_window(self):
+        import time as _t
+        old_cache = dict(ca._BR_CACHE)
+        old_ok = getattr(ca, "_BRIDGE_LAST_OK", 0.0)
+        old_alive = ca._agent_alive
+        try:
+            ca._BR_CACHE.update({"ping": False, "st": None, "ts": _t.time()})
+            ca._BRIDGE_LAST_OK = _t.time() - 30.0    # silent for 30s
+            ca._agent_alive = lambda: False
+            st = ca.status_payload()
+            self.assertFalse(st.get("bridge"), "a truly dead bridge must not stay ON")
+        finally:
+            ca._BR_CACHE.update(old_cache)
+            ca._BRIDGE_LAST_OK = old_ok
+            ca._agent_alive = old_alive
+
+
+class TestV875Beacon(unittest.TestCase):
+    def test_beacon_shape_and_silence_on_failure(self):
+        import urllib.request as _ur
+        sent = {}
+        def fake_urlopen(req, timeout=None):
+            sent["url"] = req.full_url
+            sent["auth"] = req.get_header("Authorization") or ""
+            sent["body"] = json.loads(req.data.decode())
+            class R:
+                def __enter__(self): return self
+                def __exit__(self, *a): return False
+                def read(self): return b"{}"
+            return R()
+        old = _ur.urlopen
+        _ur.urlopen = fake_urlopen
+        try:
+            ca._console_beacon("boot")
+            self.assertEqual(sent["url"], "https://bull-4-u.com/api/console")
+            self.assertTrue(sent["auth"].startswith("Basic "))
+            self.assertEqual(sent["body"]["event"], "boot")
+            self.assertIn("machine", sent["body"])
+            self.assertIn("ver", sent["body"])
+            # failure is silent — never raises into a caller
+            _ur.urlopen = lambda *a, **k: (_ for _ in ()).throw(OSError("net down"))
+            ca._console_beacon("hb")   # must not raise
+        finally:
+            _ur.urlopen = old
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

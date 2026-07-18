@@ -1598,3 +1598,14 @@ youth-shield starvation lock, parse fuzz corpus — WHICH CAUGHT A REAL BUG ('na
 crashed _parse_read; hardened), pre-push tv fast lane, control suite + intake smoke in CI.
 149/149 + 27/27 + parity ×4. Remaining audit tiers → v878 (board app-ctx round + theatre
 throttles + control unit locks + /api/session lazy forensics + Windows footage parity).
+
+## 🧭 v878 "BOARD BREATHER" (army round 2, Jul 19)
+Board app-ctx tier implemented: relic MutationObserver 1s debounce (68k-node scan ran at rAF
+cadence off every TV·D feed repaint), TV·D 250ms poll relaxes to 1s when the tvd/session tab
+is off-screen, app-ctx kills the sticky tab-bar glow/sheen/pill box-shadow keyframes, f-card
+walls get content-visibility (offscreen shine/ember stops painting), persist() debounced 250ms
++ pagehide flush (sliders fired ~20 sync localStorage writes per drag tick), site-theatre rAF
+loop lives only while the curtain is up. Control locks: sticky-bridge (both directions) +
+beacon shape/silence units. DEFERRED to Grok pingpong: boot-render laziness for hidden tabs
+(cross-tab DOM deps: search/forge feed off other tabs' renders), /api/session lazy forensics,
+Windows footage parity, theatre thClock/cur-tracking throttles. 149/149 + 30/30 + parity ×4.
