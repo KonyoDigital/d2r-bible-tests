@@ -1675,5 +1675,45 @@ class TestChainProvenance(unittest.TestCase):
         self.assertIn("Widowmaker", rec.get("chain") or {})
 
 
+
+class TestChainClasses(unittest.TestCase):
+    """v856 (Grok R18) — the closed class enum + wipe-retention lock."""
+
+    def test_never_seen_class(self):
+        lc = tv.LootLifecycle()
+        r = lc.process("stash", ["Blood Shield"], "Harrogath", 0.9,
+                       names_loc={"Blood Shield": "stash"})
+        c = (r.get("chain") or {}).get("Blood Shield") or {}
+        self.assertEqual(c.get("class"), "never-seen")
+
+    def test_full_chain_retained_after_wipe(self):
+        lc = tv.LootLifecycle()
+        lc.process("loot", ["Widowmaker"], "Stony Field", 0.9)
+        r = lc.process("stash", ["Widowmaker"], "Harrogath", 0.9,
+                       names_loc={"Widowmaker": "stash"})
+        c = (r.get("chain") or {}).get("Widowmaker") or {}
+        self.assertTrue(c.get("seen"), "journaled chain must retain wasSeen AFTER the commit wipe")
+        self.assertEqual(c.get("class"), "full-chain")
+        self.assertIn("Widowmaker", r["vault_names"])
+
+    def test_wiped_by_commit_echo(self):
+        lc = tv.LootLifecycle()
+        lc.process("loot", ["Titan's Revenge"], "Chaos", 0.9)
+        lc.process("stash", ["Titan's Revenge"], "Harrogath", 0.9,
+                   names_loc={"Titan's Revenge": "stash"})
+        r = lc.process("stash", ["Titan's Revenge"], "Harrogath", 0.9,
+                       names_loc={"Titan's Revenge": "stash"})
+        c = (r.get("chain") or {}).get("Titan's Revenge") or {}
+        self.assertEqual(c.get("class"), "wiped-by-commit")
+
+    def test_decisions_nest_chain(self):
+        rec = tv.emit_deep_read({"area": "Harrogath", "scene": "stash", "names": ["Buriza-Do Kyanon"],
+                                 "tz": [], "conf": 0.9, "names_loc": {"Buriza-Do Kyanon": "stash"}},
+                                93, "93_9393", capture_ts=9393)
+        d = (rec.get("decisions") or {}).get("Buriza-Do Kyanon") or {}
+        self.assertIn("chain", d)
+        self.assertEqual((d.get("chain") or {}).get("class"), "never-seen")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

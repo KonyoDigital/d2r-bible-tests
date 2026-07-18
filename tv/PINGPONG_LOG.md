@@ -1413,3 +1413,13 @@ count + firstHeld + vaultedTs/count — journaled per name on the rec, projected
 tells the story in owner language ('seen on the floor @ Stony Field ×2 · first 8:55:10' vs
 'NEVER seen this session — no chain existed'). stash-no-chain is now diagnosable. 2 locks.
 134/134 + 27/27.
+
+## 🏓 Grok R18 → v856 "The Chain Verdict" (~23:15)
+R18's schema refinement over v855: closed class enum derived in-engine (full-chain/hold-chain/
+never-seen/wiped-by-commit) + path string; hold-commit and already-vaulted echo paths snapshot
+too (pre-pop, non-negotiable); chain NESTS under decisions[name]; drawer: class chips with
+Grok's exact colors + owner diagnosis lines ('gate correct — if you really farmed it, the bug
+is UPSTREAM') + aggregation strip ('3 names · 1 vaulted · 1 blocked'). 4 locks incl the
+wipe-retention lock (journaled chain keeps wasSeen AFTER commit pops it). R18 ranked next:
+A2.5 board-write records → decision-river visual → skip events → vision telemetry → site ports.
+138/138 + 27/27.

@@ -30,7 +30,7 @@
 import json, os, subprocess, sys, threading, time, hashlib, signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v855"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
+VERSION = "v856"   # ONE truth — clean OFF/STOP session save + Tesla film + one reader
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2024,6 +2024,8 @@ class LootLifecycle:
 
     def _commit(self, n, reason, now_ms, out, tag=None):
         k = _norm_name(n)
+        if k and n not in (out.get("chain") or {}):
+            out.setdefault("chain", {})[n] = self._chain_snapshot(k, n)   # v856 — hold-commit path snapshots pre-pop
         if not k or _is_junk(n) or _is_anchor(n) or _is_never_vault(n):
             if _is_never_vault(n) and not _is_anchor(n) and not _is_junk(n):
                 out["lifecycle_tags"][n] = "skip-weak"
@@ -2118,6 +2120,7 @@ class LootLifecycle:
         if not k:
             return
         if k in self.vaulted and not (k in self.seen or k in self.candidates):
+            out.setdefault("chain", {})[n] = self._chain_snapshot(k, n)   # v856 — echo path snapshots too
             out["lifecycle_tags"][n] = "already-vaulted"   # v796 — fresh floor provenance may hold a 2nd instance
             return
         if _is_never_vault(n):
@@ -2193,6 +2196,18 @@ class LootLifecycle:
                 c["vaultCount"] = v.get("count", 1)
         except Exception:
             pass
+        # v856 (Grok R18a) — one-glance failure class, closed enum
+        if c["vaulted"] and not (c["seen"] or c["pending"] or c["candidate"]):
+            c["class"] = "wiped-by-commit"
+        elif c["pending"]:
+            c["class"] = "hold-chain"
+        elif c["seen"] or c["candidate"]:
+            c["class"] = "full-chain"
+        else:
+            c["class"] = "never-seen"
+        c["path"] = ("seen→gone→stash" if c["candidate"] else
+                     "holding→stash" if c["pending"] else
+                     "seen→stash" if c["seen"] else "")
         return c
 
     def _on_stash(self, names, area, conf, now_ms, out):
@@ -3007,8 +3022,9 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "decisions": {n: {"loc": (rd.get("names_loc") or {}).get(n, ""),
                           "tag": (lc.get("lifecycle_tags") or {}).get(n, ""),
                           "why": _reason_for((lc.get("lifecycle_tags") or {}).get(n, ""),
-                                             (rd.get("names_loc") or {}).get(n, ""))}
-                      for n in names},   # v836 — THE DECISION CHAIN
+                                             (rd.get("names_loc") or {}).get(n, "")),
+                          "chain": (lc.get("chain") or {}).get(n)}
+                      for n in names},   # v836/v856 — THE DECISION CHAIN with provenance nested
         "equipped_names": [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"],
         "ocr_seeded": _ocr_seed,         # v795 — names the fast lane saved from an empty deep read
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],

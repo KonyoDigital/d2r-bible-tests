@@ -934,7 +934,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v855 control</span>
+      <span id="foot-ver">v856 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1200,7 +1200,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v855') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v856') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1792,16 +1792,24 @@
     var ch = b.chain || {};
     var chk = Object.keys(ch);
     if (chk.length){
-      h += '<h4>chain provenance — at the moment of decision</h4>';
+      var _CLS = { 'full-chain': ['● CHAIN', '#8fe6a0', 'proven — vault fair · if the board missed it, blame board-write, not the gate'],
+                   'hold-chain': ['◐ HOLD', '#d8bd7c', 'in the bag — waiting for stash or timer'],
+                   'never-seen': ['○ NO CHAIN', '#f89a8a', 'gate correct · if you really farmed it, the bug is UPSTREAM (eyes/scene/OCR/name key)'],
+                   'wiped-by-commit': ['✓ OWNED', '#7fae90', 'prior vault ate the trail — needs a FRESH floor sighting for a second copy'] };
+      var agg = { }; chk.forEach(function(nm){ var cl = (ch[nm] || {})['class'] || '?'; agg[cl] = (agg[cl] || 0) + 1; });
+      h += '<h4>chain provenance — at the moment of decision</h4>'
+        + '<div class="col" style="opacity:.6">' + chk.length + ' name' + (chk.length > 1 ? 's' : '') + ' · '
+        + Object.keys(agg).map(function(k2){ return agg[k2] + ' ' + k2; }).join(' · ') + '</div>';
       chk.slice(0, 8).forEach(function(nm){
         var c = ch[nm] || {};
-        var story = c.vaulted ? ('already in the vault ledger' + (c.vaultCount > 1 ? ' ×' + c.vaultCount : ''))
-                  : c.pending ? 'was HOLDING (inventory)'
-                  : c.candidate ? 'seen on floor, then GONE (pickup candidate)'
-                  : c.seen ? ('seen on the floor' + (c.seenArea ? ' @ ' + esc(c.seenArea) : '') + (c.seenCount > 1 ? ' ×' + c.seenCount : ''))
-                  : 'NEVER seen this session — no chain existed';
-        h += '<div class="col"><b style="color:#d9c9a0">' + esc(nm) + '</b> <em style="opacity:.7">' + story
-          + (c.firstSeen ? ' · first ' + new Date(c.firstSeen).toLocaleTimeString() : '') + '</em></div>';
+        var cls = c['class'] || (c.vaulted ? 'wiped-by-commit' : (c.pending ? 'hold-chain' : ((c.seen || c.candidate) ? 'full-chain' : 'never-seen')));
+        var chip = _CLS[cls] || [cls, '#b9c9be', ''];
+        h += '<div class="col"><b style="color:#d9c9a0">' + esc(nm) + '</b> '
+          + '<span style="color:' + chip[1] + ';font-weight:700"> ' + chip[0] + '</span>'
+          + (c.path ? ' <em style="opacity:.6">· ' + esc(c.path) + '</em>' : '')
+          + (c.seenArea ? ' <em style="opacity:.5">@ ' + esc(c.seenArea) + '</em>' : '')
+          + (c.firstSeen ? ' <em style="opacity:.5">· first ' + new Date(c.firstSeen).toLocaleTimeString() + '</em>' : '')
+          + '<br><em style="opacity:.55;font-size:10px">' + chip[2] + '</em></div>';
       });
     }
     h += '<h4>lifecycle tags (raw)</h4>';
