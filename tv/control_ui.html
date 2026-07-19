@@ -70,10 +70,11 @@
     width: 100vw;
     display: grid;
     grid-template-columns: 1fr clamp(238px, 22vw, 360px);
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;   /* v903 — the dash row */
     grid-template-areas:
       "head  head"
       "stage rail"
+      "dash  rail"
       "tick  tick"
       "foot  foot";
     gap: clamp(9px, 1.3vw, 20px);
@@ -837,6 +838,31 @@
 
   /* 🌙 v774 — THE BIBLE RAIL */
   .head-tabs { display: flex; gap: 6px; align-items: center; margin-left: 12px; flex: 1 1 auto; }
+  /* v903 — THE MOTHERBOARD: sessions-home dashboard (left column, row 2 — the rail spans) */
+  .home-dash { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; grid-area: dash;
+    align-content: start; min-height: 0; overflow-y: auto; }
+  /* v903 — OFF AIR: the stage row shrinks to its compact self; the DASH owns the flex */
+  body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  .hd-col { border: 1px solid var(--edge); border-radius: 12px; background: rgba(0,0,0,.32); padding: 12px 14px; min-height: 92px; }
+  .hd-wide { grid-column: 1 / -1; }
+  .hd-h { font: 700 12px/1 var(--mono); letter-spacing: .12em; color: var(--gold); margin-bottom: 10px; }
+  .hd-sub { font-weight: 400; opacity: .5; letter-spacing: .04em; margin-left: 8px; font-size: 10px; }
+  .hd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hd-chip { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; font: 600 11px/1.3 var(--mono); color: #d9c9a0; background: rgba(0,0,0,.35); }
+  .hd-chip.now { border-color: rgba(143,230,160,.5); color: var(--mint); box-shadow: 0 0 10px rgba(143,230,160,.12); }
+  .hd-chip.step { border-color: rgba(240,192,96,.4); }
+  .hd-chip.intk { border-color: rgba(185,165,255,.5); color: #cbbcff; }
+  .hd-empty { opacity: .4; font: 400 11px/1.4 var(--mono); }
+  .hd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .hd-grid .sh-card { cursor: pointer; }
+  /* OFF AIR: the giant hero breathes down, the dashboard is the page */
+  body[data-state="off"] .stage { min-height: 250px; max-height: 250px; overflow: hidden; }
+  body[data-state="off"] .stage .phase { font-size: clamp(34px, 6vw, 60px); margin-top: 18px; }
+  body[data-state="off"] .stage .kicker { display: none; }        /* v903.1 — no overlap in compact */
+  body[data-state="off"] .stage .marquee { top: 10px; }
+  .hd-grid .sh-card { display: flex; flex-direction: column; }
+  .hd-grid .sh-art { height: 84px; flex: 0 0 auto; }
+  body[data-state="on"] .home-dash, body[data-state="sim"] .home-dash { display: none; }
   /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
   aside.rail { display: flex; flex-direction: column; gap: 10px; }
   aside.rail > * { margin-top: 0 !important; flex: 0 0 auto; }
@@ -957,6 +983,24 @@
       </div>
     </section>
 
+    <!-- v903 (Konyo: 'the MOTHERBOARD — my visual dashboard') — SESSIONS home upgrade:
+         forge quests + live 📸 intake feed + the shelf inline. Primary when OFF AIR;
+         compact strip under the live stage when ON. -->
+    <section class="home-dash" id="home-dash">
+      <div class="hd-col" id="hd-forge">
+        <div class="hd-h">🔥 FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
+        <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
+      </div>
+      <div class="hd-col" id="hd-intake">
+        <div class="hd-h">📸 LIVE INTAKE <span class="hd-sub">the locked pipeline, hands-free</span></div>
+        <div class="hd-chips" id="hd-intake-chips"><span class="hd-empty">ON AIR + pause on Runes/Gems/Materials/stash — shots land here</span></div>
+      </div>
+      <div class="hd-col hd-wide" id="hd-shelf">
+        <div class="hd-h">🎞 THE LIBRARY <span class="hd-sub">every recorded run · click = replay</span></div>
+        <div class="hd-grid" id="hd-shelf-grid"><span class="hd-empty">no sessions yet — your first ON AIR seals one</span></div>
+      </div>
+    </section>
+
     <aside class="rail">
       <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console</div>
       <div class="primary">
@@ -998,7 +1042,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v902 control</span>
+      <span id="foot-ver">v903 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1152,6 +1196,7 @@
       window.__offN = 0;   // v899 — farewell finished → drop to STANDBY immediately
     } else { window.__offN = 0; }
     document.body.setAttribute('data-state', state);
+    try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
     $('bug-txt').textContent = stopping ? 'FAREWELL…' : (state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR'));
 
@@ -1319,7 +1364,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v902') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v903') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1793,6 +1838,7 @@
     beats.forEach(function(b, k){
       var why = false;
       if (b.footage || b.skip) { return; }   // CUT story: film texture stripped (thinned already for FULL)
+      if (b.intakeBeat) why = true;          // v903 (Grok P0) — 📸 intake IS the story in this product
       if (k === 0 || k === beats.length - 1) why = true;
       if ((b.vault_names||[]).length || (b.pending_names||[]).length) why = true;
       if ((b.names||[]).length || (b.discovered_names||[]).length) why = true;
@@ -2504,6 +2550,57 @@
       if (thBtn) thBtn.click();
     }
   });
+
+  // v903 — THE MOTHERBOARD renderers
+  function hdForge(){
+    try {
+      var raw = localStorage.getItem('d2r_forgeSummary') || localStorage.getItem('L\u00b7d2r_forgeSummary');
+      if (!raw) return;
+      var f = JSON.parse(raw);
+      var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">⚒ ' + rw + ' · MAKE NOW</span>'; })
+        .concat((f.onestep || []).map(function(t){ return '<span class="hd-chip step">◈ ' + (t.rw || t) + ' · one step</span>'; }))
+        .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
+      if (chips.length){
+        $('hd-forge-chips').innerHTML = chips.join('');
+        var d = f.ts ? new Date(f.ts) : null;
+        $('hd-forge-when').textContent = d ? ('· scanned ' + d.toLocaleTimeString()) : '';
+      }
+    } catch(e){}
+  }
+  function hdIntake(st){
+    try {
+      var ring = (st && st.intakeRing) || [];
+      if (!ring.length) return;
+      $('hd-intake-chips').innerHTML = ring.slice(-8).reverse().map(function(x){
+        var t = new Date(x.ts || 0);
+        return '<span class="hd-chip intk">📸 ' + ((x.intake || {}).tab || (x.intake || {}).kind || 'shot')
+          + ' <span style="opacity:.5">· ' + t.toLocaleTimeString() + '</span></span>';
+      }).join('');
+    } catch(e){}
+  }
+  async function hdShelf(){
+    try {
+      var r = await fetch(API + '/api/sessions'); var j = await r.json();
+      var sl = (j.sessions || []).filter(function(x){ return !x.stub; }).slice(0, 8);
+      if (!sl.length) return;
+      $('hd-shelf-grid').innerHTML = sl.map(function(sm){
+        var d0 = sm.t0 ? new Date(sm.t0) : null;
+        var art = sm.thumb ? '<img class="sh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+        return '<div class="sh-card" data-hn="' + (sm.n || 1) + '">' + art
+          + '<b>session ' + (sm.n || '?') + '</b><br><span class="sh-dim">'
+          + (d0 ? d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString() : '—') + '<br>'
+          + (sm.intakes ? '📸 ' + sm.intakes + ' · ' : '') + (sm.footageN ? '📹 ' + sm.footageN : '')
+          + '</span></div>';
+      }).join('');
+      $('hd-shelf-grid').onclick = async function(e){
+        var c = e.target.closest('.sh-card'); if (!c) return;
+        if (!TH.open) await thOpen();
+        thLoadSession(Number(c.dataset.hn) || 1);
+      };
+    } catch(e){}
+  }
+  function hdRefresh(st){ hdForge(); hdIntake(st); }
+  setInterval(hdShelf, 12000); setTimeout(hdShelf, 800);
 
   tickClock();
   setInterval(tickClock, 1000);

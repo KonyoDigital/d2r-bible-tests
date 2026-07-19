@@ -1787,3 +1787,15 @@ session-lock to a 60s window (the flagship photo lane can never be blocked all n
 surgery) wired under the intake product. 150/150 + 32/32 + parity. NEXT (his order): 20 more
 versions with Grok pingpong rounds — SESSIONS dashboard homepage in the console, TV·D smooth
 toggle, library restructure deepening, then the arc.
+
+## 🎛 v903 "THE MOTHERBOARD" (Konyo: 'super polish, the main motherboard', Jul 19 eve)
+The console home IS the dashboard now: 🔥 FORGE QUESTS (the board publishes d2r_forgeSummary
+at every forgeScan — MAKE-NOW mint chips, one-step, pipeline, profile-forked key) + 📸 LIVE
+INTAKE feed (v902 intake ring through /api/status.intakeRing) + 🎞 THE LIBRARY inline (reel
+thumbs, click = replay) — all under a compact broadcast stage (OFF: stage 250px, the dash owns
+the flex row via a 5-row named grid area; ON/SIM: dash hides, film is primary). Grok's v902
+round P0 fixed first: CUT now KEEPS intake beats (story, not texture — thFilter predicate).
+Layout fought back 3 times (footer drift, rail collapse, stage overflow painting over the
+dash) — 4 screenshots iterated, each actually looked at; final is symmetric, zero dead space.
+150/150 + 32/32 + roundtrip OK. Remaining Grok v902-round items → v904+ (counts in the beat
+payload, per-key guard v2, TV·D smooth toggle, library intake-centric deepen).
