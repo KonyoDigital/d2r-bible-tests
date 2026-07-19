@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v887)
+# 📺 TV DIABLO — Control App (Mac + Windows · v888)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1009,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v887",
+        "ver": "v888",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1375,10 +1375,15 @@ class Handler(BaseHTTPRequestHandler):
                 want = sum(1 for r in sess if r.get("frameId"))
                 miss = max(0, want - len(frames))
                 _reeln = 0
+                _thumb = ""
                 try:
                     _rd2 = os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or ""))
                     if os.path.isdir(_rd2):
-                        _reeln = len([f2 for f2 in os.listdir(_rd2) if f2.endswith(".jpg")])
+                        _rfs = sorted(f2 for f2 in os.listdir(_rd2) if f2.endswith(".jpg"))
+                        _reeln = len(_rfs)
+                        if _rfs:
+                            # v890 — the card's art IS the run: its middle frame, 160px lane
+                            _thumb = "reel_" + str(sess[0].get("sessionId") or "") + "/" + _rfs[len(_rfs) // 2]
                 except Exception:
                     pass
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
@@ -1387,6 +1392,7 @@ class Handler(BaseHTTPRequestHandler):
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("kind") != "skip"]) < 3
                              and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
                     "footageN": _reeln,   # v883 — the shelf tells the truth about video
+                    "thumb": _thumb,      # v890 — HD filmstrip art from the run itself
                     "sessionId": sid,
                             # v840 — SIM honesty: how much of the night is still replayable
                             "frameWant": want, "frameMissing": miss,
@@ -2085,7 +2091,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v887 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v888 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

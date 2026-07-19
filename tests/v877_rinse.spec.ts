@@ -151,7 +151,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
       const phase = (document.getElementById('phase') || {}).textContent || '';
       return { tabs, stageW: r.width, stageH: r.height, phase };
     });
-    expect(vis.tabs).toBe(5);
+    expect(vis.tabs).toBe(6);   // v888 — TV·D joined the header nav
     expect(vis.stageW).toBeGreaterThan(400);
     expect(vis.stageH).toBeGreaterThan(300);
     expect(vis.phase.length).toBeGreaterThan(2);   // STANDBY/WATCHING — never empty

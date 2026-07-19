@@ -1712,3 +1712,13 @@ persistSoon() debounce (the original ~20-writes-per-tick problem). All 3 specs r
 isolation (30/30). tv-tests red on the new roundtrip harness — CI runners lack claude; harness
 env now sets TV_CLAUDE_BIN=/bin/echo (stub mode never calls it; the preflight stays honest in
 prod). 149/149 + 30/30 + parity ×4.
+
+## ✨ v888 "THE POLISH WAVE" (Konyo: util buttons + no dead space + shelf art, Jul 19 morning)
+Util strip DISSOLVED into proper homes: 📺 TV·D = 6th first-class header tab · 📚 THE SHELF =
+named button anchored at the rail floor · log toggle = the Agent Mind tag itself (click flips
+thoughts ↔ raw log, mode chip shows which). Rail rebuilt as symmetric flex: the health card
+FILLS the column with evenly-breathing rows — the dead gap between health and the floor is
+gone (three screenshots iterated, each actually looked at). Shelf cards now wear their own
+run's art: the middle reel frame via the ?w=160 cache lane ('the run IS the art' — replaces
+text-only cards; his HD-art ask). Hidden compat stubs keep old btn-board/btn-theatre/btn-log
+wiring + specs honest. RINSE visual lock updated 5→6 tabs. 149/149 + 30/30 + roundtrip OK.

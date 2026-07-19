@@ -791,6 +791,8 @@
   .th-beat.chap { border-left: 2px solid var(--gold-antique); margin-left: 3px; }
   .th-beat.foot { opacity: .28; }
   .sh-card.stub { opacity: .38; filter: saturate(.5); }   /* v885 — ghosts recede */
+  .sh-art { display: block; width: 100%; height: 74px; object-fit: cover; border-radius: 6px;
+    margin-bottom: 6px; border: 1px solid rgba(240,192,96,.18); }   /* v890 — the run IS the art */
   /* v883 — SIM spec §C: the decision river */
   .dc-card { border: 1px solid var(--edge); border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: rgba(0,0,0,.25); }
   .dc-card[data-verdict="vaulted"] { box-shadow: inset 3px 0 0 var(--mint); }
@@ -834,6 +836,13 @@
 
   /* 🌙 v774 — THE BIBLE RAIL */
   .head-tabs { display: flex; gap: 6px; align-items: center; margin-left: 12px; flex: 1 1 auto; }
+  /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
+  aside.rail { display: flex; flex-direction: column; gap: 10px; }
+  aside.rail > * { margin-top: 0 !important; flex: 0 0 auto; }
+  .b-sim { min-height: 64px; }
+  .b-on { min-height: 72px; }
+  #btn-shelf { margin-top: auto !important; padding: 14px 12px; justify-content: center; }   /* anchored to the rail floor */
+  aside.rail .signal { flex: 1 1 auto !important; display: flex; flex-direction: column; justify-content: space-evenly; }   /* v889 — the health card FILLS; rows breathe evenly */
   .head-tabs .ht { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
     color: var(--gold-dim); font: 600 12px/1 var(--mono); letter-spacing: .06em;
     padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
@@ -869,6 +878,7 @@
           <button class="ht" type="button" data-tab="forge">🔨 Forge</button>
           <button class="ht" type="button" data-tab="funi">🏆 F·Uniques</button>
           <button class="ht" type="button" data-tab="fsets">🧩 F·Sets</button>
+          <button class="ht" type="button" data-tab="tvd">📺 TV·D</button>
         </nav>
       </div>
       <div class="head-right">
@@ -969,20 +979,25 @@
       </div>
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
-      <div class="util" style="margin-top:8px">
-        <button class="ghost" id="btn-board" type="button"><img class="gjewel" src="/art/hd_lo_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">TV·D · same window</span></button>
-        <button class="ghost" id="btn-theatre" type="button"><img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Theatre · history</span></button>
-        <button class="ghost" id="btn-log" type="button"><img class="gjewel" src="/art/hd_tal_rune.png" alt="" onerror="this.style.display='none'"><span class="glab">Toggle Log</span></button>
-      </div>
+      <!-- v888 (Konyo: 'what do they do? structure or remove') — the strip dissolved:
+           TV·D = 6th header tab · shelf = named button under SIMULATION · log toggle lives
+           in the Agent Mind bar. Hidden compat stubs keep old wiring + specs honest. -->
+      <button class="ghost" id="btn-shelf" type="button" style="margin-top:8px;width:100%">
+        <img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'">
+        <span class="glab">📚 The Shelf — every recorded run</span>
+      </button>
+      <button id="btn-board" type="button" hidden></button>
+      <button id="btn-theatre" type="button" hidden></button>
+      <button id="btn-log" type="button" hidden><span class="glab" hidden></span></button>
     </aside>
 
     <section class="ticker">
-      <div class="tag"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind</div>
+      <div class="tag" id="mind-tag" role="button" title="click — flip between live thoughts and the raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:10px">· thoughts</span></div>
       <div class="brain" id="brain"><div class="empty">— agent thoughts appear here when live —</div></div>
     </section>
 
     <footer>
-      <span id="foot-ver">v887 control</span>
+      <span id="foot-ver">v888 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1287,7 +1302,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v887') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v888') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -2113,7 +2128,9 @@
       var foot = (sm.footageN || 0);
       var footLine = foot ? ('📹 ' + foot + ' frames · full video')
         : (sm.stub ? '' : '<span style="opacity:.45">📹 footage retired</span>');
+      var art = sm.thumb ? '<img class="sh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
+        + art
         + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
         + (d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '<br>'
         + '<span class="sh-dim">' + (spanS ? Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's · ' : '')
@@ -2349,6 +2366,11 @@
   // v781 — ONE WINDOW: SIM/theatre stay in this pywebview; board nav is same-document
   // (never POST /api/board — that spawned a second native window).
   $('btn-sim').onclick = function(){ if (TH.open) thClose(); else thOpen(); };
+  var _bshelf = $('btn-shelf');
+  if (_bshelf) _bshelf.onclick = async function(){
+    if (!TH.open) { await thOpen(); }
+    try { thShelf(true); } catch(e){}
+  };
   $('btn-board').onclick = function(){
     window.location.href = '/board?app=1#tvd';
   };
@@ -2365,6 +2387,8 @@
   });
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
+  var _mt = $('mind-tag');
+  if (_mt) _mt.onclick = function(){ $('btn-log').click(); var mm = $('mind-mode'); if (mm) mm.textContent = showLog ? '· raw log' : '· thoughts'; };
   $('btn-log').onclick = function(){
     showLog = !showLog;
     $('btn-log').classList.toggle('on', showLog);
