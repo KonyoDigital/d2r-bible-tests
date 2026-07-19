@@ -1898,3 +1898,11 @@ the ENGINE was right, the spec learned canon). KONYO MID-ROUND ORDER shipped sam
 LIBRARY leaves the homepage (lives in the 📚 SIMULATION shelf) — the console home is ONE UNIT,
 measured 950/950 scroll=client, ZERO scrolling; task-force still counts runs-today from the
 sessions feed. 150/150 + 32/32 + 6 board specs green. Grok rounds 3-7 next.
+
+## 🎨 v911 "ONE MOTION" R1 (Konyo: 'smoother toggling + super polished HD design', Jul 19 ~22:40)
+The window-jump feel is dead: head-tab clicks GLIDE (shell fades out .14s → destination
+breathes in — shellIn on the console, app-ctx arrival fade on the board, and the ⌂ CONSOLE
+pill glides home the same way). One continuous motion across every surface swap. THE EMBLEM
+IS THE GRAIL: the runes logo gave way to the Harlequin Crest (golden Shako, warm drop-glow,
+ohm-rune fallback) — the identity of the whole hunt at the masthead. Screenshot verified.
+150/150 + 32/32. Grok rounds (batched v910 R3-7 + v911 R2-7) next.

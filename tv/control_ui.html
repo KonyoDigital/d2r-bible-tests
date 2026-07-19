@@ -913,6 +913,12 @@
   .head-tabs .ht:hover { color: var(--gold); border-color: var(--edge-hi); box-shadow: 0 0 10px rgba(240,192,96,.18); }
   .head-tabs .ht:active { transform: translateY(1px); }
   .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: 11px; padding: 7px 9px; }   /* v905 — the main four lead */
+  /* v911 — one continuous motion between surfaces */
+  .shell { animation: shellIn .32s ease; }
+  @keyframes shellIn { from { opacity: 0; transform: scale(.992); } to { opacity: 1; transform: none; } }
+  body.gliding .shell { opacity: 0; transform: scale(.992); transition: opacity .14s ease, transform .14s ease; }
+  /* v911 — the emblem is the GRAIL now */
+  .brand .emblem img { border-radius: 10px; filter: drop-shadow(0 0 14px rgba(240,192,96,.45)); }
   @media (max-width: 900px){ .head-tabs { gap: 3px; } .head-tabs .ht { padding: 7px 8px; font-size: 11px; } }   /* v882 — tabs shrink, never vanish (the rail is gone) */
   .bible-rail { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(6px,.7vw,10px); }
   .bible-rail .brl { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
@@ -934,7 +940,7 @@
 
     <header class="topbar">
       <div class="brand">
-        <div class="emblem"><img id="emblem-img" src="/art/hd_ohm_rune.png" alt="" onerror="this.style.display='none'" title="TV DIABLO — Broadcast Control"></div>
+        <div class="emblem"><img id="emblem-img" src="/art/harlequincrest_graphic.png" alt="" onerror="this.src='/art/hd_ohm_rune.png'" title="TV DIABLO — the grail engine"></div>
         <!-- v881 (Konyo #47: 'tabs structured properly, easily navigatable — the title is
              pointless, this is an engine console') — the 5 board tabs ARE the header -->
         <nav class="head-tabs" id="head-tabs">
@@ -1086,7 +1092,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v910 control</span>
+      <span id="foot-ver">v911 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1408,7 +1414,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v910') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v911') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -2582,9 +2588,15 @@
   };
   // 🌙 v774/v776 — bible rail: SAME WINDOW deep-link (⌂ CONSOLE pill returns)
   var _ht = document.getElementById('head-tabs');
+  function _glide(url){
+    // v911 (Konyo: 'smoother toggling — it feels like moving windows') — the shell breathes
+    // out (140ms), the destination breathes in (its own fade): one continuous motion.
+    try { document.body.classList.add('gliding'); } catch(e){}
+    setTimeout(function(){ window.location.href = url; }, 140);
+  }
   if (_ht) _ht.addEventListener('click', function(e){
     var b = e.target.closest('.ht'); if (!b) return;
-    window.location.href = '/board?app=1#' + encodeURIComponent(b.dataset.tab);   // v881 — same-window board nav
+    _glide('/board?app=1#' + encodeURIComponent(b.dataset.tab));
   });
   var _brl = document.getElementById('bible-rail');
   if (_brl) _brl.addEventListener('click', function(e){

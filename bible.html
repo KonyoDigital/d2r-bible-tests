@@ -4318,6 +4318,7 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
 /* v904 — the TV·D toggle is SMOOTH: content fades in, and a return pill floats home */
 body.app-ctx .tab-content.active{animation:tvdFadeIn .24s ease !important}   /* v905/v908 (Grok P2) — ONE animation in the console: the legacy tab-in dual-fire caused blank flashes on heavy walls */
+body.app-ctx{animation:tvdFadeIn .3s ease}   /* v911 — the board breathes in on arrival: one continuous motion with the console glide */
 body.app-ctx #tab-tvd.active{animation:tvdFadeIn .28s ease}
 @keyframes tvdFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 #tvd-return-pill{display:none}
@@ -33549,7 +33550,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v910', name:'One Unit', date:'2026-07-19', note:'v910: chronicle-relevance LOCKED (3/3 spec: raw read marks the CANONICAL grail key dated exactly-once, set pieces route slot-suffixed, junk never mints) + the console homepage is ONE VIEWPORT (library moved to the SIMULATION shelf per Konyo — measured 950/950, zero scroll)' };
+  window.D2R_BUILD = { id:'v911', name:'One Motion', date:'2026-07-19', note:'v911 (Konyo: smoother toggling, it feels like moving windows + super HD design): SEAMLESS surface glide — console fades out 140ms, destination breathes in (shellIn / app-ctx arrival fade), the CONSOLE pill glides home the same way; the emblem is THE GRAIL now (Harlequin Crest, warm glow, ohm-rune fallback)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33589,7 +33590,11 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     b.className = 'tvf-console-pill';
     b.title = 'Back to the TV DIABLO console';
     b.innerHTML = '<span class="tvf-cp-home">⌂</span>CONSOLE';
-    b.addEventListener('click', function(){ location.href = '/'; });
+    b.addEventListener('click', function(){
+      // v911 — glide home: fade out, then travel (one continuous motion, never a window-jump)
+      try { document.body.style.transition = 'opacity .14s ease'; document.body.style.opacity = '0'; } catch(e){}
+      setTimeout(function(){ location.href = '/'; }, 140);
+    });
     document.body.appendChild(b);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pill);
