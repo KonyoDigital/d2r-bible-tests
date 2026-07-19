@@ -1757,3 +1757,11 @@ The tally is VISIBLE the second it happens: tvToolsDelta fires a forge-toast chi
 without leaving the TV·D feed. Reuses the existing toast column (stacking, fade). Funnel spec
 still 2/2. 149/149 + 30/30. Roadmap remaining: straggler farm-night · 2h soak · SIM drawer
 empty-states · site freeze · nightly seal pack; then the autonomous 10.
+
+## ⚡ v893 "FAST SIM" (Grok, Jul 19)
+SIM was wall-clock slow because footage-rich reels defaulted to REAL time (1h farm = 1h
+play at 1×). Shipped: (1) footage reels open as 📼 FULL compressed, not ⏱ REAL; (2) quiet
+film thinned (~2–3 fps wall kept; dense near AI reads); (3) FULL edge times zip walking
+(18–55ms) and linger near loot (40–180ms); (4) default speed 2×, deck 1→2→4→8→0.5;
+(5) deeper preload + no smooth-scroll/aperture tax during autoplay; (6) seal detect also
+matches scene=session_end. REAL still one click for forensic 1:1.

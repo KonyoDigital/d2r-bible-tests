@@ -997,7 +997,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v892 control</span>
+      <span id="foot-ver">v893 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1303,7 +1303,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v892') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v893') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1370,7 +1370,8 @@
 
   // ══ v765 — 🎞 THE THEATRE / SIM: real frames + recorded reads ══
   // v784 — CAPTURE ts is the scrub key; frameId hist JPEG is THE photo for that AI row.
-  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'highlight', allBeats:[] };   // v790 — highlight cut default
+  // v893 — SIM speed: default 2× · FULL compress (not wall-clock REAL) for footage reels
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:2, timer:null, sessionId:'', mode:'highlight', allBeats:[] };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   function thFmtFull(ts){
@@ -1464,16 +1465,12 @@
     else line += '<br><span style="opacity:.55">no tooltip text on this frame</span>';
     return line;
   }
-  var _thPool = [new Image(), new Image(), new Image()];   // v799 — bounded decode budget
+  var _thPool = [new Image(), new Image(), new Image(), new Image(), new Image()];   // v893 — deeper prefetch
   function thShowFrame(url){
-    // v829 (Konyo: 'arrows werent properly working') — RACE FIX: rapid seeks overwrote the
-    // shared probe and a LATE onload painted an older frame over the current beat. The film
-    // remembers what it WANTS; a stale probe callback is ignored.
+    // v829 — RACE FIX: film remembers __want; stale probe callbacks ignored.
     var film = $('th-film'); if (!film) return;
     if (film.__url === url) return;
     film.__want = url;
-    // v859 (Grok UX #3) — the preload pool finally FEEDS the film: any warm complete slot
-    // swaps instantly; only cold URLs pay the probe decode.
     for (var pi = 0; pi < _thPool.length; pi++){
       if (_thPool[pi].complete && _thPool[pi].src && _thPool[pi].src.indexOf(url) >= 0){
         film.src = url; film.__url = url; return;
@@ -1486,8 +1483,12 @@
     else probe.src = url;
   }
   function thPreload(){
-    var idx = [TH.i + 1, TH.i + 2, TH.i - 1];
-    for (var k = 1; k < _thPool.length; k++){
+    // v893 — look further ahead at speed; keep decode budget bounded
+    var ahead = TH.speed >= 4 ? 4 : (TH.speed >= 2 ? 3 : 2);
+    var idx = [];
+    for (var a = 1; a <= ahead; a++) idx.push(TH.i + a);
+    idx.push(TH.i - 1);
+    for (var k = 1; k < _thPool.length && (k - 1) < idx.length; k++){
       var b = TH.beats[idx[k - 1]];
       if (b && b.frame){
         var u = '/hist/' + encodeURIComponent(b.frame) + '?w=1280';
@@ -1501,63 +1502,69 @@
     if (!b.footage) TH.lastRead = b;   // v826 — the standing AI read annotates the footage
     var film = $('th-film');
     if (b.frame){
-      // v799 (Grok R6 traps) — decode-before-swap + 1280 theatre derivative: no white flash
-      // at 4x, no 14MB-RGBA-per-frame memory climb. Full 2560 = click the film.
       film.style.opacity = 1;
-      if (!TH.__manual){ film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut'); }   // v801/v859 — aperture only on playback, never on seeks (forced reflow)
+      // v893 — no aperture reflow on dense footage autoplay (forced reflow was a tax)
+      if (!TH.__manual && !b.footage && !TH.playing){
+        film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut');
+      }
       thShowFrame('/hist/' + encodeURIComponent(b.frame) + '?w=1280');
       thPreload();
       film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts)+' · click = full 2560';
     } else {
       film.style.opacity = .25; film.removeAttribute('src'); film.title = '';
-      film.__url = '';   // v839 — a later real frame must repaint after a pruned one
+      film.__url = '';
     }
-    try { film.classList.toggle('vaultglow', !!(b.vault_names || []).length); } catch (e) {}   // v801 — vault beats glow mint on the film itself
-    try { var rb = $('th-replay'); if (rb) rb.hidden = !(b.vault_names || []).length; } catch (e) {}   // v803 — ⏪ appears on find beats
+    try { film.classList.toggle('vaultglow', !!(b.vault_names || []).length); } catch (e) {}
+    try { var rb = $('th-replay'); if (rb) rb.hidden = !(b.vault_names || []).length; } catch (e) {}
     try {
       if (CARD.autoArmed && !CARD.open && ((b.names||[]).length || (b.vault_names||[]).length || (b.discovered_names||[]).length || b.farewell)){
-        CARD.autoArmed = false; thCardToggle();   // v824 — depth arrives WITH the first story beat
+        CARD.autoArmed = false; thCardToggle();
         try { localStorage.removeItem('tvd_card_pref'); } catch (e) {}
       }
     } catch (e) {}
-    if (b.footage){
+    // v893 — lighter caption work during autoplay (story beats still full)
+    if (b.footage && TH.playing && !TH.__manual){
       var lr = TH.lastRead;
-      var foot = '<span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + ' · the eye, 1 frame/sec</span>';
-      $('th-caption').innerHTML = lr ? (foot + '<br>' + thCaption(lr)) : foot;
+      if (lr) $('th-caption').innerHTML = '<span class="ar-dim">📹</span> ' + thCaption(lr);
+      else $('th-caption').textContent = '📹 film';
+    } else if (b.footage){
+      var lr2 = TH.lastRead;
+      var foot = '<span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + '</span>';
+      $('th-caption').innerHTML = lr2 ? (foot + '<br>' + thCaption(lr2)) : foot;
     } else {
       $('th-caption').innerHTML = thCaption(b);
     }
-    if (typeof thCardRender === 'function'){   // v859/v879 — debounced on seeks AND playback
+    if (typeof thCardRender === 'function'){
       clearTimeout(window.__thCardT);
-      window.__thCardT = setTimeout(thCardRender, TH.__manual ? 80 : 120);
+      // v893 — card updates less often while zipping through film
+      window.__thCardT = setTimeout(thCardRender, TH.__manual ? 60 : (TH.playing && b.footage ? 280 : 140));
     }
     var tl = $('th-timeline');
-    // v879 (army B#8) — O(1) cur swap: a footage-rich reel has thousands of spans
     var _prev = tl.__cur;
     if (_prev != null && tl.children[_prev]) tl.children[_prev].classList.remove('cur');
     if (tl.children[TH.i]) tl.children[TH.i].classList.add('cur');
     tl.__cur = TH.i;
-    // keep current beat in view on dense timelines
     try {
       var cur = tl.children[TH.i];
-      if (cur && cur.scrollIntoView) cur.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+      // instant snap during play — smooth scroll fights high-speed scrub
+      if (cur && cur.scrollIntoView) cur.scrollIntoView({ block:'nearest', inline:'center', behavior: TH.playing ? 'auto' : 'smooth' });
     } catch(e){}
     var meta = TH.sessions[TH.sn-1] || {};
     var range = '';
     if (meta.t0 && meta.t1) range = ' · ' + thFmtFull(meta.t0) + ' → ' + thFmtT(meta.t1);
     else if (meta.t0) range = ' · ' + thFmtFull(meta.t0);
-    // v829 (Konyo: 'this was only 5 min run? are we sure?') — SPAN TRUTH: real run length +
-    // how many moments the eye actually read (+ per-second footage count on v826+ sessions).
     var spanS = (meta.t0 && meta.t1) ? Math.max(0, Math.round((meta.t1 - meta.t0) / 1000)) : 0;
     var spanTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + (spanS % 60)).slice(-2) + 's') : '';
     var footN = (TH.allBeats || []).filter(function(x){ return x.footage; }).length;
+    var playMin = TH.Tplay ? Math.max(1, Math.round(TH.Tplay / 60000)) : 0;
     $('th-sess').textContent = 'session ' + TH.sn + '/' + TH.sessions.length
       + range
       + (spanTxt ? ' · ran ' + spanTxt : '')
+      + (TH.mode !== 'real' && playMin ? ' · play ~' + playMin + 'm @' + TH.speed + '×' : '')
       + ' · beat ' + (TH.i+1) + '/' + TH.beats.length
       + (meta.reads != null ? ' · ' + meta.reads + ' AI reads' : '')
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
-      + (footN ? ' · 📹 ' + footN + 's footage' : ' · reads-only reel')
+      + (footN ? ' · 📹 ' + footN + ' film' : ' · reads-only')
       + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : '');
   }
   function thGo(i, autoplay){
@@ -1582,17 +1589,25 @@
     return 0.15;
   }
   function thHoldMs(b, gapWall){
-    var base = 320 + thInterest(b) * (2400 - 320);
-    var prop = Math.min((gapWall || 0) * 0.12, 1200);
-    return Math.min(2400, Math.max(320, base * 0.7 + prop * 0.3));
+    // v893 — snappier story holds (was up to 2.4s)
+    var base = 220 + thInterest(b) * (1600 - 220);
+    var prop = Math.min((gapWall || 0) * 0.08, 700);
+    return Math.min(1600, Math.max(180, base * 0.75 + prop * 0.25));
   }
   function thEdgeMs(b, nxt){
     var gapWall = Math.max(0, (nxt.ts||0) - (b.ts||0));
-    if (b.footage || nxt.footage) return Math.min(1500, Math.max(120, gapWall));   // v826 — footage = REAL time (1fps → literal video at 1×)
+    // v893 — FULL mode zips quiet film; REAL mode keeps wall time (see thBuildAxis)
+    if (b.footage || nxt.footage){
+      var hot = thInterest(b) >= 0.35 || thInterest(nxt) >= 0.35
+        || ((b.names||[]).length) || ((nxt.names||[]).length)
+        || ((b.vault_names||[]).length) || ((nxt.vault_names||[]).length);
+      if (hot) return Math.min(180, Math.max(40, gapWall * 0.12));  // linger near loot
+      return Math.min(55, Math.max(18, gapWall * 0.03));            // zip walking / empty floor
+    }
     var sameArea = b.area && nxt.area && b.area === nxt.area;
     var bothQuiet = thInterest(b) < 0.25 && thInterest(nxt) < 0.25;
-    if (sameArea && bothQuiet && gapWall > 8000) return 80;    // area-gap collapse
-    if (bothQuiet) return Math.min(180, Math.max(60, gapWall * 0.02));
+    if (sameArea && bothQuiet && gapWall > 8000) return 50;
+    if (bothQuiet) return Math.min(120, Math.max(40, gapWall * 0.015));
     return thHoldMs(b, gapWall);
   }
   function thBuildAxis(){
@@ -1724,13 +1739,43 @@
   function thSchedule(){ /* v798 — rAF playhead owns time now; nothing to schedule */ }
   // v790 (Grok R4 #2) — HIGHLIGHT CUT: a real session is hundreds of empty floor beats.
   // The cut keeps the story: loot chain, discoveries, area changes, farewell, bookends.
+  function thThinFootage(beats){
+    // v893 — FULL/CUT: thin dense quiet film so a 1h run is not 3600 frames of walking.
+    // Keep every AI read; near reads keep dense film; far from reads keep ~2–3 frames/s wall.
+    if (TH.mode === 'real' || beats.length < 40) return beats;
+    var readTs = [];
+    for (var i = 0; i < beats.length; i++){
+      var bb = beats[i];
+      if (!bb.footage && !bb.skip) readTs.push(bb.ts || 0);
+    }
+    function nearRead(ts){
+      for (var j = 0; j < readTs.length; j++){
+        if (Math.abs((readTs[j] || 0) - ts) <= 3000) return true;
+      }
+      return false;
+    }
+    var out = [], lastFoot = -1e15;
+    var step = TH.mode === 'highlight' ? 900 : 450;   // CUT thinner than FULL
+    for (var k = 0; k < beats.length; k++){
+      var b = beats[k];
+      if (!b.footage){ out.push(b); continue; }
+      var ts = b.ts || 0;
+      if (nearRead(ts) || ts - lastFoot >= step){
+        out.push(b);
+        lastFoot = ts;
+      }
+    }
+    return out.length >= 2 ? out : beats;
+  }
   function thFilter(beats){
     if (TH.mode === 'real') return beats;   // v831 — REAL mode plays everything, true time
+    // v893 — always thin quiet film first in FULL + CUT
+    beats = thThinFootage(beats);
     if (TH.mode !== 'highlight' || beats.length <= 8) return beats;
     var keep = [], lastArea = null;
     beats.forEach(function(b, k){
       var why = false;
-      if (b.footage || b.skip) { return; }   // v826/v880 — CUT tells the story; skips are texture
+      if (b.footage || b.skip) { return; }   // CUT story: film texture stripped (thinned already for FULL)
       if (k === 0 || k === beats.length - 1) why = true;
       if ((b.vault_names||[]).length || (b.pending_names||[]).length) why = true;
       if ((b.names||[]).length || (b.discovered_names||[]).length) why = true;
@@ -1799,15 +1844,23 @@
     });
     // chronological by CAPTURE ts
     beats.sort(function(a,b){ return (a.ts||0)-(b.ts||0) || (a.n||0)-(b.n||0); });
-    TH.sn = n; TH.allBeats = beats; TH.beats = thFilter(beats); TH.i = 0; TH.sessionId = j.sessionId || '';   // v790 — cut applied
-    // v866 (Konyo: '300+ frames within that video') — a footage-rich reel opens as the VIDEO:
-    // ⏱ REAL is the default when footage exists; 🎬 CUT stays default for reads-only reels.
+    TH.sn = n; TH.allBeats = beats; TH.i = 0; TH.sessionId = j.sessionId || '';
+    // v893 — footage-rich reels open as 📼 FULL (compressed + thinned), NOT wall-clock REAL.
+    // REAL is still one click away for forensic 1:1 time. Default speed 2×.
     var _footN = beats.filter(function(x){ return x.footage; }).length;
-    if (_footN > 10 && !TH.__modeTouched){ TH.mode = 'real'; var _mb = $('th-mode'); if (_mb) _mb.textContent = '⏱ REAL'; }
-    TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;   // v804
-    setTimeout(function(){ try { thClock(); } catch(e){} }, 0);   // v820 — clock lights at open
-    thBuildAxis();   // v798 — one time engine, both modes
-    TH.playing = false; $('th-play').textContent = '▶'; // start paused so user can scrub backwards
+    if (!TH.__modeTouched){
+      if (_footN > 10){ TH.mode = 'full'; }
+      else { TH.mode = 'highlight'; }
+    }
+    var _mb = $('th-mode');
+    if (_mb) _mb.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
+    var _sp = $('th-speed');
+    if (!TH.__speedTouched){ TH.speed = 2; if (_sp) _sp.textContent = '2×'; }
+    TH.beats = thFilter(beats.slice());
+    TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;
+    setTimeout(function(){ try { thClock(); } catch(e){} }, 0);
+    thBuildAxis();
+    TH.playing = false; $('th-play').textContent = '▶';
     thTimeline(); thPaint();
   }
   async function thOpen(){
@@ -2233,16 +2286,23 @@
       thPaint(); thClock();
     }
   };
-  $('th-speed').onclick = function(){ TH.speed = TH.speed === 0.5 ? 1 : (TH.speed === 1 ? 2 : (TH.speed === 2 ? 4 : 0.5)); this.textContent = TH.speed + '×'; };   // v806 — 0.5× joins the deck (slow-mo forensics)
+  // v893 — speed deck: 1 → 2 → 4 → 8 → 1 (forensic slow-mo still via holding 0.5 after wrap? keep 0.5 in cycle end)
+  $('th-speed').onclick = function(){
+    TH.__speedTouched = true;
+    var chain = [1, 2, 4, 8, 0.5];
+    var ix = chain.indexOf(TH.speed);
+    TH.speed = chain[(ix < 0 ? 0 : ix + 1) % chain.length];
+    this.textContent = TH.speed + '×';
+  };
   $('th-mode').onclick = function(){
     TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
-    TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // v831 — CUT → FULL → ⏱ REAL
+    TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // CUT → FULL → REAL
     this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
     var keepTs = (TH.beats[TH.i] || {}).ts;
     TH.beats = thFilter(TH.allBeats.slice());
     TH.i = 0;
     if (keepTs){ for (var k = 0; k < TH.beats.length; k++){ if ((TH.beats[k].ts||0) >= keepTs){ TH.i = k; break; } } }
-    thBuildAxis();   // v798 — same engine on the new beat set
+    thBuildAxis();
     thTimeline(); thPaint(); thClock();
   };
   $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };

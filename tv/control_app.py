@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v892)
+# 📺 TV DIABLO — Control App (Mac + Windows · v893)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1009,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v892",
+        "ver": "v893",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1387,9 +1387,9 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
-                            "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("kind") != "skip"]), "frames": len(frames),
+                            "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
-                            "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("kind") != "skip"]) < 3
+                            "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
                              and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
                     "footageN": _reeln,   # v883 — the shelf tells the truth about video
                     "thumb": _thumb,      # v890 — HD filmstrip art from the run itself
@@ -1490,7 +1490,13 @@ class Handler(BaseHTTPRequestHandler):
                 t0f = (_boot_ms or (sess[0].get("ts") or 0)) - 2000
                 # v885 (Grok #2) — a LIVE (unsealed) session keeps filming past its last read:
                 # the window ends NOW, not at the last journal row (mid-session SIM truncated).
-                _sealed = any(r2.get("sessionEnd") for r2 in sess)
+                # v893 — seal truth is scene=session_end (v847+) OR legacy sessionEnd flag
+                _sealed = any(
+                    r2.get("sessionEnd")
+                    or r2.get("scene") == "session_end"
+                    or r2.get("mode") == "session_end"
+                    for r2 in sess
+                )
                 _is_newest = (n == 1)   # sessions list is newest-first; only the LIVE run opens to now
                 t1f = int(time.time() * 1000) if (not _sealed and _is_newest) else ((sess[-1].get("ts") or 0) + 2000)
                 hist_dir = HIST_DIR
@@ -2102,7 +2108,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v892 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v893 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
