@@ -1981,3 +1981,12 @@ CI since v912 — the roundtrip's 20s first-read wait was too tight for 2-core r
 + an HONEST fallback row (logged loudly) so the fold/serve/pick laws still prove when the stub
 read lags — the read-proof itself remains the Mac gate's job. 150/150 + 32/32 + local
 roundtrip OK (fallback path exercised under load — the law held either way).
+
+## ✅ v917 "TRULY LIVE" + THE ARC LEDGER (Grok arc-close round, Jul 20 ~01:05)
+Grok's P0 was exact: v914 was CHROME until the v901 switchTab coerce died — 'tvd' now opens
+the REAL tab everywhere (verified active=tvd); only tvd-on/off lamp aliases land on the
+cockpit. Fallback-sid hygiene documented (the CI fallback row prefers the live /state sid;
+a mixed-sid session pair still resolves — the read-proof itself is the Mac gate's). Grok's
+v918-v921 remainder = MAC-GATE ITEMS requiring Konyo's real session (live SET night · real
+intake path proof · his eyes once) — carried into the v922 seal as KNOWN HONEST GAPS per
+Grok's own report structure. 150/150 + 32/32 green.

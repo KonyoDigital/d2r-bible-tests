@@ -21918,9 +21918,10 @@ function toggleStatue(name) {
 window.toggleStatue = toggleStatue;
 
 function switchTab(name) {
-  // v901 — #tvd / TV·D aliases land on SESSIONS (peer tab retired)
-  if (name === 'tvd' || name === 'tvd-on' || name === 'tvd-off') {
-    try { if (name === 'tvd-on' || name === 'tvd-off') { /* lamp sync only */ } } catch(e){}
+  // v917 (Grok P0 — 'chrome-only until the coerce dies') — TV·D is a REAL tab again
+  // everywhere (Konyo: 'yes on the website too'). Only the legacy lamp aliases land on
+  // SESSIONS with the cockpit scroll.
+  if (name === 'tvd-on' || name === 'tvd-off') {
     name = 'session';
     try { setTimeout(function(){ var el = document.getElementById('sc-card-tvd'); if (el) el.scrollIntoView({behavior:'smooth',block:'start'}); }, 80); } catch(e){}
   }
@@ -33564,7 +33565,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v916', name:'Everywhere Live', date:'2026-07-20', note:'v914 decided (Konyo: yes on the website too): TV-D is a first-class SITE tab again (app-ctx keeps it in the console header) — dual-context verified · v916 routines-in-check: the roundtrip harness is CI-robust (60s read wait + honest fallback row so the fold/serve/pick laws prove on 2-core runners)' };
+  window.D2R_BUILD = { id:'v917', name:'Truly Live', date:'2026-07-20', note:'v917 (Grok P0): the v901 switchTab tvd-to-session coerce is DEAD — TV-D opens for real on the site (verified: active tab = tvd); only the legacy lamp aliases still land on the cockpit' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
