@@ -1906,3 +1906,15 @@ pill glides home the same way). One continuous motion across every surface swap.
 IS THE GRAIL: the runes logo gave way to the Harlequin Crest (golden Shako, warm drop-glow,
 ohm-rune fallback) — the identity of the whole hunt at the masthead. Screenshot verified.
 150/150 + 32/32. Grok rounds (batched v910 R3-7 + v911 R2-7) next.
+
+## 🔏 v911 SEAL "ONE MOTION" — rounds 2-7 complete (Grok batch verdict, Jul 19 ~23:00)
+Grok sealed v910 outright and confirmed my two glide hazards were REAL (double-nav queue +
+bfcache-stuck-invisible) — both guards committed (gliding ignore + dual pageshow clears on
+console AND board pill). P1s landed in the seal: intake chips go honest-empty after OFF (no
+stale ON chips), the console reads the ACTIVE profile (board stamps d2r_profile; lsFork()
+mirrors the L· rules — the ladder console no longer shows main data). P2s: task-force
+tvdHist parse memoized (2s TTL — was a ~100KB parse per cockpit render), and the TV·D site
+entry SPEAKS ITS NAME ('📺 TV·D live view →' — the one-way silence Konyo called weird is
+owned in copy). All suites + 8 board specs green. v910 + v911 = cycles 3 and 4 sealed under
+the seven-round rule. Next cycles per Grok: auto-lane SET design round · site TV·D deep-link
+chip if Konyo wants more than the cockpit entry · console visual-dashboard richening.

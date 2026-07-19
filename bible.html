@@ -3332,6 +3332,7 @@ window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r
 // v635's: only ACCOUNT STATE forks; prefs/caches stay shared so both machines LOOK identical.
 // WINDOWS forks the ladder set PLUS the chronicle family (unlike ladder, the cousin shares no grail).
 window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads']));
+try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'); } catch(e){}   // v911.1 — the console reads the ACTIVE profile
 window.LSR = (function(){
   var RAW = window.localStorage;
   function key(k){
@@ -4242,7 +4243,7 @@ try {
         </span>
         <span class="tvz-bug tvz-bug-sc" id="tvd-sc-bug" title="auto-synced to the TV DIABLO app — this follows its ON/OFF (not a button)"><span class="tvz-bug-dot"></span><span class="tvz-bug-txt" id="tvd-sc-bug-txt">OFF AIR</span></span>
       </div>
-      <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">ON AIR · pause on Runes / Gems / Materials / stash — same AI as Tools 📸 · <button type="button" class="sc-go" onclick="window.switchTab&&window.switchTab('tvd')">full live board →</button></div></div>
+      <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">ON AIR · pause on Runes / Gems / Materials / stash — same AI as Tools 📸 · <button type="button" class="sc-go" onclick="window.switchTab&&window.switchTab('tvd')">📺 TV·D live view →</button></div></div>
     </section>
   </div>
 
@@ -33055,8 +33056,12 @@ window.renderSessionCockpit = function(){
       try { tfAi = window.LSR.getItem('d2r_createNowAi') || ''; } catch(e){}
       if (tfAi) tfRows.push('<div class="sc-tf-row ai"><span class="sc-tf-g">✶</span><span class="sc-tf-t">' + _scEsc(String(tfAi).slice(0, 110)) + '</span><span class="sc-tf-tag ai">DAILY PICK</span></div>');
       try {
-        var tfH = (typeof loadHist === 'function') ? null : null;
-        var tfHist = JSON.parse((window.LSR.getItem('d2r_tvdHist') || '{}')) || {};
+        window._tfHistMemo = window._tfHistMemo || { t: 0, v: null };
+        if (Date.now() - window._tfHistMemo.t > 2000){
+          window._tfHistMemo.v = JSON.parse((window.LSR.getItem('d2r_tvdHist') || '{}')) || {};
+          window._tfHistMemo.t = Date.now();
+        }
+        var tfHist = window._tfHistMemo.v;   // v911.1 (Grok) — no 100KB parse per cockpit render
         var tfToday = ((tfHist.sessions || []).concat(tfHist.live ? [tfHist.live] : [])).filter(function(x){
           return x && x.startedAt && new Date(x.startedAt).toDateString() === new Date().toDateString(); }).length;
         tfRows.push('<div class="sc-tf-row stat"><span class="sc-tf-g">📼</span><span class="sc-tf-t">' + tfToday + ' run' + (tfToday === 1 ? '' : 's') + ' recorded today · reader ' + (document.body.getAttribute('data-tvstate') === 'on' ? 'ON AIR' : 'idle') + '</span><span class="sc-tf-tag dim">TODAY</span></div>');
@@ -33592,8 +33597,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     b.innerHTML = '<span class="tvf-cp-home">⌂</span>CONSOLE';
     b.addEventListener('click', function(){
       // v911 — glide home: fade out, then travel (one continuous motion, never a window-jump)
+      if (b.dataset.gliding) return;   // v911.1 — one travel only
+      b.dataset.gliding = '1';
       try { document.body.style.transition = 'opacity .14s ease'; document.body.style.opacity = '0'; } catch(e){}
       setTimeout(function(){ location.href = '/'; }, 140);
+    });
+    window.addEventListener('pageshow', function(){
+      try { delete b.dataset.gliding; document.body.style.opacity = ''; document.body.style.transition = ''; } catch(e){}
     });
     document.body.appendChild(b);
   }

@@ -2591,9 +2591,12 @@
   function _glide(url){
     // v911 (Konyo: 'smoother toggling — it feels like moving windows') — the shell breathes
     // out (140ms), the destination breathes in (its own fade): one continuous motion.
+    if (document.body.classList.contains('gliding')) return;   // v911.1 — double-click can't queue two travels
     try { document.body.classList.add('gliding'); } catch(e){}
     setTimeout(function(){ window.location.href = url; }, 140);
   }
+  // v911.1 — bfcache restore must never leave the shell invisible
+  window.addEventListener('pageshow', function(){ try { document.body.classList.remove('gliding'); } catch(e){} });
   if (_ht) _ht.addEventListener('click', function(e){
     var b = e.target.closest('.ht'); if (!b) return;
     _glide('/board?app=1#' + encodeURIComponent(b.dataset.tab));
@@ -2634,9 +2637,22 @@
   });
 
   // v903 — THE MOTHERBOARD renderers
+  function lsFork(bare){
+    // v911.1 (Grok) — mirror the board's fork rules: the ACTIVE profile's key wins.
+    // The board stamps its profile into localStorage (d2r_profile: 'main'|'ladder'); machine
+    // fork (W·/WL·) never applies on this Mac console.
+    try {
+      var prof = localStorage.getItem('d2r_profile') || 'main';
+      if (prof === 'ladder'){
+        var lv = localStorage.getItem('L\u00b7' + bare);
+        if (lv != null) return lv;
+      }
+      return localStorage.getItem(bare) || localStorage.getItem('L\u00b7' + bare);
+    } catch(e){ return null; }
+  }
   function hdForge(){
     try {
-      var raw = localStorage.getItem('d2r_forgeSummary') || localStorage.getItem('L\u00b7d2r_forgeSummary');
+      var raw = lsFork('d2r_forgeSummary');
       if (!raw) return;
       var f = JSON.parse(raw);
       var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">⚒ ' + rw + ' · MAKE NOW</span>'; })
@@ -2652,7 +2668,10 @@
   function hdIntake(st){
     try {
       var ring = (st && st.intakeRing) || [];
-      if (!ring.length) return;
+      if (!ring.length){   // v911.1 (Grok) — an OFF console never wears stale ON chips
+        $('hd-intake-chips').innerHTML = '<span class="hd-empty">ON AIR + pause on Runes/Gems/Materials/stash — shots land here</span>';
+        return;
+      }
       $('hd-intake-chips').innerHTML = ring.slice(-8).reverse().map(function(x){
         var t = new Date(x.ts || 0);
         var ik3 = x.intake || {};
@@ -2718,9 +2737,9 @@
     try {
       var H = (st && st.health) || {};
       var fs = null;
-      try { fs = JSON.parse(localStorage.getItem('d2r_forgeSummary') || localStorage.getItem('L\u00b7d2r_forgeSummary') || 'null'); } catch(e){}
+      try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
       var led = [];
-      try { led = JSON.parse(localStorage.getItem('d2r_tvdTallyLog') || localStorage.getItem('L\u00b7d2r_tvdTallyLog') || '[]'); } catch(e){}
+      try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var on = (st && st.mode) === 'live';
       var chips = [
         '<span class="hd-chip ' + (on ? 'now' : 'dim') + '">🤖 AI READER · ' + (on ? ('ON · ' + (st.readCount || 0) + ' reads') : 'off') + '</span>',
@@ -2735,9 +2754,9 @@
   function hdTaskForce(st){
     try {
       var fs = null, ai = '', led = [];
-      try { fs = JSON.parse(localStorage.getItem('d2r_forgeSummary') || localStorage.getItem('L\u00b7d2r_forgeSummary') || 'null'); } catch(e){}
-      try { ai = localStorage.getItem('d2r_createNowAi') || localStorage.getItem('L\u00b7d2r_createNowAi') || ''; } catch(e){}
-      try { led = JSON.parse(localStorage.getItem('d2r_tvdTallyLog') || localStorage.getItem('L\u00b7d2r_tvdTallyLog') || '[]'); } catch(e){}
+      try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
+      try { ai = lsFork('d2r_createNowAi') || ''; } catch(e){}
+      try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
       var rows = [];
       ((fs && fs.now) || []).slice(0, 3).forEach(function(rw){
         rows.push('<div class="tf-row tf-ready"><span class="tf-g">⚒</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
