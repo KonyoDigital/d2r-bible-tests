@@ -3325,7 +3325,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -33708,21 +33708,27 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       // 10min, compensate −1 board-side (the locked pipeline is untouched — this is the same
       // public adjust* lane the −/+ buttons use).
       try {
-        var _kt = window._tvdKeyTallied || {};
+        var _dbt2 = JSON.parse(window.LSR.getItem('d2r_tvdKeyDebt') || '{}') || {};
+        var _now8 = Date.now();
         var _recon = [];
         Object.keys((_ir && _ir.added) || {}).forEach(function(k){
           var kk = ((_ir.kind === 'runes' ? 'rune' : _ir.kind === 'gems' ? 'gem' : 'mat') + ':' + k);
-          if (_kt[kk] && (Date.now() - _kt[kk]) < 600000){
-            if (_ir.kind === 'runes' && window.adjustRuneStash) window.adjustRuneStash(k, -1);
-            else if (_ir.kind === 'gems' && window.adjustGemStash) window.adjustGemStash(k, -1);
-            else if (window.adjustMaterialStash) window.adjustMaterialStash(k, -1);
-            delete _kt[kk];
-            _recon.push(k);
+          var _d8 = _dbt2[kk];
+          if (_d8 && _d8.n > 0 && (_now8 - (_d8.last || 0)) < 600000){
+            var _sub = Math.min(_d8.n, (_ir.added[k] || 0));   // never subtract more than the photo saw
+            if (_sub > 0){
+              if (_ir.kind === 'runes' && window.adjustRuneStash) window.adjustRuneStash(k, -_sub);
+              else if (_ir.kind === 'gems' && window.adjustGemStash) window.adjustGemStash(k, -_sub);
+              else if (window.adjustMaterialStash) window.adjustMaterialStash(k, -_sub);
+              _recon.push(k + (_sub > 1 ? ' ×' + _sub : ''));
+            }
+            delete _dbt2[kk];
           }
         });
+        window.LSR.setItem('d2r_tvdKeyDebt', JSON.stringify(_dbt2));
         if (_recon.length){
           var _vs2 = document.getElementById('vault-status');
-          if (_vs2) _vs2.textContent = '📺 tallied — ' + _recon.length + ' stack' + (_recon.length > 1 ? 's' : '') + ' reconciled with the live vault (no double count: ' + _recon.join(', ') + ')';
+          if (_vs2) _vs2.textContent = '📺 tallied — reconciled with the live vault (no double count: ' + _recon.join(', ') + ')';
         }
       } catch(e){}
       try {
@@ -33946,8 +33952,19 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       try { window.LSR.setItem('d2r_tvdTallyLog', JSON.stringify(led)); } catch(e){}
       window._tvdSessionTallied = true;   // v890 (Grok A1) — arms the auto-intake double-count guard
       window._tvdSessionTalliedAt = Date.now();   // v902 — the guard is a 60s window, not a session lock
-      window._tvdKeyTallied = window._tvdKeyTallied || {};   // v909 — per-KEY clock for exact reconcile
-      window._tvdKeyTallied[c.kind + ':' + c.key] = Date.now();
+      // v909-R4/R5 (Grok) — NET DEBT map, persisted + profile-forked: funnel ± adjusts n,
+      // the photo reconciles −n, unvault nets naturally, reload can't reopen the hole.
+      try {
+        var _dbt = JSON.parse(window.LSR.getItem('d2r_tvdKeyDebt') || '{}') || {};
+        var _now9 = Date.now();
+        Object.keys(_dbt).forEach(function(k8){ if (_now9 - ((_dbt[k8] || {}).last || 0) > 600000) delete _dbt[k8]; });
+        var _kk9 = c.kind + ':' + c.key;
+        var _e9 = _dbt[_kk9] || { n: 0, last: 0 };
+        _e9.n = Math.max(0, (_e9.n || 0) + delta);
+        _e9.last = _now9;
+        if (_e9.n > 0) _dbt[_kk9] = _e9; else delete _dbt[_kk9];
+        window.LSR.setItem('d2r_tvdKeyDebt', JSON.stringify(_dbt));
+      } catch(e){}
       if (c.kind === 'rune' && typeof window.adjustRuneStash === 'function') window.adjustRuneStash(c.key, delta);
       else if (c.kind === 'gem' && typeof window.adjustGemStash === 'function') window.adjustGemStash(c.key, delta);
       else if (c.kind === 'mat' && typeof window.adjustMaterialStash === 'function') window.adjustMaterialStash(c.key, delta);

@@ -69,4 +69,44 @@ test.describe('v889 tools funnel', () => {
     expect(r.ok).toBe(true);    // the shot RAN (no blunt defer)
     expect(r.fin).toBe(2);      // net truth: 2 Ist exist, not 3 — exact reconcile
   });
+
+  test('v909-R6: multi-vault debt nets −n · unvault nets to zero · debt survives reload', async ({ page }) => {
+    await page.goto(BIBLE, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    const r1 = await page.evaluate(() => {
+      const w = window as any;
+      localStorage.removeItem('d2r_tvdTallyLog'); localStorage.removeItem('d2r_tvdKeyDebt');
+      w.runeStash = {};
+      // TWO Ist vaulted before any photo → debt n=2
+      w.tvToolsDelta('Ist Rune', 1, { sid: 's_m1', frameId: '1_1' });
+      w.tvToolsDelta('Ist Rune', 1, { sid: 's_m1', frameId: '2_2' });
+      // one Vex vaulted then UNVAULTED → debt nets 0
+      w.tvToolsDelta('Vex Rune', 1, { sid: 's_m1', frameId: '3_3' });
+      w.tvToolsDelta('Vex Rune', -1, { sid: 's_m1', frameId: '3_3' });
+      return JSON.parse(localStorage.getItem('d2r_tvdKeyDebt') || '{}');
+    });
+    expect((r1['rune:Ist'] || {}).n).toBe(2);
+    expect(r1['rune:Vex']).toBeUndefined();               // unvault netted the debt away
+    // RELOAD — the debt must survive (Grok b: the reload hole)
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    const r2 = await page.evaluate(async () => {
+      const w = window as any;
+      const realFetch = window.fetch;
+      (window as any).fetch = async (url: any, init?: any) => {
+        const u = String(url);
+        if (u.includes('/frame')) return new Response(new Blob([new Uint8Array(9000)], { type: 'image/jpeg' }), { status: 200 });
+        if (u.includes('/intake_result')) return new Response('{"ok":true}');
+        return realFetch(url, init);
+      };
+      w.runeIntake = async () => { w.adjustRuneStash('Ist', 3); return { ok: true, total: 3, added: { Ist: 3 }, errors: 0, kind: 'runes' }; };
+      w._stashIntakeBusy = false;
+      await w.tvStashAutoIntake('runes', { frameId: '4_4' });
+      (window as any).fetch = realFetch;
+      return { ist: (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0,
+               debt: JSON.parse(localStorage.getItem('d2r_tvdKeyDebt') || '{}') };
+    });
+    expect(r2.ist).toBe(3 - 2 + 2);   // photo saw 3 (incl. the 2 vaulted) → −2 debt → stash keeps funnel's 2 + 1 new = 3
+    expect(r2.debt['rune:Ist']).toBeUndefined();          // debt consumed
+  });
 });

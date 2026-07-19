@@ -1874,3 +1874,15 @@ locked pipeline untouched), with a status line naming the reconciled stacks. NET
 in spec: funnel vaults Ist (+1) → photo reads the whole 2-stack → stash nets 2, never 3, and
 the shot is never blocked. 4/4 specs (funnel + connector seal) + 150/150 + 32/32. Rounds 3-7
 (Grok back-pass et al) follow per the seven-round rule.
+
+## 🔏 v909 SEAL — rounds 3-7 complete (second 7-round cycle CLOSED, Jul 19 ~22:00)
+R3 Grok verdicts → R4 NET DEBT (the ts-clock undercounted multi-vaults: debt map {kk:{n,last}},
+funnel ± adjusts n, unvault nets naturally, photo reconciles −min(n, seen)) → R5 PERSISTED
+(LSR d2r_tvdKeyDebt, profile-forked, 10min prune — the reload hole is closed) → R6 SPEC MATRIX
+GREEN (3/3: two-Ist debt nets −2 · vault+unvault nets zero · debt SURVIVES page reload and
+reconciles the next shot exactly) → R7 SET DESIGN (recorded, deferred by Grok's rank): the
+re-photo class (a second shot re-ADDs the whole stack — no clock can fix it) belongs to
+auto-lane SET semantics — the SAFEST shape per Grok: replace counts ONLY for keys the model
+reports, never silent-zero unmentioned keys, explicit clear stays manual; implementation gets
+its own 7-round cycle once debt has soaked live. All gates green. v909 = second version sealed
+under the seven-round rule.
