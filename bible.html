@@ -4197,6 +4197,13 @@ try {
   </div>
   <div class="sc-fresh" id="sc-fresh" aria-label="Stash intelligence"></div>
 
+  <!-- v907 (Konyo: 'flagship SESSIONS as the main homepage dashboard for the ENTIRE website') —
+       the console's DAILY TASK FORCE design, board-native: fed by the LIVE forgeScan -->
+  <section class="sc-card" id="sc-taskforce" style="display:none">
+    <div class="sc-card-h">🗓 Daily Task Force <span id="sc-tf-date" style="opacity:.5;font-weight:400;margin-left:8px"></span></div>
+    <div class="sc-tf-rows" id="sc-tf-rows"></div>
+  </section>
+
   <!-- MISSION BRIEF — the general -->
   <section class="sc-mission" id="sc-mission">
     <div class="sc-mission-label">Mission brief</div>
@@ -7053,6 +7060,21 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),rgba(255,255,255,.13) calc(25% - 1px),rgba(255,255,255,.13) 25%)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill.fp-celebrate{animation:fpCelebrate 1.2s ease}
 @keyframes fpCelebrate{0%,100%{filter:brightness(1)}30%{filter:brightness(1.6);box-shadow:0 0 18px 1px rgba(120,230,150,.9)}}
+/* v907 — DAILY TASK FORCE rows (the console motherboard design, board-native) */
+.sc-tf-rows{display:flex;flex-direction:column;gap:7px;padding:4px 0 2px}
+.sc-tf-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid rgba(240,192,96,.2);
+  border-radius:9px;background:rgba(0,0,0,.28);font:500 12.5px/1.3 var(--mono,ui-monospace,monospace);color:#d9c9a0}
+.sc-tf-row.ready{border-color:rgba(143,230,160,.5);box-shadow:inset 3px 0 0 #8fe6a0}
+.sc-tf-row.ai{border-color:rgba(185,165,255,.4)}
+.sc-tf-row.stat{opacity:.75}
+.sc-tf-g{font-size:15px;flex:0 0 auto}
+.sc-tf-t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-tf-t b{color:#f0dfae}
+.sc-tf-tag{flex:0 0 auto;font:700 9px/1 var(--mono,ui-monospace,monospace);letter-spacing:.1em;padding:4px 8px;
+  border-radius:6px;border:1px solid rgba(143,230,160,.5);color:#8fe6a0;cursor:pointer}
+.sc-tf-tag.dim{border-color:rgba(240,192,96,.25);color:#9a8d73}
+.sc-tf-tag.ai{border-color:rgba(185,165,255,.5);color:#cbbcff}
+
 /* v648 — TOAST STACK (Konyo: two toasts overlapped, the back one unreadable): every .forge-toast
    mounts into a fixed flex column (#forge-toasts) and stacks upward with a gap — all readable. */
 #forge-toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9500;display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none;max-width:min(92vw,760px)}
@@ -32990,6 +33012,38 @@ window.renderSessionCockpit = function(){
     try { if (typeof window.forgeScan === 'function') scan = window.forgeScan() || scan; } catch(e){}
     var liveNow = (scan.now||[]).filter(function(t){ return !t.deferred; });
 
+    // ── v907 (Konyo: 'flagship SESSIONS = the site homepage dashboard') — DAILY TASK FORCE
+    try {
+      var tfRows = [];
+      liveNow.slice(0, 3).forEach(function(t){
+        tfRows.push('<div class="sc-tf-row ready"><span class="sc-tf-g">⚒</span><span class="sc-tf-t">Forge <b>' + _scEsc(t.rw) + '</b></span>'
+          + '<span class="sc-tf-tag" onclick="window.switchTab&&window.switchTab(\'forge\')">READY — make it now</span></div>');
+      });
+      (scan.onestep || []).slice(0, 2).forEach(function(t){
+        tfRows.push('<div class="sc-tf-row"><span class="sc-tf-g">◈</span><span class="sc-tf-t"><b>' + _scEsc(t.rw) + '</b> · '
+          + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'cube' ? 'cube the last step' : 'one step out') + '</span>'
+          + '<span class="sc-tf-tag dim">ONE STEP</span></div>');
+      });
+      var tfAi = '';
+      try { tfAi = window.LSR.getItem('d2r_createNowAi') || ''; } catch(e){}
+      if (tfAi) tfRows.push('<div class="sc-tf-row ai"><span class="sc-tf-g">✶</span><span class="sc-tf-t">' + _scEsc(String(tfAi).slice(0, 110)) + '</span><span class="sc-tf-tag ai">DAILY PICK</span></div>');
+      try {
+        var tfH = (typeof loadHist === 'function') ? null : null;
+        var tfHist = JSON.parse((window.LSR.getItem('d2r_tvdHist') || '{}')) || {};
+        var tfToday = ((tfHist.sessions || []).concat(tfHist.live ? [tfHist.live] : [])).filter(function(x){
+          return x && x.startedAt && new Date(x.startedAt).toDateString() === new Date().toDateString(); }).length;
+        tfRows.push('<div class="sc-tf-row stat"><span class="sc-tf-g">📼</span><span class="sc-tf-t">' + tfToday + ' run' + (tfToday === 1 ? '' : 's') + ' recorded today · reader ' + (document.body.getAttribute('data-tvstate') === 'on' ? 'ON AIR' : 'idle') + '</span><span class="sc-tf-tag dim">TODAY</span></div>');
+      } catch(e){}
+      var tfBox = document.getElementById('sc-taskforce');
+      if (tfBox){
+        if (tfRows.length){
+          tfBox.style.display = '';
+          document.getElementById('sc-tf-rows').innerHTML = tfRows.join('');
+          document.getElementById('sc-tf-date').textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+        } else tfBox.style.display = 'none';
+      }
+    } catch(e){}
+
     // ── Resolve mission ──
     var pin = '';
     try { pin = window._sessionPinGet() || ''; } catch(e){}
@@ -33469,7 +33523,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v906', name:'The Main Shebang', date:'2026-07-19', note:'v906 (Konyo: the AI item reader IS the real robot — the main console tool): DAILY TASK FORCE designed panel (forge READY/one-step quest rows + daily AI pick + today stats), site lands on Sessions hand-in-hand with the console, never-scanned intel teaches the auto lane (ON AIR + pause and TV-D scans it for you), dash cards can never overlap (max-content rows)' };
+  window.D2R_BUILD = { id:'v907', name:'Site Flagship', date:'2026-07-19', note:'v907 (Konyo: flagship SESSIONS as the main homepage dashboard for the ENTIRE website): the site cockpit opens with the DAILY TASK FORCE (console design, board-native, fed by LIVE forgeScan + daily pick + todays runs + reader state), hand-in-hand with the console motherboard' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

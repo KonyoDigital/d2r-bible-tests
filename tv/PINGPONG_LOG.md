@@ -1829,3 +1829,11 @@ the motherboard shows it all. Shipped this round: 🗓 DAILY TASK FORCE (designe
 📼 today stats), SITE lands on Sessions too (hand-in-hand), the cockpit's 'never scanned'
 intel now TEACHES the auto lane, dash grid rows can never overlap (max-content + fit-content
 — the overlap his screenshot caught). Screenshot-verified clean. 150/150 + 32/32.
+
+## 🌐 v907 "SITE FLAGSHIP" (Konyo: 'the main homepage dashboard for the ENTIRE website', Jul 19)
+The website and the console are ONE product now: the site's session cockpit opens with the
+🗓 DAILY TASK FORCE in the console's design language (mint-spined ⚒ READY rows clicking into
+the Forge, ◈ one-step verbs, ✶ daily pick, 📼 today-with-reader-state) — board-native, fed by
+the LIVE forgeScan (no summary staleness on-site), d2r_createNowAi, and d2r_tvdHist. Site
+lands on #session, intel teaches the auto lane, primary-four tabs lead. Verified on the
+non-app board view: TF renders, sessions active. 150/150 + 32/32.
