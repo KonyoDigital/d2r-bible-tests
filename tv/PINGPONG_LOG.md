@@ -1961,3 +1961,14 @@ live strip caps at 180px and scrolls. R7 SEAL: profile bleed re-verified clean (
 fork L·, chron shared by v638 design — bleed-proof spec 3/3 green), 403 denominator rides
 funiScan's chronTotal (no hardcode). All gates green. SIXTH cycle sealed. Next: v914 site
 TV·D chip decision · v915 2h intake soak case · seal pack → v922 final report.
+
+## 🛁 v915 "SOAKED INTAKE" (the endurance law covers the flagship lane, Jul 20 ~00:25)
+The nightly soak (tv-soak.yml, 30min cron + dispatch) now exercises the INTAKE lane: an
+/intake_result posts every ~minute mid-soak and the harness FAILS if any beat is lost
+(posted==journaled law), on top of the standing invariants (agent survives, flat RSS, zero
+bad-json rows). 2-min local proof: posted 2, journaled 2, rss flat 96MB, PASS. v914 (site
+TV·D deep-link chip beyond the named cockpit entry) = product decision parked for Konyo.
+150/150 + 32/32. THE ARC LEDGER: six sealed 7-round cycles (v908-v913) + v915 — the seal pack
+confirms all 9 board specs ride Routine I (tests/*.spec.ts push paths) and the tv lane rides
+tv-tests.yml + the pre-push fast lane. Remaining to v922: SET live-soak observation · site
+TV·D decision · Konyo's next live findings.
