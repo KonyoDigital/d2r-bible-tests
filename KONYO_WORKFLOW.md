@@ -66,3 +66,9 @@ UX-driver's invisible-✕) — treat skipping ANY step as a doctrine break.
 **Why:** he confirmed this shape repeatedly and named it; it survived a 25-version night.
 **How to apply:** default to this for any multi-version arc on his projects; see
 [[feedback-grok-pingpong-loop]] for the older nightly loop this generalizes.
+
+## Step 13 — THE SEVEN-ROUND RULE (Konyo, 2026-07-19)
+Every version upgrade LEVELS UP through the pingpong: **at least 7 back-and-forth rounds**
+(Fable ↔ SuperGrok — design pass, implement, back-pass, fix, re-verify, polish pass, seal)
+before a full cycle counts as complete. A version that got fewer than 7 exchanges is not
+sealed — it is a draft. The rounds are logged per version in PINGPONG_LOG.md.
