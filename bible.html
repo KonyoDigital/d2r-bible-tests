@@ -33100,7 +33100,9 @@ window.renderSessionCockpit = function(){
         if (!isFinite(h) || h >= 36){
           ops.push({
             blocker:true, tag:'intel', cls:'want',
-            txt:'<b>'+esc(k)+'</b> stash '+(isFinite(h)?'stale ('+Math.round(h)+'h)':'never scanned')+' — orders may be wrong',
+            // v906 (Konyo: 'the AI robot reader should be this automated AI that reads the
+            // systems and connects everything') — the intel row TEACHES the auto lane
+            txt:'<b>'+esc(k)+'</b> stash '+(isFinite(h)?'stale ('+Math.round(h)+'h)':'never scanned')+' — <span style="opacity:.75">ON AIR + pause on the '+esc(k)+' tab and TV·D scans it for you</span>',
             act:'📸 Scan', go:function(){ if(window.switchTab) window.switchTab('tools'); }
           });
         } else if (h >= 12){
@@ -33467,7 +33469,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v905', name:'Flagship Sessions', date:'2026-07-19', note:'v905: ENGINES strip (AI reader/intake/forge/tallies/disk at a glance), paginated HD library (8/page, cover art + duration + chips), primary-four header (Sessions/Forge/F-Uniques/F-Sets lead; Tools + TV-D side lanes), every console tab fades smooth, explicit #tvd never coerced (the toggle holds)' };
+  window.D2R_BUILD = { id:'v906', name:'The Main Shebang', date:'2026-07-19', note:'v906 (Konyo: the AI item reader IS the real robot — the main console tool): DAILY TASK FORCE designed panel (forge READY/one-step quest rows + daily AI pick + today stats), site lands on Sessions hand-in-hand with the console, never-scanned intel teaches the auto lane (ON AIR + pause and TV-D scans it for you), dash cards can never overlap (max-content rows)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

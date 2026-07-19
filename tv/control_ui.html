@@ -840,7 +840,9 @@
   .head-tabs { display: flex; gap: 6px; align-items: center; margin-left: 12px; flex: 1 1 auto; }
   /* v903 — THE MOTHERBOARD: sessions-home dashboard (left column, row 2 — the rail spans) */
   .home-dash { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; grid-area: dash;
-    align-content: start; min-height: 0; overflow-y: auto; }
+    align-content: start; align-items: start; grid-auto-rows: max-content;   /* v906.1 — cards GROW, never overlap */
+    min-height: 0; overflow-y: auto; }
+  .home-dash .hd-col { height: fit-content; min-height: 0; }
   /* v903 — OFF AIR: the stage row shrinks to its compact self; the DASH owns the flex */
   body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
   .hd-col { border: 1px solid var(--edge); border-radius: 12px; background: rgba(0,0,0,.32); padding: 12px 14px; min-height: 92px; }
@@ -855,6 +857,21 @@
   .hd-empty { opacity: .4; font: 400 11px/1.4 var(--mono); }
   .hd-engines { min-height: 0; padding: 10px 14px; }
   .hd-chip.warn { border-color: rgba(255,120,80,.6); color: #ffb49a; }
+  /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
+  .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
+  .hd-tf-rows { display: flex; flex-direction: column; gap: 7px; }
+  .tf-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--edge);
+    border-radius: 9px; background: rgba(0,0,0,.3); font: 500 12px/1.3 var(--mono); color: #d9c9a0; }
+  .tf-row.tf-ready { border-color: rgba(143,230,160,.5); box-shadow: inset 3px 0 0 var(--mint); }
+  .tf-row.tf-ai { border-color: rgba(185,165,255,.4); }
+  .tf-row.tf-stat { opacity: .75; }
+  .tf-g { font-size: 15px; flex: 0 0 auto; }
+  .tf-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-t b { color: #f0dfae; }
+  .tf-tag { flex: 0 0 auto; font: 700 9px/1 var(--mono); letter-spacing: .1em; padding: 4px 8px;
+    border-radius: 6px; border: 1px solid rgba(143,230,160,.5); color: var(--mint); }
+  .tf-tag.dim { border-color: var(--edge); color: #9a8d73; }
+  .tf-tag.ai { border-color: rgba(185,165,255,.5); color: #cbbcff; }
   .hd-pager { float: right; display: inline-flex; gap: 8px; align-items: center; }
   .hd-pg { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.4); color: var(--gold-dim);
     border-radius: 6px; padding: 3px 10px; font: 700 12px/1 var(--mono); cursor: pointer; }
@@ -1007,6 +1024,10 @@
          forge quests + live 📸 intake feed + the shelf inline. Primary when OFF AIR;
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
+      <div class="hd-col hd-wide hd-taskforce" id="hd-taskforce" hidden>
+        <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
+        <div class="hd-tf-rows" id="hd-tf-rows"></div>
+      </div>
       <div class="hd-col hd-wide hd-engines" id="hd-engines">
         <div class="hd-h">🖥 ENGINES <span class="hd-sub">every lane, one glance</span></div>
         <div class="hd-chips" id="hd-engine-chips"><span class="hd-empty">…</span></div>
@@ -1066,7 +1087,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v905 control</span>
+      <span id="foot-ver">v906 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1388,7 +1409,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v905') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v906') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -2663,7 +2684,27 @@
       $('hd-engine-chips').innerHTML = chips.join('');
     } catch(e){}
   }
-  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngines(st); }
+  function hdTaskForce(st){
+    try {
+      var fs = null, ai = '', led = [];
+      try { fs = JSON.parse(localStorage.getItem('d2r_forgeSummary') || localStorage.getItem('L\u00b7d2r_forgeSummary') || 'null'); } catch(e){}
+      try { ai = localStorage.getItem('d2r_createNowAi') || localStorage.getItem('L\u00b7d2r_createNowAi') || ''; } catch(e){}
+      try { led = JSON.parse(localStorage.getItem('d2r_tvdTallyLog') || localStorage.getItem('L\u00b7d2r_tvdTallyLog') || '[]'); } catch(e){}
+      var rows = [];
+      ((fs && fs.now) || []).slice(0, 3).forEach(function(rw){
+        rows.push('<div class="tf-row tf-ready"><span class="tf-g">⚒</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
+      });
+      ((fs && fs.onestep) || []).slice(0, 2).forEach(function(t){
+        rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
+      });
+      if (ai) rows.push('<div class="tf-row tf-ai"><span class="tf-g">✶</span><span class="tf-t">' + esc(String(ai).slice(0, 90)) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');
+      var runsToday = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); }).length;
+      rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today · ' + led.length + ' tallies synced</span><span class="tf-tag dim">TODAY</span></div>');
+      var box = $('hd-taskforce');
+      if (rows.length){ box.hidden = false; $('hd-tf-rows').innerHTML = rows.join(''); $('hd-tf-date').textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); }
+    } catch(e){}
+  }
+  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngines(st); hdTaskForce(st); }
   setInterval(hdShelf, 12000); setTimeout(hdShelf, 800);
 
   tickClock();
