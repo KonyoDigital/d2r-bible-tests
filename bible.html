@@ -3325,7 +3325,7 @@ window._isCousinShell = (window.D2R_MACHINE==='windows');
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
 window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(window._PROFILE_PTR)==='ladder' ? 'ladder' : 'main'; } catch(e){ return 'main'; } })();
-window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
+window._LP_FORKED = new Set(["d2r_owned", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_setPieces", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_grailImportReport", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_foundLog", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -19045,6 +19045,7 @@ window._rwArtName = _rwArtName;
 // ══════════════════════════════════════════════════════════════════════════════
 const GEM_TYPES = [{"type":"Amethyst","color":"#b48ce0","role":"Attack Rating · Strength · Defense","q":[{"q":"Chipped","name":"Chipped Amethyst","w":"+40 Attack Rating","a":"+3 to Strength","s":"+8 Defense"},{"q":"Flawed","name":"Flawed Amethyst","w":"+60 Attack Rating","a":"+4 to Strength","s":"+12 Defense"},{"q":"Normal","name":"Amethyst","w":"+80 Attack Rating","a":"+6 to Strength","s":"+18 Defense"},{"q":"Flawless","name":"Flawless Amethyst","w":"+100 Attack Rating","a":"+8 to Strength","s":"+24 Defense"},{"q":"Perfect","name":"Perfect Amethyst","w":"+150 Attack Rating","a":"+10 to Strength","s":"+30 Defense"}]},{"type":"Diamond","color":"#e8eef5","role":"vs-Undead · Attack Rating · All Resist","q":[{"q":"Chipped","name":"Chipped Diamond","w":"+28% Damage to Undead","a":"+20 Attack Rating","s":"All Resistances +6"},{"q":"Flawed","name":"Flawed Diamond","w":"+34% Damage to Undead","a":"+40 Attack Rating","s":"All Resistances +8"},{"q":"Normal","name":"Diamond","w":"+44% Damage to Undead","a":"+60 Attack Rating","s":"All Resistances +11"},{"q":"Flawless","name":"Flawless Diamond","w":"+54% Damage to Undead","a":"+80 Attack Rating","s":"All Resistances +14"},{"q":"Perfect","name":"Perfect Diamond","w":"+68% Damage to Undead","a":"+100 Attack Rating","s":"All Resistances +19"}]},{"type":"Emerald","color":"#5fd07a","role":"Poison · Dexterity · Poison Resist","q":[{"q":"Chipped","name":"Chipped Emerald","w":"+10 Poison Damage over 3 seconds","a":"+3 to Dexterity","s":"Poison Resist +12%"},{"q":"Flawed","name":"Flawed Emerald","w":"+20 Poison Damage over 4 seconds","a":"+4 to Dexterity","s":"Poison Resist +16%"},{"q":"Normal","name":"Emerald","w":"+40 Poison Damage over 5 seconds","a":"+6 to Dexterity","s":"Poison Resist +22%"},{"q":"Flawless","name":"Flawless Emerald","w":"+60 Poison Damage over 6 seconds","a":"+8 to Dexterity","s":"Poison Resist +28%"},{"q":"Perfect","name":"Perfect Emerald","w":"+100 Poison Damage over 7 seconds","a":"+10 to Dexterity","s":"Poison Resist +40%"}]},{"type":"Ruby","color":"#e0556a","role":"Fire · Life · Fire Resist","q":[{"q":"Chipped","name":"Chipped Ruby","w":"Adds 3-4 Fire Damage","a":"+10 to Life","s":"Fire Resist +12%"},{"q":"Flawed","name":"Flawed Ruby","w":"Adds 5-8 Fire Damage","a":"+17 to Life","s":"Fire Resist +16%"},{"q":"Normal","name":"Ruby","w":"Adds 8-12 Fire Damage","a":"+24 to Life","s":"Fire Resist +22%"},{"q":"Flawless","name":"Flawless Ruby","w":"Adds 10-16 Fire Damage","a":"+31 to Life","s":"Fire Resist +28%"},{"q":"Perfect","name":"Perfect Ruby","w":"Adds 15-20 Fire Damage","a":"+38 to Life","s":"Fire Resist +40%"}]},{"type":"Sapphire","color":"#5b8ff0","role":"Cold · Mana · Cold Resist","q":[{"q":"Chipped","name":"Chipped Sapphire","w":"Adds 1-3 Cold Damage","a":"+10 to Mana","s":"Cold Resist +12%"},{"q":"Flawed","name":"Flawed Sapphire","w":"Adds 3-5 Cold Damage","a":"+17 to Mana","s":"Cold Resist +16%"},{"q":"Normal","name":"Sapphire","w":"Adds 4-7 Cold Damage","a":"+24 to Mana","s":"Cold Resist +22%"},{"q":"Flawless","name":"Flawless Sapphire","w":"Adds 6-10 Cold Damage","a":"+31 to Mana","s":"Cold Resist +28%"},{"q":"Perfect","name":"Perfect Sapphire","w":"Adds 10-14 Cold Damage","a":"+38 to Mana","s":"Cold Resist +40%"}]},{"type":"Topaz","color":"#e6c84a","role":"Lightning · Magic Find · Lightning Resist","q":[{"q":"Chipped","name":"Chipped Topaz","w":"Adds 1-8 Lightning Damage","a":"+9% Better Chance of Getting Magic Items","s":"Lightning Resist +12%"},{"q":"Flawed","name":"Flawed Topaz","w":"Adds 1-14 Lightning Damage","a":"+13% Better Chance of Getting Magic Items","s":"Lightning Resist +16%"},{"q":"Normal","name":"Topaz","w":"Adds 1-22 Lightning Damage","a":"+16% Better Chance of Getting Magic Items","s":"Lightning Resist +22%"},{"q":"Flawless","name":"Flawless Topaz","w":"Adds 1-30 Lightning Damage","a":"+20% Better Chance of Getting Magic Items","s":"Lightning Resist +28%"},{"q":"Perfect","name":"Perfect Topaz","w":"Adds 1-40 Lightning Damage","a":"+24% Better Chance of Getting Magic Items","s":"Lightning Resist +40%"}]},{"type":"Skull","color":"#c8c2b4","role":"Leech · Regen · Thorns","q":[{"q":"Chipped","name":"Chipped Skull","w":"1% Mana Stolen per Hit / 2% Life Stolen per Hit","a":"Replenish Life +2 / Regenerate Mana 8%","s":"Attacker Takes Damage of 4"},{"q":"Flawed","name":"Flawed Skull","w":"2% Mana Stolen per Hit / 2% Life Stolen per Hit","a":"Replenish Life +3 / Regenerate Mana 8%","s":"Attacker Takes Damage of 8"},{"q":"Normal","name":"Skull","w":"2% Mana Stolen per Hit / 3% Life Stolen per Hit","a":"Replenish Life +3 / Regenerate Mana 12%","s":"Attacker Takes Damage of 12"},{"q":"Flawless","name":"Flawless Skull","w":"3% Mana Stolen per Hit / 3% Life Stolen per Hit","a":"Replenish Life +4 / Regenerate Mana 12%","s":"Attacker Takes Damage of 16"},{"q":"Perfect","name":"Perfect Skull","w":"3% Mana Stolen per Hit / 4% Life Stolen per Hit","a":"Replenish Life +5 / Regenerate Mana 19%","s":"Attacker Takes Damage of 20"}]}];
 window.GEM_TYPES = GEM_TYPES;
+try { window.RUNES = RUNES; } catch(e){}   // v889 — the funnel classifies runes cross-block
 // v264: real D2 gem icons (Fandom-sourced, 4x AI-upscaled, self-hosted under art/gem_*)
 // — replaces the emoji fallback so every gem shows its actual art across the platform.
 try { GEM_TYPES.forEach(function(t){ t.q.forEach(function(g){
@@ -33416,7 +33417,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v888', name:'The Polish Wave', date:'2026-07-19', note:'v888 (Konyo polish orders): util strip dissolved — TV·D is the 6th header tab, THE SHELF is a named rail-floor button, the log toggle lives in the Agent Mind bar; rail is symmetric flex (health card fills, rows breathe evenly, zero dead space); shelf cards wear their own reel thumbnails (?w=160 lane) — screenshot-verified' };
+  window.D2R_BUILD = { id:'v889', name:'The Tools Funnel', date:'2026-07-19', note:'v889 (Grok pp1 A1-A3+A5): tvToolsDelta — every AI-vaulted rune/gem/material tallies into Tools EXACTLY once (durable sid|frame ledger, account-forked), unvault decrements, craft workshop refreshes; playwright lock green' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33706,6 +33707,42 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     } catch(e){}
     return { kind:'note', key:n, label:'📋 '+n, db:false };
   }
+  // v889 (Grok pp1 A1-A3+A5, Konyo: 'TOOLS synced and tallying') — ONE funnel: every
+  // AI-vaulted name flows through here exactly once (durable ledger keyed
+  // sid|frameId|name survives reloads + dual tabs); unvault decrements. Chip-click apply()
+  // below stays the MANUAL lane; the funnel is the AUTOMATED one.
+  function _toolsClassify(name){
+    var clean = String(name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (!clean) return null;
+    var mR = clean.match(/^([A-Z][a-z]+)\s+Rune$/);
+    if (mR && (window.RUNES || []).some(function(r){ return (r.n || r.name || r) === mR[1]; }))
+      return { kind: 'rune', key: mR[1] };
+    var gemHit = null;
+    (window.GEM_TYPES || []).forEach(function(t){ (t.q || []).forEach(function(q){ if (q.name === clean) gemHit = q.name; }); });
+    if (gemHit) return { kind: 'gem', key: gemHit };
+    try { if (typeof findMaterial === 'function' && findMaterial(clean)) return { kind: 'mat', key: clean }; } catch(e){}
+    return null;
+  }
+  function tvToolsDelta(name, delta, meta){
+    try {
+      var c = _toolsClassify(name);
+      if (!c) return false;
+      var id = (meta && meta.sid || '?') + '|' + (meta && meta.frameId || '?') + '|' + c.kind + ':' + c.key + '|' + (delta > 0 ? '+' : '-');
+      var led = [];
+      try { led = JSON.parse(window.LSR.getItem('d2r_tvdTallyLog') || '[]'); } catch(e){ led = []; }
+      if (led.indexOf(id) >= 0) return false;   // exactly once, forever
+      led.push(id); if (led.length > 2000) led = led.slice(-2000);
+      try { window.LSR.setItem('d2r_tvdTallyLog', JSON.stringify(led)); } catch(e){}
+      if (c.kind === 'rune' && typeof window.adjustRuneStash === 'function') window.adjustRuneStash(c.key, delta);
+      else if (c.kind === 'gem' && typeof window.adjustGemStash === 'function') window.adjustGemStash(c.key, delta);
+      else if (c.kind === 'mat' && typeof window.adjustMaterialStash === 'function') window.adjustMaterialStash(c.key, delta);
+      else return false;
+      try { if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop(); } catch(e){}
+      return true;
+    } catch(e){ return false; }
+  }
+  window.tvToolsDelta = tvToolsDelta;
+
   function apply(kind,key,chip){
     try {
       if(kind==='rune'){ runeStash[key]=(parseInt(runeStash[key],10)||0)+1; persist(); if(typeof renderRuneStash==='function') renderRuneStash(); }
@@ -34472,6 +34509,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           });
         } catch (e) {}
         function _nN(s){ return String(s||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); }
+        // v889 (Grok pp1 A2/A3) — THE FUNNEL: vaulted runes/gems/materials tally into TOOLS
+        // exactly once (ledger-deduped); unvault decrements the same key.
+        try {
+          var _tMeta = { sid: rd.sessionId || '', frameId: rd.frameId || rd.frame_id || '' };
+          vaultList.forEach(function(n){ if (window.tvToolsDelta) window.tvToolsDelta(n, +1, _tMeta); });
+          unvaultList.forEach(function(n){ if (window.tvToolsDelta) window.tvToolsDelta(n, -1, _tMeta); });
+        } catch(e){}
         vaultList.forEach(function(n){ vaultSet[_nN(n)] = true; });
         pendingList.forEach(function(n){ pendSet[_nN(n)] = true; });
         confList.forEach(function(n){ confSet[_nN(n)] = true; });

@@ -1722,3 +1722,16 @@ gone (three screenshots iterated, each actually looked at). Shelf cards now wear
 run's art: the middle reel frame via the ?w=160 cache lane ('the run IS the art' — replaces
 text-only cards; his HD-art ask). Hidden compat stubs keep old btn-board/btn-theatre/btn-log
 wiring + specs honest. RINSE visual lock updated 5→6 tabs. 149/149 + 30/30 + roundtrip OK.
+
+## 🧰 v889 "THE TOOLS FUNNEL" (Grok pingpong round 1 → implement, Jul 19 morning)
+Grok pp1 verdict: Tools tally had THREE P0 truth bugs — vault lane never touched the stashes
+(A2), stash auto-intake could double-count on top of live vaults (A1), unvault never
+decremented (A3). Shipped THE FUNNEL: window.tvToolsDelta(name, ±1, {sid,frameId}) —
+classify (RUNES / GEM_TYPES / findMaterial) → durable ledger d2r_tvdTallyLog (account-forked,
+capped 2000) → adjust stash exactly once → craft workshop refresh. Wired at the feed's
+vault/unvault lists (sim guard upstream). RUNES exported cross-block (classify was silently
+dead — the new spec caught it first run). tests/v889_tools_funnel.spec.ts GREEN: +1 once,
+same-frame dedupe, unvault −1, junk ignored, new frame counts again. 149/149 + 30/30.
+GROK ROADMAP recorded (v890-v898): materials proof · intake SET semantics (A1 kill) · spine
+live chip · ON AIR doctor lamps · straggler farm-night · 2h soak · SIM drawer empty-states ·
+site lite freeze · nightly seal pack. Series continues autonomously.
