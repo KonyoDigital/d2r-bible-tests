@@ -29648,6 +29648,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + (((errors || _aiErr) ) ? '<div class="vir-scan-errs" style="padding:8px 14px;border-top:1px solid rgba(255,64,64,.18)">' + (errors ? '<div class="vir-line" style="color:var(--hell,#ff4040)">' + errors + ' screenshot' + (errors===1?'':'s') + ' failed — retry or check the connection.</div>' : '') + '</div>' : '')
       + '</div>';
     report.innerHTML = html;
+    // v908-R6 (Grok P0) — the vault wire carries a REAL summary now
+    return { ok: (typeof _newThis !== 'undefined' ? _newThis : logged.length) > 0,
+             total: (typeof _newThis !== 'undefined' ? _newThis : logged.length),
+             added: (function(){ var a = {}; try { (logged || []).slice(0, 40).forEach(function(x){ var k = (x && (x.label || x.key || x.n)) || String(x); a[k] = (a[k] || 0) + 1; }); } catch(e){} return a; })(),
+             errors: errors || 0, dupes: (dupes || []).length, kind: 'vault' };
     } finally { window._vIntakeBusy = false; }   // v405 — ALWAYS clear (early return / throw included) so the folder auto-watch never wedges
   };
 
@@ -33638,15 +33643,16 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var BR = 'http://127.0.0.1:' + (window._tvdBridgePort || 17771);
         fetch(BR + '/intake_result', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
-                                 ok: (_vr === undefined) ? true : !!(_vr && _vr.ok !== false),
-                                 counts: (_vr && _vr.added) || {},
+                                 ok: !!(_vr && _vr.ok), counts: (_vr && _vr.added) || {},
+                                 total: (_vr && _vr.total) || 0, errors: (_vr && _vr.errors) || 0,
                                  frameId: (opts && opts.frameId) || '' }) }).catch(function(){});
       } catch(e){}
       try {
         var st = document.getElementById('vault-status');
         if (st) st.textContent = '📺 TV vault auto-intake (locked 📸 path · stay on SESSIONS)';
       } catch(e){}
-      return { ok:true, bytes: blob.size };
+      return { ok: !!(_vr && _vr.ok), bytes: blob.size,
+               total: (_vr && _vr.total) || 0, counts: (_vr && _vr.added) || {} };   // v908-R6 — vault truth
     } catch (e) {
       return { ok:false, why: String(e && e.message || e) };
     } finally {
@@ -33714,7 +33720,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
                                  total: (_ir && _ir.total) || 0, errors: (_ir && _ir.errors) || 0,
                                  frameId: (opts && opts.frameId) || '' }) }).catch(function(){});
       } catch(e){}
-      return { ok:true, tab: tab, bytes: blob.size, counts: (_ir && _ir.added) || {} };
+      return { ok: !!(_ir && _ir.ok), tab: tab, bytes: blob.size,
+               total: (_ir && _ir.total) || 0, counts: (_ir && _ir.added) || {} };   // v908-R6 — no ok-lie
     } catch(e){
       return { ok:false, why: String(e && e.message || e) };
     } finally {

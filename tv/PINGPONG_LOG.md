@@ -1851,3 +1851,17 @@ R3 back-pass = Grok P1/P2/P3 landed same round: library page anchored by session
 order-proof forgeSummary compare (array-order false rewrites dead) · R4 verify = all gates
 green ×2 (first pass flaked under machine load — reran isolated per doctrine). Rounds 5-7
 (polish/back-pass/seal) continue next cycle with Grok. 150/150 + 32/32 + roundtrip OK.
+
+## 🔏 v908 SEAL — rounds 5-7 complete (7-round cycle CLOSED, Jul 19 ~21:20)
+R5 Grok back-pass verdicts (all implemented in R6): P0 wrapper ok-lie — outer returns now
+mirror the intake truth (stash {ok:_ir.ok,total,counts} · vault {ok:_vr.ok,total,counts});
+P0 vault summary hole — vaultIntake returns {ok,total,added(labels×n),errors,dupes,kind} at
+its natural end, the vault wire carries real numbers; P1 THE SHOT IS VISIBLE — intake beats
+carry frame/frameOk (server file-check) and the drawer inlines /hist/<id>.jpg?w=1280; P1/P2
+honest zero-read — '0 read this shot' (not the pre-v908 label), caption dims 0-read and saves
+⚠ for real errors, timeline tick thins+dims on empty shots. R7 SEAL MATRIX GREEN
+(tests/v908_connector_seal.spec.ts 2/2): wrappers never lie (empty→ok:false posted+returned,
+full→counts/total on the wire, vault kind+labels), _fsCmp order-proof (identical rescan = zero
+rewrite). All gates: 150/150 + 32/32 + roundtrip OK. v908 = the first version sealed under the
+SEVEN-ROUND RULE. Next: v909 per-key guard v2 · v910 chronicle-relevance sweep · TV·D site
+presence + console visual-dashboard treatment per Konyo's open items.

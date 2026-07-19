@@ -809,6 +809,7 @@
   .dc-why { margin: 8px 0 0; color: var(--gold-hi); font: 600 11px/1.35 ui-sans-serif, system-ui, sans-serif; }
   .th-beat.skiptick { opacity: .18; background: #6d6353 !important; height: 4px; min-width: 1px; }   /* v880 — 'agent chose to wait' tick */
   .th-beat.intaketick { background: #b9a5ff !important; height: 16px; box-shadow: 0 0 8px rgba(185,165,255,.5); }   /* v902 — 📸 intake fired */
+  .th-beat.intaketick.zero { opacity: .35; height: 8px; box-shadow: none; }   /* v908-R6 — honest empty shot */
   .th-chip.th-tag { opacity: .85; } .th-chip.th-tag i { font-style: normal; opacity: .65; font-size: 10px; }
   .th-airead { display: inline-block; text-align: left; margin-top: 6px; padding: 8px 14px;
     max-width: min(560px, 84%);   /* v850 — the card, not a banner */
@@ -1506,7 +1507,8 @@
       var ik2 = b.intake || {};
       var n2 = Object.keys(ik2.counts || {}).length;
       return '📸 <b>INTAKE · ' + esc(ik2.tab || ik2.kind || 'shot') + '</b>'
-        + (ik2.ok ? ' · +' + (ik2.total || n2) + (n2 ? ' / ' + n2 + ' type' + (n2 > 1 ? 's' : '') : '') : ' · nothing read')
+        + (ik2.ok ? ' · +' + (ik2.total || n2) + (n2 ? ' / ' + n2 + ' type' + (n2 > 1 ? 's' : '') : '')
+            : (ik2.errors ? ' · ⚠ ' + ik2.errors + ' error' + (ik2.errors > 1 ? 's' : '') : ' · <span style="opacity:.5">0 read</span>'))
         + ' <span style="opacity:.55">· ' + new Date(b.ts).toLocaleTimeString() + '</span>';
     }
     if (!b) return '';
@@ -1915,7 +1917,7 @@
       if (k > 0 && b.area && TH.beats[k-1] && b.area !== TH.beats[k-1].area) cls += ' chap';   // v790 — chapter tick
       if (b.footage) cls += ' foot';   // v826 — hairline footage tick
       if (b.skip) cls += ' skiptick';  // v880 (SIM A2.8) — dim no-eyes tick
-      if (b.intakeBeat) cls += ' intaketick';  // v902 — 📸 the intake fired here
+      if (b.intakeBeat) cls += ' intaketick' + ((b.intake && b.intake.ok === false) ? ' zero' : '');  // v902/v908
       if ((b.vault_names||[]).length) cls = cls + ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
@@ -2077,8 +2079,10 @@
         + '<h4>📸 intake · ' + esc(ik.tab || ik.kind || 'shot') + '</h4>'
         + '<div class="kv"><span class="k">when</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '</span></div>'
         + '<div class="kv"><span class="k">verdict</span><span class="v">' + (ik.ok ? ('✅ tallied ' + (ik.total || Object.keys(ik.counts || {}).length)) : '⚠ nothing read') + (ik.errors ? ' · ' + ik.errors + ' err' : '') + '</span></div>'
-        + (rows ? '<h4>the tally</h4>' + rows : '<div class="col" style="opacity:.6">counts not carried (pre-v908 beat)</div>')
-        + (bF.frameId ? '<div class="kv"><span class="k">photo</span><span class="v">' + esc(bF.frameId) + '</span></div>' : '');
+        + (rows ? '<h4>the tally</h4>' + rows
+            : '<div class="col" style="opacity:.6">' + (bF.intake && bF.intake.ok === false ? '0 read this shot' : 'counts not carried (pre-v908 beat)') + '</div>')
+        + (bF.frame ? '<img src="/hist/' + encodeURI(bF.frame) + '?w=1280" alt="" style="width:100%;border-radius:8px;margin-top:10px;border:1px solid rgba(185,165,255,.3)" loading="lazy">'
+            : (bF.frameId ? '<div class="kv"><span class="k">photo</span><span class="v">' + esc(bF.frameId) + '</span></div>' : ''));
       var x0 = document.getElementById('th-drawer-x');
       if (x0) x0.onclick = function(){ if (CARD.open) thCardToggle(); };
       return;

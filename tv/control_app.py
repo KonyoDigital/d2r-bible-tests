@@ -1511,9 +1511,12 @@ class Handler(BaseHTTPRequestHandler):
                 if r.get("lane") == "intake":
                     # v902 — 📸 intake beat: the library shows what the locked pipeline did,
                     # time-synced to the frame the shot came from
+                    _ifid = str(r.get("frameId") or "")
+                    _ifr = (_ifid + ".jpg") if (_ifid and os.path.isfile(os.path.join(HIST_DIR, _ifid + ".jpg"))) else ""
                     beats.append({"ts": int(r.get("ts") or 0), "captureTs": int(r.get("ts") or 0),
                                   "intakeBeat": True, "intake": r.get("intake") or {},
-                                  "note": r.get("note") or "", "frameId": r.get("frameId") or "",
+                                  "note": r.get("note") or "", "frameId": _ifid,
+                                  "frame": _ifr, "frameOk": bool(_ifr),   # v908-R6 — the film paints the SHOT
                                   "names": [], "scene": "intake", "area": "", "lane": "intake"})
                     continue
                 if r.get("kind") == "skip":
