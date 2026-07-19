@@ -76,7 +76,10 @@ async function waitOff(ms = 20000) {
 
 test.describe('v773 app ↔ site 1:1 with real agent', () => {
   test.beforeAll(async () => {
-    // control must be up
+    // control must be up — but CI has none: bail here and let the beforeEach gate skip each
+    // test cleanly (a throwing beforeAll marks the whole describe FAILED, not skipped — the
+    // v884 Mac-gate contract only worked for the ungated describe).
+    if (!(await controlUp())) return;
     const s = await get(CTRL + '/api/status');
     expect(s.ok).toBe(true);
     await post('/api/off').catch(() => {});

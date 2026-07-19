@@ -2047,3 +2047,16 @@ The multi-worker robot as a product · public/site-hosted reader · memory/promp
 ## 7 · GREEN CHECKLIST
 [x] stamps one truth (v917 everywhere) [x] dual-context TV·D [x] last soak PASS
 [x] roundtrip local OK [x] no open P0 [x] ledger current — awaiting: his first real farm night.
+
+## ✅ v918 "CHECK & DEBUG" (Konyo's order, Jul 20 ~02:00) — the seal was premature; now it's true
+Konyo said "check and debug" — and the sweep found the v922 report's "all CI lanes green" claim
+FALSE: tv-tests red (intake smoke grep vs escaped-JSON body) + Routine I red (8 tests). Two were
+REAL product bugs: REG-028 (site #tvd deep link eaten by the boot hash normalizer — "truly live"
+wasn't, on a real boot) and REG-029 (vaulted runes/gems DOUBLE-TALLIED since v889 — the funnel
+and the legacy apply() both fired; the exactly-once law had a two-lane hole the isolated funnel
+spec couldn't see). Six were spec-lag: #th-cinema→#th-fs, #th-stage gone, OFF-stage 250px cap
+(v905 law), cockpit card count 5→6 (task force), ask-card index (tools-spine), v643 stability
+2px→8px (CI art-load reflow), v773 beforeAll ECONNREFUSED→clean skip. Local verify: 56+11 board
+spec runs green incl. all exactly-once guardians + v635 bleed-proof; agent 150 + control 32 green;
+console probe 900/900 one-viewport, zero console errors; board probe 17/17 tabs true, grail
+243/403 exact on all three surfaces. CI verdict on this push = the real seal.

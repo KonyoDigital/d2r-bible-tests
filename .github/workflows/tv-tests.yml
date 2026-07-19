@@ -17,4 +17,5 @@ jobs:
         run: python3 tv/test_roundtrip_sim.py
       - name: Intake wiring smoke (node runner executes the real intake.js, no model call)
         run: |
-          echo '{"path":"/api/intake","body":{"ping":1}}' | node tv/intake_local.mjs | grep -q '"missing image"' && echo "intake runner OK"
+          # body arrives as an escaped JSON string ({"status":400,"body":"{\"error\":\"missing image\"}"}) — grep escape-proof
+          echo '{"path":"/api/intake","body":{"ping":1}}' | node tv/intake_local.mjs | grep -q 'missing image' && echo "intake runner OK"

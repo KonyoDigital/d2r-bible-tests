@@ -3364,7 +3364,7 @@ window.LSR = (function(){
 // v786 (night R3 pick 1) — ?app=1 = the APP RAIL sent this hash. That is INTENT, not residue:
 // 4 of 5 family tabs (#session/#forge/#funi/#fsets) were being clobbered to #tools here before
 // the router ever saw them. Plain-browser refresh still homes to tools (v680 behavior intact).
-try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd-on' || _h680 === '#tvd-off' || _h680 === '#session');   /* v905 — explicit #tvd is the SMOOTH TOGGLE, never coerced */ if ((!_h680 || _h680 === '#') || (_app680 && _tv680)) { try { window.history.replaceState(null, '', '#session'); } catch(eH){} }   /* v906 — SITE and console land HOME on Sessions, hand in hand */ else if (_h680 && _h680 !== '#tools' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
+try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd-on' || _h680 === '#tvd-off' || _h680 === '#session');   /* v905 — explicit #tvd is the SMOOTH TOGGLE, never coerced */ if ((!_h680 || _h680 === '#') || (_app680 && _tv680)) { try { window.history.replaceState(null, '', '#session'); } catch(eH){} }   /* v906 — SITE and console land HOME on Sessions, hand in hand */ else if (_h680 && _h680 !== '#tools' && _h680 !== '#tvd' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); /* v918 — #tvd is USER INTENT on the site too (v768 law); the normalizer must not eat it */ } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -33565,7 +33565,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v917', name:'Truly Live', date:'2026-07-20', note:'v917 (Grok P0): the v901 switchTab tvd-to-session coerce is DEAD — TV-D opens for real on the site (verified: active tab = tvd); only the legacy lamp aliases still land on the cockpit' };
+  window.D2R_BUILD = { id:'v918', name:'Check & Debug', date:'2026-07-20', note:'v918 — the check-and-debug sweep: site #tvd deep link un-eaten (boot normalizer, REG-028) + vaulted rune/gem DOUBLE-TALLY killed (funnel owns the lane, REG-029) + 8 CI reds re-greened' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34828,7 +34828,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             try {
               var vaultName = x.kind==='rune' ? (x.key+' Rune') : (x.key||'');
               if (!vaultSet[_nN(x.key)] && !vaultSet[_nN(vaultName)]) return;
-              if(x.kind!=='note' && x.kind!=='item' && !x.done){ apply(x.kind, x.key, null); x.done=true; }
+              // v918 (check-and-debug) — EXACTLY ONCE: the v889 funnel (tvToolsDelta) already
+              // tallies vaulted runes/gems into Tools (+ debt for the photo law). Running the
+              // legacy apply() too counted every vaulted rune/gem TWICE. The funnel owns the
+              // kinds it can classify; apply() stays for uni/set toggles and manual chips.
+              var _fOwn = (x.kind==='rune'||x.kind==='gem') && typeof window.tvToolsDelta==='function' && !!_toolsClassify(x.kind==='rune' ? (x.key+' Rune') : x.key);
+              if(x.kind!=='note' && x.kind!=='item' && !x.done){ if (!_fOwn) apply(x.kind, x.key, null); x.done=true; }
               var vr = null;
               if(vaultName && typeof window.tvVaultRegister==='function'){ vr = window.tvVaultRegister(vaultName); _regd[_nN(vaultName)] = true; _regd[_nN(x.key)] = true; }
               x.vault = !!(vr && vr.ok && vr.mode !== 'throwout');

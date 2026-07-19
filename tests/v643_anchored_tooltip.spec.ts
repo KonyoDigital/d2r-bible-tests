@@ -83,8 +83,10 @@ test('the card opens glued to the hovered item and never detaches across the scr
       a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: ar.right - 3, clientY: ar.bottom - 3 }));
       await new Promise((res) => setTimeout(res, 80));
       const tr2 = tip.getBoundingClientRect();
-      // ≤2px tolerance: content settling + the v639 hover-pop scale cause sub-pixel drift, not jumps
-      const still = Math.abs(tr2.left - tr.left) <= 2 && Math.abs(tr2.top - tr.top) <= 2;
+      // ≤8px tolerance: content settling, the v639 hover-pop scale, and CI's late art-image
+      // load (the card reflows when the PNG lands) drift a few px — the guarded bug-class is
+      // the tooltip RE-ANCHORING across the screen (tens-to-hundreds of px), which 8px catches.
+      const still = Math.abs(tr2.left - tr.left) <= 8 && Math.abs(tr2.top - tr.top) <= 8;
       results.push({ name: (a as any).getAttribute('data-arttip'), adjacent, onScreen, still });
       a.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
       await new Promise((res) => setTimeout(res, 60));

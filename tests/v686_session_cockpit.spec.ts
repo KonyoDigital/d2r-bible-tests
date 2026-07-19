@@ -39,7 +39,7 @@ test('cockpit renders 4 cards + live KPIs + freshness chips on the seeded profil
     };
   });
   expect(r.active).toBe(true);
-  expect(r.cards).toBe(5);                                    // ops · tz · intel · log · 📺 TV DIABLO (v710)
+  expect(r.cards).toBe(6);                                    // ops · tz · intel · log · 📺 TV DIABLO (v710) · ⚔️ DAILY TASK FORCE (v907)
   expect(r.kpiText).toContain('Chronicle');
   expect(r.kpiText).toContain('Grail');
   // v691 (🏓 R1) — 2+ stale stashes collapse into ONE intel-gate chip ('N of 4 stashes unscanned');

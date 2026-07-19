@@ -125,13 +125,18 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     await page.waitForTimeout(1200);
     await page.click('#btn-sim');
     await page.waitForTimeout(1000);
-    await page.click('#th-cinema');
+    await page.click('#th-fs');   // v913 chrome: the ⛶ cinema button is #th-fs now
     await page.waitForTimeout(400);
     expect((await state(page)).cinema).toBe(true);
     // the stage must be visibly painting (not the v-cinema black-screen regression, REG-024)
     const stageVisible = await page.evaluate(() => {
-      const st = document.getElementById('th-stage');
-      return !!st && st.getBoundingClientRect().height > 100;
+      // v913 chrome: #th-stage is gone — the theatre body is #theatre with #th-film/#th-card
+      // inside. REG-024's class is the cinema visibility cascade hiding EVERYTHING: assert the
+      // theatre has real height AND its content is computed-visible.
+      const th = document.getElementById('theatre');
+      const inner = document.getElementById('th-film') || document.getElementById('th-card');
+      return !!th && th.getBoundingClientRect().height > 100
+        && !!inner && getComputedStyle(inner).visibility === 'visible';
     });
     expect(stageVisible).toBe(true);
     await page.keyboard.press('Escape');
@@ -153,7 +158,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     });
     expect(vis.tabs).toBe(6);   // v888 — TV·D joined the header nav
     expect(vis.stageW).toBeGreaterThan(400);
-    expect(vis.stageH).toBeGreaterThan(300);
+    expect(vis.stageH).toBeGreaterThan(200);   // v905 OFF-state law: stage capped at 250px — the dash owns the homepage
     expect(vis.phase.length).toBeGreaterThan(2);   // STANDBY/WATCHING — never empty
     await page.screenshot({ path: 'test-results/rinse-visual.png' });   // artifact for the humans
   });

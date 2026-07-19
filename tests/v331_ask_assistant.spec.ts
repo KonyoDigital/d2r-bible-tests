@@ -39,7 +39,7 @@ test('the #ask-bible-card injects at the TOP of the Tools tab (above the Vault) 
     return {
       present: !!card,
       aboveVault: aiIdx >= 0 && (vaultIdx === -1 || aiIdx < vaultIdx),
-      nearTop: aiIdx >= 0 && aiIdx <= 1,
+      nearTop: aiIdx >= 0 && aiIdx <= 2,   // tools-spine (nav strip) + quick-upload ride first; the AI card is the first CARD
       hasInput: !!document.getElementById('ask-input'),
       hasScan: !!document.querySelector('#ask-bible-card .ask-chip-scan'),
       chips: document.querySelectorAll('#ask-bible-card .ask-chip').length,
