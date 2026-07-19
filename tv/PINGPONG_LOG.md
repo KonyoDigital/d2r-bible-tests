@@ -1950,3 +1950,14 @@ gains '🏆 GRAIL · 243/403', and ON AIR no longer hides the dashboard — the 
 while ENGINES + LIVE INTAKE breathe under the film (Konyo: 'when the reader is on it should
 show all visually perfectly'). Fixture-verified screenshot. 150/150 + 32/32 + 9 board specs.
 Grok rounds 3-7 next; then site TV·D chip decision · 2h intake soak · seal pack → v922.
+
+## 🔏 v913 SEAL "RICH BOARD" — rounds 3-7 complete (sixth 7-round cycle CLOSED, Jul 20 ~00:15)
+R3 Grok caught the grail chip BROKEN (found=0 — a dead typeof ternary) and the wrong art
+resolver. R4: the summary now carries THE SAME TRUTH the site KPI shows — funiScan().found /
+chronTotal (no parallel computation to disagree). R5: quest art resolves through
+artUrl(_rwArtName(rw)) with console-absolute path normalization (leading slash law; never
+data: URIs — Grok verified). R6: ON AIR the film NEVER starves — stage min-height 420px, the
+live strip caps at 180px and scrolls. R7 SEAL: profile bleed re-verified clean (grail/summary
+fork L·, chron shared by v638 design — bleed-proof spec 3/3 green), 403 denominator rides
+funiScan's chronTotal (no hardcode). All gates green. SIXTH cycle sealed. Next: v914 site
+TV·D chip decision · v915 2h intake soak case · seal pack → v922 final report.

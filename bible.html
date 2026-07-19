@@ -30665,8 +30665,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
             counts: out.counts || {},
-            art: (function(){ var a = {}; try { (out.now || []).concat(out.onestep || []).slice(0, 12).forEach(function(t){ var u = _fsArt(t.rw); if (u) a[t.rw] = u; }); } catch(e){} return a; })(),   // v913 — HD art rides along
-            grail: (function(){ try { return { found: (typeof foundLog !== 'undefined' ? Object.keys(JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}')).length : 0), total: (typeof ITEMS !== 'undefined' ? 403 : 0) }; } catch(e){ return null; } })(),
+            art: (function(){ var a = {}; try { (out.now || []).concat(out.onestep || []).slice(0, 12).forEach(function(t){
+                var u = '';
+                try { u = (typeof _rwArtName === 'function' && typeof artUrl === 'function') ? (artUrl(_rwArtName(t.rw)) || '') : _fsArt(t.rw); } catch(e2){ u = _fsArt(t.rw); }
+                if (u){ if (u.charAt(0) !== '/' && u.indexOf('http') !== 0 && u.indexOf('data:') !== 0) u = '/' + u; a[t.rw] = u; }
+            }); } catch(e){} return a; })(),   // v913-R5 (Grok) — the RW resolver + console-absolute paths
+            grail: (function(){ try { var fu = window.funiScan(); return fu ? { found: fu.found, total: fu.chronTotal || fu.total } : null; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
             chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}'); return { made: Object.keys(rm).length }; } catch(e){ return null; } })()
         };
         // v903.1 — write ONLY on real change: the volatile ts re-serialized identical quests

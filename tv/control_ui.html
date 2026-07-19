@@ -903,7 +903,8 @@
   /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
      a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
   body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge { display: none; }
-  body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; }
+  body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; max-height: 180px; overflow-y: auto; }
+  body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
   .hd-chip.nm { color: var(--mint); border-color: rgba(143,230,160,.4); }
   /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
