@@ -1774,3 +1774,16 @@ film thinned (~2–3 fps wall kept; dense near AI reads); (3) FULL edge times zi
 (18–55ms) and linger near loot (40–180ms); (4) default speed 2×, deck 1→2→4→8→0.5;
 (5) deeper preload + no smooth-scroll/aperture tax during autoplay; (6) seal detect also
 matches scene=session_end. REAL still one click for forensic 1:1.
+
+## 📸 v902 "THE INTAKE REEL" (verify Grok v901 + Konyo wires, Jul 19 eve)
+VERIFIED Grok's v901 pivot (all gates green: 150+32+roundtrip) — chain confirmed: settle →
+live frame → the SAME locked vaultIntake/intake 📸 path (subscription lane). Third-eye
+findings implemented: (1) SIM CROSS-REFERENCE — the board now POSTs every auto-intake result
+to the bridge (/intake_result) which journals a lane:'intake' beat; the reel shows purple 📸
+ticks and shelf cards carry '📸 N intakes' — the retro debugger shows what intake DID,
+time-synced to the photo; (2) GUARD RECONCILED — the v890 double-count guard shrinks from
+session-lock to a 60s window (the flagship photo lane can never be blocked all night);
+(3) library summary counts intakes. Konyo course-set: robot machinery stays (an update, not
+surgery) wired under the intake product. 150/150 + 32/32 + parity. NEXT (his order): 20 more
+versions with Grok pingpong rounds — SESSIONS dashboard homepage in the console, TV·D smooth
+toggle, library restructure deepening, then the arc.

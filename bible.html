@@ -33425,7 +33425,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v901', name:'Auto Intake · SESSIONS', date:'2026-07-19', note:'v901: ON AIR = Auto Intake (Robot frozen); console home = SESSIONS; TV·D peer tab retired' };
+  window.D2R_BUILD = { id:'v902', name:'The Intake Reel', date:'2026-07-19', note:'v902 (verify+wire of Grok v901): every auto-intake journals a photo-synced beat (bridge POST /intake_result) — the reel and library show WHAT INTAKE DID (purple ticks, 📸 chips on shelf cards); double-count guard shrinks to a 60s window so the flagship photo lane never blocks all night' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33514,6 +33514,13 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var file = new File([blob], 'tv-vault-' + Date.now() + '.jpg', { type: blob.type || 'image/jpeg' });
       window._vaultAutoDone = true;
       await window.vaultIntake([file], { fromTv: true });
+      // v902 — the reel learns WHAT INTAKE DID: report back to the bridge, time-synced
+      try {
+        var BR = 'http://127.0.0.1:' + (window._tvdBridgePort || 17771);
+        fetch(BR + '/intake_result', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
+                                 ok: true }) }).catch(function(){});
+      } catch(e){}
       try {
         var st = document.getElementById('vault-status');
         if (st) st.textContent = '📺 TV vault auto-intake (locked 📸 path · stay on SESSIONS)';
@@ -33534,7 +33541,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     // otherwise a vaulted Ist counts once from the vault and again from the stash photo.
     // Manual photo intake from the Tools tab stays available (deliberate = SET intent).
     try {
-      if (window._tvdSessionTallied && /rune|gem/i.test(String(tab || ''))){
+      // v902 — INTAKE IS THE FLAGSHIP now: the guard only defers within 60s of a live
+      // funnel tally (was whole-session, which could block the primary lane all night)
+      if (window._tvdSessionTalliedAt && (Date.now() - window._tvdSessionTalliedAt) < 60000 && /rune|gem/i.test(String(tab || ''))){
         var _vs = document.getElementById('vault-status');
         if (_vs) _vs.textContent = '📺 auto-intake deferred — live tally already counted this session (no double count)';
         return { ok: false, why: 'live-tally-guard' };
@@ -33574,7 +33583,12 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       await intake([file]);
       try {
         var st = document.getElementById('vault-status');
-        if (st) st.textContent = '📺 TV stash auto-intake → ' + tab + ' (locked tally · stay on TV·D)';
+        if (st) st.textContent = '📺 TV stash auto-intake → ' + tab + ' (locked tally · stay on SESSIONS)';
+      } catch(e){}
+      try {   // v902 — journal the intake beat (photo-synced) via the bridge
+        var BR2 = 'http://127.0.0.1:' + (window._tvdBridgePort || 17771);
+        fetch(BR2 + '/intake_result', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ts: Date.now(), tab: tab, kind: 'tally', ok: true }) }).catch(function(){});
       } catch(e){}
       return { ok:true, tab: tab, bytes: blob.size };
     } catch(e){
@@ -33783,6 +33797,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       led.push(id); if (led.length > 2000) led = led.slice(-2000);
       try { window.LSR.setItem('d2r_tvdTallyLog', JSON.stringify(led)); } catch(e){}
       window._tvdSessionTallied = true;   // v890 (Grok A1) — arms the auto-intake double-count guard
+      window._tvdSessionTalliedAt = Date.now();   // v902 — the guard is a 60s window, not a session lock
       if (c.kind === 'rune' && typeof window.adjustRuneStash === 'function') window.adjustRuneStash(c.key, delta);
       else if (c.kind === 'gem' && typeof window.adjustGemStash === 'function') window.adjustGemStash(c.key, delta);
       else if (c.kind === 'mat' && typeof window.adjustMaterialStash === 'function') window.adjustMaterialStash(c.key, delta);

@@ -807,6 +807,7 @@
   .dc-river li.dim { opacity: .3; }
   .dc-why { margin: 8px 0 0; color: var(--gold-hi); font: 600 11px/1.35 ui-sans-serif, system-ui, sans-serif; }
   .th-beat.skiptick { opacity: .18; background: #6d6353 !important; height: 4px; min-width: 1px; }   /* v880 — 'agent chose to wait' tick */
+  .th-beat.intaketick { background: #b9a5ff !important; height: 16px; box-shadow: 0 0 8px rgba(185,165,255,.5); }   /* v902 — 📸 intake fired */
   .th-chip.th-tag { opacity: .85; } .th-chip.th-tag i { font-style: normal; opacity: .65; font-size: 10px; }
   .th-airead { display: inline-block; text-align: left; margin-top: 6px; padding: 8px 14px;
     max-width: min(560px, 84%);   /* v850 — the card, not a banner */
@@ -997,7 +998,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v901 control</span>
+      <span id="foot-ver">v902 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1318,7 +1319,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v901') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v902') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1816,6 +1817,7 @@
       if (k > 0 && b.area && TH.beats[k-1] && b.area !== TH.beats[k-1].area) cls += ' chap';   // v790 — chapter tick
       if (b.footage) cls += ' foot';   // v826 — hairline footage tick
       if (b.skip) cls += ' skiptick';  // v880 (SIM A2.8) — dim no-eyes tick
+      if (b.intakeBeat) cls += ' intaketick';  // v902 — 📸 the intake fired here
       if ((b.vault_names||[]).length) cls = cls + ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
@@ -2198,8 +2200,9 @@
       var d0 = sm.t0 ? new Date(sm.t0) : null;
       var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
       var foot = (sm.footageN || 0);
-      var footLine = foot ? ('📹 ' + foot + ' frames · full video')
-        : (sm.stub ? '' : '<span style="opacity:.45">📹 footage retired</span>');
+      var inLine = (sm.intakes || 0) ? ('📸 ' + sm.intakes + ' intake' + (sm.intakes > 1 ? 's' : '') + ' · ') : '';
+      var footLine = foot ? (inLine + '📹 ' + foot + ' frames · full video')
+        : (sm.stub ? '' : inLine + '<span style="opacity:.45">📹 footage retired</span>');
       var art = sm.thumb ? '<img class="sh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
         + art

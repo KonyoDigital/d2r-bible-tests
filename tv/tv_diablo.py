@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v901"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v902"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -392,6 +392,47 @@ def bridge():
             self.send_header("access-control-allow-origin", "*")
             self.send_header("cache-control", "no-store")
             self.end_headers()
+        def do_POST(self):
+            # v902 (Konyo: 'wire the library to the AI READER and automatic intake') —
+            # the board posts each auto-intake RESULT here; it becomes a journaled beat
+            # (lane 'intake') time-synced to the frame the shot came from, so the SIM reel
+            # and the session library show WHAT INTAKE DID, cross-referenced to the photo.
+            if self.path.startswith("/intake_result"):
+                try:
+                    ln = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(ln).decode("utf-8", "replace") or "{}") if ln else {}
+                    now_ms = int(time.time() * 1000)
+                    rec = {
+                        "ts": int(body.get("ts") or now_ms), "captureTs": int(body.get("ts") or now_ms),
+                        "completedTs": now_ms,
+                        "n": 0, "scene": "intake", "lane": "intake", "mode": "intake",
+                        "names": [], "area": "", "sessionId": SESSION_ID,
+                        "intake": {
+                            "tab": str(body.get("tab") or "")[:24],
+                            "kind": str(body.get("kind") or "")[:16],
+                            "counts": body.get("counts") if isinstance(body.get("counts"), dict) else {},
+                            "items": (body.get("items") or [])[:60],
+                            "ok": bool(body.get("ok", True)),
+                        },
+                        "frameId": str(body.get("frameId") or "")[:48],
+                        "note": ("📸 intake · " + str(body.get("tab") or body.get("kind") or "shot"))[:80],
+                    }
+                    _journal(rec)
+                    with _state_lock:
+                        st = _load()
+                        st.setdefault("intakes", [])
+                        st["intakes"].append({k: rec[k] for k in ("ts", "intake", "frameId", "note")})
+                        st["intakes"] = st["intakes"][-60:]
+                        _save(st)
+                    self._hdr(); self.wfile.write(b'{"ok":true}')
+                except Exception as e:
+                    try:
+                        self._hdr(); self.wfile.write(json.dumps({"ok": False, "msg": str(e)[:120]}).encode())
+                    except Exception:
+                        pass
+                return
+            self._hdr(); self.wfile.write(b'{"ok":false,"msg":"unknown"}')
+
         def do_GET(self):
             from urllib.parse import urlparse, parse_qs
             if self.path.startswith("/state"):

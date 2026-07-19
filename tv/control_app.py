@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v901)
+# 📺 TV DIABLO — Control App (Mac + Windows · v902)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1018,7 +1018,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v901",
+        "ver": "v902",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1405,6 +1405,7 @@ class Handler(BaseHTTPRequestHandler):
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
                              and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
                     "footageN": _reeln,   # v883 — the shelf tells the truth about video
+                    "intakes": len([r2 for r2 in sess if r2.get("lane") == "intake"]),   # v902
                     "thumb": _thumb,      # v890 — HD filmstrip art from the run itself
                     "sessionId": sid,
                             # v840 — SIM honesty: how much of the night is still replayable
@@ -1495,6 +1496,14 @@ class Handler(BaseHTTPRequestHandler):
             sess = sessions[n - 1]
             beats = []
             for r in sess:
+                if r.get("lane") == "intake":
+                    # v902 — 📸 intake beat: the library shows what the locked pipeline did,
+                    # time-synced to the frame the shot came from
+                    beats.append({"ts": int(r.get("ts") or 0), "captureTs": int(r.get("ts") or 0),
+                                  "intakeBeat": True, "intake": r.get("intake") or {},
+                                  "note": r.get("note") or "", "frameId": r.get("frameId") or "",
+                                  "names": [], "scene": "intake", "area": "", "lane": "intake"})
+                    continue
                 if r.get("kind") == "skip":
                     beats.append({"ts": int(r.get("ts") or 0), "captureTs": int(r.get("ts") or 0),
                                   "skip": True, "why": r.get("why") or "", "note": r.get("note") or "",
@@ -2229,7 +2238,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v901 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v902 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
