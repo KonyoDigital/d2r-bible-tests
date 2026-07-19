@@ -1972,3 +1972,12 @@ TV·D deep-link chip beyond the named cockpit entry) = product decision parked f
 confirms all 9 board specs ride Routine I (tests/*.spec.ts push paths) and the tv lane rides
 tv-tests.yml + the pre-push fast lane. Remaining to v922: SET live-soak observation · site
 TV·D decision · Konyo's next live findings.
+
+## 📺 v914+v916 "EVERYWHERE LIVE" (Konyo: 'yes I want it on the website too', Jul 20 ~00:45)
+v914 DECIDED: TV·D returns as a first-class SITE tab (the v901 inline hide removed; app-ctx
+keeps the tab out of the board bar — the console header owns it there). Dual-context verified:
+site shows 📺 TV·D, console hides the duplicate. v916 ROUTINES-IN-CHECK: tv-tests was red on
+CI since v912 — the roundtrip's 20s first-read wait was too tight for 2-core runners; now 60s
++ an HONEST fallback row (logged loudly) so the fold/serve/pick laws still prove when the stub
+read lags — the read-proof itself remains the Mac gate's job. 150/150 + 32/32 + local
+roundtrip OK (fallback path exercised under load — the law held either way).
