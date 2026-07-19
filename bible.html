@@ -21372,9 +21372,18 @@ window._jewelTipHtml = _jewelTipHtml;
       var w=tip.offsetWidth||130, h=tip.offsetHeight||130, vw=window.innerWidth, vh=window.innerHeight, x, y;
       var r = (cur && cur.getBoundingClientRect) ? cur.getBoundingClientRect() : null;
       if (r && (r.width || r.height)){
-        x = r.right + 12;                                   // prefer: beside the item, to the right
-        if (x + w > vw - 8) x = r.left - w - 12;            // no room → to the left
-        if (x < 8){                                          // huge anchor / narrow screen → below/above
+        // v918 — STICKY SIDE: the side is chosen once per hover and kept while the anchor is
+        // unchanged, unless it genuinely stops fitting. Recomputing from the card's CURRENT
+        // width let a mid-hover width drift (late content on slow machines) flip the card to
+        // the other side of the item — the v643 "randomly moving windows" feeling.
+        var fitsR = r.right + 12 + w <= vw - 8, fitsL = r.left - w - 12 >= 8;
+        var side = (cur && cur._tipSide) || null;
+        if (side === 'right' && !fitsR) side = fitsL ? 'left' : null;
+        else if (side === 'left' && !fitsL) side = fitsR ? 'right' : null;
+        else if (!side || (side !== 'right' && side !== 'left')) side = fitsR ? 'right' : (fitsL ? 'left' : null);
+        if (cur) cur._tipSide = side;
+        x = (side === 'left') ? (r.left - w - 12) : (r.right + 12);
+        if (side === null || x < 8){                         // huge anchor / narrow screen → below/above
           x = Math.min(Math.max(8, r.left), vw - w - 8);
           y = (r.bottom + 10 + h <= vh - 8) ? r.bottom + 10 : Math.max(8, r.top - h - 10);
           tip.style.left = x + 'px'; tip.style.top = y + 'px'; return;

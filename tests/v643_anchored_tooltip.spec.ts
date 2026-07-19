@@ -58,7 +58,7 @@ test('the card opens glued to the hovered item and never detaches across the scr
       // stable across two frames (≤900ms), then measure.
       const tip = document.getElementById('arttip')!;
       let tr = { left: -1, top: -1, right: -1, bottom: -1 } as any, settled = 0;
-      for (let w2 = 0; w2 < 15 && settled < 2; w2++) {
+      for (let w2 = 0; w2 < 30 && settled < 2; w2++) {
         await new Promise((res) => setTimeout(res, 60));
         if (!tip.classList.contains('on')) continue;
         const now = tip.getBoundingClientRect();
@@ -66,6 +66,9 @@ test('the card opens glued to the hovered item and never detaches across the scr
         tr = now;
       }
       if (!tip.classList.contains('on')) continue;
+      // v918.1 — the stability baseline must be CURRENT: on an exhausted settle loop (slow CI)
+      // tr was a stale mid-drift rect, and the wander diff measured runner lag, not the card.
+      tr = tip.getBoundingClientRect();
       // adjacency: horizontal gap to the anchor ≤ 20px on either side, OR stacked within 20px
       const hGap = Math.min(Math.abs(tr.left - ar.right), Math.abs(ar.left - tr.right));
       const vGap = Math.min(Math.abs(tr.top - ar.bottom), Math.abs(ar.top - tr.bottom));

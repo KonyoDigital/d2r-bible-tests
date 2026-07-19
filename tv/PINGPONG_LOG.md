@@ -2060,3 +2060,11 @@ spec couldn't see). Six were spec-lag: #th-cinema→#th-fs, #th-stage gone, OFF-
 spec runs green incl. all exactly-once guardians + v635 bleed-proof; agent 150 + control 32 green;
 console probe 900/900 one-viewport, zero console errors; board probe 17/17 tabs true, grail
 243/403 exact on all three surfaces. CI verdict on this push = the real seal.
+
+## v918.2 — the STICKY-SIDE tooltip (the last CI red, run to ground)
+The v643 stability red survived two spec recalibrations because it was (at least partly) REAL:
+move() recomputed the card's side from its CURRENT width on every mousemove, so any mid-hover
+width drift (late content on a slow machine) flipped the card across the item — the original
+v643 "randomly moving windows" class, still reachable. Product: the side is now chosen once per
+hover and kept while it fits (cur._tipSide). Spec: settle budget 15→30 ticks + the stability
+baseline re-read fresh after settling (an exhausted loop measured runner lag, not the card).
