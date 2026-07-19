@@ -33700,6 +33700,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       var m = map[tab];
       var intake = typeof window[m.fn] === 'function' ? window[m.fn] : null;
       if (!intake) return { ok:false, why:'no-intake-fn' };
+      // v912-R5 (Grok race) — SNAPSHOT FIRST, then shoot: a funnel vault landing after this
+      // line is either IN the photo (pre-fetch) or post-shot (debt kept via shotTs below) —
+      // every interleaving nets true.
+      var _prev = {};
+      try {
+        var _storeR5 = tab === 'runes' ? JSON.parse(window.LSR.getItem('d2r_runeStash') || '{}')
+                     : tab === 'gems' ? JSON.parse(window.LSR.getItem('d2r_gemStash') || '{}')
+                     : JSON.parse(window.LSR.getItem('d2r_materialStash') || '{}');
+        Object.keys(_storeR5 || {}).forEach(function(k){ _prev[k] = parseInt(_storeR5[k], 10) || 0; });
+      } catch(e){}
+      var _shotTs = Date.now();
       var resp = await fetch(FRAME0 + '?t=' + Date.now(), { cache:'no-store' });
       if (!resp.ok) return { ok:false, why:'no-frame', status: resp.status };
       var blob = await resp.blob();
@@ -33716,16 +33727,6 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             window.toggleCardCollapse(m.card);
           if (m.render && typeof window[m.render] === 'function') window[m.render]();
         }
-      } catch(e){}
-      // v912 (Grok SET design) — snapshot the stash BEFORE the shot: the AUTO lane makes each
-      // REPORTED key EQUAL the photo's count (the shot is the truth for what it shows).
-      // Unreported keys are never touched, empty shots never zero anything, manual 📸 stays ADD.
-      var _prev = {};
-      try {
-        var _store = tab === 'runes' ? JSON.parse(window.LSR.getItem('d2r_runeStash') || '{}')
-                   : tab === 'gems' ? JSON.parse(window.LSR.getItem('d2r_gemStash') || '{}')
-                   : JSON.parse(window.LSR.getItem('d2r_materialStash') || '{}');
-        Object.keys(_store || {}).forEach(function(k){ _prev[k] = parseInt(_store[k], 10) || 0; });
       } catch(e){}
       var _ir = await intake([file]);
       // SET: reported key → stash equals the photo (subtract what existed before the shot)
@@ -33746,23 +33747,23 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       // 10min, compensate −1 board-side (the locked pipeline is untouched — this is the same
       // public adjust* lane the −/+ buttons use).
       try {
+        // v912-R6 (Grok) — FRESH read at clear time (the funnel may have written since) and
+        // shotTs law: debt from BEFORE the shot is superseded by photo truth; debt stamped
+        // AFTER the shot survives (its copy isn't in this photo — the NEXT shot settles it).
         var _dbt2 = JSON.parse(window.LSR.getItem('d2r_tvdKeyDebt') || '{}') || {};
-        var _now8 = Date.now();
         var _recon = [];
         Object.keys((_ir && _ir.added) || {}).forEach(function(k){
           var kk = ((_ir.kind === 'runes' ? 'rune' : _ir.kind === 'gems' ? 'gem' : 'mat') + ':' + k);
           var _d8 = _dbt2[kk];
-          if (_d8 && _d8.n > 0 && (_now8 - (_d8.last || 0)) < 600000){
-            // v912 — SET already made the stash equal the photo truth (which contains any
-            // vaulted copies still in the tab): the debt is SUPERSEDED, cleared, no arithmetic
-            _recon.push(k + ' (photo truth)');
+          if (_d8 && _d8.n > 0 && (_d8.last || 0) <= _shotTs){
+            _recon.push(k);
             delete _dbt2[kk];
           }
         });
         window.LSR.setItem('d2r_tvdKeyDebt', JSON.stringify(_dbt2));
         if (_recon.length){
           var _vs2 = document.getElementById('vault-status');
-          if (_vs2) _vs2.textContent = '📺 tallied — reconciled with the live vault (no double count: ' + _recon.join(', ') + ')';
+          if (_vs2) _vs2.textContent = '📸 photo truth applied — ' + _recon.join(', ') + ' now match the shot (vault copies included, nothing counted twice)';
         }
       } catch(e){}
       try {

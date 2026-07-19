@@ -1929,3 +1929,15 @@ arithmetic needed). R3 MATRIX 4/4: stale 5 → photo 3 → stash IS 3 · Vex unr
 RE-PHOTO idempotent (the class debt could never fix) · empty shot zeroes NOTHING (the spec
 initially seeded a window-shadow store and failed honestly — reseeded through the real adjust
 lane). 150/150 + 32/32. Grok rounds 4-7 next.
+
+## 🔏 v912 SEAL "PHOTO TRUTH" — rounds 4-7 complete (fifth 7-round cycle CLOSED, Jul 19 ~23:45)
+R4 Grok race verdict → R5 SNAPSHOT-FIRST + SHOT-CLOCK LAW: the stash snapshot moves BEFORE
+the frame fetch and _shotTs stamps the shot — every funnel interleaving now nets true (vault
+pre-fetch = in the photo = superseded · vault post-shot = survives the subtraction AND its
+debt is KEPT: cleared only when debt.last <= shotTs; the next shot settles it). R6: the debt
+clear re-reads FRESH at clear time (the funnel's concurrent write can't be clobbered — the
+RMW hole closed) and the status copy says what actually happened ('📸 photo truth applied —
+Ist now match the shot'). R7 SEAL: Grok's P3/P4 verified clean (statues are SET-safe — counts
+in added{}, collected is set-once; tab/kind plurals aligned end-to-end); the optional manual-📸
+busy-lock noted-not-needed; matrix still 4/4 + all 9 board specs + 150/150 + 32/32 green.
+FIFTH cycle sealed under the seven-round rule. Next: v913 console visual-dashboard richening.
