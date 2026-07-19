@@ -23,15 +23,18 @@
 #                   python3 tv/tv_diablo.py --watch  in another (reads+bridge)
 #   Then in the bible: ⚡ session → 📺 TV DIABLO → flip the switch.
 #
-#   ONE AI READER (v846 TESLA DRIVE): settle freeze → dual-lane (OCR flash + Claude deep).
-#   No scout secondary. Film is high-FPS HD; intel is snappy settle + one deep at a time.
-#   Claude deep is multi-second by nature — OCR chips + smooth film are the "live drive" feel.
+#   ONE logical AI path (scout secondary is DEAD forever):
+#     settle / queue / heartbeat → dual-lane (OCR flash + Claude deep).
+#   v863+ READER POOL: up to TV_POOL concurrent warm Claude workers with capture-order
+#   apply (not a second freestyle scout engine). Film is high-FPS HD; ON AIR status is a
+#   tiny chip. OFF/STOP seal session_end into sessions.jsonl. Claude deep is multi-second
+#   by nature — OCR chips + smooth film are the live-drive feel.
 # ═══════════════════════════════════════════════════════════════════════════════
 import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v892"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v892"   # LIVE CHIP + pool + sealed reels + tools funnel (parity-locked)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
