@@ -33555,7 +33555,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v911', name:'One Motion', date:'2026-07-19', note:'v911 (Konyo: smoother toggling, it feels like moving windows + super HD design): SEAMLESS surface glide — console fades out 140ms, destination breathes in (shellIn / app-ctx arrival fade), the CONSOLE pill glides home the same way; the emblem is THE GRAIL now (Harlequin Crest, warm glow, ohm-rune fallback)' };
+  window.D2R_BUILD = { id:'v912', name:'Photo Truth', date:'2026-07-19', note:'v912 R1-3: the AUTO lane is SET — each reported key equals what the photo shows (pre-shot snapshot, subtract the stale), unreported keys untouched, empty shots zero nothing, manual 📸 stays ADD; re-photo is idempotent (the re-ADD class is dead); v909 debt is superseded-cleared by photo truth; 4/4 matrix' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33717,7 +33717,30 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           if (m.render && typeof window[m.render] === 'function') window[m.render]();
         }
       } catch(e){}
+      // v912 (Grok SET design) — snapshot the stash BEFORE the shot: the AUTO lane makes each
+      // REPORTED key EQUAL the photo's count (the shot is the truth for what it shows).
+      // Unreported keys are never touched, empty shots never zero anything, manual 📸 stays ADD.
+      var _prev = {};
+      try {
+        var _store = tab === 'runes' ? JSON.parse(window.LSR.getItem('d2r_runeStash') || '{}')
+                   : tab === 'gems' ? JSON.parse(window.LSR.getItem('d2r_gemStash') || '{}')
+                   : JSON.parse(window.LSR.getItem('d2r_materialStash') || '{}');
+        Object.keys(_store || {}).forEach(function(k){ _prev[k] = parseInt(_store[k], 10) || 0; });
+      } catch(e){}
       var _ir = await intake([file]);
+      // SET: reported key → stash equals the photo (subtract what existed before the shot)
+      try {
+        if (_ir && _ir.ok){
+          Object.keys(_ir.added || {}).forEach(function(k){
+            var was = _prev[k] || 0;
+            if (was > 0){
+              if (_ir.kind === 'runes' && window.adjustRuneStash) window.adjustRuneStash(k, -was);
+              else if (_ir.kind === 'gems' && window.adjustGemStash) window.adjustGemStash(k, -was);
+              else if (window.adjustMaterialStash) window.adjustMaterialStash(k, -was);
+            }
+          });
+        }
+      } catch(e){}
       // v909 — EXACT double-count kill: the photo total already contains any stack the live
       // funnel just counted (+1 at vault). For each returned key the funnel tallied within
       // 10min, compensate −1 board-side (the locked pipeline is untouched — this is the same
@@ -33730,13 +33753,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           var kk = ((_ir.kind === 'runes' ? 'rune' : _ir.kind === 'gems' ? 'gem' : 'mat') + ':' + k);
           var _d8 = _dbt2[kk];
           if (_d8 && _d8.n > 0 && (_now8 - (_d8.last || 0)) < 600000){
-            var _sub = Math.min(_d8.n, (_ir.added[k] || 0));   // never subtract more than the photo saw
-            if (_sub > 0){
-              if (_ir.kind === 'runes' && window.adjustRuneStash) window.adjustRuneStash(k, -_sub);
-              else if (_ir.kind === 'gems' && window.adjustGemStash) window.adjustGemStash(k, -_sub);
-              else if (window.adjustMaterialStash) window.adjustMaterialStash(k, -_sub);
-              _recon.push(k + (_sub > 1 ? ' ×' + _sub : ''));
-            }
+            // v912 — SET already made the stash equal the photo truth (which contains any
+            // vaulted copies still in the tab): the debt is SUPERSEDED, cleared, no arithmetic
+            _recon.push(k + ' (photo truth)');
             delete _dbt2[kk];
           }
         });

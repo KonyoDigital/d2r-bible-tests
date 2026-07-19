@@ -106,7 +106,50 @@ test.describe('v889 tools funnel', () => {
       return { ist: (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0,
                debt: JSON.parse(localStorage.getItem('d2r_tvdKeyDebt') || '{}') };
     });
-    expect(r2.ist).toBe(3 - 2 + 2);   // photo saw 3 (incl. the 2 vaulted) → −2 debt → stash keeps funnel's 2 + 1 new = 3
-    expect(r2.debt['rune:Ist']).toBeUndefined();          // debt consumed
+    expect(r2.ist).toBe(3);           // v912 — SET truth: the photo saw 3, the stash IS 3
+    expect(r2.debt['rune:Ist']).toBeUndefined();          // debt superseded by photo truth
+  });
+
+  test('v912: auto lane is SET — re-photo idempotent, unreported keys untouched, empty never zeroes', async ({ page }) => {
+    await page.goto(BIBLE, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    const r = await page.evaluate(async () => {
+      const w = window as any;
+      localStorage.removeItem('d2r_tvdKeyDebt');
+      const realFetch = window.fetch;
+      (window as any).fetch = async (url: any, init?: any) => {
+        const u = String(url);
+        if (u.includes('/frame')) return new Response(new Blob([new Uint8Array(9000)], { type: 'image/jpeg' }), { status: 200 });
+        if (u.includes('/intake_result')) return new Response('{"ok":true}');
+        return realFetch(url, init);
+      };
+      // stash starts: 5 Ist (old manual tally) + 4 Vex (not in the next photo) — seeded
+      // through the REAL adjust lane (module truth, not a window shadow)
+      const cur = JSON.parse(localStorage.getItem('d2r_runeStash') || '{}');
+      if (cur.Ist) w.adjustRuneStash('Ist', -cur.Ist);
+      if (cur.Vex) w.adjustRuneStash('Vex', -cur.Vex);
+      w.adjustRuneStash('Ist', 5); w.adjustRuneStash('Vex', 4);
+      const shoot = async () => {
+        w.runeIntake = async () => { w.adjustRuneStash('Ist', 3); return { ok: true, total: 3, added: { Ist: 3 }, errors: 0, kind: 'runes' }; };
+        w._stashIntakeBusy = false;
+        return w.tvStashAutoIntake('runes', { frameId: 'p_' + Math.floor(performance.now()) });
+      };
+      await shoot();
+      const after1 = JSON.parse(localStorage.getItem('d2r_runeStash') || '{}');
+      await shoot();   // RE-PHOTO of the same stack — the class debt could never fix
+      const after2 = JSON.parse(localStorage.getItem('d2r_runeStash') || '{}');
+      // empty shot must never zero anything
+      w.runeIntake = async () => ({ ok: false, total: 0, added: {}, errors: 0, kind: 'runes' });
+      w._stashIntakeBusy = false;
+      await w.tvStashAutoIntake('runes', { frameId: 'p_empty' });
+      const after3 = JSON.parse(localStorage.getItem('d2r_runeStash') || '{}');
+      (window as any).fetch = realFetch;
+      return { after1, after2, after3 };
+    });
+    expect(r.after1.Ist).toBe(3);      // SET: the photo is the truth (5 stale → 3 real)
+    expect(r.after1.Vex).toBe(4);      // unreported key untouched
+    expect(r.after2.Ist).toBe(3);      // RE-PHOTO idempotent — the re-ADD class is dead
+    expect(r.after3.Ist).toBe(3);      // an empty shot zeroes NOTHING
+    expect(r.after3.Vex).toBe(4);
   });
 });

@@ -1918,3 +1918,14 @@ entry SPEAKS ITS NAME ('📺 TV·D live view →' — the one-way silence Konyo 
 owned in copy). All suites + 8 board specs green. v910 + v911 = cycles 3 and 4 sealed under
 the seven-round rule. Next cycles per Grok: auto-lane SET design round · site TV·D deep-link
 chip if Konyo wants more than the cockpit entry · console visual-dashboard richening.
+
+## 📷 v912 "PHOTO TRUTH" R1-3 (auto-lane SET — the re-ADD class dies, Jul 19 ~23:20)
+R1 = Grok's v909-R7 design (safest SET shape). R2: the AUTO lane snapshots the stash before
+the shot; every REPORTED key is made EQUAL to the photo's count (subtract the stale pre-shot
+value); unreported keys never touched; empty shots zero nothing; the manual 📸 lane stays ADD
+(deliberate re-run semantics documented in its own UI). The v909 debt for reported keys is
+SUPERSEDED-cleared (the photo already contains any vaulted copies still in the tab — no
+arithmetic needed). R3 MATRIX 4/4: stale 5 → photo 3 → stash IS 3 · Vex unreported stays 4 ·
+RE-PHOTO idempotent (the class debt could never fix) · empty shot zeroes NOTHING (the spec
+initially seeded a window-shadow store and failed honestly — reseeded through the real adjust
+lane). 150/150 + 32/32. Grok rounds 4-7 next.
