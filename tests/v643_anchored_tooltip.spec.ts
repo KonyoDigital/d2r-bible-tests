@@ -79,8 +79,12 @@ test('the card opens glued to the hovered item and never detaches across the scr
         // clamped case: a tall card centered on the item may extend past its band but MUST touch the side
         || (hGap <= 48);
       const onScreen = tr.left >= 0 && tr.top >= 0 && tr.right <= innerWidth && tr.bottom <= innerHeight;
-      // stability: cursor wanders inside the anchor → the card must not move
-      a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: ar.right - 3, clientY: ar.bottom - 3 }));
+      // stability: cursor wanders inside the anchor → the card must not move. Wander to a
+      // 25%-inset point, NOT the extreme corner: corner coords sit on the positioner's
+      // clamp/flip boundary, which lands differently under Linux font metrics (Archon Plate
+      // flipped sides on CI only — a boundary artifact, not the detach bug-class).
+      a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
+        clientX: ar.left + (ar.right - ar.left) * 0.75, clientY: ar.top + (ar.bottom - ar.top) * 0.5 }));
       await new Promise((res) => setTimeout(res, 80));
       const tr2 = tip.getBoundingClientRect();
       // ≤8px tolerance: content settling, the v639 hover-pop scale, and CI's late art-image
