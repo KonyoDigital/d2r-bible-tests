@@ -3363,7 +3363,7 @@ window.LSR = (function(){
 // v786 (night R3 pick 1) — ?app=1 = the APP RAIL sent this hash. That is INTENT, not residue:
 // 4 of 5 family tabs (#session/#forge/#funi/#fsets) were being clobbered to #tools here before
 // the router ever saw them. Plain-browser refresh still homes to tools (v680 behavior intact).
-try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd' || _h680 === '#tvd-on' || _h680 === '#tvd-off'); if (_h680 && _h680 !== '#tools' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
+try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd' || _h680 === '#tvd-on' || _h680 === '#tvd-off' || _h680 === '#session'); if (_app680 && (!_h680 || _h680 === '#' || _tv680)) { try { window.history.replaceState(null, '', '#session'); } catch(eH){} } else if (_h680 && _h680 !== '#tools' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -3567,12 +3567,12 @@ try {
    <!-- v641 — ⚒ THE WORKSHOP: the DOING tabs (Konyo: "all the other tabs are literally just
         info/data — these should be highlighted and emphasized, structured together as a group") -->
    <div class="tabs-workshop" title="THE WORKSHOP — your live tools: intake, plan, forge, grail-hunt">
-    <button class="tab" data-tab="session">⚡ session</button><!-- v686 — Session Cockpit: tonight's plan on one screen (Grok's idea, rebuilt native) -->
+    <button class="tab" data-tab="session">⚡ SESSIONS</button><!-- v901 — console home: Auto Intake + plan + live feed (TV·D merged) -->
     <button class="tab" data-tab="tools">🧰 tools</button>
     <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="funi">🏆 F·uniques</button>
     <button class="tab" data-tab="fsets">🧩 F·sets</button>
-    <button class="tab" data-tab="tvd">📺 TV·D</button><!-- v710.4 — the live scanner's flagship board (Konyo: "a tab of its own, same style as TV KAI") -->
+    <button class="tab" data-tab="tvd" style="display:none" aria-hidden="true">📺 TV·D</button><!-- v901 — peer tab retired; live board via SESSIONS + #tvd alias -->
    </div>
   </div>
   <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
@@ -4227,7 +4227,7 @@ try {
          polls the localhost bridge, streams what the scanner read, and routes each name through
          the EXISTING engines (grail tick · set tick · rune tally) — review-first, never silent. -->
     <section class="sc-card sc-card-tvd" id="sc-card-tvd" data-tvstate="off">
-      <div class="sc-card-h">📺 TV DIABLO
+      <div class="sc-card-h">📺 Auto Intake · ON AIR
         <!-- v766 — the ON/OFF-AIR pill is the status (mirrors the TV·D tab + the app). The .tvd-switch
              stays hidden ONLY for the dual-render engine + board specs (setState drives its .tvd-word). -->
         <span class="tvd-switch tvd-off" id="tvd-switch" role="status" aria-hidden="true" aria-checked="false" data-tvd-lamp="1">
@@ -4235,7 +4235,7 @@ try {
         </span>
         <span class="tvz-bug tvz-bug-sc" id="tvd-sc-bug" title="auto-synced to the TV DIABLO app — this follows its ON/OFF (not a button)"><span class="tvz-bug-dot"></span><span class="tvz-bug-txt" id="tvd-sc-bug-txt">OFF AIR</span></span>
       </div>
-      <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">app ON · board auto-syncs — the scanner reads what you stop to look at, and it tallies itself</div></div>
+      <div class="sc-body" id="sc-tvd-body"><div class="sc-empty">ON AIR · pause on Runes / Gems / Materials / stash — same AI as Tools 📸 · <button type="button" class="sc-go" onclick="window.switchTab&&window.switchTab('tvd')">full live board →</button></div></div>
     </section>
   </div>
 
@@ -4304,9 +4304,10 @@ body.app-ctx .tabs{position:sticky;top:0;z-index:60;max-width:none;margin:0;padd
 body.app-ctx .tabs .tab{display:none}
 body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
 body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
-body.app-ctx .tabs .tab[data-tab="fsets"],body.app-ctx .tabs .tab[data-tab="tvd"]{
+body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:.08em}
+body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
 /* full-bleed surfaces — every container stretches to the window */
 body.app-ctx .tab-content,body.app-ctx .gsearch-wrap{max-width:none;margin-left:14px;margin-right:14px}
 body.app-ctx .tvf-spine{border-radius:10px;margin:8px 0 12px}
@@ -21875,6 +21876,13 @@ function toggleStatue(name) {
 window.toggleStatue = toggleStatue;
 
 function switchTab(name) {
+  // v901 — #tvd / TV·D aliases land on SESSIONS (peer tab retired)
+  if (name === 'tvd' || name === 'tvd-on' || name === 'tvd-off') {
+    try { if (name === 'tvd-on' || name === 'tvd-off') { /* lamp sync only */ } } catch(e){}
+    name = 'session';
+    try { setTimeout(function(){ var el = document.getElementById('sc-card-tvd'); if (el) el.scrollIntoView({behavior:'smooth',block:'start'}); }, 80); } catch(e){}
+  }
+
   // v504 — guard an UNKNOWN tab id (a stale/typo'd URL hash like #calculator vs #calc) so we no-op
   // gracefully instead of throwing "Cannot read null.classList" and breaking the render.
   var _tabBtn = document.querySelector(`.tab[data-tab="${name}"]`), _tabEl = $("tab-"+name);
@@ -33417,7 +33425,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v893', name:'Fast SIM', date:'2026-07-19', note:'v893: SIM opens FULL compressed (not wall-clock REAL) · thinned quiet film · default 2× · speed to 8× · seal detect fix' };
+  window.D2R_BUILD = { id:'v901', name:'Auto Intake · SESSIONS', date:'2026-07-19', note:'v901: ON AIR = Auto Intake (Robot frozen); console home = SESSIONS; TV·D peer tab retired' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33488,6 +33496,36 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     if (/shared/.test(lo)) return 'shared';
     return '';
   }
+
+  // v901 — PERSONAL/SHARED stash → locked vault photo intake (same as Tools 📸 Vault)
+  window.tvVaultAutoIntake = async function(opts){
+    opts = opts || {};
+    if (window._vaultAutoBusy) return { ok:false, why:'busy' };
+    if (window._vaultAutoDone) return { ok:false, why:'already' };
+    window._vaultAutoBusy = true;
+    try {
+      if (typeof window.vaultIntake !== 'function') return { ok:false, why:'no-vaultIntake' };
+      var FRAME0 = (typeof window.TV_FRAME_URL === 'string' && window.TV_FRAME_URL) || 'http://127.0.0.1:17771/frame';
+      try { if (window._tvdBridgePort) FRAME0 = 'http://127.0.0.1:' + window._tvdBridgePort + '/frame'; } catch(e){}
+      var resp = await fetch(FRAME0 + '?t=' + Date.now(), { cache:'no-store' });
+      if (!resp.ok) return { ok:false, why:'no-frame', status: resp.status };
+      var blob = await resp.blob();
+      if (!blob || !blob.size) return { ok:false, why:'empty-frame' };
+      var file = new File([blob], 'tv-vault-' + Date.now() + '.jpg', { type: blob.type || 'image/jpeg' });
+      window._vaultAutoDone = true;
+      await window.vaultIntake([file], { fromTv: true });
+      try {
+        var st = document.getElementById('vault-status');
+        if (st) st.textContent = '📺 TV vault auto-intake (locked 📸 path · stay on SESSIONS)';
+      } catch(e){}
+      return { ok:true, bytes: blob.size };
+    } catch (e) {
+      return { ok:false, why: String(e && e.message || e) };
+    } finally {
+      window._vaultAutoBusy = false;
+    }
+  };
+
   // Feed the agent's last JPEG into the LOCKED tally pipeline (same as 📸 quick-upload).
   // Never rebuilds intake — only supplies a File. Deep-lane only; OCR never calls this.
   window.tvStashAutoIntake = async function(tab, opts){
@@ -34499,7 +34537,6 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
             if ((stashTab === 'runes' || stashTab === 'gems' || stashTab === 'materials') && !_stashVisitDone[stashTab]) {
               _stashVisitDone[stashTab] = true;
               stashIntakeQueued = true;
-              // fire-and-forget — intake is async; report UI is the intake's own
               try {
                 Promise.resolve(window.tvStashAutoIntake(stashTab)).then(function(r){
                   try {
@@ -34509,10 +34546,23 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
                 });
               } catch(e){}
             }
+            // v901 — personal/shared → locked vault 📸 once per visit
+            if ((stashTab === 'personal' || stashTab === 'shared') && !_stashVisitDone['vault_'+stashTab]) {
+              _stashVisitDone['vault_'+stashTab] = true;
+              stashIntakeQueued = true;
+              try {
+                Promise.resolve(window.tvVaultAutoIntake && window.tvVaultAutoIntake({ tab: stashTab })).then(function(r){
+                  try {
+                    if (r && r.ok) console.log('[tvd] vault auto-intake ok', stashTab, r.bytes);
+                    else console.log('[tvd] vault auto-intake skip', stashTab, r && r.why);
+                  } catch(e){}
+                });
+              } catch(e){}
+            }
           } else if (_stashVisitOpen) {
-            // left stash (any non-stash deep scene) → reset visit debounce
             _stashVisitOpen = false;
             _stashVisitDone = {};
+            try { window._vaultAutoDone = false; } catch(e){}
           }
         }
         var vaultList = isOcr ? [] : (Array.isArray(rd.vault_names) ? rd.vault_names

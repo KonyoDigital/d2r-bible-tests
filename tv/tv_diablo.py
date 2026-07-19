@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v893"   # FAST SIM — compressed FULL default, thinned film, 2–8× speed
+VERSION = "v901"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -42,23 +42,24 @@ PORT   = int(os.environ.get("TV_PORT", "17771"))   # v711 — overridable (tests
 # v780 — one ON cycle = one theatre session. Every journal row carries this id so SIM/theatre
 # never glues multiple restarts into one mega-run (the 10min gap alone was too soft).
 SESSION_ID = ""
-# v846 — TESLA DRIVE pacing (Konyo: ultra smooth / self-driving feel)
-MIN_GAP_S    = float(os.environ.get("TV_MIN_GAP", "2.0") or 2.0)       # was 4 — cruise re-reads sooner
-HEARTBEAT_S = max(1.0, min(20.0, float(os.environ.get("TV_HEARTBEAT", "2") or 2)))   # v862 (Konyo: 'every 2 secs') — 2s default heartbeat
-PRIORITY_GAP_S = float(os.environ.get("TV_PRIORITY_GAP", "0.55") or 0.55)  # was 1.2 — pile snaps hard
-# v726 — no empty-gameplay cool (blocked pile stops). Thrash = same-view + gap only.
+# v901 — PRODUCT: Auto Intake (default) vs Robot (FROZEN unless TV_ROBOT=1).
+# Intake = settle on stash/loot → deep read → board feeds locked Tools/Vault 📸 pipelines.
+ROBOT_MODE = str(os.environ.get("TV_ROBOT", "0") or "0").strip().lower() in ("1", "true", "yes", "on")
+MIN_GAP_S    = float(os.environ.get("TV_MIN_GAP", "3.5" if not ROBOT_MODE else "1.5") or 3.5)
+HEARTBEAT_S = max(1.0, min(20.0, float(os.environ.get("TV_HEARTBEAT", "8.0" if not ROBOT_MODE else "3.0") or 8.0)))
+PRIORITY_GAP_S = float(os.environ.get("TV_PRIORITY_GAP", "1.0" if not ROBOT_MODE else "0.7") or 1.0)
 SESSION_CAP  = 240
-POLL_S       = float(os.environ.get("TV_POLL", "0.10") or 0.10)         # was 0.18 — tighter settle clock
+POLL_S       = float(os.environ.get("TV_POLL", "0.15" if not ROBOT_MODE else "0.12") or 0.15)
 WATCH_MODE   = "--watch" in sys.argv
-# v727 — motion “wow” threshold: walking/panel open swings past this
-MOTION_PEAK  = 0.10   # was 0.12 — slightly more sensitive to walk/stop
+MOTION_PEAK  = 0.10
 SETTLE       = 0.03
-# v846 film: target FPS (default 15) · HD+ JPEG (up to 2560px) — console stage + footage
-_FILM_FPS = max(5, min(30, int(float(os.environ.get("TV_FILM_FPS", "15") or 15))))
+_FILM_FPS = max(4, min(30, int(float(os.environ.get("TV_FILM_FPS", "5" if not ROBOT_MODE else "8") or 5))))
 FILM_INTERVAL_S = 1.0 / float(_FILM_FPS)
-FILM_MAX_PX = max(1280, min(3840, int(os.environ.get("TV_FILM_MAX_PX", "2048") or 2048)))   # v877 — 2560 burned 4.4GB/hr of footage
-FILM_JPEG_Q = max(55, min(95, int(os.environ.get("TV_FILM_Q", "82") or 82)))
-_FILM_TIMES = deque(maxlen=64)   # v877 — bounded ring; the old plain list grew ~432k floats overnight
+_FOOTAGE_FPS = max(1, min(5, int(float(os.environ.get("TV_FOOTAGE_FPS", "1") or 1))))
+FOOTAGE_INTERVAL_S = 1.0 / float(_FOOTAGE_FPS)
+FILM_MAX_PX = max(1280, min(3840, int(os.environ.get("TV_FILM_MAX_PX", "1440" if not ROBOT_MODE else "1600") or 1440)))
+FILM_JPEG_Q = max(55, min(95, int(os.environ.get("TV_FILM_Q", "72" if not ROBOT_MODE else "75") or 72)))
+_FILM_TIMES = deque(maxlen=64)
 
 # v710.1 — SCENARIO ENGINE (Konyo: "once those moments are captured it can automatically be
 # coded to flag farming when not in town — the corner always shows where we are on the map").
@@ -333,9 +334,18 @@ def _health(st):
          "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
          # v846 — Tesla-drive dashboard truth
          "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
+         "footageFps": _foot_fps_now(), "footageTargetFps": _FOOTAGE_FPS,
          "filmLane": globals().get("_FILM_LANE", ""), "filmCapMs": globals().get("_FILM_CAP_MS"),   # v867
          "filmMaxPx": FILM_MAX_PX, "pollMs": int(POLL_S * 1000),
-         "gapCruiseS": MIN_GAP_S, "gapPriorityS": PRIORITY_GAP_S}
+         "gapCruiseS": MIN_GAP_S, "gapPriorityS": PRIORITY_GAP_S,
+         "heartbeatS": HEARTBEAT_S,
+         # v899 — no-game guard: UI shows a sticky notice; AI stays dark until D2R.exe appears
+         "gameOk": bool(globals().get("_GAME_OK", True)),
+         "gameMsg": str(globals().get("_GAME_MSG") or ""),
+         "aiPaused": bool(globals().get("_AI_PAUSED", False)),
+         # v901 — product mode (Robot frozen unless TV_ROBOT=1)
+         "productMode": ("robot" if ROBOT_MODE else "intake"),
+         "robotMode": bool(ROBOT_MODE)}
     try:
         if st.get("startedAt"):
             h["sessionMs"] = max(0, int(now * 1000) - int(st["startedAt"]))
@@ -867,8 +877,8 @@ def _quartz_finish_window(wid, dest_path, uti="public.png"):
         return False
 
 
-def _screencapture_window(wid, tmp_path, fmt="bmp", timeout=12):
-    """Try macOS screencapture -l. Returns True if tmp_path has real bytes."""
+def _screencapture_window(wid, tmp_path, fmt="bmp", timeout=2.0):
+    """Try macOS screencapture -l. Short default timeout — CrossOver D2R.exe often hangs -l forever."""
     try:
         r = subprocess.run(
             ["screencapture", "-l", str(int(wid)), "-o", "-x", "-t", fmt, tmp_path],
@@ -879,37 +889,48 @@ def _screencapture_window(wid, tmp_path, fmt="bmp", timeout=12):
 
 
 def _capture_window_to_bmp(wid, path, timeout=12):
-    """v844 — pin a window to BMP for the intelligence loop.
-    1) screencapture -l  2) Quartz grab → PNG → sips BMP. Prefer Quartz when SC fails."""
+    """v898 — pin a window to BMP for the intelligence loop.
+    Quartz FIRST (D2R.exe under CrossOver: ~0.2–0.8s). screencapture -l is last-resort
+    with a short timeout — it hangs 5–12s on this surface and starved live.bmp / NO EYE."""
     tmp = _cap_tmp(path)
     try:
-        if _screencapture_window(wid, tmp, fmt="bmp", timeout=timeout):
+        # 1) Quartz JPEG (fast) → sips BMP
+        qj = path + ".qz.jpg"
+        if _quartz_grab_window(wid, qj, uti="public.jpeg"):
+            try:
+                subprocess.run(
+                    ["sips", "-s", "format", "bmp", qj, "--out", tmp],
+                    capture_output=True, timeout=min(8, max(3, timeout)), **NICE_KW)
+            except Exception:
+                pass
+            try:
+                if os.path.exists(qj):
+                    os.remove(qj)
+            except Exception:
+                pass
+            if _cap_promote(tmp, path, min_bytes=8000):
+                return True
+        # 2) Quartz PNG → sips BMP (heavier, still better than hung screencapture)
+        png = path + ".qz.png"
+        if _quartz_grab_window(wid, png, uti="public.png"):
+            try:
+                subprocess.run(
+                    ["sips", "-s", "format", "bmp", png, "--out", tmp],
+                    capture_output=True, timeout=min(8, max(3, timeout)), **NICE_KW)
+            except Exception:
+                pass
+            try:
+                if os.path.exists(png):
+                    os.remove(png)
+            except Exception:
+                pass
+            if _cap_promote(tmp, path, min_bytes=8000):
+                return True
+        # 3) screencapture -l last, hard-capped (never block the poll loop)
+        sc_t = min(2.0, float(timeout) if timeout else 2.0)
+        if _screencapture_window(wid, tmp, fmt="bmp", timeout=sc_t):
             if _cap_promote(tmp, path):
                 return True
-        # clean failed tmp
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        except Exception:
-            pass
-        # Quartz path
-        png = path + ".qz.png"
-        if not _quartz_grab_window(wid, png, uti="public.png"):
-            return False
-        # convert PNG → BMP for frame_sig (samples BMP body)
-        try:
-            r = subprocess.run(
-                ["sips", "-s", "format", "bmp", png, "--out", tmp],
-                capture_output=True, timeout=timeout, **NICE_KW)
-        except Exception:
-            r = None
-        try:
-            if os.path.exists(png):
-                os.remove(png)
-        except Exception:
-            pass
-        if _cap_promote(tmp, path, min_bytes=8000):
-            return True
         return False
     finally:
         try:
@@ -990,28 +1011,31 @@ def _film_loop():
                 wid = None   # demoted — full-screen lane only, no doomed -l attempts
             wrote = False
             if wid:
-                # v846 — Quartz first (fast path when TCC ok), screencapture fallback
+                # v898 — Quartz only for D2R.exe window film. screencapture -l hangs on
+                # CrossOver surfaces (5–12s) and was killing the 15fps lane + NO EYE.
                 wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
-                if not wrote:
-                    try:
-                        r = subprocess.run(
-                            ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
-                            capture_output=True, timeout=4, **NICE_KW)
-                        wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
-                    except Exception:
-                        wrote = False
                 if wrote:
                     _lane_fail = 0
                 else:
                     _lane_fail += 1
-                    # v868 (Grok f) — first demotion needs 3 fails; after that, ONE fail
-                    # re-demotes (each probe costs up to ~4s — bound the tax) · 15s window
-                    _need = 1 if globals().get("_LANE_DEMOTED_ONCE") else 3
-                    if _lane_fail >= _need:
-                        _lane_full_until = time.time() + 15.0
-                        _lane_fail = 0
-                        globals()["_LANE_DEMOTED_ONCE"] = True
-                        globals()["_FILM_LANE"] = "full(demoted)"
+                    # brief SC attempt only after repeated Quartz fails (2s hard cap)
+                    if _lane_fail >= 2:
+                        try:
+                            r = subprocess.run(
+                                ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
+                                capture_output=True, timeout=2, **NICE_KW)
+                            wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+                        except Exception:
+                            wrote = False
+                        if wrote:
+                            _lane_fail = 0
+                    if not wrote:
+                        _need = 1 if globals().get("_LANE_DEMOTED_ONCE") else 3
+                        if _lane_fail >= _need:
+                            _lane_full_until = time.time() + 15.0
+                            _lane_fail = 0
+                            globals()["_LANE_DEMOTED_ONCE"] = True
+                            globals()["_FILM_LANE"] = "full(demoted)"
             else:
                 # v867 — Quartz full screen first (~50ms), screencapture subprocess fallback
                 wrote = _quartz_grab_screen(tmp, uti="public.jpeg")
@@ -1019,16 +1043,47 @@ def _film_loop():
                     try:
                         subprocess.run(
                             ["screencapture", "-x", "-t", "jpg", tmp],
-                            capture_output=True, timeout=4, **NICE_KW)
+                            capture_output=True, timeout=2, **NICE_KW)
                         wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
                     except Exception:
                         wrote = False
             globals()["_FILM_LANE"] = ("window" if wid else ("full(demoted)" if time.time() < _lane_full_until else "full"))
             globals()["_FILM_CAP_MS"] = int((time.time() - t0) * 1000)
             if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
-                # Retina 2940+ → polish to FILM_MAX_PX @ FILM_JPEG_Q (default 2560 / q82)
-                # v861 (Grok #3 amplifier) — `or FILM_MAX_PX < 3000` was ALWAYS true: every good
-                # frame paid a sips subprocess. Only genuinely oversize frames pay now.
+                now_f = time.time()
+                # v897 — ARCHIVE FIRST (SIM 1fps contract): never wait on sips polish.
+                # Session1 delivered ~0.5fps because HD resize ran before f_*.jpg copy.
+                try:
+                    _due = globals().get("_FOOTAGE_DUE", 0.0)
+                    if now_f >= _due:
+                        _iv = FOOTAGE_INTERVAL_S
+                        globals()["_FOOTAGE_DUE"] = max(_due + _iv, now_f - (_iv - 0.01)) if _due else now_f + _iv
+                        globals()["_FOOTAGE_AT"] = now_f
+                        hist_dir = HIST_DIR
+                        os.makedirs(hist_dir, exist_ok=True)
+                        import shutil as _sh
+                        if _sh.disk_usage(hist_dir).free / 1e9 >= MIN_FREE_GB:
+                            _FOOT_TIMES.append(now_f)
+                            # copy grab buffer (tmp) — eye may still be mid-polish
+                            _src_foot = tmp if os.path.isfile(tmp) else eye
+                            _sh.copyfile(_src_foot, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
+                        if now_f >= globals().get("_REAP_DUE", 0.0):
+                            globals()["_REAP_DUE"] = now_f + 120.0
+                            try:
+                                import shutil as _shu2
+                                if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
+                                    _yc = (time.time() - 900.0) * 1000
+                                    ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg")
+                                                and int(f[2:-4]) < _yc)
+                                    for dead in ff[:600]:
+                                        try: os.remove(os.path.join(hist_dir, dead))
+                                        except Exception: pass
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                # Retina polish for live stage (after archive so SIM never starves)
+                # v861 — only genuinely oversize frames pay sips
                 if os.path.getsize(tmp) > 450_000:
                     if _sips_hd_jpeg(tmp, eye):
                         try:
@@ -1045,42 +1100,8 @@ def _film_loop():
                         os.replace(tmp, eye)
                     except Exception:
                         pass
-                now_f = time.time()
-                globals()["_EYE_PREVIEW_AT"] = now_f
+                globals()["_EYE_PREVIEW_AT"] = time.time()
                 _FILM_TIMES.append(now_f)
-                # Footage ~2fps for theatre (was 1fps) — denser REAL video between AI reads
-                try:
-                    _due = globals().get("_FOOTAGE_DUE", 0.0)
-                    if now_f >= _due:
-                        # v868 — absolute 0.5s schedule (quantization-free 2fps); clamp catch-up
-                        globals()["_FOOTAGE_DUE"] = max(_due + 0.5, now_f - 0.49) if _due else now_f + 0.5
-                        globals()["_FOOTAGE_AT"] = now_f
-                        hist_dir = HIST_DIR
-                        os.makedirs(hist_dir, exist_ok=True)
-                        import shutil as _sh
-                        # v877 (army §4) — below the floor the youth shield can't shed anything
-                        # young; the copy itself must stop (the DISK FULL fault lamp explains)
-                        if _sh.disk_usage(hist_dir).free / 1e9 >= MIN_FREE_GB:
-                            _FOOT_TIMES.append(now_f)   # v871 — adaptive-cap telemetry
-                            _sh.copyfile(eye, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
-                        # v849 (audit-core #5) — reap footage HERE too: if reads stall while the
-                        # film runs, footage no longer grows unbounded until the next read.
-                        if now_f >= globals().get("_REAP_DUE", 0.0):
-                            globals()["_REAP_DUE"] = now_f + 120.0
-                            try:
-                                import shutil as _shu2
-                                if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
-                                    # v873 — youth shield here too: only frames older than 15min shed
-                                    _yc = (time.time() - 900.0) * 1000
-                                    ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg")
-                                                and int(f[2:-4]) < _yc)
-                                    for dead in ff[:600]:   # shed oldest OLD footage until the disk breathes
-                                        try: os.remove(os.path.join(hist_dir, dead))
-                                        except Exception: pass
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
             else:
                 # v860 (Konyo: '3 frames in 3 minutes') — FOOTAGE NEVER STARVES: when the window
                 # path fails, the footage tick still archives a FULL-SCREEN frame (something
@@ -1088,7 +1109,8 @@ def _film_loop():
                 try:
                     now_f2 = time.time()
                     if now_f2 >= globals().get("_FOOTAGE_DUE", 0.0):
-                        globals()["_FOOTAGE_DUE"] = now_f2 + 0.5
+                        _iv = FOOTAGE_INTERVAL_S
+                        globals()["_FOOTAGE_DUE"] = now_f2 + _iv
                         # v868 (Grok #5) — Quartz first: the window lane already burned its
                         # subprocess; don't pay a second one for the never-starve frame
                         if not _quartz_grab_screen(tmp, uti="public.jpeg"):
@@ -1100,7 +1122,8 @@ def _film_loop():
                             hist_dir2 = HIST_DIR
                             os.makedirs(hist_dir2, exist_ok=True)
                             import shutil as _sh2
-                            _sh2.copyfile(tmp, os.path.join(hist_dir2, "f_%d.jpg" % int(now_f2 * 1000)))
+                            if _sh2.disk_usage(hist_dir2).free / 1e9 >= MIN_FREE_GB:
+                                _sh2.copyfile(tmp, os.path.join(hist_dir2, "f_%d.jpg" % int(now_f2 * 1000)))
                             os.replace(tmp, eye)
                             globals()["_EYE_PREVIEW_AT"] = now_f2
                 except Exception:
@@ -1155,27 +1178,56 @@ def capture_mac(path, timeout=12):
                         except Exception: pass
                     _CAP_TARGET = {"mode": "window", "label": label, "wid": wid}
                     return True
-                # this wid failed for real — drop the cache so full-screen can take over
-                if _LAST_GOOD_WIN and _LAST_GOOD_WIN[0] == wid:
-                    _LAST_GOOD_WIN = None
-                _CAP_WHY = "window capture failed (screencapture+quartz) wid=%s" % wid
-                # keep wid so film thread can still try Quartz on this game window
-                _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY, "wid": None}   # v861 (Grok #2 choke) — dead pin releases the wid; film full-screens instead of hammering a corpse
+                # window grab failed this tick — keep LAST_GOOD + wid for film; fall through
+                _CAP_WHY = "window capture failed (quartz+sc) wid=%s" % wid
+                _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY,
+                               "wid": wid}   # v898 — keep game wid so film still tries D2R.exe
             except Exception as e:
                 _CAP_WHY = "window capture exc: %s" % e
         if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
             return False
         # auto with no window → fall through to full screen
-    # DEFAULT / fallback: entire display (fullscreen game)
+    # DEFAULT / fallback: entire display (Quartz first — SC full can also hang under load)
     tmp = _cap_tmp(path)
     try:
-        r = subprocess.run(
-            ["screencapture", "-x", "-t", "bmp", tmp],
-            capture_output=True, timeout=timeout, **NICE_KW)
+        qj = path + ".full.jpg"
+        if _quartz_grab_screen(qj, uti="public.jpeg"):
+            try:
+                subprocess.run(
+                    ["sips", "-s", "format", "bmp", qj, "--out", tmp],
+                    capture_output=True, timeout=min(8, max(3, timeout)), **NICE_KW)
+            except Exception:
+                pass
+            try:
+                if os.path.exists(qj):
+                    os.remove(qj)
+            except Exception:
+                pass
+            if _cap_promote(tmp, path, min_bytes=8000):
+                _wid_keep = (_CAP_TARGET or {}).get("wid") or (
+                    _LAST_GOOD_WIN[0] if _LAST_GOOD_WIN else None)
+                _CAP_TARGET = {
+                    "mode": "full",
+                    "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")),
+                    "wid": _wid_keep,
+                }
+                return True
+        try:
+            r = subprocess.run(
+                ["screencapture", "-x", "-t", "bmp", tmp],
+                capture_output=True, timeout=min(4, timeout), **NICE_KW)
+        except Exception:
+            r = None
         ok = _cap_promote(tmp, path)
         if ok:
-            _CAP_TARGET = {"mode": "full", "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")), "wid": None}
+            _wid_keep = (_CAP_TARGET or {}).get("wid") or (
+                _LAST_GOOD_WIN[0] if _LAST_GOOD_WIN else None)
+            _CAP_TARGET = {
+                "mode": "full",
+                "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")),
+                "wid": _wid_keep,
+            }
         else:
             try:
                 if os.path.exists(tmp):
@@ -1729,9 +1781,8 @@ _VISION_BUSY_AT = 0.0   # v789 — when the in-flight vision call started (stall
 # slot is always released in finally, so a degraded reader shrinks effective capacity, never
 # stalls the pool.
 def _pool_default():
-    """v876 (Konyo: 'lags a lot when everything is running') — the pool fits the MACHINE:
-    8 warm claude workers pin ~1.6-4.8GB; with D2R + CrossOver on a 16GB Mac that IS the lag.
-    ≥24GB → 8 workers; below → 4 (the proven cadence at 4 is ~2.5-4s anyway). TV_POOL always wins."""
+    """v900 — pool fits the MACHINE (Konyo: 4 workers made MacBook + CrossOver unplayable).
+    ≤16GB → 2 · 17–31GB → 3 · ≥32GB → 4. TV_POOL always wins (max 6)."""
     gb = 0.0
     try:
         gb = float(os.environ.get("TV_POOL_ASSUME_GB", "") or 0)   # test hook
@@ -1745,13 +1796,21 @@ def _pool_default():
                 gb = (os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")) / 1e9
         except Exception:
             gb = 16
-    return 8 if gb >= 24 else 4
+    if gb >= 32:
+        return 4
+    if gb >= 20:
+        return 3
+    return 2
 
 
 _TP_ENV = os.environ.get("TV_POOL", "").strip()
-POOL_N = max(1, min(8, int(_TP_ENV))) if _TP_ENV else max(1, min(8, _pool_default()))
-ORDER_HOLD_MS = max(5000, int(os.environ.get("TV_ORDER_HOLD_MS", "90000") or 90000))
-_WORKERS = [_WORKER] + [VisionWorker() for _ in range(POOL_N - 1)]
+if ROBOT_MODE:
+    POOL_N = max(1, min(6, int(_TP_ENV))) if _TP_ENV else max(1, min(6, _pool_default()))
+else:
+    # v901 Auto Intake: ONE Claude always. TV_POOL ignored unless TV_ROBOT=1 (Robot frozen).
+    POOL_N = 1
+ORDER_HOLD_MS = max(5000, int(os.environ.get("TV_ORDER_HOLD_MS", "20000" if not ROBOT_MODE else "45000") or 20000))
+_WORKERS = [_WORKER] + [VisionWorker() for _ in range(max(0, POOL_N - 1))]
 _pool_lock = threading.Lock()
 _pool_free = list(range(POOL_N))   # reader ids currently idle
 _in_flight = {}                    # job_id -> {readerId, captureTs, sig, origin, startedAt}
@@ -1778,20 +1837,18 @@ def _vision_busy():
 
 
 def _heartbeat_cap():
-    """v871 — ADAPTIVE (farm-video runs 1-3): fixed cap 6 CHOKED the 16GB Mac — capture spiked
-    to 13s, footage collapsed 1.99→0.34fps, reads slowed to 30-50s. FOOTAGE IS KING (Konyo's
-    300+ frames): base 2; earn 4 while the film lane is provably healthy (≥1.8fps archive,
-    <200ms captures); shed to 1 the moment footage starves. Ceiling 3/4 pool for big machines."""
-    hi = max(1, (POOL_N * 3) // 4)
+    """v900 — lean concurrent heartbeats. Pool 2 machines stay at 1 in-flight heartbeat so
+    Claude + capture never thrash D2R. Bigger pools can earn 2."""
+    hi = max(1, POOL_N // 2)
     if _is_throttled():
-        return 1   # v891 — a throttled subscription gets ONE gentle heartbeat lane, not a herd
+        return 1
     fps = _foot_fps_now()
     cap_ms = globals().get("_FILM_CAP_MS") or 0
-    if (fps is not None and fps < 1.2) or cap_ms > 800:
+    if (fps is not None and fps < 0.6) or cap_ms > 800:
         return 1
-    if fps is not None and fps >= 1.8 and cap_ms < 200:
-        return min(hi, 4)
-    return min(hi, 2)
+    if POOL_N >= 3 and fps is not None and fps >= 0.9 and cap_ms < 250:
+        return min(hi, 2)
+    return 1
 
 
 def _heartbeat_in_flight_n():
@@ -1884,12 +1941,16 @@ def _order_drain():
 
 
 _POOL_STOPPING = False
-def _pool_shutdown(timeout=90.0):
-    """v864 (Grok back-pass #1) — farewell must NEVER race in-flight applies: wait up to a full
-    vision timeout (not 8s), mark the pool STOPPING so late vision threads only release their
-    slot (no order_push, no emit), then force-flush the buffer and stop workers 1..N-1."""
+# v899 — farewell/pool join hard-cap (was 90s; 400-read desktop sessions hung SIGNING OFF forever)
+FAREWELL_MAX_S = max(5.0, min(45.0, float(os.environ.get("TV_FAREWELL_S", "12") or 12)))
+
+
+def _pool_shutdown(timeout=None):
+    """v864/v899 — join in-flight briefly, then inert late threads. Hard-capped (default ~12s)."""
+    if timeout is None:
+        timeout = FAREWELL_MAX_S
     globals()["_POOL_STOPPING"] = True
-    deadline = time.time() + max(0.0, timeout)
+    deadline = time.time() + max(0.0, float(timeout))
     while time.time() < deadline:
         with _pool_lock:
             if not _in_flight:
@@ -1905,6 +1966,58 @@ def _pool_shutdown(timeout=90.0):
     for w in _WORKERS[1:]:
         try: w.stop()
         except Exception: pass
+
+
+def _game_window_present():
+    """v899 — True when the real D2R game window is pin-able (Mac Quartz / Win watch target).
+    Stub/SIM always True so harnesses never trip the no-game pause."""
+    if os.environ.get("TV_STUB") or os.environ.get("TV_NO_GAME_GUARD") == "0":
+        return True
+    if WATCH_MODE:
+        # Windows: capture half owns pin; treat any fresh eye as "game-ish" if target.json says so
+        try:
+            tp = os.path.join(FRAMES, "cap_target.json")
+            if os.path.isfile(tp):
+                with open(tp, encoding="utf-8") as f:
+                    j = json.load(f) or {}
+                mode = str(j.get("mode") or "").lower()
+                if mode in ("window", "game", "d2r"):
+                    return True
+                if mode in ("waiting", "none", "missing"):
+                    return False
+        except Exception:
+            pass
+        # eye fresh + large enough → assume capture half is alive (don't block Win falsely)
+        try:
+            eye = os.path.join(FRAMES, "eye.jpg")
+            if os.path.isfile(eye) and (time.time() - os.path.getmtime(eye)) < 3.0:
+                return True
+        except Exception:
+            pass
+        return True  # fail-open on Windows unless explicitly waiting
+    # Mac: only D2R.exe (never CrossOver Home / Battle.net)
+    try:
+        return find_d2r_window_mac() is not None
+    except Exception:
+        return False
+
+
+def _set_game_gate(ok, msg=""):
+    """Publish no-game pause into health/state for the console banner."""
+    globals()["_GAME_OK"] = bool(ok)
+    globals()["_AI_PAUSED"] = not bool(ok)
+    globals()["_GAME_MSG"] = (msg or "")[:160]
+    try:
+        with _state_lock:
+            st = _load()
+            st["gameOk"] = bool(ok)
+            st["aiPaused"] = not bool(ok)
+            st["gameMsg"] = globals()["_GAME_MSG"]
+            if not ok:
+                st["phase"] = "hold"
+            _save(st)
+    except Exception:
+        pass
 _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back empty: allow ONE re-read of that view
 
 # v845 — ONE AI READER: settle freeze → dual-lane (OCR flash + Claude deep).
@@ -3030,15 +3143,23 @@ def main():
     if os.environ.get("CLAUDECODE"):
         ev("cap", "⚠ launched INSIDE a Claude session — vision calls can hang. Run me in a bare Terminal.")
         print("  ⚠ you're inside a Claude Code session — claude -p may hang nested. Use a BARE Terminal window.")
-    print(f"📺 TV DIABLO Autopilot {VERSION} — TESLA DRIVE · one AI reader · HD film ~{_FILM_FPS}fps")
+    if ROBOT_MODE:
+        print(f"📺 TV DIABLO {VERSION} — ROBOT (TV_ROBOT=1) · pool={POOL_N} · film ~{_FILM_FPS}fps")
+        print(f"   cadence: gap={MIN_GAP_S}s · heartbeat={HEARTBEAT_S}s · priority={PRIORITY_GAP_S}s")
+    else:
+        print(f"📺 TV DIABLO {VERSION} — AUTO INTAKE · Robot FROZEN · pool=1 · film ~{_FILM_FPS}fps")
+        print(f"   product: pause on stash/loot → same AI as Tools 📸 (runes/gems/materials/vault)")
+        print(f"   cadence: settle gap={MIN_GAP_S}s · no continuous heartbeat")
+        print(f"   unlock robot later: TV_ROBOT=1 (frozen until playable unfreeze gate)")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
-    print("   capture: AUTO (pins D2R.exe only — never CrossOver Home / Battle.net; TV_CAPTURE=full for display)")
-    print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL} · gap={MIN_GAP_S}s · priority gap={PRIORITY_GAP_S}s · poll {POLL_S}s")
-    print(f"   film: ~{_FILM_FPS}fps · max {FILM_MAX_PX}px · jpeg q{FILM_JPEG_Q} · env TV_FILM_FPS / TV_FILM_MAX_PX / TV_FILM_Q")
-    ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF (set TV_OCR_BIN or build tv/bin/ocr_mac)"
-    print(f"   ocr lane: {ocr_tag} (flash inside the one dual-lane — not a second reader)")
-    print("   tip: pause on loot / panels so the screen settles — one Claude deep at a time")
-    print("   in the bible: ⚡ session → 📺 TV DIABLO → flip ON. Ctrl-C to stop.\n")
+    print("   capture: AUTO (pins D2R.exe only — never CrossOver Home / Battle.net)")
+    print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL}")
+    print(f"   film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · max {FILM_MAX_PX}px · q{FILM_JPEG_Q}")
+    ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF"
+    print(f"   ocr lane: {ocr_tag}")
+    print("   tip: open Runes/Gems/Materials/stash and PAUSE — intake fires once per settle")
+    print("   in the bible: SESSIONS tab → ON AIR. Ctrl-C to stop.\n")
+    ev("boot", "product=" + ("robot" if ROBOT_MODE else "auto-intake") + " · robot_frozen=" + ("0" if ROBOT_MODE else "1"))
     # v779 — ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant;
     # Terminal's checkbox does not cover the control-app child agent).
     if not WATCH_MODE and sys.platform == "darwin":
@@ -3296,16 +3417,15 @@ def main():
             f = newest_watched_frame()
             if not f: continue
             frame = f
-            # v879 (Grok i) — WINDOWS FOOTAGE PARITY: the mac film thread never runs here, so
-            # Windows reels had zero f_*.jpg. Archive the capture half's eye.jpg on the same
-            # 0.5s absolute schedule, same disk floor, same telemetry. Never blocks settle.
+            # v879/v897 — WINDOWS FOOTAGE PARITY: archive eye.jpg on FOOTAGE_INTERVAL_S (1fps).
             try:
                 _weye = os.path.join(FRAMES, "eye.jpg")
                 _wnow = time.time()
+                _wiv = FOOTAGE_INTERVAL_S
                 if os.path.isfile(_weye) and (_wnow - os.path.getmtime(_weye)) < 3.0 \
                         and _wnow >= globals().get("_FOOTAGE_DUE", 0.0):
-                    globals()["_FOOTAGE_DUE"] = max(globals().get("_FOOTAGE_DUE", 0.0) + 0.5, _wnow - 0.49) \
-                        if globals().get("_FOOTAGE_DUE") else _wnow + 0.5
+                    globals()["_FOOTAGE_DUE"] = max(globals().get("_FOOTAGE_DUE", 0.0) + _wiv, _wnow - (_wiv - 0.01)) \
+                        if globals().get("_FOOTAGE_DUE") else _wnow + _wiv
                     import shutil as _shwz
                     _whd = HIST_DIR
                     os.makedirs(_whd, exist_ok=True)
@@ -3366,6 +3486,38 @@ def main():
         try: cur = frame_sig(frame)
         except Exception: continue
         motion = sig_diff(cur, last_md5)
+        # v899 — NO D2R WINDOW: film may keep running, but AI reads stay OFF and the UI
+        # shouts to open the game. Prevents 400-read desktop burn while working.
+        _now_g = time.time()
+        if _now_g >= float(globals().get("_GAME_CHECK_DUE", 0.0) or 0.0):
+            globals()["_GAME_CHECK_DUE"] = _now_g + 1.2
+            _gok = _game_window_present()
+            if _gok:
+                if globals().get("_AI_PAUSED"):
+                    ev("cap", "🎯 D2R window found — AI reads live again")
+                    print("  🎯 D2R window found — AI reads live again")
+                _set_game_gate(True, "")
+            else:
+                _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
+                if not globals().get("_AI_PAUSED"):
+                    ev("cap", "⏸ " + _msg)
+                    print("  ⏸ " + _msg)
+                _set_game_gate(False, _msg)
+                # rare skip ticks so SIM shows why the night was quiet (not every poll)
+                if _now_g >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
+                    globals()["_NOGAME_SKIP_DUE"] = _now_g + 30.0
+                    try:
+                        journal_skip("no-game", "D2R.exe window not found — AI paused")
+                    except Exception:
+                        pass
+        if globals().get("_AI_PAUSED"):
+            beat("hold", motion)   # not "watching" — source-shape tests lock the real watch→heartbeat path
+            last_md5 = cur
+            peak = 0.0
+            priority = False
+            stable = 0
+            _AP.update({"mode": "hold", "interest": 0.0, "peak": 0.0, "priority": False})
+            continue
         # loading screens between zones are static + near-black — they settle but hold nothing readable
         if sum(cur) / max(1, len(cur)) < 14:
             if _BEAT["phase"] != "loading": ev("skip", "near-black frame (loading screen) — not worth a read")
@@ -3395,20 +3547,18 @@ def main():
             continue
         beat("watching", motion)
 
-        # v866 (Konyo live: '4 reads in 149s, zero heartbeats') — the v861 heartbeat was DOUBLY
-        # dead after the pool relocation: below the motion-continue (combat never reached it) and
-        # behind an always-false stable guard. It lives HERE now — before motion can skip it.
-        _hb_static = sig_diff(cur, last_sent_md5) <= SETTLE if last_sent_md5 else False
-        if (_vision_in_flight_n() < POOL_N) and (_heartbeat_in_flight_n() < _heartbeat_cap()) \
+        # v901 — HEARTBEAT dual-lane is ROBOT-only (FROZEN by default). Auto Intake waits for settle.
+        if ROBOT_MODE and (_vision_in_flight_n() < POOL_N) and (_heartbeat_in_flight_n() < _heartbeat_cap()) \
                 and last_read_t and (time.time() - last_read_t) >= HEARTBEAT_S and not _SETTLE_QUEUE \
-                and not _in_flight_has_sig(cur) \
-                and ((not _hb_static) or (time.time() - last_read_t) >= 10.0):
+                and not _in_flight_has_sig(cur):
             _hb_gap = int((time.time() - last_read_t) * 1000)
             reads += 1
             read_ts = int(time.time() * 1000)
             frame_id = archive_read_frame(frame, reads, read_ts)
-            ev("heartbeat", f"💓 heartbeat · {_hb_gap//1000}s since last read · dual-lane #{reads} · pool {_vision_in_flight_n()}/{POOL_N}")
-            print(f"  💓 heartbeat read #{reads} — {_hb_gap//1000}s since last · pool {_vision_in_flight_n()}/{POOL_N}")
+            _hb_static = sig_diff(cur, last_sent_md5) <= SETTLE if last_sent_md5 else False
+            ev("heartbeat", f"💓 heartbeat · {_hb_gap/1000:.1f}s since last · dual-lane #{reads} · pool {_vision_in_flight_n()}/{POOL_N}"
+               + (" · static re-sample" if _hb_static else ""))
+            print(f"  💓 heartbeat read #{reads} — {_hb_gap/1000:.1f}s since last · pool {_vision_in_flight_n()}/{POOL_N}")
             beat("reading", motion)
             last_read_t = time.time()
             last_sent_md5 = cur
@@ -3420,7 +3570,7 @@ def main():
                                           "motion": round(float(motion), 4), "peak": round(float(peak), 4),
                                           "settleTicks": int(stable),
                                           "priority": bool(priority), "queueDepth": len(_SETTLE_QUEUE),
-                                          "note": "forced read — %ds since last (combat/motion)" % (_hb_gap // 1000)}
+                                          "note": "ROBOT forced read every %.1fs" % HEARTBEAT_S}
             _launch_vision(frame, cur, reads, frame_id, 0.6, priority, read_ts)
             continue
 
@@ -3480,6 +3630,7 @@ def main():
             beat("loading", motion)
             _AP["mode"] = "load"
             last_sent_md5 = cur
+            last_read_t = time.time()   # v897 — known transitions count toward 1–2s cadence
             peak = 0.0
             priority = False
             continue
@@ -3900,9 +4051,9 @@ _FAREWELL_DONE = False
 _STOPPING = False
 
 def close_session(reason="stop", farewell=True):
-    """v847 — seal the theatre reel then exit.
-    Always journals session_end (sessions list + SIM shelf). Optional farewell vision on STOP.
-    OFF uses farewell=False for a fast cut that still SAVES the session."""
+    """v847/v899 — seal the theatre reel then exit.
+    Always journals session_end. Farewell vision is hard-capped (FAREWELL_MAX_S, default 12s)
+    so End Session after a long run never sticks on SIGNING OFF for 90s+."""
     global _FAREWELL_DONE, _STOPPING
     if _FAREWELL_DONE:
         os._exit(0)
@@ -3928,16 +4079,29 @@ def close_session(reason="stop", farewell=True):
     except Exception as e:
         print(f"  👋 session_end journal failed: {e}")
     try:
-        _pool_shutdown()   # v863/v864 — join in-flight (≤90s), inert late threads, then farewell
+        _pool_shutdown(timeout=min(FAREWELL_MAX_S, 12.0))
     except Exception:
         pass
     if farewell:
-        try:
-            with _emit_lock:   # v864 — the farewell applies under the same mutex as every pooled emit
-                farewell_read()
-        except Exception as e:
-            print(f"  👋 farewell failed: {e}")
-    _journal_flush(timeout=10.0)   # v879 — Grok flush list #2: session_end + late applies hit disk
+        # v899 — never block exit on a hung Claude farewell: race with hard deadline
+        _fare_box = {"done": False}
+
+        def _fare_run():
+            try:
+                with _emit_lock:
+                    farewell_read()
+            except Exception as e:
+                print(f"  👋 farewell failed: {e}")
+            finally:
+                _fare_box["done"] = True
+
+        _ft = threading.Thread(target=_fare_run, daemon=True, name="tv-farewell")
+        _ft.start()
+        _ft.join(timeout=FAREWELL_MAX_S)
+        if not _fare_box["done"]:
+            print(f"  👋 farewell timed out after {int(FAREWELL_MAX_S)}s — sealing without it")
+            ev("skip", "farewell timed out · seal continues")
+    _journal_flush(timeout=5.0)
     try:
         # v883 (Konyo: 'sessions are not showing the real frame-by-frame') — REEL FOLD: loose
         # f_*.jpg footage was a shared pool the reaper shed FIRST, so every sealed run went
@@ -3965,6 +4129,22 @@ def close_session(reason="stop", farewell=True):
                     except Exception:
                         pass
             if _moved:
+                # v894 — write reel index so SIM loads without scanning every jpg name
+                try:
+                    _idx = sorted(
+                        f for f in os.listdir(_reel)
+                        if f.startswith("f_") and f.endswith(".jpg")
+                    )
+                    _meta = []
+                    for _fn in _idx:
+                        try:
+                            _meta.append({"f": _fn, "ts": int(_fn[2:-4])})
+                        except Exception:
+                            pass
+                    with open(os.path.join(_reel, "index.json"), "w", encoding="utf-8") as _jf:
+                        json.dump({"sessionId": SESSION_ID, "n": len(_meta), "frames": _meta}, _jf)
+                except Exception:
+                    pass
                 print(f"  🎞 reel folded — {_moved} footage frames sealed into reel_{SESSION_ID}")
     except Exception:
         pass

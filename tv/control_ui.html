@@ -944,7 +944,7 @@
           <button class="th-btn" id="th-next-b" type="button" title="next beat (forward in time)">›</button>
           <button class="th-btn" id="th-next-s" type="button" title="newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
-          <button class="th-btn" id="th-speed" type="button" title="playback speed">1×</button>
+          <button class="th-btn" id="th-speed" type="button" title="playback speed — 1× is real session time">1×</button>
           <button class="th-btn" id="th-mode" type="button" title="highlight cut / full reel">🎬 CUT</button>
           <button class="th-btn" id="th-card" type="button" title="READ CARD — full truth for this beat (I)">ℹ</button>
           <button class="th-btn" id="th-replay" type="button" title="instant replay — rewind to the moments before this find (R)" hidden>⏪</button>
@@ -959,7 +959,7 @@
     <aside class="rail">
       <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console</div>
       <div class="primary">
-        <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>wake scanner · same window</span></span></button>
+        <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>auto intake · pause on stash</span></span></button>
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
         <div class="util-strip">
@@ -997,7 +997,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v893 control</span>
+      <span id="foot-ver">v901 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1131,7 +1131,13 @@
 
   function paint(st){
     var mode = st.mode || 'off';
-    var stopping = mode === 'stopping';                 // v768 (Grok R2) — a threaded farewell is in flight
+    // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
+    // If agent is already dead, never trap the console (re-click ON was stuck).
+    var stopping = (mode === 'stopping' || !!st.stopping) && !!st.bridge;
+    if ((mode === 'stopping' || st.stopping) && !st.bridge) {
+      mode = 'off';
+      stopping = false;
+    }
     var on = !!st.bridge && !stopping;
     var state = stopping ? 'stopping' : (mode === 'sim' ? 'sim' : (on ? 'on' : 'off'));
     // v872 — placard hysteresis: a live console only drops to STANDBY after 3 straight
@@ -1141,6 +1147,8 @@
       window.__offN = (window.__offN || 0) + 1;
       if (window.__offN < 3){ state = 'on'; on = true; }
       else window.__offN = 0;
+    } else if (state === 'off' && _prevState === 'stopping') {
+      window.__offN = 0;   // v899 — farewell finished → drop to STANDBY immediately
     } else { window.__offN = 0; }
     document.body.setAttribute('data-state', state);
 
@@ -1182,9 +1190,12 @@
     $('kicker').textContent = stopping ? 'Farewell' : (state === 'sim' ? 'Canned Feed' : (on ? 'Signal Live' : 'Signal Idle'));
 
     var cap = 'Press <b>ON</b> to wake the hidden scanner and take the board live.';
-    if (stopping) cap = 'Signing off — the last farewell read is finishing. The lamp falls on its own.';
+    var H0 = st.health || {};
+    var noGame = on && (H0.gameOk === false || H0.aiPaused || st.gameOk === false || st.aiPaused);
+    if (stopping) cap = 'Signing off — saving the session (≤ ~15s). Then STANDBY.';
     else if (on && state === 'sim') cap = 'Simulation running · canned reads · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
-    else if (on) cap = 'Scanner hidden · bridge live. Board should be on <b>TV·D</b> — play D2R fullscreen for clean reads.';
+    else if (noGame) cap = '<b>D2R window missing</b> — open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). AI reads are paused until the game window is found.';
+    else if (on) cap = 'Auto Intake live · pause on <b>Runes / Gems / Materials / stash</b> — same AI as Tools 📸. Board: <b>SESSIONS</b>.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
 
@@ -1210,13 +1221,17 @@
     window._lastEyeAge = (st.eyeAgeMs != null) ? st.eyeAgeMs : -1;   // v791 — adaptive poll heuristic
     var fault = '';
     if (on) {
-      if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture process died';   // v793
+      // v899 — loudest: no D2R window (AI paused on purpose)
+      if (H.gameOk === false || H.aiPaused || st.gameOk === false || st.aiPaused) {
+        fault = (H.gameMsg || st.gameMsg || 'D2R window missing — open Diablo II: Resurrected for live reads');
+      }
+      else if (st.captureProc === 'DEAD') fault = 'NO CAPTURE — Windows capture process died';   // v793
       else if (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 6000) fault = 'NO EYE — capture stalled';
       else if ((H.visionBusyMs || 0) > 45000) fault = 'VISION SLOW — read in flight ' + Math.round(H.visionBusyMs / 1000) + 's';
       else if (H.freeGB != null && H.minFreeGB != null && H.freeGB < H.minFreeGB) fault = 'DISK FULL — ' + H.freeGB + 'GB free (<' + H.minFreeGB + 'GB): footage is being SHED as it records — free disk space';   // v872.1 — THE 4GB night
       else if (H.throttled) fault = '🐢 THROTTLED — readers dying fast (subscription pace) · degraded softly, reads breathe for 2min';   // v891
       else if (H.footageFps != null && H.footageFps < 0.8 && (H.sessionMs || 0) > 15000) fault = 'FOOTAGE STARVE — ' + H.footageFps + 'fps archive';   // v861
-      else if ((H.lastReadAgeMs || 0) > 20000) fault = 'READ BLIND — no read for ' + Math.round(H.lastReadAgeMs / 1000) + 's';   // v861 — heartbeat makes 20s the honest floor
+      else if ((H.lastReadAgeMs || 0) > 20000 && H.aiPaused !== true) fault = 'READ BLIND — no read for ' + Math.round(H.lastReadAgeMs / 1000) + 's';
     }
     var fb = $('fault-banner');
     if (fb) {
@@ -1280,7 +1295,7 @@
         if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' reads · farewell') : 'nothing recorded · instant off'; }
         else if (state === 'sim'){ onB.textContent = 'End Sim'; onS.textContent = 'close the canned feed'; }
         else if (state === 'stopping'){ onB.textContent = 'Sealing…'; onS.textContent = 'saving the session'; }
-        else { onB.textContent = 'On Air'; onS.textContent = 'wake scanner · same window'; }
+        else { onB.textContent = 'On Air'; onS.textContent = 'auto intake · pause on stash'; }
       }
     } catch (e2) {}
     tweenReads(rc);
@@ -1303,7 +1318,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v893') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v901') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -1370,8 +1385,9 @@
 
   // ══ v765 — 🎞 THE THEATRE / SIM: real frames + recorded reads ══
   // v784 — CAPTURE ts is the scrub key; frameId hist JPEG is THE photo for that AI row.
-  // v893 — SIM speed: default 2× · FULL compress (not wall-clock REAL) for footage reels
-  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:2, timer:null, sessionId:'', mode:'highlight', allBeats:[] };
+  // v896 — DEBUGGER default: ⏱ REAL · 1× (every journaled read + every frame, wall-clock).
+  //        CUT/FULL remain one-click modes — never the silent open path that hid empty reads.
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'real', allBeats:[] };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   function thFmtFull(ts){
@@ -1845,17 +1861,19 @@
     // chronological by CAPTURE ts
     beats.sort(function(a,b){ return (a.ts||0)-(b.ts||0) || (a.n||0)-(b.n||0); });
     TH.sn = n; TH.allBeats = beats; TH.i = 0; TH.sessionId = j.sessionId || '';
-    // v893 — footage-rich reels open as 📼 FULL (compressed + thinned), NOT wall-clock REAL.
-    // REAL is still one click away for forensic 1:1 time. Default speed 2×.
-    var _footN = beats.filter(function(x){ return x.footage; }).length;
+    // v896 — shelf/history must never drop AI reads on open. Server modeHint=real (debugger);
+    // CUT was stripping empty gameplay/transition rows when footageN was low (common after
+    // reel fold / retired film) — shelf said "30 reads" but timeline showed ~half.
     if (!TH.__modeTouched){
-      if (_footN > 10){ TH.mode = 'full'; }
-      else { TH.mode = 'highlight'; }
+      var _hint = String(j.modeHint || 'real').toLowerCase();
+      TH.mode = (_hint === 'full' || _hint === 'highlight' || _hint === 'cut')
+        ? (_hint === 'cut' ? 'highlight' : _hint)
+        : 'real';
     }
     var _mb = $('th-mode');
     if (_mb) _mb.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
     var _sp = $('th-speed');
-    if (!TH.__speedTouched){ TH.speed = 2; if (_sp) _sp.textContent = '2×'; }
+    if (!TH.__speedTouched){ TH.speed = 1; if (_sp) _sp.textContent = '1×'; }
     TH.beats = thFilter(beats.slice());
     TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;
     setTimeout(function(){ try { thClock(); } catch(e){} }, 0);
@@ -1874,7 +1892,7 @@
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
     if (!TH.sessions.length){
       $('theatre').hidden = false; TH.open = true;
-      $('th-caption').textContent = '🎞 no journaled sessions yet — press ON AIR, pause on loot so the screen settles, then SIM replays locked frames';
+      $('th-caption').textContent = '🎞 no intake sessions yet — ON AIR, pause on stash/loot, then SIM replays those shots';
       document.body.classList.add('theatre-open'); thLit(); return;
     }
     TH.open = true;
@@ -2379,7 +2397,9 @@
         var r = await fetch(API + '/api/status');
         var st = await r.json();
         paint(st);
-        if (!st.bridge && st.mode !== 'stopping' && !st.stopping) return true;
+        // v899 — bridge down = off (even if mode still says stopping for a poll)
+        if (!st.bridge) return true;
+        if (st.mode !== 'stopping' && !st.stopping) return true;
       } catch (e) { return true; }  // control gone = off enough
       await new Promise(function(res){ setTimeout(res, 280); });
     }
@@ -2396,7 +2416,7 @@
       if (lab) lab.textContent = farewell ? 'sealing…' : 'closing…';
       // post() already finished the HTTP call; keep busy feel until bridge is down
       setBusy(true);
-      await waitUntilOff(farewell ? 100000 : 18000);
+      await waitUntilOff(farewell ? 22000 : 16000);   // v899 — was 100s farewell wait
       await refresh();
       if (j && j.sessionSaved) toast('session saved · off air');
       else toast((j && j.msg) || 'off air');
@@ -2412,8 +2432,14 @@
     if (st === 'on') { await cutFeed(this, e, (window.__lastReadCount || 0) > 0); return; }
     if (st === 'sim') { await cutFeed(this, e, false); return; }
     if (st === 'stopping') {
-      toast('still shutting down — wait for session save');
-      return;
+      // v899 — if bridge already dead, treat as off and allow ON; else nudge wait
+      try {
+        var r = await fetch(API + '/api/status');
+        var sj = await r.json();
+        if (!sj.bridge) { document.body.setAttribute('data-state', 'off'); st = 'off'; }
+        else { toast('still shutting down — wait a few seconds'); return; }
+      } catch (err) { st = 'off'; }
+      if (st === 'stopping') return;
     }
     post('/api/on', this, e);
   };

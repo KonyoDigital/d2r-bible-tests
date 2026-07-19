@@ -10,6 +10,15 @@
 > (durable RoW game-truth + drop-odds provenance + deploy/CI facts) · `BUGS.md`
 > (regression log, `REG-NNN` / `TV-NOTE-NNN`).
 
+## 2026-07-19 — Grok: v901 Auto Intake · SESSIONS · Robot frozen
+
+- **Product:** ON AIR default = Auto Intake (settle → feed locked Tools/Vault 📸). Continuous multi-worker Robot FROZEN (`TV_ROBOT=1` only).
+- **IA:** Console home tab **SESSIONS**; TV·D peer tab hidden; `#tvd*` → session.
+- **Agent:** `POOL_N=1`, no heartbeat dual-lane, gap 3.5s, film ~5fps; no-game pause kept.
+- **Board:** `tvVaultAutoIntake` for personal/shared; tally tabs via `tvStashAutoIntake`.
+- **Gates:** agent+control **182 OK**; triple stamp v901; Fable/Claude third-eye pingpong still the critique lane.
+- **Files:** `tv/tv_diablo.py`, `tv/control_app.py`, `tv/control_ui.html`, `bible.html`, tests, README, PINGPONG_LOG.
+
 ## How the agents split work
 - **Desktop** = visuals/features; often pushes straight to `main` WITHOUT running
   the suite (recurring — Routine I CI is the BACKSTOP, not the gate).

@@ -211,7 +211,9 @@ class TestBoardHost(unittest.TestCase):
     def test_api_board_tab_whitelist(self):
         import inspect
         src = inspect.getsource(ca.Handler.do_POST)
-        self.assertIn('"session", "tools", "forge", "funi", "fsets"', src)
+        # v901 — SESSIONS is default home; tvd may remain as alias only
+        self.assertIn("session", src)
+        self.assertIn("tools", src)
 
 
 class TestVersionTruth(unittest.TestCase):
@@ -235,15 +237,20 @@ class TestVersionTruth(unittest.TestCase):
 
 
 class TestForensicBeats(unittest.TestCase):
-    """v797 — every beat carries the FULL read truth (Konyo: in-depth per-frame detail)."""
+    """v797/v894 — lean theatre beats stay light; full brain rides /api/beat for the I drawer."""
 
     def test_beat_payload_fields(self):
         import control_app as ca
         import inspect
         src = inspect.getsource(ca.Handler)
+        # lean /api/session beats (scrub-critical)
         for field in ("ocr_names", "confirmed_names", "ocr_seeded", "completedTs",
-                      "lifecycle_tags", "conf", "model", "ocr_ms"):
+                      "conf", "model", "ocr_ms"):
             self.assertIn('"%s"' % field, src, "beat payload missing " + field)
+        # forensic blob on /api/beat (I drawer) — not duplicated on every lean row
+        for field in ("raw", "dispatch", "decisions", "parse", "vision", "board"):
+            self.assertIn('"%s"' % field, src, "forensic /api/beat missing " + field)
+        self.assertIn('"/api/beat"', src)
 
 
 
@@ -361,6 +368,84 @@ class TestSessionDelete(unittest.TestCase):
         src = inspect.getsource(ca.Handler.do_POST)
         self.assertIn('"/api/session/delete"', src)
         self.assertIn("removedReads", src)
+
+
+class TestSimDebuggerNoSilentReadDrop(unittest.TestCase):
+    """v896 — shelf history: journaled AI reads must all reach the client; SIM opens REAL 1×.
+
+    Repro (pre-v896): sessions with few/no footage frames defaulted client to 🎬 CUT, which
+    stripped empty gameplay/transition rows — shelf said 'N reads' but timeline showed fewer.
+    """
+
+    def test_ui_defaults_real_one_x_not_auto_cut(self):
+        ui = os.path.join(HERE, "control_ui.html")
+        with open(ui, encoding="utf-8") as f:
+            src = f.read()
+        self.assertIn("mode:'real'", src)
+        self.assertIn("speed:1", src)
+        self.assertIn("modeHint", src)
+        # must NOT reintroduce the footage-threshold that forced highlight on low-film history
+        self.assertNotIn("TH.mode = 'highlight'", src)
+        self.assertNotIn('TH.mode = "highlight"', src)
+        self.assertNotIn("TH.speed = 2", src)
+
+    def test_api_returns_every_journaled_read_and_mode_hint_real(self):
+        import tempfile
+        import replay as rp
+        t0 = 1_700_000_000_000
+        # many empty gameplay rows (the ones CUT used to drop) + a few named
+        rows = []
+        for i in range(1, 21):
+            rows.append({
+                "ts": t0 + i * 1000, "n": i, "scene": "gameplay" if i % 4 else "loot",
+                "area": "Blood Moor" if i < 10 else "Cold Plains",
+                "names": (["Harlequin Crest"] if i % 5 == 0 else []),
+                "frameId": "%d_a" % i, "sessionId": "s_test_v896",
+                "lane": "deep", "captureTs": t0 + i * 1000,
+            })
+        rows.append({
+            "ts": t0 + 25_000, "n": 21, "scene": "session_end", "mode": "session_end",
+            "sessionEnd": True, "sessionId": "s_test_v896", "names": [], "frameId": "",
+        })
+        tmp = tempfile.mkdtemp(prefix="tvd-v896-")
+        journal = os.path.join(tmp, "sessions.jsonl")
+        hist = os.path.join(tmp, "hist")
+        os.makedirs(hist)
+        with open(journal, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
+        for i in range(1, 21):
+            with open(os.path.join(hist, "%d_a.jpg" % i), "wb") as f:
+                f.write(b"\xff\xd8\xff\xe0FAKE")
+        old_h, old_j = ca.HIST_DIR, rp.JOURNAL
+        ca.HIST_DIR = hist
+        rp.JOURNAL = journal
+        # clear journal cache if present
+        if hasattr(ca.Handler, "_journal_cache"):
+            ca.Handler._journal_cache = None
+        try:
+            class _H:
+                def _load_journal_cached(self):
+                    return rp.load_journal()
+                def _thin_footage_beats(self, *a, **k):
+                    return ca.Handler._thin_footage_beats(self, *a, **k)
+                def _prewarm_session_frames(self, *a, **k):
+                    pass
+            h = _H()
+            j = ca.Handler._theatre_session(h, 1, pack="debug")
+            self.assertNotIn("error", j)
+            self.assertEqual(j.get("modeHint"), "real")
+            self.assertEqual(j.get("pack"), "debug")
+            reads = [b for b in (j.get("beats") or [])
+                     if not b.get("footage") and not b.get("skip")]
+            self.assertEqual(len(reads), 20, "server dropped journaled reads: got %d" % len(reads))
+            self.assertEqual(sorted(b.get("n") for b in reads), list(range(1, 21)))
+            empty = [b for b in reads if not (b.get("names") or [])]
+            self.assertGreaterEqual(len(empty), 15, "fixture should keep empty gameplay rows")
+        finally:
+            ca.HIST_DIR = old_h
+            rp.JOURNAL = old_j
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class TestV872StickyBridge(unittest.TestCase):

@@ -1,3 +1,12 @@
+
+## Round v901 — Auto Intake · SESSIONS · Robot frozen (2026-07-19)
+
+- **Product:** ON AIR = Auto Intake (settle → feed locked `/api/intake`); Robot continuous reader frozen (`TV_ROBOT=1` only).
+- **IA:** Console home tab **SESSIONS**; TV·D peer tab hidden; `#tvd*` → session + scroll to live card.
+- **Agent:** `POOL_N=1`, no heartbeat dual-lane, gap 3.5s, film ~5fps.
+- **Board:** `tvVaultAutoIntake` for personal/shared; tally tabs still `tvStashAutoIntake`.
+- **Gates:** agent+control suites 182 OK; triple stamp v901.
+
 # 📺 TV DIABLO — 🏓 PINGPONG NIGHT LOG (2026-07-15 → 16)
 
 > The public round-by-round ledger of the TV-specific pingpong run (Konyo's order:

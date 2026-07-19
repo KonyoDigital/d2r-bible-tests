@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v893)
+# 📺 TV DIABLO — Control App (Mac + Windows · v901)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -599,16 +599,25 @@ def _prewarm_seal_cache():
 
 
 def stop_agent(farewell=True):
-    """v847 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
-    STOP: farewell vision (up to ~90s). OFF: seal reel only (fast). Then hard-kill orphans."""
+    """v847/v899 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
+    STOP: short farewell (hard-cap ~18s, was 95s). OFF: seal only. Then hard-kill orphans.
+    Never leave _stop_inflight True if the agent is already dead (unstick ON AIR)."""
     global _agent_proc, _agent_mode, _stop_inflight, _BOARD_OPENED
     if _stop_inflight:
-        # another stop is running — wait briefly for it
-        deadline = time.time() + (90 if farewell else 15)
+        # another stop is running — wait briefly, then force-clear if agent already gone
+        deadline = time.time() + (18 if farewell else 12)
         while _stop_inflight and time.time() < deadline:
+            if not _agent_alive() and _port_listener_pid() is None:
+                _stop_inflight = False
+                _agent_mode = "off"
+                return {"ok": True, "msg": "already off", "farewell": farewell, "sessionSaved": True}
             time.sleep(0.2)
         if not _agent_alive() and _port_listener_pid() is None:
-            return {"ok": True, "msg": "already off", "farewell": farewell}
+            _stop_inflight = False
+            _agent_mode = "off"
+            return {"ok": True, "msg": "already off", "farewell": farewell, "sessionSaved": True}
+        # hung stop — force clear so ON AIR is not permanently blocked
+        _stop_inflight = False
     _stop_inflight = True
     try:
         pids = _collect_agent_pids()
@@ -643,8 +652,8 @@ def stop_agent(farewell=True):
                 for pid in pids:
                     _kill_pid(pid, force=False)
 
-        # 3) Wait for bridge death (farewell vision can take a while)
-        wait_s = 95 if farewell else 14
+        # 3) Wait for bridge death — v899 hard-cap (long farewell stuck 400-read sessions)
+        wait_s = 18 if farewell else 12
         deadline = time.time() + wait_s
         while time.time() < deadline:
             if _port_listener_pid() is None and not any(_pid_alive(p) for p in pids):
@@ -727,7 +736,7 @@ def _open_board_once():
     open_board(auto_on=True)
     return "opened"
 
-def _open_board_native(tab="tvd"):
+def _open_board_native(tab="session"):
     """v767.1 (Konyo: 'no need for Chrome anymore') — the BOARD opens in its own native
     window too: a sibling process runs pywebview on the LOCAL bible.html#tvd. Returns True
     if the native window spawned; False → caller falls back to a browser."""
@@ -750,7 +759,7 @@ def _open_board_native(tab="tvd"):
         pass
     try:
         proc = subprocess.Popen(
-            [sys.executable, os.path.abspath(__file__), "--board-window", "--hash=" + (tab or "tvd")],
+            [sys.executable, os.path.abspath(__file__), "--board-window", "--hash=" + (tab or "session")],
             cwd=REPO,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -765,7 +774,7 @@ def _open_board_native(tab="tvd"):
     except Exception:
         return False
 
-def open_board(auto_on=True, tab="tvd"):
+def open_board(auto_on=True, tab="session"):
     """Open the bible TV·D tab. v764: the board AUTO-SYNCS to the bridge now (lamp + probe),
     so the deep link only needs to LAND on #tvd — and macOS `open` DROPS file:// fragments
     (the 'routes me to the wrong page' bug), so prefer a direct browser spawn like Windows."""
@@ -773,7 +782,7 @@ def open_board(auto_on=True, tab="tvd"):
         return {"ok": False, "msg": "bible.html missing"}
     if _open_board_native(tab):
         return {"ok": True, "msg": "board opened (native window)", "tab": tab}
-    url = _file_url(BIBLE, "tvd")
+    url = _file_url(BIBLE, tab or "session")
     try:
         if sys.platform == "darwin":
             opened = False
@@ -1009,7 +1018,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v893",
+        "ver": "v901",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1037,6 +1046,10 @@ def status_payload():
         "captureTarget": (st or {}).get("captureTarget") or {},
         "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),   # v785 — film honesty for the stage
         "health": (st or {}).get("health") or {},     # v789 — fault-lamp truth
+        # v899 — no-game banner (also mirrored on health from agent)
+        "gameOk": (st or {}).get("gameOk", True) if st else True,
+        "aiPaused": bool((st or {}).get("aiPaused") or ((st or {}).get("health") or {}).get("aiPaused")),
+        "gameMsg": (st or {}).get("gameMsg") or ((st or {}).get("health") or {}).get("gameMsg") or "",
         "captureProc": _capture_health(),             # v793 — Windows capture lamp (LINKED/DEAD/RESTARTED)
         "bibleVer": _bible_ver(),                     # v816 — triple drift lamp (agent·app·board)
     }
@@ -1401,7 +1414,77 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             return {"error": str(e)}
 
-    def _theatre_session(self, n):
+    def _thin_footage_beats(self, beats, step_ms=400, near_ms=3000):
+        """v894 — server-side film thin: keep all AI reads; quiet film ~2.5fps wall; dense near reads.
+        This is the SIM engine fix — not a client 2× button."""
+        if len(beats) < 50:
+            return beats
+        read_ts = sorted(
+            int(b.get("ts") or 0)
+            for b in beats
+            if not b.get("footage") and not b.get("skip")
+        )
+        def _near(ts):
+            for rt in read_ts:
+                if abs(rt - ts) <= near_ms:
+                    return True
+                if rt > ts + near_ms:
+                    break
+            return False
+        out, last_f = [], -10**15
+        for b in beats:
+            if not b.get("footage"):
+                out.append(b)
+                continue
+            ts = int(b.get("ts") or 0)
+            if _near(ts) or (ts - last_f) >= step_ms:
+                out.append(b)
+                last_f = ts
+        return out if len(out) >= 2 else beats
+
+    def _prewarm_session_frames(self, beats, limit=48, width="960"):
+        """v894 — build theatre derivatives in the background so play doesn't block on sips."""
+        if IS_WIN:
+            return
+        paths = []
+        for b in beats:
+            fr = b.get("frame") or ""
+            if fr and fr.endswith(".jpg"):
+                paths.append(fr)
+            if len(paths) >= limit:
+                break
+        if not paths:
+            return
+
+        def _run():
+            cache_dir = os.path.join(HIST_DIR, "cache" + width)
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except Exception:
+                return
+            for fr in paths:
+                try:
+                    src = os.path.join(HIST_DIR, fr)
+                    # reel_ paths are under HIST_DIR
+                    if not os.path.isfile(src):
+                        continue
+                    base = os.path.basename(fr)
+                    cached = os.path.join(cache_dir, base)
+                    if os.path.isfile(cached):
+                        continue
+                    subprocess.run(
+                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "68",
+                         "--resampleHeightWidthMax", width, src, "--out", cached],
+                        capture_output=True, timeout=8,
+                    )
+                except Exception:
+                    pass
+        threading.Thread(target=_run, daemon=True, name="tvd-prewarm-sess").start()
+
+    def _theatre_session(self, n, pack="debug"):
+        """v895 — personal visual debugger for one ON AIR session.
+        pack=debug|raw: every footage frame + every AI read, capture-clock ordered (default).
+        pack=fast: server-thinned quiet film (optional zip mode — not the debugger default)."""
         try:
             if HERE not in sys.path:
                 sys.path.insert(0, HERE)
@@ -1413,14 +1496,14 @@ class Handler(BaseHTTPRequestHandler):
             beats = []
             for r in sess:
                 if r.get("kind") == "skip":
-                    # v880 (SIM A2.8) — a dim 'agent chose to wait' tick, never an empty read
                     beats.append({"ts": int(r.get("ts") or 0), "captureTs": int(r.get("ts") or 0),
                                   "skip": True, "why": r.get("why") or "", "note": r.get("note") or "",
                                   "names": [], "scene": "", "area": "", "lane": "skip"})
                     continue
+                if r.get("scene") == "session_end" or r.get("mode") == "session_end":
+                    continue   # v894 — seal rows are not playable beats
                 fid = r.get("frameId") or ""
                 has = bool(fid) and os.path.isfile(os.path.join(HIST_DIR, fid + ".jpg"))
-                # v784 — capture clock is source of truth for scrub order + film lock
                 fts = None
                 if fid and "_" in str(fid):
                     try:
@@ -1430,7 +1513,6 @@ class Handler(BaseHTTPRequestHandler):
                 if r.get("captureTs"):
                     cap_ts = int(r["captureTs"])
                 elif fts is not None:
-                    # pre-v784 rows often stored completion as ts — frameId suffix is the photo clock
                     raw_ts = int(r.get("ts") or 0)
                     if raw_ts and abs(raw_ts - fts) > 2000:
                         cap_ts = fts
@@ -1439,15 +1521,17 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     cap_ts = r.get("ts")
                 done_ts = r.get("completedTs") or r.get("ts") or cap_ts
+                # v894 — lean beat only (forensics via /api/beat). Smaller JSON = faster open.
                 beats.append({
-                    "ts": cap_ts,  # primary scrub key = CAPTURE
+                    "ts": cap_ts,
                     "captureTs": cap_ts,
                     "completedTs": done_ts,
                     "n": r.get("n"), "scene": r.get("scene", ""),
                     "area": r.get("area", ""), "names": r.get("names", []),
-                    "note": r.get("note", ""), "frame": (fid + ".jpg") if has else "",
+                    "note": (r.get("note") or "")[:120],
+                    "frame": (fid + ".jpg") if has else "",
                     "frameId": fid,
-                    "frameOk": has,  # exact hist file present
+                    "frameOk": has,
                     "sessionId": r.get("sessionId") or "",
                     "ms": r.get("ms", 0), "lane": r.get("lane", ""),
                     "model": r.get("model", ""),
@@ -1457,82 +1541,85 @@ class Handler(BaseHTTPRequestHandler):
                     "discovered_names": r.get("discovered_names") or [],
                     "intent": r.get("intent", ""), "stashTab": r.get("stashTab", ""),
                     "farewell": bool(r.get("farewell")),
-                    # v797 — FULL FORENSICS (Konyo: 'exactly what was analyzed per frame')
                     "ocr_names": r.get("ocr_names") or [],
-                    "ocr_ms": r.get("ocr_ms") or 0,   # v823 (Grok R9 sleeper #8) — the fast lane gets its clock
-                    "names_loc": r.get("names_loc") or {},          # v830 — per-name location truth
+                    "ocr_ms": r.get("ocr_ms") or 0,
+                    "names_loc": r.get("names_loc") or {},
                     "equipped_names": r.get("equipped_names") or [],
-                    # v879 (Grok B — GO) — LAZY FORENSICS: raw/parse/decisions/chain/pre/ocr_raw
-                    # travel per-beat via /api/beat when the READ CARD opens. The lean beat
-                    # keeps dispatch.origin/readerId for chips + every story field Grok listed
-                    # (vault/pending/thrown/discovered/ocr_names/names_loc — credits/cut/replay
-                    # all feed off those and stay client-side).
                     "lean": True,
                     "dispatch": {k: (r.get("dispatch") or {}).get(k)
                                  for k in ("origin", "readerId")
                                  if (r.get("dispatch") or {}).get(k) is not None},
                     "confirmed_names": r.get("confirmed_names") or [],
-                    "ocr_seeded": r.get("ocr_seeded") or [],   # v880 (Grok #5) — the caption's 🛟 chip reads it
+                    "ocr_seeded": r.get("ocr_seeded") or [],
                     "conf": r.get("conf"),
-                    "lifecycle_tags": r.get("lifecycle_tags") or {},
                     "sim": bool(r.get("sim")),
                 })
-            # v826 — FOOTAGE interleave: 1fps eye frames within this session's window become
-            # film-only beats; the reel plays as real video with AI reads annotating over it.
+            # Footage interleave — prefer sealed reel; never double-scan loose hist when reel exists
             try:
-                # v886 (Grok #2 + roundtrip proof) — the window OPENS at agent boot (the sid
-                # encodes boot ms): film recorded before the first read belongs to the run.
                 _sid0 = str(sess[0].get("sessionId") or "")
                 try:
                     _boot_ms = int(_sid0.split("_")[1]) if _sid0.startswith("s_") else 0
                 except Exception:
                     _boot_ms = 0
                 t0f = (_boot_ms or (sess[0].get("ts") or 0)) - 2000
-                # v885 (Grok #2) — a LIVE (unsealed) session keeps filming past its last read:
-                # the window ends NOW, not at the last journal row (mid-session SIM truncated).
-                # v893 — seal truth is scene=session_end (v847+) OR legacy sessionEnd flag
                 _sealed = any(
                     r2.get("sessionEnd")
                     or r2.get("scene") == "session_end"
                     or r2.get("mode") == "session_end"
                     for r2 in sess
                 )
-                _is_newest = (n == 1)   # sessions list is newest-first; only the LIVE run opens to now
+                _is_newest = (n == 1)
                 t1f = int(time.time() * 1000) if (not _sealed and _is_newest) else ((sess[-1].get("ts") or 0) + 2000)
                 hist_dir = HIST_DIR
                 sid_here = (sess[0].get("sessionId") or "")
-                # v883 (Konyo: 'frame-by-frame is not working') — the SEALED REEL is the truth:
-                # reel_<sid>/ holds this run's footage immortal-until-retired-whole. Loose
-                # window-scan stays as the fallback for the LIVE (unsealed) session.
-                _srcs = []
                 _reel_dir = os.path.join(hist_dir, "reel_" + sid_here) if sid_here else ""
-                if _reel_dir and os.path.isdir(_reel_dir):
-                    _srcs.append(("reel_" + sid_here + "/", _reel_dir))
-                if os.path.isdir(hist_dir):
-                    _srcs.append(("", hist_dir))
-                _seen_fts = set()
-                for _pref, _dir in _srcs:
-                    for fn in os.listdir(_dir):
+                _reel_ok = _reel_dir and os.path.isdir(_reel_dir)
+                _foot = []
+                if _reel_ok:
+                    # v894 — index.json first (O(n) no re-stat name parse thrash when present)
+                    _idxp = os.path.join(_reel_dir, "index.json")
+                    _frames = None
+                    if os.path.isfile(_idxp):
+                        try:
+                            with open(_idxp, encoding="utf-8") as _jf:
+                                _frames = (json.load(_jf) or {}).get("frames") or []
+                        except Exception:
+                            _frames = None
+                    if _frames is None:
+                        _frames = []
+                        for fn in os.listdir(_reel_dir):
+                            if fn.startswith("f_") and fn.endswith(".jpg"):
+                                try:
+                                    _frames.append({"f": fn, "ts": int(fn[2:-4])})
+                                except Exception:
+                                    pass
+                        _frames.sort(key=lambda x: x.get("ts") or 0)
+                    pref = "reel_" + sid_here + "/"
+                    for it in _frames:
+                        fn = it.get("f") or ""
+                        fts = int(it.get("ts") or 0)
+                        if not fn:
+                            continue
+                        _foot.append({"ts": fts, "captureTs": fts, "footage": True,
+                                      "frame": pref + fn, "frameId": pref + fn[:-4],
+                                      "names": [], "scene": "", "area": "", "lane": "footage"})
+                elif os.path.isdir(hist_dir):
+                    # live/unsealed fallback only
+                    for fn in os.listdir(hist_dir):
                         if not (fn.startswith("f_") and fn.endswith(".jpg")):
                             continue
                         try:
                             fts = int(fn[2:-4])
                         except Exception:
                             continue
-                        if fts in _seen_fts:
-                            continue
-                        if _pref or (t0f <= fts <= t1f):
-                            _seen_fts.add(fts)
-                            beats.append({"ts": fts, "captureTs": fts, "footage": True,
-                                          "frame": _pref + fn, "frameId": _pref + fn[:-4], "names": [],
+                        if t0f <= fts <= t1f:
+                            _foot.append({"ts": fts, "captureTs": fts, "footage": True,
+                                          "frame": fn, "frameId": fn[:-4], "names": [],
                                           "scene": "", "area": "", "lane": "footage"})
+                beats.extend(_foot)
             except Exception:
                 pass
-            # v832.1 (Konyo: 'pictures are NOT organized by time — jumping all over') — the
-            # PHOTO's own clock (frameId suffix ms) is the ground truth for order. Pre-v784
-            # rows stored COMPLETION time as ts, and 10-22s vision latencies interleave those
-            # past each other's captures — sorting by ts scrambled the film. Sort by the frame
-            # clock, and pin ts to it so the caption/T+ match the picture.
+
             def _photo_clock(b):
                 fid = b.get("frameId") or ""
                 if "_" in str(fid):
@@ -1544,12 +1631,32 @@ class Handler(BaseHTTPRequestHandler):
             for b in beats:
                 pc = _photo_clock(b)
                 if pc and abs(pc - (b.get("ts") or 0)) > 1500:
-                    b["ts"] = pc   # caption/T+ tell the photo's moment, not the answer's
-            beats.sort(key=lambda b: (_photo_clock(b), b.get("n") or 0))
+                    b["ts"] = pc
+            # v895 — capture-clock order; same-ms: film first then AI read (annotation sits on that moment)
+            beats.sort(key=lambda b: (
+                _photo_clock(b),
+                0 if b.get("footage") else (1 if not b.get("skip") else 2),
+                b.get("n") or 0,
+            ))
+            # v895 — DEBUGGER default keeps every frame. Only pack=fast thins quiet film.
+            if pack == "fast":
+                beats = self._thin_footage_beats(beats, step_ms=400, near_ms=3000)
             sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
-            return {"n": n, "beats": beats, "sessionId": sid,
-                    "t0": beats[0].get("ts") if beats else sess[0].get("ts"),
-                    "t1": beats[-1].get("ts") if beats else sess[-1].get("ts")}
+            # prewarm early frames (1280 theatre) so scrub/play is not sips-bound
+            try:
+                self._prewarm_session_frames(beats, limit=80, width="1280")
+            except Exception:
+                pass
+            n_read = sum(1 for b in beats if not b.get("footage") and not b.get("skip"))
+            n_foot = sum(1 for b in beats if b.get("footage"))
+            return {
+                "n": n, "beats": beats, "sessionId": sid,
+                "pack": "debug" if pack != "fast" else "fast",
+                "modeHint": "real",   # client: wall-clock debugger default
+                "stats": {"reads": n_read, "footage": n_foot, "beats": len(beats)},
+                "t0": beats[0].get("ts") if beats else sess[0].get("ts"),
+                "t1": beats[-1].get("ts") if beats else sess[-1].get("ts"),
+            }
         except Exception as e:
             return {"error": str(e)}
 
@@ -1675,7 +1782,11 @@ class Handler(BaseHTTPRequestHandler):
                 num = int((q.get("n") or ["1"])[0])
             except Exception:
                 num = 1
-            self._json(200, self._theatre_session(num))
+            # v895 — default pack=debug (every fps frame + every AI read). pack=fast is optional zip.
+            pack = (q.get("pack") or ["debug"])[0].strip().lower()
+            if pack not in ("debug", "raw", "fast"):
+                pack = "debug"
+            self._json(200, self._theatre_session(num, pack=pack))
             return
         if path.startswith("/hist/"):
             self._serve_hist(path[len("/hist/"):])
@@ -1945,9 +2056,14 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             if _stop_inflight:
-                self._json(200, {"ok": False, "msg": "still shutting down — session saving; try ON again in a moment",
-                                 "mode": "stopping", "error": "still stopping"})
-                return
+                # v899 — if the agent is already dead, clear the latch and allow ON
+                if not _agent_alive() and _port_listener_pid() is None:
+                    globals()["_stop_inflight"] = False
+                    _agent_mode = "off"
+                else:
+                    self._json(200, {"ok": False, "msg": "still shutting down — session saving; try ON again in a moment",
+                                     "mode": "stopping", "error": "still stopping"})
+                    return
             r = start_agent(sim=False, test=bool(body.get("test")))
             _console_beacon_async("onair")   # v875 — the dashboard flips 🔴 within seconds
             self._json(200, r)   # v778-pre — ON opens NOTHING (one-window world)
@@ -1993,9 +2109,12 @@ class Handler(BaseHTTPRequestHandler):
             # only (?popout=1) for the rare explicit pop-out case — never for console buttons.
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
-            tab = (q.get("tab") or ["tvd"])[0]
-            if tab not in ("tvd", "session", "tools", "forge", "funi", "fsets"):
-                tab = "tvd"
+            tab = (q.get("tab") or ["session"])[0]
+            # v901 — #tvd aliases map to SESSIONS (TV·D is not a peer tab anymore)
+            if tab in ("tvd", "tvd-on", "tvd-off"):
+                tab = "session"
+            if tab not in ("session", "tools", "forge", "funi", "fsets", "tvd"):
+                tab = "session"
             popout = (q.get("popout") or ["0"])[0] in ("1", "true", "yes")
             if popout:
                 self._json(200, open_board(auto_on=True, tab=tab))
@@ -2048,10 +2167,12 @@ def board_window():
                     os._exit(0)
     threading.Thread(target=_orphan_watch, daemon=True).start()
     # v774 🌙 — same-origin host + deep-link hash (--hash=forge etc.)
-    tab = "tvd"
+    tab = "session"
     for a in sys.argv:
         if a.startswith("--hash="):
-            tab = a.split("=", 1)[1] or "tvd"
+            tab = a.split("=", 1)[1] or "session"
+    if tab in ("tvd", "tvd-on", "tvd-off"):
+        tab = "session"
     url = "http://127.0.0.1:%d/board#%s" % (CONTROL_PORT, tab)
     try:
         import webview
@@ -2108,7 +2229,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v893 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v901 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

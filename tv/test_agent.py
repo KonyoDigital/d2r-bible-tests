@@ -886,16 +886,41 @@ class TestReplay(unittest.TestCase):
         self.assertFalse(hasattr(tv, "SCOUT_GAP_S"))
 
     def test_tesla_drive_film_and_gaps(self):
-        """v846 — snappy one-reader gaps + HD film knobs present."""
-        self.assertRegex(tv.VERSION, r"^v8\d\d")   # v849 recal — never pin a marching version
-        self.assertLessEqual(tv.MIN_GAP_S, 2.5)
-        self.assertLessEqual(tv.PRIORITY_GAP_S, 1.0)
-        self.assertLessEqual(tv.POLL_S, 0.15)
-        self.assertGreaterEqual(tv._FILM_FPS, 10)
-        self.assertGreaterEqual(tv.FILM_MAX_PX, 1920)
+        """v901 — Auto Intake defaults: gentle settle gap, 1 Claude, Robot frozen."""
+        self.assertRegex(tv.VERSION, r"^v\d+")
+        self.assertFalse(tv.ROBOT_MODE, "Robot must be frozen by default")
+        self.assertEqual(tv.POOL_N, 1, "Auto Intake uses one Claude worker")
+        self.assertLessEqual(tv.MIN_GAP_S, 5.0)
+        self.assertGreaterEqual(tv.MIN_GAP_S, 2.0)
+        self.assertLessEqual(tv.POLL_S, 0.2)
+        self.assertGreaterEqual(tv._FILM_FPS, 4)
+        self.assertLessEqual(tv._FILM_FPS, 10)
+        self.assertEqual(tv._FOOTAGE_FPS, 1)
+        self.assertAlmostEqual(tv.FOOTAGE_INTERVAL_S, 1.0, places=3)
+        self.assertGreaterEqual(tv.FILM_MAX_PX, 1280)
         h = tv._health({"reads": [], "startedAt": int(time.time() * 1000)})
-        for k in ("filmFps", "filmTargetFps", "filmMaxPx", "pollMs", "gapCruiseS", "gapPriorityS"):
+        for k in ("filmFps", "filmTargetFps", "filmMaxPx", "pollMs", "gapCruiseS",
+                  "gapPriorityS", "footageTargetFps", "heartbeatS", "gameOk", "aiPaused",
+                  "productMode", "robotMode"):
             self.assertIn(k, h)
+        self.assertEqual(h.get("productMode"), "intake")
+        self.assertFalse(h.get("robotMode"))
+        self.assertLessEqual(tv.FAREWELL_MAX_S, 45)
+        # heartbeat dual-lane only when robot unlocked
+        src = open(tv.__file__, encoding="utf-8").read()
+        self.assertIn("ROBOT_MODE and (_vision_in_flight_n()", src)
+
+    def test_no_game_guard_helpers(self):
+        """v899 — pause AI when D2R.exe missing; helpers exist and gate flips."""
+        self.assertTrue(callable(tv._game_window_present))
+        self.assertTrue(callable(tv._set_game_gate))
+        tv._set_game_gate(False, "D2R window missing — open Diablo II")
+        self.assertTrue(tv._AI_PAUSED)
+        self.assertFalse(tv._GAME_OK)
+        self.assertIn("D2R window missing", tv._GAME_MSG)
+        tv._set_game_gate(True, "")
+        self.assertFalse(tv._AI_PAUSED)
+        self.assertTrue(tv._GAME_OK)
 
     def test_close_session_helper_exists(self):
         """v847 — OFF/STOP seal via close_session + /shutdown (not just kill)."""
@@ -1864,8 +1889,10 @@ class TestReaderPool(unittest.TestCase):
         tvdir = os.path.dirname(os.path.abspath(tv.__file__))
 
         def pooln(env_val):
+            # TV_POOL only applies when Robot is unlocked (intake default forces pool=1)
             e = dict(os.environ)
             e.pop("TV_POOL", None)
+            e["TV_ROBOT"] = "1"
             if env_val is not None:
                 e["TV_POOL"] = env_val
             out = sp.check_output(
@@ -1874,50 +1901,44 @@ class TestReaderPool(unittest.TestCase):
                 cwd=tvdir, env=e, text=True)
             return int(out.strip())
 
-        # v876 (Konyo: 'lags a lot when everything is running') — default fits the MACHINE:
-        # ≤16GB Macs get 4 warm readers (8 pinned ~1.6-4.8GB and lagged D2R); ≥24GB gets 8.
-        # TV_POOL stays the explicit override, clamped 1-8.
-        def pooln_gb(gb):
+        # v901 — default Auto Intake forces POOL_N=1 regardless of RAM; robot uses lean map.
+        def pooln_gb(gb, robot="0"):
             e = dict(os.environ); e.pop("TV_POOL", None); e["TV_POOL_ASSUME_GB"] = gb
+            e["TV_ROBOT"] = robot
             out = sp.check_output([sys.executable, "-c",
                 "import tv_diablo,sys; sys.stdout.write(str(tv_diablo.POOL_N))"],
                 cwd=tvdir, env=e, text=True)
             return int(out.strip())
-        self.assertEqual(pooln_gb("16"), 4, "16GB machine → 4 readers")
-        self.assertEqual(pooln_gb("32"), 8, "big machine → the full 8")
+        self.assertEqual(pooln_gb("16", "0"), 1, "intake default → 1 reader")
+        self.assertEqual(pooln_gb("32", "0"), 1, "intake ignores big RAM")
+        self.assertEqual(pooln_gb("16", "1"), 2, "robot 16GB → 2")
+        self.assertEqual(pooln_gb("24", "1"), 3, "robot 24GB → 3")
+        self.assertEqual(pooln_gb("32", "1"), 4, "robot 32GB → 4")
         self.assertEqual(pooln("1"), 1)
         self.assertEqual(pooln("3"), 3)
-        self.assertEqual(pooln("8"), 8)
-        self.assertEqual(pooln("12"), 8)
+        self.assertEqual(pooln("6"), 6)
+        self.assertEqual(pooln("12"), 6)
         self.assertEqual(pooln("0"), 1)
 
     def test_heartbeat_cap_adaptive(self):
-        # v871 — footage is king (farm-video runs 1-3: fixed cap 6 choked the machine).
-        # No telemetry → conservative 2. Healthy film → 4. Starving film → 1. Ceiling 3/4 pool.
+        # v900 — lean: default 1 concurrent heartbeat; pool≥3 + healthy film can earn 2.
         import time as _t
         old_n = tv.POOL_N
         try:
-            tv.POOL_N = 8
+            tv.POOL_N = 2
             tv._FOOT_TIMES.clear()
             tv._FILM_CAP_MS = 0
-            self.assertEqual(tv._heartbeat_cap(), 2, "no telemetry → base 2")
+            self.assertEqual(tv._heartbeat_cap(), 1, "pool 2 → always 1 heartbeat")
             now = _t.time()
-            for i in range(20):                      # 2fps healthy archive
-                tv._FOOT_TIMES.append(now - i * 0.5)
-            tv._FILM_CAP_MS = 100
-            self.assertEqual(tv._heartbeat_cap(), 4, "healthy film → 4")
-            tv._FILM_CAP_MS = 900
-            self.assertEqual(tv._heartbeat_cap(), 1, "slow captures → shed to 1")
-            tv._FILM_CAP_MS = 100
-            tv._FOOT_TIMES.clear()
-            for i in range(8):                       # 0.8fps starving archive
-                tv._FOOT_TIMES.append(now - i * 1.25)
-            self.assertEqual(tv._heartbeat_cap(), 1, "footage starve → shed to 1")
-            tv.POOL_N = 4                            # ceiling: 3/4 pool clamps the healthy tier
-            tv._FOOT_TIMES.clear()
             for i in range(20):
-                tv._FOOT_TIMES.append(now - i * 0.5)
-            self.assertEqual(tv._heartbeat_cap(), 3, "healthy at N=4 → min(3, 4) = 3")
+                tv._FOOT_TIMES.append(now - i * 1.0)
+            tv._FILM_CAP_MS = 100
+            self.assertEqual(tv._heartbeat_cap(), 1, "pool 2 healthy still 1")
+            tv.POOL_N = 4
+            tv._FILM_CAP_MS = 100
+            self.assertEqual(tv._heartbeat_cap(), 2, "pool 4 healthy → 2")
+            tv._FILM_CAP_MS = 2000
+            self.assertEqual(tv._heartbeat_cap(), 1, "slow capture → 1")
             tv.POOL_N = 1
             self.assertEqual(tv._heartbeat_cap(), 1, "N=1 → 1 always")
         finally:

@@ -3,9 +3,9 @@
 Play Diablo II. TV DIABLO watches the screen and streams the tally into the
 Farming Bible's ⚡ session → 📺 panel.
 
-**Playstyle (v845 one AI reader):** pause so the screen *settles* (loot pile,
-panel, stash). One dual-lane fires: local OCR flash + Claude deep. No secondary
-mid-play scout reader.
+**Playstyle (v901 AUTO INTAKE):** pause on Runes/Gems/Materials/stash — same AI as
+Tools 📸. Continuous multi-worker **Robot is FROZEN** (`TV_ROBOT=1` only). Console
+home tab is **SESSIONS** (not a separate TV·D peer).
 
 ## The three rules (why this is clean)
 
