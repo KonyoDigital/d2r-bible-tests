@@ -1886,3 +1886,15 @@ auto-lane SET semantics — the SAFEST shape per Grok: replace counts ONLY for k
 reports, never silent-zero unmentioned keys, explicit clear stays manual; implementation gets
 its own 7-round cycle once debt has soaked live. All gates green. v909 = second version sealed
 under the seven-round rule.
+
+## 🏆 v910 "ONE UNIT" R1-2 (chronicle relevance + one-viewport order, Jul 19 ~22:20)
+R1 AUDIT: the v763 one-head router holds — every committed vault_name → tvVaultRegister (belt,
+dedup) + tvChronicleRoute('vault'): set pieces → CANONICAL slot-suffixed toggleSetPiece,
+uniques → suffix-tolerant canonical toggleOwned (dated foundLog), equipped → chronicle-only,
+chat → DISCOVERED. R2 LOCKED (tests/v910_chronicle_relevance.spec.ts 3/3): raw reader-name
+marks the canonical grail key EXACTLY ONCE with a date, re-read → already:true, set canonical
+routing, junk/ghosts never mint keys (spec initially probed the raw key and failed honestly —
+the ENGINE was right, the spec learned canon). KONYO MID-ROUND ORDER shipped same cycle: THE
+LIBRARY leaves the homepage (lives in the 📚 SIMULATION shelf) — the console home is ONE UNIT,
+measured 950/950 scroll=client, ZERO scrolling; task-force still counts runs-today from the
+sessions feed. 150/150 + 32/32 + 6 board specs green. Grok rounds 3-7 next.
