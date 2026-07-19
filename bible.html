@@ -14760,12 +14760,15 @@ const fmtHours = h => {
   return `${(h/24).toFixed(1)}d`;
 };
 let _persistT = null;
-try { window.addEventListener('pagehide', () => { if (_persistT){ clearTimeout(_persistT); _persistT = null; _persistNow(); } }); } catch(e){}
-const persist = () => {   // v878 (army board #7) — debounce: sliders fired ~20 sync writes per drag tick
+try { window.addEventListener('pagehide', () => { if (_persistT){ clearTimeout(_persistT); _persistT = null; persist(); } }); } catch(e){}
+// v887 (Routine I caught v878's debounce breaking gem/craft persistence reads) — persist() is
+// SYNCHRONOUS again: grail marks and stash counts are too precious for a 250ms loss window.
+// Only the SLIDER drag path (mf/players oninput, ~20 writes per tick) uses persistSoon().
+const persistSoon = () => {
   if (_persistT) return;
-  _persistT = setTimeout(() => { _persistT = null; _persistNow(); }, 250);
+  _persistT = setTimeout(() => { _persistT = null; persist(); }, 250);
 };
-const _persistNow = () => {
+const persist = () => {
   LS.setItem('d2r_mf', mf);
   LS.setItem('d2r_players', players);
   LS.setItem('d2r_wishlist', JSON.stringify([...wishlist]));
@@ -22057,8 +22060,8 @@ function tzTrackerOnShow(){
 }
 window.tzTrackerOnShow = tzTrackerOnShow;
 
-$("mf").oninput = () => { mf = parseInt($("mf").value); persist(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
-$("players").oninput = () => { players = parseInt($("players").value); persist(); updatePlayers(); renderHero(); renderBossNav(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
+$("mf").oninput = () => { mf = parseInt($("mf").value); persistSoon(); updateEffMF(); renderHero(); renderBossCards(); if (selectedItem) renderDetail(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderGrailProgress(); renderWishlistHuntPath(); };
+$("players").oninput = () => { players = parseInt($("players").value); persistSoon(); updatePlayers(); renderHero(); renderBossNav(); renderBossCards(); if (activeItemDetail) renderItemDetailCard(activeItemDetail); if (typeof activeBossId !== "undefined" && activeBossId) renderBossDetailCard(activeBossId); renderWishlistHuntPath(); };
 $("item-search").oninput = e => { searchQ = e.target.value; renderCalc(); };
 document.querySelectorAll(".filter-pill").forEach(p => {
   p.onclick = () => {
@@ -33413,7 +33416,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v886', name:'The Roundtrip Law', date:'2026-07-19', note:'v886: Grok roundtrip acceptance harness GREEN in CI (ON AIR to SIM, exact frames + Konyo read-sync law) — flushed 4 real bugs: OCR-lane reads never journaled, live window truncated both ends (boot-anchored now), split hist roots unified (TV_HIST), loud journal writer' };
+  window.D2R_BUILD = { id:'v887', name:'Morning Green', date:'2026-07-19', note:'v887: routines truly in check — persist() synchronous again (v878 debounce broke gem/craft persistence; only slider drags debounce via persistSoon), roundtrip harness CI-safe (TV_CLAUDE_BIN stub); 3 broken Tools specs re-run green in isolation' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

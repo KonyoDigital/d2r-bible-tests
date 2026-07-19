@@ -43,7 +43,8 @@ class TestRoundtrip(unittest.TestCase):
         env = dict(os.environ,
                    TV_CONTROL_PORT=str(PORT), TV_PORT="17955",
                    TV_SESSIONS=cls.journal, TV_HIST=cls.hist,
-                   TV_STUB="1", TV_POOL="1", TV_FAREWELL="0")
+                   TV_STUB="1", TV_POOL="1", TV_FAREWELL="0",
+                   TV_CLAUDE_BIN="/bin/echo")   # CI runners have no claude; stub mode never calls it
         env.pop("ANTHROPIC_API_KEY", None)
         cls.proc = subprocess.Popen([sys.executable, os.path.join(HERE, "control_app.py")],
                                     env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)

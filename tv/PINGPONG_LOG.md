@@ -1702,3 +1702,13 @@ travels); (2) live interleave window truncated at BOTH ends — now boot-anchore
 NOW; (3) the agent and control disagreed on the hist root (TV_HIST now honored by both);
 (4) journal writer failures were silent — now loud (a lost row is a lost read forever).
 149/149 + 30/30 + parity ×4.
+
+## 🌅 v887 "MORNING GREEN" (routines truly in check, Jul 19 morning)
+Morning CI sweep: Routine G/H/K GREEN; Routine I red on 3 TOOLS specs (v141 gems, v196
+coverage, v288 craft) — root cause MY v878 persist() debounce: data writes landed 250ms late,
+persistence reads went stale. Doctrine fix: persist() is SYNCHRONOUS again (grail marks and
+stash counts get no loss window); ONLY the mf/players slider drags use the explicit
+persistSoon() debounce (the original ~20-writes-per-tick problem). All 3 specs re-run GREEN in
+isolation (30/30). tv-tests red on the new roundtrip harness — CI runners lack claude; harness
+env now sets TV_CLAUDE_BIN=/bin/echo (stub mode never calls it; the preflight stays honest in
+prod). 149/149 + 30/30 + parity ×4.
