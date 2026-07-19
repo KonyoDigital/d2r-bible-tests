@@ -86,15 +86,21 @@ test('the card opens glued to the hovered item and never detaches across the scr
       // 25%-inset point, NOT the extreme corner: corner coords sit on the positioner's
       // clamp/flip boundary, which lands differently under Linux font metrics (Archon Plate
       // flipped sides on CI only — a boundary artifact, not the detach bug-class).
+      const ar1 = (a as any).getBoundingClientRect();
       a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
         clientX: ar.left + (ar.right - ar.left) * 0.75, clientY: ar.top + (ar.bottom - ar.top) * 0.5 }));
       await new Promise((res) => setTimeout(res, 80));
       const tr2 = tip.getBoundingClientRect();
-      // ≤8px tolerance: content settling, the v639 hover-pop scale, and CI's late art-image
-      // load (the card reflows when the PNG lands) drift a few px — the guarded bug-class is
-      // the tooltip RE-ANCHORING across the screen (tens-to-hundreds of px), which 8px catches.
-      const still = Math.abs(tr2.left - tr.left) <= 8 && Math.abs(tr2.top - tr.top) <= 8;
-      results.push({ name: (a as any).getAttribute('data-arttip'), adjacent, onScreen, still });
+      const ar2 = (a as any).getBoundingClientRect();
+      // v918.2 — stability is RELATIVE TO THE ANCHOR: on slow runners content-visibility
+      // materialization shifts the page mid-hover, the ANCHOR moves, and the glued card
+      // follows it — correct behavior an absolute check misread as a jump for three straight
+      // CI rounds. The detach bug-class = the card moving when (and where) the anchor didn't.
+      const dxCard = tr2.left - tr.left, dyCard = tr2.top - tr.top;
+      const dxAnch = ar2.left - ar1.left, dyAnch = ar2.top - ar1.top;
+      const still = Math.abs(dxCard - dxAnch) <= 8 && Math.abs(dyCard - dyAnch) <= 8;
+      results.push({ name: (a as any).getAttribute('data-arttip'), adjacent, onScreen, still,
+        dxCard: Math.round(dxCard), dyCard: Math.round(dyCard), dxAnch: Math.round(dxAnch), dyAnch: Math.round(dyAnch) });
       a.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
       await new Promise((res) => setTimeout(res, 60));
     }
@@ -104,6 +110,6 @@ test('the card opens glued to the hovered item and never detaches across the scr
   r.forEach((x: any) => {
     expect(x.adjacent, x.name + ' adjacency').toBe(true);
     expect(x.onScreen, x.name + ' on-screen').toBe(true);
-    expect(x.still, x.name + ' stability').toBe(true);
+    expect(x.still, x.name + ' stability ' + JSON.stringify(x)).toBe(true);   // numbers in the red — never a blind CI failure again
   });
 });
