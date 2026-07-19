@@ -30596,13 +30596,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
     try {   // v903 (Konyo: 'the motherboard') — publish a compact quest summary the CONSOLE
         // homepage reads over the shared origin (profile-forked key via LSR)
-        window.LSR.setItem('d2r_forgeSummary', JSON.stringify({
+        var _fsPayload = {
             ts: Date.now(),
             now: (out.now || []).slice(0, 6).map(function(t){ return t.rw; }),
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
             counts: out.counts || {}
-        }));
+        };
+        // v903.1 — write ONLY on real change: the volatile ts re-serialized identical quests
+        // every scan and broke the ladder bleed-proof byte-identity invariant
+        var _fsOld = null;
+        try { _fsOld = JSON.parse(window.LSR.getItem('d2r_forgeSummary') || 'null'); } catch(e2){}
+        var _fsCmp = function(x){ if (!x) return ''; var y = {}; for (var k9 in x) if (k9 !== 'ts') y[k9] = x[k9]; return JSON.stringify(y); };
+        if (_fsCmp(_fsOld) !== _fsCmp(_fsPayload)) window.LSR.setItem('d2r_forgeSummary', JSON.stringify(_fsPayload));
     } catch(e){}
     return out;
   }
