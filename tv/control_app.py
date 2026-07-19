@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v890)
+# 📺 TV DIABLO — Control App (Mac + Windows · v891)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1009,7 +1009,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v890",
+        "ver": "v891",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1927,6 +1927,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(500, {"ok": False, "msg": str(e)})
             return
         if path == "/api/on":
+            # v891 (Grok C3) — DISK PREFLIGHT: below the floor the reaper can't keep a reel
+            # alive; refuse loudly with the exact ask instead of recording a doomed session.
+            try:
+                import shutil as _shd
+                _free = _shd.disk_usage(HIST_DIR).free / 1e9
+                if _free < 8.0:
+                    self._json(200, {"ok": False, "mode": "off",
+                                     "error": "DISK TOO FULL to record — %.1fGB free, need 8GB. Free ~%.0fGB and press ON AIR again." % (_free, 9 - _free)})
+                    return
+            except Exception:
+                pass
             if _stop_inflight:
                 self._json(200, {"ok": False, "msg": "still shutting down — session saving; try ON again in a moment",
                                  "mode": "stopping", "error": "still stopping"})
@@ -2091,7 +2102,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v890 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v891 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

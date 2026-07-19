@@ -1742,3 +1742,11 @@ the live funnel has tallied anything this session — the classic double-count (
 the stash photo re-adds the whole stack) is dead. Manual photo intake from Tools stays (a
 deliberate act = SET intent). tvToolsDelta arms the guard. Spec grew the guard lock (2/2
 green). LOCKED intake pipeline untouched (board-side gate only). 149/149 + 30/30.
+
+## 🛡 v891 "TWO-HOUR ARMOR" (Grok pp1 C1+C3 — farm-night survival, Jul 19)
+C1 THROTTLE CASCADE: 2+ warm-reader deaths inside 60s = subscription pacing — the agent now
+soft-degrades for 120s (heartbeat cap sheds to 1, no oneshot herd on top of the v864
+semaphore), says so in the feed ('🐢 THROTTLED') and in health.throttled → console fault chip.
+Silent-empty nights are over. C3 DISK PREFLIGHT: ON AIR refuses below 8GB free with the exact
+'free ~N GB' ask — no more recording a session the reaper is doomed to eat. 149/149 + 30/30 +
+roundtrip OK. Series next per roadmap: spine live chip · straggler farm-night · 2h soak.

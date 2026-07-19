@@ -31,7 +31,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v890"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
+VERSION = "v891"   # READER POOL — up to POOL_N concurrent vision readers + ordered apply
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -322,6 +322,7 @@ def _health(st):
         _free_gb = None
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
          "freeGB": _free_gb, "minFreeGB": MIN_FREE_GB,   # v872.1 — disk emergency is LOUD, never silent
+         "throttled": _is_throttled(),   # v891 — the 🐢 chip's truth
          "footageFps": _foot_fps,   # v861 — the archive floor, alarmed by the UI
          "visionBusyMs": (max(0, int(now * 1000) - _pool_oldest) if (_pool_pin and _pool_oldest) else 0),
          "poolInFlight": _pool_pin, "poolN": POOL_N,
@@ -1779,6 +1780,8 @@ def _heartbeat_cap():
     300+ frames): base 2; earn 4 while the film lane is provably healthy (≥1.8fps archive,
     <200ms captures); shed to 1 the moment footage starves. Ceiling 3/4 pool for big machines."""
     hi = max(1, (POOL_N * 3) // 4)
+    if _is_throttled():
+        return 1   # v891 — a throttled subscription gets ONE gentle heartbeat lane, not a herd
     fps = _foot_fps_now()
     cap_ms = globals().get("_FILM_CAP_MS") or 0
     if (fps is not None and fps < 1.2) or cap_ms > 800:
@@ -2785,6 +2788,24 @@ def _needs_escalate(rd):
     if scene in ("inventory", "stash") and names and conf is not None and conf < 0.7: return True
     return False
 
+_SLOT_DEATHS = deque(maxlen=8)   # v891 (Grok C1) — timestamps of worker deaths
+_THROTTLED_UNTIL = [0.0]
+def _note_slot_death():
+    """v891 — 2+ worker deaths inside 60s = subscription throttle cascade: soft-degrade for
+    120s (heartbeat sheds to 1 via the cap, gap breathes) and SAY SO instead of silent empties."""
+    now = time.time()
+    _SLOT_DEATHS.append(now)
+    recent = [t for t in _SLOT_DEATHS if now - t <= 60.0]
+    if len(recent) >= 2 and now >= _THROTTLED_UNTIL[0]:
+        _THROTTLED_UNTIL[0] = now + 120.0
+        ev("cap", "🐢 THROTTLED — 2+ reader deaths in 60s (subscription pace?) · soft-degrade 120s, reads breathe")
+        print("  🐢 throttle cascade detected — degrading softly for 120s")
+
+
+def _is_throttled():
+    return time.time() < _THROTTLED_UNTIL[0]
+
+
 _ONESHOT_GATE = threading.Semaphore(1)   # v864 — a throttled pool must not herd 8 oneshots
 _ASK_NONE_STREAK = 0
 def _oneshot(ap, model, timeout=90):
@@ -2907,6 +2928,7 @@ def claude_read(path, worker=None, out_jpg=None):
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
         ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
+        _note_slot_death()   # v891 (Grok C1) — cascade detector
         _rewarm(w)  # v718 (Grok R10 pick #2) + v863: rewarm THIS reader's slot only, pool degrades soft
     try:
         parsed = _oneshot(ap, FAST_MODEL, timeout=90)
