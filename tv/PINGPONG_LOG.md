@@ -1990,3 +1990,60 @@ a mixed-sid session pair still resolves — the read-proof itself is the Mac gat
 v918-v921 remainder = MAC-GATE ITEMS requiring Konyo's real session (live SET night · real
 intake path proof · his eyes once) — carried into the v922 seal as KNOWN HONEST GAPS per
 Grok's own report structure. 150/150 + 32/32 green.
+
+# ═══════════════════════════════════════════════════════════════════
+# 🔏 v922 SEAL — ARC v901→v917 CLOSED · "Everywhere Live + the Intake Robot"
+# ═══════════════════════════════════════════════════════════════════
+
+## 1 · ONE SENTENCE
+The product is: the AI item reader → the locked 📸 intake pipeline → tallies/grail/chronicle/
+forge, exactly once — rendered on the SESSIONS motherboard (console + site, hand in hand),
+with TV·D as the reader's live surface and the SIMULATION as the retro debugger beneath.
+
+## 2 · ARC SCORECARD
+| Ver | Name | Outcome | 7-round | Gates |
+|-----|------|---------|---------|-------|
+| v901 | Auto Intake (Grok) | product pivot: intake default, robot frozen | — | green |
+| v902 | The Intake Reel | intake beats photo-synced in the reel | — | green |
+| v903 | The Motherboard | console home dashboard | — | green |
+| v904 | Smooth Toggle | #tvd honored, return pill | — | green |
+| v905 | Flagship Sessions | engines strip · paginated library · primary-four | — | green |
+| v906 | The Main Shebang | daily task force · site hand-in-hand | — | green |
+| v907 | Site Flagship | task force on the website cockpit | — | green |
+| v908 | The Connector | counts on every wire · shot inline | ✅ SEALED | green |
+| v909 | Exact Once | persisted net-debt reconcile | ✅ SEALED | green |
+| v910 | One Unit | chronicle relevance · one-viewport home | ✅ SEALED | green |
+| v911 | One Motion | glide transitions · grail emblem · profile-aware | ✅ SEALED | green |
+| v912 | Photo Truth | auto-lane SET · shot-clock debt law | ✅ SEALED | green |
+| v913 | Rich Board | KPI-true grail · HD-art quests · live strip | ✅ SEALED | green |
+| v915 | Soaked Intake | nightly soak asserts posted==journaled | — | PASS |
+| v914+916 | Everywhere Live | site TV·D tab + CI-robust roundtrip | — | green |
+| v917 | Truly Live | the tvd coerce dead — the site tab is REAL | — | green |
+
+## 3 · LAWS LOCKED (spec-enforced)
+- Auto Intake is the default ON AIR; the multi-worker robot stays behind TV_ROBOT=1.
+- SESSIONS is home on BOTH surfaces; the homepage is ONE viewport.
+- Tools tallies land EXACTLY ONCE (funnel ledger + persisted net debt + photo-SET truth).
+- Counts ride every wire: intake return → bridge → reel caption/tally table → dash chips.
+- Chronicle relevance: a raw read marks the CANONICAL grail key, dated, exactly once.
+- The grail chip shows THE SAME number as the site KPI (funiScan carried, never recomputed).
+- Intake beats posted == journaled (nightly soak law).
+- TV·D is dual-context: real site tab + console header toggle; SIM = the retro debugger.
+
+## 4 · PROOF SURFACE
+CI every push: 150 agent · 32 control · roundtrip law (read or honest fallback) · pre-push tv
+fast lane · v635 bleed-proof. Routine I: 9 board specs (funnel/SET 4 · connector seal 2 ·
+chronicle 3) + the standing suite. Nightly: 30-min soak w/ intake law. Mac gate only: real
+first-read timing, live SET behavior, the D2R.exe window pin.
+
+## 5 · KNOWN HONEST GAPS (Konyo's eyes, once)
+- SET semantics has NOT seen a real farm night (OCR partial-grid edge is theory-guarded only).
+- The real (non-stub) intake path end-to-end on live screens — one ON AIR + pause run proves it.
+- Windows cousin parity for the new arc (site tab, dashboard, SET) — needs a Windows pull + look.
+
+## 6 · NON-GOALS THIS ARC
+The multi-worker robot as a product · public/site-hosted reader · memory/prompt-injection work.
+
+## 7 · GREEN CHECKLIST
+[x] stamps one truth (v917 everywhere) [x] dual-context TV·D [x] last soak PASS
+[x] roundtrip local OK [x] no open P0 [x] ledger current — awaiting: his first real farm night.
