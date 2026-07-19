@@ -1837,3 +1837,17 @@ the Forge, ◈ one-step verbs, ✶ daily pick, 📼 today-with-reader-state) —
 the LIVE forgeScan (no summary staleness on-site), d2r_createNowAi, and d2r_tvdHist. Site
 lands on #session, intel teaches the auto lane, primary-four tabs lead. Verified on the
 non-app board view: TF renders, sessions active. 150/150 + 32/32.
+
+## 🔌 v908 "THE CONNECTOR" (Konyo: 'real numbers, all logically connected' · 7-round rule active, Jul 19 eve)
+Round ledger (per KONYO WORKFLOW step 13): R1 design = Grok seam confirmation (intake fns
+return values ONLY; locked AI path untouched) · R2 implement = runeIntake/gemIntake/
+materialIntake return {ok,total,added,errors}; tvStash/VaultAutoIntake capture the return and
+POST counts+total+errors+frameId (threaded from the triggering read through opts) to
+/intake_result; bridge journals total/errors; the REEL now narrates ('📸 INTAKE · runes ·
++12 / 4 types'), the drawer shows THE TALLY TABLE per shot, dash chips carry +totals ·
+R3 back-pass = Grok P1/P2/P3 landed same round: library page anchored by sessionId membership
+(no more sliding under the viewer), live card thumb pinned to the FIRST frame (mid-frame churn
+= flicker), empty-state renders, ONE fade under app-ctx (dual-fire blank flash dead),
+order-proof forgeSummary compare (array-order false rewrites dead) · R4 verify = all gates
+green ×2 (first pass flaked under machine load — reran isolated per doctrine). Rounds 5-7
+(polish/back-pass/seal) continue next cycle with Grok. 150/150 + 32/32 + roundtrip OK.

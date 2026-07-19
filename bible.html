@@ -4317,7 +4317,7 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
   letter-spacing:.08em}
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
 /* v904 — the TV·D toggle is SMOOTH: content fades in, and a return pill floats home */
-body.app-ctx .tab-content.active{animation:tvdFadeIn .24s ease}   /* v905 — every console tab toggles smooth */
+body.app-ctx .tab-content.active{animation:tvdFadeIn .24s ease !important}   /* v905/v908 (Grok P2) — ONE animation in the console: the legacy tab-in dual-fire caused blank flashes on heavy walls */
 body.app-ctx #tab-tvd.active{animation:tvdFadeIn .28s ease}
 @keyframes tvdFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 #tvd-return-pill{display:none}
@@ -19623,7 +19623,9 @@ window.gemIntake = async function(files){
     } else {
       report.innerHTML='No gems read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot — gems filling the frame, good lighting.';
     }
+    return { ok: total > 0, total: total, added: added, errors: errors, kind: 'gems' };   // v908
   }
+  return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'gems' };
 };
 
 // ── General Horadric Cube recipe browser (verified vanilla recipes) ──────────────
@@ -20805,7 +20807,9 @@ window.runeIntake = async function(files){
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
+    return { ok: total > 0, total: total, added: added, errors: errors, kind: 'runes' };   // v908 — the connector carries real numbers
   }
+  return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'runes' };
 };
 
 // --- v69: Materials Stash & Uber Planner ---
@@ -21873,7 +21877,10 @@ window.materialIntake = async function(files){
     } else {
       report.innerHTML='No materials read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your keys / organs / essences / statues.';
     }
+    return { ok: (total > 0 || statuesAdded.length > 0), total: total, added: added,
+             statues: statuesAdded.length, errors: errors, kind: 'materials' };   // v908
   }
+  return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'materials' };
 };
 
 function renderStatueTracker() {
@@ -30655,7 +30662,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // every scan and broke the ladder bleed-proof byte-identity invariant
         var _fsOld = null;
         try { _fsOld = JSON.parse(window.LSR.getItem('d2r_forgeSummary') || 'null'); } catch(e2){}
-        var _fsCmp = function(x){ if (!x) return ''; var y = {}; for (var k9 in x) if (k9 !== 'ts') y[k9] = x[k9]; return JSON.stringify(y); };
+        var _fsCmp = function(x){ if (!x) return '';   // v908 (Grok P3) — order-proof compare
+      var now9 = (x.now || []).slice().sort();
+      var pipe9 = (x.pipeline || []).slice().sort();
+      var one9 = (x.onestep || []).slice().sort(function(a, b){ return String(a.rw || a) < String(b.rw || b) ? -1 : 1; });
+      var c9 = x.counts || {};
+      return JSON.stringify([now9, pipe9, one9.map(function(t){ return [t.rw || t, t.sub || '']; }),
+        [c9.now || 0, c9.deferred || 0, c9.pipeline || 0, c9.onestep || 0, c9.crafts || 0]]); };
         if (_fsCmp(_fsOld) !== _fsCmp(_fsPayload)) window.LSR.setItem('d2r_forgeSummary', JSON.stringify(_fsPayload));
     } catch(e){}
     return out;
@@ -33531,7 +33544,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v907', name:'Site Flagship', date:'2026-07-19', note:'v907 (Konyo: flagship SESSIONS as the main homepage dashboard for the ENTIRE website): the site cockpit opens with the DAILY TASK FORCE (console design, board-native, fed by LIVE forgeScan + daily pick + todays runs + reader state), hand-in-hand with the console motherboard' };
+  window.D2R_BUILD = { id:'v908', name:'The Connector', date:'2026-07-19', note:'v908 (Konyo: the motherboard is the connector — real numbers through every wire): intake fns return {ok,total,added,errors} (locked AI path untouched), auto-lanes post counts+frameId to the bridge, the reel narrates (caption +12/4 types, drawer tally table), dash chips carry totals; Grok P1 (stable page anchor, live thumb pinned, empty-state), P2 (one fade in app-ctx), P3 (order-proof summary compare)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33619,13 +33632,15 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (!blob || !blob.size) return { ok:false, why:'empty-frame' };
       var file = new File([blob], 'tv-vault-' + Date.now() + '.jpg', { type: blob.type || 'image/jpeg' });
       window._vaultAutoDone = true;
-      await window.vaultIntake([file], { fromTv: true });
-      // v902 — the reel learns WHAT INTAKE DID: report back to the bridge, time-synced
+      var _vr = await window.vaultIntake([file], { fromTv: true });
+      // v902/v908 — the reel learns WHAT INTAKE DID (real outcome + the photo it ate)
       try {
         var BR = 'http://127.0.0.1:' + (window._tvdBridgePort || 17771);
         fetch(BR + '/intake_result', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
-                                 ok: true }) }).catch(function(){});
+                                 ok: (_vr === undefined) ? true : !!(_vr && _vr.ok !== false),
+                                 counts: (_vr && _vr.added) || {},
+                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){});
       } catch(e){}
       try {
         var st = document.getElementById('vault-status');
@@ -33686,17 +33701,20 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           if (m.render && typeof window[m.render] === 'function') window[m.render]();
         }
       } catch(e){}
-      await intake([file]);
+      var _ir = await intake([file]);
       try {
         var st = document.getElementById('vault-status');
         if (st) st.textContent = '📺 TV stash auto-intake → ' + tab + ' (locked tally · stay on SESSIONS)';
       } catch(e){}
-      try {   // v902 — journal the intake beat (photo-synced) via the bridge
+      try {   // v902/v908 — journal the intake beat WITH THE REAL NUMBERS, photo-synced
         var BR2 = 'http://127.0.0.1:' + (window._tvdBridgePort || 17771);
         fetch(BR2 + '/intake_result', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ts: Date.now(), tab: tab, kind: 'tally', ok: true }) }).catch(function(){});
+          body: JSON.stringify({ ts: Date.now(), tab: tab, kind: (_ir && _ir.kind) || 'tally',
+                                 ok: !!(_ir && _ir.ok), counts: (_ir && _ir.added) || {},
+                                 total: (_ir && _ir.total) || 0, errors: (_ir && _ir.errors) || 0,
+                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){});
       } catch(e){}
-      return { ok:true, tab: tab, bytes: blob.size };
+      return { ok:true, tab: tab, bytes: blob.size, counts: (_ir && _ir.added) || {} };
     } catch(e){
       return { ok:false, why: String(e && e.message || e) };
     } finally {
@@ -34659,7 +34677,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
               _stashVisitDone[stashTab] = true;
               stashIntakeQueued = true;
               try {
-                Promise.resolve(window.tvStashAutoIntake(stashTab)).then(function(r){
+                Promise.resolve(window.tvStashAutoIntake(stashTab, { frameId: rd.frameId || rd.frame_id || '' })).then(function(r){
                   try {
                     if (r && r.ok) console.log('[tvd] stash auto-intake ok', stashTab, r.bytes);
                     else console.log('[tvd] stash auto-intake skip', stashTab, r && r.why);
@@ -34672,7 +34690,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
               _stashVisitDone['vault_'+stashTab] = true;
               stashIntakeQueued = true;
               try {
-                Promise.resolve(window.tvVaultAutoIntake && window.tvVaultAutoIntake({ tab: stashTab })).then(function(r){
+                Promise.resolve(window.tvVaultAutoIntake && window.tvVaultAutoIntake({ tab: stashTab, frameId: rd.frameId || rd.frame_id || '' })).then(function(r){
                   try {
                     if (r && r.ok) console.log('[tvd] vault auto-intake ok', stashTab, r.bytes);
                     else console.log('[tvd] vault auto-intake skip', stashTab, r && r.why);

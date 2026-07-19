@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v907)
+# 📺 TV DIABLO — Control App (Mac + Windows · v908)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1018,7 +1018,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v907",
+        "ver": "v908",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1398,6 +1398,17 @@ class Handler(BaseHTTPRequestHandler):
                         if _rfs:
                             # v890 — the card's art IS the run: its middle frame, 160px lane
                             _thumb = "reel_" + str(sess[0].get("sessionId") or "") + "/" + _rfs[len(_rfs) // 2]
+                    elif n == 1 and not any(r3.get("sessionEnd") for r3 in sess):
+                        # v908 (Grok P1) — the LIVE card pins its thumb to the FIRST loose frame
+                        # (a mid frame churns every refresh = flicker)
+                        try:
+                            _lf = sorted(f4 for f4 in os.listdir(HIST_DIR)
+                                         if f4.startswith("f_") and f4.endswith(".jpg"))
+                            if _lf:
+                                _reeln = len(_lf)
+                                _thumb = _lf[0]
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
@@ -2240,7 +2251,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v907 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v908 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

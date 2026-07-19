@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v907"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v908"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -411,6 +411,8 @@ def bridge():
                             "tab": str(body.get("tab") or "")[:24],
                             "kind": str(body.get("kind") or "")[:16],
                             "counts": body.get("counts") if isinstance(body.get("counts"), dict) else {},
+                            "total": int(body.get("total") or 0),
+                            "errors": int(body.get("errors") or 0),
                             "items": (body.get("items") or [])[:60],
                             "ok": bool(body.get("ok", True)),
                         },
