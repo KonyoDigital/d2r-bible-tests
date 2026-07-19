@@ -33417,7 +33417,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v891', name:'Two-Hour Armor', date:'2026-07-19', note:'v891 (Grok C1+C3): throttle-cascade detector (2 reader deaths in 60s = soft-degrade 120s, heartbeat sheds to 1, loud turtle chip) + ON AIR disk preflight (refuses with the exact GB ask instead of recording a doomed session)' };
+  window.D2R_BUILD = { id:'v892', name:'Live Chip', date:'2026-07-19', note:'v892: the tally lands in your eye — a forge-toast chip fires the moment the AI vaults a rune/gem/material (+1 Ist · tallied into Tools · rune stash), unvault shows the −1; no tab switch needed' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33750,6 +33750,16 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       else if (c.kind === 'mat' && typeof window.adjustMaterialStash === 'function') window.adjustMaterialStash(c.key, delta);
       else return false;
       try { if (typeof renderCraftWorkshop === 'function') renderCraftWorkshop(); } catch(e){}
+      // v892 (Grok roadmap) — LIVE CHIP: the tally lands in your eye, no tab switch
+      try {
+        var _t = document.createElement('div');
+        _t.className = 'forge-toast';
+        _t.innerHTML = '🧰 <b>' + (delta > 0 ? '+1' : '−1') + ' ' + String(c.key).replace(/</g, '&lt;') + '</b> — ' + (delta > 0 ? 'tallied into Tools' : 'removed from Tools') + (c.kind === 'rune' ? ' · rune stash' : c.kind === 'gem' ? ' · gem stash' : ' · materials');
+        var st2 = document.getElementById('forge-toasts');
+        if (!st2){ st2 = document.createElement('div'); st2.id = 'forge-toasts'; document.body.appendChild(st2); }
+        st2.appendChild(_t);
+        setTimeout(function(){ _t.classList.add('out'); setTimeout(function(){ _t.remove(); }, 450); }, 2600);
+      } catch(e){}
       return true;
     } catch(e){ return false; }
   }

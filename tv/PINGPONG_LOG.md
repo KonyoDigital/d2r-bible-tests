@@ -1750,3 +1750,10 @@ semaphore), says so in the feed ('🐢 THROTTLED') and in health.throttled → c
 Silent-empty nights are over. C3 DISK PREFLIGHT: ON AIR refuses below 8GB free with the exact
 'free ~N GB' ask — no more recording a session the reaper is doomed to eat. 149/149 + 30/30 +
 roundtrip OK. Series next per roadmap: spine live chip · straggler farm-night · 2h soak.
+
+## 💬 v892 "LIVE CHIP" (Grok roadmap, Jul 19)
+The tally is VISIBLE the second it happens: tvToolsDelta fires a forge-toast chip
+('🧰 +1 Ist — tallied into Tools · rune stash'; unvault shows −1) — Konyo sees the sync land
+without leaving the TV·D feed. Reuses the existing toast column (stacking, fade). Funnel spec
+still 2/2. 149/149 + 30/30. Roadmap remaining: straggler farm-night · 2h soak · SIM drawer
+empty-states · site freeze · nightly seal pack; then the autonomous 10.
