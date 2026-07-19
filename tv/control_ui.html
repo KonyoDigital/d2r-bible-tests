@@ -899,7 +899,13 @@
   body[data-state="off"] .stage .marquee { top: 10px; }
   .hd-grid .sh-card { display: flex; flex-direction: column; }
   .hd-grid .sh-art { height: 84px; flex: 0 0 auto; }
-  body[data-state="on"] .home-dash, body[data-state="sim"] .home-dash { display: none; }
+  body[data-state="sim"] .home-dash { display: none; }
+  /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
+     a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
+  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge { display: none; }
+  body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; }
+  .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
+  .hd-chip.nm { color: var(--mint); border-color: rgba(143,230,160,.4); }
   /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
   aside.rail { display: flex; flex-direction: column; gap: 10px; }
   aside.rail > * { margin-top: 0 !important; flex: 0 0 auto; }
@@ -1092,7 +1098,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v912 control</span>
+      <span id="foot-ver">v913 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1414,7 +1420,7 @@
 
     // v816 — TRIPLE LAMP: agent · app · board stamps in one glance; mismatch turns amber
     var _bv = st.bibleVer || '';
-    $('foot-ver').textContent = (st.ver || 'v912') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
+    $('foot-ver').textContent = (st.ver || 'v913') + ' control' + (_bv ? (' · board ' + _bv) : '') + (st.platform ? ' · ' + st.platform : '')
       + (st.shell ? ' · ' + st.shell : '');
     try { $('foot-ver').style.color = (_bv && st.ver && _bv !== st.ver) ? '#d8a94a' : ''; } catch(e){}
     // v772 — show what we're pointed at (CrossOver window vs full screen)
@@ -2655,8 +2661,10 @@
       var raw = lsFork('d2r_forgeSummary');
       if (!raw) return;
       var f = JSON.parse(raw);
-      var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">⚒ ' + rw + ' · MAKE NOW</span>'; })
-        .concat((f.onestep || []).map(function(t){ return '<span class="hd-chip step">◈ ' + (t.rw || t) + ' · one step</span>'; }))
+      var _art = f.art || {};
+      var _chipArt = function(rw){ var u = _art[rw]; return u ? '<img class="hd-chip-art" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">' : ''; };
+      var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">' + _chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW</span>'; })
+        .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
         .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
       if (chips.length){
         $('hd-forge-chips').innerHTML = chips.join('');
@@ -2746,6 +2754,7 @@
         '<span class="hd-chip intk">📸 INTAKE · ' + ((st && st.intakeRing) || []).length + ' recent</span>',
         '<span class="hd-chip step">🔥 FORGE · ' + ((fs && fs.counts && fs.counts.now) || 0) + ' ready · ' + ((fs && fs.counts && fs.counts.onestep) || 0) + ' one-step</span>',
         '<span class="hd-chip">🧰 TALLIES · ' + led.length + ' synced</span>',
+        (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm">🏆 GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
         '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
       ];
       $('hd-engine-chips').innerHTML = chips.join('');

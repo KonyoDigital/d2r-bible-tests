@@ -1941,3 +1941,12 @@ Ist now match the shot'). R7 SEAL: Grok's P3/P4 verified clean (statues are SET-
 in added{}, collected is set-once; tab/kind plurals aligned end-to-end); the optional manual-📸
 busy-lock noted-not-needed; matrix still 4/4 + all 9 board specs + 150/150 + 32/32 green.
 FIFTH cycle sealed under the seven-round rule. Next: v913 console visual-dashboard richening.
+
+## 🖼 v913 "RICH BOARD" R1-2 (console visual richening, Jul 19 ~23:55)
+The summary now carries the LOOK: artUrl per quest (HD item art rides d2r_forgeSummary.art),
+grail {found,total} + chron {made} — and the change-law counts them (a new grail find IS a
+real change). Console: forge quest chips wear their HD art (20px, gold drop-glow), ENGINES
+gains '🏆 GRAIL · 243/403', and ON AIR no longer hides the dashboard — the heavy panels rest
+while ENGINES + LIVE INTAKE breathe under the film (Konyo: 'when the reader is on it should
+show all visually perfectly'). Fixture-verified screenshot. 150/150 + 32/32 + 9 board specs.
+Grok rounds 3-7 next; then site TV·D chip decision · 2h intake soak · seal pack → v922.

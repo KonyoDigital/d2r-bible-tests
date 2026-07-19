@@ -30658,12 +30658,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     out.counts={ now:out.now.filter(function(t){return !t.deferred;}).length, deferred:out.now.filter(function(t){return t.deferred;}).length, pipeline:out.pipeline.length, onestep:out.onestep.length, crafts:out.crafts.length };
     try {   // v903 (Konyo: 'the motherboard') — publish a compact quest summary the CONSOLE
         // homepage reads over the shared origin (profile-forked key via LSR)
+        var _fsArt = function(rw){ try { return (typeof artUrl === 'function' && artUrl(rw)) || ''; } catch(e){ return ''; } };
         var _fsPayload = {
             ts: Date.now(),
             now: (out.now || []).slice(0, 6).map(function(t){ return t.rw; }),
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
-            counts: out.counts || {}
+            counts: out.counts || {},
+            art: (function(){ var a = {}; try { (out.now || []).concat(out.onestep || []).slice(0, 12).forEach(function(t){ var u = _fsArt(t.rw); if (u) a[t.rw] = u; }); } catch(e){} return a; })(),   // v913 — HD art rides along
+            grail: (function(){ try { return { found: (typeof foundLog !== 'undefined' ? Object.keys(JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}')).length : 0), total: (typeof ITEMS !== 'undefined' ? 403 : 0) }; } catch(e){ return null; } })(),
+            chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}'); return { made: Object.keys(rm).length }; } catch(e){ return null; } })()
         };
         // v903.1 — write ONLY on real change: the volatile ts re-serialized identical quests
         // every scan and broke the ladder bleed-proof byte-identity invariant
@@ -30675,7 +30679,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var one9 = (x.onestep || []).slice().sort(function(a, b){ return String(a.rw || a) < String(b.rw || b) ? -1 : 1; });
       var c9 = x.counts || {};
       return JSON.stringify([now9, pipe9, one9.map(function(t){ return [t.rw || t, t.sub || '']; }),
-        [c9.now || 0, c9.deferred || 0, c9.pipeline || 0, c9.onestep || 0, c9.crafts || 0]]); };
+        [c9.now || 0, c9.deferred || 0, c9.pipeline || 0, c9.onestep || 0, c9.crafts || 0],
+        (x.grail || {}).found || 0, (x.chron || {}).made || 0]); };   /* v913 — grail progress is a real change */
         if (_fsCmp(_fsOld) !== _fsCmp(_fsPayload)) window.LSR.setItem('d2r_forgeSummary', JSON.stringify(_fsPayload));
     } catch(e){}
     return out;
@@ -33555,7 +33560,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v912', name:'Photo Truth', date:'2026-07-19', note:'v912 R1-3: the AUTO lane is SET — each reported key equals what the photo shows (pre-shot snapshot, subtract the stale), unreported keys untouched, empty shots zero nothing, manual 📸 stays ADD; re-photo is idempotent (the re-ADD class is dead); v909 debt is superseded-cleared by photo truth; 4/4 matrix' };
+  window.D2R_BUILD = { id:'v913', name:'Rich Board', date:'2026-07-19', note:'v913 R1-2 (Konyo: huge correct visual dashboard rendering): the forge summary carries HD art (artUrl per quest) + grail/chronicle truth (change-law includes them); console quest chips wear the art, ENGINES gains the 🏆 GRAIL arc, ON AIR keeps a LIVE strip (engines+intake breathe under the film — the reader on-screen is visual, not hidden)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
