@@ -1799,3 +1799,11 @@ Layout fought back 3 times (footer drift, rail collapse, stage overflow painting
 dash) — 4 screenshots iterated, each actually looked at; final is symmetric, zero dead space.
 150/150 + 32/32 + roundtrip OK. Remaining Grok v902-round items → v904+ (counts in the beat
 payload, per-key guard v2, TV·D smooth toggle, library intake-centric deepen).
+
+## 📺 v904 "SMOOTH TOGGLE" (Konyo: 'TV·D is now just a smooth toggle', Jul 19 eve)
+The live view is one intentional flick away and one flick back: explicit #tvd deep-links open
+the REAL TV·D surface again (v901's alias now catches only legacy tvd-on/off), the tab content
+fades in (.28s), and a floating '⚡ ← Sessions' pill (app-ctx only, switchTab-tracked) returns
+home. The console header 📺 tab and the sessions cockpit 'full live board →' both ride it.
+150/150 + 32/32. Next: v905 library intake-centric + v906 counts-in-beats (Grok seam: intake
+fns return {ok,total,added}).

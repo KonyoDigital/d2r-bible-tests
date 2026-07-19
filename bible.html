@@ -4308,6 +4308,14 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:.08em}
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
+/* v904 — the TV·D toggle is SMOOTH: content fades in, and a return pill floats home */
+body.app-ctx #tab-tvd.active{animation:tvdFadeIn .28s ease}
+@keyframes tvdFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#tvd-return-pill{display:none}
+body.app-ctx #tab-tvd.active~#tvd-return-pill, body.app-ctx #tvd-return-pill.show{display:inline-flex;position:fixed;top:64px;right:18px;z-index:9600;
+  align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--tvz-edge-hi,#7a6a3a);
+  background:linear-gradient(180deg,rgba(38,30,17,.92),rgba(12,10,7,.95));color:var(--gold-bright,#f0c060);
+  font:700 11px/1 var(--mono,ui-monospace,monospace);letter-spacing:.08em;cursor:pointer}
 /* full-bleed surfaces — every container stretches to the window */
 body.app-ctx .tab-content,body.app-ctx .gsearch-wrap{max-width:none;margin-left:14px;margin-right:14px}
 body.app-ctx .tvf-spine{border-radius:10px;margin:8px 0 12px}
@@ -7587,6 +7595,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     </details>
 </div>
 </div>
+<button id="tvd-return-pill" type="button" onclick="window.switchTab&&window.switchTab('session')">⚡ ← Sessions</button>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
 <button class="help-btn" onclick="document.getElementById('help-modal').classList.add('show')" title="Help & guide">?</button>
 <div class="help-modal" id="help-modal" onclick="if(event.target===this)this.classList.remove('show')">
@@ -22894,6 +22903,21 @@ function _v39_routeFromHash() {
   }
 }
 window.addEventListener('hashchange', _v39_routeFromHash);
+// v904 — the TV·D return pill follows the toggle (app-ctx only)
+(function(){
+  try {
+    var _origSw2 = window.switchTab;
+    window.switchTab = function(name){
+      var r = _origSw2.apply(this, arguments);
+      try {
+        var pill = document.getElementById('tvd-return-pill');
+        if (pill) pill.classList.toggle('show',
+          name === 'tvd' && document.body.classList.contains('app-ctx'));
+      } catch(e){}
+      return r;
+    };
+  } catch(e){}
+})();
 
 // --- Wrap openBossDetail to also reflect in hash
 const _v39_origOpenBossDetail = window.openBossDetail;
@@ -33441,7 +33465,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v903', name:'The Motherboard', date:'2026-07-19', note:'v903 (Konyo: the motherboard): SESSIONS home dashboard — forge quests visual (board publishes d2r_forgeSummary on every forgeScan; console renders MAKE-NOW/one-step/pipeline chips), live 📸 intake feed (state.intakeRing through status), library grid with reel thumbs inline (click = replay), compact stage when OFF (dash owns the flex row, named grid area), Grok P0 fixed (CUT keeps intake beats); 4 screenshots iterated' };
+  window.D2R_BUILD = { id:'v904', name:'Smooth Toggle', date:'2026-07-19', note:'v904: TV-D is a smooth toggle — explicit #tvd opens the live view (legacy on/off aliases still land on SESSIONS), content fades in, a floating return pill brings you home; sessions cockpit keeps the full-live-board button' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

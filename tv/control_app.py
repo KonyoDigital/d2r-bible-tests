@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v903)
+# 📺 TV DIABLO — Control App (Mac + Windows · v904)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1018,7 +1018,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v903",
+        "ver": "v904",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -2120,8 +2120,9 @@ class Handler(BaseHTTPRequestHandler):
             from urllib.parse import parse_qs, urlparse
             q = parse_qs(urlparse(self.path).query)
             tab = (q.get("tab") or ["session"])[0]
-            # v901 — #tvd aliases map to SESSIONS (TV·D is not a peer tab anymore)
-            if tab in ("tvd", "tvd-on", "tvd-off"):
+            # v904 (Konyo: 'TV·D is a smooth TOGGLE') — an EXPLICIT #tvd opens the live view;
+            # only the legacy on/off aliases land on SESSIONS
+            if tab in ("tvd-on", "tvd-off"):
                 tab = "session"
             if tab not in ("session", "tools", "forge", "funi", "fsets", "tvd"):
                 tab = "session"
@@ -2239,7 +2240,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v903 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v904 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
