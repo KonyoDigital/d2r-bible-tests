@@ -1735,3 +1735,10 @@ same-frame dedupe, unvault −1, junk ignored, new frame counts again. 149/149 +
 GROK ROADMAP recorded (v890-v898): materials proof · intake SET semantics (A1 kill) · spine
 live chip · ON AIR doctor lamps · straggler farm-night · 2h soak · SIM drawer empty-states ·
 site lite freeze · nightly seal pack. Series continues autonomously.
+
+## 🚫² v890 "NO DOUBLE COUNT" (Grok pp1 A1, Jul 19)
+The AUTO stash photo-intake (which ADDS OCR stack counts) now DEFERS for rune/gem tabs once
+the live funnel has tallied anything this session — the classic double-count (vault +1, then
+the stash photo re-adds the whole stack) is dead. Manual photo intake from Tools stays (a
+deliberate act = SET intent). tvToolsDelta arms the guard. Spec grew the guard lock (2/2
+green). LOCKED intake pipeline untouched (board-side gate only). 149/149 + 30/30.

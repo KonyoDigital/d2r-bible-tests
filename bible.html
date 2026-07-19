@@ -33417,7 +33417,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v889', name:'The Tools Funnel', date:'2026-07-19', note:'v889 (Grok pp1 A1-A3+A5): tvToolsDelta — every AI-vaulted rune/gem/material tallies into Tools EXACTLY once (durable sid|frame ledger, account-forked), unvault decrements, craft workshop refreshes; playwright lock green' };
+  window.D2R_BUILD = { id:'v890', name:'No Double Count', date:'2026-07-19', note:'v890 (Grok A1): the auto stash photo-intake defers for rune/gem tabs once the live funnel has tallied this session — a vaulted Ist can never count twice; manual Tools intake stays; spec-locked' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33491,6 +33491,17 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // Feed the agent's last JPEG into the LOCKED tally pipeline (same as 📸 quick-upload).
   // Never rebuilds intake — only supplies a File. Deep-lane only; OCR never calls this.
   window.tvStashAutoIntake = async function(tab, opts){
+    // v890 (Grok pp1 A1) — DOUBLE-COUNT GUARD: when the live funnel already tallied
+    // runes/gems this session, the AUTO photo-intake (which ADDS stack counts) defers —
+    // otherwise a vaulted Ist counts once from the vault and again from the stash photo.
+    // Manual photo intake from the Tools tab stays available (deliberate = SET intent).
+    try {
+      if (window._tvdSessionTallied && /rune|gem/i.test(String(tab || ''))){
+        var _vs = document.getElementById('vault-status');
+        if (_vs) _vs.textContent = '📺 auto-intake deferred — live tally already counted this session (no double count)';
+        return { ok: false, why: 'live-tally-guard' };
+      }
+    } catch(e){}
     opts = opts || {};
     tab = _normStashTab(tab);
     if (tab !== 'runes' && tab !== 'gems' && tab !== 'materials') return { ok:false, why:'not-tally-tab' };
@@ -33733,6 +33744,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       if (led.indexOf(id) >= 0) return false;   // exactly once, forever
       led.push(id); if (led.length > 2000) led = led.slice(-2000);
       try { window.LSR.setItem('d2r_tvdTallyLog', JSON.stringify(led)); } catch(e){}
+      window._tvdSessionTallied = true;   // v890 (Grok A1) — arms the auto-intake double-count guard
       if (c.kind === 'rune' && typeof window.adjustRuneStash === 'function') window.adjustRuneStash(c.key, delta);
       else if (c.kind === 'gem' && typeof window.adjustGemStash === 'function') window.adjustGemStash(c.key, delta);
       else if (c.kind === 'mat' && typeof window.adjustMaterialStash === 'function') window.adjustMaterialStash(c.key, delta);

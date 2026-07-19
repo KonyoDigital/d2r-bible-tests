@@ -39,4 +39,18 @@ test.describe('v889 tools funnel', () => {
     expect(r.b1).toBe(true);                           // a genuinely new frame counts again
     expect(r.final).toBe(r.before + 1);
   });
+
+  test('v890: live tally arms the auto-intake double-count guard', async ({ page }) => {
+    await page.goto(BIBLE, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1200);
+    const r = await page.evaluate(async () => {
+      const w = window as any;
+      localStorage.removeItem('d2r_tvdTallyLog');
+      w.tvToolsDelta('Ist Rune', 1, { sid: 's_g1', frameId: '1_1' });
+      const guard = await w.tvStashAutoIntake('runes');
+      return { armed: !!w._tvdSessionTallied, guard };
+    });
+    expect(r.armed).toBe(true);
+    expect(r.guard && r.guard.why).toBe('live-tally-guard');
+  });
 });
