@@ -1865,3 +1865,12 @@ full→counts/total on the wire, vault kind+labels), _fsCmp order-proof (identic
 rewrite). All gates: 150/150 + 32/32 + roundtrip OK. v908 = the first version sealed under the
 SEVEN-ROUND RULE. Next: v909 per-key guard v2 · v910 chronicle-relevance sweep · TV·D site
 presence + console visual-dashboard treatment per Konyo's open items.
+
+## 1️⃣ v909 "EXACT ONCE" R1-2 (double-count v2 per Grok's end-state, Jul 19 ~21:35)
+The blunt tab-defer (v890/v902) is DEAD. New law: the shot ALWAYS runs; tvToolsDelta stamps a
+per-KEY clock (kind:key → ts); after intake returns, any returned key the live funnel tallied
+within 10min gets compensated −1 board-side (same public adjust* lane as the −/+ buttons — the
+locked pipeline untouched), with a status line naming the reconciled stacks. NET TRUTH LOCKED
+in spec: funnel vaults Ist (+1) → photo reads the whole 2-stack → stash nets 2, never 3, and
+the shot is never blocked. 4/4 specs (funnel + connector seal) + 150/150 + 32/32. Rounds 3-7
+(Grok back-pass et al) follow per the seven-round rule.

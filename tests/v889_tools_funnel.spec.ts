@@ -40,17 +40,33 @@ test.describe('v889 tools funnel', () => {
     expect(r.final).toBe(r.before + 1);
   });
 
-  test('v890: live tally arms the auto-intake double-count guard', async ({ page }) => {
+  test('v909: per-key reconcile — vault +1 then photo ADD nets exactly once', async ({ page }) => {
     await page.goto(BIBLE, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
     const r = await page.evaluate(async () => {
       const w = window as any;
       localStorage.removeItem('d2r_tvdTallyLog');
+      w.clearRuneStash && (w.runeStash = {});
+      const realFetch = window.fetch;
+      (window as any).fetch = async (url: any, init?: any) => {
+        const u = String(url);
+        if (u.includes('/frame')) return new Response(new Blob([new Uint8Array(9000)], { type: 'image/jpeg' }), { status: 200 });
+        if (u.includes('/intake_result')) return new Response('{"ok":true}');
+        return realFetch(url, init);
+      };
+      // live funnel vaults an Ist (+1)
       w.tvToolsDelta('Ist Rune', 1, { sid: 's_g1', frameId: '1_1' });
-      const guard = await w.tvStashAutoIntake('runes');
-      return { armed: !!w._tvdSessionTallied, guard };
+      const mid = (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0;
+      // photo intake then reads the WHOLE stack (2 Ist total, incl. the one just vaulted)
+      w.runeIntake = async () => { w.adjustRuneStash('Ist', 2); return { ok: true, total: 2, added: { Ist: 2 }, errors: 0, kind: 'runes' }; };
+      w._stashIntakeBusy = false;
+      const res = await w.tvStashAutoIntake('runes', { frameId: '2_2' });
+      const fin = (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0;
+      (window as any).fetch = realFetch;
+      return { mid, fin, ok: res && res.ok };
     });
-    expect(r.armed).toBe(true);
-    expect(r.guard && r.guard.why).toBe('live-tally-guard');
+    expect(r.mid).toBe(1);      // funnel counted it
+    expect(r.ok).toBe(true);    // the shot RAN (no blunt defer)
+    expect(r.fin).toBe(2);      // net truth: 2 Ist exist, not 3 — exact reconcile
   });
 });
