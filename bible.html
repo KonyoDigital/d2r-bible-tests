@@ -31977,6 +31977,14 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
    bottom-right above --dock-h, left of the tray column; flex-wrap + max-width keep it inside the
    viewport on narrow screens instead of spilling off the left edge. */
 #routine-status-bar{position:fixed;z-index:9999;bottom:calc(var(--dock-h,64px) + 16px);right:calc(12px + 56px);max-width:calc(100vw - 24px);flex-wrap:wrap;row-gap:6px}
+/* v908 (Konyo: 'the sessions website looks terrible, cut out') — dev routine chrome NEVER
+   paints over the flagship cockpit; it lives on other tabs only */
+body:has(#tab-session.active) #routine-status-bar,
+body:has(#tab-session.active) #routine-status-summary{display:none !important}
+/* the cockpit clears the dock + floating buttons */
+#tab-session{padding-bottom:calc(var(--dock-h,84px) + 48px)}
+#tab-session .sc-card{margin-right:6px}
+#tab-session .sc-ops-row,#tab-session .sc-card .sc-go{scroll-margin-right:70px}
 #routine-status-bar[style*="display: block"],#routine-status-bar[style*="display:block"]{display:flex!important}   /* v737.2 — the show-code sets block; the pill is a one-line flex row */
 #routine-status-bar > div{margin-bottom:0!important}
 #routine-status-bar .routine-letter{white-space:nowrap}
