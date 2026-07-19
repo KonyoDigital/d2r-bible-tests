@@ -3363,7 +3363,7 @@ window.LSR = (function(){
 // v786 (night R3 pick 1) — ?app=1 = the APP RAIL sent this hash. That is INTENT, not residue:
 // 4 of 5 family tabs (#session/#forge/#funi/#fsets) were being clobbered to #tools here before
 // the router ever saw them. Plain-browser refresh still homes to tools (v680 behavior intact).
-try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd' || _h680 === '#tvd-on' || _h680 === '#tvd-off' || _h680 === '#session'); if (_app680 && (!_h680 || _h680 === '#' || _tv680)) { try { window.history.replaceState(null, '', '#session'); } catch(eH){} } else if (_h680 && _h680 !== '#tools' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
+try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd-on' || _h680 === '#tvd-off' || _h680 === '#session');   /* v905 — explicit #tvd is the SMOOTH TOGGLE, never coerced */ if (_app680 && (!_h680 || _h680 === '#' || _tv680)) { try { window.history.replaceState(null, '', '#session'); } catch(eH){} } else if (_h680 && _h680 !== '#tools' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -4302,6 +4302,7 @@ body.app-ctx .tabs{position:sticky;top:0;z-index:60;max-width:none;margin:0;padd
   background:linear-gradient(180deg,rgba(10,9,7,.98),rgba(10,9,7,.92));backdrop-filter:blur(6px);
   border-bottom:1px solid rgba(240,192,96,.18);overflow:visible;flex-wrap:nowrap}
 body.app-ctx .tabs .tab{display:none}
+body.app-ctx .tabs .tab[data-tab="tools"]{opacity:.62;flex:0 1 auto !important;font-size:12px !important}   /* v905 — Tools is a side lane; the main four lead */
 body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
 body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
 body.app-ctx .tabs .tab[data-tab="fsets"]{
@@ -4309,6 +4310,7 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
   letter-spacing:.08em}
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
 /* v904 — the TV·D toggle is SMOOTH: content fades in, and a return pill floats home */
+body.app-ctx .tab-content.active{animation:tvdFadeIn .24s ease}   /* v905 — every console tab toggles smooth */
 body.app-ctx #tab-tvd.active{animation:tvdFadeIn .28s ease}
 @keyframes tvdFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 #tvd-return-pill{display:none}
@@ -33465,7 +33467,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v904', name:'Smooth Toggle', date:'2026-07-19', note:'v904: TV-D is a smooth toggle — explicit #tvd opens the live view (legacy on/off aliases still land on SESSIONS), content fades in, a floating return pill brings you home; sessions cockpit keeps the full-live-board button' };
+  window.D2R_BUILD = { id:'v905', name:'Flagship Sessions', date:'2026-07-19', note:'v905: ENGINES strip (AI reader/intake/forge/tallies/disk at a glance), paginated HD library (8/page, cover art + duration + chips), primary-four header (Sessions/Forge/F-Uniques/F-Sets lead; Tools + TV-D side lanes), every console tab fades smooth, explicit #tvd never coerced (the toggle holds)' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

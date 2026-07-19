@@ -1807,3 +1807,14 @@ fades in (.28s), and a floating '⚡ ← Sessions' pill (app-ctx only, switchTab
 home. The console header 📺 tab and the sessions cockpit 'full live board →' both ride it.
 150/150 + 32/32. Next: v905 library intake-centric + v906 counts-in-beats (Grok seam: intake
 fns return {ok,total,added}).
+
+## 🚩 v905 "FLAGSHIP SESSIONS" (Konyo: 'full flagship wiring, watching every engine', Jul 19 eve)
+The motherboard watches EVERYTHING: 🖥 ENGINES strip — AI READER (on/reads) · INTAKE (recent
+shots) · FORGE (ready/one-step from d2r_forgeSummary) · TALLIES (funnel ledger size) · 💾 disk
+(warns under the floor). THE LIBRARY is paginated (8/page, ‹ 1/3 ›) with structured HD cards:
+cover art from the run's own reel (zod-rune fallback), duration badge, compact date, 📸/📹/✦
+chips. Header speaks the doctrine: SESSIONS · FORGE · F·UNIQUES · F·SETS lead, Tools + TV·D
+recede. Every console tab fades smooth (.24s); explicit #tvd never coerced (v901's boot
+grabbed it — the toggle holds now). Konyo's live meaning wired: sessions = tasks from the
+Forge + what the AI reader feeds and tallies. Screenshot verified. 150/150 + 32/32 + roundtrip
+OK. Next: v906 counts-in-beats (Grok seam) · v907 per-key guard · v908 board-side task panel.
