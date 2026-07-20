@@ -24,6 +24,10 @@ _Konyo's order, 2026-07-20 live session: "i want this a one system working app..
 - WebKit persistent store now grows forever; needs a retention story. Also `#tvd-engine` hash is normalized away by the board — harmless today, but an explicit engine mode flag would let the board mute its own UI work off-screen.
 - film-held cold-start: with no frame yet this session the stage still falls to the big word (correct today; revisit if Konyo wants last-SESSION's frame).
 
+## v931 state + Konyo's console-UX order (2026-07-20 evening)
+- ✅ Engine is now an invisible same-origin **iframe inside control_ui** (`#tvd-eng`, `/board?engine=1`) — one window, no side tile, driver via contentWindow. v928 second-window and v930 mini-tile approaches are dead.
+- 🎯 NEXT UX ARC (Konyo: "inside the console all the tools and gems and stash and everything should be smooth and working and toggle-free and toggle-easy in between each other"): unify console-home ↔ board surfaces into one seamless shell — instant tab switching (no page reloads between home/Sessions/Tools/Forge), shared state, the TALLY ENGINE / stash cards / vault reachable in ≤1 click from anywhere, and the console overlay (ON AIR / END SESSION) persistent across every surface. Design flagship-style; this is the marquee of the next night arc alongside the TALLIES drilldown data-unification items above.
+
 ## Guardrails
 - 🔒 INTAKE LOCKED (d2r_intake_LOCKED.md): the vision/crop pipeline is untouchable — only supply frames to it.
 - bible.html EDIT_LOCK protocol before any board edit.
