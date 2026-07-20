@@ -119,3 +119,22 @@ _Claude, end of verify · the paddle rests until the next arc._
 | v940 control | `/kai_verdict` route (ghost-proof frame-ts journaling; live-tested: '🔬 KAI judged Test Charm — KEEP') + KAI TOOLTIP LANE: ≤4 missed tooltip frames/session → aicJudge via the engine iframe, 20s pacing, `TV_KAI_JUDGE=0` kill | POST /kai_verdict · seal a session with hovered-but-unread tooltips |
 | v940 story | 💔 REGRETS: judge-KEEP ∩ session's thrown_names, counted server-side, shown on shelf cards (💔 N regrets / 🔬 N judged) | shelf card after a judged session |
 Suites 27+39+154 green · demos 7/7 · stamps ×4 v940. Thread #4 (lease) remains the last deferral.
+
+---
+
+## Claude MAIDEN-VOYAGE chain (night #3) — v941 → v943 "The Complete Replayer" · SuperGrok baton
+| Ship | What |
+|---|---|
+| v941/.1 | LANES ON BY DEFAULT in code (v925-LIGHT trap's 4th strike via direct relaunch — run-2 had zero ocr/text-eye/film); doctrine test flipped |
+| v941.2 | Grail harvest 400→1860 (Ars/Windforce) + judge cap 4→12 (TV_KAI_JUDGE_MAX) |
+| v941.3/.4 | Journal-truth stash classification (stash screens are OCR-dark — frames inherit class from stashTab reads ±4s) + ALL driver shots photograph the read's ARCHIVED frame (vault ok:false root cause) |
+| v941.5 | Throw-out review laws: 💥 sunder charms = keepers; ⚓ anchors dismiss-only |
+| v941.6 | Theatre UX overhaul: 📼 REPLAY ribbon, button diet (10 + ⋯ more drawer), plain-word modes, coach hint, layered Esc |
+| v942 | Three-eye DOSSIER: server join (tally/verify/kai per beat, /api/beat too) + flagship card render |
+| v943 s1 | 📖 REGISTER LEDGER — every DB-real witnessed item journaled with frame provenance; shelf 'registered' count |
+| v943.1 | RARE-NAME GENERATOR discovery (prefix×suffix pools) → 3114 names; GATE SPLIT: rares recognized, never grail-shielded (judge keeps teeth) |
+| v943.2 | Crafted names (+21) same non-shielded law → 3135 |
+| v943.3 | 🔌 Engine self-healing: 5 dead probes → iframe revive (max 3) → loud engineDeadHard |
+| v943.4 | 🎞 FILMSTRIP flagship replayer: every frame a scrubbable thumb, honesty note on film-sparse sessions, mode toasts; self-caught caption-z regression |
+| Voyage | 23:26 lap: 89 frames + 8/8 reads on disk, ts law holds, 31 triggers live; judge stage lost to the hot-swap race (logged); register fires from next seal |
+**SuperGrok — your baton:** (1) crafted/rare judge calibration soak vs real gameplay verdicts; (2) Chronicle write-in stage (dedup laws, EDIT_LOCK) is the LAST unbuilt organ; (3) intake lease still deferred; (4) demo J-runs occasionally see transient 'Maximum call stack' pageerror when a LIVE session mutates mid-run — never reproduced, watch for it. Verify battery unchanged (suites + demo_console + this file's commands).

@@ -5,7 +5,9 @@
 # reads + an ephemeral Handler on 127.0.0.1. Follows tv/test_control.py conventions (unittest, no
 # pytest; every test isolates HERE/HIST_DIR/JOURNAL into a tempdir and restores globals in tearDown
 # so nothing ever touches the real frames or the real sessions.jsonl).
+import contextlib
 import inspect
+import io
 import json
 import os
 import re
@@ -446,6 +448,194 @@ class TestFunnelJsDryRun(unittest.TestCase):
             os.unlink(jf.name)
         self.assertEqual(p.returncode, 0, "node dry-run failed: " + (p.stderr or "")[:300])
         self.assertEqual(p.stdout.strip(), "0", "funnel IIFE did not take the null-frame return-0 path")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PART D — v943 WAVE (register ledger · grail-gate split · engine self-heal · dossier)
+# Pins the whole v943 arc so it can never silently regress. All pure-logic against the
+# real ca._ functions (fullnames read the real bible.html); no live app, no journal writes.
+# ═════════════════════════════════════════════════════════════════════════════
+class TestV943Register(unittest.TestCase):
+    """ca._kai_compile_register — the post-seal EVIDENCE ledger. Union of deep-read names +
+    KAI judge verdicts (grail/keep/border), filtered to real DB items minus anchors/junk.
+    One record per unique name, earliest sighting wins, tier from the judge if judged."""
+
+    def test_ledger_keeps_db_items_drops_anchor_and_junk(self):
+        sess = [
+            {"lane": "deep", "ts": 1000, "frameId": "1_1000",
+             "names": ["Windforce", "Horadric Cube"],
+             "names_loc": {"Windforce": "stash", "Horadric Cube": "inventory"}},
+            {"lane": "deep", "ts": 2000, "frameId": "2_2000",
+             "names": ["Beast Noose", "665 Gold"],
+             "names_loc": {"Beast Noose": "ground"}},
+            {"lane": "kai", "ts": 1500, "frameId": "reel_s/f_1500",
+             "kai": {"judge": {"name": "Windforce", "tier": "grail", "score": 9}}},
+        ]
+        reg = ca._kai_compile_register(sess)
+        by = {r["name"]: r for r in reg}
+        # exactly the unique + the rare survive; anchor (cube) + junk (gold) are gone
+        self.assertEqual(set(by), {"Windforce", "Beast Noose"})
+        # the unique: earliest sighting (the deep read at 1000) wins ts/frame/loc; tier from judge
+        w = by["Windforce"]
+        self.assertEqual((w["firstSeenTs"], w["frameId"], w["loc"], w["tier"]),
+                         (1000, "1_1000", "stash", "grail"))
+        # the rare: sighted only by the deep read, never judged → tier stays None
+        r = by["Beast Noose"]
+        self.assertEqual((r["firstSeenTs"], r["frameId"], r["loc"], r["tier"]),
+                         (2000, "2_2000", "ground", None))
+
+    def test_anchor_and_junk_filters_directly(self):
+        self.assertTrue(ca._register_is_anchor("horadric cube"))
+        self.assertTrue(ca._register_is_anchor("tome of town portal"))
+        self.assertTrue(ca._register_is_junk("665 gold"))
+        self.assertTrue(ca._register_is_junk("gold"))
+        self.assertFalse(ca._register_is_anchor("windforce"))
+        self.assertFalse(ca._register_is_junk("beast noose"))
+
+    def test_only_grail_keep_border_judge_tiers_register(self):
+        # a TOSS judge verdict (name not otherwise read) must NOT enter the ledger.
+        sess = [{"lane": "kai", "ts": 10, "frameId": "reel_s/f_10",
+                 "kai": {"judge": {"name": "Windforce", "tier": "toss", "score": 0}}}]
+        self.assertEqual(ca._kai_compile_register(sess), [])
+
+
+class TestV943GrailGate(unittest.TestCase):
+    """The /kai_verdict GRAIL GATE split (v943.2): a name promotes toss/border → grail only if
+    it's a known DB item AND NOT in the generated rare/crafted combo space. Replicates the exact
+    route condition so the two consumers of _kai_fullnames stay correctly divergent."""
+
+    @staticmethod
+    def _gate(name, tier):
+        low = name.lower()
+        if name and low in ca._kai_fullnames() and low not in ca._kai_rarenames() \
+                and tier in ("toss", "border"):
+            return "grail"
+        return tier
+
+    def test_unique_promotes_to_grail(self):
+        self.assertEqual(self._gate("Windforce", "toss"), "grail")
+        self.assertEqual(self._gate("Hellfire Torch", "border"), "grail")
+
+    def test_rare_combo_stays_tossable(self):
+        self.assertEqual(self._gate("Beast Noose", "toss"), "toss")
+        self.assertEqual(self._gate("Plague Wing", "border"), "border")
+
+    def test_crafted_name_stays_tossable(self):
+        self.assertEqual(self._gate("Bone Winding", "toss"), "toss")
+
+    def test_non_toss_tier_is_never_touched(self):
+        self.assertEqual(self._gate("Windforce", "keep"), "keep")
+
+    def test_rarenames_is_subset_of_fullnames(self):
+        self.assertTrue(ca._kai_rarenames() <= ca._kai_fullnames())
+
+
+class TestV943EngineSelfHeal(unittest.TestCase):
+    """ca._engine_selfheal(alive, w) — consecutive dead-probe streak → iframe revive → hard-dead.
+    Pure counter logic driven with w=None (skips the JS kick). Globals reset each test."""
+
+    _G = ("_ENG_FAILS", "_ENG_REVIVES", "_ENGINE_DEAD_HARD", "_EJS_STUCK")
+
+    def setUp(self):
+        for k in self._G:
+            ca.__dict__.pop(k, None)
+
+    def tearDown(self):
+        for k in self._G:
+            ca.__dict__.pop(k, None)
+
+    @staticmethod
+    def _dead():
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            ca._engine_selfheal(False, None)
+        return buf.getvalue().strip()
+
+    @staticmethod
+    def _live():
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            ca._engine_selfheal(True, None)
+        return buf.getvalue().strip()
+
+    def test_no_revive_before_threshold(self):
+        for _ in range(ca._ENGINE_REVIVE_AT - 1):
+            self.assertEqual(self._dead(), "")
+        self.assertEqual(ca._ENG_FAILS, ca._ENGINE_REVIVE_AT - 1)
+        self.assertIsNone(ca.__dict__.get("_ENG_REVIVES"))
+
+    def test_revive_at_threshold_then_halfway_reset(self):
+        for _ in range(ca._ENGINE_REVIVE_AT - 1):
+            self._dead()
+        self.assertEqual(self._dead(), "🔌 engine revive attempted")
+        self.assertEqual(ca._ENG_REVIVES, 1)
+        self.assertEqual(ca._ENG_FAILS, ca._ENGINE_REVIVE_AT // 2)   # half-way settle
+
+    def test_live_probe_resets_streak(self):
+        for _ in range(3):
+            self._dead()
+        self._live()
+        self.assertEqual(ca._ENG_FAILS, 0)
+
+    def test_caps_at_max_revives_then_hard_dead_once(self):
+        revive_msgs = dead_msgs = 0
+        # plenty of dead probes to burn through every revive and reach hard-dead
+        for _ in range(ca._ENGINE_REVIVE_AT * (ca._ENGINE_REVIVE_MAX + 2)):
+            out = self._dead()
+            revive_msgs += (out == "🔌 engine revive attempted")
+            dead_msgs += (out == "🔌 engine DEAD — restart the app")
+        self.assertEqual(revive_msgs, ca._ENGINE_REVIVE_MAX)
+        self.assertEqual(dead_msgs, 1)                              # shouted exactly once
+        self.assertEqual(ca._ENG_REVIVES, ca._ENGINE_REVIVE_MAX)   # capped
+        self.assertTrue(ca._ENGINE_DEAD_HARD)
+        # further dead probes stay silent (no repeat shout)
+        self.assertEqual("".join(self._dead() for _ in range(10)), "")
+
+
+class TestV943Dossier(unittest.TestCase):
+    """ca._build_dossier_maps + ca._beat_dossier — the three-eye join. A read beat (frameId
+    'N_ts') joins its verify row (base '#v' stripped) + the tally receipt for its stashTab; a
+    footage beat (frameId 'reel_<sid>/f_<ms>') joins its KAI frame class."""
+
+    def setUp(self):
+        self.sess = [
+            {"lane": "deep", "ts": 500, "captureTs": 500, "frameId": "2_500",
+             "stashTab": "runes", "names": ["El"]},
+            {"lane": "verify", "ts": 600, "frameId": "2_500#v",
+             "verify": {"confirm": ["El"], "missed": [], "not_present": [], "conf": 0.9}},
+            {"lane": "intake", "ts": 520,
+             "intake": {"tab": "runes", "kind": "tally", "ok": True, "total": 3,
+                        "counts": {"El": 2, "Eld": 1}}},
+            {"lane": "kai", "ts": 700, "frameId": "reel_s/f_700",
+             "kai": {"cls": "stash-runes", "texts": ["Runes"]}},
+        ]
+        self.maps = ca._build_dossier_maps(self.sess)
+
+    def test_read_beat_joins_verify_and_tally(self):
+        d = ca._beat_dossier(self.maps,
+                             {"frameId": "2_500", "captureTs": 500, "stashTab": "runes", "lane": "deep"})
+        # 🔵 verify by frameId base (strip '#v')
+        self.assertEqual(d["verify"], {"conf": 0.9, "confirm": 1, "corrected": 0, "missed": 0})
+        # 📸 tally by tab, counts top-pairs largest first
+        self.assertEqual(d["tally"]["tab"], "runes")
+        self.assertEqual(d["tally"]["total"], 3)
+        self.assertTrue(d["tally"]["ok"])
+        self.assertEqual(d["tally"]["counts"], [["El", 2], ["Eld", 1]])
+        # a read frameId never matches a reel KAI key
+        self.assertIsNone(d["kai"])
+
+    def test_footage_beat_joins_kai_class(self):
+        d = ca._beat_dossier(self.maps,
+                             {"frameId": "reel_s/f_700", "captureTs": 700, "footage": True})
+        self.assertIsNotNone(d["kai"])
+        self.assertEqual(d["kai"]["cls"], "stash-runes")
+        # footage carries no read frameId → no verify join
+        self.assertIsNone(d["verify"])
+
+    def test_maps_shapes(self):
+        self.assertIn("2_500", self.maps["verify"])            # verify keyed by stripped base
+        self.assertIn("reel_s/f_700", self.maps["kai"])        # kai keyed by exact reel frameId
+        self.assertEqual(self.maps["tab_ts"]["runes"], [520])  # receipts bucketed + sorted per tab
 
 
 if __name__ == "__main__":
