@@ -934,7 +934,10 @@
   .tly-empty { text-align: center; padding: 44px 20px; font: 500 12px/1.8 var(--mono); color: #a5906a; }
   .tly-empty b { color: var(--gold); }
   .hd-chip.intk { border-color: rgba(185,165,255,.5); color: #cbbcff; }
-  .hd-empty { opacity: .4; font: 400 11px/1.4 var(--mono); }
+  /* v936 R4 — placeholder is ONE flex item; without a full-width basis it stays at max-content
+     and overflows the card (home-dash overflow-y:auto clips it horizontally, cutting the text
+     mid-word). Give it the whole row so it wraps cleanly to two lines — no clip, no scrollbar. */
+  .hd-empty { opacity: .4; font: 400 11px/1.4 var(--mono); flex: 1 1 100%; min-width: 0; overflow-wrap: break-word; }
   .hd-engines { min-height: 0; padding: 10px 14px; }
   .hd-chip.warn { border-color: rgba(255,120,80,.6); color: #ffb49a; }
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
@@ -2940,11 +2943,43 @@
     e.preventDefault();
     shellOpen(b.dataset.tab);
   });
+  // v936 R2 (Grok #2) — SMART Esc: while the shell is open, a visible board overlay/lightbox
+  // owns the first Esc. Only close the shell when nothing inside the board is up. Console-side
+  // lightboxes (the console's own overlays OUTSIDE the iframe) still win first, as before.
+  function _fVis(w, el){
+    try {
+      if (!el || el.hidden) return false;
+      var cs = w.getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity || '1') === 0) return false;
+      return !!(el.getClientRects && el.getClientRects().length);
+    } catch(e){ return false; }
+  }
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && document.body.classList.contains('shell-open')){
-      e.preventDefault();
-      e.stopPropagation(); shellHome();
-    }
+    if (e.key !== 'Escape' || !document.body.classList.contains('shell-open')) return;
+    // 1) console-side lightboxes take priority — let their own handler close them (no shellHome).
+    if (typeof TLY !== 'undefined' && TLY.open) return;
+    var cLb = document.getElementById('tvd-frame-lb');
+    if (cLb && _fVis(window, cLb)) return;
+    // 2) probe the BOARD inside the iframe for a visible overlay; if one is up, feed it the Esc.
+    try {
+      var f = document.getElementById('tvd-eng');
+      var w = f && f.contentWindow;
+      var fd = w && w.document;
+      if (fd){
+        var cands = fd.querySelectorAll(
+          '#tvd-frame-lb:not([hidden]), .lightbox.open, [id$="-lb"]:not([hidden]), .modal.open, [role="dialog"]:not([hidden])');
+        var hit = null;
+        for (var i = 0; i < cands.length; i++){ if (_fVis(w, cands[i])){ hit = cands[i]; break; } }
+        if (hit){
+          e.preventDefault(); e.stopPropagation();
+          try { w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key:'Escape', bubbles:true })); } catch(e2){}
+          return;
+        }
+      }
+    } catch(e3){}
+    // 3) nothing on the board — close the shell.
+    e.preventDefault();
+    e.stopPropagation(); shellHome();
   }, true);
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
