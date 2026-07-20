@@ -1461,6 +1461,15 @@ def _kai_closer_loop():
             for r in sess_rows:
                 for nm in (r.get("names") or []) + (r.get("ocr_names") or []):
                     read_text.add(str(nm).strip().lower())
+            # v941.3 — STASH TIME-MAP: stash screens are OCR-dark (icon grids, ornate tab
+            # labels Vision can't read at footage res — run-3 proof: OCR [] on runes-tab
+            # frames). The JOURNAL knows when each tab was open; frames inherit the class.
+            stash_times = []
+            for r in sess_rows:
+                if r.get("lane") == "deep" and str(r.get("scene") or "") == "stash":
+                    tb = str(r.get("stashTab") or "").lower()
+                    if tb:
+                        stash_times.append((int(r.get("captureTs") or r.get("ts") or 0), tb))
             print(f"🧠 KAI: closing {sid} — {len(frames)} frames, {len(read_text)} known texts", flush=True)
             # OCR worker: one warm process, stdin path → stdout JSON line
             import queue as _q
@@ -1489,6 +1498,15 @@ def _kai_closer_loop():
                 texts = [t for t in raw if _kai_itemish(t)]
                 # R5 — classify every frame that produced OCR lines, before the missed decision.
                 cls = _kai_frame_cls(raw, texts) if raw else None
+                # v941.3 — journal-truth override: a frame within ±4s of a stash-tab read IS
+                # that stash screen, whatever OCR saw (or didn't).
+                _fts5 = int(it.get("ts") or 0)
+                _near = next((tb for (st5, tb) in stash_times if abs(st5 - _fts5) <= 4000), None)
+                if _near:
+                    _scls = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
+                    class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}   # funnel candidate regardless
+                    if not cls or cls == "gameplay":
+                        cls = _scls
                 if cls:
                     classes[cls] = classes.get(cls, 0) + 1
                     class_frames[cls] = {"f": it.get("f"), "ts": it.get("ts")}   # v940.1 — last frame per class
@@ -1876,12 +1894,30 @@ def _engine_driver():
                     inflight = None
             if not inflight and fire_q:
                 job = fire_q.pop(0)
+                # v941.4 (run-3: vault shot ok:false, 0 read) — shots photograph the READ'S
+                # ARCHIVED FRAME (/hist/<fid>.jpg), never the live eye: by fire time the
+                # player has moved on and a live shot sees gameplay. Same law as the funnel.
+                _histp5 = "/hist/" + job["fid"] + ".jpg"
                 if job["key"].startswith("vault_"):
-                    js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvVaultAutoIntake&&f.contentWindow.tvVaultAutoIntake({tab:%s,frameId:%s})}catch(e){};return 1})()"
-                          % (json.dumps(job["tab"]), json.dumps(job["fid"])))
+                    js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                          "if(typeof W.vaultIntake!=='function')return 0;"
+                          "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+                          "return W.vaultIntake([new W.File([b],'drv-vault.jpg',{type:'image/jpeg'})],{fromTv:true})}).then(function(res){"
+                          "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'vault',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
+                          "}).catch(function(){});return 1}catch(e){return 0}})()"
+                          ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
                 else:
-                    js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvStashAutoIntake&&f.contentWindow.tvStashAutoIntake(%s,{frameId:%s})}catch(e){};return 1})()"
-                          % (json.dumps(job["tab"]), json.dumps(job["fid"])))
+                    js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                          "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
+                          "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
+                          "var ADJ={runes:'adjustRuneStash',gems:'adjustGemStash',materials:'adjustMaterialStash'}[%s];"
+                          "var prev={};try{var st0=JSON.parse(W.LSR.getItem(LSK)||'{}');Object.keys(st0).forEach(function(k){prev[k]=parseInt(st0[k],10)||0})}catch(e){}"
+                          "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+                          "return W[FN]([new W.File([b],'drv-tally.jpg',{type:'image/jpeg'})])}).then(function(res){"
+                          "try{if(res&&res.ok){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)})}}catch(e){}"
+                          "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'tally',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
+                          "}).catch(function(){});return 1}catch(e){return 0}})()"
+                          ) % (json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
                 try:
                     _ejs(w, js, timeout=4.0)
                     job["fired_ms"] = now_ms
