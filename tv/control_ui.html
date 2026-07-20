@@ -1397,7 +1397,7 @@
     try {   // v865 — ONE button, morphing label
       var onB = $('btn-on').querySelector('.lab b'), onS = $('btn-on').querySelector('.lab span');
       if (onB && !$('btn-on').classList.contains('working')){
-        if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' reads · farewell') : 'nothing recorded · instant off'; }
+        if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' read' + (rc===1?'':'s') + ' · instant') : 'nothing recorded · instant off'; }
         else if (state === 'sim'){ onB.textContent = 'End Sim'; onS.textContent = 'close the canned feed'; }
         else if (state === 'stopping'){ onB.textContent = 'Sealing…'; onS.textContent = 'saving the session'; }
         else { onB.textContent = 'On Air'; onS.textContent = 'auto intake · pause on stash'; }
@@ -2550,7 +2550,7 @@
       if (lab) lab.textContent = farewell ? 'sealing…' : 'closing…';
       // post() already finished the HTTP call; keep busy feel until bridge is down
       setBusy(true);
-      await waitUntilOff(farewell ? 22000 : 16000);   // v899 — was 100s farewell wait
+      await waitUntilOff(farewell ? 9000 : 6000);   // v926 — LIGHT seals instantly; the server force-kills by ~6s, so a stuck agent can't hang the button
       await refresh();
       if (j && j.sessionSaved) toast('session saved · off air');
       else toast((j && j.msg) || 'off air');

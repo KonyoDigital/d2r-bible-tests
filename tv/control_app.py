@@ -652,8 +652,11 @@ def stop_agent(farewell=True):
                 for pid in pids:
                     _kill_pid(pid, force=False)
 
-        # 3) Wait for bridge death — v899 hard-cap (long farewell stuck 400-read sessions)
-        wait_s = 18 if farewell else 12
+        # 3) Wait for bridge death, then FORCE-KILL — v926 (Konyo: 'i cant end session' again).
+        # close_session journals session_end FIRST, so the reel is already sealed on disk before
+        # any slow step: a fast force-kill can never lose the session. LIGHT End Session has no
+        # farewell vision read, so 6s/3s is plenty — the old 18s/12s made a stuck agent feel dead.
+        wait_s = 6 if farewell else 3
         deadline = time.time() + wait_s
         while time.time() < deadline:
             if _port_listener_pid() is None and not any(_pid_alive(p) for p in pids):

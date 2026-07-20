@@ -2192,3 +2192,13 @@ verify blob for the debugger, never applied. Cross-process bug I caught: board i
 ts>SEEN so a same-ts verify beat would be skipped — fixed with the ts/captureTs split. 4 unit
 tests + 2 e2e stub runs (loot-vault removed · stash-rune correctly untouched · missed flagged ·
 vault never forced). 154 agent + 36 control green. THE READER NOW CHECKS ITS OWN WORK.
+
+## v926.1 — END SESSION bulletproof (Konyo: "its bugged i cant end session" — a pre-fix agent from 11:19 was still ON AIR)
+The stuck session was an OLD agent (started before the v925/v926 deploy — the running process
+never picked up the seal-only-end fix; only the board reloaded to v926). Killed it manually for
+relief. Root hardening so it can't recur: since close_session journals session_end FIRST (reel
+sealed on disk before any slow step), the control side can force-kill aggressively — wait_s
+18s/12s → 6s/3s, and the console's cutFeed wait 22s/16s → 9s/6s. End Session now completes in a
+few seconds even for a stuck/old agent, and the label reads "seal N reads · instant" (no more
+misleading "farewell" in LIGHT). REQUIRES an app restart to load the new control server + spawn
+a fresh v926 agent. 36 control green · UI parses.
