@@ -1133,9 +1133,12 @@ def _ejs(w, code, timeout=4.0):
     return r
 
 
+_KAI_STOP3 = frozenset(("the", "and", "for", "you", "are", "was", "not", "all", "any", "can",
+                        "get", "has", "his", "her", "its", "our", "out", "off", "per", "via",
+                        "new", "old", "one", "two", "six", "ten", "set", "use", "may", "now"))
 _KAI_NOISE = ("stash", "inventory", "personal", "shared", "gems", "materials", "runes",
               "create game", "join game", "lobby", "chat", "options", "save and exit",
-              "gold", "ctrl", "shift", "click", "left", "right", "move", "tab")
+              "ctrl", "shift", "click", "left", "right", "move", "tab")
 
 
 # v935 — KAI VOCAB GROUNDING: the closer's item-ish filter used to keep any alpha line, so
@@ -1168,7 +1171,7 @@ def _kai_vocab():
                     r""""(?:name|n)"\s*:\s*(['"])(.*?)\1"""):
             for m in re.finditer(pat, txt):
                 for tok in re.split(r"[^A-Za-z]+", m.group(2)):
-                    if len(tok) >= 4:
+                    if len(tok) >= 4 or (len(tok) == 3 and tok not in _KAI_STOP3):
                         vocab.add(tok.lower())
                 if len(vocab) >= 20000:
                     break
@@ -1239,14 +1242,24 @@ def _kai_itemish(s):
     """KAI v1 + v935 vocab grounding — keep item-ish OCR lines only when at least one token is
     a real game item word (exact, or one edit away for len>=4). Mirror of the agent's filter."""
     s = str(s or "").strip()
-    if len(s) < 3 or len(s) > 48:
-        return False
     lo = s.lower()
+    if len(s) < 3:
+        # v938.8 — bare 2-letter RUNE labels (El, Io…) are real; everything else short dies
+        return len(s) == 2 and lo in _kai_vocab()
+    if len(s) > 48:
+        return False
     if any(n in lo for n in _KAI_NOISE):
+        return False
+    # v938.8 — 'gold' left the noise list (it nuked Goldskin/Goldwrap/Goldstrike Arch):
+    # gold PILES are killed by shape instead ("665 gold" / bare "gold").
+    import re as _re
+    if lo == "gold" or _re.fullmatch(r"\d[\d,\.]*\s*gold", lo):
         return False
     if sum(c.isdigit() for c in s) > max(3, len(s) // 2):
         return False
-    toks = [p for p in lo.replace("'", " ").split() if len(p) >= 3 and p.isalpha()]
+    # v938.8 — hyphens split like apostrophes (Trang-Oul, Amn-Sol, rune chains), and
+    # 2-letter runes (El, Io…) may token (exact-membership still gates them).
+    toks = [p for p in lo.replace("'", " ").replace("-", " ").split() if len(p) >= 2 and p.isalpha()]
     if not toks:
         return False
     return any(_kai_vocab_hit(p) for p in toks)
@@ -2902,8 +2915,11 @@ class Handler(BaseHTTPRequestHandler):
                         if (r.get("lane") == "intake"
                                 and str(r.get("frameId") or "") == _fid
                                 and str((r.get("intake") or {}).get("tab") or "") == _tab
-                                and json.dumps((r.get("intake") or {}).get("counts") or {},
-                                               sort_keys=True) == _csig
+                                and json.dumps([(r.get("intake") or {}).get("counts") or {},
+                                                bool((r.get("intake") or {}).get("ok", True)),
+                                                int((r.get("intake") or {}).get("total") or 0),
+                                                int((r.get("intake") or {}).get("errors") or 0)],
+                                               sort_keys=True) == _csig   # v938.7 — SAME SHAPE both sides (test-routes caught the dead compare)
                                 and abs(int(r.get("ts") or 0) - _ts) <= 300_000):
                             self._json(200, {"ok": True, "dup": True})
                             return

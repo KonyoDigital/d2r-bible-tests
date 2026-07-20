@@ -693,3 +693,9 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause:** CUT/FULL skim-speed multiplier latched via __speedTouched persisted into REAL; the axis was always wall-true; the @speed readout was hidden in real mode so the stale 4× went unseen.
 - **Fix:** v935.3 — entering REAL (toggle or session load) pins 1×.
 - **Prevention:** mode switches must re-pin every pacing input they redefine; never hide an active multiplier's readout.
+
+## REG-036 — receipt dedupe was dead code (2026-07-20, caught by test-routes' DB suite)
+- **Symptom:** exact-duplicate tally receipts journaled twice — the double-count class the dedupe existed to stop.
+- **Root cause:** v938.3 folded ok/total/errors into the INCOMING signature but left the stored-side compare as bare counts-json — two shapes that can never be equal → the dup branch never fired.
+- **Fix:** v938.7 — both sides build the identical 4-element sig; pinned-bug test flipped to assert collapse.
+- **Prevention:** when changing one side of an equality contract, grep for every other builder of that value; a pinned-behavior test that "shouts when fixed" turned this from silent to caught-same-day.
