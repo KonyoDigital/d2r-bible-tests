@@ -2530,6 +2530,13 @@
       }
       if (sm.kaiMissed != null) vparts.push('🧠 swept · ' + sm.kaiMissed + ' missed-text');
       if (sm.tallies > 0) vparts.push('📸 ' + sm.tallies + ' tall' + (sm.tallies > 1 ? 'ies' : 'y'));
+      // v938 — the reel's FINGERPRINT: KAI's top frame classes (what the run was made of)
+      if (sm.kaiClasses && typeof sm.kaiClasses === 'object'){
+        var _kc = Object.keys(sm.kaiClasses).filter(function(k){ return sm.kaiClasses[k] > 0 && k !== 'gameplay'; })
+          .sort(function(a,b){ return sm.kaiClasses[b] - sm.kaiClasses[a]; }).slice(0,3)
+          .map(function(k){ return k.replace('stash-','🏦') + '×' + sm.kaiClasses[k]; });
+        if (_kc.length) vparts.push('<span style="opacity:.6">🎞 ' + _kc.join(' ') + '</span>');
+      }
       var verdictLine = vparts.length ? '<br><span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
         + art
