@@ -146,8 +146,21 @@ def _build_dossier_maps(sess_rows):
                 tab_ts.setdefault(tab, []).append(ts)
     for tab in tab_ts:
         tab_ts[tab].sort()
+    # v944.5 (Konyo: "I don't want ANYTHING read 0 — read it according to the updated picture") —
+    # the BEST receipt per tab this session: an errored/empty 0-shot must never be the truth when
+    # a real read of the same tab exists. Highest ok-total wins; the theatre reads THAT count.
+    tab_best = {}
+    for tab, byts in tab_receipts.items():
+        best = None
+        for rc in byts.values():
+            if not rc.get("ok", True):
+                continue
+            if best is None or int(rc.get("total") or 0) > int(best.get("total") or 0):
+                best = rc
+        if best is not None and int(best.get("total") or 0) > 0:
+            tab_best[tab] = best
     return {"verify": verify_by_base, "kai": kai_by_frame,
-            "tab_ts": tab_ts, "tab_receipts": tab_receipts}
+            "tab_ts": tab_ts, "tab_receipts": tab_receipts, "tab_best": tab_best}
 
 
 def _nearest_receipt(maps, tab, ts, window_ms=None):
@@ -201,9 +214,19 @@ def _beat_dossier(maps, beat):
     #   scene  → gameplay/other, nothing to register
     read_status = None
     if _rlabel.startswith("stash-") or _rlabel in ("stash", "inventory"):
-        _tot = int((tally or {}).get("total") or 0) if tally else 0
         _tab = _rlabel[6:] if _rlabel.startswith("stash-") else _rlabel
-        read_status = {"kind": "read" if _tot > 0 else "miss", "tab": _tab, "counted": _tot}
+        # v944.5 — the nearest receipt to THIS frame may be a 0/error shot, but if the tab was
+        # really read anywhere this session, that real count is the truth (the "updated picture").
+        _best = (maps.get("tab_best") or {}).get(_tab.lower())
+        _near_tot = int((tally or {}).get("total") or 0) if tally else 0
+        if _best and int(_best.get("total") or 0) > 0:
+            # a real read exists → never report 0; surface the real count + supersede the tally
+            if _near_tot <= 0:
+                tally = _best
+            read_status = {"kind": "read", "tab": _tab,
+                           "counted": int(_best.get("total") or 0), "superseded": _near_tot <= 0}
+        else:
+            read_status = {"kind": "miss", "tab": _tab, "counted": _near_tot}
     elif (beat.get("names") or []):
         read_status = {"kind": "named", "counted": len(beat.get("names") or [])}
     return {"tally": tally, "verify": verify or None, "kai": kai,

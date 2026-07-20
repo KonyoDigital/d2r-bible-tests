@@ -637,6 +637,40 @@ class TestV943Dossier(unittest.TestCase):
         self.assertIn("reel_s/f_700", self.maps["kai"])        # kai keyed by exact reel frameId
         self.assertEqual(self.maps["tab_ts"]["runes"], [520])  # receipts bucketed + sorted per tab
 
+    # ── v944.5 — NEVER-ZERO: a 0/error shot never wins over a real read of the same tab ──
+    def test_zero_read_superseded_by_real_count(self):
+        # Konyo's rule: "I don't want anything read 0 — read it according to the updated picture."
+        # A runes session with a real 404 read AND a later errored 0 shot: the frame nearest the 0
+        # must STILL report the real 404 (superseded), never a MISS.
+        sess = [
+            {"lane": "intake", "ts": 1000,
+             "intake": {"tab": "runes", "kind": "tally", "ok": True, "total": 404,
+                        "counts": {"El": 200, "Eld": 204}}},
+            {"lane": "intake", "ts": 5000,   # a later errored shot on the SAME tab
+             "intake": {"tab": "runes", "kind": "tally", "ok": False, "total": 0, "counts": {}}},
+        ]
+        maps = ca._build_dossier_maps(sess)
+        self.assertEqual(int(maps["tab_best"]["runes"]["total"]), 404)   # best receipt = the real read
+        # a footage frame sitting right on the errored 0-shot moment:
+        d = ca._beat_dossier(maps, {"frameId": "reel_s/f_5000", "captureTs": 5000,
+                                    "footage": True, "label": "stash-runes"})
+        rs = d["readStatus"]
+        self.assertEqual(rs["kind"], "read")        # NOT 'miss'
+        self.assertEqual(rs["counted"], 404)        # the updated/real picture, never 0
+        self.assertTrue(rs["superseded"])           # flagged: the nearby 0 was overridden
+        self.assertEqual(int(d["tally"]["total"]), 404)   # tally itself supersedes to the real one
+
+    def test_true_miss_still_reports_miss(self):
+        # a stash tab the router labeled but that NEVER got a real read anywhere = an honest miss.
+        sess = [{"lane": "intake", "ts": 5000,
+                 "intake": {"tab": "gems", "kind": "tally", "ok": False, "total": 0, "counts": {}}}]
+        maps = ca._build_dossier_maps(sess)
+        self.assertNotIn("gems", maps["tab_best"])
+        d = ca._beat_dossier(maps, {"frameId": "reel_s/f_5000", "captureTs": 5000,
+                                    "footage": True, "label": "stash-gems"})
+        self.assertEqual(d["readStatus"]["kind"], "miss")
+        self.assertEqual(d["readStatus"]["counted"], 0)
+
 
 class TestRouterLedger(unittest.TestCase):
     """v944 🚦 THE KAI ROUTER — Stage 1 label table. ca._kai_route_for_label maps a label to the
