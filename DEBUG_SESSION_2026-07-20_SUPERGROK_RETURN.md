@@ -174,3 +174,17 @@ _End SuperGrok return · 2026-07-20 · v935.8 · ready for Claude_
 
 **Laws honored:** header-only tab rail · pane never above topbar · `app=1&engine=1` intact · matrix re-run before shipping shell CSS (your law #3).
 **Still owed to the farm-acceptance test (needs Konyo in-game):** pin → 3-tab tally receipts → seal → watchdog row → `:17771` dead after close.
+
+## Claude polish arc (7 rounds, evening #2) — v935.11 → v936
+
+| R | Ship | Verify |
+|---|---|---|
+| 1 | v935.11 truthful eyes: 🔵/🧠 badges report journal-proven activity + ages; 🚨 WATCHDOG chip on violations | /api/status .eyes |
+| 2 | Smart shell Esc: board overlays consume Esc inside the iframe (incl. .show-class modals per Grok), shellHome only on bare pane | Playwright: pane→Esc→home |
+| 3 | Receipt dedupe = (frameId, tab, counts+ok+total+errors sig); empty frameId always journals | 39-test suite |
+| 4 | .hd-empty flex clip fix (LIVE INTAKE mid-word cut, +2 sibling cards) | no horizontal overflow |
+| 5 | KAI frame classes (stash-runes/gems/materials/inventory/tooltip/gameplay) in ledger + report — funnel routing metadata | next seal's kai_report.classes |
+| 6 | TestExitSafeguard ×3 (stop-once / idempotent / window-only skip) | suite 36→39 |
+| 7 | Grok verdict: 2 fixes gated in (dedupe sig, Esc selectors); R4/R6 clean — this seal | this row |
+
+Army: ui-polish · app-polish (one owner per file, lead-gated). Suites 39+154 green at seal.

@@ -1695,7 +1695,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v935.11",
+        "ver": "v936",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
@@ -2795,7 +2795,7 @@ class Handler(BaseHTTPRequestHandler):
                 #     match now also requires an identical counts signature. Only the exact triple
                 #     (frameId, tab, counts-sig) within ±5min is a true duplicate.
                 _counts = body.get("counts") if isinstance(body.get("counts"), dict) else {}
-                _csig = json.dumps(_counts, sort_keys=True)
+                _csig = json.dumps([_counts, bool(body.get("ok", True)), int(body.get("total") or 0), int(body.get("errors") or 0)], sort_keys=True)   # v936 Grok: fail↔zero-read flips must journal
                 if _fid:
                     for r in _rows:
                         if (r.get("lane") == "intake"

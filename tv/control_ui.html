@@ -1195,7 +1195,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v935.11 control</span>
+      <span id="foot-ver">v936 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -2967,7 +2967,7 @@
       var fd = w && w.document;
       if (fd){
         var cands = fd.querySelectorAll(
-          '#tvd-frame-lb:not([hidden]), .lightbox.open, [id$="-lb"]:not([hidden]), .modal.open, [role="dialog"]:not([hidden])');
+          '#tvd-frame-lb:not([hidden]), .lightbox.open, .lightbox.show, .modal.open, .modal.show, [id$="-lb"]:not([hidden]), [id$="-modal"].show, #help-modal.show, #gild-lightbox.show, [role="dialog"]:not([hidden])');
         var hit = null;
         for (var i = 0; i < cands.length; i++){ if (_fVis(w, cands[i])){ hit = cands[i]; break; } }
         if (hit){
