@@ -817,6 +817,10 @@
   .th-beat.skiptick { opacity: .18; background: #6d6353 !important; height: 4px; min-width: 1px; }   /* v880 — 'agent chose to wait' tick */
   .th-beat.intaketick { background: #b9a5ff !important; height: 16px; box-shadow: 0 0 8px rgba(185,165,255,.5); }   /* v902 — 📸 intake fired */
   .th-beat.intaketick.zero { opacity: .35; height: 8px; box-shadow: none; }   /* v908-R6 — honest empty shot */
+  .th-beat.verifytick { background: #5c9ded !important; height: 12px; box-shadow: 0 0 7px rgba(92,157,237,.55); }   /* v933 — 🔵 second eye */
+  .th-beat.verifytick.recal { background: #7fb8ff !important; height: 18px;
+    box-shadow: 0 0 12px rgba(127,184,255,.85), 0 0 4px rgba(255,210,90,.9); animation: recalPulse 1.6s ease-in-out infinite; }   /* ⚡ disagreement marker */
+  @keyframes recalPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
   .th-chip.th-tag { opacity: .85; } .th-chip.th-tag i { font-style: normal; opacity: .65; font-size: 10px; }
   .th-airead { display: inline-block; text-align: left; margin-top: 6px; padding: 8px 14px;
     max-width: min(560px, 84%);   /* v850 — the card, not a banner */
@@ -1571,6 +1575,18 @@
     return '';
   }
   function thCaption(b){
+    if (b && b.lane === 'verify'){
+      // v933 — 🔵 SECOND EYE beat: verdict-first caption, pinned to the frame it re-checked
+      var vf = b.verify || {};
+      var rm = (b.unvault_names || vf.not_present || []);
+      var ms2 = (vf.missed || []);
+      var verdict = rm.length ? ('⚡ corrected — un-tallied ' + esc(rm.slice(0,3).join(', ')))
+        : (ms2.length ? ('⚡ flagged ' + ms2.length + ' maybe-missed: ' + esc(ms2.slice(0,3).join(', ')))
+        : ('confirmed ' + ((vf.confirm||[]).length ? esc(vf.confirm.slice(0,3).join(', ')) : 'the read')));
+      return '<span style="color:#7fb8ff">🔵 <b>SECOND EYE</b> · ' + verdict
+        + ' · conf ' + (vf.conf != null ? Number(vf.conf).toFixed(2) : '—')
+        + ' <span style="opacity:.55">· re-checked 🖼 ' + esc(String(b.frameId||'').replace('#v','')) + '.jpg · ' + new Date(b.ts).toLocaleTimeString() + '</span></span>';
+    }
     if (b && b.intakeBeat){
       var ik2 = b.intake || {};
       var n2 = Object.keys(ik2.counts || {}).length;
@@ -1986,6 +2002,9 @@
       if (b.footage) cls += ' foot';   // v826 — hairline footage tick
       if (b.skip) cls += ' skiptick';  // v880 (SIM A2.8) — dim no-eyes tick
       if (b.intakeBeat) cls += ' intaketick' + ((b.intake && b.intake.ok === false) ? ' zero' : '');  // v902/v908
+      if (b.lane === 'verify'){   // v933 — 🔵 the SECOND EYE on the same timeline, own color
+        cls += ' verifytick' + (((b.unvault_names||[]).length || ((b.verify||{}).missed||[]).length) ? ' recal' : '');
+      }
       if ((b.vault_names||[]).length) cls = cls + ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
