@@ -654,13 +654,20 @@ class TestRouterLedger(unittest.TestCase):
         self.assertIsNone(ca._kai_route_for_label(None))
 
     def setUp(self):
+        # v944.1 — each brain carries its own vote (ocrLabel/journalLabel). Legacy rows
+        # with only ocr/journal booleans + label still work via the builder fallback.
         self.scan = [
-            {"f": "f_100.jpg", "ts": 100000, "ocr": True,  "journal": True,  "label": "stash-runes"},
-            {"f": "f_200.jpg", "ts": 200000, "ocr": True,  "journal": False, "label": "tooltip"},
+            {"f": "f_100.jpg", "ts": 100000, "ocr": True,  "ocrLabel": "stash-runes",
+             "journal": True,  "journalLabel": "stash-runes", "label": "stash-runes"},
+            {"f": "f_200.jpg", "ts": 200000, "ocr": True,  "ocrLabel": "tooltip",
+             "journal": False, "label": "tooltip"},
             {"f": "f_300.jpg", "ts": 300000, "ocr": False, "journal": False, "label": "gameplay"},
-            {"f": "f_400.jpg", "ts": 400000, "ocr": True,  "journal": False, "label": "stash-gems"},
-            {"f": "f_500.jpg", "ts": 500000, "ocr": True,  "journal": True,  "label": "stash-materials"},
-            {"f": "f_600.jpg", "ts": 600000, "ocr": True,  "journal": True,  "label": "inventory"},
+            {"f": "f_400.jpg", "ts": 400000, "ocr": True,  "ocrLabel": "stash-gems",
+             "journal": False, "label": "stash-gems"},
+            {"f": "f_500.jpg", "ts": 500000, "ocr": True,  "ocrLabel": "stash-materials",
+             "journal": True,  "journalLabel": "stash-materials", "label": "stash-materials"},
+            {"f": "f_600.jpg", "ts": 600000, "ocr": True,  "ocrLabel": "inventory",
+             "journal": True,  "journalLabel": "inventory", "label": "inventory"},
         ]
         self.sess = [
             {"lane": "deep", "ts": 100000, "names": ["El"]},                        # named read → 'read' near 100k
@@ -676,16 +683,18 @@ class TestRouterLedger(unittest.TestCase):
         self.led = {r["f"]: r for r in ca._kai_build_routing(self.scan, self.sess, "S", self.journal)}
 
     def test_funnel_routed_frame(self):
+        # v944.1 — a near named deep-read votes 'tooltip', not stash-runes. Honest quorum:
+        # only journal+ocr agree on stash-runes (conf 2). 'read' does NOT inflate stash quorum.
         r = self.led["f_100.jpg"]
-        self.assertEqual(sorted(r["sources"]), ["journal", "ocr", "read"])   # 3 brains agree
-        self.assertEqual(r["confidence"], 3)
+        self.assertEqual(sorted(r["sources"]), ["journal", "ocr"])
+        self.assertEqual(r["confidence"], 2)
         self.assertEqual(r["route"], "tally:runes")
         self.assertEqual(r["routed"], "kai-funnel")
         self.assertIsNone(r["skipReason"])
 
     def test_judge_routed_frame(self):
         r = self.led["f_200.jpg"]
-        self.assertEqual(sorted(r["sources"]), ["judge", "ocr"])            # read is >4s away
+        self.assertEqual(sorted(r["sources"]), ["judge", "ocr"])            # both vote tooltip
         self.assertEqual(r["route"], "judge")
         self.assertEqual(r["routed"], "kai-judge")
         self.assertIsNone(r["skipReason"])
@@ -746,14 +755,66 @@ class TestRouterLedger(unittest.TestCase):
     def test_sig_change_breaks_the_run(self):
         # a differing sig starts a fresh run — not chained to the prior frame.
         scan = [
-            {"f": "a.jpg", "ts": 1, "ocr": True, "journal": True, "label": "stash", "sig": (1, b"A")},
-            {"f": "b.jpg", "ts": 2, "ocr": True, "journal": True, "label": "stash", "sig": (1, b"A")},
-            {"f": "c.jpg", "ts": 3, "ocr": True, "journal": True, "label": "stash", "sig": (2, b"B")},
+            {"f": "a.jpg", "ts": 1, "ocr": True, "journal": True, "label": "stash",
+             "ocrLabel": "stash", "journalLabel": "stash", "sig": (1, b"A")},
+            {"f": "b.jpg", "ts": 2, "ocr": True, "journal": True, "label": "stash",
+             "ocrLabel": "stash", "journalLabel": "stash", "sig": (1, b"A")},
+            {"f": "c.jpg", "ts": 3, "ocr": True, "journal": True, "label": "stash",
+             "ocrLabel": "stash", "journalLabel": "stash", "sig": (2, b"B")},
         ]
         led = ca._kai_build_routing(scan, [], "S", [])
         self.assertEqual(led[1]["skipReason"], "dup-of:a.jpg")   # b is a dup of a
         self.assertNotIn("dup-of", str(led[2]["skipReason"]))    # c starts a new run
         self.assertEqual(led[2]["route"], "vault")               # c keeps its route
+
+    # ── v944.1 Stage 2 — QUORUM + DISAGREEMENT POLICY ─────────────────────────
+    def test_journal_panel_wins_over_ocr_tooltip(self):
+        # stash screens are OCR-dark: journal time-map overrides a conflicting OCR tooltip.
+        # Both brains vote → journal wins label; only journal agrees with the final label?
+        # Actually ocr voted tooltip, journal voted stash-runes → final stash-runes, sources=[journal]
+        # confidence 1 → confidence<2 (no fire). That's correct: OCR did NOT agree.
+        scan = [{"f": "x.jpg", "ts": 1000, "ocr": True, "ocrLabel": "tooltip",
+                 "journal": True, "journalLabel": "stash-runes", "label": "stash-runes"}]
+        r = ca._kai_build_routing(scan, [], "S", [])[0]
+        self.assertEqual(r["label"], "stash-runes")
+        self.assertEqual(r["sources"], ["journal"])
+        self.assertEqual(r["confidence"], 1)
+        self.assertEqual(r["skipReason"], "confidence<2")
+
+    def test_disagreement_two_brains_no_winner(self):
+        # ocr says tooltip, read says tooltip → agreement on tooltip with 2 sources.
+        # Force true disagreement: ocr=tooltip vs journal=inventory (no stash-* priority path)
+        # wait — journal inventory is still journal priority only for stash-*. inventory loses to majority.
+        # ocr=tooltip, journal=inventory → two distinct, each 1 vote → disagreement
+        scan = [{"f": "d.jpg", "ts": 2000, "ocr": True, "ocrLabel": "tooltip",
+                 "journal": True, "journalLabel": "inventory", "label": "tooltip"}]
+        r = ca._kai_build_routing(scan, [], "S", [])[0]
+        self.assertEqual(r["skipReason"], "disagreement")
+        self.assertIsNone(r["route"])
+        self.assertEqual(r["confidence"], 0)
+        self.assertEqual(r["sources"], [])
+
+    def test_quorum_two_agree_routes(self):
+        # ocr + journal both stash-gems → confidence 2, route tally:gems
+        scan = [{"f": "g.jpg", "ts": 3000, "ocr": True, "ocrLabel": "stash-gems",
+                 "journal": True, "journalLabel": "stash-gems", "label": "stash-gems"}]
+        r = ca._kai_build_routing(scan, [], "S", [])[0]
+        self.assertEqual(sorted(r["sources"]), ["journal", "ocr"])
+        self.assertEqual(r["confidence"], 2)
+        self.assertEqual(r["route"], "tally:gems")
+        self.assertEqual(r["skipReason"], "not-selected")  # no receipt, no fire yet
+
+    def test_quorum_label_helper(self):
+        # pure helper pins
+        lb, src, d = ca._kai_quorum_label({"ocr": "tooltip", "journal": "stash-runes"})
+        self.assertEqual((lb, src, d), ("stash-runes", ["journal"], None))
+        lb, src, d = ca._kai_quorum_label({"ocr": "tooltip", "read": "tooltip"})
+        self.assertEqual(lb, "tooltip")
+        self.assertEqual(sorted(src), ["ocr", "read"])
+        self.assertIsNone(d)
+        lb, src, d = ca._kai_quorum_label({"ocr": "tooltip", "journal": "inventory"})
+        self.assertEqual(d, "disagreement")
+        self.assertEqual(src, [])
 
 
 if __name__ == "__main__":

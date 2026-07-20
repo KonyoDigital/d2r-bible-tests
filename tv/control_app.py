@@ -1686,11 +1686,12 @@ def _kai_compile_register(sess_rows):
     return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
 
 
-# ── v944 🚦 THE KAI ROUTER — Stage 1: THE LABEL TABLE (evidence, no firing) ──────
-# Konyo's architecture call #2: before a frame gets funneled, all four brains tag it, it's
-# verified by quorum, THEN routed to the intake that already works. Stage 1 only OBSERVES:
-# a per-frame ledger of label + which brains agreed + the route it WOULD take + what actually
-# fired. Stages 2 (quorum gate) and 3 (route execution unification) build on this ledger.
+# ── v944/v944.1 🚦 THE KAI ROUTER
+# Stage 1 — LABEL TABLE (evidence): per-frame votes + route intent + what actually fired.
+# Stage 2 — QUORUM GATE (v944.1): sources that AGREE on the final label only count;
+#           confidence = agreement count; <2 → no route (🟡); multi-brain disagreement
+#           without a ≥2 winner → skipReason "disagreement".
+# Stage 3 — lanes OBEY the ledger (still next: funnel/judge as consumers of routed rows).
 def _kai_frame_sig(path):
     """v944 — cheap sampled-bytes fingerprint of a reel JPEG for routing dedupe (frame_sig-style).
     Returns (size, ~2k sampled bytes): the size is the fast first-pass key, the samples confirm
@@ -1716,19 +1717,57 @@ def _kai_route_for_label(label):
     return None
 
 
+def _kai_quorum_label(votes):
+    """v944.1 Stage 2 — pick the final label from per-brain votes + who agrees.
+
+    votes: dict brain → label (omit silent brains). Policy (stash screens are OCR-dark):
+      1) journal stash-* / stash always wins when present (time-map is ground truth for panels)
+      2) else majority vote among non-gameplay labels
+      3) else any single non-gameplay vote
+      4) else gameplay
+    Returns (label, sources_list, skip_disagreement_or_None).
+    sources_list = brains whose vote equals the chosen label (honest quorum).
+    skip_disagreement = 'disagreement' when ≥2 distinct non-gameplay labels and no ≥2 winner.
+    """
+    # drop empties / normalize
+    clean = {b: (lb or "gameplay") for b, lb in (votes or {}).items() if b and lb}
+    if not clean:
+        return "gameplay", [], None
+    # 1) journal panel truth
+    jv = clean.get("journal")
+    if jv and jv != "gameplay" and (jv == "stash" or str(jv).startswith("stash-")):
+        agree = sorted(b for b, lb in clean.items() if lb == jv)
+        return jv, agree, None
+    # tally non-gameplay votes
+    from collections import Counter
+    ng = {b: lb for b, lb in clean.items() if lb != "gameplay"}
+    if not ng:
+        agree = sorted(clean.keys())  # all said gameplay
+        return "gameplay", agree, None
+    counts = Counter(ng.values())
+    top_label, top_n = counts.most_common(1)[0]
+    # disagreement: 2+ distinct non-gameplay labels and no quorum on the winner
+    if len(counts) >= 2 and top_n < 2:
+        # no ≥2 agreement — flag, keep top as display label, sources empty for gate
+        return top_label, [], "disagreement"
+    agree = sorted(b for b, lb in clean.items() if lb == top_label)
+    return top_label, agree, None
+
+
 def _kai_build_routing(scan, sess_rows, sid, journal_rows):
-    """v944 — THE ROUTING LEDGER. One row per scanned frame:
+    """v944/v944.1 — THE ROUTING LEDGER. One row per scanned frame:
     {f, ts, label, sources, confidence, route, routed, skipReason}.
-    sources = which of the four brains agreed on the label:
-      'ocr'     OCR words classed the frame (a real, non-gameplay cls),
-      'journal' the stash time-map placed the frame on an open tab,
-      'read'    a deep read named an item within ±4s of the frame,
-      'judge'   a judge verdict landed on this frame.
-    confidence = len(sources) (the quorum count Stage 2 will gate on).
-    route = the funnel that WOULD take it (tally:<tab> | vault | judge | null).
-    routed = what actually fired this close, read from the journal receipts the funnel/judge
-             stages already wrote (intake kind 'kai-funnel', or a 'kai-judge' verdict) — or null.
-    skipReason = why nothing fired. Pure — no side effects, no firing."""
+
+    sources = brains whose VOTE equals the final label (Stage 2 honest quorum), not merely
+    'any evidence on the frame'. Brains:
+      'ocr'     OCR classed the frame (non-gameplay cls),
+      'journal' stash time-map placed the frame on an open tab,
+      'read'    a deep read named an item within ±4s → votes tooltip,
+      'judge'   a judge verdict landed on this frame → votes tooltip.
+
+    confidence = len(sources). Stage 2 gate: confidence < 2 → no fire intent (skip confidence<2
+    or disagreement). route = funnel that WOULD take it; routed = what actually fired (receipts).
+    Pure — no side effects."""
     read_ts = [int(r.get("captureTs") or r.get("ts") or 0)
                for r in sess_rows
                if r.get("lane") == "deep" and (r.get("names") or [])]
@@ -1756,24 +1795,40 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
     for s in scan:
         f = str(s.get("f") or "")
         ts = int(s.get("ts") or 0)
-        label = s.get("label") or "gameplay"
         fid = ("reel_" + sid + "/" + f.replace(".jpg", "")) if f else ""
-        sources = []
-        if s.get("ocr"):
-            sources.append("ocr")
+        # ── per-brain VOTES (Stage 2) ──
+        votes = {}
+        ocr_lb = s.get("ocrLabel") or (s.get("label") if s.get("ocr") else None)
+        if s.get("ocr") and ocr_lb and ocr_lb != "gameplay":
+            votes["ocr"] = ocr_lb
+        j_lb = s.get("journalLabel")
         if s.get("journal"):
-            sources.append("journal")
+            votes["journal"] = j_lb or s.get("label") or "stash"
         if any(abs(rt - ts) <= 4000 for rt in read_ts):
-            sources.append("read")
+            votes["read"] = "tooltip"   # a named deep read near this frame ⇒ item floating
         judged = fid in judge_fids
         if judged:
-            sources.append("judge")
+            votes["judge"] = "tooltip"
+        # legacy scan rows without ocrLabel/journalLabel still work via booleans + label
+        if not votes and (s.get("ocr") or s.get("journal")):
+            if s.get("ocr"):
+                votes["ocr"] = s.get("label") or "gameplay"
+            if s.get("journal"):
+                votes["journal"] = s.get("label") or "stash"
+        label, sources, disagree = _kai_quorum_label(votes)
+        conf = len(sources)
         route = _kai_route_for_label(label)
         routed = funnel_by_fid.get(fid) or ("kai-judge" if judged else None)
         skip = None
+        # Stage 2 gate — no fire intent without quorum (even if a receipt already exists,
+        # skipReason stays null when routed is set; the gate applies to would-fire path)
         if routed is None:
-            if len(sources) < 2:
+            if disagree:
+                skip = "disagreement"
+                route = None   # do not advertise a route when brains fight
+            elif conf < 2:
                 skip = "confidence<2"
+                # keep route for drilldown (what WOULD fire if a second brain agreed)
             elif route is None:
                 skip = "no-route"
             elif route.startswith("tally:"):
@@ -1798,7 +1853,7 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             _run_first = f
         _prev_sig = _sig
         out.append({"f": f, "ts": ts, "label": label, "sources": sources,
-                    "confidence": len(sources), "route": route,
+                    "confidence": conf, "route": route,
                     "routed": routed, "skipReason": skip})
     return out
 
@@ -1906,12 +1961,18 @@ def _kai_closer_loop():
                     if new:
                         missed.append({"f": it.get("f"), "ts": it.get("ts"),
                                        "texts": new[:6], "cls": cls})
-                # v944 🚦 — record this scanned frame's label evidence for the routing ledger.
-                # 'ocr' fires only when OCR itself produced a real (non-gameplay) class; the
-                # journal-truth override is credited to 'journal', keeping the sources honest.
+                # v944/v944.1 🚦 — per-brain label VOTES for Stage 2 quorum (not just booleans).
+                # ocrLabel = OCR's own class; journalLabel = stash time-map class; final
+                # 'label' is still the display override (journal wins on panels).
+                _jlab = None
+                if _near:
+                    _jlab = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
                 routing_scan.append({"f": it.get("f"), "ts": int(it.get("ts") or 0),
                                      "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
-                                     "journal": bool(_near), "label": cls or "gameplay",
+                                     "ocrLabel": _ocr_cls if (_ocr_cls and _ocr_cls != "gameplay") else None,
+                                     "journal": bool(_near),
+                                     "journalLabel": _jlab,
+                                     "label": cls or "gameplay",
                                      "sig": _kai_frame_sig(fp)})   # v944 — dedupe fingerprint
                 time.sleep(0.12)   # peaceful — never fights a live session
             try:
@@ -2470,7 +2531,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v944",
+        "ver": "v944.1",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
