@@ -1990,6 +1990,13 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/hist/"):
             self._serve_hist(path[len("/hist/"):])
             return
+        if path.startswith("/tv/frames/hist/"):
+            # v928.1 — the bible board's frame FALLBACK asks for this exact relative path
+            # (lightbox/theatre: bridge → 'tv/frames/hist/<id>.jpg'). With the agent off the
+            # bridge is gone, and this path 404'd here — replays showed "frame missing" over
+            # a full archive. Serve it from the same hist store.
+            self._serve_hist(path[len("/tv/frames/hist/"):])
+            return
         if path == "/api/log":
             try:
                 with open(LOG_PATH, "rb") as f:

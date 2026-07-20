@@ -12,6 +12,10 @@ unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
 # v927.2 — arm the local Vision OCR fast lane (v925 LIGHT default ships it off;
 # tv/bin/ocr_mac exists and reads a frame in ~10-50ms warm vs ~10s Sonnet-only)
 export TV_OCR="${TV_OCR:-1}"
+# v928.1 — arm the FILM thread too (same v925-LIGHT cut): without it the SIM/retro
+# "visual debugger" gets zero f_*.jpg footage — sessions replay as sparse read-stills
+# instead of the 1fps reel (Konyo 2026-07-20: "where are all the SCREENSHOTS?")
+export TV_FILM="${TV_FILM:-1}"
 
 # ── TCC SAFEGUARD (2026-07-20 WindowServer-crash lesson) ────────────────────
 # Finder/double-click launches capture wallpaper-only: the wrapper .app is
