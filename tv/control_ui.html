@@ -242,6 +242,13 @@
     transition: opacity .35s ease;
   }
   body.film-on .stage-film { opacity: 1; }
+  /* v928.3 — HELD film: last real frame stays on stage while the eye pauses (game gone /
+     capture hold). Visibly not-live — dim + desaturated + slow breathing — never a curtain. */
+  body.film-held .stage-film { filter: grayscale(.45) brightness(.62) saturate(.8);
+    animation: filmHeldBreathe 3.2s ease-in-out infinite; }
+  @keyframes filmHeldBreathe { 0%,100% { opacity: 1; } 50% { opacity: .82; } }
+  body.film-held .status-chip::before { content: '👁'; animation: chipBlink 1.6s ease-in-out infinite; }
+  @keyframes chipBlink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
   #fault-banner { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
     background: rgba(80,20,10,.92); border: 1px solid rgba(255,120,80,.55); color: #ffb49a;
     font: 600 12px/1.4 var(--mono); letter-spacing: .08em; padding: 6px 14px;
@@ -1355,10 +1362,15 @@
       else {
       var eyeStale = (st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 4000);
       if (on && state !== 'sim' && eyeStale) {
-        // v785 — the film NEVER claims LIVE on a dead frame (round-2 sleeper: frozen eye.jpg
-        // kept 200-ing while capture was dead). Stage falls back to the big word.
-        document.body.classList.remove('film-on');
+        // v928.3 (Konyo: "not a cutting-my-feed intrusive way — a small eye watching") — a
+        // stale eye no longer tears the stage down to the giant word mid-session. The LAST
+        // real frame stays up, dimmed (film-held), with the 👁 chip + fault banner telling
+        // the truth. The big word only returns when this session never had a frame at all.
+        // (v785 honesty kept: film-held is visibly NOT live — dimmed, desaturated, labeled.)
+        if (film.__url) { document.body.classList.add('film-held'); }
+        else { document.body.classList.remove('film-on'); }
       } else if (on && state !== 'sim') {
+        document.body.classList.remove('film-held');
         var fsrc = st.frame || ('http://127.0.0.1:' + (st.agentPort || 17771) + '/frame');
         // v783 — ~3fps stage film (agent film thread ~5fps JPEG)
         var eyeMoving = !(st.eyeAgeMs != null && st.eyeAgeMs >= 0 && st.eyeAgeMs > 2500);
@@ -1386,6 +1398,7 @@
         }
       } else {
         document.body.classList.remove('film-on');
+        document.body.classList.remove('film-held');
         film.removeAttribute('src'); film.__src = '';
       }
       }
