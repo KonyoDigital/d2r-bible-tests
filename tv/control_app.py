@@ -1419,8 +1419,8 @@ def _kai_closer_loop():
                             if t2 in ("runes", "gems", "materials"):
                                 _visited.add(t2)
                         ik2 = r2.get("intake")
-                        if isinstance(ik2, dict) and str(ik2.get("tab") or "").lower():
-                            _receipted.add(str(ik2.get("tab") or "").lower())
+                        if isinstance(ik2, dict) and ik2.get("ok", True) and str(ik2.get("tab") or "").lower():
+                            _receipted.add(str(ik2.get("tab") or "").lower())   # v938.3 — ok:false ≠ receipted
                     _gaps = [t for t in ("runes", "gems", "materials") if t in _visited and t not in _receipted]
                     _by_tab = {}
                     for mrec in missed:
@@ -1524,7 +1524,7 @@ def _watchdog_check(sid, sess_rows):
     receipts = set()
     for r in rows:
         ik = r.get("intake")
-        if isinstance(ik, dict):
+        if isinstance(ik, dict) and ik.get("ok", True):   # v938.3 — a FAILED shot satisfies nothing
             rt = str(ik.get("tab") or "").lower()
             if rt:
                 receipts.add(rt)
