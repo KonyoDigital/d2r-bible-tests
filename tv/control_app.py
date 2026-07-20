@@ -1460,6 +1460,18 @@ def _watchdog_check(sid, sess_rows):
     stash_opened = any(r.get("lane") == "deep" and str(r.get("scene") or "") == "stash"
                        for r in rows)
     any_tab_read = any(str(r.get("stashTab") or "").strip() for r in rows)
+    # v936.2 — rule 3: TEXT-EYE LIVENESS. A busy session (>=6 deep reads) with ZERO
+    # text-eye trigger beats means the tooltip lane was dead the whole run — the
+    # "20 items shown, 4 reads" class regressing silently. (Trigger beats journal as
+    # kind:skip why:'text-eye' since v936.1.)
+    _deep_n = sum(1 for r in rows if r.get("lane") == "deep")
+    _te_n = sum(1 for r in rows
+                if str(r.get("why") or r.get("skip") or "") == "text-eye"
+                or "text-eye" in str(r.get("note") or ""))
+    if _deep_n >= 6 and _te_n == 0:
+        violations.append({
+            "rule": "text-eye-silent-all-session", "tab": "",
+            "note": "🚨 WATCHDOG: %d reads but the text eye never triggered once — tooltip lane may be dead" % _deep_n})
     if stash_opened and not any_tab_read:
         violations.append({
             "rule": "stash-open-no-tab-reads", "tab": "",
@@ -2206,7 +2218,15 @@ class Handler(BaseHTTPRequestHandler):
                             pass
                 except Exception:
                     pass
-                out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
+                # v937 — the session's STORY fields: verdicts at a glance (shelf + home digest)
+                _wd = sum(1 for r2 in sess if r2.get("lane") == "watchdog")
+                _tl = sum(1 for r2 in sess if r2.get("lane") == "intake")
+                _km, _kc = None, None
+                for r2 in sess:
+                    if r2.get("lane") == "kai" and isinstance(r2.get("kai"), dict) and "missedFrames" in r2["kai"]:
+                        _km = r2["kai"].get("missedFrames"); _kc = r2["kai"].get("classes")
+                out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
+                            "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
