@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v924"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v925"   # LIGHT reader default (screenshot, not record) · AUTO INTAKE · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -45,11 +45,19 @@ SESSION_ID = ""
 # v901 — PRODUCT: Auto Intake (default) vs Robot (FROZEN unless TV_ROBOT=1).
 # Intake = settle on stash/loot → deep read → board feeds locked Tools/Vault 📸 pipelines.
 ROBOT_MODE = str(os.environ.get("TV_ROBOT", "0") or "0").strip().lower() in ("1", "true", "yes", "on")
+# v925 LIGHT (Konyo, acceptance day: 'so laggy i cant play a game even… like a reader, not
+# needing to process so heavy… like screenshot not record… 1 claude is enough'). LIGHT is the
+# DEFAULT product now: a gentle screenshot reader, not a screen recorder. No continuous film,
+# a slow sensor tick, no OCR lane. Heavy capture (film/OCR/fast poll) is opt-in for the SIM
+# debugger via TV_LIGHT=0. Robot mode implies heavy.
+LIGHT_MODE = (not ROBOT_MODE) and str(os.environ.get("TV_LIGHT", "1") or "1").strip().lower() not in ("0", "false", "no", "off")
 MIN_GAP_S    = float(os.environ.get("TV_MIN_GAP", "3.5" if not ROBOT_MODE else "1.5") or 3.5)
 HEARTBEAT_S = max(1.0, min(20.0, float(os.environ.get("TV_HEARTBEAT", "8.0" if not ROBOT_MODE else "3.0") or 8.0)))
 PRIORITY_GAP_S = float(os.environ.get("TV_PRIORITY_GAP", "1.0" if not ROBOT_MODE else "0.7") or 1.0)
 SESSION_CAP  = 240
-POLL_S       = float(os.environ.get("TV_POLL", "0.15" if not ROBOT_MODE else "0.12") or 0.15)
+# v925 — the sensor tick: LIGHT samples the screen ~every 1.8s (loot waits on the ground), not
+# ~7×/second. This poll capture (Grok: cut #2) is the biggest steady lag after the film loop.
+POLL_S       = float(os.environ.get("TV_POLL", ("1.8" if LIGHT_MODE else "0.15") if not ROBOT_MODE else "0.12") or 0.15)
 WATCH_MODE   = "--watch" in sys.argv
 MOTION_PEAK  = 0.10
 SETTLE       = 0.03
@@ -1186,6 +1194,12 @@ def start_film_thread():
     global _FILM_THREAD
     if WATCH_MODE or sys.platform != "darwin":
         return
+    # v925 LIGHT — the continuous full-screen recorder is the #1 lag; OFF by default. Every
+    # actual READ still archives its own frame (per-read hist .jpg), so the SIM retro-debugger
+    # keeps a screenshot of every read — just no smooth film between reads. TV_FILM=1 (or the
+    # heavy TV_LIGHT=0 / robot mode) brings the cinematic film back for debugging.
+    if LIGHT_MODE and str(os.environ.get("TV_FILM", "0") or "0").strip().lower() not in ("1", "true", "yes", "on"):
+        return
     if _FILM_THREAD and _FILM_THREAD.is_alive():
         return
     _FILM_THREAD = threading.Thread(target=_film_loop, daemon=True, name="tv-film")
@@ -1985,7 +1999,11 @@ def _order_drain():
 
 _POOL_STOPPING = False
 # v899 — farewell/pool join hard-cap (was 90s; 400-read desktop sessions hung SIGNING OFF forever)
-FAREWELL_MAX_S = max(5.0, min(45.0, float(os.environ.get("TV_FAREWELL_S", "12") or 12)))
+# v925 LIGHT — shorter cap; the farewell VISION read is OFF by default now (see close_session):
+# it was the "END SESSION stuck" bug — a final Claude read stacked on pool-join + flush + fold
+# past the console's ~22s wait. LIGHT END = seal the reel and exit, instant, no vision call.
+FAREWELL_MAX_S = max(3.0, min(45.0, float(os.environ.get("TV_FAREWELL_S", "6") or 6)))
+FAREWELL_READ_ON = str(os.environ.get("TV_FAREWELL", "0" if LIGHT_MODE else "1")).strip().lower() in ("1", "true", "yes", "on")
 
 
 def _pool_shutdown(timeout=None):
@@ -2197,7 +2215,9 @@ def _ocr_worker_cmd():
     if os.path.isfile(OCR_BIN) and os.access(OCR_BIN, os.X_OK):
         return [OCR_BIN, "--worker"]
     return None
-OCR_ENABLED = os.environ.get("TV_OCR", "1") != "0"
+# v925 LIGHT — OCR lane OFF by default (Grok cut #4): the "1 claude" product doesn't need the
+# extra grab+process per candidate. TV_OCR=1 (or heavy/robot) re-arms it.
+OCR_ENABLED = os.environ.get("TV_OCR", "0" if LIGHT_MODE else "1") != "0"
 
 class OcrWorker:
     """Persistent `ocr_mac --worker` — one process, many frames. Stdlib only."""
@@ -3190,14 +3210,19 @@ def main():
         print(f"📺 TV DIABLO {VERSION} — ROBOT (TV_ROBOT=1) · pool={POOL_N} · film ~{_FILM_FPS}fps")
         print(f"   cadence: gap={MIN_GAP_S}s · heartbeat={HEARTBEAT_S}s · priority={PRIORITY_GAP_S}s")
     else:
-        print(f"📺 TV DIABLO {VERSION} — AUTO INTAKE · Robot FROZEN · pool=1 · film ~{_FILM_FPS}fps")
+        print(f"📺 TV DIABLO {VERSION} — AUTO INTAKE · Robot FROZEN · pool=1 · " + ("⚡ LIGHT reader" if LIGHT_MODE else f"film ~{_FILM_FPS}fps"))
         print(f"   product: pause on stash/loot → same AI as Tools 📸 (runes/gems/materials/vault)")
         print(f"   cadence: settle gap={MIN_GAP_S}s · no continuous heartbeat")
         print(f"   unlock robot later: TV_ROBOT=1 (frozen until playable unfreeze gate)")
     print(f"   bridge: http://127.0.0.1:{PORT}/state  ·  mode: {'watch (Windows frames)' if WATCH_MODE else 'mac screencapture'}")
     print("   capture: AUTO (pins D2R.exe only — never CrossOver Home / Battle.net)")
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL}")
-    print(f"   film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · max {FILM_MAX_PX}px · q{FILM_JPEG_Q}")
+    _film_on = (not LIGHT_MODE) or str(os.environ.get("TV_FILM", "0")).strip().lower() in ("1", "true", "yes", "on")
+    if LIGHT_MODE:
+        print(f"   ⚡ LIGHT reader — screenshot every ~{POLL_S:.1f}s · film OFF · OCR OFF · 1 claude · plays nice with the game")
+        print("      (heavy cinematic capture for the SIM debugger: TV_LIGHT=0)")
+    else:
+        print(f"   film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · max {FILM_MAX_PX}px · q{FILM_JPEG_Q}")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF"
     print(f"   ocr lane: {ocr_tag}")
     if ROBOT_MODE:
@@ -4124,8 +4149,15 @@ def close_session(reason="stop", farewell=True):
         })
     except Exception as e:
         print(f"  👋 session_end journal failed: {e}")
+    # v925 LIGHT — the farewell VISION read is opt-in now (TV_FAREWELL=1). Default END SESSION
+    # just seals + exits so it can NEVER hang on a Claude call (the "button stuck" bug).
+    if farewell and not FAREWELL_READ_ON:
+        farewell = False
+        print("  👋 light end — sealed, no farewell read")
     try:
-        _pool_shutdown(timeout=min(FAREWELL_MAX_S, 12.0))
+        # v925-R4 (Grok) — a light end must not join a stuck mid-flight read for 8s. Give the
+        # pool ~2s to wind down; a full farewell run still gets the longer cap.
+        _pool_shutdown(timeout=(min(FAREWELL_MAX_S, 8.0) if farewell else 2.0))
     except Exception:
         pass
     if farewell:

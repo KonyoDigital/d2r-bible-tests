@@ -892,10 +892,13 @@ class TestReplay(unittest.TestCase):
         self.assertEqual(tv.POOL_N, 1, "Auto Intake uses one Claude worker")
         self.assertLessEqual(tv.MIN_GAP_S, 5.0)
         self.assertGreaterEqual(tv.MIN_GAP_S, 2.0)
-        self.assertLessEqual(tv.POLL_S, 0.2)
-        self.assertGreaterEqual(tv._FILM_FPS, 4)
-        self.assertLessEqual(tv._FILM_FPS, 10)
-        self.assertEqual(tv._FOOTAGE_FPS, 1)
+        # v925 LIGHT contract — the default is a gentle screenshot reader, not a recorder:
+        # a slow sensor tick (Konyo: 'like screenshot not record'), no continuous film, no OCR.
+        self.assertTrue(tv.LIGHT_MODE, "LIGHT is the default product")
+        self.assertGreaterEqual(tv.POLL_S, 1.0, "LIGHT samples slowly so the game can breathe")
+        self.assertFalse(tv.OCR_ENABLED, "LIGHT runs one Claude, no OCR lane")
+        self.assertFalse(tv.FAREWELL_READ_ON, "LIGHT End Session seals + exits, no farewell vision")
+        # the film-fps constant still exists (heavy/debug mode uses it) but the thread stays dark
         self.assertAlmostEqual(tv.FOOTAGE_INTERVAL_S, 1.0, places=3)
         self.assertGreaterEqual(tv.FILM_MAX_PX, 1280)
         h = tv._health({"reads": [], "startedAt": int(time.time() * 1000)})

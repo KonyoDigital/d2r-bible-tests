@@ -2157,3 +2157,22 @@ except "D2R.exe not running yet" (true). His acceptance night now starts with on
 
 ## v924.1 — hermetic gate tests (CI had no claude binary; the contract test hit the no-CLI branch)
 Both farmgate tests now mock shutil.which alongside subprocess.run. Local 36/36; CI re-verdict pending.
+
+## ✅ v925 "LIGHT READER" — acceptance-day emergency (Konyo farming live: "so laggy i cant play a game even")
+His first REAL farm run surfaced the true problem: the live agent was a SCREEN RECORDER, not a
+screenshot reader — 25% CPU, whole Mac lagging, END SESSION stuck. I killed the agent for
+instant relief, then diagnosed 3 continuous heavy loops and (Grok R1 confirmed cut order) made
+LIGHT the DEFAULT product:
+- CUT #1 film loop OFF (the 5fps full-screen recorder) — per-read frames still archived via
+  _hist_snap (independent of the film loop), so SIM keeps every read's screenshot. His words:
+  "screenshots then analyzed is enough."
+- CUT #2 poll 0.15s → 1.8s (the sensor tick was ~7 grabs/sec).
+- CUT #3 END SESSION seals + exits, NO farewell vision read (the stuck-button bug); pool join
+  hard-capped to 2s on a light end (Grok R4).
+- CUT #4 OCR lane OFF.
+- Kept: pool=1, window-missing guard (he praised it), per-read frames, session_end, live stage
+  eye-preview (~1 sip/1.8s). Heavy cinematic capture for the SIM debugger = TV_LIGHT=0 / robot.
+Stub boot: LIGHT banner, no film thread, light-end no-farewell, zero errors. Suites 150+36 green
+(old heavy-contract assertion rewritten to the LIGHT contract). Grok R1+R3+R4 pingpong. THE
+PRODUCT CONTRACT: D2R open → sample ~every 2s → on settle+gap, one screenshot → one Claude →
+tally. No record, no OCR, no hang. His Mac can breathe while farming.
