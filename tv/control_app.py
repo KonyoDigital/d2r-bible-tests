@@ -1458,6 +1458,21 @@ def _kai_closer_loop():
                                        and int(r3.get("completedTs") or 0) >= int(_t0f * 1000)
                                        for r3 in _kai_journal_rows()[-40:]):
                                     print(f"📸 KAI funnel: {t3} receipt journaled ✓", flush=True)
+                                    # v937.5 — the funnel RESOLVES the watchdog's flag it just filled
+                                    try:
+                                        _res = {"ts": _sess_last + 40, "captureTs": _sess_last + 40,
+                                                "completedTs": int(time.time() * 1000), "lane": "watchdog",
+                                                "mode": "watchdog", "scene": "watchdog", "names": [],
+                                                "sessionId": sid, "frameId": "",
+                                                "watchdog": {"rule": "resolved-by-kai-funnel", "tab": t3},
+                                                "note": f"✅ WATCHDOG resolved — KAI funnel receipted {t3} from the reel"}
+                                        with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf:
+                                            _rf.write(json.dumps(_res, ensure_ascii=False) + "\n")
+                                        _wl = globals().get("_WATCHDOG_LAST")
+                                        if isinstance(_wl, dict) and _wl.get("sid") == sid and _wl.get("violations"):
+                                            _wl["violations"] = max(0, int(_wl["violations"]) - 1)
+                                    except Exception:
+                                        pass
                                     break
                             except Exception:
                                 pass
