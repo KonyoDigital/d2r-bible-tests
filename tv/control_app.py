@@ -1706,6 +1706,19 @@ def _kai_frame_sig(path):
         return None
 
 
+# v944.2 Stage 2 hardening — QUORUM SOURCE INDEPENDENCE. Confidence must count independent
+# EVIDENCE CLASSES, not raw votes: 'read' (a deep read named an item on this frame) and 'judge'
+# (a verdict on THAT SAME item) are one tooltip witnessed twice, not two brains agreeing. A
+# tooltip read-then-judged is one 'content' signal; it clears the ≥2 gate only when a genuinely
+# independent brain (pixel OCR / time-map journal) also lands on it.
+_ROUTER_INDEP_CLASS = {"ocr": "pixel", "journal": "time", "read": "content", "judge": "content"}
+
+
+def _router_conf(sources):
+    """Independent-class confidence: distinct evidence classes among the agreeing brains."""
+    return len({_ROUTER_INDEP_CLASS.get(b, b) for b in (sources or [])})
+
+
 def _kai_route_for_label(label):
     """Which funnel WOULD take a frame with this label (route intent, not a fire)."""
     if label in ("stash-runes", "stash-gems", "stash-materials"):
@@ -1816,7 +1829,7 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             if s.get("journal"):
                 votes["journal"] = s.get("label") or "stash"
         label, sources, disagree = _kai_quorum_label(votes)
-        conf = len(sources)
+        conf = _router_conf(sources)   # v944.2 — independent evidence classes, not raw votes
         route = _kai_route_for_label(label)
         routed = funnel_by_fid.get(fid) or ("kai-judge" if judged else None)
         skip = None
@@ -1853,7 +1866,7 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             _run_first = f
         _prev_sig = _sig
         out.append({"f": f, "ts": ts, "label": label, "sources": sources,
-                    "confidence": conf, "route": route,
+                    "confidence": conf, "voteCount": len(sources), "route": route,
                     "routed": routed, "skipReason": skip})
     return out
 
@@ -2531,7 +2544,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v944.1",
+        "ver": "v944.2",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),

@@ -726,7 +726,7 @@ class TestRouterLedger(unittest.TestCase):
         # every row carries the full contract, no missing keys
         for r in led:
             self.assertEqual(set(r), {"f", "ts", "label", "sources", "confidence",
-                                      "route", "routed", "skipReason"})
+                                      "voteCount", "route", "routed", "skipReason"})
 
     def test_dedupe_run_routing_only_film_intact(self):
         # a visual run of 3 identical-sig frames: FIRST routable, next 2 dup-chained — but ALL
@@ -803,6 +803,39 @@ class TestRouterLedger(unittest.TestCase):
         self.assertEqual(r["confidence"], 2)
         self.assertEqual(r["route"], "tally:gems")
         self.assertEqual(r["skipReason"], "not-selected")  # no receipt, no fire yet
+
+    # ── v944.2 Stage 2 hardening — SOURCE INDEPENDENCE ────────────────────────
+    def test_read_and_judge_are_one_content_class(self):
+        # a tooltip that a deep read NAMED and a judge then VERDICTED is ONE tooltip
+        # witnessed twice — NOT two independent brains. With no pixel/time brain on it,
+        # confidence must be 1 (content), not 2, so it does NOT clear the quorum gate
+        # on its own. voteCount stays honest at 2 (both brains did vote).
+        scan = [{"f": "t.jpg", "ts": 5000, "ocr": False, "journal": False, "label": "tooltip"}]
+        sess = [{"lane": "deep", "ts": 5000, "names": ["Windforce"]}]           # read → 'read'
+        journal = sess + [{"lane": "kai", "mode": "kai-judge", "frameId": "reel_S/f_t",
+                           "kai": {"judge": {"name": "Windforce"}}}]
+        # frameId must match reel_S/f_t → but our f is 't.jpg'; judge keys on reel_S/t
+        journal[-1]["frameId"] = "reel_S/t"
+        r = ca._kai_build_routing(scan, sess, "S", journal)[0]
+        self.assertEqual(sorted(r["sources"]), ["judge", "read"])
+        self.assertEqual(r["voteCount"], 2)          # both voted (honest)
+        self.assertEqual(r["confidence"], 1)         # but ONE independent class (content)
+        self.assertEqual(r["routed"], "kai-judge")   # judge already fired → routed
+        self.assertIsNone(r["skipReason"])           # routed frame is not gated
+        # the independent-class helper itself
+        self.assertEqual(ca._router_conf(["read", "judge"]), 1)          # same class collapses
+        self.assertEqual(ca._router_conf(["ocr", "read"]), 2)            # pixel + content
+        self.assertEqual(ca._router_conf(["ocr", "journal", "read"]), 3)  # all distinct
+
+    def test_content_needs_independent_brain_to_route(self):
+        # a tooltip read-only (no judge, no ocr, no journal) is content=1 → gated confidence<2,
+        # exactly as a single stash brain is. It routes only when a pixel/time brain corroborates.
+        scan = [{"f": "u.jpg", "ts": 6000, "ocr": False, "journal": False, "label": "tooltip"}]
+        sess = [{"lane": "deep", "ts": 6000, "names": ["El"]}]
+        r = ca._kai_build_routing(scan, sess, "S", sess)[0]
+        self.assertEqual(r["sources"], ["read"])
+        self.assertEqual(r["confidence"], 1)
+        self.assertEqual(r["skipReason"], "confidence<2")
 
     def test_quorum_label_helper(self):
         # pure helper pins
