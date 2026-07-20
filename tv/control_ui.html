@@ -463,8 +463,9 @@
     scrollbar-width: thin;
   }
   .primary button.act { flex: 0 0 auto; min-height: clamp(44px, 5.4vh, 64px); }
+  /* v945 CONSOLE PARITY C6 — the rail header reads at app scale, not a 9px whisper */
   .rail-h {
-    font-size: clamp(9px,.78vw,12px); letter-spacing: .32em; text-transform: uppercase;
+    font-size: clamp(11px,.8vw,12.5px); letter-spacing: .28em; text-transform: uppercase;
     color: var(--gold-dim); padding: 0 4px clamp(2px,.4vw,6px);
     display: flex; align-items: center; gap: 8px;
   }
@@ -1105,6 +1106,7 @@
   /* ══ v929 — 🧰 TALLY ENGINE drilldown (Konyo: "see what EXACTLY was tallied · flagship") ══ */
   .hd-chip.tly-btn { cursor: pointer; transition: border-color .2s, box-shadow .2s; }
   .hd-chip.tly-btn:hover { border-color: var(--gold); box-shadow: 0 0 12px rgba(240,192,96,.25); color: var(--gold); }
+  .hd-chip.tly-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6); }   /* v945 C9 — keyboard ring on the tally launcher */
   #tly-ov { position: fixed; inset: 0; z-index: 900; background: rgba(4,3,2,.82); backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center; }
   #tly-ov[hidden] { display: none; }
@@ -1196,11 +1198,14 @@
   /* v936 R4 — placeholder is ONE flex item; without a full-width basis it stays at max-content
      and overflows the card (home-dash overflow-y:auto clips it horizontally, cutting the text
      mid-word). Give it the whole row so it wraps cleanly to two lines — no clip, no scrollbar. */
-  .hd-empty { opacity: .4; font: 400 11px/1.4 var(--mono); flex: 1 1 100%; min-width: 0; overflow-wrap: break-word; }
+  /* v945 CONSOLE PARITY C10 — empty states are readable guidance, not a .4-opacity whisper */
+  .hd-empty { opacity: .58; font: 400 11px/1.5 var(--mono); flex: 1 1 100%; min-width: 0; overflow-wrap: break-word; color: #b0a184; }
   .hd-engines { min-height: 0; padding: 10px 14px; }
   .hd-chip.warn { border-color: rgba(255,120,80,.6); color: #ffb49a; }
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
   .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
+  /* v945 CONSOLE PARITY C8 — the LAST SESSION digest is the newest sealed reel: a mint reel-accent */
+  .hd-lastsession { border-color: rgba(143,230,160,.28); box-shadow: inset 3px 0 0 rgba(143,230,160,.5); }
   .hd-tf-rows { display: flex; flex-direction: column; gap: 7px; }
   /* v945 CONSOLE PARITY C5 — task-force + digest rows read as app list-cards: warm surface, hover */
   .tf-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid rgba(240,192,96,.13);
@@ -1263,6 +1268,10 @@
     padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
   .head-tabs .ht:hover { color: var(--gold); border-color: var(--edge-hi); box-shadow: 0 0 10px rgba(240,192,96,.18); }
   .head-tabs .ht:active { transform: translateY(1px); }
+  /* v945 CONSOLE PARITY C7 — the CURRENT tab is clearly lit (was indistinguishable), plus a keyboard ring */
+  .head-tabs .ht.shell-on { color: #1a1206; background: linear-gradient(180deg, var(--gold-hi), var(--gold-antique));
+    border-color: var(--gold-hi); box-shadow: 0 0 12px rgba(240,192,96,.3); opacity: 1 !important; }
+  .head-tabs .ht:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6); }
   .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: 11px; padding: 7px 9px; }   /* v905 — the main four lead */
   /* v911 — one continuous motion between surfaces */
   .shell { animation: shellIn .32s ease; }
