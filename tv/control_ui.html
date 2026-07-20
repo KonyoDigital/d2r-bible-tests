@@ -4202,9 +4202,10 @@
       var when = d ? (d.toLocaleDateString(undefined,{day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString()) : '—';
       var dot = _RDOT[r.status] || '⚪';
       var tab = (r.tab || r.kind || 'shot');
+      var tabIc = thTabIcon(tab);   // v945 — category glyph (receipts carry no per-item names, so a tab cue, not per-item HD art)
       return '<div class="rlog-row rlog-' + esc(r.status||'') + '">'
         + '<span class="rlog-dot">' + dot + '</span>'
-        + '<span class="rlog-tab">' + esc(String(tab).toUpperCase()) + '</span>'
+        + '<span class="rlog-tab">' + (tabIc ? tabIc + ' ' : '') + esc(String(tab).toUpperCase()) + '</span>'
         + '<span class="rlog-tot">total <b>' + (r.total||0) + '</b></span>'
         + '<span class="rlog-types">' + (r.types||0) + ' type' + ((r.types===1)?'':'s') + '</span>'
         + (r.errors ? '<span class="rlog-err">' + r.errors + ' err</span>' : '')
