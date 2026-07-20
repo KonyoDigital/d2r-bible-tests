@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v920"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v921"   # AUTO INTAKE default · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3200,7 +3200,10 @@ def main():
     print(f"   film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · max {FILM_MAX_PX}px · q{FILM_JPEG_Q}")
     ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF"
     print(f"   ocr lane: {ocr_tag}")
-    print("   tip: open Runes/Gems/Materials/stash and PAUSE — intake fires once per settle")
+    if ROBOT_MODE:
+        print("   tip: ROBOT lane — continuous reads are the truth; stash-pause intake ALSO fires (governed by the debt law)")
+    else:
+        print("   tip: open Runes/Gems/Materials/stash and PAUSE — intake fires once per settle")
     print("   in the bible: SESSIONS tab → ON AIR. Ctrl-C to stop.\n")
     ev("boot", "product=" + ("robot" if ROBOT_MODE else "auto-intake") + " · robot_frozen=" + ("0" if ROBOT_MODE else "1"))
     # v779 — ask for Screen Recording UP FRONT (Python-as-responsible needs its own grant;

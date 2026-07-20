@@ -2111,3 +2111,17 @@ from auto's own 'busy'). T1 gate+untouched-stash · T2 distinct-why · T3 deferr
 R3 Grok refute: consume-once airtight (sync prologue), vault lane collateral correct, toast
 spam = UX only. R4-R6: toast debounce 2.5s + guardian-spec dead-name rename. 9/9 green with
 v889/v908/v912 SET guardians. R7 THIS SEAL. Photo truth is now timing-proof.
+
+## ✅ v921 "ROBOT BURST" — cycle R1-R7 SEALED (Jul 20 night)
+R1 Grok: A+C not B ("don't invent a second product path" — suppressing intake under
+ROBOT_MODE would hide the intersection the law was built for). Fresh fact first: TV_ROBOT=1
+boots CLEAN post-arc (banner · dual-lane · 65 rows/min · zero errors) — NO bitrot. A: the
+burst spec — 3 funnel vaults land mid-flight inside a held auto SET, then two consecutive
+shots: 3/3 mid → 5 stash + 3 surviving post-shot debt after shot 1 → 5 stash + 0 debt after
+shot 2. Every copy EXACTLY once at robot cadence, engine unchanged — the v909/v912 law is
+cadence-agnostic, now pinned. C: tv/robot_smoke.py (20s stub boot, banner+rows+no-traceback;
+caught its own block-buffer flush trap first run) → new tv-tests CI step so the frozen lane
+can't rot silently again. Tip made mode-aware. R3 Grok: no holes; smoke flake low; SEAL.
+Suites: 150 agent · 34 control · burst 1/1 · shutter 3/3 · guardians green.
+CYCLE CLOSE: REAL EYES (v919) → SHUTTER (v920) → ROBOT BURST (v921). Post-cycle SOAK
+(TV_ROBOT=0 · 30min · intake law) launched right after this seal — result logged when it lands.
