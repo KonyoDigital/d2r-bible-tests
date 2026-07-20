@@ -567,7 +567,7 @@
     padding: clamp(9px,1vw,14px) clamp(11px,1.1vw,16px);
     display: flex; flex-direction: column; gap: clamp(6px,.7vw,10px);
   }
-  .signal .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: clamp(9px,.8vw,12px); }
+  .signal .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: clamp(11px,.85vw,13px); }   /* v945 — app scale */
   .signal .row .k { color: var(--gold-dim); letter-spacing: .14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; }
   .signal .row .k .sjewel { width: 1.25em; height: 1.25em; object-fit: contain; opacity: .8; filter: drop-shadow(0 0 4px rgba(240,192,96,.5)); flex: none; }
   .signal .row .val { color: var(--text); font-weight: 700; letter-spacing: .06em; font-variant-numeric: tabular-nums; transition: color .4s; }
@@ -701,8 +701,8 @@
   .th-x:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.55); }
   .th-caption { position: absolute; left: 0; right: 0; bottom: clamp(56px,8vh,74px); z-index: 2;
     max-height: 44vh; overflow-y: auto;   /* v850 — a busy beat can never climb over the film */
-    text-align: center; padding: 10px clamp(14px,3vw,40px);
-    font-size: clamp(11px,1vw,15px); color: var(--text); letter-spacing: .02em;
+    text-align: center; padding: 11px clamp(14px,3vw,40px);
+    font-size: clamp(12.5px,1.05vw,15.5px); color: var(--text); letter-spacing: .02em;   /* v945 — never below readable app scale */
     text-shadow: 0 2px 8px rgba(0,0,0,.9); background: linear-gradient(0deg, rgba(5,4,3,.85), transparent); }
   .th-caption b { color: var(--gold-hi); }
   /* v825 (Konyo: 'the info window opened but i cant close it back') — the drawer COVERED the
@@ -711,10 +711,12 @@
   .th-drawer { position: absolute; top: 0; right: 0; bottom: clamp(54px, 9vh, 72px); width: min(380px, 44%);
 
     z-index: 5; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
-    padding: 38px 16px 14px;   /* v859 — ✕ clearance survives the shorthand */ font: 500 11px/1.7 var(--mono); color: #b9c9be;
-    letter-spacing: .02em; box-shadow: -12px 0 30px rgba(0,0,0,.5); }
-  .th-drawer h4 { color: #d8bd7c; font: 700 10px/1 var(--mono);
-    letter-spacing: .18em; margin: 12px 0 5px; text-transform: uppercase; }
+    padding: 38px 16px 16px;   /* v859 — ✕ clearance survives the shorthand */ font: 500 12.5px/1.65 var(--mono); color: #c2d1c6;   /* v945 — readable app scale (was 11px) */
+    letter-spacing: .01em; box-shadow: -12px 0 30px rgba(0,0,0,.5); }
+  /* v945 R1 — drawer section headers read as app-grade card labels: gold accent bar + hairline */
+  .th-drawer h4 { color: #e6cf90; font: 700 11px/1.1 var(--mono);
+    letter-spacing: .15em; margin: 16px 0 8px; padding: 0 0 6px 9px; text-transform: uppercase;
+    border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.14); }
   .th-drawer h4:first-child { margin-top: 0; }
   /* v858.1 — float+sticky collapses to an INVISIBLE box in WebKit (the latency driver caught
      the ✕ unclickable for 30s — the drawer trap reborn). Absolute inside the drawer, always. */
@@ -738,6 +740,26 @@
   .th-drawer .kv .k { opacity: .55; } .th-drawer .kv .v { text-align: right; word-break: break-all; }
   .th-drawer .col { margin: 2px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
   @keyframes thAperture { 0% { opacity: .35; transform: scale(1.012); } 100% { opacity: 1; transform: scale(1); } }
+  /* v944.7 — FRAME LIGHTBOX: the full-res 2560 frame, in-game-fullscreen feel */
+  #th-hd { position: absolute; inset: 0; z-index: 30; background: #000;
+    display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+  #th-hd[hidden] { display: none !important; }
+  .thhd-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
+    image-rendering: auto; box-shadow: 0 0 60px rgba(0,0,0,.8); cursor: default; }
+  .thhd-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center;
+    gap: 12px; padding: 12px clamp(14px,1.6vw,22px); background: linear-gradient(180deg, rgba(4,3,2,.9), transparent); }
+  .thhd-meta { font: 600 12.5px/1.4 var(--mono); color: #d9c9a0; letter-spacing: .02em; display: flex;
+    align-items: center; gap: 10px; flex-wrap: wrap; }
+  .thhd-meta .thhd-res { color: var(--gold-hi); }
+  .thhd-x { margin-left: auto; }
+  .thhd-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; appearance: none;
+    width: 52px; height: 84px; border: 1px solid var(--edge); background: rgba(0,0,0,.5); color: var(--gold);
+    font: 700 30px/1 var(--mono); border-radius: 12px; cursor: pointer; transition: .15s; }
+  .thhd-nav:hover { border-color: var(--gold-hi); color: var(--gold-hi); background: rgba(20,16,8,.7); }
+  .thhd-nav:active { transform: translateY(-50%) scale(.94); }
+  .thhd-nav:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6); }
+  .thhd-prev { left: clamp(10px,1.5vw,24px); } .thhd-next { right: clamp(10px,1.5vw,24px); }
+  #th-film { cursor: zoom-in; }
   #th-film.cut { animation: thAperture 110ms ease-out; }
   #th-film.vaultglow { box-shadow: 0 0 0 1px rgba(120,220,160,.6), 0 0 34px rgba(90,210,150,.35); }
   #th-thumb { position: fixed; bottom: clamp(96px,14vh,130px); transform: translateX(-50%); z-index: 60;
@@ -802,7 +824,10 @@
   .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
     border: 1px solid rgba(240,192,96,.22); background: rgba(240,192,96,.05); color: var(--gold-hi);
     font-weight: 600; font-size: .92em; }
-  .th-strip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  /* v944.7 — transport sits ABOVE the info drawer (z5) so ⋯ more + its pop are never stacked
+     under the panel when it's open (the "⋯ dead when info panel open" bug). The strip stops below
+     the drawer, so there's no visual overlap — only the stacking order changes. */
+  .th-strip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
     display: flex; align-items: center; gap: 10px;
     padding: clamp(8px,1vw,14px) clamp(12px,1.4vw,20px);
     background: linear-gradient(0deg, rgba(5,4,3,.95), rgba(5,4,3,.6) 80%, transparent); }
@@ -816,6 +841,12 @@
   .th-btn:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.55); }
   .th-btn.on { border-color: var(--gold-hi); color: var(--gold-hi); box-shadow: 0 0 10px rgba(240,192,96,.25); }
   .th-btn:disabled { opacity: .4; cursor: default; }
+  /* v945 R2 — the PLAY button is the transport's hero: gold-filled, larger, unmistakable */
+  .th-btn.th-play { min-width: 44px; font-size: 15px; color: #1a1206; background: linear-gradient(180deg, var(--gold-hi), var(--gold-antique));
+    border-color: var(--gold-hi); box-shadow: 0 0 14px rgba(240,192,96,.3); }
+  .th-btn.th-play:hover { color: #120c04; box-shadow: 0 0 18px rgba(240,192,96,.5); }
+  .th-btn.th-play:active { transform: translateY(1px) scale(.96); }
+  #th-prev-b, #th-next-b { color: var(--gold-dim); }   /* step buttons calmer so the eye lands on ▶ */
   /* v943 — the MODE PILL wears its state: a fat left-border accent readable at a glance */
   #th-mode { border-left-width: 4px; }
   #th-mode.md-real { border-left-color: var(--mint); color: #bfe8c8; }
@@ -835,8 +866,8 @@
     bottom: var(--th-strip-h);   /* sits exactly on top of .th-strip */
     background: linear-gradient(0deg, rgba(5,4,3,.86), rgba(5,4,3,.34)); pointer-events: none; }
   #th-filmstrip-wrap[hidden] { display: none !important; }
-  #th-fs-note { pointer-events: auto; padding: 4px clamp(12px,1.4vw,20px) 0;
-    font: 500 11px/1.55 var(--mono); color: #b79a6a; opacity: .78; letter-spacing: .02em; }   /* v943 — nudged into the 11-12.5px theatre family */
+  #th-fs-note { pointer-events: auto; padding: 5px clamp(12px,1.4vw,20px) 0;
+    font: 500 12px/1.5 var(--mono); color: #c0a578; opacity: .85; letter-spacing: .01em; }   /* v945 — app scale */
   #th-fs-note[hidden] { display: none !important; }
   #th-filmstrip { pointer-events: auto; display: flex; align-items: center; gap: 3px;
     height: 54px; padding: 3px clamp(12px,1.4vw,20px); overflow-x: auto; overflow-y: hidden;
@@ -875,7 +906,7 @@
   .dc-river li.break::after { content: "▾ break"; position: absolute; left: 0; right: 0; top: 100%; font-size: 8px; color: #f88; }
   .dc-river li.bad { border-color: #f88; color: #f88; opacity: 1; }
   .dc-river li.dim { opacity: .3; }
-  .dc-why { margin: 8px 0 0; color: var(--gold-hi); font: 600 11px/1.35 ui-sans-serif, system-ui, sans-serif; }
+  .dc-why { margin: 8px 0 0; color: var(--gold-hi); font: 600 12px/1.4 ui-sans-serif, system-ui, sans-serif; }
   .th-beat.skiptick { opacity: .18; background: #6d6353 !important; height: 4px; min-width: 1px; }   /* v880 — 'agent chose to wait' tick */
   .th-beat.intaketick { background: #b9a5ff !important; height: 16px; box-shadow: 0 0 8px rgba(185,165,255,.5); }   /* v902 — 📸 intake fired */
   .th-beat.intaketick.zero { opacity: .35; height: 8px; box-shadow: none; }   /* v908-R6 — honest empty shot */
@@ -889,16 +920,16 @@
   .th-airead { display: inline-block; text-align: left; margin-top: 6px; padding: 8px 14px;
     max-width: min(560px, 84%);   /* v850 — the card, not a banner */
     background: rgba(6,9,7,.82); border: 1px solid rgba(200,180,120,.22); border-left: 3px solid var(--gold-antique);
-    border-radius: 4px; font: 500 11.5px/1.75 var(--mono); color: #bcC9c0; }
+    border-radius: 5px; font: 500 12.5px/1.72 var(--mono); color: #c4d0c6; }   /* v945 — app scale */
   .th-airead .ar-row { white-space: normal; }   /* v824 — long lines wrap, never clip */
-  .th-airead .ar-row:nth-child(3) b { font-size: 14px; }   /* IT SAW = the hero line */
-  .th-airead .ar-k { display: inline-block; min-width: 86px; color: #8fa398; letter-spacing: .08em; font-size: 10px; }
+  .th-airead .ar-row:nth-child(3) b { font-size: 15px; }   /* IT SAW = the hero line */
+  .th-airead .ar-k { display: inline-block; min-width: 90px; color: #94a89c; letter-spacing: .08em; font-size: 11px; }
   .th-airead b { color: #e4d2a4; font-variant-numeric: tabular-nums; }
   .th-airead .ar-names { color: #9df0bd; }
   .th-airead .ar-dim { opacity: .6; }
   /* ══ v941.6 — 🗂 THE DOSSIER: all three eyes on ONE flagship line, riding inside the read card ══ */
-  .th-dossier { margin-top: 7px; padding-top: 6px; border-top: 1px solid rgba(200,180,120,.16);
-    font: 600 11.5px/1.7 var(--mono); letter-spacing: .01em; white-space: normal; }
+  .th-dossier { margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(200,180,120,.16);
+    font: 600 12.5px/1.65 var(--mono); letter-spacing: .01em; white-space: normal; }   /* v945 — app scale */
   .th-dossier .thd-tally { color: #e4d2a4; }
   .th-dossier .thd-tally b { color: #f0d89a; font-variant-numeric: tabular-nums; }
   .th-dossier .thd-verify { color: #7fb8ff; }
@@ -914,8 +945,8 @@
   .th-rs-named { color: #cbbcff; border-color: rgba(185,165,255,.4); background: rgba(40,32,64,.35); }
   .th-rs-wrap { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
   .th-rs-chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  .th-rs-chip { font: 600 11px/1 var(--mono); color: #e8d7ae; border: 1px solid rgba(240,192,96,.24);
-    background: rgba(30,22,10,.5); border-radius: 6px; padding: 4px 7px; }
+  .th-rs-chip { font: 600 12px/1.1 var(--mono); color: #e8d7ae; border: 1px solid rgba(240,192,96,.24);
+    background: rgba(30,22,10,.5); border-radius: 6px; padding: 5px 8px; }
   .th-rs-chip b { color: var(--gold); }
   .th-rs-chip.th-rs-more { opacity: .6; }
   .th-rs-card { margin: 2px 0 4px; }
@@ -988,9 +1019,9 @@
     border-radius: 7px; background: rgba(0,0,0,.28);
     border: 1px solid var(--edge); border-left-width: 3px;
     transition: opacity .3s, border-color .3s; }
-  .eye .ex { font-size: 12px; line-height: 1; flex: none; filter: saturate(1.1); }
-  .eye .en { font: 700 9px/1.2 var(--mono); letter-spacing: .13em; text-transform: uppercase; color: #cdbf9e; white-space: nowrap; }
-  .eye .es { margin-left: auto; font: 600 10px/1.2 var(--mono); letter-spacing: .03em;
+  .eye .ex { font-size: 14px; line-height: 1; flex: none; filter: saturate(1.1); }
+  .eye .en { font: 700 11px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #d6c8a6; white-space: nowrap; }
+  .eye .es { margin-left: auto; font: 600 11.5px/1.25 var(--mono); letter-spacing: .02em;
     color: var(--text); text-align: right; }
   .eye-live   { border-left-color: #e05545; }
   .eye-second { border-left-color: #5c9ded; }
@@ -1033,7 +1064,7 @@
   .tly-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px;
     border-bottom: 1px solid rgba(240,192,96,.22); }
   .tly-head b { font: 700 14px/1 var(--mono); letter-spacing: .14em; color: var(--gold); }
-  .tly-head span { font: 500 11px/1.3 var(--mono); color: #a5906a; letter-spacing: .06em; }
+  .tly-head span { font: 500 12px/1.35 var(--mono); color: #b09a72; letter-spacing: .05em; }
   .tly-x { margin-left: auto; cursor: pointer; border: 1px solid var(--edge); border-radius: 8px;
     background: rgba(0,0,0,.4); color: #d9c9a0; font: 700 12px/1 var(--mono); padding: 8px 12px; }
   .tly-x:hover { border-color: var(--gold); color: var(--gold); }
@@ -1048,12 +1079,12 @@
     border: 1px solid rgba(240,192,96,.3); background: #000; }
   .tly-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .tly-meta b { font: 700 12px/1.2 var(--mono); color: var(--gold); letter-spacing: .1em; }
-  .tly-meta i { font: 500 10px/1.2 var(--mono); color: #8d7a58; font-style: normal; }
-  .tly-meta .tot { font: 700 11px/1 var(--mono); color: var(--mint); }
+  .tly-meta i { font: 500 11.5px/1.25 var(--mono); color: #9a8560; font-style: normal; }
+  .tly-meta .tot { font: 700 12px/1.1 var(--mono); color: var(--mint); }
   .tly-meta .err { color: #ff9a7a; }
-  .tly-counts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .tly-k { border: 1px solid rgba(240,192,96,.24); border-radius: 7px; padding: 4px 8px;
-    font: 600 11px/1 var(--mono); color: #e8d7ae; background: rgba(30,22,10,.5); }
+  .tly-counts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .tly-k { border: 1px solid rgba(240,192,96,.24); border-radius: 7px; padding: 5px 9px;
+    font: 600 12px/1.1 var(--mono); color: #ecdcb2; background: rgba(30,22,10,.5); }
   .tly-k b { color: var(--gold); }
   .tly-empty { text-align: center; padding: 44px 20px; font: 500 12px/1.8 var(--mono); color: #a5906a; }
   .tly-empty b { color: var(--gold); }
@@ -1064,29 +1095,29 @@
   .tly-caret { margin-left: auto; color: var(--gold); font: 700 12px/1 var(--mono); opacity: .7; }
   .tly-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(240,192,96,.2); }
   .tly-detail-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .tly-detail-h { font: 700 10px/1 var(--mono); letter-spacing: .16em; color: #bfa878; text-transform: uppercase; margin: 8px 0 6px; }
+  .tly-detail-h { font: 700 11px/1.1 var(--mono); letter-spacing: .14em; color: #c9b184; text-transform: uppercase; margin: 10px 0 6px; }
   .tly-detail-img { display: block; width: 100%; max-width: 620px; border-radius: 10px; margin: 12px 0 4px;
     border: 1px solid rgba(240,192,96,.3); cursor: zoom-in; }
-  .tly-detail-ids { margin-top: 8px; font: 500 10px/1.7 var(--mono); color: #8d7a58; word-break: break-all; }
+  .tly-detail-ids { margin-top: 8px; font: 500 11px/1.65 var(--mono); color: #9a8560; word-break: break-all; }
   /* v944.4 — 📥 RECEIPT LEDGER overlay (plumbing view: status dots, misses visible) */
   #rlog-ov { position: fixed; inset: 0; z-index: 910; background: rgba(4,3,2,.82); backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center; }
   #rlog-ov[hidden] { display: none; }
   #rlog-ov .tly-panel { width: min(760px, 94vw); }
   .rlog-list { overflow-y: auto; padding: 10px 16px 18px; display: flex; flex-direction: column; gap: 5px; }
-  .rlog-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 9px;
-    border: 1px solid rgba(240,192,96,.14); background: rgba(0,0,0,.3); font: 600 12px/1.3 var(--mono); color: #d9c9a0; }
+  .rlog-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px;
+    border: 1px solid rgba(240,192,96,.14); background: rgba(0,0,0,.3); font: 600 12.5px/1.35 var(--mono); color: #dccaa2; }
   .rlog-row.rlog-empty { border-color: rgba(230,190,90,.4); }
   .rlog-row.rlog-error { border-color: rgba(255,120,90,.5); background: rgba(50,18,14,.35); }
-  .rlog-dot { flex: 0 0 auto; font-size: 11px; }
-  .rlog-tab { flex: 0 0 auto; min-width: 88px; color: var(--gold); letter-spacing: .08em; }
+  .rlog-dot { flex: 0 0 auto; font-size: 12px; }
+  .rlog-tab { flex: 0 0 auto; min-width: 92px; color: var(--gold); letter-spacing: .07em; }
   .rlog-tot { flex: 0 0 auto; } .rlog-tot b { color: var(--mint); font-variant-numeric: tabular-nums; }
   .rlog-row.rlog-empty .rlog-tot b, .rlog-row.rlog-error .rlog-tot b { color: #ff9a7a; }
-  .rlog-types { flex: 0 0 auto; opacity: .6; font-size: 11px; }
-  .rlog-err { flex: 0 0 auto; color: #ff9a7a; font-size: 11px; }
-  .rlog-kind { flex: 1 1 auto; min-width: 0; opacity: .5; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rlog-when { flex: 0 0 auto; opacity: .55; font-size: 10px; }
-  .rlog-fid { flex: 0 0 auto; opacity: .45; font-size: 10px; }
+  .rlog-types { flex: 0 0 auto; opacity: .62; font-size: 11.5px; }
+  .rlog-err { flex: 0 0 auto; color: #ff9a7a; font-size: 11.5px; }
+  .rlog-kind { flex: 1 1 auto; min-width: 0; opacity: .55; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rlog-when { flex: 0 0 auto; opacity: .6; font-size: 11px; }
+  .rlog-fid { flex: 0 0 auto; opacity: .5; font-size: 11px; }
   #tly-receipts-btn { color: #cbbcff; border-color: rgba(185,165,255,.4); }
   #tly-receipts-btn:hover { color: #e0d6ff; border-color: rgba(185,165,255,.8); }
   .hd-chip.intk { border-color: rgba(185,165,255,.5); color: #cbbcff; }
@@ -1249,6 +1280,18 @@
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
         <div class="th-drawer" id="th-drawer" hidden></div>
+        <!-- v944.7 (Konyo: "I want this clicked and full screen HD resolution like in-game fullscreen") —
+             the FRAME LIGHTBOX: click the stage or a filmstrip thumb → the FULL-RES 2560 frame,
+             object-fit contain, black backing, timestamped, ‹ › steps in sync. Esc/click-outside/✕. -->
+        <div id="th-hd" hidden>
+          <div class="thhd-bar">
+            <span class="thhd-meta" id="thhd-meta"></span>
+            <button class="thhd-x th-x" id="thhd-x" type="button" title="close the frame (Esc)">✕</button>
+          </div>
+          <button class="thhd-nav thhd-prev" id="thhd-prev" type="button" title="previous frame (←)" aria-label="previous frame">‹</button>
+          <img class="thhd-img" id="thhd-img" alt="" onerror="this.style.opacity=.2">
+          <button class="thhd-nav thhd-next" id="thhd-next" type="button" title="next frame (→)" aria-label="next frame">›</button>
+        </div>
         <div id="th-thumb" hidden><img alt=""><span></span></div>
         <div id="th-lower" hidden></div>
         <div id="th-pop" hidden></div>
@@ -1968,6 +2011,21 @@
     }
     return '';
   }
+  // v944.7 (Konyo: "it says FAILED, what happened here? why?") — an individual capture can error,
+  // but v944.5 never-zero means the panel gets re-read. For an errored/empty intake shot, find the
+  // GOOD read of the SAME tab elsewhere in the session so we headline the real count, not a bare FAILED.
+  function thSupersededIntake(b){
+    var ik = b && b.intake; if (!ik) return null;
+    var tab = String(ik.tab || ik.kind || '').toLowerCase(); if (!tab) return null;
+    var best = null;
+    (TH.allBeats || []).forEach(function(x){
+      var xi = x.intake; if (!xi || xi.ok === false || xi === ik) return;
+      if (String(xi.tab || xi.kind || '').toLowerCase() !== tab) return;
+      var tot = xi.total || Object.keys(xi.counts || {}).length;
+      if (tot > 0 && (!best || tot > best.total)) best = { total: tot, tab: xi.tab || tab };
+    });
+    return best;
+  }
   function thCaption(b){
     if (b && b.lane === 'kai'){
       // v934 — 🧠 KAI beat: the closer's ledger, gold on the timeline
@@ -1993,10 +2051,19 @@
     if (b && b.intakeBeat){
       var ik2 = b.intake || {};
       var n2 = Object.keys(ik2.counts || {}).length;
-      return '📸 <b>INTAKE · ' + esc(ik2.tab || ik2.kind || 'shot') + '</b>'
-        + (ik2.ok ? ' · +' + (ik2.total || n2) + (n2 ? ' / ' + n2 + ' type' + (n2 > 1 ? 's' : '') : '')
-            : (ik2.errors ? ' · ⚠ ' + ik2.errors + ' error' + (ik2.errors > 1 ? 's' : '') : ' · <span style="opacity:.5">0 read</span>'))
-        + ' <span style="opacity:.55">· ' + new Date(b.ts).toLocaleTimeString() + '</span>';
+      var tabU = esc(ik2.tab || ik2.kind || 'shot');
+      var when2 = ' <span style="opacity:.55">· ' + new Date(b.ts).toLocaleTimeString() + '</span>';
+      if (ik2.ok && (ik2.total || n2)){
+        return '📸 <b>INTAKE · ' + tabU + '</b> · +' + (ik2.total || n2) + (n2 ? ' / ' + n2 + ' type' + (n2 > 1 ? 's' : '') : '') + when2;
+      }
+      // v944.7 — an errored/empty shot NEVER headlines a bare FAILED/0. Lead with the session's
+      // real (superseded) count if the panel was re-read; else a soft "read failed — retried".
+      var sup = thSupersededIntake(b);
+      if (sup){
+        return '📸 <b>INTAKE · ' + tabU + '</b> · <span style="color:#9df0bd">' + sup.total + ' counted ✓</span>'
+          + ' <span style="opacity:.6">· this shot errored — the panel was re-read</span>' + when2;
+      }
+      return '📸 <b>INTAKE · ' + tabU + '</b> · <span style="color:#e9b96e">read failed — retried</span>' + when2;
     }
     if (!b) return '';
     var cap = b.captureTs || b.ts;
@@ -2111,9 +2178,11 @@
       if (!TH.__manual && !b.footage && !TH.playing){
         film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut');
       }
-      thShowFrame('/hist/' + encodeURI(b.frame) + '?w=1280');
+      // v944.7 — cinema/fullscreen shows the FULL-RES 2560 original (was a soft ?w=1280 downscale)
+      var _cine = document.body.classList.contains('cinema');
+      thShowFrame('/hist/' + encodeURI(b.frame) + (_cine ? '' : '?w=1280'));
       thPreload();
-      film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts)+' · click = full 2560';
+      film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts)+' · click = full-res HD';
     } else {
       film.style.opacity = .25; film.removeAttribute('src'); film.title = '';
       film.__url = '';
@@ -2655,7 +2724,12 @@
   function thBlobFetch(i, then){
     // v879 (Grok B) — lean reels: the forensic blob rides in per-beat when the card needs it
     var b = TH.beats[i];
-    if (!b || b.footage || !b.lean || b.__blob || b.__blobBusy) { if (then) then(); return; }
+    // terminal cases (nothing to fetch) render immediately
+    if (!b || b.footage || !b.lean || b.__blob) { if (then) then(); return; }
+    // v944.7 — a fetch already in flight: its .finally re-renders when the blob lands. Do NOT call
+    // then() synchronously here — thCardRender→thBlobFetch(busy)→then→… was an infinite recursion
+    // (stack overflow) whenever the card re-rendered mid-flight (fast stepping with the drawer open).
+    if (b.__blobBusy) return;
     b.__blobBusy = true;
     fetch(API + '/api/beat?id=' + encodeURIComponent(b.sessionId || '') + '&n=' + (b.n || 0))
       .then(function(r){ return r.json(); })
@@ -2681,12 +2755,20 @@
       var rows = Object.keys(ik.counts || {}).sort().map(function(k){
         return '<div class="kv"><span class="k">' + esc(k) + '</span><span class="v" style="color:var(--mint)">+' + esc(ik.counts[k]) + '</span></div>';
       }).join('');
+      // v944.7 — the verdict leads with the real (superseded) count; the errored-shot fact is a
+      // soft forensic note in the drawer, never an alarming headline.
+      var _ikTot = ik.total || Object.keys(ik.counts || {}).length;
+      var _sup = (!ik.ok || !_ikTot) ? thSupersededIntake(bF) : null;
+      var _verdict = (ik.ok && _ikTot) ? ('✅ tallied ' + _ikTot)
+        : (_sup ? ('<span style="color:#9df0bd">' + _sup.total + ' counted ✓</span> <span style="opacity:.6">(superseded — this shot errored)</span>')
+        : '<span style="color:#e9b96e">read failed — retried</span>');
       el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
         + '<h4>📸 intake · ' + esc(ik.tab || ik.kind || 'shot') + '</h4>'
         + '<div class="kv"><span class="k">when</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '</span></div>'
-        + '<div class="kv"><span class="k">verdict</span><span class="v">' + (ik.ok ? ('✅ tallied ' + (ik.total || Object.keys(ik.counts || {}).length)) : '⚠ nothing read') + (ik.errors ? ' · ' + ik.errors + ' err' : '') + '</span></div>'
+        + '<div class="kv"><span class="k">verdict</span><span class="v">' + _verdict + '</span></div>'
+        + ((!ik.ok || !_ikTot) ? '<div class="col" style="opacity:.62;color:#e9b96e">⚠ this individual shot errored' + (ik.errors ? ' (' + ik.errors + ' err)' : '') + (_sup ? ' — a later read of this tab counted ' + _sup.total : '') + '</div>' : '')
         + (rows ? '<h4>the tally</h4>' + rows
-            : '<div class="col" style="opacity:.6">' + (bF.intake && bF.intake.ok === false ? '0 read this shot' : 'counts not carried (pre-v908 beat)') + '</div>')
+            : '<div class="col" style="opacity:.6">' + (bF.intake && bF.intake.ok === false ? 'no counts in this individual shot' : 'counts not carried (pre-v908 beat)') + '</div>')
         + (bF.frame ? '<img src="/hist/' + encodeURI(bF.frame) + '?w=1280" alt="" style="width:100%;border-radius:8px;margin-top:10px;border:1px solid rgba(185,165,255,.3)" loading="lazy">'
             : (bF.frameId ? '<div class="kv"><span class="k">photo</span><span class="v">' + esc(bF.frameId) + '</span></div>' : ''));
       var x0 = document.getElementById('th-drawer-x');
@@ -2939,8 +3021,80 @@
       if (on && el.requestFullscreen) el.requestFullscreen().catch(function(){});
       else if (!on && document.fullscreenElement) document.exitFullscreen().catch(function(){});
     } catch (e) {}
+    // v944.7 — repaint so the stage frame swaps to full-res 2560 entering cinema (and back to 1280 leaving)
+    try { var f = $('th-film'); if (f) f.__url = ''; thPaint(); } catch (e) {}
   }
   $('th-fs').onclick = function(){ thCinema(); };
+  // ══ v944.7 (Konyo: "full screen HD resolution like in-game fullscreen … it's so small I can't see") —
+  // THE FRAME LIGHTBOX. Click the stage or a thumb → the FULL-RES 2560 original (no ?w downscale),
+  // object-fit contain on black, timestamped, ‹ › stepping in sync with the playhead. ══
+  function thHdSrc(b){ return b && b.frame ? ('/hist/' + encodeURI(b.frame)) : ''; }   // NO ?w → server serves the 2560 original
+  function thHdRender(){
+    var ov = $('th-hd'); if (!ov || ov.hidden) return;
+    var b = TH.beats[TH.hdI] || {};
+    var img = $('thhd-img');
+    var src = thHdSrc(b);
+    if (src && img.__url !== src){ img.style.opacity = 1; img.src = src; img.__url = src; }
+    // meta: file · wall clock · T+ into the session · beat n/N · router pill · resolution
+    var t0 = (TH.sessions[TH.sn-1] || {}).t0 || (TH.allBeats[0] || {}).ts || b.ts || 0;
+    var rel = Math.max(0, (b.ts || 0) - t0);
+    var mm = Math.floor(rel / 60000), ss = ('0' + Math.floor((rel % 60000) / 1000)).slice(-2);
+    var wall = b.ts ? (new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3)) : '—';
+    var pill = thRouterPill(b);
+    $('thhd-meta').innerHTML = '🖼 ' + esc(b.frameId || b.frame || '?')
+      + ' <span style="opacity:.6">·</span> ⏱ ' + esc(wall)
+      + ' <span style="opacity:.6">·</span> T+' + mm + ':' + ss
+      + ' <span style="opacity:.6">·</span> frame ' + (TH.hdI + 1) + '/' + TH.beats.length
+      + (pill ? ' ' + pill : '')
+      + ' <span class="thhd-res">· full-res 2560</span>';
+    // prev/next disabled at the ends (there's always a framed neighbor to seek to, else hide)
+    var hasP = thHdAdjacent(-1) != null, hasN = thHdAdjacent(1) != null;
+    $('thhd-prev').disabled = !hasP; $('thhd-next').disabled = !hasN;
+    $('thhd-prev').style.opacity = hasP ? '' : '.3'; $('thhd-next').style.opacity = hasN ? '' : '.3';
+  }
+  function thHdAdjacent(dir){
+    for (var i = TH.hdI + dir; i >= 0 && i < TH.beats.length; i += dir){
+      if (TH.beats[i] && TH.beats[i].frame) return i;
+    }
+    return null;
+  }
+  function thHdStep(dir){
+    var ni = thHdAdjacent(dir); if (ni == null) return;
+    TH.hdI = ni;
+    thGo(ni, false);   // keep the playhead in sync so closing returns you here
+    thHdRender();
+  }
+  function thHdOpen(i){
+    if (i == null || i < 0) i = TH.i;
+    var b = TH.beats[i];
+    if (!b || !b.frame){   // nothing to enlarge on a frameless beat — snap to the nearest framed one
+      var alt = null;
+      for (var d = 0; d < TH.beats.length; d++){ if ((TH.beats[i+d]||{}).frame){ alt = i+d; break; } if ((TH.beats[i-d]||{}).frame){ alt = i-d; break; } }
+      if (alt == null) { toast('🖼 no frame to enlarge here'); return; }
+      i = alt;
+    }
+    TH.hdI = i; TH.hdOpen = true;
+    var ov = $('th-hd'); if (!ov) return;
+    $('thhd-img').__url = '';
+    ov.hidden = false;
+    thHdRender();
+  }
+  function thHdClose(){
+    TH.hdOpen = false;
+    var ov = $('th-hd'); if (ov) ov.hidden = true;
+  }
+  (function(){
+    var ov = $('th-hd'); if (!ov) return;
+    // click the black backing (not the image / bar / arrows) closes — the lightbox convention
+    ov.addEventListener('click', function(e){
+      if (e.target === ov) thHdClose();
+    });
+    $('thhd-x').onclick = function(e){ e.stopPropagation(); thHdClose(); };
+    $('thhd-prev').onclick = function(e){ e.stopPropagation(); thHdStep(-1); };
+    $('thhd-next').onclick = function(e){ e.stopPropagation(); thHdStep(1); };
+    var img = $('thhd-img');
+    if (img) img.onclick = function(e){ e.stopPropagation(); window.open(thHdSrc(TH.beats[TH.hdI] || {}), '_blank'); };   // one more click → the raw file in a tab
+  })();
   // v834 (Konyo) — DELETE SESSION: two-click arm (no native dialogs), then the reel + its
   // frames are gone forever and the next session loads.
   // v837 (SIMULATION_SPEC #5) — THE SESSION SHELF: pick any reel by sight, not blind arrows.
@@ -3076,6 +3230,7 @@
   // intake side panel → cinema → the theatre itself. Every panel closes the same three ways
   // (its own ✕, Esc, and a click outside it); the tally overlay owns its own capture-phase Esc.
   function thEscUnwind(){
+    if (TH.hdOpen){ thHdClose(); return; }   // v944.7 — the frame lightbox is the topmost layer
     var mp = $('th-more-pop'); if (mp && !mp.hidden){ thMore(false); return; }
     var sh = $('th-shelfov');  if (sh && !sh.hidden){ thShelf(false); return; }
     if (CARD.open){ thCardToggle(); return; }
@@ -3098,11 +3253,21 @@
           || t.closest('.th-more-wrap') || t.closest('#th-more') || t.closest('.th-transport')
           || t.closest('#th-filmstrip-wrap') || t.closest('.th-topline')) return;
       thCardToggle();
+      TH.__filmClickSuppress = Date.now();   // v944.7 — this same click must not also open the HD lightbox
       e.stopPropagation(); e.preventDefault();
     }, true);
   })();
   document.addEventListener('keydown', function(e){
     if (!TH.open) return;
+    // v944.7 — while the FRAME LIGHTBOX is up it owns the keys: ← → walk frames, Esc closes,
+    // Space is swallowed (no play under the lightbox).
+    if (TH.hdOpen){
+      if (e.key === 'ArrowRight'){ thHdStep(1); e.preventDefault(); return; }
+      if (e.key === 'ArrowLeft'){ thHdStep(-1); e.preventDefault(); return; }
+      if (e.key === 'Escape'){ thHdClose(); e.preventDefault(); return; }
+      if (e.key === ' '){ e.preventDefault(); return; }
+      return;   // no other transport keys pass through the lightbox
+    }
     if (e.key === 'i' || e.key === 'I'){ thCardToggle(); e.preventDefault(); }
     else if (e.key === 'f' || e.key === 'F'){ thCinema(); e.preventDefault(); }
     else if (e.key === 's' || e.key === 'S'){ thShelf(); e.preventDefault(); }
@@ -3127,8 +3292,10 @@
   });   // v800 — broadcast transport: ←/→ beat snap · space play/pause · I card
   $('th-close').onclick = thClose;
   (function(){ var f = $('th-film'); if (f) f.onclick = function(){
-    var b = TH.beats[TH.i]; if (b && b.frame) window.open('/hist/' + encodeURI(b.frame), '_blank');
-  }; })();   // v799 — full 2560 original one click away
+    // v944.7 — if this click just dismissed the open info panel (click-outside), don't also open HD
+    if (Date.now() - (TH.__filmClickSuppress || 0) < 400) return;
+    thHdOpen(TH.i);   // the stage frame opens the FULL-RES lightbox (was: raw file in a new tab)
+  }; })();
   $('th-play').onclick = function(){
     TH.playing = !TH.playing;
     this.textContent = TH.playing ? '⏸' : '▶';
@@ -3237,7 +3404,9 @@
     strip.addEventListener('click', function(e){
       var t = e.target.closest('.th-fs-thumb'); if (!t) return;
       TH.playing = false; $('th-play').textContent = '▶';
-      thGo(Number(t.dataset.i) || 0, false);
+      var bi = Number(t.dataset.i) || 0;
+      thGo(bi, false);
+      thHdOpen(bi);   // v944.7 — click a screenshot → see it FULL-RES (the strip is the gallery)
     });
     // v943 (Konyo: filmstrip keyboard) — ←/→ steps the reel while the strip has hover or focus,
     // and we stop propagation so it never double-fires with the theatre's global handler.
@@ -3767,7 +3936,7 @@
     ov.innerHTML = '<div class="tly-panel">'
       + '<div class="tly-head"><b>🧰 TALLY ENGINE</b><span>every shot the eye counted · click a card for its full detail</span>'
       + '<button class="tly-x" id="tly-receipts-btn" onclick="window._rlogOpen()" title="the backend receipt ledger — every intake the server received, misses included">📥 RECEIPTS</button>'
-      + '<button class="tly-x" onclick="window._tlyClose()">✕ ESC</button></div>'
+      + '<button class="tly-x" id="tly-close-btn" onclick="window._tlyClose()" title="close (Esc)">✕ ESC</button></div>'
       + '<div class="tly-tabs" id="tly-tabs"></div>'
       + '<div class="tly-list" id="tly-list"></div></div>';
     ov.onclick = function(e){ if (e.target === ov) window._tlyClose(); };
@@ -3826,7 +3995,7 @@
           : '';
         detail = '<div class="tly-detail">'
           + '<div class="tly-detail-stats">'
-            + '<span class="tly-k">'+(s.ok!==false?'🟢 ok':'🔴 failed')+'</span>'
+            + '<span class="tly-k">'+(s.ok!==false?'🟢 ok':'🟡 errored — retried')+'</span>'
             + '<span class="tly-k">total <b>'+(s.total!=null?s.total:keys.length)+'</b></span>'
             + '<span class="tly-k">types <b>'+keys.length+'</b></span>'
             + (s.errors ? '<span class="tly-k" style="color:#ff9a7a">errors <b>'+s.errors+'</b></span>' : '')
@@ -3840,16 +4009,34 @@
             + (s.lane ? '<div>lane · '+esc(s.lane)+'</div>' : '')
           + '</div></div>';
       }
+      // v944.7 — an errored shot never shouts a bare red FAILED; if a later shot of the same tab
+      // counted (superseded), say so calmly. The receipt ledger (📥) is where raw failures live.
+      var _sup = (s.ok === false || (s.total||0) === 0) ? _tlySuperseded(s) : null;
+      var _fail = (s.ok === false)
+        ? (_sup ? '<span class="tot" style="color:#e9b96e">⚠ shot errored · superseded by '+_sup+'</span>' : '<span class="tot" style="color:#e9b96e">⚠ errored — retried</span>')
+        : '';
       return '<div class="tly-shot'+(open?' open':'')+'" onclick="window._tlyDetail('+gi+')" title="click to '+(open?'collapse':'open the full detail')+'">' + thumb + '<div>'
         + '<div class="tly-meta"><b>'+ic+' '+esc((s.tab||s.kind||'shot').toUpperCase())+'</b><i>'+esc(when)+'</i>'
         + '<span class="tot">'+(s.total||keys.length)+' counted</span>'
         + (s.errors ? '<span class="tot err">'+s.errors+' errors</span>' : '')
-        + (s.ok ? '' : '<span class="tot err">FAILED</span>')
+        + _fail
         + '<span class="tly-caret">'+(open?'▾':'▸')+'</span></div>'
         + '<div class="tly-counts">'+who+chips+'</div>'
         + detail
         + '</div></div>';
     }).join('');
+  }
+  // v944.7 — for an errored/empty tally shot, the best good count of the SAME tab elsewhere (superseded)
+  function _tlySuperseded(shot){
+    var tab = String(shot.tab || shot.kind || '').toLowerCase(); if (!tab) return null;
+    var best = null;
+    (TLY.shots || []).forEach(function(s){
+      if (s === shot || s.ok === false) return;
+      if (String(s.tab || s.kind || '').toLowerCase() !== tab) return;
+      var tot = s.total || Object.keys(s.counts || {}).length;
+      if (tot > 0 && (!best || tot > best)) best = tot;
+    });
+    return best;
   }
   // v944.4 (Konyo: "tallies I want to click and see the detail in them like a window opening within")
   window._tlyDetail = function(i){ TLY.expanded = (TLY.expanded === i ? null : i); _tlyRender(); };
@@ -4054,11 +4241,24 @@ body:not(.shell-open) #tvd-eng {
 .status-chip { font-size: 12px !important; padding: 7px 12px !important; }
 .head-tabs .ht { font-size: 12.5px !important; padding: 9px 13px !important; }
 .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { font-size: 12px !important; padding: 9px 11px !important; opacity: .8 !important; }
-.sh-card, #th-shelfov .sh-card { font-size: 12px !important; line-height: 1.55 !important; }
-#th-shelfov .sh-card .sh-verdict { font-size: 11px !important; }
+.sh-card, #th-shelfov .sh-card { font-size: 12.5px !important; line-height: 1.55 !important; }
+#th-shelfov .sh-card .sh-verdict { font-size: 12px !important; }
 .tly-k { font-size: 12px !important; padding: 5px 9px !important; }
-.tly-meta i { font-size: 11px !important; }
+.tly-meta i { font-size: 11.5px !important; }
 .hd-h, .panel-h, h3.section, .console-h { font-size: 13.5px !important; letter-spacing: .16em !important; }
+/* ══ v945 — APP TYPE SCALE extended to the THEATRE + overlays (Konyo: "bigger fonts, so small I
+   can't see"). Body ≥12.5px, headers proportional, roomier rhythm. Single source of truth. ══ */
+.th-caption { font-size: clamp(12.5px,1.05vw,15.5px) !important; }
+.th-drawer { font-size: 12.5px !important; line-height: 1.65 !important; }
+.th-drawer h4 { font-size: 11px !important; letter-spacing: .16em !important; }
+.th-airead { font-size: 12.5px !important; }
+.th-dossier { font-size: 12.5px !important; }
+.th-rs { font-size: 12.5px !important; } .th-rs-chip { font-size: 12px !important; }
+.rlog-row { font-size: 12.5px !important; }
+.tly-head b { font-size: 14.5px !important; } .tly-head span { font-size: 12px !important; }
+.eye .en { font-size: 11px !important; } .eye .ex { font-size: 14px !important; }
+#th-fs-note { font-size: 12px !important; }
+#th-toast { font-size: 12.5px !important; }
 </style>
 </body>
 </html>
