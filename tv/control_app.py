@@ -1019,9 +1019,34 @@ def open_control_window():
             background_color="#070605",
         )
 
-    # private_mode=False so localStorage works if we ever need it in the UI
+    # v928 ONE SYSTEM (Konyo: "why is it not bridged automatically?") — the tally/vault/
+    # chronicle engines live ONLY in bible.html JS; with just the control home open, reads
+    # scrolled by with no engine to catch them. Run a second, off-screen board window as a
+    # permanent ENGINE: it auto-probes the bridge and fires the locked auto-intake with
+    # zero clicks. OFF-SCREEN (x=-3980), not hidden=True — the board's bridge probe skips
+    # when document.hidden, so a hidden window would never arm.
     try:
-        webview.start(debug=False)
+        webview.create_window(
+            title="TVD ENGINE (background — leave me be)",
+            url=url.split("/", 3)[0] + "//" + url.split("/", 3)[2] + "/board#tvd-engine",
+            width=900, height=640, x=-3980, y=-3980,
+            background_color="#070605", confirm_close=False,
+        )
+    except Exception as _ee:
+        print(f"⚠ engine window failed ({_ee}) — tallies need a board tab open")
+
+    # v928 — private_mode=False FOR REAL: the comment below claimed it since forever, but
+    # the call never passed it. pywebview defaults to private (ephemeral) storage, so every
+    # tally/grail state in the app board silently evaporated on quit.
+    try:
+        webview.start(debug=False, private_mode=False)
+    except TypeError:
+        # older pywebview without private_mode — ephemeral storage beats no window
+        try:
+            webview.start(debug=False)
+        except Exception as e:
+            print(f"⚠ pywebview failed ({e}) — browser fallback")
+            _open_browser_app_fallback(url)
     except Exception as e:
         print(f"⚠ pywebview failed ({e}) — browser fallback")
         _open_browser_app_fallback(url)
@@ -2255,7 +2280,9 @@ class Handler(BaseHTTPRequestHandler):
                 # v899 — if the agent is already dead, clear the latch and allow ON
                 if not _agent_alive() and _port_listener_pid() is None:
                     globals()["_stop_inflight"] = False
-                    _agent_mode = "off"
+                    # Must use globals() — bare assign makes _agent_mode local to all of
+                    # do_POST (UnboundLocalError on any later read; module mode never clears).
+                    globals()["_agent_mode"] = "off"
                 else:
                     self._json(200, {"ok": False, "msg": "still shutting down — session saving; try ON again in a moment",
                                      "mode": "stopping", "error": "still stopping"})
