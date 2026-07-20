@@ -2467,13 +2467,16 @@
     TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;
     setTimeout(function(){ try { thClock(); } catch(e){} }, 0);
     thBuildAxis();
-    // v940.3 (Konyo, round 20: "my personal debugger isn't properly working") — the reel
-    // used to open PAUSED on beat 0 (often a frameless skip) → a dim, dead screen that
-    // looked broken. SIM means "replay it for me": open on the FIRST FRAMED beat, PLAYING.
+    // v940.3 — the reel used to open on frameless beat 0 → a dim, dead screen. Land on the
+    // FIRST FRAMED beat so entry always shows a real screenshot, never a dead projector.
     var _first = 0;
     for (var _fb = 0; _fb < TH.beats.length; _fb++){ if (TH.beats[_fb].frame){ _first = _fb; break; } }
     TH.i = _first; if (TH.P) TH.p = TH.P[_first];
-    TH.playing = true; $('th-play').textContent = '⏸';
+    // v944.3 (Konyo: "when I hit simulation it's automatically starting the video, sticky/bugged")
+    // — ENTRY opens PAUSED on that first real frame: a still, ready debugger, NOT an auto-running
+    // film. The user presses ▶ (or steps) to drive it. Cycling sessions mid-play keeps playing.
+    TH.playing = !isEntry;
+    $('th-play').textContent = TH.playing ? '⏸' : '▶';
     thTimeline(); thPaint();
   }
   async function thOpen(){
@@ -2973,7 +2976,11 @@
       if (!CARD.open) return;
       var t = e.target;
       if (!t.closest) return;
+      // v944.3 — the WHOLE transport bar + the ⋯ drawer trigger are live controls, never
+      // "outside": clicking ⋯ more / play / step while the panel is open must reach the button,
+      // not get eaten as a dismiss. (Konyo: "⋯ more doesn't work when I click it.")
       if (t.closest('#th-drawer') || t.closest('.th-strip') || t.closest('#th-more-pop')
+          || t.closest('.th-more-wrap') || t.closest('#th-more') || t.closest('.th-transport')
           || t.closest('#th-filmstrip-wrap') || t.closest('.th-topline')) return;
       thCardToggle();
       e.stopPropagation(); e.preventDefault();
