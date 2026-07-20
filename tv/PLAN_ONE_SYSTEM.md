@@ -83,3 +83,9 @@ _"We already have a perfected system that reads items perfectly with a full data
 ## 🔬 v939 DESIGNED ROUND — tooltip frames → AI Item Checker (the regret funnel's engine)
 Discovery done (2026-07-20 late): the Checker lives in bible.html ~28440-28470 — `window.aicUpload(file)` reads a photo into a SINGLE interactive draft (`_aicItem`), verdicts render to the card, `aicMule()/aicToss()` are human buttons. KAI cannot batch through this without clobbering the draft.
 **Build:** a headless sibling `window.aicJudge(file) → Promise({name, base, q, mods, verdict, why})` that reuses the Checker's EXACT read prompt + verdict logic but touches no draft/UI. Then KAI: missed frames cls 'tooltip' → aicJudge → journal lane:'kai' rows with the verdict (keep/toss + why) → the REGRET REPORT: cross-reference against thrown/muled lifecycle tags ("you tossed X at 18:42 — the judge says keeper, frame attached"). EDIT_LOCK protocol; verdict rows feed a shelf-card 💔 regrets count and a SIM 🔬 beat.
+
+## 🎛 BUTTONS+DEPTH ARC (Konyo 2026-07-20 ~23:50, live session evidence)
+1. **Un-escapable panels (10 polish rounds ordered):** the intake/verdict side panel + drawer buttons trap the user after click — every overlay needs: Esc closes (layered), ✕ visible, click-outside closes, focus returns. Full button audit: hover/active/disabled states, hit areas ≥36px, no dead buttons.
+2. **DEBUGGER DEPTH (his #1):** the at-this-instant card must go deeper — full dossier + the read's raw model text, OCR literal lines, decision chain per item, dispatch reasoning (interest parts), prompt ver — the /api/beat blob rendered BEAUTIFULLY, not just summary lines.
+3. **FOOTAGE STARVE live @0.2fps** (banner during his 23:47 session; 55 film in 3m): film lane starving under game+reads load — diagnose grab timings (white-guard demotes? CPU nice? read.jpg conversions blocking?).
+4. **Honesty note miscount:** said '0 stills' on a 55-film session — condition reads wrong field or fires pre-load.
