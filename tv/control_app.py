@@ -1325,6 +1325,7 @@ def _kai_fullnames():
     if c is not None:
         return c
     names = set()
+    rare_combos = set()   # v943.2 — kept SEPARATE: recognized-but-not-grail-gated (see below)
     try:
         import re as _re
         src = open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace").read()
@@ -1337,10 +1338,43 @@ def _kai_fullnames():
                 v = (m.group(2) if m.lastindex and m.lastindex >= 2 else m.group(1)).strip()
                 if 3 <= len(v) <= 48 and not any(ch in v for ch in "<>{}$"):
                     names.add(v.lower())
+        # v943.1 — RotW RARE NAME SPACE. A rare item's name is one shared PREFIX word + one
+        # slot SUFFIX word (RARE_NAME_PREFIXES × RARE_NAME_POOLS, from the game's
+        # RarePrefix/RareSuffix tables): "Beast Noose" = Beast+Noose, "Plague Wing" = Plague+Wing.
+        # The eye reads these BARE (no base word), so the curated EXTRA_ITEMS key
+        # "Plague Wing Amulet" never matched a read of "Plague Wing". Harvest both pools and
+        # generate the combo space — bounded (fixed pools, no user input), every entry a
+        # valid two-word rare name so garble like "YwR PRIvATE STAS" can never ground.
+        # v943.2 — these go into a SEPARATE set (rare_combos): the register/recognition path
+        # wants them known, but the /kai_verdict GRAIL GATE must NOT auto-promote them — a rare
+        # amulet CAN be a toss, and blanket-gating 1,254 rare names would gut the Checker's job.
+        _mpre = _re.search(r"RARE_NAME_PREFIXES\s*=\s*\[(.*?)\]", src, _re.S)
+        _mpool = _re.search(r"RARE_NAME_POOLS\s*=\s*\{(.*?)\}", src, _re.S)
+        if _mpre and _mpool:
+            _pref = _re.findall(r"'([A-Za-z][A-Za-z'\- ]{1,19})'", _mpre.group(1))
+            _suf = _re.findall(r"'([A-Za-z][A-Za-z'\- ]{1,19})'", _mpool.group(1))
+            for _p in _pref:
+                for _s in _suf:
+                    nm = (_p + " " + _s).strip()
+                    if 3 <= len(nm) <= 48 and not any(ch in nm for ch in "<>{}$"):
+                        rare_combos.add(nm.lower())
+        names |= rare_combos   # full union still returned for register/recognition
     except Exception:
         pass
+    globals()["_KAI_RARE_COMBOS"] = rare_combos
     globals()["_KAI_FULLNAMES"] = names
     return names
+
+
+def _kai_rarenames():
+    """v943.2 — the generated RotW rare-name combo space (RARE_NAME_PREFIXES × RARE_NAME_POOLS).
+    Subset of _kai_fullnames(): recognized for the register/ledger, but EXCLUDED from the
+    /kai_verdict grail gate so the judge may still toss a bad rare amulet/ring/jewel."""
+    r = globals().get("_KAI_RARE_COMBOS")
+    if r is None:
+        _kai_fullnames()   # builds + caches both sets
+        r = globals().get("_KAI_RARE_COMBOS") or set()
+    return r
 
 
 def _kai_vocab():
@@ -3327,8 +3361,11 @@ class Handler(BaseHTTPRequestHandler):
                 _fts = int(body.get("fts") or 0) or int(time.time() * 1000)
                 _vname = str(body.get("name") or "")[:60]
                 _tier = str(((body.get("verdict") or {}).get("tier")) or "")[:12]
-                # v940.1 GRAIL GATE — a known unique/set/runeword name is never a toss/border:
-                if _vname and _vname.lower() in _kai_fullnames() and _tier in ("toss", "border"):
+                # v940.1 GRAIL GATE — a known unique/set/runeword name is never a toss/border.
+                # v943.2 — but EXCLUDE the generated rare-name combos: a rare "Beast Noose" is
+                # recognized (register) yet CAN genuinely be a toss, so it must not auto-promote.
+                _vlow = _vname.lower()
+                if _vname and _vlow in _kai_fullnames() and _vlow not in _kai_rarenames() and _tier in ("toss", "border"):
                     _tier = "grail"
                 rec = {"ts": _fts, "captureTs": _fts, "completedTs": int(time.time() * 1000),
                        "n": 0, "scene": "kai", "lane": "kai", "mode": "kai-judge", "names": [],
