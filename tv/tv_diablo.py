@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v944.2"   # 🚦 ROUTER Stage 2+: source independence (read+judge = 1 content class) · quorum
+VERSION = "v944.5"   # 🚦 THE ROUTER: quorum + source-independence + NEVER-ZERO read-status + receipt log
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

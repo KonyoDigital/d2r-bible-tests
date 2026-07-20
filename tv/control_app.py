@@ -163,6 +163,63 @@ def _build_dossier_maps(sess_rows):
             "tab_ts": tab_ts, "tab_receipts": tab_receipts, "tab_best": tab_best}
 
 
+def _intake_is_real(ik):
+    """v944.6 — a real tally receipt: ok and total>0. Zero/error is a FAILURE SIGNAL,
+    never a value (Konyo: 'I don't want ANYTHING read 0'). Vault empty can legitimately
+    total 0 — callers must gate vault separately."""
+    if not isinstance(ik, dict):
+        return False
+    if not ik.get("ok", True):
+        return False
+    return int(ik.get("total") or 0) > 0
+
+
+def _drv_freshest_tab_fid(tab, reads=None, journal_rows=None, fallback=""):
+    """v944.6 — newest deep stash frameId for `tab` from bridge reads and/or journal.
+    Re-fire against the UPDATED picture, not the stale shot that errored to 0."""
+    tab = (tab or "").lower()
+    best_fid, best_ts = fallback or "", 0
+    for src in (reads or [], journal_rows or []):
+        for rd in src:
+            if rd.get("provisional"):
+                continue
+            lane = rd.get("lane")
+            if lane is not None and lane != "deep":
+                continue
+            scene = str(rd.get("scene") or "")
+            if scene and scene != "stash":
+                continue
+            if str(rd.get("stashTab") or "").lower() != tab:
+                continue
+            ts = max(int(rd.get("completedTs") or 0), int(rd.get("ts") or 0),
+                     int(rd.get("captureTs") or 0))
+            fid = str(rd.get("frameId") or "")
+            if fid and ts >= best_ts:
+                best_ts, best_fid = ts, fid
+    return best_fid or fallback or ""
+
+
+def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
+    """v944.6 pure decision for never-zero re-fire.
+    Returns ('done', None) | ('refire', job_dict) | ('giveup', None).
+    Tally tabs re-fire on !ok or total==0; vault accepts any journaled landing."""
+    if not isinstance(inflight, dict):
+        return ("giveup", None)
+    key = str(inflight.get("key") or "")
+    is_vault = key.startswith("vault_")
+    if is_vault or _intake_is_real(intake):
+        return ("done", None)
+    tries = int(inflight.get("tries") or 0) + 1
+    job = dict(inflight)
+    job["tries"] = tries
+    if tries < max_tries:
+        fid = freshest_fid or job.get("fid") or ""
+        if fid:
+            job["fid"] = fid
+        return ("refire", job)
+    return ("giveup", None)
+
+
 def _nearest_receipt(maps, tab, ts, window_ms=None):
     """Compact intake receipt for `tab` nearest to `ts` (bisect); None if none
     (or outside window_ms when given)."""
@@ -2586,7 +2643,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v944.2",
+        "ver": "v944.5",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),

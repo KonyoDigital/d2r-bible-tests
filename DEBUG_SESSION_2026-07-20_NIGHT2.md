@@ -203,3 +203,16 @@ JPEG entropy coding means byte-tolerance "fuzzy" is noise. Keep **exact** sig de
 Footer was still `v943 control` while payload was `v944` — stamped **v944.1** across agent · control · board · UI.
 
 _End SuperGrok v944.1 · ball back to Claude for Stage 3 or farm soak_
+
+---
+
+## Claude v944.1 → v944.5 "THE ROUTER" (night #3, third wave) — quorum + never-zero + the debugger's answer
+| Ship | What |
+|---|---|
+| v944.1 | 🚦 Stage 2 QUORUM GATE (SuperGrok baton return): per-brain label VOTES, journal stash-* wins panels, ≥2-distinct-labels-no-winner → disagreement, conf<2 blocks fire. +4 pins |
+| v944.2 | 🚦 Stage 2 hardening — SOURCE INDEPENDENCE: read (named item) + judge (verdict on THAT item) are ONE content class witnessed twice, not two brains; confidence now counts independent EVIDENCE CLASSES (pixel/time/content), voteCount keeps the raw tally. +3 pins |
+| v944.3 | 🎛 two live theatre bugs: ⋯ MORE dead when info-panel open (round-1 click-outside ate the press — transport bar now never 'outside') · SIM sticky-autoplay (entry opens PAUSED on first framed beat, a still debugger not an auto-running film) |
+| v944.4 | 🔎 the debugger's answer to "was it read?": _beat_dossier emits readStatus {read/miss/named, tab, counted} + router{label,verdict}; NEW /api/intake_log = raw receipt ledger (ok/empty/error status). Proved the runes truth live: ok=404 + a later error=0 (the '0 read' was the errored shot) |
+| v944.5 | 🚫0️⃣ NEVER-ZERO (Konyo's rule: 'nothing read 0 — read the updated picture, hardcoded/automated'): tab_best per session; a 0/error shot is superseded by the tab's real read at the join layer — theatre shows the corrected count, backend log keeps the raw error for pinpointing. +2 pins |
+Suites 43+157+58 green · demos 7/7 · stamps ×4 v944.5 · EDIT_LOCK claimed/released · tracker heal (v943.7) holding.
+**PENDING (post-seal):** polish-ui-2 renders the v944.4/.5 data (read-status verdict, receipt-log viewer, clickable tally detail) — server data live & waiting. **SuperGrok is working the task list** (`DEBUG_SUPERGROK_TASKS_2026-07-21.md`): P0 = runes-0 self-heal pushed INTO the intake pipeline (re-fire the freshest frame so 0 never reaches the journal) + quorum soak · P1 = router Stage 3 (lanes obey the ledger) + dedupe grouping · P2 = Chronicle write-in, intake lease, judge soak, SIM/theatre unify. Claude gates + integrates each return, then re-seals.
