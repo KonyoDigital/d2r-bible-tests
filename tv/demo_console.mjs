@@ -4,11 +4,13 @@
 // touches Konyo's tab, never the repo suite). Each journey prints one ✅/❌ line; the
 // process exits non-zero if any journey fails. Target runtime < 60s.
 //
-// The 6 journeys mirror the console's real architecture (control_ui.html):
+// The 7 journeys mirror the console's real architecture (control_ui.html):
 //   header tabs #head-tabs .ht[data-tab] → shellOpen() adds body.shell-open and routes the
 //   same-origin engine iframe #tvd-eng (its .tab.active gains the matching data-tab);
 //   the 📺 TV·D tab calls shellHome() back to the .stage. Tally chip .hd-chip.tly-btn opens
 //   #tly-ov with .tly-tab filters. Three eyes = #eye-live/#eye-second/#eye-kai + status spans.
+//   The 📚 shelf (#btn-shelf → thOpen+thShelf) renders one .sh-card per /api/sessions run,
+//   each sealed reel carrying a .sh-verdict line (🛡/🚨/🧠/📸).
 
 let chromium;
 try {
@@ -206,6 +208,56 @@ async function j6_signalPanel(page) {
   record(name, true, "'Signal' + 'Watching' present, no 'BRIDGE' row label");
 }
 
+async function j7_shelfStory(page) {
+  const name = 'J7 SHELF STORY';
+  await goHome(page);
+  const shellBefore = await shellOpen(page); // home → false
+  // 📚 The Shelf console button: thOpen() (loads TH.sessions from /api/sessions) then thShelf(true)
+  await page.click('#btn-shelf');
+  // the shelf overlay #th-shelfov renders one .sh-card per recorded session
+  await page.waitForFunction(() => {
+    const ov = document.getElementById('th-shelfov');
+    if (!ov || ov.hidden) return false;
+    return ov.querySelectorAll('.sh-card').length > 0;
+  }, null, { timeout: 15000 });
+  const r = await page.evaluate(() => {
+    const glyphs = ['🛡', '🚨', '🧠', '📸']; // seal-verdict markers
+    const cards = document.querySelectorAll('#th-shelfov .sh-card');
+    const verdicts = Array.from(document.querySelectorAll('#th-shelfov .sh-verdict'));
+    // any rendered verdict line must carry at least one verdict glyph; zero-verdict
+    // (unsealed) cards simply have no .sh-verdict span and are tolerated.
+    const bad = verdicts.find((v) => {
+      const t = v.textContent || '';
+      return !glyphs.some((g) => t.indexOf(g) !== -1);
+    });
+    return {
+      cards: cards.length,
+      verdicts: verdicts.length,
+      bad: bad ? (bad.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60) : null,
+    };
+  });
+  if (r.cards < 1) throw new Error('shelf rendered zero .sh-card');
+  if (r.bad) throw new Error(`.sh-verdict missing a 🛡/🚨/🧠/📸 glyph: "${r.bad}"`);
+  // close cleanly: the shelf toggle (#th-shelf, in the uncovered bottom strip) hides the
+  // overlay, then #th-close folds the theatre → console returns to its prior (home) state.
+  await page.click('#th-shelf');
+  await page.waitForFunction(() => {
+    const ov = document.getElementById('th-shelfov');
+    return !ov || ov.hidden;
+  }, null, { timeout: 5000 });
+  await page.click('#th-close');
+  await page.waitForFunction(() => {
+    const th = document.getElementById('theatre');
+    if (!th || !th.hidden) return false;
+    if (document.body.classList.contains('shell-open')) return false;
+    const s = document.getElementById('stage');
+    return !!(s && s.getClientRects().length);
+  }, null, { timeout: 6000 });
+  const shellAfter = await shellOpen(page);
+  if (shellBefore !== shellAfter) throw new Error('shelf journey left the shell state changed');
+  record(name, true, `${r.cards} .sh-card, ${r.verdicts} verdict line(s) all glyph-tagged, closed → home`);
+}
+
 // ── runner ──────────────────────────────────────────────────────────────────────
 async function main() {
   const t0 = Date.now();
@@ -220,13 +272,13 @@ async function main() {
     await warmEngine(page);
   } catch (e) {
     console.log(`❌ BOOT — ${e.message}`);
-    console.log('DEMOS: 0/6 ✅');
+    console.log('DEMOS: 0/7 ✅');
     await browser.close();
     process.exitCode = 1;
     return;
   }
 
-  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel];
+  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory];
   for (const j of journeys) {
     try {
       await j(page);
@@ -239,8 +291,8 @@ async function main() {
   await browser.close();
   const pass = results.filter((r) => r.ok).length;
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`DEMOS: ${pass}/6 ✅  (${secs}s)`);
-  process.exitCode = pass === 6 ? 0 : 1;
+  console.log(`DEMOS: ${pass}/7 ✅  (${secs}s)`);
+  process.exitCode = pass === 7 ? 0 : 1;
 }
 
 main().catch((e) => {
