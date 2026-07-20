@@ -79,3 +79,7 @@ _"We already have a perfected system that reads items perfectly with a full data
 - Layer picture: 🔴 live eye → 🔵 trailing verify → 🧠 KAI sweep (what was missed) → 📸 THE FUNNEL (the missed frames fed through the perfected pipeline). Layer 4 IS the hidden automated KAI.
 
 ## Grok shell-verdict backlog (2026-07-20 seal): #2 shell z-index/Esc discipline (board overlays inside the promoted iframe vs ⌂ pill at 960; Esc guard is dead code), #3 receipt dedupe ignores counts + empty-frameId bucket collapse, #4 badge honesty (🔵 should key off verify-lane activity, 🧠 off closer runs not just the driver probe; watchdog None-until-first-seal reads as clean).
+
+## 🔬 v939 DESIGNED ROUND — tooltip frames → AI Item Checker (the regret funnel's engine)
+Discovery done (2026-07-20 late): the Checker lives in bible.html ~28440-28470 — `window.aicUpload(file)` reads a photo into a SINGLE interactive draft (`_aicItem`), verdicts render to the card, `aicMule()/aicToss()` are human buttons. KAI cannot batch through this without clobbering the draft.
+**Build:** a headless sibling `window.aicJudge(file) → Promise({name, base, q, mods, verdict, why})` that reuses the Checker's EXACT read prompt + verdict logic but touches no draft/UI. Then KAI: missed frames cls 'tooltip' → aicJudge → journal lane:'kai' rows with the verdict (keep/toss + why) → the REGRET REPORT: cross-reference against thrown/muled lifecycle tags ("you tossed X at 18:42 — the judge says keeper, frame attached"). EDIT_LOCK protocol; verdict rows feed a shelf-card 💔 regrets count and a SIM 🔬 beat.
