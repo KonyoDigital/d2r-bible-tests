@@ -33707,7 +33707,10 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
                                  ok: !!(_vr && _vr.ok), counts: (_vr && _vr.added) || {},
                                  total: (_vr && _vr.total) || 0, errors: (_vr && _vr.errors) || 0,
-                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){});
+                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){ try{ fetch('/intake_result', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
+                                 ok: !!(_vr && _vr.ok), counts: (_vr && _vr.added) || {},
+                                 total: (_vr && _vr.total) || 0, errors: (_vr && _vr.errors) || 0,
+                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){}); }catch(e){} });
       } catch(e){}
       try {
         var st = document.getElementById('vault-status');
@@ -33824,7 +33827,10 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           body: JSON.stringify({ ts: Date.now(), tab: tab, kind: (_ir && _ir.kind) || 'tally',
                                  ok: !!(_ir && _ir.ok), counts: (_ir && _ir.added) || {},
                                  total: (_ir && _ir.total) || 0, errors: (_ir && _ir.errors) || 0,
-                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){});
+                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){ try{ fetch('/intake_result', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ts: Date.now(), tab: tab, kind: (_ir && _ir.kind) || 'tally',
+                                 ok: !!(_ir && _ir.ok), counts: (_ir && _ir.added) || {},
+                                 total: (_ir && _ir.total) || 0, errors: (_ir && _ir.errors) || 0,
+                                 frameId: (opts && opts.frameId) || '' }) }).catch(function(){}); }catch(e){} });
       } catch(e){}
       return { ok: !!(_ir && _ir.ok), tab: tab, bytes: blob.size,
                total: (_ir && _ir.total) || 0, counts: (_ir && _ir.added) || {} };   // v908-R6 — no ok-lie

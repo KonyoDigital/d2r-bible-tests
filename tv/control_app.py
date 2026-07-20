@@ -1075,8 +1075,106 @@ _KAI_NOISE = ("stash", "inventory", "personal", "shared", "gems", "materials", "
               "gold", "ctrl", "shift", "click", "left", "right", "move", "tab")
 
 
+# v935 — KAI VOCAB GROUNDING: the closer's item-ish filter used to keep any alpha line, so
+# OCR garble ("YwR PRIvATE STAS") landed in the miss ledger as if it were loot. The vocab is
+# the item lexicon of the game itself — hardcoded runes/gems + every name token in bible.html.
+_RUNE_NAMES = ("el", "eld", "tir", "nef", "eth", "ith", "tal", "ral", "ort", "thul", "amn",
+               "sol", "shael", "dol", "hel", "io", "lum", "ko", "fal", "lem", "pul", "um",
+               "mal", "ist", "gul", "vex", "ohm", "lo", "sur", "ber", "jah", "cham", "zod")
+_GEM_WORDS = ("chipped", "flawed", "flawless", "perfect", "amethyst", "topaz", "sapphire",
+              "emerald", "ruby", "diamond", "skull", "gem")
+
+
+def _kai_vocab():
+    """v935 — KAI's item lexicon (cached in a global, built once). Seeds the 33 classic rune
+    names + gem words, then harvests alphabetic name tokens (len>=4) from every name:'…' /
+    name:"…" literal in bible.html, lowercased and capped ~20k. Also buckets the set by token
+    length for O(bucket) edit-distance-1 lookup. Errors swallowed — the rune/gem seed always
+    survives so grounding never fully fails open even if bible.html can't be read."""
+    v = globals().get("_KAI_VOCAB")
+    if v is not None:
+        return v
+    vocab = set(_RUNE_NAMES) | set(_GEM_WORDS)
+    try:
+        with open(BIBLE, encoding="utf-8", errors="replace") as f:
+            txt = f.read()
+        # the real item DB (uniques/sets like 'Windforce') lives under the short n: / "n": keys,
+        # not just name: — harvest both. The lookbehind stops the bare-n branch from matching the
+        # 'n' inside words like min:/gen: (only a boundary or nothing may precede it).
+        for pat in (r"""(?<![\w"])(?:name|n)\s*:\s*(['"])(.*?)\1""",
+                    r""""(?:name|n)"\s*:\s*(['"])(.*?)\1"""):
+            for m in re.finditer(pat, txt):
+                for tok in re.split(r"[^A-Za-z]+", m.group(2)):
+                    if len(tok) >= 4:
+                        vocab.add(tok.lower())
+                if len(vocab) >= 20000:
+                    break
+            if len(vocab) >= 20000:
+                break
+    except Exception:
+        pass
+    # never let a UI/noise word (stash, inventory, runes…) ground a loot line: bible.html
+    # carries those as name literals too, and 'STAS' would fuzzy-match 'stash' otherwise.
+    vocab.difference_update(_KAI_NOISE)
+    by_len = {}
+    for w in vocab:
+        by_len.setdefault(len(w), set()).add(w)
+    globals()["_KAI_VOCAB"] = vocab
+    globals()["_KAI_VOCAB_BY_LEN"] = by_len
+    return vocab
+
+
+def _edit1(a, b):
+    """True if a and b are within Levenshtein distance 1 (equal / one sub / one indel).
+    Stdlib-only, short strings — used for fuzzy vocab grounding of noisy OCR tokens."""
+    la, lb = len(a), len(b)
+    if abs(la - lb) > 1:
+        return False
+    if a == b:
+        return True
+    if la == lb:                       # single substitution
+        return sum(1 for x, y in zip(a, b) if x != y) == 1
+    if la > lb:                        # make `a` the shorter — one insertion/deletion
+        a, b, la, lb = b, a, lb, la
+    i = j = diff = 0
+    while i < la and j < lb:
+        if a[i] == b[j]:
+            i += 1
+            j += 1
+        else:
+            diff += 1
+            if diff > 1:
+                return False
+            j += 1
+    return True
+
+
+def _kai_vocab_hit(tok):
+    """v935 — is this OCR token a known item word? Exact membership for any token (so 3-letter
+    runes like 'ral'/'amn' pass), plus edit-distance-1 fuzzy against same-length±1 buckets for
+    len>=4 (typo tolerance). Empty vocab → fail-open to the old keep-everything behaviour."""
+    tok = tok.lower()
+    vocab = _kai_vocab()
+    if not vocab:
+        return True
+    if tok in vocab:
+        return True
+    # short tokens (<=4) are exact-only: at length 4 nearly every OCR garble sits one edit from
+    # SOME real 4-letter word, so fuzzy there re-admits noise like 'STAS'. Typo tolerance is for
+    # the longer names (len>=5) where an edit-1 neighbour is a real signal, not a coincidence.
+    if len(tok) < 5:
+        return False
+    by_len = globals().get("_KAI_VOCAB_BY_LEN") or {}
+    for L in (len(tok) - 1, len(tok), len(tok) + 1):
+        for cand in by_len.get(L, ()):
+            if _edit1(tok, cand):
+                return True
+    return False
+
+
 def _kai_itemish(s):
-    """KAI v1 — keep item-ish OCR lines; mirror of the agent's filter, python-side."""
+    """KAI v1 + v935 vocab grounding — keep item-ish OCR lines only when at least one token is
+    a real game item word (exact, or one edit away for len>=4). Mirror of the agent's filter."""
     s = str(s or "").strip()
     if len(s) < 3 or len(s) > 48:
         return False
@@ -1085,7 +1183,10 @@ def _kai_itemish(s):
         return False
     if sum(c.isdigit() for c in s) > max(3, len(s) // 2):
         return False
-    return any(len(p) >= 3 and p.isalpha() for p in lo.replace("'", " ").split())
+    toks = [p for p in lo.replace("'", " ").split() if len(p) >= 3 and p.isalpha()]
+    if not toks:
+        return False
+    return any(_kai_vocab_hit(p) for p in toks)
 
 
 def _kai_closer_loop():
@@ -1196,6 +1297,11 @@ def _kai_closer_loop():
             except Exception as e:
                 print(f"🧠 KAI: journal append failed ({e})", flush=True)
             print(f"🧠 KAI report sealed for {sid}: {scanned} swept, {len(missed)} missed-text frames", flush=True)
+            # v935 — 🚨 WATCHDOG rides the same reel-close moment (sess_rows already loaded)
+            try:
+                _watchdog_check(sid, sess_rows)
+            except Exception as _we:
+                print(f"🚨 watchdog: check raised ({_we})", flush=True)
         except Exception:
             time.sleep(10.0)
 
@@ -1215,6 +1321,73 @@ def _kai_journal_rows():
     except Exception:
         pass
     return rows
+
+
+def _watchdog_check(sid, sess_rows):
+    """v935 — 🚨 WATCHDOG v1 (Konyo: 'hardcoded Diablo II safeguards — expected vs happened').
+    After a reel seals, assert the session's ground truths and journal a lane:'watchdog' row for
+    every breach. GHOST-PROOF like the KAI rows: ts == captureTs, anchored just past the session's
+    last row so violations land INSIDE the session span (split_sessions cuts on sid change + ts).
+    Rules:
+      1) tally-tab-visited-needs-receipt — a tally tab (runes/gems/materials) seen as stashTab on a
+         deep read, but NO intake receipt (row with intake.tab == that tab) landed this session.
+      2) stash-open-no-tab-reads — a deep read had scene=='stash', yet not one row carried a
+         non-empty stashTab (the stash opened but no tab was ever actually read)."""
+    rows = sess_rows or []
+    now_ms = int(time.time() * 1000)
+    _sess_last = max((int(r.get("ts") or 0) for r in rows), default=now_ms)
+
+    visited = set()
+    for r in rows:
+        if r.get("lane") == "deep":
+            tab = str(r.get("stashTab") or "").lower()
+            if tab in ("runes", "gems", "materials"):
+                visited.add(tab)
+    receipts = set()
+    for r in rows:
+        ik = r.get("intake")
+        if isinstance(ik, dict):
+            rt = str(ik.get("tab") or "").lower()
+            if rt:
+                receipts.add(rt)
+
+    violations = []
+    for tab in ("runes", "gems", "materials"):
+        if tab in visited and tab not in receipts:
+            violations.append({
+                "rule": "tally-tab-visited-needs-receipt", "tab": tab,
+                "note": "🚨 WATCHDOG: %s tab was visited but NO tally receipt landed" % tab})
+
+    stash_opened = any(r.get("lane") == "deep" and str(r.get("scene") or "") == "stash"
+                       for r in rows)
+    any_tab_read = any(str(r.get("stashTab") or "").strip() for r in rows)
+    if stash_opened and not any_tab_read:
+        violations.append({
+            "rule": "stash-open-no-tab-reads", "tab": "",
+            "note": "🚨 WATCHDOG: stash was opened but no stash tab was ever read"})
+
+    out_rows = []
+    for i, v in enumerate(violations):
+        _ts = _sess_last + 2 + i
+        out_rows.append({"ts": _ts, "captureTs": _ts, "completedTs": now_ms,
+                         "lane": "watchdog", "mode": "watchdog", "scene": "watchdog",
+                         "names": [], "sessionId": sid, "frameId": "",
+                         "watchdog": {"rule": v["rule"], "tab": v["tab"]},
+                         "note": v["note"]})
+    if out_rows:
+        try:
+            with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                for r in out_rows:
+                    f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        except Exception as e:
+            print(f"🚨 watchdog: journal append failed ({e})", flush=True)
+
+    globals()["_WATCHDOG_LAST"] = {"sid": sid, "violations": len(out_rows)}
+    if out_rows:
+        print(f"🚨 watchdog: {len(out_rows)} violation(s) for {sid}", flush=True)
+    else:
+        print(f"🛡 watchdog: clean session {sid}", flush=True)
+    return out_rows
 
 
 def _engine_driver():
@@ -1389,6 +1562,7 @@ def status_payload():
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
                    "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR")},   # v934.3 — the tally driver's pulse
+        "watchdog": globals().get("_WATCHDOG_LAST"),   # v935 — last reel's expectation-check verdict
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -2452,6 +2626,58 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
             except Exception:
                 body = {}
+
+        if path == "/intake_result":
+            # v935 (Konyo P0: 'tallies silently vanishing') — the board POSTs each auto-intake
+            # RESULT to the agent bridge (:17771), but the bridge DIES at session end, so a tally
+            # that completes AFTER END SESSION loses its receipt forever (driver proved fired=1,
+            # intakes journaled=0). Control's HTTP server outlives the agent — accept the receipt
+            # here and journal it in the SAME shape tv_diablo.bridge() do_POST does, tagged to the
+            # latest known sessionId from the journal. Dedupe so a receipt landing on BOTH bridges
+            # (agent still up) is only journaled once.
+            try:
+                now_ms = int(time.time() * 1000)
+                _ts = int(body.get("ts") or now_ms)
+                _tab = str(body.get("tab") or "")[:24]
+                _fid = str(body.get("frameId") or "")[:48]
+                try:
+                    _rows = _kai_journal_rows()
+                except Exception:
+                    _rows = []
+                _sid = ""
+                for r in _rows:
+                    s = r.get("sessionId")
+                    if s:
+                        _sid = s   # latest sessionId wins (rows are append-ordered)
+                for r in _rows:
+                    if (r.get("lane") == "intake"
+                            and str(r.get("frameId") or "") == _fid
+                            and str((r.get("intake") or {}).get("tab") or "") == _tab
+                            and abs(int(r.get("ts") or 0) - _ts) <= 300_000):
+                        self._json(200, {"ok": True, "dup": True})
+                        return
+                rec = {
+                    "ts": _ts, "captureTs": _ts, "completedTs": now_ms,
+                    "n": 0, "scene": "intake", "lane": "intake", "mode": "intake",
+                    "names": [], "area": "", "sessionId": _sid,
+                    "intake": {
+                        "tab": _tab,
+                        "kind": str(body.get("kind") or "")[:16],
+                        "counts": body.get("counts") if isinstance(body.get("counts"), dict) else {},
+                        "total": int(body.get("total") or 0),
+                        "errors": int(body.get("errors") or 0),
+                        "items": (body.get("items") or [])[:60],
+                        "ok": bool(body.get("ok", True)),
+                    },
+                    "frameId": _fid,
+                    "note": ("📸 intake · " + str(body.get("tab") or body.get("kind") or "shot"))[:80],
+                }
+                with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                self._json(200, {"ok": True})
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)[:160]})
+            return
 
         if path in ("/api/intake", "/api/ask"):
             # v874 (Konyo: 'Forge image AI intake uploads broken in the app console') — the board
