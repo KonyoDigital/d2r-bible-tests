@@ -1648,6 +1648,108 @@ def _kai_compile_register(sess_rows):
     return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
 
 
+# ── v944 🚦 THE KAI ROUTER — Stage 1: THE LABEL TABLE (evidence, no firing) ──────
+# Konyo's architecture call #2: before a frame gets funneled, all four brains tag it, it's
+# verified by quorum, THEN routed to the intake that already works. Stage 1 only OBSERVES:
+# a per-frame ledger of label + which brains agreed + the route it WOULD take + what actually
+# fired. Stages 2 (quorum gate) and 3 (route execution unification) build on this ledger.
+def _kai_frame_sig(path):
+    """v944 — cheap sampled-bytes fingerprint of a reel JPEG for routing dedupe (frame_sig-style).
+    Returns (size, ~2k sampled bytes): the size is the fast first-pass key, the samples confirm
+    identity. stdlib only, defensive (None on any error → that frame never dedupe-chains)."""
+    try:
+        sz = os.path.getsize(path)
+        with open(path, "rb") as _f:
+            data = _f.read()
+        step = max(1, len(data) // 2048)
+        return (sz, bytes(data[::step][:2048]))
+    except Exception:
+        return None
+
+
+def _kai_route_for_label(label):
+    """Which funnel WOULD take a frame with this label (route intent, not a fire)."""
+    if label in ("stash-runes", "stash-gems", "stash-materials"):
+        return "tally:" + label[len("stash-"):]
+    if label == "tooltip":
+        return "judge"
+    if label in ("stash", "inventory"):
+        return "vault"
+    return None
+
+
+def _kai_build_routing(scan, sess_rows, sid, journal_rows):
+    """v944 — THE ROUTING LEDGER. One row per scanned frame:
+    {f, ts, label, sources, confidence, route, routed, skipReason}.
+    sources = which of the four brains agreed on the label:
+      'ocr'     OCR words classed the frame (a real, non-gameplay cls),
+      'journal' the stash time-map placed the frame on an open tab,
+      'read'    a deep read named an item within ±4s of the frame,
+      'judge'   a judge verdict landed on this frame.
+    confidence = len(sources) (the quorum count Stage 2 will gate on).
+    route = the funnel that WOULD take it (tally:<tab> | vault | judge | null).
+    routed = what actually fired this close, read from the journal receipts the funnel/judge
+             stages already wrote (intake kind 'kai-funnel', or a 'kai-judge' verdict) — or null.
+    skipReason = why nothing fired. Pure — no side effects, no firing."""
+    read_ts = [int(r.get("captureTs") or r.get("ts") or 0)
+               for r in sess_rows
+               if r.get("lane") == "deep" and (r.get("names") or [])]
+    receipted = set()   # tabs that receipted normally this session (tally route + receipt = no gap)
+    for r in sess_rows:
+        ik = r.get("intake")
+        if isinstance(ik, dict) and ik.get("ok", True):
+            t = str(ik.get("tab") or "").lower()
+            if t:
+                receipted.add(t)
+    funnel_by_fid = {}   # reel frameId -> intake kind the funnel wrote
+    judge_fids = set()   # reel frameIds a judge verdict landed on
+    for r in journal_rows:
+        fid = str(r.get("frameId") or "")
+        if not fid:
+            continue
+        ik = r.get("intake")
+        if isinstance(ik, dict) and str(ik.get("kind") or "") == "kai-funnel":
+            funnel_by_fid[fid] = "kai-funnel"
+        if r.get("lane") == "kai" and r.get("mode") == "kai-judge":
+            judge_fids.add(fid)
+    out = []
+    for s in scan:
+        f = str(s.get("f") or "")
+        ts = int(s.get("ts") or 0)
+        label = s.get("label") or "gameplay"
+        fid = ("reel_" + sid + "/" + f.replace(".jpg", "")) if f else ""
+        sources = []
+        if s.get("ocr"):
+            sources.append("ocr")
+        if s.get("journal"):
+            sources.append("journal")
+        if any(abs(rt - ts) <= 4000 for rt in read_ts):
+            sources.append("read")
+        judged = fid in judge_fids
+        if judged:
+            sources.append("judge")
+        route = _kai_route_for_label(label)
+        routed = funnel_by_fid.get(fid) or ("kai-judge" if judged else None)
+        skip = None
+        if routed is None:
+            if len(sources) < 2:
+                skip = "confidence<2"
+            elif route is None:
+                skip = "no-route"
+            elif route.startswith("tally:"):
+                skip = "no-gap" if route.split(":", 1)[1] in receipted else "not-selected"
+            elif route == "judge":
+                skip = "cap"
+            elif route == "vault":
+                skip = "no-vault-fire"
+            else:
+                skip = "no-route"
+        out.append({"f": f, "ts": ts, "label": label, "sources": sources,
+                    "confidence": len(sources), "route": route,
+                    "routed": routed, "skipReason": skip})
+    return out
+
+
 def _kai_closer_loop():
     """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
     with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
@@ -1715,6 +1817,7 @@ def _kai_closer_loop():
             missed = []
             classes = {}
             class_frames = {}          # v935.11 R5 — {cls: count} over every line-producing frame
+            routing_scan = []          # v944 🚦 — per-scanned-frame label evidence (routing ledger)
             scanned = textframes = 0
             for it in frames:
                 fp = os.path.join(rd, it.get("f") or "")
@@ -1730,7 +1833,8 @@ def _kai_closer_loop():
                 raw = j.get("lines") or []
                 texts = [t for t in raw if _kai_itemish(t)]
                 # R5 — classify every frame that produced OCR lines, before the missed decision.
-                cls = _kai_frame_cls(raw, texts) if raw else None
+                _ocr_cls = _kai_frame_cls(raw, texts) if raw else None   # v944 — OCR's own verdict
+                cls = _ocr_cls
                 # v941.3 — journal-truth override: a frame within ±4s of a stash-tab read IS
                 # that stash screen, whatever OCR saw (or didn't).
                 _fts5 = int(it.get("ts") or 0)
@@ -1749,6 +1853,12 @@ def _kai_closer_loop():
                     if new:
                         missed.append({"f": it.get("f"), "ts": it.get("ts"),
                                        "texts": new[:6], "cls": cls})
+                # v944 🚦 — record this scanned frame's label evidence for the routing ledger.
+                # 'ocr' fires only when OCR itself produced a real (non-gameplay) class; the
+                # journal-truth override is credited to 'journal', keeping the sources honest.
+                routing_scan.append({"f": it.get("f"), "ts": int(it.get("ts") or 0),
+                                     "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
+                                     "journal": bool(_near), "label": cls or "gameplay"})
                 time.sleep(0.12)   # peaceful — never fights a live session
             try:
                 wp.stdin.close(); wp.terminate()
@@ -1909,6 +2019,14 @@ def _kai_closer_loop():
                     _reg_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
                     _register = _kai_compile_register(_reg_rows)
                     report["register"] = _register
+                    # v944 🚦 — the ROUTING LEDGER rides the same re-read (funnel/judge receipts
+                    # are now in the journal, so 'routed' is truthful). Evidence only — no firing.
+                    _routing = _kai_build_routing(routing_scan, sess_rows, sid, _reg_rows)
+                    report["routing"] = _routing
+                    _rcounts = {}
+                    for _rr in _routing:
+                        _rcounts[_rr["label"]] = _rcounts.get(_rr["label"], 0) + 1
+                    _routed_n = sum(1 for _rr in _routing if _rr.get("routed"))
                     try:
                         with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as _rf2:
                             json.dump(report, _rf2)
@@ -1919,13 +2037,16 @@ def _kai_closer_loop():
                                 "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
                                 "sessionId": sid, "frameId": "",
                                 "kai": {"register": {"count": len(_register),
-                                                     "items": _register[:40]}},
-                                "note": f"📖 KAI register ledger — {len(_register)} items witnessed this session"}
+                                                     "items": _register[:40]},
+                                        "routing": {"counts": _rcounts, "routedCount": _routed_n}},
+                                "note": f"📖 KAI register ledger — {len(_register)} items witnessed · "
+                                        f"🚦 {len(_routing)} frames routed-labelled ({_routed_n} fired)"}
                     with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf3:
                         _rf3.write(json.dumps(_reg_row, ensure_ascii=False) + "\n")
-                    print(f"📖 KAI register: {len(_register)} items witnessed in {sid}", flush=True)
+                    print(f"📖 KAI register: {len(_register)} witnessed · 🚦 routing: {len(_routing)} frames, "
+                          f"{_routed_n} fired in {sid}", flush=True)
                 except Exception as _rge:
-                    print(f"⚠ KAI register stage error: {_rge}", flush=True)
+                    print(f"⚠ KAI register/routing stage error: {_rge}", flush=True)
             except Exception as _we:
                 print(f"🚨 watchdog: check raised ({_we})", flush=True)
         except Exception:
@@ -3040,14 +3161,28 @@ class Handler(BaseHTTPRequestHandler):
                                     pass
                         _frames.sort(key=lambda x: x.get("ts") or 0)
                     pref = "reel_" + sid_here + "/"
+                    # v944 🚦 — join the routing ledger's label + verdict onto each footage beat
+                    # (additive, defensive: absent report or key → beat simply carries no label).
+                    _routemap = {}
+                    try:
+                        _krp = os.path.join(_reel_dir, "kai_report.json")
+                        if os.path.isfile(_krp):
+                            with open(_krp, encoding="utf-8") as _krf:
+                                for _rr in ((json.load(_krf) or {}).get("routing") or []):
+                                    _routemap[str(_rr.get("f") or "")] = (
+                                        _rr.get("label"), _rr.get("routed") or _rr.get("skipReason"))
+                    except Exception:
+                        _routemap = {}
                     for it in _frames:
                         fn = it.get("f") or ""
                         fts = int(it.get("ts") or 0)
                         if not fn:
                             continue
+                        _lbl, _rv = _routemap.get(fn, (None, None))
                         _foot.append({"ts": fts, "captureTs": fts, "footage": True,
                                       "frame": pref + fn, "frameId": pref + fn[:-4],
-                                      "names": [], "scene": "", "area": "", "lane": "footage"})
+                                      "names": [], "scene": "", "area": "", "lane": "footage",
+                                      "label": _lbl, "routeVerdict": _rv})
                 elif os.path.isdir(hist_dir):
                     # live/unsealed fallback only
                     for fn in os.listdir(hist_dir):

@@ -638,5 +638,87 @@ class TestV943Dossier(unittest.TestCase):
         self.assertEqual(self.maps["tab_ts"]["runes"], [520])  # receipts bucketed + sorted per tab
 
 
+class TestRouterLedger(unittest.TestCase):
+    """v944 🚦 THE KAI ROUTER — Stage 1 label table. ca._kai_route_for_label maps a label to the
+    funnel that WOULD take it; ca._kai_build_routing derives per-frame {sources, confidence, route,
+    routed, skipReason} from the scan + session rows + journal. Pure — no firing, no I/O."""
+
+    def test_route_for_label(self):
+        self.assertEqual(ca._kai_route_for_label("stash-runes"), "tally:runes")
+        self.assertEqual(ca._kai_route_for_label("stash-gems"), "tally:gems")
+        self.assertEqual(ca._kai_route_for_label("stash-materials"), "tally:materials")
+        self.assertEqual(ca._kai_route_for_label("tooltip"), "judge")
+        self.assertEqual(ca._kai_route_for_label("stash"), "vault")
+        self.assertEqual(ca._kai_route_for_label("inventory"), "vault")
+        self.assertIsNone(ca._kai_route_for_label("gameplay"))
+        self.assertIsNone(ca._kai_route_for_label(None))
+
+    def setUp(self):
+        self.scan = [
+            {"f": "f_100.jpg", "ts": 100000, "ocr": True,  "journal": True,  "label": "stash-runes"},
+            {"f": "f_200.jpg", "ts": 200000, "ocr": True,  "journal": False, "label": "tooltip"},
+            {"f": "f_300.jpg", "ts": 300000, "ocr": False, "journal": False, "label": "gameplay"},
+            {"f": "f_400.jpg", "ts": 400000, "ocr": True,  "journal": False, "label": "stash-gems"},
+            {"f": "f_500.jpg", "ts": 500000, "ocr": True,  "journal": True,  "label": "stash-materials"},
+            {"f": "f_600.jpg", "ts": 600000, "ocr": True,  "journal": True,  "label": "inventory"},
+        ]
+        self.sess = [
+            {"lane": "deep", "ts": 100000, "names": ["El"]},                        # named read → 'read' near 100k
+            {"lane": "intake", "frameId": "reel_S/f_100",
+             "intake": {"tab": "runes", "ok": True, "kind": "kai-funnel"}},         # funnel fired on f_100
+            {"lane": "intake", "frameId": "",
+             "intake": {"tab": "materials", "ok": True, "kind": "tally"}},          # materials receipted normally
+        ]
+        self.journal = self.sess + [
+            {"lane": "kai", "mode": "kai-judge", "frameId": "reel_S/f_200",
+             "kai": {"judge": {"name": "Windforce", "tier": "toss"}}},              # judge verdict on f_200
+        ]
+        self.led = {r["f"]: r for r in ca._kai_build_routing(self.scan, self.sess, "S", self.journal)}
+
+    def test_funnel_routed_frame(self):
+        r = self.led["f_100.jpg"]
+        self.assertEqual(sorted(r["sources"]), ["journal", "ocr", "read"])   # 3 brains agree
+        self.assertEqual(r["confidence"], 3)
+        self.assertEqual(r["route"], "tally:runes")
+        self.assertEqual(r["routed"], "kai-funnel")
+        self.assertIsNone(r["skipReason"])
+
+    def test_judge_routed_frame(self):
+        r = self.led["f_200.jpg"]
+        self.assertEqual(sorted(r["sources"]), ["judge", "ocr"])            # read is >4s away
+        self.assertEqual(r["route"], "judge")
+        self.assertEqual(r["routed"], "kai-judge")
+        self.assertIsNone(r["skipReason"])
+
+    def test_low_confidence_and_no_route_skips(self):
+        # gameplay: no sources, no route → confidence<2 (checked before no-route)
+        g = self.led["f_300.jpg"]
+        self.assertEqual((g["confidence"], g["route"], g["routed"], g["skipReason"]),
+                         (0, None, None, "confidence<2"))
+        # single-source stash-gems → confidence<2 even though a route exists
+        gm = self.led["f_400.jpg"]
+        self.assertEqual((gm["confidence"], gm["route"], gm["skipReason"]),
+                         (1, "tally:gems", "confidence<2"))
+
+    def test_quorum_but_no_gap_and_vault_skips(self):
+        # materials had a normal receipt → a 2-source materials frame is 'no-gap'
+        m = self.led["f_500.jpg"]
+        self.assertEqual((m["confidence"], m["route"], m["routed"], m["skipReason"]),
+                         (2, "tally:materials", None, "no-gap"))
+        # inventory routes to vault, which the closer never fires this stage
+        v = self.led["f_600.jpg"]
+        self.assertEqual((v["route"], v["routed"], v["skipReason"]),
+                         ("vault", None, "no-vault-fire"))
+
+    def test_routed_count_and_shape(self):
+        led = ca._kai_build_routing(self.scan, self.sess, "S", self.journal)
+        self.assertEqual(len(led), 6)
+        self.assertEqual(sum(1 for r in led if r["routed"]), 2)             # f_100 + f_200 fired
+        # every row carries the full contract, no missing keys
+        for r in led:
+            self.assertEqual(set(r), {"f", "ts", "label", "sources", "confidence",
+                                      "route", "routed", "skipReason"})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
