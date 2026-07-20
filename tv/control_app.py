@@ -1218,10 +1218,15 @@ def _kai_fullnames():
     try:
         import re as _re
         src = open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace").read()
-        for m in _re.finditer(r"(?<![A-Za-z0-9_])(?:name|n)\s*:\s*(['\"])(.*?)\1", src):
-            v = m.group(2).strip()
-            if 3 <= len(v) <= 48 and not any(ch in v for ch in "<>{}$"):
-                names.add(v.lower())
+        pats = (r"(?<![A-Za-z0-9_])(?:name|n)\s*:\s*(['\"])(.*?)\1",          # name:'X' / n:'X'
+                r"\"(?:name|n)\"\s*:\s*\"(.*?)\"",                            # JSON "name"/"n": "X"
+                r"openDrop\(\s*(['\"])(.*?)\1",                                # v941.2 — RotW tiles (Ars Dul'Mephistos class)
+                r"\"([A-Z][A-Za-z'\- ]{2,40})\"\s*:\s*[\[{]")                 # Title-Case JSON keys (drop-odds/grail seed)
+        for pat in pats:
+            for m in _re.finditer(pat, src):
+                v = (m.group(2) if m.lastindex and m.lastindex >= 2 else m.group(1)).strip()
+                if 3 <= len(v) <= 48 and not any(ch in v for ch in "<>{}$"):
+                    names.add(v.lower())
     except Exception:
         pass
     globals()["_KAI_FULLNAMES"] = names
@@ -1618,7 +1623,11 @@ def _kai_closer_loop():
                     # ── v940 🔬 TOOLTIP LANE: missed frames classed 'tooltip' go to the headless
                     # Item Checker (aicJudge) — cap 4/session, fire-and-forget, receipts land on
                     # /kai_verdict with the frame's own timestamp (ghost-proof).
-                    _tips = [m4 for m4 in missed if str(m4.get("cls") or "") == "tooltip"][:4]
+                    try:
+                        _jcap = max(0, int(os.environ.get("TV_KAI_JUDGE_MAX", "12")))
+                    except Exception:
+                        _jcap = 12
+                    _tips = [m4 for m4 in missed if str(m4.get("cls") or "") == "tooltip"][:_jcap]   # v941.2 — KAI has all night (was 4; 19 tooltips captured last run)
                     for m4 in _tips:
                         if w2 is None or os.environ.get("TV_KAI_JUDGE", "1") == "0":
                             break
