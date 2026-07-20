@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v935"   # LIGHT reader default (screenshot, not record) · AUTO INTAKE · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v935.8"   # exit auto-stops ON AIR · shell tabs · text-eye pin-only
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -594,7 +594,8 @@ def bridge():
 # TV_CAPTURE=full|auto|window — default AUTO: pin D2R.exe game window only.
 # NEVER pin: CrossOver Home UI, Battle.net lobby shell, browsers, TV DIABLO UI.
 # TV_WINDOW_MATCH=extra,comma,tokens  (only used when window/auto)
-_CAP_TARGET = {"mode": "full", "label": "full screen", "wid": None}
+# v935.7 — boot safe: never "full" until a real pin exists (text-eye / film obey this)
+_CAP_TARGET = {"mode": "waiting", "label": "eye arming…", "wid": None}
 
 
 # Owner / title tokens — game process first. Bare "wine" alone is too broad.
@@ -2420,6 +2421,10 @@ _OCR_NOISE = (
     "http", "localhost", "claude", "python", "terminal", "settings", "safari",
     "chrome", "wrangler", "github", "localhost", "127.0.0.1", "subscription",
     "screenshot", "screencapture", "grok", "cursor", "vscode",
+    # v935.7 — console chrome (text-eye burned a Sonnet read on STANDBY/LIVE at boot)
+    "standby", "on air", "off air", "watching", "signal idle", "press on",
+    "live eye", "second eye", "three eyes", "auto intake", "tv diablo",
+    "simulation", "farm day", "last thought",
 )
 
 def filter_ocr_lines(lines):
@@ -2462,10 +2467,11 @@ def _text_eye_loop():
             time.sleep(0.7)
             if globals().get("_AI_PAUSED") or not os.path.isfile(eye):
                 continue
-            # v934.2 (monitor test catch) — NO PIN, NO SCAN: during pin-waiting the boot
-            # transport test / stale eye can hold DESKTOP pixels; the text eye read my own
-            # terminal and burned a Sonnet read on it. Same law as the film lane.
-            if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") not in ("window", "full"):
+            # v934.2 / v935.7 — NO PIN, NO SCAN. Boot default used to be mode="full", so the
+            # text eye OCR'd console chrome (STANDBY / LIVE) and burned a Sonnet read.
+            # Only a real D2R *window* pin is allowed — never full-screen / waiting / none.
+            _cap = _CAP_TARGET or {}
+            if not WATCH_MODE and (_cap.get("mode") != "window" or not _cap.get("wid")):
                 continue
             if (time.time() - os.path.getmtime(eye)) > 3.0:
                 continue   # film cold — nothing fresh under the eye

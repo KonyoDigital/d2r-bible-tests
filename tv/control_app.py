@@ -59,6 +59,9 @@ _stop_inflight = False   # v768 (Grok R2) — a threaded stop/farewell is runnin
 _capture_proc = None  # type: ignore
 _agent_mode = "off"  # off | live | sim
 _log_fp = None
+_EXIT_STOP_DONE = False
+_EXIT_STOP_LOCK = threading.Lock()
+_WINDOW_ONLY = False   # v935.8 — secondary --window-only attach must NOT kill ON AIR
 
 
 def _env_clean(sim=False):
@@ -628,6 +631,48 @@ def _force_kill_all_agents(reason=""):
             "farewell": False, "sessionSaved": True, "bridgeDown": dead, "forced": True}
 
 
+def _console_exit_stop_onair(reason="quit"):
+    """v935.8 — EXIT SAFEGUARD (Konyo: 'exiting the console must stop ON AIR — it's always on').
+
+    Closing the pywebview window used to only `srv.shutdown()` and LEAVE the agent live on
+    :17771 (the banner even said 'agent left as-is'). That orphan kept ON AIR forever.
+    Now every real exit path — window close, atexit, SIGTERM/SIGINT — seals + stops the
+    agent (same as tvd stop /api/stop, farewell OFF so quit is instant). Idempotent.
+    """
+    global _EXIT_STOP_DONE
+    # Secondary --window-only attach: the primary control process owns the agent.
+    if globals().get("_WINDOW_ONLY"):
+        return {"ok": True, "msg": "window-only — primary owns ON AIR", "skipped": True}
+    with _EXIT_STOP_LOCK:
+        if _EXIT_STOP_DONE:
+            return {"ok": True, "msg": "exit stop already ran", "skipped": True}
+        _EXIT_STOP_DONE = True
+    print(f"📺 exit safeguard — stopping ON AIR ({reason})…", flush=True)
+    try:
+        # If nothing is on air, stop_agent is cheap and returns already-off.
+        if not _agent_alive() and _port_listener_pid() is None and _agent_mode == "off":
+            print("   already off — nothing to stop", flush=True)
+            return {"ok": True, "msg": "already off", "farewell": False}
+    except Exception:
+        pass
+    try:
+        r = stop_agent(farewell=False)
+        print(f"   stop_agent → {r.get('msg') or r}", flush=True)
+        # Belt + suspenders: anything still holding :17771 dies now
+        if _port_listener_pid() is not None or _agent_alive():
+            r2 = _force_kill_all_agents(f"exit-safeguard residual ({reason})")
+            print(f"   residual force → {r2.get('msg') or r2}", flush=True)
+            return r2
+        return r
+    except Exception as e:
+        print(f"   stop_agent raised ({e}) — force kill", flush=True)
+        try:
+            return _force_kill_all_agents(f"exit-safeguard ({reason}): {e}")
+        except Exception as e2:
+            print(f"   force kill failed: {e2}", flush=True)
+            return {"ok": False, "msg": str(e2)}
+
+
 def stop_agent(farewell=True):
     """v847/v899 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
     STOP: short farewell (hard-cap ~18s, was 95s). OFF: seal only. Then hard-kill orphans.
@@ -1019,6 +1064,22 @@ def open_control_window():
             background_color="#070605",
         )
 
+    # v935.8 — window closed → stop ON AIR (events fire before webview.start returns on most backends)
+    try:
+        win = globals().get("_MAIN_WIN")
+        if win is not None and hasattr(win, "events"):
+            def _on_win_closed():
+                _console_exit_stop_onair("window-closed")
+            try:
+                win.events.closed += _on_win_closed
+            except Exception:
+                try:
+                    win.events.closing += lambda: _console_exit_stop_onair("window-closing")
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     # v928→v931 ONE SYSTEM (Konyo: "put it inside the console — better architecture") —
     # the tally/vault/chronicle engines live ONLY in bible.html JS. v928's second window
     # and v930's mini tile are DEAD: the engine is now an invisible same-origin iframe
@@ -1046,6 +1107,8 @@ def open_control_window():
     except Exception as e:
         print(f"⚠ pywebview failed ({e}) — browser fallback")
         _open_browser_app_fallback(url)
+    # webview.start() returns when the user closes the window — always stop ON AIR
+    _console_exit_stop_onair("webview-returned")
 
 
 def _ejs(w, code, timeout=4.0):
@@ -1568,7 +1631,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v935",
+        "ver": "v935.8",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
@@ -1627,7 +1690,7 @@ def _bible_ver():
         with open(os.path.join(REPO, "bible.html"), encoding="utf-8") as f:
             for line in f:
                 if "window.D2R_BUILD" in line:
-                    m = re.search(r"id:'(v\d+)'", line)
+                    m = re.search(r"id:'(v[\d.]+)'", line)
                     if m:
                         v = m.group(1)
                         break   # v816.1 — first MATCHING line, not first mention
@@ -1641,7 +1704,7 @@ def _app_ver():
     """Doctor's ver mirrors status_payload's stamp (parity-locked to tv_diablo.VERSION)
     so it can never drift from the ship tag — read the literal, spawn nothing."""
     try:
-        m = re.search(r'"ver": "(v\d+)"', inspect.getsource(status_payload))
+        m = re.search(r'"ver": "(v[\d.]+)"', inspect.getsource(status_payload))
         return m.group(1) if m else "v?"
     except Exception:
         return "v?"
@@ -1693,9 +1756,9 @@ def farmgate_payload():
         vr = status_payload().get("ver")
     except Exception:
         vr = None
-    vc = _stamp(os.path.abspath(__file__), r'"ver": "(v\d+)"')
-    va = _stamp(os.path.join(here, "tv_diablo.py"), r'VERSION = "(v\d+)"')
-    vb = _stamp(os.path.join(os.path.dirname(here), "bible.html"), r"id:'(v\d+)'")
+    vc = _stamp(os.path.abspath(__file__), r'"ver": "(v[\d.]+)"')
+    va = _stamp(os.path.join(here, "tv_diablo.py"), r'VERSION = "(v[\d.]+)"')
+    vb = _stamp(os.path.join(os.path.dirname(here), "bible.html"), r"id:'(v[\d.]+)'")
     vers = {"running": vr, "control": vc, "agent": va, "board": vb}
     same = vr is not None and vr == vc == va == vb
     fix1 = ("RESTART the console app (running %s, disk %s)" % (vr, vc)) if (vr and vc and vr != vc)         else "git pull, restart the console app, and ⌘⇧R any open site tab (stale ?cb= kills nights)"
@@ -3005,6 +3068,8 @@ def main():
     window_only = "--window-only" in sys.argv
 
     if window_only:
+        # Secondary attach: do NOT kill ON AIR when this window closes (primary owns it).
+        globals()["_WINDOW_ONLY"] = True
         open_control_window()
         return
 
@@ -3030,11 +3095,42 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v927 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
-    print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
+    print(f"📺 TV DIABLO Control v935.8 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/", flush=True)
+    print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}", flush=True)
     if IS_WIN:
-        print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
-    print("   close the app window to quit control (agent left as-is unless you STOP).")
+        print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch", flush=True)
+    print("   close the app window → auto-stops ON AIR (exit safeguard · same as tvd stop).", flush=True)
+
+    # v935.8 — reclaim orphans left by a prior crash/close (the "always on" feeling)
+    try:
+        if _port_listener_pid() is not None or _agent_alive():
+            print("📺 reclaiming orphan ON AIR from a previous session…", flush=True)
+            _force_kill_all_agents("boot-orphan-reclaim")
+    except Exception as _oe:
+        print(f"⚠ orphan reclaim skipped: {_oe}", flush=True)
+
+    # v935.8 — process-level safeguards (window path also wired in open_control_window)
+    import atexit
+    atexit.register(lambda: _console_exit_stop_onair("atexit"))
+
+    def _sig_exit(signum, _frame):
+        try:
+            name = signal.Signals(signum).name
+        except Exception:
+            name = str(signum)
+        _console_exit_stop_onair("signal-%s" % name)
+        try:
+            srv.shutdown()
+        except Exception:
+            pass
+        # 0 = clean; avoid re-entrant signal handlers looping
+        os._exit(0)
+
+    try:
+        signal.signal(signal.SIGTERM, _sig_exit)
+        signal.signal(signal.SIGINT, _sig_exit)
+    except Exception:
+        pass
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
@@ -3043,8 +3139,9 @@ def main():
     time.sleep(0.2)
 
     if open_ui and not no_open:
-        # Blocks until the native window is closed
+        # Blocks until the native window is closed; open_control_window stops ON AIR on return
         open_control_window()
+        _console_exit_stop_onair("main-after-window")
         try:
             srv.shutdown()
         except Exception:
@@ -3056,9 +3153,8 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print(
-            "\n📺 control UI server stopping (agent left as-is — use STOP in the app)."
-        )
+        print("\n📺 control UI server stopping — exit safeguard cuts ON AIR.")
+        _console_exit_stop_onair("keyboard-interrupt")
         srv.shutdown()
 
 

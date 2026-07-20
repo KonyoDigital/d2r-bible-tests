@@ -223,7 +223,7 @@ class TestVersionTruth(unittest.TestCase):
         import tv_diablo as tvmod
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
             src = f.read()
-        m = re.search(r'"ver": "(v\d+)"', src)
+        m = re.search(r'"ver": "(v[\d.]+)"', src)
         self.assertIsNotNone(m)
         self.assertEqual(m.group(1), tvmod.VERSION)
 
@@ -352,7 +352,7 @@ class TestTripleParity(unittest.TestCase):
         with open(bib, encoding="utf-8") as f:
             for line in f:
                 if "window.D2R_BUILD" in line:
-                    m = re.search(r"id:'(v\d+)'", line)
+                    m = re.search(r"id:'(v[\d.]+)'", line)
                     if m:
                         v = m.group(1)
                         break   # v816.1 — keep scanning past bare mentions until the stamp line

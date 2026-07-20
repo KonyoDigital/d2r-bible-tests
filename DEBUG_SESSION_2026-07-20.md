@@ -1,5 +1,7 @@
-# 🔍 DEBUG SESSION DOSSIER — 2026-07-20 (v927.1 → v935.3, "WindowServer crash" → "The Shell")
-_For Konyo's side-debug with SuperGrok. Every ship: symptom → root cause → fix → how to verify. One day, one arc, ~30 versions. All pushed to main; tv suites (36 control + 154 agent) green on every push; Routine I = CI verdict._
+# 🔍 DEBUG SESSION DOSSIER — 2026-07-20 (v927.1 → v935.8, "WindowServer crash" → "The Shell" → SuperGrok return)
+_For Konyo's side-debug with SuperGrok (morning Claude leg). Every ship: symptom → root cause → fix → how to verify. One day, one arc. All pushed to main; tv suites green on every push; Routine I = CI verdict._
+
+> **SuperGrok RETURN leg (evening):** see **`DEBUG_SESSION_2026-07-20_SUPERGROK_RETURN.md`** — shell tabs P0, text-eye chrome burn, exit-ON-AIR forever, Routine R/T heal. Claude: start there for the ping-pong.
 
 ## Part 1 — The crash recovery (v927.1–v927.5)
 | Ship | Symptom | Root cause | Fix | Verify |
@@ -41,6 +43,11 @@ _For Konyo's side-debug with SuperGrok. Every ship: symptom → root cause → f
 | v935.1 | 🔴🔵🧠 signal panel humanized: THREE EYES badges w/ plain words; BRIDGE→Signal·connected, CAPTURE→Watching·"Diablo II window", LAST READ→Last thought, MODEL→footer; dark/seal/bridge/gate in a closed ⚙ drawer | Look at the right panel |
 | v935.2 | **THE VANISHING TALLIES (P0)**: receipts POSTed to the agent bridge, which DIES at END SESSION — any tally finishing after seal lost its receipt forever (driver proved fired=1, journaled=0). Fix: control-side `/intake_result` (always alive, ±5min dedupe) + board dual-post fallback. PLUS 🚨 Watchdog v1 (tally tab visited ⇒ receipt must exist, else red beat) + KAI vocab grounded in 1,211 real item tokens (Windforce keeps, WARRIV dies) | Seal mid-tally → receipt still journals |
 | v935.3 | ⏱ REAL means real: stale CUT/FULL skim-speed multiplier persisted into REAL mode (axis was always wall-true) — entering REAL pins 1× | 6-min session plays ~6 min |
+| v935.4 | Grok seal-verdict P0: driver confirms receipts from the JOURNAL too (bridge dies at seal; post-seal control `/intake_result` was invisible → wedged queue) | Seal mid-tally → journaled ✓ |
+| v935.5 | ONE SHELL layout: pane under persistent header (intent) | Tabs stay visible above board |
+| **v935.6** | **TABS DEAD FIX (P0)**: root cause = `.shell {z-index:1}` stacking context trapped header UNDER fixed `#tvd-eng` (z-index 940) so clicks never hit `.ht`; engine iframe also lacked `?app=1` so `switchTab`/app-ctx never armed. Fix: fixed topbar @ z 960 on shell-open, pane sized under header, iframe `?app=1&engine=1#session`, route retry until `switchTab` ready, hide duplicate board tab rail in engine-driven pane | Click 🔨 Forge → board pane under header, gold active tab, esc/⌂/TV·D returns to console; Sessions/F·Uniques/F·Sets/Tools same |
+| **v935.7** | **Text-eye chrome burn**: boot `_CAP_TARGET` was `full`, so text-eye OCR'd console STANDBY/LIVE and spent a Sonnet read. Fix: boot `waiting`, text-eye requires `mode=window` + `wid`, OCR noise list includes console chrome; early `engine-driven` body class | Boot ON AIR with no D2R → zero text-eye priority reads |
+| **v935.8** | **Exit left ON AIR forever (P0)**: closing the console only `srv.shutdown()` — banner said "agent left as-is". Agent stayed live on :17771. Fix: `_console_exit_stop_onair` on window closed / webview return / atexit / SIGTERM/SIGINT — same as `tvd stop` (farewell off, seal + kill). Idempotent; `--window-only` skipped | Close console while ON AIR → agent dead, `:17771` free, log says `exit safeguard — stopping ON AIR` |
 
 ## Standing architecture (for SuperGrok context)
 - **Three eyes + funnel doctrine**: 🔴 live (text-triggered) → 🔵 trailing verify → 🧠 KAI sweep → 📸 KAI v2 = frames chauffeured through the LOCKED vault/tally/item-checker pipeline (never a new reader). Spec: `tv/PLAN_ONE_SYSTEM.md`.

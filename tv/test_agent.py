@@ -887,7 +887,7 @@ class TestReplay(unittest.TestCase):
 
     def test_tesla_drive_film_and_gaps(self):
         """v901 — Auto Intake defaults: gentle settle gap, 1 Claude, Robot frozen."""
-        self.assertRegex(tv.VERSION, r"^v\d+")
+        self.assertRegex(tv.VERSION, r"^v\d+")  # major; dots ok (v935.6)
         self.assertFalse(tv.ROBOT_MODE, "Robot must be frozen by default")
         self.assertEqual(tv.POOL_N, 1, "Auto Intake uses one Claude worker")
         self.assertLessEqual(tv.MIN_GAP_S, 5.0)

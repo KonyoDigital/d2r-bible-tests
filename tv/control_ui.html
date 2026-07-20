@@ -1192,7 +1192,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v935 control</span>
+      <span id="foot-ver">v935.8 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -2796,27 +2796,63 @@
   // v911.1 — bfcache restore must never leave the shell invisible
   window.addEventListener('pageshow', function(){ try { document.body.classList.remove('gliding'); } catch(e){} });
   // ══ v935 THE SHELL (Konyo: "one shell seamless app — toggle-free between the top tabs")
-  // No more page navigation: the board iframe (#tvd-eng — already loaded, same-origin,
-  // doubles as the engine) PROMOTES to a full-window pane on a board tab, and shrinks back
-  // to 2px engine mode on TV·D/⌂. Console state and board state both live forever. R1: the
-  // TV·D tab IS this console (v901 doctrine) — it never navigates anywhere again.
-  function shellOpen(tab){
-    var f = document.getElementById('tvd-eng');
-    if (!f || !f.contentWindow){ _glide('/board?app=1#' + encodeURIComponent(tab)); return; }
+  // No page navigation: #tvd-eng (same-origin board+engine) PROMOTES under the fixed header.
+  // v935.6 — stacking fix: .shell {z-index:1} trapped the tabs UNDER the fixed iframe
+  // (z-index 940). Header is now position:fixed @ 960 on shell-open so tabs stay clickable.
+  // Board loads ?app=1&engine=1 so switchTab + app-ctx styles work inside the pane.
+  var _shellTab = 'tvd';
+  var _shellRouteTimer = null;
+  function _shellHeadH(){
     try {
-      if (typeof f.contentWindow.switchTab === 'function') f.contentWindow.switchTab(tab);
-      f.contentWindow.location.hash = '#' + tab;
+      var tb = document.querySelector('.topbar');
+      if (tb) return Math.max(56, Math.ceil(tb.getBoundingClientRect().height));
     } catch(e){}
-    // v935.5 (Konyo: "tabs aren't moving freely — we said ONE shell") — the pane lives
-    // UNDER the persistent header: top tabs stay visible + clickable, panes swap
-    // instantly under them, active tab lit. No pill round-trips.
+    return 72;
+  }
+  function _shellSizePane(){
+    var f = document.getElementById('tvd-eng'); if (!f) return;
+    var h = _shellHeadH();
+    f.style.top = h + 'px';
+    f.style.height = 'calc(100vh - ' + h + 'px)';
+    f.style.left = '0';
+    f.style.width = '100vw';
+    f.style.bottom = 'auto';
+  }
+  function _shellRoute(tab){
+    var f = document.getElementById('tvd-eng'); if (!f) return false;
     try {
-      var hb = document.getElementById('head-tabs').getBoundingClientRect().bottom + 8;
-      f.style.top = hb + 'px'; f.style.height = 'calc(100vh - ' + hb + 'px)';
-    } catch(e){ f.style.top = '76px'; f.style.height = 'calc(100vh - 76px)'; }
+      var w = f.contentWindow;
+      if (!w || !w.document) return false;
+      if (typeof w.switchTab === 'function'){
+        w.switchTab(tab);
+        return true;
+      }
+      // board still booting — stamp hash so hash router picks it up when ready
+      try { w.history.replaceState(null, '', '#' + tab); } catch(e){
+        try { w.location.hash = '#' + tab; } catch(e2){}
+      }
+      return false;
+    } catch(e){ return false; }
+  }
+  function shellOpen(tab){
+    tab = tab || 'session';
+    _shellTab = tab;
+    var f = document.getElementById('tvd-eng');
+    if (!f){ _glide('/board?app=1#' + encodeURIComponent(tab)); return; }
     document.body.classList.add('shell-open');
+    _shellSizePane();
     _shellLight(tab);
     var hp = document.getElementById('shell-home'); if (hp) hp.hidden = false;
+    if (_shellRoute(tab)) return;
+    // retry until switchTab exists (engine iframe boots bible JS async)
+    if (_shellRouteTimer) clearInterval(_shellRouteTimer);
+    var n = 0;
+    _shellRouteTimer = setInterval(function(){
+      n++;
+      if (_shellRoute(tab) || n > 50){
+        clearInterval(_shellRouteTimer); _shellRouteTimer = null;
+      }
+    }, 80);
   }
   function _shellLight(tab){
     try {
@@ -2827,25 +2863,37 @@
   }
   function shellHome(){
     document.body.classList.remove('shell-open');
+    _shellTab = 'tvd';
     _shellLight('tvd');
+    if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
     var f = document.getElementById('tvd-eng');
-    if (f){ f.style.top = ''; f.style.height = ''; }
+    if (f){
+      f.style.top = ''; f.style.height = ''; f.style.left = '';
+      f.style.width = ''; f.style.bottom = '';
+    }
     var hp = document.getElementById('shell-home'); if (hp) hp.hidden = true;
   }
   window._shellHome = shellHome;
+  window._shellOpen = shellOpen;
+  window.addEventListener('resize', function(){
+    if (document.body.classList.contains('shell-open')) _shellSizePane();
+  });
   if (_ht) _ht.addEventListener('click', function(e){
     var b = e.target.closest('.ht'); if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
     if (b.dataset.tab === 'tvd'){ shellHome(); return; }   // TV·D = HOME = this console
     shellOpen(b.dataset.tab);
   });
   var _brl = document.getElementById('bible-rail');
   if (_brl) _brl.addEventListener('click', function(e){
     var b = e.target.closest('.brl'); if (!b) return;
+    e.preventDefault();
     shellOpen(b.dataset.tab);
   });
   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape' && document.body.classList.contains('shell-open')){
-      var th2 = document.getElementById('tvd-frame-lb');   // lightboxes outrank the shell
+      e.preventDefault();
       e.stopPropagation(); shellHome();
     }
   }, true);
@@ -3148,22 +3196,59 @@
      architecture") — the auto-tally ENGINE is an invisible same-origin iframe INSIDE the
      console. Its JS stays alive because the host window is always visible; the control
      driver reaches it via contentWindow. The second pywebview window is gone. -->
-<iframe id="tvd-eng" src="/board?engine=1#tvd-engine" title="TVD engine + shell pane"
+<iframe id="tvd-eng" src="/board?app=1&engine=1#session" title="TVD engine + shell pane"
         style="position:fixed; left:0; bottom:0; width:2px; height:2px; opacity:0;
                pointer-events:none; border:0; z-index:-1" loading="eager"></iframe>
 <button id="shell-home" hidden onclick="window._shellHome()"
-        style="position:fixed; bottom:12px; left:12px; z-index:960; cursor:pointer;
+        style="position:fixed; bottom:12px; left:12px; z-index:970; cursor:pointer;
                background:rgba(10,8,5,.92); color:#f0c060; border:1px solid rgba(240,192,96,.5);
                border-radius:999px; padding:8px 16px; font:700 12px/1 ui-monospace,monospace;
                letter-spacing:.1em; box-shadow:0 0 18px rgba(240,192,96,.25)">⌂ CONSOLE · esc</button>
 <style>
-/* v935 THE SHELL — board pane promotion (same iframe as the engine; state never resets) */
-body.shell-open #tvd-eng { left:0; bottom:auto; width:100vw;
-  opacity:1; pointer-events:auto; z-index:940; background:#070605;
-  border-top:1px solid rgba(240,192,96,.28); }
-body.shell-open .head-tabs, body.shell-open #head-tabs { position:relative; z-index:952; }
-#head-tabs .ht.shell-on { color:#f0c060; border-color:rgba(240,192,96,.65);
-  box-shadow:0 0 10px rgba(240,192,96,.25); opacity:1 !important; }
+/* v935.6 THE SHELL — board pane under a FIXED header (tabs always above the iframe) */
+body.shell-open .topbar {
+  position: fixed !important;
+  top: 0; left: 0; right: 0;
+  z-index: 960 !important;
+  background: linear-gradient(180deg, #120e09 0%, #0a0806 100%);
+  border-bottom: 1px solid rgba(240,192,96,.28);
+  padding: 10px clamp(12px, 1.7vw, 28px);
+  box-shadow: 0 10px 32px rgba(0,0,0,.55);
+  pointer-events: auto !important;
+}
+body.shell-open #tvd-eng {
+  position: fixed !important;
+  left: 0 !important; right: 0 !important; bottom: 0 !important;
+  width: 100vw !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 940 !important;
+  background: #070605;
+  border-top: 1px solid rgba(240,192,96,.28);
+}
+body.shell-open .head-tabs,
+body.shell-open #head-tabs {
+  position: relative !important;
+  z-index: 961 !important;
+  pointer-events: auto !important;
+}
+body.shell-open #head-tabs .ht {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative;
+  z-index: 2;
+}
+#head-tabs .ht.shell-on {
+  color: #f0c060;
+  border-color: rgba(240,192,96,.65);
+  box-shadow: 0 0 10px rgba(240,192,96,.25);
+  opacity: 1 !important;
+}
+/* dim the rest of the console under the board so nothing steals clicks */
+body.shell-open .shell > :not(.topbar) {
+  visibility: hidden;
+}
+body.shell-open .topbar { visibility: visible !important; }
 </style>
 </body>
 </html>

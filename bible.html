@@ -4317,6 +4317,12 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:.08em}
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
+/* v935.6 — engine pane inside the console shell: console header owns the tab rail.
+   Hide the board's duplicate sticky tabs + CONSOLE pill (host shell has ⌂ CONSOLE · esc). */
+body.app-ctx.engine-driven .tabs{display:none !important}
+body.app-ctx.engine-driven #tvf-console-return,
+body.app-ctx.engine-driven .tvf-console-pill{display:none !important}
+body.app-ctx.engine-driven .header{padding:2px 10px 0}
 /* v904 — the TV·D toggle is SMOOTH: content fades in, and a return pill floats home */
 body.app-ctx .tab-content.active{animation:tvdFadeIn .24s ease !important}   /* v905/v908 (Grok P2) — ONE animation in the console: the legacy tab-in dual-fire caused blank flashes on heavy walls */
 body.app-ctx{animation:tvdFadeIn .3s ease}   /* v911 — the board breathes in on arrival: one continuous motion with the console glide */
@@ -33598,7 +33604,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v935', name:'The Shell', date:'2026-07-20', note:'v930 ONE SYSTEM: the app drives the whole chain hands-free — permanent engine tile fires the locked rune/gem/material auto-tally (control-side driver, per-tab-per-visit), TALLY ENGINE drilldown shows every shot with counts + the photo, 1fps footage reel restored for the SIM retro, capture lanes hard-require a D2R window pin (never the desktop), and replays render with the agent off.' };
+  window.D2R_BUILD = { id:'v935.8', name:'The Shell', date:'2026-07-20', note:'v935.8: close console → auto tvd-stop ON AIR (exit safeguard). Shell tabs + text-eye pin-only + ONE SYSTEM intact.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33629,8 +33635,16 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 // tab (8686) and file:// carry no ?app=1 flag, so they never see it. Click returns to the console ('/').
 (function(){
   function appCtx(){ try { return new URLSearchParams(location.search).get('app') === '1'; } catch(e){ return false; } }
+  function engineDriven(){ try { return new URLSearchParams(location.search).get('engine') === '1'; } catch(e){ return false; } }
+  // v935.6/7 — stamp body classes ASAP (before late TV receiver IIFE) so shell CSS applies
+  try {
+    if (appCtx()) document.body.classList.add('app-ctx');
+    if (engineDriven()) document.body.classList.add('engine-driven');
+  } catch(e){}
   function pill(){
     if (!appCtx() || document.getElementById('tvf-console-return')) return;
+    // engine pane inside the console shell already has ⌂ CONSOLE · esc — no duplicate pill
+    if (engineDriven()) return;
     document.body.classList.add('app-ctx');
     var b = document.createElement('button');
     b.type = 'button';
@@ -33667,6 +33681,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // process (evaluate_js fires tvStashAutoIntake directly). Its own read-poll trigger
   // stays quiet so driver+page never double-arm. User-opened boards keep self-arming.
   var ENGINE_DRIVEN = /[?&]engine=1/.test(location.search || '');
+  // v935.6 — mark engine-driven so CSS can hide the duplicate board tab rail when this
+  // document is the shell's #tvd-eng pane (console header is the one clickable rail).
+  try { if (ENGINE_DRIVEN) document.body.classList.add('engine-driven'); } catch(e){}
   var _lastBeatPhase='watching';   // v747 — the NOW ON AIR stage reads this to show its READING… state
   // v734 — stash-tab auto-intake: once per visit per tally tab (runes/gems/materials)
   var _stashVisitDone = {};   // tab → true for current open-stash visit
