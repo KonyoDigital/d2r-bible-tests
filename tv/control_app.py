@@ -1367,7 +1367,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v930",
+        "ver": "v934",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
