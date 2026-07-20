@@ -3398,7 +3398,12 @@ def main():
                 ev("skip", f"ocr warm error: {e}")
         threading.Thread(target=_warm_ocr, daemon=True).start()
     else:
-        ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
+        # v927.2 — say WHY the fast lane is off: the v925 LIGHT default disables it even
+        # when the binary exists (chased as a phantom "never compiled" for days).
+        if not OCR_ENABLED:
+            ev("skip", "ocr lane off (LIGHT default) — set TV_OCR=1 to arm the fast lane")
+        else:
+            ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
 
     frame = os.path.join(FRAMES, "live.bmp")
     # v870 — last_read_t starts NOW, not 0: the heartbeat's `and last_read_t` guard meant a

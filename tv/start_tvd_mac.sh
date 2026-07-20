@@ -9,6 +9,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/Library/Pyt
 # user-site packages (pywebview) for system python3
 export PYTHONPATH="${PYTHONPATH:-}"
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
+# v927.2 — arm the local Vision OCR fast lane (v925 LIGHT default ships it off;
+# tv/bin/ocr_mac exists and reads a frame in ~10-50ms warm vs ~10s Sonnet-only)
+export TV_OCR="${TV_OCR:-1}"
 
 # ── TCC SAFEGUARD (2026-07-20 WindowServer-crash lesson) ────────────────────
 # Finder/double-click launches capture wallpaper-only: the wrapper .app is
