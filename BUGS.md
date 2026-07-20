@@ -681,3 +681,15 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause:** macOS occlusion fully suspends off-screen WKWebViews — JS timers stop and evaluate_js never returns (pywebview has no timeout).
 - **Fix:** v930/v930.2 — ON-SCREEN mini engine tile + control-side driver with _ejs() hard-timeout, backlog-skipping cursor, fire-and-forget JS, probe leak guard, single intake owner (?engine=1 mutes the page's own trigger).
 - **Prevention:** never park a WebView off-screen and expect it to compute; wrap every evaluate_js in a timeout; lamps must probe, not read stamps.
+
+## REG-034 — vanishing tally receipts at session end (2026-07-20)
+- **Symptom:** tallies fired and counted, but "TALLIES · synced" stayed 0 for shots finishing after END SESSION; driver telemetry proved fired=1, journaled=0.
+- **Root cause:** receipts POSTed only to the agent bridge (:17771), which dies at seal — a 60-90s intake finishing post-seal hit a dead port; board .catch swallowed it.
+- **Fix:** v935.2/.4 — control-side /intake_result (always alive, dedupe) + board dual-post fallback + driver confirms from the journal, not just the bridge.
+- **Prevention:** any receipt/callback lane must have a listener that OUTLIVES the sender; confirm from durable storage, not live sockets.
+
+## REG-035 — REAL replay "way too fast" (2026-07-20)
+- **Symptom:** ⏱ REAL at 1× compressed a 2.5-min Baal run into ~38s.
+- **Root cause:** CUT/FULL skim-speed multiplier latched via __speedTouched persisted into REAL; the axis was always wall-true; the @speed readout was hidden in real mode so the stale 4× went unseen.
+- **Fix:** v935.3 — entering REAL (toggle or session load) pins 1×.
+- **Prevention:** mode switches must re-pin every pacing input they redefine; never hide an active multiplier's readout.
