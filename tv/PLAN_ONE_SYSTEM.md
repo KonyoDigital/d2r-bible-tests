@@ -17,6 +17,13 @@ _Konyo's order, 2026-07-20 live session: "i want this a one system working app..
 3. **CHRONICLE visual sync.** Every intake/vault/read beat should land in the Chronicle surfaces visually (chips/cards), cross-referenced to frames — "everything synced properly and showing visually". Audit which beats currently reach the Chronicle vs die in per-surface stores.
 4. **WATCHING = eye badge, not a curtain.** control_ui home: kill the full-screen WATCHING/HOLD/OFF splash while a session is live; keep the recent-frames slideshow (last good frames) with a small pulsing 👁 badge + one-line status. Splash only when there are genuinely no frames (fresh boot / true dormant).
 
+## Grok third-eye round 1 (2026-07-20 eve) — deferred items for the arc
+- **P0 (deferred, bounded):** engine window + a user-opened board can BOTH fire auto-intake (per-document `_stashVisitDone`/`_stashShutter`). SET semantics keep counts convergent, but it double-spends AI calls and double-journals shots. Fix = cross-document intake LEASE (bridge `/intake_claim` or shared-LS lock) — bible.html edit, EDIT_LOCK protocol.
+- Funnel (±1 live vault) tallies live only in board LS (`d2r_tvdTallyLog`) — not in the journal, so not in the TALLY ENGINE drilldown. Treasury unification should journal funnel events through the bridge too.
+- Engine liveness is lamp-only (`d2r_tvdOn` stamp). Real heartbeat: engine posts a beat to control every 30s; control alarms when silent + auto-respawns the window.
+- WebKit persistent store now grows forever; needs a retention story. Also `#tvd-engine` hash is normalized away by the board — harmless today, but an explicit engine mode flag would let the board mute its own UI work off-screen.
+- film-held cold-start: with no frame yet this session the stage still falls to the big word (correct today; revisit if Konyo wants last-SESSION's frame).
+
 ## Guardrails
 - 🔒 INTAKE LOCKED (d2r_intake_LOCKED.md): the vision/crop pipeline is untouchable — only supply frames to it.
 - bible.html EDIT_LOCK protocol before any board edit.

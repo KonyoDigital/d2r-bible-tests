@@ -1042,6 +1042,7 @@ def open_control_window():
         webview.start(debug=False, private_mode=False)
     except TypeError:
         # older pywebview without private_mode — ephemeral storage beats no window
+        print("⚠ pywebview too old for private_mode=False — board storage is EPHEMERAL this run (tallies/grail reset on quit); pip install -U pywebview")
         try:
             webview.start(debug=False)
         except Exception as e:
@@ -1941,6 +1942,32 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
             return
+        if path == "/api/tallies":
+            # v929 (Konyo: "I want to see what EXACTLY was tallied — RUNES for runes, GEMS
+            # for gems, MATERIALS for materials") — every intake shot from the journal,
+            # newest first, with per-key counts + the frame photo it was counted from.
+            try:
+                shots = []
+                for r in self._load_journal_cached():
+                    ik = r.get("intake")
+                    if not isinstance(ik, dict):
+                        continue
+                    shots.append({
+                        "ts": r.get("ts") or r.get("captureTs") or 0,
+                        "tab": ik.get("tab") or ik.get("kind") or "",
+                        "kind": ik.get("kind") or "",
+                        "ok": bool(ik.get("ok", True)),
+                        "counts": ik.get("counts") if isinstance(ik.get("counts"), dict) else {},
+                        "total": int(ik.get("total") or 0),
+                        "errors": int(ik.get("errors") or 0),
+                        "frameId": r.get("frameId") or "",
+                        "sessionId": r.get("sessionId") or "",
+                    })
+                shots.sort(key=lambda s: s["ts"], reverse=True)
+                self._json(200, {"ok": True, "shots": shots[:200]})
+            except Exception as e:
+                self._json(200, {"ok": False, "msg": str(e)[:160], "shots": []})
+            return
         if path.startswith("/api/beat"):
             # v879 (Grok B) — the READ CARD's forensic blob, one beat at a time
             try:
@@ -1989,13 +2016,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/hist/"):
             self._serve_hist(path[len("/hist/"):])
-            return
-        if path.startswith("/tv/frames/hist/"):
-            # v928.1 — the bible board's frame FALLBACK asks for this exact relative path
-            # (lightbox/theatre: bridge → 'tv/frames/hist/<id>.jpg'). With the agent off the
-            # bridge is gone, and this path 404'd here — replays showed "frame missing" over
-            # a full archive. Serve it from the same hist store.
-            self._serve_hist(path[len("/tv/frames/hist/"):])
             return
         if path == "/api/log":
             try:

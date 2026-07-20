@@ -861,6 +861,42 @@
   .hd-chip { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; font: 600 11px/1.3 var(--mono); color: #d9c9a0; background: rgba(0,0,0,.35); }
   .hd-chip.now { border-color: rgba(143,230,160,.5); color: var(--mint); box-shadow: 0 0 10px rgba(143,230,160,.12); }
   .hd-chip.step { border-color: rgba(240,192,96,.4); }
+  /* ══ v929 — 🧰 TALLY ENGINE drilldown (Konyo: "see what EXACTLY was tallied · flagship") ══ */
+  .hd-chip.tly-btn { cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+  .hd-chip.tly-btn:hover { border-color: var(--gold); box-shadow: 0 0 12px rgba(240,192,96,.25); color: var(--gold); }
+  #tly-ov { position: fixed; inset: 0; z-index: 900; background: rgba(4,3,2,.82); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; }
+  #tly-ov[hidden] { display: none; }
+  .tly-panel { width: min(880px, 94vw); max-height: 86vh; display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #14100a, #0b0805); border: 1px solid rgba(240,192,96,.4);
+    border-radius: 14px; box-shadow: 0 0 60px rgba(240,192,96,.14), 0 30px 80px rgba(0,0,0,.7); overflow: hidden; }
+  .tly-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+    border-bottom: 1px solid rgba(240,192,96,.22); }
+  .tly-head b { font: 700 14px/1 var(--mono); letter-spacing: .14em; color: var(--gold); }
+  .tly-head span { font: 500 11px/1.3 var(--mono); color: #a5906a; letter-spacing: .06em; }
+  .tly-x { margin-left: auto; cursor: pointer; border: 1px solid var(--edge); border-radius: 8px;
+    background: rgba(0,0,0,.4); color: #d9c9a0; font: 700 12px/1 var(--mono); padding: 8px 12px; }
+  .tly-x:hover { border-color: var(--gold); color: var(--gold); }
+  .tly-tabs { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid rgba(240,192,96,.14); }
+  .tly-tab { cursor: pointer; border: 1px solid var(--edge); border-radius: 999px; padding: 7px 14px;
+    font: 700 11px/1 var(--mono); letter-spacing: .1em; color: #bfa878; background: rgba(0,0,0,.35); }
+  .tly-tab.on { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 12px rgba(240,192,96,.2); background: rgba(60,45,18,.35); }
+  .tly-list { overflow-y: auto; padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .tly-shot { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start;
+    border: 1px solid rgba(240,192,96,.18); border-radius: 12px; padding: 12px; background: rgba(0,0,0,.32); }
+  .tly-shot .tsh { width: 96px; height: 60px; object-fit: cover; border-radius: 8px; cursor: zoom-in;
+    border: 1px solid rgba(240,192,96,.3); background: #000; }
+  .tly-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .tly-meta b { font: 700 12px/1.2 var(--mono); color: var(--gold); letter-spacing: .1em; }
+  .tly-meta i { font: 500 10px/1.2 var(--mono); color: #8d7a58; font-style: normal; }
+  .tly-meta .tot { font: 700 11px/1 var(--mono); color: var(--mint); }
+  .tly-meta .err { color: #ff9a7a; }
+  .tly-counts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tly-k { border: 1px solid rgba(240,192,96,.24); border-radius: 7px; padding: 4px 8px;
+    font: 600 11px/1 var(--mono); color: #e8d7ae; background: rgba(30,22,10,.5); }
+  .tly-k b { color: var(--gold); }
+  .tly-empty { text-align: center; padding: 44px 20px; font: 500 12px/1.8 var(--mono); color: #a5906a; }
+  .tly-empty b { color: var(--gold); }
   .hd-chip.intk { border-color: rgba(185,165,255,.5); color: #cbbcff; }
   .hd-empty { opacity: .4; font: 400 11px/1.4 var(--mono); }
   .hd-engines { min-height: 0; padding: 10px 14px; }
@@ -1367,7 +1403,13 @@
         // real frame stays up, dimmed (film-held), with the 👁 chip + fault banner telling
         // the truth. The big word only returns when this session never had a frame at all.
         // (v785 honesty kept: film-held is visibly NOT live — dimmed, desaturated, labeled.)
-        if (film.__url) { document.body.classList.add('film-held'); }
+        if (film.__url) {
+          document.body.classList.add('film-held');
+          // v929.1 (Grok #5) — the held still is LABELED with its age: never a fresh-looking
+          // lie. The chip carries the truth right on the frame.
+          var _scp = $('sc-phase');
+          if (_scp && st.eyeAgeMs >= 0) _scp.textContent = 'HELD · last frame ' + Math.round(st.eyeAgeMs / 1000) + 's old';
+        }
         else { document.body.classList.remove('film-on'); }
       } else if (on && state !== 'sim') {
         document.body.classList.remove('film-held');
@@ -2793,7 +2835,12 @@
         '<span class="hd-chip intk">📸 INTAKE · ' + ((st && st.intakeRing) || []).length + ' recent</span>',
         (function(){ var c9 = fs && fs.chron; var _n9 = (fs && fs.counts && fs.counts.now) || 0, _o9 = (fs && fs.counts && fs.counts.onestep) || 0;
           return '<span class="hd-chip step">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
-        '<span class="hd-chip">🧰 TALLIES · ' + led.length + ' synced</span>',
+        '<span class="hd-chip tly-btn" onclick="window._tlyOpen()" title="open the TALLY ENGINE — every shot, every count">🧰 TALLIES · '
+          + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>',
+        /* v929.1 (Grok #4) — engine lamp: the off-screen board stamps d2r_tvdOn on bridge
+           connect (shared persistent store since v928); a dead engine shows plainly here */
+        '<span class="hd-chip ' + (localStorage.getItem('d2r_tvdOn') === '1' ? 'now' : 'warn') + '">🔌 ENGINE · '
+          + (localStorage.getItem('d2r_tvdOn') === '1' ? 'linked' : 'not armed') + '</span>',
         (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm">🏆 GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
         (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm">🧩 SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
         '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
@@ -2822,6 +2869,80 @@
     } catch(e){}
   }
   function hdRefresh(st){ hdForge(); hdIntake(st); hdEngines(st); hdTaskForce(st); }
+
+  // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it
+  // came from. Data = /api/tallies (journaled intake beats — server truth, agent on or off).
+  var TLY = { open:false, tab:'all', shots:[] };
+  var TLY_IC = { runes:'🪨', gems:'💎', materials:'🧪', vault:'🏦' };
+  function _tlyEl(){
+    var ov = document.getElementById('tly-ov');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'tly-ov'; ov.hidden = true;
+    ov.innerHTML = '<div class="tly-panel">'
+      + '<div class="tly-head"><b>🧰 TALLY ENGINE</b><span>every shot the eye counted · click a photo for the full frame</span>'
+      + '<button class="tly-x" onclick="window._tlyClose()">✕ ESC</button></div>'
+      + '<div class="tly-tabs" id="tly-tabs"></div>'
+      + '<div class="tly-list" id="tly-list"></div></div>';
+    ov.onclick = function(e){ if (e.target === ov) window._tlyClose(); };
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && TLY.open){ e.stopPropagation(); window._tlyClose(); }
+    }, true);
+    return ov;
+  }
+  function _tlyRender(){
+    var tabs = [['all','ALL'],['runes','🪨 RUNES'],['gems','💎 GEMS'],['materials','🧪 MATERIALS'],['vault','🏦 VAULT']];
+    document.getElementById('tly-tabs').innerHTML = tabs.map(function(t){
+      var n = t[0]==='all' ? TLY.shots.length : TLY.shots.filter(function(s){ return (s.tab===t[0])||(s.kind===t[0]); }).length;
+      return '<span class="tly-tab'+(TLY.tab===t[0]?' on':'')+'" onclick="window._tlyTab(\''+t[0]+'\')">'+t[1]+' · '+n+'</span>';
+    }).join('');
+    var rows = TLY.shots.filter(function(s){ return TLY.tab==='all' || s.tab===TLY.tab || s.kind===TLY.tab; });
+    var list = document.getElementById('tly-list');
+    if (!rows.length){
+      list.innerHTML = '<div class="tly-empty">nothing tallied ' + (TLY.tab==='all'?'yet':'for <b>'+TLY.tab+'</b> yet')
+        + '<br>go <b>ON AIR</b> and pause on your <b>Runes / Gems / Materials</b> stash tab — the eye counts it automatically</div>';
+      return;
+    }
+    list.innerHTML = rows.map(function(s){
+      var d = s.ts ? new Date(s.ts) : null;
+      var when = d ? (d.toLocaleDateString(undefined,{day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString()) : '—';
+      var ic = TLY_IC[s.tab] || TLY_IC[s.kind] || '📸';
+      var keys = Object.keys(s.counts||{});
+      var chips = keys.length
+        ? keys.map(function(k){ return '<span class="tly-k">'+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
+        : '<span class="tly-k" style="opacity:.55">no new counts in this shot</span>';
+      var thumb = s.frameId
+        ? '<img class="tsh" src="/hist/'+encodeURIComponent(s.frameId)+'.jpg?w=160" loading="lazy" '
+          + 'onclick="window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
+          + 'onerror="this.style.opacity=.25;this.style.cursor=\'default\';this.onclick=null;this.title=\'frame not archived\'">'
+        : '<div class="tsh" style="display:flex;align-items:center;justify-content:center;color:#6b5a3e;font:600 10px var(--mono)">no frame</div>';
+      return '<div class="tly-shot">' + thumb + '<div>'
+        + '<div class="tly-meta"><b>'+ic+' '+esc((s.tab||s.kind||'shot').toUpperCase())+'</b><i>'+esc(when)+'</i>'
+        + '<span class="tot">'+(s.total||keys.length)+' counted</span>'
+        + (s.errors ? '<span class="tot err">'+s.errors+' errors</span>' : '')
+        + (s.ok ? '' : '<span class="tot err">FAILED</span>') + '</div>'
+        + '<div class="tly-counts">'+chips+'</div>'
+        + '</div></div>';
+    }).join('');
+  }
+  window._tlyTab = function(t){ TLY.tab = t; _tlyRender(); };
+  window._tlyOpen = function(){
+    var ov = _tlyEl(); TLY.open = true; ov.hidden = false;
+    document.getElementById('tly-list').innerHTML = '<div class="tly-empty">loading the ledger…</div>';
+    fetch('/api/tallies').then(function(r){ return r.json(); }).then(function(j){
+      TLY.shots = (j && j.shots) || []; _tlyRender();
+    }).catch(function(){ TLY.shots = []; _tlyRender(); });
+  };
+  window._tlyClose = function(){ TLY.open = false; var ov = document.getElementById('tly-ov'); if (ov) ov.hidden = true; };
+  // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
+  // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
+  function _tlyCount(){
+    fetch('/api/tallies').then(function(r){ return r.json(); })
+      .then(function(j){ window.__tlyN = (j && j.shots) ? j.shots.length : null; })
+      .catch(function(){ window.__tlyN = null; });
+  }
+  setInterval(_tlyCount, 30000); setTimeout(_tlyCount, 1500);
   setInterval(hdShelf, 12000); setTimeout(hdShelf, 800);
 
   tickClock();

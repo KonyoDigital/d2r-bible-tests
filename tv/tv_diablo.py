@@ -1097,6 +1097,12 @@ def _film_loop():
             if globals().get("_AI_PAUSED") and not WATCH_MODE:
                 time.sleep(1.5)
                 continue
+            # v929.1 (Grok third-eye P0) — film also requires a PIN: in 'waiting' (no D2R
+            # window listed) the never-starve fallback was full-screen-grabbing the desktop
+            # even with the game gate open via the process-alive fallback. No pin → no film.
+            if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":
+                time.sleep(1.5)
+                continue
             os.makedirs(FRAMES, exist_ok=True)
             wid = (_CAP_TARGET or {}).get("wid")
             if (_CAP_TARGET or {}).get("mode") == "waiting":
@@ -1287,7 +1293,15 @@ def capture_mac(path, timeout=12):
         if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
             return False
-        # auto with no window → fall through to full screen
+        # v929.1 (Grok third-eye P0) — AUTO with no window AND no last-good pin must NOT
+        # fall through to a full-screen DESKTOP grab: with the v927.5 process-alive gate
+        # keeping reads armed, this lane quietly re-created the privacy leak v928.2 closed
+        # (desktop frames read + archived while the game window is unlisted). No pin → no eye.
+        if not hit:
+            _CAP_TARGET = {"mode": "waiting", "label": "D2R window not listed — eye held", "wid": None}
+            return False
+        # auto with a pinned-but-unGRABbable window → fall through to full screen (the game
+        # owns the display in that state; full-screen IS the game)
     # DEFAULT / fallback: entire display (Quartz first — SC full can also hang under load)
     tmp = _cap_tmp(path)
     try:
