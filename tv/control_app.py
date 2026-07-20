@@ -1399,6 +1399,65 @@ def _kai_closer_loop():
             # v935 — 🚨 WATCHDOG rides the same reel-close moment (sess_rows already loaded)
             try:
                 _watchdog_check(sid, sess_rows)
+
+                # ── v937 📸 KAI FUNNEL slice 1 (Konyo's architecture: frames chauffeured through the
+                # LOCKED readers). For each tally tab the session VISITED but never receipted, feed the
+                # session's LAST archived frame of that tab class through the matching locked intake —
+                # with the SET wrapper (snapshot→subtract for reported keys) so whole-stash photos can
+                # never double-count on top of the store. One shot per tab, serialized, journal-confirmed.
+                try:
+                    _visited = set()
+                    _receipted = set()
+                    for r2 in sess_rows:
+                        if r2.get("lane") == "deep":
+                            t2 = str(r2.get("stashTab") or "").lower()
+                            if t2 in ("runes", "gems", "materials"):
+                                _visited.add(t2)
+                        ik2 = r2.get("intake")
+                        if isinstance(ik2, dict) and str(ik2.get("tab") or "").lower():
+                            _receipted.add(str(ik2.get("tab") or "").lower())
+                    _gaps = [t for t in ("runes", "gems", "materials") if t in _visited and t not in _receipted]
+                    _by_tab = {{}}
+                    for mrec in missed:
+                        c2 = str(mrec.get("cls") or "")
+                        if c2.startswith("stash-") and c2[6:] in _gaps:
+                            _by_tab[c2[6:]] = mrec   # last wins = most recent view of that tab
+                    w2 = globals().get("_MAIN_WIN")
+                    for t3, mrec in _by_tab.items():
+                        if w2 is None or os.environ.get("TV_KAI_FUNNEL", "1") == "0":
+                            break
+                        _histp = "/hist/reel_" + sid + "/" + str(mrec.get("f") or "")
+                        _fid3 = "reel_" + sid + "/" + str(mrec.get("f") or "").replace(".jpg", "")
+                        _js = ("(function(){{try{{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                               "var FN={{runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}}[%s];if(typeof W[FN]!=='function')return 0;"
+                               "var LSK={{runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}}[%s];"
+                               "var ADJ={{runes:'adjustRuneStash',gems:'adjustGemStash',materials:'adjustMaterialStash'}}[%s];"
+                               "var prev={{}};try{{var st0=JSON.parse(W.LSR.getItem(LSK)||'{{}}');Object.keys(st0).forEach(function(k){{prev[k]=parseInt(st0[k],10)||0}})}}catch(e){{}}"
+                               "fetch(%s+'?'+Date.now()).then(function(r){{if(!r.ok)throw 0;return r.blob()}}).then(function(b){{"
+                               "return W[FN]([new W.File([b],'kai-funnel.jpg',{{type:'image/jpeg'}})])}}).then(function(res){{"
+                               "try{{if(res&&res.ok){{Object.keys(res.added||{{}}).forEach(function(k){{var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)}})}}}}catch(e){{}}"
+                               "try{{fetch('/intake_result',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok),counts:(res&&res.added)||{{}},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s}})}}).catch(function(){{}})}}catch(e){{}}"
+                               "}}).catch(function(){{}});return 1}}catch(e){{return 0}}}})()") % (json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_histp), json.dumps(t3), json.dumps(_fid3))
+                        try:
+                            _ejs(w2, _js, timeout=5.0)
+                            print(f"📸 KAI funnel: fired {{t3}} from archived frame {{mrec.get('f')}}", flush=True)
+                        except Exception as _fe:
+                            print(f"⚠ KAI funnel fire failed ({{t3}}): {{_fe}}", flush=True)
+                            continue
+                        _t0f = time.time()
+                        while time.time() - _t0f < 120.0:
+                            time.sleep(6.0)
+                            try:
+                                if any(r3.get("lane") == "intake" and (r3.get("intake") or {{}}).get("kind") == "kai-funnel"
+                                       and (r3.get("intake") or {{}}).get("tab") == t3
+                                       and int(r3.get("completedTs") or 0) >= int(_t0f * 1000)
+                                       for r3 in _kai_journal_rows()[-40:]):
+                                    print(f"📸 KAI funnel: {{t3}} receipt journaled ✓", flush=True)
+                                    break
+                            except Exception:
+                                pass
+                except Exception as _kfe:
+                    print(f"⚠ KAI funnel stage error: {{_kfe}}", flush=True)
             except Exception as _we:
                 print(f"🚨 watchdog: check raised ({_we})", flush=True)
         except Exception:
