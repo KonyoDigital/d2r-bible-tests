@@ -3406,6 +3406,16 @@ def main():
             ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
 
     frame = os.path.join(FRAMES, "live.bmp")
+    # v927.3 — boot with a clean slate: a stale frame from a previous session (e.g. the
+    # TCC-denied wallpaper era) kept showing as the board preview while the eye was
+    # dormant — repeatedly read as "capture still broken". Missing frames render as the
+    # normal STANDBY/IDLE splash; stale photos lie.
+    for _stale in (frame, os.path.join(FRAMES, "eye.jpg")):
+        try:
+            if os.path.isfile(_stale) and os.path.getmtime(_stale) < time.time() - 30:
+                os.remove(_stale)
+        except OSError:
+            pass
     # v870 — last_read_t starts NOW, not 0: the heartbeat's `and last_read_t` guard meant a
     # constant-motion session (his farm video, run 2) stayed BLIND until the first settle read.
     last_md5, stable, last_sent_md5, last_read_t, reads = None, 0, None, time.time(), 0
