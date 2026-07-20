@@ -2135,3 +2135,10 @@ v686 cockpit · v920 shutter — 12/12). His second live question answered with 
 the reader IS already wired to the Vault Manager (routes→tvVaultRegister→canonical identity→
 EXTRA_ITEMS universe guarantee→suggestMule auto-assign / __throwout → 🗑 Throw-Out Review,
 v739 mirror doctrine, spec re-greened tonight in v918).
+
+## ✅ v923 "THE CHRONICLE TRIO" (Konyo LIVE ask #2, Jul 20 morning)
+"FORGE chronicle 99/99 also should be logically like the others — resembling all 3 chronicles."
+Summary chron:{made} upgraded to the cockpit KPI's exact truth (rwMade filtered to
+RUNEWORD_TIP / catalog total) → chron:{made:99,total:99}; FORGE chip now leads with 99 / 99
+before ready/one-step. Probe: all three carried — 🔥 99/99 · 🏆 243/403 · 🧩 108/135·18done.
+Guardians green (v635 byte-identity · v686 cockpit).

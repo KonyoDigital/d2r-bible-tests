@@ -30682,7 +30682,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             }); } catch(e){} return a; })(),   // v913-R5 (Grok) — the RW resolver + console-absolute paths
             grail: (function(){ try { var fu = window.funiScan(); return fu ? { found: fu.found, total: fu.chronTotal || fu.total } : null; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
             sets: (function(){ try { var fs9 = window.fsetsScan(); return fs9 ? { found: fs9.havePieces, total: fs9.totalPieces, done: (fs9.done || []).length } : null; } catch(e){ return null; } })(),   // v922 (Konyo: 'F-SETS is also a chronicle') — the F·Sets tab's own truth
-            chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}'); return { made: Object.keys(rm).length }; } catch(e){ return null; } })()
+            chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}');
+                var _tip = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : null;
+                var made = _tip ? Object.keys(rm).filter(function(n){ return _tip[n]; }).length : Object.keys(rm).length;
+                return { made: made, total: _tip ? Object.keys(_tip).length : 0 };   // v923 (Konyo) — the THIRD chronicle, same truth as the cockpit KPI (99/99)
+            } catch(e){ return null; } })()
         };
         // v903.1 — write ONLY on real change: the volatile ts re-serialized identical quests
         // every scan and broke the ladder bleed-proof byte-identity invariant
@@ -33594,7 +33598,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v922', name:'Both Chronicles', date:'2026-07-20', note:'v922 (Konyo live): the ENGINES strip carries BOTH chronicles — 🏆 GRAIL (funiScan) and 🧩 SETS (fsetsScan 108/135 + complete count) — same truth as their tabs, via d2r_forgeSummary' };
+  window.D2R_BUILD = { id:'v923', name:'The Chronicle Trio', date:'2026-07-20', note:'v923 (Konyo): ALL THREE chronicles read alike on the ENGINES strip — 🔥 FORGE 99/99 (RUNEWORD_TIP truth, cockpit-identical) · 🏆 GRAIL 243/403 · 🧩 SETS 108/135' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
