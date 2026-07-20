@@ -3650,20 +3650,32 @@ def main():
             if _ng >= float(globals().get("_GAME_CHECK_DUE", 0.0) or 0.0):
                 globals()["_GAME_CHECK_DUE"] = _ng + 1.5
                 if _game_window_present():
+                    globals()["_GAME_MISS_SINCE"] = 0.0
                     if globals().get("_AI_PAUSED"):
                         ev("cap", "🎯 D2R window found — AI reads live again")
                         print("  🎯 D2R window found — AI reads live again")
                     _set_game_gate(True, "")
                 else:
-                    _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
-                    if not globals().get("_AI_PAUSED"):
-                        ev("cap", "⏸ " + _msg)
-                        print("  ⏸ " + _msg)
-                    _set_game_gate(False, _msg)
-                    if _ng >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
-                        globals()["_NOGAME_SKIP_DUE"] = _ng + 30.0
-                        try: journal_skip("no-game", "D2R window not found — AI dormant (no capture)")
-                        except Exception: pass
+                    # v927.4 DEBOUNCE (Konyo mid-session: "diablo ii window not open — but
+                    # obviously it is"). CGWindowListCopyWindowInfo intermittently returns an
+                    # incomplete list for CrossOver fullscreen, so a single bad poll used to
+                    # tear the board down to the WATCHING/HOLD splash and pause reads for
+                    # seconds at a time. One miss means nothing: keep the gate, the capture
+                    # and the preview rolling; go dormant only after the window stays gone
+                    # for a full grace window (genuine game exit still detected in ~6s).
+                    _ms = float(globals().get("_GAME_MISS_SINCE", 0.0) or 0.0)
+                    if not _ms:
+                        globals()["_GAME_MISS_SINCE"] = _ng
+                    elif (_ng - _ms) >= 6.0:
+                        _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
+                        if not globals().get("_AI_PAUSED"):
+                            ev("cap", "⏸ " + _msg)
+                            print("  ⏸ " + _msg)
+                        _set_game_gate(False, _msg)
+                        if _ng >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
+                            globals()["_NOGAME_SKIP_DUE"] = _ng + 30.0
+                            try: journal_skip("no-game", "D2R window not found — AI dormant (no capture)")
+                            except Exception: pass
             if globals().get("_AI_PAUSED"):
                 beat("hold", 0.0)
                 _AP.update({"mode": "hold", "interest": 0.0, "peak": 0.0, "priority": False})
@@ -3755,23 +3767,30 @@ def main():
             globals()["_GAME_CHECK_DUE"] = _now_g + 1.2
             _gok = _game_window_present()
             if _gok:
+                globals()["_GAME_MISS_SINCE"] = 0.0
                 if globals().get("_AI_PAUSED"):
                     ev("cap", "🎯 D2R window found — AI reads live again")
                     print("  🎯 D2R window found — AI reads live again")
                 _set_game_gate(True, "")
             else:
-                _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
-                if not globals().get("_AI_PAUSED"):
-                    ev("cap", "⏸ " + _msg)
-                    print("  ⏸ " + _msg)
-                _set_game_gate(False, _msg)
-                # rare skip ticks so SIM shows why the night was quiet (not every poll)
-                if _now_g >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
-                    globals()["_NOGAME_SKIP_DUE"] = _now_g + 30.0
-                    try:
-                        journal_skip("no-game", "D2R.exe window not found — AI paused")
-                    except Exception:
-                        pass
+                # v927.4 DEBOUNCE — same grace as the dormant lane: one flaky Quartz poll
+                # mid-play must not pause reads or flash the missing banner.
+                _ms = float(globals().get("_GAME_MISS_SINCE", 0.0) or 0.0)
+                if not _ms:
+                    globals()["_GAME_MISS_SINCE"] = _now_g
+                elif (_now_g - _ms) >= 6.0:
+                    _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
+                    if not globals().get("_AI_PAUSED"):
+                        ev("cap", "⏸ " + _msg)
+                        print("  ⏸ " + _msg)
+                    _set_game_gate(False, _msg)
+                    # rare skip ticks so SIM shows why the night was quiet (not every poll)
+                    if _now_g >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
+                        globals()["_NOGAME_SKIP_DUE"] = _now_g + 30.0
+                        try:
+                            journal_skip("no-game", "D2R.exe window not found — AI paused")
+                        except Exception:
+                            pass
         if globals().get("_AI_PAUSED"):
             beat("hold", motion)   # not "watching" — source-shape tests lock the real watch→heartbeat path
             last_md5 = cur
