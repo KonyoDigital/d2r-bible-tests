@@ -689,10 +689,11 @@
   .th-topline { position: relative; z-index: 4; display: flex; align-items: center;   /* v941.6 — above the (now taller/lifted) caption so ✕ close always takes the click */
     gap: 12px; padding: clamp(10px,1.2vw,16px) clamp(12px,1.4vw,20px);
     background: linear-gradient(180deg, rgba(5,4,3,.92), transparent); }
-  .th-tag { font-size: clamp(9px,.8vw,12px); letter-spacing: .28em; color: var(--gold);
+  /* v945 R10 — topline reads as an app header bar: legible tag + session line */
+  .th-tag { font-size: clamp(11px,.85vw,13px); letter-spacing: .24em; color: var(--gold);
     font-weight: 800; text-transform: uppercase; text-shadow: 0 0 14px rgba(240,192,96,.4); }
-  .th-sess { margin-left: auto; font-size: clamp(9px,.8vw,12px); color: var(--muted);
-    letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+  .th-sess { margin-left: auto; font-size: clamp(11px,.82vw,12.5px); color: #9db0a4;
+    letter-spacing: .08em; font-variant-numeric: tabular-nums; }
   .th-x { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.5);
     color: var(--muted); width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
     font-size: 14px; transition: .15s; }
@@ -753,9 +754,11 @@
     image-rendering: auto; box-shadow: 0 0 60px rgba(0,0,0,.8); cursor: default; }
   .thhd-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center;
     gap: 12px; padding: 12px clamp(14px,1.6vw,22px); background: linear-gradient(180deg, rgba(4,3,2,.9), transparent); }
-  .thhd-meta { font: 600 12.5px/1.4 var(--mono); color: #d9c9a0; letter-spacing: .02em; display: flex;
-    align-items: center; gap: 10px; flex-wrap: wrap; }
-  .thhd-meta .thhd-res { color: var(--gold-hi); }
+  /* v945 R11 — meta sits in its own readable pill so it survives bright frames */
+  .thhd-meta { font: 600 12.5px/1.4 var(--mono); color: #e4d6b2; letter-spacing: .02em; display: flex;
+    align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 12px; border-radius: 9px;
+    background: rgba(6,5,3,.7); border: 1px solid rgba(240,192,96,.2); backdrop-filter: blur(4px); }
+  .thhd-meta .thhd-res { color: var(--gold-hi); font-weight: 700; }
   .thhd-x { margin-left: auto; }
   .thhd-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; appearance: none;
     width: 52px; height: 84px; border: 1px solid var(--edge); background: rgba(0,0,0,.5); color: var(--gold);
@@ -857,6 +860,9 @@
   #th-mode.md-real { border-left-color: var(--mint); color: #bfe8c8; }
   #th-mode.md-highlight { border-left-color: #e9b96e; color: #f0d29a; }
   #th-mode.md-full { border-left-color: #8fb4d8; color: #cfe0f0; }
+  /* v945 R9 — speed pill pairs with the mode pill: tabular number, gold when sped up */
+  #th-speed { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  #th-speed:not(:disabled) { color: var(--gold-hi); }
   .th-timeline { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; cursor: pointer; overflow-x: auto; scrollbar-width: none; }
   .th-beat { flex: 1; height: 6px; border-radius: 3px; background: rgba(240,192,96,.18); transition: .12s; min-width: 3px; }
   .th-beat.named { background: rgba(240,192,96,.55); height: 10px; }
@@ -978,7 +984,9 @@
     box-shadow: 0 2px 14px rgba(0,0,0,.5), inset 0 0 30px rgba(240,192,96,.06);
     text-shadow: 0 0 14px rgba(240,192,96,.35); }
   .th-ribbon::before { content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none;
-    background: #ffcf6a; box-shadow: 0 0 10px rgba(255,207,106,.9); }
+    background: #ffcf6a; box-shadow: 0 0 10px rgba(255,207,106,.9); animation: ribbonPulse 2.4s ease-in-out infinite; }
+  @keyframes ribbonPulse { 0%,100% { opacity: 1; box-shadow: 0 0 10px rgba(255,207,106,.9); } 50% { opacity: .5; box-shadow: 0 0 4px rgba(255,207,106,.5); } }
+  body[data-endurance="1"] .th-ribbon::before { animation: none; }   /* endurance mode rests decoration */
   .th-ribbon.on-air { color: #ffe0ad; background: linear-gradient(180deg, rgba(70,50,14,.97), rgba(34,24,8,.95)); }
   /* ══ v940.5 — coach hint (once per page-load) ══ */
   .th-coach { position: absolute; left: 50%; transform: translateX(-50%);
@@ -1107,8 +1115,10 @@
   .tly-shot:hover { border-color: rgba(240,192,96,.4); }
   .tly-shot.open { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(240,192,96,.25), 0 8px 26px rgba(0,0,0,.5); }
   .tly-caret { margin-left: auto; color: var(--gold); font: 700 12px/1 var(--mono); opacity: .7; }
-  .tly-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(240,192,96,.2); }
-  .tly-detail-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  /* v945 R8 — the expanded tally detail is its own inset panel, clearly nested in the card */
+  .tly-detail { margin-top: 12px; padding: 12px; border-top: 1px solid rgba(240,192,96,.2);
+    background: rgba(0,0,0,.25); border-radius: 0 0 10px 10px; margin-left: -12px; margin-right: -12px; margin-bottom: -12px; padding: 12px; }
+  .tly-detail-stats { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
   .tly-detail-h { font: 700 11px/1.1 var(--mono); letter-spacing: .14em; color: #c9b184; text-transform: uppercase; margin: 10px 0 6px; }
   .tly-detail-img { display: block; width: 100%; max-width: 620px; border-radius: 10px; margin: 12px 0 4px;
     border: 1px solid rgba(240,192,96,.3); cursor: zoom-in; }
@@ -1121,6 +1131,9 @@
   .rlog-list { overflow-y: auto; padding: 10px 16px 18px; display: flex; flex-direction: column; gap: 5px; }
   .rlog-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px;
     border: 1px solid rgba(240,192,96,.14); background: rgba(0,0,0,.3); font: 600 12.5px/1.35 var(--mono); color: #dccaa2; }
+  .rlog-row:nth-child(even) { background: rgba(255,255,255,.02); }   /* v945 R7 — zebra for scan */
+  .rlog-row { transition: border-color .12s, background .12s; }
+  .rlog-row:hover { border-color: rgba(240,192,96,.35); background: rgba(255,255,255,.045); }
   .rlog-row.rlog-empty { border-color: rgba(230,190,90,.4); }
   .rlog-row.rlog-error { border-color: rgba(255,120,90,.5); background: rgba(50,18,14,.35); }
   .rlog-dot { flex: 0 0 auto; font-size: 12px; }
