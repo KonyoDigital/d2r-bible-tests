@@ -25,7 +25,7 @@ test.describe('v908 connector seal', () => {
       w._tvdSessionTalliedAt = 0;
       const empty = await w.tvStashAutoIntake('runes', { frameId: '7_777' });
       // case 2: intake reads plenty
-      w._stashIntakeBusy = false;
+      w._stashShutter = false;   // v920 rename — the shutter is the one truth
       w.runeIntake = async () => ({ ok: true, total: 12, added: { Ist: 2, Vex: 10 }, errors: 0, kind: 'runes' });
       const full = await w.tvStashAutoIntake('runes', { frameId: '8_888' });
       // case 3: vault wrapper truth

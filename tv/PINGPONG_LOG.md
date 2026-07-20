@@ -2100,3 +2100,14 @@ test_control (34/34). R3 Grok refute: vocab-dump residual → R4 over-read guard
 tmp dir (no screenshot residue). R7 THIS SEAL. THE FACT: the robot's eyes read a real
 screenshot through the LOCKED pipeline on the Mac's own claude login — proven, not assumed.
 Next per Grok: v920 shutter · v921 frozen-robot mutex · soak as post-cycle gate.
+
+## ✅ v920 "THE SHUTTER" — cycle R1-R7 SEALED (Jul 20 night)
+R1 Grok law: "auto owns the shutter; manual 📸 locked out until SET finally — busy lock, not
+queue, not dual skip." R2: closure _stashIntakeBusy → window._stashShutter (ONE truth);
+consume-once _stashShutterAuto token set immediately before the auto lane's inner intake call;
+_wrapIntake sync prologue gates outside calls with {ok:false,why:'auto-busy'} + toast (distinct
+from auto's own 'busy'). T1 gate+untouched-stash · T2 distinct-why · T3 deferred-held race
+(shutter spans the await, manual blocked mid-flight, SET lands Ist===3 exactly — never 0/5/8).
+R3 Grok refute: consume-once airtight (sync prologue), vault lane collateral correct, toast
+spam = UX only. R4-R6: toast debounce 2.5s + guardian-spec dead-name rename. 9/9 green with
+v889/v908/v912 SET guardians. R7 THIS SEAL. Photo truth is now timing-proof.

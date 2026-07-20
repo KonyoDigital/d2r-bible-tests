@@ -59,7 +59,7 @@ test.describe('v889 tools funnel', () => {
       const mid = (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0;
       // photo intake then reads the WHOLE stack (2 Ist total, incl. the one just vaulted)
       w.runeIntake = async () => { w.adjustRuneStash('Ist', 2); return { ok: true, total: 2, added: { Ist: 2 }, errors: 0, kind: 'runes' }; };
-      w._stashIntakeBusy = false;
+      w._stashShutter = false;   // v920 rename — the shutter is the one truth
       const res = await w.tvStashAutoIntake('runes', { frameId: '2_2' });
       const fin = (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0;
       (window as any).fetch = realFetch;
@@ -100,7 +100,7 @@ test.describe('v889 tools funnel', () => {
         return realFetch(url, init);
       };
       w.runeIntake = async () => { w.adjustRuneStash('Ist', 3); return { ok: true, total: 3, added: { Ist: 3 }, errors: 0, kind: 'runes' }; };
-      w._stashIntakeBusy = false;
+      w._stashShutter = false;   // v920 rename — the shutter is the one truth
       await w.tvStashAutoIntake('runes', { frameId: '4_4' });
       (window as any).fetch = realFetch;
       return { ist: (JSON.parse(localStorage.getItem('d2r_runeStash') || '{}')['Ist']) || 0,
@@ -131,7 +131,7 @@ test.describe('v889 tools funnel', () => {
       w.adjustRuneStash('Ist', 5); w.adjustRuneStash('Vex', 4);
       const shoot = async () => {
         w.runeIntake = async () => { w.adjustRuneStash('Ist', 3); return { ok: true, total: 3, added: { Ist: 3 }, errors: 0, kind: 'runes' }; };
-        w._stashIntakeBusy = false;
+        w._stashShutter = false;   // v920 rename — the shutter is the one truth
         return w.tvStashAutoIntake('runes', { frameId: 'p_' + Math.floor(performance.now()) });
       };
       await shoot();
@@ -140,7 +140,7 @@ test.describe('v889 tools funnel', () => {
       const after2 = JSON.parse(localStorage.getItem('d2r_runeStash') || '{}');
       // empty shot must never zero anything
       w.runeIntake = async () => ({ ok: false, total: 0, added: {}, errors: 0, kind: 'runes' });
-      w._stashIntakeBusy = false;
+      w._stashShutter = false;   // v920 rename — the shutter is the one truth
       await w.tvStashAutoIntake('runes', { frameId: 'p_empty' });
       const after3 = JSON.parse(localStorage.getItem('d2r_runeStash') || '{}');
       (window as any).fetch = realFetch;

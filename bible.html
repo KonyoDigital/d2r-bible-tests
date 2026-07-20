@@ -32913,6 +32913,25 @@ window._renderStashFresh = function(){
       // still wrap the v686 wrap; double-touch is ok
     }
     var w = async function(){
+      // v920 SHUTTER (Grok R1) — the auto SET owns the shutter: a MANUAL 📸 landing while an
+      // auto read is in flight could interleave with the _prev snapshot and be eaten or
+      // double-land (timing-dependent counts violate photo truth). The auto lane's own inner
+      // call carries a consume-once token, so only outside (manual) calls are gated.
+      var _isAuto = !!window._stashShutterAuto; window._stashShutterAuto = false;
+      if (window._stashShutter && !_isAuto){
+        try {
+          if (!window._shutterToastTs || Date.now() - window._shutterToastTs > 2500){
+          window._shutterToastTs = Date.now();
+          var _t9 = document.createElement('div'); _t9.className = 'forge-toast';
+          _t9.innerHTML = '📸 <b>auto read in flight</b> — the shutter is busy, try again in a moment';
+          var _st9 = document.getElementById('forge-toasts');
+          if (!_st9){ _st9 = document.createElement('div'); _st9.id = 'forge-toasts'; document.body.appendChild(_st9); }
+          _st9.appendChild(_t9);
+          setTimeout(function(){ _t9.classList.add('out'); setTimeout(function(){ _t9.remove(); }, 450); }, 2600);
+          }
+        } catch(e){}
+        return { ok:false, why:'auto-busy', kind: kind };
+      }
       var before = review ? _snap(kind) : null;
       var r = await orig.apply(this, arguments);
       try {
@@ -33574,7 +33593,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v919', name:'Real Eyes', date:'2026-07-20', note:'v919 (REAL EYES R1-R7): the subscription intake lane PROVEN on a real screenshot (6/6 golden hits, 20-28s) + strict no-fallback mode (TV_INTAKE_LOCAL_STRICT) so a website 200 can never fake a local proof' };
+  window.D2R_BUILD = { id:'v920', name:'The Shutter', date:'2026-07-20', note:'v920 SHUTTER: auto owns the shutter — a manual photo during an in-flight auto SET is gated (auto-busy toast), counts can NEVER depend on timing; consume-once token exempts the auto lane itself' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33643,7 +33662,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // v734 — stash-tab auto-intake: once per visit per tally tab (runes/gems/materials)
   var _stashVisitDone = {};   // tab → true for current open-stash visit
   var _stashVisitOpen = false;
-  var _stashIntakeBusy = false;
+  window._stashShutter = false;   // v920 SHUTTER — ONE truth for both lanes (Grok: 'auto owns the shutter')
   function _normStashTab(s){
     var lo = String(s||'').toLowerCase().trim();
     if (!lo) return '';
@@ -33708,8 +33727,8 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     opts = opts || {};
     tab = _normStashTab(tab);
     if (tab !== 'runes' && tab !== 'gems' && tab !== 'materials') return { ok:false, why:'not-tally-tab' };
-    if (_stashIntakeBusy) return { ok:false, why:'busy' };
-    _stashIntakeBusy = true;
+    if (window._stashShutter) return { ok:false, why:'busy' };
+    window._stashShutter = true;
     try {
       var map = {
         runes:     { fn:'runeIntake',     card:'rune-stash-card',     render:'renderRuneStash' },
@@ -33747,6 +33766,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
           if (m.render && typeof window[m.render] === 'function') window[m.render]();
         }
       } catch(e){}
+      window._stashShutterAuto = true;   // v920 — consumed synchronously by the wrapper's prologue
       var _ir = await intake([file]);
       // SET: reported key → stash equals the photo (subtract what existed before the shot)
       try {
@@ -33802,7 +33822,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     } catch(e){
       return { ok:false, why: String(e && e.message || e) };
     } finally {
-      _stashIntakeBusy = false;
+      window._stashShutter = false;
     }
   };
   var DIGEST={reads:0, applied:0, areas:{}};   // v716 — end-of-session digest → the cockpit 📓 log
