@@ -1548,7 +1548,7 @@
     setMeter('m-area', st.area || '—');
     setMeter('m-scene', st.scene || st.phase || '—');
 
-    $('sig-bridge').textContent = on ? 'connected' : 'no signal';
+    $('sig-bridge').textContent = on ? 'connected' : (state === 'off' ? 'resting · off air' : 'no signal');   // v938.4 — 'no signal' only when it's actually wrong
     $('sig-model').textContent = st.model || '—';
     // v779-pre (Konyo: 'is it targeting the diablo II window? I don't see that it is') —
     // the eye's target is VISIBLE truth now: window pin vs full screen

@@ -1793,7 +1793,8 @@ def status_payload():
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
                    "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR")},   # v934.3 — the tally driver's pulse
         "watchdog": globals().get("_WATCHDOG_LAST"),
-        "eyes": _eyes_pulse(),   # v935 — last reel's expectation-check verdict
+        "eyes": _eyes_pulse(),
+        "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),   # v935 — last reel's expectation-check verdict
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
