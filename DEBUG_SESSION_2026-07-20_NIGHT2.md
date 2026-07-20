@@ -242,3 +242,26 @@ s_1784580368648 (55 frames) frame-by-frame vs the register/journal. Findings:
 auto-route to the judge/register in KAI v2) is still open — the recalibrated `name_new` list is
 now a clean miss feed to escalate. Also worth a soak: how many `_kai_nameish` misses are magic
 jewels/charms Konyo wants judged vs grail uniques.
+
+---
+
+## 🌙 v945 "THE DEBUGGER" — night arc seal (v944.5 → v945, autonomous)
+Konyo: "work autonomously till morning, 40+ versions, typography + fixed bugs + buttons, no
+uncloseable windows, HD art for each item, KAI router perfectly routing." Delivered:
+| Ver | What | Owner |
+|---|---|---|
+| v944.5 | Never-zero read-status (0 never wins over a real read) | Fable |
+| v944.6 | Router Stage 3 + never-zero re-fire in the pipeline + render | Grok + polish-ui-2 |
+| v944.7 | KAI missed-detector recalibration (Fable vision cross-ref of the real reel) | Fable |
+| v944.8 | HD art for the materials tally class (CASC extraction: keys, rejuv) | hd-art + Fable |
+| v944.9 | HD frame lightbox (full-res 2560) + FAILED-caption fix + ⋯more z-index + recursion crash fix + closeability 9/9 + typography | polish-ui-2 |
+| v944.10-.12 | 20 visual-polish rounds (transport hero, filmstrip gallery, app-table drawer, loading states, one scrollbar/focus language) | polish-ui-2 |
+| v944.13 | HD art wired through the theatre (tally/dossier/filmstrip via D2IO_ART) | polish-ui-2 |
+| v945 | Seal: stamps ×4, this dossier | Fable |
+Floor 43+157+69 green · demos 7/7 · smoke gate (bible) green · closeability 9/9 · typography 7/7.
+**Fable vision forensics:** read the real reel with my own eyes — proved the missed-ledger cried
+wolf on flavor text (fixed), traced runes-0 to a wrong-tab frame (pipeline re-fire handles it),
+confirmed all 55 frames are served (the "5 photos" was a stale app). The KAI router + never-zero
+chain is sound end-to-end.
+**Open for SuperGrok** (`DEBUG_SUPERGROK_TASKS_2026-07-21.md`): missed→judge escalation, Chronicle
+write-in, intake lease, judge soak, quorum soak.
