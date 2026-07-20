@@ -62,3 +62,11 @@ The three-layer eye, complete:
 - bible.html EDIT_LOCK protocol before any board edit.
 - Playwright: smoke + targeted on Mac; full suite = CI/Windows.
 - Ship per Konyo Workflow: version-per-round, Routine I verdict before sealing claims.
+
+## 🧬 THE INTELLIGENCE STACK (Konyo's doctrine, 2026-07-20 close: "layers and layers of intelligence and brains working with analyzed and processed Diablo II specs — genius AI reader thoughts")
+Every layer gets a D2R DOMAIN BRAIN, not just vision:
+1. **Spec-grounded reading** — the reader's prompts and post-processing cross-reference the repo's own truth: 396 uniques / 136 sets / 523 bases / RotW runewords / rune+gem vocab. A read that returns "Harlequin Crost" snaps to Harlequin Crest because the DB says so; a name outside every DB flags itself as suspect instead of registering garbage.
+2. **Layout templates** — hardcoded D2R screen geometry: equipment panel slots, inventory grid, stash grid + tab strip, ground-label zones, tooltip anatomy (name line color = rarity). Location tags (equipped/inventory/stash/ground) verified by GEOMETRY, not just the model's opinion. Rarity from pixel color cross-checked against the DB's rarity for that name.
+3. **Expectation engine (the Watchdog)** — D2R-spec assertions per session: 3 tally tabs visited ⇒ 3 receipts; stash opened ⇒ tab reads exist; hover streak ⇒ text-eye triggers; charm/jewel shown ⇒ a read with a charm/jewel-shaped name. Misses become loud red beats, not silence.
+4. **Genius thoughts, journaled** — each read's record grows a `reasoning` field: what the reader inferred (item class, rarity, why this location tag, which DB entry matched, confidence per claim) — the SIM shows the AI's actual thinking per frame, not just its answer.
+5. **Cross-layer argumentation** — Eye 1 asserts, Eye 2 disputes with evidence, KAI arbitrates against the frame + DB. Disagreements journal as structured debates the SIM renders (⚡ beats expand into "eye 1 said X because…, eye 2 said Y because…, KAI ruled Z").
