@@ -1328,7 +1328,8 @@ def _kai_fullnames():
     rare_combos = set()   # v943.2 — kept SEPARATE: recognized-but-not-grail-gated (see below)
     try:
         import re as _re
-        src = open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace").read()
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace") as _bf:
+            src = _bf.read()
         pats = (r"(?<![A-Za-z0-9_])(?:name|n)\s*:\s*(['\"])(.*?)\1",          # name:'X' / n:'X'
                 r"\"(?:name|n)\"\s*:\s*\"(.*?)\"",                            # JSON "name"/"n": "X"
                 r"openDrop\(\s*(['\"])(.*?)\1",                                # v941.2 — RotW tiles (Ars Dul'Mephistos class)
