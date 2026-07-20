@@ -1445,7 +1445,9 @@ def _engine_driver():
                 with urllib.request.urlopen(req, timeout=3) as r:
                     st = json.loads(r.read().decode("utf-8", "replace"))
             except Exception:
-                continue   # bridge down = agent off — nothing to drive
+                st = {}   # bridge down (agent off / sealed) — no reads, but the inflight
+                          # confirm below MUST still run: post-seal receipts land via the
+                          # control /intake_result route into the JOURNAL (Grok shell-verdict P0)
             reads = st.get("reads") or []
             for rd in reads:
                 ts = max(int(rd.get("completedTs") or 0), int(rd.get("ts") or 0))
@@ -1487,6 +1489,15 @@ def _engine_driver():
                 landed = any(int(i.get("ts") or 0) >= inflight["fired_ms"] - 2000
                              and (i.get("intake") or {}).get("tab") in (inflight["tab"], inflight["key"].replace("vault_", ""))
                              for i in intk)
+                if not landed:
+                    # bridge-blind confirm: receipts that arrived via control's /intake_result
+                    try:
+                        landed = any(r.get("lane") == "intake"
+                                     and int(r.get("ts") or 0) >= inflight["fired_ms"] - 2000
+                                     and (r.get("intake") or {}).get("tab") in (inflight["tab"], inflight["key"].replace("vault_", ""))
+                                     for r in _kai_journal_rows()[-80:])
+                    except Exception:
+                        pass
                 if landed:
                     visit_done[inflight["key"]] = True
                     print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓", flush=True)
