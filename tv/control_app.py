@@ -1343,8 +1343,15 @@ def _engine_driver():
                     globals()["_DRV_FIRED"] = globals().get("_DRV_FIRED", 0) + 1
                     print(f"🧰 engine-driver: fired {job['key']} (frame {job['fid']}, try {job['tries'] + 1})", flush=True)
                 except Exception as e:
-                    print(f"⚠ engine-driver fire failed: {e}", flush=True)
-        except Exception:
+                    # v934.3 — a failed fire RE-QUEUES (was popped and lost forever)
+                    job["tries"] += 1
+                    if job["tries"] < 3:
+                        fire_q.append(job)
+                    else:
+                        visit_done[job["key"]] = True
+                    print(f"⚠ engine-driver fire failed (try {job['tries']}): {e}", flush=True)
+        except Exception as _de:
+            globals()["_DRV_ERR"] = str(_de)[:120]   # v934.3 — loop crashes become visible
             time.sleep(3.0)
 
 
@@ -1381,7 +1388,7 @@ def status_payload():
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
-                   "fired": globals().get("_DRV_FIRED", 0)},   # v934.3 — the tally driver's pulse
+                   "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR")},   # v934.3 — the tally driver's pulse
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
