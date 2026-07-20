@@ -2167,7 +2167,13 @@
     TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;
     setTimeout(function(){ try { thClock(); } catch(e){} }, 0);
     thBuildAxis();
-    TH.playing = false; $('th-play').textContent = '▶';
+    // v940.3 (Konyo, round 20: "my personal debugger isn't properly working") — the reel
+    // used to open PAUSED on beat 0 (often a frameless skip) → a dim, dead screen that
+    // looked broken. SIM means "replay it for me": open on the FIRST FRAMED beat, PLAYING.
+    var _first = 0;
+    for (var _fb = 0; _fb < TH.beats.length; _fb++){ if (TH.beats[_fb].frame){ _first = _fb; break; } }
+    TH.i = _first; if (TH.P) TH.p = TH.P[_first];
+    TH.playing = true; $('th-play').textContent = '⏸';
     thTimeline(); thPaint();
   }
   async function thOpen(){
