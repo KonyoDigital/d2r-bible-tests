@@ -1089,6 +1089,14 @@ def _film_loop():
     while True:
         t0 = time.time()
         try:
+            # v928.2 (Konyo: "it should not be showing anything but diablo ii") — the film
+            # lane obeys the game gate like every other engine: with no D2R the old loop
+            # kept full-screen-grabbing the DESKTOP (infinite board-mirror in the preview,
+            # desktop frames archived into the reel — a privacy leak, not footage). Hold
+            # the eye entirely while the game is gone; the preview keeps the last game frame.
+            if globals().get("_AI_PAUSED") and not WATCH_MODE:
+                time.sleep(1.5)
+                continue
             os.makedirs(FRAMES, exist_ok=True)
             wid = (_CAP_TARGET or {}).get("wid")
             if (_CAP_TARGET or {}).get("mode") == "waiting":
