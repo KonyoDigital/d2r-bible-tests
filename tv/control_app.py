@@ -181,16 +181,35 @@ def _beat_dossier(maps, beat):
     if kai and kai.get("cls") is None and kai.get("judge") is None:
         kai = None
     tally = None
+    # v944.4 — the router label already rides the beat (join at build time). Use it too, so a
+    # stash frame gets a receipt even when KAI's own cls was empty (OCR-dark grids).
+    _rlabel = str(beat.get("label") or (kai or {}).get("cls") or "")
     if is_footage:
-        # Only footage KAI proved is a stash tab gets a receipt (ts within ±120s).
-        cls = (kai or {}).get("cls") or ""
+        # Only footage KAI/router proved is a stash tab gets a receipt (ts within ±120s).
+        cls = _rlabel
         if isinstance(cls, str) and cls.startswith("stash-"):
             tally = _nearest_receipt(maps, cls[6:], ts, window_ms=120000)
     else:
         tab = str(beat.get("stashTab") or "")
         if tab:
             tally = _nearest_receipt(maps, tab, ts, window_ms=None)
-    return {"tally": tally, "verify": verify or None, "kai": kai}
+    # v944.4 THE READ-STATUS VERDICT (Konyo: "I don't know if it was read or not correctly here")
+    # — turn the router label + tally into a plain answer the retro debugger can SHOW per frame:
+    #   read   → this tab's intake fired and counted N (cross-referenced list in tally.counts)
+    #   miss   → a stash tab the router recognized, but 0 counted / no receipt = an unread panel
+    #   named  → a deep read named item(s) on this frame (verify carries the confirm/miss counts)
+    #   scene  → gameplay/other, nothing to register
+    read_status = None
+    if _rlabel.startswith("stash-") or _rlabel in ("stash", "inventory"):
+        _tot = int((tally or {}).get("total") or 0) if tally else 0
+        _tab = _rlabel[6:] if _rlabel.startswith("stash-") else _rlabel
+        read_status = {"kind": "read" if _tot > 0 else "miss", "tab": _tab, "counted": _tot}
+    elif (beat.get("names") or []):
+        read_status = {"kind": "named", "counted": len(beat.get("names") or [])}
+    return {"tally": tally, "verify": verify or None, "kai": kai,
+            "router": {"label": beat.get("label"), "verdict": beat.get("routeVerdict")}
+            if beat.get("label") else None,
+            "readStatus": read_status}
 
 
 IS_WIN = sys.platform.startswith("win")
@@ -3491,6 +3510,42 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"ok": True, "shots": shots[:200]})
             except Exception as e:
                 self._json(200, {"ok": False, "msg": str(e)[:160], "shots": []})
+            return
+        if path == "/api/intake_log":
+            # v944.4 (Konyo: "a separate log for the backend side of these intakes getting
+            # received — like a log") — the raw plumbing view: every intake receipt the journal
+            # recorded, newest first, with the transport truth (kind, ok, totals, errors, the
+            # frame it came from, session). This is the RECEIPT LEDGER, distinct from /api/tallies
+            # (which is the item counts) — here you watch receipts LAND and spot the 0-total misses.
+            try:
+                rows = []
+                for r in self._load_journal_cached():
+                    ik = r.get("intake")
+                    if not isinstance(ik, dict):
+                        continue
+                    _tot = int(ik.get("total") or 0)
+                    _ok = bool(ik.get("ok", True))
+                    rows.append({
+                        "ts": r.get("ts") or r.get("captureTs") or 0,
+                        "tab": ik.get("tab") or ik.get("kind") or "",
+                        "kind": ik.get("kind") or "",
+                        "ok": _ok,
+                        "total": _tot,
+                        "errors": int(ik.get("errors") or 0),
+                        "types": len(ik.get("counts") or {}) if isinstance(ik.get("counts"), dict) else 0,
+                        "frameId": r.get("frameId") or "",
+                        "sessionId": r.get("sessionId") or "",
+                        "lane": r.get("lane") or "",
+                        # the plumbing verdict: landed-empty misses vs real receipts vs errors
+                        "status": ("error" if not _ok else ("empty" if _tot == 0 else "ok")),
+                    })
+                rows.sort(key=lambda s: s["ts"], reverse=True)
+                _empty = sum(1 for r in rows if r["status"] == "empty")
+                _err = sum(1 for r in rows if r["status"] == "error")
+                self._json(200, {"ok": True, "rows": rows[:400],
+                                 "summary": {"total": len(rows), "empty": _empty, "error": _err}})
+            except Exception as e:
+                self._json(200, {"ok": False, "msg": str(e)[:160], "rows": []})
             return
         if path.startswith("/api/beat"):
             # v879 (Grok B) — the READ CARD's forensic blob, one beat at a time
