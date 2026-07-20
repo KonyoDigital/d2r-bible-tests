@@ -957,6 +957,68 @@ class TestRouterLedger(unittest.TestCase):
         self.assertEqual(d, "disagreement")
         self.assertEqual(src, [])
 
+    # ── v944.6 Stage 3 — lanes OBEY the ledger ────────────────────────────────
+    def test_stage3_select_funnel_and_judge(self):
+        # fireable: conf≥2 + route + skip not-selected|cap; one funnel job per tab (newest);
+        # vault / conf<2 / already-routed / disagreement NEVER selected.
+        routing = [
+            {"f": "r_old.jpg", "ts": 1000, "label": "stash-runes", "confidence": 2,
+             "route": "tally:runes", "routed": None, "skipReason": "not-selected"},
+            {"f": "r_new.jpg", "ts": 2000, "label": "stash-runes", "confidence": 2,
+             "route": "tally:runes", "routed": None, "skipReason": "not-selected"},
+            {"f": "g1.jpg", "ts": 1500, "label": "stash-gems", "confidence": 2,
+             "route": "tally:gems", "routed": None, "skipReason": "not-selected"},
+            {"f": "g_done.jpg", "ts": 1600, "label": "stash-gems", "confidence": 2,
+             "route": "tally:gems", "routed": "kai-funnel", "skipReason": None},  # already fired
+            {"f": "low.jpg", "ts": 1700, "label": "stash-materials", "confidence": 1,
+             "route": "tally:materials", "routed": None, "skipReason": "confidence<2"},
+            {"f": "tip1.jpg", "ts": 3000, "label": "tooltip", "confidence": 2,
+             "route": "judge", "routed": None, "skipReason": "cap"},
+            {"f": "tip0.jpg", "ts": 2500, "label": "tooltip", "confidence": 2,
+             "route": "judge", "routed": None, "skipReason": "cap"},
+            {"f": "inv.jpg", "ts": 4000, "label": "inventory", "confidence": 2,
+             "route": "vault", "routed": None, "skipReason": "no-vault-fire"},
+            {"f": "fight.jpg", "ts": 5000, "label": "tooltip", "confidence": 0,
+             "route": None, "routed": None, "skipReason": "disagreement"},
+        ]
+        funnel, judge = ca._kai_stage3_select(routing)
+        tabs = {j["tab"]: j for j in funnel}
+        self.assertEqual(set(tabs), {"runes", "gems"})          # materials gated conf<2
+        self.assertEqual(tabs["runes"]["f"], "r_new.jpg")       # newest runes frame
+        self.assertEqual(tabs["gems"]["f"], "g1.jpg")           # g_done already routed → skipped
+        self.assertEqual([j["f"] for j in judge], ["tip0.jpg", "tip1.jpg"])  # ts order
+        # vault + disagreement never appear
+        self.assertTrue(all(j["tab"] != "inventory" for j in funnel))
+        self.assertTrue(all(j["f"] != "fight.jpg" for j in judge))
+
+    def test_stage3_empty_when_no_fireable(self):
+        funnel, judge = ca._kai_stage3_select([
+            {"f": "a.jpg", "ts": 1, "confidence": 1, "route": "tally:runes",
+             "routed": None, "skipReason": "confidence<2"},
+            {"f": "b.jpg", "ts": 2, "confidence": 2, "route": "vault",
+             "routed": None, "skipReason": "no-vault-fire"},
+        ])
+        self.assertEqual(funnel, [])
+        self.assertEqual(judge, [])
+
+    def test_stage3_receipt_writes_routed_back(self):
+        # after a funnel receipt lands, the rebuilt ledger marks that frame routed=kai-funnel
+        # and drops it from Stage 3 re-selection (loop closed).
+        scan = [{"f": "r.jpg", "ts": 9000, "ocr": True, "ocrLabel": "stash-runes",
+                 "journal": True, "journalLabel": "stash-runes", "label": "stash-runes"}]
+        pre = ca._kai_build_routing(scan, [], "S", [])
+        self.assertEqual(pre[0]["skipReason"], "not-selected")
+        f0, j0 = ca._kai_stage3_select(pre)
+        self.assertEqual(len(f0), 1)
+        self.assertEqual(f0[0]["tab"], "runes")
+        journal = [{"lane": "intake", "frameId": "reel_S/r",
+                    "intake": {"tab": "runes", "ok": True, "kind": "kai-funnel", "total": 44}}]
+        post = ca._kai_build_routing(scan, [], "S", journal)
+        self.assertEqual(post[0]["routed"], "kai-funnel")
+        self.assertIsNone(post[0]["skipReason"])
+        f1, j1 = ca._kai_stage3_select(post)
+        self.assertEqual(f1, [])   # already routed → not re-selected
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

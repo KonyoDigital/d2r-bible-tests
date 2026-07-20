@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v944.6"   # 🚫0️⃣ NEVER-ZERO re-fire (empty intake re-reads freshest frame) + label+time near-dup routing · tab_best display · real-receipt gap law
+VERSION = "v944.6"   # 🚫0️⃣ never-zero re-fire + label+time near-dup + Stage 3 lanes obey ledger
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

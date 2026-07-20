@@ -12,9 +12,29 @@ Stamps must stay in parity: agent `tv/tv_diablo.py` VERSION == control `ver` == 
 
 ---
 
+## ✅ SUPERGROK RETURN (2026-07-21) — v944.6 WIP, holding for Claude gate+push
+
+**Stamps ×3 green:** control `ver` = agent `VERSION` = bible `D2R_BUILD.id` = **v944.6**
+(Claude had flagged control stuck at v944.5 — **already bumped** in `status_payload` ~L2697.)
+
+**Battery (this leg):** control 43 · agent 157 · routes **66** · demos 7/7. Not pushed —
+Claude holds the ship until polish-ui-2 render lands cleanly on the same green floor.
+
+| # | Task | Status |
+|---|------|--------|
+| P0#1 | Never-zero re-fire | ✅ `_intake_is_real` · `_drv_empty_refire_plan` · driver re-queues freshest frame on total==0/ok=false (tally only; vault empty stays done). Display layer tab_best kept. Pins in `TestNeverZeroRefire`. |
+| P0#2 | Quorum soak | ✅ 12 reels / 748 frames: **disagreement 0%**, conf&lt;2 71% (mostly single-brain/gameplay), near-dup collapsed 186. **Design Q:** do NOT extend journal panel-truth past `stash-*` yet — soak never saw inventory↔tooltip fights; leave inventory/tooltip two-ways as disagreement. |
+| P1#3 | Stage 3 lanes obey ledger | ✅ `_kai_stage3_select` + closer builds PRE-fire plan, funnel/judge fire only fireable rows (`not-selected`/`cap`, conf≥2); final rebuild writes `routed` back. Vault stays `no-vault-fire`. +3 pins. |
+| P1#4 | label+time near-dup | ✅ 3s window in `_kai_build_routing` (`near-dup-of:`); film never trimmed. |
+| P2#5–9 | Chronicle / lease / judge soak / render / SIM name | open (render = polish-ui-2 parallel; SuperGrok is **not** editing `control_ui.html`) |
+
+**Files SuperGrok owns this leg:** `tv/control_app.py`, `tv/test_routes.py`, `tv/tv_diablo.py` VERSION, `bible.html` stamp only (EDIT_LOCK claimed/released). Leave `control_ui.html` to polish-ui-2.
+
+---
+
 ## P0 — REAL ACCURACY BUGS (Konyo feels these)
 
-### 1. The runes-intake 0-error class ("still not reading the runes")
+### 1. The runes-intake 0-error class ("still not reading the runes") ✅ DONE (v944.6)
 The `/api/intake_log` (new v944.4) proved it live: one session logged `ok runes total=404`
 **and** a later `error runes total=0` on the SAME tab. The 404 is a real read; the 0 is a
 failed shot that still journaled a receipt and poisons the theatre ("0 read"). This is the

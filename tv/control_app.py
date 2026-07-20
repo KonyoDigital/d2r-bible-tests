@@ -1790,7 +1790,43 @@ def _kai_compile_register(sess_rows):
 # Stage 2 — QUORUM GATE (v944.1): sources that AGREE on the final label only count;
 #           confidence = agreement count; <2 → no route (🟡); multi-brain disagreement
 #           without a ≥2 winner → skipReason "disagreement".
-# Stage 3 — lanes OBEY the ledger (still next: funnel/judge as consumers of routed rows).
+# Stage 3 — lanes OBEY the ledger: funnel/judge fire only rows the ledger marked fireable.
+def _kai_stage3_select(routing):
+    """v944.6 Stage 3 pure selector — which ledger rows the funnel/judge may fire.
+
+    Fireable contract (pre-receipt):
+      • confidence >= 2 (Stage 2 quorum already cleared)
+      • route set (tally:* or judge)
+      • not already routed
+      • skipReason is the would-fire marker:
+          tally gap  → "not-selected"
+          judge slot → "cap"
+    Vault rows stay skipReason "no-vault-fire" (intake-lease deferred) — NEVER selected here.
+    Returns (funnel_jobs, judge_jobs):
+      funnel_jobs: one {tab,f,ts,route} per tally tab (newest frame wins)
+      judge_jobs:  {f,ts} list in timestamp order (caller applies TV_KAI_JUDGE_MAX cap)
+    """
+    funnel_by_tab = {}
+    judges = []
+    for r in routing or []:
+        if int(r.get("confidence") or 0) < 2:
+            continue
+        if r.get("routed"):
+            continue
+        route = str(r.get("route") or "")
+        skip = r.get("skipReason")
+        if route.startswith("tally:") and skip == "not-selected":
+            tab = route.split(":", 1)[1]
+            prev = funnel_by_tab.get(tab)
+            if prev is None or int(r.get("ts") or 0) >= int(prev.get("ts") or 0):
+                funnel_by_tab[tab] = {"tab": tab, "f": r.get("f"), "ts": r.get("ts"),
+                                      "route": route}
+        elif route == "judge" and skip == "cap":
+            judges.append({"f": r.get("f"), "ts": r.get("ts")})
+    judges.sort(key=lambda x: int(x.get("ts") or 0))
+    return list(funnel_by_tab.values()), judges
+
+
 def _kai_frame_sig(path):
     """v944 — cheap sampled-bytes fingerprint of a reel JPEG for routing dedupe (frame_sig-style).
     Returns (size, ~2k sampled bytes): the size is the fast first-pass key, the samples confirm
@@ -2150,40 +2186,25 @@ def _kai_closer_loop():
             try:
                 _watchdog_check(sid, sess_rows)
 
-                # ── v937 📸 KAI FUNNEL slice 1 (Konyo's architecture: frames chauffeured through the
-                # LOCKED readers). For each tally tab the session VISITED but never receipted, feed the
-                # session's LAST archived frame of that tab class through the matching locked intake —
-                # with the SET wrapper (snapshot→subtract for reported keys) so whole-stash photos can
-                # never double-count on top of the store. One shot per tab, serialized, journal-confirmed.
+                # ── v944.6 Stage 3 📸/🔬 lanes OBEY the ledger ──
+                # Build a PRE-fire routing plan from the scan, then funnel/judge fire ONLY rows
+                # the ledger marks fireable (conf≥2, route set, skip not-selected|cap). After
+                # receipts land, the final ledger rebuild (below) writes `routed` back. Vault
+                # stays no-vault-fire (intake-lease still deferred).
                 try:
-                    _visited = set()
-                    _receipted = set()
-                    for r2 in sess_rows:
-                        if r2.get("lane") == "deep":
-                            t2 = str(r2.get("stashTab") or "").lower()
-                            if t2 in ("runes", "gems", "materials"):
-                                _visited.add(t2)
-                        ik2 = r2.get("intake")
-                        # v944.6 — ok:false OR total==0 ≠ receipted (never-zero; gap stays open for re-funnel)
-                        if isinstance(ik2, dict) and _intake_is_real(ik2) and str(ik2.get("tab") or "").lower():
-                            _receipted.add(str(ik2.get("tab") or "").lower())
-                    _gaps = [t for t in ("runes", "gems", "materials") if t in _visited and t not in _receipted]
-                    _by_tab = {}
-                    for mrec in missed:
-                        c2 = str(mrec.get("cls") or "")
-                        if c2.startswith("stash-") and c2[6:] in _gaps:
-                            _by_tab[c2[6:]] = mrec   # last wins = most recent view of that tab
-                    for t9 in _gaps:
-                        # v940.1 FALLBACK (live gap: runes text was READ so never 'missed' —
-                        # funnel had no photo): use the reel's last frame OF THAT CLASS.
-                        if t9 not in _by_tab and class_frames.get("stash-" + t9):
-                            _by_tab[t9] = class_frames["stash-" + t9]
+                    _plan = _kai_build_routing(routing_scan, sess_rows, sid, sess_rows)
+                    _funnel_jobs, _judge_jobs = _kai_stage3_select(_plan)
                     w2 = globals().get("_MAIN_WIN")
-                    for t3, mrec in _by_tab.items():
+                    # 📸 FUNNEL — one shot per ledger-selected tally tab (newest frame), SET-wrapper
+                    for _fj in _funnel_jobs:
                         if w2 is None or os.environ.get("TV_KAI_FUNNEL", "1") == "0":
                             break
-                        _histp = "/hist/reel_" + sid + "/" + str(mrec.get("f") or "")
-                        _fid3 = "reel_" + sid + "/" + str(mrec.get("f") or "").replace(".jpg", "")
+                        t3 = str(_fj.get("tab") or "")
+                        _ff = str(_fj.get("f") or "")
+                        if not t3 or not _ff:
+                            continue
+                        _histp = "/hist/reel_" + sid + "/" + _ff
+                        _fid3 = "reel_" + sid + "/" + _ff.replace(".jpg", "")
                         _js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                                "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
                                "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
@@ -2196,7 +2217,7 @@ def _kai_closer_loop():
                                "}).catch(function(){});return 1}catch(e){return 0}})()") % (json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_histp), json.dumps(t3), json.dumps(_fid3))
                         try:
                             _ejs(w2, _js, timeout=5.0)
-                            print(f"📸 KAI funnel: fired {t3} from archived frame {mrec.get('f')}", flush=True)
+                            print(f"📸 KAI funnel (ledger): fired {t3} from {_ff}", flush=True)
                         except Exception as _fe:
                             print(f"⚠ KAI funnel fire failed ({t3}): {_fe}", flush=True)
                             continue
@@ -2209,7 +2230,6 @@ def _kai_closer_loop():
                                        and int(r3.get("completedTs") or 0) >= int(_t0f * 1000)
                                        for r3 in _kai_journal_rows()[-40:]):
                                     print(f"📸 KAI funnel: {t3} receipt journaled ✓", flush=True)
-                                    # v937.5 — the funnel RESOLVES the watchdog's flag it just filled
                                     try:
                                         _res = {"ts": _sess_last + 40, "captureTs": _sess_last + 40,
                                                 "completedTs": int(time.time() * 1000), "lane": "watchdog",
@@ -2227,19 +2247,19 @@ def _kai_closer_loop():
                                     break
                             except Exception:
                                 pass
-                    # ── v940 🔬 TOOLTIP LANE: missed frames classed 'tooltip' go to the headless
-                    # Item Checker (aicJudge) — cap 4/session, fire-and-forget, receipts land on
-                    # /kai_verdict with the frame's own timestamp (ghost-proof).
+                    # 🔬 JUDGE — only ledger-selected tooltip rows (cap applied here)
                     try:
                         _jcap = max(0, int(os.environ.get("TV_KAI_JUDGE_MAX", "12")))
                     except Exception:
                         _jcap = 12
-                    _tips = [m4 for m4 in missed if str(m4.get("cls") or "") == "tooltip"][:_jcap]   # v941.2 — KAI has all night (was 4; 19 tooltips captured last run)
-                    for m4 in _tips:
+                    for m4 in _judge_jobs[:_jcap]:
                         if w2 is None or os.environ.get("TV_KAI_JUDGE", "1") == "0":
                             break
-                        _hp4 = "/hist/reel_" + sid + "/" + str(m4.get("f") or "")
-                        _fid4 = "reel_" + sid + "/" + str(m4.get("f") or "").replace(".jpg", "")
+                        _ff4 = str(m4.get("f") or "")
+                        if not _ff4:
+                            continue
+                        _hp4 = "/hist/reel_" + sid + "/" + _ff4
+                        _fid4 = "reel_" + sid + "/" + _ff4.replace(".jpg", "")
                         _fts4 = int(m4.get("ts") or 0)
                         _js4 = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                                 "if(typeof W.aicJudge!=='function')return 0;"
@@ -2251,7 +2271,7 @@ def _kai_closer_loop():
                                 ) % (json.dumps(_hp4), json.dumps(sid), json.dumps(_fid4), json.dumps(_fts4))
                         try:
                             _ejs(w2, _js4, timeout=5.0)
-                            print(f"🔬 KAI judge: fired on {m4.get('f')}", flush=True)
+                            print(f"🔬 KAI judge (ledger): fired on {_ff4}", flush=True)
                             time.sleep(20.0)   # gentle pacing — the judge is a full vision read
                         except Exception as _je:
                             print(f"⚠ KAI judge fire failed: {_je}", flush=True)
