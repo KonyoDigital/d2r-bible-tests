@@ -2028,6 +2028,46 @@ def _watchdog_check(sid, sess_rows):
     return out_rows
 
 
+# ── v943.4 ENGINE SELF-HEALING (Grok's engine-liveness deferral) ────────────────
+# The off-screen engine iframe can wedge (WKWebView occlusion, a JS fault) so every
+# liveness probe comes back dead. Rather than sit dark forever, count consecutive dead
+# probes and, at the threshold, kick the iframe by re-assigning its own src (a cheap
+# reload). Give up loudly after a few tries so a truly dead engine is visible, not looped.
+_ENGINE_REVIVE_AT = 5     # consecutive dead probes before a revive attempt
+_ENGINE_REVIVE_MAX = 3    # revive attempts per process before declaring hard-dead
+
+
+def _engine_selfheal(alive, w):
+    """Pure counter transition for engine self-healing. A live probe clears the streak;
+    a dead one (probe non-1/2 or _ejs None) advances it. At _ENGINE_REVIVE_AT consecutive
+    dead probes: revive the iframe once (src=src) and drop the counter to a half-way value
+    so a dead revive re-arms after a settle gap, not on the very next loop. After
+    _ENGINE_REVIVE_MAX revives: set _ENGINE_DEAD_HARD once and shout to restart the app.
+    Testable with w=None (skips the JS kick, keeps the counter/flag logic)."""
+    if alive:
+        globals()["_ENG_FAILS"] = 0
+        return
+    fails = globals().get("_ENG_FAILS", 0) + 1
+    globals()["_ENG_FAILS"] = fails
+    if fails < _ENGINE_REVIVE_AT:
+        return
+    revives = globals().get("_ENG_REVIVES", 0)
+    if revives < _ENGINE_REVIVE_MAX:
+        globals()["_ENG_REVIVES"] = revives + 1
+        if w is not None:
+            try:
+                _ejs(w, "(function(){var f=document.getElementById('tvd-eng'); "
+                        "if(f){f.src=f.src;return 1} return 0})()", timeout=3.0)
+            except Exception:
+                pass
+        print("🔌 engine revive attempted", flush=True)
+        globals()["_ENG_FAILS"] = _ENGINE_REVIVE_AT // 2   # half-way — settle before re-arming
+        globals()["_EJS_STUCK"] = 0                         # let the next loop actually re-probe
+    elif not globals().get("_ENGINE_DEAD_HARD"):
+        globals()["_ENGINE_DEAD_HARD"] = True
+        print("🔌 engine DEAD — restart the app", flush=True)
+
+
 def _engine_driver():
     """v929.2 — control-side auto-intake driver. The off-screen engine window's JS timers
     suspend under WKWebView occlusion, so control watches the bridge itself: on a deep
@@ -2058,6 +2098,7 @@ def _engine_driver():
                 globals()["_ENGINE_ALIVE"] = False
                 globals()["_ENGINE_READY"] = False
                 globals()["_EJS_STUCK"] = max(0, globals()["_EJS_STUCK"] - 0.05)  # slow decay → occasional retry
+                _engine_selfheal(False, w)   # v943.4 — a wedged ejs is still a dead probe; keep the revive streak alive
                 continue
             try:
                 _pv = _ejs(w, "(function(){var f=document.getElementById('tvd-eng');return (f&&f.contentWindow&&f.contentWindow.tvStashAutoIntake)?2:1})()")
@@ -2076,6 +2117,7 @@ def _engine_driver():
                     globals()["_ENG_ERR"] = str(_pe)
                     print(f"🔌 engine probe error: {_pe}", flush=True)
             globals()["_ENGINE_ALIVE"] = bool(alive)
+            _engine_selfheal(bool(alive), w)   # v943.4 — engine self-healing streak/revive
             if not alive:
                 continue
             try:
@@ -2256,7 +2298,8 @@ def status_payload():
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
-                   "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR")},   # v934.3 — the tally driver's pulse
+                   "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR"),
+                   "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},   # v934.3 — the tally driver's pulse · v943.4 revive give-up flag
         "watchdog": globals().get("_WATCHDOG_LAST"),
         "eyes": _eyes_pulse(),
         "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),   # v935 — last reel's expectation-check verdict
