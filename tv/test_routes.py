@@ -719,6 +719,42 @@ class TestRouterLedger(unittest.TestCase):
             self.assertEqual(set(r), {"f", "ts", "label", "sources", "confidence",
                                       "route", "routed", "skipReason"})
 
+    def test_dedupe_run_routing_only_film_intact(self):
+        # a visual run of 3 identical-sig frames: FIRST routable, next 2 dup-chained — but ALL
+        # 3 stay in the ledger (dedupe is routing-only; the film/replay is never trimmed).
+        sig = (4096, b"IDENTICAL-FRAME-BYTES")
+        scan = [
+            {"f": "f_1.jpg", "ts": 1000, "ocr": True, "journal": True, "label": "stash-runes", "sig": sig},
+            {"f": "f_2.jpg", "ts": 1100, "ocr": True, "journal": True, "label": "stash-runes", "sig": sig},
+            {"f": "f_3.jpg", "ts": 1200, "ocr": True, "journal": True, "label": "stash-runes", "sig": sig},
+        ]
+        led = ca._kai_build_routing(scan, [], "S", [])
+        self.assertEqual([r["f"] for r in led], ["f_1.jpg", "f_2.jpg", "f_3.jpg"])   # all 3 present
+        # first frame keeps its label + route (the one routable head of the run)
+        self.assertEqual(led[0]["route"], "tally:runes")
+        self.assertNotEqual(led[0]["skipReason"], "dup-of:f_1.jpg")
+        # both duplicates: label unchanged, route/routed nulled, chained to the run head
+        for dup in led[1:]:
+            self.assertEqual(dup["label"], "stash-runes")     # label unchanged
+            self.assertIsNone(dup["route"])
+            self.assertIsNone(dup["routed"])
+            self.assertEqual(dup["skipReason"], "dup-of:f_1.jpg")
+        # exactly 1 routable + 2 dup-chained
+        self.assertEqual(sum(1 for r in led if r["route"]), 1)
+        self.assertEqual(sum(1 for r in led if str(r["skipReason"] or "").startswith("dup-of:")), 2)
+
+    def test_sig_change_breaks_the_run(self):
+        # a differing sig starts a fresh run — not chained to the prior frame.
+        scan = [
+            {"f": "a.jpg", "ts": 1, "ocr": True, "journal": True, "label": "stash", "sig": (1, b"A")},
+            {"f": "b.jpg", "ts": 2, "ocr": True, "journal": True, "label": "stash", "sig": (1, b"A")},
+            {"f": "c.jpg", "ts": 3, "ocr": True, "journal": True, "label": "stash", "sig": (2, b"B")},
+        ]
+        led = ca._kai_build_routing(scan, [], "S", [])
+        self.assertEqual(led[1]["skipReason"], "dup-of:a.jpg")   # b is a dup of a
+        self.assertNotIn("dup-of", str(led[2]["skipReason"]))    # c starts a new run
+        self.assertEqual(led[2]["route"], "vault")               # c keeps its route
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
