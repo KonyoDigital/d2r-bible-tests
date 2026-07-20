@@ -2136,7 +2136,10 @@
     var _mb = $('th-mode');
     if (_mb) _mb.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
     var _sp = $('th-speed');
-    if (!TH.__speedTouched){ TH.speed = 1; if (_sp) _sp.textContent = '1×'; }
+    // v836 — REAL is wall-clock by definition: a fresh reel always opens at 1×, never inheriting
+    // a speed bumped during a prior CUT/FULL skim. Compressed modes keep the __speedTouched persist.
+    if (TH.mode === 'real'){ TH.speed = 1; if (_sp) _sp.textContent = '1×'; }
+    else if (!TH.__speedTouched){ TH.speed = 1; if (_sp) _sp.textContent = '1×'; }
     TH.beats = thFilter(beats.slice());
     TH.creditsShown = false; var _cr = $('th-credits'); if (_cr) _cr.hidden = true;
     setTimeout(function(){ try { thClock(); } catch(e){} }, 0);
@@ -2609,6 +2612,10 @@
     TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
     TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // CUT → FULL → REAL
     this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
+    // v836 (Konyo: 'REAL at 1× runs way too fast') — REAL means WALL-CLOCK. A speed bumped
+    // while skimming CUT/FULL latched via __speedTouched and silently multiplied the real-time
+    // playhead. Entering REAL re-pins the deck to 1× so the reel runs the session's true span.
+    if (TH.mode === 'real'){ TH.speed = 1; var _spm = $('th-speed'); if (_spm) _spm.textContent = '1×'; }
     var keepTs = (TH.beats[TH.i] || {}).ts;
     TH.beats = thFilter(TH.allBeats.slice());
     TH.i = 0;
