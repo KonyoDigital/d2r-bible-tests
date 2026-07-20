@@ -27756,7 +27756,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v394 — a LOW set piece routed here on purpose (Sigon's/Sander's/etc.): it's tracked for the grail,
       // just not worth muling. Show the right message instead of the generic "misread".
       var _loSet = (typeof findSetPiece==='function') && findSetPiece(clean);
-      var why = _loSet
+      // v941.5 (Konyo live: "these are SUNDER CHARMS — how are they being thrown out?!"
+      // + the Horadric Cube offered for discard). Two laws before any discard talk:
+      var _lc941 = String(clean||'').toLowerCase();
+      var _isSunder = ['bone break','black cleft','crack of the heavens','cold rupture','flame rift','rotting fissure']
+        .some(function(sn){ return _lc941.indexOf(sn) >= 0; });
+      var _isAnchor941 = ['horadric cube','tome of town portal','tome of identify',"wirt's leg",'key of terror','key of hate','key of destruction']
+        .some(function(an){ return _lc941.indexOf(an) >= 0; });
+      var why = _isSunder
+        ? '💥 <b>SUNDER CHARM</b> — breaks monster immunity. A chase keeper, never a toss: keep it in inventory on the matching build (or shared stash).'
+        : _isAnchor941
+        ? '⚓ Permanent tool (cube / tome / key) — always on your character. Never mule, never toss; safe to <b>dismiss</b> this card.'
+        : _loSet
         ? ('Low set piece — <b>'+esc(((_loSet.set&&_loSet.set.name)||'')||'set')+'</b>. Already ticked for your grail/set tracker; not worth muling — safe to <b>sell or throw out</b>.'
             )
         : (isBase
