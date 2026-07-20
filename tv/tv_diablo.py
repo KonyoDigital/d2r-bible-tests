@@ -1114,6 +1114,18 @@ def _film_loop():
                 # v898 — Quartz only for D2R.exe window film. screencapture -l hangs on
                 # CrossOver surfaces (5–12s) and was killing the 15fps lane + NO EYE.
                 wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
+                # v930.3 (Konyo: "why is it not the diablo ii window in the retro?") — the
+                # Metal fullscreen surface hands Quartz a BLANK WHITE backing that still
+                # "succeeds": his 331-frame reel was the same 93KB white JPEG on repeat,
+                # only the fallback-lane frames were real. A full-res game frame never
+                # compresses under ~150KB — treat tiny grabs as failures so the existing
+                # demote machinery kicks in and the reel stays REAL pixels only.
+                if wrote:
+                    try:
+                        if os.path.getsize(tmp) < 150_000:
+                            wrote = False
+                    except Exception:
+                        wrote = False
                 if wrote:
                     _lane_fail = 0
                 else:
