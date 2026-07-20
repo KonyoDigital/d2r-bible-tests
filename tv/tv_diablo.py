@@ -424,6 +424,17 @@ def bridge():
             self.send_header("access-control-allow-origin", "*")
             self.send_header("cache-control", "no-store")
             self.end_headers()
+        def do_OPTIONS(self):
+            # v927.5 — CORS PREFLIGHT: the board (:17772 / bull-4-u.com) POSTs /intake_result
+            # cross-origin with a JSON content-type, which triggers a preflight. Without this
+            # handler every preflight 501'd, the POST died in the board's .catch, and
+            # "TALLIES · synced" sat at 0 on EVERY surface while tallies actually landed.
+            self.send_response(204)
+            self.send_header("access-control-allow-origin", "*")
+            self.send_header("access-control-allow-methods", "GET, POST, OPTIONS")
+            self.send_header("access-control-allow-headers", "content-type")
+            self.send_header("access-control-max-age", "3600")
+            self.end_headers()
         def do_POST(self):
             # v902 (Konyo: 'wire the library to the AI READER and automatic intake') —
             # the board posts each auto-intake RESULT here; it becomes a journaled beat
@@ -2082,9 +2093,27 @@ def _game_window_present():
         return True  # fail-open on Windows unless explicitly waiting
     # Mac: only D2R.exe (never CrossOver Home / Battle.net)
     try:
-        return find_d2r_window_mac() is not None
+        if find_d2r_window_mac() is not None:
+            return True
     except Exception:
-        return False
+        pass
+    # v927.5 — PROCESS-ALIVE FALLBACK: during loading screens / Space transitions macOS
+    # drops the game-sized window from CGWindowList for minutes (live evidence 15:45:
+    # 224s HOLD mid-session; D2R spawns 6 windows and only the 1470×956 one qualifies).
+    # If the D2R.exe process is alive the game exists — keep the gate open and let the
+    # full-screen capture lane carry the feed until the window re-lists.
+    _pn = time.time()
+    _pc = globals().get("_D2R_PROC_CACHE")
+    if _pc and (_pn - _pc[1]) < 5.0:
+        return _pc[0]
+    alive = False
+    try:
+        out = subprocess.run(["pgrep", "-f", "D2R.exe"], capture_output=True, timeout=3)
+        alive = out.returncode == 0
+    except Exception:
+        alive = False
+    globals()["_D2R_PROC_CACHE"] = (alive, _pn)
+    return alive
 
 
 def _set_game_gate(ok, msg=""):
