@@ -1787,7 +1787,7 @@
     for (var k = 1; k < _thPool.length && (k - 1) < idx.length; k++){
       var b = TH.beats[idx[k - 1]];
       if (b && b.frame){
-        var u = '/hist/' + encodeURIComponent(b.frame) + '?w=1280';
+        var u = '/hist/' + encodeURI(b.frame) + '?w=1280';   // v940.2 — encodeURIComponent %2F'd the reel slash → every folded frame 404'd (the black film)
         if (_thPool[k].src.indexOf(u) < 0) _thPool[k].src = u;
       }
     }
@@ -1803,7 +1803,7 @@
       if (!TH.__manual && !b.footage && !TH.playing){
         film.classList.remove('cut'); void film.offsetWidth; film.classList.add('cut');
       }
-      thShowFrame('/hist/' + encodeURIComponent(b.frame) + '?w=1280');
+      thShowFrame('/hist/' + encodeURI(b.frame) + '?w=1280');
       thPreload();
       film.title = (b.frameId||b.frame)+' · CAPTURE '+thFmtMs(b.captureTs||b.ts)+' · click = full 2560';
     } else {
@@ -2631,7 +2631,7 @@
   });   // v800 — broadcast transport: ←/→ beat snap · space play/pause · I card
   $('th-close').onclick = thClose;
   (function(){ var f = $('th-film'); if (f) f.onclick = function(){
-    var b = TH.beats[TH.i]; if (b && b.frame) window.open('/hist/' + encodeURIComponent(b.frame), '_blank');
+    var b = TH.beats[TH.i]; if (b && b.frame) window.open('/hist/' + encodeURI(b.frame), '_blank');
   }; })();   // v799 — full 2560 original one click away
   $('th-play').onclick = function(){
     TH.playing = !TH.playing;
@@ -2708,7 +2708,7 @@
         if (tb && bb && bb.frame){
           tb.hidden = false;
           tb.style.left = Math.max(60, Math.min(window.innerWidth - 100, e.clientX)) + 'px';
-          var u = '/hist/' + encodeURIComponent(bb.frame) + '?w=160';
+          var u = '/hist/' + encodeURI(bb.frame) + '?w=160';
           var im = tb.firstElementChild;
           if (im && im.getAttribute('src') !== u) im.src = u;
           var cap = tb.lastElementChild;
