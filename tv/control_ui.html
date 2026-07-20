@@ -847,6 +847,36 @@
     border-radius: 6px; padding: 4px 6px; cursor: pointer; font: 600 9px/1.4 var(--mono);
     letter-spacing: .08em; transition: color 120ms, border-color 120ms; }
   .util-btn:hover { color: var(--gold); border-color: var(--edge-hi, rgba(240,192,96,.4)); }
+  /* v931 (Konyo: 'i never clicked them — hide them, automate') — the rare levers live behind a
+     tiny ⚙ disclosure, closed by default. Same buttons, same onclicks; just out of his face. */
+  .sig-adv { margin: 2px 0 4px; }
+  .sig-adv > summary { list-style: none; cursor: pointer; font: 600 9px/1.4 var(--mono);
+    letter-spacing: .16em; text-transform: uppercase; color: #6f6a58; padding: 2px;
+    transition: color .15s; user-select: none; }
+  .sig-adv > summary::-webkit-details-marker { display: none; }
+  .sig-adv > summary::before { content: '▸ '; color: #5b5647; }
+  .sig-adv[open] > summary::before { content: '▾ '; }
+  .sig-adv > summary:hover { color: var(--gold-dim); }
+  .sig-adv .util-strip { margin-top: 5px; }
+  /* v931 — 👁👁🧠 THREE EYES: the panel opens with who's watching, in plain words. */
+  .eyes { display: flex; flex-direction: column; gap: 5px; margin-bottom: 3px; }
+  .eye { display: flex; align-items: center; gap: 8px; padding: 5px 9px;
+    border-radius: 7px; background: rgba(0,0,0,.28);
+    border: 1px solid var(--edge); border-left-width: 3px;
+    transition: opacity .3s, border-color .3s; }
+  .eye .ex { font-size: 12px; line-height: 1; flex: none; filter: saturate(1.1); }
+  .eye .en { font: 700 9px/1.2 var(--mono); letter-spacing: .13em; text-transform: uppercase; color: #cdbf9e; white-space: nowrap; }
+  .eye .es { margin-left: auto; font: 600 10px/1.2 var(--mono); letter-spacing: .03em;
+    color: var(--text); text-align: right; }
+  .eye-live   { border-left-color: #e05545; }
+  .eye-second { border-left-color: #5c9ded; }
+  .eye-kai    { border-left-color: var(--gold); }
+  .eye.off { opacity: .42; }
+  .eye.off .es { color: var(--muted); }
+  /* v931 — MODEL demoted to a dim one-line footer (Konyo: 'MODEL — demote') */
+  .signal .sig-foot { font: 500 9px/1.4 var(--mono); letter-spacing: .06em;
+    color: #6f6a58; text-align: right; opacity: .85; margin-top: 2px; }
+  .signal .sig-foot #sig-model { color: var(--gold-dim); }
   /* OFF is a resting state, not a broadcast — its lit cue is subtle (no pulsing ring, gentle glow) */
   button.act.lit.b-off { box-shadow: inset 0 1px 0 rgba(200,187,158,.16), 0 0 14px rgba(200,187,158,.14); filter: none; opacity: .92; animation: none; }
 
@@ -1113,22 +1143,34 @@
         <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>auto intake · pause on stash</span></span></button>
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
-        <div class="util-strip">
-          <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
-          <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
-          <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
-          <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
-        </div>
-        <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size:10.5px;line-height:1.55;padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
+        <details class="sig-adv">
+          <summary>⚙ advanced</summary>
+          <div class="util-strip">
+            <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
+            <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
+            <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
+            <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
+          </div>
+          <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size:10.5px;line-height:1.55;padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
+        </details>
         <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <div class="signal">
-        <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Bridge</span><span class="val" id="sig-bridge">—</span></div>
-        <div class="row"><span class="k">👁 Vision</span><span class="val" id="sig-vision">—</span></div>
-        <div class="row"><span class="k">⏱ Last read</span><span class="val" id="sig-lastread">—</span></div>
+        <!-- v931 (Konyo: 'we have 3 eyes — put all 3 colored eyes/brains there') — the panel
+             opens with WHO is watching, in his words: the live eye, the second eye that
+             double-checks in the gaps, and KAI who drives + closes sessions. -->
+        <div class="eyes">
+          <div class="eye eye-live" id="eye-live"><span class="ex">🔴</span><span class="en">Live Eye</span><span class="es" id="eye-live-s">—</span></div>
+          <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
+          <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
+        </div>
+        <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
+        <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
+        <div class="row" id="sig-vision-row" hidden><span class="k">👁 Vision</span><span class="val" id="sig-vision">—</span></div>
+        <div class="row"><span class="k">⏱ Last thought</span><span class="val" id="sig-lastread">—</span></div>
         <div class="bar"><i id="sig-bar"></i></div>
-        <div class="row"><span class="k"><img class="sjewel" src="/art/hd_ith_rune.png" alt="" onerror="this.style.display='none'">Model</span><span class="val" id="sig-model">—</span></div>
-        <div class="row"><span class="k">🎯 Capture</span><span class="val" id="sig-capture">—</span></div>
+        <div class="row"><span class="k">🎯 Watching</span><span class="val" id="sig-capture">—</span></div>
+        <div class="sig-foot">mind: <span id="sig-model">—</span></div>
       </div>
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
@@ -1398,6 +1440,21 @@
     var sl = $('sig-lastread');
     if (sl) sl.textContent = (on && H.lastReadAgeMs >= 0) ? (H.lastReadAgeMs < 5000 ? 'just now' : Math.round(H.lastReadAgeMs / 1000) + 's ago') : '—';
 
+    // v931 — 👁👁🧠 THREE EYES in plain words. 🔴 live eye folds the vision state in;
+    // 🔵 second eye double-checks in the idle gaps; 🧠 KAI drives + seals sessions.
+    var eLiveS = $('eye-live-s'), eSecS = $('eye-second-s'), eKaiS = $('eye-kai-s');
+    if (eLiveS) eLiveS.textContent = on ? ((H.visionBusyMs || 0) > 1500 ? ('thinking ' + Math.round((H.visionBusyMs || 0) / 1000) + 's') : 'watching') : 'off';
+    if (eSecS) eSecS.textContent = on ? 'double-checking' : 'resting';
+    if (eKaiS) {
+      var _ea = st.engineAlive, _er = st.engineReady;
+      eKaiS.textContent = (_ea === true && _er === true) ? 'driving · closes sessions'
+        : (_ea === true ? 'waking up' : 'asleep');
+    }
+    var eLiveB = $('eye-live'), eSecB = $('eye-second'), eKaiB = $('eye-kai');
+    if (eLiveB) eLiveB.classList.toggle('off', !on);
+    if (eSecB) eSecB.classList.toggle('off', !on);
+    if (eKaiB) eKaiB.classList.toggle('off', st.engineAlive !== true);
+
     var film = $('stage-film');
     if (film) {
       if (typeof TH !== 'undefined' && TH.open){ document.body.classList.remove('film-on'); }   // v859 — theatre covers the stage; no film thrash under it
@@ -1468,14 +1525,19 @@
     setMeter('m-area', st.area || '—');
     setMeter('m-scene', st.scene || st.phase || '—');
 
-    $('sig-bridge').textContent = on ? 'LINKED' : 'DOWN';
+    $('sig-bridge').textContent = on ? 'connected' : 'no signal';
     $('sig-model').textContent = st.model || '—';
     // v779-pre (Konyo: 'is it targeting the diablo II window? I don't see that it is') —
     // the eye's target is VISIBLE truth now: window pin vs full screen
     var capEl = $('sig-capture');
     if (capEl){
       var ct = st.captureTarget || {};
-      capEl.textContent = ct.mode === 'window' ? ('🎯 ' + (ct.label || 'game window')) : (on ? 'full screen' : '—');
+      // v931 (Konyo: 'CAPTURE — what is it?') — plain words for what the eye is pointed at
+      var capTxt;
+      if (ct.mode === 'window') capTxt = /d2r|diablo/i.test(ct.label || '') ? 'Diablo II window' : (ct.label || 'game window');
+      else if (on) capTxt = 'whole screen';
+      else capTxt = 'holding — no game window';
+      capEl.textContent = capTxt;
       capEl.style.color = ct.mode === 'window' ? 'var(--mint)' : '';
     }
     if (rc > readMax) readMax = rc;
