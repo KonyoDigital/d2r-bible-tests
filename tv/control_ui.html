@@ -2807,11 +2807,29 @@
       if (typeof f.contentWindow.switchTab === 'function') f.contentWindow.switchTab(tab);
       f.contentWindow.location.hash = '#' + tab;
     } catch(e){}
+    // v935.5 (Konyo: "tabs aren't moving freely — we said ONE shell") — the pane lives
+    // UNDER the persistent header: top tabs stay visible + clickable, panes swap
+    // instantly under them, active tab lit. No pill round-trips.
+    try {
+      var hb = document.getElementById('head-tabs').getBoundingClientRect().bottom + 8;
+      f.style.top = hb + 'px'; f.style.height = 'calc(100vh - ' + hb + 'px)';
+    } catch(e){ f.style.top = '76px'; f.style.height = 'calc(100vh - 76px)'; }
     document.body.classList.add('shell-open');
+    _shellLight(tab);
     var hp = document.getElementById('shell-home'); if (hp) hp.hidden = false;
+  }
+  function _shellLight(tab){
+    try {
+      document.querySelectorAll('#head-tabs .ht').forEach(function(b){
+        b.classList.toggle('shell-on', b.dataset.tab === tab);
+      });
+    } catch(e){}
   }
   function shellHome(){
     document.body.classList.remove('shell-open');
+    _shellLight('tvd');
+    var f = document.getElementById('tvd-eng');
+    if (f){ f.style.top = ''; f.style.height = ''; }
     var hp = document.getElementById('shell-home'); if (hp) hp.hidden = true;
   }
   window._shellHome = shellHome;
@@ -3134,14 +3152,18 @@
         style="position:fixed; left:0; bottom:0; width:2px; height:2px; opacity:0;
                pointer-events:none; border:0; z-index:-1" loading="eager"></iframe>
 <button id="shell-home" hidden onclick="window._shellHome()"
-        style="position:fixed; top:10px; left:12px; z-index:960; cursor:pointer;
+        style="position:fixed; bottom:12px; left:12px; z-index:960; cursor:pointer;
                background:rgba(10,8,5,.92); color:#f0c060; border:1px solid rgba(240,192,96,.5);
                border-radius:999px; padding:8px 16px; font:700 12px/1 ui-monospace,monospace;
                letter-spacing:.1em; box-shadow:0 0 18px rgba(240,192,96,.25)">⌂ CONSOLE · esc</button>
 <style>
 /* v935 THE SHELL — board pane promotion (same iframe as the engine; state never resets) */
-body.shell-open #tvd-eng { left:0; top:0; bottom:auto; width:100vw; height:100vh;
-  opacity:1; pointer-events:auto; z-index:940; background:#070605; }
+body.shell-open #tvd-eng { left:0; bottom:auto; width:100vw;
+  opacity:1; pointer-events:auto; z-index:940; background:#070605;
+  border-top:1px solid rgba(240,192,96,.28); }
+body.shell-open .head-tabs, body.shell-open #head-tabs { position:relative; z-index:952; }
+#head-tabs .ht.shell-on { color:#f0c060; border-color:rgba(240,192,96,.65);
+  box-shadow:0 0 10px rgba(240,192,96,.25); opacity:1 !important; }
 </style>
 </body>
 </html>
