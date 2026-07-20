@@ -1525,6 +1525,83 @@ def _kai_frame_cls(lines, itemish):
     return "gameplay"
 
 
+# ── v943 AUTO-REGISTER stage 1 — THE REGISTER LEDGER ────────────────────────────
+# Konyo's law: "it read it, it analyzed it → it's registered — why not." This is the
+# EVIDENCE ledger only (what the eyes witnessed this session); the write-into-Chronicle
+# arc with dedup law is a later bible-side stage. Nothing here touches board/grail/chronicle.
+_REGISTER_ANCHORS = frozenset((
+    "horadric cube", "wirt's leg", "wirts leg", "key", "tome",
+))
+
+
+def _register_is_junk(low):
+    """Reuse the KAI word-boundary noise sense, plus gold-shape + potion/scroll consumables.
+    Real DB grounding already gates most junk; this catches the always-carried filler."""
+    if _kai_line_is_noise(low):
+        return True
+    if low == "gold" or re.fullmatch(r"\d[\d,\.]*\s*gold", low):
+        return True
+    for w in ("potion", "rejuvenation", "scroll"):
+        if re.search(r"(?<![a-z])" + re.escape(w) + r"(?![a-z])", low):
+            return True
+    return False
+
+
+def _register_is_anchor(low):
+    if low in _REGISTER_ANCHORS:
+        return True
+    return "tome of" in low   # Tome of Town Portal / Tome of Identify
+
+
+def _kai_compile_register(sess_rows):
+    """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
+    KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
+    minus anchors + noise. One record per unique name, earliest sighting wins.
+    Record: {name, firstSeenTs, frameId, loc, tier}. Pure — no side effects."""
+    fulln = _kai_fullnames()
+    reg = {}   # name.lower() -> record
+
+    def _consider(name, ts, frame_id, loc, tier):
+        nm = str(name or "").strip()
+        if not nm:
+            return
+        low = nm.lower()
+        if low not in fulln or _register_is_anchor(low) or _register_is_junk(low):
+            return
+        ts = int(ts or 0)
+        cur = reg.get(low)
+        if cur is None:
+            reg[low] = {"name": nm, "firstSeenTs": ts, "frameId": frame_id or "",
+                        "loc": loc, "tier": (tier or None)}
+            return
+        # earliest sighting wins the frame/ts/loc; a real tier fills a blank one.
+        if ts and (not cur["firstSeenTs"] or ts < cur["firstSeenTs"]):
+            cur["firstSeenTs"] = ts
+            cur["frameId"] = frame_id or cur["frameId"]
+            if loc is not None:
+                cur["loc"] = loc
+        if loc is not None and cur.get("loc") is None:
+            cur["loc"] = loc
+        if tier and not cur.get("tier"):
+            cur["tier"] = tier
+
+    for r in sess_rows:
+        ts = int(r.get("ts") or r.get("captureTs") or 0)
+        fid = str(r.get("frameId") or "")
+        nl = r.get("names_loc") if isinstance(r.get("names_loc"), dict) else {}
+        if r.get("lane") == "deep":
+            for nm in (r.get("names") or []):
+                _consider(nm, ts, fid, nl.get(nm), None)
+        if r.get("lane") == "kai":
+            k = r.get("kai")
+            j = k.get("judge") if isinstance(k, dict) else None
+            if isinstance(j, dict):
+                tier = str(j.get("tier") or "").lower()
+                if tier in ("grail", "keep", "border"):
+                    _consider(j.get("name"), ts, fid, nl.get(j.get("name")), tier)
+    return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
+
+
 def _kai_closer_loop():
     """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
     with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
@@ -1778,6 +1855,31 @@ def _kai_closer_loop():
                             print(f"⚠ KAI judge fire failed: {_je}", flush=True)
                 except Exception as _kfe:
                     print(f"⚠ KAI funnel stage error: {_kfe}", flush=True)
+
+                # ── v943 📖 THE REGISTER LEDGER — after watchdog/funnel/judge, compile what the
+                # session WITNESSED. Re-read the journal so the judge verdicts that posted during
+                # the tooltip stage are counted. Evidence only — no board/grail/chronicle writes.
+                try:
+                    _reg_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+                    _register = _kai_compile_register(_reg_rows)
+                    report["register"] = _register
+                    try:
+                        with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as _rf2:
+                            json.dump(report, _rf2)
+                    except Exception:
+                        pass
+                    _reg_row = {"ts": _sess_last + 60, "captureTs": _sess_last + 60,
+                                "completedTs": int(time.time() * 1000),
+                                "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
+                                "sessionId": sid, "frameId": "",
+                                "kai": {"register": {"count": len(_register),
+                                                     "items": _register[:40]}},
+                                "note": f"📖 KAI register ledger — {len(_register)} items witnessed this session"}
+                    with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf3:
+                        _rf3.write(json.dumps(_reg_row, ensure_ascii=False) + "\n")
+                    print(f"📖 KAI register: {len(_register)} items witnessed in {sid}", flush=True)
+                except Exception as _rge:
+                    print(f"⚠ KAI register stage error: {_rge}", flush=True)
             except Exception as _we:
                 print(f"🚨 watchdog: check raised ({_we})", flush=True)
         except Exception:
@@ -2623,9 +2725,12 @@ class Handler(BaseHTTPRequestHandler):
                 _km, _kc = None, None
                 _thrown = set()
                 _keepers = []
+                _registered = None   # v943 — 📖 how many items KAI witnessed this session
                 for r2 in sess:
                     if r2.get("lane") == "kai" and isinstance(r2.get("kai"), dict) and "missedFrames" in r2["kai"]:
                         _km = r2["kai"].get("missedFrames"); _kc = r2["kai"].get("classes")
+                    if r2.get("lane") == "kai" and isinstance(r2.get("kai"), dict) and isinstance(r2["kai"].get("register"), dict):
+                        _registered = r2["kai"]["register"].get("count")
                     for nm2 in (r2.get("thrown_names") or []):
                         _thrown.add(str(nm2).strip().lower())
                     _jd = (r2.get("kai") or {}).get("judge") if isinstance(r2.get("kai"), dict) else None
@@ -2634,7 +2739,7 @@ class Handler(BaseHTTPRequestHandler):
                 # v940 💔 — a REGRET = the judge ruled KEEP on something this session threw out
                 _regrets = sum(1 for k2 in _keepers if k2 in _thrown)
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
-                            "judged": len(_keepers), "regrets": _regrets,
+                            "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
