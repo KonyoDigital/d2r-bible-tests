@@ -905,6 +905,23 @@
   .th-dossier .thd-kai { color: #f0c060; }
   .th-dossier .thd-sep { opacity: .32; margin: 0 6px; color: #8fa398; }
   .th-dossier .thd-dim { opacity: .62; font-weight: 500; }
+  /* v944.4 — READ-STATUS VERDICT + router pill + tally chips (the "was it read" answer) */
+  .th-rs { display: inline-block; font: 700 12.5px/1.4 var(--mono); letter-spacing: .02em; padding: 3px 9px;
+    border-radius: 7px; border: 1px solid transparent; }
+  .th-rs b { font-variant-numeric: tabular-nums; }
+  .th-rs-ok { color: #9df0bd; border-color: rgba(143,230,160,.45); background: rgba(30,60,40,.35); }
+  .th-rs-miss { color: #ffb0a0; border-color: rgba(255,120,90,.55); background: rgba(70,26,20,.4); }
+  .th-rs-named { color: #cbbcff; border-color: rgba(185,165,255,.4); background: rgba(40,32,64,.35); }
+  .th-rs-wrap { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+  .th-rs-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .th-rs-chip { font: 600 11px/1 var(--mono); color: #e8d7ae; border: 1px solid rgba(240,192,96,.24);
+    background: rgba(30,22,10,.5); border-radius: 6px; padding: 4px 7px; }
+  .th-rs-chip b { color: var(--gold); }
+  .th-rs-chip.th-rs-more { opacity: .6; }
+  .th-rs-card { margin: 2px 0 4px; }
+  .th-router-pill { display: inline-block; font: 700 10.5px/1 var(--mono); letter-spacing: .08em;
+    color: #d9c9a0; border: 1px solid rgba(240,192,96,.3); background: rgba(0,0,0,.4);
+    border-radius: 6px; padding: 4px 7px; vertical-align: middle; }
   /* v940.5 (Konyo: 'ON AIR + replay open confused me — am i live or past?') — under the
      theatre, the console's live red bug is HIDDEN. The only lit status inside theatre chrome
      is the gold 📼 REPLAY ribbon; the header light can never masquerade as "you're live now". */
@@ -1040,6 +1057,38 @@
   .tly-k b { color: var(--gold); }
   .tly-empty { text-align: center; padding: 44px 20px; font: 500 12px/1.8 var(--mono); color: #a5906a; }
   .tly-empty b { color: var(--gold); }
+  /* v944.4 — TALLY CARD is clickable → in-overlay detail expand */
+  .tly-shot { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+  .tly-shot:hover { border-color: rgba(240,192,96,.4); }
+  .tly-shot.open { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(240,192,96,.25), 0 8px 26px rgba(0,0,0,.5); }
+  .tly-caret { margin-left: auto; color: var(--gold); font: 700 12px/1 var(--mono); opacity: .7; }
+  .tly-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(240,192,96,.2); }
+  .tly-detail-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .tly-detail-h { font: 700 10px/1 var(--mono); letter-spacing: .16em; color: #bfa878; text-transform: uppercase; margin: 8px 0 6px; }
+  .tly-detail-img { display: block; width: 100%; max-width: 620px; border-radius: 10px; margin: 12px 0 4px;
+    border: 1px solid rgba(240,192,96,.3); cursor: zoom-in; }
+  .tly-detail-ids { margin-top: 8px; font: 500 10px/1.7 var(--mono); color: #8d7a58; word-break: break-all; }
+  /* v944.4 — 📥 RECEIPT LEDGER overlay (plumbing view: status dots, misses visible) */
+  #rlog-ov { position: fixed; inset: 0; z-index: 910; background: rgba(4,3,2,.82); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; }
+  #rlog-ov[hidden] { display: none; }
+  #rlog-ov .tly-panel { width: min(760px, 94vw); }
+  .rlog-list { overflow-y: auto; padding: 10px 16px 18px; display: flex; flex-direction: column; gap: 5px; }
+  .rlog-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 9px;
+    border: 1px solid rgba(240,192,96,.14); background: rgba(0,0,0,.3); font: 600 12px/1.3 var(--mono); color: #d9c9a0; }
+  .rlog-row.rlog-empty { border-color: rgba(230,190,90,.4); }
+  .rlog-row.rlog-error { border-color: rgba(255,120,90,.5); background: rgba(50,18,14,.35); }
+  .rlog-dot { flex: 0 0 auto; font-size: 11px; }
+  .rlog-tab { flex: 0 0 auto; min-width: 88px; color: var(--gold); letter-spacing: .08em; }
+  .rlog-tot { flex: 0 0 auto; } .rlog-tot b { color: var(--mint); font-variant-numeric: tabular-nums; }
+  .rlog-row.rlog-empty .rlog-tot b, .rlog-row.rlog-error .rlog-tot b { color: #ff9a7a; }
+  .rlog-types { flex: 0 0 auto; opacity: .6; font-size: 11px; }
+  .rlog-err { flex: 0 0 auto; color: #ff9a7a; font-size: 11px; }
+  .rlog-kind { flex: 1 1 auto; min-width: 0; opacity: .5; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rlog-when { flex: 0 0 auto; opacity: .55; font-size: 10px; }
+  .rlog-fid { flex: 0 0 auto; opacity: .45; font-size: 10px; }
+  #tly-receipts-btn { color: #cbbcff; border-color: rgba(185,165,255,.4); }
+  #tly-receipts-btn:hover { color: #e0d6ff; border-color: rgba(185,165,255,.8); }
   .hd-chip.intk { border-color: rgba(185,165,255,.5); color: #cbbcff; }
   /* v936 R4 — placeholder is ONE flex item; without a full-width basis it stays at max-content
      and overflows the card (home-dash overflow-y:auto clips it horizontally, cutting the text
@@ -1832,11 +1881,11 @@
     // 📸 — the intake tally: <tab> ×<total> + top-3 counts + '+N more'
     var t = d.tally;
     if (t && typeof t === 'object'){
-      var counts = t.counts || {};
-      var keys = Object.keys(counts).sort(function(a, c){ return counts[c] - counts[a]; });
-      var total = t.total != null ? t.total : keys.reduce(function(s, k){ return s + (counts[k] || 0); }, 0);
-      var top = keys.slice(0, 3).map(function(k){ return esc(k) + ' ' + counts[k]; });
-      var more = keys.length - top.length;
+      // v944.4 — counts is now an ARRAY of [name,n] (older beats: object). thCountPairs takes both.
+      var pairs = thCountPairs(t.counts).sort(function(a, c){ return (c[1] || 0) - (a[1] || 0); });
+      var total = t.total != null ? t.total : pairs.reduce(function(s, p){ return s + (p[1] || 0); }, 0);
+      var top = pairs.slice(0, 3).map(function(p){ return esc(p[0]) + ' ' + p[1]; });
+      var more = pairs.length - top.length;
       var label = t.tab || t.kind || 'shot';
       var seg = '📸 <b>' + esc(label) + '</b> ×' + total;
       if (top.length) seg += ' <span class="thd-dim">(' + top.join(' · ') + (more > 0 ? ' · +' + more + ' more' : '') + ')</span>';
@@ -1866,6 +1915,58 @@
     }
     if (!segs.length) return '';
     return '<div class="th-dossier">' + segs.join('<span class="thd-sep">·</span>') + '</div>';
+  }
+  // v944.4 (Konyo: "I don't know if it was read or not correctly here") — the READ-STATUS VERDICT.
+  // The server hangs dossier.readStatus + dossier.router on every footage/deep beat; these turn it
+  // into the plain answer to "was this panel read?" — shown on the frame, in the caption, in the card.
+  function thTabIcon(tab){
+    tab = String(tab || '').toLowerCase();
+    return /rune/.test(tab) ? '🔮' : /gem/.test(tab) ? '💎' : /material/.test(tab) ? '🧪'
+      : /inventor/.test(tab) ? '🎒' : /tooltip/.test(tab) ? '🃏'
+      : /personal|shared|stash/.test(tab) ? '🏦' : '';
+  }
+  // tally counts arrive as an ARRAY of [name,n] (dossier) OR an OBJECT {name:n} (/api/tallies) — take both.
+  function thCountPairs(counts){
+    if (Array.isArray(counts)) return counts.slice();
+    if (counts && typeof counts === 'object') return Object.keys(counts).map(function(k){ return [k, counts[k]]; });
+    return [];
+  }
+  function thTallyChips(t, cap){
+    var pairs = thCountPairs(t && t.counts);
+    if (!pairs.length) return '';
+    pairs.sort(function(a, c){ return (c[1] || 0) - (a[1] || 0); });
+    var lim = cap || 14;
+    return pairs.slice(0, lim).map(function(p){ return '<span class="th-rs-chip">' + esc(p[0]) + ' <b>×' + esc(p[1]) + '</b></span>'; }).join('')
+      + (pairs.length > lim ? '<span class="th-rs-chip th-rs-more">+' + (pairs.length - lim) + ' more</span>' : '');
+  }
+  // a small router pill for the frame: 🔮 RUNES / 🎒 INVENTORY / 🃏 TOOLTIP / 🎮 gameplay
+  function thRouterPill(b){
+    var r = b && b.dossier && b.dossier.router;
+    if (!r || !r.label) return '';
+    var lab = String(r.label);
+    var icon = thTabIcon(lab) || (/gameplay/i.test(lab) ? '🎮' : '🎬');
+    var short = lab.replace(/^stash-/, '').toUpperCase();
+    return '<span class="th-router-pill" title="router: ' + esc(lab) + (r.verdict ? (' · ' + esc(r.verdict)) : '') + '">' + icon + ' ' + esc(short) + '</span>';
+  }
+  // the verdict line. full=true adds the cross-referenced tally chips (for the drawer).
+  function thReadStatus(b, full){
+    var d = b && b.dossier; var rs = d && d.readStatus;
+    if (!rs || typeof rs !== 'object') return '';
+    var tabU = String(rs.tab || '').toUpperCase();
+    var icon = thTabIcon(rs.tab) || '🔮';
+    if (rs.kind === 'read'){
+      var head = '<span class="th-rs th-rs-ok">' + icon + ' ' + esc(tabU) + ' tab · <b>' + rs.counted + ' counted</b> ✓</span>';
+      if (!full) return head;
+      var chips = thTallyChips(d.tally);
+      return '<div class="th-rs-wrap">' + head + (chips ? '<div class="th-rs-chips">' + chips + '</div>' : '') + '</div>';
+    }
+    if (rs.kind === 'miss'){
+      return '<span class="th-rs th-rs-miss">' + icon + ' ' + esc(tabU) + ' tab · <b>0 counted</b> ⚠ MISS — intake fired but read nothing</span>';
+    }
+    if (rs.kind === 'named'){
+      return '<span class="th-rs th-rs-named">🧠 ' + rs.counted + ' item' + (rs.counted === 1 ? '' : 's') + ' named</span>';
+    }
+    return '';
   }
   function thCaption(b){
     if (b && b.lane === 'kai'){
@@ -1934,7 +2035,7 @@
             var badge = lc2 === 'equipped' ? ' 🎽' : (lc2 === 'inventory' ? ' 🎒' : (lc2 === 'stash' ? ' 🏦' : (lc2 === 'floor' ? ' 🧱' : '')));
             return esc(nm) + badge;   // v830 — WHERE each tooltip lived
           }).join(' · ') + '</b>')
-                        : '<span class="ar-dim">no item text on this frame (honest empty)</span>')
+                        : (thReadStatus(b, false) || '<span class="ar-dim">no item text on this frame (honest empty)</span>'))
         + (b.scene ? ' <span class="ar-dim">· ' + esc(b.scene) + (b.area ? ' @ ' + esc(b.area) : '') + '</span>' : '') + '</div>'
         + ((ocrN.length || b.ocr_ms) ? (function(){
             // v848 — the headline shows ITEM-ISH ocr only; raw garbage stays drawer-truth
@@ -2027,15 +2128,21 @@
     } catch (e) {}
     // v893 — lighter caption work during autoplay (story beats still full)
     if (b.footage && TH.playing && !TH.__manual){
+      // v944.4 — even zipping through film, a stash frame's READ/MISS verdict is the headline
+      var _rsA = thReadStatus(b, false), _rpA = thRouterPill(b);
       var lr = TH.lastRead;
-      if (lr) $('th-caption').innerHTML = '<span class="ar-dim">📹</span> ' + thCaption(lr);
-      else $('th-caption').textContent = '📹 film';
+      if (_rsA) $('th-caption').innerHTML = _rpA + ' ' + _rsA;
+      else if (lr) $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹</span> ' + thCaption(lr);
+      else $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹 film</span>';
     } else if (b.footage){
       var lr2 = TH.lastRead;
-      var foot = '<span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + '</span>';
-      $('th-caption').innerHTML = lr2 ? (foot + '<br>' + thCaption(lr2)) : foot;
+      var _rsB = thReadStatus(b, false), _rpB = thRouterPill(b);
+      var foot = _rpB + ' <span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + '</span>';
+      // the frame's own read-status verdict rides first (the answer to "was it read"), then the last read for context
+      $('th-caption').innerHTML = (_rsB ? _rsB + '<br>' : '') + (lr2 ? (foot + '<br>' + thCaption(lr2)) : foot);
     } else {
-      $('th-caption').innerHTML = thCaption(b);
+      var _rpC = thRouterPill(b);
+      $('th-caption').innerHTML = (_rpC ? _rpC + ' ' : '') + thCaption(b);
     }
     if (typeof thCardRender === 'function'){
       clearTimeout(window.__thCardT);
@@ -2595,8 +2702,13 @@
     }
     if (bF.footage){
       // v854 — a footage frame is the eye BETWEEN reads: say so, don't claim 'not recorded'
+      // v944.4 — but if the ROUTER proved this frame was a stash panel, lead with the READ/MISS
+      // verdict (the answer to "was it read"), the router pill, and the cross-referenced tally.
+      var _rp = thRouterPill(bF), _rs = thReadStatus(bF, true);
       el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
+        + (_rs ? '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rp ? _rp + ' ' : '') + _rs + '</div>' : '')
         + '<h4>📹 footage frame</h4>'
+        + (_rp && !_rs ? '<div class="kv"><span class="k">router</span><span class="v">' + _rp + '</span></div>' : '')
         + '<div class="kv"><span class="k">capture</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '.' + ('00' + (bF.ts % 1000)).slice(-3) + '</span></div>'
         + '<div class="kv"><span class="k">file</span><span class="v">' + esc(bF.frameId || '') + '.jpg</span></div>'
         + '<div class="col" style="margin-top:10px;opacity:.7">the eye, one frame per second, between AI reads — '
@@ -2620,6 +2732,9 @@
       + col('deep', b.names) + col('ocr', b.ocr_names) + col('confirmed', b.confirmed_names)
       + col('vault', b.vault_names) + col('holding', b.pending_names) + col('thrown', b.thrown_names)
       + col('discovered', b.discovered_names) + col('ocr-rescued', b.ocr_seeded);
+    // v944.4 — the READ-STATUS verdict + router pill, first (the plain "was it read" answer)
+    var _rsDrawer = thReadStatus(b, true), _rpDrawer = thRouterPill(b);
+    if (_rsDrawer) h += '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rpDrawer ? _rpDrawer + ' ' : '') + _rsDrawer + '</div>';
     // v941.6 — the three-eye dossier, compact, at the top of the per-beat forensics
     var _dossierDrawer = thDossierLine(b);
     if (_dossierDrawer) h += '<h4>the three eyes — dossier</h4>' + _dossierDrawer;
@@ -3642,7 +3757,7 @@
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it
   // came from. Data = /api/tallies (journaled intake beats — server truth, agent on or off).
-  var TLY = { open:false, tab:'all', shots:[] };
+  var TLY = { open:false, tab:'all', shots:[], expanded:null };
   var TLY_IC = { runes:'🪨', gems:'💎', materials:'🧪', vault:'🏦' };
   function _tlyEl(){
     var ov = document.getElementById('tly-ov');
@@ -3650,7 +3765,8 @@
     ov = document.createElement('div');
     ov.id = 'tly-ov'; ov.hidden = true;
     ov.innerHTML = '<div class="tly-panel">'
-      + '<div class="tly-head"><b>🧰 TALLY ENGINE</b><span>every shot the eye counted · click a photo for the full frame</span>'
+      + '<div class="tly-head"><b>🧰 TALLY ENGINE</b><span>every shot the eye counted · click a card for its full detail</span>'
+      + '<button class="tly-x" id="tly-receipts-btn" onclick="window._rlogOpen()" title="the backend receipt ledger — every intake the server received, misses included">📥 RECEIPTS</button>'
       + '<button class="tly-x" onclick="window._tlyClose()">✕ ESC</button></div>'
       + '<div class="tly-tabs" id="tly-tabs"></div>'
       + '<div class="tly-list" id="tly-list"></div></div>';
@@ -3667,14 +3783,17 @@
       var n = t[0]==='all' ? TLY.shots.length : TLY.shots.filter(function(s){ return (s.tab===t[0])||(s.kind===t[0]); }).length;
       return '<span class="tly-tab'+(TLY.tab===t[0]?' on':'')+'" onclick="window._tlyTab(\''+t[0]+'\')">'+t[1]+' · '+n+'</span>';
     }).join('');
-    var rows = TLY.shots.filter(function(s){ return TLY.tab==='all' || s.tab===TLY.tab || s.kind===TLY.tab; });
+    // v944.4 — keep each shot's GLOBAL index so the expand-detail survives tab filtering
+    var rows = TLY.shots.map(function(s, gi){ return { s: s, gi: gi }; })
+      .filter(function(x){ return TLY.tab==='all' || x.s.tab===TLY.tab || x.s.kind===TLY.tab; });
     var list = document.getElementById('tly-list');
     if (!rows.length){
       list.innerHTML = '<div class="tly-empty">nothing tallied ' + (TLY.tab==='all'?'yet':'for <b>'+TLY.tab+'</b> yet')
         + '<br>go <b>ON AIR</b> and pause on your <b>Runes / Gems / Materials</b> stash tab — the eye counts it automatically</div>';
       return;
     }
-    list.innerHTML = rows.map(function(s){
+    list.innerHTML = rows.map(function(x){
+      var s = x.s, gi = x.gi;
       var d = s.ts ? new Date(s.ts) : null;
       var when = d ? (d.toLocaleDateString(undefined,{day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString()) : '—';
       var ic = TLY_IC[s.tab] || TLY_IC[s.kind] || '📸';
@@ -3684,31 +3803,122 @@
               : '<span class="tly-k" style="opacity:.55">🔴 live auto</span>';
       var keys = Object.keys(s.counts||{});
       var chips = keys.length
-        ? keys.map(function(k){ return '<span class="tly-k">'+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
+        ? keys.slice(0, 8).map(function(k){ return '<span class="tly-k">'+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
+          + (keys.length > 8 ? '<span class="tly-k" style="opacity:.6">+'+(keys.length-8)+' more · click</span>' : '')
         : '<span class="tly-k" style="opacity:.55">no new counts in this shot</span>';
       var thumb = s.frameId
         ? '<img class="tsh" src="/hist/'+encodeURIComponent(s.frameId)+'.jpg?w=160" loading="lazy" '
-          + 'onclick="window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
+          + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
           + 'onerror="this.style.opacity=.25;this.style.cursor=\'default\';this.onclick=null;this.title=\'frame not archived\'">'
         : '<div class="tsh" style="display:flex;align-items:center;justify-content:center;color:#6b5a3e;font:600 10px var(--mono)">no frame</div>';
-      return '<div class="tly-shot">' + thumb + '<div>'
+      var open = (TLY.expanded === gi);
+      // the expanded detail: EVERY count, larger frame, ok/total/errors, the ids
+      var detail = '';
+      if (open){
+        var allChips = keys.length
+          ? keys.sort(function(a,c){ return (s.counts[c]||0)-(s.counts[a]||0); })
+              .map(function(k){ return '<span class="tly-k">'+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
+          : '<span class="tly-k" style="opacity:.55">no counts in this shot</span>';
+        var bigImg = s.frameId
+          ? '<img class="tly-detail-img" src="/hist/'+encodeURIComponent(s.frameId)+'.jpg?w=760" loading="lazy" '
+            + 'onclick="event.stopPropagation();window.open(\'/hist/'+encodeURIComponent(s.frameId)+'.jpg\',\'_blank\')" '
+            + 'onerror="this.style.display=\'none\'">'
+          : '';
+        detail = '<div class="tly-detail">'
+          + '<div class="tly-detail-stats">'
+            + '<span class="tly-k">'+(s.ok!==false?'🟢 ok':'🔴 failed')+'</span>'
+            + '<span class="tly-k">total <b>'+(s.total!=null?s.total:keys.length)+'</b></span>'
+            + '<span class="tly-k">types <b>'+keys.length+'</b></span>'
+            + (s.errors ? '<span class="tly-k" style="color:#ff9a7a">errors <b>'+s.errors+'</b></span>' : '')
+          + '</div>'
+          + '<div class="tly-detail-h">every count</div>'
+          + '<div class="tly-counts">'+allChips+'</div>'
+          + bigImg
+          + '<div class="tly-detail-ids">'
+            + (s.frameId ? '<div>frame · '+esc(s.frameId)+'</div>' : '')
+            + (s.sessionId ? '<div>session · '+esc(s.sessionId)+'</div>' : '')
+            + (s.lane ? '<div>lane · '+esc(s.lane)+'</div>' : '')
+          + '</div></div>';
+      }
+      return '<div class="tly-shot'+(open?' open':'')+'" onclick="window._tlyDetail('+gi+')" title="click to '+(open?'collapse':'open the full detail')+'">' + thumb + '<div>'
         + '<div class="tly-meta"><b>'+ic+' '+esc((s.tab||s.kind||'shot').toUpperCase())+'</b><i>'+esc(when)+'</i>'
         + '<span class="tot">'+(s.total||keys.length)+' counted</span>'
         + (s.errors ? '<span class="tot err">'+s.errors+' errors</span>' : '')
-        + (s.ok ? '' : '<span class="tot err">FAILED</span>') + '</div>'
+        + (s.ok ? '' : '<span class="tot err">FAILED</span>')
+        + '<span class="tly-caret">'+(open?'▾':'▸')+'</span></div>'
         + '<div class="tly-counts">'+who+chips+'</div>'
+        + detail
         + '</div></div>';
     }).join('');
   }
-  window._tlyTab = function(t){ TLY.tab = t; _tlyRender(); };
+  // v944.4 (Konyo: "tallies I want to click and see the detail in them like a window opening within")
+  window._tlyDetail = function(i){ TLY.expanded = (TLY.expanded === i ? null : i); _tlyRender(); };
+  window._tlyTab = function(t){ TLY.tab = t; TLY.expanded = null; _tlyRender(); };
   window._tlyOpen = function(){
-    var ov = _tlyEl(); TLY.open = true; ov.hidden = false;
+    var ov = _tlyEl(); TLY.open = true; TLY.expanded = null; ov.hidden = false;
     document.getElementById('tly-list').innerHTML = '<div class="tly-empty">loading the ledger…</div>';
     fetch('/api/tallies').then(function(r){ return r.json(); }).then(function(j){
       TLY.shots = (j && j.shots) || []; _tlyRender();
     }).catch(function(){ TLY.shots = []; _tlyRender(); });
   };
   window._tlyClose = function(){ TLY.open = false; var ov = document.getElementById('tly-ov'); if (ov) ov.hidden = true; };
+  // ══ v944.4 (Konyo: "a separate log for the backend side of these intakes getting received — like
+  // a log") — THE RECEIPT LEDGER. /api/intake_log = every intake the server received, newest first,
+  // with a status dot (🟢 ok · 🟡 empty · 🔴 error). This is the plumbing view where the 0-total
+  // misses show themselves. Distinct from the TALLY ENGINE (item counts) — this is the transport. ══
+  var RLOG = { open:false, rows:[], summary:null };
+  var _RDOT = { ok:'🟢', empty:'🟡', error:'🔴' };
+  function _rlogEl(){
+    var ov = document.getElementById('rlog-ov');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'rlog-ov'; ov.hidden = true;
+    ov.innerHTML = '<div class="tly-panel">'
+      + '<div class="tly-head"><b>📥 RECEIPT LEDGER</b><span id="rlog-sum">every intake the server received · newest first</span>'
+      + '<button class="tly-x" onclick="window._rlogClose()">✕ ESC</button></div>'
+      + '<div class="rlog-list" id="rlog-list"></div></div>';
+    ov.onclick = function(e){ if (e.target === ov) window._rlogClose(); };
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && RLOG.open){ e.stopPropagation(); window._rlogClose(); }
+    }, true);
+    return ov;
+  }
+  function _rlogRender(){
+    var sum = RLOG.summary || {};
+    var sumEl = document.getElementById('rlog-sum');
+    if (sumEl) sumEl.textContent = (sum.total || 0) + ' receipt' + ((sum.total===1)?'':'s')
+      + ' · ' + (sum.empty || 0) + ' empty · ' + (sum.error || 0) + ' error';
+    var list = document.getElementById('rlog-list');
+    if (!RLOG.rows.length){
+      list.innerHTML = '<div class="tly-empty">no receipts yet<br>go <b>ON AIR</b> and pause on a stash tab — each intake the server takes lands here</div>';
+      return;
+    }
+    list.innerHTML = RLOG.rows.map(function(r){
+      var d = r.ts ? new Date(r.ts) : null;
+      var when = d ? (d.toLocaleDateString(undefined,{day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString()) : '—';
+      var dot = _RDOT[r.status] || '⚪';
+      var tab = (r.tab || r.kind || 'shot');
+      return '<div class="rlog-row rlog-' + esc(r.status||'') + '">'
+        + '<span class="rlog-dot">' + dot + '</span>'
+        + '<span class="rlog-tab">' + esc(String(tab).toUpperCase()) + '</span>'
+        + '<span class="rlog-tot">total <b>' + (r.total||0) + '</b></span>'
+        + '<span class="rlog-types">' + (r.types||0) + ' type' + ((r.types===1)?'':'s') + '</span>'
+        + (r.errors ? '<span class="rlog-err">' + r.errors + ' err</span>' : '')
+        + '<span class="rlog-kind">' + esc(r.kind||'') + (r.lane ? ' · ' + esc(r.lane) : '') + '</span>'
+        + '<span class="rlog-when">' + esc(when) + '</span>'
+        + (r.frameId ? '<span class="rlog-fid" title="' + esc(r.frameId) + '">🖼 ' + esc(String(r.frameId).slice(0,18)) + '</span>' : '')
+        + '</div>';
+    }).join('');
+  }
+  window._rlogOpen = function(){
+    var ov = _rlogEl(); RLOG.open = true; ov.hidden = false;
+    document.getElementById('rlog-list').innerHTML = '<div class="tly-empty">loading the ledger…</div>';
+    fetch('/api/intake_log').then(function(r){ return r.json(); }).then(function(j){
+      RLOG.rows = (j && j.rows) || []; RLOG.summary = (j && j.summary) || null; _rlogRender();
+    }).catch(function(){ RLOG.rows = []; RLOG.summary = null; _rlogRender(); });
+  };
+  window._rlogClose = function(){ RLOG.open = false; var ov = document.getElementById('rlog-ov'); if (ov) ov.hidden = true; };
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){

@@ -1886,7 +1886,8 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
     receipted = set()   # tabs that receipted normally this session (tally route + receipt = no gap)
     for r in sess_rows:
         ik = r.get("intake")
-        if isinstance(ik, dict) and ik.get("ok", True):
+        # v944.6 — only a REAL (ok + total>0) tally counts; empty 0-shots must not seal the gap
+        if isinstance(ik, dict) and _intake_is_real(ik):
             t = str(ik.get("tab") or "").lower()
             if t:
                 receipted.add(t)
@@ -1904,6 +1905,10 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
     out = []
     _prev_sig = None
     _run_first = None   # the f that opened the current visual run
+    # v944.6 — label+time near-dup window (routing-only). Same label within N ms of the
+    # cluster head collapses to one logical event; film/ledger rows stay intact.
+    _NEAR_DUP_MS = 3000
+    _label_last = {}    # label -> (ts, f) of the cluster head
     for s in scan:
         f = str(s.get("f") or "")
         ts = int(s.get("ts") or 0)
@@ -1963,6 +1968,19 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             skip = "dup-of:" + (_run_first or "")
         else:
             _run_first = f
+            # v944.6 label+time near-dup (Claude deferred this from pixel fuzzy): same non-gameplay
+            # label within _NEAR_DUP_MS of the cluster head → one logical event. Exact-sig dups
+            # already handled above; this catches near-identical stash-sitting frames whose JPEG
+            # bytes diverge (cursor/glow) but are the same panel moment. Film never trimmed.
+            if label and label != "gameplay":
+                _prev_lt = _label_last.get(label)
+                if _prev_lt and 0 <= (ts - _prev_lt[0]) <= _NEAR_DUP_MS:
+                    if routed is None:
+                        route = None
+                        skip = "near-dup-of:" + (_prev_lt[1] or "")
+                    # keep cluster head — don't advance last
+                else:
+                    _label_last[label] = (ts, f)
         _prev_sig = _sig
         out.append({"f": f, "ts": ts, "label": label, "sources": sources,
                     "confidence": conf, "voteCount": len(sources), "route": route,
@@ -2146,8 +2164,9 @@ def _kai_closer_loop():
                             if t2 in ("runes", "gems", "materials"):
                                 _visited.add(t2)
                         ik2 = r2.get("intake")
-                        if isinstance(ik2, dict) and ik2.get("ok", True) and str(ik2.get("tab") or "").lower():
-                            _receipted.add(str(ik2.get("tab") or "").lower())   # v938.3 — ok:false ≠ receipted
+                        # v944.6 — ok:false OR total==0 ≠ receipted (never-zero; gap stays open for re-funnel)
+                        if isinstance(ik2, dict) and _intake_is_real(ik2) and str(ik2.get("tab") or "").lower():
+                            _receipted.add(str(ik2.get("tab") or "").lower())
                     _gaps = [t for t in ("runes", "gems", "materials") if t in _visited and t not in _receipted]
                     _by_tab = {}
                     for mrec in missed:
@@ -2515,22 +2534,54 @@ def _engine_driver():
             now_ms = int(time.time() * 1000)
             intk = st.get("intakes") or []
             if inflight:
-                landed = any(int(i.get("ts") or 0) >= inflight["fired_ms"] - 2000
-                             and (i.get("intake") or {}).get("tab") in (inflight["tab"], inflight["key"].replace("vault_", ""))
-                             for i in intk)
-                if not landed:
+                # v944.6 — capture the landed intake BODY (not just a bool) so we can
+                # decide never-zero re-fire: total==0 / ok==false is a failure signal.
+                _tabs = (inflight["tab"], inflight["key"].replace("vault_", ""))
+                landed_ik = None
+                for i in intk:
+                    if (int(i.get("ts") or 0) >= inflight["fired_ms"] - 2000
+                            and (i.get("intake") or {}).get("tab") in _tabs):
+                        landed_ik = i.get("intake") or {}
+                        break
+                if landed_ik is None:
                     # bridge-blind confirm: receipts that arrived via control's /intake_result
                     try:
-                        landed = any(r.get("lane") == "intake"
-                                     and int(r.get("ts") or 0) >= inflight["fired_ms"] - 2000
-                                     and (r.get("intake") or {}).get("tab") in (inflight["tab"], inflight["key"].replace("vault_", ""))
-                                     for r in _kai_journal_rows()[-80:])
+                        for r in _kai_journal_rows()[-80:]:
+                            if (r.get("lane") == "intake"
+                                    and int(r.get("ts") or 0) >= inflight["fired_ms"] - 2000
+                                    and (r.get("intake") or {}).get("tab") in _tabs):
+                                landed_ik = r.get("intake") or {}
+                                break
                     except Exception:
                         pass
-                if landed:
-                    visit_done[inflight["key"]] = True
-                    print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓", flush=True)
-                    inflight = None
+                if landed_ik is not None:
+                    # pick the freshest archived frame for this tab (updated picture)
+                    try:
+                        _fresh = _drv_freshest_tab_fid(
+                            inflight["tab"], reads=reads,
+                            journal_rows=_kai_journal_rows()[-120:],
+                            fallback=inflight.get("fid") or "")
+                    except Exception:
+                        _fresh = inflight.get("fid") or ""
+                    _act, _job = _drv_empty_refire_plan(inflight, landed_ik, _fresh, max_tries=3)
+                    if _act == "done":
+                        visit_done[inflight["key"]] = True
+                        _tot = int((landed_ik or {}).get("total") or 0)
+                        print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓ total={_tot}", flush=True)
+                        inflight = None
+                    elif _act == "refire":
+                        fire_q.insert(0, _job)
+                        print(f"🚫0️⃣ engine-driver: {inflight['key']} empty/error "
+                              f"(ok={landed_ik.get('ok')} total={landed_ik.get('total')}) — "
+                              f"re-fire try {_job['tries'] + 1} on frame {_job.get('fid')}", flush=True)
+                        globals()["_DRV_REFIRE"] = globals().get("_DRV_REFIRE", 0) + 1
+                        inflight = None
+                    else:  # giveup
+                        visit_done[inflight["key"]] = True
+                        print(f"⚠ engine-driver: {inflight['key']} still 0 after "
+                              f"{int(inflight.get('tries') or 0) + 1} empty shots — giving up this visit",
+                              flush=True)
+                        inflight = None
                 elif now_ms - inflight["fired_ms"] > 110_000:
                     if inflight["tries"] < 2:
                         inflight["tries"] += 1
@@ -2643,7 +2694,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v944.5",
+        "ver": "v944.6",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),

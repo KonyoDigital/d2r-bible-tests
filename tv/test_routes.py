@@ -672,6 +672,50 @@ class TestV943Dossier(unittest.TestCase):
         self.assertEqual(d["readStatus"]["counted"], 0)
 
 
+class TestNeverZeroRefire(unittest.TestCase):
+    """v944.6 — empty/error intake is a failure signal: driver re-fires the freshest frame
+    for that tab (up to 3 tries). Pure helpers pin the decision so the theatre never settles
+    on a 0 as the final answer when a re-read is still possible."""
+
+    def test_intake_is_real(self):
+        self.assertTrue(ca._intake_is_real({"ok": True, "total": 404}))
+        self.assertFalse(ca._intake_is_real({"ok": True, "total": 0}))
+        self.assertFalse(ca._intake_is_real({"ok": False, "total": 0}))
+        self.assertFalse(ca._intake_is_real({"ok": False, "total": 12}))
+        self.assertFalse(ca._intake_is_real(None))
+        self.assertFalse(ca._intake_is_real({}))
+
+    def test_freshest_tab_fid_picks_newest(self):
+        reads = [
+            {"lane": "deep", "scene": "stash", "stashTab": "runes", "ts": 1000, "frameId": "1_1000"},
+            {"lane": "deep", "scene": "stash", "stashTab": "runes", "ts": 5000, "frameId": "9_5000"},
+            {"lane": "deep", "scene": "stash", "stashTab": "gems", "ts": 9000, "frameId": "g_9000"},
+        ]
+        self.assertEqual(ca._drv_freshest_tab_fid("runes", reads=reads, fallback="old"), "9_5000")
+        self.assertEqual(ca._drv_freshest_tab_fid("gems", reads=reads), "g_9000")
+        self.assertEqual(ca._drv_freshest_tab_fid("materials", reads=reads, fallback="fb"), "fb")
+
+    def test_empty_refire_plan_tally(self):
+        job = {"key": "runes", "tab": "runes", "fid": "1_1000", "tries": 0, "fired_ms": 1}
+        act, nxt = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "9_5000")
+        self.assertEqual(act, "refire")
+        self.assertEqual(nxt["fid"], "9_5000")
+        self.assertEqual(nxt["tries"], 1)
+        # real count → done
+        act2, _ = ca._drv_empty_refire_plan(job, {"ok": True, "total": 404}, "9_5000")
+        self.assertEqual(act2, "done")
+        # third empty → giveup
+        job3 = dict(job); job3["tries"] = 2
+        act3, _ = ca._drv_empty_refire_plan(job3, {"ok": True, "total": 0}, "9_5000")
+        self.assertEqual(act3, "giveup")
+
+    def test_vault_empty_is_done_not_refire(self):
+        # vault personal/shared can legitimately total 0 — never-zero applies to tally tabs only
+        job = {"key": "vault_personal", "tab": "personal", "fid": "v1", "tries": 0}
+        act, _ = ca._drv_empty_refire_plan(job, {"ok": True, "total": 0}, "v2")
+        self.assertEqual(act, "done")
+
+
 class TestRouterLedger(unittest.TestCase):
     """v944 🚦 THE KAI ROUTER — Stage 1 label table. ca._kai_route_for_label maps a label to the
     funnel that WOULD take it; ca._kai_build_routing derives per-frame {sources, confidence, route,
@@ -706,9 +750,9 @@ class TestRouterLedger(unittest.TestCase):
         self.sess = [
             {"lane": "deep", "ts": 100000, "names": ["El"]},                        # named read → 'read' near 100k
             {"lane": "intake", "frameId": "reel_S/f_100",
-             "intake": {"tab": "runes", "ok": True, "kind": "kai-funnel"}},         # funnel fired on f_100
+             "intake": {"tab": "runes", "ok": True, "kind": "kai-funnel", "total": 12}},  # funnel fired on f_100
             {"lane": "intake", "frameId": "",
-             "intake": {"tab": "materials", "ok": True, "kind": "tally"}},          # materials receipted normally
+             "intake": {"tab": "materials", "ok": True, "kind": "tally", "total": 7}},    # materials receipted (real)
         ]
         self.journal = self.sess + [
             {"lane": "kai", "mode": "kai-judge", "frameId": "reel_S/f_200",
@@ -788,18 +832,48 @@ class TestRouterLedger(unittest.TestCase):
 
     def test_sig_change_breaks_the_run(self):
         # a differing sig starts a fresh run — not chained to the prior frame.
+        # ts of c is >3s past a so label+time near-dup does not also collapse it.
         scan = [
-            {"f": "a.jpg", "ts": 1, "ocr": True, "journal": True, "label": "stash",
+            {"f": "a.jpg", "ts": 1000, "ocr": True, "journal": True, "label": "stash",
              "ocrLabel": "stash", "journalLabel": "stash", "sig": (1, b"A")},
-            {"f": "b.jpg", "ts": 2, "ocr": True, "journal": True, "label": "stash",
+            {"f": "b.jpg", "ts": 1100, "ocr": True, "journal": True, "label": "stash",
              "ocrLabel": "stash", "journalLabel": "stash", "sig": (1, b"A")},
-            {"f": "c.jpg", "ts": 3, "ocr": True, "journal": True, "label": "stash",
+            {"f": "c.jpg", "ts": 5000, "ocr": True, "journal": True, "label": "stash",
              "ocrLabel": "stash", "journalLabel": "stash", "sig": (2, b"B")},
         ]
         led = ca._kai_build_routing(scan, [], "S", [])
         self.assertEqual(led[1]["skipReason"], "dup-of:a.jpg")   # b is a dup of a
         self.assertNotIn("dup-of", str(led[2]["skipReason"]))    # c starts a new run
+        self.assertNotIn("near-dup", str(led[2]["skipReason"] or ""))
         self.assertEqual(led[2]["route"], "vault")               # c keeps its route
+
+    def test_label_time_near_dup_collapses_routing(self):
+        # v944.6 — different JPEG sigs (cursor/glow) but same label within 3s = one logical event.
+        # Film keeps all frames; only the cluster head stays routable.
+        scan = [
+            {"f": "r1.jpg", "ts": 10000, "ocr": True, "journal": True, "label": "stash-runes",
+             "ocrLabel": "stash-runes", "journalLabel": "stash-runes", "sig": (1, b"A")},
+            {"f": "r2.jpg", "ts": 11500, "ocr": True, "journal": True, "label": "stash-runes",
+             "ocrLabel": "stash-runes", "journalLabel": "stash-runes", "sig": (2, b"B")},  # different sig
+            {"f": "r3.jpg", "ts": 12500, "ocr": True, "journal": True, "label": "stash-runes",
+             "ocrLabel": "stash-runes", "journalLabel": "stash-runes", "sig": (3, b"C")},
+            # outside the 3s window → fresh cluster head
+            {"f": "r4.jpg", "ts": 16000, "ocr": True, "journal": True, "label": "stash-runes",
+             "ocrLabel": "stash-runes", "journalLabel": "stash-runes", "sig": (4, b"D")},
+        ]
+        led = ca._kai_build_routing(scan, [], "S", [])
+        self.assertEqual(len(led), 4)                            # film never trimmed
+        self.assertEqual(led[0]["route"], "tally:runes")
+        self.assertEqual(led[1]["skipReason"], "near-dup-of:r1.jpg")
+        self.assertIsNone(led[1]["route"])
+        self.assertEqual(led[2]["skipReason"], "near-dup-of:r1.jpg")
+        self.assertEqual(led[3]["route"], "tally:runes")         # new head after window
+        self.assertFalse(str(led[3].get("skipReason") or "").startswith("near-dup"))
+        # actual funnel receipt on a near-dup frame is preserved (not erased by near-dup)
+        j = [{"lane": "intake", "frameId": "reel_S/r2",
+              "intake": {"tab": "runes", "ok": True, "kind": "kai-funnel", "total": 10}}]
+        led2 = ca._kai_build_routing(scan, [], "S", j)
+        self.assertEqual(led2[1]["routed"], "kai-funnel")
 
     # ── v944.1 Stage 2 — QUORUM + DISAGREEMENT POLICY ─────────────────────────
     def test_journal_panel_wins_over_ocr_tooltip(self):
