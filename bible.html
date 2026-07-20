@@ -28524,6 +28524,31 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if(fi) fi.value='';
     } catch(e){ _aicMsg('🔬 read failed ('+(e&&e.message?esc(String(e.message)):'unknown')+') — enter the item by hand below.'); if(fi) fi.value=''; }
   };
+  // ══ v940 🔬 aicJudge — HEADLESS judge for KAI's regret funnel (Konyo: "funneled through
+  // the Item Checker so it's read by the perfected system"). Same read POST, same pure
+  // _aicVerdict brain, ZERO draft/UI touch: the human's Checker state is snapshotted and
+  // restored around the parse. Returns {ok,name,base,q,mods,verdict:{tier,score,breakdown}}.
+  window.aicJudge = async function(file){
+    try {
+      var b64 = (typeof downscale === 'function')
+        ? await downscale(file)
+        : await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
+      var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
+      var resp=await fetch(endpoint,{ method:'POST', headers:{'content-type':'application/json'}, credentials:'same-origin', body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false }) });
+      if(!resp.ok) return { ok:false, why:'server '+resp.status };
+      var data=await resp.json();
+      var snap=null; try { snap=JSON.parse(JSON.stringify(_aicItem||{})); } catch(e){}
+      var r=null, it=null;
+      try { r=_aicApplyIntake(data); it=JSON.parse(JSON.stringify(_aicItem||{})); }
+      finally { if(snap!==null){ _aicItem=snap; try{ _aicSave(); }catch(e){} } }
+      if(!r || !r.ok) return { ok:false, why:'no magic/rare item readable in this frame', counts:(r&&r.counts)||null };
+      var v=_aicVerdict(it);
+      return { ok:true, name:it.name||r.name||'', base:it.base||'', q:it.q||'', mods:it.mods||[],
+               verdict:{ tier:v.tier, score:v.score, breakdown:(v.breakdown||[]).map(function(x){ return x.label+'(+'+x.w+')'; }) } };
+    } catch(e){ return { ok:false, why:String(e&&e.message||e) }; }
+  };
+
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
   window.vaultDismissUnknown = function(name){
     try { unknownReads.delete(name); } catch(e){}
@@ -33604,7 +33629,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v939.1', name:'The Shell', date:'2026-07-20', note:'v935.10 ONE SHELL: no floating ⌂ CONSOLE·esc pill — header tabs only (TV·D = home). Homepage restore + exit stop intact.' };
+  window.D2R_BUILD = { id:'v940', name:'The Shell', date:'2026-07-20', note:'v935.10 ONE SHELL: no floating ⌂ CONSOLE·esc pill — header tabs only (TV·D = home). Homepage restore + exit stop intact.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

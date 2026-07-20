@@ -1544,6 +1544,30 @@ def _kai_closer_loop():
                                     break
                             except Exception:
                                 pass
+                    # ── v940 🔬 TOOLTIP LANE: missed frames classed 'tooltip' go to the headless
+                    # Item Checker (aicJudge) — cap 4/session, fire-and-forget, receipts land on
+                    # /kai_verdict with the frame's own timestamp (ghost-proof).
+                    _tips = [m4 for m4 in missed if str(m4.get("cls") or "") == "tooltip"][:4]
+                    for m4 in _tips:
+                        if w2 is None or os.environ.get("TV_KAI_JUDGE", "1") == "0":
+                            break
+                        _hp4 = "/hist/reel_" + sid + "/" + str(m4.get("f") or "")
+                        _fid4 = "reel_" + sid + "/" + str(m4.get("f") or "").replace(".jpg", "")
+                        _fts4 = int(m4.get("ts") or 0)
+                        _js4 = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                                "if(typeof W.aicJudge!=='function')return 0;"
+                                "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+                                "return W.aicJudge(new W.File([b],'kai-judge.jpg',{type:'image/jpeg'}))}).then(function(res){"
+                                "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;"
+                                "fetch('/kai_verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)}).catch(function(){})"
+                                "}).catch(function(){});return 1}catch(e){return 0}})()"
+                                ) % (json.dumps(_hp4), json.dumps(sid), json.dumps(_fid4), json.dumps(_fts4))
+                        try:
+                            _ejs(w2, _js4, timeout=5.0)
+                            print(f"🔬 KAI judge: fired on {m4.get('f')}", flush=True)
+                            time.sleep(20.0)   # gentle pacing — the judge is a full vision read
+                        except Exception as _je:
+                            print(f"⚠ KAI judge fire failed: {_je}", flush=True)
                 except Exception as _kfe:
                     print(f"⚠ KAI funnel stage error: {_kfe}", flush=True)
             except Exception as _we:
@@ -1855,7 +1879,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v939.1",
+        "ver": "v940",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
@@ -2371,10 +2395,20 @@ class Handler(BaseHTTPRequestHandler):
                 _wd = sum(1 for r2 in sess if r2.get("lane") == "watchdog")
                 _tl = sum(1 for r2 in sess if r2.get("lane") == "intake")
                 _km, _kc = None, None
+                _thrown = set()
+                _keepers = []
                 for r2 in sess:
                     if r2.get("lane") == "kai" and isinstance(r2.get("kai"), dict) and "missedFrames" in r2["kai"]:
                         _km = r2["kai"].get("missedFrames"); _kc = r2["kai"].get("classes")
+                    for nm2 in (r2.get("thrown_names") or []):
+                        _thrown.add(str(nm2).strip().lower())
+                    _jd = (r2.get("kai") or {}).get("judge") if isinstance(r2.get("kai"), dict) else None
+                    if isinstance(_jd, dict) and _jd.get("tier") == "keep" and _jd.get("name"):
+                        _keepers.append(str(_jd["name"]).strip().lower())
+                # v940 💔 — a REGRET = the judge ruled KEEP on something this session threw out
+                _regrets = sum(1 for k2 in _keepers if k2 in _thrown)
                 out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
+                            "judged": len(_keepers), "regrets": _regrets,
                             "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
@@ -2935,6 +2969,29 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/kai_verdict":
+            # v940 🔬 — KAI's judge receipts: the engine iframe POSTs aicJudge results here.
+            # Ghost-proof journaling: ts == captureTs == the FRAME's moment (passed as fts).
+            try:
+                _fts = int(body.get("fts") or 0) or int(time.time() * 1000)
+                _vname = str(body.get("name") or "")[:60]
+                _tier = str(((body.get("verdict") or {}).get("tier")) or "")[:12]
+                rec = {"ts": _fts, "captureTs": _fts, "completedTs": int(time.time() * 1000),
+                       "n": 0, "scene": "kai", "lane": "kai", "mode": "kai-judge", "names": [],
+                       "area": "", "sessionId": str(body.get("sid") or "")[:48],
+                       "frameId": str(body.get("frameId") or "")[:64],
+                       "kai": {"judge": {"name": _vname, "base": str(body.get("base") or "")[:40],
+                                          "q": str(body.get("q") or "")[:12], "tier": _tier,
+                                          "score": int((body.get("verdict") or {}).get("score") or 0),
+                                          "ok": bool(body.get("ok", False)),
+                                          "why": str(body.get("why") or "")[:120]}},
+                       "note": ("🔬 KAI judged " + (_vname or "a tooltip") + " — " + (_tier.upper() or "UNREADABLE"))[:100]}
+                with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                self._json(200, {"ok": True})
+            except Exception as e:
+                self._json(200, {"ok": False, "msg": str(e)[:120]})
+            return
         if path == "/intake_result":
             # v935 (Konyo P0: 'tallies silently vanishing') — the board POSTs each auto-intake
             # RESULT to the agent bridge (:17771), but the bridge DIES at session end, so a tally

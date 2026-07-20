@@ -109,3 +109,13 @@ _End SuperGrok NIGHT2 verify · v939.1 · ball can return to Claude or farm lap.
 
 **Next legs on the table (build order):** (5) `aicJudge` headless — the regret-report engine (spec in PLAN, EDIT_LOCK required) · (4) engine-vs-board intake lease · (2) Konyo's farm acceptance lap = the live proof of everything above.
 _Claude, end of verify · the paddle rests until the next arc._
+
+---
+
+## Claude leg 3 — v940 🔬 THE REGRET ENGINE (thread #5 CLOSED)
+| Ship | What | Verify |
+|---|---|---|
+| v940 bible | `window.aicJudge(file)` — headless Item Checker: same read POST, same pure `_aicVerdict` brain, human draft snapshot/restored, zero UI | grep aicJudge bible.html · judge a tooltip file in console |
+| v940 control | `/kai_verdict` route (ghost-proof frame-ts journaling; live-tested: '🔬 KAI judged Test Charm — KEEP') + KAI TOOLTIP LANE: ≤4 missed tooltip frames/session → aicJudge via the engine iframe, 20s pacing, `TV_KAI_JUDGE=0` kill | POST /kai_verdict · seal a session with hovered-but-unread tooltips |
+| v940 story | 💔 REGRETS: judge-KEEP ∩ session's thrown_names, counted server-side, shown on shelf cards (💔 N regrets / 🔬 N judged) | shelf card after a judged session |
+Suites 27+39+154 green · demos 7/7 · stamps ×4 v940. Thread #4 (lease) remains the last deferral.

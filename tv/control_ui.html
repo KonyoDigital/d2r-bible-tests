@@ -1204,7 +1204,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v939.1 control</span>
+      <span id="foot-ver">v940 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -2530,6 +2530,8 @@
       }
       if (sm.kaiMissed != null) vparts.push('🧠 swept · ' + sm.kaiMissed + ' missed-text');
       if (sm.tallies > 0) vparts.push('📸 ' + sm.tallies + ' tall' + (sm.tallies > 1 ? 'ies' : 'y'));
+      if (sm.regrets > 0) vparts.push('<span class="sh-warn">💔 ' + sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : '') + '</span>');
+      else if (sm.judged > 0) vparts.push('🔬 ' + sm.judged + ' judged');
       // v938 — the reel's FINGERPRINT: KAI's top frame classes (what the run was made of)
       if (sm.kaiClasses && typeof sm.kaiClasses === 'object'){
         var _kc = Object.keys(sm.kaiClasses).filter(function(k){ return sm.kaiClasses[k] > 0 && k !== 'gameplay'; })
