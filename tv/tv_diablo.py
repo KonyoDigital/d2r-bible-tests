@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v925"   # LIGHT reader default (screenshot, not record) · AUTO INTAKE · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v926"   # LIGHT reader default (screenshot, not record) · AUTO INTAKE · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -110,6 +110,23 @@ READ_PROMPT = (
     "Normal chat/trade text is NEVER a discovery.\n"
     "inventory/stash: also list anchors if visible — Horadric Cube, Tome of Town Portal, Tome of Identify.\n"
     "conf = 0.0-1.0 confidence. Be fast and precise."
+)
+
+# v926 SECOND LOOK (Konyo: 'it can check and verify and recheck and reverify and literally be
+# more accurate') — LIGHT freed the machine, so the reader spends the idle gap DOUBLE-CHECKING
+# each item read against the SAME archived screenshot. A closed-set confirm first, then a tight
+# open pass for anything clearly missed. Corrections flow through the SAME lifecycle/funnel pipes.
+VERIFY_ON = str(os.environ.get("TV_VERIFY", "1" if LIGHT_MODE else "0")).strip().lower() in ("1", "true", "yes", "on")
+VERIFY_PROMPT = (
+    "Image {path} = the SAME Diablo II Resurrected screenshot a first reader already looked at.\n"
+    "It reported these item names: {prior}.\n"
+    "Look at the screenshot AGAIN, carefully, and correct that reading. STRICT JSON only:\n"
+    "{{\"confirm\":[],\"missed\":[],\"not_present\":[],\"conf\":0.0}}\n"
+    "confirm = names from the reported list that ARE clearly present on screen.\n"
+    "not_present = names from the reported list that are NOT actually on screen (misreads/hallucinations).\n"
+    "missed = item names CLEARLY readable on screen but absent from the reported list (max 5). "
+    "Only add a name you can actually read as text — never from an icon, never a guess.\n"
+    "conf = 0.0-1.0 confidence in this correction. Be strict: when unsure, prefer confirm over change."
 )
 
 # v752 — persistent session journal (tv/sessions.jsonl, gitignored): every published read
@@ -3123,6 +3140,117 @@ def claude_read(path, worker=None, out_jpg=None):
         print(f"  ⚠ read failed: {e}")
         return EMPTY
 
+
+# ── v926 SECOND LOOK — the reader's second-layer accuracy pass ──────────────────────────────
+_VERIFY_Q = deque(maxlen=32)   # jobs: {"fid","names","n","sid","scene","cap_ms"}
+
+
+def verify_read(path, prior_names, worker=None):
+    """Re-read the SAME archived screenshot to correct a prior read. Returns
+    {confirm, missed, not_present, conf} or None. Honours TV_STUB (keyed '<base>#verify')."""
+    if os.environ.get("TV_STUB"):
+        try:
+            man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
+            with open(man_path, encoding="utf-8") as f:
+                man = json.load(f)
+        except Exception:
+            man = {}
+        rd = man.get(os.path.basename(path) + "#verify") or man.get("*#verify") or {}
+        return {"confirm": rd.get("confirm", list(prior_names)),
+                "missed": rd.get("missed", []), "not_present": rd.get("not_present", []),
+                "conf": rd.get("conf", 1.0)}
+    ap = _readable_frame(os.path.abspath(path))
+    if not os.path.isfile(ap):
+        return None
+    w = worker or _WORKER
+    try:
+        out = w.ask(VERIFY_PROMPT.format(path=ap, prior=json.dumps(list(prior_names))))
+    except Exception:
+        return None
+    if out is None:
+        return None
+    try:
+        txt = str(out)
+        i, j = txt.find("{"), txt.rfind("}")
+        d = json.loads(txt[i:j + 1]) if i >= 0 and j > i else None
+    except Exception:
+        d = None
+    if not isinstance(d, dict):
+        return None
+    return {"confirm": [x for x in (d.get("confirm") or []) if _itemish(x)],
+            "missed": [x for x in (d.get("missed") or []) if _itemish(x)][:5],
+            "not_present": [x for x in (d.get("not_present") or []) if _itemish(x)],
+            "conf": float(d.get("conf") or 0.0)}
+
+
+def _verify_apply(job, worker=None):
+    """v926 — run one verify job: re-read the frame, compute the delta, journal a `lane=verify`
+    beat on a distinct sub-frame id (so the funnel's exactly-once holds), and route the
+    correction through the SAME lifecycle pipes. REMOVE (misread) is the default correction;
+    ADD (missed) is conservative — only high-confidence, clearly-readable names."""
+    fid = str(job.get("fid") or "")
+    prior = [x for x in (job.get("names") or []) if _itemish(x)]
+    if not fid or not prior:
+        return None
+    src = os.path.join(HIST_DIR, fid + ".jpg")
+    if not os.path.isfile(src):
+        return None
+    v = verify_read(src, prior, worker=worker)
+    if not v:
+        return None
+    conf = v.get("conf") or 0.0
+    # v926-R4 (Grok) — REMOVE-ONLY second look: only UN-tally a name that (a) the verify rejects,
+    # (b) was in the original read, AND (c) was actually VAULTED by that read. ADD is deferred to
+    # a future pass-3 — force-vaulting a "missed" hallucination is a permanent false +1 footgun.
+    _vaulted = {str(x).lower() for x in (job.get("vaulted") or [])}
+    _priorset = {str(x).lower() for x in prior}
+    remove = [x for x in v.get("not_present", [])
+              if conf >= 0.7 and str(x).lower() in _priorset and str(x).lower() in _vaulted]
+    missed = [x for x in v.get("missed", [])]   # surfaced for the debugger; NOT applied at pass-2
+    add = []   # ADD off until pass-3 (scene gate + readable-text proof) owns it
+    # v926 — the board ingests reads by ts > SEEN, so a verify beat MUST carry ts=now (else the
+    # board skips it as already-seen). captureTs stays the ORIGINAL frame clock so the SIM keeps
+    # the second look pinned to the exact frame it re-checked.
+    cap_ms = int(job.get("cap_ms") or time.time() * 1000)
+    now_ms = int(time.time() * 1000)
+    if not remove:
+        # a clean confirm (or a low-conf/unvaulted rejection we won't act on) — journal the
+        # second look anyway so the debugger shows the read was verified. `missed` is surfaced
+        # for the human/pass-3, never tallied here.
+        _journal({"ts": now_ms, "captureTs": cap_ms, "completedTs": now_ms, "n": job.get("n"),
+                  "scene": job.get("scene") or "loot", "names": [], "sessionId": job.get("sid") or SESSION_ID,
+                  "frameId": fid + "#v", "lane": "verify", "mode": "verify",
+                  "verify": {"confirm": v.get("confirm", []), "missed": missed, "not_present": [], "conf": conf},
+                  "vault_names": [], "unvault_names": [],
+                  "note": ("✓ second look — read confirmed" if not missed else "✓ second look — %d maybe-missed (flagged)" % len(missed))})
+        return {"delta": 0, "add": [], "remove": [], "missed": missed}
+    # REMOVE routes through the SAME board pipe: a lane=verify beat with unvault_names decrements
+    # the funnel/vault exactly like a real correction (distinct #v frameId → exactly-once holds).
+    _journal({"ts": now_ms, "captureTs": cap_ms, "completedTs": now_ms, "n": job.get("n"),
+              "scene": job.get("scene") or "loot",
+              "names": [], "sessionId": job.get("sid") or SESSION_ID,
+              "frameId": fid + "#v", "lane": "verify", "mode": "verify",
+              "verify": {"confirm": v.get("confirm", []), "missed": missed, "not_present": remove, "conf": conf},
+              "vault_names": [], "unvault_names": remove,
+              "note": "🔎 second look — corrected −%d (conf %.2f)" % (len(remove), conf)})
+    ev("cap", "second look @%s — −%d misread (conf %.2f)" % (fid, len(remove), conf))
+    return {"delta": len(remove), "add": [], "remove": remove, "missed": missed}
+
+
+def _verify_drain(worker=None, budget=1):
+    """Drain up to `budget` verify jobs — called from the main loop's idle gap only."""
+    if not VERIFY_ON:
+        return
+    n = 0
+    while _VERIFY_Q and n < budget:
+        try:
+            _verify_apply(_VERIFY_Q.popleft(), worker=worker)
+        except Exception as e:
+            try: ev("skip", "verify failed: %s" % e)
+            except Exception: pass
+        n += 1
+
+
 def main():
     global _LIFECYCLE, _VISION_BUSY, SESSION_ID
     os.makedirs(FRAMES, exist_ok=True)
@@ -3460,6 +3588,12 @@ def main():
         time.sleep(POLL_S)
         # ── straggler flush + queue drain: freezes held while readers were busy ──
         try: _order_drain()
+        except Exception: pass
+        # v926 SECOND LOOK — spend the LIGHT idle gap re-checking a recent read, but only when
+        # no fresh settle is waiting (accuracy never delays a live read) and a worker is free.
+        try:
+            if VERIFY_ON and _VERIFY_Q and not _SETTLE_QUEUE and _vision_in_flight_n() < POOL_N:
+                _verify_drain(worker=_WORKER, budget=1)
         except Exception: pass
         _drained_any = False
         while _vision_in_flight_n() < POOL_N and _SETTLE_QUEUE:
@@ -4029,6 +4163,21 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
             _push(st["farmed"], nm, {"scene": rd.get("scene") or "inventory",
                                      "tag": (lc.get("lifecycle_tags") or {}).get(nm, "vault")})
         _save(st)
+    # v926 SECOND LOOK — queue a verify pass on any REAL item read (not sim/farewell/verify).
+    # It runs in the next idle gap and corrects this exact frame's read.
+    try:
+        _itemish_names = [x for x in names if _itemish(x)]
+        _fidk = str(frame_id)
+        if (VERIFY_ON and _itemish_names and frame_id and not farewell
+                and not rd.get("sim") and not _fidk.endswith("#v")
+                and not any(j.get("fid") == _fidk for j in _VERIFY_Q)):   # fid-dedup: one look per frame
+            if len(_VERIFY_Q) >= _VERIFY_Q.maxlen:
+                try: ev("skip", "verify backlog full — dropped a second look")
+                except Exception: pass
+            _VERIFY_Q.append({"fid": _fidk, "names": _itemish_names, "vaulted": list(vault_names),
+                              "n": n, "sid": SESSION_ID, "scene": rd.get("scene") or "loot", "cap_ms": _cap_ms})
+    except Exception:
+        pass
     return rec
 
 def farewell_read(force_frame=None):

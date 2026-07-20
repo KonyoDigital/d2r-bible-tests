@@ -2030,5 +2030,86 @@ class TestSourceShapeLocks(unittest.TestCase):
             self.assertTrue(r is None or isinstance(r, dict), repr(c[:40]))
 
 
+class TestV926SecondLook(unittest.TestCase):
+    """v926 — the verify lane: re-read the SAME frame, correct the tally, journal a distinct
+    `lane=verify` beat so the funnel's exactly-once holds. Stub-driven (zero vision cost)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.hist = os.path.join(self.tmp, "hist")
+        os.makedirs(self.hist)
+        # a fake archived frame for the read the verify pass will re-check
+        self.fid = "7_1784500000000"
+        with open(os.path.join(self.hist, self.fid + ".jpg"), "wb") as f:
+            f.write(b"\xff\xd8\xff\xe0FAKE")
+        self.man = os.path.join(self.tmp, "man.json")
+        self._old = (tv.HIST_DIR, tv.JOURNAL, dict(os.environ))
+        tv.HIST_DIR = self.hist
+        tv.JOURNAL = os.path.join(self.tmp, "sessions.jsonl")
+        os.environ["TV_STUB"] = "1"
+        os.environ["TV_STUB_MANIFEST"] = self.man
+        tv.VERIFY_ON = True
+
+    def tearDown(self):
+        tv.HIST_DIR, tv.JOURNAL, env = self._old
+        os.environ.clear(); os.environ.update(env)
+
+    def _rows(self):
+        try:
+            return [json.loads(l) for l in open(tv.JOURNAL) if l.strip()]
+        except FileNotFoundError:
+            return []
+
+    def test_misread_of_a_vaulted_name_is_removed_on_a_distinct_subframe(self):
+        # verify rejects a reported name that WAS vaulted → un-tally it; a "missed" is surfaced
+        # (verify.missed) for the debugger but NEVER auto-vaulted at pass-2 (Grok R4 footgun).
+        with open(self.man, "w") as _mf:
+            json.dump({os.path.basename(self.fid + ".jpg") + "#verify":
+                       {"confirm": ["Ist Rune"], "not_present": ["Ohm Rune"], "missed": ["Vex Rune"], "conf": 0.95}}, _mf)
+        job = {"fid": self.fid, "names": ["Ist Rune", "Ohm Rune"], "vaulted": ["Ist Rune", "Ohm Rune"],
+               "n": 7, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000000}
+        out = tv._verify_apply(job)
+        self.assertIsNotNone(out)
+        self.assertEqual(sorted(out["remove"]), ["Ohm Rune"])
+        self.assertEqual(out["add"], [])                          # ADD deferred to pass-3
+        vrows = [r for r in self._rows() if r.get("lane") == "verify"]
+        self.assertEqual(len(vrows), 1)
+        self.assertEqual(vrows[0]["frameId"], self.fid + "#v")   # distinct → funnel exactly-once holds
+        self.assertEqual(vrows[0]["vault_names"], [])            # never force-vault a hallucination
+        self.assertIn("Ohm Rune", vrows[0]["unvault_names"])
+        self.assertIn("Vex Rune", vrows[0]["verify"]["missed"])  # surfaced for the debugger, not applied
+
+    def test_reject_of_a_name_that_was_never_vaulted_does_nothing(self):
+        # the read named Ohm but did NOT vault it → verify rejecting Ohm must not unvault (nothing to remove)
+        with open(self.man, "w") as _mf:
+            json.dump({os.path.basename(self.fid + ".jpg") + "#verify":
+                       {"confirm": ["Ist Rune"], "not_present": ["Ohm Rune"], "missed": [], "conf": 0.95}}, _mf)
+        out = tv._verify_apply({"fid": self.fid, "names": ["Ist Rune", "Ohm Rune"], "vaulted": ["Ist Rune"],
+                                "n": 7, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000000})
+        self.assertEqual(out["delta"], 0)
+        vrows = [r for r in self._rows() if r.get("lane") == "verify"]
+        self.assertEqual(vrows[0]["unvault_names"], [])
+
+    def test_clean_confirm_makes_no_engine_delta_but_still_records_the_look(self):
+        with open(self.man, "w") as _mf:
+            json.dump({os.path.basename(self.fid + ".jpg") + "#verify":
+                       {"confirm": ["Ist Rune"], "not_present": [], "missed": [], "conf": 0.9}}, _mf)
+        out = tv._verify_apply({"fid": self.fid, "names": ["Ist Rune"], "n": 7, "sid": "s_v",
+                                "scene": "loot", "cap_ms": 1784500000000})
+        self.assertEqual(out["delta"], 0)
+        vrows = [r for r in self._rows() if r.get("lane") == "verify"]
+        self.assertEqual(len(vrows), 1)
+        self.assertEqual(vrows[0]["vault_names"], [])
+        self.assertEqual(vrows[0]["unvault_names"], [])
+
+    def test_low_confidence_verify_changes_nothing(self):
+        with open(self.man, "w") as _mf:
+            json.dump({os.path.basename(self.fid + ".jpg") + "#verify":
+                       {"confirm": [], "not_present": ["Ist Rune"], "missed": ["Ber Rune"], "conf": 0.4}}, _mf)
+        out = tv._verify_apply({"fid": self.fid, "names": ["Ist Rune"], "n": 7, "sid": "s_v",
+                                "scene": "loot", "cap_ms": 1784500000000})
+        self.assertEqual(out["delta"], 0)   # conf<0.7 → no remove, conf<0.8 → no add
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

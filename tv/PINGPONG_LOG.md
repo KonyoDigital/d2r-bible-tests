@@ -2176,3 +2176,19 @@ Stub boot: LIGHT banner, no film thread, light-end no-farewell, zero errors. Sui
 (old heavy-contract assertion rewritten to the LIGHT contract). Grok R1+R3+R4 pingpong. THE
 PRODUCT CONTRACT: D2R open → sample ~every 2s → on settle+gap, one screenshot → one Claude →
 tally. No record, no OCR, no hang. His Mac can breathe while farming.
+
+## ✅ v926 "SECOND LOOK" — the accuracy layer LIGHT freed room for (Konyo: "check and verify and recheck and reverify... more accurate")
+LIGHT (v925) gave back the machine → spend the idle gap DOUBLE-CHECKING each item read against
+the SAME archived screenshot. VERIFY_PROMPT (closed-set confirm + tight open "missed"); after a
+real item read, enqueue {fid, names, vaulted, ...}; _verify_drain(budget=1) runs ONLY when no
+settle is pending + a worker is free (accuracy never delays a live read). Correction journaled
+as lane=verify on a DISTINCT frameId "<fid>#v" (funnel exactly-once holds) with ts=now (so the
+board ingests it) but captureTs=original (SIM keeps it pinned to that frame) — routes through
+the SAME lifecycle/funnel pipes, nothing new on the board. Grok R1 design + R3 caught two
+footguns → R4 fixes: REMOVE-ONLY for ship (un-tally a misread that was actually VAULTED, conf
+≥0.7, name in the original read); ADD deferred to a future pass-3 (force-vaulting a "missed"
+hallucination = permanent false +1); fid-dedup + backlog drop-log. "missed" surfaced in the
+verify blob for the debugger, never applied. Cross-process bug I caught: board ingests by
+ts>SEEN so a same-ts verify beat would be skipped — fixed with the ts/captureTs split. 4 unit
+tests + 2 e2e stub runs (loot-vault removed · stash-rune correctly untouched · missed flagged ·
+vault never forced). 154 agent + 36 control green. THE READER NOW CHECKS ITS OWN WORK.

@@ -610,13 +610,16 @@ class TestV924FarmGate(unittest.TestCase):
             stderr = b"please run /login"
         old = ca.subprocess.run
         old_which = ca.shutil.which
+        old_sock = ca._sock_open
         ca.subprocess.run = lambda *a, **k: _PR()
         ca.shutil.which = lambda *a, **k: "/usr/bin/claude"
+        ca._sock_open = lambda *a, **k: False   # pin "agent OFF" so the auth ping actually runs (v924-R4 skips it during ON AIR)
         try:
             j = ca.farmgate_payload()
         finally:
             ca.subprocess.run = old
             ca.shutil.which = old_which
+            ca._sock_open = old_sock
         au = next(c for c in j["checks"] if c["id"] == "claude_auth")
         self.assertFalse(au["ok"])
         self.assertEqual(j["verdict"], "NO-GO")
