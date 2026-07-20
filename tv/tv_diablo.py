@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v940"   # 🔬 the regret engine: aicJudge headless · KAI tooltip lane · 💔 regrets on the shelf
+VERSION = "v940.4"  # theatre: #v frame resolve + journal shield base · REG-025 false prune
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1612,7 +1612,16 @@ def _journal_frame_ids():
                             except Exception:
                                 continue
                             if fid:
+                                # v940.4 — shield the BASE jpeg too. Verify journals
+                                # frameId 'N_ts#v' but the file is always 'N_ts.jpg';
+                                # protecting only 'N_ts#v.jpg' left the real photo killable.
+                                base = str(fid).split("#", 1)[0]
                                 ids.add(str(fid) + ".jpg")
+                                if base:
+                                    ids.add(base + ".jpg")
+                                    # reel-relative ids: reel_<sid>/f_<ts>
+                                    if "/" in base:
+                                        ids.add(os.path.basename(base) + ".jpg")
                 except Exception:
                     pass
         except Exception:

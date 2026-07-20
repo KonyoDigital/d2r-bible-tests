@@ -682,5 +682,56 @@ class TestExitSafeguard(unittest.TestCase):
         self.assertFalse(ca._EXIT_STOP_DONE)          # window-only must not consume the one-shot
 
 
+class TestHistFrameResolve(unittest.TestCase):
+    """v940.4 — THEATRE debugger: verify #v frameIds and journal shield base protection.
+    Claude DEBUG_THEATRE mystery: 'photo pruned' on beats whose JPEG still lived as N_ts.jpg
+    because has checked fid+'.jpg' literally (N_ts#v.jpg never exists)."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp(prefix="tvd-hist-")
+        self._old_hist = ca.HIST_DIR
+        ca.HIST_DIR = self.tmp
+        # a real archived deep-read photo
+        with open(os.path.join(self.tmp, "3_1784573580533.jpg"), "wb") as _f:
+            _f.write(b"fakejpg")
+
+    def tearDown(self):
+        ca.HIST_DIR = self._old_hist
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_base_frame_exists(self):
+        self.assertTrue(ca._hist_has_frame("3_1784573580533"))
+        self.assertEqual(ca._hist_frame_rel("3_1784573580533"), "3_1784573580533.jpg")
+
+    def test_verify_suffix_resolves_to_base(self):
+        # second-eye journals frameId with #v — file is always the base jpeg
+        self.assertTrue(ca._hist_has_frame("3_1784573580533#v"))
+        self.assertEqual(ca._hist_frame_rel("3_1784573580533#v"), "3_1784573580533.jpg")
+
+    def test_missing_frame_is_false(self):
+        self.assertFalse(ca._hist_has_frame("99_0000000000000"))
+        self.assertEqual(ca._hist_frame_rel("99_0000000000000"), "")
+
+    def test_journal_shield_protects_base_for_verify_id(self):
+        # when journal names 'N_ts#v', reaper must protect 'N_ts.jpg' not only 'N_ts#v.jpg'
+        import tv_diablo as tvd
+        old_j, old_st = tvd.JOURNAL, dict(tvd._JFID_STATE)
+        jpath = os.path.join(self.tmp, "sessions.jsonl")
+        with open(jpath, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"frameId": "3_1784573580533#v", "lane": "verify"}) + "\n")
+        tvd.JOURNAL = jpath
+        tvd._JFID_STATE["path"] = None
+        tvd._JFID_STATE["ids"] = None
+        try:
+            prot = tvd._journal_frame_ids()
+            self.assertIn("3_1784573580533.jpg", prot)
+            self.assertIn("3_1784573580533#v.jpg", prot)
+        finally:
+            tvd.JOURNAL = old_j
+            tvd._JFID_STATE.clear()
+            tvd._JFID_STATE.update(old_st)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

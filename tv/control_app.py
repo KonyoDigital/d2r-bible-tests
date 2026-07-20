@@ -40,6 +40,48 @@ CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
 HIST_DIR = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")   # v765 · v885 — TV_HIST = harness isolation
 BOARD_PID_PATH = os.path.join(HERE, "board_window.pid")   # v773.1 — the ONE board window
 
+
+def _hist_frame_paths(fid):
+    """v940.4 — candidate on-disk paths for a journaled frameId.
+    Verify beats use frameId 'N_ts#v' but the JPEG is always 'N_ts.jpg' (no #v file).
+    Reel footage uses 'reel_<sid>/f_<ts>' relative form."""
+    if not fid:
+        return []
+    fid = str(fid).strip()
+    base = fid.split("#", 1)[0]  # strip verify suffix
+    out = []
+    for stem in (fid, base):
+        if not stem:
+            continue
+        if stem.endswith(".jpg"):
+            out.append(os.path.join(HIST_DIR, stem))
+        else:
+            out.append(os.path.join(HIST_DIR, stem + ".jpg"))
+            out.append(os.path.join(HIST_DIR, stem))
+    # de-dupe preserve order
+    seen, uniq = set(), []
+    for p in out:
+        if p not in seen:
+            seen.add(p)
+            uniq.append(p)
+    return uniq
+
+
+def _hist_has_frame(fid):
+    """True if the archived photo for this frameId exists (base or #v or reel path)."""
+    return any(os.path.isfile(p) for p in _hist_frame_paths(fid))
+
+
+def _hist_frame_rel(fid):
+    """Relative path under /hist/ for the UI (prefer the file that actually exists)."""
+    if not fid:
+        return ""
+    for p in _hist_frame_paths(fid):
+        if os.path.isfile(p):
+            rel = os.path.relpath(p, HIST_DIR).replace("\\", "/")
+            return rel
+    return ""
+
 IS_WIN = sys.platform.startswith("win")
 # Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
 _WIN_CREATE = 0x00000200 | 0x08000000 if IS_WIN else 0
@@ -1908,7 +1950,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v940",
+        "ver": "v940.4",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
@@ -2539,7 +2581,7 @@ class Handler(BaseHTTPRequestHandler):
                     # v902 — 📸 intake beat: the library shows what the locked pipeline did,
                     # time-synced to the frame the shot came from
                     _ifid = str(r.get("frameId") or "")
-                    _ifr = (_ifid + ".jpg") if (_ifid and os.path.isfile(os.path.join(HIST_DIR, _ifid + ".jpg"))) else ""
+                    _ifr = _hist_frame_rel(_ifid)   # v940.4 — resolve #v / reel paths
                     beats.append({"ts": int(r.get("ts") or 0), "captureTs": int(r.get("ts") or 0),
                                   "intakeBeat": True, "intake": r.get("intake") or {},
                                   "note": r.get("note") or "", "frameId": _ifid,
@@ -2554,11 +2596,14 @@ class Handler(BaseHTTPRequestHandler):
                 if r.get("scene") == "session_end" or r.get("mode") == "session_end":
                     continue   # v894 — seal rows are not playable beats
                 fid = r.get("frameId") or ""
-                has = bool(fid) and os.path.isfile(os.path.join(HIST_DIR, fid + ".jpg"))
+                # v940.4 — frameOk must resolve verify suffix (#v) and reel-relative ids.
+                # Exact fid+'.jpg' lied "photo pruned" for every second-eye beat.
+                _frel = _hist_frame_rel(fid)
+                has = bool(_frel)
                 fts = None
                 if fid and "_" in str(fid):
                     try:
-                        fts = int(str(fid).rsplit("_", 1)[-1])
+                        fts = int(str(fid).split("#", 1)[0].rsplit("_", 1)[-1])
                     except Exception:
                         fts = None
                 if r.get("captureTs"):
@@ -2580,7 +2625,7 @@ class Handler(BaseHTTPRequestHandler):
                     "n": r.get("n"), "scene": r.get("scene", ""),
                     "area": r.get("area", ""), "names": r.get("names", []),
                     "note": (r.get("note") or "")[:120],
-                    "frame": (fid + ".jpg") if has else "",
+                    "frame": _frel if has else "",
                     "frameId": fid,
                     "frameOk": has,
                     "sessionId": r.get("sessionId") or "",

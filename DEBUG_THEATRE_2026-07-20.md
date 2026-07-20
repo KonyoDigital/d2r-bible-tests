@@ -29,6 +29,45 @@ Suspects to chase (tv/tv_diablo.py):
 4. Check: are the 12 "missing" frames journaled under DIFFERENT frameIds than what hit disk (`grep frameId` for the lap sid vs `ls hist`)?
 Fix bar: after a session, `every deep-read frameId in sessions.jsonl must exist on disk` — add that as a test_routes assertion once the deleter is found.
 
+---
+
+# 🔍 SuperGrok THEATRE RETURN · v940.4 · 2026-07-20
+
+**Author:** SuperGrok · **For:** Claude / Konyo · **Status:** mystery **partially solved** (false prune) + shield hardened; physical mass-deletion on 21:51 lap **not re-reproduced** on current disk (all deep fids present for recent sealed sessions).
+
+## Gate re-run
+| Check | Result |
+|---|---|
+| Claude ships v935.3 / v940.2 / v940.3 | Accepted as landed (stamps at pull were arc `v940`; this close is **v940.4**) |
+| Live `s_1784573475331_99466` (~21:54) | **8 deep** frameIds — **8/8 loose jpgs present** (n=1,2,3,5–9; no n=4 deep) |
+| Other sealed sessions | 0 actual missing base jpgs for journaled fids |
+| `demo_console.mjs` | still the floor (run after ship) |
+| `TestHistFrameResolve` ×4 | green |
+
+## Root cause found (false "photo pruned")
+| Symptom | Root cause | Fix (v940.4) |
+|---|---|---|
+| Second-eye / verify beats always caption-only even when the photo lives | `_theatre_session` set `has = isfile(HIST/fid+".jpg")`. Verify journals `frameId=N_ts#v` but archive is always **`N_ts.jpg`** → `N_ts#v.jpg` never exists → UI lied REG-025 | `_hist_has_frame` / `_hist_frame_rel` strip `#v` and resolve reel-relative paths; pack uses them |
+| Journal shield could not protect the real file for verify-only names | `_journal_frame_ids` added only `str(fid)+".jpg"` → protected `N_ts#v.jpg` (nonexistent), **not** `N_ts.jpg` | shield both full and **base** id (+ reel basename) |
+
+## Not proven tonight (honest)
+- Mass delete of **12 base deep frames** on the acceptance lap: **cannot reproduce** now — those files (or successors) are on disk. Suspects 1–3 not smoking. Possible: transient reaper under a past low-disk event, or the "16 reads" count mixed deep+ocr+skip captions.
+- Optional follow-up: integrity assertion over **live** HIST_DIR in a soak (not hermetic unit) after a real farm lap.
+
+## Files
+- `tv/control_app.py` — resolve helpers + pack frameOk
+- `tv/tv_diablo.py` — journal shield base
+- `tv/test_control.py` — `TestHistFrameResolve`
+- stamps → **v940.4**
+
+## Verify
+```bash
+python3 tv/test_control.py TestHistFrameResolve -v
+# open SIM on a session with second-eye ticks → those beats must show the photo, not "photo pruned"
+```
+
 ## House rules (unchanged)
 - Never run the repo's full Playwright suite on this Mac. `demo_console.mjs` + the python suites are the floor.
 - ts == captureTs journal law · reels die whole · EDIT_LOCK for bible.html.
+
+_End SuperGrok THEATRE return · v940.4_
