@@ -42,6 +42,21 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
     exit 1
   fi
   echo "pre-push: ✅ tv suites green."
+  # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the six
+  # demonstration journeys must pass (1.6s). App down → skip with a note (never block on
+  # an environment the push didn't break). Konyo's "full test system" law.
+  if git diff --cached --name-only 2>/dev/null | grep -q "tv/control_ui.html" ||      git log -1 --name-only --pretty=format: 2>/dev/null | grep -q "tv/control_ui.html"; then
+    if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
+      if node "$REPO/tv/demo_console.mjs" >/dev/null 2>&1; then
+        echo "pre-push: ✅ console demos 6/6."
+      else
+        echo "pre-push: ❌ console demos FAILED — push blocked. Run: node tv/demo_console.mjs"
+        exit 1
+      fi
+    else
+      echo "pre-push: (console app down — demo gate skipped)"
+    fi
+  fi
 fi
 cd "$REPO" || exit 1
 
