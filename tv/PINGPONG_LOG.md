@@ -2125,3 +2125,13 @@ can't rot silently again. Tip made mode-aware. R3 Grok: no holes; smoke flake lo
 Suites: 150 agent · 34 control · burst 1/1 · shutter 3/3 · guardians green.
 CYCLE CLOSE: REAL EYES (v919) → SHUTTER (v920) → ROBOT BURST (v921). Post-cycle SOAK
 (TV_ROBOT=0 · 30min · intake law) launched right after this seal — result logged when it lands.
+
+## ✅ v922 "BOTH CHRONICLES" (Konyo LIVE ask, Jul 20 08:44 — he's on the console)
+"engines should also show the F-SETS tally engine — this is also a chronicle." Shipped:
+d2r_forgeSummary gains sets:{found,total,done} from fsetsScan() (the F·Sets tab's own truth —
+probe: 108/135 · 18 complete, summary ≡ scan) and the console ENGINES strip gains
+🧩 SETS · 108 / 135 · 18 complete beside 🏆 GRAIL. Guardians green (v635 byte-identity ·
+v686 cockpit · v920 shutter — 12/12). His second live question answered with code evidence:
+the reader IS already wired to the Vault Manager (routes→tvVaultRegister→canonical identity→
+EXTRA_ITEMS universe guarantee→suggestMule auto-assign / __throwout → 🗑 Throw-Out Review,
+v739 mirror doctrine, spec re-greened tonight in v918).
