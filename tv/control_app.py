@@ -1081,6 +1081,8 @@ def _engine_driver():
     # fired HISTORICAL stash tabs against the CURRENT eye frame (intake always shoots live).
     seen_ts = int(time.time() * 1000)
     visit_done = {}
+    fire_q = []       # v931.1 — serialized intake queue (busy-burn fix)
+    inflight = None   # the one job whose journal receipt we await
     _probes_out = 0
     while True:
         try:
@@ -1134,30 +1136,63 @@ def _engine_driver():
                 if scene != "stash":
                     if visit_done:
                         visit_done = {}
+                        fire_q = []   # stale visit's queued shots die with the visit (inflight may still confirm)
                         try:
                             _ejs(w, "(function(){var f=document.getElementById('tvd-eng');if(f&&f.contentWindow){f.contentWindow._vaultAutoDone=false;f.contentWindow._vaultAutoBusy=false}return 1})()", timeout=2.0)
                         except Exception:
                             pass
                     continue
                 fid = str(rd.get("frameId") or "")
-                if tab in ("runes", "gems", "materials") and not visit_done.get(tab):
-                    visit_done[tab] = True
-                    js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvStashAutoIntake&&f.contentWindow.tvStashAutoIntake(%s,{frameId:%s})}catch(e){};return 1})()"
-                          % (json.dumps(tab), json.dumps(fid)))
-                    try:
-                        _ejs(w, js, timeout=4.0)
-                        print(f"🧰 engine-driver: fired {tab} tally (frame {fid})")
-                    except Exception as e:
-                        print(f"⚠ engine-driver fire failed: {e}")
-                elif tab in ("personal", "shared") and not visit_done.get("vault_" + tab):
-                    visit_done["vault_" + tab] = True
+                # v931.1 (materials busy-burn, Grok r2 called it) — QUEUE, don't burn:
+                # a second tab read while an intake holds the page shutter used to eat
+                # the visit slot on a silent 'busy'. Tabs now queue and fire one at a
+                # time; a slot is marked done only when its result JOURNALS (or after
+                # 2 attempts). visit_done value: 'queued' | 'inflight' | True (done).
+                key = None
+                if tab in ("runes", "gems", "materials"):
+                    key = tab
+                elif tab in ("personal", "shared"):
+                    key = "vault_" + tab
+                if key and not visit_done.get(key):
+                    visit_done[key] = "queued"
+                    fire_q.append({"key": key, "tab": tab, "fid": fid, "tries": 0})
+
+            # ── serialized fire loop: one intake in flight, confirm via journal ──
+            now_ms = int(time.time() * 1000)
+            intk = st.get("intakes") or []
+            if inflight:
+                landed = any(int(i.get("ts") or 0) >= inflight["fired_ms"] - 2000
+                             and (i.get("intake") or {}).get("tab") in (inflight["tab"], inflight["key"].replace("vault_", ""))
+                             for i in intk)
+                if landed:
+                    visit_done[inflight["key"]] = True
+                    print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓")
+                    inflight = None
+                elif now_ms - inflight["fired_ms"] > 110_000:
+                    if inflight["tries"] < 2:
+                        inflight["tries"] += 1
+                        fire_q.insert(0, inflight)   # retry once
+                        print(f"🧰 engine-driver: {inflight['key']} no journal in 110s — retrying")
+                    else:
+                        visit_done[inflight["key"]] = True   # give up, don't loop forever
+                        print(f"⚠ engine-driver: {inflight['key']} failed twice — giving up this visit")
+                    inflight = None
+            if not inflight and fire_q:
+                job = fire_q.pop(0)
+                if job["key"].startswith("vault_"):
                     js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvVaultAutoIntake&&f.contentWindow.tvVaultAutoIntake({tab:%s,frameId:%s})}catch(e){};return 1})()"
-                          % (json.dumps(tab), json.dumps(fid)))
-                    try:
-                        _ejs(w, js, timeout=4.0)
-                        print(f"🧰 engine-driver: fired vault shot ({tab}, frame {fid})")
-                    except Exception as e:
-                        print(f"⚠ engine-driver vault fire failed: {e}")
+                          % (json.dumps(job["tab"]), json.dumps(job["fid"])))
+                else:
+                    js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvStashAutoIntake&&f.contentWindow.tvStashAutoIntake(%s,{frameId:%s})}catch(e){};return 1})()"
+                          % (json.dumps(job["tab"]), json.dumps(job["fid"])))
+                try:
+                    _ejs(w, js, timeout=4.0)
+                    job["fired_ms"] = now_ms
+                    visit_done[job["key"]] = "inflight"
+                    inflight = job
+                    print(f"🧰 engine-driver: fired {job['key']} (frame {job['fid']}, try {job['tries'] + 1})")
+                except Exception as e:
+                    print(f"⚠ engine-driver fire failed: {e}")
         except Exception:
             time.sleep(3.0)
 
