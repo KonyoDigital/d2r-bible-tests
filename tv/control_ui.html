@@ -2726,15 +2726,42 @@
   }
   // v911.1 — bfcache restore must never leave the shell invisible
   window.addEventListener('pageshow', function(){ try { document.body.classList.remove('gliding'); } catch(e){} });
+  // ══ v935 THE SHELL (Konyo: "one shell seamless app — toggle-free between the top tabs")
+  // No more page navigation: the board iframe (#tvd-eng — already loaded, same-origin,
+  // doubles as the engine) PROMOTES to a full-window pane on a board tab, and shrinks back
+  // to 2px engine mode on TV·D/⌂. Console state and board state both live forever. R1: the
+  // TV·D tab IS this console (v901 doctrine) — it never navigates anywhere again.
+  function shellOpen(tab){
+    var f = document.getElementById('tvd-eng');
+    if (!f || !f.contentWindow){ _glide('/board?app=1#' + encodeURIComponent(tab)); return; }
+    try {
+      if (typeof f.contentWindow.switchTab === 'function') f.contentWindow.switchTab(tab);
+      f.contentWindow.location.hash = '#' + tab;
+    } catch(e){}
+    document.body.classList.add('shell-open');
+    var hp = document.getElementById('shell-home'); if (hp) hp.hidden = false;
+  }
+  function shellHome(){
+    document.body.classList.remove('shell-open');
+    var hp = document.getElementById('shell-home'); if (hp) hp.hidden = true;
+  }
+  window._shellHome = shellHome;
   if (_ht) _ht.addEventListener('click', function(e){
     var b = e.target.closest('.ht'); if (!b) return;
-    _glide('/board?app=1#' + encodeURIComponent(b.dataset.tab));
+    if (b.dataset.tab === 'tvd'){ shellHome(); return; }   // TV·D = HOME = this console
+    shellOpen(b.dataset.tab);
   });
   var _brl = document.getElementById('bible-rail');
   if (_brl) _brl.addEventListener('click', function(e){
     var b = e.target.closest('.brl'); if (!b) return;
-    window.location.href = '/board?app=1#' + encodeURIComponent(b.dataset.tab);
+    shellOpen(b.dataset.tab);
   });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && document.body.classList.contains('shell-open')){
+      var th2 = document.getElementById('tvd-frame-lb');   // lightboxes outrank the shell
+      e.stopPropagation(); shellHome();
+    }
+  }, true);
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
   var _mt = $('mind-tag');
@@ -3034,8 +3061,18 @@
      architecture") — the auto-tally ENGINE is an invisible same-origin iframe INSIDE the
      console. Its JS stays alive because the host window is always visible; the control
      driver reaches it via contentWindow. The second pywebview window is gone. -->
-<iframe id="tvd-eng" src="/board?engine=1#tvd-engine" title="TVD engine"
+<iframe id="tvd-eng" src="/board?engine=1#tvd-engine" title="TVD engine + shell pane"
         style="position:fixed; left:0; bottom:0; width:2px; height:2px; opacity:0;
                pointer-events:none; border:0; z-index:-1" loading="eager"></iframe>
+<button id="shell-home" hidden onclick="window._shellHome()"
+        style="position:fixed; top:10px; left:12px; z-index:960; cursor:pointer;
+               background:rgba(10,8,5,.92); color:#f0c060; border:1px solid rgba(240,192,96,.5);
+               border-radius:999px; padding:8px 16px; font:700 12px/1 ui-monospace,monospace;
+               letter-spacing:.1em; box-shadow:0 0 18px rgba(240,192,96,.25)">⌂ CONSOLE · esc</button>
+<style>
+/* v935 THE SHELL — board pane promotion (same iframe as the engine; state never resets) */
+body.shell-open #tvd-eng { left:0; top:0; bottom:auto; width:100vw; height:100vh;
+  opacity:1; pointer-events:auto; z-index:940; background:#070605; }
+</style>
 </body>
 </html>
