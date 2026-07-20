@@ -1026,6 +1026,7 @@ def open_control_window():
     # is visible. The control-side driver reaches its board through contentWindow.
     try:
         threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
+        threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
     except Exception as _ee:
         print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open")
 
@@ -1067,6 +1068,146 @@ def _ejs(w, code, timeout=4.0):
     if isinstance(r, Exception):
         raise r
     return r
+
+
+_KAI_NOISE = ("stash", "inventory", "personal", "shared", "gems", "materials", "runes",
+              "create game", "join game", "lobby", "chat", "options", "save and exit",
+              "gold", "ctrl", "shift", "click", "left", "right", "move", "tab")
+
+
+def _kai_itemish(s):
+    """KAI v1 — keep item-ish OCR lines; mirror of the agent's filter, python-side."""
+    s = str(s or "").strip()
+    if len(s) < 3 or len(s) > 48:
+        return False
+    lo = s.lower()
+    if any(n in lo for n in _KAI_NOISE):
+        return False
+    if sum(c.isdigit() for c in s) > max(3, len(s) // 2):
+        return False
+    return any(len(p) >= 3 and p.isalpha() for p in lo.replace("'", " ").split())
+
+
+def _kai_closer_loop():
+    """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
+    with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
+    against what the session's reads actually caught, and journal a `lane: kai` ledger:
+    the frames whose text NO eye read — the ground truth of what was missed. v2 escalates
+    misses into deep reads + auto-register + the mule/throw-out regret funnel."""
+    if os.environ.get("TV_KAI", "1") == "0":
+        return
+    ocr_bin = os.path.join(HERE, "bin", "ocr_mac")
+    if not (os.path.isfile(ocr_bin) and os.access(ocr_bin, os.X_OK)):
+        return
+    time.sleep(20.0)
+    hist = HIST_DIR
+    while True:
+        try:
+            time.sleep(30.0)
+            if not os.path.isdir(hist):
+                continue
+            reels = sorted(d for d in os.listdir(hist)
+                           if d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))
+                           and os.path.isfile(os.path.join(hist, d, "index.json"))
+                           and not os.path.isfile(os.path.join(hist, d, "kai_report.json")))
+            if not reels:
+                continue
+            rd = os.path.join(hist, reels[0])
+            sid = reels[0][len("reel_"):]
+            frames = []
+            try:
+                with open(os.path.join(rd, "index.json"), encoding="utf-8") as f:
+                    frames = (json.load(f) or {}).get("frames") or []
+            except Exception:
+                pass
+            # what the session's eyes actually read (deep + ocr + verify lanes)
+            read_text = set()
+            try:
+                sess_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+            except Exception:
+                sess_rows = []
+            for r in sess_rows:
+                for nm in (r.get("names") or []) + (r.get("ocr_names") or []):
+                    read_text.add(str(nm).strip().lower())
+            print(f"🧠 KAI: closing {sid} — {len(frames)} frames, {len(read_text)} known texts")
+            # OCR worker: one warm process, stdin path → stdout JSON line
+            import queue as _q
+            try:
+                wp = subprocess.Popen([ocr_bin, "--worker"], stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE, text=True, bufsize=1,
+                                      preexec_fn=(lambda: os.nice(15)) if not IS_WIN else None)
+            except Exception as e:
+                print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue
+            missed = []
+            scanned = textframes = 0
+            for it in frames:
+                fp = os.path.join(rd, it.get("f") or "")
+                if not os.path.isfile(fp):
+                    continue
+                try:
+                    wp.stdin.write(fp + "\n"); wp.stdin.flush()
+                    line = wp.stdout.readline()
+                    j = json.loads(line) if line else {}
+                except Exception:
+                    break
+                scanned += 1
+                texts = [t for t in (j.get("lines") or []) if _kai_itemish(t)]
+                if texts:
+                    textframes += 1
+                    new = [t for t in texts if t.strip().lower() not in read_text]
+                    if new:
+                        missed.append({"f": it.get("f"), "ts": it.get("ts"), "texts": new[:6]})
+                time.sleep(0.12)   # peaceful — never fights a live session
+            try:
+                wp.stdin.close(); wp.terminate()
+            except Exception:
+                pass
+            report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
+                      "missedFrames": len(missed), "missed": missed[:40],
+                      "closedAt": int(time.time() * 1000), "kaiVer": 1}
+            with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as f:
+                json.dump(report, f)
+            # journal the ledger onto the session's timeline (🧠 gold in SIM)
+            now_ms = int(time.time() * 1000)
+            rows = [{"ts": now_ms, "captureTs": now_ms, "completedTs": now_ms,
+                     "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
+                     "sessionId": sid, "frameId": "",
+                     "kai": {k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
+                     "note": f"🧠 KAI closed the session — {scanned} frames swept · "
+                             f"{len(missed)} frames held text no eye read"}]
+            for m in missed[:20]:
+                rows.append({"ts": now_ms, "captureTs": int(m.get("ts") or now_ms),
+                             "completedTs": now_ms, "lane": "kai", "mode": "kai",
+                             "scene": "kai", "names": [], "sessionId": sid,
+                             "frameId": "reel_" + sid + "/" + str(m.get("f") or "").replace(".jpg", ""),
+                             "kai": {"texts": m.get("texts") or []},
+                             "note": "🧠 unread text: " + ", ".join((m.get("texts") or [])[:3])})
+            try:
+                with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
+                    for r in rows:
+                        f.write(json.dumps(r, ensure_ascii=False) + "\n")
+            except Exception as e:
+                print(f"🧠 KAI: journal append failed ({e})")
+            print(f"🧠 KAI report sealed for {sid}: {scanned} swept, {len(missed)} missed-text frames")
+        except Exception:
+            time.sleep(10.0)
+
+
+def _kai_journal_rows():
+    """Fresh journal rows for KAI (module-level read; the handler cache is instance-side)."""
+    rows = []
+    try:
+        with open(os.path.join(HERE, "sessions.jsonl"), encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if ln:
+                    try:
+                        rows.append(json.loads(ln))
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    return rows
 
 
 def _engine_driver():

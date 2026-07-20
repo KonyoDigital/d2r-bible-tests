@@ -821,6 +821,8 @@
   .th-beat.verifytick.recal { background: #7fb8ff !important; height: 18px;
     box-shadow: 0 0 12px rgba(127,184,255,.85), 0 0 4px rgba(255,210,90,.9); animation: recalPulse 1.6s ease-in-out infinite; }   /* ⚡ disagreement marker */
   @keyframes recalPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
+  .th-beat.kaitick { background: var(--gold) !important; height: 12px; box-shadow: 0 0 7px rgba(240,192,96,.6); }   /* v934 — 🧠 KAI */
+  .th-beat.kaitick.kaimiss { height: 18px; box-shadow: 0 0 12px rgba(240,192,96,.9); animation: recalPulse 1.6s ease-in-out infinite; }
   .th-chip.th-tag { opacity: .85; } .th-chip.th-tag i { font-style: normal; opacity: .65; font-size: 10px; }
   .th-airead { display: inline-block; text-align: left; margin-top: 6px; padding: 8px 14px;
     max-width: min(560px, 84%);   /* v850 — the card, not a banner */
@@ -1575,6 +1577,15 @@
     return '';
   }
   function thCaption(b){
+    if (b && b.lane === 'kai'){
+      // v934 — 🧠 KAI beat: the closer's ledger, gold on the timeline
+      var kk = b.kai || {};
+      if ((kk.texts||[]).length)
+        return '<span style="color:#f0c060">🧠 <b>KAI</b> · unread text on this frame: ' + esc(kk.texts.slice(0,4).join(', '))
+          + ' <span style="opacity:.55">· ' + new Date(b.captureTs||b.ts).toLocaleTimeString() + '</span></span>';
+      return '<span style="color:#f0c060">🧠 <b>KAI CLOSED THE SESSION</b> · ' + (kk.scanned||0) + ' frames swept · '
+        + (kk.missedFrames||0) + ' frames held text no eye read</span>';
+    }
     if (b && b.lane === 'verify'){
       // v933 — 🔵 SECOND EYE beat: verdict-first caption, pinned to the frame it re-checked
       var vf = b.verify || {};
@@ -2005,6 +2016,7 @@
       if (b.lane === 'verify'){   // v933 — 🔵 the SECOND EYE on the same timeline, own color
         cls += ' verifytick' + (((b.unvault_names||[]).length || ((b.verify||{}).missed||[]).length) ? ' recal' : '');
       }
+      if (b.lane === 'kai') cls += ' kaitick' + (((b.kai||{}).texts||[]).length ? ' kaimiss' : '');   // v934 — 🧠 the closer, gold
       if ((b.vault_names||[]).length) cls = cls + ' vaulted';
       else if ((b.pending_names||[]).length) cls = ' holding';
       else if (b.names && b.names.length) cls = ' named';
