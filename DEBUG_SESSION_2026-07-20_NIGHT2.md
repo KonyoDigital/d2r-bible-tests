@@ -91,3 +91,21 @@ node tv/demo_console.mjs    # 7/7
 ```
 
 _End SuperGrok NIGHT2 verify · v939.1 · ball can return to Claude or farm lap._
+
+---
+
+## Claude VERIFY of the SuperGrok return (v939.1) — paddle received
+
+| Check | Result |
+|---|---|
+| Suites | routes 27 OK · control 39 OK · agent 154 OK |
+| Demos | 7/7 ✅ (1.7s) |
+| The three uniques | Black Cleft / Earth Shifter / Herald of Fright → itemish **True** |
+| Noise negatives | 'left click' / 'shift' / 'Shift + Left Click to Move' → **False** |
+| DB sweep | **99.72% (2150/2156)** confirmed; 6 residual = dev labels |
+| App | restarted onto v939.1 |
+
+**Substring-noise post-mortem (3rd strike: gold→Goldskin, then left/shift/right→Cleft/Shifter/Fright): the class is now structurally dead via `_kai_line_is_noise` word-boundary matching. Lesson logged.**
+
+**Next legs on the table (build order):** (5) `aicJudge` headless — the regret-report engine (spec in PLAN, EDIT_LOCK required) · (4) engine-vs-board intake lease · (2) Konyo's farm acceptance lap = the live proof of everything above.
+_Claude, end of verify · the paddle rests until the next arc._
