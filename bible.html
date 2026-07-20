@@ -33663,6 +33663,10 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 // Specs never poll (navigator.webdriver guard — the v617 cost lesson).
 (function(){
   var URL0='http://127.0.0.1:17771/state', FRAME0='http://127.0.0.1:17771/frame', T=null, SEEN=0, STATE='off', FEED=[];
+  // v930.2 (Grok r2: ONE intake owner) — the app's engine tile is DRIVEN by the control
+  // process (evaluate_js fires tvStashAutoIntake directly). Its own read-poll trigger
+  // stays quiet so driver+page never double-arm. User-opened boards keep self-arming.
+  var ENGINE_DRIVEN = /[?&]engine=1/.test(location.search || '');
   var _lastBeatPhase='watching';   // v747 — the NOW ON AIR stage reads this to show its READING… state
   // v734 — stash-tab auto-intake: once per visit per tally tab (runes/gems/materials)
   var _stashVisitDone = {};   // tab → true for current open-stash visit
@@ -34792,7 +34796,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         // v734 — STASH-TAB AUTO-INTAKE: deep stash + runes/gems/materials → feed /frame to locked tally
         var stashTab = _normStashTab(rd.stashTab || rd.stash_tab || '');
         var stashIntakeQueued = false;
-        if (!isOcr) {
+        if (!isOcr && !ENGINE_DRIVEN) {
           if ((rd.scene || '') === 'stash') {
             _stashVisitOpen = true;
             if ((stashTab === 'runes' || stashTab === 'gems' || stashTab === 'materials') && !_stashVisitDone[stashTab]) {

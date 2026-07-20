@@ -1032,7 +1032,7 @@ def open_control_window():
         # it's never seen, on the desktop it sits quietly in the corner.
         globals()["_ENGINE_WIN"] = webview.create_window(
             title="TVD ENGINE — auto-tally (leave me be)",
-            url=url.split("/", 3)[0] + "//" + url.split("/", 3)[2] + "/board#tvd-engine",
+            url=url.split("/", 3)[0] + "//" + url.split("/", 3)[2] + "/board?engine=1#tvd-engine",
             width=340, height=220, x=18, y=712,
             background_color="#070605", confirm_close=False,
         )
@@ -1092,8 +1092,11 @@ def _engine_driver():
     per tab per stash visit (visit resets on a deep non-stash read) — mirrors bible.html's
     own gate. Also a liveness probe every loop so the ENGINE lamp tells the truth."""
     time.sleep(8.0)   # let the window boot + board JS attach
-    seen_ts = 0
+    # v930.2 (Grok r2 P0) — start the cursor at NOW: a cold driver walking the /state ring
+    # fired HISTORICAL stash tabs against the CURRENT eye frame (intake always shoots live).
+    seen_ts = int(time.time() * 1000)
     visit_done = {}
+    _probes_out = 0
     while True:
         try:
             time.sleep(2.0)
@@ -1102,8 +1105,20 @@ def _engine_driver():
                 continue
             # liveness probe — evaluate_js runs even when timers are throttled
             alive = False
+            if globals().get("_EJS_STUCK", 0) >= 3:
+                # v930.2 (Grok r2 P0) — leak guard: each timed-out probe leaves a scratch
+                # thread blocked in native evaluate_js; a suspended tile must not spawn an
+                # unbounded pile. 3 strikes → stop probing until a fire attempt resets.
+                globals()["_ENGINE_ALIVE"] = False
+                globals()["_ENGINE_READY"] = False
+                globals()["_EJS_STUCK"] = max(0, globals()["_EJS_STUCK"] - 0.05)  # slow decay → occasional retry
+                continue
             try:
                 _pv = _ejs(w, "(window.tvStashAutoIntake? 2 : 1)")
+                if _pv is None:
+                    globals()["_EJS_STUCK"] = globals().get("_EJS_STUCK", 0) + 1
+                else:
+                    globals()["_EJS_STUCK"] = 0
                 alive = _pv in (1, 2, "1", "2")
                 globals()["_ENGINE_READY"] = str(_ejs(w, "(typeof window.tvStashAutoIntake==='function')?1:0")) == "1"
                 if not alive and globals().get("_ENG_ERR") != repr(_pv):
@@ -1125,7 +1140,7 @@ def _engine_driver():
                 continue   # bridge down = agent off — nothing to drive
             reads = st.get("reads") or []
             for rd in reads:
-                ts = int(rd.get("completedTs") or rd.get("ts") or 0)
+                ts = max(int(rd.get("completedTs") or 0), int(rd.get("ts") or 0))
                 if ts <= seen_ts or rd.get("lane") != "deep" or rd.get("provisional"):
                     continue
                 seen_ts = max(seen_ts, ts)
@@ -1134,23 +1149,27 @@ def _engine_driver():
                 if scene != "stash":
                     if visit_done:
                         visit_done = {}
+                        try:
+                            _ejs(w, "window._vaultAutoDone=false;window._vaultAutoBusy=false;1", timeout=2.0)
+                        except Exception:
+                            pass
                     continue
                 fid = str(rd.get("frameId") or "")
                 if tab in ("runes", "gems", "materials") and not visit_done.get(tab):
                     visit_done[tab] = True
-                    js = ("window.tvStashAutoIntake && window.tvStashAutoIntake(%s,{frameId:%s})"
+                    js = ("(function(){try{window.tvStashAutoIntake&&window.tvStashAutoIntake(%s,{frameId:%s})}catch(e){};return 1})()"
                           % (json.dumps(tab), json.dumps(fid)))
                     try:
-                        _ejs(w, js, timeout=8.0)
+                        _ejs(w, js, timeout=4.0)
                         print(f"🧰 engine-driver: fired {tab} tally (frame {fid})")
                     except Exception as e:
                         print(f"⚠ engine-driver fire failed: {e}")
                 elif tab in ("personal", "shared") and not visit_done.get("vault_" + tab):
                     visit_done["vault_" + tab] = True
-                    js = ("window.tvVaultAutoIntake && window.tvVaultAutoIntake({tab:%s,frameId:%s})"
+                    js = ("(function(){try{window.tvVaultAutoIntake&&window.tvVaultAutoIntake({tab:%s,frameId:%s})}catch(e){};return 1})()"
                           % (json.dumps(tab), json.dumps(fid)))
                     try:
-                        _ejs(w, js, timeout=8.0)
+                        _ejs(w, js, timeout=4.0)
                         print(f"🧰 engine-driver: fired vault shot ({tab}, frame {fid})")
                     except Exception as e:
                         print(f"⚠ engine-driver vault fire failed: {e}")

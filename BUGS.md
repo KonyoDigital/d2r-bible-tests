@@ -669,3 +669,15 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause:** frames/live.bmp + eye.jpg persist across sessions; the film lane only overwrites them while actively capturing, so a dormant boot serves the previous session's last frame forever.
 - **Fix:** v927.3 (bd7f777) — agent boot deletes live.bmp/eye.jpg older than 30s; missing frames render the honest STANDBY/IDLE splash.
 - **Prevention:** never trust the preview as capture ground truth — the boot event line (`Screen Recording OK` / `DENIED`) and a fresh live.bmp mtime are the real signals.
+
+## REG-032 — "TALLIES · 0 synced" forever: bridge had no CORS preflight handler (2026-07-20)
+- **Symptom:** every board's intake_result POST to the bridge (:17771) died silently in the browser's OPTIONS preflight; tallies actually landed in stores but never journaled — the synced counter read 0 on every surface, always.
+- **Root cause:** BaseHTTPRequestHandler with no do_OPTIONS → preflight 501 → fetch .catch swallowed it.
+- **Fix:** v927.5 do_OPTIONS (204 + allow-headers content-type).
+- **Prevention:** any cross-origin POST with a JSON content-type needs the preflight handled; test with curl -X OPTIONS, not just POST.
+
+## REG-033 — off-screen engine window: WKWebView suspends timers AND evaluate_js (2026-07-20)
+- **Symptom:** v928's off-screen (-3980,-3980) board window showed "linked" (stale LS stamp) while zero auto-intakes fired; a driver thread then hung forever on its first pywebview evaluate_js call.
+- **Root cause:** macOS occlusion fully suspends off-screen WKWebViews — JS timers stop and evaluate_js never returns (pywebview has no timeout).
+- **Fix:** v930/v930.2 — ON-SCREEN mini engine tile + control-side driver with _ejs() hard-timeout, backlog-skipping cursor, fire-and-forget JS, probe leak guard, single intake owner (?engine=1 mutes the page's own trigger).
+- **Prevention:** never park a WebView off-screen and expect it to compute; wrap every evaluate_js in a timeout; lamps must probe, not read stamps.
