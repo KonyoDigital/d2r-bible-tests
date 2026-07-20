@@ -369,6 +369,8 @@ def _health(st):
          "footageFps": _foot_fps_now(), "footageTargetFps": _FOOTAGE_FPS,
          "filmLane": globals().get("_FILM_LANE", ""), "filmCapMs": globals().get("_FILM_CAP_MS"),   # v867
          "filmMaxPx": FILM_MAX_PX, "pollMs": int(POLL_S * 1000),
+         # v944 — brains 1+2: live settle ring depth + un-read text-eye sweep backlog
+         "settleQueue": len(_SETTLE_QUEUE), "textEyeBacklog": len(_TEXT_EYE_BACKLOG),
          "gapCruiseS": MIN_GAP_S, "gapPriorityS": PRIORITY_GAP_S,
          "heartbeatS": HEARTBEAT_S,
          # v899 — no-game guard: UI shows a sticky notice; AI stays dark until D2R.exe appears
@@ -2229,8 +2231,17 @@ _REFIRE_SIG = None      # v795 (Grok R5 #2) — OCR saw names, deep came back em
 # about to be overwritten) and, the instant the in-flight read frees up, drain the NEWEST held
 # view (Konyo's most-current screen) through the same dual-lane pipeline.
 SETTLE_QUEUE_CAP = max(1, int(os.environ.get("TV_SETTLE_QUEUE_CAP", "4") or 4))
+# v944 EVICTION JUSTICE — a hover streak floods the ring with text-eye freezes (one per new
+# tooltip). The base cap must NEVER shed one text-eye freeze to make room for another; grant
+# the priority (text-eye) class this many EXTRA slots before it may shed its own oldest.
+PRIORITY_CAP_BONUS = max(0, int(os.environ.get("TV_PRIORITY_CAP_BONUS", "6") or 6))
 SETTLE_QUEUE_STALE_MS = max(1000, int(os.environ.get("TV_SETTLE_QUEUE_STALE_MS", "120000") or 120000))
-_SETTLE_QUEUE = []              # FIFO, newest last; each: {"path","sig","ts","interest","priority"}
+_SETTLE_QUEUE = []              # FIFO, newest last; each: {"path","sig","ts","interest","priority","origin"}
+# v944 SECOND-EYE SWEEP — text-eye freezes superseded by the newest-wins live drain are NOT
+# deleted (that was KAI's 'missed-text'); they wait here, files on disk, for the verify-gap
+# sweeper to read them one at a time before seal. Bounded; stale-pruned; dies with the session.
+_TEXT_EYE_BACKLOG = []
+TEXT_EYE_BACKLOG_CAP = max(4, int(os.environ.get("TV_TEXT_EYE_BACKLOG_CAP", "24") or 24))
 _settle_q_lock = threading.Lock()
 
 def _settle_queue_dir():
@@ -2245,6 +2256,40 @@ def _settle_file_del(entry):
         if p and os.path.isfile(p): os.remove(p)
     except Exception:
         pass
+
+def _text_eye_backlog_add(entry):
+    """v944 — hold an un-read text-eye freeze the newest-wins drain superseded, so the
+    second-eye sweeper can still read it. Caller holds _settle_q_lock. Deduped by sig;
+    bounded (oldest sheds only if the sweeper falls TEXT_EYE_BACKLOG_CAP behind)."""
+    try:
+        for b in _TEXT_EYE_BACKLOG:
+            if sig_diff(entry.get("sig"), b.get("sig")) <= SETTLE:
+                _settle_file_del(entry)   # already backlogged this exact view
+                return
+        _TEXT_EYE_BACKLOG.append(entry)
+        while len(_TEXT_EYE_BACKLOG) > TEXT_EYE_BACKLOG_CAP:
+            _settle_file_del(_TEXT_EYE_BACKLOG.pop(0))
+    except Exception:
+        _settle_file_del(entry)
+
+def _text_eye_backlog_pop():
+    """v944 — pop the OLDEST un-read text-eye freeze (earliest at-risk item first). Stale
+    entries (>SETTLE_QUEUE_STALE_MS) are pruned. Returns the entry (file still on disk) or None."""
+    now = int(time.time() * 1000)
+    with _settle_q_lock:
+        fresh, dropped = [], 0
+        for e in _TEXT_EYE_BACKLOG:
+            if now - e["ts"] > SETTLE_QUEUE_STALE_MS:
+                _settle_file_del(e); dropped += 1
+            else:
+                fresh.append(e)
+        _TEXT_EYE_BACKLOG[:] = fresh
+        if dropped:
+            ev("cap", "text-eye backlog — dropped %d stale freeze(s) (>%ds) unswept before seal"
+               % (dropped, SETTLE_QUEUE_STALE_MS // 1000))
+        if not _TEXT_EYE_BACKLOG:
+            return None
+        return _TEXT_EYE_BACKLOG.pop(0)
 
 def _settle_enqueue(src_frame, sig, interest=0.0, priority=False, origin="settle"):
     """Unit-engine work queue: copy live frame to frames/queue/<sig8>.bmp. Scout text freezes
@@ -2284,8 +2329,21 @@ def _settle_enqueue(src_frame, sig, interest=0.0, priority=False, origin="settle
             _SETTLE_QUEUE.append({"path": dest, "sig": sig, "ts": now,
                                   "interest": round(float(interest), 3), "priority": bool(priority),
                                   "origin": str(origin or "settle")})
-            while len(_SETTLE_QUEUE) > SETTLE_QUEUE_CAP:   # newest freeze evicts the oldest held view
-                _settle_file_del(_SETTLE_QUEUE.pop(0))
+            # v944 EVICTION JUSTICE (Konyo: "catch these BEFORE KAI") — the old `pop(0)` shed the
+            # oldest freeze regardless of origin, so a hover streak ate its own earlier text-eye
+            # freezes → KAI's 'missed-text'. Now: evict the oldest NON-priority (ambient settle)
+            # view first; a text-eye freeze is shed only when the ring is ALL text-eye AND past
+            # the raised cap (CAP + PRIORITY_CAP_BONUS). Files are tiny — disk is not the limit.
+            while len(_SETTLE_QUEUE) > SETTLE_QUEUE_CAP:
+                _victim = next((i for i, e in enumerate(_SETTLE_QUEUE) if not e.get("priority")), None)
+                if _victim is not None:
+                    _settle_file_del(_SETTLE_QUEUE.pop(_victim))
+                    continue
+                # all-priority ring: hold up to the raised cap before shedding the oldest text-eye
+                if len(_SETTLE_QUEUE) > SETTLE_QUEUE_CAP + PRIORITY_CAP_BONUS:
+                    _settle_file_del(_SETTLE_QUEUE.pop(0))
+                else:
+                    break
     except Exception:
         pass
 
@@ -2307,9 +2365,12 @@ def _settle_drain_pop():
                % (dropped, SETTLE_QUEUE_STALE_MS // 1000))
         if not _SETTLE_QUEUE:
             return None
-        entry = _SETTLE_QUEUE.pop()      # newest = most-current view
-        for e in _SETTLE_QUEUE:          # older held views are moot now — clean their files
-            _settle_file_del(e)
+        entry = _SETTLE_QUEUE.pop()      # newest = most-current view (first eye reads this live)
+        for e in _SETTLE_QUEUE:          # older held views are superseded for LIVE currency…
+            if e.get("origin") == "text-eye" and e.get("path") and os.path.isfile(e.get("path")):
+                _text_eye_backlog_add(e)   # …but an un-read item-text is NOT moot — sweep it later
+            else:
+                _settle_file_del(e)        # ambient settle views really are moot once newer exists
         _SETTLE_QUEUE[:] = []
         return entry
 
@@ -2320,6 +2381,9 @@ def _settle_queue_clear():
         for e in _SETTLE_QUEUE:
             _settle_file_del(e)
         _SETTLE_QUEUE[:] = []
+        for e in _TEXT_EYE_BACKLOG:   # v944 — the sweep backlog dies with the session too
+            _settle_file_del(e)
+        _TEXT_EYE_BACKLOG[:] = []
     try:
         d = os.path.join(FRAMES, "queue")
         if os.path.isdir(d):
@@ -3801,11 +3865,32 @@ def main():
         # ── straggler flush + queue drain: freezes held while readers were busy ──
         try: _order_drain()
         except Exception: pass
-        # v926 SECOND LOOK — spend the LIGHT idle gap re-checking a recent read, but only when
-        # no fresh settle is waiting (accuracy never delays a live read) and a worker is free.
+        # v944 SECOND EYE AS SWEEPER (Konyo: "calibrate the first and second brain to catch
+        # these BEFORE KAI") — the idle gap (worker free, no fresh live settle waiting) belongs
+        # FIRST to the un-read text-eye backlog: freezes the newest-wins live drain skipped past.
+        # The second eye reads that missed-text DURING the session, before verify re-checks and
+        # before seal. Debt/pacing laws hold: never steal a live slot, one freeze at a time.
         try:
-            if VERIFY_ON and _VERIFY_Q and not _SETTLE_QUEUE and _vision_in_flight_n() < POOL_N:
-                _verify_drain(worker=_WORKER, budget=1)
+            if _vision_in_flight_n() < POOL_N and not _SETTLE_QUEUE:
+                _swept = False
+                _bl = _text_eye_backlog_pop()
+                if _bl is not None:
+                    if _in_flight_has_sig(_bl["sig"]):
+                        _settle_file_del(_bl)   # this exact view is already on a reader
+                    else:
+                        _bused = _fire_read(
+                            "text-eye-sweep-queue", _bl["path"], _bl["sig"],
+                            _bl.get("interest", 0.9), True,
+                            note="second eye — swept un-read text-eye backlog",
+                            gap_ms=max(0, int(time.time() * 1000) - _bl.get("ts", 0)),
+                            ap_mode="sweep-drain",
+                        )
+                        if _bused != _bl["path"]:
+                            _settle_file_del(_bl)
+                    _swept = True
+                # verify re-checks take the gap ONLY after the sweep backlog is clear
+                if not _swept and VERIFY_ON and _VERIFY_Q:
+                    _verify_drain(worker=_WORKER, budget=1)
         except Exception: pass
         _drained_any = False
         while _vision_in_flight_n() < POOL_N and _SETTLE_QUEUE:

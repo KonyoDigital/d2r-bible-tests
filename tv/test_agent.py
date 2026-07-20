@@ -1437,7 +1437,9 @@ class TestSettleQueue(unittest.TestCase):
         _healthy_disk(self)
         self.d = tempfile.mkdtemp()
         self._old = {k: getattr(tv, k) for k in
-                     ("FRAMES", "SETTLE_QUEUE_CAP", "SETTLE_QUEUE_STALE_MS")}
+                     ("FRAMES", "SETTLE_QUEUE_CAP", "SETTLE_QUEUE_STALE_MS",
+                      "PRIORITY_CAP_BONUS", "TEXT_EYE_BACKLOG_CAP")}
+        tv._TEXT_EYE_BACKLOG[:] = []
         self._old_emit = tv.__dict__.get("_LAST_EMIT_SIG")
         tv.FRAMES = self.d
         tv._SETTLE_QUEUE[:] = []
@@ -1450,6 +1452,7 @@ class TestSettleQueue(unittest.TestCase):
             setattr(tv, k, v)
         tv._LAST_EMIT_SIG = self._old_emit
         tv._SETTLE_QUEUE[:] = []
+        tv._TEXT_EYE_BACKLOG[:] = []
         import shutil
         shutil.rmtree(self.d, ignore_errors=True)
 
@@ -1522,6 +1525,55 @@ class TestSettleQueue(unittest.TestCase):
         qd = os.path.join(self.d, "queue")
         if os.path.isdir(qd):
             self.assertFalse([f for f in os.listdir(qd) if f.endswith(".bmp")])
+
+    # ── v944 brains 1+2 calibration (film-medic): eviction justice + sweeper backlog ──
+    @staticmethod
+    def _dsig(seed):
+        # distinct-sig helper: bytes([v])*4096 sigs land under the ~28/byte
+        # dedupe tolerance at SETTLE=0.03 — scramble per-byte instead
+        return bytes([(seed * 131 + j * (seed * 7 + 1)) % 256 for j in range(4096)])
+
+    def test_eviction_protects_text_eye(self):
+        tv.SETTLE_QUEUE_CAP = 4
+        tv.PRIORITY_CAP_BONUS = 6
+        for v in (1, 2, 3):
+            tv._settle_enqueue(self.src, self._dsig(v), interest=0.95,
+                               priority=True, origin="text-eye")
+        for v in (10, 11, 12, 13, 14):
+            tv._settle_enqueue(self.src, self._dsig(v), interest=0.2,
+                               priority=False, origin="settle")
+        te = [e for e in tv._SETTLE_QUEUE if e["origin"] == "text-eye"]
+        self.assertEqual(len(te), 3)                  # text-eye never evicted for settle
+        self.assertEqual(len(tv._SETTLE_QUEUE), 4)    # trimmed to base cap
+        self.assertEqual(
+            [e for e in tv._SETTLE_QUEUE if e["origin"] == "settle"][0]["sig"],
+            self._dsig(14))
+
+    def test_all_priority_ring_holds_to_raised_cap(self):
+        tv.SETTLE_QUEUE_CAP = 4
+        tv.PRIORITY_CAP_BONUS = 6
+        for v in range(10):
+            tv._settle_enqueue(self.src, self._dsig(100 + v),
+                               priority=True, origin="text-eye")
+        self.assertEqual(len(tv._SETTLE_QUEUE), 10)
+        tv._settle_enqueue(self.src, self._dsig(200),
+                           priority=True, origin="text-eye")
+        self.assertEqual(len(tv._SETTLE_QUEUE), 10)
+        self.assertEqual(tv._SETTLE_QUEUE[0]["sig"], self._dsig(101))  # oldest shed
+
+    def test_drain_backlogs_unread_text_eye(self):
+        tv.SETTLE_QUEUE_CAP = 8
+        tv._TEXT_EYE_BACKLOG[:] = []
+        for v in (1, 2, 3):
+            tv._settle_enqueue(self.src, self._dsig(v),
+                               priority=True, origin="text-eye")
+        tv._settle_enqueue(self.src, self._dsig(50), priority=False, origin="settle")
+        te_paths = [e["path"] for e in tv._SETTLE_QUEUE if e["origin"] == "text-eye"]
+        entry = tv._settle_drain_pop()
+        self.assertEqual(entry["sig"], self._dsig(50))             # newest fired live
+        self.assertEqual(len(tv._TEXT_EYE_BACKLOG), 3)             # older text-eye backlogged
+        self.assertTrue(all(os.path.isfile(p) for p in te_paths))  # files kept
+        self.assertEqual(tv._text_eye_backlog_pop()["sig"], self._dsig(1))  # oldest swept first
 
 
 class TestLocationTruth(unittest.TestCase):
