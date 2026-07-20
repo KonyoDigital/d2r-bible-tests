@@ -28,6 +28,15 @@ _Konyo's order, 2026-07-20 live session: "i want this a one system working app..
 - ✅ Engine is now an invisible same-origin **iframe inside control_ui** (`#tvd-eng`, `/board?engine=1`) — one window, no side tile, driver via contentWindow. v928 second-window and v930 mini-tile approaches are dead.
 - 🎯 NEXT UX ARC — **THE SHELL** (Konyo, twice, explicit list: "Tools / gems / stash / Sessions / FORGE / F·SETS / F·UNIQUES — a shell for it all, perfected"): unify console-home ↔ every board surface into ONE seamless shell — instant toggle-free switching (no page reloads) between Home · Sessions · Forge · F·Uniques · F·Sets · Tools · TV·D, shared state everywhere, the TALLY ENGINE / stash cards / vault ≤1 click from anywhere, and the console overlay (ON AIR / END SESSION / lamps) persistent on every surface. Flagship polish. Marquee of the next night arc.
 
+## 🎯 THE TEXT-TRIGGERED EYE — the arc's centerpiece (forensic case 2026-07-20 18:37 session)
+Konyo showed ~20 items; 4 reads landed, all of them the PERMANENT panel names (+1 lucky Death Torc). Frames prove the Materials tab sat open for 2 minutes with ZERO deep reads → no tab:materials read → driver had nothing to fire → materials never tallied. **Root architecture flaw: read triggering is pixel-motion/settle based — blind to tooltips appearing and sub-panel tab swaps.** ~20 tooltips lived and died between settle ticks.
+**The fix (Konyo: "we need an AI automating every screenshot read — my backend to the ON AIR product"):**
+- OCR EVERY film frame (the fast lane reads in 50-150ms — it can keep up with 1-5fps easily).
+- Trigger deep reads on NEW TEXT, not pixel motion: a tooltip name OCR hasn't seen this visit → immediate priority read of THAT frame (the frame is already on disk — read the archived frame, not the live eye, so fast hovers can't escape).
+- Stash-tab labels via OCR → tab-change detection even when the pixel delta is small → tally intakes fire on every tab visit reliably.
+- The SECOND EYE (below) then sweeps the reel for anything the live lane still missed.
+This turns the eye from "watches for stillness" into "reads everything that ever appears" — the ON AIR backend Konyo is asking for. 10x the visual debugger: every frame gets an OCR verdict journaled, so SIM can show text-seen-per-frame.
+
 ## 👁👁 THE SECOND EYE — trailing verify reader (Konyo's order, 2026-07-20 late)
 _"a second engine AI reader that goes back and slowly thoroughly checks the first picture and slowly creeps up to the first main AI READER — fixing, checking, recalibrating… a second eye, different colored, so in simulation I can retro-check and debug surgically."_
 - **Architecture:** a low-priority VERIFY reader with its own cursor that trails the live reader through the session's frames (hist/reel), re-reading each read-frame deeply (no time pressure: full-res, longer prompts, cross-check vs OCR + the live read's names). It creeps forward whenever the main pool is idle (never steals a live slot — the debt law applies) and catches up to LIVE − 1.
