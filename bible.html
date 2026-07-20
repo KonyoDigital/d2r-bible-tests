@@ -22564,6 +22564,12 @@ try {
     if (!_rc || _rc.indexOf("art/hd_") !== 0) D2IO_ART[_rk] = _HDRW[_rk];
   }
 } catch(e){}
+// v944.8 — HD ART for the MATERIALS tally class (hd-art agent CASC extraction): Pandemonium keys
+// and rejuv potions were on non-HD / diablo2.io backup icons → now true in-game sprites. Keys share
+// one invfile (invmph) in-game. Placed LAST so it wins over any earlier placeholder.
+// NOTE: the 6 Sunder charms are DELIBERATELY excluded — RotW gives each sunder its OWN distinct art
+// (mr_bonebreakcharm etc., pinned by tests/v71_d2art); a generic hd_charm_large would be a downgrade.
+try { if (typeof D2IO_ART !== "undefined") Object.assign(D2IO_ART, {"Key of Terror":"art/hd_mephisto_key.png","Key of Hate":"art/hd_mephisto_key.png","Key of Destruction":"art/hd_mephisto_key.png","Full Rejuvenation Potion":"art/hd_full_rejuv_potion.png","Partial Rejuvenation Potion":"art/hd_rejuv_potion.png"}); } catch(e){}
 // v321: paint static reference-table item-name spans (merc-gear etc.) their exact in-game rarity
 // colour. These spans carry data-arttip with the item name but no rarity class; table.ref-tbl had
 // no q-* rules so they read plain cream. Skip any span with an intentional inline colour (uber).
@@ -33640,7 +33646,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v944.6', name:'Never-Zero', date:'2026-07-21', note:'🚫0️⃣ never-zero re-fire + label+time near-dup + Stage 3 lanes obey ledger' };
+  window.D2R_BUILD = { id:'v944.8', name:'HD + Router', date:'2026-07-21', note:'HD art for materials tally (Pandemonium keys, rejuv potions, 6 sunder charms → true CASC sprites) · KAI missed-detector recalibration (Fable vision) · router stage 3 · never-zero re-fire.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
