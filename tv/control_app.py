@@ -2470,7 +2470,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v943",
+        "ver": "v944",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),

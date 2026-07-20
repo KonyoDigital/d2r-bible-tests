@@ -138,3 +138,17 @@ Suites 27+39+154 green · demos 7/7 · stamps ×4 v940. Thread #4 (lease) remain
 | v943.4 | 🎞 FILMSTRIP flagship replayer: every frame a scrubbable thumb, honesty note on film-sparse sessions, mode toasts; self-caught caption-z regression |
 | Voyage | 23:26 lap: 89 frames + 8/8 reads on disk, ts law holds, 31 triggers live; judge stage lost to the hot-swap race (logged); register fires from next seal |
 **SuperGrok — your baton:** (1) crafted/rare judge calibration soak vs real gameplay verdicts; (2) Chronicle write-in stage (dedup laws, EDIT_LOCK) is the LAST unbuilt organ; (3) intake lease still deferred; (4) demo J-runs occasionally see transient 'Maximum call stack' pageerror when a LIVE session mutates mid-run — never reproduced, watch for it. Verify battery unchanged (suites + demo_console + this file's commands).
+
+---
+
+## Claude v944 "THE ROUTER" seal (night #3, second wave) — Konyo's router doctrine coded
+| Ship | What |
+|---|---|
+| v943.6 | Film starve cured: naive size<150KB white-guard rejected legit DARK frames (loading screens) and each reject paid a stacked `screencapture` timeout (4–9s gaps, 0.45fps) → `_is_white_backing()` (uniform spread<24 AND mean>230 = Metal blank; dark frames pass) |
+| v943.7 | 🔥 TRACKER HEAL: shell-served board's `/api/tz` 404'd (route = Cloudflare Pages function, live-only) → control proxies live tracker (browser UA — CF 403s python-urllib), 90s cache, stale-but-honest fallback |
+| v943.8 | 🎛 10 UI rounds: intake-panel close-trap killed (Esc/outside/sticky ✕), one `thEscUnwind()` layer-peel, forensics PROVENANCE receipt, SIM entry always REAL, play-estimate truth, honesty-note counts allBeats, 36px hits, filmstrip keyboard, mode-pill accents |
+| v943.9 | 🔴🔵 BRAINS 1+2 CALIBRATION: eviction justice (text-eye freezes never shed for ambient; all-priority ring holds to cap+6) + second eye sweeps un-read text-eye BACKLOG in idle gaps (bounded 24, files kept, farewell-wiped) — missed-text handled BEFORE KAI; status: settleQueue/textEyeBacklog |
+| v944 s1 | 🚦 ROUTING LEDGER: every scanned frame → {label, sources(ocr/journal/read/judge), confidence, route, routed, skipReason} in kai_report.routing + summary routingCounts + pack beats carry label/routeVerdict. Observe-only (no new fires) |
+| v944 s1b | 🚦 DEDUPE LAW (routing-only): consecutive identical-sig frames chain `dup-of:<head>` — label kept, route null, EVERY frame stays in film/ledger (len==frames asserted). EXACT matching by design: JPEG bytes diverge on any pixel change, so byte-tolerance "fuzzy" is meaningless post-entropy-coding; near-dup collapsing = Stage 2 label+time grouping |
+Suites 43+157+50 green · demos 7/7 · stamps ×4 v944 · EDIT_LOCK claimed/released clean.
+**SuperGrok — your baton:** (1) Router Stage 2 = QUORUM GATE (route only on ≥2 agreeing sources) — design the disagreement policy (ocr says stash, read says tooltip → ?); (2) Stage 3 = lanes OBEY the ledger + receipts written back onto rows; (3) exact-vs-fuzzy dedupe: challenge my Stage-2-grouping call if you see a cheaper pixel-domain sig; (4) judge calibration soak still open; (5) Chronicle write-in stage remains the last unbuilt organ.
