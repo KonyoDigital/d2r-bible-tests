@@ -2445,6 +2445,53 @@ def filter_ocr_lines(lines):
             break
     return out
 
+def _text_eye_loop():
+    """v932 — 👁‍🗨 THE TEXT-TRIGGERED EYE (Konyo forensic case: '20 items shown, 4 reads').
+    The motion-settle detector is blind to tooltips and tab swaps — small pixel deltas on a
+    static stash view never trip a read. This lane OCR-scans the live eye continuously
+    (local Vision, ~50-150ms) and turns NEW item-ish text into an immediate PRIORITY read
+    of the frozen frame via _settle_enqueue (whose drain path bypasses the same-view gate,
+    so these can never be deduped away). Text re-arms after a TTL so revisits re-read."""
+    if os.environ.get("TV_TEXT_EYE", "1") == "0" or not _OCR.available():
+        return
+    eye = os.path.join(FRAMES, "eye.jpg")
+    seen = {}          # normalized text → last-seen monotonic ts
+    TTL = 150.0
+    while True:
+        try:
+            time.sleep(0.7)
+            if globals().get("_AI_PAUSED") or not os.path.isfile(eye):
+                continue
+            if (time.time() - os.path.getmtime(eye)) > 3.0:
+                continue   # film cold — nothing fresh under the eye
+            raw = _OCR.read(eye, timeout=1.5)
+            if not raw:
+                continue
+            names = filter_ocr_lines(raw.get("lines") or [])
+            now = time.monotonic()
+            for k in [k for k, t in seen.items() if now - t > TTL]:
+                del seen[k]
+            fresh = []
+            for nm in names:
+                key = _norm_name(nm)
+                if not key:
+                    continue
+                if key not in seen:
+                    fresh.append(nm)
+                seen[key] = now
+            if not fresh:
+                continue
+            try:
+                sig = frame_sig(eye)
+            except Exception:
+                continue
+            _settle_enqueue(eye, sig, interest=0.95, priority=True, origin="text-eye")
+            ev("settle", "👁‍🗨 text eye — new text: " + ", ".join(fresh[:3])
+               + (" …" if len(fresh) > 3 else "") + " → priority read of the frozen frame")
+        except Exception:
+            time.sleep(2.0)
+
+
 def ocr_fast(path):
     """Fast lane: local OCR → provisional names. Target warm p50 < 50ms, p99 < 200ms."""
     if not OCR_ENABLED or os.environ.get("TV_OCR") == "0":
@@ -3460,6 +3507,8 @@ def main():
             except Exception as e:
                 ev("skip", f"ocr warm error: {e}")
         threading.Thread(target=_warm_ocr, daemon=True).start()
+        threading.Thread(target=_text_eye_loop, daemon=True, name="tv-text-eye").start()
+        ev("boot", "👁‍🗨 text eye armed — new on-screen text triggers priority reads (TV_TEXT_EYE=0 to disable)")
     else:
         # v927.2 — say WHY the fast lane is off: the v925 LIGHT default disables it even
         # when the binary exists (chased as a phantom "never compiled" for days).
