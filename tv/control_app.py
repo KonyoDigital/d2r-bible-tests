@@ -12,6 +12,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 from __future__ import annotations
 
+import bisect
 import inspect
 import json
 import os
@@ -81,6 +82,115 @@ def _hist_frame_rel(fid):
             rel = os.path.relpath(p, HIST_DIR).replace("\\", "/")
             return rel
     return ""
+
+# ── v941 THE DOSSIER — join all three eyes onto one beat ─────────────────────
+# The theatre reads each frame three ways: 📸 the LOCKED intake pipeline (tally
+# receipts), 🔵 the second-look verify lane, and 🧠 KAI (per-frame class + judge).
+# These live as separate journal lanes keyed by different frameId shapes:
+#   • verify rows carry frameId 'N_ts#v'      → base == the deep read's 'N_ts'
+#   • kai rows carry frameId 'reel_<sid>/f_<ms>' → == the footage beat's frameId
+#   • intake receipts carry no read frameId    → matched by tab + ts nearest
+# _build_dossier_maps walks the session's rows ONCE (no O(n^2)) into lookup maps;
+# _beat_dossier hangs {tally,verify,kai} on a read/footage beat from those maps.
+def _build_dossier_maps(sess_rows):
+    """v941 — single-pass join index for one session's journal rows.
+    Returns {verify, kai, tab_ts, tab_receipts}; keys built for O(1)/O(log n) hits."""
+    verify_by_base = {}   # deep frameId (verify '#v' stripped) -> compact verify dict
+    kai_by_frame = {}     # reel frameId -> {"cls":.., "judge":..}
+    tab_ts = {}           # tab(lower) -> sorted [ts] for bisect-nearest
+    tab_receipts = {}     # tab(lower) -> {ts: compact receipt}
+    for r in sess_rows:
+        ln = r.get("lane")
+        if ln == "verify":
+            v = r.get("verify")
+            if isinstance(v, dict):
+                base = str(r.get("frameId") or "").split("#", 1)[0]
+                if base:
+                    # confirm/missed/not_present journal as name LISTS; the dossier
+                    # reports counts. 'corrected' == names the second look ruled
+                    # not-present (a correction of the first read).
+                    verify_by_base[base] = {
+                        "conf": v.get("conf"),
+                        "confirm": len(v.get("confirm") or []),
+                        "corrected": len(v.get("not_present") or []),
+                        "missed": len(v.get("missed") or []),
+                    }
+        elif ln == "kai":
+            k = r.get("kai")
+            fid = str(r.get("frameId") or "")
+            if fid and isinstance(k, dict):
+                slot = kai_by_frame.setdefault(fid, {"cls": None, "judge": None})
+                if k.get("cls") is not None:
+                    slot["cls"] = k.get("cls")
+                j = k.get("judge")
+                if isinstance(j, dict):
+                    slot["judge"] = {"name": j.get("name") or "",
+                                     "tier": j.get("tier") or "",
+                                     "score": j.get("score")}
+        ik = r.get("intake")
+        if isinstance(ik, dict):
+            tab = str(ik.get("tab") or ik.get("kind") or "").lower()
+            ts = int(r.get("ts") or r.get("captureTs") or 0)
+            if tab and ts:
+                cnts = ik.get("counts") if isinstance(ik.get("counts"), dict) else {}
+                top = sorted(cnts.items(),
+                             key=lambda kv: (-int(kv[1] or 0), str(kv[0])))[:8]
+                tab_receipts.setdefault(tab, {})[ts] = {
+                    "tab": ik.get("tab") or tab,
+                    "kind": ik.get("kind") or "",
+                    "ok": bool(ik.get("ok", True)),
+                    "total": int(ik.get("total") or 0),
+                    "counts": [[str(k2), int(v2 or 0)] for k2, v2 in top],
+                }
+                tab_ts.setdefault(tab, []).append(ts)
+    for tab in tab_ts:
+        tab_ts[tab].sort()
+    return {"verify": verify_by_base, "kai": kai_by_frame,
+            "tab_ts": tab_ts, "tab_receipts": tab_receipts}
+
+
+def _nearest_receipt(maps, tab, ts, window_ms=None):
+    """Compact intake receipt for `tab` nearest to `ts` (bisect); None if none
+    (or outside window_ms when given)."""
+    tab = (tab or "").lower()
+    tslist = maps["tab_ts"].get(tab)
+    if not tslist or not ts:
+        return None
+    i = bisect.bisect_left(tslist, ts)
+    best = None
+    for j in (i - 1, i):
+        if 0 <= j < len(tslist):
+            cand = tslist[j]
+            if best is None or abs(cand - ts) < abs(best - ts):
+                best = cand
+    if best is None or (window_ms is not None and abs(best - ts) > window_ms):
+        return None
+    return maps["tab_receipts"][tab].get(best)
+
+
+def _beat_dossier(maps, beat):
+    """v941 — {tally, verify, kai} for one read/footage beat, additive-only.
+    Reads (lane deep, frameId 'N_ts') hit verify by base + tally by stashTab.
+    Footage (frameId 'reel_<sid>/f_<ms>') hits kai exact + tally by KAI stash class."""
+    fid = str(beat.get("frameId") or "")
+    ts = int(beat.get("captureTs") or beat.get("ts") or 0)
+    is_footage = bool(beat.get("footage"))
+    verify = maps["verify"].get(fid.split("#", 1)[0]) if fid else None
+    kai = maps["kai"].get(fid)
+    if kai and kai.get("cls") is None and kai.get("judge") is None:
+        kai = None
+    tally = None
+    if is_footage:
+        # Only footage KAI proved is a stash tab gets a receipt (ts within ±120s).
+        cls = (kai or {}).get("cls") or ""
+        if isinstance(cls, str) and cls.startswith("stash-"):
+            tally = _nearest_receipt(maps, cls[6:], ts, window_ms=120000)
+    else:
+        tab = str(beat.get("stashTab") or "")
+        if tab:
+            tally = _nearest_receipt(maps, tab, ts, window_ms=None)
+    return {"tally": tally, "verify": verify or None, "kai": kai}
+
 
 IS_WIN = sys.platform.startswith("win")
 # Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
@@ -2782,6 +2892,15 @@ class Handler(BaseHTTPRequestHandler):
             # v895 — DEBUGGER default keeps every frame. Only pack=fast thins quiet film.
             if pack == "fast":
                 beats = self._thin_footage_beats(beats, step_ms=400, near_ms=3000)
+            # v941 THE DOSSIER — hang all three eyes on each read/footage beat.
+            # Maps built ONCE from this session's rows; join is O(1)/O(log n) per beat.
+            try:
+                _dmaps = _build_dossier_maps(sess)
+                for b in beats:
+                    if b.get("footage") or b.get("lane") == "deep":
+                        b["dossier"] = _beat_dossier(_dmaps, b)
+            except Exception:
+                pass
             sid = next((r.get("sessionId") for r in sess if r.get("sessionId")), "")
             # prewarm early frames (1280 theatre) so scrub/play is not sips-bound
             try:
@@ -2919,14 +3038,22 @@ class Handler(BaseHTTPRequestHandler):
                 if HERE not in sys.path:
                     sys.path.insert(0, HERE)
                 import replay as _rp
+                _jr = self._load_journal_cached()
                 row = None
-                for r in self._load_journal_cached():
+                for r in _jr:
                     if (r.get("sessionId") or "") == sid and int(r.get("n") or -1) == bn:
                         row = r
                 if row is None:
                     self._json(404, {"ok": False, "msg": "no such beat"})
                     return
+                # v941 THE DOSSIER — same three-eye join as the pack, one beat.
+                try:
+                    _srows = [r for r in _jr if (r.get("sessionId") or "") == sid]
+                    _dossier = _beat_dossier(_build_dossier_maps(_srows), row)
+                except Exception:
+                    _dossier = {"tally": None, "verify": None, "kai": None}
                 self._json(200, {"ok": True,
+                                 "dossier": _dossier,
                                  "raw": row.get("raw") or "",
                                  "dispatch": row.get("dispatch") or {},
                                  "promptVer": row.get("promptVer") or "",
