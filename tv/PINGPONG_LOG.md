@@ -2068,3 +2068,8 @@ width drift (late content on a slow machine) flipped the card across the item �
 v643 "randomly moving windows" class, still reachable. Product: the side is now chosen once per
 hover and kept while it fits (cur._tipSide). Spec: settle budget 15→30 ticks + the stability
 baseline re-read fresh after settling (an exhausted loop measured runner lag, not the card).
+
+## 🟢 v918.3 — FULL CI GREEN (Jul 20). tv-tests ✓ · Routine I ✓ · G ✓ · H ✓ · K ✓
+The Archon Plate red was finally run to ground: absolute-coords stability was measuring runner
+lag (anchor moved, glued card followed). Relative-to-anchor + numbers-in-the-red sealed it.
+The v922 checklist line "all CI lanes green" is now TRUE — for the first time in the arc.

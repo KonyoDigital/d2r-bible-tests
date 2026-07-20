@@ -655,3 +655,10 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause:** v889 added the tvToolsDelta FUNNEL (ledger-deduped, adjusts the stash + records photo-debt) but left the legacy routes-loop `apply(kind,key)` running for the same vault_names — two independent +1 lanes. The v889 funnel spec seeds tvToolsDelta directly, so it never saw the board path double.
 - **Fix:** the routes loop skips `apply()` for kinds `_toolsClassify` can own (rune/gem) when the funnel exists (v918). apply() stays for uni/set toggles + manual chips.
 - **Prevention:** any new tally lane must retire or gate the lane it replaces IN THE SAME VERSION; the exactly-once spec must drive the FULL board path (mock bridge read → auto-apply), not the function in isolation.
+
+## REG-030 — tooltip mid-hover side-flip + a spec that measured the runner, not the card (v918.x saga)
+- **Symptom:** Routine I "Archon Plate stability" red across 3 straight CI rounds while green on the Mac every time.
+- **Caught by:** check-and-debug sweep; killed only when the spec started printing its numbers.
+- **Root cause (two-headed):** (1) PRODUCT — move() re-chose the card's side from its CURRENT width on every mousemove, so mid-hover width drift flipped the card across the item (the original v643 "randomly moving windows" class, still reachable on slow machines). (2) SPEC — stability was measured in ABSOLUTE coords; on slow runners content-visibility materialization shifts the page mid-hover, the anchor moves, the glued card follows — correct behavior read as a jump.
+- **Fix:** sticky-side placement (`cur._tipSide`, kept while it fits) + the spec asserts card-delta ≈ anchor-delta and embeds dxCard/dyCard/dxAnch/dyAnch in the assertion message.
+- **Prevention:** anchored-UI invariants must be asserted RELATIVE to the anchor; any spec that fails CI-only gets its numbers into the assertion message BEFORE the next blind recalibration round.
