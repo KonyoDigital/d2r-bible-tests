@@ -662,3 +662,10 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause (two-headed):** (1) PRODUCT — move() re-chose the card's side from its CURRENT width on every mousemove, so mid-hover width drift flipped the card across the item (the original v643 "randomly moving windows" class, still reachable on slow machines). (2) SPEC — stability was measured in ABSOLUTE coords; on slow runners content-visibility materialization shifts the page mid-hover, the anchor moves, the glued card follows — correct behavior read as a jump.
 - **Fix:** sticky-side placement (`cur._tipSide`, kept while it fits) + the spec asserts card-delta ≈ anchor-delta and embeds dxCard/dyCard/dxAnch/dyAnch in the assertion message.
 - **Prevention:** anchored-UI invariants must be asserted RELATIVE to the anchor; any spec that fails CI-only gets its numbers into the assertion message BEFORE the next blind recalibration round.
+
+## REG-031 — stale preview frame reads as "capture still broken" (2026-07-20)
+- **Symptom:** board preview shows a previous session's photo (the TCC-denied wallpaper era) while the eye is dormant (no D2R window) — Konyo reported "it's still showing my desktop" twice on a healthy agent.
+- **Caught by:** Konyo report, session 2026-07-20 (WindowServer-crash recovery arc).
+- **Root cause:** frames/live.bmp + eye.jpg persist across sessions; the film lane only overwrites them while actively capturing, so a dormant boot serves the previous session's last frame forever.
+- **Fix:** v927.3 (bd7f777) — agent boot deletes live.bmp/eye.jpg older than 30s; missing frames render the honest STANDBY/IDLE splash.
+- **Prevention:** never trust the preview as capture ground truth — the boot event line (`Screen Recording OK` / `DENIED`) and a fresh live.bmp mtime are the real signals.
