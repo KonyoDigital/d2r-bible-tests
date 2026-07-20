@@ -1252,6 +1252,33 @@ def _kai_itemish(s):
     return any(_kai_vocab_hit(p) for p in toks)
 
 
+def _kai_frame_cls(lines, itemish):
+    """v935.11 R5 — funnel routing metadata: what KIND of frame held the text, derived from the
+    RAW OCR lines (lowercased). The KAI-v2 funnel escalates misses differently per class (a
+    stash-panel miss = an owned-inventory reconcile; a tooltip miss = a ground/regret read).
+      stash-runes|gems|materials|stash  a stash panel is open (personal/shared or plain 'stash');
+                                        which tally tab word appears picks the sub-class.
+      inventory                         the inventory panel is open.
+      tooltip                           no panel word, but an item name floats (>=1 itemish line).
+      gameplay                          otherwise — text with no item signal.
+    """
+    lo = [str(t).lower() for t in (lines or [])]
+    blob = " ".join(lo)
+    if "personal" in blob or "shared" in blob or "stash" in blob:
+        if "runes" in blob:
+            return "stash-runes"
+        if "gems" in blob:
+            return "stash-gems"
+        if "materials" in blob:
+            return "stash-materials"
+        return "stash"
+    if "inventory" in blob:
+        return "inventory"
+    if itemish:
+        return "tooltip"
+    return "gameplay"
+
+
 def _kai_closer_loop():
     """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
     with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
@@ -1303,6 +1330,7 @@ def _kai_closer_loop():
             except Exception as e:
                 print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue
             missed = []
+            classes = {}          # v935.11 R5 — {cls: count} over every line-producing frame
             scanned = textframes = 0
             for it in frames:
                 fp = os.path.join(rd, it.get("f") or "")
@@ -1315,12 +1343,18 @@ def _kai_closer_loop():
                 except Exception:
                     break
                 scanned += 1
-                texts = [t for t in (j.get("lines") or []) if _kai_itemish(t)]
+                raw = j.get("lines") or []
+                texts = [t for t in raw if _kai_itemish(t)]
+                # R5 — classify every frame that produced OCR lines, before the missed decision.
+                cls = _kai_frame_cls(raw, texts) if raw else None
+                if cls:
+                    classes[cls] = classes.get(cls, 0) + 1
                 if texts:
                     textframes += 1
                     new = [t for t in texts if t.strip().lower() not in read_text]
                     if new:
-                        missed.append({"f": it.get("f"), "ts": it.get("ts"), "texts": new[:6]})
+                        missed.append({"f": it.get("f"), "ts": it.get("ts"),
+                                       "texts": new[:6], "cls": cls})
                 time.sleep(0.12)   # peaceful — never fights a live session
             try:
                 wp.stdin.close(); wp.terminate()
@@ -1328,6 +1362,7 @@ def _kai_closer_loop():
                 pass
             report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
                       "missedFrames": len(missed), "missed": missed[:40],
+                      "classes": classes,   # R5 — routing metadata for the KAI-v2 funnel
                       "closedAt": int(time.time() * 1000), "kaiVer": 1}
             with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as f:
                 json.dump(report, f)
@@ -1345,12 +1380,13 @@ def _kai_closer_loop():
                              "completedTs": now_ms, "lane": "kai", "mode": "kai",
                              "scene": "kai", "names": [], "sessionId": sid,
                              "frameId": "reel_" + sid + "/" + str(m.get("f") or "").replace(".jpg", ""),
-                             "kai": {"texts": m.get("texts") or []},
+                             "kai": {"texts": m.get("texts") or [], "cls": m.get("cls")},
                              "note": "🧠 unread text: " + ", ".join((m.get("texts") or [])[:3])})
             rows.append({"ts": _sess_last + 1, "captureTs": _sess_last + 1, "completedTs": now_ms,
                          "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
                          "sessionId": sid, "frameId": "",
-                         "kai": {k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
+                         "kai": {**{k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
+                                 "classes": classes},
                          "note": f"🧠 KAI closed the session — {scanned} frames swept · "
                                  f"{len(missed)} frames held text no eye read"})
             try:
@@ -2752,13 +2788,24 @@ class Handler(BaseHTTPRequestHandler):
                     s = r.get("sessionId")
                     if s:
                         _sid = s   # latest sessionId wins (rows are append-ordered)
-                for r in _rows:
-                    if (r.get("lane") == "intake"
-                            and str(r.get("frameId") or "") == _fid
-                            and str((r.get("intake") or {}).get("tab") or "") == _tab
-                            and abs(int(r.get("ts") or 0) - _ts) <= 300_000):
-                        self._json(200, {"ok": True, "dup": True})
-                        return
+                # v935.11 R3 (Grok dedupe verdict) — the ±5min frame+tab dedupe was too greedy:
+                # (a) an empty frameId carries no identity, so those receipts must ALWAYS journal
+                #     (never collapse two anonymous shots into one); (b) a re-tally of the SAME
+                #     frame+tab with DIFFERENT counts is a genuine correction, not a dup, so the
+                #     match now also requires an identical counts signature. Only the exact triple
+                #     (frameId, tab, counts-sig) within ±5min is a true duplicate.
+                _counts = body.get("counts") if isinstance(body.get("counts"), dict) else {}
+                _csig = json.dumps(_counts, sort_keys=True)
+                if _fid:
+                    for r in _rows:
+                        if (r.get("lane") == "intake"
+                                and str(r.get("frameId") or "") == _fid
+                                and str((r.get("intake") or {}).get("tab") or "") == _tab
+                                and json.dumps((r.get("intake") or {}).get("counts") or {},
+                                               sort_keys=True) == _csig
+                                and abs(int(r.get("ts") or 0) - _ts) <= 300_000):
+                            self._json(200, {"ok": True, "dup": True})
+                            return
                 rec = {
                     "ts": _ts, "captureTs": _ts, "completedTs": now_ms,
                     "n": 0, "scene": "intake", "lane": "intake", "mode": "intake",
@@ -2766,7 +2813,7 @@ class Handler(BaseHTTPRequestHandler):
                     "intake": {
                         "tab": _tab,
                         "kind": str(body.get("kind") or "")[:16],
-                        "counts": body.get("counts") if isinstance(body.get("counts"), dict) else {},
+                        "counts": _counts,
                         "total": int(body.get("total") or 0),
                         "errors": int(body.get("errors") or 0),
                         "items": (body.get("items") or [])[:60],

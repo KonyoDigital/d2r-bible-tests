@@ -626,5 +626,61 @@ class TestV924FarmGate(unittest.TestCase):
         self.assertIn("fix", au)
 
 
+class TestExitSafeguard(unittest.TestCase):
+    """v935.11 R6 — the v935.8 EXIT SAFEGUARD (_console_exit_stop_onair): closing the console
+    must stop ON AIR exactly once ('it's always on'), be idempotent across the many exit paths
+    (window-close / atexit / SIGTERM / SIGINT), and NEVER stop from a secondary --window-only
+    attach (that process is a viewer — the primary control process owns the agent)."""
+
+    def setUp(self):
+        self._calls = []
+        # snapshot everything the safeguard touches, restore in tearDown (no sockets, no sleeps)
+        self._old = {
+            "stop_agent": ca.stop_agent,
+            "_force_kill_all_agents": ca._force_kill_all_agents,
+            "_agent_alive": ca._agent_alive,
+            "_port_listener_pid": ca._port_listener_pid,
+            "_agent_mode": ca._agent_mode,
+            "_WINDOW_ONLY": ca._WINDOW_ONLY,
+            "_EXIT_STOP_DONE": ca._EXIT_STOP_DONE,
+        }
+        ca.stop_agent = lambda farewell=True: (
+            self._calls.append(("stop", farewell)) or {"ok": True, "msg": "stopped"})
+        ca._force_kill_all_agents = lambda reason="": (
+            self._calls.append(("force", reason)) or {"ok": True, "msg": "killed"})
+        # Pin "agent is live, no residual after stop": the cheap early-return needs mode=='off',
+        # so 'live' forces the real stop path; the residual force-kill fires on (listener OR alive),
+        # both False here, so a clean run invokes stop_agent once and NOT _force_kill_all_agents.
+        ca._agent_alive = lambda: False
+        ca._port_listener_pid = lambda port=None: None
+        ca._agent_mode = "live"
+        ca._WINDOW_ONLY = False
+        ca._EXIT_STOP_DONE = False
+
+    def tearDown(self):
+        for k, v in self._old.items():
+            setattr(ca, k, v)
+
+    def test_first_call_stops_onair(self):
+        r = ca._console_exit_stop_onair("unit")
+        self.assertIn(("stop", False), self._calls)   # farewell OFF → instant quit
+        self.assertFalse(any(c[0] == "force" for c in self._calls))  # no residual → no force kill
+        self.assertTrue(r.get("ok"))
+
+    def test_second_call_is_idempotent_noop(self):
+        ca._console_exit_stop_onair("first")
+        n = len(self._calls)
+        r = ca._console_exit_stop_onair("second")
+        self.assertEqual(len(self._calls), n)         # nothing new invoked
+        self.assertTrue(r.get("skipped"))
+
+    def test_window_only_never_stops(self):
+        ca._WINDOW_ONLY = True
+        r = ca._console_exit_stop_onair("window-only-attach")
+        self.assertEqual(self._calls, [])             # primary owns ON AIR — viewer stops nothing
+        self.assertTrue(r.get("skipped"))
+        self.assertFalse(ca._EXIT_STOP_DONE)          # window-only must not consume the one-shot
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
