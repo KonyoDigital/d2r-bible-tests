@@ -694,9 +694,11 @@
   .th-sess { margin-left: auto; font-size: clamp(9px,.8vw,12px); color: var(--muted);
     letter-spacing: .12em; font-variant-numeric: tabular-nums; }
   .th-x { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.5);
-    color: var(--muted); width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; transition: .15s; }
-  .th-x:hover { color: var(--gold); border-color: var(--edge-hi); }
+    color: var(--muted); width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
+    font-size: 14px; transition: .15s; }
+  .th-x:hover { color: var(--gold); border-color: var(--edge-hi); background: rgba(40,10,10,.55); }
+  .th-x:active { transform: scale(.94); }
+  .th-x:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.55); }
   .th-caption { position: absolute; left: 0; right: 0; bottom: clamp(56px,8vh,74px); z-index: 2;
     max-height: 44vh; overflow-y: auto;   /* v850 — a busy beat can never climb over the film */
     text-align: center; padding: 10px clamp(14px,3vw,40px);
@@ -716,9 +718,22 @@
   .th-drawer h4:first-child { margin-top: 0; }
   /* v858.1 — float+sticky collapses to an INVISIBLE box in WebKit (the latency driver caught
      the ✕ unclickable for 30s — the drawer trap reborn). Absolute inside the drawer, always. */
-  .th-drawer-x { position: absolute; top: 8px; right: 12px; z-index: 2; background: rgba(20,24,20,.95);
-    border: 1px solid var(--edge); color: #d8bd7c; border-radius: 4px; padding: 3px 10px;
-    cursor: pointer; font: 700 12px/1.4 var(--mono); }
+  /* v943 (Konyo: 'after I click I cant escape') — the panel's ✕ is now a sticky, always-visible
+     pill with a real ≥36px hit target; Esc and click-outside also dismiss the panel (see JS). */
+  .th-drawer-x { position: sticky; top: 0; float: right; z-index: 3; background: rgba(30,16,16,.97);
+    border: 1px solid rgba(240,150,120,.4); color: #f0c8a0; border-radius: 6px; padding: 7px 12px;
+    min-height: 34px; margin: -30px -6px 6px 0; cursor: pointer; font: 700 12px/1.4 var(--mono);
+    transition: border-color .15s, box-shadow .15s, transform .08s; }
+  .th-drawer-x:hover { border-color: rgba(240,150,120,.85); color: #ffd9c0; box-shadow: 0 0 12px rgba(240,120,90,.3); }
+  .th-drawer-x:active { transform: scale(.95); }
+  .th-drawer-x:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,150,120,.7); }
+  .th-drawer details.th-raw { margin: 2px 0 4px; }
+  .th-drawer details.th-raw > summary { cursor: pointer; color: #b79a6a; font: 700 10.5px/1.5 var(--mono);
+    letter-spacing: .04em; padding: 3px 0; list-style: none; }
+  .th-drawer details.th-raw > summary::-webkit-details-marker { display: none; }
+  .th-drawer details.th-raw > summary::before { content: '▸ '; opacity: .7; }
+  .th-drawer details.th-raw[open] > summary::before { content: '▾ '; }
+  .th-drawer details.th-raw > summary:hover { color: var(--gold-hi); }
   .th-drawer .kv { display: flex; justify-content: space-between; gap: 10px; }
   .th-drawer .kv .k { opacity: .55; } .th-drawer .kv .v { text-align: right; word-break: break-all; }
   .th-drawer .col { margin: 2px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
@@ -766,7 +781,8 @@
   #th-shelfov { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(54px, 9vh, 72px); z-index: 14; overflow-y: auto; background: rgba(4,6,5,.94);
     padding: clamp(16px,3vh,30px); display: block; }
   #th-shelfov[hidden] { display: none !important; }
-  #th-shelfov .sh-head { font: 800 clamp(15px,1.8vw,22px)/1.4 var(--serif); color: #e8cf96; letter-spacing: .2em; margin-bottom: 14px; }
+  #th-shelfov .sh-head { font: 800 clamp(15px,1.8vw,22px)/1.4 var(--serif); color: #e8cf96; letter-spacing: .2em; margin-bottom: 14px; padding-right: 48px; }
+  #th-shelfov .sh-x { position: sticky; float: right; top: 0; margin: -4px 0 0 0; z-index: 4; }
   #th-shelfov .sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
   #th-shelfov .sh-card { border: 1px solid var(--edge); border-radius: 8px; padding: 10px 14px; cursor: pointer;
     background: rgba(12,15,12,.9); font: 500 11px/1.7 var(--mono); color: #b9c9be; transition: border-color 150ms; }
@@ -790,10 +806,21 @@
     display: flex; align-items: center; gap: 10px;
     padding: clamp(8px,1vw,14px) clamp(12px,1.4vw,20px);
     background: linear-gradient(0deg, rgba(5,4,3,.95), rgba(5,4,3,.6) 80%, transparent); }
+  /* v943 (Konyo: 'buttons bugged') — every theatre button gets the full state set:
+     hover · active (press) · focus-visible (keyboard) · .on (toggled). Hit area ≥36px. */
   .th-btn { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.5);
-    color: var(--gold); min-width: 36px; height: 32px; border-radius: 9px; cursor: pointer;
-    font-family: var(--mono); font-size: 12px; font-weight: 700; transition: .15s; }
-  .th-btn:hover { border-color: var(--edge-hi); box-shadow: 0 0 12px rgba(240,192,96,.2); }
+    color: var(--gold); min-width: 36px; height: 36px; padding: 0 10px; border-radius: 9px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; font-weight: 700; transition: border-color .15s, box-shadow .15s, transform .08s, color .15s; }
+  .th-btn:hover { border-color: var(--edge-hi); color: var(--gold-hi); box-shadow: 0 0 12px rgba(240,192,96,.2); }
+  .th-btn:active { transform: translateY(1px) scale(.97); box-shadow: inset 0 2px 7px rgba(0,0,0,.5); }
+  .th-btn:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.55); }
+  .th-btn.on { border-color: var(--gold-hi); color: var(--gold-hi); box-shadow: 0 0 10px rgba(240,192,96,.25); }
+  .th-btn:disabled { opacity: .4; cursor: default; }
+  /* v943 — the MODE PILL wears its state: a fat left-border accent readable at a glance */
+  #th-mode { border-left-width: 4px; }
+  #th-mode.md-real { border-left-color: var(--mint); color: #bfe8c8; }
+  #th-mode.md-highlight { border-left-color: #e9b96e; color: #f0d29a; }
+  #th-mode.md-full { border-left-color: #8fb4d8; color: #cfe0f0; }
   .th-timeline { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; cursor: pointer; overflow-x: auto; scrollbar-width: none; }
   .th-beat { flex: 1; height: 6px; border-radius: 3px; background: rgba(240,192,96,.18); transition: .12s; min-width: 3px; }
   .th-beat.named { background: rgba(240,192,96,.55); height: 10px; }
@@ -809,7 +836,7 @@
     background: linear-gradient(0deg, rgba(5,4,3,.86), rgba(5,4,3,.34)); pointer-events: none; }
   #th-filmstrip-wrap[hidden] { display: none !important; }
   #th-fs-note { pointer-events: auto; padding: 4px clamp(12px,1.4vw,20px) 0;
-    font: 500 10.5px/1.5 var(--mono); color: #b79a6a; opacity: .74; letter-spacing: .02em; }
+    font: 500 11px/1.55 var(--mono); color: #b79a6a; opacity: .78; letter-spacing: .02em; }   /* v943 — nudged into the 11-12.5px theatre family */
   #th-fs-note[hidden] { display: none !important; }
   #th-filmstrip { pointer-events: auto; display: flex; align-items: center; gap: 3px;
     height: 54px; padding: 3px clamp(12px,1.4vw,20px); overflow-x: auto; overflow-y: hidden;
@@ -827,10 +854,10 @@
   /* when the filmstrip is showing, lift the read/accuracy caption clear above it */
   #theatre.fs-on .th-caption { bottom: calc(var(--th-strip-h) + 84px); }
   /* ══ v941.6 — mode toast: a 1.6s plain-word flash by the mode pill ══ */
-  #th-toast { position: absolute; z-index: 5; padding: 6px 13px; border-radius: 8px;
+  #th-toast { position: absolute; z-index: 5; padding: 6px 13px; border-radius: 8px; max-width: 62%;
     background: rgba(10,8,5,.96); border: 1px solid rgba(240,192,96,.4); color: #f0d89a;
-    font: 700 12px/1.3 var(--mono); letter-spacing: .03em; box-shadow: 0 6px 22px rgba(0,0,0,.6);
-    opacity: 0; transform: translateY(6px); transition: opacity .18s, transform .18s; pointer-events: none; }
+    font: 700 12.5px/1.35 var(--mono); letter-spacing: .03em; box-shadow: 0 6px 22px rgba(0,0,0,.6);
+    white-space: normal; opacity: 0; transform: translateY(6px); transition: opacity .18s, transform .18s; pointer-events: none; }   /* v943 — 12.5px scale · wraps, never clips */
   #th-toast.show { opacity: 1; transform: translateY(0); }
   #th-toast[hidden] { display: none !important; }
   .sh-card.stub { opacity: .38; filter: saturate(.5); }   /* v885 — ghosts recede */
@@ -1741,6 +1768,14 @@
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   // v940.5 — the MODE pill says what it does, in plain words (id + cycling logic untouched)
   function thModeLabel(m){ return m === 'highlight' ? '🎬 HIGHLIGHTS · skims dull parts' : (m === 'full' ? '📼 EVERY FRAME' : '⏱ REAL · true speed'); }
+  // v943 (Konyo, REAL pacing R2) — the mode pill wears its state as a colored left-border accent so
+  // you can read the playback mode at a glance: REAL=mint · HIGHLIGHTS=amber · EVERY FRAME=steel.
+  function thModePill(m){
+    var el = $('th-mode'); if (!el) return;
+    el.classList.remove('md-real', 'md-highlight', 'md-full');
+    el.classList.add(m === 'highlight' ? 'md-highlight' : (m === 'full' ? 'md-full' : 'md-real'));
+    el.textContent = thModeLabel(m);
+  }
   // v940.5 — the PAST-not-LIVE ribbon. ON AIR → says recording continues in the background;
   // otherwise → session N + the recorded time span. Re-run on paint, session load, and refresh.
   function thRibbon(){
@@ -2026,11 +2061,23 @@
     var spanS = (meta.t0 && meta.t1) ? Math.max(0, Math.round((meta.t1 - meta.t0) / 1000)) : 0;
     var spanTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + (spanS % 60)).slice(-2) + 's') : '';
     var footN = (TH.allBeats || []).filter(function(x){ return x.footage; }).length;
-    var playMin = TH.Tplay ? Math.max(1, Math.round(TH.Tplay / 60000)) : 0;
+    // v943 (Konyo, REAL pacing R2 §C2) — the play estimate recomputes PER MODE and PER SPEED.
+    // REAL means wall-clock: it reads the session's true span, not a made-up minute count. The
+    // compressed modes divide the compressed play-time by the live speed so 2×/4× shrink it.
+    var playSeg = '';
+    if (TH.mode === 'real'){
+      playSeg = spanTxt ? ' · plays ' + spanTxt + ' · true speed' : ' · true speed';
+    } else if (TH.Tplay){
+      var _pm = TH.Tplay / (TH.speed || 1);
+      var _pt = _pm >= 60000
+        ? (Math.floor(_pm / 60000) + 'm' + ('0' + Math.round((_pm % 60000) / 1000)).slice(-2) + 's')
+        : (Math.max(1, Math.round(_pm / 1000)) + 's');
+      playSeg = ' · plays ~' + _pt + ' @' + TH.speed + '×';
+    }
     $('th-sess').textContent = 'session ' + TH.sn + '/' + TH.sessions.length
       + range
       + (spanTxt ? ' · ran ' + spanTxt : '')
-      + (TH.mode !== 'real' && playMin ? ' · play ~' + playMin + 'm @' + TH.speed + '×' : '')
+      + playSeg
       + ' · beat ' + (TH.i+1) + '/' + TH.beats.length
       + (meta.reads != null ? ' · ' + meta.reads + ' AI reads' : '')
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
@@ -2302,11 +2349,15 @@
     // B2 — HONESTY NOTE: sparse film on a long session = the pre-v941 film-lane-off era
     var note = $('th-fs-note');
     if (note){
+      // v943 (Konyo, REAL pacing R2 §C3) — count THIS session's real footage from TH.allBeats,
+      // never the filtered TH.beats. HIGHLIGHTS/EVERY-FRAME strip footage rows out of TH.beats,
+      // so the old count read 0 stills on a 55-film session and cried "film lane was off".
+      var _src = (TH.allBeats && TH.allBeats.length) ? TH.allBeats : TH.beats;
       var footCount = 0;
-      for (var fi = 0; fi < TH.beats.length; fi++){ if (TH.beats[fi].footage) footCount++; }
+      for (var fi = 0; fi < _src.length; fi++){ if (_src[fi].footage) footCount++; }
       var meta = TH.sessions[TH.sn-1] || {};
       var spanS = (meta.t0 && meta.t1) ? Math.round((meta.t1 - meta.t0) / 1000)
-        : (TH.beats.length ? Math.round((((TH.beats[TH.beats.length-1]||{}).ts||0) - ((TH.beats[0]||{}).ts||0)) / 1000) : 0);
+        : (_src.length ? Math.round((((_src[_src.length-1]||{}).ts||0) - ((_src[0]||{}).ts||0)) / 1000) : 0);
       if (TH.filmstrip && footCount < 20 && spanS > 60){
         note.hidden = false;
         note.textContent = '📹 this session recorded only ' + footCount + ' still' + (footCount === 1 ? '' : 's')
@@ -2326,7 +2377,10 @@
     var html = list.map(function(bi){
       var b = TH.beats[bi];
       var u = '/hist/' + encodeURI(b.frame) + '?w=160';   // NEVER encodeURIComponent — the reel-slash 404 bug (v940.2)
-      var t = '#' + (b.n || '?') + (b.area ? ' · ' + b.area : '') + (b.footage ? ' · film' : '');
+      // v943 — thumb tooltip carries the TIME and the beat KIND, not just the read number.
+      var when = b.ts ? new Date(b.ts).toLocaleTimeString() : '';
+      var kind = b.intakeBeat ? '📸 intake' : (b.footage ? '📹 film' : (b.secondEye ? '🔵 second eye' : '🧠 read'));
+      var t = (when ? when + ' · ' : '') + kind + ' · #' + (b.n || '?') + (b.area ? ' · ' + b.area : '');
       return '<img class="th-fs-thumb' + (b.footage ? ' foot' : '') + '" data-i="' + bi + '" src="' + u + '" loading="lazy" alt="" title="' + esc(t) + '" onerror="this.style.opacity=.2">';
     }).join('');
     if (sampled) html += '<span class="th-fs-sampled">· sampled ' + list.length + ' of ' + framed.length + '</span>';
@@ -2360,7 +2414,7 @@
     clearTimeout(t.__timer);
     t.__timer = setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.hidden = true; }, 220); }, 1600);
   }
-  async function thLoadSession(n){
+  async function thLoadSession(n, isEntry){
     var gen = (TH.loadGen = (TH.loadGen || 0) + 1);   // v859 — stale responses never paint
     var r = await fetch('/api/session?n=' + n); var j = await r.json();
     if (gen !== TH.loadGen) return;
@@ -2393,14 +2447,18 @@
     // v896 — shelf/history must never drop AI reads on open. Server modeHint=real (debugger);
     // CUT was stripping empty gameplay/transition rows when footageN was low (common after
     // reel fold / retired film) — shelf said "30 reads" but timeline showed ~half.
-    if (!TH.__modeTouched){
+    // v943 (Konyo, REAL pacing R2 §C1) — ENTRY always opens in REAL, no matter what the last
+    // open left __modeTouched at. A fresh theatre/SIM entry is the true, unhighlighted session;
+    // the user is free to cycle to HIGHLIGHTS / EVERY FRAME after — that choice then sticks.
+    if (isEntry){
+      TH.__modeTouched = false; TH.mode = 'real';
+    } else if (!TH.__modeTouched){
       var _hint = String(j.modeHint || 'real').toLowerCase();
       TH.mode = (_hint === 'full' || _hint === 'highlight' || _hint === 'cut')
         ? (_hint === 'cut' ? 'highlight' : _hint)
         : 'real';
     }
-    var _mb = $('th-mode');
-    if (_mb) _mb.textContent = thModeLabel(TH.mode);
+    thModePill(TH.mode);   // v943 — label + colored mode accent in one call
     var _sp = $('th-speed');
     // v836 — REAL is wall-clock by definition: a fresh reel always opens at 1×, never inheriting
     // a speed bumped during a prior CUT/FULL skim. Compressed modes keep the __speedTouched persist.
@@ -2457,7 +2515,7 @@
         if (tiers[t](TH.sessions[i])){ pick = TH.sessions[i].n || (i+1); break outer; }
       }
     }
-    await thLoadSession(pick);
+    await thLoadSession(pick, true);   // v943 §C1 — entry pins REAL
     // v824 (Grok R9a) — film-first: drawer opens on the FIRST content beat (or remembered pref),
     // not on every quiet floor frame. `I` preference persists.
     try {
@@ -2514,7 +2572,7 @@
       var rows = Object.keys(ik.counts || {}).sort().map(function(k){
         return '<div class="kv"><span class="k">' + esc(k) + '</span><span class="v" style="color:var(--mint)">+' + esc(ik.counts[k]) + '</span></div>';
       }).join('');
-      el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I)">✕ close</button>'
+      el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
         + '<h4>📸 intake · ' + esc(ik.tab || ik.kind || 'shot') + '</h4>'
         + '<div class="kv"><span class="k">when</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '</span></div>'
         + '<div class="kv"><span class="k">verdict</span><span class="v">' + (ik.ok ? ('✅ tallied ' + (ik.total || Object.keys(ik.counts || {}).length)) : '⚠ nothing read') + (ik.errors ? ' · ' + ik.errors + ' err' : '') + '</span></div>'
@@ -2535,7 +2593,7 @@
     }
     if (bF.footage){
       // v854 — a footage frame is the eye BETWEEN reads: say so, don't claim 'not recorded'
-      el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I)">✕ close</button>'
+      el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
         + '<h4>📹 footage frame</h4>'
         + '<div class="kv"><span class="k">capture</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '.' + ('00' + (bF.ts % 1000)).slice(-3) + '</span></div>'
         + '<div class="kv"><span class="k">file</span><span class="v">' + esc(bF.frameId || '') + '.jpg</span></div>'
@@ -2573,8 +2631,12 @@
     } else {
       h += '<div class="col"><em>' + (b.promptVer ? 'no gated names this frame' : 'not recorded before v853') + '</em></div>';
     }
-    if ((b.ocr_raw || []).length){
-      h += '<h4>ocr raw — literal sight</h4><div class="col" style="opacity:.6">' + esc(b.ocr_raw.slice(0, 12).join(' · ')) + '</div>';
+    // v943 (§B — OCR EYE) — the fast eye's literal lines vs what survived into the name key.
+    if ((b.ocr_raw || []).length || (b.ocr_names || []).length || (b.ocr_seeded || []).length){
+      h += '<h4>ocr eye — literal sight vs kept</h4>';
+      h += '<div class="col"><em>raw lines</em> ' + ((b.ocr_raw || []).length ? esc(b.ocr_raw.slice(0, 16).join(' · ')) + ((b.ocr_raw.length > 16) ? ' <em style="opacity:.5">+' + (b.ocr_raw.length - 16) + ' more</em>' : '') : '—') + '</div>';
+      h += '<div class="col"><em>kept as names</em> ' + ((b.ocr_names || []).length ? esc(b.ocr_names.join(', ')) : '—') + '</div>';
+      if ((b.ocr_seeded || []).length) h += '<div class="col" style="color:#8fe6a0"><em>ocr-rescued</em> ' + esc(b.ocr_seeded.join(', ')) + '</div>';
     }
     h += '<h4>the decision chain — what · where · why</h4>';
     var dec = b.decisions || {};
@@ -2679,11 +2741,25 @@
         h += '<div class="col" style="color:#8fe6a0">clean — everything the model said survived</div>';
       }
     }
-    // v832 — THE THOUGHT: the model's literal words
+    // v832 — THE THOUGHT: the model's literal words. v943 (§B) — collapsed <details> so the raw
+    // blob never buries the decision sections; one click unfolds the full text.
     h += '<h4>the thought — the model\'s literal words' + (b.promptVer ? ' <em>(' + esc(b.promptVer) + ')</em>' : '') + '</h4>';
-    h += b.raw ? ('<div class="col" style="white-space:pre-wrap;word-break:break-word;opacity:.85">' + esc(String(b.raw).slice(0, 1600)) + '</div>')
-               : '<div class="col"><em>not recorded before v832</em></div>';
-    el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I)">✕ close</button>' + h;
+    h += b.raw
+      ? ('<details class="th-raw"><summary>show the model\'s raw answer (' + String(b.raw).length + ' chars)</summary>'
+          + '<div class="col" style="white-space:pre-wrap;word-break:break-word;opacity:.85">' + esc(String(b.raw).slice(0, 4000)) + '</div></details>')
+      : '<div class="col"><em>not recorded before v832</em></div>';
+    // v943 (§B — PROVENANCE) — the receipt: which frame, which clock, which prompt, which model.
+    h += '<h4>provenance — the receipt</h4>'
+      + kv('frame id', b.frameId || '(none)')
+      + kv('capture ts', b.ts ? b.ts + ' ms' : '')
+      + kv('answered ts', b.completedTs ? b.completedTs + ' ms' : '')
+      + kv('prompt ver', b.promptVer)
+      + kv('prompt hash', b.promptHash)
+      + kv('model', b.model)
+      + kv('vision ms', b.ms ? Math.round(b.ms) : '')
+      + kv('session id', b.sessionId)
+      + kv('read #', b.n != null ? b.n : '');
+    el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>' + h;
     var x = document.getElementById('th-drawer-x');
     if (x) x.onclick = function(){ if (CARD.open) thCardToggle(); };
   }
@@ -2805,11 +2881,13 @@
         + (footLine ? '<br>' + footLine : '')
         + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span></div>';
     }).join('');
-    ov.innerHTML = '<div class="sh-head">🎞 THE SHELF — every recorded run</div><div class="sh-grid">' + cards + '</div>';
+    ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
+      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div><div class="sh-grid">' + cards + '</div>';
     ov.hidden = false;
     ov.onclick = function(e){
+      if (e.target.closest && e.target.closest('#th-shelf-x')){ ov.hidden = true; return; }
       var c = e.target.closest('.sh-card');
-      if (!c){ ov.hidden = true; return; }
+      if (!c){ ov.hidden = true; return; }   // click-outside a card = dismiss
       ov.hidden = true;
       thLoadSession(Number(c.dataset.n) || 1);
     };
@@ -2876,18 +2954,38 @@
       toast(j.ok ? ('📼 night card → ' + (j.md || '').split('/').pop() + ' (' + j.beats + ' beats, on your Desktop)') : ('⚠ export failed · ' + (j.msg || '')));
     } catch (e) { toast('⚠ export failed · ' + e); }
   };   // v809 — share the night without screen-recording the theatre
+  // v943 (Konyo: 'after I click I cant escape them') — ONE close-discipline helper. Esc peels
+  // the theatre's layers from the top down: rare-controls drawer → the shelf → the forensics/
+  // intake side panel → cinema → the theatre itself. Every panel closes the same three ways
+  // (its own ✕, Esc, and a click outside it); the tally overlay owns its own capture-phase Esc.
+  function thEscUnwind(){
+    var mp = $('th-more-pop'); if (mp && !mp.hidden){ thMore(false); return; }
+    var sh = $('th-shelfov');  if (sh && !sh.hidden){ thShelf(false); return; }
+    if (CARD.open){ thCardToggle(); return; }
+    if (document.body.classList.contains('cinema')){ thCinema(false); return; }
+    thClose();
+  }
+  // v943 — CLICK-OUTSIDE dismiss for the side panel: a press anywhere in the theatre that is not
+  // the panel, the transport strip, the filmstrip, or the ⋯ drawer closes the panel (and is eaten
+  // so the film-open / seek underneath never also fires). Capture phase = we win the click first.
+  (function(){
+    var th = $('theatre'); if (!th) return;
+    th.addEventListener('pointerdown', function(e){
+      if (!CARD.open) return;
+      var t = e.target;
+      if (!t.closest) return;
+      if (t.closest('#th-drawer') || t.closest('.th-strip') || t.closest('#th-more-pop')
+          || t.closest('#th-filmstrip-wrap') || t.closest('.th-topline')) return;
+      thCardToggle();
+      e.stopPropagation(); e.preventDefault();
+    }, true);
+  })();
   document.addEventListener('keydown', function(e){
     if (!TH.open) return;
     if (e.key === 'i' || e.key === 'I'){ thCardToggle(); e.preventDefault(); }
     else if (e.key === 'f' || e.key === 'F'){ thCinema(); e.preventDefault(); }
     else if (e.key === 's' || e.key === 'S'){ thShelf(); e.preventDefault(); }
-    else if (e.key === 'Escape'){
-      // v940.5 — esc unwinds one layer at a time: open drawer → cinema → the theatre itself
-      var _mp = $('th-more-pop');
-      if (_mp && !_mp.hidden){ thMore(false); }
-      else if (document.body.classList.contains('cinema')){ thCinema(false); }
-      else { thClose(); }
-    }
+    else if (e.key === 'Escape'){ thEscUnwind(); e.preventDefault(); }
     else if (e.key === 'r' || e.key === 'R'){ thInstantReplay(); e.preventDefault(); }
     else if (e.key === 'Home'){ thGo(0, false); e.preventDefault(); }
     else if (e.key === 'End'){ thGo(TH.beats.length - 1, false); e.preventDefault(); }
@@ -2932,7 +3030,7 @@
   $('th-mode').onclick = function(){
     TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
     TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // CUT → FULL → REAL
-    this.textContent = thModeLabel(TH.mode);
+    thModePill(TH.mode);   // v943 — label + colored accent
     // v836 (Konyo: 'REAL at 1× runs way too fast') — REAL means WALL-CLOCK. A speed bumped
     // while skimming CUT/FULL latched via __speedTouched and silently multiplied the real-time
     // playhead. Entering REAL re-pins the deck to 1× so the reel runs the session's true span.
@@ -3011,12 +3109,22 @@
   // v941.6 — 🎞 FILMSTRIP: hover pauses auto-scroll; thumb click = seek (same path as a tick).
   (function(){
     var strip = $('th-filmstrip'); if (!strip) return;
+    strip.tabIndex = 0;   // v943 — the strip is keyboard-reachable; ←/→ scrub while it's hovered/focused
+    strip.setAttribute('role', 'listbox');
     strip.addEventListener('mouseenter', function(){ TH.__fsHover = true; });
     strip.addEventListener('mouseleave', function(){ TH.__fsHover = false; });
     strip.addEventListener('click', function(e){
       var t = e.target.closest('.th-fs-thumb'); if (!t) return;
       TH.playing = false; $('th-play').textContent = '▶';
       thGo(Number(t.dataset.i) || 0, false);
+    });
+    // v943 (Konyo: filmstrip keyboard) — ←/→ steps the reel while the strip has hover or focus,
+    // and we stop propagation so it never double-fires with the theatre's global handler.
+    strip.addEventListener('keydown', function(e){
+      if (e.key === 'ArrowRight'){ thGo(TH.i + 1, false); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'ArrowLeft'){ thGo(TH.i - 1, false); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'Home'){ thGo(0, false); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'End'){ thGo(TH.beats.length - 1, false); e.preventDefault(); e.stopPropagation(); }
     });
   })();
   $('th-fs-toggle').onclick = function(){
