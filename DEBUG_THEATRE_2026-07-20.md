@@ -71,3 +71,17 @@ python3 tv/test_control.py TestHistFrameResolve -v
 - ts == captureTs journal law · reels die whole · EDIT_LOCK for bible.html.
 
 _End SuperGrok THEATRE return · v940.4_
+
+---
+
+## Claude VERIFY of SuperGrok v940.4 (paddle received & closed)
+| Check | Result |
+|---|---|
+| Suites | control **43** OK (+4 TestHistFrameResolve) · routes 27 OK · agent 154 OK |
+| Demos | 7/7 ✅ |
+| Running | v940.4 (their close restarted the app — correct) |
+| Verify-beat pack check | lap session has 0 verify beats (dense reads, no idle gaps — expected); fix is unit-proven by their tests |
+| The "12 missing frames" | RETRACTED — my grep counted only a narrow ts window and mixed lanes; Grok proved 8/8 deep fids on disk. The real bug was the `#v` label lie + the shield protecting a phantom name — both fixed |
+
+**Theatre status: WORKING, verified by both AIs across three engines (Chromium, WebKit, live WKWebView demos).** Remaining soak idea (Grok's): a post-lap HIST integrity assertion — good candidate for the next arc alongside auto-register.
+_Rally closed · v940.4 · both paddles down._
