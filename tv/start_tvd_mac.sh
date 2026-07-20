@@ -10,6 +10,29 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/Library/Pyt
 export PYTHONPATH="${PYTHONPATH:-}"
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null || true
 
+# ── TCC SAFEGUARD (2026-07-20 WindowServer-crash lesson) ────────────────────
+# Finder/double-click launches capture wallpaper-only: the wrapper .app is
+# unsigned, so macOS strips its Screen Recording grant on a crash and silently
+# refuses to re-prompt. Terminal holds a durable grant and children inherit it
+# at spawn — so a no-TTY launch reroutes itself through Terminal, which hands
+# off and closes its own window. Already in a terminal (TTY) → run direct.
+if [[ ! -t 0 && -z "${TVD_VIA_TERMINAL:-}" ]]; then
+  if /usr/bin/osascript >/dev/null 2>&1 <<OSA
+tell application "Terminal"
+  set bootTab to do script "export TVD_VIA_TERMINAL=1; nohup bash '$HERE/start_tvd_mac.sh' >/dev/null 2>&1 & disown; exit"
+  delay 2
+  try
+    close (first window whose tabs contains bootTab) saving no
+  end try
+end tell
+OSA
+  then
+    exit 0
+  fi
+  # Terminal reroute failed (Automation denied?) — fall through to direct
+  # launch so the app still opens, even if capture ends up wallpaper-only.
+fi
+
 cd "$REPO"
 
 if ! command -v python3 >/dev/null 2>&1; then
