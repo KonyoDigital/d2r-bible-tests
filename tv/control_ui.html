@@ -736,9 +736,14 @@
   .th-drawer details.th-raw > summary::before { content: '▸ '; opacity: .7; }
   .th-drawer details.th-raw[open] > summary::before { content: '▾ '; }
   .th-drawer details.th-raw > summary:hover { color: var(--gold-hi); }
-  .th-drawer .kv { display: flex; justify-content: space-between; gap: 10px; }
-  .th-drawer .kv .k { opacity: .55; } .th-drawer .kv .v { text-align: right; word-break: break-all; }
-  .th-drawer .col { margin: 2px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
+  /* v945 R5 — key/value rows scan like an app table: hairline rows, aligned columns */
+  .th-drawer .kv { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0;
+    border-bottom: 1px solid rgba(200,180,120,.07); }
+  .th-drawer .kv .k { opacity: .58; flex: 0 0 auto; } .th-drawer .kv .v { text-align: right; word-break: break-all; color: #d3ddd4; }
+  .th-drawer .col { margin: 3px 0; } .th-drawer .col em { font-style: normal; opacity: .55; }
+  /* v945 R5 — the read-status verdict sits in its own soft panel so it reads as the headline card */
+  .th-rs-card { margin: 2px 0 8px; padding: 10px 11px; border-radius: 9px;
+    background: rgba(255,255,255,.025); border: 1px solid rgba(200,180,120,.12); }
   @keyframes thAperture { 0% { opacity: .35; transform: scale(1.012); } 100% { opacity: 1; transform: scale(1); } }
   /* v944.7 — FRAME LIGHTBOX: the full-res 2560 frame, in-game-fullscreen feel */
   #th-hd { position: absolute; inset: 0; z-index: 30; background: #000;
@@ -874,13 +879,16 @@
     scrollbar-width: thin; scroll-behavior: smooth; }
   #th-filmstrip::-webkit-scrollbar { height: 5px; }
   #th-filmstrip::-webkit-scrollbar-thumb { background: rgba(240,192,96,.3); border-radius: 3px; }
-  .th-fs-thumb { flex: 0 0 auto; height: 44px; width: auto; border-radius: 3px; cursor: pointer;
-    border: 2px solid transparent; opacity: .82; transition: .12s; background: rgba(255,255,255,.04); }
-  .th-fs-thumb:hover { opacity: 1; border-color: var(--edge-hi); }
-  .th-fs-thumb.cur { opacity: 1; border-color: var(--gold-hi); box-shadow: 0 0 9px rgba(255,223,154,.6); }
+  /* v945 R3 — filmstrip thumbs lift on hover, the playhead thumb gets a clear gold ring + scale */
+  .th-fs-thumb { flex: 0 0 auto; height: 46px; width: auto; border-radius: 4px; cursor: pointer;
+    border: 2px solid transparent; opacity: .8; transition: transform .12s, opacity .12s, border-color .12s, box-shadow .12s;
+    background: rgba(255,255,255,.04); }
+  .th-fs-thumb:hover { opacity: 1; border-color: var(--edge-hi); transform: translateY(-2px) scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,.5); }
+  .th-fs-thumb.cur { opacity: 1; border-color: var(--gold-hi); box-shadow: 0 0 0 1px var(--gold-hi), 0 0 12px rgba(255,223,154,.7); transform: scale(1.06); }
   .th-fs-thumb.foot { opacity: .5; }
-  .th-fs-sampled { flex: 0 0 auto; align-self: center; padding: 0 10px;
-    font: 600 10px/1 var(--mono); color: #b79a6a; opacity: .7; white-space: nowrap; }
+  .th-fs-sampled { flex: 0 0 auto; align-self: center; padding: 3px 10px; margin-left: 4px;
+    font: 600 11px/1 var(--mono); color: #b79a6a; opacity: .8; white-space: nowrap;
+    border: 1px solid rgba(240,192,96,.2); border-radius: 6px; background: rgba(0,0,0,.3); }
   #th-fs-toggle.on { border-color: var(--edge-hi); color: var(--gold-hi); box-shadow: 0 0 10px rgba(240,192,96,.25); }
   /* when the filmstrip is showing, lift the read/accuracy caption clear above it */
   #theatre.fs-on .th-caption { bottom: calc(var(--th-strip-h) + 84px); }
@@ -895,11 +903,14 @@
   .sh-art { display: block; width: 100%; height: 74px; object-fit: cover; border-radius: 6px;
     margin-bottom: 6px; border: 1px solid rgba(240,192,96,.18); }   /* v890 — the run IS the art */
   /* v883 — SIM spec §C: the decision river */
-  .dc-card { border: 1px solid var(--edge); border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: rgba(0,0,0,.25); }
+  /* v945 R6 — decision-river cards read as app panels: softer surface, hover lift, bigger name */
+  .dc-card { border: 1px solid rgba(240,192,96,.14); border-radius: 9px; padding: 11px 13px; margin: 9px 0;
+    background: rgba(255,255,255,.022); transition: border-color .12s, background .12s; }
+  .dc-card:hover { border-color: rgba(240,192,96,.28); background: rgba(255,255,255,.04); }
   .dc-card[data-verdict="vaulted"] { box-shadow: inset 3px 0 0 var(--mint); }
   .dc-card[data-verdict="blocked"], .dc-card[data-verdict="thrown"] { box-shadow: inset 3px 0 0 #f88; }
-  .dc-name { font: 700 12px/1.2 var(--mono); color: #d9c9a0; }
-  .dc-river { display: flex; gap: 0; list-style: none; padding: 0; margin: 8px 0 2px; font: 700 9px/1 ui-monospace,monospace; text-transform: uppercase; letter-spacing: .04em; }
+  .dc-name { font: 700 13px/1.25 var(--mono); color: #e4d2a4; letter-spacing: .01em; }
+  .dc-river { display: flex; gap: 0; list-style: none; padding: 0; margin: 9px 0 2px; font: 700 10px/1 ui-monospace,monospace; text-transform: uppercase; letter-spacing: .04em; }
   .dc-river li { flex: 1; text-align: center; padding: 6px 2px; border-bottom: 2px solid rgba(255,255,255,.12); opacity: .45; }
   .dc-river li.ok { border-color: var(--mint); color: var(--mint); opacity: 1; }
   .dc-river li.break { border-color: #f88; color: #f88; opacity: 1; position: relative; }
@@ -1086,8 +1097,11 @@
   .tly-k { border: 1px solid rgba(240,192,96,.24); border-radius: 7px; padding: 5px 9px;
     font: 600 12px/1.1 var(--mono); color: #ecdcb2; background: rgba(30,22,10,.5); }
   .tly-k b { color: var(--gold); }
-  .tly-empty { text-align: center; padding: 44px 20px; font: 500 12px/1.8 var(--mono); color: #a5906a; }
+  /* v945 R4 — one app-grade empty state, shared by the tally engine + receipt ledger */
+  .tly-empty { text-align: center; padding: 52px 26px; font: 500 12.5px/1.85 var(--mono); color: #b09a72;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .tly-empty b { color: var(--gold); }
+  .tly-empty::before { content: '📭'; font-size: 34px; opacity: .5; margin-bottom: 8px; filter: grayscale(.3); }
   /* v944.4 — TALLY CARD is clickable → in-overlay detail expand */
   .tly-shot { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
   .tly-shot:hover { border-color: rgba(240,192,96,.4); }
