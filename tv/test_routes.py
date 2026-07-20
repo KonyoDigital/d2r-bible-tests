@@ -1020,5 +1020,27 @@ class TestRouterLedger(unittest.TestCase):
         self.assertEqual(f1, [])   # already routed → not re-selected
 
 
+class TestKaiNameishRecal(unittest.TestCase):
+    """v944.7 (Fable forensic recalibration) — the KAI missed ledger counts unread ITEM NAMES,
+    not unread flavor/stat lines. Proven against the real reel: Hellfire Torch flagged missed
+    (false positive, its name WAS registered — flavor lines triggered it) vs Jade Jewel (true
+    miss, a hovered magic jewel never registered)."""
+
+    def test_names_pass(self):
+        for nm in ("Jade Jewel", "Hellfire Torch", "Ars Dul'Mephistos", "The Stone of Jordan"):
+            self.assertTrue(ca._kai_nameish(nm), nm)
+
+    def test_flavor_and_stat_lines_rejected(self):
+        for flavor in ("Required Level: 75", "Poison Resist +23%", "Level 30 Hydra (420 Charges)",
+                       "Keep in Inventory to Gain Bonus", "Ctrl + Left Click to Move to Inventory",
+                       "+3 to Warlock Skills", "All Resistances +12",
+                       "Can be Inserted into Socketed Items", "128% Extra Gold from Monsters"):
+            self.assertFalse(ca._kai_nameish(flavor), flavor)
+
+    def test_bare_ui_words_rejected(self):
+        for ui in ("Stash", "Inventory", "Runes", "Gems", "Materials", "Shared", "Personal"):
+            self.assertFalse(ca._kai_nameish(ui), ui)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

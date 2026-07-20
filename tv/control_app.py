@@ -1736,6 +1736,37 @@ def _register_is_anchor(low):
     return "tome of" in low   # Tome of Town Portal / Tome of Identify
 
 
+# v944.7 (Fable forensic recalibration) — the KAI "missed" ledger over-counted: it flagged a
+# frame missed if ANY OCR line was new, so a tooltip's STAT/FLAVOR lines ("Required Level 75",
+# "Level 30 Hydra", "Keep in Inventory") flagged a frame as missed even when the item NAME itself
+# was already read/registered (Hellfire Torch false positive). A real miss is an unread ITEM NAME,
+# not unread flavor text. _kai_nameish keeps only name-shaped lines so genuine misses (a hovered
+# Jade Jewel never registered) still surface while flavor-only frames stop crying wolf.
+_KAI_STAT_WORDS = (
+    "required", "resist", "click", "insert", "charge", "attribute", "skill", "defen",
+    "damage", "durab", "level", "socket", "bonus", "keep in", "chance", "faster", "enhanced",
+    "block", "strength", "dexter", "energy", "vital", "mana", "life", "radius", "cast", "warlock",
+    "resistance", "move to", "unequip", "gain", "hit recovery", "attack rating", "magic item",
+    "gold from", "vendor", "replenish", "regenerat", "absorb", "pierce", "leech", "freeze",
+)
+
+
+def _kai_nameish(text):
+    """True if an OCR line looks like an ITEM NAME (the flag-worthy part of a tooltip), not a
+    stat/flavor line. Names carry no +/%/digit stat punctuation and no stat keyword."""
+    s = (text or "").strip()
+    low = s.lower()
+    if not (3 <= len(s) <= 40):
+        return False
+    if any(ch.isdigit() for ch in s) or "%" in s or "+" in s:
+        return False
+    if any(w in low for w in _KAI_STAT_WORDS):
+        return False
+    # a name has letters and isn't a bare UI word
+    return any(ch.isalpha() for ch in s) and low not in ("stash", "inventory", "personal",
+                                                          "shared", "gems", "materials", "runes")
+
+
 def _kai_compile_register(sess_rows):
     """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
     KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
@@ -2124,9 +2155,13 @@ def _kai_closer_loop():
                 if texts:
                     textframes += 1
                     new = [t for t in texts if t.strip().lower() not in read_text]
-                    if new:
+                    # v944.7 — a miss is an unread ITEM NAME, not unread flavor/stat text.
+                    # Filter to name-shaped lines that no eye read (Fable cross-ref recalibration:
+                    # kills the Hellfire-Torch false positive, keeps the Jade-Jewel true miss).
+                    name_new = [t for t in new if _kai_nameish(t)]
+                    if name_new:
                         missed.append({"f": it.get("f"), "ts": it.get("ts"),
-                                       "texts": new[:6], "cls": cls})
+                                       "texts": name_new[:6], "cls": cls})
                 # v944/v944.1 🚦 — per-brain label VOTES for Stage 2 quorum (not just booleans).
                 # ocrLabel = OCR's own class; journalLabel = stash time-map class; final
                 # 'label' is still the display override (journal wins on panels).
