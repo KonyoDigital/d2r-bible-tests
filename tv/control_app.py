@@ -22,6 +22,7 @@ import signal
 import socket
 import subprocess
 import sys
+import base64
 import threading
 import time
 import urllib.request
@@ -343,6 +344,43 @@ def _bridge_state():
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:
         return None
+
+
+_TZ_CACHE = {"ts": 0.0, "code": 0, "body": None}
+_TZ_LOCK = threading.Lock()
+_TZ_UPSTREAM = os.environ.get("TVD_TZ_UPSTREAM", "https://bull-4-u.com/api/tz")
+_TZ_AUTH = base64.b64encode(b"app:DeanDiablo").decode("ascii")
+
+
+def _tz_proxy():
+    # Terror Zone tracker relay: the board's /api/tz only exists as a Pages
+    # function on the live deploy; the shell serves the board locally, so we
+    # fetch upstream (through the site's basic-auth gate) and cache 90s.
+    # Upstream dead → serve the last good rotation (stale flag) so the card
+    # degrades to old-but-honest instead of "tracker is down".
+    with _TZ_LOCK:
+        now = time.time()
+        if _TZ_CACHE["body"] is not None and now - _TZ_CACHE["ts"] < 90:
+            return _TZ_CACHE["code"], _TZ_CACHE["body"]
+        try:
+            req = urllib.request.Request(
+                _TZ_UPSTREAM,
+                headers={
+                    "Authorization": "Basic " + _TZ_AUTH,
+                    # Cloudflare 403s the default Python-urllib UA
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) TVDiablo/944",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=12) as r:
+                body = json.loads(r.read().decode("utf-8", "replace"))
+            _TZ_CACHE.update(ts=now, code=200, body=body)
+            return 200, body
+        except Exception as e:
+            if _TZ_CACHE["body"] is not None:
+                stale = dict(_TZ_CACHE["body"])
+                stale["stale"] = True
+                return 200, stale
+            return 502, {"error": f"tz upstream unreachable: {e}"}
 
 
 def _port_listener_pid(port=None):
@@ -1713,6 +1751,8 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         if r.get("lane") == "kai" and r.get("mode") == "kai-judge":
             judge_fids.add(fid)
     out = []
+    _prev_sig = None
+    _run_first = None   # the f that opened the current visual run
     for s in scan:
         f = str(s.get("f") or "")
         ts = int(s.get("ts") or 0)
@@ -1744,6 +1784,19 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
                 skip = "no-vault-fire"
             else:
                 skip = "no-route"
+        # v944 DEDUPE LAW (routing-only, Konyo explicit) — consecutive frames with an identical
+        # cheap signature are a visual run: the FIRST keeps its label+route, each later duplicate
+        # keeps its label but is un-routed with a chain ref. The reel/film is NEVER trimmed —
+        # every frame stays in the ledger, so the replay is complete.
+        _sig = s.get("sig")
+        _is_dup = _sig is not None and _sig == _prev_sig
+        if _is_dup:
+            route = None
+            routed = None
+            skip = "dup-of:" + (_run_first or "")
+        else:
+            _run_first = f
+        _prev_sig = _sig
         out.append({"f": f, "ts": ts, "label": label, "sources": sources,
                     "confidence": len(sources), "route": route,
                     "routed": routed, "skipReason": skip})
@@ -1858,7 +1911,8 @@ def _kai_closer_loop():
                 # journal-truth override is credited to 'journal', keeping the sources honest.
                 routing_scan.append({"f": it.get("f"), "ts": int(it.get("ts") or 0),
                                      "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
-                                     "journal": bool(_near), "label": cls or "gameplay"})
+                                     "journal": bool(_near), "label": cls or "gameplay",
+                                     "sig": _kai_frame_sig(fp)})   # v944 — dedupe fingerprint
                 time.sleep(0.12)   # peaceful — never fights a live session
             try:
                 wp.stdin.close(); wp.terminate()
@@ -3330,6 +3384,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
+            return
+        if path == "/api/tz":
+            # v944 tracker heal — /api/tz is a Cloudflare Pages function; it only
+            # exists on the live deploy. The in-app shell serves the board from
+            # THIS server, so the Terror Zone tracker 404'd ("tracker is down").
+            # Proxy the live endpoint through the site's HTTP-Basic gate, 90s cache.
+            self._json(*_tz_proxy())
             return
         if path == "/api/tallies":
             # v929 (Konyo: "I want to see what EXACTLY was tallied — RUNES for runes, GEMS
