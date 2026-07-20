@@ -1026,12 +1026,21 @@ def open_control_window():
     # zero clicks. OFF-SCREEN (x=-3980), not hidden=True — the board's bridge probe skips
     # when document.hidden, so a hidden window would never arm.
     try:
-        webview.create_window(
-            title="TVD ENGINE (background — leave me be)",
+        # v930 — ON-SCREEN mini tile, not off-screen: WKWebView fully suspends occluded
+        # off-screen windows (timers AND evaluate_js — the driver's probe hung forever).
+        # A small visible tile keeps the board's JS alive; on the fullscreen game Space
+        # it's never seen, on the desktop it sits quietly in the corner.
+        globals()["_ENGINE_WIN"] = webview.create_window(
+            title="TVD ENGINE — auto-tally (leave me be)",
             url=url.split("/", 3)[0] + "//" + url.split("/", 3)[2] + "/board#tvd-engine",
-            width=900, height=640, x=-3980, y=-3980,
+            width=340, height=220, x=18, y=712,
             background_color="#070605", confirm_close=False,
         )
+        # v929.2 (Grok #4 came true live: off-screen WKWebView timers suspend → engine
+        # "linked" lamp lied while zero intakes fired). Don't trust the window's own
+        # setIntervals: a control-side thread watches the bridge for tally-tab deep reads
+        # and DRIVES the engine's locked intake via evaluate_js — executes even throttled.
+        threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
     except Exception as _ee:
         print(f"⚠ engine window failed ({_ee}) — tallies need a board tab open")
 
@@ -1051,6 +1060,102 @@ def open_control_window():
     except Exception as e:
         print(f"⚠ pywebview failed ({e}) — browser fallback")
         _open_browser_app_fallback(url)
+
+
+def _ejs(w, code, timeout=4.0):
+    """v930 — evaluate_js with a hard timeout: pywebview's call BLOCKS FOREVER on a
+    suspended/occluded WKWebView (live evidence: driver thread hung on its first probe).
+    Runs the call in a scratch thread; timeout → None (treat as engine-not-responding)."""
+    import queue as _q
+    box = _q.Queue(maxsize=1)
+    def _run():
+        try:
+            box.put(w.evaluate_js(code))
+        except Exception as e:
+            box.put(e)
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    try:
+        r = box.get(timeout=timeout)
+    except Exception:
+        return None
+    if isinstance(r, Exception):
+        raise r
+    return r
+
+
+def _engine_driver():
+    """v929.2 — control-side auto-intake driver. The off-screen engine window's JS timers
+    suspend under WKWebView occlusion, so control watches the bridge itself: on a deep
+    stash read with a tally tab (runes/gems/materials → tvStashAutoIntake; personal/shared
+    → tvVaultAutoIntake), fire the engine page's LOCKED pipeline via evaluate_js. One shot
+    per tab per stash visit (visit resets on a deep non-stash read) — mirrors bible.html's
+    own gate. Also a liveness probe every loop so the ENGINE lamp tells the truth."""
+    time.sleep(8.0)   # let the window boot + board JS attach
+    seen_ts = 0
+    visit_done = {}
+    while True:
+        try:
+            time.sleep(2.0)
+            w = globals().get("_ENGINE_WIN")
+            if w is None:
+                continue
+            # liveness probe — evaluate_js runs even when timers are throttled
+            alive = False
+            try:
+                _pv = _ejs(w, "(window.tvStashAutoIntake? 2 : 1)")
+                alive = _pv in (1, 2, "1", "2")
+                globals()["_ENGINE_READY"] = str(_ejs(w, "(typeof window.tvStashAutoIntake==='function')?1:0")) == "1"
+                if not alive and globals().get("_ENG_ERR") != repr(_pv):
+                    globals()["_ENG_ERR"] = repr(_pv)
+                    print(f"🔌 engine probe returned {_pv!r}")
+            except Exception as _pe:
+                globals()["_ENGINE_READY"] = False
+                if globals().get("_ENG_ERR") != str(_pe):
+                    globals()["_ENG_ERR"] = str(_pe)
+                    print(f"🔌 engine probe error: {_pe}")
+            globals()["_ENGINE_ALIVE"] = bool(alive)
+            if not alive:
+                continue
+            try:
+                req = urllib.request.Request("http://127.0.0.1:17771/state")
+                with urllib.request.urlopen(req, timeout=3) as r:
+                    st = json.loads(r.read().decode("utf-8", "replace"))
+            except Exception:
+                continue   # bridge down = agent off — nothing to drive
+            reads = st.get("reads") or []
+            for rd in reads:
+                ts = int(rd.get("completedTs") or rd.get("ts") or 0)
+                if ts <= seen_ts or rd.get("lane") != "deep" or rd.get("provisional"):
+                    continue
+                seen_ts = max(seen_ts, ts)
+                scene = str(rd.get("scene") or "")
+                tab = str(rd.get("stashTab") or "").lower()
+                if scene != "stash":
+                    if visit_done:
+                        visit_done = {}
+                    continue
+                fid = str(rd.get("frameId") or "")
+                if tab in ("runes", "gems", "materials") and not visit_done.get(tab):
+                    visit_done[tab] = True
+                    js = ("window.tvStashAutoIntake && window.tvStashAutoIntake(%s,{frameId:%s})"
+                          % (json.dumps(tab), json.dumps(fid)))
+                    try:
+                        _ejs(w, js, timeout=8.0)
+                        print(f"🧰 engine-driver: fired {tab} tally (frame {fid})")
+                    except Exception as e:
+                        print(f"⚠ engine-driver fire failed: {e}")
+                elif tab in ("personal", "shared") and not visit_done.get("vault_" + tab):
+                    visit_done["vault_" + tab] = True
+                    js = ("window.tvVaultAutoIntake && window.tvVaultAutoIntake({tab:%s,frameId:%s})"
+                          % (json.dumps(tab), json.dumps(fid)))
+                    try:
+                        _ejs(w, js, timeout=8.0)
+                        print(f"🧰 engine-driver: fired vault shot ({tab}, frame {fid})")
+                    except Exception as e:
+                        print(f"⚠ engine-driver vault fire failed: {e}")
+        except Exception:
+            time.sleep(3.0)
 
 
 def status_payload():
@@ -1082,7 +1187,9 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v927",
+        "ver": "v930",
+        "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
+        "engineReady": globals().get("_ENGINE_READY"),
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),

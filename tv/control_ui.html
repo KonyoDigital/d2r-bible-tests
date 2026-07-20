@@ -2837,10 +2837,18 @@
           return '<span class="hd-chip step">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
         '<span class="hd-chip tly-btn" onclick="window._tlyOpen()" title="open the TALLY ENGINE — every shot, every count">🧰 TALLIES · '
           + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>',
-        /* v929.1 (Grok #4) — engine lamp: the off-screen board stamps d2r_tvdOn on bridge
-           connect (shared persistent store since v928); a dead engine shows plainly here */
-        '<span class="hd-chip ' + (localStorage.getItem('d2r_tvdOn') === '1' ? 'now' : 'warn') + '">🔌 ENGINE · '
-          + (localStorage.getItem('d2r_tvdOn') === '1' ? 'linked' : 'not armed') + '</span>',
+        /* v929.2 — the LS stamp LIED (stale d2r_tvdOn from a past visible board while the
+           off-screen engine's timers were suspended). Lamp now uses the control-side driver
+           probe (st.engineAlive/engineReady) — evaluate_js truth; LS stamp is last resort. */
+        (function(){
+          var ea = st.engineAlive, er = st.engineReady;
+          var lab, cls;
+          if (ea === true && er === true){ lab = 'driving'; cls = 'now'; }
+          else if (ea === true){ lab = 'window up · board booting'; cls = 'step'; }
+          else if (ea === false){ lab = 'DEAD — restart the app'; cls = 'warn'; }
+          else { lab = (localStorage.getItem('d2r_tvdOn') === '1' ? 'stamp only' : 'not armed'); cls = 'warn'; }
+          return '<span class="hd-chip ' + cls + '" title="auto-tally engine (control-driven since v929.2)">🔌 ENGINE · ' + lab + '</span>';
+        })(),
         (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm">🏆 GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
         (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm">🧩 SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
         '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
