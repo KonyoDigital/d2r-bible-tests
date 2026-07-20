@@ -2073,3 +2073,17 @@ baseline re-read fresh after settling (an exhausted loop measured runner lag, no
 The Archon Plate red was finally run to ground: absolute-coords stability was measuring runner
 lag (anchor moved, glued card followed). Relative-to-anchor + numbers-in-the-red sealed it.
 The v922 checklist line "all CI lanes green" is now TRUE — for the first time in the arc.
+
+## ✅ v918.4 "CONTINUE TO DEBUG" (Konyo's order) — the live layer + the Mac-gate rot
+Second sweep, live this time: booted the real stack (control+agent, SIM) and drove it — ON-state
+console clean (SIMULATION live, stage 599px, no scroll, zero console errors), the full intake
+connector proven live (posted beat → journal `intake:{counts,total,ok}` row → reel caption
+"📸 INTAKE · runes · +3 / 2 types" → drawer tally shows Ist/Vex), seal cycle writes the
+session_end row, posted==journaled holds. Then the finds: the two MAC-GATE specs (v773, v851)
+that CI can never run had quietly rotted — v773 was green live (3/3, app↔site 1:1 real), but
+v851 was 4/6 RED on a real console: the reel's new 📸 INTAKE beats park the playhead where the
+old read-line assertions sit, and v896's ⏱ REAL debugger default broke the blind CUT→FULL→REAL
+click cycle. Fixed default-agnostic + read-beat-aware (gotoReadBeat helper); 6/6 green live.
+Old Grok P2/P3 leftovers audited: library membership-anchor ✓ shipped, empty-shelf clear ✓,
+hd-grid guard ✓ dead-safe, debt RMW ✓ spec-locked. Grok's honest-gap list stands: manual 📸 vs
+auto-SET busy lock (rare, unguarded by choice), real farm night, Windows cousin.

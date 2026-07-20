@@ -17,12 +17,27 @@ test.describe('v851 theatre pack (live control app)', () => {
     test.skip(!(await controlUp()), 'control app not running — Mac-gate-only spec');
   });
 
+  // v918.4 — the reel now interleaves FOOTAGE + 📸 INTAKE beats with reads, and the theatre
+  // parks on the LAST beat (often an intake). The read-line assertions are about READ beats:
+  // navigate to one first instead of asserting wherever the playhead happens to sit.
+  const gotoReadBeat = async (page: any) => {
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(250);
+    for (let i = 0; i < 40; i++) {
+      const cap = (await page.locator('#th-caption').textContent()) || '';
+      if (cap.includes('CAPTURE')) return cap;
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(150);
+    }
+    return (await page.locator('#th-caption').textContent()) || '';
+  };
+
   test('AI read line renders CAPTURE/AI READ/IT SAW and degrades honestly', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
     await page.click('#btn-sim');
     await page.waitForTimeout(1600);
-    const cap = await page.locator('#th-caption').textContent();
+    const cap = await gotoReadBeat(page);
     expect(cap).toContain('CAPTURE');
     expect(cap).toMatch(/AI READ|IT SAW/);
     // read line block exists
@@ -34,6 +49,7 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await page.click('#btn-sim');
     await page.waitForTimeout(1400);
+    await gotoReadBeat(page);   // v918.4 — 'identity' lives on READ cards; intake beats show the tally table
     const drawer = page.locator('#th-drawer');
     if (await drawer.isHidden()) { await page.keyboard.press('i'); await page.waitForTimeout(300); }
     await expect(drawer).toBeVisible();
@@ -68,17 +84,28 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await page.click('#btn-sim');
     await page.waitForTimeout(1400);
+    // v918.4 — default-agnostic: v896 made ⏱ REAL the debugger default, so blind clicks land
+    // wherever the cycle starts. Assert the CYCLE (3 distinct labels, wraps to start) and the
+    // axis truth (CUT is the smallest reel — FULL/REAL play ≥ the highlight cut).
     const mode = page.locator('#th-mode');
     const dots = () => page.locator('#th-timeline').evaluate(el => el.children.length);
-    const d0 = await dots();
-    await mode.click(); // FULL
-    await page.waitForTimeout(300);
-    const d1 = await dots();
-    expect(d1).toBeGreaterThanOrEqual(d0); // FULL shows ≥ CUT beats
-    await mode.click(); // REAL
-    await page.waitForTimeout(300);
-    expect(await mode.textContent()).toContain('REAL');
-    await mode.click(); // back to CUT
+    const seen: Record<string, number> = {};
+    const l0 = ((await mode.textContent()) || '').trim();
+    seen[l0] = await dots();
+    for (let i = 0; i < 2; i++) {
+      await mode.click();
+      await page.waitForTimeout(300);
+      seen[((await mode.textContent()) || '').trim()] = await dots();
+    }
+    expect(Object.keys(seen).length).toBe(3);   // CUT · FULL · REAL all reachable
+    const labels = Object.keys(seen);
+    const cut = labels.find(l => l.includes('CUT')), full = labels.find(l => l.includes('FULL')), real = labels.find(l => l.includes('REAL'));
+    expect(cut && full && real).toBeTruthy();
+    expect(seen[full!]).toBeGreaterThanOrEqual(seen[cut!]);
+    expect(seen[real!]).toBeGreaterThanOrEqual(seen[cut!]);
+    await mode.click(); // wrap back to where the viewer started
+    await page.waitForTimeout(200);
+    expect(((await mode.textContent()) || '').trim()).toBe(l0);
   });
 
   test('📚 shelf lists sessions and loads one on click', async ({ page }) => {
@@ -93,6 +120,7 @@ test.describe('v851 theatre pack (live control app)', () => {
     await cards.first().click();
     await page.waitForTimeout(400);
     await expect(page.locator('#th-shelfov')).toBeHidden();
+    await gotoReadBeat(page);   // v918.4 — the loaded reel may park on footage/intake; the read line lives on READ beats
     await expect(page.locator('.th-airead')).toHaveCount(1);
   });
 
