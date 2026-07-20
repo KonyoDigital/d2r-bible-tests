@@ -3359,7 +3359,10 @@ body.shell-open .topbar {
   z-index: 960 !important;
   background: linear-gradient(180deg, #120e09 0%, #0a0806 100%);
   border-bottom: 1px solid rgba(240,192,96,.28);
-  padding: 10px clamp(12px, 1.7vw, 28px);
+  /* v938.1 (Konyo: "TV·D vs the other 5 tabs — alignment is off") — the fixed bar must
+     REPRODUCE the in-flow geometry: shell padding (1.7vw clamp) on top, shell+own padding
+     horizontally, so the tab row lands on the SAME pixels in both modes — zero jump. */
+  padding: clamp(12px, 1.7vw, 28px) calc(clamp(12px, 1.7vw, 28px) + clamp(2px, .6vw, 10px)) 10px;
   box-shadow: 0 10px 32px rgba(0,0,0,.55);
   pointer-events: auto !important;
   visibility: visible !important;
