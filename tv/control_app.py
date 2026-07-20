@@ -1358,6 +1358,17 @@ def _kai_fullnames():
                     nm = (_p + " " + _s).strip()
                     if 3 <= len(nm) <= 48 and not any(ch in nm for ch in "<>{}$"):
                         rare_combos.add(nm.lower())
+        # v943.3 — curated CRAFTED name pool (CRAFT_NAME_EXAMPLES: slot -> ['Bone Winding',
+        # 'Brimstone Grip', …]). Same law as the rares: recognized for the register, but NON-
+        # shielded — crafted items are exactly what the Checker judges, so they must stay
+        # toss-able. Pull names from the array literals only (skip the slot-name keys).
+        _mcraft = _re.search(r"CRAFT_NAME_EXAMPLES\s*=\s*\{(.*?)\}", src, _re.S)
+        if _mcraft:
+            for _arr in _re.findall(r"\[([^\]]*)\]", _mcraft.group(1)):
+                for _nm in _re.findall(r"'([A-Za-z][A-Za-z'\- ]{1,30})'", _arr):
+                    nm = _nm.strip()
+                    if 3 <= len(nm) <= 48 and not any(ch in nm for ch in "<>{}$"):
+                        rare_combos.add(nm.lower())
         names |= rare_combos   # full union still returned for register/recognition
     except Exception:
         pass
