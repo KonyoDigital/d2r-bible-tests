@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v918)
+# 📺 TV DIABLO — Control App (Mac + Windows · v919)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1018,7 +1018,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v918",
+        "ver": "v919",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1950,6 +1950,10 @@ class Handler(BaseHTTPRequestHandler):
             # tv/intake_local.mjs runs the REAL intake.js/ask.js with a fetch shim that rides
             # the locally-authorized `claude` CLI. Website proxy = fallback only.
             _runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intake_local.mjs")
+            # v919 (Grok REAL EYES R1) — STRICT mode: a silent local-lane failure falling
+            # through to the website proxy can fake-green a "real subscription" run on the
+            # website's key. TV_INTAKE_LOCAL_STRICT=1 → answer 502 honestly, never fall back.
+            _strict = os.environ.get("TV_INTAKE_LOCAL_STRICT") == "1"
             if os.environ.get("TV_INTAKE_LOCAL", "1") != "0" and os.path.isfile(_runner):
                 try:
                     _nice_kw = ({"creationflags": 0x4000 | _WIN_CREATE} if IS_WIN
@@ -1968,8 +1972,22 @@ class Handler(BaseHTTPRequestHandler):
                         self.end_headers()
                         self.wfile.write(_pl)
                         return
-                except Exception:
+                    if _strict:
+                        _err = (_pr.stderr or b"").decode("utf-8", "replace")[-300:]
+                        self._json(502, {"ok": False, "lane": "subscription-failed",
+                                         "msg": "local intake runner failed (strict: no website fallback)",
+                                         "detail": _err})
+                        return
+                except Exception as _ex:
+                    if _strict:
+                        self._json(502, {"ok": False, "lane": "subscription-failed",
+                                         "msg": "local intake runner error (strict): " + str(_ex)[:200]})
+                        return
                     pass   # any local failure → website proxy below
+            elif _strict:
+                self._json(502, {"ok": False, "lane": "subscription-failed",
+                                 "msg": "local intake lane disabled/missing (strict: no website fallback)"})
+                return
             try:
                 # do_POST already consumed rfile into `body` — a second read blocks forever
                 body_in = json.dumps(body).encode("utf-8")
@@ -2254,7 +2272,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v918 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v919 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

@@ -2087,3 +2087,16 @@ click cycle. Fixed default-agnostic + read-beat-aware (gotoReadBeat helper); 6/6
 Old Grok P2/P3 leftovers audited: library membership-anchor ✓ shipped, empty-shelf clear ✓,
 hd-grid guard ✓ dead-safe, debt RMW ✓ spec-locked. Grok's honest-gap list stands: manual 📸 vs
 auto-SET busy lock (rare, unguarded by choice), real farm night, Windows cousin.
+
+## ✅ v919 "REAL EYES" — cycle REAL EYES R1-R7 SEALED (Jul 20 night)
+R1 Grok design: prove-the-eyes harness > any candidate; strict-lane law ("a website-proxy 200
+must never count as local-subscription proof"). R2 shipped: tv/prove_real_intake.py
+(INTAKE_REAL=1 gate · direct node spawn · golden chronicle_uniques_A + 18-name vocab ·
+intersect-with-frozen-truth ≥3 · auth-wall→SKIP · optional :17771 wire) + control_app
+TV_INTAKE_LOCAL_STRICT=1 → 502 {'lane':'subscription-failed'} never website-fallback +2
+test_control (34/34). R3 Grok refute: vocab-dump residual → R4 over-read guard
+(found > expected+2 = FAIL); doc honesty (vocab is 18). R5 re-verify LIVE:
+"REAL EYES: 28s wall · 6 read · 6/6 golden hits" PASS ×2 runs. R6 polish: runner rmdirs its
+tmp dir (no screenshot residue). R7 THIS SEAL. THE FACT: the robot's eyes read a real
+screenshot through the LOCKED pipeline on the Mac's own claude login — proven, not assumed.
+Next per Grok: v920 shutter · v921 frozen-robot mutex · soak as post-cycle gate.

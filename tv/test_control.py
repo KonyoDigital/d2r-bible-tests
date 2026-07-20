@@ -513,5 +513,66 @@ class TestV875Beacon(unittest.TestCase):
             _ur.urlopen = old
 
 
+class TestV919IntakeLane(unittest.TestCase):
+    """v919 (Grok REAL EYES R1) — the subscription lane answers with its header, and STRICT
+    mode 502s honestly instead of fake-greening through the website proxy."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        cls.port = cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def _post_intake(self):
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/intake",
+            data=json.dumps({"image": "aGk=", "media_type": "image/jpeg",
+                             "kind": "grail", "names": ["Shako"]}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, r.read(), dict(r.headers)
+        except urllib.error.HTTPError as e:
+            return e.code, e.read(), dict(e.headers)
+
+    def test_local_lane_success_carries_the_subscription_header(self):
+        class _PR:
+            returncode = 0
+            stdout = json.dumps({"status": 200, "body": '{"found":["Shako"]}',
+                                 "lane": "subscription"}).encode()
+            stderr = b""
+        old = ca.subprocess.run
+        ca.subprocess.run = lambda *a, **k: _PR()
+        try:
+            status, body, hdrs = self._post_intake()
+        finally:
+            ca.subprocess.run = old
+        self.assertEqual(status, 200)
+        self.assertEqual(hdrs.get("X-Intake-Lane"), "subscription")
+        self.assertIn(b"Shako", body)
+
+    def test_strict_mode_502s_instead_of_website_fallback(self):
+        class _PR:
+            returncode = 1
+            stdout = b""
+            stderr = b"claude: not logged in"
+        old_run = ca.subprocess.run
+        ca.subprocess.run = lambda *a, **k: _PR()
+        os.environ["TV_INTAKE_LOCAL_STRICT"] = "1"
+        try:
+            status, body, _ = self._post_intake()
+        finally:
+            ca.subprocess.run = old_run
+            os.environ.pop("TV_INTAKE_LOCAL_STRICT", None)
+        self.assertEqual(status, 502)
+        out = json.loads(body)
+        self.assertEqual(out.get("lane"), "subscription-failed")
+        self.assertIn("not logged in", out.get("detail", ""))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

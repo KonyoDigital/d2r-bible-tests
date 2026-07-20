@@ -6,7 +6,7 @@
 // stdin:  {"path":"/api/intake"|"/api/ask","body":{...}}
 // stdout: {"status":N,"body":"<response text>","lane":"subscription"}
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, mkdtempSync } from 'node:fs';
+import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -51,7 +51,7 @@ function claudeCall(apiBody) {
     '--output-format', 'text', '--strict-mcp-config'],
     { env, timeout: 140000, maxBuffer: 16 * 1024 * 1024, encoding: 'utf8' });
 
-  try { if (imgPath) unlinkSync(imgPath); } catch (e) {}
+  try { if (imgPath) unlinkSync(imgPath); if (tmp) rmdirSync(tmp); } catch (e) {}   // v919 — no screenshot residue, not even the empty dir
 
   const out = (r.stdout || '').trim();
   const a = out.indexOf('{'), b = out.lastIndexOf('}');
