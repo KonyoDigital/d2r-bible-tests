@@ -1101,8 +1101,12 @@
   .hd-sub { font-weight: 400; opacity: .55; letter-spacing: .04em; margin-left: 8px; font-size: 11px; }
   .hd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: 8px; padding: 7px 10px; font: 600 11px/1.3 var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
+  /* v945.4 — ENGINE-CHIP STATE LANGUAGE (Konyo needs to read liveness at a glance):
+     mint = LIVE/driving · gold = booting/transitional · amber = achievement progress ·
+     gray(dim) = idle/off · red(warn) = dead/alert · purple(intk) = the intake lane's identity. */
   .hd-chip.now { border-color: rgba(143,230,160,.5); color: var(--mint); box-shadow: 0 0 10px rgba(143,230,160,.12); }
-  .hd-chip.step { border-color: rgba(240,192,96,.4); }
+  .hd-chip.step { border-color: rgba(240,192,96,.4); color: #e6cf90; }   /* transitional/booting */
+  .hd-chip.dim { opacity: .5; color: #9a8d73; border-color: rgba(255,255,255,.08); box-shadow: none; }   /* idle/off — clearly asleep, no gold masquerade */
   /* ══ v929 — 🧰 TALLY ENGINE drilldown (Konyo: "see what EXACTLY was tallied · flagship") ══ */
   .hd-chip.tly-btn { cursor: pointer; transition: border-color .2s, box-shadow .2s; }
   .hd-chip.tly-btn:hover { border-color: var(--gold); box-shadow: 0 0 12px rgba(240,192,96,.25); color: var(--gold); }
@@ -1255,7 +1259,7 @@
   body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; max-height: 180px; overflow-y: auto; }
   body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
-  .hd-chip.nm { color: var(--mint); border-color: rgba(143,230,160,.4); }
+  .hd-chip.nm { color: #e6cf90; border-color: rgba(240,192,96,.4); }   /* v945.4 — GRAIL/SETS are ACHIEVEMENT progress (gold), not a live lane; mint now means live-only */
   /* v889 (Konyo: 'no dead space · breathing room · stretched · symmetric') */
   aside.rail { display: flex; flex-direction: column; gap: 10px; }
   aside.rail > * { margin-top: 0 !important; flex: 0 0 auto; }
