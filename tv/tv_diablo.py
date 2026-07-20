@@ -1046,6 +1046,44 @@ def _sips_hd_jpeg(src, dest, max_px=None, quality=None, timeout=6):
         return False
 
 
+def _is_white_backing(path, size_ceiling=300_000):
+    """v944 (Konyo live 'FOOTAGE STARVE — 0.2fps'): the Metal fullscreen surface hands
+    Quartz a BLANK WHITE backing that still 'succeeds' (v930.3). The old guard rejected
+    EVERY window grab under 150KB — but a legit DARK stash / loading frame ALSO compresses
+    small, so his stash-heavy session starved: real dark frames were rejected -> demote ->
+    the slow screencapture fallback cascade (2s+5s timeouts) -> ~0.45fps of full-screen frames.
+
+    Smarter blank test: a grab is the artifact ONLY when it is near-uniform AND bright.
+      · Legit game frame  -> UI/text/icons -> WIDE pixel spread          -> KEEP
+      · Legit dark stash  -> orbs/belt/items on a dark field -> spread    -> KEEP
+      · Legit black screen (loading/transition) -> near-uniform but DARK  -> KEEP
+      · Metal white backing (mean~255, spread~0)                          -> REJECT
+    Proven: 0 false-positives across 1736 real archived frames; the known ~93577-byte white
+    class (mean~255, spread~0) still fails. Keeps the real-pixels law (REG-033) intact."""
+    try:
+        if os.path.getsize(path) > size_ceiling:
+            return False   # real game frames run ~300KB-1.9MB; never the ~93KB white artifact
+    except Exception:
+        return True        # unreadable grab == unusable, treat as failure
+    try:
+        from PIL import Image, ImageStat
+        with Image.open(path) as im:
+            im.draft("L", (64, 64))       # fast partial decode (~11ms even on a 1.9MB retina jpg)
+            g = im.convert("L")
+            g.thumbnail((48, 48))
+            lo, hi = g.getextrema()
+            if (hi - lo) >= 24:           # wide spread -> real pixels, keep
+                return False
+            return ImageStat.Stat(g).mean[0] > 230   # near-uniform AND bright = white Metal backing
+    except Exception:
+        # PIL unavailable/corrupt: fall back to the pre-v944 size law so the white class is
+        # still rejected (no worse than before) rather than the loop trusting a blank frame.
+        try:
+            return os.path.getsize(path) < 150_000
+        except Exception:
+            return True
+
+
 def refresh_eye_preview(bmp_path, min_interval=0.12):
     """v779/v846 — fallback eye from intelligence frame (film thread is primary). HD."""
     global _EYE_PREVIEW_AT
@@ -1115,15 +1153,16 @@ def _film_loop():
                 # v898 — Quartz only for D2R.exe window film. screencapture -l hangs on
                 # CrossOver surfaces (5–12s) and was killing the 15fps lane + NO EYE.
                 wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
-                # v930.3 (Konyo: "why is it not the diablo ii window in the retro?") — the
-                # Metal fullscreen surface hands Quartz a BLANK WHITE backing that still
-                # "succeeds": his 331-frame reel was the same 93KB white JPEG on repeat,
-                # only the fallback-lane frames were real. A full-res game frame never
-                # compresses under ~150KB — treat tiny grabs as failures so the existing
-                # demote machinery kicks in and the reel stays REAL pixels only.
+                # v930.3/v944 (Konyo: "why is it not the diablo ii window in the retro?" ->
+                # "FOOTAGE STARVE — 0.2fps") — the Metal fullscreen surface hands Quartz a
+                # BLANK WHITE backing that still "succeeds": his 331-frame reel was the same
+                # 93KB white JPEG on repeat. The v930.3 fix rejected EVERY grab <150KB, but a
+                # legit DARK stash/loading frame also compresses small -> stash-heavy sessions
+                # starved. Now reject only a genuine near-uniform+bright backing; real dark
+                # frames pass. See _is_white_backing (REG-033 real-pixels law intact).
                 if wrote:
                     try:
-                        if os.path.getsize(tmp) < 150_000:
+                        if _is_white_backing(tmp):
                             wrote = False
                     except Exception:
                         wrote = False
