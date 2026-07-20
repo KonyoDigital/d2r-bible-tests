@@ -2462,9 +2462,17 @@ def _text_eye_loop():
     eye = os.path.join(FRAMES, "eye.jpg")
     seen = {}          # normalized text → last-seen monotonic ts
     TTL = 150.0
+    last_area = None
     while True:
         try:
             time.sleep(0.7)
+            # v937.1 — NEW AREA = fresh eyes: the same item names in a new run must
+            # re-trigger (a second Shako in the next Baal run is a new event, not a dup).
+            _ar = globals().get("LAST_AREA")
+            if _ar != last_area:
+                last_area = _ar
+                if seen:
+                    seen.clear()
             if globals().get("_AI_PAUSED") or not os.path.isfile(eye):
                 continue
             # v934.2 / v935.7 — NO PIN, NO SCAN. Boot default used to be mode="full", so the
