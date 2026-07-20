@@ -583,11 +583,14 @@ class TestV924FarmGate(unittest.TestCase):
             stdout = b"ok"
             stderr = b""
         old = ca.subprocess.run
+        old_which = ca.shutil.which
         ca.subprocess.run = lambda *a, **k: _PR()
+        ca.shutil.which = lambda *a, **k: "/usr/bin/claude"   # v924.1 — CI has no CLI; the gate must still be testable
         try:
             j = ca.farmgate_payload()
         finally:
             ca.subprocess.run = old
+            ca.shutil.which = old_which
         self.assertTrue(j["ok"])
         self.assertIn(j["verdict"], ("GO", "WARN", "NO-GO"))
         ids = [c["id"] for c in j["checks"]]
@@ -606,11 +609,14 @@ class TestV924FarmGate(unittest.TestCase):
             stdout = b""
             stderr = b"please run /login"
         old = ca.subprocess.run
+        old_which = ca.shutil.which
         ca.subprocess.run = lambda *a, **k: _PR()
+        ca.shutil.which = lambda *a, **k: "/usr/bin/claude"
         try:
             j = ca.farmgate_payload()
         finally:
             ca.subprocess.run = old
+            ca.shutil.which = old_which
         au = next(c for c in j["checks"] if c["id"] == "claude_auth")
         self.assertFalse(au["ok"])
         self.assertEqual(j["verdict"], "NO-GO")

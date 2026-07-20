@@ -2154,3 +2154,6 @@ escaped — R4's one-character trap) · handshake. Verdict GO/WARN/NO-GO; consol
 renders the color-coded card with per-check ✓/⚠/✗ + ↳fix. Tests +2 mocked-CLI (36/36).
 REAL GATE ×2 on this Mac: WARN — everything ✓ (one-truth ver, subscription answered, 19GB)
 except "D2R.exe not running yet" (true). His acceptance night now starts with one button.
+
+## v924.1 — hermetic gate tests (CI had no claude binary; the contract test hit the no-CLI branch)
+Both farmgate tests now mock shutil.which alongside subprocess.run. Local 36/36; CI re-verdict pending.
