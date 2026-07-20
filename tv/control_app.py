@@ -1028,7 +1028,7 @@ def open_control_window():
         threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
         threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
     except Exception as _ee:
-        print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open")
+        print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
     # v928 — private_mode=False FOR REAL: the comment below claimed it since forever, but
     # the call never passed it. pywebview defaults to private (ephemeral) storage, so every
@@ -1129,7 +1129,7 @@ def _kai_closer_loop():
             for r in sess_rows:
                 for nm in (r.get("names") or []) + (r.get("ocr_names") or []):
                     read_text.add(str(nm).strip().lower())
-            print(f"🧠 KAI: closing {sid} — {len(frames)} frames, {len(read_text)} known texts")
+            print(f"🧠 KAI: closing {sid} — {len(frames)} frames, {len(read_text)} known texts", flush=True)
             # OCR worker: one warm process, stdin path → stdout JSON line
             import queue as _q
             try:
@@ -1194,8 +1194,8 @@ def _kai_closer_loop():
                     for r in rows:
                         f.write(json.dumps(r, ensure_ascii=False) + "\n")
             except Exception as e:
-                print(f"🧠 KAI: journal append failed ({e})")
-            print(f"🧠 KAI report sealed for {sid}: {scanned} swept, {len(missed)} missed-text frames")
+                print(f"🧠 KAI: journal append failed ({e})", flush=True)
+            print(f"🧠 KAI report sealed for {sid}: {scanned} swept, {len(missed)} missed-text frames", flush=True)
         except Exception:
             time.sleep(10.0)
 
@@ -1258,12 +1258,12 @@ def _engine_driver():
                 globals()["_ENGINE_READY"] = str(_ejs(w, "(function(){var f=document.getElementById('tvd-eng');return (f&&f.contentWindow&&typeof f.contentWindow.tvStashAutoIntake==='function')?1:0})()")) == "1"
                 if not alive and globals().get("_ENG_ERR") != repr(_pv):
                     globals()["_ENG_ERR"] = repr(_pv)
-                    print(f"🔌 engine probe returned {_pv!r}")
+                    print(f"🔌 engine probe returned {_pv!r}", flush=True)
             except Exception as _pe:
                 globals()["_ENGINE_READY"] = False
                 if globals().get("_ENG_ERR") != str(_pe):
                     globals()["_ENG_ERR"] = str(_pe)
-                    print(f"🔌 engine probe error: {_pe}")
+                    print(f"🔌 engine probe error: {_pe}", flush=True)
             globals()["_ENGINE_ALIVE"] = bool(alive)
             if not alive:
                 continue
@@ -1279,6 +1279,7 @@ def _engine_driver():
                 if ts <= seen_ts or rd.get("lane") != "deep" or rd.get("provisional"):
                     continue
                 seen_ts = max(seen_ts, ts)
+                globals()["_DRV_SEEN"] = globals().get("_DRV_SEEN", 0) + 1
                 scene = str(rd.get("scene") or "")
                 tab = str(rd.get("stashTab") or "").lower()
                 if scene != "stash":
@@ -1304,6 +1305,7 @@ def _engine_driver():
                 if key and not visit_done.get(key):
                     visit_done[key] = "queued"
                     fire_q.append({"key": key, "tab": tab, "fid": fid, "tries": 0})
+                    globals()["_DRV_QUEUED"] = globals().get("_DRV_QUEUED", 0) + 1
 
             # ── serialized fire loop: one intake in flight, confirm via journal ──
             now_ms = int(time.time() * 1000)
@@ -1314,16 +1316,16 @@ def _engine_driver():
                              for i in intk)
                 if landed:
                     visit_done[inflight["key"]] = True
-                    print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓")
+                    print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓", flush=True)
                     inflight = None
                 elif now_ms - inflight["fired_ms"] > 110_000:
                     if inflight["tries"] < 2:
                         inflight["tries"] += 1
                         fire_q.insert(0, inflight)   # retry once
-                        print(f"🧰 engine-driver: {inflight['key']} no journal in 110s — retrying")
+                        print(f"🧰 engine-driver: {inflight['key']} no journal in 110s — retrying", flush=True)
                     else:
                         visit_done[inflight["key"]] = True   # give up, don't loop forever
-                        print(f"⚠ engine-driver: {inflight['key']} failed twice — giving up this visit")
+                        print(f"⚠ engine-driver: {inflight['key']} failed twice — giving up this visit", flush=True)
                     inflight = None
             if not inflight and fire_q:
                 job = fire_q.pop(0)
@@ -1338,9 +1340,10 @@ def _engine_driver():
                     job["fired_ms"] = now_ms
                     visit_done[job["key"]] = "inflight"
                     inflight = job
-                    print(f"🧰 engine-driver: fired {job['key']} (frame {job['fid']}, try {job['tries'] + 1})")
+                    globals()["_DRV_FIRED"] = globals().get("_DRV_FIRED", 0) + 1
+                    print(f"🧰 engine-driver: fired {job['key']} (frame {job['fid']}, try {job['tries'] + 1})", flush=True)
                 except Exception as e:
-                    print(f"⚠ engine-driver fire failed: {e}")
+                    print(f"⚠ engine-driver fire failed: {e}", flush=True)
         except Exception:
             time.sleep(3.0)
 
@@ -1377,6 +1380,8 @@ def status_payload():
         "ver": "v934",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
+        "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
+                   "fired": globals().get("_DRV_FIRED", 0)},   # v934.3 — the tally driver's pulse
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
