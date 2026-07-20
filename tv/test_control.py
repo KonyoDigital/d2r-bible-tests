@@ -574,5 +574,48 @@ class TestV919IntakeLane(unittest.TestCase):
         self.assertIn("not logged in", out.get("detail", ""))
 
 
+class TestV924FarmGate(unittest.TestCase):
+    """v924 — the FARM DAY gate: one verdict, honest checks, mocked CLI (no live spawns in CI)."""
+
+    def test_gate_contract_and_verdict_logic(self):
+        class _PR:
+            returncode = 0
+            stdout = b"ok"
+            stderr = b""
+        old = ca.subprocess.run
+        ca.subprocess.run = lambda *a, **k: _PR()
+        try:
+            j = ca.farmgate_payload()
+        finally:
+            ca.subprocess.run = old
+        self.assertTrue(j["ok"])
+        self.assertIn(j["verdict"], ("GO", "WARN", "NO-GO"))
+        ids = [c["id"] for c in j["checks"]]
+        for must in ("ver_match", "claude_cli", "claude_auth", "disk", "d2r_window", "handshake"):
+            self.assertIn(must, ids)
+        vm = next(c for c in j["checks"] if c["id"] == "ver_match")
+        self.assertTrue(vm["ok"], "repo stamps must agree: %s" % j.get("vers"))
+        au = next(c for c in j["checks"] if c["id"] == "claude_auth")
+        self.assertTrue(au["ok"])   # mocked 'ok' ping
+        # d2r_window mocked run returns 'ok' stdout rc0 → running=True; either way severity is warn
+        self.assertEqual(next(c for c in j["checks"] if c["id"] == "d2r_window")["severity"], "warn")
+
+    def test_gate_no_go_on_dead_auth(self):
+        class _PR:
+            returncode = 1
+            stdout = b""
+            stderr = b"please run /login"
+        old = ca.subprocess.run
+        ca.subprocess.run = lambda *a, **k: _PR()
+        try:
+            j = ca.farmgate_payload()
+        finally:
+            ca.subprocess.run = old
+        au = next(c for c in j["checks"] if c["id"] == "claude_auth")
+        self.assertFalse(au["ok"])
+        self.assertEqual(j["verdict"], "NO-GO")
+        self.assertIn("fix", au)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

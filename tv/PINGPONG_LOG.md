@@ -2142,3 +2142,15 @@ Summary chron:{made} upgraded to the cockpit KPI's exact truth (rwMade filtered 
 RUNEWORD_TIP / catalog total) → chron:{made:99,total:99}; FORGE chip now leads with 99 / 99
 before ready/one-step. Probe: all three carried — 🔥 99/99 · 🏆 243/403 · 🧩 108/135·18done.
 Guardians green (v635 byte-identity · v686 cockpit).
+
+## ✅ v924 "FARM GATE" — cycle R1-R7 SEALED (Jul 20 morning, before his first real farm)
+R1 Grok ranked A over multi-frame/telemetry ("nothing may risk the sealed laws before the
+acceptance run"). Shipped: GET /api/farmgate (doctor untouched — still never spawns the CLI):
+ver_match (RUNNING status ver + 3 disk stamps — Grok R4 caught that disk-only false-greens an
+un-restarted app, the exact failure the check advertises) · claude_cli · claude_auth (ONE
+`claude -p` ping, 60s cap, keys stripped = subscription lane; SKIPPED during ON AIR — never
+stack a second CLI on a warm pool) · disk (block <2GB/warn <8GB) · d2r_window (pgrep D2R\.exe
+escaped — R4's one-character trap) · handshake. Verdict GO/WARN/NO-GO; console 🛡 gate button
+renders the color-coded card with per-check ✓/⚠/✗ + ↳fix. Tests +2 mocked-CLI (36/36).
+REAL GATE ×2 on this Mac: WARN — everything ✓ (one-truth ver, subscription answered, 19GB)
+except "D2R.exe not running yet" (true). His acceptance night now starts with one button.

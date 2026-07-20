@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v923)
+# 📺 TV DIABLO — Control App (Mac + Windows · v924)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -1018,7 +1018,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v923",
+        "ver": "v924",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -1113,6 +1113,118 @@ def _chk(cid, ok, severity, detail, fix=None):
     if fix and not ok:
         d["fix"] = fix
     return d
+
+
+def farmgate_payload():
+    """GET /api/farmgate (v924, Grok FARM GATE): the ONE-BUTTON acceptance-day preflight.
+    Read-only except ONE cheap subscription-lane CLI ping (the only check the default doctor
+    is forbidden to run). Contract: {ok, verdict:'GO'|'WARN'|'NO-GO', checks:[...], vers}.
+    Never touches capture/prompt/pool — plumbing truth only."""
+    import re as _re
+    checks = []
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    def _stamp(path, pattern):
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                m = _re.search(pattern, f.read())
+            return m.group(1) if m else None
+        except Exception:
+            return None
+
+    # 1) ver_match — RUNNING control ≡ disk control ≡ agent ≡ board. The runtime constant is
+    # the only thing that catches an un-restarted app (Grok R4: disk stamps false-green it).
+    try:
+        vr = status_payload().get("ver")
+    except Exception:
+        vr = None
+    vc = _stamp(os.path.abspath(__file__), r'"ver": "(v\d+)"')
+    va = _stamp(os.path.join(here, "tv_diablo.py"), r'VERSION = "(v\d+)"')
+    vb = _stamp(os.path.join(os.path.dirname(here), "bible.html"), r"id:'(v\d+)'")
+    vers = {"running": vr, "control": vc, "agent": va, "board": vb}
+    same = vr is not None and vr == vc == va == vb
+    fix1 = ("RESTART the console app (running %s, disk %s)" % (vr, vc)) if (vr and vc and vr != vc)         else "git pull, restart the console app, and ⌘⇧R any open site tab (stale ?cb= kills nights)"
+    checks.append(_chk(
+        "ver_match", same, "block",
+        ("one truth: %s" % vr) if same else "SKEW running=%s disk=%s agent=%s board=%s" % (vr, vc, va, vb),
+        fix1))
+
+    # 2) claude CLI present
+    env = _env_clean()
+    exe = shutil.which("claude", path=env.get("PATH")) or shutil.which("claude")
+    checks.append(_chk("claude_cli", bool(exe), "block",
+                       exe or "claude CLI not found on PATH",
+                       "npm i -g @anthropic-ai/claude-code, then sign in once in a Terminal"))
+
+    # 3) claude AUTH — the one live ping (subscription lane, tiny, hard-capped).
+    # v924-R4 (Grok): during ON AIR the live readers already prove the lane — never stack a
+    # second `claude -p` on top of a warm pool; the gate belongs BEFORE air.
+    if exe and _sock_open(AGENT_PORT):
+        checks.append(_chk("claude_auth", True, "warn",
+                           "skipped during ON AIR — the live readers already prove the lane (press the gate before air next time)"))
+    elif exe:
+        try:
+            penv = dict(env)
+            penv.pop("ANTHROPIC_API_KEY", None)
+            penv.pop("ANTHROPIC_AUTH_TOKEN", None)
+            pr = subprocess.run([exe, "-p", "reply with only: ok"],
+                                capture_output=True, timeout=60, env=penv)
+            out = (pr.stdout or b"").decode("utf-8", "replace").strip().lower()
+            authed = pr.returncode == 0 and "ok" in out[:40]
+            checks.append(_chk("claude_auth", authed, "block",
+                               "subscription lane answered" if authed
+                               else "CLI answered oddly: %s" % ((pr.stderr or pr.stdout or b"")[-160:].decode("utf-8", "replace")),
+                               "run `claude` once in a bare Terminal and finish login"))
+        except subprocess.TimeoutExpired:
+            checks.append(_chk("claude_auth", False, "block", "CLI ping timed out (60s)",
+                               "run `claude` in a bare Terminal — first run may need login/consent"))
+        except Exception as e:
+            checks.append(_chk("claude_auth", False, "block", "ping error: %s" % str(e)[:120],
+                               "run `claude` once in a bare Terminal"))
+    else:
+        checks.append(_chk("claude_auth", False, "block", "skipped — no CLI", "install the CLI first"))
+
+    # 4) disk — hist flood protection
+    try:
+        free_gb = shutil.disk_usage(here).free / (1024 ** 3)
+        ok_d = free_gb >= 2
+        checks.append(_chk("disk", ok_d, "block" if free_gb < 2 else "warn",
+                           ("%.1f GB free" % free_gb) if ok_d else ("only %.1f GB free" % free_gb),
+                           "clear space — the film + hist need room for a night"))
+        if ok_d and free_gb < 8:
+            checks.append(_chk("disk_low", False, "warn", "%.1f GB free — fine for one night, watch it" % free_gb))
+    except Exception:
+        checks.append(_chk("disk", True, "warn", "disk usage unreadable"))
+
+    # 5) D2R process — warn only (he may press the gate before launching the game)
+    try:
+        pr = subprocess.run(["pgrep", "-if", r"D2R\.exe"], capture_output=True, timeout=5)
+        running = pr.returncode == 0 and (pr.stdout or b"").strip()
+        checks.append(_chk("d2r_window", bool(running), "warn",
+                           "D2R.exe is running" if running else "D2R.exe not running yet",
+                           "launch D2R, then press the gate again for a clean GO"))
+    except Exception:
+        checks.append(_chk("d2r_window", False, "warn", "process check unavailable",
+                           "launch D2R before ON AIR"))
+
+    # 6) handshake — only meaningful when the agent is live
+    ap = _sock_open(AGENT_PORT)
+    if ap:
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:%d/state" % AGENT_PORT, timeout=3) as r:
+                okb = r.status == 200
+            checks.append(_chk("handshake", okb, "block",
+                               "agent bridge answers /state" if okb else "bridge port open but /state failed",
+                               "restart ON AIR"))
+        except Exception as e:
+            checks.append(_chk("handshake", False, "block", "bridge stuck: %s" % str(e)[:80], "restart ON AIR"))
+    else:
+        checks.append(_chk("handshake", True, "warn", "agent OFF — normal before ON AIR"))
+
+    blocked = [c for c in checks if not c["ok"] and c["severity"] == "block"]
+    warned = [c for c in checks if not c["ok"] and c["severity"] == "warn"]
+    verdict = "NO-GO" if blocked else ("WARN" if warned else "GO")
+    return {"ok": True, "verdict": verdict, "vers": vers, "checks": checks}
 
 
 def doctor_payload():
@@ -1847,6 +1959,10 @@ class Handler(BaseHTTPRequestHandler):
             # v801 (Grok R7) — Windows self-diagnosis: fast, read-only, never spawns the CLI.
             self._json(200, doctor_payload())
             return
+        if path == "/api/farmgate":
+            # v924 — FARM DAY gate: one button, one verdict (the only endpoint allowed a CLI ping)
+            self._json(200, farmgate_payload())
+            return
         if path.startswith("/api/export"):
             # v809 (Grok R7 wow #3) — 📼 NIGHT CARD: write the session recap to the Desktop.
             # User-triggered only (theatre button); JSON (full beats) + recap.md (CUT story).
@@ -2272,7 +2388,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v923 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v924 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")
