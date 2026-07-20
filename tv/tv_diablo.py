@@ -2462,6 +2462,11 @@ def _text_eye_loop():
             time.sleep(0.7)
             if globals().get("_AI_PAUSED") or not os.path.isfile(eye):
                 continue
+            # v934.2 (monitor test catch) — NO PIN, NO SCAN: during pin-waiting the boot
+            # transport test / stale eye can hold DESKTOP pixels; the text eye read my own
+            # terminal and burned a Sonnet read on it. Same law as the film lane.
+            if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") not in ("window", "full"):
+                continue
             if (time.time() - os.path.getmtime(eye)) > 3.0:
                 continue   # film cold — nothing fresh under the eye
             raw = _OCR.read(eye, timeout=1.5)
