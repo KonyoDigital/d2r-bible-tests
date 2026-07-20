@@ -561,13 +561,15 @@
   button.ghost.on { color: var(--info); border-color: rgba(126,200,255,.4); background: rgba(126,200,255,.08); }
 
   /* signal readout mini-panel */
+  /* v945 CONSOLE PARITY C4 — the health/signal panel adopts the same card surface as the dash */
   .signal {
-    border: 1px solid var(--edge); border-radius: clamp(10px,1vw,14px);
-    background: var(--panel);
+    border: 1px solid rgba(240,192,96,.13); border-radius: clamp(10px,1vw,14px);
+    background: linear-gradient(180deg, rgba(255,255,255,.02), var(--panel));
     padding: clamp(9px,1vw,14px) clamp(11px,1.1vw,16px);
     display: flex; flex-direction: column; gap: clamp(6px,.7vw,10px);
   }
   .signal .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: clamp(11px,.85vw,13px); }   /* v945 — app scale */
+  .signal .row:not(:last-child) { border-bottom: 1px solid rgba(200,180,120,.07); }   /* hairline row dividers, like the drawer table */
   .signal .row .k { color: var(--gold-dim); letter-spacing: .14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; }
   .signal .row .k .sjewel { width: 1.25em; height: 1.25em; object-fit: contain; opacity: .8; filter: drop-shadow(0 0 4px rgba(240,192,96,.5)); flex: none; }
   .signal .row .val { color: var(--text); font-weight: 700; letter-spacing: .06em; font-variant-numeric: tabular-nums; transition: color .4s; }
@@ -1087,12 +1089,17 @@
   .home-dash .hd-col { height: fit-content; min-height: 0; }
   /* v903 — OFF AIR: the stage row shrinks to its compact self; the DASH owns the flex */
   body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
-  .hd-col { border: 1px solid var(--edge); border-radius: 12px; background: rgba(0,0,0,.32); padding: 12px 14px; min-height: 92px; }
+  /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
+     border, a faint top-surface highlight, roomier padding. One product, one surface. */
+  .hd-col { border: 1px solid rgba(240,192,96,.13); border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32)); padding: 14px 16px; min-height: 92px; }
   .hd-wide { grid-column: 1 / -1; }
-  .hd-h { font: 700 12px/1 var(--mono); letter-spacing: .12em; color: var(--gold); margin-bottom: 10px; }
-  .hd-sub { font-weight: 400; opacity: .5; letter-spacing: .04em; margin-left: 8px; font-size: 10px; }
+  /* C2 — section headers match the theatre drawer h4: gold accent bar + hairline underline */
+  .hd-h { font: 700 12.5px/1.1 var(--mono); letter-spacing: .12em; color: var(--gold); margin-bottom: 12px;
+    padding: 0 0 8px 10px; border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }
+  .hd-sub { font-weight: 400; opacity: .55; letter-spacing: .04em; margin-left: 8px; font-size: 11px; }
   .hd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .hd-chip { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; font: 600 11px/1.3 var(--mono); color: #d9c9a0; background: rgba(0,0,0,.35); }
+  .hd-chip { border: 1px solid rgba(240,192,96,.2); border-radius: 8px; padding: 7px 10px; font: 600 11px/1.3 var(--mono); color: #d9c9a0; background: rgba(30,22,10,.32); transition: border-color .15s, background .15s, box-shadow .15s; }
   .hd-chip.now { border-color: rgba(143,230,160,.5); color: var(--mint); box-shadow: 0 0 10px rgba(143,230,160,.12); }
   .hd-chip.step { border-color: rgba(240,192,96,.4); }
   /* ══ v929 — 🧰 TALLY ENGINE drilldown (Konyo: "see what EXACTLY was tallied · flagship") ══ */
@@ -1195,8 +1202,11 @@
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
   .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
   .hd-tf-rows { display: flex; flex-direction: column; gap: 7px; }
-  .tf-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--edge);
-    border-radius: 9px; background: rgba(0,0,0,.3); font: 500 12px/1.3 var(--mono); color: #d9c9a0; }
+  /* v945 CONSOLE PARITY C5 — task-force + digest rows read as app list-cards: warm surface, hover */
+  .tf-row { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid rgba(240,192,96,.13);
+    border-radius: 9px; background: rgba(255,255,255,.022); font: 500 12px/1.3 var(--mono); color: #d9c9a0;
+    transition: border-color .15s, background .15s; }
+  .tf-row:not(.tf-stat):hover { border-color: rgba(240,192,96,.32); background: rgba(255,255,255,.04); }
   .tf-row.tf-ready { border-color: rgba(143,230,160,.5); box-shadow: inset 3px 0 0 var(--mint); }
   .tf-row.tf-ai { border-color: rgba(185,165,255,.4); }
   .tf-row.tf-stat { opacity: .75; }
