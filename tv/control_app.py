@@ -1165,6 +1165,27 @@ def _kai_add_name_tokens(vocab, full):
             # 2-letter runes already seeded; don't flood with short junk
 
 
+def _kai_fullnames():
+    """v940.1 — full ITEM NAMES (lowercased) from the same bible literals the vocab uses.
+    The judge's affix-scorer is for magic/rare; a grail unique scores 0 there and must
+    NEVER be ruled a toss (live miscalibration: 'Hellfire Torch -> TOSS score 0')."""
+    c = globals().get("_KAI_FULLNAMES")
+    if c is not None:
+        return c
+    names = set()
+    try:
+        import re as _re
+        src = open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace").read()
+        for m in _re.finditer(r"(?<![A-Za-z0-9_])(?:name|n)\s*:\s*(['\"])(.*?)\1", src):
+            v = m.group(2).strip()
+            if 3 <= len(v) <= 48 and not any(ch in v for ch in "<>{}$"):
+                names.add(v.lower())
+    except Exception:
+        pass
+    globals()["_KAI_FULLNAMES"] = names
+    return names
+
+
 def _kai_vocab():
     """v935 — KAI's item lexicon (cached in a global, built once). Seeds the 33 classic rune
     names + gem words, then harvests alphabetic name tokens (len>=4) from every name:'…' /
@@ -1403,7 +1424,8 @@ def _kai_closer_loop():
             except Exception as e:
                 print(f"🧠 KAI: worker spawn failed ({e}) — skipping reel"); continue
             missed = []
-            classes = {}          # v935.11 R5 — {cls: count} over every line-producing frame
+            classes = {}
+            class_frames = {}          # v935.11 R5 — {cls: count} over every line-producing frame
             scanned = textframes = 0
             for it in frames:
                 fp = os.path.join(rd, it.get("f") or "")
@@ -1422,6 +1444,7 @@ def _kai_closer_loop():
                 cls = _kai_frame_cls(raw, texts) if raw else None
                 if cls:
                     classes[cls] = classes.get(cls, 0) + 1
+                    class_frames[cls] = {"f": it.get("f"), "ts": it.get("ts")}   # v940.1 — last frame per class
                 if texts:
                     textframes += 1
                     new = [t for t in texts if t.strip().lower() not in read_text]
@@ -1434,6 +1457,7 @@ def _kai_closer_loop():
             except Exception:
                 pass
             report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
+                      "classFrames": class_frames,
                       "missedFrames": len(missed), "missed": missed[:40],
                       "classes": classes,   # R5 — routing metadata for the KAI-v2 funnel
                       "closedAt": int(time.time() * 1000), "kaiVer": 1}
@@ -1495,6 +1519,11 @@ def _kai_closer_loop():
                         c2 = str(mrec.get("cls") or "")
                         if c2.startswith("stash-") and c2[6:] in _gaps:
                             _by_tab[c2[6:]] = mrec   # last wins = most recent view of that tab
+                    for t9 in _gaps:
+                        # v940.1 FALLBACK (live gap: runes text was READ so never 'missed' —
+                        # funnel had no photo): use the reel's last frame OF THAT CLASS.
+                        if t9 not in _by_tab and class_frames.get("stash-" + t9):
+                            _by_tab[t9] = class_frames["stash-" + t9]
                     w2 = globals().get("_MAIN_WIN")
                     for t3, mrec in _by_tab.items():
                         if w2 is None or os.environ.get("TV_KAI_FUNNEL", "1") == "0":
@@ -2976,6 +3005,9 @@ class Handler(BaseHTTPRequestHandler):
                 _fts = int(body.get("fts") or 0) or int(time.time() * 1000)
                 _vname = str(body.get("name") or "")[:60]
                 _tier = str(((body.get("verdict") or {}).get("tier")) or "")[:12]
+                # v940.1 GRAIL GATE — a known unique/set/runeword name is never a toss/border:
+                if _vname and _vname.lower() in _kai_fullnames() and _tier in ("toss", "border"):
+                    _tier = "grail"
                 rec = {"ts": _fts, "captureTs": _fts, "completedTs": int(time.time() * 1000),
                        "n": 0, "scene": "kai", "lane": "kai", "mode": "kai-judge", "names": [],
                        "area": "", "sessionId": str(body.get("sid") or "")[:48],
