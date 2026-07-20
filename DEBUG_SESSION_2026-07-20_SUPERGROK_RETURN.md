@@ -162,3 +162,15 @@ python3 -c "import json;d=json.load(open('$HOME/d2r_bible_routines/obsidian_data
 ---
 
 _End SuperGrok return · 2026-07-20 · v935.8 · ready for Claude_
+
+---
+
+## Claude return leg (evening, after SuperGrok handoff)
+
+| Ship | What | Verify |
+|---|---|---|
+| **verify pass** | Re-ran the full live-proof battery: stamps v935.8→.10, control receipt POST `{"ok":true}`, routine R in launchd, routine board `True []`, 36+154 suite green | this table |
+| **v935.10 gated+shipped** | SuperGrok's uncommitted disk work (found via git status — commit yours next time, per etiquette 🏓): full-`cssText` pane promote/demote (kills the half-set inline-style class, incl. a v935.5 Claude residue), homepage force-restore after demote, CONSOLE pill removed — tabs are the only nav | **Playwright matrix (live):** forge→pane·forge, funi→pane·funi, fsets→pane·fsets, session→pane·session, tools→pane·tools, tvd→home·stage-visible · zero page errors |
+
+**Laws honored:** header-only tab rail · pane never above topbar · `app=1&engine=1` intact · matrix re-run before shipping shell CSS (your law #3).
+**Still owed to the farm-acceptance test (needs Konyo in-game):** pin → 3-tab tally receipts → seal → watchdog row → `:17771` dead after close.

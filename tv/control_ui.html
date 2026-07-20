@@ -1192,7 +1192,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v935.8 control</span>
+      <span id="foot-ver">v935.10 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -2802,6 +2802,11 @@
   // Board loads ?app=1&engine=1 so switchTab + app-ctx styles work inside the pane.
   var _shellTab = 'tvd';
   var _shellRouteTimer = null;
+  // v935.9 — engine-dormant iframe style (MUST fully demote on home or the 100vw pane
+  // swallows the console homepage between tab toggles)
+  var _SHELL_ENG_DORMANT =
+    'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0;' +
+    'pointer-events:none;border:0;z-index:-1';
   function _shellHeadH(){
     try {
       var tb = document.querySelector('.topbar');
@@ -2812,11 +2817,37 @@
   function _shellSizePane(){
     var f = document.getElementById('tvd-eng'); if (!f) return;
     var h = _shellHeadH();
-    f.style.top = h + 'px';
-    f.style.height = 'calc(100vh - ' + h + 'px)';
-    f.style.left = '0';
-    f.style.width = '100vw';
-    f.style.bottom = 'auto';
+    // promote: explicit full pane under header (never leave half-set inline styles)
+    f.style.cssText =
+      'position:fixed;left:0;right:0;top:' + h + 'px;width:100vw;' +
+      'height:calc(100vh - ' + h + 'px);bottom:auto;opacity:1;' +
+      'pointer-events:auto;border:0;z-index:940;background:#070605;';
+  }
+  function _shellDemotePane(){
+    var f = document.getElementById('tvd-eng'); if (!f) return;
+    f.style.cssText = _SHELL_ENG_DORMANT;
+  }
+  function _shellRestoreConsole(){
+    // Force the homepage (stage + home-dash + rail + tick + foot) back into the grid.
+    // v935.6 hid them with visibility; some WebKit paths left them swallowed after demote.
+    try {
+      document.body.classList.remove('shell-open', 'gliding');
+      var shell = document.querySelector('.shell');
+      if (shell){
+        shell.style.visibility = '';
+        shell.style.opacity = '';
+        shell.style.transform = '';
+      }
+      document.querySelectorAll('.shell > *').forEach(function(el){
+        el.style.visibility = '';
+        el.style.opacity = '';
+        el.style.pointerEvents = '';
+      });
+      var dash = document.getElementById('home-dash');
+      if (dash){ dash.hidden = false; dash.style.display = ''; dash.style.visibility = ''; }
+      var stage = document.getElementById('stage');
+      if (stage){ stage.style.visibility = ''; stage.style.display = ''; }
+    } catch(e){}
   }
   function _shellRoute(tab){
     var f = document.getElementById('tvd-eng'); if (!f) return false;
@@ -2839,10 +2870,14 @@
     _shellTab = tab;
     var f = document.getElementById('tvd-eng');
     if (!f){ _glide('/board?app=1#' + encodeURIComponent(tab)); return; }
+    var already = document.body.classList.contains('shell-open');
     document.body.classList.add('shell-open');
-    _shellSizePane();
+    document.body.classList.remove('gliding');
+    // only re-size when entering shell; in-between toggles just swap the board tab
+    if (!already) _shellSizePane();
+    else _shellSizePane(); // keep pane sized if header height shifted
     _shellLight(tab);
-    var hp = document.getElementById('shell-home'); if (hp) hp.hidden = false;
+    // v935.10 — NO floating ⌂ CONSOLE pill. One shell: header tabs only (TV·D = home).
     if (_shellRoute(tab)) return;
     // retry until switchTab exists (engine iframe boots bible JS async)
     if (_shellRouteTimer) clearInterval(_shellRouteTimer);
@@ -2862,16 +2897,19 @@
     } catch(e){}
   }
   function shellHome(){
-    document.body.classList.remove('shell-open');
+    // v935.9 — demote board FIRST so it can't cover the homepage, then restore console
+    if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
+    _shellDemotePane();
+    _shellRestoreConsole();
     _shellTab = 'tvd';
     _shellLight('tvd');
-    if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
-    var f = document.getElementById('tvd-eng');
-    if (f){
-      f.style.top = ''; f.style.height = ''; f.style.left = '';
-      f.style.width = ''; f.style.bottom = '';
-    }
-    var hp = document.getElementById('shell-home'); if (hp) hp.hidden = true;
+    // one more paint tick: WebKit sometimes keeps the last full-viewport composite
+    try {
+      requestAnimationFrame(function(){
+        _shellDemotePane();
+        _shellRestoreConsole();
+      });
+    } catch(e){}
   }
   window._shellHome = shellHome;
   window._shellOpen = shellOpen;
@@ -3199,13 +3237,13 @@
 <iframe id="tvd-eng" src="/board?app=1&engine=1#session" title="TVD engine + shell pane"
         style="position:fixed; left:0; bottom:0; width:2px; height:2px; opacity:0;
                pointer-events:none; border:0; z-index:-1" loading="eager"></iframe>
-<button id="shell-home" hidden onclick="window._shellHome()"
-        style="position:fixed; bottom:12px; left:12px; z-index:970; cursor:pointer;
-               background:rgba(10,8,5,.92); color:#f0c060; border:1px solid rgba(240,192,96,.5);
-               border-radius:999px; padding:8px 16px; font:700 12px/1 ui-monospace,monospace;
-               letter-spacing:.1em; box-shadow:0 0 18px rgba(240,192,96,.25)">⌂ CONSOLE · esc</button>
+<!-- v935.10 — no ⌂ CONSOLE · esc chrome. ONE SHELL: top tabs are the only nav.
+     TV·D tab (and Esc) return to the live console; no floating escape pill. -->
 <style>
-/* v935.6 THE SHELL — board pane under a FIXED header (tabs always above the iframe) */
+/* v935.6/9 THE SHELL — board pane under a FIXED header (tabs always above the iframe).
+   v935.9: DO NOT visibility:hidden the console homepage — that + fixed topbar swallowed
+   stage/home-dash/rail after toggles (WebKit left them unrecoverable). The promoted
+   iframe alone covers the console; homepage restores cleanly on shellHome demote. */
 body.shell-open .topbar {
   position: fixed !important;
   top: 0; left: 0; right: 0;
@@ -3215,13 +3253,11 @@ body.shell-open .topbar {
   padding: 10px clamp(12px, 1.7vw, 28px);
   box-shadow: 0 10px 32px rgba(0,0,0,.55);
   pointer-events: auto !important;
+  visibility: visible !important;
 }
 body.shell-open #tvd-eng {
+  /* size/opacity also set inline by _shellSizePane — keep CSS as belt */
   position: fixed !important;
-  left: 0 !important; right: 0 !important; bottom: 0 !important;
-  width: 100vw !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
   z-index: 940 !important;
   background: #070605;
   border-top: 1px solid rgba(240,192,96,.28);
@@ -3244,11 +3280,24 @@ body.shell-open #head-tabs .ht {
   box-shadow: 0 0 10px rgba(240,192,96,.25);
   opacity: 1 !important;
 }
-/* dim the rest of the console under the board so nothing steals clicks */
+/* Keep console subtree in the layout tree (no visibility:hidden). Only block pointer
+   targets under the board so clicks don't leak through semi-transparent edges. */
 body.shell-open .shell > :not(.topbar) {
-  visibility: hidden;
+  pointer-events: none;
 }
-body.shell-open .topbar { visibility: visible !important; }
+body.shell-open .topbar,
+body.shell-open .topbar * {
+  pointer-events: auto !important;
+}
+/* When home: nothing from shell-open may linger */
+body:not(.shell-open) .shell,
+body:not(.shell-open) .shell > * {
+  visibility: visible;
+}
+body:not(.shell-open) #tvd-eng {
+  /* dormancy is owned by inline _SHELL_ENG_DORMANT; this is the safety net */
+  pointer-events: none !important;
+}
 </style>
 </body>
 </html>
