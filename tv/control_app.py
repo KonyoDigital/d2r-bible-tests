@@ -1681,7 +1681,7 @@ class Handler(BaseHTTPRequestHandler):
                         if _rfs:
                             # v890 — the card's art IS the run: its middle frame, 160px lane
                             _thumb = "reel_" + str(sess[0].get("sessionId") or "") + "/" + _rfs[len(_rfs) // 2]
-                    elif n == 1 and not any(r3.get("sessionEnd") for r3 in sess):
+                    elif i == 1 and not any(r3.get("sessionEnd") for r3 in sess):   # v930.1 — `n` was a NameError (loop var is i): the LIVE card silently lost its thumb+count every call
                         # v908 (Grok P1) — the LIVE card pins its thumb to the FIRST loose frame
                         # (a mid frame churns every refresh = flicker)
                         try:

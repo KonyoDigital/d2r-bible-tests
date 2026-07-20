@@ -2381,6 +2381,17 @@
     var ov = $('th-shelfov'); if (!ov) return;
     var on = (force !== undefined) ? force : ov.hidden;
     if (!on){ ov.hidden = true; return; }
+    // v930.1 (Konyo: "how come only 7 frames?") — the card list froze MID-SEAL: opening the
+    // shelf during the reel fold showed a partial footage count until the theatre reopened.
+    // Every shelf open refetches; cards can never show a stale fold again.
+    fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(j){
+      var fresh = (j && j.sessions) || [];
+      var sig = fresh.map(function(s){ return (s.sessionId||'') + ':' + (s.footageN||0) + ':' + (s.reads||0); }).join('|');
+      if (fresh.length && sig !== window.__thShelfSig){
+        window.__thShelfSig = sig; TH.sessions = fresh;
+        if (!ov.hidden) thShelf(true);   // changed-data guard above breaks re-render loops
+      }
+    }).catch(function(){});
     var cards = (TH.sessions || []).map(function(sm, i){
       var n = sm.n || (i + 1);
       var d0 = sm.t0 ? new Date(sm.t0) : null;
