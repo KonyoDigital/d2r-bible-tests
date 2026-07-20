@@ -1192,7 +1192,7 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v935.10 control</span>
+      <span id="foot-ver">v935.11 control</span>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -1444,11 +1444,22 @@
     // 🔵 second eye double-checks in the idle gaps; 🧠 KAI drives + seals sessions.
     var eLiveS = $('eye-live-s'), eSecS = $('eye-second-s'), eKaiS = $('eye-kai-s');
     if (eLiveS) eLiveS.textContent = on ? ((H.visionBusyMs || 0) > 1500 ? ('thinking ' + Math.round((H.visionBusyMs || 0) / 1000) + 's') : 'watching') : 'off';
-    if (eSecS) eSecS.textContent = on ? 'double-checking' : 'resting';
+    // v935.11 (Grok shell-verdict #4) — badges tell PROVEN truth, never vibes: 🔵 and 🧠
+    // key off their lanes' actual last acts (st.eyes from the journal), with honest ages.
+    var _ey = st.eyes || {};
+    function _ago(ts){ if (!ts) return null; var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+      return s < 90 ? (s + 's ago') : (s < 5400 ? (Math.round(s / 60) + 'm ago') : (Math.round(s / 3600) + 'h ago')); }
+    if (eSecS) {
+      var _va = _ago(_ey.verifyTs);
+      eSecS.textContent = on ? ('double-checks in gaps' + (_va ? (' · last ' + _va) : ' · none yet'))
+        : (_va ? ('resting · last check ' + _va) : 'resting');
+    }
     if (eKaiS) {
       var _ea = st.engineAlive, _er = st.engineReady;
-      eKaiS.textContent = (_ea === true && _er === true) ? 'driving · closes sessions'
-        : (_ea === true ? 'waking up' : 'asleep');
+      var _ka = _ago(_ey.kaiTs);
+      var _base = (_ea === true && _er === true) ? 'driving' : (_ea === true ? 'waking up' : 'asleep');
+      eKaiS.textContent = _base + (_ka ? (' · closed a session ' + _ka
+        + (_ey.kaiMissed != null ? (' (' + _ey.kaiMissed + ' missed-text frames)') : '')) : ' · no seals yet');
     }
     var eLiveB = $('eye-live'), eSecB = $('eye-second'), eKaiB = $('eye-kai');
     if (eLiveB) eLiveB.classList.toggle('off', !on);
@@ -3079,6 +3090,11 @@
           return '<span class="hd-chip step">🔥 FORGE' + (c9 && c9.total ? ' · ' + c9.made + ' / ' + c9.total : '') + ' · ' + _n9 + ' ready · ' + _o9 + ' one-step</span>'; })(),   /* v923 (Konyo) — the runeword chronicle reads like its siblings: ALL THREE chronicles found/total */
         '<span class="hd-chip tly-btn" onclick="window._tlyOpen()" title="open the TALLY ENGINE — every shot, every count">🧰 TALLIES · '
           + (window.__tlyN != null ? (window.__tlyN + ' shot' + (window.__tlyN === 1 ? '' : 's')) : (led.length + ' synced')) + ' ▾</span>',
+        (function(){   /* v935.11 — watchdog verdict surfaces on home when it has something to say */
+          var wd = st.watchdog;
+          if (!wd || !wd.violations) return '';
+          return '<span class="hd-chip warn" title="expected-vs-happened check on the last sealed session">🚨 WATCHDOG · ' + wd.violations + ' miss' + (wd.violations > 1 ? 'es' : '') + ' last session</span>';
+        })(),
         /* v929.2 — the LS stamp LIED (stale d2r_tvdOn from a past visible board while the
            off-screen engine's timers were suspended). Lamp now uses the control-side driver
            probe (st.engineAlive/engineReady) — evaluate_js truth; LS stamp is last resort. */

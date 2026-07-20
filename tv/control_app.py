@@ -1602,6 +1602,34 @@ def _engine_driver():
             time.sleep(3.0)
 
 
+
+
+def _eyes_pulse():
+    """v935.11 — truthful badge data: when did the 🔵 verify lane and 🧠 KAI actually
+    last act? Derived from the journal (mtime-cached); badges must never claim activity
+    they can't prove (Grok shell-verdict #4)."""
+    try:
+        key = os.path.getmtime(os.path.join(HERE, "sessions.jsonl"))
+    except Exception:
+        key = None
+    c = globals().get("_EYES_CACHE")
+    if c and c[0] == key:
+        return c[1]
+    out = {"verifyTs": 0, "kaiTs": 0, "kaiMissed": None}
+    try:
+        for r in _kai_journal_rows()[-400:]:
+            ln = r.get("lane")
+            if ln == "verify":
+                out["verifyTs"] = max(out["verifyTs"], int(r.get("completedTs") or r.get("ts") or 0))
+            elif ln == "kai":
+                out["kaiTs"] = max(out["kaiTs"], int(r.get("completedTs") or r.get("ts") or 0))
+                if isinstance(r.get("kai"), dict) and "missedFrames" in r["kai"]:
+                    out["kaiMissed"] = r["kai"].get("missedFrames")
+    except Exception:
+        pass
+    globals()["_EYES_CACHE"] = (key, out)
+    return out
+
 def status_payload():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
@@ -1631,12 +1659,13 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v935.10",
+        "ver": "v935.11",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
                    "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR")},   # v934.3 — the tally driver's pulse
-        "watchdog": globals().get("_WATCHDOG_LAST"),   # v935 — last reel's expectation-check verdict
+        "watchdog": globals().get("_WATCHDOG_LAST"),
+        "eyes": _eyes_pulse(),   # v935 — last reel's expectation-check verdict
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
