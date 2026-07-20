@@ -45,6 +45,18 @@ _"a second engine AI reader that goes back and slowly thoroughly checks the firs
 - **Seed that exists already:** `TV_VERIFY` / `VERIFY_ON` + `_VERIFY_Q` in tv_diablo.py (fires re-reads when readers are free, ~L3312/3682/4310) — audit it first; the second eye should grow FROM this lane, not beside it.
 - **Also needed (same arc):** intake early-exits journal a receipt (ok:false + why) so 'busy'/'no-frame' skips are visible in the drilldown; second-eye pass over tally shots (recount vs the shot photo).
 
+## 🧠 KAI — THE CLOSER (layer 3, Konyo's order 2026-07-20 night)
+_"a REAL MAIN HIDDEN KAI that's AI READING everything in backend terms after the closure of it all — peacefully, thoroughly, coded for perfection — to sync and automate everything that has been manual."_
+The three-layer eye, complete:
+- **L1 · 🔴 LIVE EYE** — real-time, fast, settle/text-triggered (see Text-Triggered Eye). Optimized for immediacy; allowed to miss.
+- **L2 · 🔵 SECOND EYE** — trails the live eye during the session, re-verifying reads when the pool is idle.
+- **L3 · 🧠 KAI THE CLOSER** — fires on session SEAL, hidden, zero time pressure. Walks the ENTIRE reel frame by frame (all footage + read frames) and produces the session's authoritative truth:
+  1. **Full-reel re-read:** every frame with item-ish text gets a deep read at leisure (full-res, no debt law, batched through the subscription lane). Catches everything L1/L2 missed — the "20 items shown, 4 read" class dies here.
+  2. **Auto-register on sight:** anything it reads that isn't in the Chronicle/grail/tally yet gets registered with provenance (frameId + timestamp) — "it read it, it analyzed it → it's registered. why not." Chronicle-firsts flagged 🆕 for the wall.
+  3. **The mule/throw-out funnel:** items that got muled or thrown during the session are re-funneled through the AI ITEM CHECKER (the v455 keep-or-toss flagship) with the actual frame as evidence → corrected verdict journaled ("thrown ✓ correct" / "⚠ that was a keeper — it went out at 18:42, frame f_…"). Regret report per session.
+  4. **Reconciliation ledger:** KAI's final pass diffs L1+L2 truth vs its own → one sealed session report (found / corrected / missed / phantom / registered / regrets) that the SHELF card and SIM surface as the session's closing chapter. All KAI beats journal on the same timeline, third color (🧠 gold?) — SIM shows all three minds per frame.
+- **Architecture:** a control-side batch worker (like the engine driver) that wakes on seal, walks reel index.json, runs reads through the existing locked lanes (claude -p subscription; intake for tallies), throttled to idle (nice, one at a time) so it never fights the next live session. Resumable (cursor in the reel), survives app restarts.
+
 ## Guardrails
 - 🔒 INTAKE LOCKED (d2r_intake_LOCKED.md): the vision/crop pipeline is untouchable — only supply frames to it.
 - bible.html EDIT_LOCK protocol before any board edit.
