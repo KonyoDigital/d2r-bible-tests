@@ -896,7 +896,9 @@ class TestReplay(unittest.TestCase):
         # a slow sensor tick (Konyo: 'like screenshot not record'), no continuous film, no OCR.
         self.assertTrue(tv.LIGHT_MODE, "LIGHT is the default product")
         self.assertGreaterEqual(tv.POLL_S, 1.0, "LIGHT samples slowly so the game can breathe")
-        self.assertFalse(tv.OCR_ENABLED, "LIGHT runs one Claude, no OCR lane")
+        # v941 — DOCTRINE FLIPPED (Konyo, after the v925-LIGHT off-default bit 4 times):
+        # lanes are ON by default in code; only an explicit TV_OCR=0 disables.
+        self.assertTrue(tv.OCR_ENABLED, "v941: OCR lane is ON by default (TV_OCR=0 to disable)")
         self.assertFalse(tv.FAREWELL_READ_ON, "LIGHT End Session seals + exits, no farewell vision")
         # the film-fps constant still exists (heavy/debug mode uses it) but the thread stays dark
         self.assertAlmostEqual(tv.FOOTAGE_INTERVAL_S, 1.0, places=3)
