@@ -838,7 +838,43 @@
   .th-airead b { color: #e4d2a4; font-variant-numeric: tabular-nums; }
   .th-airead .ar-names { color: #9df0bd; }
   .th-airead .ar-dim { opacity: .6; }
-  body.theatre-open .live-bug { color: var(--gold); border-color: rgba(240,192,96,.5); }
+  /* v940.5 (Konyo: 'ON AIR + replay open confused me — am i live or past?') — under the
+     theatre, the console's live red bug is HIDDEN. The only lit status inside theatre chrome
+     is the gold 📼 REPLAY ribbon; the header light can never masquerade as "you're live now". */
+  body.theatre-open .live-bug { visibility: hidden; }
+  /* ══ v940.5 — 📼 REPLAY RIBBON: the permanent PAST-not-LIVE banner ══ */
+  .th-ribbon { position: relative; z-index: 8; flex: none;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 7px clamp(12px,1.4vw,20px);
+    font: 800 12.5px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+    color: #f0d89a; background: linear-gradient(180deg, rgba(58,42,13,.97), rgba(28,20,7,.94));
+    border-bottom: 1px solid rgba(240,192,96,.42);
+    box-shadow: 0 2px 14px rgba(0,0,0,.5), inset 0 0 30px rgba(240,192,96,.06);
+    text-shadow: 0 0 14px rgba(240,192,96,.35); }
+  .th-ribbon::before { content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: #ffcf6a; box-shadow: 0 0 10px rgba(255,207,106,.9); }
+  .th-ribbon.on-air { color: #ffe0ad; background: linear-gradient(180deg, rgba(70,50,14,.97), rgba(34,24,8,.95)); }
+  /* ══ v940.5 — coach hint (once per page-load) ══ */
+  .th-coach { position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: clamp(56px,9vh,74px); z-index: 6; pointer-events: none;
+    padding: 5px 15px; border-radius: 999px;
+    background: rgba(8,10,9,.92); border: 1px solid rgba(240,192,96,.28);
+    font: 600 12.5px/1.3 var(--mono); letter-spacing: .05em; color: #d8c79a;
+    box-shadow: 0 6px 20px rgba(0,0,0,.5); animation: thChipIn 300ms ease-out; }
+  .th-coach[hidden] { display: none !important; }
+  /* ══ v940.5 — ⋯ MORE drawer: the rarely-used controls, one plain-word tap away ══ */
+  .th-more-wrap { position: relative; display: inline-flex; flex: none; }
+  #th-more.on { border-color: var(--edge-hi); box-shadow: 0 0 12px rgba(240,192,96,.35); color: var(--gold-hi); }
+  #th-more-pop { position: absolute; bottom: calc(100% + 10px); right: 0; z-index: 20;
+    min-width: 264px; display: flex; flex-direction: column; gap: 4px;
+    padding: 8px; border-radius: 10px;
+    background: rgba(10,12,10,.98); border: 1px solid var(--edge-hi);
+    box-shadow: 0 12px 34px rgba(0,0,0,.6); animation: thChipIn 160ms ease-out; }
+  #th-more-pop[hidden] { display: none !important; }
+  #th-more-pop .th-btn { width: 100%; height: auto; min-height: 36px; min-width: 0;
+    display: flex; align-items: center; gap: 10px; justify-content: flex-start; text-align: left;
+    padding: 9px 12px; font: 600 12.5px/1.35 var(--mono); letter-spacing: .02em; }
+  #th-more-pop .th-btn[hidden] { display: none !important; }
   /* v768 (item 8) — ONE lit/dim truth (Konyo: 'glowing for on, grey dim for off'). Every primary
      console button is DIM by default; the truly-active one is .lit (full opacity + glow, driven by
      paint()/thLit). Hover/focus lift the dim so it's never dead. */
@@ -1087,6 +1123,8 @@
            archived frames + recorded reads, timeline-scrubbed, session-paginated. -->
       <div class="theatre" id="theatre" hidden>
         <img class="th-film" id="th-film" alt="" onerror="this.style.opacity=.15">
+        <!-- v940.5 — the PAST-not-LIVE banner: always visible while the theatre is open -->
+        <div class="th-ribbon" id="th-ribbon">📼 REPLAY — the PAST, not live</div>
         <div class="th-topline">
           <span class="th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
           <span class="th-clock" id="th-clock" style="font:600 11px/1 var(--mono);color:#bfae7f;letter-spacing:.06em;margin-left:10px"></span>
@@ -1101,21 +1139,31 @@
         <div id="th-credits" hidden></div>
         <div id="th-slate" hidden></div>
         <div id="th-shelfov" hidden></div>
+        <!-- v940.5 — coach hint: shown once per page-load, dismissed on any interaction -->
+        <div class="th-coach" id="th-coach" hidden>space = play/pause · ← → = step · esc = close</div>
+        <!-- v940.5 (Konyo: 'incomprehensible button mess') — BUTTON DIET. Primary strip keeps
+             only transport + timeline + the MODE/SPEED pills + fullscreen + shelf. Everything
+             rare (forensics, clip, delete) lives behind ⋯ more, plain-word labels inside. -->
         <div class="th-strip">
-          <button class="th-btn" id="th-prev-s" type="button" title="older session">⏮ sess</button>
-          <button class="th-btn" id="th-prev-b" type="button" title="previous beat (back in time)">‹</button>
-          <button class="th-btn th-play" id="th-play" type="button" title="play/pause">⏸</button>
-          <button class="th-btn" id="th-next-b" type="button" title="next beat (forward in time)">›</button>
-          <button class="th-btn" id="th-next-s" type="button" title="newer session">sess ⏭</button>
+          <button class="th-btn" id="th-prev-s" type="button" title="Older session">⏮ sess</button>
+          <button class="th-btn" id="th-prev-b" type="button" title="Step back one beat (← )">‹</button>
+          <button class="th-btn th-play" id="th-play" type="button" title="Play / pause (space)">⏸</button>
+          <button class="th-btn" id="th-next-b" type="button" title="Step forward one beat ( →)">›</button>
+          <button class="th-btn" id="th-next-s" type="button" title="Newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
-          <button class="th-btn" id="th-speed" type="button" title="playback speed — 1× is real session time">1×</button>
-          <button class="th-btn" id="th-mode" type="button" title="highlight cut / full reel">🎬 CUT</button>
-          <button class="th-btn" id="th-card" type="button" title="READ CARD — full truth for this beat (I)">ℹ</button>
-          <button class="th-btn" id="th-replay" type="button" title="instant replay — rewind to the moments before this find (R)" hidden>⏪</button>
-          <button class="th-btn" id="th-export" type="button" title="night card — export this session's recap to the Desktop">📼</button>
-          <button class="th-btn" id="th-fs" type="button" title="fullscreen — watch like a video (F / Esc exits)">⛶</button>
-          <button class="th-btn" id="th-shelf" type="button" title="all sessions — pick a reel (S)">📚</button>
-          <button class="th-btn" id="th-del" type="button" title="delete this session (two clicks — reads + frames, forever)">🗑</button>
+          <button class="th-btn" id="th-mode" type="button" title="Playback mode — click to cycle: real time / highlights / every frame">⏱ REAL · true speed</button>
+          <button class="th-btn" id="th-speed" type="button" title="Playback speed — click to cycle (1× = real session time)">1×</button>
+          <button class="th-btn" id="th-fs" type="button" title="Fullscreen — watch like a video (F · Esc exits)">⛶</button>
+          <button class="th-btn" id="th-shelf" type="button" title="The shelf — pick any recorded session (S)">📚</button>
+          <div class="th-more-wrap">
+            <button class="th-btn" id="th-more" type="button" title="More — forensics, clip, delete" aria-haspopup="true" aria-expanded="false">⋯ more</button>
+            <div id="th-more-pop" hidden>
+              <button class="th-btn" id="th-card" type="button" title="Every AI thought at this instant">🔬 Beat forensics — the AI's thoughts here</button>
+              <button class="th-btn" id="th-replay" type="button" title="Rewind to the moments before this find" hidden>⏪ Instant replay — before this find</button>
+              <button class="th-btn" id="th-export" type="button" title="Save this session's recap to your Desktop">✂ Clip — save this moment to Desktop</button>
+              <button class="th-btn" id="th-del" type="button" title="Delete this session — reads + frames, forever (two clicks)">🗑 Delete session</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1358,6 +1406,7 @@
       window.__offN = 0;   // v899 — farewell finished → drop to STANDBY immediately
     } else { window.__offN = 0; }
     document.body.setAttribute('data-state', state);
+    try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
     $('bug-txt').textContent = stopping ? 'FAREWELL…' : (state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR'));
@@ -1641,6 +1690,35 @@
   var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'real', allBeats:[] };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
+  // v940.5 — the MODE pill says what it does, in plain words (id + cycling logic untouched)
+  function thModeLabel(m){ return m === 'highlight' ? '🎬 HIGHLIGHTS · skims dull parts' : (m === 'full' ? '📼 EVERY FRAME' : '⏱ REAL · true speed'); }
+  // v940.5 — the PAST-not-LIVE ribbon. ON AIR → says recording continues in the background;
+  // otherwise → session N + the recorded time span. Re-run on paint, session load, and refresh.
+  function thRibbon(){
+    var el = $('th-ribbon'); if (!el) return;
+    var onAir = document.body.getAttribute('data-state') === 'on';
+    if (onAir){
+      el.classList.add('on-air');
+      el.textContent = '📼 REPLAY (recording continues in the background — this screen is the PAST)';
+    } else {
+      el.classList.remove('on-air');
+      var meta = (TH.sessions && TH.sessions[TH.sn-1]) || {};
+      var span = '';
+      if (meta.t0 && meta.t1) span = thFmtFull(meta.t0) + ' → ' + thFmtT(meta.t1);
+      else if (meta.t0) span = thFmtFull(meta.t0);
+      el.textContent = '📼 REPLAY — session ' + (TH.sn || '—') + (span ? ' · ' + span : '') + ' · the PAST, not live';
+    }
+  }
+  // v940.5 — coach hint: once per page-load, dismissed on the first key or tap inside the theatre
+  function thCoachOnce(){
+    if (window.__thCoachShown) return;
+    window.__thCoachShown = true;
+    var c = $('th-coach'); if (!c) return;
+    c.hidden = false;
+    var kill = function(){ c.hidden = true; document.removeEventListener('keydown', kill, true); var th = $('theatre'); if (th) th.removeEventListener('pointerdown', kill, true); };
+    document.addEventListener('keydown', kill, true);
+    var th = $('theatre'); if (th) th.addEventListener('pointerdown', kill, true);
+  }
   function thFmtFull(ts){
     try {
       var d = new Date(ts);
@@ -1862,6 +1940,7 @@
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
       + (footN ? ' · 📹 ' + footN + ' film' : ' · reads-only')
       + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : '');
+    thRibbon();   // v940.5 — keep the PAST-not-LIVE banner synced to the loaded reel
   }
   function thGo(i, autoplay){
     if (!TH.beats.length) return;
@@ -2157,7 +2236,7 @@
         : 'real';
     }
     var _mb = $('th-mode');
-    if (_mb) _mb.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
+    if (_mb) _mb.textContent = thModeLabel(TH.mode);
     var _sp = $('th-speed');
     // v836 — REAL is wall-clock by definition: a fresh reel always opens at 1×, never inheriting
     // a speed bumped during a prior CUT/FULL skim. Compressed modes keep the __speedTouched persist.
@@ -2182,6 +2261,7 @@
     $('theatre').hidden = false;
     document.body.classList.add('theatre-open');
     try { $('th-caption').textContent = '🎞 loading the reel…'; } catch (e) {}
+    try { thRibbon(); thCoachOnce(); } catch (e) {}   // v940.5 — banner + one-time keyboard hint
     thLit();
     var r = await fetch('/api/sessions'); var j = await r.json();
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
@@ -2227,6 +2307,8 @@
     TH.open = false; clearTimeout(TH.timer); TH.playing = false;
     $('theatre').hidden = true;
     document.body.classList.remove('theatre-open');
+    try { var _mp = $('th-more-pop'); if (_mp) thMore(false); } catch(e){}   // v940.5 — never leave the drawer armed behind a closed theatre
+    try { var _c = $('th-coach'); if (_c) _c.hidden = true; } catch(e){}
     thCinema(false);   // v825 — leaving the theatre always leaves cinema
     thLit();
   }
@@ -2566,14 +2648,30 @@
     };
   }
   $('th-shelf').onclick = function(){ thShelf(); };
+  // v940.5 — ⋯ MORE: the drawer for the rare controls (forensics / clip / delete)
+  function thMore(force){
+    var pop = $('th-more-pop'), btn = $('th-more'); if (!pop || !btn) return;
+    var on = (force !== undefined) ? force : pop.hidden;
+    pop.hidden = !on;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  $('th-more').onclick = function(e){ e.stopPropagation(); thMore(); };
+  // click anywhere else closes the drawer (but never on its own controls)
+  document.addEventListener('pointerdown', function(e){
+    var pop = $('th-more-pop'); if (!pop || pop.hidden) return;
+    if (e.target.closest && (e.target.closest('#th-more-pop') || e.target.closest('#th-more'))) return;
+    thMore(false);
+  }, true);
+  var _thDelLabel = '🗑 Delete session';
   $('th-del').onclick = async function(){
     var btn = this;
     if (!btn.__armed){
-      btn.__armed = true; btn.textContent = '🗑 sure?'; btn.style.color = '#f88';
-      clearTimeout(btn.__t); btn.__t = setTimeout(function(){ btn.__armed = false; btn.textContent = '🗑'; btn.style.color = ''; }, 3500);
+      btn.__armed = true; btn.textContent = '🗑 Delete — sure?'; btn.style.color = '#f88';
+      clearTimeout(btn.__t); btn.__t = setTimeout(function(){ btn.__armed = false; btn.textContent = _thDelLabel; btn.style.color = ''; }, 3500);
       return;
     }
-    btn.__armed = false; btn.textContent = '🗑'; btn.style.color = '';
+    btn.__armed = false; btn.textContent = _thDelLabel; btn.style.color = '';
     try {
       var meta = TH.sessions[TH.sn - 1] || {};
       var r = await fetch('/api/session/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: meta.n || TH.sn }) });
@@ -2616,7 +2714,13 @@
     if (e.key === 'i' || e.key === 'I'){ thCardToggle(); e.preventDefault(); }
     else if (e.key === 'f' || e.key === 'F'){ thCinema(); e.preventDefault(); }
     else if (e.key === 's' || e.key === 'S'){ thShelf(); e.preventDefault(); }
-    else if (e.key === 'Escape'){ thCinema(false); }
+    else if (e.key === 'Escape'){
+      // v940.5 — esc unwinds one layer at a time: open drawer → cinema → the theatre itself
+      var _mp = $('th-more-pop');
+      if (_mp && !_mp.hidden){ thMore(false); }
+      else if (document.body.classList.contains('cinema')){ thCinema(false); }
+      else { thClose(); }
+    }
     else if (e.key === 'r' || e.key === 'R'){ thInstantReplay(); e.preventDefault(); }
     else if (e.key === 'Home'){ thGo(0, false); e.preventDefault(); }
     else if (e.key === 'End'){ thGo(TH.beats.length - 1, false); e.preventDefault(); }
@@ -2661,7 +2765,7 @@
   $('th-mode').onclick = function(){
     TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
     TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // CUT → FULL → REAL
-    this.textContent = TH.mode === 'highlight' ? '🎬 CUT' : (TH.mode === 'full' ? '📼 FULL' : '⏱ REAL');
+    this.textContent = thModeLabel(TH.mode);
     // v836 (Konyo: 'REAL at 1× runs way too fast') — REAL means WALL-CLOCK. A speed bumped
     // while skimming CUT/FULL latched via __speedTouched and silently multiplied the real-time
     // playhead. Entering REAL re-pins the deck to 1× so the reel runs the session's true span.
