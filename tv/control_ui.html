@@ -3256,6 +3256,10 @@
       var d = s.ts ? new Date(s.ts) : null;
       var when = d ? (d.toLocaleDateString(undefined,{day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString()) : '—';
       var ic = TLY_IC[s.tab] || TLY_IC[s.kind] || '📸';
+      // v938 — WHO took the shot: 🧠 KAI's funnel vs the live auto lane vs vault
+      var who = (s.kind === 'kai-funnel') ? '<span class="tly-k" style="border-color:rgba(240,192,96,.5);color:#f0c060">🧠 KAI funnel · from the reel</span>'
+              : (s.kind === 'vault') ? '<span class="tly-k" style="opacity:.7">🏦 vault shot</span>'
+              : '<span class="tly-k" style="opacity:.55">🔴 live auto</span>';
       var keys = Object.keys(s.counts||{});
       var chips = keys.length
         ? keys.map(function(k){ return '<span class="tly-k">'+esc(k)+' <b>×'+esc(String(s.counts[k]))+'</b></span>'; }).join('')
@@ -3270,7 +3274,7 @@
         + '<span class="tot">'+(s.total||keys.length)+' counted</span>'
         + (s.errors ? '<span class="tot err">'+s.errors+' errors</span>' : '')
         + (s.ok ? '' : '<span class="tot err">FAILED</span>') + '</div>'
-        + '<div class="tly-counts">'+chips+'</div>'
+        + '<div class="tly-counts">'+who+chips+'</div>'
         + '</div></div>';
     }).join('');
   }
