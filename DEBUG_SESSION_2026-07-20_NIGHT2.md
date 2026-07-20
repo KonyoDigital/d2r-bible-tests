@@ -216,3 +216,29 @@ _End SuperGrok v944.1 · ball back to Claude for Stage 3 or farm soak_
 | v944.5 | 🚫0️⃣ NEVER-ZERO (Konyo's rule: 'nothing read 0 — read the updated picture, hardcoded/automated'): tab_best per session; a 0/error shot is superseded by the tab's real read at the join layer — theatre shows the corrected count, backend log keeps the raw error for pinpointing. +2 pins |
 Suites 43+157+58 green · demos 7/7 · stamps ×4 v944.5 · EDIT_LOCK claimed/released · tracker heal (v943.7) holding.
 **PENDING (post-seal):** polish-ui-2 renders the v944.4/.5 data (read-status verdict, receipt-log viewer, clickable tally detail) — server data live & waiting. **SuperGrok is working the task list** (`DEBUG_SUPERGROK_TASKS_2026-07-21.md`): P0 = runes-0 self-heal pushed INTO the intake pipeline (re-fire the freshest frame so 0 never reaches the journal) + quorum soak · P1 = router Stage 3 (lanes obey the ledger) + dedupe grouping · P2 = Chronicle write-in, intake lease, judge soak, SIM/theatre unify. Claude gates + integrates each return, then re-seals.
+
+---
+
+## 🔬 FABLE VISION FORENSIC PASS (v944.7) — cross-referenced the real reel with my own eyes
+Konyo: "recalibrate what's needed... items and the KAI ROUTER perfectly routing." Read reel
+s_1784580368648 (55 frames) frame-by-frame vs the register/journal. Findings:
+
+1. **MISSED LEDGER over-counted** → FIXED v944.7. Frame f_…436992 (Shared tab, a floating **Jade
+   Jewel** magic-jewel tooltip) = a TRUE miss (never registered). But frame f_…479356 (**Hellfire
+   Torch** tooltip) was flagged missed too — yet the Torch IS registered. Root cause: the missed
+   test flagged a frame if ANY OCR line was new, so tooltip FLAVOR lines ('Required Level 75',
+   'Level 30 Hydra', 'Keep in Inventory') triggered it even when the item NAME was read. Fix:
+   `_kai_nameish` gate — a miss is an unread ITEM NAME, not unread flavor. +3 pins (routes 69).
+
+2. **runes=0 error root cause = WRONG-TAB frame** (verified, pipeline already handles it).
+   The errored runes total=0 shot (frame f_…393103) fired while the **Shared** tab was showing
+   (Gheed's Fortune tooltip visible), NOT the Runes tab — so it read 0 runes. The real total=404
+   came from the correct runes frame ~4s earlier. Confirms: (a) v944.5 never-zero supersede keeps
+   the 404 in the theatre; (b) Grok's v944.6 `_drv_freshest_tab_fid` re-fire correctly filters
+   `stashTab == tab`, so a re-fire re-reads a frame where the Runes tab was actually open, never a
+   wrong-tab frame. The KAI router + never-zero chain is SOUND end-to-end.
+
+**Grok baton:** the missed→judge escalation (a genuine unread name like the Jade Jewel should
+auto-route to the judge/register in KAI v2) is still open — the recalibrated `name_new` list is
+now a clean miss feed to escalate. Also worth a soak: how many `_kai_nameish` misses are magic
+jewels/charms Konyo wants judged vs grail uniques.
