@@ -1167,21 +1167,28 @@ def _kai_closer_loop():
                       "closedAt": int(time.time() * 1000), "kaiVer": 1}
             with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as f:
                 json.dump(report, f)
-            # journal the ledger onto the session's timeline (🧠 gold in SIM)
+            # journal the ledger onto the session's timeline (🧠 gold in SIM).
+            # v934.1 — GHOST-PROOF: split_sessions sorts by ts and cuts on sid change, so
+            # ts=now rows appended after newer sessions would spawn a ghost block (the
+            # bak_ghost_purge class). Journal law is ts == captureTs: misses land AT their
+            # frame's true moment inside the session span; the summary lands at seal+1ms.
             now_ms = int(time.time() * 1000)
-            rows = [{"ts": now_ms, "captureTs": now_ms, "completedTs": now_ms,
-                     "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
-                     "sessionId": sid, "frameId": "",
-                     "kai": {k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
-                     "note": f"🧠 KAI closed the session — {scanned} frames swept · "
-                             f"{len(missed)} frames held text no eye read"}]
+            _sess_last = max((int(r.get("ts") or 0) for r in sess_rows), default=now_ms)
+            rows = []
             for m in missed[:20]:
-                rows.append({"ts": now_ms, "captureTs": int(m.get("ts") or now_ms),
+                _fts = int(m.get("ts") or _sess_last)
+                rows.append({"ts": _fts, "captureTs": _fts,
                              "completedTs": now_ms, "lane": "kai", "mode": "kai",
                              "scene": "kai", "names": [], "sessionId": sid,
                              "frameId": "reel_" + sid + "/" + str(m.get("f") or "").replace(".jpg", ""),
                              "kai": {"texts": m.get("texts") or []},
                              "note": "🧠 unread text: " + ", ".join((m.get("texts") or [])[:3])})
+            rows.append({"ts": _sess_last + 1, "captureTs": _sess_last + 1, "completedTs": now_ms,
+                         "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
+                         "sessionId": sid, "frameId": "",
+                         "kai": {k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
+                         "note": f"🧠 KAI closed the session — {scanned} frames swept · "
+                                 f"{len(missed)} frames held text no eye read"})
             try:
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
                     for r in rows:
@@ -1875,7 +1882,7 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 out.append({"n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
-                            "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]), "frames": len(frames),
+                            "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
                              and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
