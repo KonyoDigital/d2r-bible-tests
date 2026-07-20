@@ -1260,7 +1260,7 @@ def start_film_thread():
     # actual READ still archives its own frame (per-read hist .jpg), so the SIM retro-debugger
     # keeps a screenshot of every read — just no smooth film between reads. TV_FILM=1 (or the
     # heavy TV_LIGHT=0 / robot mode) brings the cinematic film back for debugging.
-    if LIGHT_MODE and str(os.environ.get("TV_FILM", "0") or "0").strip().lower() not in ("1", "true", "yes", "on"):
+    if str(os.environ.get("TV_FILM", "1") or "1").strip().lower() in ("0", "false", "no", "off"):   # v941 — film ON by default (same law as OCR)
         return
     if _FILM_THREAD and _FILM_THREAD.is_alive():
         return
@@ -2314,7 +2314,10 @@ def _ocr_worker_cmd():
     return None
 # v925 LIGHT — OCR lane OFF by default (Grok cut #4): the "1 claude" product doesn't need the
 # extra grab+process per candidate. TV_OCR=1 (or heavy/robot) re-arms it.
-OCR_ENABLED = os.environ.get("TV_OCR", "0" if LIGHT_MODE else "1") != "0"
+# v941 — LANES ON BY DEFAULT, PERIOD. The v925-LIGHT off-defaults bit FOUR times (OCR
+# twice, FILM twice) — every new launch path that skipped the launcher's exports silently
+# killed the fast lane + text eye + footage. Disable explicitly (TV_OCR=0) or not at all.
+OCR_ENABLED = os.environ.get("TV_OCR", "1") != "0"
 
 class OcrWorker:
     """Persistent `ocr_mac --worker` — one process, many frames. Stdlib only."""
