@@ -2999,5 +2999,12 @@
   }, 5000);
 })();
 </script>
+<!-- v931 (Konyo: "put it inside the console instead of an extra side window — better
+     architecture") — the auto-tally ENGINE is an invisible same-origin iframe INSIDE the
+     console. Its JS stays alive because the host window is always visible; the control
+     driver reaches it via contentWindow. The second pywebview window is gone. -->
+<iframe id="tvd-eng" src="/board?engine=1#tvd-engine" title="TVD engine"
+        style="position:fixed; left:0; bottom:0; width:2px; height:2px; opacity:0;
+               pointer-events:none; border:0; z-index:-1" loading="eager"></iframe>
 </body>
 </html>

@@ -1006,11 +1006,11 @@ def open_control_window():
     # icon= supported on some backends; ignore if it errors
     try:
         if icon:
-            webview.create_window(**kwargs, icon=icon)
+            globals()["_MAIN_WIN"] = webview.create_window(**kwargs, icon=icon)
         else:
-            webview.create_window(**kwargs)
+            globals()["_MAIN_WIN"] = webview.create_window(**kwargs)
     except TypeError:
-        webview.create_window(
+        globals()["_MAIN_WIN"] = webview.create_window(
             title="TV DIABLO",
             url=url,
             width=1120,
@@ -1019,30 +1019,15 @@ def open_control_window():
             background_color="#070605",
         )
 
-    # v928 ONE SYSTEM (Konyo: "why is it not bridged automatically?") — the tally/vault/
-    # chronicle engines live ONLY in bible.html JS; with just the control home open, reads
-    # scrolled by with no engine to catch them. Run a second, off-screen board window as a
-    # permanent ENGINE: it auto-probes the bridge and fires the locked auto-intake with
-    # zero clicks. OFF-SCREEN (x=-3980), not hidden=True — the board's bridge probe skips
-    # when document.hidden, so a hidden window would never arm.
+    # v928→v931 ONE SYSTEM (Konyo: "put it inside the console — better architecture") —
+    # the tally/vault/chronicle engines live ONLY in bible.html JS. v928's second window
+    # and v930's mini tile are DEAD: the engine is now an invisible same-origin iframe
+    # (#tvd-eng) inside control_ui.html itself — one window, JS alive because the console
+    # is visible. The control-side driver reaches its board through contentWindow.
     try:
-        # v930 — ON-SCREEN mini tile, not off-screen: WKWebView fully suspends occluded
-        # off-screen windows (timers AND evaluate_js — the driver's probe hung forever).
-        # A small visible tile keeps the board's JS alive; on the fullscreen game Space
-        # it's never seen, on the desktop it sits quietly in the corner.
-        globals()["_ENGINE_WIN"] = webview.create_window(
-            title="TVD ENGINE — auto-tally (leave me be)",
-            url=url.split("/", 3)[0] + "//" + url.split("/", 3)[2] + "/board?engine=1#tvd-engine",
-            width=340, height=220, x=18, y=712,
-            background_color="#070605", confirm_close=False,
-        )
-        # v929.2 (Grok #4 came true live: off-screen WKWebView timers suspend → engine
-        # "linked" lamp lied while zero intakes fired). Don't trust the window's own
-        # setIntervals: a control-side thread watches the bridge for tally-tab deep reads
-        # and DRIVES the engine's locked intake via evaluate_js — executes even throttled.
         threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
     except Exception as _ee:
-        print(f"⚠ engine window failed ({_ee}) — tallies need a board tab open")
+        print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open")
 
     # v928 — private_mode=False FOR REAL: the comment below claimed it since forever, but
     # the call never passed it. pywebview defaults to private (ephemeral) storage, so every
@@ -1100,7 +1085,7 @@ def _engine_driver():
     while True:
         try:
             time.sleep(2.0)
-            w = globals().get("_ENGINE_WIN")
+            w = globals().get("_MAIN_WIN")
             if w is None:
                 continue
             # liveness probe — evaluate_js runs even when timers are throttled
@@ -1114,13 +1099,13 @@ def _engine_driver():
                 globals()["_EJS_STUCK"] = max(0, globals()["_EJS_STUCK"] - 0.05)  # slow decay → occasional retry
                 continue
             try:
-                _pv = _ejs(w, "(window.tvStashAutoIntake? 2 : 1)")
+                _pv = _ejs(w, "(function(){var f=document.getElementById('tvd-eng');return (f&&f.contentWindow&&f.contentWindow.tvStashAutoIntake)?2:1})()")
                 if _pv is None:
                     globals()["_EJS_STUCK"] = globals().get("_EJS_STUCK", 0) + 1
                 else:
                     globals()["_EJS_STUCK"] = 0
                 alive = _pv in (1, 2, "1", "2")
-                globals()["_ENGINE_READY"] = str(_ejs(w, "(typeof window.tvStashAutoIntake==='function')?1:0")) == "1"
+                globals()["_ENGINE_READY"] = str(_ejs(w, "(function(){var f=document.getElementById('tvd-eng');return (f&&f.contentWindow&&typeof f.contentWindow.tvStashAutoIntake==='function')?1:0})()")) == "1"
                 if not alive and globals().get("_ENG_ERR") != repr(_pv):
                     globals()["_ENG_ERR"] = repr(_pv)
                     print(f"🔌 engine probe returned {_pv!r}")
@@ -1150,14 +1135,14 @@ def _engine_driver():
                     if visit_done:
                         visit_done = {}
                         try:
-                            _ejs(w, "window._vaultAutoDone=false;window._vaultAutoBusy=false;1", timeout=2.0)
+                            _ejs(w, "(function(){var f=document.getElementById('tvd-eng');if(f&&f.contentWindow){f.contentWindow._vaultAutoDone=false;f.contentWindow._vaultAutoBusy=false}return 1})()", timeout=2.0)
                         except Exception:
                             pass
                     continue
                 fid = str(rd.get("frameId") or "")
                 if tab in ("runes", "gems", "materials") and not visit_done.get(tab):
                     visit_done[tab] = True
-                    js = ("(function(){try{window.tvStashAutoIntake&&window.tvStashAutoIntake(%s,{frameId:%s})}catch(e){};return 1})()"
+                    js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvStashAutoIntake&&f.contentWindow.tvStashAutoIntake(%s,{frameId:%s})}catch(e){};return 1})()"
                           % (json.dumps(tab), json.dumps(fid)))
                     try:
                         _ejs(w, js, timeout=4.0)
@@ -1166,7 +1151,7 @@ def _engine_driver():
                         print(f"⚠ engine-driver fire failed: {e}")
                 elif tab in ("personal", "shared") and not visit_done.get("vault_" + tab):
                     visit_done["vault_" + tab] = True
-                    js = ("(function(){try{window.tvVaultAutoIntake&&window.tvVaultAutoIntake({tab:%s,frameId:%s})}catch(e){};return 1})()"
+                    js = ("(function(){try{var f=document.getElementById('tvd-eng');f&&f.contentWindow&&f.contentWindow.tvVaultAutoIntake&&f.contentWindow.tvVaultAutoIntake({tab:%s,frameId:%s})}catch(e){};return 1})()"
                           % (json.dumps(tab), json.dumps(fid)))
                     try:
                         _ejs(w, js, timeout=4.0)
