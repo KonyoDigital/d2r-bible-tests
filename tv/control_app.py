@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════════════════════
-# 📺 TV DIABLO — Control App (Mac + Windows · v926)
+# 📺 TV DIABLO — Control App (Mac + Windows · v927)
 #
 #   HD grimoire UI · ON / OFF / STOP / RESTART / SIM · agent HIDDEN.
 #   Window: pywebview (real OS app window — NOT Chrome). Browser is fallback only.
@@ -598,6 +598,36 @@ def _prewarm_seal_cache():
     threading.Thread(target=_run, daemon=True, name="tvd-prewarm").start()
 
 
+def _force_kill_all_agents(reason=""):
+    """v926.2 — the guaranteed stop: SIGKILL every agent pid + port holder, clear state, always
+    return a valid response. The agent journals incrementally, so a hard kill loses at most the
+    session_end marker (the library still shows the run). Used when the polite path raises/hangs."""
+    global _agent_proc, _agent_mode, _stop_inflight, _BOARD_OPENED
+    try:
+        pids = set(_collect_agent_pids()) | set(filter(None, [_port_listener_pid(), _read_pid(PID_PATH)]))
+        for pid in pids:
+            try: _kill_pid(pid, force=True)
+            except Exception: pass
+        time.sleep(0.4)
+    except Exception:
+        pass
+    try: _stop_capture()
+    except Exception: pass
+    with _lock:
+        _agent_proc = None
+        _agent_mode = "off"
+    _stop_inflight = False
+    _BOARD_OPENED = False
+    try:
+        if os.path.isfile(PID_PATH):
+            os.remove(PID_PATH)
+    except Exception:
+        pass
+    dead = _port_listener_pid() is None
+    return {"ok": True, "msg": "force-stopped · off" + (" · " + reason if reason else ""),
+            "farewell": False, "sessionSaved": True, "bridgeDown": dead, "forced": True}
+
+
 def stop_agent(farewell=True):
     """v847/v899 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
     STOP: short farewell (hard-cap ~18s, was 95s). OFF: seal only. Then hard-kill orphans.
@@ -1008,6 +1038,11 @@ def status_payload():
     mode = _agent_mode
     if bridge and mode == "off":
         mode = "live"
+    # v926.2 SELF-HEAL — never a ghost ON AIR: if the agent process is gone AND the bridge is
+    # dead, the session is over regardless of the stale _agent_mode (crash / external kill).
+    # This is why the board stayed "live" after the agent died — mode never got reset.
+    if mode != "off" and not bridge and not _agent_alive():
+        mode = "off"
     beat = (st or {}).get("beat") or {}
     events = (st or {}).get("events") or []
     tail = []
@@ -1021,7 +1056,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v926",
+        "ver": "v927",
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -2245,14 +2280,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/off":
             # v847 — OFF seals the session (session_end) WITHOUT long farewell vision, then kills.
-            # Synchronous so the UI can wait for bridgeDown (no ghost ON AIR).
-            r = stop_agent(farewell=False)
+            # v926.2 — ALWAYS answer with JSON: a raised stop must never leave END SESSION with an
+            # empty response (the real "i cant end session" bug — stop_agent threw, the handler
+            # wrote nothing, the board hung). On any failure, hard-kill and report honestly.
+            try:
+                r = stop_agent(farewell=False)
+            except Exception as _e:
+                r = _force_kill_all_agents("off (stop_agent raised: %s)" % str(_e)[:120])
             _console_beacon_async("off")   # v875
             self._json(200, r)
             return
         if path == "/api/stop":
-            # v847 — STOP: farewell vision + session_end save + full kill (sync for honesty).
-            r = stop_agent(farewell=(_agent_mode != "sim"))
+            try:
+                r = stop_agent(farewell=False)   # v926 LIGHT — never a farewell vision read on End Session
+            except Exception as _e:
+                r = _force_kill_all_agents("stop (stop_agent raised: %s)" % str(_e)[:120])
             self._json(200, r)
             return
         if path == "/api/restart":
@@ -2391,7 +2433,7 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v926 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
+    print(f"📺 TV DIABLO Control v927 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/")
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}")
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch")

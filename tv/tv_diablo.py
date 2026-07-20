@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v926"   # LIGHT reader default (screenshot, not record) · AUTO INTAKE · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
+VERSION = "v927"   # LIGHT reader default (screenshot, not record) · AUTO INTAKE · Robot FROZEN (TV_ROBOT=1) · SESSIONS console home
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -58,6 +58,13 @@ SESSION_CAP  = 240
 # v925 — the sensor tick: LIGHT samples the screen ~every 1.8s (loot waits on the ground), not
 # ~7×/second. This poll capture (Grok: cut #2) is the biggest steady lag after the film loop.
 POLL_S       = float(os.environ.get("TV_POLL", ("1.8" if LIGHT_MODE else "0.15") if not ROBOT_MODE else "0.12") or 0.15)
+# v926.2 ADAPTIVE CADENCE (Konyo: 'once im in the game the screenshotter loops again and slows
+# it') — a full-screen grab forces the Mac to read back the framebuffer, and doing that while a
+# GPU game renders causes a brief hitch. So during ACTIVE play (screen changing = you're moving/
+# fighting, nothing readable anyway) the reader backs off to PLAY_GAP_S; the instant you PAUSE
+# (screen settles = loot/stash) it drops back to POLL_S and reads. Capture load is near-zero when
+# you're playing hard, and only picks up when you stop to look — the one time a read matters.
+PLAY_GAP_S   = float(os.environ.get("TV_PLAY_GAP", "4.0" if LIGHT_MODE else "1.0") or 4.0)
 WATCH_MODE   = "--watch" in sys.argv
 MOTION_PEAK  = 0.10
 SETTLE       = 0.03
@@ -3585,7 +3592,9 @@ def main():
         return used
 
     while True:
-        time.sleep(POLL_S)
+        # v926.2 — adaptive sleep: long during active play (back off, don't stutter the game),
+        # responsive when settled. _ADAPT_GAP is set from motion at the end of each iteration.
+        time.sleep(globals().get("_ADAPT_GAP", POLL_S))
         # ── straggler flush + queue drain: freezes held while readers were busy ──
         try: _order_drain()
         except Exception: pass
@@ -3616,6 +3625,35 @@ def main():
             _drained_any = True
         if _drained_any:
             continue
+        # v926.2 DORMANT-WHEN-NO-GAME (Konyo, acceptance day: "i cant open my game... it needs to
+        # be smoother and more optimized"). For most of a launch the D2R window is missing. Do the
+        # CHEAP Quartz window check FIRST, and while there's no game SKIP the expensive full-screen
+        # capture entirely and idle longer. This stops the agent grabbing the whole screen every
+        # ~2s while you're trying to launch — which burned CPU and fought the game's own render.
+        if not WATCH_MODE and not os.environ.get("TV_STUB"):
+            _ng = time.time()
+            if _ng >= float(globals().get("_GAME_CHECK_DUE", 0.0) or 0.0):
+                globals()["_GAME_CHECK_DUE"] = _ng + 1.5
+                if _game_window_present():
+                    if globals().get("_AI_PAUSED"):
+                        ev("cap", "🎯 D2R window found — AI reads live again")
+                        print("  🎯 D2R window found — AI reads live again")
+                    _set_game_gate(True, "")
+                else:
+                    _msg = "D2R window missing — open Diablo II: Resurrected (in-game, not only Battle.net) for live reads"
+                    if not globals().get("_AI_PAUSED"):
+                        ev("cap", "⏸ " + _msg)
+                        print("  ⏸ " + _msg)
+                    _set_game_gate(False, _msg)
+                    if _ng >= float(globals().get("_NOGAME_SKIP_DUE", 0.0) or 0.0):
+                        globals()["_NOGAME_SKIP_DUE"] = _ng + 30.0
+                        try: journal_skip("no-game", "D2R window not found — AI dormant (no capture)")
+                        except Exception: pass
+            if globals().get("_AI_PAUSED"):
+                beat("hold", 0.0)
+                _AP.update({"mode": "hold", "interest": 0.0, "peak": 0.0, "priority": False})
+                time.sleep(3.0)   # DORMANT — no full-screen capture while there is no game
+                continue
         if WATCH_MODE:
             # v784 — Windows capture half reports pin status via cap_target.json
             _refresh_cap_target_from_disk()
@@ -3691,6 +3729,10 @@ def main():
         try: cur = frame_sig(frame)
         except Exception: continue
         motion = sig_diff(cur, last_md5)
+        # v926.2 — adaptive next-gap: back off capture during active play, stay responsive when
+        # settled so a pause on loot/stash is caught quickly. Never back off while a settle is
+        # pending (we want to confirm it and fire the read).
+        globals()["_ADAPT_GAP"] = PLAY_GAP_S if (motion >= MOTION_PEAK and not _SETTLE_QUEUE) else POLL_S
         # v899 — NO D2R WINDOW: film may keep running, but AI reads stay OFF and the UI
         # shouts to open the game. Prevents 400-read desktop burn while working.
         _now_g = time.time()

@@ -2202,3 +2202,21 @@ sealed on disk before any slow step), the control side can force-kill aggressive
 few seconds even for a stuck/old agent, and the label reads "seal N reads · instant" (no more
 misleading "farewell" in LIGHT). REQUIRES an app restart to load the new control server + spawn
 a fresh v926 agent. 36 control green · UI parses.
+
+## ✅ v927 "SMOOTH" — acceptance day round 2 (Konyo: "still laggy · i cant open my game · END SESSION still not working")
+LIVE DIAGNOSIS (real ps): claude session 35% (my own Claude Code loop while working), agent 16%,
+control 1%. The agent sat ON AIR for 12min "D2R window missing" STILL full-screen-capturing every
+1.8s while he launched the game — burning CPU AND fighting the game's render (black screen / won't
+open). And /api/stop returned an EMPTY body → END SESSION did nothing; when the agent died, control
+stayed mode=live (ghost ON AIR). Fixes:
+1. DORMANT-WHEN-NO-GAME: cheap Quartz window check FIRST; while D2R is missing, skip the full-screen
+   capture entirely + idle 3s. Near-zero load exactly when launching. (the game-open fix)
+2. ADAPTIVE CADENCE: full-screen grabs hitch a GPU game; back off to PLAY_GAP_S (4s) during active
+   play (nothing readable anyway), drop to POLL_S (1.8s) the instant the screen settles = a pause on
+   loot/stash. Reads only matter on pause; capture load is near-zero mid-action.
+3. END SESSION bulletproof: /api/stop + /api/off wrapped so a raised stop_agent still returns JSON
+   (the empty-body bug) → _force_kill_all_agents (SIGKILL + state clear, seal is already on disk).
+4. MODE SELF-HEAL: status reports 'off' when the agent process is gone + bridge dead (no ghost ON AIR).
+Killed his stuck agent for relief first. 154 agent + 36 control green. Requires app restart (v927 in
+the banner confirms it). Honest note: some overhead is inherent (screen-reader + CrossOver game on one
+Mac) — these cuts make the reader nearly free when you're moving and only work when you stop to look.
