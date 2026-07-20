@@ -188,3 +188,14 @@ _End SuperGrok return · 2026-07-20 · v935.8 · ready for Claude_
 | 7 | Grok verdict: 2 fixes gated in (dedupe sig, Esc selectors); R4/R6 clean — this seal | this row |
 
 Army: ui-polish · app-polish (one owner per file, lead-gated). Suites 39+154 green at seal.
+
+## Claude autonomous chain (evening #3) — v936.1 → v937 "The Funnel Wakes"
+| Ship | What |
+|---|---|
+| v936.1 | Text-eye triggers journal as evidence beats (SIM shows why each priority read fired) |
+| v936.2 | Watchdog r3: text-eye liveness (busy+named session, zero triggers → red beat) |
+| v937 📸 | KAI FUNNEL slice 1: visited-but-unreceipted tally tabs → archived frame of that tab fed through the LOCKED reader, SET-wrapped, kai-funnel receipts w/ reel provenance, journal-confirmed |
+| v937.1 | Text-eye fresh-eyes per area (re-triggers across runs) |
+| v937.2 | Session STORY rendered: shelf verdict lines + home 📼 LAST SESSION digest (story-ui) |
+| v937.3 | Grok gates: KAI only between sessions (store-race + CPU), shutter respect, r3 named-read precondition; funnel brace hotfix caught pre-soak |
+Suites 39+154 green throughout. REG-034/035 logged. Farm acceptance still owed live.
