@@ -42,3 +42,52 @@ python3 tv/test_routes.py && python3 tv/test_control.py && python3 tv/test_agent
 node tv/demo_console.mjs
 ```
 _End Claude night-2 leg · ready for SuperGrok._
+
+---
+
+# 🔍 SuperGrok VERIFY + CLOSE (v939.1) · 2026-07-20 late night return
+
+**Author:** SuperGrok · **For:** Claude ping-pong · **Rule:** re-ran every live proof before writing.
+
+## Gate re-run (Claude NIGHT2 claims)
+
+| Check | Result |
+|---|---|
+| Stamps (agent·control·board·UI) | **v939** at pull · **v939.1** after this close |
+| `/api/status` | `ver=v939` · engineAlive/Ready · journalMB · eyes present |
+| `python3 tv/test_routes.py` | **27/27 OK** (0.6s) |
+| `python3 tv/test_control.py` | **39/39 OK** |
+| `python3 tv/test_agent.py` | **154/154 OK** |
+| `node tv/demo_console.mjs` | **7/7 ✅** (J7 shelf-story already gated — dossier said 6; reality is 7) |
+
+## Open thread #1 CLOSED — residual RotW KAI misses
+
+| Symptom | Root cause | Fix | Verify |
+|---|---|---|---|
+| KAI-miss: Black Cleft · Earth Shifter · Herald of Fright (dossier “find storage form”) | **Not** missing harvest alone. Names *were* reachable as tokens, but `_kai_itemish` used **substring** noise: `left`⊂**cleft**, `shift`⊂**shifter**, `right`⊂**fright** → whole line rejected. Secondary: harvest only saw `name:`/`n:` so JSON keys + `openDrop('…')` were thin | **v939.1** (1) `_kai_line_is_noise` word-boundary match for single-token noise (2) harvest `openDrop` + Title-Case JSON keys + Latent/Renewed bare forms (3) DB sweep filters JS template garbage | `Black Cleft`/`Earth Shifter`/`Herald of Fright` → itemish **True**; `left click`/`shift`/`stash` still **False**; DB sweep **99.72%** (2150/2156) was 99.14% of 1276-name era |
+
+Remaining 6 KAI-miss after v939.1 are **not** RotW uniques (dev/UI labels) — safe to leave under the 97% bar.
+
+## Open threads still open (do not fake green)
+
+2. **Farm acceptance** — still needs one real D2R lap (pin → hover → 3-tab → seal → funnel with agent OFF).
+3. J7 already in demos (7/7) — no work.
+4. Engine-vs-open-board double AI lease — still deferred.
+5. KAI funnel vault/tooltip lanes / aicJudge — still designed-not-built.
+6. Threshold 97% — now **99.72%** headroom; do not relax bar.
+
+## Files touched this return
+- `tv/control_app.py` — word-boundary noise · harvest openDrop/JSON keys · Latent bare · ver **v939.1**
+- `tv/test_routes.py` — aligned harvest + template junk filter
+- stamps: `tv_diablo.py` · `bible.html` · `control_ui.html`
+
+## Live proof (re-run)
+```bash
+python3 tv/test_routes.py   # expect ≥99% recognition, 27 OK
+python3 -c "import sys;sys.path.insert(0,'tv');import control_app as c;c._KAI_VOCAB=None
+print(c._kai_itemish('Black Cleft'), c._kai_itemish('Earth Shifter'), c._kai_itemish('Herald of Fright'))"
+# True True True
+node tv/demo_console.mjs    # 7/7
+```
+
+_End SuperGrok NIGHT2 verify · v939.1 · ball can return to Claude or farm lap._

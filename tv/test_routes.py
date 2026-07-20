@@ -33,15 +33,39 @@ BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 # once at import; the tests below sweep KAI recognition + the OCR filter over it.
 # ─────────────────────────────────────────────────────────────────────────────
 def _harvest_db_names():
+    """Keep full names (not tokens). Mirrors control_app._kai_vocab sources so the sweep
+    and the live lexicon stay one system — v939.1 also pulls openDrop + Title-Case JSON keys
+    and Latent/Renewed bare forms (Black Cleft from Latent Black Cleft)."""
     names = set()
     with open(BIBLE, encoding="utf-8", errors="replace") as f:
         txt = f.read()
+
+    def _add(v):
+        v = (v or "").strip()
+        # drop JS template garbage harvested from name: '${…}' / "n": "`+r+`"
+        if not v or "${" in v or "`" in v or v.startswith("' +") or "\\" in v:
+            return
+        if 3 <= len(v) <= 48:
+            names.add(v)
+            bare = re.sub(r"^(Latent|Renewed|PreCrafted)\s+", "", v, flags=re.I).strip()
+            if bare and bare != v and 3 <= len(bare) <= 48:
+                names.add(bare)
+
     for pat in (r"""(?<![\w"])(?:name|n)\s*:\s*(['"])(.*?)\1""",
                 r""""(?:name|n)"\s*:\s*(['"])(.*?)\1"""):
         for m in re.finditer(pat, txt):
-            v = (m.group(2) or "").strip()
-            if 3 <= len(v) <= 48:
-                names.add(v)
+            _add(m.group(2))
+    for m in re.finditer(r"""openDrop\(\s*(['"])(.*?)\1""", txt):
+        _add(m.group(2))
+    for m in re.finditer(r'"([A-Z][^"]{2,46})"\s*:', txt):
+        key = m.group(1)
+        if key.isupper() and " " not in key:
+            continue
+        if re.fullmatch(r"[A-Za-z0-9_./+-]+", key) and " " not in key and len(key) < 6:
+            continue
+        if " " not in key and not re.match(r"^[A-Z][a-z]", key):
+            continue
+        _add(key)
     return sorted(names)
 
 

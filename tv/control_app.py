@@ -1151,12 +1151,30 @@ _GEM_WORDS = ("chipped", "flawed", "flawless", "perfect", "amethyst", "topaz", "
               "emerald", "ruby", "diamond", "skull", "gem")
 
 
+def _kai_add_name_tokens(vocab, full):
+    """Tokenize a full item name into the vocab. Also strip Latent/Renewed so
+    'Latent Black Cleft' grounds OCR of bare 'Black Cleft' (RotW sunder family)."""
+    full = (full or "").strip()
+    if not full:
+        return
+    bare = re.sub(r"^(Latent|Renewed)\s+", "", full, flags=re.I).strip()
+    for name in {full, bare}:
+        for tok in re.split(r"[^A-Za-z]+", name):
+            if len(tok) >= 4 or (len(tok) == 3 and tok not in _KAI_STOP3):
+                vocab.add(tok.lower())
+            # 2-letter runes already seeded; don't flood with short junk
+
+
 def _kai_vocab():
     """v935 — KAI's item lexicon (cached in a global, built once). Seeds the 33 classic rune
     names + gem words, then harvests alphabetic name tokens (len>=4) from every name:'…' /
     name:"…" literal in bible.html, lowercased and capped ~20k. Also buckets the set by token
     length for O(bucket) edit-distance-1 lookup. Errors swallowed — the rune/gem seed always
-    survives so grounding never fully fails open even if bible.html can't be read."""
+    survives so grounding never fully fails open even if bible.html can't be read.
+
+    v939.1 (SuperGrok NIGHT2 open thread #1): also harvest openDrop('…') strings and
+    Title-Case JSON object keys (drop-odds / grail seed) so RotW uniques that live as
+    keys or onclick labels — Earth Shifter, Herald of Fright, Black Cleft — ground OCR."""
     v = globals().get("_KAI_VOCAB")
     if v is not None:
         return v
@@ -1170,13 +1188,32 @@ def _kai_vocab():
         for pat in (r"""(?<![\w"])(?:name|n)\s*:\s*(['"])(.*?)\1""",
                     r""""(?:name|n)"\s*:\s*(['"])(.*?)\1"""):
             for m in re.finditer(pat, txt):
-                for tok in re.split(r"[^A-Za-z]+", m.group(2)):
-                    if len(tok) >= 4 or (len(tok) == 3 and tok not in _KAI_STOP3):
-                        vocab.add(tok.lower())
+                _kai_add_name_tokens(vocab, m.group(2))
                 if len(vocab) >= 20000:
                     break
             if len(vocab) >= 20000:
                 break
+        # openDrop('Herald of Fright') / openDrop("Earth Shifter") — RotW tiles + material cards
+        if len(vocab) < 20000:
+            for m in re.finditer(r"""openDrop\(\s*(['"])(.*?)\1""", txt):
+                _kai_add_name_tokens(vocab, m.group(2))
+                if len(vocab) >= 20000:
+                    break
+        # Title-Case JSON keys ("Earth Shifter": 16004764, "Latent Black Cleft": "Jun …")
+        # Skip SCREAMING_CODES and single tokens that look like ids (UNI-ARMOR, hellTz).
+        if len(vocab) < 20000:
+            for m in re.finditer(r'"([A-Z][^"]{2,46})"\s*:', txt):
+                key = m.group(1)
+                if key.isupper() and " " not in key:
+                    continue
+                if re.fullmatch(r"[A-Za-z0-9_./+-]+", key) and " " not in key and len(key) < 6:
+                    continue
+                # must look like a game name: at least one space OR a long capitalised word
+                if " " not in key and not re.match(r"^[A-Z][a-z]", key):
+                    continue
+                _kai_add_name_tokens(vocab, key)
+                if len(vocab) >= 20000:
+                    break
     except Exception:
         pass
     # never let a UI/noise word (stash, inventory, runes…) ground a loot line: bible.html
@@ -1238,6 +1275,24 @@ def _kai_vocab_hit(tok):
     return False
 
 
+def _kai_line_is_noise(lo):
+    """v939.1 — noise must match as a WORD, not a substring.
+    Substring noise killed real items: 'left'⊂cleft (Black Cleft), 'shift'⊂shifter
+    (Earth Shifter), 'right'⊂fright (Herald of Fright). Multi-word phrases stay
+    substring (they already have spaces: 'create game')."""
+    import re as _re
+    for n in _KAI_NOISE:
+        if not n:
+            continue
+        if " " in n:
+            if n in lo:
+                return True
+        else:
+            if _re.search(r"(?<![a-z])" + _re.escape(n) + r"(?![a-z])", lo):
+                return True
+    return False
+
+
 def _kai_itemish(s):
     """KAI v1 + v935 vocab grounding — keep item-ish OCR lines only when at least one token is
     a real game item word (exact, or one edit away for len>=4). Mirror of the agent's filter."""
@@ -1248,7 +1303,7 @@ def _kai_itemish(s):
         return len(s) == 2 and lo in _kai_vocab()
     if len(s) > 48:
         return False
-    if any(n in lo for n in _KAI_NOISE):
+    if _kai_line_is_noise(lo):
         return False
     # v938.8 — 'gold' left the noise list (it nuked Goldskin/Goldwrap/Goldstrike Arch):
     # gold PILES are killed by shape instead ("665 gold" / bare "gold").
@@ -1800,7 +1855,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v939",
+        "ver": "v939.1",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
