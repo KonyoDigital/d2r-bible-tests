@@ -2499,6 +2499,12 @@ def _text_eye_loop():
             _settle_enqueue(eye, sig, interest=0.95, priority=True, origin="text-eye")
             ev("settle", "👁‍🗨 text eye — new text: " + ", ".join(fresh[:3])
                + (" …" if len(fresh) > 3 else "") + " → priority read of the frozen frame")
+            # v937 — the trigger is EVIDENCE: journal it so SIM shows WHY a priority read
+            # fired at this instant, and the Watchdog can assert text-eye liveness.
+            try:
+                journal_skip("text-eye", "👁‍🗨 triggered by: " + ", ".join(fresh[:4]))
+            except Exception:
+                pass
         except Exception:
             time.sleep(2.0)
 
