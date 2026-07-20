@@ -772,6 +772,10 @@
   #th-shelfov .sh-card:hover { border-color: var(--gold-antique); }
   #th-shelfov .sh-card.cur { border-color: #7ddca0; }
   #th-shelfov .sh-card b { color: #e4d2a4; } #th-shelfov .sh-card .sh-dim { opacity: .55; }
+  /* v936 (STORY ARC R2a) — seal verdict line: small mono, sits in the .sh-dim block */
+  #th-shelfov .sh-card .sh-verdict { font: 500 10px/1.5 var(--mono); letter-spacing: .02em; }
+  #th-shelfov .sh-card .sh-verdict .sh-clean { color: var(--gold-dim); }
+  #th-shelfov .sh-card .sh-verdict .sh-warn { color: #ff7a7a; opacity: 1; }
   @keyframes thChipIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
   .th-caption .th-chip { display: inline-block; margin: 0 4px; padding: 2px 9px; border-radius: 999px;
     background: rgba(240,192,96,.05); border: 1px solid rgba(240,192,96,.22); font-weight: 600;
@@ -984,7 +988,7 @@
   body[data-state="sim"] .home-dash { display: none; }
   /* v913 (Konyo: 'when the reader is on it should show all visually perfectly') — ON AIR keeps
      a LIVE strip: engines + intake feed breathe under the film; the heavy panels rest */
-  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge { display: none; }
+  body[data-state="on"] #hd-taskforce, body[data-state="on"] #hd-forge, body[data-state="on"] #hd-lastsession { display: none; }
   body[data-state="on"] .home-dash { grid-template-columns: 1fr 1fr; max-height: 180px; overflow-y: auto; }
   body[data-state="on"] .stage { min-height: 420px; }   /* v913-R6 (Grok) — the film NEVER starves for the live strip */
   .hd-chip-art { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 6px; filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); }
@@ -1123,6 +1127,11 @@
       <div class="hd-col hd-wide hd-taskforce" id="hd-taskforce" hidden>
         <div class="hd-h">🗓 DAILY TASK FORCE <span class="hd-sub" id="hd-tf-date"></span></div>
         <div class="hd-tf-rows" id="hd-tf-rows"></div>
+      </div>
+      <!-- v936 (STORY ARC R2b) — LAST SESSION digest: the newest sealed reel, at a glance -->
+      <div class="hd-col hd-wide hd-lastsession" id="hd-lastsession" hidden>
+        <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
+        <div class="hd-tf-rows" id="hd-ls-row"></div>
       </div>
       <div class="hd-col hd-wide hd-engines" id="hd-engines">
         <div class="hd-h">🖥 ENGINES <span class="hd-sub">every lane, one glance</span></div>
@@ -2511,12 +2520,24 @@
       var footLine = foot ? (inLine + '📹 ' + foot + ' frames · full video')
         : (sm.stub ? '' : inLine + '<span style="opacity:.45">📹 footage retired</span>');
       var art = sm.thumb ? '<img class="sh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+      // v936 (STORY ARC R2a) — the SEAL VERDICT: one line telling if the reel ran clean.
+      // watchdog + KAI sweep + tally count, all in the shelf card's .sh-dim aesthetic.
+      var vparts = [];
+      if (sm.watchdogViolations > 0){
+        vparts.push('<span class="sh-warn">🚨 ' + sm.watchdogViolations + ' miss' + (sm.watchdogViolations > 1 ? 'es' : '') + '</span>');
+      } else if (sm.kaiMissed != null){   // watchdogViolations==0 AND sealed (KAI has closed it)
+        vparts.push('<span class="sh-clean">🛡 clean</span>');
+      }
+      if (sm.kaiMissed != null) vparts.push('🧠 swept · ' + sm.kaiMissed + ' missed-text');
+      if (sm.tallies > 0) vparts.push('📸 ' + sm.tallies + ' tall' + (sm.tallies > 1 ? 'ies' : 'y'));
+      var verdictLine = vparts.length ? '<br><span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + '" data-n="' + n + '">'
         + art
         + '<b>session ' + n + '</b>' + (sm.stub ? ' <span class="sh-dim">· ghost</span>' : '') + '<br>'
         + (d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '<br>'
         + '<span class="sh-dim">' + (spanS ? Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's · ' : '')
         + (sm.reads || 0) + ' reads · ' + (sm.named || 0) + ' named'
+        + verdictLine
         + (footLine ? '<br>' + footLine : '')
         + ((sm.areas || []).length ? '<br>' + esc(sm.areas.slice(0, 3).join(' · ')) : '') + '</span></div>';
     }).join('');
@@ -3089,6 +3110,31 @@
     if (pv) pv.onclick = function(){ HD_PAGE--; hdShelfRender(); };
     if (nx) nx.onclick = function(){ HD_PAGE++; hdShelfRender(); };
   }
+  // v936 (STORY ARC R2b) — LAST SESSION digest: the newest SEALED reel (KAI has closed it,
+  // kaiMissed!=null), rendered as one flagship tf-row on the home dash. Fed by HD_ALL, which
+  // hdShelf() repopulates from /api/sessions every poll. Hidden entirely until a reel seals.
+  function hdLastSession(){
+    try {
+      var box = $('hd-lastsession'); if (!box) return;
+      var t = (HD_ALL || []).find(function(s){ return s.kaiMissed != null; });
+      if (!t && (HD_ALL || []).length > 1) t = HD_ALL[1];   // fallback: the one before the live head
+      if (!t){ box.hidden = true; return; }
+      var spanS = (t.t0 && t.t1) ? Math.max(0, Math.round((t.t1 - t.t0) / 1000)) : 0;
+      var parts = [];
+      parts.push(spanS ? Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's' : '—');
+      parts.push((t.reads || 0) + ' reads');
+      if (t.tallies > 0) parts.push('📸 ' + t.tallies + ' tall' + (t.tallies > 1 ? 'ies' : 'y'));
+      if (t.kaiMissed != null) parts.push('🧠 ' + t.kaiMissed + ' missed');
+      var clean = !(t.watchdogViolations > 0);
+      var badge = clean
+        ? '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>'
+        : '<span class="tf-tag" style="border-color:rgba(255,122,122,.5);color:#ff7a7a">🚨 ' + t.watchdogViolations + '</span>';
+      $('hd-ls-row').innerHTML = '<div class="tf-row tf-stat"><span class="tf-g">📼</span>'
+        + '<span class="tf-t"><b>session ' + (t.n || '') + '</b> · ' + esc(parts.join(' · ')) + '</span>'
+        + badge + '</div>';
+      box.hidden = false;
+    } catch(e){}
+  }
   async function hdShelf(){
     try {
       var r = await fetch(API + '/api/sessions'); var j = await r.json();
@@ -3096,6 +3142,7 @@
       // not slide the cards under the viewer's feet
       var anchorSid = (HD_ALL[HD_PAGE * HD_PER] || {}).sessionId;
       HD_ALL = (j.sessions || []).filter(function(x){ return !x.stub; });
+      hdLastSession();   // v936 (STORY ARC R2b) — refresh the home digest on every poll
       if (!$('hd-shelf-grid')) return;   // v910 — data still feeds the task force; the grid lives in the shelf now
       if (!HD_ALL.length){ $('hd-shelf-grid').innerHTML = '<span class="hd-empty">no sessions yet — your first ON AIR seals one</span>'; $('hd-shelf-pager').innerHTML = ''; return; }
       if (anchorSid){
