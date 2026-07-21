@@ -97,3 +97,54 @@ Phase F — POLISH + PERFORM: the 1000-version road to LEVEL 2 (real-time produc
 
 ---
 _Architecture first. Ping-pong this. Then build the Ninja from the ground up._ 🥷🧠🖥
+
+---
+
+## ✅ SETTLED DECISIONS — from the 6-agent critique panel (2026-07-21, converged, grounded in code)
+
+The six critiques converged cleanly (no contradictions). The codebase already half-answered most with the
+right split — the job is to GENERALIZE the working pattern, not invent a new one. **One correctness BLOCKER.**
+
+**Q1 · EngineFrame — HYBRID.** Materialize the *semantic* reconciliation (owner/verdict/per-layer) into
+`kai_report.json` at seal (a per-frame array); keep *presentation* + the *live cursor* derived on-read.
+The deciding layer (4th organ) only runs post-seal, so owner/verdict are seal-time facts by construction;
+freshness = `kaiVer` re-close. First step: `_kai_build_engine_frames()` beside `_kai_build_routing`, written
+via `_kai_write_report_atomic`.
+
+**Q2 · Reconciler — ONE pure fn, ZERO new threads.** `_kai_reconcile()` called from the two EXISTING
+mutually-exclusive threads (authoritative in `_kai_closer_loop`; provisional live in `_engine_driver`'s 2s
+loop into an in-memory deque). A 3rd always-on thread would revive the race the `_agent_mode/_agent_alive()`
+gate killed (v937.3). "Always running" = an OBSERVABILITY promise (the `_WATCHDOG_LAST` compute→stash→render
+pattern), NOT a literal thread. Sealed owner (kaiVer≥3) always wins over the live provisional guess.
+
+**Q3 · Timeline — ONE continuous axis, SEGMENTED BY REEL** (per-reel splice, between-reel dead time = thin
+divider; not wall-clock, not a picker). One `captureTs→(reel,frame)→EngineFrame` resolver for both modes;
+"now" = rightmost frame of newest reel; only the exact right edge overlays live `/api/status`. **Key every
+segment by stable `sessionId`, never positional `n`** (n renumbers after each seal). Ruler from
+`_theatre_sessions()`.
+
+**Q4 · Live ring — YES, ~12-16 frames in control_app MEMORY**, projected from the already-cached
+`_BR_CACHE["st"]["reads"]` + one synthetic in-flight head from `health` (the stall lives only in the agent's
+live state — a stalled read has NO journal row yet). Fields `{ts(=captureTs),lane,ms,ocrMs,conf,names[:3],
+rawHead}`, **rawHead HARD-CAPPED ~160 chars**; quorum votes blank-but-present live (seal-time, filled on
+scrub). Add `"liveRing"` to `status_payload()`. **Do NOT derive from `_kai_journal_rows()`** (parses the
+897KB journal per poll).
+
+**Q5 · Time-sync — ❌ CORRECTNESS BLOCKER (fix BEFORE the cockpit).** 3 of 5 layers clean (deep/kai/gate
+anchor captureTs to the frame). **Offender: INTAKE RECEIPTS** — both writers (`control_app.py:5753`,
+`tv_diablo.py:458`) stamp captureTs = the client's `Date.now()` receipt-landing time, so it floats SECONDS
+right of the frame it describes → retro scrub cannot trust it. **VERIFY rows** are `ts=now, captureTs=cap_ms`
+(retro-safe, readers prefer captureTs — leave, document). **Amend the invariant (both docs):** *"captureTs ==
+the frame's capture ms for every artifact; retro joins on captureTs, never ts."*
+
+**Q6 · MVP cockpit — SHIP READ-ONLY v1 projecting what ALREADY exists** (live now-cursor from
+`status_payload()`, retro per-frame from `kai_report.routing[]`), with super/owner/verdict STUBBED null
+(gate/HD-art light-up pattern). Two zones: (A) the SPINE — 6 organ panels from status (live-eye RED when
+`visionBusyMs` > stall threshold); (B) the RETRO TIMELINE — a sealed reel's `routing[]` on one ts axis
+colored by gatePass/routed/skipReason, frame-click → existing `/api/beat` drill-down. Do NOT block v1 on the
+4th organ/reconciler.
+
+**REVISED BUILD ORDER:** Phase A0 (NEW, BLOCKER) — fix intake captureTs → the frame's capture ms · Phase E-v1
+MVP cockpit (ships now, existing data) · Phase B 4th organ · Phase C reconciler · Phase D materialize
+EngineFrame + live ring · Phase E-v2/v3 super/owner/quorum fill-in. **The blocker (A0) and the MVP (E-v1) can
+start immediately; B/C/D refine what the cockpit shows.**
