@@ -161,3 +161,7 @@ Complements the v1176 in-process window-death fix (that stops window-close death
 
 ## 🤖 AUTONOMOUS MODE (Konyo "work autonomously" 2026-07-22): running Lane B per-engine polish, gating each round.
 IN FLIGHT: engine-read (tv_diablo.py read stack — bounded reads / no-starve) → gates v1179 (7/80). Sequential engine rounds (stamp-parity couples tv_diablo.py+control_app.py+bible.html → one uncommitted stamped-file round at a time). Counter: 6/80 · at v1178 · target v1252.
+
+## ✅ GATED: v1179 (7/80) — HEAD 5ba9e7c — READ engine polish #1
+engine-read (tv_diablo.py + test_agent.py): _VERIFY_Q closer/second-look STARVE fix — the second-look queue was drained only in the live idle gap, never at session close → last reads' second looks silently vanished. FIX: _pool_shutdown drains it within the existing FAREWELL budget (no-op past deadline, never slows shutdown). +2 regression tests. ×3 parity v1179, floor agent 173 · control 64, smoke+deploy live. Supervisor auto-respawned console @ v1179. Counter: 7/80 · at v1178→v1179 · target v1252.
+NEXT: route/gate engine round on control_app.py (dispatched → v1180).
