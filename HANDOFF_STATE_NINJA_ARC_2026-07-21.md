@@ -114,3 +114,7 @@ At version **v2000**, TV DIABLO graduates to Level 2 — a full rename + rebrand
 
 ## ✅ GATED: v1173 (1/80) — HEAD 26a5781
 Integer reset (decimals retired, real count 1172→v1173) + Typography R1 (one type-scale, fullscreen floor, 2nd competing system retired — typo-r1) + Phase D owner/verdict swap (Engine Room drill-down authoritative — polish-ui-2). ×3 parity v1173, floor control 64 · agent 171, smoke+deploy green, app relaunched, EDIT_LOCK released. NEXT: polish-ui-2 owns R2 (toggle sweep) on control_ui.html; typo-r1 steps off that file. Counter: 1/80 · at v1173 · target v1252 · north star v2000.
+
+## ✅ GATED: v1174 (2/80) — HEAD a5a341d
+Typography R2 — TOGGLE SWEEP (polish-ui-2, control_ui.html): one-shell law applied to every toggle (modals backdrop-fade+panel-rise · in-place panels smooth reveal · <details> ease · dash cards gentle), reduced-motion/endurance opt-out, built on the v1173 --fs-* scale, zero raw font-sizes added. Shell-tab→iframe promote left un-animated (protects 0.00px invariant). ×3 parity v1174, floor control 64, smoke passed + deploy live, app recovered @ v1174, EDIT_LOCK released.
+NOTE: :17772 had crashed again before this gate (recovered via .app relaunch during the stamp bump). NEXT: polish-ui-2 owns R3 (fullscreen optimization). Counter: 2/80 · at v1174 · target v1252 · north star v2000.
