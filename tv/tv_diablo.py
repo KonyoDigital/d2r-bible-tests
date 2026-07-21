@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1183"   # 🩸 FORGE FIX (Konyo: "where is the Blood craft?") — a craft used to VANISH entirely from the Forge when you owned 0 of its Perfect gem (Blood needs a Perfect Ruby; his Ruby tally read 0, likely stomped by the pre-v1182 live-clobber). FIX (bible.html): the ⚗️ Crafts section now ALWAYS shows all 4 craft types (Caster·Blood·Safety·Hit Power); _craftSlots gem-gates readiness (a craft needs its gem AND the slot rune) and rows show "need Perfect Ruby" when the gem's missing. Nothing disappears just because a tally reads 0. ×3 parity (11/80 → v1252)
+VERSION = "v1184"   # 💎 FORGE AI-SMART CUBE-UP (Konyo: "I have enough red gems to make Perfect — read that automatically, 4/4") — craft gem readiness now counts a Perfect gem you can CUBE UP from lower grades in stash (3-to-1 chain via gemCubeUpPotential), not only pre-made Perfects. New _craftGemReady() {ready,own,cube}; _craftSlots + forgeScan use it, so Blood reads 4/4 make-now from a stash of Flawless/Normal/Flawed/Chipped Rubies; rows note "· cube 3→1 Perfect Ruby". Same intelligence runewords already use for cube-up runes. ×3 parity (12/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

@@ -19133,6 +19133,20 @@ function gemCubeUpPotential(type, targetQi){
   return carry[targetQi] || 0;
 }
 window.gemCubeUpPotential = gemCubeUpPotential;
+// v1184 — AI-SMART craft gem readiness. A craft's Perfect gem is "in hand" if you OWN one OR can CUBE
+// lower grades of that gem type up to ≥1 Perfect (the 3-to-1 chain, via gemCubeUpPotential) — the same
+// intelligence runewords already use for cube-up-able runes. Konyo: "do AI-smart cube-up for what I have
+// in stash." Returns {ready, own, cube}: own = a Perfect already tallied; cube = 0 Perfect but enough
+// lower grades to cube one up. So a stash of Flawless/Normal/Flawed/Chipped Rubies makes the Blood craft
+// read make-now automatically, instead of demanding a pre-made Perfect Ruby.
+function _craftGemReady(gemName){
+  var own = _gemCount(gemName) >= 1;
+  if (own) return { ready:true, own:true, cube:false };
+  var e = (typeof _GEM_INDEX !== 'undefined') ? _GEM_INDEX[String(gemName || '').toLowerCase()] : null;
+  var canCube = !!(e && typeof gemCubeUpPotential === 'function' && gemCubeUpPotential(e.type, e.qi) >= 1);
+  return { ready:canCube, own:false, cube:canCube };
+}
+window._craftGemReady = _craftGemReady;
 // rich-hover gem card body (image-less): type/role head + the 3 socket lines for that grade.
 function _gemTipHtml(e){
   if (!e) return '';
@@ -30942,9 +30956,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if(!chosen && t.base && t.base.name && _rsv[t.base.name] && _rsv[t.base.name].indexOf(t.rw)<0) t.rsvFor=_rsv[t.base.name][0];   // v630 — say WHO the copy is earmarked for
       }
     });
-    // 4) crafts you can cube now (have the perfect gem + the slot rune)
+    // 4) crafts you can cube now (have the perfect gem — OWNED or cube-up-able — + the slot rune)
     try { if (typeof CRAFTS!=='undefined' && CRAFTS) CRAFTS.forEach(function(c){
-      if ((typeof _gemCount==='function'?_gemCount(c.gem):0)<1) return;
+      // v1184 — AI-smart: own a Perfect gem OR hold enough lower grades to cube one up (3-to-1).
+      if (!((typeof _craftGemReady==='function')?_craftGemReady(c.gem).ready:((typeof _gemCount==='function'?_gemCount(c.gem):0)>=1))) return;
       var slots=(c.best&&c.best.length)?c.best:Object.keys(c.slots||{});
       slots.forEach(function(slot){
         var rec=c.slots&&c.slots[slot]; if(!rec) return;
@@ -31197,13 +31212,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // not every possible slot. Falls back to all slots only if a craft has no curated list.
     var slotKeys=(c.best && c.best.length) ? c.best.filter(function(sl){ return c.slots[sl]; }) : Object.keys(c.slots);
     // v1183 — a craft needs its PERFECT GEM too, not just the slot rune. "make now" = gem AND rune in hand.
-    var hasGem=(typeof _gemCount==='function'?_gemCount(c.gem):0)>=1;
+    // v1184 — AI-smart: the gem is in-hand if you OWN a Perfect OR can cube lower grades up to one.
+    var _gr=(typeof _craftGemReady==='function')?_craftGemReady(c.gem):{ready:((typeof _gemCount==='function'?_gemCount(c.gem):0)>=1),own:true,cube:false};
+    var hasGem=_gr.ready, gemCube=_gr.cube;
     var rows=slotKeys.map(function(slot){
       var rec=c.slots[slot]||{}, hasRune=(typeof _runeCount==='function'?_runeCount(rec.rune):0)>=1;
-      return { slot:slot, rune:rec.rune, base:rec.base, ready:(hasGem && hasRune), hasGem:hasGem, hasRune:hasRune };
+      return { slot:slot, rune:rec.rune, base:rec.base, ready:(hasGem && hasRune), hasGem:hasGem, hasRune:hasRune, gemCube:gemCube };
     });
     rows.sort(function(a,b){ return (b.ready?1:0)-(a.ready?1:0) || a.slot.localeCompare(b.slot); });
-    return { c:c, rows:rows, readyN:rows.filter(function(r){return r.ready;}).length, total:rows.length, hasGem:hasGem };
+    return { c:c, rows:rows, readyN:rows.filter(function(r){return r.ready;}).length, total:rows.length, hasGem:hasGem, gemCube:gemCube };
   }
   // v510 — HD item art per craft slot (Konyo: "HD art like in-game for Amulet/Belt/Gloves/Ring + all").
   // Representative HD sprite per slot type + a tooltip name that resolves to that art. Map the jewelry
@@ -31260,7 +31277,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +_slotArtImg(r.slot, cc)
           +'<span class="f-craftrow-slot" style="color:var(--q-orange,#ffa800)">'+_fEsc(r.slot)+'</span>'
           +'<span class="f-craftrow-rec">'+_cingRune(r.rune)+'<span class="f-cplus">+</span>magic '+_cingBase(r.base, r.slot)+'<span class="f-cplus">+</span>'+_cingJewel()+'</span>'
-          +'<span class="f-craftrow-st">'+(r.ready?'✓ make now':(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))+'</span>'
+          +'<span class="f-craftrow-st">'+(r.ready?('✓ make now'+(r.gemCube?' <span style="opacity:.72;font-weight:500">· cube 3→1 '+_fEsc(c.gem)+'</span>':'')):(r.hasGem===false?'need '+_fEsc(c.gem):'need '+_fEsc(r.rune)))+'</span>'
           +'</div>';
       });
       h+='</div>';
@@ -33959,7 +33976,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v1183', name:'Forge · Blood Craft Restored (all 4 crafts always show)', date:'2026-07-22', note:'🩸 FORGE FIX — Konyo: "where is the Blood craft?" The Blood craft (Perfect Ruby · Life leech, red) had VANISHED from the Forge. Root cause: the Forge hid an entire craft TYPE when you owned 0 of its Perfect gem (line 30947: _gemCount(gem)<1 → skip) — and his Perfect Ruby tally read 0 (very likely stomped by the pre-v1182 live-tally clobber; v1182 fixes that going forward). The craft DATA was always intact. FIX: the ⚗️ Crafts section now ALWAYS renders all four craft types (Caster · Blood · Safety · Hit Power) as the reference — a craft never disappears just because a gem tally reads 0. _craftSlots now gem-gates readiness properly (a craft is "✓ make now" only with BOTH the Perfect gem AND the slot rune in hand) and each slot row shows "need Perfect Ruby" when the gem is what\'s missing, "need <rune>" otherwise. Makeable crafts sort first. 11/80 → v1252 (north star v2000 = Level 2 rebrand).' };
+  window.D2R_BUILD = { id:'v1184', name:'Forge · AI-Smart Gem Cube-Up For Crafts', date:'2026-07-22', note:'💎 FORGE AI-SMART CUBE-UP — Konyo: "I have enough red gems to make Perfect, why isn\'t it reading that automatically and 4/4?" The Forge counted a craft\'s Perfect gem only if you already owned a PRE-MADE Perfect — ignoring the 3-to-1 cube-up chain it already does for runes. FIX: new _craftGemReady() returns {ready,own,cube} — a gem is in-hand if you OWN a Perfect OR can cube lower grades (Flawless/Normal/Flawed/Chipped) up to ≥1 Perfect via the existing gemCubeUpPotential() helper. _craftSlots and forgeScan both use it, so Blood (and any craft) reads 4/4 make-now automatically from a stash of lower gems, and each slot row honestly notes "· cube 3→1 Perfect Ruby" when the gem comes from cubing. Same intelligence runewords already use for cube-up-able runes — the app now syncs stash → craftability everywhere. Builds on v1183 (all 4 crafts always show). 12/80 → v1252 (north star v2000 = Level 2 rebrand).' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
