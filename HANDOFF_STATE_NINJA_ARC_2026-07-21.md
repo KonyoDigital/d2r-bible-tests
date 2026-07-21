@@ -169,3 +169,7 @@ NEXT: route/gate engine round on control_app.py (dispatched → v1180).
 ## ✅ GATED: v1180 (8/80) — HEAD c2ef218 — ROUTE/GATE engine polish #1
 engine-route (control_app.py + test_control.py): honest promotion sources — the v947 weak-quorum promote branch unioned STALE sources (a brain voting a contradicting label folded in as agreeing), inflating confidence + polluting gateSources. FIX: carry forward only brains that voted the promoted label + the 2 confirmed eyes. +2 tests. ×3 parity v1180, floor control 66 · agent 173, smoke+deploy live, supervisor respawned @ v1180. Counter: 8/80 · at v1180 · target v1252.
 NEXT: capture engine round on tv_diablo.py (dispatched → v1181). Per-engine coverage so far: read(v1179) · route/gate(v1180) · capture(→v1181) · funnel pending.
+
+## ✅ GATED: v1181 (9/80) — HEAD 0d72b3b — CAPTURE engine polish #1
+engine-capture (tv_diablo.py + test_agent.py): blank-frame guard on ALL lanes — _is_white_backing was applied only on the window lane, not the full-screen/never-starve lanes (the paths that fire right after a white-reject demotion), so blank Metal surfaces could be archived as real gameplay. FIX: shared _grab_full_screen_frame() applies the guard everywhere (+_FILM_WHITE_REJECTS telemetry); captureTs law untouched (stamps land only on real pixels). +2 tests. ×3 parity v1181, floor agent 175 · control 66, smoke+deploy live, supervisor respawned @ v1181. Counter: 9/80 · at v1181 · target v1252.
+NEXT: funnel engine round on control_app.py (dispatched → v1182) — completes the 4-engine sweep (read·route/gate·capture·funnel).
