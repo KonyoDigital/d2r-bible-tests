@@ -2289,6 +2289,42 @@ class TestV926SecondLook(unittest.TestCase):
                                 "scene": "loot", "cap_ms": 1784500000000})
         self.assertEqual(out["delta"], 0)   # conf<0.7 → no remove, conf<0.8 → no add
 
+    def test_close_time_drain_respects_a_past_deadline(self):
+        # v1179 CLOSER — a deadline already in the past (the shutdown budget is spent) must
+        # leave the queue untouched rather than overrun the caller's time box.
+        with open(self.man, "w") as _mf:
+            json.dump({os.path.basename(self.fid + ".jpg") + "#verify":
+                       {"confirm": ["Ist Rune"], "not_present": [], "missed": [], "conf": 0.9}}, _mf)
+        tv._VERIFY_Q.append({"fid": self.fid, "names": ["Ist Rune"], "vaulted": ["Ist Rune"],
+                             "n": 7, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000000})
+        tv._verify_drain(budget=len(tv._VERIFY_Q), deadline=time.time() - 1.0)
+        self.assertEqual(len(tv._VERIFY_Q), 1)   # nothing spent — the job is still queued
+        tv._VERIFY_Q.clear()
+
+    def test_close_time_drain_clears_a_multi_item_backlog_before_a_future_deadline(self):
+        # v1179 CLOSER — the last read(s) before session close must not vanish un-verified:
+        # a future deadline (spare time left in the shutdown budget) drains the WHOLE backlog,
+        # not just the main-loop's usual budget=1 idle-gap trickle.
+        fid2 = "8_1784500000100"
+        with open(os.path.join(self.hist, fid2 + ".jpg"), "wb") as f:
+            f.write(b"\xff\xd8\xff\xe0FAKE2")
+        with open(self.man, "w") as _mf:
+            json.dump({
+                os.path.basename(self.fid + ".jpg") + "#verify":
+                    {"confirm": ["Ist Rune"], "not_present": [], "missed": [], "conf": 0.9},
+                os.path.basename(fid2 + ".jpg") + "#verify":
+                    {"confirm": ["Ohm Rune"], "not_present": [], "missed": [], "conf": 0.9},
+            }, _mf)
+        tv._VERIFY_Q.append({"fid": self.fid, "names": ["Ist Rune"], "vaulted": ["Ist Rune"],
+                             "n": 7, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000000})
+        tv._VERIFY_Q.append({"fid": fid2, "names": ["Ohm Rune"], "vaulted": ["Ohm Rune"],
+                             "n": 8, "sid": "s_v", "scene": "loot", "cap_ms": 1784500000100})
+        tv._verify_drain(budget=len(tv._VERIFY_Q), deadline=time.time() + 30.0)
+        self.assertEqual(len(tv._VERIFY_Q), 0)   # both jobs drained, none silently dropped
+        vrows = [r for r in self._rows() if r.get("lane") == "verify"]
+        self.assertEqual(len(vrows), 2)
+        self.assertEqual({r["frameId"] for r in vrows}, {self.fid + "#v", fid2 + "#v"})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

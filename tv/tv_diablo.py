@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1178"   # 🔤✨ Typography R5 — VISUAL POLISH + CONSISTENCY SWEEP (FINAL typography round): brought the flagship ENGINE ROOM into the design system — .er-band section labels now wear the gold accent-bar+underline like every other header, and its panel chrome unified with the tally/legend overlay family (radius 16→14, border .28→.4, shared gold halo). Every overlay is now one family; the console reads as ONE designed product. Quality-over-churn (2 real fixes, 0 cosmetic). CSS-only (control_ui.html). ×3 parity (6/80 → v1252) — TYPOGRAPHY ARC R1→R5 COMPLETE
+VERSION = "v1179"   # 🔴 READ ENGINE polish — closer/second-look STARVE fix: _VERIFY_Q (the second-look queue) was drained ONLY in the live loop's idle gap, never at session close → the LAST reads' second looks silently vanished on End Session (not verified, not honest-miss, just gone). FIX: _pool_shutdown now drains _VERIFY_Q within the EXISTING farewell budget (no-op past deadline — never slows shutdown); verify_read/_verify_apply/_verify_drain gained timeout+deadline bounds. +2 regression tests (tv_diablo.py + test_agent.py); ×3 parity (7/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2265,6 +2265,20 @@ def _pool_shutdown(timeout=None):
         globals()["ORDER_HOLD_MS"] = _prev
     except Exception:
         pass
+    # v1179 CLOSER — a verify job for the last read(s) of the session was silently dropped when
+    # the process exited with `_VERIFY_Q` non-empty (nothing ever drains it but the main loop's
+    # idle gap, which a closing session no longer reaches). That item's second-look correction
+    # then never runs at all — a silent starve, not an honest miss. Spend only what's LEFT of
+    # this function's own `deadline` (never extends shutdown time): if the in-flight join above
+    # finished early, as it usually does, there's a few spare seconds to spend here instead of
+    # going idle; if it already ate the whole budget, `time.time() < deadline` is false and this
+    # is a no-op.
+    try:
+        if VERIFY_ON and _VERIFY_Q and time.time() < deadline:
+            _verify_drain(worker=_WORKER, budget=len(_VERIFY_Q),
+                          timeout=max(3.0, deadline - time.time()), deadline=deadline)
+    except Exception:
+        pass
     for w in _WORKERS[1:]:
         try: w.stop()
         except Exception: pass
@@ -3789,7 +3803,7 @@ def claude_read(path, worker=None, out_jpg=None):
 _VERIFY_Q = deque(maxlen=32)   # jobs: {"fid","names","n","sid","scene","cap_ms"}
 
 
-def verify_read(path, prior_names, worker=None):
+def verify_read(path, prior_names, worker=None, timeout=75):
     """Re-read the SAME archived screenshot to correct a prior read. Returns
     {confirm, missed, not_present, conf} or None. Honours TV_STUB (keyed '<base>#verify')."""
     if os.environ.get("TV_STUB"):
@@ -3808,7 +3822,7 @@ def verify_read(path, prior_names, worker=None):
         return None
     w = worker or _WORKER
     try:
-        out = w.ask(VERIFY_PROMPT.format(path=ap, prior=json.dumps(list(prior_names))))
+        out = w.ask(VERIFY_PROMPT.format(path=ap, prior=json.dumps(list(prior_names))), timeout=timeout)
     except Exception:
         return None
     if out is None:
@@ -3827,7 +3841,7 @@ def verify_read(path, prior_names, worker=None):
             "conf": float(d.get("conf") or 0.0)}
 
 
-def _verify_apply(job, worker=None):
+def _verify_apply(job, worker=None, timeout=75):
     """v926 — run one verify job: re-read the frame, compute the delta, journal a `lane=verify`
     beat on a distinct sub-frame id (so the funnel's exactly-once holds), and route the
     correction through the SAME lifecycle pipes. REMOVE (misread) is the default correction;
@@ -3839,7 +3853,7 @@ def _verify_apply(job, worker=None):
     src = os.path.join(HIST_DIR, fid + ".jpg")
     if not os.path.isfile(src):
         return None
-    v = verify_read(src, prior, worker=worker)
+    v = verify_read(src, prior, worker=worker, timeout=timeout)
     if not v:
         return None
     conf = v.get("conf") or 0.0
@@ -3881,14 +3895,19 @@ def _verify_apply(job, worker=None):
     return {"delta": len(remove), "add": [], "remove": remove, "missed": missed}
 
 
-def _verify_drain(worker=None, budget=1):
-    """Drain up to `budget` verify jobs — called from the main loop's idle gap only."""
+def _verify_drain(worker=None, budget=1, timeout=75, deadline=None):
+    """Drain up to `budget` verify jobs. Called from the main loop's idle gap (default: one
+    job, no deadline) AND — v1179 CLOSER — from `_pool_shutdown` with a wall-clock `deadline`
+    so a job queued for the last read(s) before session close still gets its second-look
+    correction instead of vanishing with the queue when the process exits."""
     if not VERIFY_ON:
         return
     n = 0
     while _VERIFY_Q and n < budget:
+        if deadline is not None and time.time() >= deadline:
+            break   # out of shutdown budget — leave the rest un-drained rather than overrun
         try:
-            _verify_apply(_VERIFY_Q.popleft(), worker=worker)
+            _verify_apply(_VERIFY_Q.popleft(), worker=worker, timeout=timeout)
         except Exception as e:
             try: ev("skip", "verify failed: %s" % e)
             except Exception: pass
