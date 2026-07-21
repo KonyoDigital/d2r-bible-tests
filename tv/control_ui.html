@@ -5263,15 +5263,31 @@
         + '<div class="eh-stat">' + stat + '</div>'
         + (sub ? '<div class="eh-sub">' + sub + '</div>' : '') + '</div>';
     }
-    // 1) CAPTURE — the senses
-    var capPulse = dead ? 'bad' : (!on ? 'idle' : (st.gameOk === false ? 'warn' : (ageS != null && ageS < 5 ? 'ok' : 'warn')));
+    // COMPLETENESS (ENGINE_ARCH #2, newest sealed reel) — FRAMED AS A WIN, never a scary coverage%.
+    // The diagnostic PROVED the film is complete; the low read-ratio is the 🧠 KAI retro-catch class
+    // BY DESIGN (live missed → KAI caught it FROM the film — the film HAS it). `dropped` = the ONLY
+    // real gap (a read with no reel frame). Renders when the reel exposes it; invisible until then.
+    var cp = sh.completeness || {};
+    var cpFilm = (cp.film != null) ? cp.film : cp.reel_frames;
+    var cpReads = cp.reads, cpUnread = cp.unread, cpDropped = cp.dropped;
+    var hasCp = (cpReads != null || cpFilm != null);
+    // 1) CAPTURE — the senses (+ film completeness: frames captured, real drops)
+    var capPulse = dead ? 'bad' : (cpDropped > 0 ? 'warn' : (!on ? 'idle' : (st.gameOk === false ? 'warn' : (ageS != null && ageS < 5 ? 'ok' : 'warn'))));
     var capStat = dead ? 'engine down' : (!on ? 'resting' : (st.gameOk === false ? 'no game' : 'live'));
-    var capSub = (ageS != null) ? ('last frame ' + ageS + 's') : (on ? 'no frame yet' : 'off air');
-    // 2) READERS — 🔴🔵🧠 layered eyes
+    var capSub;
+    if (on && ageS != null) capSub = 'last frame ' + ageS + 's';
+    else if (hasCp) capSub = (cpDropped > 0)
+      ? ('🎞 ' + cpFilm + ' frames <span class="eh-x">·</span> <span style="color:#ffcf8a">' + cpDropped + ' dropped</span>')
+      : ('🎞 film complete <span class="eh-x">·</span> ' + cpFilm + ' frames <span class="eh-x">·</span> 0 drops');
+    else capSub = (ageS != null) ? ('last frame ' + ageS + 's') : (on ? 'no frame yet' : 'off air');
+    // 2) READERS — 🔴🔵🧠 layered eyes (the retro-catch is a STRENGTH: the film had what live missed)
     var reads = st.readCount || 0, kaiMiss = ey.kaiMissed || 0, qDepth = (dr.queued || 0) + (dr.judgeQ || 0);
-    var rdPulse = dead ? 'bad' : (!on ? (reads || kaiMiss ? 'idle' : 'idle') : (qDepth > 8 ? 'warn' : 'ok'));
-    var rdStat = '🔴 ' + reads + ' <span class="eh-x">·</span> 🔵 ' + (ey.verifyTs ? '✓' : '—') + ' <span class="eh-x">·</span> 🧠 ' + (kaiMiss ? kaiMiss : '✓');
-    var rdSub = 'queue ' + qDepth + (st.aiPaused ? ' · paused' : '') + (kaiMiss ? ' · KAI caught ' + kaiMiss : '');
+    var retro = (cpUnread != null) ? cpUnread : kaiMiss;
+    var rdPulse = dead ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));
+    var rdStat = '🔴 ' + (hasCp ? cpReads : reads) + ' <span class="eh-x">·</span> 🔵 ' + (ey.verifyTs ? '✓' : '—') + ' <span class="eh-x">·</span> 🧠 ' + (retro ? retro : '✓');
+    var rdSub = hasCp
+      ? ((cpReads || 0) + ' live + ' + (retro || 0) + ' retro-caught 🧠 (film has them)')
+      : ('queue ' + qDepth + (st.aiPaused ? ' · paused' : '') + (kaiMiss ? ' · KAI caught ' + kaiMiss : ''));
     // 3) ROUTER — the brain (dispatch)
     var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;
     var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));
