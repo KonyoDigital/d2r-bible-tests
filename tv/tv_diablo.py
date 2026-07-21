@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1182"   # 🩹 FUNNEL ENGINE polish — never-zero on the LIVE tally path: the never-zero guard existed only on the Stage-3 closer, NOT on the primary high-frequency LIVE tally fire (fires every stash-tab visit). So a thin/partial live photo (low total, ok:true) could STOMP an already-larger verified tally — Konyo's "404 then a funnel says 4" clobber, on the live path, unguarded. FIX: session-scoped _tab_best_total guard on the live fire (PREV<=0||newTotal>=PREV); blocked writes journal an honest ok:true,total:PREV,guardHeld:true receipt (so the refire ladder doesn't burn retries). This is the fix that stops gem/rune counts getting stomped to 0. +tests (control_app.py + test_control.py); ×3 parity (10/80 → v1252)
+VERSION = "v1183"   # 🩸 FORGE FIX (Konyo: "where is the Blood craft?") — a craft used to VANISH entirely from the Forge when you owned 0 of its Perfect gem (Blood needs a Perfect Ruby; his Ruby tally read 0, likely stomped by the pre-v1182 live-clobber). FIX (bible.html): the ⚗️ Crafts section now ALWAYS shows all 4 craft types (Caster·Blood·Safety·Hit Power); _craftSlots gem-gates readiness (a craft needs its gem AND the slot rune) and rows show "need Perfect Ruby" when the gem's missing. Nothing disappears just because a tally reads 0. ×3 parity (11/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
