@@ -28501,6 +28501,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
   };
   function _aicMsg(html, show){ var el=document.getElementById('aic-msg'); if(el){ el.innerHTML=html; el.style.display=(show===false?'none':'block'); } try{ status(String(html).replace(/<[^>]+>/g,'')); }catch(e){} }
+  // v948.1 — TV engine / control console always use same-origin /api/intake → control's
+  // intake_local.mjs subscription lane (claude CLI). Never burn ANTHROPIC_API_KEY tokens for
+  // headless KAI judge when running inside #tvd-eng. Manual site board still honors d2r_intakeUrl.
+  function _aicIntakeEndpoint(){
+    try {
+      if (/[?&]engine=1/.test(location.search || '')) return '/api/intake';
+      if (/:(17772|17771)\b/.test(location.host || '')) return '/api/intake';
+    } catch(e){}
+    return localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  }
+  window._aicIntakeEndpoint = _aicIntakeEndpoint;
   // v468 — testable response handler: takes the parsed /api/intake JSON, fills the draft from the RICHEST
   // magic/rare find (most affixes = almost always the hovered tooltip, not a bare grid icon). Falls back to a
   // name from unrecognized/items. Returns {ok, msg/counts} so aicUpload can render the right feedback.
@@ -28523,7 +28534,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var b64 = (typeof downscale === 'function')
         ? await downscale(file)
         : await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
-      var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var endpoint=_aicIntakeEndpoint();
       var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
       var resp;
       try { resp=await fetch(endpoint,{ method:'POST', headers:{'content-type':'application/json'}, credentials:'same-origin', body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false }) }); }
@@ -28545,12 +28556,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // the Item Checker so it's read by the perfected system"). Same read POST, same pure
   // _aicVerdict brain, ZERO draft/UI touch: the human's Checker state is snapshotted and
   // restored around the parse. Returns {ok,name,base,q,mods,verdict:{tier,score,breakdown}}.
+  // v948.1 — TV engine forces subscription /api/intake (control intake_local); never cloud tokens.
   window.aicJudge = async function(file){
     try {
       var b64 = (typeof downscale === 'function')
         ? await downscale(file)
         : await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result||'').split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(file); });
-      var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var endpoint=_aicIntakeEndpoint();
       var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
       var resp=await fetch(endpoint,{ method:'POST', headers:{'content-type':'application/json'}, credentials:'same-origin', body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false }) });
       if(!resp.ok) return { ok:false, why:'server '+resp.status };
@@ -28564,6 +28576,273 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok:true, name:it.name||r.name||'', base:it.base||'', q:it.q||'', mods:it.mods||[],
                verdict:{ tier:v.tier, score:v.score, breakdown:(v.breakdown||[]).map(function(x){ return x.label+'(+'+x.w+')'; }) } };
     } catch(e){ return { ok:false, why:String(e&&e.message||e) }; }
+  };
+  // ══ v948.5 🔬 GRAIL NAME GATE — unique/set only (not bare runewords like "Spirit").
+  // Hellfire Torch / Anni live in ITEM_CODEX, NOT the boss-built ITEMS[] array — live soak
+  // 18:31 applied TOSS on Torch because the old gate only scanned ITEMS. Always prefer
+  // tipOf / ITEM_CODEX rarity unique|set before any toss route.
+  function _aicIsGrailName(nm){
+    nm = String(nm || '').trim();
+    if (!nm || nm.length < 3) return null;
+    var _cn = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+    var qn = _cn(nm);
+    // inventory-only grails (always keep, never toss)
+    if (/^(annihilus|hellfire torch|gheed'?s fortune)$/i.test(nm)) return { name: nm, rarity: 'unique', via: 'keep-inv' };
+    try {
+      if (typeof tipOf === 'function'){
+        var tip = tipOf(nm);
+        if (tip && /^(unique|set)$/i.test(String(tip.rarity || '')))
+          return { name: nm, rarity: String(tip.rarity).toLowerCase(), via: 'tipOf' };
+      }
+    } catch(e){}
+    try {
+      if (typeof ITEM_CODEX === 'object' && ITEM_CODEX){
+        var c = ITEM_CODEX[nm];
+        if (c && /^(unique|set)$/i.test(String(c.rarity || '')))
+          return { name: nm, rarity: String(c.rarity).toLowerCase(), via: 'codex' };
+        // case-insensitive exact key
+        var keys = Object.keys(ITEM_CODEX);
+        for (var ki = 0; ki < keys.length; ki++){
+          if (_cn(keys[ki]) === qn){
+            var c2 = ITEM_CODEX[keys[ki]];
+            if (c2 && /^(unique|set)$/i.test(String(c2.rarity || '')))
+              return { name: keys[ki], rarity: String(c2.rarity).toLowerCase(), via: 'codex-ci' };
+          }
+        }
+      }
+    } catch(e2){}
+    try {
+      if (typeof window.findSetPiece === 'function'){
+        var sp = window.findSetPiece(nm);
+        if (sp && (sp.piece || sp.set)) return { name: (sp.piece || nm), rarity: 'set', via: 'set' };
+      }
+    } catch(e3){}
+    try {
+      if (window._UNI_EXTRA && window._UNI_EXTRA[nm]) return { name: nm, rarity: 'unique', via: 'uni-extra' };
+    } catch(e4){}
+    try {
+      if (typeof EXTRA_ITEMS === 'object' && EXTRA_ITEMS && EXTRA_ITEMS[nm]){
+        var ex = EXTRA_ITEMS[nm];
+        if (ex && /^(unique|set)$/i.test(String(ex.rarity || '')))
+          return { name: nm, rarity: String(ex.rarity).toLowerCase(), via: 'extra' };
+      }
+    } catch(e5){}
+    // ITEMS is boss-drop-built and incomplete for event uniques — still useful for many
+    try {
+      if (typeof ITEMS !== 'undefined' && Array.isArray(ITEMS)){
+        var hit = ITEMS.find(function(i){ return i && (i.n === nm || _cn(i.n) === qn); });
+        if (hit && hit.n){
+          // only promote if rarity known unique/set OR known from codex under same name
+          var r = String(hit.rarity || hit.q || '').toLowerCase();
+          if (r === 'unique' || r === 'set') return { name: hit.n, rarity: r, via: 'items' };
+          // if in ITEMS without rarity but codex says unique
+          try {
+            if (typeof ITEM_CODEX === 'object' && ITEM_CODEX[hit.n] &&
+                /^(unique|set)$/i.test(String(ITEM_CODEX[hit.n].rarity || '')))
+              return { name: hit.n, rarity: String(ITEM_CODEX[hit.n].rarity).toLowerCase(), via: 'items+codex' };
+          } catch(e6){}
+        }
+      }
+    } catch(e7){}
+    return null;
+  }
+  window._aicIsGrailName = _aicIsGrailName;
+
+  // v948.5 — SAFE auto-triage for Chronicle (no extra AI tokens).
+  // accept: proven unique/set grail names · dismiss: checker-toss + bare white junk · hold: rest
+  function _chIsJunkName(nm){
+    nm = String(nm || '').trim();
+    if (!nm) return true;
+    var low = nm.toLowerCase();
+    if (/^(horadric cube|wirt'?s? leg|gold|key)$/i.test(nm)) return true;
+    if (/^tome of /i.test(nm)) return true;
+    if (/\b(potion|rejuvenation|scroll)\b/i.test(nm)) return true;
+    // bare white bases with no unique/set signal (Axe, Belt, Champion Sword, …)
+    if (_aicIsGrailName(nm)) return false;
+    try {
+      if (typeof tipOf === 'function'){
+        var t = tipOf(nm);
+        if (t && /^(unique|set|rare|magic|crafted)$/i.test(String(t.rarity || ''))) return false;
+      }
+    } catch(e){}
+    // single-word generic bases / short OCR trash
+    if (/^(axe|sword|mace|bow|staff|belt|boots?|gloves?|helm|shield|ring|amulet|cap|club|scepter|wand|spear|polearm|dagger|javelin|crossbow|armor|plate|mail|circlet|diadem|tiara|defender|buckler|targe|monarch|crystal sword|short sword|long sword|broad sword|scimitar|falchion|war sword|champion sword|colossus blade)$/i.test(nm))
+      return true;
+    // OCR garble: no vowels or mostly symbols
+    if (nm.length <= 2) return true;
+    if (!/[aeiou]/i.test(nm) && nm.length < 8) return true;
+    return false;
+  }
+  window.kaiChronicleTriage = function(item){
+    item = item || {};
+    var nm = String(item.name || '').trim();
+    var tier = String(item.tier || '').toLowerCase();
+    if (!nm) return { action: 'dismiss', why: 'empty-name' };
+    var g = _aicIsGrailName(nm);
+    if (g || tier === 'grail'){
+      if (g) return { action: 'accept', why: 'safe-auto-grail:' + (g.via || 'name'), canonical: g.name };
+      // tier says grail but name not grounded → hold (avoid Spirit→grail false positive)
+      return { action: 'hold', why: 'tier-grail-ungrounded' };
+    }
+    if (tier === 'toss') return { action: 'dismiss', why: 'item-checker-toss' };
+    if (_chIsJunkName(nm)) return { action: 'dismiss', why: 'safe-auto-junk' };
+    return { action: 'hold', why: 'human-review' };
+  };
+
+  // ══ v948.1/v948.5 🔬 aicJudgeApply — ROUTE a headless judge result into vault + chronicle.
+  // Pipeline: Stage-3 aicJudge (subscription vision) → _aicVerdict → GRAIL GATE → HERE →
+  //   grail  → tvChronicleRoute + tvVaultRegister (unique/set)
+  //   keep   → magicFinds + suggestMule
+  //   border → magicFinds hold + chronicle pending
+  //   toss   → ledger tossed only
+  // Does NOT touch the human Checker's draft/UI.
+  window.aicJudgeApply = function(res, meta){
+    res = res || {};
+    meta = meta || {};
+    var out = { ok:false, actions:[], name:'', tier:'' };
+    try {
+      if (!res.ok){ out.why = res.why || 'no-verdict'; return out; }
+      var tier = String((res.verdict && res.verdict.tier) || '').toLowerCase();
+      var base = String(res.base || '').trim();
+      var q = String(res.q || 'rare').toLowerCase() || 'rare';
+      var mods = (res.mods || []).map(function(m){ return String(m || '').trim(); }).filter(Boolean);
+      var nm = String(res.name || '').trim()
+        || ((q === 'rare' ? 'Rare ' : q === 'crafted' ? 'Crafted ' : 'Magic ') + (base || 'Item'));
+      // v948.5 GRAIL GATE BEFORE any vault route (fixes Torch score-0 → toss)
+      try {
+        var _gHit = _aicIsGrailName(nm);
+        if (_gHit){
+          nm = _gHit.name || nm;
+          tier = 'grail';
+          try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG){}
+          try { res.name = nm; } catch(eN){}
+          out.grailGate = _gHit.via || 'yes';
+        } else if (q === 'unique' || q === 'set'){
+          // intake quality unique/set even if name sparse
+          tier = 'grail';
+          try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG2){}
+          out.grailGate = 'q-' + q;
+        }
+      } catch(eGate){}
+      out.name = nm; out.tier = tier; out.score = (res.verdict && res.verdict.score) || 0;
+      var prop = {
+        name: nm, tier: tier || null, source: 'aic-judge',
+        firstSeenTs: meta.fts || meta.firstSeenTs || Date.now(),
+        frameId: meta.frameId || '', sessionId: meta.sid || meta.sessionId || '',
+        loc: meta.loc || null
+      };
+      try {
+        if (typeof window.kaiChroniclePropose === 'function'){
+          out.chronicle = window.kaiChroniclePropose([prop]);
+          out.actions.push('chronicle');
+        }
+      } catch(e){ out.chErr = String(e && e.message || e); }
+
+      if (tier === 'grail'){
+        try {
+          if (typeof window.tvChronicleRoute === 'function'){
+            out.grail = window.tvChronicleRoute(nm, 'vault');
+            out.actions.push('chronicle-route');
+          }
+        } catch(e){}
+        try {
+          if (typeof window.tvVaultRegister === 'function'){
+            out.vault = window.tvVaultRegister(nm);
+            out.actions.push('vault');
+          }
+        } catch(e){}
+        out.ok = true; out.mode = 'grail';
+        return out;
+      }
+
+      if (tier === 'keep'){
+        try {
+          if (typeof magicFinds === 'object' && magicFinds){
+            magicFinds[nm] = { q: q || 'magic', base: base, mods: mods };
+          }
+          try {
+            var sg = (typeof suggestMule === 'function') ? suggestMule(nm) : null;
+            if (sg && sg.id === '__throwout'){
+              if (typeof assign === 'object') assign[nm] = '__throwout';
+              out.mule = '__throwout';
+            } else if (sg && typeof muleById === 'function' && muleById(sg.id)
+                       && typeof assign === 'object' && !assign[nm]){
+              assign[nm] = sg.id; out.mule = sg.id;
+            } else if (sg && sg.id === '__keep' && typeof assign === 'object' && !assign[nm]){
+              assign[nm] = '__keep'; out.mule = '__keep';
+            }
+          } catch(e2){}
+          try { if (typeof LS !== 'undefined' && LS.setItem) LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e3){}
+          try { if (typeof persistOwned === 'function') persistOwned(); } catch(e4){}
+          try { if (typeof saveA === 'function') saveA(); } catch(e5){}
+          try { if (typeof renderVault === 'function') renderVault(); } catch(e6){}
+          try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch(e7){}
+          out.actions.push('mule-keep');
+          out.ok = true; out.mode = 'keep';
+        } catch(e){ out.why = String(e && e.message || e); }
+        return out;
+      }
+
+      if (tier === 'border'){
+        try {
+          if (typeof magicFinds === 'object' && magicFinds){
+            magicFinds[nm] = { q: q || 'magic', base: base, mods: mods, border: true };
+          }
+          try { if (typeof LS !== 'undefined' && LS.setItem) LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e3){}
+          try { if (typeof persistOwned === 'function') persistOwned(); } catch(e4){}
+          try { if (typeof renderVault === 'function') renderVault(); } catch(e6){}
+          out.actions.push('border-hold');
+          out.ok = true; out.mode = 'border';
+        } catch(e){ out.why = String(e && e.message || e); }
+        return out;
+      }
+
+      if (tier === 'toss'){
+        try {
+          try {
+            var _log = [];
+            try {
+              var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem('d2r_chronicleInboxLog') : null;
+              _log = raw ? JSON.parse(raw) : [];
+            } catch(eL){ _log = []; }
+            if (!Array.isArray(_log)) _log = [];
+            var low = nm.toLowerCase(), hit = false;
+            for (var i = 0; i < _log.length; i++){
+              if (_log[i] && String(_log[i].name || '').toLowerCase() === low){
+                _log[i].status = 'tossed'; _log[i].tier = 'toss';
+                _log[i].statusTs = Date.now(); _log[i].source = 'aic-judge';
+                _log[i].score = out.score; hit = true; break;
+              }
+            }
+            if (!hit){
+              _log.push({ name: nm, status: 'tossed', tier: 'toss', source: 'aic-judge',
+                          firstTs: Date.now(), lastTs: Date.now(), frameId: prop.frameId,
+                          sessionId: prop.sessionId, score: out.score });
+            }
+            try {
+              if (window.LSR && window.LSR.setItem)
+                window.LSR.setItem('d2r_chronicleInboxLog', JSON.stringify(_log.slice(-400)));
+            } catch(eS){}
+            try {
+              var ib = (window.LSR && window.LSR.getItem) ? JSON.parse(window.LSR.getItem('d2r_chronicleInbox') || '[]') : [];
+              if (Array.isArray(ib)){
+                ib = ib.filter(function(x){ return !(x && String(x.name || '').toLowerCase() === nm.toLowerCase()); });
+                window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(ib));
+              }
+            } catch(eI){}
+          } catch(eT){}
+          out.actions.push('toss');
+          out.ok = true; out.mode = 'toss';
+        } catch(e){ out.why = String(e && e.message || e); }
+        return out;
+      }
+
+      out.ok = true; out.mode = 'logged'; out.why = 'unknown-tier';
+      return out;
+    } catch(e){
+      out.why = String(e && e.message || e);
+      return out;
+    }
   };
 
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
@@ -33646,7 +33925,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v947.2', name:'Theatre Stamp Ledger', date:'2026-07-21', note:'Theatre: full AI stamp ledger per photo (live+KAI+router+intake) time-synced for surgical debug' };
+  window.D2R_BUILD = { id:'v948.7', name:'Retro Reel Tally Recheck', date:'2026-07-21', note:'KAI reclose re-labels film (grid-solo) + gap-funnels materials/gems/runes from Theatre stills' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33734,18 +34013,178 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // v945.6 — cross-document intake lease (control holds the token). Engine-driver and an
   // open board both see the same tab; only one may fire. Fail-open if control is unreachable
   // (website-only board); fail-closed on explicit "held".
-  // v946 — CHRONICLE INBOX (review gate; never silent grail write)
-  // SPEC: tv/PLAN_ONE_SYSTEM.md · Chronicle write-in. Inbox only; accept promotes to d2r_foundLog.
+  // v946/v947.6 — CHRONICLE INBOX + LEDGER (review gate; never silent grail write)
+  // SPEC: tv/PLAN_ONE_SYSTEM.md · Chronicle write-in.
+  //  · d2r_chronicleInbox  = ACTION queue (pending only — accept / dismiss)
+  //  · d2r_chronicleInboxLog = VISUAL BACKEND (every KAI read forever for debug)
+  // Cross-ref: found/forge/sets skip re-queue but still land on the ledger with status.
+  var _CH_LOG_KEY = 'd2r_chronicleInboxLog';
+  var _CH_INBOX_KEY = 'd2r_chronicleInbox';
+  function _chLsGet(key, fallback){
+    try {
+      var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem(key) : null;
+      if (raw == null) return fallback;
+      return JSON.parse(raw);
+    } catch(e){ return fallback; }
+  }
+  function _chLsSet(key, val){
+    try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(key, JSON.stringify(val)); } catch(e){}
+  }
+  function _chNameKeys(nm){
+    var s = String(nm || '').trim();
+    if (!s) return [];
+    var keys = [s, s.toLowerCase()];
+    // loose: strip trailing " Rune" / quality noise for key match
+    var bare = s.replace(/\s+rune$/i, '').trim();
+    if (bare && bare !== s){ keys.push(bare); keys.push(bare.toLowerCase()); }
+    return keys;
+  }
+  function _chMapHas(map, nm){
+    if (!map || typeof map !== 'object') return false;
+    return _chNameKeys(nm).some(function(k){ return map[k] != null && map[k] !== false; });
+  }
+  function _chSetHas(arrOrSet, nm){
+    if (!arrOrSet) return false;
+    var low = String(nm || '').trim().toLowerCase();
+    if (!low) return false;
+    if (arrOrSet instanceof Set){
+      if (arrOrSet.has(nm) || arrOrSet.has(low)) return true;
+      var hit = false;
+      arrOrSet.forEach(function(x){ if (String(x).toLowerCase() === low) hit = true; });
+      return hit;
+    }
+    if (Array.isArray(arrOrSet)){
+      return arrOrSet.some(function(x){ return String(x).toLowerCase() === low; });
+    }
+    return false;
+  }
+  /** Why this name is already settled in a chronicle/engine store — null if still candidate for inbox. */
+  window.kaiChronicleSettledWhy = function(name){
+    var nm = String(name || '').trim();
+    if (!nm) return { store: 'empty', why: 'no-name' };
+    // 1) Grail found ledger (dated chronicle) + live _gFound (includes legacy owned)
+    try {
+      if (typeof _gFound === 'function' && _gFound(nm)) return { store: 'foundLog', why: 'already in Grail found' };
+    } catch(e){}
+    var found = _chLsGet('d2r_foundLog', {}) || {};
+    if (_chMapHas(found, nm)) return { store: 'foundLog', why: 'already in Grail found' };
+    // 2) Explicit unfound seed — never re-auto into inbox
+    var unfound = _chLsGet('d2r_grailUnfound', {}) || {};
+    if (_chMapHas(unfound, nm)) return { store: 'grailUnfound', why: 'user un-ticked grail seed' };
+    // 3) Runeword Chronicle (Forge created)
+    var rw = null;
+    try { if (typeof rwMade === 'object' && rwMade && !Array.isArray(rwMade)) rw = rwMade; } catch(e){}
+    if (!rw) rw = _chLsGet('d2r_rwMade', {}) || {};
+    if (_chMapHas(rw, nm)) return { store: 'rwMade', why: 'already forged (runeword chronicle)' };
+    // 4) Set pieces chronicle
+    var sp = null;
+    try { if (typeof setPieces !== 'undefined' && setPieces) sp = setPieces; } catch(e){}
+    if (!sp) sp = _chLsGet('d2r_setPieces', []) || [];
+    if (_chSetHas(sp, nm)) return { store: 'setPieces', why: 'already in set tracker' };
+    // 5) Legacy owned vault list (physical keepers still count as "known")
+    var ownedArr = _chLsGet('d2r_owned', []) || [];
+    if (_chSetHas(ownedArr, nm)) return { store: 'owned', why: 'already in owned/vault list' };
+    try {
+      if (typeof owned !== 'undefined' && owned && typeof owned.has === 'function' && owned.has(nm))
+        return { store: 'owned', why: 'already in owned set' };
+    } catch(e){}
+    // 6) v948.1 — Magic & Rare keepers (Item Checker keep/border auto-route)
+    try {
+      if (typeof magicFinds === 'object' && magicFinds && magicFinds[nm])
+        return { store: 'magicFinds', why: 'already in Magic & Rare (Item Checker)' };
+    } catch(e){}
+    var mf = _chLsGet('d2r_magicFinds', {}) || {};
+    if (_chMapHas(mf, nm)) return { store: 'magicFinds', why: 'already in Magic & Rare (Item Checker)' };
+    return null;
+  };
+  function _chLogLoad(){
+    var log = _chLsGet(_CH_LOG_KEY, []) || [];
+    return Array.isArray(log) ? log : [];
+  }
+  function _chLogSave(log){
+    _chLsSet(_CH_LOG_KEY, (log || []).slice(-400));
+  }
+  /** Upsert one visual-backend row (never deletes history — status updates only). */
+  function _chLogUpsert(row){
+    if (!row || !row.name) return;
+    var log = _chLogLoad();
+    var low = String(row.name).toLowerCase();
+    var ix = -1;
+    for (var i = 0; i < log.length; i++){
+      if (log[i] && String(log[i].name || '').toLowerCase() === low){ ix = i; break; }
+    }
+    var prev = ix >= 0 ? log[ix] : null;
+    var next = Object.assign({}, prev || {}, row, {
+      name: String(row.name).trim(),
+      lastTs: Date.now(),
+      firstTs: (prev && prev.firstTs) || row.firstTs || row.proposedAt || row.firstSeenTs || Date.now(),
+      seenCount: ((prev && prev.seenCount) || 0) + (row._bump ? 1 : 0)
+    });
+    delete next._bump;
+    if (ix >= 0) log[ix] = next; else log.push(next);
+    _chLogSave(log);
+    return next;
+  }
+  function _chLogSetStatus(name, status, extra){
+    var nm = String(name || '').trim(); if (!nm) return;
+    var patch = Object.assign({ name: nm, status: status, statusTs: Date.now() }, extra || {});
+    _chLogUpsert(patch);
+  }
+  /**
+   * Purge ACTION inbox of anything already tallied in chronicles/engines.
+   * Visual ledger is UPDATED (status) — never wiped — so you can still debug every read.
+   */
+  window.kaiChronicleSync = function(){
+    try {
+      var inbox = _chLsGet(_CH_INBOX_KEY, []) || [];
+      if (!Array.isArray(inbox)) inbox = [];
+      var kept = [], removed = [], byStore = {};
+      inbox.forEach(function(x){
+        if (!x || !x.name) return;
+        var why = window.kaiChronicleSettledWhy(x.name);
+        if (why){
+          removed.push({ name: x.name, store: why.store, why: why.why });
+          byStore[why.store] = (byStore[why.store] || 0) + 1;
+          _chLogSetStatus(x.name, 'in-chronicle', {
+            store: why.store, why: why.why,
+            tier: x.tier, loc: x.loc, frameId: x.frameId, sessionId: x.sessionId,
+            firstSeenTs: x.firstSeenTs, source: x.source || 'kai-register'
+          });
+        } else {
+          kept.push(x);
+          _chLogSetStatus(x.name, 'pending', {
+            tier: x.tier, loc: x.loc, frameId: x.frameId, sessionId: x.sessionId,
+            firstSeenTs: x.firstSeenTs, source: x.source || 'kai-register'
+          });
+        }
+      });
+      if (removed.length){
+        _chLsSet(_CH_INBOX_KEY, kept.slice(-200));
+      }
+      // also refresh ledger rows that may have been accepted in grail UI without inbox path
+      try {
+        _chLogLoad().forEach(function(row){
+          if (!row || !row.name) return;
+          if (row.status === 'dismissed' || row.status === 'accepted') return;
+          var why2 = window.kaiChronicleSettledWhy(row.name);
+          if (why2 && row.status !== 'in-chronicle'){
+            _chLogSetStatus(row.name, 'in-chronicle', { store: why2.store, why: why2.why });
+          }
+        });
+      } catch(e){}
+      return { ok: true, removed: removed.length, remaining: kept.length, byStore: byStore, details: removed.slice(0, 40) };
+    } catch(e){
+      return { ok: false, removed: 0, remaining: 0, err: String(e && e.message || e) };
+    }
+  };
   window.kaiChroniclePropose = function(items){
     items = Array.isArray(items) ? items : [];
-    var queued = 0, skipped = 0, conflicts = 0;
+    var queued = 0, skipped = 0, conflicts = 0, settled = 0, logged = 0;
+    var autoAccepted = 0, autoDismissed = 0;
     try {
-      var inbox = JSON.parse((window.LSR && window.LSR.getItem('d2r_chronicleInbox')) || '[]') || [];
+      try { window.kaiChronicleSync(); } catch(e){}
+      var inbox = _chLsGet(_CH_INBOX_KEY, []) || [];
       if (!Array.isArray(inbox)) inbox = [];
-      var found = {};
-      try { found = JSON.parse((window.LSR && window.LSR.getItem('d2r_foundLog')) || '{}') || {}; } catch(e){}
-      var unfound = {};
-      try { unfound = JSON.parse((window.LSR && window.LSR.getItem('d2r_grailUnfound')) || '{}') || {}; } catch(e){}
       var seen = {};
       inbox.forEach(function(x){ if (x && x.name) seen[String(x.name).toLowerCase()] = 1; });
       items.forEach(function(it){
@@ -33753,34 +34192,208 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
         var nm = String(it.name).trim();
         var low = nm.toLowerCase();
         if (!nm) { skipped++; return; }
-        if (found[nm] || found[low]) { skipped++; return; }          // already found (manual or prior)
-        if (unfound[nm] || unfound[low]) { conflicts++; return; }    // user un-ticked seed — never re-auto
-        if (seen[low]) { skipped++; return; }                        // idempotent inbox
+        // promote grounded grail names to canonical
+        try {
+          var _gCan = (typeof _aicIsGrailName === 'function') ? _aicIsGrailName(nm) : null;
+          if (_gCan && _gCan.name) nm = _gCan.name;
+        } catch(eC){}
+        low = nm.toLowerCase();
+        var base = {
+          name: nm, firstSeenTs: it.firstSeenTs || 0, frameId: it.frameId || '',
+          tier: it.tier || null, sessionId: it.sessionId || '', loc: it.loc || null,
+          source: it.source || 'kai-register', proposedAt: Date.now(),
+          _bump: true
+        };
+        var why = window.kaiChronicleSettledWhy(nm);
+        if (why){
+          _chLogUpsert(Object.assign({}, base, {
+            status: why.store === 'grailUnfound' ? 'blocked-unfound' : 'in-chronicle',
+            store: why.store, why: why.why
+          }));
+          logged++;
+          if (why.store === 'grailUnfound') conflicts++;
+          else settled++;
+          skipped++;
+          return;
+        }
+        // v948.5 SAFE auto-triage (no extra tokens) — grail accept / junk dismiss / hold rest
+        var triage = { action: 'hold', why: 'human-review' };
+        try {
+          if (typeof window.kaiChronicleTriage === 'function')
+            triage = window.kaiChronicleTriage(base) || triage;
+        } catch(eT){}
+        if (triage.action === 'accept'){
+          try {
+            if (triage.canonical) nm = triage.canonical;
+            var fl = _chLsGet('d2r_foundLog', {}) || {};
+            if (!fl[nm]) fl[nm] = (window._grailStamp ? window._grailStamp() : new Date().toLocaleString());
+            _chLsSet('d2r_foundLog', fl);
+            try { if (typeof _gFoundDirty === 'function') _gFoundDirty(); } catch(eD){}
+            try {
+              if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');
+            } catch(eR){}
+            try {
+              if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm);
+            } catch(eV){}
+            _chLogUpsert(Object.assign({}, base, {
+              name: nm, status: 'accepted', store: 'foundLog',
+              why: triage.why || 'safe-auto-grail', auto: true, tier: base.tier || 'grail'
+            }));
+            logged++; autoAccepted++; skipped++;
+            return;
+          } catch(eA){ /* fall through to pending */ }
+        }
+        if (triage.action === 'dismiss'){
+          _chLogUpsert(Object.assign({}, base, {
+            status: 'dismissed', why: triage.why || 'safe-auto-junk', auto: true
+          }));
+          logged++; autoDismissed++; skipped++;
+          return;
+        }
+        // hold → pending inbox
+        _chLogUpsert(Object.assign({}, base, { status: 'pending', triageWhy: triage.why || null }));
+        logged++;
+        if (seen[low]) { skipped++; return; }
         inbox.push({
           name: nm, firstSeenTs: it.firstSeenTs || 0, frameId: it.frameId || '',
           tier: it.tier || null, sessionId: it.sessionId || '', loc: it.loc || null,
-          source: 'kai-register', proposedAt: Date.now()
+          source: it.source || 'kai-register', proposedAt: Date.now(),
+          triageWhy: triage.why || null
         });
         seen[low] = 1; queued++;
       });
-      if (window.LSR && window.LSR.setItem) window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(inbox.slice(-200)));
-      return { queued: queued, skipped: skipped, conflicts: conflicts, total: inbox.length };
-    } catch(e){ return { queued: 0, skipped: items.length, conflicts: 0, total: 0, err: String(e && e.message || e) }; }
+      _chLsSet(_CH_INBOX_KEY, inbox.slice(-200));
+      return { queued: queued, skipped: skipped, conflicts: conflicts, settled: settled,
+               logged: logged, autoAccepted: autoAccepted, autoDismissed: autoDismissed,
+               total: inbox.length, ledger: _chLogLoad().length };
+    } catch(e){ return { queued: 0, skipped: items.length, conflicts: 0, settled: 0, logged: 0,
+                          autoAccepted: 0, autoDismissed: 0, total: 0, err: String(e && e.message || e) }; }
   };
-  window.kaiChronicleInbox = function(){
-    try { return JSON.parse((window.LSR && window.LSR.getItem('d2r_chronicleInbox')) || '[]') || []; } catch(e){ return []; }
+  function _chSessionMatch(itemSid, wantSid){
+    var a = String(itemSid || '').trim();
+    var b = String(wantSid || '').trim();
+    if (b === '__none__' || b === '') return !a;
+    return a === b;
+  }
+  /** Accept every pending item in one sessionId (lazy batch). Empty sid = no-session bucket. */
+  window.kaiChronicleAcceptSession = function(sessionId){
+    var sid = String(sessionId || '').trim();
+    try { window.kaiChronicleSync(); } catch(e){}
+    var inbox = window.kaiChronicleInbox({ sync: false }).slice();
+    var n = 0;
+    inbox.forEach(function(x){
+      if (!x || !x.name) return;
+      if (!_chSessionMatch(x.sessionId, sid)) return;
+      try { if (window.kaiChronicleAccept(x.name).ok) n++; } catch(e){}
+    });
+    return { ok:true, accepted: n, sessionId: sid || '__none__' };
+  };
+  /** Dismiss every pending item in one sessionId. */
+  window.kaiChronicleDismissSession = function(sessionId){
+    var sid = String(sessionId || '').trim();
+    var inbox = window.kaiChronicleInbox({ sync: false }).slice();
+    var n = 0;
+    inbox.forEach(function(x){
+      if (!x || !x.name) return;
+      if (!_chSessionMatch(x.sessionId, sid)) return;
+      try { if (window.kaiChronicleDismiss(x.name).ok) n++; } catch(e){}
+    });
+    return { ok:true, dismissed: n, sessionId: sid || '__none__' };
+  };
+  /** Accept only grail-tier (or grounded grail names) in one session. */
+  window.kaiChronicleAcceptSessionGrails = function(sessionId){
+    var sid = String(sessionId || '').trim();
+    try { window.kaiChronicleSync(); } catch(e){}
+    var inbox = window.kaiChronicleInbox({ sync: false }).slice();
+    var n = 0;
+    inbox.forEach(function(x){
+      if (!x || !x.name) return;
+      if (!_chSessionMatch(x.sessionId, sid)) return;
+      var tier = String(x.tier || '').toLowerCase();
+      var g = (typeof _aicIsGrailName === 'function') ? _aicIsGrailName(x.name) : null;
+      if (tier !== 'grail' && !g) return;
+      try { if (window.kaiChronicleAccept(x.name).ok) n++; } catch(e){}
+    });
+    return { ok:true, accepted: n, sessionId: sid || '__none__' };
+  };
+  /** Dismiss junk-only (triage dismiss) in one session — leaves border/keep. */
+  window.kaiChronicleDismissSessionJunk = function(sessionId){
+    var sid = String(sessionId || '').trim();
+    var inbox = window.kaiChronicleInbox({ sync: false }).slice();
+    var n = 0;
+    inbox.forEach(function(x){
+      if (!x || !x.name) return;
+      if (!_chSessionMatch(x.sessionId, sid)) return;
+      var tr = (typeof window.kaiChronicleTriage === 'function') ? window.kaiChronicleTriage(x) : null;
+      if (!tr || tr.action !== 'dismiss') return;
+      try { if (window.kaiChronicleDismiss(x.name).ok) n++; } catch(e){}
+    });
+    return { ok:true, dismissed: n, sessionId: sid || '__none__' };
+  };
+  /** Action queue only (pending Accept). */
+  window.kaiChronicleInbox = function(opts){
+    opts = opts || {};
+    if (opts.sync !== false){
+      try { window.kaiChronicleSync(); } catch(e){}
+    }
+    try { return _chLsGet(_CH_INBOX_KEY, []) || []; } catch(e){ return []; }
+  };
+  /**
+   * Visual backend — every KAI-read name with live status for debug.
+   * status: pending | accepted | dismissed | in-chronicle | blocked-unfound
+   */
+  window.kaiChronicleLedger = function(opts){
+    opts = opts || {};
+    if (opts.sync !== false){
+      try { window.kaiChronicleSync(); } catch(e){}
+    }
+    var log = _chLogLoad().slice();
+    // live-annotate pending vs settled
+    log.forEach(function(row){
+      if (!row || !row.name) return;
+      if (row.status === 'accepted' || row.status === 'dismissed') return;
+      var why = window.kaiChronicleSettledWhy(row.name);
+      if (why){
+        row.status = why.store === 'grailUnfound' ? 'blocked-unfound' : 'in-chronicle';
+        row.store = why.store;
+        row.why = why.why;
+      } else if (row.status !== 'pending'){
+        // still in action inbox?
+        var inbox = _chLsGet(_CH_INBOX_KEY, []) || [];
+        var inQ = inbox.some(function(x){ return x && String(x.name).toLowerCase() === String(row.name).toLowerCase(); });
+        row.status = inQ ? 'pending' : (row.status || 'pending');
+      }
+    });
+    log.sort(function(a, b){
+      return (b.lastTs || b.proposedAt || 0) - (a.lastTs || a.proposedAt || 0);
+    });
+    return log;
   };
   window.kaiChronicleAccept = function(name){
     try {
       var nm = String(name || '').trim(); if (!nm) return { ok:false, why:'no-name' };
-      var inbox = window.kaiChronicleInbox();
+      var settled = window.kaiChronicleSettledWhy(nm);
+      if (settled && settled.store !== 'grailUnfound'){
+        var inbox0 = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return !(x && String(x.name) === nm); });
+        _chLsSet(_CH_INBOX_KEY, inbox0);
+        _chLogSetStatus(nm, 'in-chronicle', { store: settled.store, why: settled.why });
+        return { ok:true, name: nm, remaining: inbox0.length, already: true, store: settled.store };
+      }
+      var inbox = window.kaiChronicleInbox({ sync: false });
       var hit = null;
       inbox = inbox.filter(function(x){ if (x && String(x.name) === nm){ hit = x; return false; } return true; });
-      if (!hit) return { ok:false, why:'not-in-inbox' };
-      var fl = JSON.parse((window.LSR.getItem('d2r_foundLog') || '{}')) || {};
+      if (!hit){
+        // allow accept from ledger even if not in action queue
+        hit = { name: nm };
+      }
+      var fl = _chLsGet('d2r_foundLog', {}) || {};
       if (!fl[nm]) fl[nm] = (window._grailStamp ? window._grailStamp() : new Date().toLocaleString());
-      window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
-      window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(inbox));
+      _chLsSet('d2r_foundLog', fl);
+      _chLsSet(_CH_INBOX_KEY, inbox);
+      _chLogSetStatus(nm, 'accepted', {
+        store: 'foundLog', why: 'promoted to Grail found',
+        tier: hit.tier, loc: hit.loc, frameId: hit.frameId, sessionId: hit.sessionId
+      });
       try { if (typeof _gFoundDirty === 'function') _gFoundDirty(); } catch(e){}
       try { if (typeof renderGrailProgress === 'function') renderGrailProgress(); } catch(e){}
       return { ok:true, name: nm, remaining: inbox.length };
@@ -33789,17 +34402,56 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   window.kaiChronicleDismiss = function(name){
     try {
       var nm = String(name || '').trim();
-      var inbox = window.kaiChronicleInbox().filter(function(x){ return !(x && String(x.name) === nm); });
-      window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(inbox));
+      var inbox = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return !(x && String(x.name) === nm); });
+      _chLsSet(_CH_INBOX_KEY, inbox);
+      _chLogSetStatus(nm, 'dismissed', { why: 'dismissed from inbox (not written to grail)' });
       return { ok:true, remaining: inbox.length };
     } catch(e){ return { ok:false }; }
   };
   window.kaiChronicleAcceptAll = function(){
-    var inbox = window.kaiChronicleInbox().slice();
+    try { window.kaiChronicleSync(); } catch(e){}
+    var inbox = window.kaiChronicleInbox({ sync: false }).slice();
     var n = 0;
     inbox.forEach(function(x){ if (x && x.name && window.kaiChronicleAccept(x.name).ok) n++; });
     return { ok:true, accepted: n };
   };
+  /** One-time: seed ledger from current pending inbox so old sessions still have a backend. */
+  window.kaiChronicleLedgerSeedFromInbox = function(){
+    var inbox = _chLsGet(_CH_INBOX_KEY, []) || [];
+    var n = 0;
+    (inbox || []).forEach(function(x){
+      if (!x || !x.name) return;
+      _chLogUpsert(Object.assign({}, x, { status: 'pending', _bump: true, source: x.source || 'seed-inbox' }));
+      n++;
+    });
+    try { window.kaiChronicleSync(); } catch(e){}
+    return { ok: true, seeded: n, ledger: _chLogLoad().length };
+  };
+  // After grail/forge/set ticks, drop matching inbox rows (back-sync both ways)
+  (function _chWireBackSync(){
+    function hook(name){
+      try {
+        var orig = window[name];
+        if (typeof orig !== 'function' || orig.__chSync) return;
+        window[name] = function(){
+          var r = orig.apply(this, arguments);
+          try { window.kaiChronicleSync(); } catch(e){}
+          return r;
+        };
+        window[name].__chSync = true;
+      } catch(e){}
+    }
+    function wire(){
+      hook('toggleOwned');
+      hook('toggleSetPiece');
+      hook('rwToggleMade');
+    }
+    // toggleOwned / setPiece defined earlier; rwToggleMade later in file — retry
+    wire();
+    setTimeout(wire, 0);
+    setTimeout(wire, 500);
+    setTimeout(wire, 2500);
+  })();
 
   function _intakeLeaseOwner(){
     try {

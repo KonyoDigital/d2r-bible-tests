@@ -1043,6 +1043,77 @@ class TestRouterLedger(unittest.TestCase):
         self.assertEqual(f1, [])   # already routed → not re-selected
 
 
+class TestLiveJudgeQueue(unittest.TestCase):
+    """v948.2 — live mid-session Item Checker gates (pure, no vision)."""
+
+    def test_queue_new_names_not_echo(self):
+        rd = {
+            "lane": "deep", "frameId": "10_100", "scene": "inventory",
+            "names_new": ["Beast Noose"], "names_echo": ["Horadric Cube"],
+            "names_moved": [], "names": ["Beast Noose", "Horadric Cube"],
+        }
+        self.assertTrue(ca._live_judge_should_queue(rd))
+        self.assertEqual(ca._live_judge_interesting_names(rd), ["Beast Noose"])
+
+    def test_skip_pure_echo_and_anchors(self):
+        rd = {
+            "lane": "deep", "frameId": "10_101", "scene": "stash",
+            "stashTab": "personal",
+            "names_new": [], "names_echo": ["Horadric Cube", "Tome of Town Portal"],
+            "names_moved": [], "names": ["Horadric Cube"],
+        }
+        self.assertFalse(ca._live_judge_should_queue(rd))
+        self.assertEqual(ca._live_judge_interesting_names(rd), [])
+
+    def test_skip_tally_tabs(self):
+        rd = {
+            "lane": "deep", "frameId": "10_102", "scene": "stash", "stashTab": "gems",
+            "names_new": ["Chipped Ruby"], "names_echo": [], "names_moved": [],
+            "names": ["Chipped Ruby"],
+        }
+        self.assertFalse(ca._live_judge_should_queue(rd))
+
+    def test_skip_when_live_env_off(self):
+        rd = {
+            "lane": "deep", "frameId": "10_103",
+            "names_new": ["Steel Ring"], "names_echo": [], "names_moved": [],
+        }
+        old = os.environ.get("TV_KAI_JUDGE_LIVE")
+        try:
+            os.environ["TV_KAI_JUDGE_LIVE"] = "0"
+            self.assertFalse(ca._live_judge_should_queue(rd))
+        finally:
+            if old is None:
+                os.environ.pop("TV_KAI_JUDGE_LIVE", None)
+            else:
+                os.environ["TV_KAI_JUDGE_LIVE"] = old
+
+    def test_judge_already_near_dedupes_live_vs_stage3(self):
+        rows = [
+            {"lane": "kai", "mode": "kai-judge", "ts": 100000,
+             "kai": {"judge": {"name": "X", "tier": "keep", "live": True}}},
+        ]
+        self.assertTrue(ca._judge_already_near(rows, 103000, window_ms=6000))
+        self.assertFalse(ca._judge_already_near(rows, 120000, window_ms=6000))
+
+    def test_moved_names_qualify(self):
+        rd = {
+            "lane": "deep", "frameId": "10_104", "scene": "stash", "stashTab": "personal",
+            "names_new": [], "names_echo": ["Cube"], "names_moved": ["Ars Dul'Mephistos"],
+            "names": ["Ars Dul'Mephistos"],
+        }
+        self.assertTrue(ca._live_judge_should_queue(rd))
+        self.assertIn("Ars Dul'Mephistos", ca._live_judge_interesting_names(rd))
+
+    def test_fire_js_marks_live(self):
+        js = ca._fire_aic_judge_js("/hist/x.jpg", "sid1", "fid1", 99, live=True)
+        self.assertIn("aicJudge", js)
+        self.assertIn("aicJudgeApply", js)
+        self.assertIn("res.live=true", js)
+        js2 = ca._fire_aic_judge_js("/hist/x.jpg", "sid1", "fid1", 99, live=False)
+        self.assertIn("res.live=false", js2)
+
+
 class TestKaiNameishRecal(unittest.TestCase):
     """v944.7 (Fable forensic recalibration) — the KAI missed ledger counts unread ITEM NAMES,
     not unread flavor/stat lines. Proven against the real reel: Hellfire Torch flagged missed
@@ -1227,6 +1298,51 @@ class TestStashTabIdentity(unittest.TestCase):
                                          journal_tab="runes", model_tab="")
         self.assertEqual(tab3, "runes")
         self.assertIn("journal", src3)
+
+    def test_grid_solo_materials_kai_retro(self):
+        """v948.7 — KAI retro: film stills promote materials without live deep sticky."""
+        import stash_eye as se
+        # live path still blocks inventing materials on empty corroboration
+        tab_live, src_live = se.fuse_tab_signals(
+            ocr_tab="", grid_label="stash-materials", journal_tab="", model_tab="",
+            allow_grid_solo=False)
+        self.assertEqual(tab_live, "")
+        # KAI retro path allows grid solo when panel is already stash-*
+        tab_kai, src_kai = se.fuse_tab_signals(
+            ocr_tab="", grid_label="stash-materials", journal_tab="", model_tab="",
+            allow_grid_solo=True)
+        self.assertEqual(tab_kai, "materials")
+        self.assertIn("grid", src_kai)
+        self.assertIn("solo", src_kai)
+
+    def test_retro_promote_and_gap_funnel(self):
+        """v948.7 — cluster promote + gap funnel from reel labels."""
+        scan = [
+            {"f": "f_1.jpg", "ts": 1000, "label": "stash", "gridLabel": "stash-materials",
+             "tabstripLabel": None, "confidence": 2},
+            {"f": "f_2.jpg", "ts": 2000, "label": "stash", "gridLabel": "stash-materials",
+             "tabstripLabel": "stash-materials", "confidence": 2},
+            {"f": "f_3.jpg", "ts": 3000, "label": "stash", "gridLabel": "stash",
+             "confidence": 2},
+            {"f": "f_4.jpg", "ts": 4000, "label": "gameplay", "confidence": 0},
+        ]
+        out = ca._kai_retro_promote_tally([dict(x) for x in scan])
+        self.assertEqual(out[0]["label"], "stash-materials")
+        self.assertEqual(out[1]["label"], "stash-materials")
+        # plan-like rows for gap funnel
+        plan = [
+            {"f": "f_2.jpg", "ts": 2000, "label": "stash-materials", "confidence": 2,
+             "route": "tally:materials", "routed": None, "skipReason": "not-selected",
+             "gridLabel": "stash-materials"},
+            {"f": "f_9.jpg", "ts": 9000, "label": "stash-gems", "confidence": 1,
+             "gridLabel": "stash-gems", "route": None, "routed": None},
+        ]
+        # gems already receipted → only materials gap
+        sess = [{"lane": "intake", "intake": {"tab": "gems", "ok": True, "total": 50, "kind": "kai-funnel"}}]
+        gaps = ca._kai_stage3_gap_funnels(plan, sess)
+        tabs = {g["tab"] for g in gaps}
+        self.assertIn("materials", tabs)
+        self.assertNotIn("gems", tabs)
 
 
 if __name__ == "__main__":

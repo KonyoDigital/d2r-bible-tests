@@ -244,6 +244,7 @@ def fuse_tab_signals(
     grid_label: str = "",
     journal_tab: str = "",
     model_tab: str = "",
+    allow_grid_solo: bool = False,
 ) -> Tuple[str, List[str]]:
     """Fuse eye signals into one tab + list of agreeing sources.
 
@@ -253,7 +254,11 @@ def fuse_tab_signals(
       3) model deep-read stashTab
       4) journal sticky
       5) grid said plain stash → personal/shared from journal/model if any
-    Returns (tab_or_empty, sources) e.g. ('gems', ['ocr','grid']).
+
+    allow_grid_solo (v948.7 KAI retro): when the film still is already a stash panel
+    (grid/chrome fingerprint), grid may promote runes/gems/materials WITHOUT a live
+    deep journal sticky — Theatre has the pixels; post-seal funnel must recheck them.
+    Live path keeps allow_grid_solo=False so loading screens don't invent tallies.
     """
     sources: List[str] = []
     ocr_tab = (ocr_tab or "").lower().strip()
@@ -286,18 +291,21 @@ def fuse_tab_signals(
             sources.append("model")
         return ocr_tab, sources
 
-    # 2 grid fingerprint tally — only when another eye says the stash panel is open
-    if grid_tab in _TALLY_TABS and stash_open and (
-        journal_tab or model_tab or ocr_tab or grid_tab == "stash"
-        or str(grid_label or "") == "stash"
-    ):
-        # require journal/model/ocr OR plain-stash grid (not grid inventing tally on town)
-        if journal_tab or model_tab or ocr_tab:
+    # 2 grid fingerprint tally — when stash panel is open
+    if grid_tab in _TALLY_TABS and stash_open:
+        # live: need journal/model/ocr corroboration (or journal vault sticky counts as open)
+        # KAI retro: allow_grid_solo when grid itself already classified a tally layout
+        has_other = bool(journal_tab or model_tab or ocr_tab)
+        if has_other or allow_grid_solo:
             sources.append("grid")
+            if allow_grid_solo and not has_other:
+                sources.append("solo")
             if journal_tab == grid_tab:
                 sources.append("journal")
             if model_tab == grid_tab:
                 sources.append("model")
+            if ocr_tab == grid_tab:
+                sources.append("ocr")
             return grid_tab, sources
 
     # 3 model tally
@@ -343,11 +351,13 @@ def analyze_frame(
     model_tab: str = "",
     ocr_worker_read=None,
     work_dir: Optional[str] = None,
+    allow_grid_solo: bool = False,
 ) -> Dict[str, Any]:
     """Full eye analysis of one photo (for KAI / live resolve).
 
     ocr_worker_read: optional callable(path)->dict with 'lines' (warm OCR worker).
     When provided, tab chrome is prepped intake-style and re-OCR'd.
+    allow_grid_solo: KAI retro reel pass — grid may name tally tabs without live sticky.
     """
     out: Dict[str, Any] = {
         "path": path,
@@ -357,7 +367,7 @@ def analyze_frame(
         "tab": "",
         "cls": "gameplay",
         "sources": [],
-        "kaiVer": 2,
+        "kaiVer": 3,
     }
     if not path or not os.path.isfile(path):
         return out
@@ -383,13 +393,14 @@ def analyze_frame(
     out["gridLabel"] = gl
     out["gridDetail"] = gd
 
-    tab, sources = fuse_tab_signals(ocr_tab, gl, journal_tab, model_tab)
+    tab, sources = fuse_tab_signals(
+        ocr_tab, gl, journal_tab, model_tab, allow_grid_solo=allow_grid_solo)
     out["tab"] = tab
     out["sources"] = sources
-    # class only from fused tab (never raw grid alone — that invented materials on loading)
+    # class from fused tab; retro solo grid still only yields cls when fuse accepted it
     if tab:
         out["cls"] = class_from_tab(tab) or "gameplay"
-    elif gl == "stash" and (journal_tab or model_tab or ocr_tab):
+    elif gl == "stash" and (journal_tab or model_tab or ocr_tab or allow_grid_solo):
         out["cls"] = "stash"
     else:
         out["cls"] = "gameplay"

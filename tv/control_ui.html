@@ -1116,6 +1116,100 @@
     border: 1px solid rgba(185,165,255,.4); background: rgba(40,32,64,.45); }
   .ch-inbox b { color: #f0d89a; margin-left: 4px; }
   .ch-inbox:hover { border-color: rgba(185,165,255,.7); }
+  /* v947.4 — Chronicle inbox modal (selective grid + per-item ✓/✕ — replaces native prompt) */
+  #ch-modal { position: fixed; inset: 0; z-index: 980; display: flex; align-items: center; justify-content: center;
+    background: rgba(4,6,8,.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); padding: 16px; }
+  #ch-modal[hidden] { display: none !important; }
+  .ch-card { width: min(920px, 96vw); max-height: min(88vh, 900px); display: flex; flex-direction: column;
+    border-radius: 16px; border: 1px solid rgba(200,180,120,.28); background: linear-gradient(180deg, #161410 0%, #0c0b09 100%);
+    box-shadow: 0 24px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06); overflow: hidden; }
+  .ch-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px;
+    border-bottom: 1px solid rgba(200,180,120,.14); flex-shrink: 0; }
+  .ch-head h3 { margin: 0; font: 800 14px/1.2 var(--mono); letter-spacing: .08em; color: #f0d89a; flex: 1; }
+  .ch-head .ch-sub { font: 500 11px/1.2 var(--mono); color: #9a8f72; margin-left: 6px; font-weight: 600; }
+  .ch-x { border: 1px solid rgba(200,180,120,.3); background: rgba(0,0,0,.35); color: #e8dcc0;
+    border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font: 700 16px/1 sans-serif; }
+  .ch-x:hover { border-color: rgba(255,140,120,.55); color: #ffb0a0; }
+  .ch-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px;
+    border-bottom: 1px solid rgba(200,180,120,.1); flex-shrink: 0; }
+  .ch-tools input[type="search"] { flex: 1 1 160px; min-width: 120px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid rgba(200,180,120,.25); background: rgba(0,0,0,.4); color: #e8dcc0;
+    font: 600 12px/1.2 var(--mono); }
+  .ch-pill { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(200,180,120,.28);
+    background: rgba(0,0,0,.3); color: #c9b88a; font: 700 10.5px/1 var(--mono); letter-spacing: .06em;
+    cursor: pointer; text-transform: uppercase; }
+  .ch-pill.on { color: #0c100e; background: #f0d89a; border-color: #f0d89a; }
+  .ch-pill.grail.on { background: #f0c060; border-color: #f0c060; }
+  .ch-body { flex: 1; overflow: auto; padding: 12px 16px 8px; min-height: 120px; }
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+  .ch-card-item { position: relative; border-radius: 12px; border: 1px solid rgba(200,180,120,.2);
+    background: rgba(0,0,0,.35); padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 6px;
+    transition: border-color .15s, box-shadow .15s; }
+  .ch-card-item.sel { border-color: rgba(143,208,160,.65); box-shadow: 0 0 0 1px rgba(143,208,160,.25); }
+  .ch-card-item.tier-grail { border-color: rgba(240,192,96,.45); }
+  .ch-card-item.st-in-chronicle { opacity: .88; border-color: rgba(143,208,160,.35); }
+  .ch-card-item.st-accepted { opacity: .9; border-color: rgba(157,240,189,.4); }
+  .ch-card-item.st-dismissed { opacity: .55; filter: grayscale(.35); }
+  .ch-card-item.st-blocked-unfound { opacity: .7; border-color: rgba(233,185,110,.4); }
+  .ch-status { align-self: center; font: 800 9px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(200,180,120,.25); color: #c9b88a; }
+  .ch-status.s-pending { color: #f0d89a; border-color: rgba(240,216,154,.45); }
+  .ch-status.s-in-chronicle { color: #9df0bd; border-color: rgba(143,208,160,.45); }
+  .ch-status.s-accepted { color: #9df0bd; border-color: rgba(157,240,189,.5); background: rgba(20,50,30,.35); }
+  .ch-status.s-dismissed { color: #8fa398; }
+  .ch-status.s-blocked-unfound { color: #e9b96e; border-color: rgba(233,185,110,.45); }
+  .ch-modebar { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
+  .ch-card-item .ch-art { width: 48px; height: 48px; object-fit: contain; align-self: center;
+    image-rendering: auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+  .ch-card-item .ch-art-ph { width: 48px; height: 48px; align-self: center; display: flex; align-items: center;
+    justify-content: center; font-size: 22px; opacity: .7; }
+  .ch-card-item .ch-nm { font: 700 12px/1.25 var(--mono); color: #f5edd8; text-align: center;
+    word-break: break-word; min-height: 2.5em; }
+  .ch-card-item .ch-tier { align-self: center; font: 800 9px/1 var(--mono); letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 5px;
+    border: 1px solid rgba(200,180,120,.3); color: #c9b88a; }
+  .ch-card-item .ch-tier.t-grail { color: #f0c060; border-color: rgba(240,192,96,.55); background: rgba(80,50,10,.35); }
+  .ch-card-item .ch-tier.t-keep { color: #9df0bd; border-color: rgba(143,208,160,.45); background: rgba(20,50,30,.35); }
+  .ch-card-item .ch-meta { font: 500 9.5px/1.2 var(--mono); color: #7a7260; text-align: center; }
+  .ch-card-item .ch-row-acts { display: flex; gap: 6px; margin-top: auto; }
+  .ch-card-item .ch-chk { position: absolute; top: 8px; left: 8px; width: 16px; height: 16px; accent-color: #8fd0a0; cursor: pointer; }
+  .ch-btn { flex: 1; padding: 7px 6px; border-radius: 8px; cursor: pointer; font: 800 11px/1 var(--mono);
+    letter-spacing: .04em; border: 1px solid transparent; }
+  .ch-btn.ok { color: #0c100e; background: #9df0bd; border-color: #9df0bd; }
+  .ch-btn.ok:hover { filter: brightness(1.08); }
+  .ch-btn.no { color: #ffb0a0; background: rgba(70,26,20,.45); border-color: rgba(255,120,90,.45); flex: 0 0 36px; }
+  .ch-btn.no:hover { background: rgba(90,30,24,.7); }
+  .ch-table { width: 100%; border-collapse: collapse; font: 600 12px/1.3 var(--mono); color: #e0d6c0; margin-top: 12px; }
+  .ch-table th { text-align: left; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: #9a8f72; padding: 6px 8px; border-bottom: 1px solid rgba(200,180,120,.18); }
+  .ch-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+  .ch-table tr:hover td { background: rgba(255,255,255,.03); }
+  .ch-table .ch-t-art { width: 28px; height: 28px; object-fit: contain; vertical-align: middle; }
+  .ch-table .ch-t-acts { white-space: nowrap; }
+  .ch-table .ch-t-acts .ch-btn { display: inline-block; width: auto; padding: 5px 8px; margin-left: 4px; }
+  .ch-empty { text-align: center; padding: 36px 16px; color: #8fa398; font: 600 13px/1.4 var(--mono); }
+  /* v948.5 — session groups for lazy batch Accept/Dismiss */
+  .ch-sess { margin: 0 0 16px; border: 1px solid rgba(200,180,120,.16); border-radius: 12px;
+    background: rgba(0,0,0,.22); overflow: hidden; }
+  .ch-sess-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px;
+    border-bottom: 1px solid rgba(200,180,120,.12); background: rgba(40,32,16,.35); }
+  .ch-sess-title { flex: 1 1 160px; font: 800 11.5px/1.25 var(--mono); letter-spacing: .04em; color: #f0d89a; }
+  .ch-sess-title .ch-sess-sub { display: block; font: 600 10px/1.2 var(--mono); color: #7a7260; margin-top: 3px; letter-spacing: 0; }
+  .ch-sess-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ch-sess-acts .ch-btn { flex: 0 0 auto; padding: 6px 10px; font-size: 10px; }
+  .ch-sess-body { padding: 10px 12px 12px; }
+  .ch-sess-body .ch-grid { margin: 0; }
+  .ch-sess.collapsed .ch-sess-body { display: none; }
+  .ch-sess-tog { border: 1px solid rgba(200,180,120,.3); background: rgba(0,0,0,.3); color: #c9b88a;
+    border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font: 700 12px/1 sans-serif; flex: 0 0 auto; }
+  .ch-status.s-tossed { color: #ffb0a0; border-color: rgba(255,120,90,.4); }
+  .ch-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px;
+    border-top: 1px solid rgba(200,180,120,.14); flex-shrink: 0; background: rgba(0,0,0,.25); }
+  .ch-foot .ch-grow { flex: 1; font: 600 11px/1.3 var(--mono); color: #9a8f72; }
+  .ch-foot .ch-btn { flex: 0 0 auto; padding: 9px 14px; }
+  .ch-foot .ch-btn.dim { color: #c9b88a; background: rgba(0,0,0,.4); border-color: rgba(200,180,120,.3); }
+  .ch-foot .ch-btn.warn { color: #0c100e; background: #e9b96e; border-color: #e9b96e; }
+  .ch-foot .ch-btn.danger { color: #ffb0a0; background: rgba(70,26,20,.5); border-color: rgba(255,120,90,.4); }
   .th-flags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
   .th-flag { font: 700 10px/1 var(--mono); letter-spacing: .06em; padding: 3px 6px; border-radius: 5px;
     border: 1px solid rgba(200,180,120,.28); color: #d9c9a0; background: rgba(0,0,0,.35); }
@@ -1457,7 +1551,7 @@
           <button class="th-btn" id="th-next-b" type="button" title="Next screenshot (→) — steps every real photo">›</button>
           <button class="th-btn" id="th-next-s" type="button" title="Newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
-          <button class="th-btn" id="th-mode" type="button" title="Playback mode — click to cycle: real time / highlights / every frame">⏱ REAL · true speed</button>
+          <button class="th-btn" id="th-mode" type="button" title="Playback mode — cycle: REAL (all photos 1:1) → FAST (all photos, time-zipped) → STORY (sparse film near AI)">⏱ REAL · true speed</button>
           <button class="th-btn" id="th-speed" type="button" title="Playback speed — click to cycle (1× = real session time)">1×</button>
           <button class="th-btn" id="th-fs" type="button" title="Fullscreen — watch like a video (F · Esc exits)">⛶</button>
           <button class="th-btn on" id="th-fs-toggle" type="button" title="Filmstrip — every screenshot">🎞</button>
@@ -1576,6 +1670,38 @@
 
   </div>
   <div class="toast" id="toast"></div>
+  <!-- v947.6 — Chronicle inbox + visual ledger backend -->
+  <div id="ch-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ch-modal-title">
+    <div class="ch-card">
+      <div class="ch-head">
+        <h3 id="ch-modal-title">📜 Chronicle inbox <span class="ch-sub" id="ch-modal-count"></span></h3>
+        <button type="button" class="ch-x" id="ch-modal-x" title="Close (Esc)">✕</button>
+      </div>
+      <div class="ch-modebar">
+        <button type="button" class="ch-pill on" id="ch-mode-pending" data-mode="pending" title="Action queue — only items not yet in chronicles">⏳ Pending</button>
+        <button type="button" class="ch-pill" id="ch-mode-ledger" data-mode="ledger" title="Visual backend — every KAI read for debug">📚 Ledger (all reads)</button>
+      </div>
+      <div class="ch-tools">
+        <input type="search" id="ch-search" placeholder="Search names…" autocomplete="off" />
+        <button type="button" class="ch-pill on" data-filter="all">All</button>
+        <button type="button" class="ch-pill grail" data-filter="grail">Grail</button>
+        <button type="button" class="ch-pill" data-filter="keep">Keep</button>
+        <button type="button" class="ch-pill" data-filter="other">Other</button>
+        <button type="button" class="ch-pill" data-filter="status-pending" id="ch-st-pending" title="Ledger: pending only">Pend</button>
+        <button type="button" class="ch-pill" data-filter="status-in-chronicle" id="ch-st-chron" title="Ledger: already in chronicles">In chron</button>
+        <button type="button" class="ch-pill" id="ch-view-grid" title="Card grid">▦ Grid</button>
+        <button type="button" class="ch-pill" id="ch-view-table" title="Compact table">☰ Table</button>
+      </div>
+      <div class="ch-body" id="ch-body"></div>
+      <div class="ch-foot">
+        <span class="ch-grow" id="ch-foot-hint">Pending = action · Ledger = every read for debug</span>
+        <button type="button" class="ch-btn dim" id="ch-sel-all">Select all shown</button>
+        <button type="button" class="ch-btn ok" id="ch-accept-sel">✓ Accept selected</button>
+        <button type="button" class="ch-btn danger" id="ch-dismiss-sel">✕ Dismiss selected</button>
+        <button type="button" class="ch-btn warn" id="ch-accept-all" title="Promote every pending item to found">Accept ALL pending…</button>
+      </div>
+    </div>
+  </div>
 
 <script>
 (function(){
@@ -2064,13 +2190,30 @@
   var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'real', allBeats:[], filmstrip:true, stepPhotos:true };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
-  // v946.9 — plain-word modes; HIGHLIGHTS explicitly says film is OFF
+  // v948.6 — mode pill shows THIS MODE's photo count vs full-session film (never lie)
+  function thSessionPhotoStats(){
+    var all = TH.allBeats || [], cur = TH.beats || [];
+    var allFoot = 0, allPhoto = 0, curFoot = 0, curPhoto = 0;
+    for (var i = 0; i < all.length; i++){
+      if (all[i].footage) allFoot++;
+      if (all[i].frame) allPhoto++;
+    }
+    for (var j = 0; j < cur.length; j++){
+      if (cur[j].footage) curFoot++;
+      if (cur[j].frame) curPhoto++;
+    }
+    return { allFoot: allFoot, allPhoto: allPhoto, curFoot: curFoot, curPhoto: curPhoto };
+  }
   function thModeLabel(m){
-    var footN = 0, photoN = 0, src = (TH.allBeats && TH.allBeats.length) ? TH.allBeats : (TH.beats || []);
-    for (var i = 0; i < src.length; i++){ if (src[i].footage) footN++; if (src[i].frame) photoN++; }
-    if (m === 'highlight') return '🎬 HIGHLIGHTS · film OFF';
-    if (m === 'full') return '📼 EVERY BEAT · compressed';
-    return '⏱ ALL ' + (photoN || '—') + ' PHOTOS · true speed';
+    var st = thSessionPhotoStats();
+    // After filter, prefer current mode counts; fall back to session totals before first filter
+    var n = st.curPhoto || st.allPhoto || '—';
+    var f = st.curFoot || st.allFoot || 0;
+    if (m === 'highlight')
+      return '🎬 STORY · ' + n + ' photos (film sparse · session 📹 ' + (st.allFoot || 0) + ')';
+    if (m === 'full')
+      return '⏩ FAST · all ' + (st.allPhoto || n) + ' photos · time-zipped';
+    return '⏱ REAL · all ' + (st.allPhoto || n) + ' photos · 1:1 time';
   }
   // v946.9 — photo index among framed beats (what L/R actually steps)
   function thFramedIndices(beats){
@@ -2606,18 +2749,16 @@
     else if (meta.t0) range = ' · ' + thFmtFull(meta.t0);
     var spanS = (meta.t0 && meta.t1) ? Math.max(0, Math.round((meta.t1 - meta.t0) / 1000)) : 0;
     var spanTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + (spanS % 60)).slice(-2) + 's') : '';
-    var footN = (TH.allBeats || []).filter(function(x){ return x.footage; }).length;
-    // v946.9 — primary counter is PHOTOS (framed JPEGs L/R actually steps), not abstract beats
+    // v948.6 — counters: L/R photo index uses MODE filter; session film total always shown
+    var _st = thSessionPhotoStats();
     var _pp = thPhotoPos(TH.i);
     var photoSeg = _pp.n
-      ? (' · 🖼 photo ' + (_pp.pos >= 0 ? (_pp.pos + 1) : '—') + '/' + _pp.n)
+      ? (' · 🖼 mode ' + (_pp.pos >= 0 ? (_pp.pos + 1) : '—') + '/' + _pp.n
+         + (_st.allPhoto && _st.allPhoto !== _pp.n ? (' · session ' + _st.allPhoto) : ''))
       : ' · no photos';
     // v943 (Konyo, REAL pacing R2 §C2) — the play estimate recomputes PER MODE and PER SPEED.
-    // REAL means wall-clock: it reads the session's true span, not a made-up minute count. The
-    // compressed modes divide the compressed play-time by the live speed so 2×/4× shrink it.
     var playSeg = '';
     if (TH.mode === 'real'){
-      // v947.1 — play length = wall axis (matches video), not a vague meta span
       var _realMs = TH.Tplay || spanS * 1000 || 0;
       var _rSec = Math.max(0, Math.round(_realMs / 1000));
       var _rTxt = (Math.floor(_rSec / 60) + 'm' + ('0' + (_rSec % 60)).slice(-2) + 's');
@@ -2627,19 +2768,40 @@
       var _pt = _pm >= 60000
         ? (Math.floor(_pm / 60000) + 'm' + ('0' + Math.round((_pm % 60000) / 1000)).slice(-2) + 's')
         : (Math.max(1, Math.round(_pm / 1000)) + 's');
-      playSeg = ' · plays ~' + _pt + ' @' + TH.speed + '×';
+      playSeg = ' · plays ~' + _pt + ' @' + TH.speed + '×'
+        + (TH.mode === 'full' ? ' · time-zip (all photos kept)' : '');
     }
-    var filmWarn = (TH.mode === 'highlight' && footN > 0)
-      ? ' · ⚠ film HIDDEN (click mode → ALL PHOTOS)'
+    var filmWarn = (TH.mode === 'highlight' && _st.allFoot > (_st.curFoot || 0))
+      ? (' · ⚠ story mode · film sparse ' + (_st.curFoot || 0) + '/' + _st.allFoot + ' (→ REAL for all)')
       : '';
+    // tally strip from intake beats in this session (gems/runes/materials/vault)
+    var tallySeg = '';
+    try {
+      var _tabs = {};
+      (TH.allBeats || []).forEach(function(x){
+        if (!x || !x.intakeBeat || !x.intake) return;
+        var ik = x.intake;
+        if (ik.ok === false) return;
+        var tab = String(ik.tab || ik.kind || '').toLowerCase();
+        if (!tab) return;
+        var tot = parseInt(ik.total, 10) || 0;
+        if (tot > (_tabs[tab] || 0)) _tabs[tab] = tot;
+      });
+      var _tbits = [];
+      ['gems','runes','materials','personal','shared'].forEach(function(t){
+        if (_tabs[t] != null) _tbits.push(t + '×' + _tabs[t]);
+      });
+      if (_tbits.length) tallySeg = ' · 📸 ' + _tbits.join(' · ');
+    } catch(eT){}
     $('th-sess').textContent = 'session ' + TH.sn + '/' + TH.sessions.length
       + range
       + (spanTxt ? ' · ran ' + spanTxt : '')
       + playSeg
       + photoSeg
-      + (footN ? ' · 📹 ' + footN + ' film' : ' · reads-only')
+      + (_st.allFoot ? ' · 📹 film ' + _st.allFoot : ' · reads-only')
       + (meta.reads != null ? ' · ' + meta.reads + ' AI reads' : '')
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
+      + tallySeg
       + filmWarn
       + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : '');
     thRibbon();   // v940.5 — keep the PAST-not-LIVE banner synced to the loaded reel
@@ -2867,10 +3029,12 @@
   function thSchedule(){ /* v798 — rAF playhead owns time now; nothing to schedule */ }
   // v790 (Grok R4 #2) — HIGHLIGHT CUT: a real session is hundreds of empty floor beats.
   // The cut keeps the story: loot chain, discoveries, area changes, farewell, bookends.
-  function thThinFootage(beats){
-    // v893 — FULL/CUT: thin dense quiet film so a 1h run is not 3600 frames of walking.
-    // Keep every AI read; near reads keep dense film; far from reads keep ~2–3 frames/s wall.
-    if (TH.mode === 'real' || beats.length < 40) return beats;
+  function thThinFootage(beats, stepMs, nearMs){
+    // Keep every AI/intake beat; thin quiet film by wall-clock step.
+    // Used by HIGHLIGHT sparse film only — FULL no longer drops photos (v948.6).
+    if (!beats || beats.length < 40) return beats;
+    stepMs = stepMs == null ? 900 : stepMs;
+    nearMs = nearMs == null ? 2500 : nearMs;
     var readTs = [];
     for (var i = 0; i < beats.length; i++){
       var bb = beats[i];
@@ -2878,17 +3042,16 @@
     }
     function nearRead(ts){
       for (var j = 0; j < readTs.length; j++){
-        if (Math.abs((readTs[j] || 0) - ts) <= 3000) return true;
+        if (Math.abs((readTs[j] || 0) - ts) <= nearMs) return true;
       }
       return false;
     }
     var out = [], lastFoot = -1e15;
-    var step = TH.mode === 'highlight' ? 900 : 450;   // CUT thinner than FULL
     for (var k = 0; k < beats.length; k++){
       var b = beats[k];
       if (!b.footage){ out.push(b); continue; }
       var ts = b.ts || 0;
-      if (nearRead(ts) || ts - lastFoot >= step){
+      if (nearRead(ts) || ts - lastFoot >= stepMs){
         out.push(b);
         lastFoot = ts;
       }
@@ -2896,24 +3059,57 @@
     return out.length >= 2 ? out : beats;
   }
   function thFilter(beats){
-    if (TH.mode === 'real') return beats;   // v831 — REAL mode plays everything, true time
-    // v893 — always thin quiet film first in FULL + CUT
-    beats = thThinFootage(beats);
-    if (TH.mode !== 'highlight' || beats.length <= 8) return beats;
-    var keep = [], lastArea = null;
+    // v948.6 — PHOTO SYNC LAW:
+    //   REAL  = every beat, wall-clock time (photo count = session film + AI frames)
+    //   FULL  = every photo kept; only PLAY TIME is zipped (thEdgeMs / axis) — L/R count matches REAL
+    //   HIGHLIGHT = story AI + intake + sparse film near those moments (never silent empty strip)
+    if (!beats || !beats.length) return beats;
+    if (TH.mode === 'real' || TH.mode === 'full') return beats;
+    // ── highlight ──
+    if (beats.length <= 8) return beats;
+    var story = [], lastArea = null, storyTs = [];
     beats.forEach(function(b, k){
+      if (b.skip) return;
+      if (b.footage) return;   // film handled in second pass
       var why = false;
-      if (b.footage || b.skip) { return; }   // CUT story: film texture stripped (thinned already for FULL)
-      if (b.intakeBeat) why = true;          // v903 (Grok P0) — 📸 intake IS the story in this product
+      if (b.intakeBeat) why = true;          // 📸 gems/runes/materials/vault tallies
       if (k === 0 || k === beats.length - 1) why = true;
       if ((b.vault_names||[]).length || (b.pending_names||[]).length) why = true;
       if ((b.names||[]).length || (b.discovered_names||[]).length) why = true;
       if (b.farewell) why = true;
+      if (b.lane === 'verify' || b.lane === 'kai') why = true;
+      if (b.stashTab) why = true;            // any deep stash tab visit (gems/materials/runes)
       if (b.area && b.area !== lastArea) why = true;
       if (b.area) lastArea = b.area;
-      if (why) keep.push(b);
+      if (why){ story.push(b); storyTs.push(b.ts || 0); }
     });
-    return keep.length >= 2 ? keep : beats;
+    // sparse film: keep stills near story beats + bookends + ~1/s wall far from story
+    function nearStory(ts){
+      for (var j = 0; j < storyTs.length; j++){
+        if (Math.abs((storyTs[j] || 0) - ts) <= 2500) return true;
+      }
+      return false;
+    }
+    var out = [], lastFoot = -1e15, firstFoot = null, lastFootB = null;
+    beats.forEach(function(b){
+      if (!b.footage) return;
+      if (!firstFoot) firstFoot = b;
+      lastFootB = b;
+      var ts = b.ts || 0;
+      if (nearStory(ts) || ts - lastFoot >= 1200){
+        out.push(b);
+        lastFoot = ts;
+      }
+    });
+    // bookend film always
+    if (firstFoot && out.indexOf(firstFoot) < 0) out.unshift(firstFoot);
+    if (lastFootB && out.indexOf(lastFootB) < 0) out.push(lastFootB);
+    // merge story + sparse film, capture-clock order
+    var merged = story.concat(out);
+    merged.sort(function(a, b){
+      return (a.ts || 0) - (b.ts || 0) || ((a.footage ? 0 : 1) - (b.footage ? 0 : 1));
+    });
+    return merged.length >= 2 ? merged : beats;
   }
   function thDwell(b){
     if ((b.vault_names||[]).length) return 2200;
@@ -2968,7 +3164,13 @@
       var meta = TH.sessions[TH.sn-1] || {};
       var spanS = (meta.t0 && meta.t1) ? Math.round((meta.t1 - meta.t0) / 1000)
         : (_src.length ? Math.round((((_src[_src.length-1]||{}).ts||0) - ((_src[0]||{}).ts||0)) / 1000) : 0);
-      if (TH.filmstrip && footCount < 20 && spanS > 60){
+      var modeFoot = 0;
+      for (var mfi = 0; mfi < (TH.beats || []).length; mfi++){ if (TH.beats[mfi].footage) modeFoot++; }
+      if (TH.mode === 'highlight' && footCount > modeFoot + 5){
+        note.hidden = false;
+        note.textContent = '🎬 STORY mode — showing ' + modeFoot + ' film stills near AI/intakes · session has '
+          + footCount + ' film · switch to REAL or FAST for every screenshot';
+      } else if (TH.filmstrip && footCount < 20 && spanS > 60){
         note.hidden = false;
         note.textContent = '📹 this session recorded only ' + footCount + ' still' + (footCount === 1 ? '' : 's')
           + ' — the film lane was off when it ran (fixed in v941; new sessions record full film)';
@@ -3097,14 +3299,12 @@
     thTimeline(); thPaint();
     // v946.9 — on open, tell the user how many screenshots L/R will step (the real feed)
     if (isEntry){
-      var _fn = 0, _pn = 0;
-      for (var _xi = 0; _xi < TH.beats.length; _xi++){
-        if (TH.beats[_xi].footage) _fn++;
-        if (TH.beats[_xi].frame) _pn++;
-      }
+      var _st0 = thSessionPhotoStats();
+      var _pn = _st0.curPhoto || _st0.allPhoto || 0;
+      var _fn = _st0.curFoot || _st0.allFoot || 0;
       if (_pn){
-        toast('🎞 ' + _pn + ' photos · 📹 ' + _fn + ' film · ‹ › steps every screenshot (mode must stay ALL PHOTOS)');
-        try { thToast('🖼 ' + _pn + ' photos ready · use ‹ ›', $('th-next-b')); } catch (e) {}
+        toast('🎞 ' + _pn + ' photos · 📹 ' + _fn + ' film · REAL/FAST keep all · STORY = sparse near AI');
+        try { thToast('🖼 ' + _pn + ' photos · ‹ › steps stills', $('th-next-b')); } catch (e) {}
       } else {
         toast('🎞 no photos on this reel — film lane was empty');
       }
@@ -3818,41 +4018,62 @@
   };
   $('th-mode').onclick = function(){
     TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
-    // v946.9 — cycle REAL → FULL → HIGHLIGHT → REAL.
-    // OLD cycle REAL→HIGHLIGHT stripped all film on the first accidental click (Konyo: "83 screenshots not in theatre").
+    // v946.9/v948.6 — cycle REAL → FULL → HIGHLIGHT → REAL.
     TH.mode = TH.mode === 'real' ? 'full' : (TH.mode === 'full' ? 'highlight' : 'real');
-    thModePill(TH.mode);   // v943 — label + colored accent
-    // v836 (Konyo: 'REAL at 1× runs way too fast') — REAL means WALL-CLOCK. A speed bumped
-    // while skimming CUT/FULL latched via __speedTouched and silently multiplied the real-time
-    // playhead. Entering REAL re-pins the deck to 1× so the reel runs the session's true span.
+    // REAL = wall-clock 1×; FULL may keep skim speed; HIGHLIGHT may keep skim speed
     if (TH.mode === 'real'){ TH.speed = 1; var _spm = $('th-speed'); if (_spm) _spm.textContent = '1×'; }
-    var keepTs = (TH.beats[TH.i] || {}).ts;
+    var keepTs = (TH.beats[TH.i] || {}).ts || 0;
+    var keepFid = String((TH.beats[TH.i] || {}).frameId || (TH.beats[TH.i] || {}).frame || '');
     TH.beats = thFilter(TH.allBeats.slice());
     TH.i = 0;
-    if (keepTs){ for (var k = 0; k < TH.beats.length; k++){ if ((TH.beats[k].ts||0) >= keepTs){ TH.i = k; break; } } }
-    // snap to a framed photo after filter
+    // v948.6 — re-sync playhead to same capture moment / same frame when mode changes
+    if (keepFid){
+      for (var k0 = 0; k0 < TH.beats.length; k0++){
+        var bf = String(TH.beats[k0].frameId || TH.beats[k0].frame || '');
+        if (bf && (bf === keepFid || bf.indexOf(keepFid) >= 0 || keepFid.indexOf(bf) >= 0)){
+          TH.i = k0; break;
+        }
+      }
+    }
+    if (keepTs && !(TH.beats[TH.i] || {}).frame){
+      var bestI = 0, bestD = 1e15;
+      for (var k = 0; k < TH.beats.length; k++){
+        var d = Math.abs((TH.beats[k].ts || 0) - keepTs);
+        if (d < bestD){ bestD = d; bestI = k; }
+      }
+      TH.i = bestI;
+    }
     if (TH.stepPhotos !== false && !(TH.beats[TH.i] || {}).frame){
       var _snap = thFramedIndices(TH.beats);
-      if (_snap.length) TH.i = _snap[0];
+      if (_snap.length){
+        // nearest framed to keepTs
+        var bestF = _snap[0], bestFd = 1e15;
+        for (var si = 0; si < _snap.length; si++){
+          var d2 = Math.abs((TH.beats[_snap[si]].ts || 0) - keepTs);
+          if (d2 < bestFd){ bestFd = d2; bestF = _snap[si]; }
+        }
+        TH.i = bestF;
+      }
     }
+    thModePill(TH.mode);
     thBuildAxis();
     thTimeline(); thPaint(); thClock();
-    // v941.6 / v946.9 — MODE TOAST: always say how many PHOTOS are on the L/R scrubber
-    var framedCount = 0, footCount = 0;
-    for (var _f = 0; _f < TH.beats.length; _f++){
-      if (TH.beats[_f].frame) framedCount++;
-      if (TH.beats[_f].footage) footCount++;
-    }
+    var st2 = thSessionPhotoStats();
+    var framedCount = st2.curPhoto, footCount = st2.curFoot, allFoot = st2.allFoot, allPhoto = st2.allPhoto;
     var _wallS = Math.max(0, Math.round((TH.Tplay || 0) / 1000));
     var _wallTxt = Math.floor(_wallS / 60) + 'm' + ('0' + (_wallS % 60)).slice(-2) + 's';
     var msg = TH.mode === 'real'
-      ? ('⏱ REAL 1:1 · plays ' + _wallTxt + ' wall-clock · ' + framedCount + ' photos')
+      ? ('⏱ REAL 1:1 · ' + framedCount + ' photos · plays ' + _wallTxt)
       : (TH.mode === 'highlight'
-        ? ('🎬 film OFF · only ' + framedCount + ' story beats (click again for ALL PHOTOS)')
-        : ('📼 every beat compressed · ' + framedCount + ' photos · ' + footCount + ' film'));
+        ? ('🎬 STORY · ' + framedCount + ' photos (sparse film ' + footCount + '/' + allFoot + ') · click → REAL for all ' + allPhoto)
+        : ('⏩ FAST · all ' + framedCount + ' photos kept · time-zipped ~' + _wallTxt + ' @' + TH.speed + '×'));
     thToast(msg, this);
-    if (TH.mode === 'highlight') toast('⚠ HIGHLIGHTS hides film — click mode until ALL PHOTOS to scrub every screenshot');
-    else if (TH.mode === 'real') toast('⏱ REAL TIME — video length ' + _wallTxt + ' at 1× (time-synced to capture)');
+    if (TH.mode === 'highlight')
+      toast('🎬 STORY mode — sparse film near AI/intakes. REAL or FAST keeps all ' + allFoot + ' film stills.');
+    else if (TH.mode === 'real')
+      toast('⏱ REAL — all ' + framedCount + ' photos · wall-clock 1:1 to capture');
+    else
+      toast('⏩ FAST — same ' + framedCount + ' photos as REAL, playback time compressed');
   };
   $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
   $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
@@ -4282,57 +4503,443 @@
     brainSig = '';
     if (showLog) loadLog(); else refresh();
   };
-  // v946 — Chronicle inbox (engine LS); review gate before grail write
+  // v946/v947.4 — Chronicle inbox: review gate before grail write
+  // Selective modal (grid + table, per-item ✓/✕) — never a native prompt.
   function _engWin(){
     try { var f = document.getElementById('tvd-eng'); return f && f.contentWindow; } catch(e){ return null; }
+  }
+  var CH = { open: false, items: [], ledger: [], mode: 'pending', filter: 'all', q: '', view: 'grid',
+             selected: {}, groupBy: 'session', collapsed: {} };
+  function chRefreshData(){
+    var W = _engWin();
+    var pending = [], ledger = [];
+    try {
+      if (W && typeof W.kaiChronicleLedgerSeedFromInbox === 'function' && !CH._seeded){
+        W.kaiChronicleLedgerSeedFromInbox();
+        CH._seeded = true;
+      }
+      if (W && typeof W.kaiChronicleSync === 'function') W.kaiChronicleSync();
+      if (W && typeof W.kaiChronicleInbox === 'function') pending = W.kaiChronicleInbox({ sync: false }) || [];
+      if (W && typeof W.kaiChronicleLedger === 'function') ledger = W.kaiChronicleLedger({ sync: false }) || [];
+    } catch(e){}
+    CH.items = pending;
+    CH.ledger = ledger;
+    return { pending: pending, ledger: ledger };
   }
   function paintChronicleInbox(){
     var btn = $('btn-chronicle-inbox'), nEl = $('ch-inbox-n');
     if (!btn) return;
-    var n = 0, items = [];
+    var data = chRefreshData();
+    var nPend = (data.pending || []).length;
+    var nLed = (data.ledger || []).length;
+    // badge stays visible if either pending OR ledger has reads (visual backend always available)
+    btn.hidden = nPend < 1 && nLed < 1;
+    if (nEl) nEl.textContent = nPend > 0 ? String(nPend) : (nLed ? ('0/' + nLed) : '0');
+    btn.title = nPend
+      ? ('Chronicle · ' + nPend + ' pending · ' + nLed + ' in ledger')
+      : ('Chronicle ledger · ' + nLed + ' reads (none pending)');
+    btn.__items = data.pending;
+    if (CH.open) chModalRender();
+  }
+  function chTierRank(t){
+    t = String(t || '').toLowerCase();
+    if (t === 'grail') return 0;
+    if (t === 'keep' || t === 'border') return 1;
+    return 2;
+  }
+  function chStatusLabel(st){
+    st = String(st || 'pending');
+    if (st === 'in-chronicle') return 'IN CHRONICLE';
+    if (st === 'accepted') return 'ACCEPTED';
+    if (st === 'dismissed') return 'DISMISSED';
+    if (st === 'tossed') return 'TOSSED';
+    if (st === 'blocked-unfound') return 'BLOCKED';
+    return 'PENDING';
+  }
+  function chActiveList(){
+    return CH.mode === 'ledger' ? (CH.ledger || []) : (CH.items || []);
+  }
+  function chFiltered(){
+    var q = (CH.q || '').toLowerCase().trim();
+    var list = chActiveList().slice();
+    list.sort(function(a, b){
+      if (CH.mode === 'ledger'){
+        return (b.lastTs || b.proposedAt || 0) - (a.lastTs || a.proposedAt || 0);
+      }
+      var ra = chTierRank(a && a.tier), rb = chTierRank(b && b.tier);
+      if (ra !== rb) return ra - rb;
+      return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+    });
+    return list.filter(function(x){
+      if (!x || !x.name) return false;
+      var tier = String(x.tier || '').toLowerCase();
+      var st = String(x.status || 'pending').toLowerCase();
+      if (CH.filter === 'grail' && tier !== 'grail') return false;
+      if (CH.filter === 'keep' && tier !== 'keep' && tier !== 'border') return false;
+      if (CH.filter === 'other' && (tier === 'grail' || tier === 'keep' || tier === 'border')) return false;
+      if (CH.filter === 'status-pending' && st !== 'pending') return false;
+      if (CH.filter === 'status-in-chronicle' && st !== 'in-chronicle') return false;
+      if (q && String(x.name).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function chArtHtml(name, cls){
+    cls = cls || 'ch-art';
     try {
-      var W = _engWin();
-      if (W && typeof W.kaiChronicleInbox === 'function') {
-        items = W.kaiChronicleInbox() || [];
-        n = items.length;
+      if (typeof thArt === 'function') {
+        var p = thArt(name);
+        if (p) return '<img class="' + cls + '" src="/' + esc(p) + '" alt="" loading="lazy" onerror="this.outerHTML=\'<div class=ch-art-ph>📦</div>\'">';
+      }
+      if (typeof thArtImg === 'function') {
+        var img = thArtImg(name, cls);
+        if (img) return img;
       }
     } catch(e){}
-    btn.hidden = n < 1;
-    if (nEl) nEl.textContent = String(n);
-    btn.__items = items;
+    return '<div class="ch-art-ph">📦</div>';
   }
-  var _chBtn = $('btn-chronicle-inbox');
-  if (_chBtn) _chBtn.onclick = function(){
-    var W = _engWin();
-    var items = (this.__items || []).slice();
-    if (!items.length){ toast('Chronicle inbox empty'); return; }
-    var lines = items.slice(0, 12).map(function(x, i){
-      return (i+1) + '. ' + (x.name || '?') + (x.tier ? (' [' + x.tier + ']') : '');
-    }).join('\n');
-    var more = items.length > 12 ? ('\n… +' + (items.length - 12) + ' more') : '';
-    var choice = window.prompt(
-      '📜 Chronicle inbox — review before grail write\n\n' + lines + more +
-      '\n\nType ACCEPT to promote ALL to found · DISMISS to clear · or a number to accept one.',
-      'ACCEPT');
-    if (choice == null) return;
-    choice = String(choice).trim();
-    try {
-      if (/^accept$/i.test(choice) && W && W.kaiChronicleAcceptAll) {
-        var r = W.kaiChronicleAcceptAll();
-        toast('Chronicle: accepted ' + ((r && r.accepted) || 0));
-      } else if (/^dismiss$/i.test(choice) && W && W.kaiChronicleDismiss) {
-        items.forEach(function(x){ if (x && x.name) W.kaiChronicleDismiss(x.name); });
-        toast('Chronicle inbox cleared');
-      } else if (/^\d+$/.test(choice)) {
-        var it = items[parseInt(choice, 10) - 1];
-        if (it && W && W.kaiChronicleAccept) {
-          W.kaiChronicleAccept(it.name);
-          toast('Accepted ' + it.name);
-        }
+  function chModalOpen(forceMode){
+    try { if (typeof thArtInit === 'function') thArtInit(); } catch(e){}
+    var data = chRefreshData();
+    var nPend = (data.pending || []).length;
+    var nLed = (data.ledger || []).length;
+    if (nPend < 1 && nLed < 1){
+      toast('Chronicle empty — no pending and no ledger reads yet');
+      paintChronicleInbox();
+      return;
+    }
+    // default: pending if any, else ledger so you can always inspect history
+    CH.mode = forceMode || (nPend > 0 ? 'pending' : 'ledger');
+    CH.open = true; CH.selected = {};
+    var ov = $('ch-modal'); if (ov) ov.hidden = false;
+    chModalRender();
+    try { var s = $('ch-search'); if (s){ s.value = CH.q || ''; s.focus(); } } catch(e){}
+    if (nPend > 0 && nLed > nPend)
+      toast('📜 ' + nPend + ' pending · ' + nLed + ' total reads in ledger (debug)');
+  }
+  function chModalClose(){
+    CH.open = false;
+    var ov = $('ch-modal'); if (ov) ov.hidden = true;
+  }
+  function chIsActionable(x){
+    if (!x) return false;
+    if (CH.mode === 'pending') return true;
+    var st = String(x.status || 'pending');
+    return st === 'pending';
+  }
+  function chSessionKey(x){
+    var sid = String((x && x.sessionId) || '').trim();
+    return sid || '__none__';
+  }
+  function chSessionLabel(sid, items){
+    items = items || [];
+    if (!sid || sid === '__none__') return { title: 'Older / no session', sub: items.length + ' item' + (items.length === 1 ? '' : 's') };
+    var ts = 0;
+    items.forEach(function(x){
+      var t = parseInt(x.firstSeenTs || x.proposedAt || x.lastTs || 0, 10) || 0;
+      if (t > ts) ts = t;
+    });
+    var when = ts ? new Date(ts).toLocaleString() : '';
+    var short = sid.length > 22 ? (sid.slice(0, 10) + '…' + sid.slice(-8)) : sid;
+    return {
+      title: (when ? when + ' · ' : '') + short,
+      sub: items.length + ' pending · id ' + sid
+    };
+  }
+  function chGroupBySession(list){
+    var map = {}, order = [];
+    (list || []).forEach(function(x){
+      var k = chSessionKey(x);
+      if (!map[k]){ map[k] = []; order.push(k); }
+      map[k].push(x);
+    });
+    // newest session first (by max firstSeenTs)
+    order.sort(function(a, b){
+      function mx(arr){
+        var m = 0;
+        (arr || []).forEach(function(x){
+          var t = parseInt(x.firstSeenTs || x.proposedAt || x.lastTs || 0, 10) || 0;
+          if (t > m) m = t;
+        });
+        return m;
       }
-    } catch(e){ toast('Inbox action failed'); }
+      return mx(map[b]) - mx(map[a]);
+    });
+    return order.map(function(k){ return { sid: k, items: map[k] }; });
+  }
+  function chCardHtml(x){
+    var nm = String(x.name || '');
+    var tier = String(x.tier || '');
+    var st = String(x.status || 'pending');
+    var tCls = /grail/i.test(tier) ? 't-grail' : (/keep|border/i.test(tier) ? 't-keep' : '');
+    var act = chIsActionable(x);
+    var cardCls = 'ch-card-item'
+      + (CH.selected[nm] ? ' sel' : '')
+      + (/grail/i.test(tier) ? ' tier-grail' : '')
+      + ' st-' + st;
+    var when = x.firstSeenTs ? new Date(x.firstSeenTs).toLocaleTimeString()
+      : (x.proposedAt ? new Date(x.proposedAt).toLocaleTimeString()
+      : (x.lastTs ? new Date(x.lastTs).toLocaleTimeString() : ''));
+    var meta = (x.why || x.store || x.loc || x.source || 'kai')
+      + (when ? ' · ' + when : '')
+      + (x.seenCount ? ' · seen ×' + x.seenCount : '')
+      + (x.triageWhy ? ' · ' + x.triageWhy : '');
+    return '<div class="' + cardCls + '" data-name="' + esc(nm) + '">'
+      + (act ? ('<input type="checkbox" class="ch-chk ch-row-chk" data-name="' + esc(nm) + '"' + (CH.selected[nm] ? ' checked' : '') + '>') : '')
+      + chArtHtml(nm)
+      + '<div class="ch-nm">' + esc(nm) + '</div>'
+      + '<span class="ch-status s-' + esc(st) + '">' + esc(chStatusLabel(st)) + '</span>'
+      + (tier ? '<span class="ch-tier ' + tCls + '">' + esc(tier) + '</span>' : '')
+      + '<div class="ch-meta">' + esc(meta) + '</div>'
+      + (act
+        ? ('<div class="ch-row-acts">'
+           + '<button type="button" class="ch-btn ok ch-one-ok" data-name="' + esc(nm) + '">✓ Accept</button>'
+           + '<button type="button" class="ch-btn no ch-one-no" data-name="' + esc(nm) + '" title="Dismiss from inbox">✕</button>'
+           + '</div>')
+        : '')
+      + '</div>';
+  }
+  function chTableRowsHtml(list){
+    return list.map(function(x){
+      var nm = String(x.name || '');
+      var tier = String(x.tier || '—');
+      var st = String(x.status || 'pending');
+      var tCls = /grail/i.test(tier) ? 't-grail' : (/keep|border/i.test(tier) ? 't-keep' : '');
+      var sel = !!CH.selected[nm];
+      var act = chIsActionable(x);
+      var art = chArtHtml(nm, 'ch-t-art');
+      var why = x.why || x.store || x.loc || x.triageWhy || '—';
+      return '<tr data-name="' + esc(nm) + '">'
+        + '<td>' + (act ? ('<input type="checkbox" class="ch-row-chk" data-name="' + esc(nm) + '"' + (sel ? ' checked' : '') + '>') : '') + '</td>'
+        + '<td>' + art + '</td>'
+        + '<td><b>' + esc(nm) + '</b></td>'
+        + '<td><span class="ch-tier ' + tCls + '">' + esc(tier) + '</span></td>'
+        + '<td><span class="ch-status s-' + esc(st) + '">' + esc(chStatusLabel(st)) + '</span></td>'
+        + '<td style="opacity:.75;font-size:11px">' + esc(why) + (x.seenCount ? (' · ×' + x.seenCount) : '') + '</td>'
+        + '<td class="ch-t-acts">'
+        + (act
+          ? ('<button type="button" class="ch-btn ok ch-one-ok" data-name="' + esc(nm) + '">✓</button>'
+             + '<button type="button" class="ch-btn no ch-one-no" data-name="' + esc(nm) + '" title="Dismiss">✕</button>')
+          : '<span style="opacity:.45;font-size:10px">—</span>')
+        + '</td></tr>';
+    }).join('');
+  }
+  function chModalRender(){
+    var body = $('ch-body'); if (!body) return;
+    try { chRefreshData(); } catch(e){}
+    var shown = chFiltered();
+    var nPend = (CH.items || []).length;
+    var nLed = (CH.ledger || []).length;
+    var cnt = $('ch-modal-count');
+    if (cnt){
+      cnt.textContent = CH.mode === 'ledger'
+        ? ('· ledger ' + nLed + ' reads · ' + nPend + ' pending · show ' + shown.length)
+        : ('· ' + nPend + ' pending · ledger ' + nLed + ' · show ' + shown.length);
+    }
+    var nSel = Object.keys(CH.selected).filter(function(k){ return CH.selected[k]; }).length;
+    var hint = $('ch-foot-hint');
+    if (hint){
+      if (CH.mode === 'ledger')
+        hint.textContent = nSel
+          ? (nSel + ' selected · only PENDING can Accept/Dismiss')
+          : 'Ledger = every KAI read · grouped by session · auto-accepted grails land as accepted';
+      else
+        hint.textContent = nSel
+          ? (nSel + ' selected · ✓ promote to found · ✕ dismiss')
+          : 'Grouped by session · ✓ grails auto-accepted · junk auto-dismissed · rest hold for you';
+    }
+    try {
+      var mp = $('ch-mode-pending'), ml = $('ch-mode-ledger');
+      if (mp) mp.classList.toggle('on', CH.mode === 'pending');
+      if (ml) ml.classList.toggle('on', CH.mode === 'ledger');
+      document.querySelectorAll('#ch-modal .ch-pill[data-filter]').forEach(function(p){
+        p.classList.toggle('on', p.getAttribute('data-filter') === CH.filter);
+      });
+      var sp = $('ch-st-pending'), sc = $('ch-st-chron');
+      if (sp) sp.style.display = CH.mode === 'ledger' ? '' : 'none';
+      if (sc) sc.style.display = CH.mode === 'ledger' ? '' : 'none';
+      var vg = $('ch-view-grid'), vt = $('ch-view-table');
+      if (vg) vg.classList.toggle('on', CH.view === 'grid');
+      if (vt) vt.classList.toggle('on', CH.view === 'table');
+      var aa = $('ch-accept-all');
+      if (aa) aa.style.display = CH.mode === 'pending' ? '' : 'none';
+    } catch(e){}
+    if (!shown.length){
+      body.innerHTML = '<div class="ch-empty">'
+        + (CH.mode === 'pending'
+          ? 'No pending items<br><span style="opacity:.7">Grails auto-accept · junk auto-dismiss · switch to <b>Ledger</b> for full history</span>'
+          : 'No ledger rows match<br><span style="opacity:.7">try All · clear search</span>')
+        + '</div>';
+      return;
+    }
+    var groups = chGroupBySession(shown);
+    var html = '';
+    groups.forEach(function(g){
+      var lab = chSessionLabel(g.sid, g.items);
+      var col = !!CH.collapsed[g.sid];
+      var sidAttr = esc(g.sid);
+      var acts = '';
+      if (CH.mode === 'pending' && g.sid !== '__none__'){
+        acts = '<div class="ch-sess-acts">'
+          + '<button type="button" class="ch-btn ok ch-sess-grails" data-sid="' + sidAttr + '" title="Accept only grail-tier in this session">✓ Grail</button>'
+          + '<button type="button" class="ch-btn ok ch-sess-all" data-sid="' + sidAttr + '" title="Accept everything pending in this session">✓ All</button>'
+          + '<button type="button" class="ch-btn dim ch-sess-junk" data-sid="' + sidAttr + '" title="Dismiss junk only (keep border/keep)">✕ Junk</button>'
+          + '<button type="button" class="ch-btn danger ch-sess-dismiss" data-sid="' + sidAttr + '" title="Dismiss entire session queue">✕ All</button>'
+          + '</div>';
+      } else if (CH.mode === 'pending'){
+        acts = '<div class="ch-sess-acts">'
+          + '<button type="button" class="ch-btn ok ch-sess-all" data-sid="' + sidAttr + '">✓ All</button>'
+          + '<button type="button" class="ch-btn danger ch-sess-dismiss" data-sid="' + sidAttr + '">✕ All</button>'
+          + '</div>';
+      }
+      html += '<div class="ch-sess' + (col ? ' collapsed' : '') + '" data-sid="' + sidAttr + '">'
+        + '<div class="ch-sess-h">'
+        + '<button type="button" class="ch-sess-tog" data-sid="' + sidAttr + '" title="Collapse">' + (col ? '▸' : '▾') + '</button>'
+        + '<div class="ch-sess-title">' + esc(lab.title)
+        + '<span class="ch-sess-sub">' + esc(lab.sub) + '</span></div>'
+        + acts
+        + '</div><div class="ch-sess-body">';
+      if (CH.view === 'table'){
+        html += '<table class="ch-table"><thead><tr>'
+          + '<th></th><th></th><th>Name</th><th>Tier</th><th>Status</th><th>Loc / why</th><th>Actions</th>'
+          + '</tr></thead><tbody>' + chTableRowsHtml(g.items) + '</tbody></table>';
+      } else {
+        html += '<div class="ch-grid">' + g.items.map(chCardHtml).join('') + '</div>';
+      }
+      html += '</div></div>';
+    });
+    body.innerHTML = html;
+  }
+  function chSelectedNames(){
+    return Object.keys(CH.selected).filter(function(k){ return CH.selected[k]; });
+  }
+  function chAcceptOne(name){
+    var W = _engWin();
+    if (!W || typeof W.kaiChronicleAccept !== 'function'){ toast('Chronicle API unavailable'); return; }
+    try {
+      var r = W.kaiChronicleAccept(name);
+      if (r && r.ok){
+        toast(r.already ? ('✓ Already in ' + (r.store || 'chronicle') + ' · ' + name) : ('✓ Found · ' + name));
+        delete CH.selected[name];
+      } else toast('Could not accept ' + name + (r && r.why ? (' · ' + r.why) : ''));
+    } catch(e){ toast('Accept failed'); }
     paintChronicleInbox();
-  };
+  }
+  function chDismissOne(name){
+    var W = _engWin();
+    if (!W || typeof W.kaiChronicleDismiss !== 'function'){ toast('Chronicle API unavailable'); return; }
+    try {
+      W.kaiChronicleDismiss(name);
+      toast('✕ Dismissed · ' + name);
+      delete CH.selected[name];
+    } catch(e){ toast('Dismiss failed'); }
+    paintChronicleInbox();
+  }
+  function chAcceptSelected(){
+    var names = chSelectedNames();
+    if (!names.length){ toast('Select one or more items first'); return; }
+    var W = _engWin(); if (!W || !W.kaiChronicleAccept) return;
+    var n = 0;
+    names.forEach(function(nm){ try { if (W.kaiChronicleAccept(nm).ok) n++; } catch(e){} delete CH.selected[nm]; });
+    toast('✓ Accepted ' + n + ' item' + (n === 1 ? '' : 's'));
+    paintChronicleInbox();
+  }
+  function chDismissSelected(){
+    var names = chSelectedNames();
+    if (!names.length){ toast('Select one or more items first'); return; }
+    var W = _engWin(); if (!W || !W.kaiChronicleDismiss) return;
+    names.forEach(function(nm){ try { W.kaiChronicleDismiss(nm); } catch(e){} delete CH.selected[nm]; });
+    toast('✕ Dismissed ' + names.length);
+    paintChronicleInbox();
+  }
+  function chAcceptAllConfirm(){
+    var n = (CH.items || []).length;
+    if (!n) return;
+    if (!window.confirm('Promote ALL ' + n + ' inbox items to FOUND (grail write)?\n\nThis cannot be undone from here — use Grail unfound if you need to reverse.')) return;
+    var W = _engWin();
+    if (!W || typeof W.kaiChronicleAcceptAll !== 'function'){ toast('Chronicle API unavailable'); return; }
+    try {
+      var r = W.kaiChronicleAcceptAll();
+      toast('Chronicle: accepted ' + ((r && r.accepted) || 0));
+    } catch(e){ toast('Accept all failed'); }
+    CH.selected = {};
+    paintChronicleInbox();
+  }
+  // v948.5 — batch by session (lazy Accept/Dismiss)
+  function chSessCall(fnName, sid, label){
+    var W = _engWin();
+    if (!W || typeof W[fnName] !== 'function'){ toast('Chronicle API unavailable'); return; }
+    try {
+      var r = W[fnName](sid || '__none__');
+      var n2 = (r && (r.accepted != null ? r.accepted : r.dismissed)) || 0;
+      toast(label + ' · ' + n2);
+    } catch(e){ toast(label + ' failed'); }
+    CH.selected = {};
+    paintChronicleInbox();
+  }
+  // wire modal once
+  (function(){
+    var ov = $('ch-modal'); if (!ov) return;
+    ov.addEventListener('click', function(e){ if (e.target === ov) chModalClose(); });
+    var x = $('ch-modal-x'); if (x) x.onclick = function(e){ e.stopPropagation(); chModalClose(); };
+    var search = $('ch-search');
+    if (search) search.addEventListener('input', function(){ CH.q = this.value || ''; chModalRender(); });
+    document.querySelectorAll('#ch-modal .ch-pill[data-filter]').forEach(function(p){
+      p.onclick = function(){ CH.filter = this.getAttribute('data-filter') || 'all'; chModalRender(); };
+    });
+    var mp = $('ch-mode-pending'), ml = $('ch-mode-ledger');
+    if (mp) mp.onclick = function(){ CH.mode = 'pending'; CH.filter = 'all'; CH.selected = {}; chModalRender(); };
+    if (ml) ml.onclick = function(){ CH.mode = 'ledger'; CH.filter = 'all'; CH.selected = {}; chModalRender(); };
+    var vg = $('ch-view-grid'), vt = $('ch-view-table');
+    if (vg) vg.onclick = function(){ CH.view = 'grid'; chModalRender(); };
+    if (vt) vt.onclick = function(){ CH.view = 'table'; chModalRender(); };
+    var body = $('ch-body');
+    if (body) body.addEventListener('click', function(e){
+      var t = e.target;
+      if (!t) return;
+      if (t.classList && t.classList.contains('ch-row-chk')){
+        var nm = t.getAttribute('data-name');
+        if (nm){ CH.selected[nm] = !!t.checked; chModalRender(); }
+        return;
+      }
+      var tog = t.closest && t.closest('.ch-sess-tog');
+      if (tog){
+        var sidT = tog.getAttribute('data-sid') || '';
+        CH.collapsed[sidT] = !CH.collapsed[sidT];
+        chModalRender();
+        return;
+      }
+      var gA = t.closest && t.closest('.ch-sess-grails');
+      if (gA){ chSessCall('kaiChronicleAcceptSessionGrails', gA.getAttribute('data-sid'), '✓ Session grails'); return; }
+      var aA = t.closest && t.closest('.ch-sess-all');
+      if (aA){ chSessCall('kaiChronicleAcceptSession', aA.getAttribute('data-sid'), '✓ Session all'); return; }
+      var jA = t.closest && t.closest('.ch-sess-junk');
+      if (jA){ chSessCall('kaiChronicleDismissSessionJunk', jA.getAttribute('data-sid'), '✕ Session junk'); return; }
+      var dA = t.closest && t.closest('.ch-sess-dismiss');
+      if (dA){
+        if (!window.confirm('Dismiss ALL pending in this session?')) return;
+        chSessCall('kaiChronicleDismissSession', dA.getAttribute('data-sid'), '✕ Session dismissed');
+        return;
+      }
+      var ok = t.closest && t.closest('.ch-one-ok');
+      if (ok){ chAcceptOne(ok.getAttribute('data-name')); return; }
+      var no = t.closest && t.closest('.ch-one-no');
+      if (no){ chDismissOne(no.getAttribute('data-name')); return; }
+    });
+    var sa = $('ch-sel-all');
+    if (sa) sa.onclick = function(){
+      chFiltered().forEach(function(x){ if (x && x.name) CH.selected[x.name] = true; });
+      chModalRender();
+    };
+    var as = $('ch-accept-sel'); if (as) as.onclick = chAcceptSelected;
+    var ds = $('ch-dismiss-sel'); if (ds) ds.onclick = chDismissSelected;
+    var aa = $('ch-accept-all'); if (aa) aa.onclick = chAcceptAllConfirm;
+    document.addEventListener('keydown', function(e){
+      if (!CH.open) return;
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); chModalClose(); }
+    }, true);
+  })();
+  var _chBtn = $('btn-chronicle-inbox');
+  if (_chBtn) _chBtn.onclick = function(){ chModalOpen(); };
   // hook health paint to also refresh inbox count
   var _paintOrig = paint;
   paint = function(st){ _paintOrig(st); try { paintChronicleInbox(); } catch(e){} };

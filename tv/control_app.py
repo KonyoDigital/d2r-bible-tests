@@ -138,17 +138,29 @@ def _build_dossier_maps(sess_rows):
                     slot["texts"] = list(k.get("texts") or [])[:8]
                 j = k.get("judge")
                 if isinstance(j, dict):
+                    # v948.3 — keep live/applied so Theatre stamp ledger shows the full route
                     slot["judge"] = {"name": j.get("name") or "",
                                      "tier": j.get("tier") or "",
-                                     "score": j.get("score")}
+                                     "score": j.get("score"),
+                                     "live": bool(j.get("live")),
+                                     "applied": j.get("applied") or None,
+                                     "actions": list(j.get("actions") or [])[:6]}
             mode = str(r.get("mode") or "kai")
+            j = k.get("judge") if isinstance(k.get("judge"), dict) else None
+            # Judge receipts carry the item name on judge{}, not texts[]
+            _ev_names = []
+            if j and j.get("name"):
+                _ev_names = [j.get("name")]
+            elif k.get("texts"):
+                _ev_names = list(k.get("texts") or [])[:6]
             events.append({
                 "ts": ts, "lane": "kai", "eye": "kai",
                 "kind": mode,
                 "summary": (r.get("note") or "KAI closer")[:100],
-                "names": list(k.get("texts") or [])[:6] if k else [],
+                "names": _ev_names,
                 "frameId": fid,
                 "cls": k.get("cls") if k else None,
+                "judge": j,
             })
         elif ln == "deep":
             names = list(r.get("names") or r.get("confirmed_names") or [])[:8]
@@ -527,12 +539,18 @@ def _beat_dossier(maps, beat):
             "judge": kai.get("judge"),
         })
         if isinstance(kai.get("judge"), dict) and kai["judge"].get("name"):
+            _jj = kai["judge"]
+            _jsum = (("live-judge · " if _jj.get("live") else "judge · ")
+                     + str(_jj.get("tier") or "") + " " + str(_jj.get("name") or ""))
+            if _jj.get("applied"):
+                _jsum += " → " + str(_jj.get("applied"))
             stamps.append({
                 "phase": "kai-judge", "eye": "kai",
                 "ts": ts, "auth": "judge",
-                "summary": "judge · " + str(kai["judge"].get("tier") or "") + " "
-                           + str(kai["judge"].get("name") or ""),
-                "names": [kai["judge"].get("name")],
+                "summary": _jsum[:120],
+                "names": [_jj.get("name")],
+                "live": bool(_jj.get("live")),
+                "applied": _jj.get("applied"),
             })
     # 6 router authorization
     if router and (router.get("label") or router.get("route")):
@@ -569,14 +587,20 @@ def _beat_dossier(maps, beat):
             "ok": tally.get("ok", True),
         })
     # 8 nearby live/aftermath events (other frames' AI work at this timestamp window)
-    for e in _stamps_near(maps, ts, window_ms=2000, limit=10):
+    # v948.3 — ±4s so live-judge (fts = deep captureTs) lands on film stills + deep beats;
+    # never drop a kai-judge when this photo's slot has no judge yet (live vs reel frameId).
+    _has_judge = bool(isinstance((kai or {}).get("judge"), dict) and (kai or {}).get("judge", {}).get("name"))
+    for e in _stamps_near(maps, ts, window_ms=4000, limit=14):
         # skip exact dups already covered
         if e.get("lane") == "deep" and not is_footage and str(e.get("frameId") or "") == fid:
             continue
         if e.get("lane") == "ocr" and beat.get("lane") == "ocr":
             continue
         if e.get("lane") == "kai" and kai:
-            continue
+            if e.get("kind") == "kai-judge" and not _has_judge:
+                pass  # keep — attach live/post-seal verdict to this photo by time
+            else:
+                continue
         if e.get("lane") == "verify" and verify:
             continue
         stamps.append({
@@ -2153,6 +2177,98 @@ def _register_is_anchor(low):
     return "tome of" in low   # Tome of Town Portal / Tome of Identify
 
 
+# ── v948.2 LIVE Item Checker (mid-session Stage-3 twin) ───────────────────────
+# Post-seal Stage-3 already judges tooltip reel frames. Live path fires aicJudge as
+# soon as a deep read lands with NEW/MOVED (non-echo) names — same subscription brain
+# + aicJudgeApply. Stage-3 post-seal skips frames already covered by a near-ts verdict.
+def _live_judge_interesting_names(rd):
+    """Names that justify a live Item Checker call. Prefer sticky NEW/MOVED; fall back
+    to full names for pre-v948 journals. Drops anchors + junk. Pure."""
+    if not isinstance(rd, dict):
+        return []
+    nnew = rd.get("names_new")
+    nmoved = rd.get("names_moved") if isinstance(rd.get("names_moved"), list) else []
+    if nnew is None:
+        cand = list(rd.get("names") or [])
+    else:
+        cand = list(nnew or []) + list(nmoved or [])
+    out, seen = [], set()
+    for n in cand:
+        s = str(n or "").strip()
+        if not s:
+            continue
+        low = s.lower()
+        if low in seen:
+            continue
+        if _register_is_anchor(low) or _register_is_junk(low):
+            continue
+        seen.add(low)
+        out.append(s)
+    return out
+
+
+def _live_judge_should_queue(rd):
+    """v948.2 — True when this deep read should enqueue a live aicJudge.
+    Gates: deep lane, non-provisional, frameId, NEW/MOVED interesting names,
+    not a pure tally tab (runes/gems/materials), env TV_KAI_JUDGE + TV_KAI_JUDGE_LIVE.
+    Pure (no I/O)."""
+    if not isinstance(rd, dict):
+        return False
+    if os.environ.get("TV_KAI_JUDGE", "1") == "0":
+        return False
+    if os.environ.get("TV_KAI_JUDGE_LIVE", "1") == "0":
+        return False
+    if str(rd.get("lane") or "") != "deep" or rd.get("provisional"):
+        return False
+    fid = str(rd.get("frameId") or "").strip()
+    if not fid:
+        return False
+    tab = str(rd.get("stashTab") or "").lower()
+    if tab in ("runes", "gems", "materials"):
+        return False  # tally lanes — not Item Checker tooltips
+    return bool(_live_judge_interesting_names(rd))
+
+
+def _judge_already_near(rows, ts, window_ms=6000):
+    """True if a kai-judge receipt already landed within ±window_ms of ts.
+    Prevents live + post-seal double-vision on the same hover. Pure."""
+    try:
+        ts = int(ts or 0)
+    except Exception:
+        return False
+    if not ts:
+        return False
+    w = max(0, int(window_ms or 0))
+    for r in rows or []:
+        if r.get("lane") != "kai" or r.get("mode") != "kai-judge":
+            continue
+        try:
+            jt = int(r.get("ts") or r.get("captureTs") or 0)
+        except Exception:
+            continue
+        if jt and abs(jt - ts) <= w:
+            return True
+    return False
+
+
+def _fire_aic_judge_js(hist_path, sid, frame_id, fts, live=False):
+    """Shared evaluate_js payload: aicJudge → aicJudgeApply → /kai_verdict.
+    live=True tags the body so journals/notes distinguish mid-session vs post-seal."""
+    return (
+        "(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+        "if(typeof W.aicJudge!=='function')return 0;"
+        "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+        "return W.aicJudge(new W.File([b],'kai-judge.jpg',{type:'image/jpeg'}))}).then(function(res){"
+        "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;res.live=%s;"
+        "try{if(res.ok&&typeof W.aicJudgeApply==='function'){"
+        "res.applied=W.aicJudgeApply(res,{sid:res.sid,frameId:res.frameId,fts:res.fts})||null"
+        "}}catch(_ae){res.applied={ok:false,why:String(_ae&&_ae.message||_ae)}}"
+        "fetch('/kai_verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)}).catch(function(){})"
+        "}).catch(function(){});return 1}catch(e){return 0}})()"
+    ) % (json.dumps(hist_path), json.dumps(sid or ""), json.dumps(frame_id or ""),
+         json.dumps(int(fts or 0)), "true" if live else "false")
+
+
 # v944.7 (Fable forensic recalibration) — the KAI "missed" ledger over-counted: it flagged a
 # frame missed if ANY OCR line was new, so a tooltip's STAT/FLAVOR lines ("Required Level 75",
 # "Level 30 Hydra", "Keep in Inventory") flagged a frame as missed even when the item NAME itself
@@ -2221,7 +2337,16 @@ def _kai_compile_register(sess_rows):
         fid = str(r.get("frameId") or "")
         nl = r.get("names_loc") if isinstance(r.get("names_loc"), dict) else {}
         if r.get("lane") == "deep":
-            for nm in (r.get("names") or []):
+            # v948 — prefer names_new (session sticky); fall back to full names for old journals
+            _reg_names = r.get("names_new") if isinstance(r.get("names_new"), list) and r.get("names_new") is not None else None
+            if _reg_names is None:
+                _reg_names = r.get("names") or []
+            # always include moved (location change = newsworthy)
+            if isinstance(r.get("names_moved"), list):
+                for _m in r.get("names_moved") or []:
+                    if _m not in _reg_names:
+                        _reg_names = list(_reg_names) + [_m]
+            for nm in (_reg_names or []):
                 _consider(nm, ts, fid, nl.get(nm), None)
         if r.get("lane") == "kai":
             k = r.get("kai")
@@ -2239,6 +2364,112 @@ def _kai_compile_register(sess_rows):
 #           confidence = agreement count; <2 → no route (🟡); multi-brain disagreement
 #           without a ≥2 winner → skipReason "disagreement".
 # Stage 3 — lanes OBEY the ledger: funnel/judge fire only rows the ledger marked fireable.
+def _kai_retro_promote_tally(routing_scan):
+    """v948.7 — promote plain-stash film clusters to stash-runes|gems|materials.
+
+    Pure: walks routing_scan (pre-quorum evidence rows), uses gridLabel/tabstripLabel
+    majority vote over consecutive stash-ish frames. Theatre has the stills; this is
+    the recheck before Stage-3 funnel. Does not invent tallies on pure gameplay."""
+    if not routing_scan:
+        return routing_scan
+    # cluster consecutive non-gameplay stash-ish frames
+    i = 0
+    n = len(routing_scan)
+    while i < n:
+        s = routing_scan[i]
+        lab = str(s.get("label") or "")
+        if lab not in ("stash", "stash-runes", "stash-gems", "stash-materials") and not (
+                s.get("gridLabel") or s.get("tabstripLabel")):
+            i += 1
+            continue
+        j = i
+        votes = {"runes": 0, "gems": 0, "materials": 0}
+        while j < n:
+            s2 = routing_scan[j]
+            lab2 = str(s2.get("label") or "")
+            gl = str(s2.get("gridLabel") or "")
+            tl = str(s2.get("tabstripLabel") or "")
+            if lab2 == "gameplay" and not gl and not tl:
+                break
+            if lab2 not in ("stash", "stash-runes", "stash-gems", "stash-materials",
+                            "gameplay", "") and not gl.startswith("stash"):
+                break
+            for src in (gl, tl, lab2):
+                if src in ("stash-runes", "stash-gems", "stash-materials"):
+                    votes[src.split("-", 1)[1]] += 1
+            j += 1
+        # majority tally label in cluster
+        best_tab, best_n = None, 0
+        for t, c in votes.items():
+            if c > best_n:
+                best_tab, best_n = t, c
+        if best_tab and best_n >= 2:
+            prom = "stash-" + best_tab
+            for k in range(i, j):
+                s3 = routing_scan[k]
+                gl3 = str(s3.get("gridLabel") or "")
+                tl3 = str(s3.get("tabstripLabel") or "")
+                # only rewrite frames that already look like stash or already that tally
+                if str(s3.get("label") or "") in ("stash", prom, "gameplay") or gl3.startswith("stash") or tl3.startswith("stash"):
+                    if str(s3.get("label") or "") in ("stash", "gameplay", ""):
+                        s3["label"] = prom
+                    if not s3.get("gridLabel") and best_tab:
+                        # keep evidence for routing votes
+                        if gl3:
+                            pass
+                        elif best_n >= 2:
+                            s3["grid"] = True
+                            s3["gridLabel"] = prom
+        i = max(j, i + 1)
+    return routing_scan
+
+
+def _kai_stage3_gap_funnels(routing, sess_rows):
+    """v948.7 — funnel jobs for tally tabs eyes labeled on the reel but Stage-3
+    quorum never selected (or conf was 1). Photo on film = must recheck + SET intake.
+    One best frame per unreceipted tab."""
+    receipted = set()
+    for r in sess_rows or []:
+        ik = r.get("intake")
+        if isinstance(ik, dict) and _intake_is_real(ik):
+            t = str(ik.get("tab") or "").lower()
+            if t in ("runes", "gems", "materials"):
+                receipted.add(t)
+    best = {}  # tab -> {tab,f,ts,conf}
+    for r in routing or []:
+        lab = str(r.get("label") or "")
+        if not lab.startswith("stash-"):
+            # also accept grid/tabstrip evidence even when final label stayed vault-stash
+            for key in ("gridLabel", "tabstripLabel", "ocrLabel"):
+                v = str(r.get(key) or "")
+                if v.startswith("stash-") and v.split("-", 1)[-1] in ("runes", "gems", "materials"):
+                    lab = v
+                    break
+            else:
+                continue
+        tab = lab.split("-", 1)[-1]
+        if tab not in ("runes", "gems", "materials") or tab in receipted:
+            continue
+        conf = int(r.get("confidence") or 0)
+        # accept conf>=1, or any frame with grid/tabstrip tally evidence
+        has_eye = False
+        for key in ("gridLabel", "tabstripLabel", "ocrLabel"):
+            v = str(r.get(key) or "")
+            if v == "stash-" + tab:
+                has_eye = True
+        if conf < 1 and not has_eye and lab != "stash-" + tab:
+            continue
+        if conf < 1 and lab == "stash-" + tab:
+            conf = 1  # eye-labeled on scan
+        prev = best.get(tab)
+        ts = int(r.get("ts") or 0)
+        if prev is None or conf > int(prev.get("conf") or 0) or (
+                conf == int(prev.get("conf") or 0) and ts >= int(prev.get("ts") or 0)):
+            best[tab] = {"tab": tab, "f": r.get("f"), "ts": ts, "route": "tally:" + tab,
+                         "conf": conf, "gap": True}
+    return list(best.values())
+
+
 def _kai_stage3_select(routing):
     """v944.6/v946 Stage 3 pure selector — funnel / judge / vault lanes.
 
@@ -2483,13 +2714,21 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         if s.get("ocr") and ocr_lb and ocr_lb != "gameplay":
             votes["ocr"] = ocr_lb
         j_lb = s.get("journalLabel")
-        if s.get("journal"):
-            votes["journal"] = j_lb or s.get("label") or "stash"
-        # v947 — tabstrip (upscaled chrome OCR) + grid fingerprint (intake crop layout)
+        gr_lb = s.get("gridLabel")
         ts_lb = s.get("tabstripLabel")
+        # v948.7 — vault sticky (plain "stash") must NOT veto tally grid/tabstrip votes.
+        # Live deep often only named personal/shared; film still shows gems/materials later.
+        if s.get("journal"):
+            _jl = j_lb or s.get("label") or "stash"
+            _tally_eye = (str(gr_lb or "").startswith("stash-") and str(gr_lb) != "stash") or (
+                str(ts_lb or "").startswith("stash-") and str(ts_lb) != "stash")
+            if _jl in ("stash", "inventory", "gameplay") and _tally_eye:
+                pass  # skip weak journal vote
+            else:
+                votes["journal"] = _jl
+        # v947 — tabstrip (upscaled chrome OCR) + grid fingerprint (intake crop layout)
         if s.get("tabstrip") and ts_lb and ts_lb != "gameplay":
             votes["tabstrip"] = ts_lb
-        gr_lb = s.get("gridLabel")
         if s.get("grid") and gr_lb and gr_lb != "gameplay":
             votes["grid"] = gr_lb
         if any(abs(rt - ts) <= 4000 for rt in read_ts):
@@ -2588,7 +2827,7 @@ def _kai_closer_loop():
             # store and fights the game for CPU. Reels wait; they aren't going anywhere.
             if _agent_mode != "off" or _agent_alive():
                 continue
-            # v947 — also re-close reels sealed under kaiVer < 2 (no grid/tabstrip eyes)
+            # v947/v948.7 — re-close reels under kaiVer < 3 (retro grid-solo + gap funnel)
             reels = []
             for d in sorted(os.listdir(hist)):
                 if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
@@ -2602,7 +2841,7 @@ def _kai_closer_loop():
                 try:
                     with open(kr, encoding="utf-8") as _kf:
                         _kv = int((json.load(_kf) or {}).get("kaiVer") or 1)
-                    if _kv < 2:
+                    if _kv < 3:
                         reels.append(d)
                 except Exception:
                     reels.append(d)
@@ -2679,6 +2918,7 @@ def _kai_closer_loop():
                         except Exception:
                             return {}
 
+                    # v948.7 — allow_grid_solo: film stills rechecked without live deep sticky
                     _eye = _se_analyze(
                         fp,
                         ocr_lines=raw,
@@ -2686,6 +2926,7 @@ def _kai_closer_loop():
                         model_tab="",
                         ocr_worker_read=_wp_read,
                         work_dir=rd,
+                        allow_grid_solo=True,
                     )
                 except Exception:
                     _eye = {}
@@ -2722,23 +2963,38 @@ def _kai_closer_loop():
                     if name_new:
                         missed.append({"f": it.get("f"), "ts": it.get("ts"),
                                        "texts": name_new[:6], "cls": cls})
-                # v944/v947 🚦 — votes only from fused eyes (grid vote requires grid in sources)
+                # v944/v947/v948.7 🚦 — votes from fused eyes
+                # Vault sticky (personal/shared) must NOT veto tally grid/tabstrip on the
+                # same film still — that blocked materials retro-funnel when live deep
+                # only named shared/personal.
                 _jlab = None
-                if _near:
-                    _jlab = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
+                if _near in ("runes", "gems", "materials"):
+                    _jlab = "stash-" + _near
+                elif _near in ("personal", "shared"):
+                    _jlab = "stash"   # weak: panel open only, not a tally veto
+                elif _near:
+                    _jlab = "stash"
                 _ts_lab = ("stash-" + _ocr_tab) if _ocr_tab in ("runes", "gems", "materials") else (
                     "stash" if _ocr_tab in ("personal", "shared") else None)
                 _gr_lab = None
-                if "grid" in _eye_src and _eye_tab in ("runes", "gems", "materials"):
+                # grid vote from eye tab OR raw gridLabel (solo materials/gems/runes)
+                _raw_gl = str((_eye or {}).get("gridLabel") or "")
+                if _eye_tab in ("runes", "gems", "materials"):
                     _gr_lab = "stash-" + _eye_tab
+                elif _raw_gl in ("stash-runes", "stash-gems", "stash-materials"):
+                    _gr_lab = _raw_gl
                 elif "grid" in _eye_src and _eye_cls == "stash":
+                    _gr_lab = "stash"
+                elif _raw_gl == "stash":
                     _gr_lab = "stash"
                 _disp = cls or "gameplay"
                 if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
                     _disp = _eye_cls
+                elif _gr_lab in ("stash-runes", "stash-gems", "stash-materials"):
+                    _disp = _gr_lab
                 elif _ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
                     _disp = _ocr_cls
-                elif _jlab and _jlab.startswith("stash-"):
+                elif _jlab and _jlab.startswith("stash-") and _jlab != "stash":
                     _disp = _jlab
                 elif _jlab:
                     _disp = _jlab if not (cls and str(cls).startswith("stash-")) else cls
@@ -2762,12 +3018,19 @@ def _kai_closer_loop():
                 wp.stdin.close(); wp.terminate()
             except Exception:
                 pass
+            # v948.7 RETRO CLUSTER PROMOTE — consecutive plain-stash stills get majority
+            # grid/tabstrip tally vote so materials/gems/runes on film funnel even when
+            # live deep never named that tab (Theatre has the pixels = recheck).
+            try:
+                routing_scan = _kai_retro_promote_tally(routing_scan)
+            except Exception as _rpe:
+                print(f"⚠ KAI retro promote: {_rpe}", flush=True)
             report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
                       "classFrames": class_frames,
                       "missedFrames": len(missed), "missed": missed[:40],
                       "classes": classes,
-                      "closedAt": int(time.time() * 1000), "kaiVer": 2,
-                      "eyeNote": "v947 intake-mimic tab chrome + grid fingerprint (no intake calls)"}
+                      "closedAt": int(time.time() * 1000), "kaiVer": 3,
+                      "eyeNote": "v948.7 retro grid-solo + cluster promote + gap funnel (film recheck)"}
             with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as f:
                 json.dump(report, f)
             # journal the ledger onto the session's timeline (🧠 gold in SIM).
@@ -2810,6 +3073,18 @@ def _kai_closer_loop():
                 try:
                     _plan = _kai_build_routing(routing_scan, sess_rows, sid, sess_rows)
                     _funnel_jobs, _judge_jobs, _vault_jobs = _kai_stage3_select(_plan)
+                    # v948.7 — gap funnels from reel eyes (materials etc. never sticky-deeped)
+                    try:
+                        _gaps = _kai_stage3_gap_funnels(_plan + routing_scan, sess_rows)
+                        _have = {str(j.get("tab") or "") for j in _funnel_jobs}
+                        for _g in _gaps:
+                            if str(_g.get("tab") or "") not in _have:
+                                _funnel_jobs.append(_g)
+                                _have.add(str(_g.get("tab") or ""))
+                                print(f"📸 KAI gap-funnel: queue {_g.get('tab')} from {_g.get('f')} "
+                                      f"(reel recheck, conf={_g.get('conf')})", flush=True)
+                    except Exception as _gfe:
+                        print(f"⚠ KAI gap-funnel select: {_gfe}", flush=True)
                     w2 = globals().get("_MAIN_WIN")
                     # 📸 FUNNEL — one shot per ledger-selected tally tab (newest frame), SET-wrapper
                     for _fj in _funnel_jobs:
@@ -2869,6 +3144,12 @@ def _kai_closer_loop():
                         _jcap = max(0, int(os.environ.get("TV_KAI_JUDGE_MAX", "16")))
                     except Exception:
                         _jcap = 16
+                    # v948.2 — re-read journal so live mid-session judges already posted
+                    # are visible; Stage-3 skips ±6s windows already covered (no double vision).
+                    try:
+                        _post_live_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+                    except Exception:
+                        _post_live_rows = sess_rows
                     for m4 in _judge_jobs[:_jcap]:
                         if w2 is None or os.environ.get("TV_KAI_JUDGE", "1") == "0":
                             break
@@ -2878,14 +3159,11 @@ def _kai_closer_loop():
                         _hp4 = "/hist/reel_" + sid + "/" + _ff4
                         _fid4 = "reel_" + sid + "/" + _ff4.replace(".jpg", "")
                         _fts4 = int(m4.get("ts") or 0)
-                        _js4 = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
-                                "if(typeof W.aicJudge!=='function')return 0;"
-                                "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
-                                "return W.aicJudge(new W.File([b],'kai-judge.jpg',{type:'image/jpeg'}))}).then(function(res){"
-                                "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;"
-                                "fetch('/kai_verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)}).catch(function(){})"
-                                "}).catch(function(){});return 1}catch(e){return 0}})()"
-                                ) % (json.dumps(_hp4), json.dumps(sid), json.dumps(_fid4), json.dumps(_fts4))
+                        if _judge_already_near(_post_live_rows, _fts4, window_ms=6000):
+                            print(f"🔬 KAI judge (ledger): skip {_ff4} — live verdict already near", flush=True)
+                            continue
+                        # v948.1/v948.2 — aicJudge → aicJudgeApply → /kai_verdict (shared JS)
+                        _js4 = _fire_aic_judge_js(_hp4, sid, _fid4, _fts4, live=False)
                         try:
                             _ejs(w2, _js4, timeout=5.0)
                             print(f"🔬 KAI judge (ledger): fired on {_ff4}", flush=True)
@@ -3118,7 +3396,11 @@ def _engine_driver():
     stash read with a tally tab (runes/gems/materials → tvStashAutoIntake; personal/shared
     → tvVaultAutoIntake), fire the engine page's LOCKED pipeline via evaluate_js. One shot
     per tab per stash visit (visit resets on a deep non-stash read) — mirrors bible.html's
-    own gate. Also a liveness probe every loop so the ENGINE lamp tells the truth."""
+    own gate. Also a liveness probe every loop so the ENGINE lamp tells the truth.
+
+    v948.2 — LIVE Item Checker queue: deep reads with NEW/MOVED (non-echo, non-tally-tab)
+    enqueue aicJudge → aicJudgeApply on the archived hist frame (subscription). Serialized
+    with tally fires; paced so post-seal Stage-3 can skip near-ts duplicates."""
     time.sleep(8.0)   # let the window boot + board JS attach
     # v930.2 (Grok r2 P0) — start the cursor at NOW: a cold driver walking the /state ring
     # fired HISTORICAL stash tabs against the CURRENT eye frame (intake always shoots live).
@@ -3126,6 +3408,19 @@ def _engine_driver():
     visit_done = {}
     fire_q = []       # v931.1 — serialized intake queue (busy-burn fix)
     inflight = None   # the one job whose journal receipt we await
+    # v948.2 live judge state
+    judge_q = []          # [{fid, ts, sid, names}]
+    live_judged = set()   # frameIds already fired (or queued)
+    last_judge_ms = 0
+    live_judge_n = 0
+    try:
+        _jlive_max = max(0, int(os.environ.get("TV_KAI_JUDGE_LIVE_MAX", "24")))
+    except Exception:
+        _jlive_max = 24
+    try:
+        _jlive_gap = max(5, int(os.environ.get("TV_KAI_JUDGE_LIVE_GAP_S", "18")))
+    except Exception:
+        _jlive_gap = 18
     _probes_out = 0
     while True:
         try:
@@ -3181,6 +3476,23 @@ def _engine_driver():
                 globals()["_DRV_SEEN"] = globals().get("_DRV_SEEN", 0) + 1
                 scene = str(rd.get("scene") or "")
                 tab = str(rd.get("stashTab") or "").lower()
+                # ── v948.2 LIVE Item Checker — BEFORE stash-only gate ──
+                # Inventory / ground / stash tooltips with NEW/MOVED names all queue.
+                # Pure tally tabs (runes/gems/materials) are filtered by _live_judge_should_queue.
+                if _live_judge_should_queue(rd):
+                    _jfid = str(rd.get("frameId") or "").strip()
+                    if (_jfid and _jfid not in live_judged
+                            and live_judge_n < _jlive_max
+                            and len(judge_q) < 16
+                            and not any(j.get("fid") == _jfid for j in judge_q)):
+                        judge_q.append({
+                            "fid": _jfid,
+                            "ts": int(rd.get("captureTs") or rd.get("ts") or ts or 0),
+                            "sid": str(rd.get("sessionId") or "")[:48],
+                            "names": _live_judge_interesting_names(rd)[:8],
+                        })
+                        live_judged.add(_jfid)  # reserve so we never double-queue
+                        globals()["_DRV_JUDGE_Q"] = globals().get("_DRV_JUDGE_Q", 0) + 1
                 if scene != "stash":
                     if visit_done:
                         visit_done = {}
@@ -3372,6 +3684,45 @@ def _engine_driver():
                         except Exception:
                             pass
                     print(f"⚠ engine-driver fire failed (try {job['tries']}): {e}", flush=True)
+            # ── v948.2/v948.4 LIVE Item Checker fire ──
+            # v948.4 — do NOT wait for tally/vaultcount inflight: a slow vaultGridCount
+            # was starving live-judge for 1–2min (live soak 18:28). Judges are fire-and-
+            # forget on the engine (separate from intake lease); only pace vs last_judge_ms.
+            # Stage-3 still skips near-ts duplicates.
+            if (judge_q and live_judge_n < _jlive_max
+                    and (now_ms - last_judge_ms) >= (_jlive_gap * 1000)
+                    and os.environ.get("TV_KAI_JUDGE", "1") != "0"
+                    and os.environ.get("TV_KAI_JUDGE_LIVE", "1") != "0"):
+                jjob = judge_q.pop(0)
+                _jfid2 = str(jjob.get("fid") or "")
+                _rel = _hist_frame_rel(_jfid2)
+                if not _rel:
+                    # frame not archived yet — requeue once briefly
+                    jjob["wait"] = int(jjob.get("wait") or 0) + 1
+                    if jjob["wait"] < 8:
+                        judge_q.append(jjob)
+                    else:
+                        print(f"🔬 live-judge: drop {_jfid2} — no hist frame", flush=True)
+                else:
+                    _hpj = "/hist/" + _rel
+                    _jsj = _fire_aic_judge_js(
+                        _hpj, jjob.get("sid") or "", _jfid2,
+                        int(jjob.get("ts") or 0), live=True)
+                    try:
+                        _ejs(w, _jsj, timeout=5.0)
+                        last_judge_ms = now_ms
+                        live_judge_n += 1
+                        globals()["_DRV_JUDGE_FIRE"] = globals().get("_DRV_JUDGE_FIRE", 0) + 1
+                        _nms = ",".join(str(x) for x in (jjob.get("names") or [])[:3])
+                        print(f"🔬 live-judge: fired {_jfid2}"
+                              + (f" · {_nms}" if _nms else ""), flush=True)
+                    except Exception as _lje:
+                        print(f"⚠ live-judge fire failed: {_lje}", flush=True)
+                        # allow re-queue of same frame once
+                        if int(jjob.get("tries") or 0) < 1:
+                            jjob["tries"] = 1
+                            live_judged.discard(_jfid2)
+                            judge_q.append(jjob)
         except Exception as _de:
             globals()["_DRV_ERR"] = str(_de)[:120]   # v934.3 — loop crashes become visible
             time.sleep(3.0)
@@ -3456,11 +3807,13 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v947.2",
+        "ver": "v948.7",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
                    "fired": _drv.get("fired", 0), "refire": _drv.get("refire", 0),
+                   "judgeQ": globals().get("_DRV_JUDGE_Q", 0),
+                   "judgeFire": globals().get("_DRV_JUDGE_FIRE", 0),
                    "err": globals().get("_DRV_ERR"),
                    "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},
         "watchdog": globals().get("_WATCHDOG_LAST"),
@@ -3952,7 +4305,10 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     _rd2 = os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or ""))
                     if os.path.isdir(_rd2):
-                        _rfs = sorted(f2 for f2 in os.listdir(_rd2) if f2.endswith(".jpg"))
+                        # v947.3 — count ONLY film stills f_*.jpg (not tab-crop helpers /
+                        # .stash_eye_tab.jpg / other analysis JPEGs that inflated shelf +1)
+                        _rfs = sorted(f2 for f2 in os.listdir(_rd2)
+                                      if f2.startswith("f_") and f2.endswith(".jpg"))
                         _reeln = len(_rfs)
                         if _rfs:
                             # v890 — the card's art IS the run: its middle frame, 160px lane
@@ -4745,6 +5101,15 @@ class Handler(BaseHTTPRequestHandler):
                 _vlow = _vname.lower()
                 if _vname and _vlow in _kai_fullnames() and _vlow not in _kai_rarenames() and _tier in ("toss", "border"):
                     _tier = "grail"
+                # v948.1/v948.2 — applied route from aicJudgeApply; live=true = mid-session
+                _applied = body.get("applied") if isinstance(body.get("applied"), dict) else None
+                _app_mode = str((_applied or {}).get("mode") or "")[:16]
+                _app_acts = (_applied or {}).get("actions") if isinstance((_applied or {}).get("actions"), list) else []
+                _live = bool(body.get("live"))
+                _note = ("🔬 " + ("live-" if _live else "") + "judge " + (_vname or "a tooltip")
+                         + " — " + (_tier.upper() or "UNREADABLE"))
+                if _app_mode:
+                    _note += " → " + _app_mode
                 rec = {"ts": _fts, "captureTs": _fts, "completedTs": int(time.time() * 1000),
                        "n": 0, "scene": "kai", "lane": "kai", "mode": "kai-judge", "names": [],
                        "area": "", "sessionId": str(body.get("sid") or "")[:48],
@@ -4753,8 +5118,11 @@ class Handler(BaseHTTPRequestHandler):
                                           "q": str(body.get("q") or "")[:12], "tier": _tier,
                                           "score": int((body.get("verdict") or {}).get("score") or 0),
                                           "ok": bool(body.get("ok", False)),
-                                          "why": str(body.get("why") or "")[:120]}},
-                       "note": ("🔬 KAI judged " + (_vname or "a tooltip") + " — " + (_tier.upper() or "UNREADABLE"))[:100]}
+                                          "why": str(body.get("why") or "")[:120],
+                                          "applied": _app_mode or None,
+                                          "live": _live,
+                                          "actions": [str(a)[:24] for a in (_app_acts or [])[:8]]}},
+                       "note": _note[:100]}
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 self._json(200, {"ok": True})
@@ -4986,6 +5354,45 @@ class Handler(BaseHTTPRequestHandler):
                                  "sessionId": sid})
             except Exception as e:
                 self._json(500, {"ok": False, "msg": str(e)})
+            return
+        if path == "/api/kai_reclose":
+            # v948.7 — force KAI to re-scan a reel (drop kai_report → closer re-picks it).
+            # Debugger: Theatre has stills; reclose re-labels + gap-funnels materials/gems/runes.
+            try:
+                sid = str(body.get("sessionId") or body.get("sid") or "").strip()
+                if not sid and body.get("n"):
+                    try:
+                        _ts = self._theatre_session(int(body.get("n")))
+                        if isinstance(_ts, dict):
+                            sid = str(_ts.get("sessionId") or "")
+                    except Exception:
+                        sid = ""
+                if not sid:
+                    self._json(400, {"ok": False, "msg": "need sessionId or n"})
+                    return
+                if _agent_mode != "off" or _agent_alive():
+                    self._json(200, {"ok": False, "msg": "agent ON AIR — reclose only between sessions",
+                                     "sessionId": sid})
+                    return
+                rd = os.path.join(HIST_DIR, "reel_" + sid)
+                kr = os.path.join(rd, "kai_report.json")
+                if not os.path.isdir(rd):
+                    self._json(404, {"ok": False, "msg": "no reel for session", "sessionId": sid})
+                    return
+                # rename not delete — keep last report for forensics
+                if os.path.isfile(kr):
+                    bak = kr + ".bak_" + str(int(time.time()))
+                    try:
+                        os.replace(kr, bak)
+                    except Exception:
+                        try:
+                            os.remove(kr)
+                        except Exception:
+                            pass
+                self._json(200, {"ok": True, "msg": "kai_report cleared — closer will re-scan within ~30s",
+                                 "sessionId": sid, "reel": "reel_" + sid, "kaiVerTarget": 3})
+            except Exception as e:
+                self._json(500, {"ok": False, "msg": str(e)[:160]})
             return
         if path == "/api/on":
             # v891 (Grok C3) — DISK PREFLIGHT: below the floor the reaper can't keep a reel

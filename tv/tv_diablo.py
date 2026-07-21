@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v947.2"   # Theatre stamp ledger: all AI eyes/router/KAI/intake at captureTs per photo
+VERSION = "v948.7"   # Retro reel recheck: grid-solo + cluster promote + gap funnel materials
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -118,7 +118,8 @@ READ_PROMPT = (
     "discovered = ITEM names from chat DISCOVERY broadcasts only (lines like "
     "'<player> has found <item>' / 'has discovered'). Just the item names; [] if none. "
     "Normal chat/trade text is NEVER a discovery.\n"
-    "inventory/stash: also list anchors if visible — Horadric Cube, Tome of Town Portal, Tome of Identify.\n"
+    "inventory/stash: list anchors (Horadric Cube, Tome of Town Portal, Tome of Identify) when visible "
+    "BUT prioritize NEW tooltips / names that are not the always-on cube+tomes.\n"
     "conf = 0.0-1.0 confidence. Be fast and precise."
 )
 
@@ -3036,6 +3037,102 @@ def _is_anchor(n):
         "horadric cube", "tome of town portal", "tome of identify",
     ))
 
+
+# ── v948 SESSION STICKY (Konyo: shared/stash always-there items re-read every deep) ──
+# Learns which names are stable this session (cube/tomes on inventory, worn gear, stash
+# rows already hovered). Re-reports as ECHO (not NEW) until they MOVE or leave.
+# New items + location changes stay first-class. Cleared on new SESSION_ID.
+_SESSION_STICKY = {}   # norm_name -> {name, loc, tab, firstTs, lastTs, count}
+_SESSION_STICKY_SID = ""
+
+
+def _sticky_reset_if_new_session():
+    global _SESSION_STICKY, _SESSION_STICKY_SID
+    sid = SESSION_ID or ""
+    if sid != _SESSION_STICKY_SID:
+        _SESSION_STICKY = {}
+        _SESSION_STICKY_SID = sid
+
+
+def _classify_name_sticky(names, names_loc, stash_tab, scene, now_ms):
+    """Split names into new / echo / moved for this session.
+    Policy (brains 1–5 filter):
+      1. first sighting of a name → NEW
+      2. same name, different loc or stash tab → MOVED (re-report)
+      3. anchors + equipped after first → ECHO (always-on UI)
+      4. inventory non-anchor after first → ECHO (charms already held)
+      5. stash same tab after first → ECHO (shared grid re-hover)
+      floor / loot always prefers NEW if area changed (handled by text-eye clear);
+      floor re-sight same area without gap → ECHO after first.
+    Returns (names_new, names_echo, names_moved, tags_extra).
+    """
+    _sticky_reset_if_new_session()
+    names = list(names or [])
+    names_loc = names_loc or {}
+    tab = str(stash_tab or "").lower()
+    scene = str(scene or "")
+    new, echo, moved = [], [], []
+    tags = {}
+    for n in names:
+        k = _norm_name(n)
+        if not k:
+            continue
+        loc = str(names_loc.get(n) or "").lower()
+        # default loc by scene when model omitted names_loc
+        if not loc:
+            if scene == "stash":
+                loc = "stash"
+            elif scene == "inventory":
+                loc = "inventory"
+            elif scene == "loot":
+                loc = "floor"
+        prev = _SESSION_STICKY.get(k)
+        if not prev:
+            _SESSION_STICKY[k] = {
+                "name": n, "loc": loc, "tab": tab if loc == "stash" else "",
+                "firstTs": now_ms, "lastTs": now_ms, "count": 1,
+            }
+            new.append(n)
+            tags[n] = "first-seen"
+            continue
+        prev["lastTs"] = now_ms
+        prev["count"] = int(prev.get("count") or 0) + 1
+        prev_loc = str(prev.get("loc") or "")
+        prev_tab = str(prev.get("tab") or "")
+        loc_changed = prev_loc and loc and prev_loc != loc
+        tab_changed = (loc == "stash" and prev_tab and tab and prev_tab != tab)
+        if loc_changed or tab_changed:
+            prev["loc"] = loc
+            if loc == "stash":
+                prev["tab"] = tab
+            moved.append(n)
+            new.append(n)  # still "newsworthy"
+            tags[n] = "moved:" + (prev_loc or "?") + "→" + (loc or "?")
+            continue
+        # stable position — sticky echo for always-on UI pieces
+        if _is_anchor(n) or loc == "equipped":
+            echo.append(n)
+            tags[n] = "echo-sticky"
+            continue
+        if loc == "inventory":
+            echo.append(n)
+            tags[n] = "echo-sticky"
+            continue
+        if loc == "stash" and tab:
+            # same tab re-hover of same name (shared grid always shows many items)
+            echo.append(n)
+            tags[n] = "echo-sticky"
+            continue
+        if loc == "floor":
+            # re-seen on floor without area clear — still echo after first
+            echo.append(n)
+            tags[n] = "echo-sticky"
+            continue
+        # unknown loc: treat as echo after first to kill spam
+        echo.append(n)
+        tags[n] = "echo-sticky"
+    return new, echo, moved, tags
+
 def _is_junk(n):
     lo = _norm_name(n)
     if lo in ("arrows", "bolts", "key", "gold") or lo.endswith(" gold") or lo.isdigit():
@@ -4483,6 +4580,12 @@ def _reason_for(tag, loc=""):
         return "committed to the vault (" + t.split(":", 1)[1] + ")"
     if t == "already-vaulted":
         return "this name already vaulted this session and no fresh sighting since — not counted twice"
+    if t == "echo-sticky":
+        return "same item still where it was this session (anchor/inventory/stash tab) — not re-counted as new"
+    if t == "first-seen":
+        return "first time this name was read this session"
+    if t.startswith("moved:"):
+        return "item location changed this session (" + t.split(":", 1)[1] + ") — re-reported"
     if t == "stash-no-chain":
         return "read in the stash but NEVER seen on floor/inventory this session — no provenance, blocked"
     if t == "skip-weak":
@@ -4613,10 +4716,32 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     tab_note = (f" · tab:{stash_tab}" if stash_tab else "")
     if stash_tab and stash_tab != _model_tab:
         tab_note += "↻"  # tab identity refined (OCR/sticky) vs model alone
+    # v948 — session sticky: split always-there Cube/Tomes/shared echoes from NEW/MOVED
+    _now_sticky = int(time.time() * 1000)
+    names_new, names_echo, names_moved, sticky_tags = _classify_name_sticky(
+        names, rd.get("names_loc") or {}, stash_tab, rd.get("scene"), _now_sticky)
+    # merge sticky tags into lifecycle (don't overwrite vault/throw verdicts)
+    _lt = lc.get("lifecycle_tags") or {}
+    for _nm, _tg in (sticky_tags or {}).items():
+        if _nm not in _lt or _lt.get(_nm) in ("seen", "holding", ""):
+            _lt[_nm] = _tg
+    try:
+        lc["lifecycle_tags"] = _lt
+    except Exception:
+        pass
+    sticky_note = ""
+    if names_new or names_moved:
+        sticky_note = " · NEW " + ", ".join((names_new or names_moved)[:4])
+        if names_echo:
+            sticky_note += " · echo " + str(len(names_echo))
+    elif names_echo and names:
+        sticky_note = " · sticky echo ×" + str(len(names_echo)) + " (no new items)"
+    # mind line prefers new/moved over cube spam
+    _show = names_new if names_new else (names_moved if names_moved else names)
     line = ((("🗺 "+rd.get("area","")+" · ") if rd.get("area") else "") + tag + " " + str(rd.get("scene") or "")
             + tab_note + " — "
-            + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)")
-            + lc_note + conf_note
+            + (", ".join(_show[:5]) + ("…" if len(_show) > 5 else "") if _show else "no readable item text (honest empty)")
+            + sticky_note + lc_note + conf_note
             + (" ["+str(rd.get("mode","?"))+" "+model_tag+esc+pri+fare+" "+str(round((rd.get("ms") or 0)/1000,1))+"s]" if rd.get("ms") else fare)
             + (f" · ocr {ocr_ms}ms" if ocr_ms is not None else ""))
     if farewell:
@@ -4645,6 +4770,10 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
+        # v948 — session sticky split (full names kept for vision truth; new/echo for boards)
+        "names_new": names_new,
+        "names_echo": names_echo,
+        "names_moved": names_moved,
         "sockets": rd.get("sockets") or {},        # v946.5 — per-item socket count (name -> N, 1..6)
         "raw": ("" if farewell else (raw if raw is not None else globals().get("_LAST_RAW", ""))) or ("«farewell read»" if farewell else ""),
         "dispatch": dict((dispatch if dispatch is not None else globals().get("_DISPATCH_CTX")) or ({"origin": "farewell"} if farewell else {})),
@@ -4678,13 +4807,20 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "board": {
             "vault": list(vault_names),
             "chronicle": sorted(set((rd.get("discovered") or [])
-                                    + [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"])),
-            "seen": ([n for n in names if not _is_anchor(n) and not _is_junk(n)] if intent == "seen" else []),
+                                    + [n for n in names_new if (rd.get("names_loc") or {}).get(n) == "equipped"]
+                                    + [n for n in names if (rd.get("names_loc") or {}).get(n) == "equipped"
+                                       and n not in names_echo])),
+            # v948 — only NEW/MOVED feed seen/chronicle boards; sticky echo stays off the noise path
+            "seen": ([n for n in names_new if not _is_anchor(n) and not _is_junk(n)] if intent == "seen" else []),
             "unvault": list(unvault_names),
             "nothing": [{"name": n, "why": (lc.get("lifecycle_tags") or {}).get(n, "no-verdict")}
                         for n in names
                         if n not in vault_names and n not in (unvault_names or [])
+                        and n not in names_echo
                         and not (intent == "seen" and not _is_anchor(n) and not _is_junk(n))],
+            "echo": list(names_echo),
+            "new": list(names_new),
+            "moved": list(names_moved),
         },
         # v880 (SIM spec A2.6) — VISION: which image the model actually ate
         "vision": {
