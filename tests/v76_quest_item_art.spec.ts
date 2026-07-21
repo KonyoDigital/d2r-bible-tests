@@ -6,7 +6,8 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // v76 — quest-item art backlog (G). The 3 Pandemonium keys (Terror/Hate/Destruction)
 // and the 3 organs (Diablo's Horn / Baal's Eye / Mephisto's Brain) were clickable but
 // rendered the emoji fallback (no D2IO_ART entry). Each now maps to its verified
-// diablo2.io graphic: all 3 keys share questkey_graphic.png; the organs now use the v384
+// diablo2.io graphic: all 3 keys share hd_mephisto_key.png (v944.8 CASC HD-art remap,
+// superseding the earlier questkey_graphic.png placeholder); the organs use the v384
 // CASC HD sprites (hd_horn/eye/brain.png). Routing is unchanged (openDrop → material card).
 test.describe('v76 quest-item art (keys + organs)', () => {
   test.beforeEach(async ({ page }) => {
@@ -15,9 +16,9 @@ test.describe('v76 quest-item art (keys + organs)', () => {
   });
 
   const EXPECT: Record<string, string> = {
-    'Key of Terror': 'questkey_graphic.png',
-    'Key of Hate': 'questkey_graphic.png',
-    'Key of Destruction': 'questkey_graphic.png',
+    'Key of Terror': 'hd_mephisto_key.png',
+    'Key of Hate': 'hd_mephisto_key.png',
+    'Key of Destruction': 'hd_mephisto_key.png',
     "Diablo's Horn": 'hd_horn.png',
     "Baal's Eye": 'hd_eye.png',
     "Mephisto's Brain": 'hd_brain.png',
