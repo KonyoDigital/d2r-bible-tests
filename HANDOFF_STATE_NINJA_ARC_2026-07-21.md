@@ -51,3 +51,13 @@ One-owner-per-file; Fable serializes gates. The Engine Room OBSERVES, never driv
   cinema). Let pushes quiet for a run to complete green.
 
 _Fable saving at ~98% context. Two agents mid-flight — gate their hand-backs with the pattern above._ 🥷
+
+## UPDATE @ v948.23 (both big organs landed)
+- v948.22 Engine Room v2 RETRO SCRUB ✅ · v948.23 Phase B 4th SUPER-ANALYZE organ ✅ — both shipped, green, pushed.
+- NOW IN FLIGHT (gate when they hand back, selective-commit per lane):
+  - **control_ui.html** = polish-ui-2, ENGINE ROOM v3 (click-to-detail drill-down: click organ/frame → raw process
+    at that ts — read ms, OCR text, quorum votes, gate decision, funnel receipt, super-analyze recovery, which layer owns it).
+  - **control_app.py** = engine agent, PHASE C `_kai_reconcile()` (1 pure fn, ZERO new threads; closer post-seal +
+    driver live deque; sealed owner kaiVer≥3 wins; materialize `_kai_build_engine_frames` → report["engineFrames"] via atomic writer).
+- After these: Engine Room is COMPLETE (v1+v2+v3); reconciler done → then Phase D (liveRing in status_payload) is mostly the
+  remaining data-contract work, then per-engine 100+ polish + UX 5-round arc.
