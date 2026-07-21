@@ -143,3 +143,21 @@ second window. Cosmetic but he's raised it 4+ times.
 - **v925-LIGHT trap:** lanes historically shipped OFF by default; now hardcoded ON. If a lane looks
   dead, check the env gate FIRST (`TV_OCR`/`TV_FILM`/`TV_KAI`).
 - **Never run the full Playwright suite on the Mac.** Smoke + targeted only; CI = full verdict.
+
+---
+
+## 🔬 FABLE OVERNIGHT SOAK (autonomous, post-v945.5) — recal validated, escalation de-prioritized
+Ran the miss/quorum soak over all 20 sealed reels:
+- **v944.7 recal validated:** old-missed 291 → nameish-missed 186. The recal drops **105 false-positive
+  miss flags (36% noise removed)** — flavor/stat lines no longer cry wolf. Confirmed on real data.
+- **Zero grail slip:** DB-real-unregistered misses = **0/291**. Every grail unique/set that appeared
+  was registered. The register does not miss grail items.
+- **Judge cap rarely the bottleneck:** only **1/20** reels exceeds TV_KAI_JUDGE_MAX(12) tooltips.
+- **→ MISSED→JUDGE ESCALATION DE-PRIORITIZED (task P0 baton):** no grail loss to escalate; the 186
+  nameish misses are magic/rare/crafted items the judge already tiers. Value = at most a judge-cap
+  tune on high-tooltip reels, NOT a closer rewrite. Recommend Grok NOT do the closer surgery; if
+  anything, bump TV_KAI_JUDGE_MAX and re-soak. Held off touching the freshly-sealed Stage-3 closer
+  overnight (no reviewer awake) — this soak is the safe deliverable that de-risks the decision.
+- **NOTE on thin register data:** only 1/20 reels has a register (the feature is v943-new); real
+  register/chronicle validation needs Konyo's NEW farm runs, not old reels. The write-in stage
+  (task P2#5) should be designed against fresh sealed reels, not this backlog.
