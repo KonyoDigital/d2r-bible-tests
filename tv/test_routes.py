@@ -1042,5 +1042,44 @@ class TestKaiNameishRecal(unittest.TestCase):
             self.assertFalse(ca._kai_nameish(ui), ui)
 
 
+class TestIntakeLease(unittest.TestCase):
+    """v945.6 — exactly one owner fires a given tab at a time."""
+
+    def setUp(self):
+        ca._INTAKE_LEASES.clear()
+
+    def tearDown(self):
+        ca._INTAKE_LEASES.clear()
+
+    def test_claim_blocks_second_owner(self):
+        a = ca._intake_lease_claim("runes", "engine-driver", now_ms=1_000_000)
+        self.assertTrue(a["ok"])
+        b = ca._intake_lease_claim("runes", "board", now_ms=1_000_100)
+        self.assertFalse(b["ok"])
+        self.assertEqual(b["why"], "held")
+        self.assertEqual(b["holder"], "engine-driver")
+
+    def test_same_owner_renews(self):
+        a = ca._intake_lease_claim("gems", "board", ttl_ms=60_000, now_ms=2_000_000)
+        self.assertTrue(a["ok"])
+        b = ca._intake_lease_claim("gems", "board", ttl_ms=60_000, now_ms=2_010_000)
+        self.assertTrue(b["ok"])
+        self.assertEqual(b["owner"], "board")
+
+    def test_release_then_other_may_claim(self):
+        ca._intake_lease_claim("materials", "engine-driver", now_ms=3_000_000)
+        r = ca._intake_lease_release("materials", "engine-driver")
+        self.assertTrue(r["released"])
+        c = ca._intake_lease_claim("materials", "board", now_ms=3_000_100)
+        self.assertTrue(c["ok"])
+
+    def test_expired_lease_allows_new_owner(self):
+        # floor TTL is 5s — advance past until
+        ca._intake_lease_claim("runes", "board", ttl_ms=5_000, now_ms=4_000_000)
+        c = ca._intake_lease_claim("runes", "engine-driver", ttl_ms=60_000, now_ms=4_006_000)
+        self.assertTrue(c["ok"])
+        self.assertEqual(c["owner"], "engine-driver")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

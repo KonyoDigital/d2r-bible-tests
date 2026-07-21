@@ -33646,7 +33646,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v945', name:'The Debugger', date:'2026-07-21', note:'🌙 Night arc: full-res HD frame lightbox · never-zero read-status · KAI missed-detector recal (Fable vision) · router stage 3 · HD art for the materials tally · zero-uncloseable audit · typography + 20 visual-polish rounds · HD art wired through the theatre.' };
+  window.D2R_BUILD = { id:'v945.6', name:'Theatre+Lease', date:'2026-07-21', note:'Theatre one-door + intake lease + Chronicle write-in SPEC' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33731,6 +33731,35 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   var _stashVisitDone = {};   // tab → true for current open-stash visit
   var _stashVisitOpen = false;
   window._stashShutter = false;   // v920 SHUTTER — ONE truth for both lanes (Grok: 'auto owns the shutter')
+  // v945.6 — cross-document intake lease (control holds the token). Engine-driver and an
+  // open board both see the same tab; only one may fire. Fail-open if control is unreachable
+  // (website-only board); fail-closed on explicit "held".
+  function _intakeLeaseOwner(){
+    try {
+      if (ENGINE_DRIVEN) return 'engine';
+      if (window._tvdLeaseOwner) return String(window._tvdLeaseOwner);
+    } catch(e){}
+    return 'board';
+  }
+  function _intakeLeaseClaim(tab){
+    var owner = _intakeLeaseOwner();
+    var body = JSON.stringify({ tab: tab, owner: owner, ttlMs: 120000 });
+    return fetch('http://127.0.0.1:17772/intake_claim', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
+    }).then(function(r){ return r.json(); }).then(function(j){
+      if (j && j.ok === false && j.why === 'held') return { ok:false, why:'lease-held', holder:j.holder, owner:owner };
+      return { ok:true, owner:owner, claimed: !!(j && j.ok) };
+    }).catch(function(){ return { ok:true, owner:owner, claimed:false }; });  // control down → fail-open
+  }
+  function _intakeLeaseRelease(tab, owner){
+    if (!owner) return Promise.resolve();
+    try {
+      return fetch('http://127.0.0.1:17772/intake_release', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tab: tab, owner: owner })
+      }).catch(function(){});
+    } catch(e){ return Promise.resolve(); }
+  }
   function _normStashTab(s){
     var lo = String(s||'').toLowerCase().trim();
     if (!lo) return '';
@@ -33747,6 +33776,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     opts = opts || {};
     if (window._vaultAutoBusy) return { ok:false, why:'busy' };
     if (window._vaultAutoDone) return { ok:false, why:'already' };
+    var _vTab = _normStashTab((opts && opts.tab) || 'personal') || 'personal';
+    var _vLease = await _intakeLeaseClaim('vault_' + _vTab);
+    if (_vLease && _vLease.ok === false) return _vLease;
     window._vaultAutoBusy = true;
     try {
       if (typeof window.vaultIntake !== 'function') return { ok:false, why:'no-vaultIntake' };
@@ -33781,6 +33813,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       return { ok:false, why: String(e && e.message || e) };
     } finally {
       window._vaultAutoBusy = false;
+      try { _intakeLeaseRelease('vault_' + _vTab, _vLease && _vLease.owner); } catch(e){}
     }
   };
 
@@ -33799,6 +33832,9 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
     tab = _normStashTab(tab);
     if (tab !== 'runes' && tab !== 'gems' && tab !== 'materials') return { ok:false, why:'not-tally-tab' };
     if (window._stashShutter) return { ok:false, why:'busy' };
+    // v945.6 — claim tab lease before shutter so engine-driver + board never dual-fire
+    var _sLease = await _intakeLeaseClaim(tab);
+    if (_sLease && _sLease.ok === false) return _sLease;
     window._stashShutter = true;
     try {
       var map = {
@@ -33897,6 +33933,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
       return { ok:false, why: String(e && e.message || e) };
     } finally {
       window._stashShutter = false;
+      try { _intakeLeaseRelease(tab, _sLease && _sLease.owner); } catch(e){}
     }
   };
   var DIGEST={reads:0, applied:0, areas:{}};   // v716 — end-of-session digest → the cockpit 📓 log

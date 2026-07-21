@@ -220,6 +220,69 @@ def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
     return ("giveup", None)
 
 
+# ── v945.6 INTAKE LEASE — exactly one owner fires a given tab at a time ──
+# Engine iframe + open board can both see the same stash tab. SET semantics keep
+# counts convergent, but dual-fire wastes AI calls and double-journals. Control
+# holds a soft TTL lease per tab; owners claim before fire, release in finally.
+_INTAKE_LEASES = {}   # tab -> {owner, until, since}
+_INTAKE_LEASE_TTL_MS = 120_000
+_INTAKE_LEASE_LOCK = threading.Lock()
+
+
+def _intake_lease_claim(tab, owner, ttl_ms=None, now_ms=None):
+    """Pure-ish lease claim. Returns {ok, tab, owner, until} or {ok:False, why, holder?}."""
+    tab = str(tab or "").lower().strip()
+    owner = str(owner or "anon")[:48]
+    if not tab:
+        return {"ok": False, "why": "no-tab"}
+    if not owner:
+        return {"ok": False, "why": "no-owner"}
+    ttl = int(ttl_ms if ttl_ms is not None else _INTAKE_LEASE_TTL_MS)
+    now = int(now_ms if now_ms is not None else time.time() * 1000)
+    with _INTAKE_LEASE_LOCK:
+        # drop expired
+        for k in list(_INTAKE_LEASES.keys()):
+            if int((_INTAKE_LEASES[k] or {}).get("until") or 0) <= now:
+                _INTAKE_LEASES.pop(k, None)
+        cur = _INTAKE_LEASES.get(tab)
+        if cur and int(cur.get("until") or 0) > now and cur.get("owner") != owner:
+            return {"ok": False, "why": "held", "holder": cur.get("owner"),
+                    "until": int(cur.get("until") or 0)}
+        until = now + max(5_000, ttl)
+        _INTAKE_LEASES[tab] = {"owner": owner, "until": until,
+                               "since": int((cur or {}).get("since") or now)}
+        return {"ok": True, "tab": tab, "owner": owner, "until": until}
+
+
+def _intake_lease_release(tab, owner):
+    """Release if caller still holds. Returns {ok, released:bool}."""
+    tab = str(tab or "").lower().strip()
+    owner = str(owner or "")[:48]
+    with _INTAKE_LEASE_LOCK:
+        cur = _INTAKE_LEASES.get(tab)
+        if not cur:
+            return {"ok": True, "released": False}
+        if cur.get("owner") != owner:
+            return {"ok": False, "why": "not-holder", "holder": cur.get("owner"),
+                    "released": False}
+        _INTAKE_LEASES.pop(tab, None)
+        return {"ok": True, "released": True}
+
+
+def _intake_lease_status(tab=None):
+    """Snapshot of active (non-expired) leases for doctor/debug."""
+    now = int(time.time() * 1000)
+    with _INTAKE_LEASE_LOCK:
+        out = {}
+        for k, v in list(_INTAKE_LEASES.items()):
+            if int((v or {}).get("until") or 0) <= now:
+                _INTAKE_LEASES.pop(k, None)
+                continue
+            if tab is None or k == str(tab).lower():
+                out[k] = dict(v)
+        return out
+
+
 def _nearest_receipt(maps, tab, ts, window_ms=None):
     """Compact intake receipt for `tab` nearest to `ts` (bisect); None if none
     (or outside window_ms when given)."""
@@ -2623,8 +2686,14 @@ def _engine_driver():
                         visit_done[inflight["key"]] = True
                         _tot = int((landed_ik or {}).get("total") or 0)
                         print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓ total={_tot}", flush=True)
+                        try:
+                            _intake_lease_release(inflight.get("tab") or "",
+                                                 inflight.get("lease_owner") or "engine-driver")
+                        except Exception:
+                            pass
                         inflight = None
                     elif _act == "refire":
+                        # keep the lease across re-fire (same owner renews on next fire claim)
                         fire_q.insert(0, _job)
                         print(f"🚫0️⃣ engine-driver: {inflight['key']} empty/error "
                               f"(ok={landed_ik.get('ok')} total={landed_ik.get('total')}) — "
@@ -2636,6 +2705,11 @@ def _engine_driver():
                         print(f"⚠ engine-driver: {inflight['key']} still 0 after "
                               f"{int(inflight.get('tries') or 0) + 1} empty shots — giving up this visit",
                               flush=True)
+                        try:
+                            _intake_lease_release(inflight.get("tab") or "",
+                                                 inflight.get("lease_owner") or "engine-driver")
+                        except Exception:
+                            pass
                         inflight = None
                 elif now_ms - inflight["fired_ms"] > 110_000:
                     if inflight["tries"] < 2:
@@ -2645,9 +2719,26 @@ def _engine_driver():
                     else:
                         visit_done[inflight["key"]] = True   # give up, don't loop forever
                         print(f"⚠ engine-driver: {inflight['key']} failed twice — giving up this visit", flush=True)
+                        try:
+                            _intake_lease_release(inflight.get("tab") or "",
+                                                 inflight.get("lease_owner") or "engine-driver")
+                        except Exception:
+                            pass
                     inflight = None
             if not inflight and fire_q:
                 job = fire_q.pop(0)
+                # v945.6 — claim the tab lease before firing so an open board can't dual-fire
+                _owner = "engine-driver"
+                _cl = _intake_lease_claim(job.get("tab") or job.get("key") or "", _owner)
+                if not _cl.get("ok"):
+                    # someone else holds it — re-queue later (don't burn the visit)
+                    job["tries"] = int(job.get("tries") or 0)
+                    fire_q.append(job)
+                    print(f"🧰 engine-driver: {job.get('key')} lease held by "
+                          f"{_cl.get('holder')} — defer", flush=True)
+                    time.sleep(1.0)
+                    continue
+                job["lease_owner"] = _owner
                 # v941.4 (run-3: vault shot ok:false, 0 read) — shots photograph the READ'S
                 # ARCHIVED FRAME (/hist/<fid>.jpg), never the live eye: by fire time the
                 # player has moved on and a live shot sees gameplay. Same law as the funnel.
@@ -2686,6 +2777,11 @@ def _engine_driver():
                         fire_q.append(job)
                     else:
                         visit_done[job["key"]] = True
+                        try:
+                            _intake_lease_release(job.get("tab") or "",
+                                                 job.get("lease_owner") or "engine-driver")
+                        except Exception:
+                            pass
                     print(f"⚠ engine-driver fire failed (try {job['tries']}): {e}", flush=True)
         except Exception as _de:
             globals()["_DRV_ERR"] = str(_de)[:120]   # v934.3 — loop crashes become visible
@@ -2749,7 +2845,7 @@ def status_payload():
         )
     return {
         "ok": True,
-        "ver": "v945",
+        "ver": "v945.6",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
@@ -3948,6 +4044,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"ok": True})
             except Exception as e:
                 self._json(200, {"ok": False, "msg": str(e)[:120]})
+            return
+        if path == "/intake_claim":
+            # v945.6 — tab intake lease: engine vs open board, one owner at a time
+            try:
+                r = _intake_lease_claim(body.get("tab"), body.get("owner") or "board",
+                                       ttl_ms=body.get("ttlMs") or body.get("ttl_ms"))
+                self._json(200, r)
+            except Exception as e:
+                self._json(200, {"ok": False, "why": str(e)[:120]})
+            return
+        if path == "/intake_release":
+            try:
+                r = _intake_lease_release(body.get("tab"), body.get("owner") or "board")
+                self._json(200, r)
+            except Exception as e:
+                self._json(200, {"ok": False, "why": str(e)[:120]})
             return
         if path == "/intake_result":
             # v935 (Konyo P0: 'tallies silently vanishing') — the board POSTs each auto-intake

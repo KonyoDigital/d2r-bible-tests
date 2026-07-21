@@ -98,3 +98,61 @@ _"Before it gets funneled, after the film: every screenshot gets checked by all 
 - **Stage 3 — ROUTE EXECUTION unification:** the existing funnel/judge/vault fires become CONSUMERS of the ledger (one router decides, lanes obey), each posting its receipt back onto the ledger row — full circle auditability: label → verify → route → receipt, per screenshot.
 - Existing organs already provide: labels (journal-truth classes), lanes (tally/vault/judge via engine iframe), receipts (/intake_result, /kai_verdict). The router formalizes the middle and makes it visible.
 - **DEDUPE LAW (Konyo addendum):** duplicate photos dedupe automatically INSIDE the router — near-identical consecutive frames (same sampled signature) chain to their first occurrence: label 'dup', route null, skipReason 'dup-of:<frame>'; only the FIRST of a visual run routes. Lanes can never double-fire on the same sight; the ledger shows the chain.
+
+## 📖 CHRONICLE WRITE-IN SPEC (v945.6 SuperGrok — design only, no code yet)
+
+KAI already compiles a **register ledger** (`_kai_compile_register` → `report.register` / journal
+`kai.register`) of witnessed DB-real names with `firstSeenTs` + `frameId` + `loc` + `tier`. Nothing
+yet writes those into bible.html's Chronicle / grail found-state. This is the last unbuilt organ.
+
+### Goals
+1. A witnessed, DB-real item becomes **Chronicle found** with provenance (session + frame).
+2. Never double-count; never overwrite a **manual** mark (user sealed 99/99 stays sacred).
+3. Gated review so a bad OCR/judge night cannot corrupt the grail wall.
+4. Cross-surface truth: journal is the source of truth; Chronicle is a projection.
+
+### Laws (non-negotiable)
+| Law | Rule |
+|-----|------|
+| **DB-real only** | Name must hit the sealed unique/set/runeword universe (same fullnames pool KAI uses). Generated rare combos register as witnessed but do **not** auto-grail. |
+| **Never overwrite manual** | If Chronicle already has `found`/`owned` from a human click or prior manual import, auto-write is a no-op (may attach provenance only). |
+| **Idempotent** | Same name + same first-found day → one row. Re-running KAI on old reels never inflates counts. |
+| **Provenance** | Every auto mark stores `{source:'kai-register', sessionId, frameId, firstSeenTs, tier}`. |
+| **Review gate (default ON)** | Auto-write lands in a **pending** queue (`d2r_chronicleInbox`), not the sealed grail. User (or explicit `TV_CHRONICLE_AUTO=1` after soak) promotes inbox → found. |
+| **EDIT_LOCK** | Any bible.html write path requires EDIT_LOCK; prefer a pure function `window.kaiChroniclePropose(items) → {queued, skipped, conflicts}` callable from engine iframe. |
+
+### Pipeline
+```
+KAI seal → register[] → (control optional) POST /api/chronicle_propose
+  → engine/board kaiChroniclePropose(register)
+  → for each item:
+       not DB-real           → skip(reason=not-db)
+       already manual found  → skip(reason=manual-seal) + optional provenance append
+       already auto-found    → skip(reason=idempotent)
+       else                  → inbox.push({name, …provenance})
+  → UI: Chronicle 📥 inbox chip (count) · accept-one / accept-all / dismiss
+  → accept → set found-state via EXISTING Chronicle mutators (no parallel store)
+```
+
+### What NOT to build
+- No second grail store. No silent 99/99 mutations. No opus re-read for write-in (register already witnessed).
+- Do not backfill from pre-v943 reels without a register (Fable soak: only 1/20 reels have one). Design against **fresh** sealed reels.
+
+### Verify plan (when coding)
+1. Pin: manual found + same name in register → skip, grail unchanged.
+2. Pin: empty Chronicle + register name → inbox +1; accept → found.
+3. Pin: double propose same register → inbox still +1.
+4. Live: one farm session with a unique drop → inbox shows it with frame link; accept matches theatre.
+
+### Build order
+1. SPEC (this section) ✅
+2. `kaiChroniclePropose` + inbox LS shape (EDIT_LOCK, pure, no network)
+3. Control POST that forwards register after KAI seal (optional; engine can read report)
+4. Theatre/Chronicle UI chip for inbox
+5. Soak on 3 real sessions before `TV_CHRONICLE_AUTO`
+
+## 🔌 INTAKE LEASE (v945.6 SuperGrok — built)
+Control holds a soft TTL lease per tab (`/intake_claim`, `/intake_release`). Engine-driver claims
+`engine-driver` before fire; bible `tvStashAutoIntake` / `tvVaultAutoIntake` claim `board` (or
+`engine` when `?engine=1`). Explicit `held` → second caller skips; control down → fail-open so
+website boards still work. SET semantics remain the count safety net.

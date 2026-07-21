@@ -1450,7 +1450,7 @@
         <div class="hd-chips" id="hd-intake-chips"><span class="hd-empty">ON AIR + pause on Runes/Gems/Materials/stash — shots land here</span></div>
       </div>
       <!-- v910 (Konyo: 'one unit, one engine dashboard — no scrolling') — the library moved
-           to the SIMULATION shelf (📚 rail button); the homepage fits ONE viewport. -->
+           to the THEATRE shelf (📚 rail button); the homepage fits ONE viewport. -->
     </section>
 
     <aside class="rail">
@@ -1469,7 +1469,8 @@
           </div>
           <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size:10.5px;line-height:1.55;padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
         </details>
-        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">✦</span><span class="lab"><b>Simulation</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
+        <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
+        <button class="act b-sim" id="btn-sim" type="button"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <div class="signal">
         <!-- v931 (Konyo: 'we have 3 eyes — put all 3 colored eyes/brains there') — the panel
@@ -1491,7 +1492,7 @@
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
       <!-- v888 (Konyo: 'what do they do? structure or remove') — the strip dissolved:
-           TV·D = 6th header tab · shelf = named button under SIMULATION · log toggle lives
+           TV·D = 6th header tab · shelf = named button under THEATRE · log toggle lives
            in the Agent Mind bar. Hidden compat stubs keep old wiring + specs honest. -->
       <button class="ghost" id="btn-shelf" type="button" style="margin-top:8px;width:100%">
         <img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'">
@@ -1508,7 +1509,8 @@
     </section>
 
     <footer>
-      <span id="foot-ver">v944.1 control"foot-ports">:17772<span class="dot">·</span>agent :17771</span>
+      <span id="foot-ver">v945 control</span>
+      <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
   </div>
@@ -1664,7 +1666,7 @@
     try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
-    $('bug-txt').textContent = stopping ? 'FAREWELL…' : (state === 'sim' ? 'SIM LIVE' : (on ? 'ON AIR' : 'OFF AIR'));
+    $('bug-txt').textContent = stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
 
     // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
     var rawPhase = stopping ? 'signing' : (state === 'sim' ? 'sim' : (on ? String(st.phase || 'watching').toLowerCase() : 'standby'));
@@ -1678,7 +1680,7 @@
       boot:      { title: 'BOOT',      note: 'warming eyes' },
       live:      { title: 'LIVE',      note: 'broadcast open' },
       signing:   { title: 'SIGNING OFF', note: 'farewell read finishing' },
-      sim:       { title: 'SIMULATION', note: 'replay reel' },
+      sim:       { title: 'THEATRE', note: 'replay reel' },
       standby:   { title: 'STANDBY',   note: 'press ON to go live' }
     };
     var pc = PHASE_COPY[rawPhase] || { title: rawPhase.toUpperCase(), note: 'autopilot' };
@@ -1698,14 +1700,15 @@
       scn.textContent = note;
     }
 
-    $('marquee-t').textContent = stopping ? 'Signing Off' : (state === 'sim' ? 'Simulation' : (on ? 'On Air · Recording' : 'Standby'));
-    $('kicker').textContent = stopping ? 'Farewell' : (state === 'sim' ? 'Canned Feed' : (on ? 'Signal Live' : 'Signal Idle'));
+    $('marquee-t').textContent = stopping ? 'Signing Off' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'Theatre' : (on ? 'On Air · Recording' : 'Standby'));
+    $('kicker').textContent = stopping ? 'Farewell' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'Eyes on history' : (on ? 'Signal Live' : 'Signal Idle'));
 
     var cap = 'Press <b>ON</b> to wake the hidden scanner and take the board live.';
     var H0 = st.health || {};
     var noGame = on && (H0.gameOk === false || H0.aiPaused || st.gameOk === false || st.aiPaused);
     if (stopping) cap = 'Signing off — saving the session (≤ ~15s). Then STANDBY.';
-    else if (on && state === 'sim') cap = 'Simulation running · canned reads · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
+    else if (on && state === 'sim') cap = 'Theatre · canned feed · <b>zero vision cost</b>. Watch the cinema or flip D2R.';
+    else if (typeof TH !== 'undefined' && TH.open) cap = 'Theatre open · eyes on a real session · scrub frames, dossier, receipts.';
     else if (noGame) cap = '<b>D2R window missing</b> — open <b>Diablo II: Resurrected</b> in-game (not only Battle.net). AI reads are paused until the game window is found.';
     else if (on) cap = 'Auto Intake live · pause on <b>Runes / Gems / Materials / stash</b> — same AI as Tools 📸. Board: <b>SESSIONS</b>.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
@@ -1843,7 +1846,7 @@
       var onB = $('btn-on').querySelector('.lab b'), onS = $('btn-on').querySelector('.lab span');
       if (onB && !$('btn-on').classList.contains('working')){
         if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' read' + (rc===1?'':'s') + ' · instant') : 'nothing recorded · instant off'; }
-        else if (state === 'sim'){ onB.textContent = 'End Sim'; onS.textContent = 'close the canned feed'; }
+        else if (state === 'sim' || (typeof TH !== 'undefined' && TH.open)){ onB.textContent = 'Close Theatre'; onS.textContent = 'leave the replay'; }
         else if (state === 'stopping'){ onB.textContent = 'Sealing…'; onS.textContent = 'saving the session'; }
         else { onB.textContent = 'On Air'; onS.textContent = 'auto intake · pause on stash'; }
       }
