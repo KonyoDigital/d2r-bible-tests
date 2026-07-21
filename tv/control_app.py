@@ -4952,7 +4952,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1175",
+        "ver": "v1176",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -6723,17 +6723,23 @@ def _loud_fail(title, msg):
 def board_window():
     """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd).
     v773.2 — orphan guard: if the control server disappears for ~60s, this window self-closes
-    (the REG-020 swarm can never rebuild from forgotten windows)."""
+    (the REG-020 swarm can never rebuild from forgotten windows).
+    v1176 — this is a SECONDARY window process (spawned with --board-window); it must never
+    be trigger-happy about self-killing on a transient hiccup (a self-hosted watchdog killing
+    itself is the opposite of stability). Widened the tolerance (5s timeout · 5 misses ≈ 100s)
+    and it now says why before it exits, instead of vanishing silently."""
     def _orphan_watch():
         misses = 0
         while True:
             time.sleep(20)
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{CONTROL_PORT}/api/status", timeout=3):
+                with urllib.request.urlopen(f"http://127.0.0.1:{CONTROL_PORT}/api/status", timeout=5):
                     misses = 0
             except Exception:
                 misses += 1
-                if misses >= 3:
+                if misses >= 5:
+                    print(f"📺 board window: control server unreachable for ~{misses * 20}s — "
+                          f"self-closing (orphan guard).", flush=True)
                     os._exit(0)
     threading.Thread(target=_orphan_watch, daemon=True).start()
     # v774 🌙 — same-origin host + deep-link hash (--hash=forge etc.)
@@ -6848,16 +6854,22 @@ def main():
     time.sleep(0.2)
 
     if open_ui and not no_open:
-        # Blocks until the native window is closed; open_control_window stops ON AIR on return
+        # Blocks until the native window is closed; open_control_window stops ON AIR on return.
         open_control_window()
         _console_exit_stop_onair("main-after-window")
-        try:
-            srv.shutdown()
-        except Exception:
-            pass
-        return
+        # v1176 — a closed window (deliberate close OR a flaky WKWebView self-close) used
+        # to take the WHOLE control server down with it: srv.shutdown()+return here killed
+        # the daemon serve_forever thread, and with nothing non-daemon left alive the
+        # process exited right behind it — :17772 then sat HTTP-000-dead until someone
+        # noticed and relaunched by hand (recurring crash, evidence: control_app.log shows
+        # repeated "window-closed" exits with no relaunch). Serving the console is not
+        # actually coupled to a window being open, so just drop into headless mode below —
+        # :17772 stays answerable; reopen a window anytime with --window-only.
+        print(f"📺 native window closed — control server stays up headless on "
+              f"http://127.0.0.1:{CONTROL_PORT}/ (·/api/quit to exit · --window-only to "
+              f"reopen a window)", flush=True)
 
-    # headless server mode (tests / --no-open)
+    # headless server mode (tests / --no-open / window closed above)
     try:
         while True:
             time.sleep(1)

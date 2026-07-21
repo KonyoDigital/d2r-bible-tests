@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1175"   # 🔤✨ Typography R3 — FULLSCREEN OPTIMIZATION (@2560×1440): OFF-stage hero caption no longer clipped (min-height clamp, clears the meters by 52px) + right rail breathes (clamp 238→430px, was capped 360) — 0 sideways scroll, 0 sub-floor text, 0.00px head-tab invariant held (control_ui.html); ×3 parity (3/80 → v1252)
+VERSION = "v1176"   # 🔧 STABILITY: the recurring :17772 crash — root-caused (control_app.log evidence). main() --open branch was calling srv.shutdown()+return when the pywebview window closed (incl. flaky WKWebView self-close), no supervisor → server dead. FIX: window close now drops to HEADLESS keep-alive, server lifetime decoupled from the window; :17772 stays answerable. _orphan_watch widened 60s→100s + logs before exit. Only /api/quit + SIGTERM end the process now (control_app.py); ×3 parity (4/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
