@@ -198,3 +198,9 @@ engine-route r2 (control_app.py + test_control.py): _kai_quorum_label flagged on
 
 ## ✅ GATED: v1187 (15/80) — HEAD 061e6f3 — CAPTURE round 2 (captureTs join-law on drain paths)
 engine-capture r2 (tv_diablo.py + test_agent.py): _fire_read stamped captureTs=NOW even when draining frames captured earlier (settle-queue up to 120s stale, text-eye queue/stall) → retro join key desynced from pixels under fast play. FIX: _resolve_read_ts(cap_ts_override) helper; 3 drain sites pass the frame's own "ts"; live reads still now(). frame_id/join law preserved. +2 tests (agent 175→177). ×3 parity, floor agent 177 · control 80, smoke+deploy. Counter: 15/80 · at v1187 · target v1252. NEXT: read round 2 (dispatch → v1188). Also gitignored tv/.tvd_supervisor_pause (runtime flag).
+
+## ✅ GATED: v1188 (16/80) — HEAD 9187ce0 — READ round 2 (bound genius-escalate) — ROUND-2 SWEEP COMPLETE
+engine-read r2 (tv_diablo.py + test_agent.py): _maybe_genius escalate pass called _oneshot(timeout=90) decoupled from LIVE_READ_TIMEOUT_S → could hold lane ~125s if fired (dormant today, FAST==GENIUS; one env var from live). FIX: timeout=LIVE_READ_TIMEOUT_S. +1 test (agent 177→178). ×3 parity, floor agent 178 · control 80, smoke+deploy.
+
+### ROUND-2 SWEEP DONE (v1185–v1188): funnel(honest-miss live driver) · route/gate(quorum tie=disagreement) · capture(captureTs drain-path) · read(bound genius-escalate). All evidence-based, tested. Counter: 16/80 · at v1188 · target v1252.
+NEXT: round 3 of per-engine polish (dispatch → v1189+). Both round-1 and round-2 sweeps complete; engines increasingly hardened.
