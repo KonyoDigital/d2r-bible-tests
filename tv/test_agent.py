@@ -507,6 +507,25 @@ class TestIntentAndEscalate(unittest.TestCase):
         b = {"names": ["Ist Rune", "Vex Rune"], "conf": 0.5, "area": "Pit"}
         self.assertGreater(tv._read_score(b), tv._read_score(a))
 
+    def test_genius_escalate_is_bounded_by_the_live_lane_timeout(self):
+        # v1188 — the Master Brain law (LIVE_READ_TIMEOUT_S) bounds the warm read AND its
+        # one-shot fallback; escalate is a THIRD vision call fired on top of either and must
+        # obey the SAME live-lane budget, not a bare hardcoded 90s (which — the instant
+        # TV_MODEL_ESCALATE differs from TV_MODEL — could hold the live lane hostage for
+        # LIVE_READ_TIMEOUT_S + 90s, worse than the 66s stall the law exists to prevent).
+        import unittest.mock as mock
+        weak = {"scene": "loot", "names": [], "conf": 0.9, "area": ""}   # _needs_escalate → True
+        with mock.patch.object(tv, "FAST_MODEL", "haiku"), \
+             mock.patch.object(tv, "GENIUS_MODEL", "sonnet"), \
+             mock.patch.object(tv, "ESCALATE_CAP", 40), \
+             mock.patch.object(tv, "_ESCALATE_N", [0]), \
+             mock.patch.object(tv, "_oneshot", return_value=None) as m_oneshot:
+            tv._maybe_genius("/fake/read.jpg", dict(weak), time.time(), "warm")
+        m_oneshot.assert_called_once()
+        _, kwargs = m_oneshot.call_args
+        self.assertEqual(kwargs.get("timeout"), tv.LIVE_READ_TIMEOUT_S)
+        self.assertNotEqual(kwargs.get("timeout"), 90)
+
 
 class TestClaudeEnv(unittest.TestCase):
     """v720 — vision must ride the Claude subscription, not a shell API key."""

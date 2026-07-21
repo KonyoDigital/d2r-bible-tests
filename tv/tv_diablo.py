@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1187"   # 📷 CAPTURE round 2 — captureTs join-law fix on the DRAIN paths: _fire_read stamped read_ts/captureTs = NOW (drain time) even when draining a frame captured EARLIER (settle-queue up to 120s stale, text-eye-sweep queue/stall). Each held frame already tracked its real capture clock as entry "ts" (used for gap_ms) but nobody threaded it into the join key → retro debugger's captureTs desynced from the pixels, worst under fast play. FIX: testable _resolve_read_ts(cap_ts_override) helper; _fire_read takes cap_ts_override; 3 drain sites pass _q/_bl "ts". Live/fresh reads still stamp now(). frame_id fmt + _capture_ts_from_frame_id untouched — join law preserved, made MORE honest (mirrors the A0 fix). +2 tests (agent 175→177). ×3 parity (15/80 → v1252)
+VERSION = "v1188"   # 🔴 READ round 2 — bound the genius-escalate 4th eye: _maybe_genius (the escalate/second-opinion pass) called _oneshot(GENIUS_MODEL, timeout=90) — a bare hardcoded value decoupled from the v948.17 Master-Brain live budget (LIVE_READ_TIMEOUT_S=35s). If triggered, one claude_read() could hold the lane LIVE_READ_TIMEOUT_S+90≈125s — WORSE than the 66s stall the law was built to kill (the leftover third path; the warm+fallback paths were already bounded). Dormant today (FAST==GENIUS==sonnet → escalate early-outs) but one env var (TV_MODEL_ESCALATE) from firing. FIX: timeout=LIVE_READ_TIMEOUT_S so all 3 vision calls share the live-lane budget. +1 test (agent 177→178). ×3 parity (16/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -3747,7 +3747,16 @@ def _maybe_genius(ap, parsed, t0, mode):
     _ESCALATE_N[0] += 1
     ev("boot", f"genius escalate → {GENIUS_MODEL} (#{_ESCALATE_N[0]}/{ESCALATE_CAP}) — accuracy pass")
     try:
-        better = _oneshot(ap, GENIUS_MODEL, timeout=90)
+        # v1188 — the Master Brain law (v948.17: "cap a single live read's in-flight time much
+        # tighter" — LIVE_READ_TIMEOUT_S, default 35s) bounded the warm read AND its one-shot
+        # fallback, but this THIRD call (fired on top of either of those, whenever a low-conf/
+        # empty-loot read needs a second opinion) was still hardcoded at timeout=90 — inert
+        # today only because FAST_MODEL==GENIUS_MODEL by default (see _maybe_genius's early-out
+        # above), but the instant escalate is turned on (TV_MODEL_ESCALATE != TV_MODEL — exactly
+        # the haiku→sonnet ladder these globals exist for) a single live claude_read() could
+        # again hold the lane hostage for up to LIVE_READ_TIMEOUT_S + 90s ≈ 125s — WORSE than the
+        # 66s stall that law was written to eliminate. Bound it by the same live-lane budget.
+        better = _oneshot(ap, GENIUS_MODEL, timeout=LIVE_READ_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         better = None
         ev("cap", f"genius {GENIUS_MODEL} timed out — keeping {FAST_MODEL} result")
