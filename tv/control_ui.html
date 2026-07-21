@@ -1149,9 +1149,17 @@
   /* v946 — session health strip */
   .sess-health { margin: 6px 0 8px; padding: 8px 10px; border-radius: 9px;
     border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-direction: column; gap: 4px; }
-  .sess-health .sh-row { display: flex; justify-content: space-between; gap: 8px; font: 600 var(--fs-xs)/1.3 var(--mono); }
-  .sess-health .sh-k { color: #9a8f72; letter-spacing: .04em; }
+  .sess-health .sh-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; font: 600 var(--fs-xs)/1.4 var(--mono); }
+  .sess-health .sh-k { color: #9a8f72; letter-spacing: .04em; flex: 0 0 auto; }   /* v1177 R4 — label tops-aligns to the value's first line (was ragged when the value wrapped) */
   .sess-health .sh-v { color: #e8dcc0; text-align: right; font-variant-numeric: tabular-nums; }
+  /* v1177 R4 — STRUCTURE: the rail's grouped blocks earn the same section-label discipline the dash
+     has (a gold accent-bar header) — via CSS ::before, so no markup/ID/tested-structure changes. */
+  .signal .eyes::before, .sess-health::before {
+    display: block; font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--gold-dim); padding: 0 0 5px 8px; margin-bottom: 5px;
+    border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }
+  .signal .eyes::before { content: "THE READER NET"; }
+  .sess-health::before { content: "SESSION HEALTH"; }
   .sess-health .sh-verdict { margin-top: 3px; font: 800 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .12em;
     text-transform: uppercase; text-align: center; padding: 4px 6px; border-radius: 6px;
     border: 1px solid rgba(143,208,160,.3); color: #9df0bd; background: rgba(30,60,40,.35); }
