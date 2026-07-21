@@ -60,6 +60,17 @@ super-analyze — whichever is most confident, DB-verified). (b) never let a cap
 if all live passes missed, the super-analyze layer MUST attempt it. (c) surface its own health: which
 layer caught each item, and where a layer stalled (the 66s stall must be visible, not silent).
 
+**KONYO'S CRYSTALLIZATION (2026-07-21, the flagship framing):** the Master Brain KAI is the
+**NINJA KAI — the breathing, under-the-radar SUPER WATCHDOG over the entire system.** Always running,
+always tasked, hardcoded + automated to: **verify · authorize · authenticate · filter** every read,
+across **live AND retro, synced together**, doing every unified task connected through the whole engine —
+silently, without the user driving it. It is the meta-watchdog: it oversees not just the tally tabs
+(the existing per-tab watchdog) but every layer, every funnel, every receipt, every gate verdict —
+the one always-on brain accountable for the system's total accuracy. This is THE ULTIMATE FLAGSHIP of
+the console: not a feature beside the engine, but the engine's own consciousness. Build order:
+harden the five layers (aftermath integrity) → wire the 4th super-analyze organ → then the Master Brain
+as the always-on reconciler + super-watchdog that runs the whole loop and answers for its accuracy.
+
 ### 2. THE READERS (🔴🔵🧠) — layered eyes, each a net for the last
 - **🔴 Live eye** — deep-reads the current frame (names items) when text-eye/motion triggers. First pass, fast.
 - **🔵 Second eye** — in idle gaps, re-reads the text-eye backlog the live eye rushed past. Corrections.

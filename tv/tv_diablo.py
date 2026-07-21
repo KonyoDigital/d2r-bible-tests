@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v948.16"   # unified-engine arc seal: gate + legend + completeness + CI green
+VERSION = "v948.18"   # aftermath integrity: runes-clobber guard, gems receipt, atomic report, 2nd-eye stall-drain, read timeout
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1869,6 +1869,21 @@ except Exception:
     ESCALATE_CAP = 40
 _ESCALATE_N = [0]
 
+# v948.17 — Grok P1-5 (2026-07-21 fast-run soak): claude_read()'s warm ask() used the
+# VisionWorker default (timeout=75) and its one-shot fallback used 90s — a single frame
+# (a scene-transition still) legitimately took 68,978ms and, with POOL_N=1 outside robot
+# mode, that one read holds the ENTIRE live lane hostage (no new live read, no idle-gap
+# second-eye sweep) for up to 75+90=165s worst case. Per the Master Brain law ("a 66s live
+# stall is a signal to route to retro, not a failure" — ENGINE_ARCHITECTURE.md §Master Brain
+# law a), cap a single live read's in-flight time much tighter: every named read this soak
+# finished in 9-15s, so a generous-but-bounded ceiling lets the lane free up and hand the
+# frame to the retro/KAI layers instead of blocking on an outlier. TV_LIVE_READ_TIMEOUT_S
+# overrides for tuning; genius-escalate (a secondary, capped, optional pass) is untouched.
+try:
+    LIVE_READ_TIMEOUT_S = max(5.0, float(os.environ.get("TV_LIVE_READ_TIMEOUT_S", "35") or 35))
+except Exception:
+    LIVE_READ_TIMEOUT_S = 35.0
+
 # v720 — AUTH PATH FIX (live run #2): if ANTHROPIC_API_KEY (or sibling API tokens) is set in
 # the shell, every headless `claude -p` prefers that key over the user's Claude subscription
 # login. A dead/rate-limited key hangs past 40–90s with empty stdout — exactly run #2's
@@ -2086,10 +2101,84 @@ def _pool_acquire():
 
 
 def _pool_release(rid):
+    """Return `rid` to the free list. v948.17 — sentinel/override ids (e.g. the stall-drain
+    worker's negative _STALL_RID) are never pool members and must never leak in here; a real
+    pool slot is always in range(POOL_N)."""
     with _pool_lock:
+        if rid is None or rid < 0:
+            return
         if rid not in _pool_free:
             _pool_free.append(rid)
             _pool_free.sort()
+
+
+# ── v948.17 STALL-DRAIN — a PARALLEL second-eye worker for a hung live lane (Grok P1-4,
+# 2026-07-21 fast-run soak). Outside ROBOT_MODE, POOL_N==1 by design ("ONE Claude always"),
+# so the old second-eye sweep gate (`_vision_in_flight_n() < POOL_N`) can NEVER open while
+# the single live reader is busy — even when that read has been stuck in flight for a minute.
+# A hung live read is not an "idle gap"; it's exactly the case the backlog most needs draining
+# in. This dedicated worker lives entirely OUTSIDE POOL_N/_pool_free bookkeeping (sentinel
+# reader id _STALL_RID, never returned to `_pool_free`) so it can never be claimed by ordinary
+# live dispatch and never steals the "one Claude" live slot — it only ever fires the bounded,
+# already-captured backlog sweep while the live eye is demonstrably stalled.
+_STALL_RID = -1                 # sentinel reader id — always outside range(POOL_N)
+_STALL_WORKER = None
+_STALL_BUSY = False
+STALL_DRAIN_S = max(1.0, float(os.environ.get("TV_STALL_DRAIN_S", "20") or 20))
+
+
+def _stall_worker():
+    """Lazily-created, dedicated VisionWorker for stall-drain sweeps only — never shared
+    with the live reader pool, so a hung live subprocess can't also silence this one."""
+    global _STALL_WORKER
+    if _STALL_WORKER is None:
+        _STALL_WORKER = VisionWorker()
+    return _STALL_WORKER
+
+
+def _live_stall_ms():
+    """Age (ms) of the OLDEST in-flight read, or 0 if the pool is idle. Used to detect a
+    genuinely hung live read (not just a normal-length one) before parallel-draining."""
+    with _pool_lock:
+        if not _in_flight:
+            return 0
+        oldest = min(int(j.get("startedAt") or 0) for j in _in_flight.values())
+    return max(0, int(time.time() * 1000) - oldest) if oldest else 0
+
+
+def _stall_drain_decision(backlog_len, in_flight_n, pool_n, stall_ms, stall_busy,
+                           enabled=True, threshold_ms=None):
+    """PURE decision (Grok P1-4 pin target) — fire the parallel stall-drain sweep only when:
+      • the feature is enabled;
+      • the backlog actually has something piling up (backlog_len > 0);
+      • the live pool is FULLY busy (in_flight_n >= pool_n) — when a slot is free the ordinary
+        '< POOL_N' idle-gap sweep already covers it, no need for a second worker;
+      • the oldest in-flight read has been running >= threshold_ms — a genuine stall, not an
+        ordinary 9-15s named read;
+      • no stall-sweep is already running (bounded to exactly one parallel sweep at a time).
+    """
+    if not enabled:
+        return False
+    if stall_busy:
+        return False
+    if backlog_len <= 0:
+        return False
+    if in_flight_n < pool_n:
+        return False
+    thr = (STALL_DRAIN_S * 1000.0) if threshold_ms is None else float(threshold_ms)
+    return float(stall_ms) >= thr
+
+
+def _stall_drain_ready():
+    """Thin glue over `_stall_drain_decision` reading the live globals."""
+    return _stall_drain_decision(
+        backlog_len=_text_eye_backlog_len(),
+        in_flight_n=_vision_in_flight_n(),
+        pool_n=POOL_N,
+        stall_ms=_live_stall_ms(),
+        stall_busy=globals().get("_STALL_BUSY", False),
+        enabled=os.environ.get("TV_STALL_DRAIN", "1") != "0",
+    )
 
 
 def _order_push(capture_ts, job, rd, ocr_rd):
@@ -2312,6 +2401,11 @@ def _text_eye_backlog_pop():
         if not _TEXT_EYE_BACKLOG:
             return None
         return _TEXT_EYE_BACKLOG.pop(0)
+
+def _text_eye_backlog_len():
+    """v948.17 (Grok P1-4) — peek the backlog size without popping (decision-only, no mutation)."""
+    with _settle_q_lock:
+        return len(_TEXT_EYE_BACKLOG)
 
 def _settle_enqueue(src_frame, sig, interest=0.0, priority=False, origin="settle"):
     """Unit-engine work queue: copy live frame to frames/queue/<sig8>.bmp. Scout text freezes
@@ -3649,7 +3743,7 @@ def claude_read(path, worker=None, out_jpg=None):
         return EMPTY
     t0 = time.time()
     w = worker or _WORKER
-    out_w = w.ask(READ_PROMPT.format(path=ap))
+    out_w = w.ask(READ_PROMPT.format(path=ap), timeout=LIVE_READ_TIMEOUT_S)
     if out_w is not None:
         globals()["_LAST_RAW"] = str(out_w)[:2048]   # v832 — THE THOUGHT, verbatim (single-reader compat)
         _raw_local = str(out_w)[:2048]
@@ -3664,13 +3758,15 @@ def claude_read(path, worker=None, out_jpg=None):
         _note_slot_death()   # v891 (Grok C1) — cascade detector
         _rewarm(w)  # v718 (Grok R10 pick #2) + v863: rewarm THIS reader's slot only, pool degrades soft
     try:
-        parsed = _oneshot(ap, FAST_MODEL, timeout=90)
+        # v948.17 — same lane-block cap applies to the one-shot fallback: a wedged warm
+        # worker must not be followed by ANOTHER unbounded (90s) attempt on the live lane.
+        parsed = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S)
         if parsed is None:
             return EMPTY
         return _maybe_genius(ap, parsed, t0, "oneshot") or EMPTY
     except subprocess.TimeoutExpired:
-        ev("cap", "vision timed out (90s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
-        print("  ⚠ vision timed out (90s)")
+        ev("cap", f"vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
+        print(f"  ⚠ vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s)")
         return EMPTY
     except Exception as e:
         ev("cap", f"read failed: {e}")
@@ -3956,17 +4052,27 @@ def main():
     empty_streak = 0
     named_until = 0.0     # boost interest after a named hit
 
-    def _launch_vision(snap_src, cur_snap, n_this, fid_this, interest_this, used_priority, read_ts):
+    def _launch_vision(snap_src, cur_snap, n_this, fid_this, interest_this, used_priority, read_ts,
+                       rid_override=None):
         """v863 READER POOL — one reader ACT on ITS OWN worker + PRIVATE snap/read files. Builds
         the job (captureTs, origin, dispatch, sig) at fire time and carries it through to the
-        ordered apply. Acquires a free reader id; the main loop gates on a free slot."""
-        global _VISION_BUSY
+        ordered apply. Acquires a free reader id; the main loop gates on a free slot.
+
+        v948.17 (Grok P1-4) — rid_override bypasses the pool entirely: it's how the stall-drain
+        sweep gets a genuinely PARALLEL worker (`_stall_worker()`) even when every normal pool
+        slot is busy. The override id is never returned to `_pool_free` (it isn't a pool member),
+        so it can never leak into ordinary live dispatch."""
+        global _VISION_BUSY, _STALL_BUSY
         import shutil
-        rid = _pool_acquire()
-        if rid is None:
-            # defensive — the main loop only fires with a free slot; hold the freeze instead
-            _settle_enqueue(snap_src, cur_snap, interest_this, used_priority, origin="settle")
-            return snap_src
+        if rid_override is not None:
+            rid = rid_override
+            _STALL_BUSY = True
+        else:
+            rid = _pool_acquire()
+            if rid is None:
+                # defensive — the main loop only fires with a free slot; hold the freeze instead
+                _settle_enqueue(snap_src, cur_snap, interest_this, used_priority, origin="settle")
+                return snap_src
         snap_path, read_jpg = _job_files(rid, n_this)
         try:
             try:
@@ -4043,7 +4149,8 @@ def main():
                         _AP["lastNamed"] = ", ".join(onames[:4])
 
                 # ── DEEP LANE: Claude (this reader's OWN worker + private read.jpg) ──
-                rd = claude_read(snap_path, worker=_WORKERS[rid], out_jpg=read_jpg)
+                _job_worker = _stall_worker() if rid_override is not None else _WORKERS[rid]
+                rd = claude_read(snap_path, worker=_job_worker, out_jpg=read_jpg)
                 job["raw"] = (rd or {}).get("_raw_txt") or globals().get("_LAST_RAW", "") or ""   # v864 — result-carried raw wins; global only as single-reader fallback
                 if should_learn_dead(rd):
                     learn_dead_frame(cur_snap)
@@ -4076,9 +4183,11 @@ def main():
                     pass
                 with _pool_lock:
                     _in_flight.pop(job_id, None)
-                    if rid not in _pool_free:
+                    if rid_override is None and rid not in _pool_free:
                         _pool_free.append(rid); _pool_free.sort()
                     _VISION_BUSY = len(_in_flight) >= 1
+                if rid_override is not None:
+                    globals()["_STALL_BUSY"] = False
                 _AP["mode"] = "drive"
                 beat("watching", 0.0)
                 try:
@@ -4091,7 +4200,7 @@ def main():
 
     def _fire_read(origin, snap_src, sig, interest_this, used_priority, note="",
                    motion_v=0.0, peak_v=0.0, settle_ticks=0, gap_ms=0,
-                   empty_s=0, named_s=0, ap_mode="", interest_parts=None):
+                   empty_s=0, named_s=0, ap_mode="", interest_parts=None, rid_override=None):
         """ONE AI reader arm: settle or queue drain → shared last_read_t + dual-lane."""
         nonlocal last_read_t, last_sent_md5, reads, peak, priority
         soft_over = reads - SESSION_CAP
@@ -4132,7 +4241,8 @@ def main():
         else:
             _ctx["note"] = "queued freeze — motion fields n/a by nature"
         globals()["_DISPATCH_CTX"] = _ctx
-        used = _launch_vision(snap_src, sig, reads, frame_id, interest_this, used_priority, read_ts)
+        used = _launch_vision(snap_src, sig, reads, frame_id, interest_this, used_priority, read_ts,
+                              rid_override=rid_override)
         if "queue" in origin:
             peak = 0.0
             priority = False
@@ -4171,6 +4281,27 @@ def main():
                 # verify re-checks take the gap ONLY after the sweep backlog is clear
                 if not _swept and VERIFY_ON and _VERIFY_Q:
                     _verify_drain(worker=_WORKER, budget=1)
+            elif _stall_drain_ready():
+                # v948.17 (Grok P1-4) — every normal slot is busy AND the oldest in-flight
+                # read has been stuck past STALL_DRAIN_S: the old gate above will NEVER open
+                # for this session (a hung live read is not an idle gap). Drain the backlog
+                # anyway, on the dedicated PARALLEL stall worker — never on the live reader.
+                _bl2 = _text_eye_backlog_pop()
+                if _bl2 is not None:
+                    if _in_flight_has_sig(_bl2["sig"]):
+                        _settle_file_del(_bl2)   # this exact view is already on a reader
+                    else:
+                        _stall_ms = _live_stall_ms()
+                        _bused2 = _fire_read(
+                            "text-eye-sweep-stall", _bl2["path"], _bl2["sig"],
+                            _bl2.get("interest", 0.9), True,
+                            note=f"second eye — parallel stall-drain (live stalled {_stall_ms/1000:.0f}s)",
+                            gap_ms=max(0, int(time.time() * 1000) - _bl2.get("ts", 0)),
+                            ap_mode="stall-drain",
+                            rid_override=_STALL_RID,
+                        )
+                        if _bused2 != _bl2["path"]:
+                            _settle_file_del(_bl2)
         except Exception: pass
         _drained_any = False
         while _vision_in_flight_n() < POOL_N and _SETTLE_QUEUE:

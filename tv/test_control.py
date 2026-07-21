@@ -733,5 +733,165 @@ class TestHistFrameResolve(unittest.TestCase):
             tvd._JFID_STATE.update(old_st)
 
 
+class TestFunnelNeverZeroGuard(unittest.TestCase):
+    """v948.17 — Grok P0-1 pin (2026-07-21 fast-run soak): 'a 404-then-4 sequence must keep
+    404.' The KAI funnel's SET-style write (ADJ-subtract-then-add nets to a per-key SET) must
+    never regress an existing REAL tally down to a thinner reel-recheck read — the never-zero
+    law, now applied to the WRITE path, not just the display's `tab_best`."""
+
+    def test_missing_existing_always_applies(self):
+        self.assertTrue(ca._funnel_never_zero_guard(0, 4))
+        self.assertTrue(ca._funnel_never_zero_guard(None, 0))
+
+    def test_404_then_4_is_blocked(self):
+        # the EXACT soak sequence — runes landed 404 live, a thin gap-funnel read said 4
+        self.assertFalse(ca._funnel_never_zero_guard(404, 4))
+
+    def test_equal_or_bigger_recount_applies(self):
+        self.assertTrue(ca._funnel_never_zero_guard(404, 404))
+        self.assertTrue(ca._funnel_never_zero_guard(404, 500))
+
+    def test_bad_inputs_never_raise(self):
+        self.assertTrue(ca._funnel_never_zero_guard("bad", "4"))    # existing coerces to 0 → apply
+        self.assertFalse(ca._funnel_never_zero_guard(404, "bad"))   # new coerces to 0 → blocked
+
+
+class TestTabBestTotal(unittest.TestCase):
+    """The never-zero 'best REAL total per tab' truth from journal rows — the same law already
+    used for THEATRE DISPLAY (`tab_best` in `_beat_dossier`'s maps), now reused to seed the
+    funnel WRITE guard so display and write agree on what 'the real tally' is."""
+
+    def _rows(self):
+        return [
+            {"intake": {"tab": "runes", "ok": True, "total": 12}},
+            {"intake": {"tab": "runes", "ok": True, "total": 404}},    # the live tally
+            {"intake": {"tab": "runes", "ok": False, "total": 900}},   # errored — never counts
+            {"intake": {"tab": "gems", "ok": True, "total": 0}},       # zero — never counts
+            {"intake": {"tab": "runes", "ok": True, "total": 4}},      # a later thin funnel read
+            {"scene": "gameplay"},                                    # no intake — ignored
+        ]
+
+    def test_picks_the_max_real_total(self):
+        self.assertEqual(ca._tab_best_total(self._rows(), "runes"), 404)
+
+    def test_zero_and_error_never_count(self):
+        self.assertEqual(ca._tab_best_total(self._rows(), "gems"), 0)
+
+    def test_unknown_tab_is_zero(self):
+        self.assertEqual(ca._tab_best_total(self._rows(), "materials"), 0)
+
+    def test_case_insensitive_tab_match(self):
+        rows = [{"intake": {"tab": "RUNES", "ok": True, "total": 50}}]
+        self.assertEqual(ca._tab_best_total(rows, "runes"), 50)
+
+
+class TestKaiFunnelGuardWiring(unittest.TestCase):
+    """Structural pin: the Stage-3 funnel fire loop in `_kai_closer_loop` must actually call
+    the never-zero guard before firing (Python skip) AND carry PREV into the JS write itself
+    (defense in depth) — guards against a future edit silently dropping either half."""
+
+    def test_fire_loop_checks_prev_best_before_firing(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("_tab_best_total(_fresh_t3, t3)", src)
+        self.assertIn("_prev_best_t3 > 0", src)
+        self.assertIn("KAI funnel guard: skip", src)
+        self.assertIn("var PREV=%s;", src)
+        self.assertIn("PREV<=0||newTotal>=PREV", src)
+
+    def test_gap_funnel_select_uses_fresh_journal_read(self):
+        # v948.17 — sess_rows is cached BEFORE the long OCR sweep; a live tally landing during
+        # that sweep must still be visible to the gap-funnel 'receipted' check, or a tab that
+        # already has a real receipt gets queued for an overwrite-risking gap-funnel anyway.
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn('_gap_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]', src)
+        self.assertIn("_kai_stage3_gap_funnels(_plan + routing_scan, _gap_rows)", src)
+
+
+class TestKaiFunnelHonestErrorReceipt(unittest.TestCase):
+    """v948.17 — Grok P0-2 pin (2026-07-21 fast-run soak): the gems funnel fired (control log
+    printed) but NO /intake_result receipt ever journaled — the promise chain rejected and the
+    OLD outer `.catch(function(){})` was silent. Both Stage-3 fetch chains (tally funnel + the
+    vault funnel firing right beside it) must now post an honest ok:false receipt on rejection,
+    never a silent drop."""
+
+    def test_tally_funnel_outer_catch_posts_honest_receipt(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("funnel fetch/intake rejected", src)
+
+    def test_vault_funnel_outer_catch_posts_honest_receipt(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("vault fetch/intake rejected", src)
+
+
+class TestKaiWriteReportAtomic(unittest.TestCase):
+    """v948.17 — Grok P0-3 pin (2026-07-21 fast-run soak): kai_report.json must never be left
+    half-written or silently stuck at a stale/partial shape. `_kai_write_report_atomic` writes
+    to a tmp file in the SAME directory and os.replace()s it in — a reader never sees a
+    half-written file, and a failed write leaves any OLD report untouched, not corrupted."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="tvd-kai-report-")
+        self.path = os.path.join(self.d, "kai_report.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_writes_full_report(self):
+        report = {"sid": "s1", "scanned": 10, "routing": [{"f": "a.jpg"}], "register": [{"name": "x"}]}
+        ok = ca._kai_write_report_atomic(self.path, report)
+        self.assertTrue(ok)
+        with open(self.path, encoding="utf-8") as f:
+            got = json.load(f)
+        self.assertEqual(got["routing"], [{"f": "a.jpg"}])
+        self.assertEqual(got["register"], [{"name": "x"}])
+
+    def test_no_leftover_tmp_file(self):
+        ca._kai_write_report_atomic(self.path, {"sid": "s1"})
+        self.assertFalse(os.path.isfile(self.path + ".tmp"))
+
+    def test_failed_write_never_corrupts_existing_report(self):
+        good = {"sid": "s1", "routing": [{"f": "good.jpg"}], "register": [{"name": "good"}]}
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(good, f)
+
+        class _Unserializable:
+            pass
+
+        ok = ca._kai_write_report_atomic(self.path, {"sid": "s1", "bad": _Unserializable()})
+        self.assertFalse(ok)
+        with open(self.path, encoding="utf-8") as f:
+            still = json.load(f)
+        self.assertEqual(still, good)                          # untouched, never truncated
+        self.assertFalse(os.path.isfile(self.path + ".tmp"))   # tmp cleaned up on failure
+
+
+class TestKaiCloserAtomicWiring(unittest.TestCase):
+    """Structural pin: the register/routing/completeness stage must write via the atomic
+    helper inside a `finally:` (so it ALWAYS runs, whatever subset of fields succeeded), and
+    each sub-stage must have its own try/except so one failure can't blank a sibling that
+    already computed successfully."""
+
+    def test_second_report_write_is_inside_a_finally(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        call = '_kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)'
+        first = src.index(call)
+        second = src.index(call, first + 1)   # scan-only write, then the post-Stage3 write
+        finally_between = src.find("finally:", first, second)
+        self.assertNotEqual(finally_between, -1,
+                             "the post-Stage3 kai_report write is not inside a finally: block")
+
+    def test_register_routing_completeness_each_have_own_except(self):
+        import inspect
+        src = inspect.getsource(ca._kai_closer_loop)
+        self.assertIn("KAI register compile failed", src)
+        self.assertIn("KAI routing build failed", src)
+        self.assertIn("KAI completeness failed", src)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

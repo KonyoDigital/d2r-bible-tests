@@ -245,6 +245,42 @@ def _intake_is_real(ik):
     return int(ik.get("total") or 0) > 0
 
 
+def _tab_best_total(rows, tab):
+    """v948.17 — Grok P0-1 (2026-07-21 fast-run soak): the max REAL receipt total already
+    landed for `tab` this session. Mirrors the `tab_best` never-zero display law (see
+    `_beat_dossier`'s tab_best map) so the SAME 'biggest real total wins' truth also governs
+    the funnel WRITE path, not just what the theatre displays."""
+    tab = str(tab or "").lower().strip()
+    best = 0
+    for r in rows or []:
+        ik = r.get("intake")
+        if isinstance(ik, dict) and str(ik.get("tab") or "").lower() == tab and _intake_is_real(ik):
+            t = int(ik.get("total") or 0)
+            if t > best:
+                best = t
+    return best
+
+
+def _funnel_never_zero_guard(existing_total, new_total):
+    """v948.17 — Grok P0-1 pin target: pure never-zero WRITE decision. A funnel's fresh read
+    (often thin/partial — a single reel still, not a careful hover) must NEVER overwrite an
+    existing REAL tally when the existing total is materially bigger — Konyo's law: '404 then
+    a funnel says 4' must keep 404. Only apply the funnel's SET-style write when the existing
+    tally is missing/0/error, or the new read is at least as large (a genuine bigger recount,
+    not a partial miss). Returns True when it's safe to apply the new read."""
+    try:
+        existing_total = int(existing_total or 0)
+    except Exception:
+        existing_total = 0
+    try:
+        new_total = int(new_total or 0)
+    except Exception:
+        new_total = 0
+    if existing_total <= 0:
+        return True
+    return new_total >= existing_total
+
+
 def _drv_freshest_tab_fid(tab, reads=None, journal_rows=None, fallback=""):
     """v944.6 — newest deep stash frameId for `tab` from bridge reads and/or journal.
     Re-fire against the UPDATED picture, not the stale shot that errored to 0."""
@@ -3102,6 +3138,33 @@ def _newest_completeness():
         return None
 
 
+def _kai_write_report_atomic(path, report):
+    """v948.17 — Grok P0-3 (2026-07-21 fast-run soak): kai_report.json is the durable artifact
+    the Theatre/accuracy-gate audits (routing/register/gate/completeness all read it back from
+    disk — see `_newest_gate_count`, `_newest_completeness`). Before this fix it was written
+    with a plain `open(...,'w') + json.dump`, TWICE: once scan-only right after the reel sweep,
+    then again after register/routing/completeness were computed. If ANYTHING raised between
+    those two writes (or the process died mid-`json.dump`), the on-disk file silently stayed at
+    the scan-only shape forever — a 'sealed' report with no routing/register/gate, which is
+    exactly what the forensic soak caught. Write to a tmp file in the SAME directory (same
+    filesystem → os.replace is atomic) and swap it in — a reader never sees a half-written or
+    stale-partial file, and a crash mid-write leaves the OLD (still-complete) report intact
+    rather than a truncated new one."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(report, f)
+        os.replace(tmp, path)
+        return True
+    except Exception as e:
+        print(f"⚠ KAI report atomic write failed ({path}): {e}", flush=True)
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        return False
+
+
 def _kai_closer_loop():
     """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
     with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
@@ -3342,8 +3405,7 @@ def _kai_closer_loop():
                       "classes": classes,
                       "closedAt": int(time.time() * 1000), "kaiVer": 3,
                       "eyeNote": "v948.7 retro grid-solo + cluster promote + gap funnel (film recheck)"}
-            with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as f:
-                json.dump(report, f)
+            _kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)
             # journal the ledger onto the session's timeline (🧠 gold in SIM).
             # v934.1 — GHOST-PROOF: split_sessions sorts by ts and cuts on sid change, so
             # ts=now rows appended after newer sessions would spawn a ghost block (the
@@ -3385,8 +3447,17 @@ def _kai_closer_loop():
                     _plan = _kai_build_routing(routing_scan, sess_rows, sid, sess_rows)
                     _funnel_jobs, _judge_jobs, _vault_jobs = _kai_stage3_select(_plan)
                     # v948.7 — gap funnels from reel eyes (materials etc. never sticky-deeped)
+                    # v948.17 (Grok P0-1) — re-read the journal FRESH here: `sess_rows` was
+                    # cached before the ~153-frame OCR sweep above, which can easily take long
+                    # enough for a live tally to land afterward (this soak: runes 404 landed
+                    # AFTER seal, during the sweep). A stale `receipted` set would queue a
+                    # gap-funnel for a tab that already has a real receipt by now.
                     try:
-                        _gaps = _kai_stage3_gap_funnels(_plan + routing_scan, sess_rows)
+                        _gap_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+                    except Exception:
+                        _gap_rows = sess_rows
+                    try:
+                        _gaps = _kai_stage3_gap_funnels(_plan + routing_scan, _gap_rows)
                         _have = {str(j.get("tab") or "") for j in _funnel_jobs}
                         for _g in _gaps:
                             if str(_g.get("tab") or "") not in _have:
@@ -3405,21 +3476,56 @@ def _kai_closer_loop():
                         _ff = str(_fj.get("f") or "")
                         if not t3 or not _ff:
                             continue
+                        # v948.17 (Grok P0-1) — NEVER-ZERO WRITE GUARD. Re-check the FRESH
+                        # journal right before firing (this loop can span minutes — each prior
+                        # job waits up to 120s for its receipt — so even the _gap_rows snapshot
+                        # above can be stale by the time THIS tab's turn comes). A real receipt
+                        # already on the books for this tab means: don't even fire — a thin
+                        # reel-recheck photo has no business overwriting a good tally.
+                        try:
+                            _fresh_t3 = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+                        except Exception:
+                            _fresh_t3 = sess_rows
+                        _prev_best_t3 = _tab_best_total(_fresh_t3, t3)
+                        if _prev_best_t3 > 0:
+                            print(f"⛔ KAI funnel guard: skip {t3} — real tally already total="
+                                  f"{_prev_best_t3} (never-zero write law, Grok P0-1)", flush=True)
+                            continue
                         _histp = "/hist/reel_" + sid + "/" + _ff
                         _fid3 = "reel_" + sid + "/" + _ff.replace(".jpg", "")
+                        # v948.17 — PREV (the best real total known at fire time) rides into the
+                        # JS itself as a second, defense-in-depth guard: even if a receipt lands
+                        # in the brief window between the Python check above and this fetch
+                        # resolving, the SET-style ADJ-subtract (which otherwise clobbers matched
+                        # keys down to the new read's count — the literal 404→4 mechanism) only
+                        # applies when the new total is not a regression vs PREV. A blocked
+                        # write still journals an honest (non-SET) receipt, never a silent drop.
                         _js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                                "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
                                "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
                                "var ADJ={runes:'adjustRuneStash',gems:'adjustGemStash',materials:'adjustMaterialStash'}[%s];"
+                               "var PREV=%s;"
                                "var prev={};try{var st0=JSON.parse(W.LSR.getItem(LSK)||'{}');Object.keys(st0).forEach(function(k){prev[k]=parseInt(st0[k],10)||0})}catch(e){}"
                                "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
                                "return W[FN]([new W.File([b],'kai-funnel.jpg',{type:'image/jpeg'})])}).then(function(res){"
-                               "try{if(res&&res.ok){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)})}}catch(e){}"
-                               "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
-                               "}).catch(function(){});return 1}catch(e){return 0}})()") % (json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_histp), json.dumps(t3), json.dumps(_fid3))
+                               "var newTotal=(res&&res.total)||0;var applied=false;"
+                               "try{if(res&&res.ok&&(PREV<=0||newTotal>=PREV)){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)});applied=true}}catch(e){}"
+                               "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok)&&applied,counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,frameId:%s,guardHeld:!applied})}).catch(function(){})}catch(e){}"
+                               # v948.17 (Grok P0-2, 2026-07-21 fast-run soak) — the gems funnel
+                               # fired (this control-log print ran) but NO /intake_result receipt
+                               # ever journaled: the promise chain (fetch the frame → gemIntake →
+                               # …) rejected somewhere and the OLD catch here was silent (`function(){}`
+                               # — no receipt, no note, nothing). An honest-miss receipt now lands
+                               # even on a hard failure, so the theatre shows a real ERROR instead
+                               # of a gap that looks like nothing ran.
+                               "}).catch(function(_e3){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e3&&_e3.message||_e3||'funnel fetch/intake rejected')})}).catch(function(){})}catch(e4){}});"
+                               "return 1}catch(e){return 0}})()") % (
+                                  json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_prev_best_t3),
+                                  json.dumps(_histp), json.dumps(t3), json.dumps(_fid3),
+                                  json.dumps(t3), json.dumps(_fid3))
                         try:
                             _ejs(w2, _js, timeout=5.0)
-                            print(f"📸 KAI funnel (ledger): fired {t3} from {_ff}", flush=True)
+                            print(f"📸 KAI funnel (ledger): fired {t3} from {_ff} (prevBest={_prev_best_t3})", flush=True)
                         except Exception as _fe:
                             print(f"⚠ KAI funnel fire failed ({t3}): {_fe}", flush=True)
                             continue
@@ -3530,8 +3636,13 @@ def _kai_closer_loop():
                                 "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
                                 "return W.vaultIntake([new W.File([b],'kai-vault.jpg',{type:'image/jpeg'})],{fromTv:true})}).then(function(res){"
                                 "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-vault',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
-                                "}).catch(function(){});return 1}catch(e){return 0}})()"
-                                ) % (json.dumps(_hpv), json.dumps(_tabv), json.dumps(_fidv))
+                                # v948.17 (Grok P0-2 class) — same silent-catch fix as the tally
+                                # funnel: a fetch/vaultIntake rejection used to vanish with no
+                                # receipt at all. Now an honest error lands.
+                                "}).catch(function(_e5){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-vault',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e5&&_e5.message||_e5||'vault fetch/intake rejected')})}).catch(function(){})}catch(e6){}});"
+                                "return 1}catch(e){return 0}})()"
+                                ) % (json.dumps(_hpv), json.dumps(_tabv), json.dumps(_fidv),
+                                     json.dumps(_tabv), json.dumps(_fidv))
                         try:
                             _ejs(w2, _jsv, timeout=5.0)
                             print(f"🏦 KAI vault (ledger): fired {_ffv}", flush=True)
@@ -3544,10 +3655,27 @@ def _kai_closer_loop():
                 # ── v943 📖 THE REGISTER LEDGER — after watchdog/funnel/judge, compile what the
                 # session WITNESSED. Re-read the journal so the judge verdicts that posted during
                 # the tooltip stage are counted. Evidence only — no board/grail/chronicle writes.
+                # v948.17 (Grok P0-3, 2026-07-21 fast-run soak) — each sub-stage below gets its
+                # OWN try/except so one failure (e.g. routing build) can't blank out a sibling
+                # that already succeeded (e.g. register), and the report write happens in a
+                # `finally` so it ALWAYS runs — whatever subset of register/routing/completeness
+                # got computed is what lands on disk, atomically. Before this fix, a raise
+                # ANYWHERE in this block skipped the write entirely, leaving the pre-Stage-3
+                # scan-only kai_report.json (no routing/register/gate) as the permanent "sealed"
+                # artifact — exactly what the forensic soak caught (kai_report missing routing).
+                _reg_rows = sess_rows
+                _register, _routing, _completeness = [], [], None
+                _rcounts, _routed_n = {}, 0
                 try:
-                    _reg_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
-                    _register = _kai_compile_register(_reg_rows)
-                    report["register"] = _register
+                    try:
+                        _reg_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+                    except Exception as _rre:
+                        print(f"⚠ KAI register re-read failed: {_rre}", flush=True)
+                    try:
+                        _register = _kai_compile_register(_reg_rows)
+                        report["register"] = _register
+                    except Exception as _rce:
+                        print(f"⚠ KAI register compile failed: {_rce}", flush=True)
                     # v946 — CHRONICLE INBOX propose (review gate; never silent grail write)
                     try:
                         if w2 is not None and _register and os.environ.get("TV_CHRONICLE_PROPOSE", "1") != "0":
@@ -3565,12 +3693,14 @@ def _kai_closer_loop():
                         print(f"⚠ Chronicle propose failed: {_cpe}", flush=True)
                     # v944 🚦 — the ROUTING LEDGER rides the same re-read (funnel/judge receipts
                     # are now in the journal, so 'routed' is truthful). Evidence only — no firing.
-                    _routing = _kai_build_routing(routing_scan, sess_rows, sid, _reg_rows)
-                    report["routing"] = _routing
-                    _rcounts = {}
-                    for _rr in _routing:
-                        _rcounts[_rr["label"]] = _rcounts.get(_rr["label"], 0) + 1
-                    _routed_n = sum(1 for _rr in _routing if _rr.get("routed"))
+                    try:
+                        _routing = _kai_build_routing(routing_scan, sess_rows, sid, _reg_rows)
+                        report["routing"] = _routing
+                        for _rr in _routing:
+                            _rcounts[_rr["label"]] = _rcounts.get(_rr["label"], 0) + 1
+                        _routed_n = sum(1 for _rr in _routing if _rr.get("routed"))
+                    except Exception as _rte:
+                        print(f"⚠ KAI routing build failed: {_rte}", flush=True)
                     # v948.13 🎞🔗 — FILM ↔ REGISTRATION COMPLETENESS (target #2). _reg_rows is
                     # the freshest re-read of this session's journal, so it already carries the
                     # KAI per-item 'unread' rows appended earlier this same seal pass.
@@ -3585,11 +3715,10 @@ def _kai_closer_loop():
                     except Exception as _cme:
                         _completeness = None
                         print(f"⚠ KAI completeness failed: {_cme}", flush=True)
-                    try:
-                        with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as _rf2:
-                            json.dump(report, _rf2)
-                    except Exception:
-                        pass
+                finally:
+                    # ATOMIC — always persist whatever fields succeeded above (never nothing).
+                    _kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)
+                try:
                     _reg_row = {"ts": _sess_last + 60, "captureTs": _sess_last + 60,
                                 "completedTs": int(time.time() * 1000),
                                 "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
@@ -4174,7 +4303,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v948.16",
+        "ver": "v948.18",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

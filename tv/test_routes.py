@@ -420,8 +420,10 @@ class TestFunnelJsDryRun(unittest.TestCase):
         self.assertIsNotNone(m, "could not locate the `_js = (` funnel template block")
         return eval("(" + m.group(1) + ")")   # concatenated string literals → the template
 
-    def test_template_has_six_placeholders(self):
-        self.assertEqual(self._template().count("%s"), 6)
+    def test_template_has_nine_placeholders(self):
+        # v948.17 (Grok P0-1/P0-2) — was 6: added PREV (never-zero write guard) plus a
+        # tab/frameId pair for the honest-error receipt in the outer .catch.
+        self.assertEqual(self._template().count("%s"), 9)
 
     def test_node_dry_run_syntax_and_return_zero(self):
         node = shutil.which("node")
@@ -429,8 +431,9 @@ class TestFunnelJsDryRun(unittest.TestCase):
             self.skipTest("node not on PATH")
         tmpl = self._template()
         import json as _j
-        js = tmpl % (_j.dumps("runes"), _j.dumps("runes"), _j.dumps("runes"),
-                     _j.dumps("/hist/reel_x/f.jpg"), _j.dumps("runes"), _j.dumps("reel_x/f"))
+        js = tmpl % (_j.dumps("runes"), _j.dumps("runes"), _j.dumps("runes"), _j.dumps(0),
+                     _j.dumps("/hist/reel_x/f.jpg"), _j.dumps("runes"), _j.dumps("reel_x/f"),
+                     _j.dumps("runes"), _j.dumps("reel_x/f"))
         jf = tempfile.NamedTemporaryFile("w", suffix=".js", delete=False)
         jf.write(js)
         jf.close()

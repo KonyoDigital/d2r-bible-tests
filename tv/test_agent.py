@@ -606,6 +606,118 @@ class TestVisionWorker(unittest.TestCase):
         w.stop()
 
 
+class TestLiveReadTimeoutCap(unittest.TestCase):
+    """v948.17 — Grok P1-5 pin (2026-07-21 fast-run soak): a single frame took 68,978ms and,
+    with POOL_N==1 outside robot mode, held the ENTIRE live lane for up to the OLD 75s ask()
+    + 90s one-shot-fallback ceiling (165s worst case). claude_read() must honor
+    LIVE_READ_TIMEOUT_S on BOTH the warm ask() and the one-shot fallback so a stalled read
+    gives up fast and frees the lane for the next frame — the Master Brain law: 'a stalled
+    live read is a signal to route to retro, not a failure that blocks everything else.'"""
+
+    def setUp(self):
+        self.fake = os.path.join(tv.HERE, "fake_claude.py")
+        self._orig_bin = tv.CLAUDE_BIN
+        tv.CLAUDE_BIN = self.fake
+        self._orig_timeout = tv.LIVE_READ_TIMEOUT_S
+        os.environ["TV_FAKE_MODE"] = "slow"   # fake claude never answers the warm/stream path
+
+    def tearDown(self):
+        tv.CLAUDE_BIN = self._orig_bin
+        tv.LIVE_READ_TIMEOUT_S = self._orig_timeout
+        os.environ.pop("TV_FAKE_MODE", None)
+
+    def test_stalled_warm_read_bounded_by_live_read_timeout(self):
+        tv.LIVE_READ_TIMEOUT_S = 1.0   # tight cap — a stalled read must give up fast
+        d = tempfile.mkdtemp()
+        f = os.path.join(d, "stalled.jpg")
+        open(f, "w").close()
+        w = tv.VisionWorker()
+        t0 = time.time()
+        rd = tv.claude_read(f, worker=w)
+        elapsed = time.time() - t0
+        w.stop()
+        # OLD ceiling was ask()=75s default + oneshot=90s = up to 165s. This must return well
+        # under even the old ask()-alone default — proving the cap is actually threaded in.
+        self.assertLess(elapsed, 15.0,
+                         f"claude_read took {elapsed:.1f}s — LIVE_READ_TIMEOUT_S not honored")
+        self.assertEqual(rd["mode"], "empty")   # an honest miss, not a hang and not invented data
+
+    def test_default_cap_is_tighter_than_old_75s_ceiling(self):
+        # a real named read this soak took at most ~15s; the default cap stays generous but
+        # bounded — nowhere near the old unbounded-feeling 75s/90s ceilings.
+        self.assertLessEqual(tv.LIVE_READ_TIMEOUT_S, 60.0)
+        self.assertGreaterEqual(tv.LIVE_READ_TIMEOUT_S, 15.0)
+
+
+class TestStallDrainDecision(unittest.TestCase):
+    """v948.17 — Grok P1-4 pin (2026-07-21 fast-run soak): 'a 66s live stall means 0 second-eye
+    drains.' Outside ROBOT_MODE, POOL_N==1, so the OLD gate (`_vision_in_flight_n() < POOL_N`)
+    can never open while the single live reader is busy — no matter how long it's stuck. This
+    is the pure decision behind the parallel stall-drain escape hatch: fire a DEDICATED worker
+    when the pool is full AND genuinely stalled AND the backlog has something piling up."""
+
+    def test_no_backlog_never_fires(self):
+        self.assertFalse(tv._stall_drain_decision(0, 1, 1, 999999, False))
+
+    def test_free_slot_defers_to_ordinary_idle_gap_sweep(self):
+        # in_flight < pool_n → a normal slot is free, the '< POOL_N' gate already covers it
+        self.assertFalse(tv._stall_drain_decision(3, 0, 1, 999999, False))
+
+    def test_pool_full_but_not_stalled_yet_does_not_fire(self):
+        self.assertFalse(tv._stall_drain_decision(3, 1, 1, 500, False, threshold_ms=20000))
+
+    def test_pool_full_and_genuinely_stalled_fires(self):
+        # this is the exact soak shape: POOL_N=1, one read in flight, stuck way past threshold
+        self.assertTrue(tv._stall_drain_decision(3, 1, 1, 69000, False, threshold_ms=20000))
+
+    def test_already_running_sweep_blocks_a_second_one(self):
+        self.assertFalse(tv._stall_drain_decision(3, 1, 1, 999999, True, threshold_ms=20000))
+
+    def test_disabled_never_fires(self):
+        self.assertFalse(tv._stall_drain_decision(3, 1, 1, 999999, False, enabled=False, threshold_ms=20000))
+
+    def test_boundary_is_inclusive_at_threshold(self):
+        self.assertTrue(tv._stall_drain_decision(1, 1, 1, 20000, False, threshold_ms=20000))
+        self.assertFalse(tv._stall_drain_decision(1, 1, 1, 19999, False, threshold_ms=20000))
+
+    def test_default_threshold_uses_module_stall_drain_s(self):
+        thr = tv.STALL_DRAIN_S * 1000
+        self.assertTrue(tv._stall_drain_decision(1, 1, 1, thr, False))
+        self.assertFalse(tv._stall_drain_decision(1, 1, 1, thr - 1, False))
+
+
+class TestStallDrainParallelWorker(unittest.TestCase):
+    """v948.17 — the stall-drain sweep must run on a worker OUTSIDE the normal POOL_N/_pool_free
+    bookkeeping (sentinel `_STALL_RID`), so it can fire even while every ordinary pool slot is
+    occupied, and it must never leak into `_pool_free` (which would let normal live dispatch
+    silently claim it later, breaking 'ONE Claude always' outside robot mode)."""
+
+    def test_stall_rid_is_never_a_real_pool_slot(self):
+        self.assertNotIn(tv._STALL_RID, list(range(tv.POOL_N)))
+
+    def test_stall_worker_is_lazy_and_separate_from_the_live_pool(self):
+        old = tv._STALL_WORKER
+        try:
+            tv._STALL_WORKER = None
+            w = tv._stall_worker()
+            self.assertIsInstance(w, tv.VisionWorker)
+            self.assertIsNot(w, tv._WORKER)
+            self.assertNotIn(w, tv._WORKERS)
+            self.assertIs(tv._stall_worker(), w)   # lazy singleton, not re-created each call
+        finally:
+            if tv._STALL_WORKER is not None and tv._STALL_WORKER.p:
+                tv._STALL_WORKER.stop()
+            tv._STALL_WORKER = old
+
+    def test_pool_release_never_adds_stall_rid_to_pool_free(self):
+        # _pool_release is the normal-path release; guard against a future edit routing the
+        # override id through it and leaking it into ordinary live dispatch.
+        before = list(tv._pool_free)
+        tv._pool_release(tv._STALL_RID)
+        self.assertNotIn(tv._STALL_RID, tv._pool_free)
+        tv._pool_free[:] = before   # restore exactly (defensive — _pool_release may have no-opped)
+
+
 class TestKnownFrames(unittest.TestCase):
     """v741 — the agent LEARNS dead frames (loading/portal screens are the same pixels every
     time): an empty deep read caches the frame signature; a re-match skips vision entirely
