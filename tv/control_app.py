@@ -207,7 +207,16 @@ def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
         return ("giveup", None)
     key = str(inflight.get("key") or "")
     is_vault = key.startswith("vault_")
-    if is_vault or _intake_is_real(intake):
+    # v946.3 (Fable, Konyo live-session catch: shared intake errored to 0, never recovered) —
+    # never-zero now covers VAULT too. A vault tab that read OK is done EVEN IF empty (a genuinely
+    # empty personal/shared tab is a valid 0 — re-firing would loop). But an ERROR (ok:false) is a
+    # failure, not an empty tab: re-fire against the freshest frame, same as a tally 0. Was:
+    # `is_vault or _intake_is_real` → vault errors were silently marked done with no recovery.
+    if is_vault:
+        if bool((intake or {}).get("ok", True)):
+            return ("done", None)
+        # else: vault ERROR → fall through to the re-fire ladder below
+    elif _intake_is_real(intake):
         return ("done", None)
     tries = int(inflight.get("tries") or 0) + 1
     job = dict(inflight)
@@ -3077,7 +3086,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v946.2",
+        "ver": "v946.3",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

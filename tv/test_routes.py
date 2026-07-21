@@ -710,10 +710,23 @@ class TestNeverZeroRefire(unittest.TestCase):
         self.assertEqual(act3, "giveup")
 
     def test_vault_empty_is_done_not_refire(self):
-        # vault personal/shared can legitimately total 0 — never-zero applies to tally tabs only
+        # vault personal/shared can legitimately total 0 (empty tab) — an OK read of an empty
+        # tab is DONE, never re-fired (re-firing an empty tab would loop forever).
         job = {"key": "vault_personal", "tab": "personal", "fid": "v1", "tries": 0}
         act, _ = ca._drv_empty_refire_plan(job, {"ok": True, "total": 0}, "v2")
         self.assertEqual(act, "done")
+
+    def test_vault_error_refires(self):
+        # v946.3 (Konyo live-session catch: shared intake errored to 0, never recovered) — a vault
+        # ERROR (ok:false) is a FAILED read, not an empty tab: it must re-fire against a fresh frame.
+        job = {"key": "vault_shared", "tab": "shared", "fid": "v1", "tries": 0}
+        act, nxt = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "v9")
+        self.assertEqual(act, "refire")
+        self.assertEqual(nxt["fid"], "v9")           # re-reads the freshest frame
+        # exhausts to giveup, never loops forever
+        job3 = {"key": "vault_shared", "tab": "shared", "fid": "v1", "tries": 2}
+        act3, _ = ca._drv_empty_refire_plan(job3, {"ok": False, "total": 0}, "v9")
+        self.assertEqual(act3, "giveup")
 
 
 class TestRouterLedger(unittest.TestCase):
