@@ -78,3 +78,19 @@ _Fable saving at ~98% context. Two agents mid-flight — gate their hand-backs w
 - 10 versions this Ninja arc (v948.17→v948.26). The full stack: hardened engine · accuracy gate · 4th super-analyze organ · Master-Brain reconciler · complete Engine Room cockpit · reconciler surfaced.
 - IN FLIGHT: polish-ui-2 UI owner/verdict SWAP (control_ui.html — use beat.engineFrame.owner/verdict authoritatively, fall back to inference when absent). Gate when it hands back (selective commit control_ui.html only, no bible → no smoke, no stamp bump).
 - THEN (no engine work pending): the UX/TYPOGRAPHY 5-round arc (UX_TYPOGRAPHY_POLISH_ARC.md) + the PER-ENGINE 100+ polish arcs (PER_ENGINE_PERFECTION_ROADMAP.md). The flagship CORE is complete; what remains is polish + per-engine perfection toward Level 2.
+
+## 🎯 STANDING MANDATE (Konyo 2026-07-21): SHIP 80 MORE VERSIONS
+Autonomous Konyo-workflow chain toward Level 2. Gate every round as it lands (Konyo: "keep gating the rounds as they land"). Round queue, collision-safe (one owner per file), sequential on shared files:
+
+**LANE A — UX/TYPOGRAPHY 5-round arc (control_ui.html, then bible.html w/ EDIT_LOCK)** — polish-ui-2 + typo-r1 alternate, ONE at a time on control_ui.html:
+- R1 typography system (IN FLIGHT: typo-r1, atop polish-ui-2's Phase D swap) → gate combined → R2
+- R2 toggle sweep · R3 fullscreen optimization · R4 structure+hierarchy · R5 visual polish (spec: UX_TYPOGRAPHY_POLISH_ARC.md)
+
+**LANE B — PER-ENGINE 100+ polish (PER_ENGINE_PERFECTION_ROADMAP.md)** — engine agents, one owner per python file:
+- 📷 capture (tv_diablo.py) · 👁 read (tv_diablo.py READ_PROMPT/timeouts) · 🚦 route+gate (control_app.py) · 🩹 funnel (control_app.py/stash_eye.py). control_app.py & tv_diablo.py are SHARED → sequential per file, never two agents at once.
+
+**GATE PATTERN (every round):** verify floor (control 43/64 · demo/routes · agent) → selective commit ONLY that lane's file(s) → stamp bump if bible/logic → smoke ONLY if bible/spec changed → push → relaunch app if python changed (pkill -f control_app.py; open "TV DIABLO.app"). Fable serializes gates. Grok third-eye via GitHub dossier each few rounds.
+
+**GUARDRAILS (unchanged):** LOCKED intake crops untouched · NEVER full Playwright suite on Mac · Engine Room observes never drives · runewords=KEEP · never leak memory files to the public repo · captureTs==frame ms join law.
+
+**PROGRESS:** 0/80 shipped under this mandate (chain start HEAD afb7083 / v948.26). Increment as rounds land.
