@@ -1368,6 +1368,30 @@
   .hd-empty { opacity: .58; font: 400 11px/1.5 var(--mono); flex: 1 1 100%; min-width: 0; overflow-wrap: break-word; color: #b0a184; }
   .hd-engines { min-height: 0; padding: 10px 14px; }
   .hd-chip.warn { border-color: rgba(255,120,80,.6); color: #ffb49a; }
+  /* v949 — 🩺 ENGINE HEALTH SPINE: the whole loop's pulse, capture → readers → router → funnels → ledger */
+  .eh-spine { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+  .eh-organ { position: relative; flex: 1 1 130px; min-width: 128px; border: 1px solid rgba(240,192,96,.14);
+    border-radius: 10px; padding: 10px 11px 9px; background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.32));
+    display: flex; flex-direction: column; gap: 3px; }
+  .eh-dot { position: absolute; top: 10px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #6b6455; }
+  .eh-head { display: flex; align-items: center; gap: 6px; }
+  .eh-ic { font-size: 15px; line-height: 1; }
+  .eh-title { font: 700 11px/1 var(--mono); letter-spacing: .12em; color: var(--gold); text-transform: uppercase; }
+  .eh-stat { font: 700 13px/1.25 var(--mono); color: #e6d9b8; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .eh-stat .eh-x { opacity: .35; margin: 0 1px; } .eh-stat .eh-arrow { color: var(--gold-dim); margin: 0 2px; }
+  .eh-sub { font: 500 10.5px/1.4 var(--mono); color: #9a8d73; opacity: .85; }
+  .eh-flow { align-self: center; color: var(--gold-dim); font: 700 15px/1 var(--mono); opacity: .5; flex: 0 0 auto; }
+  /* health pulse — ok green · warn amber · bad red · idle gray (OFF AIR = idle, a sleeping engine is healthy) */
+  .eh-organ.eh-ok   .eh-dot { background: var(--mint); box-shadow: 0 0 8px rgba(143,230,160,.7); animation: ehPulse 2.2s ease-in-out infinite; }
+  .eh-organ.eh-warn .eh-dot { background: #e9b96e; box-shadow: 0 0 8px rgba(233,185,110,.7); animation: ehPulse 1.5s ease-in-out infinite; }
+  .eh-organ.eh-bad  .eh-dot { background: #ff6a5a; box-shadow: 0 0 9px rgba(255,106,90,.8); animation: ehPulse 1s ease-in-out infinite; }
+  .eh-organ.eh-idle { opacity: .72; } .eh-organ.eh-idle .eh-dot { background: #6b6455; }
+  .eh-organ.eh-ok   { border-color: rgba(143,230,160,.28); }
+  .eh-organ.eh-warn { border-color: rgba(233,185,110,.4); }
+  .eh-organ.eh-bad  { border-color: rgba(255,106,90,.5); }
+  @keyframes ehPulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+  body[data-endurance="1"] .eh-dot { animation: none !important; }
+  @media (max-width: 720px){ .eh-flow { display: none; } .eh-organ { flex: 1 1 44%; } }
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
   .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
   /* v945 CONSOLE PARITY C8 — the LAST SESSION digest is the newest sealed reel: a mint reel-accent */
@@ -1599,6 +1623,11 @@
       <div class="hd-col hd-wide hd-lastsession" id="hd-lastsession" hidden>
         <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
         <div class="hd-tf-rows" id="hd-ls-row"></div>
+      </div>
+      <!-- v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, spine order -->
+      <div class="hd-col hd-wide hd-enghealth" id="hd-enghealth">
+        <div class="hd-h">🩺 ENGINE HEALTH <span class="hd-sub">the whole loop, one pulse · capture → readers → router → funnels → ledger</span></div>
+        <div class="eh-spine" id="hd-spine"><span class="hd-empty">…</span></div>
       </div>
       <div class="hd-col hd-wide hd-engines" id="hd-engines">
         <div class="hd-h">🖥 ENGINES <span class="hd-sub">every lane, one glance</span></div>
@@ -5194,7 +5223,65 @@
       if (rows.length){ box.hidden = false; $('hd-tf-rows').innerHTML = rows.join(''); $('hd-tf-date').textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); }
     } catch(e){}
   }
-  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngines(st); hdTaskForce(st); }
+  // ══ v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, in spine
+  // order (capture → readers → router → funnels → ledger). Each organ = a small card with its live
+  // number + a green/amber/red/idle pulse. All from /api/status (driver·eyes·sessionHealth·health).
+  // OFF AIR = idle (resting), never alarming red — a sleeping engine is healthy. ══
+  function hdEngineHealth(st){
+    var el = $('hd-spine'); if (!el) return;
+    st = st || {};
+    var dr = st.driver || {}, ey = st.eyes || {}, sh = st.sessionHealth || {}, wd = st.watchdog || {};
+    var on = (st.mode === 'live');
+    var dead = (st.engineAlive === false) || !!dr.engineDeadHard;
+    var ageS = (st.eyeAgeMs != null && st.eyeAgeMs >= 0) ? Math.round(st.eyeAgeMs / 100) / 10 : null;
+    function organ(icon, title, stat, pulse, sub){
+      return '<div class="eh-organ eh-' + pulse + '" title="' + esc(title + (sub ? ' — ' + sub.replace(/<[^>]+>/g, '') : '')) + '">'
+        + '<span class="eh-dot"></span>'
+        + '<div class="eh-head"><span class="eh-ic">' + icon + '</span><span class="eh-title">' + esc(title) + '</span></div>'
+        + '<div class="eh-stat">' + stat + '</div>'
+        + (sub ? '<div class="eh-sub">' + sub + '</div>' : '') + '</div>';
+    }
+    // 1) CAPTURE — the senses
+    var capPulse = dead ? 'bad' : (!on ? 'idle' : (st.gameOk === false ? 'warn' : (ageS != null && ageS < 5 ? 'ok' : 'warn')));
+    var capStat = dead ? 'engine down' : (!on ? 'resting' : (st.gameOk === false ? 'no game' : 'live'));
+    var capSub = (ageS != null) ? ('last frame ' + ageS + 's') : (on ? 'no frame yet' : 'off air');
+    // 2) READERS — 🔴🔵🧠 layered eyes
+    var reads = st.readCount || 0, kaiMiss = ey.kaiMissed || 0, qDepth = (dr.queued || 0) + (dr.judgeQ || 0);
+    var rdPulse = dead ? 'bad' : (!on ? (reads || kaiMiss ? 'idle' : 'idle') : (qDepth > 8 ? 'warn' : 'ok'));
+    var rdStat = '🔴 ' + reads + ' <span class="eh-x">·</span> 🔵 ' + (ey.verifyTs ? '✓' : '—') + ' <span class="eh-x">·</span> 🧠 ' + (kaiMiss ? kaiMiss : '✓');
+    var rdSub = 'queue ' + qDepth + (st.aiPaused ? ' · paused' : '') + (kaiMiss ? ' · KAI caught ' + kaiMiss : '');
+    // 3) ROUTER — the brain (dispatch)
+    var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;
+    var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));
+    var rtStat = seen + ' seen <span class="eh-arrow">→</span> ' + fired + ' routed';
+    var rtSub = (err ? '⚠ ' + esc(String(err).slice(0, 24)) : (refire ? refire + ' re-fired' : 'quorum gate'));
+    // 4) FUNNELS — the hands (receipts). A real GAP = a tab the engine flagged status:'miss'
+    // (a visited tab that didn't land); a 0-total tab that was never visited is not a gap.
+    var tabs = sh.tabs || {}, tk = Object.keys(tabs);
+    var okTabs = tk.filter(function(k){ var t = tabs[k] || {}; return t.ok || t.status === 'ok'; }).length;
+    var missTabs = tk.filter(function(k){ return (tabs[k] || {}).status === 'miss'; }).length;
+    var recv = (st.intakeRing || []).length;
+    var fnPulse = (!on && !tk.length) ? 'idle' : (missTabs > 0 ? 'warn' : 'ok');
+    var fnStat = recv + ' receipt' + (recv === 1 ? '' : 's') + (tk.length ? ' <span class="eh-x">·</span> ' + okTabs + '/' + tk.length + ' tabs' : '');
+    var fnSub = tk.length ? (okTabs + ' landed' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : '')) : 'no stash tabs yet';
+    // 5) LEDGER — the memory
+    var viol = wd.violations || 0;
+    var ldPulse = viol > 0 ? 'warn' : 'ok';
+    var ldStat = (st.journalMB != null ? st.journalMB + ' MB' : '—') + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
+    var ldSub = (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : 'journal clean'));
+
+    el.innerHTML =
+        organ('📷', 'CAPTURE', capStat, capPulse, capSub)
+      + '<span class="eh-flow">→</span>'
+      + organ('👁', 'READERS', rdStat, rdPulse, rdSub)
+      + '<span class="eh-flow">→</span>'
+      + organ('🚦', 'ROUTER', rtStat, rtPulse, rtSub)
+      + '<span class="eh-flow">→</span>'
+      + organ('🩹', 'FUNNELS', fnStat, fnPulse, fnSub)
+      + '<span class="eh-flow">→</span>'
+      + organ('📒', 'LEDGER', ldStat, ldPulse, ldSub);
+  }
+  function hdRefresh(st){ hdForge(); hdIntake(st); hdEngineHealth(st); hdEngines(st); hdTaskForce(st); }
 
   // ══ v929 — 🧰 TALLY ENGINE drilldown: every intake shot, per-key counts, the photo it
   // came from. Data = /api/tallies (journaled intake beats — server truth, agent on or off).
