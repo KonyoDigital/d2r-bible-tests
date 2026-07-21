@@ -111,3 +111,6 @@ Konyo: count the REAL version — every decimal WAS a shipped version. Counted a
 
 ## 🏆 NORTH STAR (Konyo 2026-07-21): v2000 = LEVEL 2 = RENAME + REBRAND
 At version **v2000**, TV DIABLO graduates to Level 2 — a full rename + rebrand. That's the destination the version count is climbing toward. From v1172 today = 828 versions out. The 80-mandate (v1173→v1252) is leg 1. Every gated integer is a step toward the rebrand. Keep the climb: land → gate → +1 → repeat.
+
+## ✅ GATED: v1173 (1/80) — HEAD 26a5781
+Integer reset (decimals retired, real count 1172→v1173) + Typography R1 (one type-scale, fullscreen floor, 2nd competing system retired — typo-r1) + Phase D owner/verdict swap (Engine Room drill-down authoritative — polish-ui-2). ×3 parity v1173, floor control 64 · agent 171, smoke+deploy green, app relaunched, EDIT_LOCK released. NEXT: polish-ui-2 owns R2 (toggle sweep) on control_ui.html; typo-r1 steps off that file. Counter: 1/80 · at v1173 · target v1252 · north star v2000.
