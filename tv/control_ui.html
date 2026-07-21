@@ -1021,6 +1021,9 @@
   .rd-handoff.rd-hf-caught  { color: #9df0bd; background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.4); }   /* a later net CAUGHT a miss — the engine self-correcting */
   .rd-handoff.rd-hf-correct { color: #ffcf8a; background: rgba(240,180,96,.12); border: 1px solid rgba(240,180,96,.42); }   /* second eye overturned the live read */
   .rd-handoff.rd-hf-ok      { color: #9db0a4; opacity: .8; }
+  /* v949 (Master Brain: a stall must be VISIBLE) — the live-eye stall note: subtle, honest, not alarming */
+  .rd-stall { display: inline-block; font: 700 11.5px/1.35 var(--mono); letter-spacing: .01em; padding: 2px 8px;
+    border-radius: 6px; color: #ffb0a0; background: rgba(224,85,69,.1); border: 1px solid rgba(224,85,69,.4); }
   /* v949 §3.5 — the accuracy gate's per-frame verdict: held (a misread weeded out) vs proven */
   .gate-note { display: inline-block; font: 700 11.5px/1.35 var(--mono); letter-spacing: .01em; padding: 3px 9px; border-radius: 6px; }
   .gate-note.gate-held   { color: #ffcf8a; background: rgba(240,180,96,.13); border: 1px solid rgba(240,180,96,.45); }
@@ -2497,7 +2500,7 @@
   // alone — the FILM is. Live miss → 🔵 catches → 🧠 retro catches." Make that loop auditable. ══
   function thReaderBadge(b){
     if (!b) return '';
-    if (b.lane === 'kai' || b.eye === 'kai')
+    if (b.lane === 'kai' || b.eye === 'kai' || (b.kaiMissTexts && b.kaiMissTexts.length))
       return '<span class="rd-badge rd-kai" title="KAI — post-seal retro sweep of the whole reel from the film">🧠 KAI</span>';
     if (b.lane === 'verify' || b.eye === 'second')
       return '<span class="rd-badge rd-second" title="Second eye — re-reads the backlog the live eye rushed past, in idle gaps">🔵 SECOND EYE</span>';
@@ -2508,6 +2511,12 @@
   // the hand-off: did THIS net catch/correct what an earlier one missed? (the self-correction, shown)
   function thHandoffNote(b){
     if (!b) return '';
+    // v949 (Grok P2#8 + Master Brain) — a FRAME the live eye missed at speed but 🧠 KAI recovered from
+    // the film (kaiMissTexts rides the footage beat). This IS the layered net proving itself on a fast run.
+    if (b.kaiMissTexts && b.kaiMissTexts.length){
+      return '<span class="rd-handoff rd-hf-caught" title="the live eye missed this at speed — KAI re-read it from the film after the reel sealed">🔴 missed → 🧠 KAI caught (retro): '
+        + esc(b.kaiMissTexts.slice(0, 3).join(', ')) + (b.kaiMissTexts.length > 3 ? ' +' + (b.kaiMissTexts.length - 3) : '') + '</span>';
+    }
     if (b.lane === 'verify' || b.eye === 'second'){
       var vf = b.verify || {};
       var corr = (b.unvault_names || vf.not_present || []);
@@ -2524,6 +2533,15 @@
       return '<span class="rd-handoff rd-hf-ok" title="KAI swept the reel and found nothing the live eyes missed">🧠 swept clean — no live miss</span>';
     }
     return '';
+  }
+  // v949 (Master Brain law: "a stall must be VISIBLE, not silent") — when the live eye took a long
+  // time from capture to answer (proven: a read stalled 66s in flight on Konyo's fast run), surface
+  // it. A stall is a signal to lean on the retro layers, not a silent failure.
+  function thStallNote(b){
+    if (!b || !b.completedTs || !b.ts) return '';
+    var lat = (b.completedTs - b.ts) / 1000;
+    if (lat < 8) return '';   // only a real stall is worth surfacing (normal reads are sub-second)
+    return '<span class="rd-stall" title="the live eye took ' + lat.toFixed(0) + 's from capture to answer — a stall at fast play; the later layers cover it">🔴 live stalled ' + Math.round(lat) + 's</span>';
   }
   // ══ v949 (ENGINE_ARCH §3.5 — THE ACCURACY GATE) — the gate's verdict per frame: did this frame
   // PASS (proven, funnel-fireable) or get HELD (a misread weeded out before it hit a cell)? Rides
@@ -2737,9 +2755,9 @@
       var mm = Math.floor(rel / 60000), ss = Math.floor((rel % 60000) / 1000), ms3 = ('00' + (rel % 1000)).slice(-3);
       function wallMs(t){ return t ? (new Date(t).toLocaleTimeString() + '.' + ('00' + (t % 1000)).slice(-3)) : '—'; }
       var deepN = b.names || [], ocrN = b.ocr_names || [];
-      var _rdBadge = thReaderBadge(b), _rdHand = thHandoffNote(b);
+      var _rdBadge = thReaderBadge(b), _rdHand = thHandoffNote(b), _rdStall = thStallNote(b);
       var readLine = '<div class="th-airead">'
-        + (_rdBadge ? '<div class="ar-row ar-reader">' + _rdBadge + (_rdHand ? ' ' + _rdHand : '') + '</div>' : '')
+        + ((_rdBadge || _rdStall) ? '<div class="ar-row ar-reader">' + (_rdBadge || '') + (_rdHand ? ' ' + _rdHand : '') + (_rdStall ? ' ' + _rdStall : '') + '</div>' : '')
         + '<div class="ar-row"><span class="ar-k">📸 CAPTURE</span><b>' + wallMs(b.ts) + '</b>'
         + ' <span class="ar-dim">🖼 ' + esc(b.frameId || '?') + '</span></div>' 
         + '<div class="ar-row"><span class="ar-k">🧠 AI READ</span><b>' + wallMs(b.completedTs) + '</b>'
@@ -2853,7 +2871,11 @@
       // v944.4 — even zipping through film, a stash frame's READ/MISS verdict is the headline
       var _rsA = thReadStatus(b, false), _rpA = thRouterPill(b), _ffA = thForensicFlags(b);
       var lr = TH.lastRead;
-      if (_rsA) $('th-caption').innerHTML = _rpA + ' ' + _rsA + _ffA;
+      // v949 — even zipping, a retro-caught frame shouts its hand-off chip (the layered net winning)
+      var _retroA = thHandoffNote(b);
+      var _retroRowA = _retroA ? '<div class="ar-reader" style="justify-content:center;margin-bottom:4px">' + thReaderBadge(b) + ' ' + _retroA + '</div>' : '';
+      if (_rsA) $('th-caption').innerHTML = _retroRowA + _rpA + ' ' + _rsA + _ffA;
+      else if (_retroA) $('th-caption').innerHTML = _retroRowA + _rpA + _ffA;
       else if (lr) $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹</span> ' + thCaption(lr) + _ffA;
       else $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹 film</span>' + _ffA;
     } else if (b.footage){
@@ -2870,7 +2892,10 @@
       // v947.2 — compact stamp count so you know forensics are joined at this capture
       var _nst = (b.dossier && b.dossier.stamps) ? b.dossier.stamps.length : 0;
       var _stampHint = _nst ? (' <span class="ar-dim">· 🔬 ' + _nst + ' AI stamps · I = ledger</span>') : '';
-      $('th-caption').innerHTML = (_rsB ? _rsB + '<br>' : '') + _ffB + (lr2 ? (foot + _stampHint + '<br>' + thCaption(lr2)) : (foot + _stampHint));
+      // v949 (Grok P2#8) — the STORY hand-off chip: a frame live missed at speed → KAI caught retro
+      var _retroF = thHandoffNote(b);
+      var _retroRow = _retroF ? '<div class="ar-reader" style="justify-content:center;margin-bottom:5px">' + thReaderBadge(b) + ' ' + _retroF + '</div>' : '';
+      $('th-caption').innerHTML = _retroRow + (_rsB ? _rsB + '<br>' : '') + _ffB + (lr2 ? (foot + _stampHint + '<br>' + thCaption(lr2)) : (foot + _stampHint));
     } else {
       var _rpC = thRouterPill(b), _ffC = thForensicFlags(b);
       $('th-caption').innerHTML = (_rpC ? _rpC + ' ' : '') + thCaption(b) + _ffC;
@@ -3222,8 +3247,11 @@
     var CTX = 2;   // footage frames kept on each side of a read (a frame or two of context)
     var keep = new Array(beats.length);
     var i, j, a;
-    // 1) every AI read / intake / verdict / kai beat is an anchor (non-footage content = the reader)
-    for (i = 0; i < beats.length; i++) keep[i] = (!beats[i].footage && !beats[i].skip);
+    // 1) every AI read / intake / verdict / kai beat is an anchor (non-footage content = the reader).
+    //    v949 — a footage frame KAI RETRO-CAUGHT (kaiMissTexts) is ALSO an anchor: it's a frame the
+    //    live eye missed at speed but the aftermath recovered — STORY must walk Konyo through it.
+    for (i = 0; i < beats.length; i++)
+      keep[i] = (!beats[i].footage && !beats[i].skip) || !!(beats[i].kaiMissTexts && beats[i].kaiMissTexts.length);
     // 2) bookend film for orientation (where the reel opens / closes)
     var firstF = -1, lastF = -1;
     for (i = 0; i < beats.length; i++){ if (beats[i].footage){ if (firstF < 0) firstF = i; lastF = i; } }
@@ -3581,8 +3609,10 @@
       var _dos = thDossierLine(bF);
       var _stamps = thStampsLedger(bF, { limit: 16, title: 'film still' });
       var _r = (bF.dossier && bF.dossier.router) || {};
+      var _fRetro = thHandoffNote(bF);   // v949 — a frame KAI retro-caught (live missed at speed)
       el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
         + (_rs ? '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rp ? _rp + ' ' : '') + _rs + '</div>' : '')
+        + (_fRetro ? '<h4>reader — who owns this frame</h4><div class="rd-card">' + thReaderBadge(bF) + '<div class="rd-handoff-row">' + _fRetro + '</div></div>' : '')
         + '<h4>📹 footage · capture-synced debug</h4>'
         + '<div class="kv"><span class="k">capture</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '.' + ('00' + (bF.ts % 1000)).slice(-3) + '</span></div>'
         + '<div class="kv"><span class="k">file</span><span class="v">' + esc(bF.frameId || '') + '.jpg</span></div>'
@@ -3622,9 +3652,11 @@
     var _rsDrawer = thReadStatus(b, true), _rpDrawer = thRouterPill(b), _ffDrawer = thForensicFlags(b);
     if (_rsDrawer || _ffDrawer) h += '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rpDrawer ? _rpDrawer + ' ' : '') + (_rsDrawer || '') + _ffDrawer + '</div>';
     // v948.9 — READER HAND-OFF: which net owns this frame + whether it caught what the last missed
-    var _rdB = thReaderBadge(b), _rdH = thHandoffNote(b), _rdG = thGateNote(b);
-    if (_rdB || _rdG) h += '<h4>reader — who owns this frame</h4><div class="rd-card">'
+    // v949 — + the live-stall note (Master Brain law: a stall must be visible)
+    var _rdB = thReaderBadge(b), _rdH = thHandoffNote(b), _rdG = thGateNote(b), _rdS = thStallNote(b);
+    if (_rdB || _rdG || _rdS) h += '<h4>reader — who owns this frame</h4><div class="rd-card">'
       + (_rdB || '') + (_rdH ? '<div class="rd-handoff-row">' + _rdH + '</div>' : '')
+      + (_rdS ? '<div class="rd-handoff-row">' + _rdS + '</div>' : '')
       + (_rdG ? '<div class="rd-handoff-row">' + _rdG + '</div>' : '') + '</div>';
     // v941.6 — the three-eye dossier, compact, at the top of the per-beat forensics
     var _dossierDrawer = thDossierLine(b);
@@ -5567,6 +5599,7 @@
         + _legRow('<span class="rd-badge rd-second">🔵 SECOND EYE</span>', 'Second eye', 're-reads, in idle gaps, what the live eye rushed past — and corrects it.')
         + _legRow('<span class="rd-badge rd-kai">🧠 KAI</span>', 'KAI', 'after the reel seals, sweeps the WHOLE film — catches what no live eye saw.')
         + _legRow('<span class="rd-handoff rd-hf-caught">🔴 missed → 🧠 caught</span>', 'the hand-off', 'the engine correcting itself. The FILM is ground truth — a live miss is never permanent.')
+        + _legRow('<span class="rd-stall">🔴 live stalled Ns</span>', 'live stall', 'the live eye took too long at fast play (a 66s stall proven on a fast run) — shown, never silent; the retro layers cover it.')
       + '</section>'
       + '<section class="lg-sec"><h4>🛡 the accuracy gate — nothing enters a cell unproven</h4>'
         + _legRow('<span class="gate-note gate-proven">🛡 ✓ proven</span>', 'proven', 'passed the gate — ≥2 independent evidence classes agreed. Fires a funnel.')
