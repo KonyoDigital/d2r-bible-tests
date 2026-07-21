@@ -1245,6 +1245,58 @@ class TestVigilantFilm(unittest.TestCase):
             tv.FRAMES = old
             import shutil; shutil.rmtree(d, ignore_errors=True)
 
+    def test_full_screen_lane_keeps_real_frame(self):
+        """v1181 — the full-screen lane must apply the SAME white-Metal-backing guard the
+        window lane already had; a real (non-blank) grab is kept as-is."""
+        import tempfile
+        d = tempfile.mkdtemp()
+        tmp = os.path.join(d, "eye.jpg.part.jpg")
+        old_grab, old_white = tv._quartz_grab_screen, tv._is_white_backing
+        try:
+            def fake_grab(dest, uti="public.jpeg"):
+                with open(dest, "wb") as f:
+                    f.write(b"J" * 5000)
+                return True
+            tv._quartz_grab_screen = fake_grab
+            tv._is_white_backing = lambda path, size_ceiling=300_000: False
+            self.assertTrue(tv._grab_full_screen_frame(tmp))
+            self.assertTrue(os.path.isfile(tmp), "a real frame must survive the guard")
+        finally:
+            tv._quartz_grab_screen, tv._is_white_backing = old_grab, old_white
+            import shutil; shutil.rmtree(d, ignore_errors=True)
+
+    def test_full_screen_lane_rejects_white_metal_backing(self):
+        """v1181 — REGRESSION: before this fix, ONLY the window lane ran _is_white_backing;
+        the full-screen lane (which is invoked specifically when the window lane just
+        white-rejected and demoted) archived whatever it grabbed with no blank-frame check
+        at all. A white backing on the full-screen grab must now be rejected exactly like
+        the window lane rejects one, and the tmp file must not be left behind for a caller
+        to mistakenly archive."""
+        import tempfile
+        d = tempfile.mkdtemp()
+        tmp = os.path.join(d, "eye.jpg.part.jpg")
+        old_grab, old_white = tv._quartz_grab_screen, tv._is_white_backing
+        old_rejects = tv._FILM_WHITE_REJECTS if hasattr(tv, "_FILM_WHITE_REJECTS") else None
+        try:
+            def fake_grab(dest, uti="public.jpeg"):
+                with open(dest, "wb") as f:
+                    f.write(b"J" * 5000)
+                return True
+            tv._quartz_grab_screen = fake_grab
+            tv._is_white_backing = lambda path, size_ceiling=300_000: True
+            tv._FILM_WHITE_REJECTS = 0
+            self.assertFalse(tv._grab_full_screen_frame(tmp))
+            self.assertFalse(os.path.isfile(tmp), "rejected white grab must not linger as tmp")
+            self.assertEqual(tv._FILM_WHITE_REJECTS, 1, "the full-screen reject must count too")
+        finally:
+            tv._quartz_grab_screen, tv._is_white_backing = old_grab, old_white
+            if old_rejects is None:
+                if hasattr(tv, "_FILM_WHITE_REJECTS"):
+                    del tv._FILM_WHITE_REJECTS
+            else:
+                tv._FILM_WHITE_REJECTS = old_rejects
+            import shutil; shutil.rmtree(d, ignore_errors=True)
+
 
 
 class TestHonestReplay(unittest.TestCase):

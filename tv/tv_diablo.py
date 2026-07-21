@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1180"   # 🚦 ROUTE/GATE ENGINE polish — honest sources: the v947 weak-quorum "promote to tally tab" branch (_kai_build_routing) unioned STALE sources into the promoted label — a brain that voted a CONTRADICTING label (e.g. ocr→gameplay) was folded in as if it agreed, inflating confidence + polluting gateSources (the theatre's "why did this pass" audit). FIX: carry forward only brains that actually voted the promoted label, union with the 2 confirmed eyes (tabstrip/grid). Promotion still fires (2 independent classes); sources/gateSources now honest. +2 tests (control_app.py + test_control.py); ×3 parity (8/80 → v1252)
+VERSION = "v1181"   # 📷 CAPTURE ENGINE polish — blank-frame guard on ALL lanes: _is_white_backing (the Metal blank-white-surface reject, 0 false-pos across 1736 frames) was applied ONLY on the window-pin lane, NOT the full-screen lane or never-starve retry — exactly the paths that fire right after a white-reject demotion, when a Metal transition is most likely to re-hand the blank surface. So a blank frame could get archived as REAL gameplay, inflating film completeness with fakes. FIX: shared _grab_full_screen_frame() helper applies the guard (+_FILM_WHITE_REJECTS telemetry) to every full-screen path; captureTs join law untouched (stamp now lands only on real pixels). +2 tests; ×3 parity (9/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1166,6 +1166,39 @@ def _archive_footage_copy(src_path, now_f, why="ok"):
         return False
 
 
+def _grab_full_screen_frame(tmp):
+    """v1181 — full-screen grab + the SAME white-Metal-backing guard the window lane already
+    applies via _is_white_backing (v944). Without this, the full-screen lane could archive a
+    blank frame as real film: it is invoked specifically WHEN the window lane just white-rejected
+    (demoted for the next 5s), i.e. exactly the moment a Metal transition is most likely to hand
+    the desktop compositor the same blank surface — the gap the window lane was built to close,
+    left open one lane over. Returns True only when a real (non-blank) frame is sitting at tmp;
+    on reject/failure the tmp file is cleaned up so callers can treat False uniformly."""
+    wrote = _quartz_grab_screen(tmp, uti="public.jpeg")
+    if not wrote:
+        try:
+            subprocess.run(
+                ["screencapture", "-x", "-t", "jpg", tmp],
+                capture_output=True, timeout=1.5, **NICE_KW)
+            wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+        except Exception:
+            wrote = False
+    if wrote:
+        try:
+            if _is_white_backing(tmp):
+                wrote = False
+                globals()["_FILM_WHITE_REJECTS"] = int(globals().get("_FILM_WHITE_REJECTS") or 0) + 1
+        except Exception:
+            wrote = False
+    if not wrote:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+    return wrote
+
+
 def _film_loop():
     """v846/v947 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
     Target TV_FILM_FPS (~5). Intelligence still uses BMP+frame_sig on the poll loop.
@@ -1240,15 +1273,7 @@ def _film_loop():
                             globals()["_FILM_LANE"] = "full(demoted)"
             if not wrote:
                 # full-screen lane (demoted OR no wid OR white reject recovery)
-                wrote = _quartz_grab_screen(tmp, uti="public.jpeg")
-                if not wrote:
-                    try:
-                        subprocess.run(
-                            ["screencapture", "-x", "-t", "jpg", tmp],
-                            capture_output=True, timeout=1.5, **NICE_KW)
-                        wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
-                    except Exception:
-                        wrote = False
+                wrote = _grab_full_screen_frame(tmp)
             globals()["_FILM_LANE"] = (
                 "window" if (wid and wrote and not white_reject and time.time() >= _lane_full_until)
                 else ("full(demoted)" if time.time() < _lane_full_until else "full")
@@ -1292,13 +1317,7 @@ def _film_loop():
                     now_f2 = time.time()
                     if now_f2 >= globals().get("_FOOTAGE_DUE", 0.0):
                         got = False
-                        if not _quartz_grab_screen(tmp, uti="public.jpeg"):
-                            try:
-                                subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
-                                               capture_output=True, timeout=1.5, **NICE_KW)
-                            except Exception:
-                                pass
-                        if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
+                        if _grab_full_screen_frame(tmp):
                             got = _archive_footage_copy(tmp, now_f2, why="never-starve-full")
                             try:
                                 os.replace(tmp, eye)
