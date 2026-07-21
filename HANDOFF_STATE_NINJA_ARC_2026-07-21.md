@@ -192,3 +192,6 @@ PRINCIPLE (Konyo standing directive): "this is exactly the kind of syncing and c
 
 ## ✅ GATED: v1185 (13/80) — HEAD 64b35a4 — FUNNEL round 2 (honest-miss on live driver)
 engine-funnel r2 (control_app.py + test_control.py): 3 live-driver fire chains (tally·vault·vaultcount) ended in bare .catch(){} with no /intake_result on rejection → silent drop. FIX: each .catch posts honest-miss receipt (ok:false,errors:1) so the refire ladder retries (distinct from v1182 guardHeld). node --check-verified JS; +4 tests (control 72→76). ×3 parity, floor control 76 · agent 175, smoke+deploy. Counter: 13/80 · at v1185 · target v1252. NEXT: route/gate round 2 (dispatched → v1186).
+
+## ✅ GATED: v1186 (14/80) — HEAD 4a2af75 — ROUTE/GATE round 2 (quorum tie = disagreement)
+engine-route r2 (control_app.py + test_control.py): _kai_quorum_label flagged only weak top counts, not 2+ tied leaders — Counter.most_common broke a real 2-2 tie by insertion order → silent confident winner, losing side vanished from sources (chrome veto blind to non-tabstrip/grid pairs). Live-reachable (judge 'tooltip' vs tabstrip+grid 'stash-*'). FIX: tied_leaders>1 → disagreement → route=None. +4 tests (control 76→80). ×3 parity, floor control 80 · agent 175, smoke+deploy. Counter: 14/80 · at v1186 · target v1252. NEXT: capture round 2 (dispatch → v1187).
