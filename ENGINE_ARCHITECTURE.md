@@ -30,6 +30,36 @@ ONE engine. When a feature is added, it must plug into this loop — not sit bes
 Film thread archives **every** frame to the reel (~5fps) = **ground truth**. The eye pins the D2R
 window (no pin → no eye). Produces: reel frames + a live "something changed" signal (motion/OCR text).
 
+### 🧠👑 THE MASTER BRAIN KAI — the conductor (Konyo, 2026-07-21 21:xx)
+_"the engine that connects it all and syncs it all — the MASTER BRAIN KAI, the OG of all of them."_
+
+Above the five reader layers sits ONE orchestrator. The layers are not five separate readers — they
+are ONE brain with five passes, and the Master Brain is what makes them one: it watches each layer,
+guarantees the hand-off, and is accountable for the end-to-end promise — **every captured frame ends
+as a VERIFIED read rendered, or an HONEST miss; never a wrong one, never a silent drop.**
+
+THE FIVE LAYERS it conducts (each a net for the last; the FILM is ground truth for all):
+1. **🔴 LIVE EYE** — first pass, real-time. Fast hovering can outrun it (proven: a read stalled 66s in
+   flight → 0 live reads). The Master Brain must DETECT a stalled/slow live eye and lean on the later
+   layers instead of losing the item — a 66s live stall is a signal to route to retro, not a failure.
+2. **🔵 SECOND EYE** — delayed catch, MID-SESSION, before seal (drains the text-eye backlog in idle
+   gaps). GAP: at speed there are no idle gaps → it fired 0. The Master Brain must give it a working
+   window even under fast play (e.g. force a backlog drain when the live eye is stalled/idle).
+3. **🧠 KAI CLOSER** — post-seal retro OCR sweep of the whole reel. Works (caught 15, self-resolved a
+   watchdog gap). But OCR-MATCHES only — it does not deep-re-read.
+4. **🧠🔬 SUPER-ANALYZE KAI (build this — the missing organ)** — the deep retro pass: takes every
+   item-text frame the gate PROVED and does a full INDEPENDENT AI re-read (not OCR-matching), so a
+   fast-hovered item whose live read + OCR both garbled STILL gets a correct read rendered in the
+   aftermath. This is what turns "film complete but only 3 registered" into "film complete → all
+   verified." It feeds the router/register/judge with real reads recovered from the film.
+5. **🚦 ROUTER KAI** — labels + routes + the ACCURACY GATE (§3.5, proven 107/held 46). The final
+   arbiter of which reads are cell-correct.
+
+MASTER-BRAIN LAWS: (a) reconcile the five layers into ONE per-item truth (live OR second OR retro OR
+super-analyze — whichever is most confident, DB-verified). (b) never let a captured item die unread —
+if all live passes missed, the super-analyze layer MUST attempt it. (c) surface its own health: which
+layer caught each item, and where a layer stalled (the 66s stall must be visible, not silent).
+
 ### 2. THE READERS (🔴🔵🧠) — layered eyes, each a net for the last
 - **🔴 Live eye** — deep-reads the current frame (names items) when text-eye/motion triggers. First pass, fast.
 - **🔵 Second eye** — in idle gaps, re-reads the text-eye backlog the live eye rushed past. Corrections.
