@@ -1054,5 +1054,64 @@ class TestGateTallyPromotionHonestSources(unittest.TestCase):
         self.assertTrue(row["gatePass"])
 
 
+class TestDriverLiveNeverZeroGuardWiring(unittest.TestCase):
+    """v1182 — the engine-driver's OWN live tally fire (every stash-tab visit during actual
+    play, not just Stage-3's post-seal gap-fill) does the same SET-style ADJ-subtract write as
+    the KAI funnel but never got the v948.17 never-zero guard — a thin/partial live photo
+    (ok:true, low total) was free to stomp an already-larger verified same-session tally, the
+    exact '404 then 4' regression TestFunnelNeverZeroGuard pins for the OTHER fire site.
+    Structural pin, mirroring TestKaiFunnelGuardWiring's approach for _kai_closer_loop: the JS
+    itself can't run under unittest (no browser), so this pins that the guard is actually
+    wired into the source, not just defined and tested in isolation."""
+
+    def test_fire_loop_computes_prev_best_before_firing(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn('_tab_best_total(_rows5, job["tab"])', src)
+        self.assertIn('r.get("sessionId") == _sid5', src)   # SAME-SESSION scope, not all-time
+
+    def test_apply_block_gated_on_prev(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn("PREV<=0||newTotal>=PREV", src)
+
+    def test_blocked_apply_still_journals_honest_receipt(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        # guardHeld only true when NOT applied and a real PREV was on the books — never a
+        # silent drop, and never confused with a genuine empty-tab (PREV<=0) first read
+        self.assertIn("guardHeld:!applied&&PREV>0", src)
+        self.assertIn("total:(applied?newTotal:PREV)", src)
+
+    def test_queue_captures_session_id_for_the_guard(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn('"sid": str(rd.get("sessionId") or "")', src)
+
+
+class TestTabBestTotalSessionScoping(unittest.TestCase):
+    """Behavioral pin for the SAME-SESSION scoping the driver's live guard relies on: a bigger
+    total banked in a DIFFERENT (older) session must never count as PREV for the current one —
+    his stash persists across sessions, so a genuine spend-down in a new session has to be able
+    to land, not get stuck forever under a stale prior-session peak (an all-time-max scope would
+    be a WORSE bug than the one the guard fixes)."""
+
+    def _rows(self):
+        return [
+            {"sessionId": "s_old", "intake": {"tab": "runes", "ok": True, "total": 900}},
+            {"sessionId": "s_new", "intake": {"tab": "runes", "ok": True, "total": 12}},
+        ]
+
+    def test_other_session_totals_excluded(self):
+        rows = self._rows()
+        same_session = [r for r in rows if r.get("sessionId") == "s_new"]
+        self.assertEqual(ca._tab_best_total(same_session, "runes"), 12)   # NOT 900
+
+    def test_empty_tab_this_session_applies_unconditionally(self):
+        rows = self._rows()
+        same_session = [r for r in rows if r.get("sessionId") == "s_brand_new"]
+        self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

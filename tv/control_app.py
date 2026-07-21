@@ -4627,6 +4627,11 @@ def _engine_driver():
                     fire_q.append({
                         "key": key, "tab": tab, "fid": fid, "tries": 0,
                         "has_names": False,  # count path; identity auto disabled
+                        "sid": str(rd.get("sessionId") or ""),  # v1182 — scope the
+                        # never-zero PREV lookup to THIS session (mirrors Stage-3's
+                        # sessionId filter): his stash persists across sessions, so a
+                        # genuine spend-down in a NEW session must still be able to land,
+                        # not get stuck forever under a stale prior-session peak.
                     })
                     globals()["_DRV_QUEUED"] = globals().get("_DRV_QUEUED", 0) + 1
 
@@ -4758,17 +4763,45 @@ def _engine_driver():
                           "}).catch(function(){});return 1}catch(e){return 0}})()"
                           ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
                 else:
+                    # v1182 — NEVER-ZERO WRITE GUARD, live path. Stage-3's post-seal KAI
+                    # funnel (see _tab_best_total / "Grok P0-1" above) got this protection at
+                    # v948.17, but THIS fire — the engine-driver's own live tally shot, which
+                    # runs on every stash-tab visit during actual play, not just post-seal gap
+                    # fill — never did. Its ADJ-subtract is the same SET-style write (subtract
+                    # the old count, so the tab ends up AT res.total), so a thin/partial live
+                    # photo (tab opened but not fully hovered) landing ok:true with a small
+                    # total was free to stomp an already-larger verified tally — the exact
+                    # '404 then a funnel says 4' regression Konyo's law forbids, just on the
+                    # live path instead of the closer's. Fetch the best REAL total already on
+                    # the books for this tab and only let the apply-block run when the fresh
+                    # read isn't a regression; a blocked apply still journals an honest receipt
+                    # (ok:true, total held at PREV, guardHeld:true) so the driver's own
+                    # never-zero re-fire ladder (_drv_empty_refire_plan) sees a real total and
+                    # marks the visit done instead of burning retries on a read that was never
+                    # going to be applied. PREV is scoped to THIS session (job["sid"], set at
+                    # queue time) — mirrors Stage-3's sessionId filter — so a genuine spend-down
+                    # in a fresh session isn't stuck forever under a stale prior-session peak.
+                    try:
+                        _sid5 = str(job.get("sid") or "")
+                        _rows5 = ([r for r in _kai_journal_rows() if r.get("sessionId") == _sid5]
+                                  if _sid5 else _kai_journal_rows())
+                        _prevBestDrv = _tab_best_total(_rows5, job["tab"])
+                    except Exception:
+                        _prevBestDrv = 0
                     js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                           "if(W._stashShutter)return 2;var FN={runes:'runeIntake',gems:'gemIntake',materials:'materialIntake'}[%s];if(typeof W[FN]!=='function')return 0;"
                           "var LSK={runes:'d2r_runeStash',gems:'d2r_gemStash',materials:'d2r_materialStash'}[%s];"
                           "var ADJ={runes:'adjustRuneStash',gems:'adjustGemStash',materials:'adjustMaterialStash'}[%s];"
+                          "var PREV=%s;"
                           "var prev={};try{var st0=JSON.parse(W.LSR.getItem(LSK)||'{}');Object.keys(st0).forEach(function(k){prev[k]=parseInt(st0[k],10)||0})}catch(e){}"
                           "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
                           "return W[FN]([new W.File([b],'drv-tally.jpg',{type:'image/jpeg'})])}).then(function(res){"
-                          "try{if(res&&res.ok){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)})}}catch(e){}"
-                          "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'tally',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
+                          "var newTotal=(res&&res.total)||0;var applied=false;"
+                          "try{if(res&&res.ok&&(PREV<=0||newTotal>=PREV)){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)});applied=true}}catch(e){}"
+                          "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'tally',ok:applied?true:!!(res&&res.ok&&PREV>0),counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,frameId:%s,guardHeld:!applied&&PREV>0})}).catch(function(){})}catch(e){}"
                           "}).catch(function(){});return 1}catch(e){return 0}})()"
-                          ) % (json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
+                          ) % (json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["tab"]),
+                               json.dumps(_prevBestDrv), json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
                 try:
                     _ejs(w, js, timeout=4.0)
                     job["fired_ms"] = now_ms
@@ -4958,7 +4991,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1181",
+        "ver": "v1182",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
