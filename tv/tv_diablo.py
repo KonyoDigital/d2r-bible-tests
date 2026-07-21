@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1177"   # 🔤✨ Typography R4 — STRUCTURE + HIERARCHY: the rail's lower half now has the dash's section discipline — THE READER NET (🔴🔵🧠 under a gold accent-bar label) + SESSION HEALTH (labeled, rows top-aligned) so the whole console reads as ONE structured product. CSS ::before labels, zero markup/ID/data changes (control_ui.html); ×3 parity (5/80 → v1252)
+VERSION = "v1178"   # 🔤✨ Typography R5 — VISUAL POLISH + CONSISTENCY SWEEP (FINAL typography round): brought the flagship ENGINE ROOM into the design system — .er-band section labels now wear the gold accent-bar+underline like every other header, and its panel chrome unified with the tally/legend overlay family (radius 16→14, border .28→.4, shared gold halo). Every overlay is now one family; the console reads as ONE designed product. Quality-over-churn (2 real fixes, 0 cosmetic). CSS-only (control_ui.html). ×3 parity (6/80 → v1252) — TYPOGRAPHY ARC R1→R5 COMPLETE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

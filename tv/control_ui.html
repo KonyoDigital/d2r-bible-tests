@@ -1470,15 +1470,16 @@
     backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: clamp(14px,2vw,34px); }
   #engine-room[hidden] { display: none; }
   .er-panel { width: min(1280px, 96vw); max-height: 92vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
-    background: linear-gradient(180deg, rgba(16,14,10,.6), rgba(6,6,8,.55)); border: 1px solid rgba(240,192,96,.28);
-    border-radius: 16px; box-shadow: 0 0 80px rgba(0,0,0,.7), inset 0 0 60px rgba(240,192,96,.03);
-    padding: clamp(16px,1.6vw,26px); }
+    background: linear-gradient(180deg, rgba(16,14,10,.6), rgba(6,6,8,.55)); border: 1px solid rgba(240,192,96,.4);
+    border-radius: 14px; box-shadow: 0 0 60px rgba(240,192,96,.14), 0 30px 80px rgba(0,0,0,.7), inset 0 0 60px rgba(240,192,96,.03);
+    padding: clamp(16px,1.6vw,26px); }   /* v1178 R5 — shared overlay chrome (matches .tly-panel / .lg-panel): the flagship joins the overlay family */
   .er-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid rgba(240,192,96,.2); }
   .er-title { font: 800 var(--fs-xl)/1 var(--mono); letter-spacing: .16em; color: var(--gold);
     text-shadow: 0 0 20px rgba(240,192,96,.35); }
   .er-sub { font: 500 var(--fs-xs)/1.4 var(--mono); color: #a5906a; letter-spacing: .04em; }
   .er-x { margin-left: auto; }
-  .er-band { font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .16em; color: #b09a72; text-transform: uppercase; margin-bottom: 10px; }
+  .er-band { font: 700 var(--fs-2xs)/1.2 var(--mono); letter-spacing: .16em; color: #b09a72; text-transform: uppercase; margin-bottom: 10px;
+    padding: 0 0 7px 10px; border-left: 2px solid var(--gold-antique); border-bottom: 1px solid rgba(200,180,120,.12); }   /* v1178 R5 — same section-label language as .hd-h / the rail labels: cockpit reads as one product */
   .er-band .er-live-tag { color: var(--mint); }
   .er-spine { gap: 8px; }
   /* the big organ cards — the engine-health organs, cockpit-sized */
