@@ -89,7 +89,7 @@
     height: 100dvh;
     width: 100vw;
     display: grid;
-    grid-template-columns: 1fr clamp(238px, 22vw, 360px);
+    grid-template-columns: 1fr clamp(238px, 23vw, 430px);   /* v1175 R3 — the rail breathes at fullscreen (was max 360px → KAI-eye/Tabs cramped on wide screens) */
     grid-template-rows: auto minmax(0, 1fr) auto auto auto;   /* v903 — the dash row */
     grid-template-areas:
       "head  head"
@@ -1616,7 +1616,10 @@
   .hd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
   .hd-grid .sh-card { cursor: pointer; }
   /* OFF AIR: the giant hero breathes down, the dashboard is the page */
-  body[data-state="off"] .stage { min-height: 250px; max-height: 250px; overflow: hidden; }
+  /* v1175 R3 — the OFF hero is tall enough to clear its own bottom-pinned .meters (the caption's 2nd line
+     overlapped them at fullscreen once R1 grew the fonts + the 250px cap clipped). No cap, no clip. The
+     dash still owns the flex via the grid's 1fr row (the OFF stage is an `auto` grid row). */
+  body[data-state="off"] .stage { min-height: clamp(310px, 30vh, 380px); }
   body[data-state="off"] .stage .phase { font-size: var(--fs-2xl); margin-top: 18px; }   /* v956 R1 — deliberately smaller than the full .phase display size */
   body[data-state="off"] .stage .kicker { display: none; }        /* v903.1 — no overlap in compact */
   body[data-state="off"] .stage .marquee { top: 10px; }

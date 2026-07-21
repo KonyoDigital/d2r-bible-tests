@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1174"   # 🔤✨ Typography R2 — TOGGLE SWEEP: every modal/panel/details/dash toggle now backdrop-fades + panel-rises instead of hard-popping (one-shell law applied to every toggle), reduced-motion/endurance opt-out, built on the v1173 --fs-* scale (control_ui.html); ×3 parity (2/80 → v1252)
+VERSION = "v1175"   # 🔤✨ Typography R3 — FULLSCREEN OPTIMIZATION (@2560×1440): OFF-stage hero caption no longer clipped (min-height clamp, clears the meters by 52px) + right rail breathes (clamp 238→430px, was capped 360) — 0 sideways scroll, 0 sub-floor text, 0.00px head-tab invariant held (control_ui.html); ×3 parity (3/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
