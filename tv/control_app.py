@@ -3084,11 +3084,17 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         # cheap signature are a visual run: the FIRST keeps its label+route, each later duplicate
         # keeps its label but is un-routed with a chain ref. The reel/film is NEVER trimmed —
         # every frame stays in the ledger, so the replay is complete.
+        # v1189 — guarded by `routed is None` (mirrors the near-dup branch below, v944.6):
+        # `routed` is a HISTORICAL FACT (a funnel/judge receipt already landed on THIS
+        # frame's own fid), not a routing decision — nulling it unconditionally erased a
+        # real receipt whenever the receipted frame happened to be pixel-identical to its
+        # predecessor (e.g. Stage 3's "newest frame wins" firing against the LAST frame of a
+        # static-panel run). That made _kai_reconcile (and any 'routed' count/audit) report a
+        # false 'miss' for a frame that genuinely fired.
         _sig = s.get("sig")
         _is_dup = _sig is not None and _sig == _prev_sig
-        if _is_dup:
+        if _is_dup and routed is None:
             route = None
-            routed = None
             skip = "dup-of:" + (_run_first or "")
         else:
             _run_first = f
@@ -5014,7 +5020,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1188",
+        "ver": "v1189",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

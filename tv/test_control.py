@@ -1111,6 +1111,60 @@ class TestQuorumTieIsDisagreement(unittest.TestCase):
         self.assertFalse(row["gatePass"])
 
 
+class TestDedupeNeverErasesARealReceipt(unittest.TestCase):
+    """v1189 ROUTE/GATE fix — the v944 exact-sig dedupe branch in `_kai_build_routing`
+    unconditionally set `routed = None` for any frame sharing its predecessor's cheap
+    pixel signature. `routed` is a HISTORICAL FACT (a funnel/judge receipt already landed
+    on THIS frame's own fid via `funnel_by_fid`/`judge_fids`), not a routing decision — and
+    Stage 3's own doc says a funnel receipt fires against the NEWEST frame of a run, which
+    is exactly the frame most likely to be pixel-identical to its predecessor (a static
+    stash panel held for a few frames). Nulling `routed` there made `_kai_reconcile` report
+    a false 'miss'/'no funnel receipt has landed yet' for a frame that genuinely fired, and
+    undercounted any 'routed' audit metric. The near-dup branch a few lines below already
+    guards on `if routed is None:` — this fix brings the exact-sig branch in line with that
+    established pattern instead of inventing a new one."""
+
+    def _scan(self, sig=("sameSig", b"x")):
+        return [
+            {"f": "f1.jpg", "ts": 1000, "sig": sig,
+             "tabstripLabel": "stash-runes", "tabstrip": True,
+             "gridLabel": "stash-runes", "grid": True},
+            {"f": "f2.jpg", "ts": 1200, "sig": sig,
+             "tabstripLabel": "stash-runes", "tabstrip": True,
+             "gridLabel": "stash-runes", "grid": True},
+        ]
+
+    def test_receipted_dup_frame_keeps_its_routed_field(self):
+        # Stage 3's "newest frame wins" pattern: the receipt lands on f2, the LATER of the
+        # two sig-identical frames.
+        journal_rows = [{"frameId": "reel_sid1/f2",
+                          "intake": {"kind": "kai-funnel", "tab": "runes", "ok": True, "total": 40}}]
+        routing = ca._kai_build_routing(self._scan(), [], "sid1", journal_rows)
+        f1, f2 = routing[0], routing[1]
+        self.assertIsNone(f1["routed"])
+        self.assertEqual(f2["routed"], "kai-funnel")
+        self.assertIsNone(f2["skipReason"])   # a routed row carries no dup skip marker
+
+    def test_receipt_visible_to_reconcile_not_a_false_miss(self):
+        journal_rows = [{"frameId": "reel_sid1/f2",
+                          "intake": {"kind": "kai-funnel", "tab": "runes", "ok": True, "total": 40}}]
+        routing = ca._kai_build_routing(self._scan(), [], "sid1", journal_rows)
+        rec = {r["f"]: r for r in ca._kai_reconcile(routing, [], [])}
+        self.assertEqual(rec["f2.jpg"]["owner"], "funnel")
+        self.assertNotEqual(rec["f2.jpg"]["verdict"], "miss")
+
+    def test_plain_dup_with_no_receipt_still_unrouted(self):
+        # regression guard: a genuine duplicate with NO receipt on either frame must still
+        # be un-routed exactly as before this fix.
+        routing = ca._kai_build_routing(self._scan(sig=("sameSig2", b"y")), [], "sid1", [])
+        f1, f2 = routing[0], routing[1]
+        self.assertIsNone(f1["routed"])
+        self.assertEqual(f1["route"], "tally:runes")
+        self.assertIsNone(f2["routed"])
+        self.assertIsNone(f2["route"])
+        self.assertEqual(f2["skipReason"], "dup-of:f1.jpg")
+
+
 class TestDriverLiveHonestRejectionReceipt(unittest.TestCase):
     """v1185 — the engine-driver's OWN live fire chains (vaultcount_/vault_/tally, the same
     three sites hardened for never-zero at v1182) each ended their promise chain in a bare
