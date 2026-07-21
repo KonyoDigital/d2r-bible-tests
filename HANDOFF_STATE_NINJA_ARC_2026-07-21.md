@@ -108,3 +108,6 @@ Konyo: count the REAL version — every decimal WAS a shipped version. Counted a
 - Integers only, +1 per ship, NO decimals ever again.
 - 80-version mandate = **v1173 → v1252**.
 - NEXT gate (typo-r1 R1 + Phase D swap combined) ships as **v1173** (1/80). Stamp all three parity points (bible D2R_BUILD.id == control ver == agent VERSION) = "v1173".
+
+## 🏆 NORTH STAR (Konyo 2026-07-21): v2000 = LEVEL 2 = RENAME + REBRAND
+At version **v2000**, TV DIABLO graduates to Level 2 — a full rename + rebrand. That's the destination the version count is climbing toward. From v1172 today = 828 versions out. The 80-mandate (v1173→v1252) is leg 1. Every gated integer is a step toward the rebrand. Keep the climb: land → gate → +1 → repeat.
