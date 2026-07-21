@@ -981,6 +981,10 @@
     background: rgba(30,22,10,.5); border-radius: 6px; padding: 5px 8px; }
   .th-rs-chip b { color: var(--gold); }
   .th-rs-chip.th-rs-more { opacity: .6; }
+  /* v946.5 — socket pill: a subtle steel chip next to a named item that had sockets */
+  .th-os { display: inline-block; font: 700 .82em/1.2 var(--mono); color: #bfe8ff; letter-spacing: .01em;
+    background: rgba(90,140,200,.16); border: 1px solid rgba(120,180,240,.42); border-radius: 5px;
+    padding: 0 5px; vertical-align: baseline; }
   /* v945 — 🖼 HD ART: the real in-game icon inline in a count chip; sits left of the name */
   .hd-ic { width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin-right: 5px;
     image-rendering: auto; flex: 0 0 auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
@@ -2148,6 +2152,14 @@
       : /inventor/.test(tab) ? '🎒' : /tooltip/.test(tab) ? '🃏'
       : /personal|shared|stash/.test(tab) ? '🏦' : '';
   }
+  // v946.5 (Konyo: "was the Diadem read 3 socketed?") — reads capture sockets={name:N} (N=1..6,
+  // only socketed items). A subtle ⏣N pill rides next to a named item when it had sockets; items
+  // with no socket entry render exactly as before (no empty "(0)").
+  function thSocketPill(b, name){
+    var s = b && b.sockets; var n = s && s[name];
+    if (!n) return '';
+    return ' <span class="th-os" title="' + n + ' socket' + (n > 1 ? 's' : '') + '">⏣' + n + '</span>';
+  }
   // ══ v945 — 🖼 HD ART by EXACT ITEM NAME. The board's D2IO_ART (base + hd) folded UNDER the HD
   // manifest (art/HD_ART_MANIFEST.json, 639 entries) so the HD override always wins. Resolve a
   // counted item name → its real in-game icon; fall back to the tab emoji when a name isn't known
@@ -2355,7 +2367,7 @@
         + (deepN.length ? ('<b class="ar-names">' + deepN.map(function(nm){
             var lc2 = (b.names_loc || {})[nm];
             var badge = lc2 === 'equipped' ? ' 🎽' : (lc2 === 'inventory' ? ' 🎒' : (lc2 === 'stash' ? ' 🏦' : (lc2 === 'floor' ? ' 🧱' : '')));
-            return esc(nm) + badge;   // v830 — WHERE each tooltip lived
+            return esc(nm) + badge + thSocketPill(b, nm);   // v830 WHERE · v946.5 sockets
           }).join(' · ') + '</b>')
                         : (thReadStatus(b, false) || '<span class="ar-dim">no item text on this frame (honest empty)</span>'))
         + (b.scene ? ' <span class="ar-dim">· ' + esc(b.scene) + (b.area ? ' @ ' + esc(b.area) : '') + '</span>' : '') + '</div>'
@@ -3075,7 +3087,11 @@
       + '<h4>name sets</h4>'
       + col('deep', b.names) + col('ocr', b.ocr_names) + col('confirmed', b.confirmed_names)
       + col('vault', b.vault_names) + col('holding', b.pending_names) + col('thrown', b.thrown_names)
-      + col('discovered', b.discovered_names) + col('ocr-rescued', b.ocr_seeded);
+      + col('discovered', b.discovered_names) + col('ocr-rescued', b.ocr_seeded)
+      // v946.5 — the socket read, spelled out: "Diadem ⏣3"
+      + ((b.sockets && Object.keys(b.sockets).length)
+          ? '<div class="col"><em>sockets</em> ' + Object.keys(b.sockets).map(function(k){ return esc(k) + ' <span class="th-os">⏣' + esc(b.sockets[k]) + '</span>'; }).join(', ') + '</div>'
+          : '');
     // v944.4 — the READ-STATUS verdict + router pill, first (the plain "was it read" answer)
     var _rsDrawer = thReadStatus(b, true), _rpDrawer = thRouterPill(b), _ffDrawer = thForensicFlags(b);
     if (_rsDrawer || _ffDrawer) h += '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rpDrawer ? _rpDrawer + ' ' : '') + (_rsDrawer || '') + _ffDrawer + '</div>';
@@ -3303,11 +3319,16 @@
     var mm = Math.floor(rel / 60000), ss = ('0' + Math.floor((rel % 60000) / 1000)).slice(-2);
     var wall = b.ts ? (new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3)) : '—';
     var pill = thRouterPill(b);
+    // v946.5 — socketed items read on this frame ride in the lightbox meta ("Diadem ⏣3")
+    var socks = (b.sockets && Object.keys(b.sockets).length)
+      ? ' <span style="opacity:.6">·</span> ' + Object.keys(b.sockets).map(function(k){ return esc(k) + ' <span class="th-os">⏣' + esc(b.sockets[k]) + '</span>'; }).join(' ')
+      : '';
     $('thhd-meta').innerHTML = '🖼 ' + esc(b.frameId || b.frame || '?')
       + ' <span style="opacity:.6">·</span> ⏱ ' + esc(wall)
       + ' <span style="opacity:.6">·</span> T+' + mm + ':' + ss
       + ' <span style="opacity:.6">·</span> frame ' + (TH.hdI + 1) + '/' + TH.beats.length
       + (pill ? ' ' + pill : '')
+      + socks
       + ' <span class="thhd-res">· full-res 2560</span>';
     // prev/next disabled at the ends (there's always a framed neighbor to seek to, else hide)
     var hasP = thHdAdjacent(-1) != null, hasN = thHdAdjacent(1) != null;
