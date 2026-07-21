@@ -1752,6 +1752,37 @@ class TestSettleQueue(unittest.TestCase):
         self.assertTrue(all(os.path.isfile(p) for p in te_paths))  # files kept
         self.assertEqual(tv._text_eye_backlog_pop()["sig"], self._dsig(1))  # oldest swept first
 
+    def test_drained_read_stamps_original_capture_clock(self):
+        """v1187 REGRESSION — a queue-held frame was captured earlier (that's the entry's own
+        'ts', same clock _settle_drain_pop already trusts for staleness). Before this fix,
+        _fire_read always stamped the DRAIN moment (time.time() at read time) into the
+        frame_id/captureTs the retro debugger joins on, silently desyncing a held frame from
+        the moment its pixels were actually captured — worse the longer it sat queued (up to
+        SETTLE_QUEUE_STALE_MS). _resolve_read_ts (what _fire_read now calls) must return the
+        entry's real capture clock when a drain caller passes it, not now()."""
+        tv._settle_enqueue(self.src, self._sig(0))
+        entry = tv._settle_drain_pop()
+        held_ts = entry["ts"]
+        # simulate the read landing well after the frame was actually captured — exactly the
+        # 'held while readers were busy' scenario this queue exists for
+        time.sleep(0.05)
+        stamped = tv._resolve_read_ts(cap_ts_override=held_ts)
+        self.assertEqual(stamped, held_ts, "drained read must stamp the frame's OWN capture time")
+        self.assertLess(stamped, int(time.time() * 1000),
+                         "must not silently become the drain-time now()")
+        # frame_id built from that stamp must round-trip to the same captureTs (the join law)
+        fid = "1_%d" % stamped
+        self.assertEqual(tv._capture_ts_from_frame_id(fid), held_ts)
+
+    def test_live_read_still_defaults_to_now(self):
+        """v1187 — a fresh/live read (no queue involved) has no earlier clock to honor;
+        _resolve_read_ts must keep stamping now(), unchanged from before this fix."""
+        before = int(time.time() * 1000)
+        stamped = tv._resolve_read_ts(cap_ts_override=None)
+        after = int(time.time() * 1000)
+        self.assertGreaterEqual(stamped, before)
+        self.assertLessEqual(stamped, after)
+
 
 class TestLocationTruth(unittest.TestCase):
     """v830 (Konyo forensics) — equipped gear never farms; inventory-side holds; stash vaults."""

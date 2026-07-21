@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1186"   # 🚦 ROUTE/GATE round 2 — quorum TIE = disagreement: _kai_quorum_label only flagged a weak top count (top_n<2), never a 2+ way TIE at the top (2-vs-2, 3-vs-3). Counter.most_common broke ties by insertion order — an iteration artifact — so a genuine split (e.g. judge 'tooltip' vs a tabstrip+grid 'stash-*', both 2 votes) was silently resolved to a confident winner and the losing side vanished from sources (chrome-dissenter veto is blind to non-tabstrip/grid pairs). FIX: tied_leaders>1 → disagreement → route=None (detection fix only, downstream wiring unchanged). +4 tests (control 76→80). ×3 parity (14/80 → v1252)
+VERSION = "v1187"   # 📷 CAPTURE round 2 — captureTs join-law fix on the DRAIN paths: _fire_read stamped read_ts/captureTs = NOW (drain time) even when draining a frame captured EARLIER (settle-queue up to 120s stale, text-eye-sweep queue/stall). Each held frame already tracked its real capture clock as entry "ts" (used for gap_ms) but nobody threaded it into the join key → retro debugger's captureTs desynced from the pixels, worst under fast play. FIX: testable _resolve_read_ts(cap_ts_override) helper; _fire_read takes cap_ts_override; 3 drain sites pass _q/_bl "ts". Live/fresh reads still stamp now(). frame_id fmt + _capture_ts_from_frame_id untouched — join law preserved, made MORE honest (mirrors the A0 fix). +2 tests (agent 175→177). ×3 parity (15/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1863,6 +1863,17 @@ def archive_read_frame(src_path, n, ts_ms=None):
         return fid
     except Exception:
         return ""
+
+def _resolve_read_ts(cap_ts_override=None):
+    """v1187 — captureTs join law: the timestamp stamped into a read's frame_id/captureTs must
+    be the FRAME's actual capture clock, never the moment a caller got around to reading it
+    (same law as the intake-result A0 fix above: 'retro joins on captureTs, never receipt
+    time'). A queue/backlog drain (_fire_read's settle-queue / text-eye-sweep-* origins) reads
+    a snapshot captured EARLIER — held while readers were busy, up to SETTLE_QUEUE_STALE_MS —
+    so it must pass that entry's own tracked capture clock as cap_ts_override. A fresh/live read
+    has no earlier clock to report, so it falls back to now()."""
+    return int(cap_ts_override) if cap_ts_override else int(time.time() * 1000)
+
 
 def frame_path_for_id(fid):
     """Resolve hist id → absolute path, or '' if missing/unsafe."""
@@ -4249,8 +4260,18 @@ def main():
 
     def _fire_read(origin, snap_src, sig, interest_this, used_priority, note="",
                    motion_v=0.0, peak_v=0.0, settle_ticks=0, gap_ms=0,
-                   empty_s=0, named_s=0, ap_mode="", interest_parts=None, rid_override=None):
-        """ONE AI reader arm: settle or queue drain → shared last_read_t + dual-lane."""
+                   empty_s=0, named_s=0, ap_mode="", interest_parts=None, rid_override=None,
+                   cap_ts_override=None):
+        """ONE AI reader arm: settle or queue drain → shared last_read_t + dual-lane.
+
+        v1187 — captureTs join law (A0 fix, 2026-07-21, applied here too): a queue/backlog
+        drain reads a snapshot that was captured EARLIER (held while readers were busy, up to
+        SETTLE_QUEUE_STALE_MS), but this function used to stamp it with `time.time()` at DRAIN
+        time regardless — the receipt-landing time, not the frame's capture time. Every queue
+        drain caller already tracks the entry's real capture clock as `ts` (that's exactly what
+        `gap_ms` below is computed from) but never carried it into the frame_id/captureTs that
+        the retro debugger actually joins on. cap_ts_override lets a drain caller pass that real
+        clock through; live/fresh reads (no override) keep the old now() stamp unchanged."""
         nonlocal last_read_t, last_sent_md5, reads, peak, priority
         soft_over = reads - SESSION_CAP
         if soft_over >= 0:
@@ -4258,7 +4279,7 @@ def main():
         last_read_t, last_sent_md5 = time.time(), sig
         globals()["_LAST_EMIT_SIG"] = sig
         reads += 1
-        read_ts = int(time.time() * 1000)
+        read_ts = _resolve_read_ts(cap_ts_override)
         frame_id = archive_read_frame(snap_src, reads, read_ts)
         tag = "⏭ queue" if "queue" in origin else "👁 settle"
         print(f"  {tag} — dual-lane #{reads}/{SESSION_CAP}"
@@ -4323,6 +4344,7 @@ def main():
                             note="second eye — swept un-read text-eye backlog",
                             gap_ms=max(0, int(time.time() * 1000) - _bl.get("ts", 0)),
                             ap_mode="sweep-drain",
+                            cap_ts_override=_bl.get("ts"),
                         )
                         if _bused != _bl["path"]:
                             _settle_file_del(_bl)
@@ -4348,6 +4370,7 @@ def main():
                             gap_ms=max(0, int(time.time() * 1000) - _bl2.get("ts", 0)),
                             ap_mode="stall-drain",
                             rid_override=_STALL_RID,
+                            cap_ts_override=_bl2.get("ts"),
                         )
                         if _bused2 != _bl2["path"]:
                             _settle_file_del(_bl2)
@@ -4366,6 +4389,7 @@ def main():
                 note="held while readers busy · drained on free",
                 gap_ms=max(0, int(time.time() * 1000) - _q.get("ts", 0)),
                 ap_mode="queue-drain",
+                cap_ts_override=_q.get("ts"),
             )
             if used != _q["path"]:
                 try: os.remove(_q["path"])
