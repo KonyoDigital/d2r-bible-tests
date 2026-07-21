@@ -101,3 +101,10 @@ Decimals RETIRED. We are at milestone v948. Every shipped version from here = ON
 - Every gate stamps the next integer across ALL THREE (bible D2R_BUILD.id == control ver == agent VERSION — stamp-parity test enforces equality).
 - The NEXT gate (typo-r1 R1 + polish-ui-2 Phase D swap, combined) ships as **v949** (progress 1/80).
 - Progress counter: "N/80 · vNNN". Chain start = milestone v948 / HEAD a3d33cd.
+
+## 🔢 CORRECTION (Konyo 2026-07-21): REAL VERSION COUNT = 1172 (decimals were real versions)
+Konyo: count the REAL version — every decimal WAS a shipped version. Counted all distinct versions ever shipped (decimals included, mandate-text pollution removed) = **1172**. The old "v948" milestone counter was undercounting because ~224 decimal sub-versions never bumped the integer.
+- **REAL current version = v1172. NEXT SHIP = v1173** (supersedes the earlier wrong "v949" note — that ignored the decimals).
+- Integers only, +1 per ship, NO decimals ever again.
+- 80-version mandate = **v1173 → v1252**.
+- NEXT gate (typo-r1 R1 + Phase D swap combined) ships as **v1173** (1/80). Stamp all three parity points (bible D2R_BUILD.id == control ver == agent VERSION) = "v1173".
