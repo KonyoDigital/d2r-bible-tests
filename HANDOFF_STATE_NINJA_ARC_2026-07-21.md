@@ -165,3 +165,7 @@ IN FLIGHT: engine-read (tv_diablo.py read stack — bounded reads / no-starve) �
 ## ✅ GATED: v1179 (7/80) — HEAD 5ba9e7c — READ engine polish #1
 engine-read (tv_diablo.py + test_agent.py): _VERIFY_Q closer/second-look STARVE fix — the second-look queue was drained only in the live idle gap, never at session close → last reads' second looks silently vanished. FIX: _pool_shutdown drains it within the existing FAREWELL budget (no-op past deadline, never slows shutdown). +2 regression tests. ×3 parity v1179, floor agent 173 · control 64, smoke+deploy live. Supervisor auto-respawned console @ v1179. Counter: 7/80 · at v1178→v1179 · target v1252.
 NEXT: route/gate engine round on control_app.py (dispatched → v1180).
+
+## ✅ GATED: v1180 (8/80) — HEAD c2ef218 — ROUTE/GATE engine polish #1
+engine-route (control_app.py + test_control.py): honest promotion sources — the v947 weak-quorum promote branch unioned STALE sources (a brain voting a contradicting label folded in as agreeing), inflating confidence + polluting gateSources. FIX: carry forward only brains that voted the promoted label + the 2 confirmed eyes. +2 tests. ×3 parity v1180, floor control 66 · agent 173, smoke+deploy live, supervisor respawned @ v1180. Counter: 8/80 · at v1180 · target v1252.
+NEXT: capture engine round on tv_diablo.py (dispatched → v1181). Per-engine coverage so far: read(v1179) · route/gate(v1180) · capture(→v1181) · funnel pending.
