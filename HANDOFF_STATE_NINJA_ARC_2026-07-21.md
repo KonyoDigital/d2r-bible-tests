@@ -204,3 +204,8 @@ engine-read r2 (tv_diablo.py + test_agent.py): _maybe_genius escalate pass calle
 
 ### ROUND-2 SWEEP DONE (v1185–v1188): funnel(honest-miss live driver) · route/gate(quorum tie=disagreement) · capture(captureTs drain-path) · read(bound genius-escalate). All evidence-based, tested. Counter: 16/80 · at v1188 · target v1252.
 NEXT: round 3 of per-engine polish (dispatch → v1189+). Both round-1 and round-2 sweeps complete; engines increasingly hardened.
+
+## ✅ GATED: v1189 (17/80) — HEAD 92df985 — ROUTE/GATE round 3 (dedupe never erases a receipt)
+engine-route r3 (control_app.py + test_control.py): the v944 exact-sig dedupe branch nulled `routed` (historical fact = a receipt landed on this frameId) on any sig-dup → a receipted static-panel frame (receipt fires on newest, shares predecessor sig) got falsely reconciled as a miss + undercounted. FIX: guard with `routed is None` (mirrors near-dup branch). +3 tests (control 80→83). ×3 parity, floor control 83 · agent 178, smoke+deploy. Counter: 17/80 · at v1189 · target v1252.
+LESSON: NO backticks in git commit -m messages (shell command-substitutes them → v1189 body lost two `routed` words, cosmetic). Use plain text / single quotes.
+NEXT: round 3 continues — rotate to capture or funnel round 3 (dispatch → v1190).
