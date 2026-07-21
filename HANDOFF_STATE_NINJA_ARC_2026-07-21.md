@@ -151,3 +151,13 @@ Net: type/motion/fullscreen/structure/consistency pull one direction — one des
 :17772 now running HEADLESS (nohup python3 control_app.py --no-open) @ v1178 — stays up (no window death vector, --no-open skips pywebview). The .app/Terminal-reroute launch stopped bringing :17772 up in this session (Terminal Automation likely not granting post-midnight) AND shell launches lack Screen-Recording TCC anyway. FOR REAL D2R SCANNING: Konyo must relaunch TV DIABLO.app himself (double-click) so the capture grant is inherited. OFFERED: a launchd KeepAlive supervisor for bulletproof always-up — awaiting Konyo's go (persistent system config, needs explicit OK).
 
 ## NEXT (7/80 →): typography arc done. Remaining mandate = LANE B PER-ENGINE 100+ POLISH (PER_ENGINE_PERFECTION_ROADMAP.md): 📷 capture · 👁 read · 🚦 route+gate · 🩹 funnel. Optional: Grok third-eye pass on the finished console (polish-ui-2's R1→R5 before/after summary is in its v1178 handback; before/after Engine Room shots in scratchpad r5_before/after_06_engineroom.png). Counter: 6/80 · at v1178 · target v1252 · north star v2000.
+
+## 🛡️ CONSOLE SUPERVISOR INSTALLED (2026-07-22, Konyo authorized) — :17772 bulletproof always-up
+launchd LaunchAgent com.konyo.tvd-console (~/Library/LaunchAgents/, in-repo copy tv/com.konyo.tvd-console.plist) runs tv/tvd_supervisor.sh: every ~20s ensures :17772 answers, brings up headless (control_app.py --no-open) if not. KeepAlive respawns the supervisor; RunAtLoad at login. TESTED: kill console → auto-resurrected <10s. HEAD 6f37045 (ops, no version bump).
+- POLITE (respects TCC): supervisor honors pause-flag tv/.tvd_supervisor_pause so the real TCC app can own the port for scanning.
+- **TO SCAN LIVE:** `bash tv/tvd-scan.sh` (pauses supervisor + opens TV DIABLO.app, TCC-correct). **DONE SCANNING:** `bash tv/tvd-console.sh` (restores immortal console).
+- Manage: launchctl list|grep tvd-console · unload = launchctl unload ~/Library/LaunchAgents/com.konyo.tvd-console.plist
+Complements the v1176 in-process window-death fix (that stops window-close deaths; this respawns after ANY death incl SIGTERM/sleep).
+
+## 🤖 AUTONOMOUS MODE (Konyo "work autonomously" 2026-07-22): running Lane B per-engine polish, gating each round.
+IN FLIGHT: engine-read (tv_diablo.py read stack — bounded reads / no-starve) → gates v1179 (7/80). Sequential engine rounds (stamp-parity couples tv_diablo.py+control_app.py+bible.html → one uncommitted stamped-file round at a time). Counter: 6/80 · at v1178 · target v1252.
