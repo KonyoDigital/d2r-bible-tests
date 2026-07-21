@@ -33646,7 +33646,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v946.5', name:'Sockets', date:'2026-07-21', note:'Reads now capture the per-item socket count (the Diadem reads as 3-socketed) — prompt p831, journaled in the deep-read row, clamped 1..6.' };
+  window.D2R_BUILD = { id:'v946.7', name:'Vault Grid Gate', date:'2026-07-21', note:'Vault grid gate: no auto vaultIntake on icon grids (tooltip names only); film truth documented' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -34980,18 +34980,32 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
                 });
               } catch(e){}
             }
-            // v901 — personal/shared → locked vault 📸 once per visit
+            // v901 / v946.7 — personal/shared vault 📸 ONLY when deep has real item TEXT
+            // (tooltip). Icon grids always return total=0 from vaultIntake (Fable vision proof).
+            // Leave visit_done unset on grid so a later tooltip deep can still fire once.
             if ((stashTab === 'personal' || stashTab === 'shared') && !_stashVisitDone['vault_'+stashTab]) {
-              _stashVisitDone['vault_'+stashTab] = true;
-              stashIntakeQueued = true;
-              try {
-                Promise.resolve(window.tvVaultAutoIntake && window.tvVaultAutoIntake({ tab: stashTab, frameId: rd.frameId || rd.frame_id || '' })).then(function(r){
-                  try {
-                    if (r && r.ok) console.log('[tvd] vault auto-intake ok', stashTab, r.bytes);
-                    else console.log('[tvd] vault auto-intake skip', stashTab, r && r.why);
-                  } catch(e){}
-                });
-              } catch(e){}
+              var _vn = (rd.names || []).filter(function(n){
+                n = String(n || '').trim(); if (n.length < 4) return false;
+                var letters = (n.match(/[A-Za-z]/g) || []).length;
+                if (letters < Math.max(3, n.length / 2)) return false;
+                var low = n.toLowerCase().replace(/['"]/g, '');
+                if (/^(ii|ia lla|stash|inventory|personal|shared|runes|gems)$/.test(low)) return false;
+                return /[aeiou]/i.test(n);
+              });
+              if (_vn.length) {
+                _stashVisitDone['vault_'+stashTab] = true;
+                stashIntakeQueued = true;
+                try {
+                  Promise.resolve(window.tvVaultAutoIntake && window.tvVaultAutoIntake({ tab: stashTab, frameId: rd.frameId || rd.frame_id || '' })).then(function(r){
+                    try {
+                      if (r && r.ok) console.log('[tvd] vault auto-intake ok', stashTab, r.bytes);
+                      else console.log('[tvd] vault auto-intake skip', stashTab, r && r.why);
+                    } catch(e){}
+                  });
+                } catch(e){}
+              } else {
+                try { console.log('[tvd] vault auto-intake skipped — icon grid (no tooltip names)', stashTab); } catch(e){}
+              }
             }
           } else if (_stashVisitOpen) {
             _stashVisitOpen = false;

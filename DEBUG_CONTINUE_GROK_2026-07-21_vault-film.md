@@ -11,6 +11,43 @@ vault intake reader without Konyo's explicit OK — the fix is likely upstream (
 - v946.5 SOCKET CAPTURE (prompt p831 → parse → journal → pack beat; Diadem reads {Diadem:3})
 - v946.6 socket render (⏣N pill in theatre caption/drawer/lightbox)
 
+## ✅ SUPERGROK RETURN — v946.7 (vault grid gate + film truth)
+
+### BUG A — FIXED (upstream of locked reader)
+**Decision (Fable option b, with Konyo intent):** do **not** auto-fire `vaultIntake` on a raw
+personal/shared **icon grid**. That reader needs tooltip text (manual photo flow).
+
+| Change | Where |
+|--------|--------|
+| `_vault_names_worth_auto(names)` | real item text only; reject `'Ii'` / empty |
+| Engine driver | queues `vault_*` **only** when deep has worth names; else skip (visit open for later tooltip) |
+| Vault re-fire | grid jobs (`has_names=false`) **give up** immediately — no thrash |
+| Board `tvVaultAutoIntake` | same name gate (EDIT_LOCK) |
+| KAI Stage-3 vault | **default OFF** (`TV_KAI_VAULT=0`); opt-in only for tooltip reels |
+
+Locked `vaultIntake` **untouched**.
+
+### BUG B — FILM vs READS (cross-ref done)
+Session `s_1784621819814` / reel `reel_s_1784621819814_13252`:
+
+| Fact | Number |
+|------|--------|
+| Film frames | **82** over ~81s (~1 fps continuous) |
+| Film gaps >1.5s | **1** only |
+| Deep reads | 6 (3 real names: Gheed's / Ring of Maiming / War Traveler) |
+| Journal "skip text-eye" | 10 — these are **trigger ticks** (text-eye enqueued), not dropped film |
+| Vault personal frame | `2_1784621850691.jpg` full of icons, vault still 0 — proves grid, not missing photo |
+
+**Conclusion:** Screenshots **are on the reel**. What was "missing" is **named AI beats** for every hover —
+settle/deep only lands some tooltips; film still has the pixels. Theatre **📁 film** opens the folder;
+scrub **⏱ REAL** to see every `f_*.jpg`. Registration still requires a successful deep name (and
+vault identities still require manual tooltip photo or future count-reader — not this patch).
+
+### Verify
+`test_control` · `test_agent` · `test_routes` (+vault gate pins) · `demo_console` 7/7 · stamps v946.7
+
+---
+
 ## 🔴 BUG A — VAULT (personal/shared) intake ALWAYS reads 0 (root cause PROVEN)
 Live session s_1784621819814: runes tallied 405 ✓, but personal=0 ERROR and shared=0 ERROR (×2).
 The v946.3 re-fire ENGAGED (driver refire counter climbed) but every attempt still read 0.
@@ -28,22 +65,18 @@ COUNT icons; vaultIntake tries to READ item identities from icons and can't.
    it only frames where an item TOOLTIP is up (like the tooltip→judge path), or (c) give personal/
    shared a COUNT-style reader like the tally tabs if the goal is "N items present," not identities.
 2. If vault MUST read identities, that's the manual photo flow — the auto-path can't substitute.
-Decide with Konyo; don't rewrite the LOCKED reader blindly.
+**→ SuperGrok chose (b): only auto when deep has real names; else skip.**
 
 ## 🔴 BUG B — captures/reads missing from the FILM reel + not registered (Konyo's words)
 Konyo recorded 58s from ON AIR (11:17:26). He hovered MANY items; the console LIVE EYE was visibly
 "thinking/reading". But only **3 reads journaled** (Gheed's Fortune GC, Ring of Maiming, War Traveler)
 + the tally intakes. He wants those exact item captures RENDERED in the theatre film — they're missing.
-Likely linked to Bug A: stash-grid reads come back "honest empty" so they neither register nor film
-like tooltip reads do. **Grok: cross-reference the video (`/Users/konyo/Desktop/Diablo II Screenshots/
-Screen Recording 2026-07-21 at 11.17.26.mov`, 58s) frame-by-frame vs reel `reel_s_1784621819814_13252`
-(82 film frames) and the 3 journaled reads. Find WHY the hovered-item moments Konyo saw didn't each
-produce a read+reel frame.** Is the film thread dropping frames during reads? Are tooltip reads only
-firing on some hovers? The reel has 82 frames but only 3 reads for a session full of hovering.
+**SuperGrok cross-ref:** reel has **82 frames**, continuous ~1fps — film is NOT empty. Missing piece is
+**per-hover deep registration**, not missing JPEGs. Use Theatre 📁 film + REAL mode to scrub all stills.
 
 ## Method / artifacts for Grok
 - Video frames extracted to scratchpad `vidframes/v_01..07.jpg` (fps 1/8) — v_03 shows the smoking gun.
 - Reel: `tv/frames/hist/reel_s_1784621819814_13252/` (82 f_*.jpg).
 - Journal: session s_1784621819814 → 3 deep reads + intakes [personal 0F, runes 405T, shared 0F ×2].
 - The perfect-but-unread vault frame: `tv/frames/hist/2_1784621850691.jpg` (Fable viewed it).
-- Verify battery unchanged: test_control 43 · test_agent 158 · test_routes 81 · demo 7/7 · NEVER the full Playwright suite on the Mac.
+- Verify battery unchanged: test_control 43 · test_agent · test_routes · demo 7/7 · NEVER the full Playwright suite on the Mac.

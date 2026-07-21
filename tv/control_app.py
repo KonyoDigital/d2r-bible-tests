@@ -199,23 +199,47 @@ def _drv_freshest_tab_fid(tab, reads=None, journal_rows=None, fallback=""):
     return best_fid or fallback or ""
 
 
+def _vault_names_worth_auto(names):
+    """v946.7 — vaultIntake needs TOOLTIP text, not an icon grid.
+    Return True only when the deep read carries real item-identity names (manual-photo shape).
+    Garble ('Ii', 'IA Lla') and empty names = raw grid → do NOT auto-fire."""
+    if not names:
+        return False
+    good = 0
+    for n in names:
+        s = str(n or "").strip()
+        if len(s) < 4:
+            continue
+        letters = sum(1 for c in s if c.isalpha())
+        if letters < max(3, len(s) // 2):
+            continue
+        low = s.lower().strip("'\"")
+        if low in ("ii", "ia lla", "stash", "inventory", "personal", "shared",
+                   "runes", "gems", "materials", "required", "defense"):
+            continue
+        # at least one vowel-ish → real word, not OCR noise
+        if not any(v in low for v in "aeiou"):
+            continue
+        good += 1
+    return good >= 1
+
+
 def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
-    """v944.6 pure decision for never-zero re-fire.
+    """v944.6/v946.7 pure decision for never-zero re-fire.
     Returns ('done', None) | ('refire', job_dict) | ('giveup', None).
-    Tally tabs re-fire on !ok or total==0; vault accepts any journaled landing."""
+    Tally: re-fire on !ok or total==0.
+    Vault: only re-fire when job.has_names (tooltip path); grid errors give up immediately."""
     if not isinstance(inflight, dict):
         return ("giveup", None)
     key = str(inflight.get("key") or "")
     is_vault = key.startswith("vault_")
-    # v946.3 (Fable, Konyo live-session catch: shared intake errored to 0, never recovered) —
-    # never-zero now covers VAULT too. A vault tab that read OK is done EVEN IF empty (a genuinely
-    # empty personal/shared tab is a valid 0 — re-firing would loop). But an ERROR (ok:false) is a
-    # failure, not an empty tab: re-fire against the freshest frame, same as a tally 0. Was:
-    # `is_vault or _intake_is_real` → vault errors were silently marked done with no recovery.
     if is_vault:
         if bool((intake or {}).get("ok", True)):
             return ("done", None)
-        # else: vault ERROR → fall through to the re-fire ladder below
+        # v946.7 — icon-grid vault fires always 0; re-firing wastes AI (Fable vision proof)
+        if not inflight.get("has_names"):
+            return ("giveup", None)
+        # tooltip-path vault error → re-fire ladder
     elif _intake_is_real(intake):
         return ("done", None)
     tries = int(inflight.get("tries") or 0) + 1
@@ -2550,9 +2574,10 @@ def _kai_closer_loop():
                             time.sleep(20.0)   # gentle pacing — the judge is a full vision read
                         except Exception as _je:
                             print(f"⚠ KAI judge fire failed: {_je}", flush=True)
-                    # 🏦 VAULT — one newest ledger-selected inventory/stash panel (SET via vaultIntake)
+                    # 🏦 VAULT — off by default (v946.7): same icon-grid problem as live driver.
+                    # Opt-in TV_KAI_VAULT=1 only when feeding tooltip frames, not raw grids.
                     for _vj in _vault_jobs[:1]:
-                        if w2 is None or os.environ.get("TV_KAI_VAULT", "1") == "0":
+                        if w2 is None or os.environ.get("TV_KAI_VAULT", "0") == "0":
                             break
                         _ffv = str(_vj.get("f") or "")
                         if not _ffv:
@@ -2854,13 +2879,25 @@ def _engine_driver():
                 # time; a slot is marked done only when its result JOURNALS (or after
                 # 2 attempts). visit_done value: 'queued' | 'inflight' | True (done).
                 key = None
+                _vnames = rd.get("names") or []
                 if tab in ("runes", "gems", "materials"):
                     key = tab
                 elif tab in ("personal", "shared"):
-                    key = "vault_" + tab
+                    # v946.7 (Fable vision proof): personal/shared are ICON GRIDS.
+                    # vaultIntake is an identity reader for tooltip photos (manual flow).
+                    # Auto-firing on a raw grid → always total=0 ERROR + re-fire thrash.
+                    # Only queue when this deep read has real item text (tooltip up).
+                    if _vault_names_worth_auto(_vnames):
+                        key = "vault_" + tab
+                    else:
+                        globals()["_DRV_VAULT_SKIP"] = globals().get("_DRV_VAULT_SKIP", 0) + 1
+                        # leave visit_done unset so a later tooltip deep on same visit can fire
                 if key and not visit_done.get(key):
                     visit_done[key] = "queued"
-                    fire_q.append({"key": key, "tab": tab, "fid": fid, "tries": 0})
+                    fire_q.append({
+                        "key": key, "tab": tab, "fid": fid, "tries": 0,
+                        "has_names": bool(key.startswith("vault_") and _vault_names_worth_auto(_vnames)),
+                    })
                     globals()["_DRV_QUEUED"] = globals().get("_DRV_QUEUED", 0) + 1
 
             # ── serialized fire loop: one intake in flight, confirm via journal ──
@@ -3086,7 +3123,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v946.5",
+        "ver": "v946.7",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

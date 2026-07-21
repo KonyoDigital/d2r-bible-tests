@@ -717,16 +717,18 @@ class TestNeverZeroRefire(unittest.TestCase):
         self.assertEqual(act, "done")
 
     def test_vault_error_refires(self):
-        # v946.3 (Konyo live-session catch: shared intake errored to 0, never recovered) — a vault
-        # ERROR (ok:false) is a FAILED read, not an empty tab: it must re-fire against a fresh frame.
-        job = {"key": "vault_shared", "tab": "shared", "fid": "v1", "tries": 0}
+        # v946.3 — vault ERROR with tooltip names re-fires. v946.7 — grid (no names) gives up.
+        job = {"key": "vault_shared", "tab": "shared", "fid": "v1", "tries": 0, "has_names": True}
         act, nxt = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "v9")
         self.assertEqual(act, "refire")
         self.assertEqual(nxt["fid"], "v9")           # re-reads the freshest frame
         # exhausts to giveup, never loops forever
-        job3 = {"key": "vault_shared", "tab": "shared", "fid": "v1", "tries": 2}
+        job3 = {"key": "vault_shared", "tab": "shared", "fid": "v1", "tries": 2, "has_names": True}
         act3, _ = ca._drv_empty_refire_plan(job3, {"ok": False, "total": 0}, "v9")
         self.assertEqual(act3, "giveup")
+        # grid error: no thrash
+        job_g = {"key": "vault_personal", "tab": "personal", "fid": "g1", "tries": 0, "has_names": False}
+        self.assertEqual(ca._drv_empty_refire_plan(job_g, {"ok": False, "total": 0}, "g2")[0], "giveup")
 
 
 class TestRouterLedger(unittest.TestCase):
@@ -1140,6 +1142,28 @@ class TestSessionHealth(unittest.TestCase):
     def test_idle_when_empty(self):
         h = ca._session_health_from_rows([])
         self.assertEqual(h["verdict"], "idle")
+
+
+class TestVaultGridAutoGate(unittest.TestCase):
+    """v946.7 — vaultIntake is tooltip-identity, not icon-grid. Auto-fire only with real names."""
+
+    def test_names_worth_auto(self):
+        self.assertFalse(ca._vault_names_worth_auto([]))
+        self.assertFalse(ca._vault_names_worth_auto(["'Ii'"]))
+        self.assertFalse(ca._vault_names_worth_auto(["IA Lla", "Ii"]))
+        self.assertTrue(ca._vault_names_worth_auto(["Gheed's Fortune Grand Charm"]))
+        self.assertTrue(ca._vault_names_worth_auto(["War Traveler"]))
+
+    def test_vault_grid_error_no_refire(self):
+        job = {"key": "vault_personal", "tab": "personal", "fid": "2_1", "tries": 0, "has_names": False}
+        act, _ = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "3_1")
+        self.assertEqual(act, "giveup")
+
+    def test_vault_tooltip_error_refires(self):
+        job = {"key": "vault_shared", "tab": "shared", "fid": "4_1", "tries": 0, "has_names": True}
+        act, nxt = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "5_1")
+        self.assertEqual(act, "refire")
+        self.assertEqual(nxt["fid"], "5_1")
 
 
 class TestStashTabIdentity(unittest.TestCase):
