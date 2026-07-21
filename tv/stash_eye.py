@@ -33,6 +33,42 @@ _TALLY_TABS = frozenset(("runes", "gems", "materials"))
 _VAULT_TABS = frozenset(("personal", "shared"))
 _ALL_TABS = _TALLY_TABS | _VAULT_TABS
 
+# v948.8 — D2R TITLE/RECONNECT SPLASH GUARD. classify_stash_grid's materials
+# branch (dark_empty>=0.42 + a little chroma, low gear/tan) is tuned loose on
+# purpose (materials is the tab most prone to under-detection — Konyo's repeated
+# complaint). That looseness has a false-positive twin: the D2R title/reconnect
+# screen ("Press Any Key to Begin" / "Connecting to Battle.net") is ~92% pure
+# black with a burning-logo sliver of orange/red chroma — same signature as a
+# near-empty materials grid. Caught 2026-07-21 auditing reel
+# s_1784636825977_40909: 11 consecutive boot-screen frames grid-fingerprinted
+# as stash-materials and the KAI retro funnel spent its one materials shot on
+# one of them (materialIntake correctly came back ok:false/total:0 — nothing
+# was there — but the slot was wasted and the routing ledger lied about tab
+# state). Full-frame OCR still reads the splash text even when the tab-chrome
+# crop is pure black, so it's a clean, additive guard that never tightens (and
+# so never regresses) the fragile grid heuristic itself.
+def is_boot_screen(ocr_lines: Optional[Sequence[Any]]) -> bool:
+    """True when full-frame OCR lines match the D2R title/reconnect splash.
+
+    Word-level (not exact-phrase) match — OCR on the fire-lit splash text is
+    noisy ("PRESS ANY KfY T& BEGIN" for "...KEY TO BEGIN"), so a strict phrase
+    regex missed the exact frame this guard was built for. Any one of these
+    combos is distinctive enough that a real stash/gameplay frame won't hit it."""
+    blob = " " + re.sub(r"[^a-z0-9]+", " ", " ".join(str(t) for t in (ocr_lines or [])).lower()) + " "
+    if blob.strip() == "":
+        return False
+    def has(w):
+        return (" " + w + " ") in blob
+    if has("press") and has("any") and has("begin"):
+        return True
+    if has("connecting") and has("battle"):
+        return True
+    if has("diablo") and has("resurrected"):
+        return True
+    if has("blizzard") and has("entertainment"):
+        return True
+    return False
+
 
 def tab_from_ocr_lines(lines: Optional[Sequence[Any]]) -> str:
     """Active-tab guess from OCR lines.
@@ -370,6 +406,13 @@ def analyze_frame(
         "kaiVer": 3,
     }
     if not path or not os.path.isfile(path):
+        return out
+
+    # v948.8 — title/reconnect splash guard, before grid/OCR tab fusion can
+    # mistake the burning-logo screen for a near-empty materials grid.
+    if is_boot_screen(ocr_lines):
+        out["cls"] = "gameplay"
+        out["sources"] = ["boot-screen-guard"]
         return out
 
     # full-frame OCR lines if already available

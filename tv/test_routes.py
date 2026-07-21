@@ -1315,6 +1315,32 @@ class TestStashTabIdentity(unittest.TestCase):
         self.assertIn("grid", src_kai)
         self.assertIn("solo", src_kai)
 
+    def test_boot_screen_guard(self):
+        """v948.8 — the D2R title/reconnect splash ('Press Any Key to Begin' /
+        'Connecting to Battle.net') is ~92% black + a burning-logo chroma sliver,
+        same signature classify_stash_grid's materials branch looks for. Caught
+        auditing reel s_1784636825977_40909: 11 boot-screen frames grid-fingerprinted
+        as stash-materials and the KAI retro funnel wasted its one materials shot
+        on one (materialIntake correctly came back total=0 — there was nothing
+        there — but the ledger lied about tab state). Full-frame OCR (noisy —
+        'PRESS ANY KfY T& BEGIN') still catches it; word-level match, not phrase."""
+        import stash_eye as se
+        self.assertTrue(se.is_boot_screen(["PRESS ANY KfY T& BEGIN"]))
+        self.assertTrue(se.is_boot_screen(["CONNECTING TO BATTLE.NET"]))
+        self.assertTrue(se.is_boot_screen(["DIABLO", "RESURRECTED"]))
+        self.assertFalse(se.is_boot_screen(["Key of Terror", "Essence of Suffering"]))
+        self.assertFalse(se.is_boot_screen([]))
+        # analyze_frame short-circuits to gameplay before grid/OCR fusion can
+        # mistake the splash for a tally tab (allow_grid_solo=True == KAI retro)
+        p = os.path.join(HERE, "frames", "hist",
+                          "reel_s_1784636825977_40909", "f_1784636855259.jpg")
+        if os.path.isfile(p):
+            out = se.analyze_frame(p, ocr_lines=["PRESS ANY KfY T& BEGIN"],
+                                    allow_grid_solo=True)
+            self.assertEqual(out["cls"], "gameplay")
+            self.assertEqual(out["tab"], "")
+            self.assertIn("boot-screen-guard", out["sources"])
+
     def test_retro_promote_and_gap_funnel(self):
         """v948.7 — cluster promote + gap funnel from reel labels."""
         scan = [

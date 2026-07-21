@@ -699,3 +699,40 @@ Format: what broke · how it was caught · root cause · fix · prevention.
 - **Root cause:** v938.3 folded ok/total/errors into the INCOMING signature but left the stored-side compare as bare counts-json — two shapes that can never be equal → the dup branch never fired.
 - **Fix:** v938.7 — both sides build the identical 4-element sig; pinned-bug test flipped to assert collapse.
 - **Prevention:** when changing one side of an equality contract, grep for every other builder of that value; a pinned-behavior test that "shouts when fixed" turned this from silent to caught-same-day.
+
+## REG-037 — KAI retro funnel wasted its materials shot on the D2R title screen (2026-07-21)
+- **Symptom:** v948.7 materials retro audit on reel `s_1784636825977_40909` — 11 consecutive film
+  frames grid-fingerprinted as `stash-materials` (confidence 2, grid+ocr sources) and the KAI
+  closer funnel fired `materialIntake` on one of them; the real production reader correctly
+  returned `ok:false, total:0` because there was nothing there — but Theatre showed the frame was
+  actually the D2R boot/reconnect splash ("Press Any Key to Begin" / "Connecting to Battle.net"),
+  not a stash panel at all. No other materials-labeled frames exist anywhere else in the 136-frame
+  reel, so materials was very likely genuinely never opened this session — the false trigger just
+  meant the "one shot per tab" funnel got spent on garbage instead of a clean honest-zero.
+- **Caught by:** materials retro audit (Round 1 of the v948.8 arc), viewing the actual funnel-fired
+  frame in Theatre film — the pixels were the title logo, not a materials grid.
+- **Root cause:** `classify_stash_grid`'s materials branch (`frac_dark>=0.42` + a little chroma +
+  low gear/tan) is intentionally loose (materials is the tab most prone to under-detection). The
+  D2R title/reconnect splash is ~92% pure black with a burning-logo sliver of orange/red chroma —
+  same signature as a near-empty materials grid (frac_dark=0.9154, frac_chroma=0.0536 measured on
+  the actual frame). The `stash_open` corroboration gate in `fuse_tab_signals` didn't block it.
+- **Fix:** v948.8 — `stash_eye.is_boot_screen()`: full-frame OCR word-match ("press"+"any"+"begin",
+  "connecting"+"battle", "diablo"+"resurrected", "blizzard"+"entertainment") short-circuits
+  `analyze_frame` to `cls:"gameplay"` before grid/OCR fusion runs. Additive-only — never tightens
+  the fragile materials grid heuristic itself, so it can't reintroduce under-detection.
+- **Prevention:** when a heuristic is intentionally loose to fix under-detection, its false-positive
+  twin needs its own guard — don't tighten the loose heuristic (that just un-fixes the original
+  complaint), add a targeted veto for the specific known-bad case instead. Always eyeball the actual
+  frame a funnel fired on, not just the routing label, before trusting a "materials found" verdict.
+
+## PIN — engine-driver never-zero re-fire: no LIVE runes 0→recovery observed this session (2026-07-21)
+- **Status:** not a bug, a coverage gap. `_drv_empty_refire_plan` is tab-agnostic (no runes/gems/
+  materials/vault branching for the tally path — see `tv/control_app.py` ~L298); unit test
+  `test_empty_refire_plan_tally` in `tv/test_routes.py` explicitly exercises key="runes" through
+  refire→done and refire→giveup, and `tv/control_app.log` shows the mechanism actively engaging
+  live this session (vault_personal/vault_shared `🚫0️⃣ empty/error → re-fire → re-fire → giveup`,
+  3 tries each). But every live runes fire this session landed clean on try 1 (`total=404/405/211`),
+  so no live runes 0-error ever occurred to observe an actual recovery in the wild — only the
+  generic mechanism (proven via code path + unit test) backs the claim it would recover.
+- **Next step if this matters:** next session where a runes fire lands `ok:false`/`total:0` live,
+  grep `tv/control_app.log` for `🚫0️⃣ engine-driver: runes` and confirm the retry lands a real count.

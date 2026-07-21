@@ -2847,8 +2847,21 @@ def _kai_closer_loop():
                     reels.append(d)
             if not reels:
                 continue
+            # v948.8 — PRIORITY RECLOSE: an explicit POST /api/kai_reclose drops a
+            # ".kai_priority" marker in the reel dir. Without this, a debugger-requested
+            # reclose sits behind the ENTIRE kaiVer<3 backlog (sorted-oldest-first) —
+            # after the v948.7 kaiVer bump that backlog can be dozens of reels deep, so
+            # the endpoint's "closer will re-scan within ~30s" promise was false. Priority
+            # reels jump the queue; normal sweep order is unchanged otherwise.
+            _priority = [d for d in reels if os.path.isfile(os.path.join(hist, d, ".kai_priority"))]
+            if _priority:
+                reels = _priority + [d for d in reels if d not in _priority]
             rd = os.path.join(hist, reels[0])
             sid = reels[0][len("reel_"):]
+            try:
+                os.remove(os.path.join(rd, ".kai_priority"))
+            except Exception:
+                pass
             frames = []
             try:
                 with open(os.path.join(rd, "index.json"), encoding="utf-8") as f:
@@ -3807,7 +3820,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v948.7",
+        "ver": "v948.8",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -5389,7 +5402,13 @@ class Handler(BaseHTTPRequestHandler):
                             os.remove(kr)
                         except Exception:
                             pass
-                self._json(200, {"ok": True, "msg": "kai_report cleared — closer will re-scan within ~30s",
+                # v948.8 — priority marker: jump this reel to the front of the closer's
+                # queue instead of waiting behind the whole kaiVer<3 backlog sweep.
+                try:
+                    open(os.path.join(rd, ".kai_priority"), "w").close()
+                except Exception:
+                    pass
+                self._json(200, {"ok": True, "msg": "kai_report cleared — closer will re-scan within ~30s (priority)",
                                  "sessionId": sid, "reel": "reel_" + sid, "kaiVerTarget": 3})
             except Exception as e:
                 self._json(500, {"ok": False, "msg": str(e)[:160]})
@@ -5592,7 +5611,10 @@ def main():
         sys.exit(0)
 
     plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform)
-    print(f"📺 TV DIABLO Control v935.8 · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/", flush=True)
+    # v948.8 — was a hardcoded "v935.8" literal, frozen ~13 versions ago (drift
+    # spotted auditing the closer log during the materials retro round); _app_ver()
+    # mirrors status_payload's stamp so this banner can never drift from ship again.
+    print(f"📺 TV DIABLO Control {_app_ver()} · {plat} · native window · http://127.0.0.1:{CONTROL_PORT}/", flush=True)
     print(f"   agent bridge :{AGENT_PORT} · log {LOG_PATH}", flush=True)
     if IS_WIN:
         print("   Windows ON = capture_win.ps1 (hidden) + tv_diablo.py --watch", flush=True)
