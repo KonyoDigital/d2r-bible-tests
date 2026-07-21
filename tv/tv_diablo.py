@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v948.19"   # aftermath integrity: Spirit grail/toss split-brain reconciled (runeword=keep never grail/toss), materials grid recalibrated (real receipts under-detected, dark-gameplay false positives removed)
+VERSION = "v948.26"   # 🥷🧠 Phase D: Master-Brain reconciler surfaced to the client — liveRing now-cursor in /api/status + sealed engineFrames (owner/verdict/why) joined onto retro theatre footage beats (stamp-only bump; ×3 parity)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

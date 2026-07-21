@@ -448,6 +448,130 @@ class TestSimDebuggerNoSilentReadDrop(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+_MISSING = object()
+
+
+class TestPhaseDLiveRing(unittest.TestCase):
+    """v948.26 🥷🧠 PHASE D — surface the Master-Brain reconciler to the client.
+    status_payload() carries `liveRing` (the provisional NOW-CURSOR from _ENGINE_FRAMES_LIVE),
+    projected defensively and with raw text hard-capped (ARCH_PINGPONG §6-Q4 SETTLED)."""
+
+    def _restore(self, saved):
+        if saved is _MISSING:
+            ca.__dict__.pop("_ENGINE_FRAMES_LIVE", None)
+        else:
+            ca._ENGINE_FRAMES_LIVE = saved
+
+    def test_liveRing_present_and_empty_when_no_deque(self):
+        saved = ca.__dict__.get("_ENGINE_FRAMES_LIVE", _MISSING)
+        ca.__dict__.pop("_ENGINE_FRAMES_LIVE", None)
+        try:
+            self.assertEqual(ca._project_live_ring(), [])   # defensive: deque may not exist yet
+            st = ca.status_payload()
+            self.assertIn("liveRing", st)
+            self.assertEqual(st["liveRing"], [])
+        finally:
+            self._restore(saved)
+
+    def test_liveRing_projects_deque_entries_and_hard_caps_raw_text(self):
+        import collections
+        saved = ca.__dict__.get("_ENGINE_FRAMES_LIVE", _MISSING)
+        dq = collections.deque(maxlen=16)
+        dq.append({"f": "f_5.jpg", "ts": 5000, "label": "tooltip", "owner": "live",
+                   "verdict": "grail", "why": "W" * 400, "sealed": False})
+        ca._ENGINE_FRAMES_LIVE = dq
+        try:
+            ring = ca._project_live_ring()
+            self.assertEqual(len(ring), 1)
+            r = ring[0]
+            self.assertEqual(r["f"], "f_5.jpg")
+            self.assertEqual(r["owner"], "live")
+            self.assertEqual(r["verdict"], "grail")
+            self.assertFalse(r["sealed"])   # a live-ring frame is never authoritative
+            self.assertLessEqual(len(r["why"]), ca._LIVE_RING_TEXT_CAP)   # raw text capped
+        finally:
+            self._restore(saved)
+
+
+class TestPhaseDEngineFramesOnBeat(unittest.TestCase):
+    """v948.26 🥷🧠 PHASE D — the sealed reel's engineFrames reach the theatre pack: the
+    Master-Brain owner/verdict/why joins onto the matching retro footage beat by `f`,
+    marked sealed:True (sealed-wins). Absent-safe: a reel with no engineFrames → no
+    `engineFrame` on any beat (the UI no-ops)."""
+
+    def _run_theatre(self, with_engine_frames):
+        import tempfile
+        t0 = 1_700_100_000_000
+        sid = "s_1700100000000_pd"
+        rows = [
+            {"ts": t0, "n": 1, "scene": "loot", "area": "Blood Moor", "names": ["Windforce"],
+             "frameId": "f_%d" % t0, "sessionId": sid, "lane": "deep", "captureTs": t0},
+            {"ts": t0 + 9000, "n": 2, "scene": "session_end", "mode": "session_end",
+             "sessionEnd": True, "sessionId": sid, "names": [], "frameId": ""},
+        ]
+        tmp = tempfile.mkdtemp(prefix="tvd-pd-")
+        journal = os.path.join(tmp, "sessions.jsonl")
+        hist = os.path.join(tmp, "hist")
+        reel = os.path.join(hist, "reel_" + sid)
+        os.makedirs(reel)
+        with open(journal, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
+        fname = "f_%d.jpg" % (t0 + 100)
+        with open(os.path.join(reel, fname), "wb") as f:
+            f.write(b"\xff\xd8\xff\xe0FAKE")
+        with open(os.path.join(reel, "index.json"), "w", encoding="utf-8") as f:
+            json.dump({"frames": [{"f": fname, "ts": t0 + 100}]}, f)
+        report = {"routing": [{"f": fname, "ts": t0 + 100, "label": "tooltip",
+                               "sources": ["read"], "gatePass": True}]}
+        if with_engine_frames:
+            report["engineFrames"] = [{
+                "f": fname, "ts": t0 + 100, "label": "tooltip",
+                "owner": "live", "verdict": "grail", "why": "live eye named 'Windforce'",
+                "layers": {"live": {"state": "named", "names": ["Windforce"]}},
+            }]
+        with open(os.path.join(reel, "kai_report.json"), "w", encoding="utf-8") as f:
+            json.dump(report, f)
+
+        old_h, old_j = ca.HIST_DIR, rp.JOURNAL
+        ca.HIST_DIR = hist
+        rp.JOURNAL = journal
+        if hasattr(ca.Handler, "_journal_cache"):
+            ca.Handler._journal_cache = None
+        try:
+            class _H:
+                def _load_journal_cached(self):
+                    return rp.load_journal()
+                def _thin_footage_beats(self, *a, **k):
+                    return ca.Handler._thin_footage_beats(self, *a, **k)
+                def _prewarm_session_frames(self, *a, **k):
+                    pass
+            j = ca.Handler._theatre_session(_H(), 1, pack="debug")
+            self.assertNotIn("error", j)
+            return [b for b in (j.get("beats") or []) if b.get("footage")]
+        finally:
+            ca.HIST_DIR = old_h
+            rp.JOURNAL = old_j
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_engine_frame_owner_verdict_reaches_the_footage_beat(self):
+        foot = self._run_theatre(with_engine_frames=True)
+        self.assertTrue(foot, "no footage beats built")
+        ef = [b for b in foot if b.get("engineFrame")]
+        self.assertEqual(len(ef), 1, "sealed engineFrame did not join onto the footage beat")
+        e = ef[0]["engineFrame"]
+        self.assertEqual(e["owner"], "live")
+        self.assertEqual(e["verdict"], "grail")
+        self.assertTrue(e["sealed"], "a materialized reel engineFrame must be authoritative")
+        self.assertEqual(e["layers"]["live"]["names"], ["Windforce"])
+
+    def test_absent_safe_when_reel_has_no_engine_frames(self):
+        foot = self._run_theatre(with_engine_frames=False)
+        self.assertTrue(foot, "no footage beats built")
+        self.assertTrue(all("engineFrame" not in b for b in foot),
+                        "older reels (no engineFrames) must not carry an engineFrame — UI no-op")
+
+
 class TestV872StickyBridge(unittest.TestCase):
     """v877 (army suite-audit #6) — the STANDBY-flash fix must stay fixed."""
 

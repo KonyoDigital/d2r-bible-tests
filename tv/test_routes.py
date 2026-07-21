@@ -2152,6 +2152,21 @@ class TestMasterBrainReconciler(unittest.TestCase):
         out = ca._kai_reconcile([row], [], [rd])
         self.assertEqual(out[0]["owner"], "live")
 
+    # ── v948.26 🥷🧠 Phase D — the live-ring DEQUE ENTRY shape (what _engine_driver's 2s
+    #    loop appends) surfaces owner/verdict/why to the NOW-CURSOR, never marked sealed ──
+    def test_live_ring_deque_entry_carries_owner_verdict_and_is_never_sealed(self):
+        # mirror the append _engine_driver does: live routing row → reconcile → ring entry
+        rd = {"names": ["Windforce"], "scene": "ground", "captureTs": 5000,
+              "frameId": "reel_S/f_5", "lane": "deep"}
+        row = ca._kai_live_routing_row(rd)
+        rec = {r["f"]: r for r in ca._kai_reconcile([row], [], [rd])}[row["f"]]
+        entry = {"f": row["f"], "ts": row["ts"], "label": row["label"],
+                 "owner": rec.get("owner"), "verdict": rec.get("verdict"),
+                 "why": rec.get("why"), "sealed": False}
+        self.assertEqual(entry["owner"], "live")
+        self.assertFalse(entry["sealed"])       # provisional guess — sealed reel wins in retro
+        self.assertIn("f_5.jpg", entry["f"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -4855,6 +4855,46 @@ def _eyes_pulse():
     globals()["_EYES_CACHE"] = (key, out)
     return out
 
+# ── v948.26 🥷🧠 PHASE D — SURFACE THE LIVE RING (ARCH_PINGPONG §6-Q4 SETTLED) ────────
+# The _ENGINE_FRAMES_LIVE deque (filled provisionally by _engine_driver's 2s loop via
+# _kai_reconcile — the CHEAP live guess, no OCR sweep/gate) is the console's NOW-CURSOR.
+# status_payload() projects it as `liveRing`; the sealed reel's engineFrames always win in
+# retro (sealed-wins law, _kai_engine_frame_effective) so the ring is the live cursor ONLY.
+_LIVE_RING_TEXT_CAP = 160   # SETTLED Q4 — any raw text (why/OCR/rawHead) HARD-CAPPED; keep the ~1.8s poll lean
+
+
+def _project_live_ring():
+    """Pure/defensive projection of _ENGINE_FRAMES_LIVE for /api/status.
+
+    The deque may not exist yet (cold boot / no deep read has landed) → []. Each live
+    EngineFrame is {f, ts, label, owner, verdict, why, sealed:False}; project it as-is and
+    HARD-CAP any raw text at _LIVE_RING_TEXT_CAP chars (the settled cap — don't bloat the
+    poll). `layers`/rawHead/ocrRaw are absent on the live guess today but capped here too so
+    a richer future live frame can't sneak an uncapped blob into the poll. Cheap: the deque
+    is already in memory (NOT re-derived from the 897KB journal, per Q4)."""
+    dq = globals().get("_ENGINE_FRAMES_LIVE")
+    if not dq:
+        return []
+
+    def _cap(v):
+        return v[:_LIVE_RING_TEXT_CAP] if (isinstance(v, str) and len(v) > _LIVE_RING_TEXT_CAP) else v
+
+    out = []
+    for fr in list(dq):
+        if not isinstance(fr, dict):
+            continue
+        row = {"ts": fr.get("ts"), "f": fr.get("f"), "label": fr.get("label"),
+               "owner": fr.get("owner"), "verdict": fr.get("verdict"),
+               "why": _cap(fr.get("why")), "sealed": bool(fr.get("sealed"))}
+        if isinstance(fr.get("layers"), dict):
+            row["layers"] = fr["layers"]
+        for _k in ("rawHead", "ocrRaw"):
+            if fr.get(_k) is not None:
+                row[_k] = _cap(fr.get(_k))
+        out.append(row)
+    return out
+
+
 def status_payload():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
@@ -4912,7 +4952,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v948.19",
+        "ver": "v948.26",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -4922,6 +4962,7 @@ def status_payload():
                    "err": globals().get("_DRV_ERR"),
                    "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},
         "watchdog": globals().get("_WATCHDOG_LAST"),
+        "liveRing": _project_live_ring(),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
         "eyes": _eyes_pulse(),
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
@@ -5667,6 +5708,7 @@ class Handler(BaseHTTPRequestHandler):
                     # v944/v947.2 🚦 — full routing row + KAI missed texts onto each film still
                     _routemap = {}   # f -> full routing dict
                     _kai_miss = {}   # f -> texts[]
+                    _engmap = {}     # v948.26 🥷🧠 f -> materialized EngineFrame (owner/verdict/why/layers)
                     try:
                         _krp = os.path.join(_reel_dir, "kai_report.json")
                         if os.path.isfile(_krp):
@@ -5676,8 +5718,16 @@ class Handler(BaseHTTPRequestHandler):
                                 _routemap[str(_rr.get("f") or "")] = _rr
                             for _mm in (_krep.get("missed") or []):
                                 _kai_miss[str(_mm.get("f") or "")] = list(_mm.get("texts") or [])[:8]
+                            # v948.26 🥷🧠 PHASE D — the Master-Brain reconciler's SEALED verdict.
+                            # engineFrames rides kai_report only on reels sealed by a Phase-C+
+                            # closer; older reels have no `engineFrames` key → _engmap stays {}
+                            # → beats carry no `engineFrame` → the UI no-ops (gate/HD-art
+                            # light-up pattern). This is what swaps the Engine Room drill-down's
+                            # "owns the final read" from INFERRED to AUTHORITATIVE.
+                            for _ef in (_krep.get("engineFrames") or []):
+                                _engmap[str(_ef.get("f") or "")] = _ef
                     except Exception:
-                        _routemap, _kai_miss = {}, {}
+                        _routemap, _kai_miss, _engmap = {}, {}, {}
                     # sticky journal tab on every film beat
                     _stash_times = []
                     for _r3 in sess:
@@ -5702,6 +5752,18 @@ class Handler(BaseHTTPRequestHandler):
                             elif _stab in ("personal", "shared") and not _lbl:
                                 _lbl = "stash"
                         _fid_reel = pref + fn[:-4]
+                        # v948.26 🥷🧠 PHASE D — attach the SEALED EngineFrame verdict, keyed by
+                        # the same bare `f` routing/engineFrames use. `sealed:True` is the
+                        # honest sealed-wins mark (mirrors _kai_engine_frame_effective): a
+                        # materialized reel EngineFrame is AUTHORITATIVE for its frame; the live
+                        # ring (status_payload) never reaches a retro beat — it's the now-cursor
+                        # only. Present only when engineFrames covers this frame; absent-safe.
+                        _efb = _engmap.get(fn)
+                        _engine_frame = None
+                        if _efb:
+                            _engine_frame = {"owner": _efb.get("owner"), "verdict": _efb.get("verdict"),
+                                             "why": _efb.get("why"), "layers": _efb.get("layers"),
+                                             "sealed": True}
                         # pre-seed KAI miss texts into maps via beat fields for dossier
                         _foot.append({
                             "ts": fts, "captureTs": fts, "footage": True,
@@ -5721,6 +5783,7 @@ class Handler(BaseHTTPRequestHandler):
                             "eyeSources": list(_rr.get("eyeSources") or []),
                             "stashTab": _stab or "",
                             "kaiMissTexts": _kai_miss.get(fn) or [],
+                            **({"engineFrame": _engine_frame} if _engine_frame else {}),
                         })
                 elif os.path.isdir(hist_dir):
                     # live/unsealed fallback only
