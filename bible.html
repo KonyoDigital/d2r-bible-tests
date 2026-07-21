@@ -28726,6 +28726,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           tier = 'grail';
           try { if (res.verdict) res.verdict.tier = 'grail'; } catch(eG2){}
           out.grailGate = 'q-' + q;
+        } else {
+          // v948.19 — RUNEWORD PROTECTION (split-brain fix, Grok forensic #6 2026-07-21 21:05 run):
+          // "Spirit" read grail on the server /kai_verdict journal (bare runeword name matched the
+          // server's broad name harvest) while THIS applied path tossed it (score 0, no unique/set
+          // match — _aicIsGrailName is deliberately unique/set-only, v948.5). Same read, two
+          // disagreeing verdicts. Reconciled: a runeword is real forged gear — NEVER a toss/border —
+          // but it is not a grail item (grail = unique/set only; runewords track in their own
+          // Chronicle). findRuneword/_rwResolve recognize both a bare name ("Spirit") and a
+          // base-glued read ("Spirit Monarch"). Mirrors the matching server-side fix in
+          // control_app.py's /kai_verdict (_kai_runewordnames) so both paths return the SAME
+          // verdict for the SAME item.
+          try {
+            var _rwHit = (typeof _rwResolve === 'function') ? _rwResolve(nm)
+                       : (typeof findRuneword === 'function') ? findRuneword(nm) : null;
+            if (_rwHit && (tier === 'toss' || tier === 'border')){
+              tier = 'keep';
+              try { if (res.verdict) res.verdict.tier = 'keep'; } catch(eRW){}
+              out.runewordGate = _rwHit;
+            }
+          } catch(eRW2){}
         }
       } catch(eGate){}
       out.name = nm; out.tier = tier; out.score = (res.verdict && res.verdict.score) || 0;
@@ -33929,7 +33949,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v948.18', name:'Aftermath Integrity', date:'2026-07-21', note:'Grok forensic punch list fixed: runes 404-to-4 SET-clobber guarded (never overwrite a good tally with a thin funnel), gems funnel honest-error receipt, atomic kai_report write, second-eye drains backlog under load on a parallel stall-worker, 35s live-read timeout cap. Toward the Master Brain / Ninja KAI flagship.' };
+  window.D2R_BUILD = { id:'v948.19', name:'Aftermath Integrity', date:'2026-07-21', note:'Grok forensic punch list continued: Spirit grail/toss split-brain reconciled — a runeword is a KEEP (never toss, never grail) on both the /kai_verdict journal AND the aicJudgeApply applied action; materials tab grid classifier recalibrated against real receipted intake ground truth (was missing genuine materials frames AND false-firing on dark gameplay/boot scenes). Toward the Master Brain / Ninja KAI flagship.' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');

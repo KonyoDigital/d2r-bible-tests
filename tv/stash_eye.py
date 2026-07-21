@@ -257,8 +257,31 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         if ft >= 0.08 and fc < 0.06 and fb >= 0.12:
             detail["pick"] = "runes"
             return "stash-runes", detail
-        # materials: dark empties + some chroma (essences) but NOT gear-dense vault
-        if fd >= 0.42 and 0.04 <= fc < 0.10 and fg < 0.10 and ft < 0.08:
+        # materials: dark empties + a little chroma (essences/keys/organs) but NOT
+        # gear-dense vault, NOT the vivid gem chroma band, and BOUNDED away from
+        # near-pure-black scenes (boot/loading splash, dark gameplay with fire chroma —
+        # the false-positive twin the is_boot_screen guard was built for).
+        # v948.19 — RECALIBRATED (Grok forensic #5, 2026-07-21 21:05 fast run: 'materials 0
+        # classes'). The old band (fd>=0.42, fc 0.04-0.10) was miscalibrated on BOTH sides,
+        # found by cross-referencing real materialIntake RECEIPTS (ground truth — the LOCKED
+        # intake actually read materials and confirmed totals) against their source frames:
+        #   · UNDER-detection: 2 receipted-real materials frames (reel_s_1784561282553_86929/
+        #     f_1784561356596.jpg total=184, reel_s_1784561832500_95271/f_1784561874907.jpg
+        #     total=210) measured fd=0.3839 fc=0.0308 — BELOW the old fd>=0.42 and fc>=0.04
+        #     floors, so the grid vote never fired and only OCR chrome-read could catch it.
+        #   · OVER-detection: dark gameplay-with-fire combat frames (e.g.
+        #     reel_s_1784647619282_26240/f_1784647734875.jpg, a Catacombs fight, fd=0.7795)
+        #     and D2R boot/reconnect splash frames (fd 0.85-0.95, the is_boot_screen class)
+        #     landed INSIDE the old band and grid-fingerprinted as materials with zero UI
+        #     open — exactly the wrong-cell class this heuristic must never produce.
+        # New band verified against a 3200-frame sweep of every historical reel: adds the 2
+        # receipted-real frames + 4 more visually-confirmed Materials-tab frames across 4
+        # OTHER sessions (true positives), while removing 88 false positives (every one
+        # inspected was a boot-splash/lobby cluster at a reel's start) and zero confirmed
+        # regressions on gems/personal/shared/runes ground truth. fd is now a closed band
+        # (not just a floor) because every confirmed real STASH-panel frame across all tabs
+        # sampled fd in [0.31, 0.42] — gameplay/splash scenes run much darker.
+        if 0.30 <= fd <= 0.55 and 0.02 <= fc < 0.045 and fg < 0.12 and ft < 0.08:
             detail["pick"] = "materials"
             return "stash-materials", detail
         # softer vault

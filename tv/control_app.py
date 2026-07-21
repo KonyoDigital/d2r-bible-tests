@@ -1899,6 +1899,51 @@ def _kai_rarenames():
     return r
 
 
+def _kai_runewordnames():
+    """v948.19 — the RUNEWORD_TIP name space (Spirit/Enigma/Insight/...), lowercased.
+    FIX for the Spirit grail/toss split-brain (Grok forensic #6, 2026-07-21 21:05 fast run):
+    a bare runeword name like 'Spirit' was in _kai_fullnames() (harvested generically as a
+    Title-Case JSON key) but NOT in _kai_rarenames(), so the /kai_verdict grail gate promoted
+    it straight to tier='grail' — while bible.html's client-side aicJudgeApply deliberately
+    treats runewords as NOT grail (_aicIsGrailName is unique/set-only by design, v948.5), so the
+    APPLIED action stayed whatever the affix judge scored (toss, score 0). Two different verdicts
+    for the same read = the split-brain.
+    RECONCILIATION (both paths, same law): a runeword is REAL FORGED GEAR — never a toss/border —
+    but it is NOT a grail item; grail tracking is unique/set only, runewords have their own
+    Chronicle (100-runeword progress). So both /kai_verdict (here) and bible.html's aicJudgeApply
+    force toss/border → 'keep' for a recognized runeword name, and neither promotes it to 'grail'.
+    This set is scoped to JUST the RUNEWORD_TIP object (brace-depth bounded) so it can't
+    accidentally swallow unrelated Title-Case keys from other tables."""
+    r = globals().get("_KAI_RUNEWORD_NAMES")
+    if r is not None:
+        return r
+    names = set()
+    try:
+        import re as _re
+        with open(os.path.join(REPO, "bible.html"), encoding="utf-8", errors="replace") as _bf:
+            src = _bf.read()
+        m = _re.search(r"RUNEWORD_TIP\s*=\s*\{", src)
+        if m:
+            i = m.end()
+            depth = 1
+            j = i
+            while j < len(src) and depth > 0:
+                if src[j] == "{":
+                    depth += 1
+                elif src[j] == "}":
+                    depth -= 1
+                j += 1
+            block = src[i:j]
+            for km in _re.finditer(r"\"([A-Z][A-Za-z'\- ]{1,40})\"\s*:\s*\{", block):
+                nm = km.group(1).strip()
+                if nm:
+                    names.add(nm.lower())
+    except Exception:
+        pass
+    globals()["_KAI_RUNEWORD_NAMES"] = names
+    return names
+
+
 def _kai_vocab():
     """v935 — KAI's item lexicon (cached in a global, built once). Seeds the 33 classic rune
     names + gem words, then harvests alphabetic name tokens (len>=4) from every name:'…' /
@@ -4303,7 +4348,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v948.18",
+        "ver": "v948.19",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -5596,12 +5641,27 @@ class Handler(BaseHTTPRequestHandler):
                 _fts = int(body.get("fts") or 0) or int(time.time() * 1000)
                 _vname = str(body.get("name") or "")[:60]
                 _tier = str(((body.get("verdict") or {}).get("tier")) or "")[:12]
-                # v940.1 GRAIL GATE — a known unique/set/runeword name is never a toss/border.
+                # v940.1 GRAIL GATE — a known unique/set name is never a toss/border.
                 # v943.2 — but EXCLUDE the generated rare-name combos: a rare "Beast Noose" is
                 # recognized (register) yet CAN genuinely be a toss, so it must not auto-promote.
+                # v948.19 — SPLIT-BRAIN FIX (Grok forensic #6, 'Spirit' grail-vs-toss): a bare
+                # RUNEWORD name (e.g. "Spirit") was falling into _kai_fullnames() (harvested
+                # generically as a Title-Case JSON key) but NOT into _kai_rarenames(), so it got
+                # promoted straight to 'grail' HERE while bible.html's client-side aicJudgeApply
+                # (unique/set-only gate by design, v948.5) left the APPLIED action as whatever the
+                # affix judge scored — toss. Same read, two disagreeing verdicts. Reconciled: a
+                # runeword is real forged gear (never toss/border) but it is NOT a grail item —
+                # grail is unique/set only; runewords track in their own Chronicle. So a runeword
+                # name forces 'keep' here, matching the mirrored fix in bible.html's
+                # aicJudgeApply (_rwResolve/findRuneword force-to-keep). Only a true unique/set
+                # name still promotes to 'grail'.
                 _vlow = _vname.lower()
-                if _vname and _vlow in _kai_fullnames() and _vlow not in _kai_rarenames() and _tier in ("toss", "border"):
-                    _tier = "grail"
+                if _vname and _vlow in _kai_fullnames() and _vlow not in _kai_rarenames():
+                    if _vlow in _kai_runewordnames():
+                        if _tier in ("toss", "border"):
+                            _tier = "keep"
+                    elif _tier in ("toss", "border"):
+                        _tier = "grail"
                 # v948.1/v948.2 — applied route from aicJudgeApply; live=true = mid-session
                 _applied = body.get("applied") if isinstance(body.get("applied"), dict) else None
                 _app_mode = str((_applied or {}).get("mode") or "")[:16]

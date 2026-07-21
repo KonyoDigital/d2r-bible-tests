@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v948.18"   # aftermath integrity: runes-clobber guard, gems receipt, atomic report, 2nd-eye stall-drain, read timeout
+VERSION = "v948.19"   # aftermath integrity: Spirit grail/toss split-brain reconciled (runeword=keep never grail/toss), materials grid recalibrated (real receipts under-detected, dark-gameplay false positives removed)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

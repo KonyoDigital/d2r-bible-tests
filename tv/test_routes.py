@@ -506,14 +506,22 @@ class TestV943Register(unittest.TestCase):
 class TestV943GrailGate(unittest.TestCase):
     """The /kai_verdict GRAIL GATE split (v943.2): a name promotes toss/border → grail only if
     it's a known DB item AND NOT in the generated rare/crafted combo space. Replicates the exact
-    route condition so the two consumers of _kai_fullnames stay correctly divergent."""
+    route condition so the two consumers of _kai_fullnames stay correctly divergent.
+
+    v948.19 — extended to replicate the RUNEWORD branch added to fix the 'Spirit' grail/toss
+    split-brain (Grok forensic #6, 2026-07-21 21:05 fast run): a runeword name is real forged
+    gear (never toss/border) but is NOT a grail item (grail = unique/set only). _gate() now
+    mirrors control_app.py's /kai_verdict exactly, including the runewordnames branch."""
 
     @staticmethod
     def _gate(name, tier):
         low = name.lower()
-        if name and low in ca._kai_fullnames() and low not in ca._kai_rarenames() \
-                and tier in ("toss", "border"):
-            return "grail"
+        if name and low in ca._kai_fullnames() and low not in ca._kai_rarenames():
+            if low in ca._kai_runewordnames():
+                if tier in ("toss", "border"):
+                    return "keep"
+            elif tier in ("toss", "border"):
+                return "grail"
         return tier
 
     def test_unique_promotes_to_grail(self):
@@ -532,6 +540,31 @@ class TestV943GrailGate(unittest.TestCase):
 
     def test_rarenames_is_subset_of_fullnames(self):
         self.assertTrue(ca._kai_rarenames() <= ca._kai_fullnames())
+
+    def test_spirit_runeword_never_grail_never_toss(self):
+        """THE BUG (Grok forensic #6): 'Spirit' journaled tier='grail' on the /kai_verdict
+        server path (bare runeword name caught by the old broad fullnames-minus-rarenames
+        gate) while bible.html's client-side aicJudgeApply applied 'toss' (score 0) — same
+        read, two disagreeing verdicts. THE FIX: a runeword forces 'keep' on both toss AND
+        border, on NEITHER path does it become 'grail' (grail tracking is unique/set only —
+        runewords have their own 100-word Chronicle). This pin proves the server side; the
+        mirrored client fix lives in bible.html aicJudgeApply (_rwResolve/findRuneword)."""
+        self.assertEqual(self._gate("Spirit", "toss"), "keep")
+        self.assertEqual(self._gate("Spirit", "border"), "keep")
+        self.assertEqual(self._gate("Spirit", "keep"), "keep")  # untouched, already keep
+        # a handful of other real runewords must never grail-promote either
+        self.assertEqual(self._gate("Enigma", "toss"), "keep")
+        self.assertEqual(self._gate("Insight", "border"), "keep")
+        # true uniques/sets are UNCHANGED by the runeword branch — still grail-promote
+        self.assertEqual(self._gate("Windforce", "toss"), "grail")
+
+    def test_runewordnames_is_subset_of_fullnames_and_disjoint_from_rarenames(self):
+        rw = ca._kai_runewordnames()
+        self.assertTrue(rw <= ca._kai_fullnames())
+        self.assertTrue(len(rw) >= 90)   # ~100-runeword Chronicle
+        self.assertIn("spirit", rw)
+        self.assertIn("enigma", rw)
+        self.assertFalse(rw & ca._kai_rarenames())
 
 
 class TestV943EngineSelfHeal(unittest.TestCase):
@@ -1608,6 +1641,50 @@ class TestStashTabIdentity(unittest.TestCase):
             self.assertEqual(out["cls"], "gameplay")
             self.assertEqual(out["tab"], "")
             self.assertIn("boot-screen-guard", out["sources"])
+
+    def test_materials_grid_detects_real_receipted_frame(self):
+        """v948.19 — Grok forensic #5 (2026-07-21 21:05 fast run, 'materials 0 classes').
+
+        THE MATERIALS VERDICT for reel s_1784657116450_14249: honest-zero — the player
+        never opened the Materials tab this run (0 OCR-chrome hits across all 153 frames'
+        routing rows, and visual review of the reel confirms Personal -> Shared -> Runes
+        only). This pin proves the OTHER half of Grok's question: does classify_stash_grid
+        actually detect a real materials frame when one exists? Before v948.19 the answer
+        was NO — this exact frame is ground truth (a real, receipted materialIntake fired
+        on it in sessions.jsonl: sessionId s_1784561805354_94817, frameId
+        'reel_s_1784561282553_86929/f_1784561356596', total=184, ok=True) and the OLD
+        materials band (fd>=0.42, fc 0.04-0.10) MISSED it (fd=0.3839, fc=0.0308 — both
+        outside the old floors). The recalibrated band in stash_eye.py now catches it."""
+        import stash_eye as se
+        p = os.path.join(HERE, "frames", "hist",
+                          "reel_s_1784561282553_86929", "f_1784561356596.jpg")
+        if os.path.isfile(p):
+            label, detail = se.classify_stash_grid(p)
+            self.assertEqual(label, "stash-materials")
+            self.assertEqual(detail.get("pick"), "materials")
+        # second receipted-real materials frame (different session, same law) —
+        # sessionId s_1784563564997_15694, total=210
+        p2 = os.path.join(HERE, "frames", "hist",
+                           "reel_s_1784561832500_95271", "f_1784561874907.jpg")
+        if os.path.isfile(p2):
+            label2, _ = se.classify_stash_grid(p2)
+            self.assertEqual(label2, "stash-materials")
+
+    def test_materials_grid_rejects_dark_gameplay_false_positive(self):
+        """v948.19 — the false-positive twin of the under-detection bug above: the OLD
+        materials band (fd>=0.42, fc 0.04-0.10) also happily matched a plain GAMEPLAY
+        combat frame (Catacombs fight, fire-lit, no stash panel open at all) because dark
+        floor + fire chroma looks like 'empty materials slots + essence icons' in pure
+        pixel terms. Found auditing reel s_1784647619282_26240 while calibrating the
+        fix above. The recalibrated band (upper-bounded fd<=0.55, tighter fc) rejects it —
+        same law as the is_boot_screen guard, extended to non-splash dark scenes."""
+        import stash_eye as se
+        p = os.path.join(HERE, "frames", "hist",
+                          "reel_s_1784647619282_26240", "f_1784647734875.jpg")
+        if os.path.isfile(p):
+            label, detail = se.classify_stash_grid(p)
+            self.assertNotEqual(label, "stash-materials")
+            self.assertGreater(detail.get("frac_dark", 0), 0.55)  # confirms why: too dark
 
     def test_retro_promote_and_gap_funnel(self):
         """v948.7 — cluster promote + gap funnel from reel labels."""
