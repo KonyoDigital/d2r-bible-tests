@@ -2797,7 +2797,7 @@ def _engine_driver():
                         _tot = int((landed_ik or {}).get("total") or 0)
                         print(f"🧰 engine-driver: {inflight['key']} intake journaled ✓ total={_tot}", flush=True)
                         try:
-                            _intake_lease_release(inflight.get("tab") or "",
+                            _intake_lease_release(inflight.get("key") or "",
                                                  inflight.get("lease_owner") or "engine-driver")
                         except Exception:
                             pass
@@ -2816,7 +2816,7 @@ def _engine_driver():
                               f"{int(inflight.get('tries') or 0) + 1} empty shots — giving up this visit",
                               flush=True)
                         try:
-                            _intake_lease_release(inflight.get("tab") or "",
+                            _intake_lease_release(inflight.get("key") or "",
                                                  inflight.get("lease_owner") or "engine-driver")
                         except Exception:
                             pass
@@ -2830,7 +2830,7 @@ def _engine_driver():
                         visit_done[inflight["key"]] = True   # give up, don't loop forever
                         print(f"⚠ engine-driver: {inflight['key']} failed twice — giving up this visit", flush=True)
                         try:
-                            _intake_lease_release(inflight.get("tab") or "",
+                            _intake_lease_release(inflight.get("key") or "",
                                                  inflight.get("lease_owner") or "engine-driver")
                         except Exception:
                             pass
@@ -2839,7 +2839,11 @@ def _engine_driver():
                 job = fire_q.pop(0)
                 # v945.6 — claim the tab lease before firing so an open board can't dual-fire
                 _owner = "engine-driver"
-                _cl = _intake_lease_claim(job.get("tab") or job.get("key") or "", _owner)
+                # v945.7 (Fable review) — claim by KEY, not tab: the board claims vault as
+                # 'vault_<tab>' while the driver's tab is bare 'personal' — mismatched keys made
+                # the lease a no-op for vault dual-fire. key is 'vault_personal' / 'runes' — the
+                # SAME scheme the board uses, so the lease actually cross-blocks now.
+                _cl = _intake_lease_claim(job.get("key") or job.get("tab") or "", _owner)
                 if not _cl.get("ok"):
                     # someone else holds it — re-queue later (don't burn the visit)
                     job["tries"] = int(job.get("tries") or 0)
@@ -2888,7 +2892,7 @@ def _engine_driver():
                     else:
                         visit_done[job["key"]] = True
                         try:
-                            _intake_lease_release(job.get("tab") or "",
+                            _intake_lease_release(job.get("key") or "",
                                                  job.get("lease_owner") or "engine-driver")
                         except Exception:
                             pass

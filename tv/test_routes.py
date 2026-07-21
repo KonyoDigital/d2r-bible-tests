@@ -1082,6 +1082,28 @@ class TestIntakeLease(unittest.TestCase):
         self.assertTrue(c["ok"])
         self.assertEqual(c["owner"], "engine-driver")
 
+    def test_vault_key_scheme_cross_blocks(self):
+        # v945.7 (Fable review) — the board claims vault as 'vault_<tab>'. If the driver claimed
+        # the bare tab ('personal') the two keys would never collide and the lease would be a no-op
+        # for vault dual-fire. A same-key cross-owner claim MUST block.
+        a = ca._intake_lease_claim("vault_personal", "board", now_ms=5_000_000)
+        self.assertTrue(a["ok"])
+        b = ca._intake_lease_claim("vault_personal", "engine-driver", now_ms=5_000_100)
+        self.assertFalse(b["ok"], "vault_personal must cross-block (same key, diff owner)")
+        # and the bare tab is a DIFFERENT lease — proving why the driver must use the key
+        c = ca._intake_lease_claim("personal", "engine-driver", now_ms=5_000_200)
+        self.assertTrue(c["ok"], "'personal' != 'vault_personal' — mismatched keys don't block")
+
+    def test_driver_claims_by_key_not_tab(self):
+        # source-pin the fix: the engine-driver's lease claim must use job['key'] (which is
+        # 'vault_personal' / 'runes' — the board's scheme), not the bare job['tab'].
+        import inspect
+        src = inspect.getsource(ca)
+        self.assertIn('_intake_lease_claim(job.get("key") or job.get("tab")', src)
+        # every driver release uses the key too (claim/release keys must match or the lease leaks)
+        self.assertNotIn('_intake_lease_release(inflight.get("tab")', src)
+        self.assertNotIn('_intake_lease_release(job.get("tab")', src)
+
 
 class TestSessionHealth(unittest.TestCase):
     """v946 — one-glance session health from journal rows."""
