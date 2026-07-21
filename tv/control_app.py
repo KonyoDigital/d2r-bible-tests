@@ -1886,22 +1886,24 @@ def _kai_compile_register(sess_rows):
 #           without a ≥2 winner → skipReason "disagreement".
 # Stage 3 — lanes OBEY the ledger: funnel/judge fire only rows the ledger marked fireable.
 def _kai_stage3_select(routing):
-    """v944.6 Stage 3 pure selector — which ledger rows the funnel/judge may fire.
+    """v944.6/v946 Stage 3 pure selector — funnel / judge / vault lanes.
 
     Fireable contract (pre-receipt):
       • confidence >= 2 (Stage 2 quorum already cleared)
-      • route set (tally:* or judge)
+      • route set (tally:* | judge | vault)
       • not already routed
       • skipReason is the would-fire marker:
           tally gap  → "not-selected"
           judge slot → "cap"
-    Vault rows stay skipReason "no-vault-fire" (intake-lease deferred) — NEVER selected here.
-    Returns (funnel_jobs, judge_jobs):
+          vault gap  → "not-selected" (v946; was no-vault-fire forever)
+    Returns (funnel_jobs, judge_jobs, vault_jobs):
       funnel_jobs: one {tab,f,ts,route} per tally tab (newest frame wins)
       judge_jobs:  {f,ts} list in timestamp order (caller applies TV_KAI_JUDGE_MAX cap)
+      vault_jobs:  one {f,ts,label} for newest inventory/stash vault candidate
     """
     funnel_by_tab = {}
     judges = []
+    vault_best = None
     for r in routing or []:
         if int(r.get("confidence") or 0) < 2:
             continue
@@ -1917,8 +1919,77 @@ def _kai_stage3_select(routing):
                                       "route": route}
         elif route == "judge" and skip == "cap":
             judges.append({"f": r.get("f"), "ts": r.get("ts")})
+        elif route == "vault" and skip in ("not-selected", "no-vault-fire"):
+            # v946 — vault lane open (lease protects dual-fire). Newest conf≥2 panel wins.
+            if vault_best is None or int(r.get("ts") or 0) >= int(vault_best.get("ts") or 0):
+                vault_best = {"f": r.get("f"), "ts": r.get("ts"),
+                              "label": r.get("label") or "stash"}
     judges.sort(key=lambda x: int(x.get("ts") or 0))
-    return list(funnel_by_tab.values()), judges
+    return list(funnel_by_tab.values()), judges, ([vault_best] if vault_best else [])
+
+
+def _session_health_from_rows(rows, leases=None, driver=None):
+    """v946 — one-glance session truth for the console health strip.
+    Pure: tabs (best real intake), leases, driver pulse, overall verdict."""
+    tabs = {}
+    story = []
+    for r in rows or []:
+        ik = r.get("intake") if isinstance(r.get("intake"), dict) else None
+        if ik:
+            tab = str(ik.get("tab") or ik.get("kind") or "").lower()
+            if not tab:
+                continue
+            tot = int(ik.get("total") or 0)
+            ok = bool(ik.get("ok", True)) and tot > 0
+            cur = tabs.get(tab)
+            if ok and (cur is None or tot >= int(cur.get("total") or 0)):
+                tabs[tab] = {"status": "read", "total": tot, "ok": True}
+            elif cur is None or not cur.get("ok"):
+                tabs[tab] = {"status": "miss" if not ok else "read",
+                             "total": tot if ok else 0, "ok": ok}
+        if r.get("lane") == "deep" and (r.get("stashTab") or r.get("names")):
+            st = str(r.get("stashTab") or "")
+            nms = r.get("names") or []
+            if st:
+                story.append("visited " + st)
+            elif nms:
+                story.append("named " + ", ".join(str(x) for x in nms[:2]))
+        if r.get("lane") == "kai" and isinstance(r.get("kai"), dict):
+            k = r["kai"]
+            if "missedFrames" in k:
+                story.append("KAI closed · " + str(k.get("missedFrames") or 0) + " missed-text")
+            if isinstance(k.get("register"), dict):
+                story.append("register " + str(k["register"].get("count") or 0))
+            if isinstance(k.get("judge"), dict) and k["judge"].get("name"):
+                story.append("judge " + str(k["judge"].get("name"))[:28])
+    # de-dupe story preserving order, keep last 8
+    seen_s, uniq = set(), []
+    for s in story:
+        if s in seen_s:
+            continue
+        seen_s.add(s)
+        uniq.append(s)
+    uniq = uniq[-8:]
+    misses = [t for t, v in tabs.items() if not v.get("ok")]
+    reads = [t for t, v in tabs.items() if v.get("ok")]
+    verdict = "ok"
+    if misses and not reads:
+        verdict = "miss"
+    elif misses:
+        verdict = "partial"
+    elif not tabs:
+        verdict = "idle"
+    drv = driver or {}
+    return {
+        "tabs": tabs,
+        "leases": leases or {},
+        "refires": int(drv.get("refire") or drv.get("refires") or 0),
+        "driverFired": int(drv.get("fired") or 0),
+        "verdict": verdict,
+        "story": uniq,
+        "tabSummary": {t: ("×" + str(v["total"])) if v.get("ok") else "MISS"
+                       for t, v in tabs.items()},
+    }
 
 
 def _kai_frame_sig(path):
@@ -2083,7 +2154,9 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             elif route == "judge":
                 skip = "cap"
             elif route == "vault":
-                skip = "no-vault-fire"
+                # v946 — vault is a real Stage-3 lane (was forever no-vault-fire).
+                # "not-selected" = fireable; legacy reports may still say no-vault-fire.
+                skip = "not-selected"
             else:
                 skip = "no-route"
         # v944 DEDUPE LAW (routing-only, Konyo explicit) — consecutive frames with an identical
@@ -2284,14 +2357,12 @@ def _kai_closer_loop():
             try:
                 _watchdog_check(sid, sess_rows)
 
-                # ── v944.6 Stage 3 📸/🔬 lanes OBEY the ledger ──
-                # Build a PRE-fire routing plan from the scan, then funnel/judge fire ONLY rows
-                # the ledger marks fireable (conf≥2, route set, skip not-selected|cap). After
-                # receipts land, the final ledger rebuild (below) writes `routed` back. Vault
-                # stays no-vault-fire (intake-lease still deferred).
+                # ── v944.6/v946 Stage 3 📸/🔬/🏦 lanes OBEY the ledger ──
+                # PRE-fire plan → funnel/judge/vault fire ONLY ledger-fireable rows.
+                # After receipts land, final rebuild writes `routed` back.
                 try:
                     _plan = _kai_build_routing(routing_scan, sess_rows, sid, sess_rows)
-                    _funnel_jobs, _judge_jobs = _kai_stage3_select(_plan)
+                    _funnel_jobs, _judge_jobs, _vault_jobs = _kai_stage3_select(_plan)
                     w2 = globals().get("_MAIN_WIN")
                     # 📸 FUNNEL — one shot per ledger-selected tally tab (newest frame), SET-wrapper
                     for _fj in _funnel_jobs:
@@ -2346,10 +2417,11 @@ def _kai_closer_loop():
                             except Exception:
                                 pass
                     # 🔬 JUDGE — only ledger-selected tooltip rows (cap applied here)
+                    # v946 — default cap 16 (Fable soak: rarely hit 12; fat tooltip reels need headroom)
                     try:
-                        _jcap = max(0, int(os.environ.get("TV_KAI_JUDGE_MAX", "12")))
+                        _jcap = max(0, int(os.environ.get("TV_KAI_JUDGE_MAX", "16")))
                     except Exception:
-                        _jcap = 12
+                        _jcap = 16
                     for m4 in _judge_jobs[:_jcap]:
                         if w2 is None or os.environ.get("TV_KAI_JUDGE", "1") == "0":
                             break
@@ -2373,6 +2445,29 @@ def _kai_closer_loop():
                             time.sleep(20.0)   # gentle pacing — the judge is a full vision read
                         except Exception as _je:
                             print(f"⚠ KAI judge fire failed: {_je}", flush=True)
+                    # 🏦 VAULT — one newest ledger-selected inventory/stash panel (SET via vaultIntake)
+                    for _vj in _vault_jobs[:1]:
+                        if w2 is None or os.environ.get("TV_KAI_VAULT", "1") == "0":
+                            break
+                        _ffv = str(_vj.get("f") or "")
+                        if not _ffv:
+                            continue
+                        _hpv = "/hist/reel_" + sid + "/" + _ffv
+                        _fidv = "reel_" + sid + "/" + _ffv.replace(".jpg", "")
+                        _tabv = "personal"  # vaultIntake is tab-agnostic; journal tab for receipt
+                        _jsv = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                                "if(typeof W.vaultIntake!=='function')return 0;"
+                                "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+                                "return W.vaultIntake([new W.File([b],'kai-vault.jpg',{type:'image/jpeg'})],{fromTv:true})}).then(function(res){"
+                                "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-vault',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
+                                "}).catch(function(){});return 1}catch(e){return 0}})()"
+                                ) % (json.dumps(_hpv), json.dumps(_tabv), json.dumps(_fidv))
+                        try:
+                            _ejs(w2, _jsv, timeout=5.0)
+                            print(f"🏦 KAI vault (ledger): fired {_ffv}", flush=True)
+                            time.sleep(8.0)
+                        except Exception as _ve:
+                            print(f"⚠ KAI vault fire failed: {_ve}", flush=True)
                 except Exception as _kfe:
                     print(f"⚠ KAI funnel stage error: {_kfe}", flush=True)
 
@@ -2383,6 +2478,21 @@ def _kai_closer_loop():
                     _reg_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
                     _register = _kai_compile_register(_reg_rows)
                     report["register"] = _register
+                    # v946 — CHRONICLE INBOX propose (review gate; never silent grail write)
+                    try:
+                        if w2 is not None and _register and os.environ.get("TV_CHRONICLE_PROPOSE", "1") != "0":
+                            _items = [{"name": x.get("name"), "firstSeenTs": x.get("firstSeenTs"),
+                                       "frameId": x.get("frameId"), "tier": x.get("tier"),
+                                       "sessionId": sid, "loc": x.get("loc")}
+                                      for x in (_register or [])[:40]]
+                            _cjs = ("(function(){try{var F=document.getElementById('tvd-eng');"
+                                    "if(!F||!F.contentWindow||typeof F.contentWindow.kaiChroniclePropose!=='function')return 0;"
+                                    "var r=F.contentWindow.kaiChroniclePropose(%s);return (r&&r.queued)||0}catch(e){return -1}})()"
+                                    ) % json.dumps(_items)
+                            _cq = _ejs(w2, _cjs, timeout=4.0)
+                            print(f"📖 Chronicle propose: queued={_cq} from {len(_items)} register items", flush=True)
+                    except Exception as _cpe:
+                        print(f"⚠ Chronicle propose failed: {_cpe}", flush=True)
                     # v944 🚦 — the ROUTING LEDGER rides the same re-read (funnel/judge receipts
                     # are now in the journal, so 'routed' is truthful). Evidence only — no firing.
                     _routing = _kai_build_routing(routing_scan, sess_rows, sid, _reg_rows)
@@ -2843,17 +2953,36 @@ def status_payload():
                 "ts": e.get("ts"),
             }
         )
+    # v946 — session health + mind story (journal tail + leases + driver pulse)
+    try:
+        _jtail = _kai_journal_rows()[-200:]
+        _sid_now = ""
+        for _r in reversed(_jtail):
+            if _r.get("sessionId"):
+                _sid_now = str(_r.get("sessionId"))
+                break
+        _sess_tail = [r for r in _jtail if not _sid_now or r.get("sessionId") == _sid_now][-80:]
+        _drv = {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
+                "fired": globals().get("_DRV_FIRED", 0), "refire": globals().get("_DRV_REFIRE", 0),
+                "err": globals().get("_DRV_ERR")}
+        _sess_h = _session_health_from_rows(_sess_tail, leases=_intake_lease_status(), driver=_drv)
+    except Exception:
+        _sess_h = {"tabs": {}, "leases": {}, "verdict": "idle", "story": [], "tabSummary": {}}
+        _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v945.6",
+        "ver": "v946",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
-        "driver": {"seen": globals().get("_DRV_SEEN", 0), "queued": globals().get("_DRV_QUEUED", 0),
-                   "fired": globals().get("_DRV_FIRED", 0), "err": globals().get("_DRV_ERR"),
-                   "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},   # v934.3 — the tally driver's pulse · v943.4 revive give-up flag
+        "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
+                   "fired": _drv.get("fired", 0), "refire": _drv.get("refire", 0),
+                   "err": globals().get("_DRV_ERR"),
+                   "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},
         "watchdog": globals().get("_WATCHDOG_LAST"),
         "eyes": _eyes_pulse(),
-        "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),   # v935 — last reel's expectation-check verdict
+        "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
+        "mindStory": (_sess_h.get("story") or [])[-6:],
+        "journalMB": (lambda: round(os.path.getsize(os.path.join(HERE, "sessions.jsonl")) / 1e6, 1) if os.path.isfile(os.path.join(HERE, "sessions.jsonl")) else 0.0)(),
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shell": "pywebview",
         "mode": ("stopping" if _stop_inflight else mode),
@@ -2862,7 +2991,7 @@ def status_payload():
         "stopping": bool(_stop_inflight),
         "pid": _pid_cached(),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
-        "intakeRing": ((st or {}).get("intakes") or [])[-12:],   # v903 — the dashboard's 📸 feed
+        "intakeRing": ((st or {}).get("intakes") or [])[-12:],
         "readCount": (
             (st or {}).get("readCount")
             if (st or {}).get("readCount") is not None
@@ -2878,16 +3007,14 @@ def status_payload():
         "logPath": LOG_PATH,
         "agentPort": AGENT_PORT,
         "controlPort": CONTROL_PORT,
-        # v772 — pin status (CrossOver on Mac · native D2R on Windows)
         "captureTarget": (st or {}).get("captureTarget") or {},
-        "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),   # v785 — film honesty for the stage
-        "health": (st or {}).get("health") or {},     # v789 — fault-lamp truth
-        # v899 — no-game banner (also mirrored on health from agent)
+        "eyeAgeMs": (st or {}).get("eyeAgeMs", -1),
+        "health": (st or {}).get("health") or {},
         "gameOk": (st or {}).get("gameOk", True) if st else True,
         "aiPaused": bool((st or {}).get("aiPaused") or ((st or {}).get("health") or {}).get("aiPaused")),
         "gameMsg": (st or {}).get("gameMsg") or ((st or {}).get("health") or {}).get("gameMsg") or "",
-        "captureProc": _capture_health(),             # v793 — Windows capture lamp (LINKED/DEAD/RESTARTED)
-        "bibleVer": _bible_ver(),                     # v816 — triple drift lamp (agent·app·board)
+        "captureProc": _capture_health(),
+        "bibleVer": _bible_ver(),
     }
 
 

@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v945.6"   # Theatre one-door + intake lease + Chronicle write-in SPEC
+VERSION = "v946"   # Next-level console: health strip · mind story · theatre forensics · chronicle inbox · vault Stage3 · judge cap 16
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2241,7 +2241,8 @@ _SETTLE_QUEUE = []              # FIFO, newest last; each: {"path","sig","ts","i
 # deleted (that was KAI's 'missed-text'); they wait here, files on disk, for the verify-gap
 # sweeper to read them one at a time before seal. Bounded; stale-pruned; dies with the session.
 _TEXT_EYE_BACKLOG = []
-TEXT_EYE_BACKLOG_CAP = max(4, int(os.environ.get("TV_TEXT_EYE_BACKLOG_CAP", "24") or 24))
+# v946 — slightly deeper backlog so hover-streak freezes survive longer for the sweeper
+TEXT_EYE_BACKLOG_CAP = max(4, int(os.environ.get("TV_TEXT_EYE_BACKLOG_CAP", "32") or 32))
 _settle_q_lock = threading.Lock()
 
 def _settle_queue_dir():

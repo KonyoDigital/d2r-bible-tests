@@ -33646,7 +33646,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v945.6', name:'Theatre+Lease', date:'2026-07-21', note:'Theatre one-door + intake lease + Chronicle write-in SPEC' };
+  window.D2R_BUILD = { id:'v946', name:'Next Level', date:'2026-07-21', note:'Next-level console: health strip · mind story · theatre forensics · chronicle inbox · vault Stage3 · judge cap 16' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33734,6 +33734,73 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   // v945.6 — cross-document intake lease (control holds the token). Engine-driver and an
   // open board both see the same tab; only one may fire. Fail-open if control is unreachable
   // (website-only board); fail-closed on explicit "held".
+  // v946 — CHRONICLE INBOX (review gate; never silent grail write)
+  // SPEC: tv/PLAN_ONE_SYSTEM.md · Chronicle write-in. Inbox only; accept promotes to d2r_foundLog.
+  window.kaiChroniclePropose = function(items){
+    items = Array.isArray(items) ? items : [];
+    var queued = 0, skipped = 0, conflicts = 0;
+    try {
+      var inbox = JSON.parse((window.LSR && window.LSR.getItem('d2r_chronicleInbox')) || '[]') || [];
+      if (!Array.isArray(inbox)) inbox = [];
+      var found = {};
+      try { found = JSON.parse((window.LSR && window.LSR.getItem('d2r_foundLog')) || '{}') || {}; } catch(e){}
+      var unfound = {};
+      try { unfound = JSON.parse((window.LSR && window.LSR.getItem('d2r_grailUnfound')) || '{}') || {}; } catch(e){}
+      var seen = {};
+      inbox.forEach(function(x){ if (x && x.name) seen[String(x.name).toLowerCase()] = 1; });
+      items.forEach(function(it){
+        if (!it || !it.name) { skipped++; return; }
+        var nm = String(it.name).trim();
+        var low = nm.toLowerCase();
+        if (!nm) { skipped++; return; }
+        if (found[nm] || found[low]) { skipped++; return; }          // already found (manual or prior)
+        if (unfound[nm] || unfound[low]) { conflicts++; return; }    // user un-ticked seed — never re-auto
+        if (seen[low]) { skipped++; return; }                        // idempotent inbox
+        inbox.push({
+          name: nm, firstSeenTs: it.firstSeenTs || 0, frameId: it.frameId || '',
+          tier: it.tier || null, sessionId: it.sessionId || '', loc: it.loc || null,
+          source: 'kai-register', proposedAt: Date.now()
+        });
+        seen[low] = 1; queued++;
+      });
+      if (window.LSR && window.LSR.setItem) window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(inbox.slice(-200)));
+      return { queued: queued, skipped: skipped, conflicts: conflicts, total: inbox.length };
+    } catch(e){ return { queued: 0, skipped: items.length, conflicts: 0, total: 0, err: String(e && e.message || e) }; }
+  };
+  window.kaiChronicleInbox = function(){
+    try { return JSON.parse((window.LSR && window.LSR.getItem('d2r_chronicleInbox')) || '[]') || []; } catch(e){ return []; }
+  };
+  window.kaiChronicleAccept = function(name){
+    try {
+      var nm = String(name || '').trim(); if (!nm) return { ok:false, why:'no-name' };
+      var inbox = window.kaiChronicleInbox();
+      var hit = null;
+      inbox = inbox.filter(function(x){ if (x && String(x.name) === nm){ hit = x; return false; } return true; });
+      if (!hit) return { ok:false, why:'not-in-inbox' };
+      var fl = JSON.parse((window.LSR.getItem('d2r_foundLog') || '{}')) || {};
+      if (!fl[nm]) fl[nm] = (window._grailStamp ? window._grailStamp() : new Date().toLocaleString());
+      window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
+      window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(inbox));
+      try { if (typeof _gFoundDirty === 'function') _gFoundDirty(); } catch(e){}
+      try { if (typeof renderGrailProgress === 'function') renderGrailProgress(); } catch(e){}
+      return { ok:true, name: nm, remaining: inbox.length };
+    } catch(e){ return { ok:false, why: String(e && e.message || e) }; }
+  };
+  window.kaiChronicleDismiss = function(name){
+    try {
+      var nm = String(name || '').trim();
+      var inbox = window.kaiChronicleInbox().filter(function(x){ return !(x && String(x.name) === nm); });
+      window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(inbox));
+      return { ok:true, remaining: inbox.length };
+    } catch(e){ return { ok:false }; }
+  };
+  window.kaiChronicleAcceptAll = function(){
+    var inbox = window.kaiChronicleInbox().slice();
+    var n = 0;
+    inbox.forEach(function(x){ if (x && x.name && window.kaiChronicleAccept(x.name).ok) n++; });
+    return { ok:true, accepted: n };
+  };
+
   function _intakeLeaseOwner(){
     try {
       if (ENGINE_DRIVEN) return 'engine';

@@ -12,6 +12,23 @@ Stamps must stay in parity: agent `tv/tv_diablo.py` VERSION == control `ver` == 
 
 ---
 
+## ✅ SUPERGROK RETURN (2026-07-21) — v946 NEXT-LEVEL CONSOLE (agent-mode full stack)
+
+**Stamps ×3:** **v946** · battery control 43 · agent 157 · routes **75** · demos 7/7
+
+| Deliverable | What shipped |
+|-------------|--------------|
+| Session health strip | Signal panel: 📸 tabs (read×N / MISS) · 🔒 lease holder · 🚫0️⃣ re-fires · verdict lamp |
+| Agent Mind story | 3-way cycle: **thoughts → story → raw log** (session narrative from journal) |
+| Theatre forensics | Flags: MISS · 🚫0️⃣ re-read · disagree · dup · router label · judge tier on caption + drawer |
+| Chronicle inbox | `kaiChroniclePropose/Accept/Dismiss/AcceptAll` + engine propose after KAI register · console 📜 Inbox chip (review gate) |
+| Vault Stage 3 | Ledger vault rows fireable (`not-selected`); closer fires one newest vaultIntake · `TV_KAI_VAULT` |
+| Judge cap | Default **16** (was 12) · `TV_KAI_JUDGE_MAX` |
+| Text-eye | Backlog cap default **32** (was 24) |
+| Still later | Live farm accuracy lap (Konyo), multi-surface treasury sync, deeper shell density |
+
+---
+
 ## ✅ SUPERGROK RETURN (2026-07-21 morning) — v945.6 Theatre + lease + Chronicle SPEC
 
 **HEAD context:** night arc sealed at v945 / polish-ui-2 through v945.5; Fable overnight soak

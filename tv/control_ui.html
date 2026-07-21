@@ -1074,6 +1074,31 @@
   .eye-kai    { border-left-color: var(--gold); }
   .eye.off { opacity: .42; }
   .eye.off .es { color: var(--muted); }
+  /* v946 — session health strip */
+  .sess-health { margin: 6px 0 8px; padding: 8px 10px; border-radius: 9px;
+    border: 1px solid rgba(240,192,96,.22); background: rgba(0,0,0,.32); display: flex; flex-direction: column; gap: 4px; }
+  .sess-health .sh-row { display: flex; justify-content: space-between; gap: 8px; font: 600 11px/1.3 var(--mono); }
+  .sess-health .sh-k { color: #9a8f72; letter-spacing: .04em; }
+  .sess-health .sh-v { color: #e8dcc0; text-align: right; font-variant-numeric: tabular-nums; }
+  .sess-health .sh-verdict { margin-top: 3px; font: 800 10.5px/1.2 var(--mono); letter-spacing: .12em;
+    text-transform: uppercase; text-align: center; padding: 4px 6px; border-radius: 6px;
+    border: 1px solid rgba(143,208,160,.3); color: #9df0bd; background: rgba(30,60,40,.35); }
+  .sess-health.v-partial .sh-verdict { color: #e9b96e; border-color: rgba(233,185,110,.45); background: rgba(60,40,10,.35); }
+  .sess-health.v-miss .sh-verdict { color: #ffb0a0; border-color: rgba(255,120,90,.5); background: rgba(70,26,20,.4); }
+  .sess-health.v-idle .sh-verdict { color: #8fa398; border-color: rgba(143,163,152,.25); background: rgba(0,0,0,.2); }
+  .ch-inbox { width: 100%; margin: 0 0 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer;
+    font: 700 11.5px/1.2 var(--mono); letter-spacing: .06em; color: #d9c9ff;
+    border: 1px solid rgba(185,165,255,.4); background: rgba(40,32,64,.45); }
+  .ch-inbox b { color: #f0d89a; margin-left: 4px; }
+  .ch-inbox:hover { border-color: rgba(185,165,255,.7); }
+  .th-flags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+  .th-flag { font: 700 10px/1 var(--mono); letter-spacing: .06em; padding: 3px 6px; border-radius: 5px;
+    border: 1px solid rgba(200,180,120,.28); color: #d9c9a0; background: rgba(0,0,0,.35); }
+  .th-flag.f-miss { color: #ffb0a0; border-color: rgba(255,120,90,.45); }
+  .th-flag.f-super { color: #9df0bd; border-color: rgba(143,230,160,.4); }
+  .th-flag.f-route { color: #cbbcff; border-color: rgba(185,165,255,.35); }
+  .th-flag.f-dis { color: #e9b96e; border-color: rgba(233,185,110,.45); }
+  .th-flag.f-dup { color: #8fa398; border-color: rgba(143,163,152,.3); opacity: .85; }
   /* v931 — MODEL demoted to a dim one-line footer (Konyo: 'MODEL — demote') */
   .signal .sig-foot { font: 500 9px/1.4 var(--mono); letter-spacing: .06em;
     color: #6f6a58; text-align: right; opacity: .85; margin-top: 2px; }
@@ -1481,6 +1506,16 @@
           <div class="eye eye-second" id="eye-second"><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
           <div class="eye eye-kai" id="eye-kai"><span class="ex">🧠</span><span class="en">Kai</span><span class="es" id="eye-kai-s">—</span></div>
         </div>
+        <!-- v946 — SESSION HEALTH: tabs + lease + overall verdict in one glance -->
+        <div class="sess-health" id="sess-health" title="session truth at a glance">
+          <div class="sh-row"><span class="sh-k">📸 Tabs</span><span class="sh-v" id="sh-tabs">—</span></div>
+          <div class="sh-row"><span class="sh-k">🔒 Lease</span><span class="sh-v" id="sh-lease">free</span></div>
+          <div class="sh-row"><span class="sh-k">🚫0️⃣</span><span class="sh-v" id="sh-refire">0 re-fires</span></div>
+          <div class="sh-verdict" id="sh-verdict">idle</div>
+        </div>
+        <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before grail write">
+          📜 Inbox <b id="ch-inbox-n">0</b>
+        </button>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
         <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
         <div class="row" id="sig-vision-row" hidden><span class="k">👁 Vision</span><span class="val" id="sig-vision">—</span></div>
@@ -1504,7 +1539,7 @@
     </aside>
 
     <section class="ticker">
-      <div class="tag" id="mind-tag" role="button" title="click — flip between live thoughts and the raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:10px">· thoughts</span></div>
+      <div class="tag" id="mind-tag" role="button" title="click — cycle thoughts · story · raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">Agent Mind <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:10px">· thoughts</span></div>
       <div class="brain" id="brain"><div class="empty">— agent thoughts appear here when live —</div></div>
     </section>
 
@@ -1521,6 +1556,8 @@
   var API = '';
   var busy = false;
   var showLog = false;
+  window.__mindMode = 'thoughts';   // v946: thoughts | story | log
+  window.__mindStory = [];
   var readMax = 1;
   var brainSig = '';
   var _shown = {};
@@ -1785,6 +1822,33 @@
     if (eSecB) eSecB.classList.toggle('off', !on);
     if (eKaiB) eKaiB.classList.toggle('off', st.engineAlive !== true);
 
+    // v946 — SESSION HEALTH strip
+    try {
+      var sh = st.sessionHealth || {};
+      var shEl = $('sess-health');
+      if (shEl) {
+        shEl.classList.remove('v-ok', 'v-partial', 'v-miss', 'v-idle');
+        shEl.classList.add('v-' + (sh.verdict || 'idle'));
+      }
+      var ts = sh.tabSummary || {};
+      var tabKeys = Object.keys(ts);
+      var tabEl = $('sh-tabs');
+      if (tabEl) tabEl.textContent = tabKeys.length
+        ? tabKeys.map(function(k){ return k + ' ' + ts[k]; }).join(' · ')
+        : (on ? 'no tallies yet' : '—');
+      var leases = sh.leases || {};
+      var lKeys = Object.keys(leases);
+      var le = $('sh-lease');
+      if (le) le.textContent = lKeys.length
+        ? lKeys.map(function(k){ return k + '→' + ((leases[k] || {}).owner || '?'); }).join(' · ')
+        : 'free';
+      var rf = $('sh-refire');
+      if (rf) rf.textContent = (sh.refires || 0) + ' re-fires · fired ' + (sh.driverFired || 0);
+      var ve = $('sh-verdict');
+      if (ve) ve.textContent = ({ ok:'session ok', partial:'partial · some MISS', miss:'miss · needs re-read', idle:'idle' })[sh.verdict || 'idle'] || (sh.verdict || 'idle');
+      window.__mindStory = sh.story || st.mindStory || [];
+    } catch (eH) {}
+
     var film = $('stage-film');
     if (film) {
       if (typeof TH !== 'undefined' && TH.open){ document.body.classList.remove('film-on'); }   // v859 — theatre covers the stage; no film thrash under it
@@ -1890,8 +1954,24 @@
     $('foot-ports').innerHTML = ':' + (st.controlPort||17772) + '<span class="dot">·</span>agent :' + (st.agentPort||17771)
       + (st.capture ? '<span class="dot">·</span>capture' : '');
 
-    if (showLog) return;
+    if (window.__mindMode === 'log') return;
     var brain = $('brain');
+    // v946 — story mode: session narrative, not the event firehose
+    if (window.__mindMode === 'story') {
+      var story = window.__mindStory || st.mindStory || [];
+      var ssig = 'story|' + story.join('¦');
+      if (ssig === brainSig) return;
+      brainSig = ssig;
+      if (!story.length) {
+        brain.innerHTML = '<div class="empty">— session story builds as reads &amp; intakes land —</div>';
+      } else {
+        brain.innerHTML = story.map(function(line, i, a){
+          var last = i === a.length - 1;
+          return '<div class="line'+(last?' hi':'')+'"><span class="k">📖</span>'+esc(line)+'</div>';
+        }).join('');
+      }
+      return;
+    }
     var ev = st.events || [];
     var sig = ev.slice(-4).map(function(e){ return (e.k||'')+'|'+(e.t||''); }).join('¦');
     if (sig === brainSig) return;   // no change — skip rebuild, avoids re-animating every 500ms
@@ -2133,6 +2213,7 @@
     var icon = thTabIcon(rs.tab) || '🔮';
     if (rs.kind === 'read'){
       var head = '<span class="th-rs th-rs-ok">' + icon + ' ' + esc(tabU) + ' tab · <b>' + rs.counted + ' counted</b> ✓</span>';
+      if (rs.superseded) head += ' <span class="th-flag f-super" title="nearest shot was 0 — superseded by real count">🚫0️⃣ superseded</span>';
       if (!full) return head;
       var chips = thTallyChips(d.tally);
       return '<div class="th-rs-wrap">' + head + (chips ? '<div class="th-rs-chips">' + chips + '</div>' : '') + '</div>';
@@ -2144,6 +2225,29 @@
       return '<span class="th-rs th-rs-named">🧠 ' + rs.counted + ' item' + (rs.counted === 1 ? '' : 's') + ' named</span>';
     }
     return '';
+  }
+  // v946 — forensic flags: why this beat is interesting (router / miss / dup / disagreement)
+  function thForensicFlags(b){
+    if (!b) return '';
+    var flags = [];
+    var d = b.dossier || {};
+    var rs = d.readStatus;
+    var r = d.router || {};
+    var rv = String(b.routeVerdict || r.verdict || '');
+    if (rs && rs.kind === 'miss') flags.push('<span class="th-flag f-miss">MISS</span>');
+    if (rs && rs.superseded) flags.push('<span class="th-flag f-super">🚫0️⃣ re-read</span>');
+    if (rv.indexOf('disagreement') >= 0 || rv === 'disagreement')
+      flags.push('<span class="th-flag f-dis">⚡ disagree</span>');
+    if (rv.indexOf('dup-of') >= 0 || rv.indexOf('near-dup') >= 0)
+      flags.push('<span class="th-flag f-dup">dup</span>');
+    if (r.label && r.label !== 'gameplay')
+      flags.push('<span class="th-flag f-route">' + esc(String(r.label).replace(/^stash-/,'')) + '</span>');
+    if (b.intakeBeat && b.intake && b.intake.ok === false)
+      flags.push('<span class="th-flag f-miss">intake err</span>');
+    if (b.lane === 'kai' && b.kai && b.kai.judge)
+      flags.push('<span class="th-flag f-route">🔬 ' + esc(String(b.kai.judge.tier || 'judge')) + '</span>');
+    if (!flags.length) return '';
+    return '<div class="th-flags">' + flags.join('') + '</div>';
   }
   // v944.7 (Konyo: "it says FAILED, what happened here? why?") — an individual capture can error,
   // but v944.5 never-zero means the panel gets re-read. For an errored/empty intake shot, find the
@@ -2332,20 +2436,20 @@
     // v893 — lighter caption work during autoplay (story beats still full)
     if (b.footage && TH.playing && !TH.__manual){
       // v944.4 — even zipping through film, a stash frame's READ/MISS verdict is the headline
-      var _rsA = thReadStatus(b, false), _rpA = thRouterPill(b);
+      var _rsA = thReadStatus(b, false), _rpA = thRouterPill(b), _ffA = thForensicFlags(b);
       var lr = TH.lastRead;
-      if (_rsA) $('th-caption').innerHTML = _rpA + ' ' + _rsA;
-      else if (lr) $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹</span> ' + thCaption(lr);
-      else $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹 film</span>';
+      if (_rsA) $('th-caption').innerHTML = _rpA + ' ' + _rsA + _ffA;
+      else if (lr) $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹</span> ' + thCaption(lr) + _ffA;
+      else $('th-caption').innerHTML = _rpA + ' <span class="ar-dim">📹 film</span>' + _ffA;
     } else if (b.footage){
       var lr2 = TH.lastRead;
-      var _rsB = thReadStatus(b, false), _rpB = thRouterPill(b);
+      var _rsB = thReadStatus(b, false), _rpB = thRouterPill(b), _ffB = thForensicFlags(b);
       var foot = _rpB + ' <span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + '</span>';
       // the frame's own read-status verdict rides first (the answer to "was it read"), then the last read for context
-      $('th-caption').innerHTML = (_rsB ? _rsB + '<br>' : '') + (lr2 ? (foot + '<br>' + thCaption(lr2)) : foot);
+      $('th-caption').innerHTML = (_rsB ? _rsB + '<br>' : '') + _ffB + (lr2 ? (foot + '<br>' + thCaption(lr2)) : foot);
     } else {
-      var _rpC = thRouterPill(b);
-      $('th-caption').innerHTML = (_rpC ? _rpC + ' ' : '') + thCaption(b);
+      var _rpC = thRouterPill(b), _ffC = thForensicFlags(b);
+      $('th-caption').innerHTML = (_rpC ? _rpC + ' ' : '') + thCaption(b) + _ffC;
     }
     if (typeof thCardRender === 'function'){
       clearTimeout(window.__thCardT);
@@ -2956,8 +3060,8 @@
       + col('vault', b.vault_names) + col('holding', b.pending_names) + col('thrown', b.thrown_names)
       + col('discovered', b.discovered_names) + col('ocr-rescued', b.ocr_seeded);
     // v944.4 — the READ-STATUS verdict + router pill, first (the plain "was it read" answer)
-    var _rsDrawer = thReadStatus(b, true), _rpDrawer = thRouterPill(b);
-    if (_rsDrawer) h += '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rpDrawer ? _rpDrawer + ' ' : '') + _rsDrawer + '</div>';
+    var _rsDrawer = thReadStatus(b, true), _rpDrawer = thRouterPill(b), _ffDrawer = thForensicFlags(b);
+    if (_rsDrawer || _ffDrawer) h += '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rpDrawer ? _rpDrawer + ' ' : '') + (_rsDrawer || '') + _ffDrawer + '</div>';
     // v941.6 — the three-eye dossier, compact, at the top of the per-beat forensics
     var _dossierDrawer = thDossierLine(b);
     if (_dossierDrawer) h += '<h4>the three eyes — dossier</h4>' + _dossierDrawer;
@@ -3852,14 +3956,81 @@
   var thBtn = $('btn-theatre');
   if (thBtn) thBtn.onclick = function(){ if (TH.open) thClose(); else thOpen(); };
   var _mt = $('mind-tag');
-  if (_mt) _mt.onclick = function(){ $('btn-log').click(); var mm = $('mind-mode'); if (mm) mm.textContent = showLog ? '· raw log' : '· thoughts'; };
-  $('btn-log').onclick = function(){
-    showLog = !showLog;
-    $('btn-log').classList.toggle('on', showLog);
-    $('btn-log').querySelector('.glab').textContent = showLog ? 'Live Brain' : 'Toggle Log';
+  // v946 — cycle thoughts → story → raw log → thoughts
+  if (_mt) _mt.onclick = function(){
+    var order = ['thoughts', 'story', 'log'];
+    var i = order.indexOf(window.__mindMode || 'thoughts');
+    window.__mindMode = order[(i + 1) % order.length];
+    showLog = window.__mindMode === 'log';
+    var mm = $('mind-mode');
+    if (mm) mm.textContent = '· ' + window.__mindMode;
     brainSig = '';
     if (showLog) loadLog(); else refresh();
   };
+  $('btn-log').onclick = function(){
+    // keep compat: jump straight to raw log / back to thoughts
+    if (window.__mindMode === 'log') { window.__mindMode = 'thoughts'; showLog = false; }
+    else { window.__mindMode = 'log'; showLog = true; }
+    var mm = $('mind-mode'); if (mm) mm.textContent = '· ' + window.__mindMode;
+    $('btn-log').classList.toggle('on', showLog);
+    try { $('btn-log').querySelector('.glab').textContent = showLog ? 'Live Brain' : 'Toggle Log'; } catch(e){}
+    brainSig = '';
+    if (showLog) loadLog(); else refresh();
+  };
+  // v946 — Chronicle inbox (engine LS); review gate before grail write
+  function _engWin(){
+    try { var f = document.getElementById('tvd-eng'); return f && f.contentWindow; } catch(e){ return null; }
+  }
+  function paintChronicleInbox(){
+    var btn = $('btn-chronicle-inbox'), nEl = $('ch-inbox-n');
+    if (!btn) return;
+    var n = 0, items = [];
+    try {
+      var W = _engWin();
+      if (W && typeof W.kaiChronicleInbox === 'function') {
+        items = W.kaiChronicleInbox() || [];
+        n = items.length;
+      }
+    } catch(e){}
+    btn.hidden = n < 1;
+    if (nEl) nEl.textContent = String(n);
+    btn.__items = items;
+  }
+  var _chBtn = $('btn-chronicle-inbox');
+  if (_chBtn) _chBtn.onclick = function(){
+    var W = _engWin();
+    var items = (this.__items || []).slice();
+    if (!items.length){ toast('Chronicle inbox empty'); return; }
+    var lines = items.slice(0, 12).map(function(x, i){
+      return (i+1) + '. ' + (x.name || '?') + (x.tier ? (' [' + x.tier + ']') : '');
+    }).join('\n');
+    var more = items.length > 12 ? ('\n… +' + (items.length - 12) + ' more') : '';
+    var choice = window.prompt(
+      '📜 Chronicle inbox — review before grail write\n\n' + lines + more +
+      '\n\nType ACCEPT to promote ALL to found · DISMISS to clear · or a number to accept one.',
+      'ACCEPT');
+    if (choice == null) return;
+    choice = String(choice).trim();
+    try {
+      if (/^accept$/i.test(choice) && W && W.kaiChronicleAcceptAll) {
+        var r = W.kaiChronicleAcceptAll();
+        toast('Chronicle: accepted ' + ((r && r.accepted) || 0));
+      } else if (/^dismiss$/i.test(choice) && W && W.kaiChronicleDismiss) {
+        items.forEach(function(x){ if (x && x.name) W.kaiChronicleDismiss(x.name); });
+        toast('Chronicle inbox cleared');
+      } else if (/^\d+$/.test(choice)) {
+        var it = items[parseInt(choice, 10) - 1];
+        if (it && W && W.kaiChronicleAccept) {
+          W.kaiChronicleAccept(it.name);
+          toast('Accepted ' + it.name);
+        }
+      }
+    } catch(e){ toast('Inbox action failed'); }
+    paintChronicleInbox();
+  };
+  // hook health paint to also refresh inbox count
+  var _paintOrig = paint;
+  paint = function(st){ _paintOrig(st); try { paintChronicleInbox(); } catch(e){} };
 
   // keyboard: space = cut if live/sim else ON · L = log · T = theatre
   document.addEventListener('keydown', function(e){

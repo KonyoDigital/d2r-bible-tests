@@ -792,10 +792,10 @@ class TestRouterLedger(unittest.TestCase):
         m = self.led["f_500.jpg"]
         self.assertEqual((m["confidence"], m["route"], m["routed"], m["skipReason"]),
                          (2, "tally:materials", None, "no-gap"))
-        # inventory routes to vault, which the closer never fires this stage
+        # inventory routes to vault — v946 fireable (not-selected) for Stage 3 vault lane
         v = self.led["f_600.jpg"]
         self.assertEqual((v["route"], v["routed"], v["skipReason"]),
-                         ("vault", None, "no-vault-fire"))
+                         ("vault", None, "not-selected"))
 
     def test_routed_count_and_shape(self):
         led = ca._kai_build_routing(self.scan, self.sess, "S", self.journal)
@@ -981,25 +981,27 @@ class TestRouterLedger(unittest.TestCase):
             {"f": "fight.jpg", "ts": 5000, "label": "tooltip", "confidence": 0,
              "route": None, "routed": None, "skipReason": "disagreement"},
         ]
-        funnel, judge = ca._kai_stage3_select(routing)
+        funnel, judge, vault = ca._kai_stage3_select(routing)
         tabs = {j["tab"]: j for j in funnel}
         self.assertEqual(set(tabs), {"runes", "gems"})          # materials gated conf<2
         self.assertEqual(tabs["runes"]["f"], "r_new.jpg")       # newest runes frame
         self.assertEqual(tabs["gems"]["f"], "g1.jpg")           # g_done already routed → skipped
         self.assertEqual([j["f"] for j in judge], ["tip0.jpg", "tip1.jpg"])  # ts order
-        # vault + disagreement never appear
-        self.assertTrue(all(j["tab"] != "inventory" for j in funnel))
+        # vault fireable (v946) · disagreement never appears
+        self.assertEqual(len(vault), 1)
+        self.assertEqual(vault[0]["f"], "inv.jpg")
         self.assertTrue(all(j["f"] != "fight.jpg" for j in judge))
 
     def test_stage3_empty_when_no_fireable(self):
-        funnel, judge = ca._kai_stage3_select([
+        funnel, judge, vault = ca._kai_stage3_select([
             {"f": "a.jpg", "ts": 1, "confidence": 1, "route": "tally:runes",
              "routed": None, "skipReason": "confidence<2"},
-            {"f": "b.jpg", "ts": 2, "confidence": 2, "route": "vault",
-             "routed": None, "skipReason": "no-vault-fire"},
+            {"f": "b.jpg", "ts": 2, "confidence": 1, "route": "vault",
+             "routed": None, "skipReason": "confidence<2"},
         ])
         self.assertEqual(funnel, [])
         self.assertEqual(judge, [])
+        self.assertEqual(vault, [])
 
     def test_stage3_receipt_writes_routed_back(self):
         # after a funnel receipt lands, the rebuilt ledger marks that frame routed=kai-funnel
@@ -1008,7 +1010,7 @@ class TestRouterLedger(unittest.TestCase):
                  "journal": True, "journalLabel": "stash-runes", "label": "stash-runes"}]
         pre = ca._kai_build_routing(scan, [], "S", [])
         self.assertEqual(pre[0]["skipReason"], "not-selected")
-        f0, j0 = ca._kai_stage3_select(pre)
+        f0, j0, v0 = ca._kai_stage3_select(pre)
         self.assertEqual(len(f0), 1)
         self.assertEqual(f0[0]["tab"], "runes")
         journal = [{"lane": "intake", "frameId": "reel_S/r",
@@ -1016,7 +1018,7 @@ class TestRouterLedger(unittest.TestCase):
         post = ca._kai_build_routing(scan, [], "S", journal)
         self.assertEqual(post[0]["routed"], "kai-funnel")
         self.assertIsNone(post[0]["skipReason"])
-        f1, j1 = ca._kai_stage3_select(post)
+        f1, j1, v1 = ca._kai_stage3_select(post)
         self.assertEqual(f1, [])   # already routed → not re-selected
 
 
@@ -1079,6 +1081,30 @@ class TestIntakeLease(unittest.TestCase):
         c = ca._intake_lease_claim("runes", "engine-driver", ttl_ms=60_000, now_ms=4_006_000)
         self.assertTrue(c["ok"])
         self.assertEqual(c["owner"], "engine-driver")
+
+
+class TestSessionHealth(unittest.TestCase):
+    """v946 — one-glance session health from journal rows."""
+
+    def test_tabs_and_verdict(self):
+        rows = [
+            {"lane": "intake", "intake": {"tab": "runes", "ok": True, "total": 404}},
+            {"lane": "intake", "intake": {"tab": "gems", "ok": False, "total": 0}},
+            {"lane": "deep", "stashTab": "runes", "names": ["El"]},
+            {"lane": "kai", "kai": {"missedFrames": 3}},
+        ]
+        h = ca._session_health_from_rows(rows, leases={"runes": {"owner": "engine-driver"}},
+                                         driver={"fired": 2, "refire": 1})
+        self.assertEqual(h["tabs"]["runes"]["total"], 404)
+        self.assertTrue(h["tabs"]["runes"]["ok"])
+        self.assertFalse(h["tabs"]["gems"]["ok"])
+        self.assertEqual(h["verdict"], "partial")
+        self.assertEqual(h["refires"], 1)
+        self.assertIn("KAI closed · 3 missed-text", h["story"])
+
+    def test_idle_when_empty(self):
+        h = ca._session_health_from_rows([])
+        self.assertEqual(h["verdict"], "idle")
 
 
 if __name__ == "__main__":
