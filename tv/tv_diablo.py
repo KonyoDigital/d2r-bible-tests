@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1189"   # 🚦 ROUTE/GATE round 3 — dedupe no longer erases a real receipt: the v944 exact-sig dedupe branch in _kai_build_routing nulled `routed` (a HISTORICAL FACT — a funnel/judge receipt landed on THIS frameId) unconditionally on any sig-dup. A static stash panel makes byte-identical frames and the receipt fires on the NEWEST → that receipted frame shares its predecessor's sig → routed wiped → _kai_reconcile calls it a false "miss" (never-zero re-fire) despite a real receipt; the routed-count metric undercounts too. FIX: guard the branch with `routed is None` (mirrors the near-dup branch that already does this) — a receipted dup keeps its routed value. +3 tests (control 80→83). ×3 parity (17/80 → v1252)
+VERSION = "v1190"   # 📷 CAPTURE round 3 — footage archive torn-write fix: _archive_footage_copy (the 1fps writer of hist/f_<ms>.jpg, the film reel the retro debugger scrubs) was the ONE archive writer skipping the _cap_promote atomic law — it copyfile'd DIRECTLY onto the final durable name, no tmp, no post-write size check. An interrupted copy (ENOSPC, kill, disk yank) leaves a truncated fragment PERMANENTLY under the real f_<ms>.jpg name (nothing re-checks size) — worse than a dropped frame, and the round-1 bridge-last-good path would re-propagate a corrupt eye.last.jpg into every bridged frame. FIX: both copies now use the _cap_promote pattern (tmp → getsize>=4000 → os.replace, cleanup in finally). No captureTs/frame-id logic touched. +3 tests (agent 178→181). ×3 parity (18/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -1134,7 +1134,18 @@ def _foot_fps_now():
 
 
 def _archive_footage_copy(src_path, now_f, why="ok"):
-    """v947 — 1fps archive helper. Always advances the due clock; never blocks on sips."""
+    """v947 — 1fps archive helper. Always advances the due clock; never blocks on sips.
+
+    v1190 — promote-via-tmp: this was the one archive writer in the file that skipped the
+    _cap_promote law every window/screen grab already follows ('write tmp, only promote when
+    THIS call wrote real bytes' — see _cap_promote's own docstring on 'the stale-file lie').
+    A copyfile() interrupted partway (ENOSPC, a kill, disk yanked) used to leave a truncated
+    fragment sitting under the FINAL f_<ms>.jpg name — worse than a dropped frame, since nothing
+    downstream re-checks size before treating a file at that name as a real archived frame; it
+    silently pollutes the film reel forever. Now: copy to a private tmp, verify real bytes,
+    os.replace (atomic on the same volume) into the final name — same law, same pattern as
+    _cap_promote. Applied to the eye.last.jpg starve-bridge source too, since a corrupt bridge
+    source would re-propagate into every later 'bridge-last-good' frame until film recovers."""
     try:
         _iv = FOOTAGE_INTERVAL_S
         _due = globals().get("_FOOTAGE_DUE", 0.0)
@@ -1152,15 +1163,38 @@ def _archive_footage_copy(src_path, now_f, why="ok"):
         if _sh.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
             globals()["_FOOTAGE_WHY"] = "disk-full"
             return False
-        _FOOT_TIMES.append(now_f)
-        _sh.copyfile(src_path, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
-        # remember last GOOD archive source for starve-bridge
+        dest = os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000))
+        tmp = _cap_tmp(dest)
         try:
-            last = os.path.join(FRAMES, "eye.last.jpg")
-            _sh.copyfile(src_path, last)
-            globals()["_FILM_LAST_GOOD"] = last
+            _sh.copyfile(src_path, tmp)
+            if not (os.path.isfile(tmp) and os.path.getsize(tmp) >= 4000):
+                raise IOError("short/failed footage copy — not promoting a fragment")
+            os.replace(tmp, dest)   # dest only ever holds complete bytes, never a torn write
+        finally:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except Exception:
+                pass
+        _FOOT_TIMES.append(now_f)
+        # remember last GOOD archive source for starve-bridge — same tmp+promote law
+        last = os.path.join(FRAMES, "eye.last.jpg")
+        last_tmp = _cap_tmp(last)
+        try:
+            _sh.copyfile(src_path, last_tmp)
+            if os.path.isfile(last_tmp) and os.path.getsize(last_tmp) >= 4000:
+                os.replace(last_tmp, last)
+                globals()["_FILM_LAST_GOOD"] = last
+            else:
+                globals()["_FILM_LAST_GOOD"] = src_path
         except Exception:
             globals()["_FILM_LAST_GOOD"] = src_path
+        finally:
+            try:
+                if os.path.exists(last_tmp):
+                    os.remove(last_tmp)
+            except Exception:
+                pass
         return True
     except Exception:
         return False

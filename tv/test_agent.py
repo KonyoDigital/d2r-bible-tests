@@ -310,6 +310,89 @@ class TestFrameArchive(unittest.TestCase):
         self.assertEqual(tv.frame_path_for_id("abc"), "")
 
 
+class TestFootageArchivePromote(unittest.TestCase):
+    """v1190 — _archive_footage_copy must follow the same _cap_promote law every other
+    capture writer in the file already does: write to a private tmp, verify real bytes, THEN
+    atomically rename into the final f_<ms>.jpg name. Before this fix it wrote straight onto
+    the final durable name, so a copy interrupted partway left a truncated fragment sitting
+    under a real frame's name forever — nothing downstream re-checks size before trusting it."""
+
+    def setUp(self):
+        _healthy_disk(self)
+        self.d = tempfile.mkdtemp()
+        self._old_frames, self._old_hist = tv.FRAMES, tv.HIST_DIR
+        tv.FRAMES = self.d
+        tv.HIST_DIR = os.path.join(self.d, "hist")
+        self._old_due = tv.__dict__.get("_FOOTAGE_DUE")
+        tv._FOOTAGE_DUE = 0.0
+        self.src = os.path.join(self.d, "eye.jpg")
+        open(self.src, "wb").write(b"J" * 5000)   # over the 4000-byte floor
+
+    def tearDown(self):
+        tv.FRAMES, tv.HIST_DIR = self._old_frames, self._old_hist
+        if self._old_due is None:
+            tv.__dict__.pop("_FOOTAGE_DUE", None)
+        else:
+            tv._FOOTAGE_DUE = self._old_due
+        import shutil
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def _footage_files(self):
+        if not os.path.isdir(tv.HIST_DIR):
+            return []
+        return os.listdir(tv.HIST_DIR)
+
+    def test_success_promotes_full_frame(self):
+        now_f = time.time()
+        self.assertTrue(tv._archive_footage_copy(self.src, now_f, why="grab"))
+        files = self._footage_files()
+        real = [f for f in files if f.startswith("f_") and f.endswith(".jpg")]
+        self.assertEqual(len(real), 1, files)
+        self.assertEqual(os.path.getsize(os.path.join(tv.HIST_DIR, real[0])), 5000)
+        self.assertFalse(any(".tmp." in f for f in files), "no tmp fragment left behind")
+
+    def test_interrupted_copy_leaves_no_fragment_under_final_name(self):
+        """Simulate a copy that dies partway (ENOSPC / kill): shutil.copyfile only gets a
+        few bytes onto disk before the process is gone. The final f_<ms>.jpg name must never
+        exist with those short bytes — a truncated frame is worse than a missing one."""
+        import shutil, unittest.mock as mock
+
+        def short_copy(src, dst):
+            with open(dst, "wb") as f:
+                f.write(b"X" * 10)   # far under the 4000-byte floor — a torn write
+
+        with mock.patch.object(shutil, "copyfile", side_effect=short_copy):
+            ok = tv._archive_footage_copy(self.src, time.time(), why="grab")
+        self.assertFalse(ok)
+        files = self._footage_files()
+        real = [f for f in files if f.startswith("f_") and f.endswith(".jpg")]
+        self.assertEqual(real, [], "a truncated copy must not be promoted under the final name")
+        self.assertFalse(any(".tmp." in f for f in files), "tmp fragment must be cleaned up")
+
+    def test_interrupted_copy_does_not_corrupt_last_good_bridge(self):
+        """The eye.last.jpg starve-bridge source gets the same tmp+promote treatment: a short
+        copy must not overwrite a previously-good last.jpg with a corrupt one."""
+        import shutil, unittest.mock as mock
+        last = os.path.join(self.d, "eye.last.jpg")
+        open(last, "wb").write(b"G" * 6000)   # a real, previously-archived good frame
+
+        real_copyfile = shutil.copyfile
+        calls = {"n": 0}
+
+        def flaky_copy(src, dst):
+            calls["n"] += 1
+            if calls["n"] == 2:   # let the primary f_<ms>.jpg promote succeed, corrupt the 2nd
+                with open(dst, "wb") as f:
+                    f.write(b"X" * 10)
+                return
+            real_copyfile(src, dst)
+
+        with mock.patch.object(shutil, "copyfile", side_effect=flaky_copy):
+            ok = tv._archive_footage_copy(self.src, time.time(), why="grab")
+        self.assertTrue(ok, "primary archive still succeeds even if the bridge copy fails")
+        self.assertEqual(os.path.getsize(last), 6000, "corrupt bridge copy must not clobber last-good")
+
+
 class TestFarewellRead(unittest.TestCase):
     """v740 — shutdown farewell always publishes (run #7 race fix)."""
     def setUp(self):
