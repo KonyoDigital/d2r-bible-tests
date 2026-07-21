@@ -18,9 +18,9 @@ test.describe('v123 inline item logos (decorateItemLogos)', () => {
 
   const EXPECT: Record<string, string> = {
     'Hellfire Torch': 'mr_hellfiretorch.png',
-    'Key of Terror': 'questkey_graphic.png',
-    'Key of Hate': 'questkey_graphic.png',
-    'Key of Destruction': 'questkey_graphic.png',
+    'Key of Terror': 'hd_mephisto_key.png',
+    'Key of Hate': 'hd_mephisto_key.png',
+    'Key of Destruction': 'hd_mephisto_key.png',
     "Mephisto's Brain": 'hd_brain.png',
     "Diablo's Horn": 'hd_horn.png',
     "Baal's Eye": 'hd_eye.png',
