@@ -1017,6 +1017,7 @@
   .rd-badge.rd-live   { color: #ff9a8a; background: rgba(224,85,69,.14);  border-color: rgba(224,85,69,.45); }
   .rd-badge.rd-second { color: #9dc4ff; background: rgba(92,157,237,.14); border-color: rgba(92,157,237,.5); }
   .rd-badge.rd-kai    { color: #f0c060; background: rgba(240,192,96,.13); border-color: rgba(240,192,96,.5); }
+  .rd-badge.rd-super  { color: #c9b8ff; background: rgba(160,130,255,.15); border-color: rgba(160,130,255,.55); }   /* v950.3 — 🧠🔬 the 4th layer */
   .rd-handoff { display: inline-block; font: 600 11.5px/1.35 var(--mono); letter-spacing: .01em; padding: 2px 8px; border-radius: 6px; }
   .rd-handoff.rd-hf-caught  { color: #9df0bd; background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.4); }   /* a later net CAUGHT a miss — the engine self-correcting */
   .rd-handoff.rd-hf-correct { color: #ffcf8a; background: rgba(240,180,96,.12); border: 1px solid rgba(240,180,96,.42); }   /* second eye overturned the live read */
@@ -1505,6 +1506,22 @@
   .er-ro-tag.er-ro-retro { color: #f0d29a; background: rgba(240,192,96,.12); border: 1px solid rgba(240,192,96,.45); }
   .er-ro-tag.er-ro-idle { color: #9a8d73; }
   body[data-endurance="1"] .er-nowz-dot { animation: none; }
+  /* v950.3 — the organs are clickable in the cockpit → the raw-process drill-down */
+  #er-spine .eh-organ.eh-big { cursor: pointer; }
+  #er-spine .eh-organ.eh-big:hover { border-color: var(--gold-hi); box-shadow: 0 0 0 1px rgba(240,192,96,.25); }
+  /* v950.3 — THE DRILL-DOWN detail panel: the raw process at the focused timestamp */
+  .er-detail { border: 1px solid rgba(160,130,255,.3); border-radius: 12px; background: linear-gradient(180deg, rgba(30,26,44,.35), rgba(8,8,12,.45)); }
+  .er-detail[hidden] { display: none; }
+  .er-detail-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(160,130,255,.22);
+    font: 800 13px/1.2 var(--mono); letter-spacing: .08em; color: #c9b8ff; }
+  .er-detail-head .thd-dim { font-weight: 500; letter-spacing: .02em; color: #9a8d73; }
+  .er-detail-head .th-x { margin-left: auto; }
+  .er-detail-body { padding: 12px 16px 14px; font: 500 12.5px/1.6 var(--mono); color: #c8d0d6; }
+  .er-detail-body .kv { display: grid; grid-template-columns: 168px 1fr; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }
+  .er-detail-body .kv .k { color: #94a89c; opacity: .85; } .er-detail-body .kv .v { color: #d9e2da; word-break: break-word; }
+  .er-detail-body .kv .v b { color: #e4d2a4; }
+  .er-detail-body details.th-raw { margin-top: 8px; }
+  .er-detail-body details.th-raw > summary { cursor: pointer; color: #b79a6a; font: 700 11px/1.5 var(--mono); }
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
   .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
   /* v945 CONSOLE PARITY C8 — the LAST SESSION digest is the newest sealed reel: a mint reel-accent */
@@ -2571,6 +2588,8 @@
   // alone — the FILM is. Live miss → 🔵 catches → 🧠 retro catches." Make that loop auditable. ══
   function thReaderBadge(b){
     if (!b) return '';
+    if (b.super && b.super.reread)
+      return '<span class="rd-badge rd-super" title="Super-analyze — the 4th layer: a full independent deep AI re-read of the film frame, recovering what live+OCR garbled">🧠🔬 SUPER-ANALYZE</span>';
     if (b.lane === 'kai' || b.eye === 'kai' || (b.kaiMissTexts && b.kaiMissTexts.length))
       return '<span class="rd-badge rd-kai" title="KAI — post-seal retro sweep of the whole reel from the film">🧠 KAI</span>';
     if (b.lane === 'verify' || b.eye === 'second')
@@ -2613,6 +2632,15 @@
     var lat = (b.completedTs - b.ts) / 1000;
     if (lat < 8) return '';   // only a real stall is worth surfacing (normal reads are sub-second)
     return '<span class="rd-stall" title="the live eye took ' + lat.toFixed(0) + 's from capture to answer — a stall at fast play; the later layers cover it">🔴 live stalled ' + Math.round(lat) + 's</span>';
+  }
+  // v950.3 (Phase B — the 4th layer) — 🧠🔬 SUPER-ANALYZE: the deep retro re-read that recovers what
+  // live + OCR both garbled (super:{reread,deepNames,tier} rides the routing row). Renders only when set.
+  function thSuperNote(b){
+    var s = b && b.super;
+    if (!s || !s.reread) return '';
+    var names = (s.deepNames || []).slice(0, 3).join(', ');
+    return '<span class="rd-handoff rd-hf-caught" title="the 4th layer re-read the film frame independently and recovered a read live+OCR missed">🧠🔬 super-analyze recovered '
+      + (names ? esc(names) : 'a read') + (s.tier ? ' <span class="thd-dim">(' + esc(s.tier) + ')</span>' : '') + '</span>';
   }
   // ══ v949 (ENGINE_ARCH §3.5 — THE ACCURACY GATE) — the gate's verdict per frame: did this frame
   // PASS (proven, funnel-fireable) or get HELD (a misread weeded out before it hit a cell)? Rides
@@ -5726,7 +5754,7 @@
   // screen fusing the live pulse (engine-health) + retro replay + reader/gate telemetry. Stage 1 =
   // the always-visible ENGINE SPINE (big live organs) + the live-cursor timeline (NOW at the right
   // edge). LAW: it OBSERVES, never drives. Retro scrub = v2, click-to-detail drill-down = v3. ══
-  var ER = { open: false, lastStatus: null, reels: [], reelCache: {}, focusTs: null, focusSid: null, focusN: null, rulerLoaded: false };
+  var ER = { open: false, lastStatus: null, reels: [], reelCache: {}, focusTs: null, focusSid: null, focusN: null, rulerLoaded: false, focusBeat: null, focusReelObj: null, detailOpen: false };
   function _engineRoomEl(){
     var ov = document.getElementById('engine-room');
     if (ov) return ov;
@@ -5742,11 +5770,13 @@
         + '<button class="er-live-btn" id="er-live-btn" onclick="window._engineRoomLive()" title="snap back to NOW">● LIVE</button></div>'
       + '<div class="er-axiswrap"><div class="er-axis" id="er-axis"></div><div class="er-cursor" id="er-cursor" hidden></div></div>'
       + '<div class="er-readout" id="er-readout"></div></div>'
+      + '<div class="er-detail" id="er-detail" hidden></div>'
       + '</div>';
     ov.onclick = function(e){ if (e.target === ov) window._engineRoomClose(); };
     document.body.appendChild(ov);
     document.addEventListener('keydown', function(e){
-      if (e.key === 'Escape' && ER.open){ e.stopPropagation(); window._engineRoomClose(); }
+      // v950.3 — Esc peels the drill-down detail first, then the cockpit
+      if (e.key === 'Escape' && ER.open){ e.stopPropagation(); if (ER.detailOpen){ window._engineRoomDetailClose(); } else { window._engineRoomClose(); } }
     }, true);
     return ov;
   }
@@ -5832,6 +5862,8 @@
     beats.forEach(function(b){ if (!b.frame) return; var d = Math.abs((b.ts||0) - ER.focusTs); if (d < bestD){ bestD = d; best = b; } });
     if (!best) return;
     var reel = (ER.reels||[]).filter(function(x){ return x.sessionId === ER.focusSid; })[0] || { n: ER.focusN };
+    ER.focusBeat = best; ER.focusReelObj = reel;   // v950.3 — the beat under the cursor (for the drill-down)
+    if (ER.detailOpen) _engineRoomRenderDetail(best, reel);   // keep the open detail synced to the cursor
     var spine = document.getElementById('er-spine');
     if (spine) spine.innerHTML = _engineOrganDataRetro(best, reel).map(function(o){ return _ehOrganHtml(o, true); }).join('<span class="eh-flow">→</span>');
     var band = document.getElementById('er-spine-band');
@@ -5877,6 +5909,7 @@
   }
   window._engineRoomLive = function(){
     ER.focusTs = null; ER.focusSid = null; ER.focusN = null;
+    if (ER.detailOpen) window._engineRoomDetailClose();   // the retro-frame drill-down doesn't apply to NOW
     var cur = document.getElementById('er-cursor'); if (cur) cur.hidden = true;
     var band = document.getElementById('er-spine-band'); if (band) band.textContent = 'THE ENGINE SPINE — the whole loop, this instant';
     _engineRoomAxis();
@@ -5889,7 +5922,71 @@
     ax.addEventListener('pointermove', function(e){ if (dragging) _engineRoomScrub(e.clientX); });
     ax.addEventListener('pointerup', function(){ dragging = false; });
     ax.addEventListener('pointercancel', function(){ dragging = false; });
+    // v950.3 — click any ORGAN card → open the raw-process drill-down for the beat at the cursor
+    var spine = document.getElementById('er-spine');
+    if (spine && !spine.__wired){ spine.__wired = true; spine.addEventListener('click', function(e){ if (e.target.closest && e.target.closest('.eh-organ')) window._engineRoomInspect(); }); }
   }
+  // ── v950.3 (Engine Room v3 — THE CLICK-TO-DETAIL DRILL-DOWN) ────────────────────────────────
+  // Click an organ (or scrub a frame) → the RAW PROCESS at that timestamp: read-in-flight ms (the
+  // stall), OCR literal text, quorum votes + evidence, the gate decision + reason, funnel receipt,
+  // and the 🔴🔵🧠🔬 layer that owns the final read — sourced from /api/beat. See what the AI saw & why.
+  function _erDetailRow(k, v){ return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + (v || '—') + '</span></div>'; }
+  function _engineRoomRenderDetail(b, reel){
+    var el = document.getElementById('er-detail'); if (!el || !b) return;
+    el.hidden = false;
+    var lat = (b.completedTs && b.ts) ? ((b.completedTs - b.ts) / 1000) : null;
+    var owner = (b.super && b.super.reread) ? '🧠🔬 super-analyze'
+      : ((b.kaiMissTexts && b.kaiMissTexts.length) ? '🧠 KAI retro'
+      : (b.lane === 'verify' ? '🔵 second eye' : (((b.names||[]).length) || b.lane === 'deep' ? '🔴 live eye' : '— no read (film only)')));
+    var badges = thReaderBadge(b) + ' ' + thHandoffNote(b) + ' ' + thSuperNote(b) + ' ' + thStallNote(b);
+    var quorum = (b.routeSources && b.routeSources.length) ? b.routeSources : (b.gateSources || []);
+    var gate = (b.gatePass === false) ? ('<span style="color:#ffcf8a">🛡 HELD · ' + esc(_GATE_WHY[b.gateReason] || b.gateReason || 'held') + '</span>')
+      : (b.gatePass === true ? '<span style="color:#9df0bd">🛡 ✓ proven' + (b.routed ? ' · fired' : '') + '</span>' : '—');
+    var ik = b.intake || {};
+    el.innerHTML = '<div class="er-detail-head">🔬 RAW PROCESS <span class="thd-dim">· reel ' + (reel && reel.n || '?') + ' · 🖼 ' + esc(String(b.frameId || b.frame || '?')) + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '?') + '</span>'
+      + '<button class="th-x" id="er-detail-x" onclick="window._engineRoomDetailClose()" title="close (Esc)">✕</button></div>'
+      + '<div class="er-detail-body">'
+      + _erDetailRow('👁 the reader net', badges || '—')
+      + _erDetailRow('owns the final read', '<b>' + owner + '</b>')
+      + _erDetailRow('🔴 read in flight', lat != null ? ('<b>' + lat.toFixed(2) + 's</b>' + (lat >= 8 ? ' <span style="color:#ff9a7a">— STALL</span>' : '')) : (b.ms ? Math.round(b.ms) + 'ms' : '—'))
+      + _erDetailRow('⚡ OCR literal sight', (b.ocr_raw || []).length ? esc(b.ocr_raw.slice(0, 14).join(' · ')) : ((b.ocr_names||[]).length ? esc(b.ocr_names.join(', ')) : '—'))
+      + _erDetailRow('🚦 quorum · evidence', quorum.length ? esc(quorum.join(' ')) + ((b.routeConf != null) ? ' <span class="thd-dim">· conf ' + esc(String(b.routeConf)) + '</span>' : '') : '—')
+      + _erDetailRow('🛡 gate decision', gate + ((b.gateSources && b.gateSources.length) ? ' <span class="thd-dim">· ' + esc(b.gateSources.join(' ')) + '</span>' : ''))
+      + _erDetailRow('🩹 funnel receipt', (ik.tab || ik.kind) ? ((ik.ok ? '✅' : '⚠') + ' ' + esc(ik.tab || ik.kind) + ' · ' + (ik.total != null ? ik.total : '?') + (ik.errors ? ' · ' + ik.errors + ' err' : '')) : ((b.routed) ? ('fired ' + esc(String(b.routed))) : '—'))
+      + _erDetailRow('🧠🔬 super-analyze', (b.super && b.super.reread) ? ('recovered <b>' + esc((b.super.deepNames || []).join(', ') || 'a read') + '</b>' + (b.super.tier ? ' <span class="thd-dim">(' + esc(b.super.tier) + ')</span>' : '')) : '<span class="thd-dim">not needed — an earlier layer got it</span>')
+      + (b.raw ? '<details class="th-raw"><summary>the model\'s raw answer (' + String(b.raw).length + ' chars)</summary><div class="col" style="white-space:pre-wrap;word-break:break-word">' + esc(String(b.raw).slice(0, 2400)) + '</div></details>' : '')
+      + '</div>';
+  }
+  window._engineRoomInspect = function(){
+    var b = ER.focusBeat, reel = ER.focusReelObj;
+    if (ER.focusTs == null){   // LIVE — inspect the newest read from the newest reel's pack
+      var newest = (ER.reels || [])[ER.reels.length - 1];
+      if (newest){
+        var use = function(beats){
+          var pick = null;
+          for (var i = beats.length - 1; i >= 0; i--){ if (beats[i].frame && !beats[i].footage){ pick = beats[i]; break; } }
+          if (!pick) for (var j = beats.length - 1; j >= 0; j--){ if (beats[j].frame){ pick = beats[j]; break; } }
+          if (pick){ ER.focusBeat = pick; ER.focusReelObj = newest; ER.detailOpen = true; _engineRoomRenderDetail(pick, newest); _engineRoomFetchBlob(pick); }
+        };
+        if (ER.reelCache[newest.sessionId]) use(ER.reelCache[newest.sessionId]);
+        else _engineRoomLoadReel(newest.sessionId, newest.n, function(bs){ if (bs) use(bs); });
+        return;
+      }
+    }
+    if (!b){ return; }
+    ER.detailOpen = true;
+    _engineRoomRenderDetail(b, reel);
+    _engineRoomFetchBlob(b);
+  };
+  function _engineRoomFetchBlob(b){
+    // pull the deep forensic blob (OCR/raw/decisions) for a read beat, then re-render the detail
+    if (!b || !b.sessionId || b.n == null || b.footage || b.__blob) return;
+    fetch(API + '/api/beat?id=' + encodeURIComponent(b.sessionId) + '&n=' + (b.n || 0)).then(function(r){ return r.json(); }).then(function(j){
+      if (j && j.ok){ b.raw = j.raw; b.ocr_raw = j.ocr_raw || b.ocr_raw; b.pre = j.pre; b.decisions = j.decisions; b.chain = j.chain; b.dispatch = j.dispatch; b.__blob = true;
+        if (ER.detailOpen && ER.focusBeat === b) _engineRoomRenderDetail(b, ER.focusReelObj); }
+    }).catch(function(){});
+  }
+  window._engineRoomDetailClose = function(){ ER.detailOpen = false; var el = document.getElementById('er-detail'); if (el) el.hidden = true; };
   window._engineRoomOpen = function(){
     var ov = _engineRoomEl(); ER.open = true; ov.hidden = false;
     ER.focusTs = null; ER.focusSid = null;   // always open at NOW
@@ -5898,7 +5995,7 @@
     _engineRoomRefresh(ER.lastStatus || {});
     fetch(API + '/api/status').then(function(r){ return r.json(); }).then(function(j){ ER.lastStatus = j; _engineRoomRefresh(j); }).catch(function(){});
   };
-  window._engineRoomClose = function(){ ER.open = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; };
+  window._engineRoomClose = function(){ ER.open = false; ER.detailOpen = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; };
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){
