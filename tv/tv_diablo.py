@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v946.8"   # Vault grid COUNT: personal/shared auto-count occupied slots (icons); identity vault stays tooltip-only
+VERSION = "v947.2"   # Theatre stamp ledger: all AI eyes/router/KAI/intake at captureTs per photo
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -371,6 +371,9 @@ def _health(st):
          "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
          "footageFps": _foot_fps_now(), "footageTargetFps": _FOOTAGE_FPS,
          "filmLane": globals().get("_FILM_LANE", ""), "filmCapMs": globals().get("_FILM_CAP_MS"),   # v867
+         "footageWhy": globals().get("_FOOTAGE_WHY", ""),   # v947 — grab|bridge-last-good|disk-full
+         "footageBridges": int(globals().get("_FOOTAGE_BRIDGES") or 0),
+         "filmWhiteRejects": int(globals().get("_FILM_WHITE_REJECTS") or 0),
          "filmMaxPx": FILM_MAX_PX, "pollMs": int(POLL_S * 1000),
          # v944 — brains 1+2: live settle ring depth + un-read text-eye sweep backlog
          "settleQueue": len(_SETTLE_QUEUE), "textEyeBacklog": len(_TEXT_EYE_BACKLOG),
@@ -1118,32 +1121,60 @@ def _foot_fps_now():
     return round(len(recent) / 10.0, 2)
 
 
+def _archive_footage_copy(src_path, now_f, why="ok"):
+    """v947 — 1fps archive helper. Always advances the due clock; never blocks on sips."""
+    try:
+        _iv = FOOTAGE_INTERVAL_S
+        _due = globals().get("_FOOTAGE_DUE", 0.0)
+        if now_f < _due:
+            return False
+        globals()["_FOOTAGE_DUE"] = max(_due + _iv, now_f - (_iv - 0.01)) if _due else now_f + _iv
+        globals()["_FOOTAGE_AT"] = now_f
+        globals()["_FOOTAGE_WHY"] = why
+        if not src_path or not os.path.isfile(src_path) or os.path.getsize(src_path) < 4000:
+            globals()["_FOOTAGE_REJECTS"] = int(globals().get("_FOOTAGE_REJECTS") or 0) + 1
+            return False
+        hist_dir = HIST_DIR
+        os.makedirs(hist_dir, exist_ok=True)
+        import shutil as _sh
+        if _sh.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
+            globals()["_FOOTAGE_WHY"] = "disk-full"
+            return False
+        _FOOT_TIMES.append(now_f)
+        _sh.copyfile(src_path, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
+        # remember last GOOD archive source for starve-bridge
+        try:
+            last = os.path.join(FRAMES, "eye.last.jpg")
+            _sh.copyfile(src_path, last)
+            globals()["_FILM_LAST_GOOD"] = last
+        except Exception:
+            globals()["_FILM_LAST_GOOD"] = src_path
+        return True
+    except Exception:
+        return False
+
+
 def _film_loop():
-    """v846 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
-    Target ~15fps (TV_FILM_FPS). Intelligence still uses BMP+frame_sig on the poll loop.
-    Claude thinking never freezes this thread."""
+    """v846/v947 TESLA DRIVE film — high-FPS HD JPEG of the pinned D2R window.
+    Target TV_FILM_FPS (~5). Intelligence still uses BMP+frame_sig on the poll loop.
+    Claude thinking never freezes this thread.
+
+    v947 FOOTAGE STARVE fix (Konyo live 0.4fps):
+      · white-backing reject → immediate full-screen Quartz (no 3-fail wait)
+      · demote window lane 5s (was 15s)
+      · never-starve screencapture timeout 1.5s (was 5s) — a long hang IS the starve
+      · when grab fails but archive is DUE, bridge with last-good eye (better than a gap)
+    """
     eye = os.path.join(FRAMES, "eye.jpg")
     tmp = eye + ".part.jpg"
-    # v867 (Konyo: '180 frames minimum in 3 minutes, verify FOR REAL') — his 0.52fps run was the
-    # loop paying a FAILING window grab (screencapture -l on a CrossOver surface burns 1-4s
-    # failing) every iteration before the fallback fired. Lane brain: 3 straight window-lane
-    # failures demote to the full-screen lane for 30s (~300ms/frame → honest 2fps footage).
     _lane_fail = 0
     _lane_full_until = 0.0
     while True:
         t0 = time.time()
         try:
-            # v928.2 (Konyo: "it should not be showing anything but diablo ii") — the film
-            # lane obeys the game gate like every other engine: with no D2R the old loop
-            # kept full-screen-grabbing the DESKTOP (infinite board-mirror in the preview,
-            # desktop frames archived into the reel — a privacy leak, not footage). Hold
-            # the eye entirely while the game is gone; the preview keeps the last game frame.
             if globals().get("_AI_PAUSED") and not WATCH_MODE:
                 time.sleep(1.5)
                 continue
-            # v929.1 (Grok third-eye P0) — film also requires a PIN: in 'waiting' (no D2R
-            # window listed) the never-starve fallback was full-screen-grabbing the desktop
-            # even with the game gate open via the process-alive fallback. No pin → no film.
             if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":
                 time.sleep(1.5)
                 continue
@@ -1152,137 +1183,123 @@ def _film_loop():
             if (_CAP_TARGET or {}).get("mode") == "waiting":
                 wid = None
             if time.time() < _lane_full_until:
-                wid = None   # demoted — full-screen lane only, no doomed -l attempts
+                wid = None
             wrote = False
+            white_reject = False
             if wid:
-                # v898 — Quartz only for D2R.exe window film. screencapture -l hangs on
-                # CrossOver surfaces (5–12s) and was killing the 15fps lane + NO EYE.
                 wrote = _quartz_grab_window(wid, tmp, uti="public.jpeg")
-                # v930.3/v944 (Konyo: "why is it not the diablo ii window in the retro?" ->
-                # "FOOTAGE STARVE — 0.2fps") — the Metal fullscreen surface hands Quartz a
-                # BLANK WHITE backing that still "succeeds": his 331-frame reel was the same
-                # 93KB white JPEG on repeat. The v930.3 fix rejected EVERY grab <150KB, but a
-                # legit DARK stash/loading frame also compresses small -> stash-heavy sessions
-                # starved. Now reject only a genuine near-uniform+bright backing; real dark
-                # frames pass. See _is_white_backing (REG-033 real-pixels law intact).
                 if wrote:
                     try:
                         if _is_white_backing(tmp):
                             wrote = False
+                            white_reject = True
+                            globals()["_FILM_WHITE_REJECTS"] = int(globals().get("_FILM_WHITE_REJECTS") or 0) + 1
                     except Exception:
                         wrote = False
                 if wrote:
                     _lane_fail = 0
                 else:
                     _lane_fail += 1
-                    # brief SC attempt only after repeated Quartz fails (2s hard cap)
-                    if _lane_fail >= 2:
+                    # v947 — white Metal backing: skip doomed -l retries, go full-screen now
+                    if white_reject or _lane_fail >= 2:
                         try:
                             r = subprocess.run(
                                 ["screencapture", "-l", str(wid), "-o", "-x", "-t", "jpg", tmp],
-                                capture_output=True, timeout=2, **NICE_KW)
+                                capture_output=True, timeout=1.5, **NICE_KW)
                             wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
+                            if wrote:
+                                try:
+                                    if _is_white_backing(tmp):
+                                        wrote = False
+                                        white_reject = True
+                                except Exception:
+                                    wrote = False
                         except Exception:
                             wrote = False
                         if wrote:
                             _lane_fail = 0
                     if not wrote:
-                        _need = 1 if globals().get("_LANE_DEMOTED_ONCE") else 3
+                        # demote 5s (was 15) — recover window pin fast when surface returns
+                        _need = 1 if (white_reject or globals().get("_LANE_DEMOTED_ONCE")) else 2
                         if _lane_fail >= _need:
-                            _lane_full_until = time.time() + 15.0
+                            _lane_full_until = time.time() + 5.0
                             _lane_fail = 0
                             globals()["_LANE_DEMOTED_ONCE"] = True
                             globals()["_FILM_LANE"] = "full(demoted)"
-            else:
-                # v867 — Quartz full screen first (~50ms), screencapture subprocess fallback
+            if not wrote:
+                # full-screen lane (demoted OR no wid OR white reject recovery)
                 wrote = _quartz_grab_screen(tmp, uti="public.jpeg")
                 if not wrote:
                     try:
                         subprocess.run(
                             ["screencapture", "-x", "-t", "jpg", tmp],
-                            capture_output=True, timeout=2, **NICE_KW)
+                            capture_output=True, timeout=1.5, **NICE_KW)
                         wrote = os.path.exists(tmp) and os.path.getsize(tmp) > 4000
                     except Exception:
                         wrote = False
-            globals()["_FILM_LANE"] = ("window" if wid else ("full(demoted)" if time.time() < _lane_full_until else "full"))
+            globals()["_FILM_LANE"] = (
+                "window" if (wid and wrote and not white_reject and time.time() >= _lane_full_until)
+                else ("full(demoted)" if time.time() < _lane_full_until else "full")
+            )
             globals()["_FILM_CAP_MS"] = int((time.time() - t0) * 1000)
             if wrote and os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
                 now_f = time.time()
-                # v897 — ARCHIVE FIRST (SIM 1fps contract): never wait on sips polish.
-                # Session1 delivered ~0.5fps because HD resize ran before f_*.jpg copy.
+                _archive_footage_copy(tmp, now_f, why="grab")
+                # reap old film if disk tight
                 try:
-                    _due = globals().get("_FOOTAGE_DUE", 0.0)
-                    if now_f >= _due:
-                        _iv = FOOTAGE_INTERVAL_S
-                        globals()["_FOOTAGE_DUE"] = max(_due + _iv, now_f - (_iv - 0.01)) if _due else now_f + _iv
-                        globals()["_FOOTAGE_AT"] = now_f
+                    if now_f >= globals().get("_REAP_DUE", 0.0):
+                        globals()["_REAP_DUE"] = now_f + 120.0
                         hist_dir = HIST_DIR
-                        os.makedirs(hist_dir, exist_ok=True)
-                        import shutil as _sh
-                        if _sh.disk_usage(hist_dir).free / 1e9 >= MIN_FREE_GB:
-                            _FOOT_TIMES.append(now_f)
-                            # copy grab buffer (tmp) — eye may still be mid-polish
-                            _src_foot = tmp if os.path.isfile(tmp) else eye
-                            _sh.copyfile(_src_foot, os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000)))
-                        if now_f >= globals().get("_REAP_DUE", 0.0):
-                            globals()["_REAP_DUE"] = now_f + 120.0
-                            try:
-                                import shutil as _shu2
-                                if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
-                                    _yc = (time.time() - 900.0) * 1000
-                                    ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg")
-                                                and int(f[2:-4]) < _yc)
-                                    for dead in ff[:600]:
-                                        try: os.remove(os.path.join(hist_dir, dead))
-                                        except Exception: pass
-                            except Exception:
-                                pass
+                        import shutil as _shu2
+                        if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
+                            _yc = (time.time() - 900.0) * 1000
+                            ff = sorted(f for f in os.listdir(hist_dir) if f.startswith("f_") and f.endswith(".jpg")
+                                        and int(f[2:-4]) < _yc)
+                            for dead in ff[:600]:
+                                try: os.remove(os.path.join(hist_dir, dead))
+                                except Exception: pass
                 except Exception:
                     pass
                 # Retina polish for live stage (after archive so SIM never starves)
-                # v861 — only genuinely oversize frames pay sips
                 if os.path.getsize(tmp) > 450_000:
                     if _sips_hd_jpeg(tmp, eye):
-                        try:
-                            os.remove(tmp)
-                        except Exception:
-                            pass
+                        try: os.remove(tmp)
+                        except Exception: pass
                     else:
-                        try:
-                            os.replace(tmp, eye)
-                        except Exception:
-                            pass
+                        try: os.replace(tmp, eye)
+                        except Exception: pass
                 else:
-                    try:
-                        os.replace(tmp, eye)
-                    except Exception:
-                        pass
+                    try: os.replace(tmp, eye)
+                    except Exception: pass
                 globals()["_EYE_PREVIEW_AT"] = time.time()
                 _FILM_TIMES.append(now_f)
             else:
-                # v860 (Konyo: '3 frames in 3 minutes') — FOOTAGE NEVER STARVES: when the window
-                # path fails, the footage tick still archives a FULL-SCREEN frame (something
-                # beats blindness; the theatre labels it footage either way).
+                # v947 — never-starve: short timeouts + last-good bridge so FOOTAGE STARVE
+                # never drops below ~1fps because a grab hung for 5s
                 try:
                     now_f2 = time.time()
                     if now_f2 >= globals().get("_FOOTAGE_DUE", 0.0):
-                        _iv = FOOTAGE_INTERVAL_S
-                        globals()["_FOOTAGE_DUE"] = now_f2 + _iv
-                        # v868 (Grok #5) — Quartz first: the window lane already burned its
-                        # subprocess; don't pay a second one for the never-starve frame
+                        got = False
                         if not _quartz_grab_screen(tmp, uti="public.jpeg"):
-                            subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
-                                           capture_output=True, timeout=5, **NICE_KW)
+                            try:
+                                subprocess.run(["screencapture", "-x", "-t", "jpg", tmp],
+                                               capture_output=True, timeout=1.5, **NICE_KW)
+                            except Exception:
+                                pass
                         if os.path.exists(tmp) and os.path.getsize(tmp) > 4000:
-                            globals()["_FOOTAGE_AT"] = now_f2
-                            _FOOT_TIMES.append(now_f2)   # v871
-                            hist_dir2 = HIST_DIR
-                            os.makedirs(hist_dir2, exist_ok=True)
-                            import shutil as _sh2
-                            if _sh2.disk_usage(hist_dir2).free / 1e9 >= MIN_FREE_GB:
-                                _sh2.copyfile(tmp, os.path.join(hist_dir2, "f_%d.jpg" % int(now_f2 * 1000)))
-                            os.replace(tmp, eye)
-                            globals()["_EYE_PREVIEW_AT"] = now_f2
+                            got = _archive_footage_copy(tmp, now_f2, why="never-starve-full")
+                            try:
+                                os.replace(tmp, eye)
+                                globals()["_EYE_PREVIEW_AT"] = now_f2
+                            except Exception:
+                                pass
+                        if not got:
+                            # bridge: re-archive last good game frame rather than a hole
+                            last = globals().get("_FILM_LAST_GOOD") or (
+                                eye if os.path.isfile(eye) else None)
+                            if last and os.path.isfile(last):
+                                _archive_footage_copy(last, now_f2, why="bridge-last-good")
+                                globals()["_FOOTAGE_BRIDGES"] = int(globals().get("_FOOTAGE_BRIDGES") or 0) + 1
                 except Exception:
                     pass
                 try:
@@ -2723,28 +2740,31 @@ _TALLY_STASH_TABS = frozenset(("runes", "gems", "materials"))
 
 
 def _tab_from_ocr_lines(lines):
-    """Pure: pick active RotW left-tab from OCR lines. Longer keys first; word-ish boundaries."""
-    import re as _re
-    blob = " ".join(str(t).lower() for t in (lines or []))
-    if not blob.strip():
-        return ""
-    # materials before material; runes before rune (avoids partial noise)
-    order = (
-        ("materials", "materials"), ("material", "materials"),
-        ("runes", "runes"),
-        ("gems", "gems"),
-        ("personal", "personal"), ("shared", "shared"),
-        # single-token fallbacks (bounded)
-        ("rune", "runes"), ("gem", "gems"), ("mat", "materials"),
-    )
-    for key, canon in order:
-        if _re.search(r"(?<![a-z])" + _re.escape(key) + r"(?![a-z])", blob):
-            return canon
-    return ""
+    """Pure: active RotW tab from OCR. Multi-tab chrome → '' (stash_eye / v947)."""
+    try:
+        from stash_eye import tab_from_ocr_lines as _se_tab
+        return _se_tab(lines)
+    except Exception:
+        import re as _re
+        blob = " ".join(str(t).lower() for t in (lines or []))
+        if not blob.strip():
+            return ""
+        order = (
+            ("materials", "materials"), ("material", "materials"),
+            ("runes", "runes"), ("gems", "gems"),
+            ("personal", "personal"), ("shared", "shared"),
+            ("rune", "runes"), ("gem", "gems"), ("mat", "materials"),
+        )
+        hits = []
+        for key, canon in order:
+            if _re.search(r"(?<![a-z])" + _re.escape(key) + r"(?![a-z])", blob):
+                if canon not in hits:
+                    hits.append(canon)
+        return hits[0] if len(hits) == 1 else ""
 
 
 def _crop_left_tab_strip(src_path, dest_path, frac=0.20):
-    """Crop the left ~20% (RotW tab strip) for OCR. Returns dest_path or None."""
+    """Legacy left-20% crop (fallback). Prefer stash_eye.prep_tab_chrome for v947 eyes."""
     try:
         from PIL import Image  # type: ignore
         im = Image.open(src_path)
@@ -2759,23 +2779,43 @@ def _crop_left_tab_strip(src_path, dest_path, frac=0.20):
 
 
 def _stash_tab_ocr_path(frame_path):
-    """OCR left tab strip (fallback: full frame) via the warm OCR worker. '' if unknown."""
+    """v947 — intake-style tab chrome + grid fingerprint (no intake calls).
+
+    Mimics bible `_tallyPrepImage` crop band: upscaled tab chrome above left grid,
+    then pixel grid class (runes/gems/materials). Used by live deep journal stashTab.
+    """
     if not frame_path or not os.path.isfile(frame_path):
         return ""
-    if not _OCR.available():
-        return ""
     try:
+        from stash_eye import analyze_frame
+
+        def _read(p):
+            if not _OCR.available():
+                return {}
+            try:
+                return _OCR.read(p, timeout=1.5) or {}
+            except Exception:
+                return {}
+
+        res = analyze_frame(
+            frame_path,
+            ocr_lines=None,
+            journal_tab="",
+            model_tab="",
+            ocr_worker_read=_read if _OCR.available() else None,
+            work_dir=HIST_DIR,
+        )
+        tab = str(res.get("tab") or "")
+        if tab in ("runes", "gems", "materials", "personal", "shared"):
+            return tab
+        # fallback: legacy left strip if eyes returned empty
+        if not _OCR.available():
+            return ""
         crop = os.path.join(HIST_DIR, ".tabstrip_ocr.jpg")
         os.makedirs(HIST_DIR, exist_ok=True)
         use = _crop_left_tab_strip(frame_path, crop) or frame_path
         j = _OCR.read(use, timeout=1.5)
-        lines = (j or {}).get("lines") or []
-        tab = _tab_from_ocr_lines(lines)
-        if not tab and use != frame_path:
-            # strip crop empty → try full deep frame once
-            j2 = _OCR.read(frame_path, timeout=1.5)
-            tab = _tab_from_ocr_lines((j2 or {}).get("lines") or [])
-        return tab
+        return _tab_from_ocr_lines((j or {}).get("lines") or [])
     except Exception:
         return ""
 

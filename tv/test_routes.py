@@ -97,9 +97,10 @@ class TestKaiFrameCls(unittest.TestCase):
             self.assertEqual(ca._kai_frame_cls(lines, itemish), expect,
                              "%r (itemish=%s) → %s" % (lines, itemish, expect))
 
-    def test_tab_word_precedence_runes_over_gems(self):
-        # blob carries a stash word + both tab words → runes is checked first.
-        self.assertEqual(ca._kai_frame_cls(["Personal Stash", "Runes Gems"], False), "stash-runes")
+    def test_multi_tally_words_stay_generic_stash(self):
+        # v947 — full chrome lists ALL tabs; do not force materials/runes from multi-hit.
+        self.assertEqual(ca._kai_frame_cls(["Personal", "Shared", "Gems", "Materials", "Runes"], False), "stash")
+        self.assertEqual(ca._kai_frame_cls(["Personal Stash", "Runes Gems"], False), "stash")
 
     def test_itemish_ignored_once_a_panel_is_open(self):
         # a stash panel word wins even when an item name also floats (itemish=True).
@@ -614,8 +615,13 @@ class TestV943Dossier(unittest.TestCase):
     def test_read_beat_joins_verify_and_tally(self):
         d = ca._beat_dossier(self.maps,
                              {"frameId": "2_500", "captureTs": 500, "stashTab": "runes", "lane": "deep"})
-        # 🔵 verify by frameId base (strip '#v')
-        self.assertEqual(d["verify"], {"conf": 0.9, "confirm": 1, "corrected": 0, "missed": 0})
+        # 🔵 verify by frameId base (strip '#v') — v947.2 enriched with *which* names (not just counts)
+        v = d["verify"]
+        self.assertEqual(v["conf"], 0.9)
+        self.assertEqual((v["confirm"], v["corrected"], v["missed"]), (1, 0, 0))
+        self.assertEqual(v["confirmNames"], ["El"])      # the enrichment: name lists, not bare counts
+        self.assertEqual(v["missedNames"], [])
+        self.assertEqual(v["correctedNames"], [])
         # 📸 tally by tab, counts top-pairs largest first
         self.assertEqual(d["tally"]["tab"], "runes")
         self.assertEqual(d["tally"]["total"], 3)
@@ -1179,11 +1185,16 @@ class TestStashTabIdentity(unittest.TestCase):
     """v946.1 — gems/materials must not vanish into generic stash."""
 
     def test_tab_from_ocr_lines(self):
-        self.assertEqual(ca._tab_from_ocr_lines(["Shared Stash", "Gems"]), "gems")
+        # single-tab lines → that tab
         self.assertEqual(ca._tab_from_ocr_lines(["MATERIALS"]), "materials")
         self.assertEqual(ca._tab_from_ocr_lines(["Runes", "El", "Eld"]), "runes")
         self.assertEqual(ca._tab_from_ocr_lines(["Shared"]), "shared")
+        self.assertEqual(ca._tab_from_ocr_lines(["Gems"]), "gems")
         self.assertEqual(ca._tab_from_ocr_lines(["Fortune"]), "")  # no false rune in fortune
+        # v947 — full chrome prints every tab name → ambiguous (grid fingerprint decides)
+        self.assertEqual(ca._tab_from_ocr_lines(
+            ["Personal", "Shared", "Gems", "Materials", "Runes"]), "")
+        self.assertEqual(ca._tab_from_ocr_lines(["Shared Stash", "Gems"]), "")  # two canons
 
     def test_frame_cls_tally_words(self):
         self.assertEqual(ca._kai_frame_cls(["Gems", "Chipped Diamond"], []), "stash-gems")
@@ -1198,6 +1209,24 @@ class TestStashTabIdentity(unittest.TestCase):
         self.assertEqual(ca._kai_sticky_tab(100, [(20000, "runes")]), None)  # far before first deep
         # near future deep within 4s (frame before deep stamp lands)
         self.assertEqual(ca._kai_sticky_tab(900, [(1000, "materials")]), "materials")
+
+    def test_stash_eye_fuse_and_grid(self):
+        """v947 — intake-mimic eyes fuse without calling intake."""
+        import stash_eye as se
+        tab, src = se.fuse_tab_signals(ocr_tab="gems", grid_label="stash-gems",
+                                       journal_tab="shared", model_tab="")
+        self.assertEqual(tab, "gems")
+        self.assertIn("ocr", src)
+        self.assertIn("grid", src)
+        # OCR tally beats sticky shared (the farm miss that started this work)
+        tab2, _ = se.fuse_tab_signals(ocr_tab="", grid_label="stash-materials",
+                                      journal_tab="shared", model_tab="shared")
+        self.assertEqual(tab2, "materials")
+        # multi-chrome OCR empty → journal sticky still works
+        tab3, src3 = se.fuse_tab_signals(ocr_tab="", grid_label="stash",
+                                         journal_tab="runes", model_tab="")
+        self.assertEqual(tab3, "runes")
+        self.assertIn("journal", src3)
 
 
 if __name__ == "__main__":

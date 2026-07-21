@@ -1,0 +1,396 @@
+# stash_eye.py — eye/brain frame analysis that MIMICS the perfected tally intakes
+# without calling or changing gemIntake / runeIntake / materialIntake.
+#
+# Source of crop truth: bible.html `_tallyPrepImage` v341.59 LOCKED fractions
+# (aspect 1.45–1.62, W≥1200 fullscreen D2R):
+#   runes: x0=0.083 y0=0.20 x1=0.402 y1=0.468  (9-wide, cube-wrapped)
+#   gems:  x0=0.105 y0=0.205 x1=0.388 y1=0.445  (clean 7×5)
+# Tab chrome sits JUST ABOVE that grid band — we OCR an upscaled strip there so
+# Personal/Shared/Gems/Materials/Runes are readable (full-frame OCR is dark).
+#
+# Used by: control_app KAI closer + router votes; tv_diablo live stashTab resolve.
+# NEVER imports bible, NEVER fires intake, NEVER mutates stash tallies.
+
+from __future__ import annotations
+
+import os
+import re
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+# ── LOCKED crop fractions (mirror bible.html _tallyPrepImage) ──────────────
+_TALLY_CROPS = {
+    "runes": (0.083, 0.20, 0.402, 0.468),
+    "gems": (0.105, 0.205, 0.388, 0.445),
+    # materials uses the same left-panel band as runes (generic left stash)
+    "materials": (0.083, 0.20, 0.402, 0.468),
+    "shared": (0.083, 0.18, 0.402, 0.55),
+    "personal": (0.083, 0.18, 0.402, 0.55),
+}
+# Tab labels ride above the grid; measured on 2940×1912 film of this product
+_TAB_CHROME = (0.08, 0.12, 0.40, 0.205)
+
+_TALLY_TABS = frozenset(("runes", "gems", "materials"))
+_VAULT_TABS = frozenset(("personal", "shared"))
+_ALL_TABS = _TALLY_TABS | _VAULT_TABS
+
+
+def tab_from_ocr_lines(lines: Optional[Sequence[Any]]) -> str:
+    """Active-tab guess from OCR lines.
+
+    Stash chrome always prints ALL five tab names — first-hit order wrongly
+    returned 'materials' whenever the strip was fully readable. Rule:
+      · 0 hits → ''
+      · 1 unique canon → that tab
+      · 2+ canons → '' (ambiguous chrome; pixel/grid fingerprint decides)
+    """
+    blob = " ".join(str(t).lower() for t in (lines or []))
+    if not blob.strip():
+        return ""
+    # normalize common OCR garble of RotW tab labels (never break the word "materials")
+    blob = re.sub(r"matera?l\$?", "materials", blob)   # mATERIAL$ style
+    blob = re.sub(r"materlal", "materials", blob)
+    blob = re.sub(r"sha[ak]e?d", "shared", blob)
+    blob = re.sub(r"pers[o•\*]*n?a?l?", "personal", blob)
+    blob = re.sub(r"\bgens\b", "gems", blob)
+    blob = re.sub(r"\bgemz\b", "gems", blob)
+    order = (
+        ("materials", "materials"), ("material", "materials"),
+        ("runes", "runes"), ("gems", "gems"),
+        ("personal", "personal"), ("shared", "shared"),
+        ("rune", "runes"), ("gem", "gems"),
+    )
+    hits: List[str] = []
+    for key, canon in order:
+        if re.search(r"(?<![a-z])" + re.escape(key) + r"(?![a-z])", blob):
+            if canon not in hits:
+                hits.append(canon)
+    if len(hits) == 1:
+        return hits[0]
+    return ""
+
+
+def _open_rgb(path: str):
+    from PIL import Image  # type: ignore
+    im = Image.open(path).convert("RGB")
+    return im
+
+
+def _crop_frac(im, frac: Tuple[float, float, float, float]):
+    w, h = im.size
+    x0, y0, x1, y1 = frac
+    box = (
+        max(0, int(w * x0)),
+        max(0, int(h * y0)),
+        min(w, max(1, int(w * x1))),
+        min(h, max(1, int(h * y1))),
+    )
+    if box[2] <= box[0] or box[3] <= box[1]:
+        return None
+    return im.crop(box)
+
+
+def prep_tab_chrome(src_path: str, dest_path: str, scale: int = 3) -> Optional[str]:
+    """Intake-style: crop tab chrome ABOVE the tally grid, upscale, high-contrast JPEG.
+
+    Returns dest_path on success, else None. Mimics how intakes enlarge digits —
+    tab labels need the same treatment or Vision/OCR returns [].
+    """
+    try:
+        from PIL import ImageEnhance, ImageOps  # type: ignore
+        im = _open_rgb(src_path)
+        crop = _crop_frac(im, _TAB_CHROME)
+        if crop is None:
+            return None
+        sw, sh = crop.size
+        if sw < 8 or sh < 4:
+            return None
+        up = crop.resize((max(8, sw * scale), max(8, sh * scale)), getattr(__import__("PIL.Image", fromlist=["Image"]).Image, "LANCZOS", 1))
+        g = ImageOps.autocontrast(up.convert("L"))
+        g = ImageEnhance.Contrast(g).enhance(2.4)
+        # also keep a color path for Vision OCR workers that want RGB
+        rgb = up.convert("RGB")
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.8)
+        os.makedirs(os.path.dirname(os.path.abspath(dest_path)) or ".", exist_ok=True)
+        rgb.save(dest_path, format="JPEG", quality=95)
+        return dest_path
+    except Exception:
+        return None
+
+
+def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
+                    max_edge: int = 1200, cap: float = 3.2) -> Optional[str]:
+    """Mimic _tallyPrepImage crop+enlarge for a layout (runes|gems|materials|shared).
+
+    Pure image prep — does NOT call intake or the model.
+    """
+    try:
+        from PIL import Image  # type: ignore
+        im = _open_rgb(src_path)
+        w, h = im.size
+        aspect = (w / float(h)) if h else 0
+        frac = _TALLY_CROPS.get(layout) or _TALLY_CROPS["runes"]
+        if 1.45 <= aspect <= 1.62 and w >= 1200:
+            crop = _crop_frac(im, frac)
+        elif aspect >= 1.3:
+            # foreign / windowed — whole left 46% (same law as intake foreign tier)
+            crop = im.crop((0, 0, max(8, int(w * 0.46)), h))
+        else:
+            crop = _crop_frac(im, frac)
+        if crop is None:
+            return None
+        sw, sh = crop.size
+        scale = min(cap, max_edge / float(max(sw, sh, 1)))
+        nw = max(1, int(round(sw * scale)))
+        nh = max(1, int(round(sh * scale)))
+        up = crop.resize((nw, nh), Image.LANCZOS)
+        os.makedirs(os.path.dirname(os.path.abspath(dest_path)) or ".", exist_ok=True)
+        up.save(dest_path, format="JPEG", quality=92)
+        return dest_path
+    except Exception:
+        return None
+
+
+def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
+    """Pixel fingerprint of the left stash GRID (intake crop region) → tab guess.
+
+    Mimics the spirit of _runeSheetPrep (luminance / owned-stone detection) and
+    gem colour columns — WITHOUT running the intake model.
+
+    Returns (label, detail) where label is one of:
+      stash-runes | stash-gems | stash-materials | stash | gameplay
+    """
+    detail: Dict[str, Any] = {"method": "grid-fingerprint"}
+    try:
+        from PIL import Image  # type: ignore
+        im = _open_rgb(src_path)
+        w, h = im.size
+        if w < 200 or h < 200:
+            return "gameplay", detail
+        # use gems crop as the common left-grid window (overlaps runes/materials)
+        crop = _crop_frac(im, _TALLY_CROPS["gems"])
+        if crop is None:
+            return "gameplay", detail
+        # sample down for speed
+        g = crop.resize((84, 56), Image.BILINEAR)
+        px = list(g.getdata())
+        n = len(px) or 1
+        # features
+        gold_tan = 0      # rune stones (pale limestone / tan)
+        chroma = 0        # saturated gems (ruby/sapphire/emerald…)
+        dark_empty = 0
+        mid_gear = 0      # mixed shared/personal equipment
+        bright = 0
+        for r, gch, b in px:
+            lum = 0.299 * r + 0.587 * gch + 0.114 * b
+            if lum > 115:
+                bright += 1
+            if lum < 40:
+                dark_empty += 1
+            # limestone / parchment rune: high lum, low chroma, R≈G≈B or slightly warm
+            cr = abs(r - gch) + abs(gch - b) + abs(r - b)
+            if lum > 100 and cr < 55 and r > 90:
+                gold_tan += 1
+            # gem: high chroma, one channel dominates
+            mx, mn = max(r, gch, b), min(r, gch, b)
+            if (mx - mn) > 70 and mx > 120 and lum > 50:
+                chroma += 1
+            # gear/metal: mid lum, moderate chroma (rings, charms)
+            if 55 < lum < 140 and 25 < cr < 90:
+                mid_gear += 1
+        ft = gold_tan / n
+        fc = chroma / n
+        fd = dark_empty / n
+        fg = mid_gear / n
+        fb = bright / n
+        detail.update({
+            "frac_tan": round(ft, 4), "frac_chroma": round(fc, 4),
+            "frac_dark": round(fd, 4), "frac_gear": round(fg, 4),
+            "frac_bright": round(fb, 4),
+        })
+        # decision tree — shared/personal vaults have COLOURED ring gems (chroma)
+        # that must NOT be misread as the Gems tab. Gear density gates first.
+        # shared/personal: gear / mixed mid-tones dominate the left panel
+        if fg >= 0.14:
+            detail["pick"] = "stash"
+            return "stash", detail
+        # gems tab: high chroma AND low gear (pure jewel grid, not jewelry on gear)
+        if fc >= 0.11 and fg < 0.10 and fc >= ft:
+            detail["pick"] = "gems"
+            return "stash-gems", detail
+        # runes: pale limestone stones dominate (tan high, chroma low)
+        if ft >= 0.08 and fc < 0.06 and fb >= 0.12:
+            detail["pick"] = "runes"
+            return "stash-runes", detail
+        # materials: dark empties + some chroma (essences) but NOT gear-dense vault
+        if fd >= 0.42 and 0.04 <= fc < 0.10 and fg < 0.10 and ft < 0.08:
+            detail["pick"] = "materials"
+            return "stash-materials", detail
+        # softer vault
+        if fg >= 0.08 or (fb >= 0.08 and ft < 0.10):
+            detail["pick"] = "stash"
+            return "stash", detail
+        if fd >= 0.60 and fb < 0.06:
+            detail["pick"] = "gameplay"
+            return "gameplay", detail
+        detail["pick"] = "stash-default"
+        return "stash", detail
+    except Exception as e:
+        detail["err"] = str(e)[:80]
+        return "gameplay", detail
+
+
+def fuse_tab_signals(
+    ocr_tab: str = "",
+    grid_label: str = "",
+    journal_tab: str = "",
+    model_tab: str = "",
+) -> Tuple[str, List[str]]:
+    """Fuse eye signals into one tab + list of agreeing sources.
+
+    Priority (eyes, before router):
+      1) OCR single-tab (chrome strip) when unambiguous
+      2) grid fingerprint tally tab (runes/gems/materials)
+      3) model deep-read stashTab
+      4) journal sticky
+      5) grid said plain stash → personal/shared from journal/model if any
+    Returns (tab_or_empty, sources) e.g. ('gems', ['ocr','grid']).
+    """
+    sources: List[str] = []
+    ocr_tab = (ocr_tab or "").lower().strip()
+    journal_tab = (journal_tab or "").lower().strip()
+    model_tab = (model_tab or "").lower().strip()
+    gl = (grid_label or "").lower().strip()
+    grid_tab = ""
+    if gl.startswith("stash-"):
+        grid_tab = gl[len("stash-"):]
+    elif gl == "stash":
+        grid_tab = "stash"
+
+    # stash-open corroboration — grid alone on a dark loading screen invents materials
+    stash_open = (
+        journal_tab in _ALL_TABS or journal_tab == "stash"
+        or model_tab in _ALL_TABS or model_tab == "stash"
+        or ocr_tab in _ALL_TABS
+        or grid_tab == "stash"
+        or str(grid_label or "").startswith("stash")
+    )
+
+    # 1 OCR tally wins over vague vault labels (same law as live _resolve_stash_tab)
+    if ocr_tab in _TALLY_TABS:
+        sources.append("ocr")
+        if grid_tab == ocr_tab:
+            sources.append("grid")
+        if journal_tab == ocr_tab:
+            sources.append("journal")
+        if model_tab == ocr_tab:
+            sources.append("model")
+        return ocr_tab, sources
+
+    # 2 grid fingerprint tally — only when another eye says the stash panel is open
+    if grid_tab in _TALLY_TABS and stash_open and (
+        journal_tab or model_tab or ocr_tab or grid_tab == "stash"
+        or str(grid_label or "") == "stash"
+    ):
+        # require journal/model/ocr OR plain-stash grid (not grid inventing tally on town)
+        if journal_tab or model_tab or ocr_tab:
+            sources.append("grid")
+            if journal_tab == grid_tab:
+                sources.append("journal")
+            if model_tab == grid_tab:
+                sources.append("model")
+            return grid_tab, sources
+
+    # 3 model tally
+    if model_tab in _TALLY_TABS:
+        sources.append("model")
+        if journal_tab == model_tab:
+            sources.append("journal")
+        return model_tab, sources
+
+    # 4 journal tally sticky
+    if journal_tab in _TALLY_TABS:
+        sources.append("journal")
+        return journal_tab, sources
+
+    # 5 vault tabs
+    for cand, src in ((ocr_tab, "ocr"), (model_tab, "model"), (journal_tab, "journal")):
+        if cand in _VAULT_TABS:
+            sources.append(src)
+            if grid_tab in ("stash", "personal", "shared"):
+                sources.append("grid")
+            return cand, sources
+
+    if grid_tab == "stash" or gl == "stash":
+        sources.append("grid")
+        return "shared" if not journal_tab else journal_tab, sources  # plain stash panel open
+
+    return "", sources
+
+
+def class_from_tab(tab: str) -> str:
+    tab = (tab or "").lower()
+    if tab in _TALLY_TABS:
+        return "stash-" + tab
+    if tab in _VAULT_TABS or tab == "stash":
+        return "stash"
+    return ""
+
+
+def analyze_frame(
+    path: str,
+    ocr_lines: Optional[Sequence[Any]] = None,
+    journal_tab: str = "",
+    model_tab: str = "",
+    ocr_worker_read=None,
+    work_dir: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Full eye analysis of one photo (for KAI / live resolve).
+
+    ocr_worker_read: optional callable(path)->dict with 'lines' (warm OCR worker).
+    When provided, tab chrome is prepped intake-style and re-OCR'd.
+    """
+    out: Dict[str, Any] = {
+        "path": path,
+        "ocrTab": "",
+        "gridLabel": "",
+        "gridDetail": {},
+        "tab": "",
+        "cls": "gameplay",
+        "sources": [],
+        "kaiVer": 2,
+    }
+    if not path or not os.path.isfile(path):
+        return out
+
+    # full-frame OCR lines if already available
+    ocr_tab = tab_from_ocr_lines(ocr_lines or [])
+    # intake-style tab chrome re-OCR
+    if ocr_worker_read is not None:
+        try:
+            wd = work_dir or os.path.dirname(path) or "/tmp"
+            chrome = os.path.join(wd, ".stash_eye_tab.jpg")
+            if prep_tab_chrome(path, chrome):
+                j = ocr_worker_read(chrome) or {}
+                t2 = tab_from_ocr_lines(j.get("lines") or [])
+                if t2:
+                    ocr_tab = t2
+                    out["chromeOcr"] = list((j.get("lines") or [])[:8])
+        except Exception:
+            pass
+    out["ocrTab"] = ocr_tab
+
+    gl, gd = classify_stash_grid(path)
+    out["gridLabel"] = gl
+    out["gridDetail"] = gd
+
+    tab, sources = fuse_tab_signals(ocr_tab, gl, journal_tab, model_tab)
+    out["tab"] = tab
+    out["sources"] = sources
+    # class only from fused tab (never raw grid alone — that invented materials on loading)
+    if tab:
+        out["cls"] = class_from_tab(tab) or "gameplay"
+    elif gl == "stash" and (journal_tab or model_tab or ocr_tab):
+        out["cls"] = "stash"
+    else:
+        out["cls"] = "gameplay"
+    return out

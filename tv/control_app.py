@@ -94,44 +94,102 @@ def _hist_frame_rel(fid):
 # _build_dossier_maps walks the session's rows ONCE (no O(n^2)) into lookup maps;
 # _beat_dossier hangs {tally,verify,kai} on a read/footage beat from those maps.
 def _build_dossier_maps(sess_rows):
-    """v941 — single-pass join index for one session's journal rows.
-    Returns {verify, kai, tab_ts, tab_receipts}; keys built for O(1)/O(log n) hits."""
+    """v941/v947.2 — single-pass join index for one session's journal rows.
+    Returns maps for O(1)/O(log n) hits + time-ordered AI events for stamp ledgers."""
     verify_by_base = {}   # deep frameId (verify '#v' stripped) -> compact verify dict
-    kai_by_frame = {}     # reel frameId -> {"cls":.., "judge":..}
+    kai_by_frame = {}     # reel frameId -> {"cls":.., "judge":.., "texts":..}
     tab_ts = {}           # tab(lower) -> sorted [ts] for bisect-nearest
     tab_receipts = {}     # tab(lower) -> {ts: compact receipt}
+    # v947.2 — every AI journal event at its captureTs (live + aftermath) for surgical debug
+    events = []           # [{ts, lane, kind, summary, names, frameId, ...}]
     for r in sess_rows:
         ln = r.get("lane")
+        ts = int(r.get("captureTs") or r.get("ts") or 0)
+        fid = str(r.get("frameId") or "")
         if ln == "verify":
             v = r.get("verify")
             if isinstance(v, dict):
-                base = str(r.get("frameId") or "").split("#", 1)[0]
+                base = fid.split("#", 1)[0]
                 if base:
-                    # confirm/missed/not_present journal as name LISTS; the dossier
-                    # reports counts. 'corrected' == names the second look ruled
-                    # not-present (a correction of the first read).
                     verify_by_base[base] = {
                         "conf": v.get("conf"),
                         "confirm": len(v.get("confirm") or []),
                         "corrected": len(v.get("not_present") or []),
                         "missed": len(v.get("missed") or []),
+                        "confirmNames": list(v.get("confirm") or [])[:8],
+                        "missedNames": list(v.get("missed") or [])[:6],
+                        "correctedNames": list(v.get("not_present") or [])[:6],
+                        "ts": ts,
                     }
+                    events.append({
+                        "ts": ts, "lane": "verify", "eye": "second",
+                        "kind": "verify",
+                        "summary": "second eye re-check",
+                        "names": list(v.get("confirm") or [])[:6],
+                        "frameId": base, "conf": v.get("conf"),
+                    })
         elif ln == "kai":
-            k = r.get("kai")
-            fid = str(r.get("frameId") or "")
-            if fid and isinstance(k, dict):
-                slot = kai_by_frame.setdefault(fid, {"cls": None, "judge": None})
+            k = r.get("kai") if isinstance(r.get("kai"), dict) else {}
+            if fid:
+                slot = kai_by_frame.setdefault(fid, {"cls": None, "judge": None, "texts": None})
                 if k.get("cls") is not None:
                     slot["cls"] = k.get("cls")
+                if k.get("texts"):
+                    slot["texts"] = list(k.get("texts") or [])[:8]
                 j = k.get("judge")
                 if isinstance(j, dict):
                     slot["judge"] = {"name": j.get("name") or "",
                                      "tier": j.get("tier") or "",
                                      "score": j.get("score")}
+            mode = str(r.get("mode") or "kai")
+            events.append({
+                "ts": ts, "lane": "kai", "eye": "kai",
+                "kind": mode,
+                "summary": (r.get("note") or "KAI closer")[:100],
+                "names": list(k.get("texts") or [])[:6] if k else [],
+                "frameId": fid,
+                "cls": k.get("cls") if k else None,
+            })
+        elif ln == "deep":
+            names = list(r.get("names") or r.get("confirmed_names") or [])[:8]
+            events.append({
+                "ts": ts, "lane": "deep", "eye": "live",
+                "kind": "deep",
+                "summary": ("deep · " + (r.get("scene") or "") + (
+                    (" · " + str(r.get("stashTab"))) if r.get("stashTab") else "")),
+                "names": names,
+                "frameId": fid,
+                "conf": r.get("conf"),
+                "model": r.get("model") or "",
+                "stashTab": r.get("stashTab") or "",
+                "completedTs": int(r.get("completedTs") or ts),
+                "n": r.get("n"),
+            })
+        elif ln == "ocr":
+            names = list(r.get("names") or r.get("ocr_names") or [])[:8]
+            events.append({
+                "ts": ts, "lane": "ocr", "eye": "text",
+                "kind": "ocr",
+                "summary": "text-eye flash",
+                "names": names,
+                "frameId": fid,
+                "ocr_ms": r.get("ocr_ms") or r.get("ms"),
+            })
+        elif ln == "intake" or r.get("intakeBeat") or isinstance(r.get("intake"), dict):
+            ik = r.get("intake") if isinstance(r.get("intake"), dict) else {}
+            events.append({
+                "ts": ts, "lane": "intake", "eye": "intake",
+                "kind": str(ik.get("kind") or "intake"),
+                "summary": (r.get("note") or ("intake · " + str(ik.get("tab") or "")))[:100],
+                "names": [],
+                "frameId": fid,
+                "tab": ik.get("tab") or "",
+                "total": int(ik.get("total") or 0),
+                "ok": bool(ik.get("ok", True)),
+            })
         ik = r.get("intake")
         if isinstance(ik, dict):
             tab = str(ik.get("tab") or ik.get("kind") or "").lower()
-            ts = int(r.get("ts") or r.get("captureTs") or 0)
             if tab and ts:
                 cnts = ik.get("counts") if isinstance(ik.get("counts"), dict) else {}
                 top = sorted(cnts.items(),
@@ -142,13 +200,12 @@ def _build_dossier_maps(sess_rows):
                     "ok": bool(ik.get("ok", True)),
                     "total": int(ik.get("total") or 0),
                     "counts": [[str(k2), int(v2 or 0)] for k2, v2 in top],
+                    "ts": ts,
                 }
                 tab_ts.setdefault(tab, []).append(ts)
     for tab in tab_ts:
         tab_ts[tab].sort()
-    # v944.5 (Konyo: "I don't want ANYTHING read 0 — read it according to the updated picture") —
-    # the BEST receipt per tab this session: an errored/empty 0-shot must never be the truth when
-    # a real read of the same tab exists. Highest ok-total wins; the theatre reads THAT count.
+    # v944.5 — BEST receipt per tab this session (never-zero truth)
     tab_best = {}
     for tab, byts in tab_receipts.items():
         best = None
@@ -159,8 +216,10 @@ def _build_dossier_maps(sess_rows):
                 best = rc
         if best is not None and int(best.get("total") or 0) > 0:
             tab_best[tab] = best
+    events.sort(key=lambda e: (int(e.get("ts") or 0), str(e.get("lane") or "")))
     return {"verify": verify_by_base, "kai": kai_by_frame,
-            "tab_ts": tab_ts, "tab_receipts": tab_receipts, "tab_best": tab_best}
+            "tab_ts": tab_ts, "tab_receipts": tab_receipts, "tab_best": tab_best,
+            "events": events}
 
 
 def _intake_is_real(ik):
@@ -340,45 +399,56 @@ def _nearest_receipt(maps, tab, ts, window_ms=None):
     return maps["tab_receipts"][tab].get(best)
 
 
+def _stamps_near(maps, ts, window_ms=2500, limit=12):
+    """v947.2 — AI events whose captureTs is within ±window of this photo (live + aftermath)."""
+    evs = maps.get("events") or []
+    if not evs or not ts:
+        return []
+    out = []
+    for e in evs:
+        ets = int(e.get("ts") or 0)
+        if abs(ets - ts) <= window_ms:
+            out.append(e)
+    return out[:limit]
+
+
 def _beat_dossier(maps, beat):
-    """v941 — {tally, verify, kai} for one read/footage beat, additive-only.
-    Reads (lane deep, frameId 'N_ts') hit verify by base + tally by stashTab.
-    Footage (frameId 'reel_<sid>/f_<ms>') hits kai exact + tally by KAI stash class."""
+    """v941/v947.2 — full multi-eye dossier + time-synced stamp ledger for Theatre debug.
+
+    Reads (lane deep) hit verify by base + tally by stashTab.
+    Footage hits KAI/router exact + tally by stash class + nearby live/aftermath events.
+    """
     fid = str(beat.get("frameId") or "")
     ts = int(beat.get("captureTs") or beat.get("ts") or 0)
     is_footage = bool(beat.get("footage"))
     verify = maps["verify"].get(fid.split("#", 1)[0]) if fid else None
     kai = maps["kai"].get(fid)
-    if kai and kai.get("cls") is None and kai.get("judge") is None:
+    # film stills: KAI missed-text from kai_report.missed rides the beat
+    if beat.get("kaiMissTexts"):
+        kai = dict(kai or {})
+        kai["texts"] = list(beat.get("kaiMissTexts") or [])[:8]
+        if beat.get("label") and not kai.get("cls"):
+            kai["cls"] = beat.get("label")
+    if kai and kai.get("cls") is None and kai.get("judge") is None and not kai.get("texts"):
         kai = None
     tally = None
-    # v944.4 — the router label already rides the beat (join at build time). Use it too, so a
-    # stash frame gets a receipt even when KAI's own cls was empty (OCR-dark grids).
     _rlabel = str(beat.get("label") or (kai or {}).get("cls") or "")
     if is_footage:
-        # Only footage KAI/router proved is a stash tab gets a receipt (ts within ±120s).
         cls = _rlabel
         if isinstance(cls, str) and cls.startswith("stash-"):
             tally = _nearest_receipt(maps, cls[6:], ts, window_ms=120000)
+        elif beat.get("stashTab"):
+            tally = _nearest_receipt(maps, str(beat.get("stashTab")), ts, window_ms=120000)
     else:
         tab = str(beat.get("stashTab") or "")
         if tab:
             tally = _nearest_receipt(maps, tab, ts, window_ms=None)
-    # v944.4 THE READ-STATUS VERDICT (Konyo: "I don't know if it was read or not correctly here")
-    # — turn the router label + tally into a plain answer the retro debugger can SHOW per frame:
-    #   read   → this tab's intake fired and counted N (cross-referenced list in tally.counts)
-    #   miss   → a stash tab the router recognized, but 0 counted / no receipt = an unread panel
-    #   named  → a deep read named item(s) on this frame (verify carries the confirm/miss counts)
-    #   scene  → gameplay/other, nothing to register
     read_status = None
     if _rlabel.startswith("stash-") or _rlabel in ("stash", "inventory"):
         _tab = _rlabel[6:] if _rlabel.startswith("stash-") else _rlabel
-        # v944.5 — the nearest receipt to THIS frame may be a 0/error shot, but if the tab was
-        # really read anywhere this session, that real count is the truth (the "updated picture").
         _best = (maps.get("tab_best") or {}).get(_tab.lower())
         _near_tot = int((tally or {}).get("total") or 0) if tally else 0
         if _best and int(_best.get("total") or 0) > 0:
-            # a real read exists → never report 0; surface the real count + supersede the tally
             if _near_tot <= 0:
                 tally = _best
             read_status = {"kind": "read", "tab": _tab,
@@ -387,10 +457,144 @@ def _beat_dossier(maps, beat):
             read_status = {"kind": "miss", "tab": _tab, "counted": _near_tot}
     elif (beat.get("names") or []):
         read_status = {"kind": "named", "counted": len(beat.get("names") or [])}
+
+    # Full router row (from kai_report join on the beat)
+    router = None
+    if beat.get("label") or beat.get("route") or beat.get("routeVerdict"):
+        router = {
+            "label": beat.get("label"),
+            "verdict": beat.get("routeVerdict"),
+            "route": beat.get("route"),
+            "routed": beat.get("routed"),
+            "sources": list(beat.get("routeSources") or []),
+            "confidence": beat.get("routeConf"),
+            "skipReason": beat.get("routeVerdict") if not beat.get("routed") else None,
+            "eyeSources": list(beat.get("eyeSources") or []),
+            "stashTab": beat.get("stashTab") or "",
+        }
+
+    # ── STAMP LEDGER (capture-time ordered authorization trail) ──
+    stamps = []
+    # 1 photo itself
+    stamps.append({
+        "phase": "photo", "eye": "film" if is_footage else (beat.get("lane") or "read"),
+        "ts": ts, "auth": "capture",
+        "summary": ("film still" if is_footage else ("AI " + str(beat.get("lane") or "read"))),
+        "names": list(beat.get("names") or [])[:6],
+    })
+    # 2 text-eye / OCR on this beat
+    if beat.get("ocr_names") or beat.get("ocr_raw") or beat.get("lane") == "ocr":
+        stamps.append({
+            "phase": "text-eye", "eye": "text", "ts": ts,
+            "auth": "ocr",
+            "summary": "OCR flash · " + str(beat.get("ocr_ms") or beat.get("ms") or "?") + "ms",
+            "names": list(beat.get("ocr_names") or beat.get("names") or [])[:6],
+        })
+    # 3 deep live read
+    if beat.get("lane") == "deep" or (not is_footage and (beat.get("names") or beat.get("model"))):
+        stamps.append({
+            "phase": "live-deep", "eye": "live",
+            "ts": int(beat.get("completedTs") or ts),
+            "auth": "deep",
+            "summary": "deep " + str(beat.get("model") or "") + (
+                " · tab " + str(beat.get("stashTab")) if beat.get("stashTab") else ""),
+            "names": list(beat.get("names") or [])[:8],
+            "conf": beat.get("conf"),
+        })
+    # 4 second eye
+    if verify:
+        stamps.append({
+            "phase": "second-eye", "eye": "second",
+            "ts": int(verify.get("ts") or ts),
+            "auth": "verify",
+            "summary": ("verify · conf " + str(verify.get("conf") or "?")
+                        + (" · +" + str(verify.get("confirm") or 0) + " ok"
+                           if verify.get("confirm") else "")
+                        + (" · ⚡" + str(verify.get("corrected") or 0) + " corrected"
+                           if verify.get("corrected") else "")),
+            "names": list(verify.get("confirmNames") or [])[:6],
+        })
+    # 5 KAI aftermath (class / miss / judge)
+    if kai:
+        stamps.append({
+            "phase": "kai-close", "eye": "kai",
+            "ts": ts,  # joined to this photo's capture
+            "auth": "kai",
+            "summary": "KAI · " + str(kai.get("cls") or "class") + (
+                (" · unread: " + ", ".join(kai.get("texts") or [])[:60])
+                if kai.get("texts") else ""),
+            "names": list(kai.get("texts") or [])[:6],
+            "judge": kai.get("judge"),
+        })
+        if isinstance(kai.get("judge"), dict) and kai["judge"].get("name"):
+            stamps.append({
+                "phase": "kai-judge", "eye": "kai",
+                "ts": ts, "auth": "judge",
+                "summary": "judge · " + str(kai["judge"].get("tier") or "") + " "
+                           + str(kai["judge"].get("name") or ""),
+                "names": [kai["judge"].get("name")],
+            })
+    # 6 router authorization
+    if router and (router.get("label") or router.get("route")):
+        conf = router.get("confidence")
+        src = router.get("sources") or []
+        stamps.append({
+            "phase": "router", "eye": "router",
+            "ts": ts, "auth": "router",
+            "summary": ("router · " + str(router.get("label") or "?")
+                        + (" · conf " + str(conf) if conf is not None else "")
+                        + (" · " + ",".join(src) if src else "")
+                        + (" · " + str(router.get("verdict") or router.get("skipReason") or "")
+                           if (router.get("verdict") or router.get("skipReason")) else "")
+                        + (" · FIRED " + str(router.get("routed"))
+                           if router.get("routed") else "")),
+            "names": [],
+            "route": router.get("route"),
+            "routed": router.get("routed"),
+            "confidence": conf,
+            "sources": src,
+        })
+    # 7 intake / funnel receipt
+    if tally:
+        stamps.append({
+            "phase": "intake", "eye": "intake",
+            "ts": int(tally.get("ts") or ts),
+            "auth": "intake",
+            "summary": ("intake · " + str(tally.get("tab") or tally.get("kind") or "")
+                        + " ×" + str(tally.get("total") or 0)
+                        + (" ✓" if tally.get("ok", True) else " ✗")),
+            "names": [p[0] for p in (tally.get("counts") or [])[:6]
+                      if isinstance(p, (list, tuple)) and p],
+            "total": tally.get("total"),
+            "ok": tally.get("ok", True),
+        })
+    # 8 nearby live/aftermath events (other frames' AI work at this timestamp window)
+    for e in _stamps_near(maps, ts, window_ms=2000, limit=10):
+        # skip exact dups already covered
+        if e.get("lane") == "deep" and not is_footage and str(e.get("frameId") or "") == fid:
+            continue
+        if e.get("lane") == "ocr" and beat.get("lane") == "ocr":
+            continue
+        if e.get("lane") == "kai" and kai:
+            continue
+        if e.get("lane") == "verify" and verify:
+            continue
+        stamps.append({
+            "phase": "near-" + str(e.get("lane") or "ai"),
+            "eye": e.get("eye") or e.get("lane"),
+            "ts": int(e.get("ts") or ts),
+            "auth": e.get("kind") or e.get("lane"),
+            "summary": (e.get("summary") or "")[:120],
+            "names": list(e.get("names") or [])[:6],
+            "near": True,
+            "dtMs": int(e.get("ts") or ts) - ts,
+        })
+    stamps.sort(key=lambda s: (int(s.get("ts") or 0), str(s.get("phase") or "")))
+
     return {"tally": tally, "verify": verify or None, "kai": kai,
-            "router": {"label": beat.get("label"), "verdict": beat.get("routeVerdict")}
-            if beat.get("label") else None,
-            "readStatus": read_status}
+            "router": router,
+            "readStatus": read_status,
+            "stamps": stamps}
 
 
 IS_WIN = sys.platform.startswith("win")
@@ -1791,26 +1995,36 @@ def _kai_itemish(s):
 
 
 def _tab_from_ocr_lines(lines):
-    """v946.1 pure — RotW left-tab from OCR lines (shared with agent-side resolver)."""
-    blob = " ".join(str(t).lower() for t in (lines or []))
-    if not blob.strip():
-        return ""
-    order = (
-        ("materials", "materials"), ("material", "materials"),
-        ("runes", "runes"), ("gems", "gems"),
-        ("personal", "personal"), ("shared", "shared"),
-        ("rune", "runes"), ("gem", "gems"), ("mat", "materials"),
-    )
-    for key, canon in order:
-        if re.search(r"(?<![a-z])" + re.escape(key) + r"(?![a-z])", blob):
-            return canon
-    return ""
+    """v947 pure — RotW tab from OCR; multi-tab chrome is ambiguous (→ '').
+
+    Delegates to stash_eye (mimics intake tab reading without calling intake).
+    """
+    try:
+        from stash_eye import tab_from_ocr_lines as _se_tab
+        return _se_tab(lines)
+    except Exception:
+        blob = " ".join(str(t).lower() for t in (lines or []))
+        if not blob.strip():
+            return ""
+        order = (
+            ("materials", "materials"), ("material", "materials"),
+            ("runes", "runes"), ("gems", "gems"),
+            ("personal", "personal"), ("shared", "shared"),
+            ("rune", "runes"), ("gem", "gems"), ("mat", "materials"),
+        )
+        hits = []
+        for key, canon in order:
+            if re.search(r"(?<![a-z])" + re.escape(key) + r"(?![a-z])", blob):
+                if canon not in hits:
+                    hits.append(canon)
+        return hits[0] if len(hits) == 1 else ""
 
 
 def _kai_frame_cls(lines, itemish):
-    """v935.11 R5 / v946.1 — funnel routing class from RAW OCR lines.
+    """v935.11 R5 / v947 — funnel routing class from RAW OCR lines.
       stash-runes|gems|materials|stash  panel open; tally word picks sub-class.
       inventory | tooltip | gameplay
+    Multi-tab chrome no longer forces 'materials' (stash_eye tab_from_ocr_lines).
     """
     lo = [str(t).lower() for t in (lines or [])]
     blob = " ".join(lo)
@@ -1821,12 +2035,18 @@ def _kai_frame_cls(lines, itemish):
     if tab in ("personal", "shared"):
         return "stash"
     if "personal" in blob or "shared" in blob or "stash" in blob:
-        if "runes" in blob or re.search(r"(?<![a-z])rune(?![a-z])", blob):
-            return "stash-runes"
-        if "gems" in blob or re.search(r"(?<![a-z])gem(?![a-z])", blob):
-            return "stash-gems"
-        if "materials" in blob or "material" in blob:
-            return "stash-materials"
+        # only promote to tally when a SINGLE tally word is present (not full chrome list)
+        has_r = bool(re.search(r"(?<![a-z])runes?(?![a-z])", blob))
+        has_g = bool(re.search(r"(?<![a-z])gems?(?![a-z])", blob))
+        has_m = bool(re.search(r"(?<![a-z])materials?(?![a-z])", blob))
+        tally_n = int(has_r) + int(has_g) + int(has_m)
+        if tally_n == 1:
+            if has_r:
+                return "stash-runes"
+            if has_g:
+                return "stash-gems"
+            if has_m:
+                return "stash-materials"
         return "stash"
     if "inventory" in blob:
         return "inventory"
@@ -1861,30 +2081,44 @@ def _kai_sticky_tab(ts, stash_times):
 
 
 def _kai_tab_strip_refine(fp, ocr_cls, wp):
-    """v946.1 — if OCR said generic stash/gameplay, re-OCR left tab strip (full-res hist).
-    Returns refined class or original. wp = OCR worker (stdin/stdout already open)."""
+    """v947 — intake-style tab chrome + grid fingerprint (does NOT call gemIntake/etc).
+
+    Mimics bible `_tallyPrepImage` crops: upscaled tab band above the left grid +
+    pixel fingerprint of the grid itself (rune stones / gem chroma / materials).
+    wp = OCR worker (stdin/stdout already open), or None for grid-only.
+    Returns refined class or original.
+    """
     if ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
         return ocr_cls
-    if not fp or not os.path.isfile(fp) or wp is None:
+    if not fp or not os.path.isfile(fp):
         return ocr_cls
     try:
-        from PIL import Image  # type: ignore
-        crop_p = fp + ".tabstrip.jpg"
-        im = Image.open(fp)
-        w, h = im.size
-        im.crop((0, 0, max(8, int(w * 0.20)), h)).convert("RGB").save(
-            crop_p, format="JPEG", quality=90)
-        wp.stdin.write(crop_p + "\n"); wp.stdin.flush()
-        line = wp.stdout.readline()
-        j = json.loads(line) if line else {}
-        try:
-            os.remove(crop_p)
-        except Exception:
-            pass
-        tab = _tab_from_ocr_lines(j.get("lines") or [])
-        if tab in ("runes", "gems", "materials"):
-            return "stash-" + tab
-        if tab in ("personal", "shared") and (not ocr_cls or ocr_cls == "gameplay"):
+        from stash_eye import analyze_frame
+
+        def _wp_read(p):
+            if wp is None:
+                return {}
+            try:
+                wp.stdin.write(p + "\n"); wp.stdin.flush()
+                line = wp.stdout.readline()
+                return json.loads(line) if line else {}
+            except Exception:
+                return {}
+
+        res = analyze_frame(
+            fp,
+            ocr_lines=None,
+            journal_tab="",
+            model_tab="",
+            ocr_worker_read=_wp_read if wp is not None else None,
+            work_dir=os.path.dirname(fp),
+        )
+        cls = res.get("cls") or ""
+        if cls in ("stash-runes", "stash-gems", "stash-materials"):
+            return cls
+        if cls == "stash" and (not ocr_cls or ocr_cls == "gameplay"):
+            return "stash"
+        if res.get("tab") in ("personal", "shared") and (not ocr_cls or ocr_cls == "gameplay"):
             return "stash"
     except Exception:
         pass
@@ -2131,7 +2365,16 @@ def _kai_frame_sig(path):
 # (a verdict on THAT SAME item) are one tooltip witnessed twice, not two brains agreeing. A
 # tooltip read-then-judged is one 'content' signal; it clears the ≥2 gate only when a genuinely
 # independent brain (pixel OCR / time-map journal) also lands on it.
-_ROUTER_INDEP_CLASS = {"ocr": "pixel", "journal": "time", "read": "content", "judge": "content"}
+# v947 — tabstrip (intake-style chrome OCR) + grid (pixel fingerprint) are independent
+# of full-frame OCR and of journal time-map → conf≥2 without a deep read.
+_ROUTER_INDEP_CLASS = {
+    "ocr": "pixel",
+    "journal": "time",
+    "read": "content",
+    "judge": "content",
+    "tabstrip": "chrome",
+    "grid": "layout",
+}
 
 
 def _router_conf(sources):
@@ -2234,7 +2477,7 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         f = str(s.get("f") or "")
         ts = int(s.get("ts") or 0)
         fid = ("reel_" + sid + "/" + f.replace(".jpg", "")) if f else ""
-        # ── per-brain VOTES (Stage 2) ──
+        # ── per-brain VOTES (Stage 2 + v947 intake-mimic eyes) ──
         votes = {}
         ocr_lb = s.get("ocrLabel") or (s.get("label") if s.get("ocr") else None)
         if s.get("ocr") and ocr_lb and ocr_lb != "gameplay":
@@ -2242,6 +2485,13 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         j_lb = s.get("journalLabel")
         if s.get("journal"):
             votes["journal"] = j_lb or s.get("label") or "stash"
+        # v947 — tabstrip (upscaled chrome OCR) + grid fingerprint (intake crop layout)
+        ts_lb = s.get("tabstripLabel")
+        if s.get("tabstrip") and ts_lb and ts_lb != "gameplay":
+            votes["tabstrip"] = ts_lb
+        gr_lb = s.get("gridLabel")
+        if s.get("grid") and gr_lb and gr_lb != "gameplay":
+            votes["grid"] = gr_lb
         if any(abs(rt - ts) <= 4000 for rt in read_ts):
             votes["read"] = "tooltip"   # a named deep read near this frame ⇒ item floating
         judged = fid in judge_fids
@@ -2254,6 +2504,10 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             if s.get("journal"):
                 votes["journal"] = s.get("label") or "stash"
         label, sources, disagree = _kai_quorum_label(votes)
+        # v947 — when quorum is weak but intake-mimic eyes agree on a tally tab, promote display
+        if (not label or label == "gameplay" or label == "stash") and ts_lb and gr_lb and ts_lb == gr_lb:
+            if str(ts_lb).startswith("stash-"):
+                label, sources, disagree = ts_lb, sorted(set(sources + ["tabstrip", "grid"])), None
         conf = _router_conf(sources)   # v944.2 — independent evidence classes, not raw votes
         route = _kai_route_for_label(label)
         routed = funnel_by_fid.get(fid) or ("kai-judge" if judged else None)
@@ -2334,10 +2588,24 @@ def _kai_closer_loop():
             # store and fights the game for CPU. Reels wait; they aren't going anywhere.
             if _agent_mode != "off" or _agent_alive():
                 continue
-            reels = sorted(d for d in os.listdir(hist)
-                           if d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))
-                           and os.path.isfile(os.path.join(hist, d, "index.json"))
-                           and not os.path.isfile(os.path.join(hist, d, "kai_report.json")))
+            # v947 — also re-close reels sealed under kaiVer < 2 (no grid/tabstrip eyes)
+            reels = []
+            for d in sorted(os.listdir(hist)):
+                if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
+                    continue
+                if not os.path.isfile(os.path.join(hist, d, "index.json")):
+                    continue
+                kr = os.path.join(hist, d, "kai_report.json")
+                if not os.path.isfile(kr):
+                    reels.append(d)
+                    continue
+                try:
+                    with open(kr, encoding="utf-8") as _kf:
+                        _kv = int((json.load(_kf) or {}).get("kaiVer") or 1)
+                    if _kv < 2:
+                        reels.append(d)
+                except Exception:
+                    reels.append(d)
             if not reels:
                 continue
             rd = os.path.join(hist, reels[0])
@@ -2395,57 +2663,101 @@ def _kai_closer_loop():
                 texts = [t for t in raw if _kai_itemish(t)]
                 # R5 — classify every frame that produced OCR lines, before the missed decision.
                 _ocr_cls = _kai_frame_cls(raw, texts) if raw else None   # v944 — OCR's own verdict
-                # v946.1 — generic stash/gameplay → left tab-strip re-OCR (full-res hist)
-                if _ocr_cls in (None, "gameplay", "stash", "tooltip"):
-                    _ocr_cls = _kai_tab_strip_refine(fp, _ocr_cls, wp) or _ocr_cls
-                cls = _ocr_cls
-                # v941.3 / v946.1 — journal sticky walk (not only ±4s nearest): frames between
-                # deep stash tabs inherit the last tab so gems/materials after runes still tag.
+                # v947 — EVERY film still gets intake-style eyes (tab chrome + grid fingerprint).
+                # Does NOT call gemIntake/runeIntake/materialIntake — only mimics their crops.
                 _fts5 = int(it.get("ts") or 0)
                 _near = _kai_sticky_tab(_fts5, stash_times)
-                if _near:
+                _eye = {}
+                try:
+                    from stash_eye import analyze_frame as _se_analyze
+
+                    def _wp_read(p):
+                        try:
+                            wp.stdin.write(p + "\n"); wp.stdin.flush()
+                            line = wp.stdout.readline()
+                            return json.loads(line) if line else {}
+                        except Exception:
+                            return {}
+
+                    _eye = _se_analyze(
+                        fp,
+                        ocr_lines=raw,
+                        journal_tab=str(_near or ""),
+                        model_tab="",
+                        ocr_worker_read=_wp_read,
+                        work_dir=rd,
+                    )
+                except Exception:
+                    _eye = {}
+                _eye_cls = str((_eye or {}).get("cls") or "")
+                _eye_tab = str((_eye or {}).get("tab") or "")
+                _eye_src = list((_eye or {}).get("sources") or [])
+                _ocr_tab = str((_eye or {}).get("ocrTab") or "")
+                # fused eye tally only (never raw grid alone — invents materials on loading)
+                if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                    _ocr_cls = _eye_cls
+                elif _ocr_cls in (None, "gameplay", "stash", "tooltip"):
+                    _ocr_cls = _kai_tab_strip_refine(fp, _ocr_cls, wp) or _ocr_cls
+                cls = _ocr_cls
+                if _eye_tab in ("runes", "gems", "materials"):
+                    _scls = "stash-" + _eye_tab
+                    class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}
+                    cls = _scls
+                elif _near:
                     _scls = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
-                    class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}   # funnel candidate regardless
-                    # journal tally tab wins over vague OCR stash/gameplay; OCR tally tab wins over plain journal stash
+                    class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}
                     if not cls or cls in ("gameplay", "stash"):
                         cls = _scls
                     elif _near in ("runes", "gems", "materials") and cls == "stash":
                         cls = _scls
+                elif _eye_cls == "stash":
+                    cls = "stash"
                 if cls:
                     classes[cls] = classes.get(cls, 0) + 1
-                    class_frames[cls] = {"f": it.get("f"), "ts": it.get("ts")}   # v940.1 — last frame per class
+                    class_frames[cls] = {"f": it.get("f"), "ts": it.get("ts")}
                 if texts:
                     textframes += 1
                     new = [t for t in texts if t.strip().lower() not in read_text]
-                    # v944.7 — a miss is an unread ITEM NAME, not unread flavor/stat text.
-                    # Filter to name-shaped lines that no eye read (Fable cross-ref recalibration:
-                    # kills the Hellfire-Torch false positive, keeps the Jade-Jewel true miss).
                     name_new = [t for t in new if _kai_nameish(t)]
                     if name_new:
                         missed.append({"f": it.get("f"), "ts": it.get("ts"),
                                        "texts": name_new[:6], "cls": cls})
-                # v944/v944.1 🚦 — per-brain label VOTES for Stage 2 quorum (not just booleans).
-                # ocrLabel = OCR's own class; journalLabel = stash time-map class; final
-                # 'label' is still the display override (journal wins on panels).
+                # v944/v947 🚦 — votes only from fused eyes (grid vote requires grid in sources)
                 _jlab = None
                 if _near:
                     _jlab = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
-                # if OCR refined a tally tab, use that as display label when journal only said vault stash
+                _ts_lab = ("stash-" + _ocr_tab) if _ocr_tab in ("runes", "gems", "materials") else (
+                    "stash" if _ocr_tab in ("personal", "shared") else None)
+                _gr_lab = None
+                if "grid" in _eye_src and _eye_tab in ("runes", "gems", "materials"):
+                    _gr_lab = "stash-" + _eye_tab
+                elif "grid" in _eye_src and _eye_cls == "stash":
+                    _gr_lab = "stash"
                 _disp = cls or "gameplay"
-                if _ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                    _disp = _eye_cls
+                elif _ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
                     _disp = _ocr_cls
                 elif _jlab and _jlab.startswith("stash-"):
                     _disp = _jlab
                 elif _jlab:
                     _disp = _jlab if not (cls and str(cls).startswith("stash-")) else cls
-                routing_scan.append({"f": it.get("f"), "ts": int(it.get("ts") or 0),
-                                     "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
-                                     "ocrLabel": _ocr_cls if (_ocr_cls and _ocr_cls != "gameplay") else None,
-                                     "journal": bool(_near),
-                                     "journalLabel": _jlab,
-                                     "label": _disp or "gameplay",
-                                     "sig": _kai_frame_sig(fp)})   # v944 — dedupe fingerprint
-                time.sleep(0.12)   # peaceful — never fights a live session
+                routing_scan.append({
+                    "f": it.get("f"), "ts": int(it.get("ts") or 0),
+                    "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
+                    "ocrLabel": _ocr_cls if (_ocr_cls and _ocr_cls != "gameplay") else None,
+                    "journal": bool(_near),
+                    "journalLabel": _jlab,
+                    "tabstrip": bool(_ts_lab),
+                    "tabstripLabel": _ts_lab,
+                    "grid": bool(_gr_lab),
+                    "gridLabel": _gr_lab,
+                    "stashTab": _eye_tab or (_near or ""),
+                    "label": _disp or "gameplay",
+                    "sig": _kai_frame_sig(fp),
+                    "eyeSources": _eye_src,
+                })
+                time.sleep(0.08)   # peaceful — slightly faster; intake-style crops are small
             try:
                 wp.stdin.close(); wp.terminate()
             except Exception:
@@ -2453,8 +2765,9 @@ def _kai_closer_loop():
             report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
                       "classFrames": class_frames,
                       "missedFrames": len(missed), "missed": missed[:40],
-                      "classes": classes,   # R5 — routing metadata for the KAI-v2 funnel
-                      "closedAt": int(time.time() * 1000), "kaiVer": 1}
+                      "classes": classes,
+                      "closedAt": int(time.time() * 1000), "kaiVer": 2,
+                      "eyeNote": "v947 intake-mimic tab chrome + grid fingerprint (no intake calls)"}
             with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as f:
                 json.dump(report, f)
             # journal the ledger onto the session's timeline (🧠 gold in SIM).
@@ -3143,7 +3456,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v946.8",
+        "ver": "v947.2",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -3890,28 +4203,59 @@ class Handler(BaseHTTPRequestHandler):
                                     pass
                         _frames.sort(key=lambda x: x.get("ts") or 0)
                     pref = "reel_" + sid_here + "/"
-                    # v944 🚦 — join the routing ledger's label + verdict onto each footage beat
-                    # (additive, defensive: absent report or key → beat simply carries no label).
-                    _routemap = {}
+                    # v944/v947.2 🚦 — full routing row + KAI missed texts onto each film still
+                    _routemap = {}   # f -> full routing dict
+                    _kai_miss = {}   # f -> texts[]
                     try:
                         _krp = os.path.join(_reel_dir, "kai_report.json")
                         if os.path.isfile(_krp):
                             with open(_krp, encoding="utf-8") as _krf:
-                                for _rr in ((json.load(_krf) or {}).get("routing") or []):
-                                    _routemap[str(_rr.get("f") or "")] = (
-                                        _rr.get("label"), _rr.get("routed") or _rr.get("skipReason"))
+                                _krep = json.load(_krf) or {}
+                            for _rr in (_krep.get("routing") or []):
+                                _routemap[str(_rr.get("f") or "")] = _rr
+                            for _mm in (_krep.get("missed") or []):
+                                _kai_miss[str(_mm.get("f") or "")] = list(_mm.get("texts") or [])[:8]
                     except Exception:
-                        _routemap = {}
+                        _routemap, _kai_miss = {}, {}
+                    # sticky journal tab on every film beat
+                    _stash_times = []
+                    for _r3 in sess:
+                        if _r3.get("lane") == "deep" and _r3.get("stashTab"):
+                            try:
+                                _stash_times.append((int(_r3.get("captureTs") or _r3.get("ts") or 0),
+                                                     str(_r3.get("stashTab") or "").lower()))
+                            except Exception:
+                                pass
                     for it in _frames:
                         fn = it.get("f") or ""
                         fts = int(it.get("ts") or 0)
                         if not fn:
                             continue
-                        _lbl, _rv = _routemap.get(fn, (None, None))
-                        _foot.append({"ts": fts, "captureTs": fts, "footage": True,
-                                      "frame": pref + fn, "frameId": pref + fn[:-4],
-                                      "names": [], "scene": "", "area": "", "lane": "footage",
-                                      "label": _lbl, "routeVerdict": _rv})
+                        _rr = _routemap.get(fn) or {}
+                        _lbl = _rr.get("label")
+                        _rv = _rr.get("routed") or _rr.get("skipReason")
+                        _stab = _kai_sticky_tab(fts, _stash_times) or _rr.get("stashTab") or ""
+                        if not _lbl or _lbl in ("gameplay", "stash"):
+                            if _stab in ("runes", "gems", "materials"):
+                                _lbl = "stash-" + _stab
+                            elif _stab in ("personal", "shared") and not _lbl:
+                                _lbl = "stash"
+                        _fid_reel = pref + fn[:-4]
+                        # pre-seed KAI miss texts into maps via beat fields for dossier
+                        _foot.append({
+                            "ts": fts, "captureTs": fts, "footage": True,
+                            "frame": pref + fn, "frameId": _fid_reel,
+                            "names": [], "scene": "stash" if str(_lbl or "").startswith("stash") else "",
+                            "area": "", "lane": "footage",
+                            "label": _lbl, "routeVerdict": _rv,
+                            "route": _rr.get("route"),
+                            "routed": _rr.get("routed"),
+                            "routeSources": list(_rr.get("sources") or []),
+                            "routeConf": _rr.get("confidence"),
+                            "eyeSources": list(_rr.get("eyeSources") or []),
+                            "stashTab": _stab or "",
+                            "kaiMissTexts": _kai_miss.get(fn) or [],
+                        })
                 elif os.path.isdir(hist_dir):
                     # live/unsealed fallback only
                     for fn in os.listdir(hist_dir):

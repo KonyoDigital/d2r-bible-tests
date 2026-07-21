@@ -960,6 +960,27 @@
   .th-airead .ar-names { color: #9df0bd; }
   .th-airead .ar-dim { opacity: .6; }
   /* ══ v941.6 — 🗂 THE DOSSIER: all three eyes on ONE flagship line, riding inside the read card ══ */
+  /* v947.2 — surgical stamp ledger: every AI authorization at this photo's capture time */
+  .th-stamps { margin-top: 8px; padding: 8px 10px; border-radius: 10px;
+    background: rgba(0,0,0,.35); border: 1px solid rgba(200,180,120,.18); }
+  .th-stamps .ths-h { font: 700 10px/1.2 var(--mono); letter-spacing: .1em; color: #c9b88a;
+    text-transform: uppercase; margin-bottom: 6px; opacity: .85; }
+  .th-stamp { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05); font: 500 11.5px/1.35 var(--mono); color: #d8d0c0; }
+  .th-stamp:last-child { border-bottom: 0; }
+  .th-stamp .ths-ph { flex: 0 0 88px; color: #8fb4d8; font-weight: 700; font-size: 10px; letter-spacing: .04em; }
+  .th-stamp .ths-ph.photo { color: #9df0bd; }
+  .th-stamp .ths-ph.text-eye { color: #a8d4ff; }
+  .th-stamp .ths-ph.live-deep { color: #f0c060; }
+  .th-stamp .ths-ph.second-eye { color: #7fb8ff; }
+  .th-stamp .ths-ph.kai-close, .th-stamp .ths-ph.kai-judge { color: #f0c060; }
+  .th-stamp .ths-ph.router { color: #e9b96e; }
+  .th-stamp .ths-ph.intake { color: #b9a5ff; }
+  .th-stamp.near { opacity: .72; }
+  .th-stamp .ths-sum { flex: 1; min-width: 0; }
+  .th-stamp .ths-sum b { color: #f5edd8; font-weight: 700; }
+  .th-stamp .ths-names { display: block; color: #9df0bd; font-size: 10.5px; margin-top: 1px; }
+  .th-stamp .ths-dt { flex: 0 0 auto; opacity: .45; font-size: 10px; }
   .th-dossier { margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(200,180,120,.16);
     font: 600 12.5px/1.65 var(--mono); letter-spacing: .01em; white-space: normal; }   /* v945 — app scale */
   .th-dossier .thd-tally { color: #e4d2a4; }
@@ -1431,9 +1452,9 @@
         <div id="th-toast" hidden></div>
         <div class="th-strip">
           <button class="th-btn" id="th-prev-s" type="button" title="Older session">⏮ sess</button>
-          <button class="th-btn" id="th-prev-b" type="button" title="Step back one beat (← )">‹</button>
+          <button class="th-btn" id="th-prev-b" type="button" title="Previous screenshot (←) — steps every real photo">‹</button>
           <button class="th-btn th-play" id="th-play" type="button" title="Play / pause (space)">⏸</button>
-          <button class="th-btn" id="th-next-b" type="button" title="Step forward one beat ( →)">›</button>
+          <button class="th-btn" id="th-next-b" type="button" title="Next screenshot (→) — steps every real photo">›</button>
           <button class="th-btn" id="th-next-s" type="button" title="Newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
           <button class="th-btn" id="th-mode" type="button" title="Playback mode — click to cycle: real time / highlights / every frame">⏱ REAL · true speed</button>
@@ -2038,11 +2059,51 @@
   // v784 — CAPTURE ts is the scrub key; frameId hist JPEG is THE photo for that AI row.
   // v896 — DEBUGGER default: ⏱ REAL · 1× (every journaled read + every frame, wall-clock).
   //        CUT/FULL remain one-click modes — never the silent open path that hid empty reads.
-  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'real', allBeats:[], filmstrip:true };   // v941.6 — filmstrip ON by default, remembered per page-load
+  // v946.9 — stepPhotos: ‹ › / ← → always land on a real screenshot (never blank skip ticks).
+  // mode cycle REAL→FULL→HIGHLIGHT so one accidental click does NOT strip film (was REAL→HIGHLIGHT).
+  var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'real', allBeats:[], filmstrip:true, stepPhotos:true };
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
-  // v940.5 — the MODE pill says what it does, in plain words (id + cycling logic untouched)
-  function thModeLabel(m){ return m === 'highlight' ? '🎬 HIGHLIGHTS · skims dull parts' : (m === 'full' ? '📼 EVERY FRAME' : '⏱ REAL · true speed'); }
+  // v946.9 — plain-word modes; HIGHLIGHTS explicitly says film is OFF
+  function thModeLabel(m){
+    var footN = 0, photoN = 0, src = (TH.allBeats && TH.allBeats.length) ? TH.allBeats : (TH.beats || []);
+    for (var i = 0; i < src.length; i++){ if (src[i].footage) footN++; if (src[i].frame) photoN++; }
+    if (m === 'highlight') return '🎬 HIGHLIGHTS · film OFF';
+    if (m === 'full') return '📼 EVERY BEAT · compressed';
+    return '⏱ ALL ' + (photoN || '—') + ' PHOTOS · true speed';
+  }
+  // v946.9 — photo index among framed beats (what L/R actually steps)
+  function thFramedIndices(beats){
+    var out = []; beats = beats || TH.beats || [];
+    for (var i = 0; i < beats.length; i++){ if (beats[i] && beats[i].frame) out.push(i); }
+    return out;
+  }
+  function thPhotoPos(i){
+    var fr = thFramedIndices(TH.beats);
+    var pos = fr.indexOf(i);
+    return { pos: pos, n: fr.length, indices: fr };
+  }
+  function thStepPhoto(dir){
+    // dir = +1 / -1 — next/prev beat that HAS a real JPEG (film or deep freeze)
+    if (!TH.beats || !TH.beats.length) return;
+    var fr = thFramedIndices(TH.beats);
+    if (!fr.length){ thGo(Math.max(0, Math.min(TH.beats.length - 1, TH.i + dir)), false); return; }
+    var cur = fr.indexOf(TH.i);
+    if (cur < 0){
+      // playhead on a frameless tick — snap to nearest framed in dir
+      var best = null;
+      for (var k = 0; k < fr.length; k++){
+        if (dir > 0 && fr[k] > TH.i){ best = fr[k]; break; }
+        if (dir < 0 && fr[k] < TH.i) best = fr[k];
+      }
+      if (best == null) best = dir > 0 ? fr[fr.length - 1] : fr[0];
+      thGo(best, false); return;
+    }
+    var ni = cur + dir;
+    if (ni < 0){ toast('🖼 first photo · 1/' + fr.length); return; }
+    if (ni >= fr.length){ toast('🖼 last photo · ' + fr.length + '/' + fr.length + ' — press ▶ to replay'); return; }
+    thGo(fr[ni], false);
+  }
   // v943 (Konyo, REAL pacing R2) — the mode pill wears its state as a colored left-border accent so
   // you can read the playback mode at a glance: REAL=mint · HIGHLIGHTS=amber · EVERY FRAME=steel.
   function thModePill(m){
@@ -2097,6 +2158,40 @@
     if ((b.pending_names||[]).indexOf(n) >= 0) return ' ⏳';
     if ((b.discovered_names||[]).indexOf(n) >= 0) return ' 💬🏆';
     return '';
+  }
+  // v947.2 — STAMP LEDGER: every AI read/authorization at this photo's captureTs
+  // (live OCR + deep + second eye + KAI aftermath + router + intake + nearby events).
+  // Surgical debug surface — shows WHAT was authorized, WHEN, by WHICH brain.
+  function thStampsLedger(b, opts){
+    opts = opts || {};
+    var d = b && b.dossier;
+    var stamps = (d && d.stamps) || b.stamps || [];
+    if (!stamps.length) return '';
+    var lim = opts.limit || 14;
+    var rows = stamps.slice(0, lim).map(function(s){
+      var ph = String(s.phase || s.auth || 'ai');
+      var near = s.near ? ' near' : '';
+      var dt = '';
+      if (s.dtMs != null && s.near){
+        var sign = s.dtMs >= 0 ? '+' : '';
+        dt = sign + Math.round(s.dtMs) + 'ms';
+      } else if (s.ts){
+        dt = new Date(s.ts).toLocaleTimeString() + '.' + ('00' + (s.ts % 1000)).slice(-3);
+      }
+      var names = (s.names && s.names.length)
+        ? ('<span class="ths-names">' + esc(s.names.slice(0, 5).join(' · ')) + '</span>') : '';
+      return '<div class="th-stamp' + near + '">'
+        + '<span class="ths-ph ' + esc(ph) + '">' + esc(ph) + '</span>'
+        + '<span class="ths-sum"><b>' + esc(s.summary || s.auth || '') + '</b>' + names + '</span>'
+        + (dt ? '<span class="ths-dt">' + esc(dt) + '</span>' : '')
+        + '</div>';
+    }).join('');
+    var more = stamps.length > lim
+      ? '<div class="th-stamp"><span class="ths-sum" style="opacity:.55">+' + (stamps.length - lim) + ' more stamps</span></div>'
+      : '';
+    return '<div class="th-stamps"><div class="ths-h">AI stamps @ this capture'
+      + (opts.title ? (' · ' + esc(opts.title)) : '')
+      + '</div>' + rows + more + '</div>';
   }
   // v941.6 — 🗂 THE DOSSIER LINE: joins all three eyes (📸 intake tally · 🔵 second-eye verdict ·
   // 🧠 kai class/judge) into ONE flagship line. Renders defensively — server-side beat.dossier
@@ -2473,9 +2568,18 @@
     } else if (b.footage){
       var lr2 = TH.lastRead;
       var _rsB = thReadStatus(b, false), _rpB = thRouterPill(b), _ffB = thForensicFlags(b);
-      var foot = _rpB + ' <span class="ar-dim">📹 footage · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + '</span>';
-      // the frame's own read-status verdict rides first (the answer to "was it read"), then the last read for context
-      $('th-caption').innerHTML = (_rsB ? _rsB + '<br>' : '') + _ffB + (lr2 ? (foot + '<br>' + thCaption(lr2)) : foot);
+      // v946.9 — shout the film class / tab so stash after runes is obvious (runes/gems/materials/shared)
+      var _lab = String(b.label || (b.dossier && b.dossier.router && b.dossier.router.label) || '');
+      var _tab = String(b.stashTab || '');
+      if (!_tab && _lab.indexOf('stash-') === 0) _tab = _lab.slice(6);
+      var _ppB = thPhotoPos(TH.i);
+      var _photo = _ppB.n ? ('🖼 ' + (_ppB.pos >= 0 ? (_ppB.pos + 1) : '?') + '/' + _ppB.n + ' · ') : '';
+      var _who = _tab ? ('🏦 ' + _tab.toUpperCase()) : (_lab ? ('📹 ' + _lab) : '📹 film');
+      var foot = _rpB + ' <span class="ar-dim">' + _photo + _who + ' · ' + new Date(b.ts).toLocaleTimeString() + '.' + ('00' + (b.ts % 1000)).slice(-3) + '</span>';
+      // v947.2 — compact stamp count so you know forensics are joined at this capture
+      var _nst = (b.dossier && b.dossier.stamps) ? b.dossier.stamps.length : 0;
+      var _stampHint = _nst ? (' <span class="ar-dim">· 🔬 ' + _nst + ' AI stamps · I = ledger</span>') : '';
+      $('th-caption').innerHTML = (_rsB ? _rsB + '<br>' : '') + _ffB + (lr2 ? (foot + _stampHint + '<br>' + thCaption(lr2)) : (foot + _stampHint));
     } else {
       var _rpC = thRouterPill(b), _ffC = thForensicFlags(b);
       $('th-caption').innerHTML = (_rpC ? _rpC + ' ' : '') + thCaption(b) + _ffC;
@@ -2503,12 +2607,21 @@
     var spanS = (meta.t0 && meta.t1) ? Math.max(0, Math.round((meta.t1 - meta.t0) / 1000)) : 0;
     var spanTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + (spanS % 60)).slice(-2) + 's') : '';
     var footN = (TH.allBeats || []).filter(function(x){ return x.footage; }).length;
+    // v946.9 — primary counter is PHOTOS (framed JPEGs L/R actually steps), not abstract beats
+    var _pp = thPhotoPos(TH.i);
+    var photoSeg = _pp.n
+      ? (' · 🖼 photo ' + (_pp.pos >= 0 ? (_pp.pos + 1) : '—') + '/' + _pp.n)
+      : ' · no photos';
     // v943 (Konyo, REAL pacing R2 §C2) — the play estimate recomputes PER MODE and PER SPEED.
     // REAL means wall-clock: it reads the session's true span, not a made-up minute count. The
     // compressed modes divide the compressed play-time by the live speed so 2×/4× shrink it.
     var playSeg = '';
     if (TH.mode === 'real'){
-      playSeg = spanTxt ? ' · plays ' + spanTxt + ' · true speed' : ' · true speed';
+      // v947.1 — play length = wall axis (matches video), not a vague meta span
+      var _realMs = TH.Tplay || spanS * 1000 || 0;
+      var _rSec = Math.max(0, Math.round(_realMs / 1000));
+      var _rTxt = (Math.floor(_rSec / 60) + 'm' + ('0' + (_rSec % 60)).slice(-2) + 's');
+      playSeg = ' · plays ' + _rTxt + ' · wall-clock 1:1';
     } else if (TH.Tplay){
       var _pm = TH.Tplay / (TH.speed || 1);
       var _pt = _pm >= 60000
@@ -2516,14 +2629,18 @@
         : (Math.max(1, Math.round(_pm / 1000)) + 's');
       playSeg = ' · plays ~' + _pt + ' @' + TH.speed + '×';
     }
+    var filmWarn = (TH.mode === 'highlight' && footN > 0)
+      ? ' · ⚠ film HIDDEN (click mode → ALL PHOTOS)'
+      : '';
     $('th-sess').textContent = 'session ' + TH.sn + '/' + TH.sessions.length
       + range
       + (spanTxt ? ' · ran ' + spanTxt : '')
       + playSeg
-      + ' · beat ' + (TH.i+1) + '/' + TH.beats.length
+      + photoSeg
+      + (footN ? ' · 📹 ' + footN + ' film' : ' · reads-only')
       + (meta.reads != null ? ' · ' + meta.reads + ' AI reads' : '')
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
-      + (footN ? ' · 📹 ' + footN + ' film' : ' · reads-only')
+      + filmWarn
       + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : '');
     thRibbon();   // v940.5 — keep the PAST-not-LIVE banner synced to the loaded reel
   }
@@ -2571,22 +2688,63 @@
     return thHoldMs(b, gapWall);
   }
   function thBuildAxis(){
-    var P = [0], bs = TH.beats;
-    for (var i = 0; i < bs.length; i++){
-      var dur;
-      if (TH.mode === 'real'){
-        // v831 (Konyo: 'timeframe span based for exactly the amount of time the session was')
-        // — REAL TIME: theatre-ms == wall-ms. At 1× the reel runs the session's true duration.
-        dur = bs[i+1] ? Math.max(40, (bs[i+1].ts || 0) - (bs[i].ts || 0)) : 1500;
-      } else {
-        dur = bs[i+1] ? thEdgeMs(bs[i], bs[i+1]) : thHoldMs(bs[i], 1200);
-      }
-      P.push(P[i] + dur);
+    // P[i] = playhead ms at the START of beat i; P[n] = total play length (Tplay).
+    // v947.1 REAL — pure wall-clock sync to capture timestamps (the session/video length):
+    //   origin = first beat captureTs · end = last beat (or session t1 if later)
+    //   P[i] = ts[i] - origin  →  at 1×, a 155s reel plays in 155s, frame-for-frame in time.
+    var bs = TH.beats || [];
+    if (!bs.length){
+      TH.P = [0]; TH.Tplay = 1; TH.p = 0;
+      TH.wallOrigin = 0; TH.wallEnd = 0;
+      return;
     }
-    TH.P = P; TH.Tplay = P[P.length - 1] || 1; TH.p = TH.P[TH.i] || 0;
+    var meta = TH.sessions[TH.sn - 1] || {};
+    if (TH.mode === 'real'){
+      var tFirst = +((bs[0].captureTs != null ? bs[0].captureTs : bs[0].ts) || 0);
+      var tLast = +((bs[bs.length - 1].captureTs != null ? bs[bs.length - 1].captureTs : bs[bs.length - 1].ts) || tFirst);
+      // scan true min/max in case sort glitches
+      for (var s = 0; s < bs.length; s++){
+        var _ts = +((bs[s].captureTs != null ? bs[s].captureTs : bs[s].ts) || 0);
+        if (_ts && (!tFirst || _ts < tFirst)) tFirst = _ts;
+        if (_ts > tLast) tLast = _ts;
+      }
+      var origin = tFirst || +(meta.t0 || 0);
+      // video length = last photo/read; if session seal is only a hair later, prefer beat span
+      // (post-seal intakes can inflate meta.t1 by minutes — that is NOT the film length)
+      var end = tLast;
+      if (meta.t1 && meta.t1 >= tLast && (meta.t1 - tLast) <= 5000) end = +meta.t1;
+      var P = [];
+      for (var i = 0; i < bs.length; i++){
+        var ts = +((bs[i].captureTs != null ? bs[i].captureTs : bs[i].ts) || origin);
+        var pos = Math.max(0, ts - origin);
+        // same-ms beats (film + deep annotation) keep order with 1ms steps
+        if (i > 0 && pos <= P[i - 1]) pos = P[i - 1] + 1;
+        P.push(pos);
+      }
+      var span = Math.max(P[P.length - 1] || 0, end - origin, 500);
+      P.push(span);   // P[n] = Tplay — last beat holds until true end
+      TH.P = P;
+      TH.Tplay = span;
+      TH.wallOrigin = origin;
+      TH.wallEnd = origin + span;
+      // keep playhead on the current beat's wall position
+      TH.p = (TH.i >= 0 && TH.i < bs.length) ? (P[TH.i] || 0) : 0;
+    } else {
+      var Pc = [0];
+      for (var j = 0; j < bs.length; j++){
+        var dur = bs[j + 1] ? thEdgeMs(bs[j], bs[j + 1]) : thHoldMs(bs[j], 1200);
+        Pc.push(Pc[j] + dur);
+      }
+      TH.P = Pc;
+      TH.Tplay = Pc[Pc.length - 1] || 1;
+      TH.wallOrigin = +((bs[0].captureTs != null ? bs[0].captureTs : bs[0].ts) || 0);
+      TH.wallEnd = TH.wallOrigin + TH.Tplay;
+      TH.p = TH.P[TH.i] || 0;
+    }
   }
   function thBeatAt(p){
     var P = TH.P || [0];
+    if (P.length < 2) return 0;
     var lo = 0, hi = P.length - 2;
     while (lo < hi){ var mid = (lo + hi + 1) >> 1; if (P[mid] <= p) lo = mid; else hi = mid - 1; }
     return lo;
@@ -2594,11 +2752,21 @@
   function thClock(){
     var el = $('th-clock'); if (!el) return;
     var b = TH.beats[TH.i] || {};
-    var meta = TH.sessions[TH.sn-1] || {};
-    var t0 = meta.t0 || (TH.beats[0] || {}).ts || 0;
-    var rel = Math.max(0, (b.ts || 0) - t0);
+    // v947.1 — REAL: clock follows the playhead wall time (time-synced to video), not just the beat stamp
+    var wallTs, rel;
+    if (TH.mode === 'real' && TH.wallOrigin){
+      wallTs = TH.wallOrigin + Math.max(0, Math.min(TH.Tplay || 0, TH.p || 0));
+      rel = Math.max(0, wallTs - TH.wallOrigin);
+    } else {
+      var meta = TH.sessions[TH.sn - 1] || {};
+      var t0 = TH.wallOrigin || meta.t0 || (TH.beats[0] || {}).ts || 0;
+      wallTs = b.ts || t0;
+      rel = Math.max(0, (b.ts || 0) - t0);
+    }
     var mm = Math.floor(rel / 60000), ss = Math.floor((rel % 60000) / 1000), ms3 = ('00' + (rel % 1000)).slice(-3);
-    el.textContent = 'T+' + mm + ':' + ('0' + ss).slice(-2) + '.' + ms3 + ' · ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '—');
+    var wallStr = wallTs ? new Date(wallTs).toLocaleTimeString() : '—';
+    var modeTag = (TH.mode === 'real') ? ' · REAL 1:1' : '';
+    el.textContent = 'T+' + mm + ':' + ('0' + ss).slice(-2) + '.' + ms3 + ' · ' + wallStr + modeTag;
   }
   // v803 (Grok R7 wow #1) — ⏪ INSTANT REPLAY: sports-broadcast rewind to the moments before
   // a vault, half-speed, freeze on the find with a lower-third. Reuses P[] — zero new capture.
@@ -2927,6 +3095,20 @@
     TH.playing = !isEntry;
     $('th-play').textContent = TH.playing ? '⏸' : '▶';
     thTimeline(); thPaint();
+    // v946.9 — on open, tell the user how many screenshots L/R will step (the real feed)
+    if (isEntry){
+      var _fn = 0, _pn = 0;
+      for (var _xi = 0; _xi < TH.beats.length; _xi++){
+        if (TH.beats[_xi].footage) _fn++;
+        if (TH.beats[_xi].frame) _pn++;
+      }
+      if (_pn){
+        toast('🎞 ' + _pn + ' photos · 📹 ' + _fn + ' film · ‹ › steps every screenshot (mode must stay ALL PHOTOS)');
+        try { thToast('🖼 ' + _pn + ' photos ready · use ‹ ›', $('th-next-b')); } catch (e) {}
+      } else {
+        toast('🎞 no photos on this reel — film lane was empty');
+      }
+    }
   }
   async function thOpen(){
     // v859 (Grok UX #4) — pixels BEFORE network: the theatre shell opens instantly
@@ -3057,18 +3239,26 @@
       }
     }
     if (bF.footage){
-      // v854 — a footage frame is the eye BETWEEN reads: say so, don't claim 'not recorded'
-      // v944.4 — but if the ROUTER proved this frame was a stash panel, lead with the READ/MISS
-      // verdict (the answer to "was it read"), the router pill, and the cross-referenced tally.
+      // v854/v947.2 — footage is the surgical debug surface: FULL stamp ledger at this captureTs
+      // (live OCR/deep nearby · second eye · KAI aftermath · router · intake funnel).
       var _rp = thRouterPill(bF), _rs = thReadStatus(bF, true);
+      var _dos = thDossierLine(bF);
+      var _stamps = thStampsLedger(bF, { limit: 16, title: 'film still' });
+      var _r = (bF.dossier && bF.dossier.router) || {};
       el.innerHTML = '<button id="th-drawer-x" class="th-drawer-x" type="button" title="close (I · Esc · click away)">✕ close</button>'
         + (_rs ? '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rp ? _rp + ' ' : '') + _rs + '</div>' : '')
-        + '<h4>📹 footage frame</h4>'
-        + (_rp && !_rs ? '<div class="kv"><span class="k">router</span><span class="v">' + _rp + '</span></div>' : '')
+        + '<h4>📹 footage · capture-synced debug</h4>'
         + '<div class="kv"><span class="k">capture</span><span class="v">' + new Date(bF.ts).toLocaleTimeString() + '.' + ('00' + (bF.ts % 1000)).slice(-3) + '</span></div>'
         + '<div class="kv"><span class="k">file</span><span class="v">' + esc(bF.frameId || '') + '.jpg</span></div>'
-        + '<div class="col" style="margin-top:10px;opacity:.7">the eye, one frame per second, between AI reads — '
-        + 'the STANDING read annotates the film below; step ‹ › to the nearest 🧠 beat for its full card.</div>';
+        + (bF.stashTab ? '<div class="kv"><span class="k">tab</span><span class="v">' + esc(bF.stashTab) + '</span></div>' : '')
+        + (_rp ? '<div class="kv"><span class="k">router label</span><span class="v">' + _rp + '</span></div>' : '')
+        + (_r.sources && _r.sources.length ? '<div class="kv"><span class="k">router sources</span><span class="v">' + esc(_r.sources.join(' · ')) + ' · conf ' + esc(String(_r.confidence != null ? _r.confidence : '?')) + '</span></div>' : '')
+        + (_r.route || _r.routed || _r.verdict ? '<div class="kv"><span class="k">authorization</span><span class="v">'
+            + esc([_r.route ? ('route ' + _r.route) : '', _r.routed ? ('FIRED ' + _r.routed) : '', _r.verdict || ''].filter(Boolean).join(' · '))
+            + '</span></div>' : '')
+        + (_dos ? '<h4>the three eyes</h4>' + _dos : '')
+        + (_stamps || '<div class="col" style="opacity:.6;margin-top:8px">no AI stamps joined yet — KAI closer runs after seal</div>')
+        + '<div class="col" style="margin-top:10px;opacity:.65">every stamp is capture-time ordered — live reads, second eye, and post-session KAI/router/intake on THIS still. Step ‹ › in REAL 1:1 to scrub surgically.</div>';
       var x = document.getElementById('th-drawer-x');
       if (x) x.onclick = function(){ if (CARD.open) thCardToggle(); };
       return;
@@ -3098,6 +3288,9 @@
     // v941.6 — the three-eye dossier, compact, at the top of the per-beat forensics
     var _dossierDrawer = thDossierLine(b);
     if (_dossierDrawer) h += '<h4>the three eyes — dossier</h4>' + _dossierDrawer;
+    // v947.2 — full stamp ledger (live + aftermath KAI/router/intake) at this capture
+    var _stampsDeep = thStampsLedger(b, { limit: 18, title: 'read #' + (b.n || '?') });
+    if (_stampsDeep) h += '<h4>AI stamps @ capture</h4>' + _stampsDeep;
     h += '<h4>pre-triage — every name at the gates</h4>';
     var pre = b.pre || [];
     if (pre.length){
@@ -3561,11 +3754,17 @@
     else if (e.key === 'j' || e.key === 'J'){ thGo(TH.i - 5, false); e.preventDefault(); }
     else if (e.key === 'k' || e.key === 'K'){ thGo(TH.i + 5, false); e.preventDefault(); }
     else if (e.key === 'ArrowRight'){
-      if (TH.i >= TH.beats.length - 1){ toast('🎞 end of the reel — press ▶ to replay · ⏮ sess for the previous session'); }
+      // v946.9 — step real screenshots only (film + deep freezes), never blank skip ticks
+      if (TH.stepPhotos !== false) thStepPhoto(1);
+      else if (TH.i >= TH.beats.length - 1){ toast('🎞 end of the reel — press ▶ to replay · ⏮ sess for the previous session'); }
       else thGo(TH.i + 1, false);
       e.preventDefault();
     }
-    else if (e.key === 'ArrowLeft'){ thGo(TH.i - 1, false); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft'){
+      if (TH.stepPhotos !== false) thStepPhoto(-1);
+      else thGo(TH.i - 1, false);
+      e.preventDefault();
+    }
     else if (e.key === ' '){
       var cr = $('th-credits');
       if (cr && !cr.hidden){ cr.hidden = true; }
@@ -3603,6 +3802,11 @@
       var cr = $('th-credits'); if (cr) cr.hidden = true;
       thPaint(); thClock();
     }
+    // v947.1 — REAL play always 1× wall-clock (never inherit a skim speed mid-session)
+    if (TH.playing && TH.mode === 'real'){
+      TH.speed = 1;
+      var _spPlay = $('th-speed'); if (_spPlay) _spPlay.textContent = '1×';
+    }
   };
   // v893 — speed deck: 1 → 2 → 4 → 8 → 1 (forensic slow-mo still via holding 0.5 after wrap? keep 0.5 in cycle end)
   $('th-speed').onclick = function(){
@@ -3614,7 +3818,9 @@
   };
   $('th-mode').onclick = function(){
     TH.__modeTouched = true;   // v866 — a manual choice outranks the footage default
-    TH.mode = TH.mode === 'highlight' ? 'full' : (TH.mode === 'full' ? 'real' : 'highlight');   // CUT → FULL → REAL
+    // v946.9 — cycle REAL → FULL → HIGHLIGHT → REAL.
+    // OLD cycle REAL→HIGHLIGHT stripped all film on the first accidental click (Konyo: "83 screenshots not in theatre").
+    TH.mode = TH.mode === 'real' ? 'full' : (TH.mode === 'full' ? 'highlight' : 'real');
     thModePill(TH.mode);   // v943 — label + colored accent
     // v836 (Konyo: 'REAL at 1× runs way too fast') — REAL means WALL-CLOCK. A speed bumped
     // while skimming CUT/FULL latched via __speedTouched and silently multiplied the real-time
@@ -3624,19 +3830,41 @@
     TH.beats = thFilter(TH.allBeats.slice());
     TH.i = 0;
     if (keepTs){ for (var k = 0; k < TH.beats.length; k++){ if ((TH.beats[k].ts||0) >= keepTs){ TH.i = k; break; } } }
+    // snap to a framed photo after filter
+    if (TH.stepPhotos !== false && !(TH.beats[TH.i] || {}).frame){
+      var _snap = thFramedIndices(TH.beats);
+      if (_snap.length) TH.i = _snap[0];
+    }
     thBuildAxis();
     thTimeline(); thPaint(); thClock();
-    // v941.6 — B3 MODE TOAST: plain words for what the pill just did
-    var framedCount = 0; for (var _f = 0; _f < TH.beats.length; _f++){ if (TH.beats[_f].frame) framedCount++; }
-    var msg = TH.mode === 'real' ? ('⏱ ALL ' + framedCount + ' frames · true speed')
-      : (TH.mode === 'highlight' ? ('🎬 skimming ' + TH.beats.length + ' of ' + TH.allBeats.length)
-      : '📼 every beat, compressed time');
+    // v941.6 / v946.9 — MODE TOAST: always say how many PHOTOS are on the L/R scrubber
+    var framedCount = 0, footCount = 0;
+    for (var _f = 0; _f < TH.beats.length; _f++){
+      if (TH.beats[_f].frame) framedCount++;
+      if (TH.beats[_f].footage) footCount++;
+    }
+    var _wallS = Math.max(0, Math.round((TH.Tplay || 0) / 1000));
+    var _wallTxt = Math.floor(_wallS / 60) + 'm' + ('0' + (_wallS % 60)).slice(-2) + 's';
+    var msg = TH.mode === 'real'
+      ? ('⏱ REAL 1:1 · plays ' + _wallTxt + ' wall-clock · ' + framedCount + ' photos')
+      : (TH.mode === 'highlight'
+        ? ('🎬 film OFF · only ' + framedCount + ' story beats (click again for ALL PHOTOS)')
+        : ('📼 every beat compressed · ' + framedCount + ' photos · ' + footCount + ' film'));
     thToast(msg, this);
+    if (TH.mode === 'highlight') toast('⚠ HIGHLIGHTS hides film — click mode until ALL PHOTOS to scrub every screenshot');
+    else if (TH.mode === 'real') toast('⏱ REAL TIME — video length ' + _wallTxt + ' at 1× (time-synced to capture)');
   };
   $('th-prev-s').onclick = function(){ if (TH.sn < TH.sessions.length) thLoadSession(TH.sn + 1); };
   $('th-next-s').onclick = function(){ if (TH.sn > 1) thLoadSession(TH.sn - 1); };
-  $('th-prev-b').onclick = function(){ thGo(TH.i - 1, false); TH.playing = false; $('th-play').textContent = '▶'; };
-  $('th-next-b').onclick = function(){ thGo(TH.i + 1, false); TH.playing = false; $('th-play').textContent = '▶'; };
+  // v946.9 — transport ‹ › steps PHOTOS (framed film + deep), not blank skip ticks
+  $('th-prev-b').onclick = function(){
+    TH.playing = false; $('th-play').textContent = '▶';
+    if (TH.stepPhotos !== false) thStepPhoto(-1); else thGo(TH.i - 1, false);
+  };
+  $('th-next-b').onclick = function(){
+    TH.playing = false; $('th-play').textContent = '▶';
+    if (TH.stepPhotos !== false) thStepPhoto(1); else thGo(TH.i + 1, false);
+  };
   // v801 — DRAG SCRUB: hold and sweep the timeline like a video player; playhead follows live.
   (function(){
     var tl = $('th-timeline'); if (!tl) return;
@@ -3705,13 +3933,18 @@
       thGo(bi, false);
       thHdOpen(bi);   // v944.7 — click a screenshot → see it FULL-RES (the strip is the gallery)
     });
-    // v943 (Konyo: filmstrip keyboard) — ←/→ steps the reel while the strip has hover or focus,
-    // and we stop propagation so it never double-fires with the theatre's global handler.
+    // v943/v946.9 — filmstrip ←/→ steps PHOTOS (same as transport ‹ ›)
     strip.addEventListener('keydown', function(e){
-      if (e.key === 'ArrowRight'){ thGo(TH.i + 1, false); e.preventDefault(); e.stopPropagation(); }
-      else if (e.key === 'ArrowLeft'){ thGo(TH.i - 1, false); e.preventDefault(); e.stopPropagation(); }
-      else if (e.key === 'Home'){ thGo(0, false); e.preventDefault(); e.stopPropagation(); }
-      else if (e.key === 'End'){ thGo(TH.beats.length - 1, false); e.preventDefault(); e.stopPropagation(); }
+      if (e.key === 'ArrowRight'){ thStepPhoto(1); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'ArrowLeft'){ thStepPhoto(-1); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'Home'){
+        var fr0 = thFramedIndices(TH.beats); thGo(fr0.length ? fr0[0] : 0, false);
+        e.preventDefault(); e.stopPropagation();
+      }
+      else if (e.key === 'End'){
+        var fr1 = thFramedIndices(TH.beats); thGo(fr1.length ? fr1[fr1.length - 1] : Math.max(0, TH.beats.length - 1), false);
+        e.preventDefault(); e.stopPropagation();
+      }
     });
   })();
   $('th-fs-toggle').onclick = function(){
