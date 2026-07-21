@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v948.26"   # 🥷🧠 Phase D: Master-Brain reconciler surfaced to the client — liveRing now-cursor in /api/status + sealed engineFrames (owner/verdict/why) joined onto retro theatre footage beats (stamp-only bump; ×3 parity)
+VERSION = "v1173"   # 🔢 first INTEGER version (decimals retired — real count) · 🔤 Typo R1 + Phase D owner/verdict swap: one type-scale (fullscreen floor, second competing system retired) + Engine Room drill-down now shows the Master-Brain's authoritative owner/verdict (control_ui.html); ×3 parity (1/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
