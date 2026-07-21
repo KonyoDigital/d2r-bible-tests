@@ -2661,9 +2661,95 @@ def _kai_quorum_label(votes):
     return top_label, agree, None
 
 
+# ── v949 🚦🛡 THE ACCURACY GATE (§3.5, ENGINE_ARCHITECTURE.md) — Konyo's law: "weed out
+# bugs, incorrect reads, and inaccuracy of any kind" BEFORE a frame reaches a funnel cell.
+# Sits between the router (_kai_build_routing's quorum/route) and the funnels (Stage 3
+# fire loops). Three ordered checks a routing-ledger row must PASS; fail any → ping-pong
+# (re-read a fresher/re-cropped frame) instead of routing garbage. Pure, zero I/O.
+_GATE_CHROME_HARD = frozenset(("tabstrip", "grid", "ocr"))            # tab-strip word / panel chrome
+_GATE_PANEL_HARD = frozenset(("tabstrip", "grid", "ocr", "journal"))  # vault panel: time-map ok too
+
+
+def _kai_gate_name_hit(names, fullnames=None):
+    """Gate check 1c — hardcoded DB-name membership (deterministic, zero AI cost). Garbage
+    OCR ('IA Lla', 'Ii') matches no name in the ~1400-item DB harvested from bible.html and
+    dies here. Reuses _kai_fullnames() — no second item list to maintain."""
+    fn = fullnames if fullnames is not None else _kai_fullnames()
+    for n in (names or []):
+        if str(n or "").strip().lower() in fn:
+            return True
+    return False
+
+
+def _kai_gate_check(label, sources, confidence, route, chrome_votes=None, name_hit=None):
+    """THE ACCURACY GATE — three ordered checks a routing-ledger row must PASS before its
+    funnel may fire:
+
+      1) HARDCODED FILTER (deterministic, first, zero AI cost) — the label must have a
+         matching hard signal. A tally tab (stash-runes/gems/materials) needs a tab-strip-word
+         or panel-chrome witness (ocr/tabstrip/grid) — journal (time-map) ALONE never clears
+         it; a sticky-tab guess with no visual confirmation is exactly the class that produced
+         the vault-0 / materials false-positive bugs. A tooltip label needs its nearby
+         read/judge name to be a real ~1400-item DB name (_kai_fullnames) whenever name
+         evidence was supplied — garbage OCR matches no name and dies here.
+      2) BRAIN QUORUM (AI, only if check 1 passes) — builds on the router's own math
+         (_router_conf / _kai_quorum_label); RE-ASSERTS confidence>=2 rather than
+         re-deriving it (disagreement already collapses confidence to 0, so it is caught
+         here too, not duplicated as a separate branch).
+      3) CELL-CORRECTNESS — the route must be the ONE cell _kai_route_for_label says this
+         label owns, AND no chrome-class brain (tabstrip/grid) may have voted a DIFFERENT
+         label — a lone dissenting chrome witness vetoes the fire even when it lost the
+         router's majority vote (the exact wrong-tab->wrong-cell class Konyo flagged).
+
+    Pure. Returns {"pass": bool, "reason": str|None}; reason set on fail:
+      'no-label' | 'no-hard-signal' | 'name-not-in-db' | 'quorum<2' | 'wrong-cell'."""
+    if not label or label == "gameplay":
+        return {"pass": False, "reason": "no-label"}
+    src = set(sources or [])
+    # ---- check 1: hardcoded filter ----
+    if label.startswith("stash-") and label != "stash":
+        if not (_GATE_CHROME_HARD & src):
+            return {"pass": False, "reason": "no-hard-signal"}
+    elif label in ("stash", "inventory"):
+        if not (_GATE_PANEL_HARD & src):
+            return {"pass": False, "reason": "no-hard-signal"}
+    elif label == "tooltip":
+        if name_hit is False:
+            return {"pass": False, "reason": "name-not-in-db"}
+    else:
+        return {"pass": False, "reason": "no-hard-signal"}
+    # ---- check 2: brain quorum (re-assert, don't duplicate the router) ----
+    if int(confidence or 0) < 2:
+        return {"pass": False, "reason": "quorum<2"}
+    # ---- check 3: cell-correctness ----
+    want = _kai_route_for_label(label)
+    if not want or route != want:
+        return {"pass": False, "reason": "wrong-cell"}
+    for _b, _lb in (chrome_votes or {}).items():
+        if _lb and _lb != label:
+            return {"pass": False, "reason": "wrong-cell"}
+    return {"pass": True, "reason": None}
+
+
+def _kai_gate_pingpong(tries, gate_passed, max_tries=3):
+    """THE ACCURACY GATE's ping-pong — bounded re-read decision for a gate-failed frame.
+    Deliberately mirrors _drv_empty_refire_plan's tries/max_tries contract (the SAME
+    never-zero shape, generalized to gate failures instead of empty intakes): on fail,
+    re-read a fresher frame up to max_tries; beyond that, record an HONEST MISS rather
+    than ever routing a guess. Pure. Returns ('done', None) | ('pingpong', next_tries) |
+    ('honest-miss', None)."""
+    if gate_passed:
+        return ("done", None)
+    tries = int(tries or 0) + 1
+    if tries < max_tries:
+        return ("pingpong", tries)
+    return ("honest-miss", None)
+
+
 def _kai_build_routing(scan, sess_rows, sid, journal_rows):
-    """v944/v944.1 — THE ROUTING LEDGER. One row per scanned frame:
-    {f, ts, label, sources, confidence, route, routed, skipReason}.
+    """v944/v944.1/v949 — THE ROUTING LEDGER. One row per scanned frame:
+    {f, ts, label, sources, confidence, route, routed, skipReason, gatePass, gateReason,
+    gateSources}.
 
     sources = brains whose VOTE equals the final label (Stage 2 honest quorum), not merely
     'any evidence on the frame'. Brains:
@@ -2674,10 +2760,29 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
 
     confidence = len(sources). Stage 2 gate: confidence < 2 → no fire intent (skip confidence<2
     or disagreement). route = funnel that WOULD take it; routed = what actually fired (receipts).
+
+    v949 — THE ACCURACY GATE (§3.5) rides the same pass: gatePass/gateReason/gateSources are
+    the per-frame verdict from _kai_gate_check (auditable — the theatre can show WHY a frame
+    was held). A row that would otherwise fire (skipReason in not-selected/no-gap/cap) but
+    fails the gate gets its skipReason rewritten to 'gate:<reason>' and route cleared — Stage 3
+    (_kai_stage3_select) already only selects not-selected/cap rows, so a gate-failed row is
+    automatically excluded from firing with NO change needed to Stage 3 itself. Frames that
+    fail purely on router-side quorum (quorum<2/no-label) are left as the router already
+    marked them — the gate only ADDS a veto, it never overrides a already-informative skip.
     Pure — no side effects."""
     read_ts = [int(r.get("captureTs") or r.get("ts") or 0)
                for r in sess_rows
                if r.get("lane") == "deep" and (r.get("names") or [])]
+    # v949 — same deep-read rows, but keeping the NAMES (not just ts) so the gate can check
+    # a nearby tooltip read's item name against the DB (_kai_gate_name_hit).
+    read_names_ts = []
+    for r in sess_rows:
+        if r.get("lane") == "deep":
+            _nms = r.get("names") or []
+            if _nms:
+                _rt = int(r.get("captureTs") or r.get("ts") or 0)
+                for _nm in _nms:
+                    read_names_ts.append((_rt, _nm))
     receipted = set()   # tabs that receipted normally this session (tally route + receipt = no gap)
     for r in sess_rows:
         ik = r.get("intake")
@@ -2688,6 +2793,7 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
                 receipted.add(t)
     funnel_by_fid = {}   # reel frameId -> intake kind the funnel wrote
     judge_fids = set()   # reel frameIds a judge verdict landed on
+    judge_name_by_fid = {}   # v949 — the judged item's name, for the gate's DB check
     for r in journal_rows:
         fid = str(r.get("frameId") or "")
         if not fid:
@@ -2697,6 +2803,12 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
             funnel_by_fid[fid] = "kai-funnel"
         if r.get("lane") == "kai" and r.get("mode") == "kai-judge":
             judge_fids.add(fid)
+            try:
+                _jn = ((r.get("kai") or {}).get("judge") or {}).get("name")
+            except Exception:
+                _jn = None
+            if _jn:
+                judge_name_by_fid[fid] = _jn
     out = []
     _prev_sig = None
     _run_first = None   # the f that opened the current visual run
@@ -2772,6 +2884,25 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
                 skip = "not-selected"
             else:
                 skip = "no-route"
+        # v949 🚦🛡 THE ACCURACY GATE — re-verify a would-fire row before it's allowed to
+        # advertise a route. Only vetoes rows the router itself judged fireable this pass
+        # (not-selected/no-gap/cap); a router-side quorum/label failure is left as the
+        # router already marked it (no double-messaging the same failure).
+        chrome_votes = {b: lb for b, lb in votes.items() if b in ("tabstrip", "grid")}
+        name_hit = None
+        if label == "tooltip":
+            _pool = [nm for (rt, nm) in read_names_ts if abs(rt - ts) <= 4000]
+            _jn = judge_name_by_fid.get(fid)
+            if _jn:
+                _pool = _pool + [_jn]
+            if _pool:
+                name_hit = _kai_gate_name_hit(_pool)
+        gate = _kai_gate_check(label, sources, conf, route,
+                                chrome_votes=chrome_votes, name_hit=name_hit)
+        if routed is None and skip in ("not-selected", "no-gap", "cap") and not gate["pass"] \
+                and gate["reason"] not in ("quorum<2", "no-label"):
+            skip = "gate:" + gate["reason"]
+            route = None
         # v944 DEDUPE LAW (routing-only, Konyo explicit) — consecutive frames with an identical
         # cheap signature are a visual run: the FIRST keeps its label+route, each later duplicate
         # keeps its label but is un-routed with a chain ref. The reel/film is NEVER trimmed —
@@ -2800,7 +2931,9 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         _prev_sig = _sig
         out.append({"f": f, "ts": ts, "label": label, "sources": sources,
                     "confidence": conf, "voteCount": len(sources), "route": route,
-                    "routed": routed, "skipReason": skip})
+                    "routed": routed, "skipReason": skip,
+                    "gatePass": gate["pass"], "gateReason": gate["reason"],
+                    "gateSources": sorted(set(sources) | set(chrome_votes.keys()))})
     return out
 
 
@@ -3820,7 +3953,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v948.8",
+        "ver": "v948.11",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

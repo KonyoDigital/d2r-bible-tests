@@ -822,10 +822,11 @@ class TestRouterLedger(unittest.TestCase):
         led = ca._kai_build_routing(self.scan, self.sess, "S", self.journal)
         self.assertEqual(len(led), 6)
         self.assertEqual(sum(1 for r in led if r["routed"]), 2)             # f_100 + f_200 fired
-        # every row carries the full contract, no missing keys
+        # every row carries the full contract, no missing keys (v949 adds the gate fields)
         for r in led:
             self.assertEqual(set(r), {"f", "ts", "label", "sources", "confidence",
-                                      "voteCount", "route", "routed", "skipReason"})
+                                      "voteCount", "route", "routed", "skipReason",
+                                      "gatePass", "gateReason", "gateSources"})
 
     def test_dedupe_run_routing_only_film_intact(self):
         # a visual run of 3 identical-sig frames: FIRST routable, next 2 dup-chained — but ALL
@@ -1041,6 +1042,151 @@ class TestRouterLedger(unittest.TestCase):
         self.assertIsNone(post[0]["skipReason"])
         f1, j1, v1 = ca._kai_stage3_select(post)
         self.assertEqual(f1, [])   # already routed → not re-selected
+
+
+class TestAccuracyGate(unittest.TestCase):
+    """v949 🚦🛡 THE ACCURACY GATE (§3.5, ENGINE_ARCHITECTURE.md) — the ping-pong verification
+    mesh between the router (_kai_build_routing) and the funnels (Stage 3). ca._kai_gate_check
+    is the pure three-check decision; ca._kai_gate_pingpong is the bounded re-read/honest-miss
+    contract; ca._kai_gate_name_hit is the hardcoded ~1400-item DB name check."""
+
+    # ── check 1: hardcoded filter ─────────────────────────────────────────────
+    def test_filter_rejects_journal_only_tally_label(self):
+        # journal (time-map) ALONE never clears the tally hard-signal — this is the exact
+        # class that produced the vault-0 / materials false-positive bugs.
+        g = ca._kai_gate_check("stash-materials", ["journal"], 2, "tally:materials")
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "no-hard-signal")
+
+    def test_filter_passes_with_ocr_or_grid_or_tabstrip(self):
+        for src in (["journal", "ocr"], ["journal", "grid"], ["journal", "tabstrip"]):
+            g = ca._kai_gate_check("stash-runes", src, 2, "tally:runes")
+            self.assertTrue(g["pass"], src)
+
+    def test_filter_rejects_garbage_ocr_tooltip_no_db_name(self):
+        # "IA Lla" / "Ii" style garble matches no name in the ~1400-item DB → dies here,
+        # zero AI cost, even though sources otherwise look fine.
+        g = ca._kai_gate_check("tooltip", ["ocr", "read"], 2, "judge", name_hit=False)
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "name-not-in-db")
+
+    def test_filter_tooltip_no_name_evidence_is_fail_open(self):
+        # no name evidence supplied at all (name_hit=None) — the gate can't assert anything
+        # about the DB match, so it doesn't invent a false rejection.
+        g = ca._kai_gate_check("tooltip", ["ocr", "read"], 2, "judge", name_hit=None)
+        self.assertTrue(g["pass"])
+
+    def test_gate_name_hit_real_vs_garbage(self):
+        fn = {"windforce", "hellfire torch"}
+        self.assertTrue(ca._kai_gate_name_hit(["Windforce"], fullnames=fn))
+        self.assertTrue(ca._kai_gate_name_hit(["ia lla", "Hellfire Torch"], fullnames=fn))
+        self.assertFalse(ca._kai_gate_name_hit(["IA Lla", "Ii"], fullnames=fn))
+        self.assertFalse(ca._kai_gate_name_hit([], fullnames=fn))
+
+    # ── check 2: brain quorum (build on the router, don't duplicate) ───────────
+    def test_quorum_needs_at_least_two(self):
+        g = ca._kai_gate_check("stash-gems", ["ocr"], 1, "tally:gems")
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "quorum<2")
+
+    def test_quorum_two_clears_when_filter_and_cell_ok(self):
+        g = ca._kai_gate_check("stash-gems", ["ocr", "grid"], 2, "tally:gems")
+        self.assertTrue(g["pass"])
+        self.assertIsNone(g["reason"])
+
+    def test_disagreement_collapses_to_quorum_fail(self):
+        # a disagreement row already has confidence 0 / empty sources from the router —
+        # the gate does not need a separate branch, it's caught by the quorum<2 check.
+        g = ca._kai_gate_check("tooltip", [], 0, None)
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "quorum<2")
+
+    # ── check 3: cell-correctness ───────────────────────────────────────────────
+    def test_wrong_cell_route_mismatch_rejected(self):
+        # label says runes but the route passed in points at gems — must never fire.
+        g = ca._kai_gate_check("stash-runes", ["ocr", "grid"], 2, "tally:gems")
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "wrong-cell")
+
+    def test_wrong_cell_chrome_dissent_vetoes_even_with_quorum(self):
+        # tabstrip agrees with the final label (materials) but grid dissents to runes — a lone
+        # chrome witness disagreeing is the wrong-tab->wrong-cell class; veto even though the
+        # majority label otherwise cleared quorum.
+        g = ca._kai_gate_check("stash-materials", ["ocr", "tabstrip"], 2, "tally:materials",
+                                chrome_votes={"tabstrip": "stash-materials", "grid": "stash-runes"})
+        self.assertFalse(g["pass"])
+        self.assertEqual(g["reason"], "wrong-cell")
+
+    def test_no_label_and_unroutable_label_rejected(self):
+        self.assertEqual(ca._kai_gate_check("", [], 0, None)["reason"], "no-label")
+        self.assertEqual(ca._kai_gate_check("gameplay", [], 0, None)["reason"], "no-label")
+        self.assertEqual(ca._kai_gate_check("mystery", ["ocr", "grid"], 2, None)["reason"],
+                         "no-hard-signal")
+
+    def test_full_pass(self):
+        g = ca._kai_gate_check("stash-runes", ["ocr", "grid"], 2, "tally:runes")
+        self.assertEqual(g, {"pass": True, "reason": None})
+
+    # ── ping-pong: bounded re-read → proven or honest miss ──────────────────────
+    def test_pingpong_done_when_gate_passed(self):
+        self.assertEqual(ca._kai_gate_pingpong(0, True), ("done", None))
+
+    def test_pingpong_retries_then_honest_miss(self):
+        act, tries = ca._kai_gate_pingpong(0, False, max_tries=3)
+        self.assertEqual((act, tries), ("pingpong", 1))
+        act, tries = ca._kai_gate_pingpong(1, False, max_tries=3)
+        self.assertEqual((act, tries), ("pingpong", 2))
+        act, tries = ca._kai_gate_pingpong(2, False, max_tries=3)
+        self.assertEqual((act, tries), ("honest-miss", None))   # never routes a guess
+
+    # ── integration: wired into _kai_build_routing's ledger ────────────────────
+    def test_ledger_gate_fields_present_journal_only_already_gated_by_router(self):
+        # journal-only materials sticky (no chrome witness) never even clears router quorum
+        # (confidence 1: 'read'/'judge' always vote 'tooltip', so only ocr/tabstrip/grid can
+        # ever be journal's SECOND agreeing vote on a stash-* label) — the router's own
+        # 'confidence<2' already wins the skipReason message. The gate fields are still
+        # attached and correctly say why: no chrome/OCR witness backs this label.
+        scan = [{"f": "m.jpg", "ts": 1000, "journal": True, "journalLabel": "stash-materials",
+                 "label": "stash-materials"}]
+        r = ca._kai_build_routing(scan, [], "S", [])[0]
+        self.assertIn("gatePass", r)
+        self.assertIn("gateReason", r)
+        self.assertIn("gateSources", r)
+        self.assertEqual(r["confidence"], 1)
+        self.assertEqual(r["skipReason"], "confidence<2")
+        self.assertFalse(r["gatePass"])
+        self.assertEqual(r["gateReason"], "no-hard-signal")
+
+    def test_ledger_gate_vetoes_lone_chrome_dissenter_wrong_cell(self):
+        # THE wrong-tab->wrong-cell class (vault-0 / materials false-positive): journal +
+        # tabstrip both say materials (quorum clears at conf 2, router says 'not-selected' —
+        # fireable) but grid — a real chrome witness — says runes. The router's majority vote
+        # outvotes grid, but the gate refuses to let a dissenting chrome brain be silenced.
+        scan = [{"f": "m2.jpg", "ts": 2000,
+                 "journal": True, "journalLabel": "stash-materials",
+                 "tabstrip": True, "tabstripLabel": "stash-materials",
+                 "grid": True, "gridLabel": "stash-runes",
+                 "label": "stash-materials"}]
+        r = ca._kai_build_routing(scan, [], "S", [])[0]
+        self.assertEqual(sorted(r["sources"]), ["journal", "tabstrip"])
+        self.assertEqual(r["confidence"], 2)
+        self.assertEqual(r["route"], None)              # veto clears the route
+        self.assertFalse(r["gatePass"])
+        self.assertEqual(r["gateReason"], "wrong-cell")
+        self.assertEqual(r["skipReason"], "gate:wrong-cell")
+        funnel, _, _ = ca._kai_stage3_select([r])
+        self.assertEqual(funnel, [])                    # Stage 3 can never select it
+
+    def test_ledger_gate_passes_grid_confirmed_materials(self):
+        scan = [{"f": "m3.jpg", "ts": 3000, "journal": True, "journalLabel": "stash-materials",
+                 "grid": True, "gridLabel": "stash-materials", "label": "stash-materials"}]
+        r = ca._kai_build_routing(scan, [], "S", [])[0]
+        self.assertEqual(r["confidence"], 2)
+        self.assertTrue(r["gatePass"])
+        self.assertEqual(r["skipReason"], "not-selected")   # fireable — Stage 3 will pick it up
+        funnel, _, _ = ca._kai_stage3_select([r])
+        self.assertEqual(len(funnel), 1)
+        self.assertEqual(funnel[0]["tab"], "materials")
 
 
 class TestLiveJudgeQueue(unittest.TestCase):
