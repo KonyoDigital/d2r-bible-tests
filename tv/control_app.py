@@ -1031,14 +1031,14 @@ def stop_agent(farewell=True):
     Never leave _stop_inflight True if the agent is already dead (unstick ON AIR)."""
     global _agent_proc, _agent_mode, _stop_inflight, _BOARD_OPENED
     if _stop_inflight:
-        # another stop is running — wait briefly, then force-clear if agent already gone
-        deadline = time.time() + (18 if farewell else 12)
+        # v946.2 — another stop in flight: wait SHORT, then force-clear (never hang End Session)
+        deadline = time.time() + 2.5
         while _stop_inflight and time.time() < deadline:
             if not _agent_alive() and _port_listener_pid() is None:
                 _stop_inflight = False
                 _agent_mode = "off"
                 return {"ok": True, "msg": "already off", "farewell": farewell, "sessionSaved": True}
-            time.sleep(0.2)
+            time.sleep(0.15)
         if not _agent_alive() and _port_listener_pid() is None:
             _stop_inflight = False
             _agent_mode = "off"
@@ -1048,7 +1048,7 @@ def stop_agent(farewell=True):
     _stop_inflight = True
     try:
         pids = _collect_agent_pids()
-        if not pids and not IS_WIN:
+        if not pids and not IS_WIN and _port_listener_pid() is None:
             _agent_mode = "off"
             _stop_capture()
             _BOARD_OPENED = False
@@ -1058,7 +1058,7 @@ def stop_agent(farewell=True):
         asked = _ask_agent_shutdown(
             farewell=bool(farewell),
             reason=("stop" if farewell else "off"),
-            timeout=1.5,
+            timeout=1.0,
         )
 
         # 2) If polite path didn't engage, fall back to signals
@@ -1079,21 +1079,19 @@ def stop_agent(farewell=True):
                 for pid in pids:
                     _kill_pid(pid, force=False)
 
-        # 3) Wait for bridge death, then FORCE-KILL — v926 (Konyo: 'i cant end session' again).
-        # close_session journals session_end FIRST, so the reel is already sealed on disk before
-        # any slow step: a fast force-kill can never lose the session. LIGHT End Session has no
-        # farewell vision read, so 6s/3s is plenty — the old 18s/12s made a stuck agent feel dead.
-        wait_s = 6 if farewell else 3
+        # 3) Wait for bridge death, then FORCE-KILL — v946.2: 2.5s max (was 3–6s); seal is
+        # already on disk before kill, so a stuck agent must never pin End Session.
+        wait_s = 2.5
         deadline = time.time() + wait_s
         while time.time() < deadline:
-            if _port_listener_pid() is None and not any(_pid_alive(p) for p in pids):
+            if _port_listener_pid() is None and not any(_pid_alive(p) for p in (pids or [])):
                 break
-            time.sleep(0.2)
+            time.sleep(0.15)
         else:
             # force-kill every remaining agent pid + port holder
-            for pid in set(pids) | set(filter(None, [_port_listener_pid(), _read_pid(PID_PATH)])):
+            for pid in set(pids or []) | set(filter(None, [_port_listener_pid(), _read_pid(PID_PATH)])):
                 _kill_pid(pid, force=True)
-            time.sleep(0.25)
+            time.sleep(0.2)
 
         # always stop Windows capture with the agent
         _stop_capture()
@@ -1129,6 +1127,16 @@ def stop_agent(farewell=True):
         }
     finally:
         _stop_inflight = False
+        # v946.2 — kill sticky ON AIR: clear bridge cache so status never reports bridge=True
+        # after a deliberate stop (was the "End Session stuck" ghost for up to ~6–10s).
+        try:
+            _BR_CACHE["ping"] = False
+            _BR_CACHE["ts"] = 0.0
+            _BR_CACHE["st"] = None
+            globals()["_BRIDGE_LAST_OK"] = 0.0
+            globals()["_agent_mode"] = "off"
+        except Exception:
+            pass
         try:
             _prewarm_seal_cache()   # v879 (Grok j) — theatre derivatives warm while the Mac is quiet
         except Exception:
@@ -3022,17 +3030,23 @@ def status_payload():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
     # process with a bridge seen in the last 10s stays ON; only a truly dead bridge drops it.
-    bridge_now = bool(_BR_CACHE["ping"]) and (time.time() - _BR_CACHE["ts"]) < 6.0
-    bridge = bridge_now or (
-        _agent_alive() and (time.time() - globals().get("_BRIDGE_LAST_OK", 0.0)) < 10.0)
+    # v946.2 — NEVER sticky-bridge when the agent process is dead. Stale _BR_CACHE (≤6s) after
+    # End Session kept bridge=True → UI stuck on "End Session"/ON AIR until the cache aged out.
+    _alive = _agent_alive()
+    bridge_now = bool(_BR_CACHE["ping"]) and (time.time() - _BR_CACHE["ts"]) < 6.0 and _alive
+    bridge = bool(_alive and (
+        bridge_now or (time.time() - globals().get("_BRIDGE_LAST_OK", 0.0)) < 10.0))
     st = _BR_CACHE["st"] if bridge_now else None
     mode = _agent_mode
     if bridge and mode == "off":
         mode = "live"
     # v926.2 SELF-HEAL — never a ghost ON AIR: if the agent process is gone AND the bridge is
     # dead, the session is over regardless of the stale _agent_mode (crash / external kill).
-    # This is why the board stayed "live" after the agent died — mode never got reset.
-    if mode != "off" and not bridge and not _agent_alive():
+    if not _alive:
+        mode = "off"
+        bridge = False
+        st = None
+    if mode != "off" and not bridge and not _alive:
         mode = "off"
     beat = (st or {}).get("beat") or {}
     events = (st or {}).get("events") or []
@@ -3063,7 +3077,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v946.1",
+        "ver": "v946.2",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
@@ -3978,6 +3992,78 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/sessions":
             self._json(200, {"sessions": self._theatre_sessions()})
+            return
+        if path == "/api/reel_path":
+            # v946.2 — physical film folder for a theatre session (Finder open + path toast)
+            try:
+                from urllib.parse import parse_qs, urlparse
+                q = parse_qs(urlparse(self.path).query)
+                sid = (q.get("sid") or [""])[0].strip()
+                n = 1
+                try:
+                    n = max(1, int((q.get("n") or ["1"])[0]))
+                except Exception:
+                    n = 1
+                if not sid:
+                    sess = self._theatre_sessions()
+                    if 1 <= n <= len(sess):
+                        sid = str(sess[n - 1].get("sessionId") or "")
+                if not sid:
+                    self._json(200, {"ok": False, "msg": "no session id"})
+                    return
+                # reel_s_<sid> or reel_<sid>
+                cand = [
+                    os.path.join(HIST_DIR, "reel_" + sid),
+                    os.path.join(HIST_DIR, "reel_s_" + sid) if not sid.startswith("s_") else "",
+                    os.path.join(HIST_DIR, "reel_" + sid.lstrip("s_")),
+                ]
+                # common form: reel_s_1784612879156_96017 when sid is s_1784612879156_96017
+                if sid.startswith("s_"):
+                    cand.insert(0, os.path.join(HIST_DIR, "reel_" + sid))
+                path_out = ""
+                for c in cand:
+                    if c and os.path.isdir(c):
+                        path_out = os.path.realpath(c)
+                        break
+                if not path_out:
+                    # scan hist for reel_* containing sid digits
+                    try:
+                        for name in os.listdir(HIST_DIR):
+                            if name.startswith("reel_") and sid.replace("s_", "") in name:
+                                p = os.path.join(HIST_DIR, name)
+                                if os.path.isdir(p):
+                                    path_out = os.path.realpath(p)
+                                    break
+                    except Exception:
+                        pass
+                if not path_out:
+                    self._json(200, {"ok": False, "msg": "reel folder not found for " + sid[:40],
+                                    "sid": sid, "hist": HIST_DIR})
+                    return
+                opened = False
+                try:
+                    if sys.platform == "darwin":
+                        subprocess.Popen(["open", path_out], stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL)
+                        opened = True
+                    elif IS_WIN:
+                        os.startfile(path_out)  # type: ignore[attr-defined]
+                        opened = True
+                    else:
+                        subprocess.Popen(["xdg-open", path_out], stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL)
+                        opened = True
+                except Exception:
+                    opened = False
+                n_frames = 0
+                try:
+                    n_frames = sum(1 for f in os.listdir(path_out) if f.endswith(".jpg") and f.startswith("f_"))
+                except Exception:
+                    pass
+                self._json(200, {"ok": True, "path": path_out, "sid": sid, "opened": opened,
+                                "frames": n_frames, "hist": os.path.realpath(HIST_DIR)})
+            except Exception as e:
+                self._json(200, {"ok": False, "msg": str(e)[:160]})
             return
         if path == "/api/tz":
             # v944 tracker heal — /api/tz is a Cloudflare Pages function; it only

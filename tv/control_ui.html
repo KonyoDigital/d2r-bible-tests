@@ -1389,6 +1389,7 @@
           <span class="th-tag">🎞 THE THEATRE · EYES ON HISTORY</span>
           <span class="th-clock" id="th-clock" style="font:600 11px/1 var(--mono);color:#bfae7f;letter-spacing:.06em;margin-left:10px"></span>
           <span class="th-sess" id="th-sess">—</span>
+          <button type="button" id="th-open-reel" title="open this session's film folder on disk (all screenshots, labeled or not)" style="margin-left:8px;padding:4px 10px;border-radius:8px;font:700 11px/1 var(--mono);letter-spacing:.04em;color:#d9c9a0;border:1px solid rgba(240,192,96,.35);background:rgba(0,0,0,.45);cursor:pointer">📁 film</button>
           <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
@@ -1682,12 +1683,20 @@
     var mode = st.mode || 'off';
     // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
     // If agent is already dead, never trap the console (re-click ON was stuck).
-    var stopping = (mode === 'stopping' || !!st.stopping) && !!st.bridge;
+    // v946.2 — no agent = always off (ignore sticky bridge ghosts)
+    if (st.agent === false && !st.bridge) {
+      mode = 'off';
+    }
+    var stopping = (mode === 'stopping' || !!st.stopping) && !!st.bridge && st.agent !== false;
     if ((mode === 'stopping' || st.stopping) && !st.bridge) {
       mode = 'off';
       stopping = false;
     }
-    var on = !!st.bridge && !stopping;
+    if (window.__cutting && !st.bridge) {
+      mode = 'off';
+      stopping = false;
+    }
+    var on = !!st.bridge && !stopping && st.agent !== false;
     var state = stopping ? 'stopping' : (mode === 'sim' ? 'sim' : (on ? 'on' : 'off'));
     // v872 — placard hysteresis: a live console only drops to STANDBY after 3 straight
     // off-polls (a real OFF lands within ~2s; a load blip never flashes the placard).
@@ -2234,14 +2243,22 @@
     var rs = d.readStatus;
     var r = d.router || {};
     var rv = String(b.routeVerdict || r.verdict || '');
+    var lab = String(r.label || b.label || '');
     if (rs && rs.kind === 'miss') flags.push('<span class="th-flag f-miss">MISS</span>');
     if (rs && rs.superseded) flags.push('<span class="th-flag f-super">🚫0️⃣ re-read</span>');
     if (rv.indexOf('disagreement') >= 0 || rv === 'disagreement')
       flags.push('<span class="th-flag f-dis">⚡ disagree</span>');
     if (rv.indexOf('dup-of') >= 0 || rv.indexOf('near-dup') >= 0)
       flags.push('<span class="th-flag f-dup">dup</span>');
-    if (r.label && r.label !== 'gameplay')
-      flags.push('<span class="th-flag f-route">' + esc(String(r.label).replace(/^stash-/,'')) + '</span>');
+    // v946.2 — honesty: plain "stash" is NOT gems/materials/runes — say tab unknown
+    if (lab === 'stash' || (lab === 'stash' && !b.stashTab))
+      flags.push('<span class="th-flag f-dis" title="stash panel open but tab not identified (gems/materials/runes unknown)">stash · tab?</span>');
+    else if (lab && lab !== 'gameplay')
+      flags.push('<span class="th-flag f-route">' + esc(String(lab).replace(/^stash-/,'')) + '</span>');
+    if (b.stashTab)
+      flags.push('<span class="th-flag f-route">tab:' + esc(b.stashTab) + '</span>');
+    else if (b.footage && lab && lab.indexOf('stash') === 0 && lab !== 'stash-runes' && lab !== 'stash-gems' && lab !== 'stash-materials')
+      flags.push('<span class="th-flag f-miss" title="film has the pixels — AI never stamped gems/materials/runes">unlabeled tab</span>');
     if (b.intakeBeat && b.intake && b.intake.ok === false)
       flags.push('<span class="th-flag f-miss">intake err</span>');
     if (b.lane === 'kai' && b.kai && b.kai.judge)
@@ -3536,6 +3553,20 @@
     }
   });   // v800 — broadcast transport: ←/→ beat snap · space play/pause · I card
   $('th-close').onclick = thClose;
+  // v946.2 — open the physical film folder (all screenshots for this session)
+  var _thReelBtn = $('th-open-reel');
+  if (_thReelBtn) _thReelBtn.onclick = async function(e){
+    e.preventDefault(); e.stopPropagation();
+    try {
+      var q = TH.sessionId ? ('sid=' + encodeURIComponent(TH.sessionId)) : ('n=' + (TH.sn || 1));
+      var r = await fetch(API + '/api/reel_path?' + q);
+      var j = await r.json();
+      if (j && j.ok && j.path) {
+        toast('film folder · ' + j.path + (j.opened ? ' · opened' : ' · copy path'));
+        try { if (j.path) navigator.clipboard && navigator.clipboard.writeText(j.path); } catch(e2){}
+      } else toast((j && j.msg) || 'no reel folder for this session');
+    } catch (err) { toast('reel path failed'); }
+  };
   (function(){ var f = $('th-film'); if (f) f.onclick = function(){
     // v944.7 — if this click just dismissed the open info panel (click-outside), don't also open HD
     if (Date.now() - (TH.__filmClickSuppress || 0) < 400) return;
@@ -3677,55 +3708,75 @@
   // · Theatre is a separate history player (not the agent)
   async function waitUntilOff(maxMs){
     var t0 = Date.now();
-    maxMs = maxMs || 20000;
+    maxMs = maxMs || 5000;
     while (Date.now() - t0 < maxMs) {
       try {
         var r = await fetch(API + '/api/status');
         var st = await r.json();
         paint(st);
-        // v899 — bridge down = off (even if mode still says stopping for a poll)
-        if (!st.bridge) return true;
-        if (st.mode !== 'stopping' && !st.stopping) return true;
+        // v946.2 — off when bridge down OR mode off (never wait on sticky-bridge ghosts)
+        if (!st.bridge || st.mode === 'off' || (!st.stopping && st.mode !== 'stopping' && st.mode !== 'live' && st.mode !== 'sim'))
+          return true;
+        if (st.mode !== 'stopping' && !st.stopping && !st.agent) return true;
       } catch (e) { return true; }  // control gone = off enough
-      await new Promise(function(res){ setTimeout(res, 280); });
+      await new Promise(function(res){ setTimeout(res, 200); });
     }
     return false;
   }
   async function cutFeed(btn, e, farewell){
+    // v946.2 — End Session always uses /api/off (instant seal, no farewell hang).
+    // farewell arg kept for stop-util button semantics but shares the fast path.
     window.__offN = 99;   // v885 (Grok #3) — a deliberate OFF never fights the 3-poll hysteresis
+    window.__cutting = true;
 
     var lab = btn && btn.querySelector ? btn.querySelector('.lab b') : null;
     var old = lab ? lab.textContent : '';
-    if (lab) lab.textContent = farewell ? 'saving…' : 'cutting…';
+    if (lab) lab.textContent = 'ending…';
     try {
-      var j = await post(farewell ? '/api/stop' : '/api/off', btn, e);
-      if (lab) lab.textContent = farewell ? 'sealing…' : 'closing…';
-      // post() already finished the HTTP call; keep busy feel until bridge is down
+      // force path even if busy (second click must unstick)
+      busy = false;
+      var j = await post('/api/off', btn, e);
+      if (lab) lab.textContent = 'closing…';
       setBusy(true);
-      await waitUntilOff(farewell ? 9000 : 6000);   // v926 — LIGHT seals instantly; the server force-kills by ~6s, so a stuck agent can't hang the button
+      var ok = await waitUntilOff(4000);
+      if (!ok) {
+        // one more hard poke
+        try { await fetch(API + '/api/off', { method: 'POST' }); } catch (e2) {}
+        await waitUntilOff(2000);
+      }
       await refresh();
+      // force UI off if paint still thinks we're live
+      try {
+        var r2 = await fetch(API + '/api/status');
+        var s2 = await r2.json();
+        if (!s2.bridge || s2.mode === 'off') {
+          document.body.setAttribute('data-state', 'off');
+        }
+        paint(s2);
+      } catch (e3) {
+        document.body.setAttribute('data-state', 'off');
+      }
       if (j && j.sessionSaved) toast('session saved · off air');
       else toast((j && j.msg) || 'off air');
     } finally {
+      window.__cutting = false;
       setBusy(false);
-      if (lab) lab.textContent = old || (farewell ? 'Stop' : 'Off');
+      if (lab) {
+        var stNow = document.body.getAttribute('data-state');
+        lab.textContent = (stNow === 'on') ? 'End Session' : (old && old !== 'ending…' && old !== 'closing…' ? old : 'On Air');
+      }
     }
   }
   $('btn-on').onclick = async function(e){
     var st = document.body.getAttribute('data-state');
-    // v865 (Konyo: 'ON AIR toggles; smart multi-functional') — live end is SMART:
-    // a session with reads gets the full farewell seal; an empty one just goes dark.
-    if (st === 'on') { await cutFeed(this, e, (window.__lastReadCount || 0) > 0); return; }
+    // v946.2 — always fast-end (no farewell hang); second click while sealing force-cuts again
+    if (st === 'on' || window.__cutting) { await cutFeed(this, e, false); return; }
     if (st === 'sim') { await cutFeed(this, e, false); return; }
     if (st === 'stopping') {
-      // v899 — if bridge already dead, treat as off and allow ON; else nudge wait
-      try {
-        var r = await fetch(API + '/api/status');
-        var sj = await r.json();
-        if (!sj.bridge) { document.body.setAttribute('data-state', 'off'); st = 'off'; }
-        else { toast('still shutting down — wait a few seconds'); return; }
-      } catch (err) { st = 'off'; }
-      if (st === 'stopping') return;
+      // force cut instead of "wait a few seconds" trap
+      toast('force-ending…');
+      await cutFeed(this, e, false);
+      return;
     }
     post('/api/on', this, e);
   };
