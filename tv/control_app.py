@@ -4746,22 +4746,33 @@ def _engine_driver():
                 _histp5 = "/hist/" + job["fid"] + ".jpg"
                 if job["key"].startswith("vaultcount_"):
                     # v946.8 — COUNT occupied slots via vaultGridCount (kind:gridcount / vault-count)
+                    # v1185 — the outer .catch() used to be bare: a rejected promise (network
+                    # hiccup on the /hist fetch, vaultGridCount throwing synchronously) vanished
+                    # with NO /intake_result POST at all — no honest-miss, no refire signal for
+                    # _drv_empty_refire_plan, just gone. Mirrors the Stage-3 KAI funnel's Grok
+                    # P0-2 hardening (v948.17): post an honest ok:false receipt on rejection so a
+                    # real failure can refire, same as any other empty/error shot.
                     js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                           "if(typeof W.vaultGridCount!=='function')return 0;"
                           "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
                           "return W.vaultGridCount([new W.File([b],'drv-vault-grid.jpg',{type:'image/jpeg'})],{tab:%s,fromTv:true})}).then(function(res){"
                           "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'vault-count',ok:!!(res&&res.ok),counts:(res&&(res.counts||res.added))||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
-                          "}).catch(function(){});return 1}catch(e){return 0}})()"
-                          ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["fid"]))
+                          "}).catch(function(_e5){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'vault-count',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e5&&_e5.message||_e5||'vault-count fetch/intake rejected')})}).catch(function(){})}catch(e6){}});"
+                          "return 1}catch(e){return 0}})()"
+                          ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["fid"]),
+                               json.dumps(job["tab"]), json.dumps(job["fid"]))
                 elif job["key"].startswith("vault_"):
                     # identity path (manual/tooltip) — rarely queued by auto now
+                    # v1185 — honest-miss receipt on promise rejection (see vaultcount_ above)
                     js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                           "if(typeof W.vaultIntake!=='function')return 0;"
                           "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
                           "return W.vaultIntake([new W.File([b],'drv-vault.jpg',{type:'image/jpeg'})],{fromTv:true})}).then(function(res){"
                           "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'vault',ok:!!(res&&res.ok),counts:(res&&res.added)||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
-                          "}).catch(function(){});return 1}catch(e){return 0}})()"
-                          ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
+                          "}).catch(function(_e5){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'vault',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e5&&_e5.message||_e5||'vault fetch/intake rejected')})}).catch(function(){})}catch(e6){}});"
+                          "return 1}catch(e){return 0}})()"
+                          ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]),
+                               json.dumps(job["tab"]), json.dumps(job["fid"]))
                 else:
                     # v1182 — NEVER-ZERO WRITE GUARD, live path. Stage-3's post-seal KAI
                     # funnel (see _tab_best_total / "Grok P0-1" above) got this protection at
@@ -4799,9 +4810,14 @@ def _engine_driver():
                           "var newTotal=(res&&res.total)||0;var applied=false;"
                           "try{if(res&&res.ok&&(PREV<=0||newTotal>=PREV)){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)});applied=true}}catch(e){}"
                           "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'tally',ok:applied?true:!!(res&&res.ok&&PREV>0),counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,frameId:%s,guardHeld:!applied&&PREV>0})}).catch(function(){})}catch(e){}"
-                          "}).catch(function(){});return 1}catch(e){return 0}})()"
+                          # v1185 — same honest-miss-on-rejection hardening as vaultcount_/vault_
+                          # above: a bare .catch() here vanished a rejected fetch/intake with no
+                          # /intake_result POST at all — no refire signal, just gone.
+                          "}).catch(function(_e5){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'tally',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e5&&_e5.message||_e5||'tally fetch/intake rejected')})}).catch(function(){})}catch(e6){}});"
+                          "return 1}catch(e){return 0}})()"
                           ) % (json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["tab"]),
-                               json.dumps(_prevBestDrv), json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]))
+                               json.dumps(_prevBestDrv), json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["fid"]),
+                               json.dumps(job["tab"]), json.dumps(job["fid"]))
                 try:
                     _ejs(w, js, timeout=4.0)
                     job["fired_ms"] = now_ms
@@ -4991,7 +5007,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1184",
+        "ver": "v1185",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1184"   # 💎 FORGE AI-SMART CUBE-UP (Konyo: "I have enough red gems to make Perfect — read that automatically, 4/4") — craft gem readiness now counts a Perfect gem you can CUBE UP from lower grades in stash (3-to-1 chain via gemCubeUpPotential), not only pre-made Perfects. New _craftGemReady() {ready,own,cube}; _craftSlots + forgeScan use it, so Blood reads 4/4 make-now from a stash of Flawless/Normal/Flawed/Chipped Rubies; rows note "· cube 3→1 Perfect Ruby". Same intelligence runewords already use for cube-up runes. ×3 parity (12/80 → v1252)
+VERSION = "v1185"   # 🩹 FUNNEL round 2 — honest-miss on the LIVE driver: all 3 live-driver fire chains (tally · vault · vaultcount) ended in a bare .catch(){} with NO /intake_result POST on rejection — a live intake that REJECTED (network hiccup / mid-apply exception) vanished with no receipt, no refire signal. FIX: each .catch now posts an honest-miss receipt (ok:false, counts:{}, total:0, errors:1, err) — same shape as the Stage-3 P0-2 hardening — so the refire ladder actually retries it (distinct from the v1182 guardHeld receipt, which shouldn't refire). node --check-verified JS; +4 tests (control 72→76). ×3 parity (13/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

@@ -1054,6 +1054,45 @@ class TestGateTallyPromotionHonestSources(unittest.TestCase):
         self.assertTrue(row["gatePass"])
 
 
+class TestDriverLiveHonestRejectionReceipt(unittest.TestCase):
+    """v1185 — the engine-driver's OWN live fire chains (vaultcount_/vault_/tally, the same
+    three sites hardened for never-zero at v1182) each ended their promise chain in a bare
+    `.catch(function(){})` — a REJECTED fetch/intake (network hiccup, a synchronous throw from
+    vaultGridCount/vaultIntake/runeIntake-etc) vanished with NO /intake_result POST at all: no
+    honest-miss, no refire signal for `_drv_empty_refire_plan`, just gone. This is the exact
+    silent-drop class the Stage-3 KAI funnel got hardened against at v948.17 (Grok P0-2,
+    TestKaiFunnelHonestErrorReceipt above) — mirrored here for the live-driver's three chains.
+    A rejection now posts ok:false/total:0/errors:1 (a real failure, distinct from the v1182
+    guardHeld:true/ok:true block) so it can actually refire like any other empty/error shot,
+    rather than a guard-held 'we already have a good tally' state that should NOT refire."""
+
+    def test_vaultcount_outer_catch_posts_honest_receipt(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn("vault-count fetch/intake rejected", src)
+
+    def test_vault_outer_catch_posts_honest_receipt(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn("'vault fetch/intake rejected'", src)
+
+    def test_tally_outer_catch_posts_honest_receipt(self):
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        self.assertIn("tally fetch/intake rejected", src)
+
+    def test_rejection_receipts_are_real_failures_not_guard_holds(self):
+        # each rejection-catch body reports ok:false/total:0/errors:1 — a genuine failure
+        # signal (_intake_is_real is False, so _drv_empty_refire_plan's refire ladder fires),
+        # never confused with the v1182 guardHeld:true/ok:true "already have a good tally" state.
+        import inspect
+        src = inspect.getsource(ca._engine_driver)
+        for kind in ("vault-count", "vault", "tally"):
+            self.assertIn(
+                f"kind:'{kind}',ok:false,counts:{{}},total:0,errors:1", src,
+                f"{kind} rejection receipt must be an honest ok:false failure")
+
+
 class TestDriverLiveNeverZeroGuardWiring(unittest.TestCase):
     """v1182 — the engine-driver's OWN live tally fire (every stash-tab visit during actual
     play, not just Stage-3's post-seal gap-fill) does the same SET-style ADJ-subtract write as
