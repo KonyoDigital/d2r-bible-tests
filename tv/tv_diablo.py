@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1173"   # 🔢 first INTEGER version (decimals retired — real count) · 🔤 Typo R1 + Phase D owner/verdict swap: one type-scale (fullscreen floor, second competing system retired) + Engine Room drill-down now shows the Master-Brain's authoritative owner/verdict (control_ui.html); ×3 parity (1/80 → v1252)
+VERSION = "v1174"   # 🔤✨ Typography R2 — TOGGLE SWEEP: every modal/panel/details/dash toggle now backdrop-fades + panel-rises instead of hard-popping (one-shell law applied to every toggle), reduced-motion/endurance opt-out, built on the v1173 --fs-* scale (control_ui.html); ×3 parity (2/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
