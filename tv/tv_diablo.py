@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1191"   # 🧠 ENGINE ROOM bulletproof open (Konyo: "click Engine Room, nothing happens"). Served code was already correct (button→_engineRoomOpen, handler defined, CSS fine — his window was a stale load) BUT the open path could silently swallow the whole cockpit if any one panel render threw. FIX (control_ui.html): _engineRoomOpen now shows the overlay FIRST, then renders each panel (wireAxis/loadRuler/refresh/status) in its OWN try/catch — a single panel error can never leave the button doing nothing again, and every failure logs loudly ([EngineRoom] …) so a recurrence is diagnosable. ×3 parity (19/80 → v1252)
+VERSION = "v1192"   # 🔴 READ round 3 — rewarm lock-contention on the LIVE default (POOL_N==1): _rewarm (fired when the warm worker dies mid-read) spawns a background w.ask("ok",timeout=60) health-ping on the SAME worker — designed for the ROBOT_MODE multi-reader pool where other slots keep serving. But Konyo's default is POOL_N==1 (ROBOT_MODE off): that ping holds w.lock up to 60s, and the NEXT live read blocks acquiring the lock INVISIBLY to LIVE_READ_TIMEOUT_S (35s) — its bounded countdown only starts after it gets the lock. So a health-ping silently holds the live lane hostage up to 60s, worse than the cap, right after the dead-worker failure it meant to recover. NOT dormant (POOL_N==1 is the live default). FIX: `if POOL_N<=1: return` — the worker self-heals on its next ask() respawn anyway. +2 tests (agent 181→183). ×3 parity (20/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2881,7 +2881,21 @@ _REWARM_AT = {}          # v863 — per-worker last-rewarm ts (id(worker) -> tim
 def _rewarm(worker=None):
     """v863 — after a reader death/throttle, quietly warm THAT slot's fresh session (60s
     per-worker debounce). One-shot is a bridge; a degraded reader recovers on its own without
-    ever stalling the other 7. Defaults to worker 0 for old callers."""
+    ever stalling the other 7. Defaults to worker 0 for old callers.
+
+    v1192 — that "other 7" is the whole premise: this only helps when OTHER pool slots are
+    free to keep serving live traffic while this one warms in the background. Outside
+    ROBOT_MODE, POOL_N==1 ("ONE Claude always" — Konyo's actual live config) means there IS
+    no other slot; `w` here is the SAME VisionWorker every live read uses, and `w.ask()`
+    below holds `w.lock` for up to 60s — a `Reply with exactly: ok` ping that a live read
+    arriving moments later would silently queue behind, waiting on the lock BEFORE its own
+    LIVE_READ_TIMEOUT_S budget even starts counting. That defeats the Master Brain law
+    (v948.17) worse than the outage it's meant to route around: a dead worker already
+    self-heals for free (`ask()`'s own `self.p.poll() is not None` respawn, first thing on the
+    very next call), so a POOL_N==1 background ping only adds contention with no upside. Skip
+    it there; keep it for the real multi-reader pool it was written for."""
+    if POOL_N <= 1:
+        return
     w = worker or _WORKER
     key = id(w)
     if time.time() - _REWARM_AT.get(key, 0.0) < 60: return

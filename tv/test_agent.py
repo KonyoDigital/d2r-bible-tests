@@ -708,6 +708,51 @@ class TestVisionWorker(unittest.TestCase):
         w.stop()
 
 
+class TestRewarmSkipsSingleReaderPool(unittest.TestCase):
+    """v1192 — _rewarm's background 'Reply with exactly: ok' ping shares the SAME worker
+    (and its lock) as every live read outside ROBOT_MODE, where POOL_N==1 ('ONE Claude
+    always' — Konyo's real live config). There it can only contend with the next live read
+    (blocking on the lock for up to its own 60s, BEFORE that read's own LIVE_READ_TIMEOUT_S
+    budget even starts counting) — never help, since there's no 'other slot' for it to keep
+    serving traffic on while this one warms. A dead/wedged worker already self-heals for free
+    on its own next ask() (the `self.p.poll() is not None` respawn), so the fix is to skip
+    the background ping entirely when POOL_N<=1 and keep it for the real multi-reader pool
+    (ROBOT_MODE) it was written for. Proxy signal: the per-worker debounce timestamp in
+    `_REWARM_AT` is only ever set when `_rewarm` actually proceeds past the guard."""
+
+    def setUp(self):
+        self.fake = os.path.join(tv.HERE, "fake_claude.py")
+        self._orig_bin = tv.CLAUDE_BIN
+        tv.CLAUDE_BIN = self.fake
+        self._orig_pool_n = tv.POOL_N
+        tv._REWARM_AT.clear()
+        os.environ.pop("TV_FAKE_MODE", None)
+
+    def tearDown(self):
+        tv.CLAUDE_BIN = self._orig_bin
+        tv.POOL_N = self._orig_pool_n
+        tv._REWARM_AT.clear()
+        os.environ.pop("TV_FAKE_MODE", None)
+
+    def test_single_reader_pool_skips_the_background_ping(self):
+        tv.POOL_N = 1   # Konyo's real default outside ROBOT_MODE
+        w = tv.VisionWorker()
+        try:
+            tv._rewarm(w)
+            self.assertNotIn(id(w), tv._REWARM_AT)   # never scheduled — no lock contention risk
+        finally:
+            w.stop()
+
+    def test_multi_reader_pool_still_rewarms(self):
+        tv.POOL_N = 2   # ROBOT_MODE pool — other slots ARE free to serve traffic meanwhile
+        w = tv.VisionWorker()
+        try:
+            tv._rewarm(w)
+            self.assertIn(id(w), tv._REWARM_AT)   # unchanged behavior for the pool it was written for
+        finally:
+            w.stop()
+
+
 class TestLiveReadTimeoutCap(unittest.TestCase):
     """v948.17 — Grok P1-5 pin (2026-07-21 fast-run soak): a single frame took 68,978ms and,
     with POOL_N==1 outside robot mode, held the ENTIRE live lane for up to the OLD 75s ask()
