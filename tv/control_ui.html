@@ -1021,6 +1021,11 @@
   .rd-handoff.rd-hf-caught  { color: #9df0bd; background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.4); }   /* a later net CAUGHT a miss — the engine self-correcting */
   .rd-handoff.rd-hf-correct { color: #ffcf8a; background: rgba(240,180,96,.12); border: 1px solid rgba(240,180,96,.42); }   /* second eye overturned the live read */
   .rd-handoff.rd-hf-ok      { color: #9db0a4; opacity: .8; }
+  /* v949 §3.5 — the accuracy gate's per-frame verdict: held (a misread weeded out) vs proven */
+  .gate-note { display: inline-block; font: 700 11.5px/1.35 var(--mono); letter-spacing: .01em; padding: 3px 9px; border-radius: 6px; }
+  .gate-note.gate-held   { color: #ffcf8a; background: rgba(240,180,96,.13); border: 1px solid rgba(240,180,96,.45); }
+  .gate-note.gate-proven { color: #9df0bd; background: rgba(143,230,160,.1); border: 1px solid rgba(143,230,160,.38); }
+  .gate-note .gate-src { font-weight: 500; opacity: .6; }
   .ar-reader { margin-bottom: 3px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .rd-card { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; margin: 2px 0 4px; }
   .rd-handoff-row { margin-top: 1px; }
@@ -2482,6 +2487,21 @@
     }
     return '';
   }
+  // ══ v949 (ENGINE_ARCH §3.5 — THE ACCURACY GATE) — the gate's verdict per frame: did this frame
+  // PASS (proven, funnel-fireable) or get HELD (a misread weeded out before it hit a cell)? Rides
+  // the pack beat as gatePass(bool)/gateReason(str)/gateSources([str]) — renders only when present,
+  // so it lights up the moment the engine attaches those fields to the beat. ══
+  var _GATE_WHY = { 'no-hard-signal': 'no hard signal', 'name-not-in-db': 'not in DB',
+    'quorum<2': 'quorum < 2', 'wrong-cell': 'wrong cell', 'no-label': 'no label' };
+  function thGateNote(b){
+    if (!b || b.gatePass === undefined || b.gatePass === null) return '';
+    var src = (b.gateSources || []).length ? ' <span class="gate-src">· ' + esc(b.gateSources.slice(0, 5).join(' ')) + '</span>' : '';
+    if (b.gatePass === false){
+      var why = _GATE_WHY[b.gateReason] || (b.gateReason ? esc(b.gateReason) : 'held');
+      return '<span class="gate-note gate-held" title="the accuracy gate held this frame before it could hit a cell — a misread weeded out">🛡 gate held · ' + why + src + '</span>';
+    }
+    return '<span class="gate-note gate-proven" title="passed the accuracy gate' + (b.routed ? ' and fired a funnel' : '') + ' — proven by quorum">🛡 ✓ proven' + (b.routed ? ' · fired' : '') + src + '</span>';
+  }
   // ══ v945 — 🖼 HD ART by EXACT ITEM NAME. The board's D2IO_ART (base + hd) folded UNDER the HD
   // manifest (art/HD_ART_MANIFEST.json, 639 entries) so the HD override always wins. Resolve a
   // counted item name → its real in-game icon; fall back to the tab emoji when a name isn't known
@@ -3560,8 +3580,10 @@
     var _rsDrawer = thReadStatus(b, true), _rpDrawer = thRouterPill(b), _ffDrawer = thForensicFlags(b);
     if (_rsDrawer || _ffDrawer) h += '<h4>read status — was this panel read?</h4><div class="th-rs-card">' + (_rpDrawer ? _rpDrawer + ' ' : '') + (_rsDrawer || '') + _ffDrawer + '</div>';
     // v948.9 — READER HAND-OFF: which net owns this frame + whether it caught what the last missed
-    var _rdB = thReaderBadge(b), _rdH = thHandoffNote(b);
-    if (_rdB) h += '<h4>reader — who owns this frame</h4><div class="rd-card">' + _rdB + (_rdH ? '<div class="rd-handoff-row">' + _rdH + '</div>' : '') + '</div>';
+    var _rdB = thReaderBadge(b), _rdH = thHandoffNote(b), _rdG = thGateNote(b);
+    if (_rdB || _rdG) h += '<h4>reader — who owns this frame</h4><div class="rd-card">'
+      + (_rdB || '') + (_rdH ? '<div class="rd-handoff-row">' + _rdH + '</div>' : '')
+      + (_rdG ? '<div class="rd-handoff-row">' + _rdG + '</div>' : '') + '</div>';
     // v941.6 — the three-eye dossier, compact, at the top of the per-beat forensics
     var _dossierDrawer = thDossierLine(b);
     if (_dossierDrawer) h += '<h4>the three eyes — dossier</h4>' + _dossierDrawer;
@@ -5261,9 +5283,15 @@
     var okTabs = tk.filter(function(k){ var t = tabs[k] || {}; return t.ok || t.status === 'ok'; }).length;
     var missTabs = tk.filter(function(k){ return (tabs[k] || {}).status === 'miss'; }).length;
     var recv = (st.intakeRing || []).length;
-    var fnPulse = (!on && !tk.length) ? 'idle' : (missTabs > 0 ? 'warn' : 'ok');
+    // v949 §3.5 — THE ACCURACY GATE stat: items PROVEN vs HELD across the routing ledger (from
+    // sh.gate={proven,held}). A held-heavy funnel = amber — the gate IS catching misreads (good),
+    // but worth seeing. Renders only when the engine exposes the counts (invisible until then).
+    var gt = sh.gate || {}, proven = gt.proven, held = gt.held, hasGate = (proven != null || held != null);
+    var fnPulse = (!on && !tk.length && !hasGate) ? 'idle' : ((missTabs > 0 || (hasGate && (held || 0) > (proven || 0))) ? 'warn' : 'ok');
     var fnStat = recv + ' receipt' + (recv === 1 ? '' : 's') + (tk.length ? ' <span class="eh-x">·</span> ' + okTabs + '/' + tk.length + ' tabs' : '');
-    var fnSub = tk.length ? (okTabs + ' landed' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : '')) : 'no stash tabs yet';
+    var fnSub = hasGate
+      ? ('🛡 ' + (proven || 0) + ' proven <span class="eh-x">·</span> ' + (held || 0) + ' held' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : ''))
+      : (tk.length ? (okTabs + ' landed' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : '')) : 'no stash tabs yet');
     // 5) LEDGER — the memory
     var viol = wd.violations || 0;
     var ldPulse = viol > 0 ? 'warn' : 'ok';

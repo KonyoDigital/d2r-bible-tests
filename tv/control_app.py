@@ -2513,6 +2513,33 @@ def _kai_stage3_select(routing):
     return list(funnel_by_tab.values()), judges, ([vault_best] if vault_best else [])
 
 
+_GATE_COUNT_CACHE = {"reel": None, "mtime": 0.0, "val": None}
+
+
+def _newest_gate_count():
+    """v948.12 — {proven, held} from the newest sealed reel's routing (accuracy-gate verdicts
+    are post-seal). Cached by reel+mtime so /api/status polling never re-parses a hot report."""
+    try:
+        hist = HIST_DIR
+        reels = sorted((d for d in os.listdir(hist)
+                        if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
+                       reverse=True)
+        if not reels:
+            return None
+        rp = os.path.join(hist, reels[0], "kai_report.json")
+        mt = os.path.getmtime(rp)
+        if _GATE_COUNT_CACHE["reel"] == reels[0] and _GATE_COUNT_CACHE["mtime"] == mt:
+            return _GATE_COUNT_CACHE["val"]
+        rt = (json.load(open(rp, encoding="utf-8")) or {}).get("routing") or []
+        prov = sum(1 for r in rt if r.get("gatePass") is True)
+        held = sum(1 for r in rt if r.get("gatePass") is False)
+        val = {"proven": prov, "held": held} if (prov or held) else None
+        _GATE_COUNT_CACHE.update(reel=reels[0], mtime=mt, val=val)
+        return val
+    except Exception:
+        return None
+
+
 def _session_health_from_rows(rows, leases=None, driver=None):
     """v946 — one-glance session truth for the console health strip.
     Pure: tabs (best real intake), leases, driver pulse, overall verdict."""
@@ -3948,6 +3975,9 @@ def status_payload():
                 "fired": globals().get("_DRV_FIRED", 0), "refire": globals().get("_DRV_REFIRE", 0),
                 "err": globals().get("_DRV_ERR")}
         _sess_h = _session_health_from_rows(_sess_tail, leases=_intake_lease_status(), driver=_drv)
+        _gc = _newest_gate_count()   # v948.12 — accuracy-gate proven/held for the FUNNELS organ
+        if _gc:
+            _sess_h["gate"] = _gc
     except Exception:
         _sess_h = {"tabs": {}, "leases": {}, "verdict": "idle", "story": [], "tabSummary": {}}
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
@@ -4754,6 +4784,11 @@ class Handler(BaseHTTPRequestHandler):
                             "routed": _rr.get("routed"),
                             "routeSources": list(_rr.get("sources") or []),
                             "routeConf": _rr.get("confidence"),
+                            # v948.12 — accuracy-gate verdict rides the beat so the theatre can
+                            # show WHY a frame was routed or held (the mirror closes the gate loop)
+                            "gatePass": _rr.get("gatePass"),
+                            "gateReason": _rr.get("gateReason"),
+                            "gateSources": list(_rr.get("gateSources") or []),
                             "eyeSources": list(_rr.get("eyeSources") or []),
                             "stashTab": _stab or "",
                             "kaiMissTexts": _kai_miss.get(fn) or [],
