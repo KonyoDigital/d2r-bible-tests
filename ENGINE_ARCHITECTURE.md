@@ -71,6 +71,34 @@ the console: not a feature beside the engine, but the engine's own consciousness
 harden the five layers (aftermath integrity) → wire the 4th super-analyze organ → then the Master Brain
 as the always-on reconciler + super-watchdog that runs the whole loop and answers for its accuracy.
 
+### 🧠🖥 THE ENGINE ROOM — the Master Brain's cockpit (Konyo, 2026-07-21, "a visual debugger for every engine")
+_"I need to see what the AI sees — surgically fix and debug and see visually, at the time, what every
+engine is doing and seeing and how. Live time AND retro time, everything time-synced."_
+
+The Master Brain is invisible logic; the ENGINE ROOM is its FACE — one unified mission-control cockpit
+(NOT a CRM; an observability/ops cockpit) that fuses the scattered debug surfaces (theatre = retro,
+engine-health = live pulse, reader/gate telemetry) into one surgical screen. Konyo's call: **BOTH
+live and retro, equal weight.**
+
+SHAPE:
+- **The engine spine, always visible** — 📷 capture → 👁 readers (🔴🔵🧠🔬) → 🚦 router+🛡 gate → 🩹 funnels
+  → 📒 ledger — each organ a live panel with its current state.
+- **ONE unified timeline scrubber, live↔retro** — the live cursor rides the right edge (NOW: what every
+  engine is doing this second), and you scrub LEFT into the sealed reels (retro: every engine's state at
+  that past instant, from the film). One timeline, no mode toggle — "now" is just the rightmost point.
+- **Click any organ or any frame → the raw process detail AT THAT TIMESTAMP** — the read in flight (+ its
+  ms, so a 66s stall is right there), the OCR's literal text, the quorum votes + evidence classes, the
+  gate decision + gateReason, the funnel receipt, the never-zero re-fire, which of the 5 layers owns it.
+  The backend made visible: WHAT the AI saw and WHY it decided — the thing you surgically fix from.
+- **Live source** = /api/status (driver, eyes, sessionHealth, gate, completeness, leases) polled;
+  **retro source** = /api/beat + kai_report.routing (already carries label/gate/sources/gatePass). The
+  data mostly EXISTS — the Engine Room is the unified surface + the per-process drill-down, plus any
+  server fields still needed (surfaced defensively, lights up as they land — the gate/HD-art pattern).
+- Reuse the 🔴🔵🧠 badge + health-pulse + type-scale language already built; live in the TV·D console as
+  its own view (a "🧠 ENGINE ROOM" tab/affordance), full closeability discipline.
+LAW: the Engine Room never DRIVES the engine — it observes and time-syncs. It is the window into the
+Ninja KAI, not a second hand on the wheel.
+
 ### 2. THE READERS (🔴🔵🧠) — layered eyes, each a net for the last
 - **🔴 Live eye** — deep-reads the current frame (names items) when text-eye/motion triggers. First pass, fast.
 - **🔵 Second eye** — in idle gaps, re-reads the text-eye backlog the live eye rushed past. Corrections.
