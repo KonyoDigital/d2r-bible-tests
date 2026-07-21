@@ -61,3 +61,14 @@ _Fable saving at ~98% context. Two agents mid-flight — gate their hand-backs w
     driver live deque; sealed owner kaiVer≥3 wins; materialize `_kai_build_engine_frames` → report["engineFrames"] via atomic writer).
 - After these: Engine Room is COMPLETE (v1+v2+v3); reconciler done → then Phase D (liveRing in status_payload) is mostly the
   remaining data-contract work, then per-engine 100+ polish + UX 5-round arc.
+
+## UPDATE @ v948.25 (Phase C DONE — Master Brain core complete)
+- v948.24 Engine Room v3 (drill-down) ✅ → COCKPIT COMPLETE. v948.25 Phase C `_kai_reconcile` + `engineFrames` ✅.
+- The Master Brain's reconciliation logic + the full cockpit are DONE. 9 versions this arc (v948.17→v948.25).
+- REMAINING (no agents in flight now — dispatch fresh):
+  - Phase D: surface `_ENGINE_FRAMES_LIVE` deque + engineFrames in `status_payload()` as `liveRing`/`engineFrames`
+    (the reconciler already fills the deque; just expose it, rawHead cap 160, per the settled Q4).
+  - UI: surface authoritative `owner`/`verdict` from engineFrames in the Engine Room drill-down (polish-ui-2 —
+    right now it infers ownership; the reconciler makes it definitive).
+  - Then: PER-ENGINE 100+ polish arcs (PER_ENGINE_PERFECTION_ROADMAP) + the UX/TYPOGRAPHY 5-round arc.
+- All green: control 60 · routes 173 · agent 171. HEAD clean, pushed. Gate pattern above.
