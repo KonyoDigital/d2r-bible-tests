@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1185"   # 🩹 FUNNEL round 2 — honest-miss on the LIVE driver: all 3 live-driver fire chains (tally · vault · vaultcount) ended in a bare .catch(){} with NO /intake_result POST on rejection — a live intake that REJECTED (network hiccup / mid-apply exception) vanished with no receipt, no refire signal. FIX: each .catch now posts an honest-miss receipt (ok:false, counts:{}, total:0, errors:1, err) — same shape as the Stage-3 P0-2 hardening — so the refire ladder actually retries it (distinct from the v1182 guardHeld receipt, which shouldn't refire). node --check-verified JS; +4 tests (control 72→76). ×3 parity (13/80 → v1252)
+VERSION = "v1186"   # 🚦 ROUTE/GATE round 2 — quorum TIE = disagreement: _kai_quorum_label only flagged a weak top count (top_n<2), never a 2+ way TIE at the top (2-vs-2, 3-vs-3). Counter.most_common broke ties by insertion order — an iteration artifact — so a genuine split (e.g. judge 'tooltip' vs a tabstrip+grid 'stash-*', both 2 votes) was silently resolved to a confident winner and the losing side vanished from sources (chrome-dissenter veto is blind to non-tabstrip/grid pairs). FIX: tied_leaders>1 → disagreement → route=None (detection fix only, downstream wiring unchanged). +4 tests (control 76→80). ×3 parity (14/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")

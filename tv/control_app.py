@@ -2782,9 +2782,16 @@ def _kai_quorum_label(votes):
         return "gameplay", agree, None
     counts = Counter(ng.values())
     top_label, top_n = counts.most_common(1)[0]
-    # disagreement: 2+ distinct non-gameplay labels and no quorum on the winner
-    if len(counts) >= 2 and top_n < 2:
-        # no ≥2 agreement — flag, keep top as display label, sources empty for gate
+    # v1186 — a genuine TIE (2+ distinct labels sharing the top count, e.g. 2-vs-2 or 3-vs-3)
+    # must ALSO be disagreement, not just a weak top_n<2. Counter.most_common only breaks ties
+    # by first-seen insertion order — that's an iteration-order artifact, not evidence, and
+    # was silently picking a winner between two EQUALLY-backed tally tabs (each side can even
+    # clear independent-class quorum on its own) with no trace the other side ever voted.
+    tied_leaders = sum(1 for n in counts.values() if n == top_n)
+    # disagreement: 2+ distinct non-gameplay labels and no clean ≥2 winner (either the top
+    # count itself is weak, or 2+ labels are tied for the top spot)
+    if len(counts) >= 2 and (top_n < 2 or tied_leaders > 1):
+        # no clean agreement — flag, keep top as display label, sources empty for gate
         return top_label, [], "disagreement"
     agree = sorted(b for b, lb in clean.items() if lb == top_label)
     return top_label, agree, None
@@ -5007,7 +5014,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1185",
+        "ver": "v1186",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

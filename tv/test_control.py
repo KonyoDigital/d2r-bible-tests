@@ -1054,6 +1054,63 @@ class TestGateTallyPromotionHonestSources(unittest.TestCase):
         self.assertTrue(row["gatePass"])
 
 
+class TestQuorumTieIsDisagreement(unittest.TestCase):
+    """v1186 ROUTE/GATE fix — `_kai_quorum_label`'s disagreement check only looked at
+    `top_n < 2` (a WEAK single winner, e.g. a 1-1-1 spread), never at whether 2+ distinct
+    labels were tied AT the top with a real count (2-vs-2, 3-vs-3, ...). Counter.most_common
+    breaks ties by first-seen insertion order — an iteration-order artifact, not evidence —
+    so a genuine split between two EQUALLY-backed, DIFFERENT labels was silently resolved to
+    whichever brain happened to vote first, with the losing side's votes vanishing from
+    `sources` entirely (no trace it ever happened). Reachable live: 'read'+'judge' vote
+    'tooltip' unconditionally whenever a deep read/judge verdict lands near a frame — a
+    frame that ALSO gets a clean tabstrip+grid 'stash-*' read produces exactly a 2-2 split
+    between the judge cell and a tally cell, two genuinely different funnels."""
+
+    def test_pure_2v2_tie_flagged_disagreement(self):
+        # two independent-class pairs backing two DIFFERENT tally labels, no journal
+        # short-circuit involved (isolates the Counter tie-break bug itself)
+        votes = {"ocr": "stash-runes", "tabstrip": "stash-runes",
+                 "grid": "stash-gems", "read2": "stash-gems"}
+        label, sources, disagree = ca._kai_quorum_label(votes)
+        self.assertEqual(disagree, "disagreement")
+        self.assertEqual(sources, [])
+
+    def test_clean_majority_still_wins_no_false_tie(self):
+        # 2-vs-1 must still be a confident, undisturbed win (regression guard against
+        # over-fixing into false disagreements)
+        votes = {"ocr": "stash-runes", "tabstrip": "stash-runes", "grid": "stash-gems"}
+        label, sources, disagree = ca._kai_quorum_label(votes)
+        self.assertIsNone(disagree)
+        self.assertEqual(label, "stash-runes")
+        self.assertEqual(sources, ["ocr", "tabstrip"])
+
+    def test_lone_single_vote_still_wins_no_false_tie(self):
+        # a single non-gameplay vote with no rival must still win outright (policy #3)
+        votes = {"ocr": "stash-runes"}
+        label, sources, disagree = ca._kai_quorum_label(votes)
+        self.assertIsNone(disagree)
+        self.assertEqual(label, "stash-runes")
+
+    def test_judge_vs_tally_2v2_reachable_through_full_routing(self):
+        # the live-reachable case: a deep read AND a judge verdict both land on this frame
+        # (2 votes for 'tooltip' -> route=judge), while tabstrip+grid independently agree on
+        # 'stash-runes' (2 votes -> route=tally:runes) — a genuine 2-2 split between two
+        # DIFFERENT funnel cells. Must come through as disagreement, not a confident pick.
+        sess_rows = [{"lane": "deep", "captureTs": 1000, "names": ["Vex Rune"]}]
+        journal_rows = [{"frameId": "reel_sid1/f1", "lane": "kai", "mode": "kai-judge",
+                          "kai": {"judge": {"name": "Vex Rune", "tier": "keep"}}}]
+        scan = [{
+            "f": "f1.jpg", "ts": 1000,
+            "tabstripLabel": "stash-runes", "tabstrip": True,
+            "gridLabel": "stash-runes", "grid": True,
+        }]
+        routing = ca._kai_build_routing(scan, sess_rows, "sid1", journal_rows)
+        row = routing[0]
+        self.assertEqual(row["sources"], [])
+        self.assertEqual(row["confidence"], 0)
+        self.assertFalse(row["gatePass"])
+
+
 class TestDriverLiveHonestRejectionReceipt(unittest.TestCase):
     """v1185 — the engine-driver's OWN live fire chains (vaultcount_/vault_/tally, the same
     three sites hardened for never-zero at v1182) each ended their promise chain in a bare
