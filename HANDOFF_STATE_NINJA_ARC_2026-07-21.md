@@ -135,3 +135,19 @@ NEXT: polish-ui-2 R4 (structure+hierarchy, control_ui.html, IN PROGRESS) gates a
 ## ✅ GATED: v1177 (5/80) — HEAD 009936d
 Typography R4 — STRUCTURE + HIERARCHY (polish-ui-2, control_ui.html): rail lower half given the dash's section discipline — THE READER NET (🔴🔵🧠 under gold accent-bar label) + SESSION HEALTH (labeled, rows top-aligned). CSS ::before labels, zero markup/ID/data changes. ×3 parity v1177, floor control 64, demo 7/7 (0.00px · 3 eyes · signal panel · closeability held), smoke+deploy live, app @ v1177.
 NEXT: polish-ui-2 R5 — VISUAL POLISH + CONSISTENCY SWEEP (final typography round → v1178), Grok third-eye on before/after. After R5 the UX/typography 5-round arc is COMPLETE; then Lane B per-engine 100+ polish continues toward v1252. Counter: 5/80 · at v1177 · target v1252 · north star v2000.
+
+## ✅ GATED: v1178 (6/80) — HEAD 78e0f60 — 🎉 TYPOGRAPHY ARC R1→R5 COMPLETE
+Typography R5 — CONSISTENCY SWEEP (polish-ui-2, control_ui.html): brought the flagship ENGINE ROOM into the design system (.er-band gold accent-bar labels + panel chrome unified with tally/legend overlay family). Quality-over-churn (2 real fixes). ×3 parity v1178, floor control 64, demo 7/7 (0.00px both axes · three eyes · signal), smoke+deploy live.
+
+### THE UX/TYPOGRAPHY ARC (v1173→v1178, DONE):
+- v1173 R1 type scale (--fs-* clamp system, 13px fullscreen floor, 2nd competing system retired)
+- v1174 R2 motion (every toggle → unified CSS shell animations, reduced-motion/endurance opt-out)
+- v1175 R3 fullscreen (@2560×1440: caption clip + rail width fixed)
+- v1177 R4 structure (rail section labels: READER NET, SESSION HEALTH)
+- v1178 R5 consistency (Engine Room joins the design system; every overlay one family)
+Net: type/motion/fullscreen/structure/consistency pull one direction — one designed product. All CSS-only, all invariants held. (v1176 = the stability crash-fix interleaved.)
+
+## ⚠️ APP LAUNCH STATE (post-midnight 2026-07-22)
+:17772 now running HEADLESS (nohup python3 control_app.py --no-open) @ v1178 — stays up (no window death vector, --no-open skips pywebview). The .app/Terminal-reroute launch stopped bringing :17772 up in this session (Terminal Automation likely not granting post-midnight) AND shell launches lack Screen-Recording TCC anyway. FOR REAL D2R SCANNING: Konyo must relaunch TV DIABLO.app himself (double-click) so the capture grant is inherited. OFFERED: a launchd KeepAlive supervisor for bulletproof always-up — awaiting Konyo's go (persistent system config, needs explicit OK).
+
+## NEXT (7/80 →): typography arc done. Remaining mandate = LANE B PER-ENGINE 100+ POLISH (PER_ENGINE_PERFECTION_ROADMAP.md): 📷 capture · 👁 read · 🚦 route+gate · 🩹 funnel. Optional: Grok third-eye pass on the finished console (polish-ui-2's R1→R5 before/after summary is in its v1178 handback; before/after Engine Room shots in scratchpad r5_before/after_06_engineroom.png). Counter: 6/80 · at v1178 · target v1252 · north star v2000.
