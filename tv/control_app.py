@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import bisect
+import collections
 import inspect
 import json
 import os
@@ -3179,6 +3180,335 @@ def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
     return cands[:cap]
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════
+# v949.x 🥷🧠 THE MASTER-BRAIN RECONCILER — Phase C (ENGINE_ARCHITECTURE.md "MASTER BRAIN
+# KAI"; ARCH_PINGPONG_NINJA_ENGINE_ROOM.md §4 + §6-Q2 SETTLED). ONE pure fn, ZERO new
+# threads (Q2 was explicit: a 3rd always-on thread would revive the race the
+# _agent_mode/_agent_alive() gate killed at v937.3). Called from the TWO threads that
+# already exist: _kai_closer_loop (authoritative, post-seal — see _kai_build_engine_frames
+# below) and _engine_driver (provisional live guess — see _kai_live_routing_row / the
+# _ENGINE_FRAMES_LIVE deque near the bottom of _engine_driver's 2s loop).
+# ═══════════════════════════════════════════════════════════════════════════════════
+def _kai_reconcile(routing, register, sess_rows):
+    """THE reconciler — pure, no I/O, no threads. For each routing row (one per scanned
+    frame) decides the OWNER — which layer's read is the ACCEPTED truth for that
+    frame/item — and the VERDICT, in priority order (Q4 §4, Konyo's settled ranking):
+
+        super-analyze deep-read  >  live named  >  kai-retro named  >  OCR-only
+
+    A deliberate, unhurried re-read (super) outranks a time-pressured live pass; a
+    DB-verified name always outranks a bare label with no name behind it. Every accepted
+    read carries WHICH layer owned it + WHY (`why`) — the audit trail the Engine Room
+    cockpit renders (ARCH_PINGPONG §2's `owner` field).
+
+    DB-verification: `register` (from _kai_compile_register) is ALREADY _kai_fullnames-
+    filtered + anchor/junk-stripped, so its name set doubles as "names this session proved
+    real" without a second DB lookup here (keeps this fn to its 3 given args — no vocab
+    I/O). When `register` is non-empty it gates live-read names (only a DB-verified nearby
+    name counts as 'live named'). When `register` is EMPTY — the _engine_driver provisional
+    live call, which has no time to compile a register every 2s — verification is skipped
+    and a raw deep-read name is trusted as a live GUESS (explicitly provisional; the
+    sealed pass below always re-runs this with a real register and a real routing/gate
+    pass, and per the settled law that sealed pass always wins — see
+    _kai_engine_frame_effective). This is the one place 'confidence' folds into priority:
+    within the live layer, a DB-verified name (register present) is preferred outright over
+    an unverified guess (register absent) simply by which mode is calling.
+
+    LAW (never let a captured item die unread, ARCH_PINGPONG §4/§1): a 'tooltip' frame with
+    no owning layer is an honest MISS, not a silent drop — flagged so the super-analyze
+    organ's own independent selection (_kai_super_select) has a matching account of the
+    same gap. LAW (never let a thin funnel clobber a good tally, v948.18 generalized): for
+    'stash-*' tally-panel frames this fn does NOT invent a competing count — a landed
+    funnel receipt (`routed`) is simply reported as the owner; the max-verified-total logic
+    stays where it already lives (Stage 3 / the funnels), this fn only narrates it.
+
+    Returns one dict per routing row: {f, ts, owner, verdict, why}.
+    owner  ∈ {'super','live','kai','ocr', None}
+    verdict ∈ {'grail','keep','border','toss', None, 'miss'} — None means "a name landed
+              but no judge tier has scored it yet" (a real, non-miss state); 'miss' means
+              nothing named it at all; verdict is always None for non-item frames (labels
+              other than 'tooltip'/'stash-*') since keep/toss quality judgments don't apply
+              to gameplay/boot frames or (by design, see above) to tally-panel counts."""
+    known_names = {str(e.get("name") or "").strip().lower() for e in (register or []) if e.get("name")}
+    reg_tier_by_name = {str(e.get("name") or "").strip().lower(): str(e.get("tier") or "").lower()
+                         for e in (register or []) if e.get("name") and e.get("tier")}
+    verify_db = bool(known_names)   # sealed pass (real register) verifies; live guess doesn't
+
+    # index sess_rows ONCE — live deep-read names by ts, judge verdicts by frame filename
+    # suffix. Routing rows only carry the bare filename 'f' (not the full reel_<sid>/<f>
+    # frameId) — matching on frameId's SUFFIX sidesteps needing sid as a 4th arg here.
+    deep_names_ts = []
+    for r in sess_rows or []:
+        if r.get("lane") != "deep":
+            continue
+        names = [str(n) for n in (r.get("names") or []) if str(n or "").strip()]
+        if not names:
+            continue
+        rt = int(r.get("captureTs") or r.get("ts") or 0)
+        if rt:
+            deep_names_ts.append((rt, names))
+
+    judge_by_fsuffix = {}
+    for r in sess_rows or []:
+        if r.get("lane") != "kai" or r.get("mode") != "kai-judge":
+            continue
+        fid = str(r.get("frameId") or "")
+        suf = fid.rsplit("/", 1)[-1] if fid else ""
+        if not suf:
+            continue
+        j = (r.get("kai") or {}).get("judge") or {}
+        # last-landed wins — a re-judge (rare, e.g. a priority reclose) is the freshest
+        # verdict for this frame.
+        judge_by_fsuffix[suf] = {
+            "name": str(j.get("name") or "").strip(),
+            "tier": (str(j.get("tier") or "").lower() or None),
+            "live": bool(j.get("live")),
+            "tag": j.get("tag"),
+        }
+
+    _WIN = 4000   # ±4s tooltip-association window — mirrors _kai_build_routing/_kai_super_already_named
+    out = []
+    for row in routing or []:
+        f = str(row.get("f") or "")
+        ts = int(row.get("ts") or 0)
+        label = str(row.get("label") or "")
+        owner, verdict, why = None, None, "not an item/tally frame (label=" + (label or "gameplay") + ")"
+
+        if label == "tooltip":
+            suf = f.replace(".jpg", "") if f else ""
+            jinfo = judge_by_fsuffix.get(suf)
+            sup = row.get("super") if isinstance(row.get("super"), dict) else None
+            sup_names = [n for n in (sup.get("deepNames") or []) if n] if sup else []
+
+            live_names = []
+            for rt, names in deep_names_ts:
+                if abs(rt - ts) <= _WIN:
+                    for nm in names:
+                        if not verify_db or nm.strip().lower() in known_names:
+                            live_names.append(nm)
+            live_judge = jinfo if (jinfo and jinfo.get("live")) else None
+            kai_judge = jinfo if (jinfo and not jinfo.get("live") and jinfo.get("tag") != "super"
+                                   and jinfo.get("name")) else None
+
+            if sup_names:
+                nm = sup_names[0]
+                owner = "super"
+                verdict = sup.get("tier") or reg_tier_by_name.get(nm.strip().lower())
+                why = ("super-analyze deep re-read named '%s' — a deliberate, unhurried "
+                       "re-read outranks a time-pressured live pass" % nm)
+            elif live_names or live_judge:
+                nm = live_names[0] if live_names else live_judge.get("name")
+                owner = "live"
+                verdict = ((live_judge or {}).get("tier")) or reg_tier_by_name.get((nm or "").strip().lower())
+                why = "live eye named '%s' in real time (first pass)" % (nm or "?")
+            elif kai_judge:
+                nm = kai_judge.get("name")
+                owner = "kai"
+                verdict = kai_judge.get("tier") or reg_tier_by_name.get((nm or "").strip().lower())
+                why = ("kai-retro OCR sweep + judge named '%s' post-seal "
+                       "(live and second eye missed it)" % nm)
+            else:
+                owner = "ocr" if row.get("sources") else None
+                verdict = "miss"
+                why = ("tooltip frame seen but no reader landed a DB-verified name — "
+                       "never-zero law: a candidate for the next super-analyze pass")
+        elif label.startswith("stash-"):
+            if row.get("routed"):
+                owner = "funnel"
+                why = "funnel receipt landed for %s — its tally count is the accepted read" % row.get("routed")
+            elif row.get("sources"):
+                owner = "ocr"
+                verdict = "miss"
+                why = "tab/tally evidence seen but no funnel receipt has landed yet"
+            else:
+                owner = None
+                verdict = "miss"
+                why = "tally panel frame with no reader evidence and no receipt — never-zero: re-fire, not a zero"
+
+        out.append({"f": f, "ts": ts, "owner": owner, "verdict": verdict, "why": why})
+    return out
+
+
+def _kai_engine_frame_effective(sealed_engine_frames, live_ring, kai_ver=None):
+    """Pure. THE SEALED-WINS LAW (ARCH_PINGPONG §6-Q2, settled): 'Sealed owner (kaiVer≥3)
+    ALWAYS wins over the live provisional guess.' A reel's sealed engineFrames (materialized
+    at seal by _kai_build_engine_frames, kaiVer>=3) are authoritative for every frame they
+    cover; the live provisional deque (_engine_driver's guess, pre-seal) never overrides a
+    sealed frame — it only fills in frames the seal hasn't covered yet (a session still on
+    air with no kai_report yet, or one below kaiVer 3). Every returned row carries an honest
+    `sealed` bool so a reader (the future Engine Room) never confuses a guess for a fact."""
+    if kai_ver is not None and int(kai_ver) < 3:
+        sealed_engine_frames = []
+    sealed_fs = {row.get("f") for row in (sealed_engine_frames or [])}
+    merged = [dict(row, sealed=True) for row in (sealed_engine_frames or [])]
+    for row in (live_ring or []):
+        if row.get("f") in sealed_fs:
+            continue
+        merged.append(dict(row, sealed=False))
+    return merged
+
+
+def _kai_engine_frame_maps(routing, register, sess_rows):
+    """Pure. Builds the small per-frame aux indices _kai_build_engine_frames needs beyond
+    routing/register/super_reads themselves: the owner/verdict decision from _kai_reconcile
+    (called here ONCE so the seal-time materializer and any other caller share the exact
+    same reconciliation logic — never a second decision tree), plus nearest-ts lookups into
+    the live/second/kai layers (deep reads, second-eye verify rows, kai-missed-text + judge
+    rows) keyed by routing row 'f'. Window = 4000ms, mirroring the ±4s tooltip-association
+    window _kai_build_routing/_kai_super_already_named already use."""
+    _WIN = 4000
+    rec_by_f = {r["f"]: r for r in _kai_reconcile(routing, register, sess_rows) if r.get("f")}
+
+    deep_pts, verify_pts, kai_pts = [], [], []
+    for r in sess_rows or []:
+        rt = int(r.get("captureTs") or r.get("ts") or 0)
+        if not rt:
+            continue
+        if r.get("lane") == "deep" and (r.get("names") or []):
+            deep_pts.append((rt, [str(n) for n in r.get("names") or []]))
+        elif r.get("lane") == "verify" and isinstance(r.get("verify"), dict):
+            v = r["verify"]
+            verify_pts.append((rt, {
+                "conf": v.get("conf"),
+                "confirmNames": list(v.get("confirm") or [])[:6],
+                "correctedNames": list(v.get("not_present") or [])[:6],
+                "missedNames": list(v.get("missed") or [])[:6],
+            }))
+        elif r.get("lane") == "kai" and isinstance(r.get("kai"), dict) and r["kai"].get("texts"):
+            kai_pts.append((rt, list(r["kai"].get("texts") or [])[:6]))
+
+    judge_by_fsuffix = {}
+    for r in sess_rows or []:
+        if r.get("lane") == "kai" and r.get("mode") == "kai-judge":
+            fid = str(r.get("frameId") or "")
+            suf = fid.rsplit("/", 1)[-1] if fid else ""
+            if suf:
+                j = (r.get("kai") or {}).get("judge") or {}
+                judge_by_fsuffix[suf] = {"name": j.get("name"), "tier": j.get("tier")}
+
+    def _nearest(ts, pts):
+        best, best_d = None, _WIN + 1
+        for rt, val in pts:
+            d = abs(rt - ts)
+            if d <= _WIN and d < best_d:
+                best, best_d = val, d
+        return best
+
+    live_by_f, second_by_f, kai_by_f = {}, {}, {}
+    for row in routing or []:
+        f = row.get("f")
+        if not f:
+            continue
+        ts = int(row.get("ts") or 0)
+        names = _nearest(ts, deep_pts)
+        if names:
+            live_by_f[f] = {"names": names}
+        v = _nearest(ts, verify_pts)
+        if v:
+            second_by_f[f] = v
+        texts = _nearest(ts, kai_pts)
+        j = judge_by_fsuffix.get(str(f).replace(".jpg", ""))
+        if texts or j:
+            kai_by_f[f] = {"missedTexts": texts or [],
+                            "judgeName": (j or {}).get("name"),
+                            "judgeTier": (j or {}).get("tier")}
+
+    return {"reconcile": rec_by_f, "live": live_by_f, "second": second_by_f, "kai": kai_by_f}
+
+
+def _kai_build_engine_frames(routing, register, super_reads, maps):
+    """v949.x — Q1-HYBRID materialization (ARCH_PINGPONG §2 / §6-Q1, SETTLED): the
+    *semantic* reconciliation (owner/verdict/per-layer) is written into kai_report.json AT
+    SEAL, beside routing/register — presentation strings + the live cursor stay derived
+    on-read (the Engine Room cockpit renders them; this never precomputes HTML/labels).
+
+    One EngineFrame per routing row — layers{live,second,kai,super,router,gate,funnel} +
+    owner + verdict + why, per the data model in ARCH_PINGPONG §2. `super_reads` is the
+    closer's own per-frame super-analyze record ({f: {reread, deepNames, tier}}, i.e.
+    `_super_recovered`) — read directly here (falling back to routing row `.super` when a
+    frame is missing from it) so a frame keeps its super layer even if the stamp step were
+    ever skipped (additive/defensive, the gate/HD-art light-up pattern). `maps` is
+    _kai_engine_frame_maps(routing, register, sess_rows)'s output — kept as a separate
+    argument (not sess_rows) so this fn stays a pure shape-assembler with no ts-matching
+    logic of its own. `kai.state` is always 'swept' here because this only ever runs
+    post-seal, after the closer's full-reel OCR sweep already walked every frame — 'pending'
+    would only apply to a not-yet-closed reel, which never reaches this fn."""
+    maps = maps or {}
+    rec_by_f = maps.get("reconcile") or {}
+    live_by_f = maps.get("live") or {}
+    second_by_f = maps.get("second") or {}
+    kai_by_f = maps.get("kai") or {}
+    super_reads = super_reads or {}
+
+    out = []
+    for row in routing or []:
+        f = str(row.get("f") or "")
+        if not f:
+            continue
+        label = str(row.get("label") or "")
+        sources = row.get("sources") or []
+        sup = super_reads.get(f)
+        if sup is None and isinstance(row.get("super"), dict):
+            sup = row.get("super")
+        live_info = live_by_f.get(f)
+        second_info = second_by_f.get(f)
+        kai_info = kai_by_f.get(f)
+        rec = rec_by_f.get(f) or {}
+
+        layers = {
+            "live": {"state": "named" if live_info else "idle",
+                     "names": (live_info or {}).get("names") or []},
+            "second": {"state": "drained" if second_info else "idle",
+                       "confirmNames": (second_info or {}).get("confirmNames") or [],
+                       "correctedNames": (second_info or {}).get("correctedNames") or [],
+                       "missedNames": (second_info or {}).get("missedNames") or []},
+            "kai": {"state": "swept",
+                    "missedTexts": (kai_info or {}).get("missedTexts") or [],
+                    "caughtNames": [kai_info["judgeName"]] if (kai_info and kai_info.get("judgeName")) else []},
+            "super": {"state": "reread" if (sup and sup.get("reread")) else "—",
+                      "deepNames": (sup or {}).get("deepNames") or []},
+            "router": {"label": label,
+                       "quorumVotes": {b: (b in sources) for b in
+                                       ("ocr", "journal", "tabstrip", "grid", "read", "judge")},
+                       "confidence": row.get("confidence")},
+            "gate": {"gatePass": row.get("gatePass"), "gateReason": row.get("gateReason"),
+                     "gateSources": row.get("gateSources") or []},
+            "funnel": {"fired": bool(row.get("routed")), "kind": row.get("routed"),
+                       "route": row.get("route")},
+        }
+        out.append({"f": f, "ts": int(row.get("ts") or 0), "label": label, "layers": layers,
+                    "owner": rec.get("owner"), "verdict": rec.get("verdict"),
+                    "why": rec.get("why")})
+    return out
+
+
+def _kai_live_routing_row(rd):
+    """Pure. Shapes ONE live bridge read (from /state 'reads', lane=='deep') into a
+    routing-row-compatible dict so _engine_driver's 2s loop can hand the SAME
+    _kai_reconcile() the closer uses a lightweight live guess — no second decision tree,
+    no OCR sweep, no gate recheck (those only exist post-seal). This is deliberately the
+    cheapest possible shape: real routing rows carry gate/route/sources built from a full
+    reel walk, which a 2s poll cannot afford — a live row only ever advertises what it
+    directly knows (did a name land, was the tab a tally tab)."""
+    names = rd.get("names") or []
+    scene = str(rd.get("scene") or "")
+    tab = str(rd.get("stashTab") or "").lower()
+    if scene == "stash" and tab in ("runes", "gems", "materials"):
+        label = "stash-" + tab
+    elif scene == "stash":
+        label = "stash"
+    elif names:
+        label = "tooltip"
+    else:
+        label = "gameplay"
+    fid = str(rd.get("frameId") or "")
+    f = (fid.rsplit("/", 1)[-1] + ".jpg") if fid else ""
+    return {"f": f, "ts": int(rd.get("captureTs") or rd.get("ts") or 0), "label": label,
+            "sources": ["read"] if names else [], "confidence": (1 if names else 0),
+            "super": None, "gatePass": None, "gateReason": None, "gateSources": [],
+            "routed": None, "route": None}
+
+
 # ── v948.13 🎞🔗 FILM ↔ REGISTRATION COMPLETENESS (ENGINE_ARCHITECTURE.md target #2) —
 # Konyo's law: "every item I hover should produce a read AND a reel frame — screenshots
 # are missing from the film." This is the DIAGNOSTIC: cross-reference the reel (film,
@@ -3951,6 +4281,21 @@ def _kai_closer_loop():
                     except Exception as _cme:
                         _completeness = None
                         print(f"⚠ KAI completeness failed: {_cme}", flush=True)
+                    # v949.x 🥷🧠 THE MASTER-BRAIN RECONCILER — Phase C (ARCH_PINGPONG §4 /
+                    # §6-Q1-hybrid/Q2-SETTLED). AUTHORITATIVE materialization: _kai_reconcile
+                    # is pure (routing/register/sess_rows only); ridden here via
+                    # _kai_engine_frame_maps → _kai_build_engine_frames so kai_report.json
+                    # carries the per-frame owner/verdict/layers[] array the Engine Room will
+                    # render (Phase D/E). Own try/except — a failure here must never blank out
+                    # the routing/register/completeness fields the finally below already secured.
+                    try:
+                        _efmaps = _kai_engine_frame_maps(_routing, _register, _reg_rows)
+                        report["engineFrames"] = _kai_build_engine_frames(
+                            _routing, _register, _super_recovered, _efmaps)
+                        print(f"🥷🧠 KAI reconciler: {len(report['engineFrames'])} engineFrames "
+                              f"materialized for {sid}", flush=True)
+                    except Exception as _efe:
+                        print(f"⚠ KAI engineFrames build failed: {_efe}", flush=True)
                 finally:
                     # ATOMIC — always persist whatever fields succeeded above (never nothing).
                     _kai_write_report_atomic(os.path.join(rd, "kai_report.json"), report)
@@ -4199,6 +4544,29 @@ def _engine_driver():
                           # confirm below MUST still run: post-seal receipts land via the
                           # control /intake_result route into the JOURNAL (Grok shell-verdict P0)
             reads = st.get("reads") or []
+            # v949.x 🥷🧠 THE MASTER-BRAIN RECONCILER — Phase C, PROVISIONAL LIVE COPY
+            # (ARCH_PINGPONG §6-Q2 SETTLED: "provisional live in _engine_driver's 2s loop
+            # into an in-memory deque"). Mirrors the _WATCHDOG_LAST/_ENGINE_ALIVE pattern —
+            # a bare globals()[...] deque, no new thread, no top-level declaration. This is
+            # the CHEAP live guess (_kai_live_routing_row, no OCR sweep/gate); the closer's
+            # sealed pass always supersedes it once a reel closes — see
+            # _kai_engine_frame_effective (sealed-wins law).
+            try:
+                _live_deep = [r for r in reads if r.get("lane") == "deep"][-16:]
+                if _live_deep:
+                    _live_routing = [_kai_live_routing_row(r) for r in _live_deep]
+                    _live_rec = {r["f"]: r for r in _kai_reconcile(_live_routing, [], _live_deep)}
+                    _efl = globals().get("_ENGINE_FRAMES_LIVE")
+                    if _efl is None:
+                        _efl = collections.deque(maxlen=16)
+                        globals()["_ENGINE_FRAMES_LIVE"] = _efl
+                    for _lr in _live_routing:
+                        _rc = _live_rec.get(_lr["f"]) or {}
+                        _efl.append({"f": _lr["f"], "ts": _lr["ts"], "label": _lr["label"],
+                                     "owner": _rc.get("owner"), "verdict": _rc.get("verdict"),
+                                     "why": _rc.get("why"), "sealed": False})
+            except Exception:
+                pass   # provisional guess only — never let it disturb the real driver loop
             for rd in reads:
                 ts = max(int(rd.get("completedTs") or 0), int(rd.get("ts") or 0))
                 if ts <= seen_ts or rd.get("lane") != "deep" or rd.get("provisional"):

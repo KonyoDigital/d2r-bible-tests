@@ -1955,5 +1955,203 @@ class TestStashTabIdentity(unittest.TestCase):
         self.assertNotIn("gems", tabs)
 
 
+class TestMasterBrainReconciler(unittest.TestCase):
+    """v949.x 🥷🧠 Phase C — THE MASTER-BRAIN RECONCILER (ENGINE_ARCHITECTURE.md 'MASTER
+    BRAIN'; ARCH_PINGPONG_NINJA_ENGINE_ROOM.md §4 + §6-Q1/Q2 SETTLED). ca._kai_reconcile is
+    the ONE pure fn; ca._kai_build_engine_frames materializes it (+ router/gate/funnel/
+    second/kai layer detail) into the EngineFrame shape kai_report.json carries at seal;
+    ca._kai_engine_frame_effective enforces the sealed-always-wins-over-live law."""
+
+    # ── priority order: super > live named > kai-retro named > OCR-only ────────────
+    def test_priority_super_beats_live_named_on_the_same_frame(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["read"],
+                    "super": {"reread": True, "deepNames": ["Windforce"], "tier": "grail"}}]
+        register = [{"name": "Windforce", "tier": "grail"}]
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["Shael Rune"]}]
+        out = ca._kai_reconcile(routing, register, sess)
+        self.assertEqual(out[0]["owner"], "super")
+        self.assertEqual(out[0]["verdict"], "grail")
+        self.assertIn("Windforce", out[0]["why"])
+
+    def test_priority_live_named_beats_kai_retro_named(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["read"]}]
+        register = [{"name": "Windforce", "tier": None}]
+        sess = [
+            {"lane": "deep", "captureTs": 1000, "names": ["Windforce"]},
+            {"lane": "kai", "frameId": "reel_S/a", "mode": "kai-judge",
+             "kai": {"judge": {"name": "Windforce", "tier": "grail", "live": False, "tag": None}}},
+        ]
+        out = ca._kai_reconcile(routing, register, sess)
+        self.assertEqual(out[0]["owner"], "live")
+
+    def test_priority_kai_retro_named_beats_ocr_only(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["ocr"]}]
+        register = [{"name": "Windforce", "tier": "grail"}]
+        sess = [{"lane": "kai", "frameId": "reel_S/a", "mode": "kai-judge",
+                 "kai": {"judge": {"name": "Windforce", "tier": "grail", "live": False, "tag": None}}}]
+        out = ca._kai_reconcile(routing, register, sess)
+        self.assertEqual(out[0]["owner"], "kai")
+        self.assertEqual(out[0]["verdict"], "grail")
+
+    def test_ocr_only_when_no_reader_named_anything(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["ocr"]}]
+        out = ca._kai_reconcile(routing, [], [])
+        self.assertEqual(out[0]["owner"], "ocr")
+        self.assertEqual(out[0]["verdict"], "miss")
+
+    def test_super_tag_judge_never_counted_as_kai_retro(self):
+        # a super-analyze judge verdict (tag='super') landed in the journal but the row's
+        # OWN .super field was (hypothetically) never stamped — must NOT be picked up as
+        # a plain kai-retro named read; the layers are provenance-distinct.
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["judge"]}]
+        register = [{"name": "Windforce", "tier": "grail"}]
+        sess = [{"lane": "kai", "frameId": "reel_S/a", "mode": "kai-judge",
+                 "kai": {"judge": {"name": "Windforce", "tier": "grail", "live": False, "tag": "super"}}}]
+        out = ca._kai_reconcile(routing, register, sess)
+        self.assertNotEqual(out[0]["owner"], "kai")   # never mistaken for a plain kai-retro read
+        self.assertEqual(out[0]["verdict"], "miss")   # no owning layer named it — honest miss
+
+    # ── DB-verification: live named requires a DB-verified name when register is real ──
+    def test_live_named_requires_db_verification_when_register_present(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["read"]}]
+        register = [{"name": "Windforce", "tier": None}]   # 'IA Lla' never made the register
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["IA Lla"]}]
+        out = ca._kai_reconcile(routing, register, sess)
+        self.assertNotEqual(out[0]["owner"], "live")
+
+    def test_live_named_trusts_raw_name_when_register_empty_provisional_mode(self):
+        # the _engine_driver live call never has a compiled register (too slow for a 2s
+        # poll) — a nearby deep-read name is trusted as a GUESS, not gated on DB membership.
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["read"]}]
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["Windforce"]}]
+        out = ca._kai_reconcile(routing, [], sess)
+        self.assertEqual(out[0]["owner"], "live")
+
+    # ── never let a captured item die unread (tooltip frame, nothing owns it) ──────
+    def test_tooltip_frame_with_zero_evidence_is_owner_none_verdict_miss(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": []}]
+        out = ca._kai_reconcile(routing, [], [])
+        self.assertIsNone(out[0]["owner"])
+        self.assertEqual(out[0]["verdict"], "miss")
+
+    # ── non-item frames (gameplay etc.) never carry a verdict ───────────────────────
+    def test_gameplay_frame_owner_and_verdict_both_none(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "gameplay", "sources": []}]
+        out = ca._kai_reconcile(routing, [], [])
+        self.assertIsNone(out[0]["owner"])
+        self.assertIsNone(out[0]["verdict"])
+
+    # ── never let a thin funnel clobber a good tally (stash-* frames) ──────────────
+    def test_stash_frame_owner_is_funnel_when_a_receipt_landed(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "stash-materials", "sources": ["grid"],
+                    "routed": "kai-funnel"}]
+        out = ca._kai_reconcile(routing, [], [])
+        self.assertEqual(out[0]["owner"], "funnel")
+        self.assertIsNone(out[0]["verdict"])   # a receipt landing is not a quality verdict
+
+    def test_stash_frame_with_evidence_but_no_receipt_is_ocr_miss_not_a_fabricated_count(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "stash-runes", "sources": ["grid"],
+                    "routed": None}]
+        out = ca._kai_reconcile(routing, [], [])
+        self.assertEqual(out[0]["owner"], "ocr")
+        self.assertEqual(out[0]["verdict"], "miss")   # never-zero: a signal to re-fire
+
+    # ── _kai_engine_frame_effective — the sealed-wins law ───────────────────────────
+    def test_sealed_frame_always_wins_over_a_matching_live_guess(self):
+        sealed = [{"f": "a.jpg", "owner": "kai", "verdict": "grail"}]
+        live = [{"f": "a.jpg", "owner": "live", "verdict": None}]   # stale guess, same frame
+        out = ca._kai_engine_frame_effective(sealed, live, kai_ver=3)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["owner"], "kai")
+        self.assertTrue(out[0]["sealed"])
+
+    def test_live_only_frame_kept_when_sealed_hasnt_covered_it_yet(self):
+        sealed = [{"f": "a.jpg", "owner": "kai", "verdict": "grail"}]
+        live = [{"f": "a.jpg", "owner": "live"}, {"f": "b.jpg", "owner": "live"}]
+        out = ca._kai_engine_frame_effective(sealed, live, kai_ver=3)
+        fs = {r["f"]: r for r in out}
+        self.assertEqual(len(out), 2)
+        self.assertFalse(fs["b.jpg"]["sealed"])
+
+    def test_sealed_frames_discarded_entirely_below_kaiver_3(self):
+        sealed = [{"f": "a.jpg", "owner": "kai", "verdict": "grail"}]
+        live = [{"f": "a.jpg", "owner": "live"}]
+        out = ca._kai_engine_frame_effective(sealed, live, kai_ver=2)
+        self.assertEqual(len(out), 1)
+        self.assertFalse(out[0]["sealed"])
+
+    # ── _kai_build_engine_frames — the materialized EngineFrame shape ──────────────
+    def test_build_engine_frames_shape_has_all_seven_layers_plus_owner_verdict(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": ["read", "ocr"],
+                    "confidence": 2, "gatePass": True, "gateReason": "ok",
+                    "gateSources": ["ocr", "read"], "routed": None, "route": None}]
+        register = [{"name": "Windforce", "tier": None}]
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["Windforce"]}]
+        maps = ca._kai_engine_frame_maps(routing, register, sess)
+        frames = ca._kai_build_engine_frames(routing, register, {}, maps)
+        self.assertEqual(len(frames), 1)
+        fr = frames[0]
+        for key in ("live", "second", "kai", "super", "router", "gate", "funnel"):
+            self.assertIn(key, fr["layers"])
+        self.assertEqual(fr["owner"], "live")
+        self.assertEqual(fr["layers"]["live"]["names"], ["Windforce"])
+        self.assertEqual(fr["layers"]["gate"]["gatePass"], True)
+
+    def test_build_engine_frames_never_materializes_presentation_strings(self):
+        # LAW (Q1-hybrid): only semantic reconciliation is written at seal; no rendered
+        # HTML/label text — layers carry raw names/flags/reasons only.
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": []}]
+        frames = ca._kai_build_engine_frames(routing, [], {}, {})
+        fr = frames[0]
+        self.assertNotIn("html", fr)
+        self.assertNotIn("presentation", fr)
+        self.assertIsInstance(fr["layers"]["router"], dict)
+
+    def test_build_engine_frames_super_layer_prefers_super_reads_arg_over_row_stamp(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": [],
+                    "super": {"reread": True, "deepNames": ["stale"], "tier": None}}]
+        super_reads = {"a.jpg": {"reread": True, "deepNames": ["Windforce"], "tier": "grail"}}
+        frames = ca._kai_build_engine_frames(routing, [], super_reads, {})
+        self.assertEqual(frames[0]["layers"]["super"]["deepNames"], ["Windforce"])
+
+    def test_build_engine_frames_super_layer_falls_back_to_row_stamp(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": [],
+                    "super": {"reread": True, "deepNames": ["Windforce"], "tier": "grail"}}]
+        frames = ca._kai_build_engine_frames(routing, [], {}, {})   # empty super_reads dict
+        self.assertEqual(frames[0]["layers"]["super"]["deepNames"], ["Windforce"])
+        self.assertEqual(frames[0]["layers"]["super"]["state"], "reread")
+
+    def test_build_engine_frames_kai_state_always_swept_post_seal(self):
+        routing = [{"f": "a.jpg", "ts": 1000, "label": "tooltip", "sources": []}]
+        frames = ca._kai_build_engine_frames(routing, [], {}, {})
+        self.assertEqual(frames[0]["layers"]["kai"]["state"], "swept")
+
+    # ── _kai_live_routing_row — the cheap live shape ────────────────────────────────
+    def test_live_routing_row_tooltip_when_names_present(self):
+        row = ca._kai_live_routing_row({"names": ["Windforce"], "scene": "ground",
+                                        "captureTs": 5000, "frameId": "reel_S/f_5"})
+        self.assertEqual(row["label"], "tooltip")
+        self.assertEqual(row["ts"], 5000)
+        self.assertEqual(row["f"], "f_5.jpg")
+
+    def test_live_routing_row_stash_tally_tab(self):
+        row = ca._kai_live_routing_row({"names": [], "scene": "stash", "stashTab": "runes",
+                                        "captureTs": 5000, "frameId": "reel_S/f_5"})
+        self.assertEqual(row["label"], "stash-runes")
+
+    def test_live_routing_row_gameplay_when_nothing(self):
+        row = ca._kai_live_routing_row({"names": [], "scene": "", "captureTs": 5000})
+        self.assertEqual(row["label"], "gameplay")
+
+    # ── the reconciler feeding straight off a live-shaped row (integration of the two
+    #    pieces the provisional _engine_driver call actually chains together) ─────────
+    def test_live_row_plus_reconcile_names_a_frame_end_to_end(self):
+        rd = {"names": ["Windforce"], "scene": "ground", "captureTs": 5000,
+              "frameId": "reel_S/f_5", "lane": "deep"}
+        row = ca._kai_live_routing_row(rd)
+        out = ca._kai_reconcile([row], [], [rd])
+        self.assertEqual(out[0]["owner"], "live")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
