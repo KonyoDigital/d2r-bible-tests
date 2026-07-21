@@ -3781,6 +3781,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ocr_names": r.get("ocr_names") or [],
                     "ocr_ms": r.get("ocr_ms") or 0,
                     "names_loc": r.get("names_loc") or {},
+                    "sockets": r.get("sockets") or {},   # v946.5 — per-item socket count for the theatre
                     "equipped_names": r.get("equipped_names") or [],
                     "lean": True,
                     "dispatch": {k: (r.get("dispatch") or {}).get(k)
