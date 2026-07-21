@@ -989,6 +989,11 @@
   .th-dossier .thd-kai { color: #f0c060; }
   .th-dossier .thd-sep { opacity: .32; margin: 0 6px; color: #8fa398; }
   .th-dossier .thd-dim { opacity: .62; font-weight: 500; }
+  /* v948.8 — STORY mode is the AI-reader cut: pin the read's dossier/verdict prominently */
+  #theatre.story-mode .th-dossier { margin-top: 10px; padding: 9px 12px; border-radius: 9px;
+    border: 1px solid rgba(240,192,96,.28); border-top-color: rgba(240,192,96,.28);
+    background: linear-gradient(180deg, rgba(40,30,10,.5), rgba(10,8,4,.4)); box-shadow: 0 2px 12px rgba(0,0,0,.4); }
+  #theatre.story-mode .th-airead { border-left-width: 4px; border-left-color: var(--gold-hi); }
   /* v944.4 — READ-STATUS VERDICT + router pill + tally chips (the "was it read" answer) */
   .th-rs { display: inline-block; font: 700 12.5px/1.4 var(--mono); letter-spacing: .02em; padding: 3px 9px;
     border-radius: 7px; border: 1px solid transparent; }
@@ -1551,7 +1556,7 @@
           <button class="th-btn" id="th-next-b" type="button" title="Next screenshot (→) — steps every real photo">›</button>
           <button class="th-btn" id="th-next-s" type="button" title="Newer session">sess ⏭</button>
           <div class="th-timeline" id="th-timeline"></div>
-          <button class="th-btn" id="th-mode" type="button" title="Playback mode — cycle: REAL (all photos 1:1) → FAST (all photos, time-zipped) → STORY (sparse film near AI)">⏱ REAL · true speed</button>
+          <button class="th-btn" id="th-mode" type="button" title="Playback mode — cycle: REAL (all photos 1:1) → FAST (all photos, time-zipped) → STORY (the AI-reader cut: read-to-read, centered on each AI read + its frame)">⏱ REAL · true speed</button>
           <button class="th-btn" id="th-speed" type="button" title="Playback speed — click to cycle (1× = real session time)">1×</button>
           <button class="th-btn" id="th-fs" type="button" title="Fullscreen — watch like a video (F · Esc exits)">⛶</button>
           <button class="th-btn on" id="th-fs-toggle" type="button" title="Filmstrip — every screenshot">🎞</button>
@@ -2188,6 +2193,7 @@
   // v946.9 — stepPhotos: ‹ › / ← → always land on a real screenshot (never blank skip ticks).
   // mode cycle REAL→FULL→HIGHLIGHT so one accidental click does NOT strip film (was REAL→HIGHLIGHT).
   var TH = { open:false, sessions:[], sn:1, beats:[], i:0, playing:false, speed:1, timer:null, sessionId:'', mode:'real', allBeats:[], filmstrip:true, stepPhotos:true };
+  try { window.TH = TH; } catch (e) {}   // v948.8 — expose replay state read-only for console introspection (it's a debugger)
   var SCENE_IC = { town:'🏘', loot:'⚔️', inventory:'🎒', stash:'🏦', gameplay:'🌫', transition:'⏳' };
   function thFmtT(ts){ try { return new Date(ts).toLocaleTimeString(); } catch(e){ return ''; } }
   // v948.6 — mode pill shows THIS MODE's photo count vs full-session film (never lie)
@@ -2210,7 +2216,7 @@
     var n = st.curPhoto || st.allPhoto || '—';
     var f = st.curFoot || st.allFoot || 0;
     if (m === 'highlight')
-      return '🎬 STORY · ' + n + ' photos (film sparse · session 📹 ' + (st.allFoot || 0) + ')';
+      return '🎬 STORY · ' + n + ' photos · centered on each AI read';
     if (m === 'full')
       return '⏩ FAST · all ' + (st.allPhoto || n) + ' photos · time-zipped';
     return '⏱ REAL · all ' + (st.allPhoto || n) + ' photos · 1:1 time';
@@ -2254,6 +2260,8 @@
     el.classList.remove('md-real', 'md-highlight', 'md-full');
     el.classList.add(m === 'highlight' ? 'md-highlight' : (m === 'full' ? 'md-full' : 'md-real'));
     el.textContent = thModeLabel(m);
+    // v948.8 — STORY is the AI-reader cut: pin the read's dossier/verdict prominently while it plays
+    try { $('theatre').classList.toggle('story-mode', m === 'highlight'); } catch (e) {}
   }
   // v940.5 — the PAST-not-LIVE ribbon. ON AIR → says recording continues in the background;
   // otherwise → session N + the recorded time span. Re-run on paint, session load, and refresh.
@@ -3065,50 +3073,38 @@
     //   HIGHLIGHT = story AI + intake + sparse film near those moments (never silent empty strip)
     if (!beats || !beats.length) return beats;
     if (TH.mode === 'real' || TH.mode === 'full') return beats;
-    // ── highlight ──
+    // ── STORY (highlight): the AI-READER-FOCUSED cut (Konyo: "I need the AI reader focused on") ──
+    // Lock onto each AI READ. Every read/intake/verdict beat is an ANCHOR — it carries the exact
+    // frame the reader saw. Around each anchor we keep a TIGHT context window of up to CTX footage
+    // frames on each side; dead footage BETWEEN reads is dropped. Playing STORY walks read-to-read:
+    // "here's what the AI read on its own frame, here's the next thing it read."
     if (beats.length <= 8) return beats;
-    var story = [], lastArea = null, storyTs = [];
-    beats.forEach(function(b, k){
-      if (b.skip) return;
-      if (b.footage) return;   // film handled in second pass
-      var why = false;
-      if (b.intakeBeat) why = true;          // 📸 gems/runes/materials/vault tallies
-      if (k === 0 || k === beats.length - 1) why = true;
-      if ((b.vault_names||[]).length || (b.pending_names||[]).length) why = true;
-      if ((b.names||[]).length || (b.discovered_names||[]).length) why = true;
-      if (b.farewell) why = true;
-      if (b.lane === 'verify' || b.lane === 'kai') why = true;
-      if (b.stashTab) why = true;            // any deep stash tab visit (gems/materials/runes)
-      if (b.area && b.area !== lastArea) why = true;
-      if (b.area) lastArea = b.area;
-      if (why){ story.push(b); storyTs.push(b.ts || 0); }
-    });
-    // sparse film: keep stills near story beats + bookends + ~1/s wall far from story
-    function nearStory(ts){
-      for (var j = 0; j < storyTs.length; j++){
-        if (Math.abs((storyTs[j] || 0) - ts) <= 2500) return true;
+    var CTX = 2;   // footage frames kept on each side of a read (a frame or two of context)
+    var keep = new Array(beats.length);
+    var i, j, a;
+    // 1) every AI read / intake / verdict / kai beat is an anchor (non-footage content = the reader)
+    for (i = 0; i < beats.length; i++) keep[i] = (!beats[i].footage && !beats[i].skip);
+    // 2) bookend film for orientation (where the reel opens / closes)
+    var firstF = -1, lastF = -1;
+    for (i = 0; i < beats.length; i++){ if (beats[i].footage){ if (firstF < 0) firstF = i; lastF = i; } }
+    if (firstF >= 0) keep[firstF] = true;
+    if (lastF >= 0) keep[lastF] = true;
+    // 3) a tight context window of footage frames on each side of every anchor; stop at the next read
+    for (a = 0; a < beats.length; a++){
+      if (beats[a].footage || beats[a].skip) continue;   // a = an AI read anchor
+      var c = 0;
+      for (j = a - 1; j >= 0 && c < CTX; j--){
+        if (beats[j].footage){ keep[j] = true; c++; }
+        else if (!beats[j].skip) break;   // hit the previous read — its own window owns beyond here
       }
-      return false;
+      c = 0;
+      for (j = a + 1; j < beats.length && c < CTX; j++){
+        if (beats[j].footage){ keep[j] = true; c++; }
+        else if (!beats[j].skip) break;   // hit the next read
+      }
     }
-    var out = [], lastFoot = -1e15, firstFoot = null, lastFootB = null;
-    beats.forEach(function(b){
-      if (!b.footage) return;
-      if (!firstFoot) firstFoot = b;
-      lastFootB = b;
-      var ts = b.ts || 0;
-      if (nearStory(ts) || ts - lastFoot >= 1200){
-        out.push(b);
-        lastFoot = ts;
-      }
-    });
-    // bookend film always
-    if (firstFoot && out.indexOf(firstFoot) < 0) out.unshift(firstFoot);
-    if (lastFootB && out.indexOf(lastFootB) < 0) out.push(lastFootB);
-    // merge story + sparse film, capture-clock order
-    var merged = story.concat(out);
-    merged.sort(function(a, b){
-      return (a.ts || 0) - (b.ts || 0) || ((a.footage ? 0 : 1) - (b.footage ? 0 : 1));
-    });
+    var merged = [];
+    for (i = 0; i < beats.length; i++){ if (keep[i]) merged.push(beats[i]); }   // beats already in capture-ts order
     return merged.length >= 2 ? merged : beats;
   }
   function thDwell(b){
@@ -3168,7 +3164,7 @@
       for (var mfi = 0; mfi < (TH.beats || []).length; mfi++){ if (TH.beats[mfi].footage) modeFoot++; }
       if (TH.mode === 'highlight' && footCount > modeFoot + 5){
         note.hidden = false;
-        note.textContent = '🎬 STORY mode — showing ' + modeFoot + ' film stills near AI/intakes · session has '
+        note.textContent = '🎬 STORY mode — the AI-reader cut: ' + modeFoot + ' film stills centered on each AI read · session has '
           + footCount + ' film · switch to REAL or FAST for every screenshot';
       } else if (TH.filmstrip && footCount < 20 && spanS > 60){
         note.hidden = false;
@@ -3303,7 +3299,7 @@
       var _pn = _st0.curPhoto || _st0.allPhoto || 0;
       var _fn = _st0.curFoot || _st0.allFoot || 0;
       if (_pn){
-        toast('🎞 ' + _pn + ' photos · 📹 ' + _fn + ' film · REAL/FAST keep all · STORY = sparse near AI');
+        toast('🎞 ' + _pn + ' photos · 📹 ' + _fn + ' film · REAL/FAST keep all · STORY = the AI-reader cut (read-to-read)');
         try { thToast('🖼 ' + _pn + ' photos · ‹ › steps stills', $('th-next-b')); } catch (e) {}
       } else {
         toast('🎞 no photos on this reel — film lane was empty');
@@ -4065,11 +4061,11 @@
     var msg = TH.mode === 'real'
       ? ('⏱ REAL 1:1 · ' + framedCount + ' photos · plays ' + _wallTxt)
       : (TH.mode === 'highlight'
-        ? ('🎬 STORY · ' + framedCount + ' photos (sparse film ' + footCount + '/' + allFoot + ') · click → REAL for all ' + allPhoto)
+        ? ('🎬 STORY · ' + framedCount + ' photos · centered on each AI read (film ' + footCount + '/' + allFoot + ') · click → REAL for all ' + allPhoto)
         : ('⏩ FAST · all ' + framedCount + ' photos kept · time-zipped ~' + _wallTxt + ' @' + TH.speed + '×'));
     thToast(msg, this);
     if (TH.mode === 'highlight')
-      toast('🎬 STORY mode — sparse film near AI/intakes. REAL or FAST keeps all ' + allFoot + ' film stills.');
+      toast('🎬 STORY — the AI-reader cut: walks read-to-read, each on the frame the AI read. REAL or FAST keeps all ' + allFoot + ' film stills.');
     else if (TH.mode === 'real')
       toast('⏱ REAL — all ' + framedCount + ' photos · wall-clock 1:1 to capture');
     else
