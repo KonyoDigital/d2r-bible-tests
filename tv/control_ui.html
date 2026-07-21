@@ -6079,12 +6079,23 @@
   }
   window._engineRoomDetailClose = function(){ ER.detailOpen = false; var el = document.getElementById('er-detail'); if (el) el.hidden = true; };
   window._engineRoomOpen = function(){
-    var ov = _engineRoomEl(); ER.open = true; ov.hidden = false;
+    // v1191 — BULLETPROOF OPEN (Konyo: "click Engine Room, nothing happens"). Show the cockpit FIRST, then
+    // render each panel inside its own guard so a single panel error can never again silently swallow the
+    // whole open. Any failure logs loudly ([EngineRoom] …) instead of vanishing, so a recurrence is diagnosable.
+    var ov;
+    try { ov = _engineRoomEl(); }
+    catch (e) { console.error('[EngineRoom] element build failed — cockpit could not open', e); return; }
+    try { ER.open = true; } catch (e) {}
+    ov.hidden = false;                       // cockpit is visible no matter what renders below
     ER.focusTs = null; ER.focusSid = null;   // always open at NOW
-    _engineRoomWireAxis();
-    _engineRoomLoadRuler();
-    _engineRoomRefresh(ER.lastStatus || {});
-    fetch(API + '/api/status').then(function(r){ return r.json(); }).then(function(j){ ER.lastStatus = j; _engineRoomRefresh(j); }).catch(function(){});
+    try { _engineRoomWireAxis(); }   catch (e) { console.error('[EngineRoom] wireAxis', e); }
+    try { _engineRoomLoadRuler(); }  catch (e) { console.error('[EngineRoom] loadRuler', e); }
+    try { _engineRoomRefresh(ER.lastStatus || {}); } catch (e) { console.error('[EngineRoom] refresh', e); }
+    try {
+      fetch(API + '/api/status').then(function (r) { return r.json(); })
+        .then(function (j) { ER.lastStatus = j; try { _engineRoomRefresh(j); } catch (e) { console.error('[EngineRoom] refresh(live)', e); } })
+        .catch(function () {});
+    } catch (e) { console.error('[EngineRoom] status fetch', e); }
   };
   window._engineRoomClose = function(){ ER.open = false; ER.detailOpen = false; var ov = document.getElementById('engine-room'); if (ov) ov.hidden = true; };
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
