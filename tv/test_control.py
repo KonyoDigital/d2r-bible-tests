@@ -1263,5 +1263,52 @@ class TestTabBestTotalSessionScoping(unittest.TestCase):
         self.assertEqual(ca._tab_best_total(same_session, "runes"), 0)   # PREV<=0 → guard is a no-op
 
 
+class TestKaiCompileRegisterBestTierWins(unittest.TestCase):
+    """v1193 — _kai_compile_register's per-name tier used to be 'first non-blank tier wins'
+    (see the OLD `if tier and not cur.get("tier")` rule): sess_rows is walked chronologically,
+    so an early low-confidence 'border' guess froze the register's tier FOREVER, even after a
+    later, more authoritative same-session re-read (e.g. super-analyze, which _kai_reconcile's
+    own documented priority ranks ABOVE a first-pass read) proved the same item 'grail'. Tier
+    is a QUALITY verdict, not a timestamp — 'first' has no claim to being 'best'. Now the
+    highest-ranked tier wins (grail>keep>border), mirroring the never-zero/max-verified-total-
+    wins law already applied to counts elsewhere in this file, applied here to tier."""
+
+    def _row(self, ts, name, tier, fid="f"):
+        return {"lane": "kai", "ts": ts, "captureTs": ts, "frameId": fid,
+                "kai": {"judge": {"name": name, "tier": tier}}}
+
+    def test_later_better_verdict_upgrades_stale_tier(self):
+        rows = [self._row(1000, "Shako", "border"), self._row(2000, "Shako", "grail")]
+        reg = ca._kai_compile_register(rows)
+        self.assertEqual(reg[0]["tier"], "grail")
+
+    def test_proven_grail_never_buried_by_a_later_weaker_guess(self):
+        rows = [self._row(1000, "Shako", "grail"), self._row(2000, "Shako", "border")]
+        reg = ca._kai_compile_register(rows)
+        self.assertEqual(reg[0]["tier"], "grail")
+
+    def test_keep_upgrades_to_grail_but_not_downgraded_by_border(self):
+        rows = [self._row(1000, "Shako", "keep"),
+                self._row(1500, "Shako", "border"),
+                self._row(2000, "Shako", "grail")]
+        reg = ca._kai_compile_register(rows)
+        self.assertEqual(reg[0]["tier"], "grail")
+
+    def test_equal_tier_repeats_are_stable(self):
+        rows = [self._row(1000, "Shako", "keep"), self._row(2000, "Shako", "keep")]
+        reg = ca._kai_compile_register(rows)
+        self.assertEqual(reg[0]["tier"], "keep")
+
+    def test_first_seen_ts_and_frame_still_earliest_wins_independent_of_tier(self):
+        # the tier-rank fix must NOT disturb the deliberately different "earliest sighting
+        # wins" rule for firstSeenTs/frameId — that's a factual timestamp, not a quality call.
+        rows = [self._row(2000, "Shako", "border", fid="later"),
+                self._row(1000, "Shako", "grail", fid="earlier")]
+        reg = ca._kai_compile_register(rows)
+        self.assertEqual(reg[0]["tier"], "grail")
+        self.assertEqual(reg[0]["firstSeenTs"], 1000)
+        self.assertEqual(reg[0]["frameId"], "earlier")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

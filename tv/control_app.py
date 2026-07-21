@@ -2402,6 +2402,9 @@ def _kai_nameish(text):
                                                           "shared", "gems", "materials", "runes")
 
 
+_KAI_TIER_RANK = {"grail": 3, "keep": 2, "border": 1}   # v1193 — see _kai_compile_register
+
+
 def _kai_compile_register(sess_rows):
     """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
     KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
@@ -2423,7 +2426,16 @@ def _kai_compile_register(sess_rows):
             reg[low] = {"name": nm, "firstSeenTs": ts, "frameId": frame_id or "",
                         "loc": loc, "tier": (tier or None)}
             return
-        # earliest sighting wins the frame/ts/loc; a real tier fills a blank one.
+        # earliest sighting wins the frame/ts/loc (a factual "when was it first seen" —
+        # first really is best there). TIER is a QUALITY verdict, not a timestamp — sess_rows
+        # is walked in chronological order, so "first non-blank tier wins" (the old rule) meant
+        # an early low-confidence 'border' guess froze the register forever, even after a LATER,
+        # more authoritative same-session re-read (e.g. super-analyze, which this file's own
+        # _kai_reconcile ranks ABOVE a first-pass read) proved it 'grail'. v1193 — BEST tier
+        # wins instead (rank grail>keep>border, mirrors the never-zero/max-verified-total-wins
+        # law already applied to counts, now applied to tier): a later, better verdict can
+        # upgrade a stale one, but a proven grail can never be silently buried back under a
+        # weaker border/keep guess that happens to land afterward.
         if ts and (not cur["firstSeenTs"] or ts < cur["firstSeenTs"]):
             cur["firstSeenTs"] = ts
             cur["frameId"] = frame_id or cur["frameId"]
@@ -2431,7 +2443,7 @@ def _kai_compile_register(sess_rows):
                 cur["loc"] = loc
         if loc is not None and cur.get("loc") is None:
             cur["loc"] = loc
-        if tier and not cur.get("tier"):
+        if tier and _KAI_TIER_RANK.get(tier, 0) > _KAI_TIER_RANK.get(cur.get("tier") or "", 0):
             cur["tier"] = tier
 
     for r in sess_rows:
@@ -5020,7 +5032,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1192",
+        "ver": "v1193",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
