@@ -1365,6 +1365,42 @@
   .rlog-fid { flex: 0 0 auto; opacity: .5; font-size: 11px; }
   #tly-receipts-btn { color: #cbbcff; border-color: rgba(185,165,255,.4); }
   #tly-receipts-btn:hover { color: #e0d6ff; border-color: rgba(185,165,255,.8); }
+  /* v949 — ❓ THE KEY: the legend overlay that decodes the mirror. Reuses the overlay/panel language. */
+  #th-legend { position: fixed; inset: 0; z-index: 920; background: rgba(4,3,2,.84); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; }
+  #th-legend[hidden] { display: none; }
+  #th-legend .lg-panel { width: min(720px, 94vw); max-height: 88vh; display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #14100a, #0b0805); border: 1px solid rgba(240,192,96,.4);
+    border-radius: 14px; box-shadow: 0 0 60px rgba(240,192,96,.14), 0 30px 80px rgba(0,0,0,.7); overflow: hidden; }
+  .lg-head { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid rgba(240,192,96,.22); }
+  .lg-head b { font: 700 14px/1 var(--mono); letter-spacing: .14em; color: var(--gold); }
+  .lg-head span { font: 500 12px/1.3 var(--mono); color: #b09a72; letter-spacing: .05em; }
+  .lg-head .tly-x { margin-left: auto; }
+  .lg-body { overflow-y: auto; padding: 8px 20px 20px; }
+  .lg-sec { padding: 12px 0; border-bottom: 1px solid rgba(200,180,120,.1); }
+  .lg-sec:last-child { border-bottom: 0; }
+  .lg-sec h4 { font: 700 11px/1.3 var(--mono); letter-spacing: .1em; color: #e6cf90; text-transform: uppercase;
+    margin: 0 0 10px; padding-left: 10px; border-left: 2px solid var(--gold-antique); }
+  .lg-row { display: grid; grid-template-columns: 148px 1fr; gap: 12px; align-items: baseline; padding: 5px 0; }
+  .lg-sym { display: flex; align-items: center; }
+  .lg-def { font: 500 12.5px/1.5 var(--mono); color: #c2d1c6; }
+  .lg-def b { color: #e4d2a4; margin-right: 6px; } .lg-def span { opacity: .82; }
+  .lg-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px 160px; }
+  .lg-reasons span { font: 600 11px/1 var(--mono); color: #ffcf8a; border: 1px solid rgba(240,180,96,.4);
+    border-radius: 6px; padding: 4px 8px; background: rgba(240,180,96,.1); }
+  .lg-spine { font: 700 13px/1.6 var(--mono); color: #d9c9a0; letter-spacing: .04em; margin-bottom: 10px; }
+  .lg-pulse { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font: 600 12px/1.3 var(--mono); color: #b0a184; }
+  .lg-pulse span { display: inline-flex; align-items: center; gap: 6px; }
+  .lg-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .lg-dot.lg-ok { background: var(--mint); box-shadow: 0 0 7px rgba(143,230,160,.6); }
+  .lg-dot.lg-warn { background: #e9b96e; box-shadow: 0 0 7px rgba(233,185,110,.6); }
+  .lg-dot.lg-bad { background: #ff6a5a; box-shadow: 0 0 7px rgba(255,106,90,.6); }
+  .lg-dot.lg-idle { background: #6b6455; }
+  .eh-legend-btn, #th-legend-btn { cursor: pointer; }
+  .eh-legend-btn { float: right; font: 700 10.5px/1 var(--mono); letter-spacing: .06em; color: #b09a72;
+    border: 1px solid rgba(240,192,96,.3); background: rgba(0,0,0,.35); border-radius: 6px; padding: 4px 9px; transition: .15s; }
+  .eh-legend-btn:hover { color: var(--gold); border-color: var(--gold); }
+  .eh-legend-btn:focus-visible, #th-legend-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.6); }
   .hd-chip.intk { border-color: rgba(185,165,255,.5); color: #cbbcff; }
   /* v936 R4 — placeholder is ONE flex item; without a full-width basis it stays at max-content
      and overflows the card (home-dash overflow-y:auto clips it horizontally, cutting the text
@@ -1556,6 +1592,7 @@
           <span class="th-clock" id="th-clock" style="font:600 11px/1 var(--mono);color:#bfae7f;letter-spacing:.06em;margin-left:10px"></span>
           <span class="th-sess" id="th-sess">—</span>
           <button type="button" id="th-open-reel" title="open this session's film folder on disk (all screenshots, labeled or not)" style="margin-left:8px;padding:4px 10px;border-radius:8px;font:700 11px/1 var(--mono);letter-spacing:.04em;color:#d9c9a0;border:1px solid rgba(240,192,96,.35);background:rgba(0,0,0,.45);cursor:pointer">📁 film</button>
+          <button class="th-x" id="th-legend-btn" type="button" title="the key — what every symbol means (?)" onclick="window._legendOpen()" style="margin-left:8px;width:auto;padding:0 12px;font-weight:700">? key</button>
           <button class="th-x" id="th-close" type="button" title="close the theatre">✕</button>
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
@@ -1631,7 +1668,8 @@
       </div>
       <!-- v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, spine order -->
       <div class="hd-col hd-wide hd-enghealth" id="hd-enghealth">
-        <div class="hd-h">🩺 ENGINE HEALTH <span class="hd-sub">the whole loop, one pulse · capture → readers → router → funnels → ledger</span></div>
+        <div class="hd-h">🩺 ENGINE HEALTH <span class="hd-sub">the whole loop, one pulse · capture → readers → router → funnels → ledger</span>
+          <button type="button" class="eh-legend-btn" onclick="window._legendOpen('health')" title="the key — what every organ + pulse means">? key</button></div>
         <div class="eh-spine" id="hd-spine"><span class="hd-empty">…</span></div>
       </div>
       <div class="hd-col hd-wide hd-engines" id="hd-engines">
@@ -2801,7 +2839,11 @@
     try { film.classList.toggle('vaultglow', !!(b.vault_names || []).length); } catch (e) {}
     try { var rb = $('th-replay'); if (rb) rb.hidden = !(b.vault_names || []).length; } catch (e) {}
     try {
-      if (CARD.autoArmed && !CARD.open && ((b.names||[]).length || (b.vault_names||[]).length || (b.discovered_names||[]).length || b.farewell)){
+      // v949 (REG — cinema escape-trap): NEVER auto-arm the info drawer while cinema/fullscreen is
+      // active. A user entering ⛶ fullscreen didn't ask for the panel; if it auto-pops during the
+      // settle wait, the first Esc closes IT instead of exiting cinema (the v943 escape-trap reborn).
+      if (CARD.autoArmed && !CARD.open && !document.body.classList.contains('cinema')
+          && ((b.names||[]).length || (b.vault_names||[]).length || (b.discovered_names||[]).length || b.farewell)){
         CARD.autoArmed = false; thCardToggle();
         try { localStorage.removeItem('tvd_card_pref'); } catch (e) {}
       }
@@ -5511,6 +5553,69 @@
     }).catch(function(){ RLOG.rows = []; RLOG.summary = null; _rlogRender(); });
   };
   window._rlogClose = function(){ RLOG.open = false; var ov = document.getElementById('rlog-ov'); if (ov) ov.hidden = true; };
+  // ══ v949 (Konyo: "legends need updating for the new engine") — THE KEY: a compact, closeable
+  // help panel that decodes every symbol the new engine paints in the mirror, in his voice — a
+  // debugger's key, not marketing. Reuses the live badge/pill markup so it looks native. ══
+  var LEG = { open: false };
+  function _legRow(sym, name, desc){
+    return '<div class="lg-row"><div class="lg-sym">' + sym + '</div><div class="lg-def"><b>' + esc(name) + '</b>' + (desc ? '<span>' + desc + '</span>' : '') + '</div></div>';
+  }
+  function _legendHtml(){
+    return ''
+      + '<section class="lg-sec"><h4>🔴🔵🧠 the reader net — three eyes, each a net for the last</h4>'
+        + _legRow('<span class="rd-badge rd-live">🔴 LIVE EYE</span>', 'Live eye', 'reads the frame the instant it fires — first pass, fast.')
+        + _legRow('<span class="rd-badge rd-second">🔵 SECOND EYE</span>', 'Second eye', 're-reads, in idle gaps, what the live eye rushed past — and corrects it.')
+        + _legRow('<span class="rd-badge rd-kai">🧠 KAI</span>', 'KAI', 'after the reel seals, sweeps the WHOLE film — catches what no live eye saw.')
+        + _legRow('<span class="rd-handoff rd-hf-caught">🔴 missed → 🧠 caught</span>', 'the hand-off', 'the engine correcting itself. The FILM is ground truth — a live miss is never permanent.')
+      + '</section>'
+      + '<section class="lg-sec"><h4>🛡 the accuracy gate — nothing enters a cell unproven</h4>'
+        + _legRow('<span class="gate-note gate-proven">🛡 ✓ proven</span>', 'proven', 'passed the gate — ≥2 independent evidence classes agreed. Fires a funnel.')
+        + _legRow('<span class="gate-note gate-held">🛡 gate held</span>', 'held', 'a misread weeded out BEFORE it hit a cell. The reasons:')
+        + '<div class="lg-reasons"><span>wrong cell</span><span>no hard signal</span><span>not in DB</span><span>quorum &lt; 2</span><span>no label</span></div>'
+      + '</section>'
+      + '<section class="lg-sec"><h4>the item reads</h4>'
+        + _legRow('<span class="th-os">⏣3</span>', 'sockets', 'the item was socketed — N = how many.')
+        + _legRow('<span class="th-rs th-rs-ok">🔮 RUNES · counted ✓</span>', 'read', 'the panel was read and tallied — the count is the receipt.')
+        + _legRow('<span class="th-rs th-rs-miss">⚠ MISS</span>', 'miss', 'intake fired but read nothing (superseded if a later re-read landed).')
+      + '</section>'
+      + '<section class="lg-sec"><h4>🎬 playback modes — how the reel plays</h4>'
+        + _legRow('<span class="th-btn md-real" style="pointer-events:none">⏱ REAL</span>', 'REAL', 'every photo, wall-clock 1:1 — the true session as it happened.')
+        + _legRow('<span class="th-btn md-full" style="pointer-events:none">⏩ FAST</span>', 'FAST', 'every photo kept — playback time zipped.')
+        + _legRow('<span class="th-btn md-highlight" style="pointer-events:none">🎬 STORY</span>', 'STORY', 'the AI-reader cut: walks read-to-read, each on the exact frame the AI read.')
+      + '</section>'
+      + '<section class="lg-sec" id="lg-sec-health"><h4>🩺 engine health — the whole loop\'s pulse</h4>'
+        + '<div class="lg-spine">📷 CAPTURE <span class="eh-flow">→</span> 👁 READERS <span class="eh-flow">→</span> 🚦 ROUTER <span class="eh-flow">→</span> 🩹 FUNNELS <span class="eh-flow">→</span> 📒 LEDGER</div>'
+        + _legRow('📷', 'CAPTURE', 'the senses — film frames + is the game pinned. Leads with "film complete · 0 drops".')
+        + _legRow('👁', 'READERS', 'the 🔴🔵🧠 net — live reads + retro-caught (the film had what live missed).')
+        + _legRow('🚦', 'ROUTER', 'the brain — frames seen → routed, by quorum.')
+        + _legRow('🩹', 'FUNNELS', 'the hands — receipts landed, and the gate\'s proven vs held.')
+        + _legRow('📒', 'LEDGER', 'the memory — journal size + watchdog verdict.')
+        + '<div class="lg-pulse"><span><span class="lg-dot lg-ok"></span>healthy</span><span><span class="lg-dot lg-warn"></span>worth a look</span><span><span class="lg-dot lg-bad"></span>down</span><span><span class="lg-dot lg-idle"></span>resting (OFF AIR = asleep, not broken)</span></div>'
+      + '</section>';
+  }
+  function _legendEl(){
+    var ov = document.getElementById('th-legend');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'th-legend'; ov.hidden = true;
+    ov.innerHTML = '<div class="lg-panel">'
+      + '<div class="lg-head"><b>❓ THE MIRROR · A KEY</b><span>what every symbol means</span>'
+      + '<button class="tly-x" id="th-legend-x" onclick="window._legendClose()" title="close (Esc)">✕ ESC</button></div>'
+      + '<div class="lg-body" id="lg-body"></div></div>';
+    ov.onclick = function(e){ if (e.target === ov) window._legendClose(); };
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && LEG.open){ e.stopPropagation(); window._legendClose(); }
+    }, true);
+    return ov;
+  }
+  window._legendOpen = function(section){
+    var ov = _legendEl(); LEG.open = true; ov.hidden = false;
+    document.getElementById('lg-body').innerHTML = _legendHtml();
+    if (section === 'health'){ var s = document.getElementById('lg-sec-health'); if (s) try { s.scrollIntoView({ block: 'start' }); } catch (e) {} }
+    else { try { document.getElementById('lg-body').scrollTop = 0; } catch (e) {} }
+  };
+  window._legendClose = function(){ LEG.open = false; var ov = document.getElementById('th-legend'); if (ov) ov.hidden = true; };
   // v929.1 (Grok #3) — ONE ledger for the chip: slow-poll the journal count so the chip and
   // the drilldown never disagree (the old chip counted the board's funnel LS log instead).
   function _tlyCount(){
