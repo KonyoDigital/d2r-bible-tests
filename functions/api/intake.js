@@ -6,6 +6,7 @@
  * POST { image:<base64>, media_type, names:[vocabulary], kind? }
  *   kind omitted / 'items' → returns { items:[names], unrecognized:[] }   (presence; tooltip-text only)
  *   kind === 'tally'       → returns { tally:{name:count}, unrecognized:[] } (icon-count of runes/gems/etc.)
+ *   kind === 'gridcount'   → returns { count:N, tally:{items:N} } (occupied personal/shared stash slots)
  */
 const CORS = {
   'Access-Control-Allow-Origin': 'https://bull-4-u.com',   // v697.1 — private tool: origin-locked (was *)
@@ -28,10 +29,11 @@ export async function onRequestPost(context) {
   const isLocate = kind === 'locate';   // v342 — return the hovered tooltip's bounding box (no vocab needed)
   const isRaw = kind === 'rawname';     // v421 — LAST-RESORT: force the top tooltip NAME out of any readable image
   const isSock = kind === 'socketcheck'; // v601 — pinpoint VERIFY: does this tooltip contain a "Socketed (N)" line?
+  const isGridCount = kind === 'gridcount'; // v946.8 — personal/shared ICON GRID occupied-slot count (not identity)
   // v354 — cap raised 600→2000: the grail vocab grew past 600 (off-grail uniques + RotW sets) which
   // 400'd EVERY read and hung the intake at 0/62. The vocab rides in the cached system prompt, so a
   // larger list is near-free; 2000 leaves ample headroom.
-  if (!isLocate && !isRaw && !isSock && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
+  if (!isLocate && !isRaw && !isSock && !isGridCount && (!Array.isArray(names) || names.length < 3 || names.length > 2000)) return json({ error: 'names vocabulary required' }, 400);
   const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(media_type) ? media_type : 'image/jpeg';
   const isCraft = kind === 'craft';
   const isGrail = kind === 'grail';   // v561 — bulk grail import: a grail/collection UI listing many item names with found-state
@@ -426,7 +428,26 @@ export async function onRequestPost(context) {
     + 'never re-identify the rune from its glyph. EVERY tile on this sheet is an OWNED rune — its true count is AT LEAST 1 '
     + '(single stacks print a thin, faint 1 at the stone\'s edge). If you cannot make out a digit, return 1 — the minimum truth. '
     + 'NEVER omit a labeled tile: omission is always wrong here.';
-  const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText : isCraft ? craftText : isTally ? (isTally2 ? tally2Text : tallyText) : isGrail ? grailText : itemsText;
+  // v946.8 — COUNT-ONLY personal/shared stash grid (icons, no name text). Additive kind;
+  // does NOT change vaultIntake identity path (items kind) or rune/gem tally prompts.
+  const gridCountText = 'You count OCCUPIED item ICONS in a Diablo 2 Resurrected PERSONAL or SHARED stash '
+    + 'panel (icon grid). Return ONLY how many distinct item slots are filled. '
+    + 'Rules: (1) Count each non-empty inventory/stash CELL that holds an item icon. '
+    + '(2) Empty / blank cells = 0 contribution. (3) Do NOT identify item names. '
+    + '(4) Do NOT count UI chrome (tabs, gold, buttons, character paperdoll if present). '
+    + '(5) If this is NOT a stash/inventory icon grid (gameplay, loading, empty screen), return count:0. '
+    + '(6) Be accurate — under-count is better than inventing. A full panel often has 10–40+ items.';
+  const gridCountSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['count'],
+    properties: {
+      count: { type: 'integer', minimum: 0, maximum: 200 },
+    },
+  };
+  const sysText = isLocate ? locateText : isRaw ? rawText : isSock ? sockText
+    : isGridCount ? gridCountText
+    : isCraft ? craftText : isTally ? (isTally2 ? tally2Text : tallyText) : isGrail ? grailText : itemsText;
   const system = [{ type: 'text', text: sysText, cache_control: { type: 'ephemeral' } }];
 
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -458,6 +479,7 @@ export async function onRequestPost(context) {
       model: isLocate ? (env.LOCATE_MODEL || 'claude-haiku-4-5')
         : isRaw ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
         : isSock ? (env.ITEMS_MODEL || 'claude-sonnet-4-6')
+        : isGridCount ? (env.MODEL || 'claude-sonnet-4-6')
         : isTally ? (env.MODEL || 'claude-sonnet-4-6')
         : (env.ITEMS_MODEL || 'claude-sonnet-4-6'),
       max_tokens: 2048,
@@ -468,12 +490,12 @@ export async function onRequestPost(context) {
       // non-determinism remains) but it removes the run-to-run wobble.
       temperature: 0,
       system,
-      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isSock ? sockSchema : isTally ? tallySchema : itemsSchema } },
+      output_config: { format: { type: 'json_schema', schema: isLocate ? locateSchema : isRaw ? rawSchema : isSock ? sockSchema : isGridCount ? gridCountSchema : isTally ? tallySchema : itemsSchema } },
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally2 ? 'Read every labeled tile on this contact sheet and return its rune name + the printed stack number.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
+          { type: 'text', text: isLocate ? 'Return the bounding box of the single hovered item description tooltip in this screenshot. Err generous so no edge is clipped.' : isSock ? 'Does this item tooltip contain a "Socketed (N)" line? Check every line carefully, especially near the bottom. Return the N, or 0 if the line is absent.' : isRaw ? 'Read the item NAME on the top title line of this tooltip and return it verbatim with its rarity colour. Mod/unfamiliar names are expected — read it anyway.' : isGridCount ? 'Count occupied item icon slots in this personal/shared stash grid. Return only {count:N}. No names.' : isCraft ? 'Find every CRAFTED item in this screenshot. For each one, read its visible mods, decide its craft type from the guaranteed-mod signatures, read its base type to get the slot, and tally it as "<Craft> <Slot>". Only count items whose stat text is readable and whose mods match a craft signature.' : isTally2 ? 'Read every labeled tile on this contact sheet and return its rune name + the printed stack number.' : isTally ? 'Tally every rune/gem in this screenshot. For each cell, READ the small stack-count number printed in its corner and use THAT as the count (it is often two digits like 11, 17, 23 — do not assume 1 or 2). Scan the whole grid including the high runes at the bottom.' : (isGrail ? 'This is my grail/collection tracker. Return every item visibly marked as FOUND, matched to the vocabulary.' : cropped ? 'This image has been CROPPED to a SINGLE hovered item tooltip. Read and return EXACTLY ONE thing TOTAL across all arrays — the item in this tooltip. Any partial icons or grid art at the edges are background; ignore them completely.' : 'Extract the item names from this screenshot.') },
         ],
       }],
     }),
@@ -489,7 +511,7 @@ export async function onRequestPost(context) {
   }
   const data = await apiResp.json();
   const usage = data.usage ? { in: data.usage.input_tokens, out: data.usage.output_tokens, cached: data.usage.cache_read_input_tokens } : null;
-  if (data.stop_reason === 'refusal') return json(isLocate ? { found: false, box: [0, 0, 0, 0], note: 'refused' } : isTally ? { tally: {}, unrecognized: [], note: 'refused' } : { items: [], unrecognized: [], note: 'refused' }, 200);
+  if (data.stop_reason === 'refusal') return json(isLocate ? { found: false, box: [0, 0, 0, 0], note: 'refused' } : isGridCount ? { count: 0, tally: {}, note: 'refused' } : isTally ? { tally: {}, unrecognized: [], note: 'refused' } : { items: [], unrecognized: [], note: 'refused' }, 200);
   const textBlock = (data.content || []).find((b) => b.type === 'text');
   let parsed = {};
   try { parsed = JSON.parse(textBlock ? textBlock.text : '{}'); } catch {}
@@ -498,6 +520,18 @@ export async function onRequestPost(context) {
     const f = !!parsed.found;
     const num = (v) => { const n = Number(v); return isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; };
     return json({ found: f, box: f ? [num(parsed.x0), num(parsed.y0), num(parsed.x1), num(parsed.y1)] : [0, 0, 0, 0], usage }, 200);
+  }
+
+  if (isGridCount) {
+    let n = parseInt(parsed.count, 10);
+    if (!isFinite(n) || n < 0) n = 0;
+    if (n > 200) n = 200;
+    return json({
+      count: n,
+      tally: n > 0 ? { items: n } : {},
+      unrecognized: [],
+      usage,
+    }, 200);
   }
 
   // Vocab matching — NEVER drop a read silently (the Frostburn lesson): resolve via

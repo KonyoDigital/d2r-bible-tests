@@ -33646,7 +33646,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v946.7', name:'Vault Grid Gate', date:'2026-07-21', note:'Vault grid gate: no auto vaultIntake on icon grids (tooltip names only); film truth documented' };
+  window.D2R_BUILD = { id:'v946.8', name:'Vault Grid Count', date:'2026-07-21', note:'Vault grid COUNT: personal/shared auto-count occupied slots (icons); identity vault stays tooltip-only' };
   function badge(){
     if (document.getElementById('v687-build-badge')) return;
     var el = document.createElement('div');
@@ -33839,6 +33839,58 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
   }
 
   // v901 — PERSONAL/SHARED stash → locked vault photo intake (same as Tools 📸 Vault)
+  // v946.8 — COUNT-style personal/shared grid reader (icons, not identities).
+  // Parallel to rune/gem tally — does NOT call locked vaultIntake (tooltip identity).
+  // Returns { ok, total, counts:{items:N}, kind:'vault-count', tab }.
+  window.vaultGridCount = async function(files, opts){
+    opts = opts || {};
+    var tab = String((opts.tab || 'personal')).toLowerCase();
+    if (tab !== 'personal' && tab !== 'shared') tab = 'personal';
+    files = Array.prototype.slice.call(files || []);
+    if (!files.length) return { ok:false, why:'no-file', total:0, counts:{}, kind:'vault-count', tab:tab };
+    var endpoint = localStorage.getItem('d2r_intakeUrl')
+      || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+    function downscale(file){
+      return new Promise(function(resolve, reject){
+        var img = new Image(), url = URL.createObjectURL(file);
+        img.onload = function(){
+          var MAX = 1568, scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+        };
+        img.onerror = reject; img.src = url;
+      });
+    }
+    var total = 0, errors = 0, last = 0;
+    for (var i = 0; i < files.length; i++){
+      try {
+        var b64 = await downscale(files[i]);
+        // dummy vocab satisfies older proxies; gridcount ignores names server-side
+        var resp = await fetch(endpoint, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            image: b64, media_type: 'image/jpeg', kind: 'gridcount',
+            names: ['placeholder-a', 'placeholder-b', 'placeholder-c'],
+            layout: tab
+          })
+        });
+        if (!resp.ok){ errors++; continue; }
+        var data = await resp.json();
+        if (data && data.error){ errors++; continue; }
+        var n = parseInt(data.count, 10);
+        if (!isFinite(n) && data.tally && data.tally.items != null)
+          n = parseInt(data.tally.items, 10);
+        if (!isFinite(n) || n < 0) n = 0;
+        total += n; last = n;
+      } catch(e){ errors++; }
+    }
+    var counts = total > 0 ? { items: total } : {};
+    return { ok: total > 0, total: total, counts: counts, added: counts,
+             errors: errors, kind: 'vault-count', tab: tab, last: last };
+  };
   window.tvVaultAutoIntake = async function(opts){
     opts = opts || {};
     if (window._vaultAutoBusy) return { ok:false, why:'busy' };
@@ -34980,32 +35032,49 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
                 });
               } catch(e){}
             }
-            // v901 / v946.7 — personal/shared vault 📸 ONLY when deep has real item TEXT
-            // (tooltip). Icon grids always return total=0 from vaultIntake (Fable vision proof).
-            // Leave visit_done unset on grid so a later tooltip deep can still fire once.
-            if ((stashTab === 'personal' || stashTab === 'shared') && !_stashVisitDone['vault_'+stashTab]) {
-              var _vn = (rd.names || []).filter(function(n){
-                n = String(n || '').trim(); if (n.length < 4) return false;
-                var letters = (n.match(/[A-Za-z]/g) || []).length;
-                if (letters < Math.max(3, n.length / 2)) return false;
-                var low = n.toLowerCase().replace(/['"]/g, '');
-                if (/^(ii|ia lla|stash|inventory|personal|shared|runes|gems)$/.test(low)) return false;
-                return /[aeiou]/i.test(n);
-              });
-              if (_vn.length) {
-                _stashVisitDone['vault_'+stashTab] = true;
-                stashIntakeQueued = true;
-                try {
-                  Promise.resolve(window.tvVaultAutoIntake && window.tvVaultAutoIntake({ tab: stashTab, frameId: rd.frameId || rd.frame_id || '' })).then(function(r){
+            // v946.8 — personal/shared: COUNT path (vaultGridCount) for icon grids.
+            // Identity vaultIntake stays manual / tooltip-only (never auto on grids).
+            if ((stashTab === 'personal' || stashTab === 'shared') && !_stashVisitDone['vaultcount_'+stashTab]
+                && !ENGINE_DRIVEN) {   // engine-driven: control driver owns vaultcount
+              _stashVisitDone['vaultcount_'+stashTab] = true;
+              stashIntakeQueued = true;
+              try {
+                var FRAME0v = (typeof window.TV_FRAME_URL === 'string' && window.TV_FRAME_URL) || 'http://127.0.0.1:17771/frame';
+                try { if (window._tvdBridgePort) FRAME0v = 'http://127.0.0.1:' + window._tvdBridgePort + '/frame'; } catch(e){}
+                var _fidV = rd.frameId || rd.frame_id || '';
+                Promise.resolve((async function(){
+                  if (typeof window.vaultGridCount !== 'function') return { ok:false, why:'no-vaultGridCount' };
+                  var _lc = await _intakeLeaseClaim('vaultcount_' + stashTab);
+                  if (_lc && _lc.ok === false) return _lc;
+                  try {
+                    var resp = await fetch(FRAME0v + '?t=' + Date.now(), { cache:'no-store' });
+                    if (!resp.ok) return { ok:false, why:'no-frame' };
+                    var blob = await resp.blob();
+                    if (!blob || !blob.size) return { ok:false, why:'empty-frame' };
+                    var file = new File([blob], 'tv-vault-grid-' + stashTab + '.jpg', { type: blob.type || 'image/jpeg' });
+                    var res = await window.vaultGridCount([file], { tab: stashTab, fromTv:true });
                     try {
-                      if (r && r.ok) console.log('[tvd] vault auto-intake ok', stashTab, r.bytes);
-                      else console.log('[tvd] vault auto-intake skip', stashTab, r && r.why);
+                      var BR = 'http://127.0.0.1:' + (window._tvdBridgePort || 17771);
+                      var body = JSON.stringify({
+                        ts: Date.now(), tab: stashTab, kind: 'vault-count',
+                        ok: !!(res && res.ok), counts: (res && res.counts) || {},
+                        total: (res && res.total) || 0, errors: (res && res.errors) || 0,
+                        frameId: _fidV
+                      });
+                      fetch(BR + '/intake_result', { method:'POST', headers:{'Content-Type':'application/json'}, body: body })
+                        .catch(function(){ fetch('/intake_result', { method:'POST', headers:{'Content-Type':'application/json'}, body: body }).catch(function(){}); });
                     } catch(e){}
-                  });
-                } catch(e){}
-              } else {
-                try { console.log('[tvd] vault auto-intake skipped — icon grid (no tooltip names)', stashTab); } catch(e){}
-              }
+                    return res;
+                  } finally {
+                    try { _intakeLeaseRelease('vaultcount_' + stashTab, _lc && _lc.owner); } catch(e){}
+                  }
+                })()).then(function(r){
+                  try {
+                    if (r && r.ok) console.log('[tvd] vault-count ok', stashTab, '×' + r.total);
+                    else console.log('[tvd] vault-count skip', stashTab, r && (r.why || r.total));
+                  } catch(e){}
+                });
+              } catch(e){}
             }
           } else if (_stashVisitOpen) {
             _stashVisitOpen = false;

@@ -225,18 +225,23 @@ def _vault_names_worth_auto(names):
 
 
 def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
-    """v944.6/v946.7 pure decision for never-zero re-fire.
+    """v944.6/v946.8 pure decision for never-zero re-fire.
     Returns ('done', None) | ('refire', job_dict) | ('giveup', None).
-    Tally: re-fire on !ok or total==0.
-    Vault: only re-fire when job.has_names (tooltip path); grid errors give up immediately."""
+    Tally + vault-count: re-fire on !ok or total==0.
+    Vault identity: only re-fire when job.has_names (tooltip path)."""
     if not isinstance(inflight, dict):
         return ("giveup", None)
     key = str(inflight.get("key") or "")
-    is_vault = key.startswith("vault_")
-    if is_vault:
+    is_vaultcount = key.startswith("vaultcount_")
+    is_vault = key.startswith("vault_") and not is_vaultcount
+    if is_vaultcount:
+        # COUNT path — 0 is a failed count; re-fire like tally
+        if _intake_is_real(intake):
+            return ("done", None)
+    elif is_vault:
         if bool((intake or {}).get("ok", True)):
             return ("done", None)
-        # v946.7 — icon-grid vault fires always 0; re-firing wastes AI (Fable vision proof)
+        # identity vault without tooltip names → don't thrash
         if not inflight.get("has_names"):
             return ("giveup", None)
         # tooltip-path vault error → re-fire ladder
@@ -2883,20 +2888,15 @@ def _engine_driver():
                 if tab in ("runes", "gems", "materials"):
                     key = tab
                 elif tab in ("personal", "shared"):
-                    # v946.7 (Fable vision proof): personal/shared are ICON GRIDS.
-                    # vaultIntake is an identity reader for tooltip photos (manual flow).
-                    # Auto-firing on a raw grid → always total=0 ERROR + re-fire thrash.
-                    # Only queue when this deep read has real item text (tooltip up).
-                    if _vault_names_worth_auto(_vnames):
-                        key = "vault_" + tab
-                    else:
-                        globals()["_DRV_VAULT_SKIP"] = globals().get("_DRV_VAULT_SKIP", 0) + 1
-                        # leave visit_done unset so a later tooltip deep on same visit can fire
+                    # v946.8 — ICON GRID → vaultGridCount (occupied slots), NOT vaultIntake.
+                    # Identity vault stays manual/tooltip-only (locked reader untouched).
+                    # One count shot per tab per visit (visit_done on vaultcount_<tab>).
+                    key = "vaultcount_" + tab
                 if key and not visit_done.get(key):
                     visit_done[key] = "queued"
                     fire_q.append({
                         "key": key, "tab": tab, "fid": fid, "tries": 0,
-                        "has_names": bool(key.startswith("vault_") and _vault_names_worth_auto(_vnames)),
+                        "has_names": False,  # count path; identity auto disabled
                     })
                     globals()["_DRV_QUEUED"] = globals().get("_DRV_QUEUED", 0) + 1
 
@@ -2906,21 +2906,31 @@ def _engine_driver():
             if inflight:
                 # v944.6 — capture the landed intake BODY (not just a bool) so we can
                 # decide never-zero re-fire: total==0 / ok==false is a failure signal.
-                _tabs = (inflight["tab"], inflight["key"].replace("vault_", ""))
+                _tabs = (inflight["tab"],
+                         inflight["key"].replace("vaultcount_", "").replace("vault_", ""))
                 landed_ik = None
                 for i in intk:
+                    ik0 = i.get("intake") or {}
                     if (int(i.get("ts") or 0) >= inflight["fired_ms"] - 2000
-                            and (i.get("intake") or {}).get("tab") in _tabs):
-                        landed_ik = i.get("intake") or {}
+                            and ik0.get("tab") in _tabs):
+                        # prefer matching kind for count jobs
+                        if inflight["key"].startswith("vaultcount_") and ik0.get("kind") not in (
+                                "vault-count", "vaultcount", None, ""):
+                            if ik0.get("kind") == "vault":
+                                continue
+                        landed_ik = ik0
                         break
                 if landed_ik is None:
                     # bridge-blind confirm: receipts that arrived via control's /intake_result
                     try:
                         for r in _kai_journal_rows()[-80:]:
+                            ik0 = r.get("intake") or {}
                             if (r.get("lane") == "intake"
                                     and int(r.get("ts") or 0) >= inflight["fired_ms"] - 2000
-                                    and (r.get("intake") or {}).get("tab") in _tabs):
-                                landed_ik = r.get("intake") or {}
+                                    and ik0.get("tab") in _tabs):
+                                if inflight["key"].startswith("vaultcount_") and ik0.get("kind") == "vault":
+                                    continue
+                                landed_ik = ik0
                                 break
                     except Exception:
                         pass
@@ -2999,7 +3009,17 @@ def _engine_driver():
                 # ARCHIVED FRAME (/hist/<fid>.jpg), never the live eye: by fire time the
                 # player has moved on and a live shot sees gameplay. Same law as the funnel.
                 _histp5 = "/hist/" + job["fid"] + ".jpg"
-                if job["key"].startswith("vault_"):
+                if job["key"].startswith("vaultcount_"):
+                    # v946.8 — COUNT occupied slots via vaultGridCount (kind:gridcount / vault-count)
+                    js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
+                          "if(typeof W.vaultGridCount!=='function')return 0;"
+                          "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
+                          "return W.vaultGridCount([new W.File([b],'drv-vault-grid.jpg',{type:'image/jpeg'})],{tab:%s,fromTv:true})}).then(function(res){"
+                          "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'vault-count',ok:!!(res&&res.ok),counts:(res&&(res.counts||res.added))||{},total:(res&&res.total)||0,errors:(res&&res.errors)||0,frameId:%s})}).catch(function(){})}catch(e){}"
+                          "}).catch(function(){});return 1}catch(e){return 0}})()"
+                          ) % (json.dumps(_histp5), json.dumps(job["tab"]), json.dumps(job["tab"]), json.dumps(job["fid"]))
+                elif job["key"].startswith("vault_"):
+                    # identity path (manual/tooltip) — rarely queued by auto now
                     js = ("(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
                           "if(typeof W.vaultIntake!=='function')return 0;"
                           "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
@@ -3123,7 +3143,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v946.7",
+        "ver": "v946.8",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

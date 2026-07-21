@@ -11,6 +11,19 @@ vault intake reader without Konyo's explicit OK — the fix is likely upstream (
 - v946.5 SOCKET CAPTURE (prompt p831 → parse → journal → pack beat; Diadem reads {Diadem:3})
 - v946.6 socket render (⏣N pill in theatre caption/drawer/lightbox)
 
+## ✅ SUPERGROK RETURN — v946.8 (vault GRID COUNT upgrade)
+
+Konyo: “upgrade it” + confirm tooltip-only for **identity**.
+
+| Path | What it does |
+|------|----------------|
+| **Identity** (`vaultIntake`) | Still needs **tooltip text** — icons never become named vault entries |
+| **COUNT** (`vaultGridCount` + `kind:gridcount`) | Auto on personal/shared: **“how many occupied slots?”** → journal `kind:vault-count` total=N |
+
+Driver queues `vaultcount_<tab>` (not identity). Health strip can show `personal ×27`. Locked vaultIntake **untouched**.
+
+---
+
 ## ✅ SUPERGROK RETURN — v946.7 (vault grid gate + film truth)
 
 ### BUG A — FIXED (upstream of locked reader)

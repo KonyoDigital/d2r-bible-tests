@@ -1154,7 +1154,7 @@ class TestVaultGridAutoGate(unittest.TestCase):
         self.assertTrue(ca._vault_names_worth_auto(["Gheed's Fortune Grand Charm"]))
         self.assertTrue(ca._vault_names_worth_auto(["War Traveler"]))
 
-    def test_vault_grid_error_no_refire(self):
+    def test_vault_identity_grid_error_no_refire(self):
         job = {"key": "vault_personal", "tab": "personal", "fid": "2_1", "tries": 0, "has_names": False}
         act, _ = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "3_1")
         self.assertEqual(act, "giveup")
@@ -1164,6 +1164,15 @@ class TestVaultGridAutoGate(unittest.TestCase):
         act, nxt = ca._drv_empty_refire_plan(job, {"ok": False, "total": 0}, "5_1")
         self.assertEqual(act, "refire")
         self.assertEqual(nxt["fid"], "5_1")
+
+    def test_vaultcount_zero_refires(self):
+        # COUNT path: total=0 is a failed count → re-fire (like tally)
+        job = {"key": "vaultcount_personal", "tab": "personal", "fid": "2_1", "tries": 0}
+        act, nxt = ca._drv_empty_refire_plan(job, {"ok": True, "total": 0}, "3_1")
+        self.assertEqual(act, "refire")
+        self.assertEqual(nxt["fid"], "3_1")
+        act2, _ = ca._drv_empty_refire_plan(job, {"ok": True, "total": 27}, "3_1")
+        self.assertEqual(act2, "done")
 
 
 class TestStashTabIdentity(unittest.TestCase):

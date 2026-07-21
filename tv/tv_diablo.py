@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v946.7"   # Vault grid gate: no auto vaultIntake on icon grids (tooltip names only); film truth documented
+VERSION = "v946.8"   # Vault grid COUNT: personal/shared auto-count occupied slots (icons); identity vault stays tooltip-only
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
