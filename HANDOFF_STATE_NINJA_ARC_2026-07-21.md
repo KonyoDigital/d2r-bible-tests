@@ -94,3 +94,10 @@ Autonomous Konyo-workflow chain toward Level 2. Gate every round as it lands (Ko
 **GUARDRAILS (unchanged):** LOCKED intake crops untouched · NEVER full Playwright suite on Mac · Engine Room observes never drives · runewords=KEEP · never leak memory files to the public repo · captureTs==frame ms join law.
 
 **PROGRESS:** 0/80 shipped under this mandate (chain start HEAD afb7083 / v948.26). Increment as rounds land.
+
+## 🔢 VERSIONING CHANGE (Konyo 2026-07-21): INTEGER VERSIONS, +1 PER SHIP
+Decimals RETIRED. We are at milestone v948. Every shipped version from here = ONE integer bump: next ship stamps **v949**, then v950, v951 … NO more decimals.
+- The 80-version mandate = **v949 → v1028** (integer count 949…1028).
+- Every gate stamps the next integer across ALL THREE (bible D2R_BUILD.id == control ver == agent VERSION — stamp-parity test enforces equality).
+- The NEXT gate (typo-r1 R1 + polish-ui-2 Phase D swap, combined) ships as **v949** (progress 1/80).
+- Progress counter: "N/80 · vNNN". Chain start = milestone v948 / HEAD a3d33cd.
