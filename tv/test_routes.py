@@ -1139,6 +1139,52 @@ class TestAccuracyGate(unittest.TestCase):
         act, tries = ca._kai_gate_pingpong(2, False, max_tries=3)
         self.assertEqual((act, tries), ("honest-miss", None))   # never routes a guess
 
+    # ── ping-pong wired live: _kai_gate_pingpong_plan over a routing ledger ─────
+    def test_pingpong_plan_retries_gate_held_judge_row(self):
+        routing = [{"f": "tip.jpg", "ts": 1000, "route": "judge", "skipReason": "gate:name-not-in-db"}]
+        retry, pinned, tries = ca._kai_gate_pingpong_plan(routing, {})
+        self.assertEqual([r["f"] for r in retry], ["tip.jpg"])
+        self.assertEqual(pinned, [])
+        self.assertEqual(tries, {"tip.jpg": 1})
+
+    def test_pingpong_plan_ignores_non_judge_and_non_gate_rows(self):
+        routing = [
+            {"f": "a.jpg", "ts": 1, "route": "tally:runes", "skipReason": "gate:no-hard-signal"},
+            {"f": "b.jpg", "ts": 2, "route": "vault", "skipReason": "gate:wrong-cell"},
+            {"f": "c.jpg", "ts": 3, "route": "judge", "skipReason": "not-selected"},
+            {"f": "d.jpg", "ts": 4, "route": "judge", "skipReason": "cap"},
+        ]
+        retry, pinned, tries = ca._kai_gate_pingpong_plan(routing, {})
+        self.assertEqual(retry, [])
+        self.assertEqual(pinned, [])
+        self.assertEqual(tries, {})
+
+    def test_pingpong_plan_pins_after_max_tries(self):
+        routing = [{"f": "tip.jpg", "ts": 1000, "route": "judge", "skipReason": "gate:quorum<2"}]
+        # simulate the prior two passes already having retried
+        retry, pinned, tries = ca._kai_gate_pingpong_plan(routing, {"tip.jpg": 2}, max_tries=3)
+        self.assertEqual(retry, [])
+        self.assertEqual(pinned, ["tip.jpg"])
+        self.assertEqual(tries, {"tip.jpg": 3})
+
+    def test_pingpong_plan_already_pinned_stays_pinned(self):
+        # a frame already maxed out on a prior pass never re-enters the retry pool.
+        routing = [{"f": "tip.jpg", "ts": 1000, "route": "judge", "skipReason": "gate:quorum<2"}]
+        retry, pinned, tries = ca._kai_gate_pingpong_plan(routing, {"tip.jpg": 3}, max_tries=3)
+        self.assertEqual(retry, [])
+        self.assertEqual(pinned, ["tip.jpg"])
+        self.assertEqual(tries, {"tip.jpg": 3})
+
+    def test_pingpong_plan_persists_independent_tries_per_frame(self):
+        routing = [
+            {"f": "a.jpg", "ts": 1, "route": "judge", "skipReason": "gate:name-not-in-db"},
+            {"f": "b.jpg", "ts": 2, "route": "judge", "skipReason": "gate:no-hard-signal"},
+        ]
+        retry, pinned, tries = ca._kai_gate_pingpong_plan(routing, {"a.jpg": 2}, max_tries=3)
+        self.assertEqual(sorted(r["f"] for r in retry), ["b.jpg"])
+        self.assertEqual(pinned, ["a.jpg"])
+        self.assertEqual(tries, {"a.jpg": 3, "b.jpg": 1})
+
     # ── integration: wired into _kai_build_routing's ledger ────────────────────
     def test_ledger_gate_fields_present_journal_only_already_gated_by_router(self):
         # journal-only materials sticky (no chrome witness) never even clears router quorum
@@ -1365,6 +1411,79 @@ class TestSessionHealth(unittest.TestCase):
     def test_idle_when_empty(self):
         h = ca._session_health_from_rows([])
         self.assertEqual(h["verdict"], "idle")
+
+
+class TestFilmCompleteness(unittest.TestCase):
+    """v948.13 — FILM ↔ REGISTRATION COMPLETENESS (ENGINE_ARCHITECTURE.md target #2).
+    ca._session_completeness cross-references reel frames (film, ground truth) against
+    deep reads: 'unread' = KAI's retro sweep saw item text no read ever claimed (honest,
+    already caught — a reel frame backs it by construction); 'read-no-film' = a read
+    landed but no reel frame exists near it (a REAL capture drop)."""
+
+    def test_full_coverage_no_gaps(self):
+        # a read at ts=1000 with a reel frame at ts=1000 (or within tolerance) → no drop.
+        sess_rows = [{"lane": "deep", "names": ["Windforce"], "captureTs": 1000, "ts": 1000,
+                      "frameId": "reel_S/1_1000"}]
+        reel_frames = [{"f": "f_1000.jpg", "ts": 1000}, {"f": "f_2000.jpg", "ts": 2000}]
+        c = ca._session_completeness(sess_rows, reel_frames)
+        self.assertEqual(c["reads"], 1)
+        self.assertEqual(c["reel_frames"], 2)
+        self.assertEqual(c["unread"], 0)
+        self.assertEqual(c["dropped"], 0)
+        self.assertEqual(c["gaps"], [])
+        self.assertEqual(c["hovers_estimated"], 1)
+        self.assertEqual(c["coveragePct"], 100.0)
+
+    def test_read_with_no_nearby_reel_frame_is_a_drop(self):
+        # a read at ts=50000 but the nearest reel frame is 5s away (tol default 1500ms)
+        # → the film thread skipped archiving near that moment: a real drop.
+        sess_rows = [{"lane": "deep", "names": ["Shako"], "captureTs": 50000, "ts": 50000,
+                      "frameId": "reel_S/1_50000"}]
+        reel_frames = [{"f": "f_1000.jpg", "ts": 1000}, {"f": "f_45000.jpg", "ts": 45000}]
+        c = ca._session_completeness(sess_rows, reel_frames)
+        self.assertEqual(c["dropped"], 1)
+        kinds = [g["kind"] for g in c["gaps"]]
+        self.assertIn("read-no-film", kinds)
+
+    def test_kai_unread_rows_are_honest_not_drops(self):
+        # KAI's retro sweep found item text no read claimed — a reel frame backs it by
+        # construction (KAI only scans real reel frames); this is NOT a capture drop.
+        sess_rows = [
+            {"lane": "kai", "frameId": "reel_S/f_9000", "kai": {"texts": ["Harlequin Crest"]},
+             "ts": 9000},
+            {"lane": "kai", "frameId": "", "kai": {"missedFrames": 1}},   # summary row, no frameId
+        ]
+        reel_frames = [{"f": "f_9000.jpg", "ts": 9000}]
+        c = ca._session_completeness(sess_rows, reel_frames)
+        self.assertEqual(c["reads"], 0)
+        self.assertEqual(c["unread"], 1)          # only the per-item row counts, not the summary
+        self.assertEqual(c["dropped"], 0)          # never miscounted as a film drop
+        self.assertEqual(c["gaps"][0]["kind"], "unread")
+        self.assertEqual(c["hovers_estimated"], 1)
+        self.assertEqual(c["coveragePct"], 0.0)
+
+    def test_empty_session_is_fully_covered(self):
+        c = ca._session_completeness([], [])
+        self.assertEqual(c, {"hovers_estimated": 0, "reads": 0, "reel_frames": 0, "gaps": [],
+                             "unread": 0, "dropped": 0, "coveragePct": 100.0})
+
+    def test_gaps_sorted_by_ts(self):
+        sess_rows = [
+            {"lane": "kai", "frameId": "reel_S/f_5000", "kai": {"texts": ["b"]}, "ts": 5000},
+            {"lane": "deep", "names": ["a"], "captureTs": 90000, "ts": 90000, "frameId": "x"},
+            {"lane": "kai", "frameId": "reel_S/f_1000", "kai": {"texts": ["c"]}, "ts": 1000},
+        ]
+        c = ca._session_completeness(sess_rows, [{"f": "f_5000.jpg", "ts": 5000}])
+        self.assertEqual([g["ts"] for g in c["gaps"]], sorted(g["ts"] for g in c["gaps"]))
+
+    def test_custom_tolerance_widens_or_narrows_drops(self):
+        sess_rows = [{"lane": "deep", "names": ["Item"], "captureTs": 2000, "ts": 2000,
+                      "frameId": "x"}]
+        reel_frames = [{"f": "f_0.jpg", "ts": 0}]
+        # 2000ms gap: fails default 1500ms tolerance, passes a wider 3000ms tolerance
+        self.assertEqual(ca._session_completeness(sess_rows, reel_frames)["dropped"], 1)
+        self.assertEqual(
+            ca._session_completeness(sess_rows, reel_frames, tol_ms=3000)["dropped"], 0)
 
 
 class TestVaultGridAutoGate(unittest.TestCase):

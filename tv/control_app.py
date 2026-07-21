@@ -2773,6 +2773,41 @@ def _kai_gate_pingpong(tries, gate_passed, max_tries=3):
     return ("honest-miss", None)
 
 
+def _kai_gate_pingpong_plan(routing, tries_state, max_tries=3):
+    """v948.13 — wires _kai_gate_pingpong into a routing ledger pass. Conservative by
+    design: only JUDGE-route rows the gate HELD (skipReason 'gate:<reason>') are eligible.
+    A fresh aicJudge call is a genuinely independent second brain (the gate's own check 2
+    demands ≥2 independent evidence classes), unlike a tally/vault re-fire which risks
+    double-counting inventory already on the board — those stay out of scope here.
+
+    tries_state: {f: tries} persisted across closer passes (the reel's gate_pingpong.json).
+    A row already at/above max_tries (from a prior pass) is treated as already pinned and
+    is re-confirmed as such, not retried again — the never-zero doctrine's honest-miss,
+    made permanent.
+
+    Pure. Returns (retry_rows, pinned_fs, new_tries_state):
+      retry_rows      — routing rows to re-queue for one more judge read this pass
+      pinned_fs       — frame names whose tries just maxed out (or already had) — honest
+                        miss, never retried again
+      new_tries_state — tries_state with this pass's increments folded in (persist this)."""
+    retry, pinned = [], []
+    new_tries = dict(tries_state or {})
+    for r in (routing or []):
+        f = r.get("f")
+        if not f or r.get("route") != "judge":
+            continue
+        if not str(r.get("skipReason") or "").startswith("gate:"):
+            continue
+        act, nxt = _kai_gate_pingpong(int(new_tries.get(f, 0)), False, max_tries=max_tries)
+        if act == "pingpong":
+            new_tries[f] = nxt
+            retry.append(r)
+        else:   # honest-miss — pin: tries maxed, never retried again
+            new_tries[f] = max_tries
+            pinned.append(f)
+    return retry, pinned, new_tries
+
+
 def _kai_build_routing(scan, sess_rows, sid, journal_rows):
     """v944/v944.1/v949 — THE ROUTING LEDGER. One row per scanned frame:
     {f, ts, label, sources, confidence, route, routed, skipReason, gatePass, gateReason,
@@ -2962,6 +2997,109 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
                     "gatePass": gate["pass"], "gateReason": gate["reason"],
                     "gateSources": sorted(set(sources) | set(chrome_votes.keys()))})
     return out
+
+
+# ── v948.13 🎞🔗 FILM ↔ REGISTRATION COMPLETENESS (ENGINE_ARCHITECTURE.md target #2) —
+# Konyo's law: "every item I hover should produce a read AND a reel frame — screenshots
+# are missing from the film." This is the DIAGNOSTIC: cross-reference the reel (film,
+# ground truth) against the deep reads to find dropped captures, distinct from KAI's
+# already-honest "text seen, never read" ledger.
+_COMPLETENESS_TOL_MS = 1500   # ~1.5x FOOTAGE_INTERVAL_S default (1fps archive) — jitter slack
+
+
+def _session_completeness(sess_rows, reel_frames, tol_ms=_COMPLETENESS_TOL_MS):
+    """Pure. Two independent gap classes, both real signal, only one a bug:
+
+      'unread'       — KAI's retro reel sweep saw item text with no deep read anywhere near
+                        it (rides sess_rows as lane=='kai' per-item rows, frameId set, from
+                        _kai_closer_loop's `missed[]`). The moment WAS filmed — a reel frame
+                        backs every one of these by construction (KAI only scans real reel
+                        frames) — it just went unread. Honest, already-caught. NOT a drop.
+      'read-no-film' — a deep read landed (an item WAS read, hover→read worked) but no reel
+                        frame exists within tol_ms of its captureTs. This IS a capture drop:
+                        the film thread didn't archive a still near that moment.
+
+    sess_rows: this session's journal rows (already filtered to one sessionId).
+    reel_frames: the sealed reel's index.json 'frames' list [{"f":.., "ts":..}, ...] —
+    the film's ground truth of what was actually archived to hist_dir.
+
+    Returns {hovers_estimated, reads, reel_frames, gaps: [...], unread, dropped, coveragePct}.
+    hovers_estimated = reads + unread — the best estimate available of "moments item text
+    appeared" (no raw hover-event stream exists to count directly; the retro OCR ledger is
+    the closest ground-truth proxy, per Konyo's instruction to use kai_report.missed[]).
+    coveragePct = reads / hovers_estimated * 100 — the read-side registration rate."""
+    reads = [r for r in (sess_rows or []) if r.get("lane") == "deep" and (r.get("names") or [])]
+    kai_item_rows = [r for r in (sess_rows or [])
+                      if r.get("lane") == "kai" and r.get("frameId")
+                      and isinstance(r.get("kai"), dict)]
+    frame_ts = sorted(int(f.get("ts") or 0) for f in (reel_frames or []) if f.get("ts") is not None)
+
+    def _nearest_gap_ms(ts):
+        if not frame_ts:
+            return None
+        i = bisect.bisect_left(frame_ts, ts)
+        best = None
+        if i < len(frame_ts):
+            best = frame_ts[i] - ts
+        if i > 0:
+            d = ts - frame_ts[i - 1]
+            best = d if best is None else min(best, d)
+        return best
+
+    gaps = []
+    for r in kai_item_rows:
+        texts = (r.get("kai") or {}).get("texts") or []
+        gaps.append({"ts": int(r.get("ts") or 0), "kind": "unread", "frameId": r.get("frameId"),
+                     "note": "text seen, never read: " + ", ".join(str(t) for t in texts[:3])})
+    dropped = 0
+    for r in reads:
+        ts = int(r.get("captureTs") or r.get("ts") or 0)
+        gap = _nearest_gap_ms(ts)
+        if gap is None or gap > tol_ms:
+            dropped += 1
+            gaps.append({"ts": ts, "kind": "read-no-film", "frameId": r.get("frameId"),
+                         "note": "read landed, no reel frame within %dms (nearest %s)" %
+                                 (tol_ms, "none" if gap is None else str(gap) + "ms")})
+    gaps.sort(key=lambda g: g["ts"])
+    n_reads = len(reads)
+    n_unread = len(kai_item_rows)
+    hovers_estimated = n_reads + n_unread
+    coverage_pct = round(100.0 * n_reads / hovers_estimated, 1) if hovers_estimated else 100.0
+    return {
+        "hovers_estimated": hovers_estimated,
+        "reads": n_reads,
+        "reel_frames": len(reel_frames or []),
+        "gaps": gaps,
+        "unread": n_unread,
+        "dropped": dropped,
+        "coveragePct": coverage_pct,
+    }
+
+
+_COMPLETENESS_CACHE = {"reel": None, "mtime": 0.0, "val": None}
+
+
+def _newest_completeness():
+    """{reads, film, coverage%} from the newest sealed reel's completeness stat (post-seal;
+    ENGINE_ARCHITECTURE.md target #2). Cached by reel+mtime like _newest_gate_count so
+    /api/status polling never re-parses a hot report."""
+    try:
+        hist = HIST_DIR
+        reels = sorted((d for d in os.listdir(hist)
+                        if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
+                       reverse=True)
+        if not reels:
+            return None
+        rp = os.path.join(hist, reels[0], "kai_report.json")
+        mt = os.path.getmtime(rp)
+        if _COMPLETENESS_CACHE["reel"] == reels[0] and _COMPLETENESS_CACHE["mtime"] == mt:
+            return _COMPLETENESS_CACHE["val"]
+        c = (json.load(open(rp, encoding="utf-8")) or {}).get("completeness")
+        val = c if isinstance(c, dict) and c.get("reads") is not None else None
+        _COMPLETENESS_CACHE.update(reel=reels[0], mtime=mt, val=val)
+        return val
+    except Exception:
+        return None
 
 
 def _kai_closer_loop():
@@ -3311,6 +3449,39 @@ def _kai_closer_loop():
                                     break
                             except Exception:
                                 pass
+                    # v948.13 🏓 THE ACCURACY GATE PING-PONG (§3.5) wired live — a judge-route
+                    # row the gate HELD gets a bounded re-read (a fresh, independent aicJudge
+                    # call) before conceding an honest miss. Persisted tries + a pin on disk
+                    # (gate_pingpong.json) so a reel never retries forever; conservative —
+                    # judge-route only, appended AFTER the ledger's own selection so it never
+                    # crowds out an already-fireable row within the judge cap.
+                    try:
+                        _pp_path = os.path.join(rd, "gate_pingpong.json")
+                        try:
+                            with open(_pp_path, encoding="utf-8") as _ppf:
+                                _pp_tries = json.load(_ppf) or {}
+                        except Exception:
+                            _pp_tries = {}
+                        _pp_retry, _pp_pinned, _pp_next = _kai_gate_pingpong_plan(_plan, _pp_tries)
+                        if _pp_next != _pp_tries:
+                            try:
+                                with open(_pp_path, "w", encoding="utf-8") as _ppf:
+                                    json.dump(_pp_next, _ppf)
+                            except Exception:
+                                pass
+                        if _pp_retry:
+                            _have_j = {str(j.get("f") or "") for j in _judge_jobs}
+                            for _rj in _pp_retry:
+                                _rf = str(_rj.get("f") or "")
+                                if _rf and _rf not in _have_j:
+                                    _judge_jobs.append({"f": _rj.get("f"), "ts": _rj.get("ts")})
+                                    _have_j.add(_rf)
+                        if _pp_retry or _pp_pinned:
+                            print(f"🏓 KAI gate ping-pong: {len(_pp_retry)} held frame(s) re-queued "
+                                  f"for a fresh judge read · {len(_pp_pinned)} pinned (honest miss, "
+                                  f"tries maxed)", flush=True)
+                    except Exception as _ppe:
+                        print(f"⚠ KAI gate ping-pong failed: {_ppe}", flush=True)
                     # 🔬 JUDGE — only ledger-selected tooltip rows (cap applied here)
                     # v946 — default cap 16 (Fable soak: rarely hit 12; fat tooltip reels need headroom)
                     try:
@@ -3400,6 +3571,20 @@ def _kai_closer_loop():
                     for _rr in _routing:
                         _rcounts[_rr["label"]] = _rcounts.get(_rr["label"], 0) + 1
                     _routed_n = sum(1 for _rr in _routing if _rr.get("routed"))
+                    # v948.13 🎞🔗 — FILM ↔ REGISTRATION COMPLETENESS (target #2). _reg_rows is
+                    # the freshest re-read of this session's journal, so it already carries the
+                    # KAI per-item 'unread' rows appended earlier this same seal pass.
+                    try:
+                        _completeness = _session_completeness(_reg_rows, frames)
+                        report["completeness"] = _completeness
+                        print(f"🎞 KAI completeness: {_completeness['reads']} reads · "
+                              f"{_completeness['reel_frames']} reel frames · "
+                              f"{_completeness['coveragePct']}% covered · "
+                              f"{_completeness['dropped']} film drops · "
+                              f"{_completeness['unread']} unread", flush=True)
+                    except Exception as _cme:
+                        _completeness = None
+                        print(f"⚠ KAI completeness failed: {_cme}", flush=True)
                     try:
                         with open(os.path.join(rd, "kai_report.json"), "w", encoding="utf-8") as _rf2:
                             json.dump(report, _rf2)
@@ -3411,9 +3596,12 @@ def _kai_closer_loop():
                                 "sessionId": sid, "frameId": "",
                                 "kai": {"register": {"count": len(_register),
                                                      "items": _register[:40]},
-                                        "routing": {"counts": _rcounts, "routedCount": _routed_n}},
+                                        "routing": {"counts": _rcounts, "routedCount": _routed_n},
+                                        **({"completeness": _completeness} if _completeness else {})},
                                 "note": f"📖 KAI register ledger — {len(_register)} items witnessed · "
-                                        f"🚦 {len(_routing)} frames routed-labelled ({_routed_n} fired)"}
+                                        f"🚦 {len(_routing)} frames routed-labelled ({_routed_n} fired)"
+                                        + (f" · 🎞 {_completeness['coveragePct']}% film-complete "
+                                           f"({_completeness['dropped']} drops)" if _completeness else "")}
                     with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf3:
                         _rf3.write(json.dumps(_reg_row, ensure_ascii=False) + "\n")
                     print(f"📖 KAI register: {len(_register)} witnessed · 🚦 routing: {len(_routing)} frames, "
@@ -3978,12 +4166,15 @@ def status_payload():
         _gc = _newest_gate_count()   # v948.12 — accuracy-gate proven/held for the FUNNELS organ
         if _gc:
             _sess_h["gate"] = _gc
+        _cn = _newest_completeness()   # v948.13 — film↔registration coverage% (target #2)
+        if _cn:
+            _sess_h["completeness"] = _cn
     except Exception:
         _sess_h = {"tabs": {}, "leases": {}, "verdict": "idle", "story": [], "tabSummary": {}}
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v948.11",
+        "ver": "v948.13",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
