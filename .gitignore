@@ -30,3 +30,4 @@ tv/control_agent.pid
 tv/control_capture.pid
 tv/sessions.*.jsonl
 tv/*.log
+tv/.tvd_supervisor_pause
