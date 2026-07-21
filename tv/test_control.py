@@ -1017,5 +1017,42 @@ class TestKaiCloserAtomicWiring(unittest.TestCase):
         self.assertIn("KAI completeness failed", src)
 
 
+class TestGateTallyPromotionHonestSources(unittest.TestCase):
+    """v1180 ROUTE/GATE fix — the v947 tally-promotion branch in `_kai_build_routing`
+    (weak-quorum "gameplay"/"stash" frame promoted to a stash-* tab when tabstrip+grid
+    agree) used to union the OLD label's sources into the NEW label's sources unconditionally.
+    Those old sources are brains that voted the label being OVERRIDDEN (e.g. ocr said
+    "gameplay") — folding them in falsely counted a DISSENTING brain as agreeing with the
+    promoted tally label, inflating confidence/gateSources with a contradiction and letting
+    the gate pass on dishonest evidence. `sources`/`gateSources` must only ever list brains
+    whose vote actually equals the final label (the documented contract in
+    `_kai_build_routing`'s own docstring)."""
+
+    def _scan_row(self, ocr_label="gameplay", ocr_on=True):
+        return {
+            "f": "f1.jpg", "ts": 1000,
+            "ocr": ocr_on, "ocrLabel": ocr_label, "label": ocr_label,
+            "tabstripLabel": "stash-runes", "tabstrip": False,   # weak/unconfirmed booleans —
+            "gridLabel": "stash-runes", "grid": False,           # the exact v947 promotion case
+        }
+
+    def test_dissenting_brain_not_folded_into_promoted_sources(self):
+        routing = ca._kai_build_routing([self._scan_row()], [], "sid1", [])
+        row = routing[0]
+        self.assertEqual(row["label"], "stash-runes")
+        # ocr voted "gameplay" — it must NEVER appear as a source of "stash-runes"
+        self.assertNotIn("ocr", row["sources"])
+        self.assertNotIn("ocr", row["gateSources"])
+        self.assertEqual(row["sources"], ["grid", "tabstrip"])
+
+    def test_promotion_still_clears_two_class_quorum(self):
+        # tabstrip (chrome) + grid (layout) alone must still be enough to fire — the v947
+        # intent (fast intake-mimic promotion) is preserved, just with honest sourcing.
+        routing = ca._kai_build_routing([self._scan_row()], [], "sid1", [])
+        row = routing[0]
+        self.assertEqual(row["confidence"], 2)
+        self.assertTrue(row["gatePass"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

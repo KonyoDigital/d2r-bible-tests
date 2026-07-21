@@ -3022,7 +3022,13 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
         # v947 — when quorum is weak but intake-mimic eyes agree on a tally tab, promote display
         if (not label or label == "gameplay" or label == "stash") and ts_lb and gr_lb and ts_lb == gr_lb:
             if str(ts_lb).startswith("stash-"):
-                label, sources, disagree = ts_lb, sorted(set(sources + ["tabstrip", "grid"])), None
+                # v1180 gate fix — the OLD sources belonged to the label being overridden
+                # (gameplay/stash); blindly unioning them into the promoted label's sources
+                # falsely counted a DISSENTING brain (e.g. ocr that actually voted "gameplay")
+                # as agreeing with "stash-runes", inflating confidence/gateSources with a
+                # contradiction. Only keep a prior brain here if it actually voted ts_lb.
+                agree = {b for b, lb in votes.items() if lb == ts_lb}
+                label, sources, disagree = ts_lb, sorted(agree | {"tabstrip", "grid"}), None
         conf = _router_conf(sources)   # v944.2 — independent evidence classes, not raw votes
         route = _kai_route_for_label(label)
         routed = funnel_by_fid.get(fid) or ("kai-judge" if judged else None)
@@ -4952,7 +4958,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1179",
+        "ver": "v1180",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),

@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v1179"   # 🔴 READ ENGINE polish — closer/second-look STARVE fix: _VERIFY_Q (the second-look queue) was drained ONLY in the live loop's idle gap, never at session close → the LAST reads' second looks silently vanished on End Session (not verified, not honest-miss, just gone). FIX: _pool_shutdown now drains _VERIFY_Q within the EXISTING farewell budget (no-op past deadline — never slows shutdown); verify_read/_verify_apply/_verify_drain gained timeout+deadline bounds. +2 regression tests (tv_diablo.py + test_agent.py); ×3 parity (7/80 → v1252)
+VERSION = "v1180"   # 🚦 ROUTE/GATE ENGINE polish — honest sources: the v947 weak-quorum "promote to tally tab" branch (_kai_build_routing) unioned STALE sources into the promoted label — a brain that voted a CONTRADICTING label (e.g. ocr→gameplay) was folded in as if it agreed, inflating confidence + polluting gateSources (the theatre's "why did this pass" audit). FIX: carry forward only brains that actually voted the promoted label, union with the 2 confirmed eyes (tabstrip/grid). Promotion still fires (2 independent classes); sources/gateSources now honest. +2 tests (control_app.py + test_control.py); ×3 parity (8/80 → v1252)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
