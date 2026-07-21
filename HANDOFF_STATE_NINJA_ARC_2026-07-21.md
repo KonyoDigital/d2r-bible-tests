@@ -118,3 +118,11 @@ Integer reset (decimals retired, real count 1172→v1173) + Typography R1 (one t
 ## ✅ GATED: v1174 (2/80) — HEAD a5a341d
 Typography R2 — TOGGLE SWEEP (polish-ui-2, control_ui.html): one-shell law applied to every toggle (modals backdrop-fade+panel-rise · in-place panels smooth reveal · <details> ease · dash cards gentle), reduced-motion/endurance opt-out, built on the v1173 --fs-* scale, zero raw font-sizes added. Shell-tab→iframe promote left un-animated (protects 0.00px invariant). ×3 parity v1174, floor control 64, smoke passed + deploy live, app recovered @ v1174, EDIT_LOCK released.
 NOTE: :17772 had crashed again before this gate (recovered via .app relaunch during the stamp bump). NEXT: polish-ui-2 owns R3 (fullscreen optimization). Counter: 2/80 · at v1174 · target v1252 · north star v2000.
+
+## ✅ GATED: v1175 (3/80) — HEAD fef3da7
+Typography R3 — FULLSCREEN OPTIMIZATION (polish-ui-2, control_ui.html @2560×1440): hero standby caption un-clipped (OFF stage min-height clamp, clears meters 52px) + right rail breathes (clamp 238→430px, was capped 360). 0 sideways scroll, 0 sub-floor text, 0.00px head-tab invariant held. ×3 parity v1175, smoke passed + deploy live, app recovered @ v1175.
+
+## 🔧 RECURRING :17772 CRASH — root cause found, hardening in flight (Lane B → v1176)
+Root cause: control_app.py main() runs the HTTP server as a DAEMON thread (line ~6846) while the pywebview native window (board_window) blocks the main thread. When the window dies/returns, main() exits → daemon server dies → :17772 down. Plus _orphan_watch() (line ~6727) os._exit(0)s the whole process if /api/status is unreachable 3×20s. DISPATCHED engine-stability agent to decouple server lifetime from the window + defang the self-kill (control_app.py only, NOT the ver stamp). Gate as v1176 when it hands back — BEFORE R4, since every gate stamps control_app.py (serialize gates on the shared file).
+
+GATE ORDER: engine-stability (v1176, control_app.py) gates BEFORE polish-ui-2 R4 (v1177, control_ui.html). Both work in parallel (different files); only gates serialize. Counter: 3/80 · at v1175 · target v1252 · north star v2000.
