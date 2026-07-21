@@ -43,6 +43,33 @@ Every frame (live + retro) earns a **label** by **quorum** of independent eviden
 `judge`. Confidence < 2 or disagreement → no fire. This is the single point where the readers' votes
 become ONE decision per frame. Dedupe is routing-only (film never trimmed).
 
+### 3.5 THE ACCURACY GATE — the ping-pong verification mesh (Konyo's law, 2026-07-21)
+_"We need accuracy levels and brains IN BETWEEN the funnels — weed out bugs, incorrect reads, and
+inaccuracy of any kind. Ping-pong the items/screenshots for the AI to read, through a funneled
+hardcoded backend that perfectly filters, labels, and routes each to its correct individual cell."_
+
+**No item enters a funnel cell until it PASSES this gate.** The router picks a route; the gate proves
+it before the funnel fires. It sits between §3 (Router) and §4 (Funnels) and is where inaccuracy dies.
+
+The gate runs three checks per item/screenshot, in order — fail any → **ping-pong** (re-read a fresher
+or re-cropped frame) instead of routing garbage:
+1. **Hardcoded filter (backend, deterministic — cheap, first):** does the label match the frame's hard
+   signals? tab-strip word · panel chrome · socket/quality shape · the ~1400-item DB name match. A rune
+   label on a frame with no rune-grid signature is rejected here with ZERO AI cost. Garbage OCR
+   ("IA Lla", "Ii") never survives — it matches no DB name and no cell.
+2. **Brain quorum (AI, only if the filter passes):** ≥2 independent evidence classes must agree on the
+   SAME label AND the SAME cell. Live read + second-eye re-read + DB cross-ref. Disagreement → ping-pong.
+3. **Cell-correctness (the routing truth):** the item resolves to exactly ONE correct cell — a rune to
+   its rune cell, a gem to its gem cell, a material to its material cell, an identity item to its vault
+   mule/throw cell, a socketed base to the socket-aware cell. Wrong-cell (e.g. a shared-tab frame headed
+   for the runes cell) is rejected — this is the exact class that caused the vault-0 and materials-miss bugs.
+
+**Ping-pong loop:** on any fail, the gate re-reads (fresher frame / tighter crop / a different brain) up
+to N tries, then either lands a proven read or records an HONEST miss (never a wrong one). This is the
+never-zero doctrine generalized to ALL cells: a 0/error/ambiguous read is a failure signal, not a value.
+**Output guarantee: every item that reaches a funnel cell is filtered + labeled + cell-correct, proven by
+≥2 brains and the hardcoded DB filter. Wrong reads are weeded out here, not discovered later in the theatre.**
+
 ### 4. THE FUNNELS — the hands (LOCKED intakes, never replaced)
 Routed frames flow through the perfected readers: rune/gem/material tally (count icons),
 `vaultGridCount` (count occupied slots), `vaultIntake` (identity — manual/tooltip only),
@@ -78,6 +105,9 @@ is not a viewer — it is the engine's self-portrait, the surface where every ot
 - **Quorum over any single eye.** ≥2 independent evidence classes to route.
 
 ## WHERE IT'S NOT YET FULLY UNIFIED (the arc's targets, in order)
+0. **THE ACCURACY GATE (§3.5) — build it.** The ping-pong verification mesh between router and funnels:
+   hardcoded DB/chrome filter → brain quorum → cell-correctness, re-reading until proven or honestly
+   missed. This is the priority organ — it weeds out every misread before it hits a cell.
 1. **Materials retro** — the router must re-label materials from film when live missed the tab (v948.7; audit running).
 2. **Film ↔ registration completeness** — every item Konyo hovers should yield a read AND a reel frame; find dropped hovers.
 3. **STORY = AI-reader-focused** — center the replay on the read frames themselves (in flight).
