@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v946.4"   # Screen Recording settings only opens when grant ACTUALLY missing (not when D2R closed)
+VERSION = "v946.5"   # socket capture: reads now record per-item socket count (name -> N)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -89,11 +89,11 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p830"   # v832 — bump whenever READ_PROMPT changes; every read journals which prompt read it
+PROMPT_VER = "p831"   # v946.5 — added sockets; bump whenever READ_PROMPT changes
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
-    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"names_loc\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"names\":[],\"names_loc\":{{}},\"sockets\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
     "scene = one of: town | stash | inventory | loot | gameplay | transition.\n"
     "transition = fullscreen loading/portal art: the burning fire portal, act loading screen, or a "
     "dark frame with NO HUD (no belt/orbs/automap). The player is entering a portal, waypoint, or a "
@@ -105,6 +105,9 @@ READ_PROMPT = (
     "Stash tell: left panel tabs + inventory often open on the right.\n"
     "names = READABLE text labels only (tooltips first line, ground loot labels, open inventory/stash "
     "name text). Never invent from icons alone. Never complete partial names.\n"
+    "sockets = for any item whose tooltip shows a 'Socketed (N)' line OR N visible empty socket "
+    "holes, map its exact name -> N (integer), e.g. {{\"Diadem\":3}}. Omit items with no sockets; "
+    "{{}} if none. Read the number from the tooltip, never guess from the base type.\n"
     "names_loc = for EVERY name: WHERE its tooltip/label lives — one of "
     "equipped | inventory | stash | floor. Tells: tooltip says 'to Unequip' or hovers the character "
     "equipment doll = equipped (the player's WORN gear, not loot). Tooltip anchored over the RIGHT "
@@ -2918,10 +2921,29 @@ def _parse_read(out):
                     _audit["dropped"].append({"field": "names_loc." + str(k2)[:30], "from": v2[:20], "why": "invalid-loc"})
     except Exception:
         names_loc = {}
+    # v946.5 (Konyo: "was the Diadem read 3 socketed?") — capture the socket count per item.
+    # name -> N (1..6). Read from the tooltip's 'Socketed (N)' line, never guessed from base type.
+    sockets = {}
+    try:
+        raw_sk = j.get("sockets") or {}
+        if isinstance(raw_sk, dict):
+            for k3, v3 in list(raw_sk.items())[:60]:
+                try:
+                    n3 = int(v3)
+                except Exception:
+                    _audit["dropped"].append({"field": "sockets." + str(k3)[:30], "from": str(v3)[:12], "why": "not-an-int"})
+                    continue
+                if 1 <= n3 <= 6:   # every D2R socketable item holds 1..6
+                    sockets[str(k3).strip()] = n3
+                else:
+                    _audit["dropped"].append({"field": "sockets." + str(k3)[:30], "from": str(n3), "why": "out-of-range-1-6"})
+    except Exception:
+        sockets = {}
     return {"area": str(j.get("area", "")).strip()[:48], "scene": scene, "names": names,
             "tz": tz, "conf": conf, "stashTab": stash_tab,
             "discovered": discovered,
             "names_loc": names_loc,
+            "sockets": sockets,
             "_parse_audit": dict(_audit, ok=True)}   # v835 — what the model SAID vs what survived
 
 def _intent_for(scene):
@@ -4583,6 +4605,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "provisional": False, "farewell": bool(farewell),
         "sim": bool(rd.get("sim")),      # v787 — replay/harness truth travels WITH the read (R3 sleeper)
         "names_loc": rd.get("names_loc") or {},   # v830 — per-name location truth
+        "sockets": rd.get("sockets") or {},        # v946.5 — per-item socket count (name -> N, 1..6)
         "raw": ("" if farewell else (raw if raw is not None else globals().get("_LAST_RAW", ""))) or ("«farewell read»" if farewell else ""),
         "dispatch": dict((dispatch if dispatch is not None else globals().get("_DISPATCH_CTX")) or ({"origin": "farewell"} if farewell else {})),
         "promptVer": PROMPT_VER,   # v832 — which prompt read this frame

@@ -397,6 +397,19 @@ class TestStashTab(unittest.TestCase):
         self.assertEqual(p["scene"], "stash")
         self.assertEqual(p["stashTab"], "runes")
 
+    def test_parse_read_captures_sockets(self):
+        # v946.5 (Konyo: "was the Diadem read 3 socketed?") — socket count per item, name -> N (1..6)
+        p = tv._parse_read('{"scene":"stash","names":["Diadem"],"sockets":{"Diadem":3},"conf":0.9}')
+        self.assertEqual(p["sockets"], {"Diadem": 3})
+        # non-int + out-of-range dropped; valid kept
+        p2 = tv._parse_read('{"names":["Monarch","Shako","X"],"sockets":{"Monarch":4,"Shako":"z","X":9}}')
+        self.assertEqual(p2["sockets"], {"Monarch": 4})
+        # absent → empty, never crashes
+        self.assertEqual(tv._parse_read('{"names":["Ral"]}')["sockets"], {})
+        # the prompt actually asks for it
+        self.assertIn('"sockets"', tv.READ_PROMPT)
+        self.assertIn("Socketed", tv.READ_PROMPT)
+
 
 class TestOcrFastLane(unittest.TestCase):
     """v732 — local OCR lane: filter noise; provisional never vaults."""
