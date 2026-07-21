@@ -1475,7 +1475,36 @@
   .er-now-on .er-now-dot { animation: ehPulse 1.6s ease-in-out infinite; }
   .er-now-stat { font: 600 12.5px/1.5 var(--mono); color: #d9c9a0; }
   .b-engine .ic { filter: drop-shadow(0 0 6px rgba(240,192,96,.5)); }
-  @media (max-width: 820px){ .er-tl-now { width: 60%; } .eh-organ.eh-big { flex: 1 1 44%; } }
+  @media (max-width: 820px){ .eh-organ.eh-big { flex: 1 1 44%; } }
+  /* v950.2 — THE RETRO SCRUB axis: one continuous timeline, segmented by reel, keyed by sessionId */
+  .er-band .er-live-btn { float: right; cursor: pointer; font: 700 10px/1 var(--mono); letter-spacing: .06em;
+    color: var(--mint); border: 1px solid rgba(143,230,160,.45); background: rgba(143,230,160,.08); border-radius: 6px; padding: 4px 9px; }
+  .er-band .er-live-btn:hover { border-color: var(--mint); box-shadow: 0 0 8px rgba(143,230,160,.3); }
+  .er-axiswrap { position: relative; border: 1px solid rgba(240,192,96,.16); border-radius: 12px; background: rgba(0,0,0,.32); padding: 6px; }
+  .er-axis { display: flex; align-items: stretch; height: 64px; gap: 0; cursor: crosshair; user-select: none; touch-action: none; }
+  .er-reel { position: relative; overflow: hidden; border-radius: 5px; background: rgba(240,192,96,.08);
+    display: flex; align-items: flex-end; justify-content: center; transition: background .12s; min-width: 5px; }
+  .er-reel:hover { background: rgba(240,192,96,.16); }
+  .er-reel.er-reel-cur { background: rgba(240,192,96,.24); box-shadow: inset 0 0 0 1px var(--gold-hi); }
+  .er-reel-fill { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 6px); pointer-events: none; }
+  .er-reel-lab { position: relative; font: 600 9px/1 var(--mono); color: #9a8d73; opacity: .7; padding-bottom: 3px; pointer-events: none; }
+  .er-reel-div { flex: 0 0 3px; background: rgba(0,0,0,.5); }   /* between-reel dead time = a thin divider */
+  .er-stall { position: absolute; top: 0; bottom: 0; background: rgba(224,85,69,.28); border-left: 1px solid rgba(255,120,100,.7);
+    border-right: 1px solid rgba(255,120,100,.7); pointer-events: none; }   /* WIDE in-flight stall band */
+  .er-now-zone { flex: 0 0 74px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    border-radius: 5px; background: linear-gradient(180deg, rgba(143,230,160,.14), rgba(143,230,160,.05));
+    border: 1px solid rgba(143,230,160,.4); font: 800 11px/1 var(--mono); letter-spacing: .1em; color: var(--mint); }
+  .er-now-zone.er-now-cur { box-shadow: inset 0 0 0 1px var(--mint), 0 0 14px rgba(143,230,160,.25); }
+  .er-nowz-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: ehPulse 1.6s ease-in-out infinite; }
+  .er-cursor { position: absolute; top: 6px; bottom: 6px; width: 2px; background: var(--gold-hi); box-shadow: 0 0 8px rgba(255,223,154,.8); pointer-events: none; z-index: 2; }
+  .er-cursor[hidden] { display: none; }
+  .er-axis-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #6f6a58; font: 500 12px/1.4 var(--mono); }
+  .er-readout { margin-top: 8px; font: 600 12.5px/1.5 var(--mono); color: #d9c9a0; }
+  .er-ro-tag { display: inline-block; font-weight: 800; letter-spacing: .08em; padding: 2px 8px; border-radius: 6px; margin-right: 8px; }
+  .er-ro-tag.er-ro-live { color: var(--mint); background: rgba(143,230,160,.12); border: 1px solid rgba(143,230,160,.4); }
+  .er-ro-tag.er-ro-retro { color: #f0d29a; background: rgba(240,192,96,.12); border: 1px solid rgba(240,192,96,.45); }
+  .er-ro-tag.er-ro-idle { color: #9a8d73; }
+  body[data-endurance="1"] .er-nowz-dot { animation: none; }
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
   .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
   /* v945 CONSOLE PARITY C8 — the LAST SESSION digest is the newest sealed reel: a mint reel-accent */
@@ -5697,7 +5726,7 @@
   // screen fusing the live pulse (engine-health) + retro replay + reader/gate telemetry. Stage 1 =
   // the always-visible ENGINE SPINE (big live organs) + the live-cursor timeline (NOW at the right
   // edge). LAW: it OBSERVES, never drives. Retro scrub = v2, click-to-detail drill-down = v3. ══
-  var ER = { open: false, lastStatus: null };
+  var ER = { open: false, lastStatus: null, reels: [], reelCache: {}, focusTs: null, focusSid: null, focusN: null, rulerLoaded: false };
   function _engineRoomEl(){
     var ov = document.getElementById('engine-room');
     if (ov) return ov;
@@ -5707,10 +5736,12 @@
       + '<div class="er-head"><span class="er-title">🧠🖥 ENGINE ROOM</span>'
       + '<span class="er-sub">the Master Brain\'s cockpit · live + retro, time-synced · observes, never drives</span>'
       + '<button class="er-x th-x" id="er-x" onclick="window._engineRoomClose()" title="close (Esc)">✕</button></div>'
-      + '<div class="er-spinewrap"><div class="er-band">THE ENGINE SPINE — the whole loop, this instant</div>'
+      + '<div class="er-spinewrap"><div class="er-band" id="er-spine-band">THE ENGINE SPINE — the whole loop, this instant</div>'
       + '<div class="eh-spine er-spine" id="er-spine"></div></div>'
-      + '<div class="er-tlwrap"><div class="er-band">TIMELINE — <span class="er-live-tag">● LIVE</span> now rides the right edge · scrub ◀ into the sealed reels (retro)</div>'
-      + '<div class="er-timeline" id="er-timeline"></div></div>'
+      + '<div class="er-tlwrap"><div class="er-band">TIMELINE — <span class="er-live-tag">● LIVE</span> now rides the right edge · drag the cursor ◀ into the sealed reels for retro '
+        + '<button class="er-live-btn" id="er-live-btn" onclick="window._engineRoomLive()" title="snap back to NOW">● LIVE</button></div>'
+      + '<div class="er-axiswrap"><div class="er-axis" id="er-axis"></div><div class="er-cursor" id="er-cursor" hidden></div></div>'
+      + '<div class="er-readout" id="er-readout"></div></div>'
       + '</div>';
     ov.onclick = function(e){ if (e.target === ov) window._engineRoomClose(); };
     document.body.appendChild(ov);
@@ -5719,32 +5750,151 @@
     }, true);
     return ov;
   }
-  function _engineRoomTimeline(st){
-    var tl = document.getElementById('er-timeline'); if (!tl) return;
-    st = st || {};
-    var on = (st.mode === 'live');
-    var dr = st.driver || {}, ey = st.eyes || {};
+  // ── v950.2 (Engine Room v2 — THE RETRO SCRUB) ──────────────────────────────────────────────
+  // ONE continuous axis, SEGMENTED BY REEL (keyed by stable sessionId, never positional n). Drag
+  // the cursor LEFT into a sealed reel → the 5 organs render every engine's state at that PAST frame
+  // from the film (captureTs-anchored). The live cursor snaps to the right edge for NOW; no mode toggle.
+  function _engineRoomLoadRuler(){
+    fetch(API + '/api/sessions').then(function(r){ return r.json(); }).then(function(j){
+      var s = (j && j.sessions) || [];
+      ER.reels = s.filter(function(x){ return x.sessionId && x.t0 && (x.footageN || 0) > 0; })
+        .sort(function(a, b){ return (a.t0 || 0) - (b.t0 || 0); });   // oldest → newest (left → right)
+      ER.rulerLoaded = true;
+      _engineRoomAxis();
+      // preload the newest few reels so their stall bands + retro are instant (async, non-blocking)
+      ER.reels.slice(-3).forEach(function(rl){ _engineRoomLoadReel(rl.sessionId, rl.n, null); });
+    }).catch(function(){ ER.reels = []; ER.rulerLoaded = true; _engineRoomAxis(); });
+  }
+  function _engineRoomAxis(){
+    var ax = document.getElementById('er-axis'); if (!ax) return;
+    var reels = ER.reels || [];
+    if (!reels.length){ ax.innerHTML = '<div class="er-axis-empty">no sealed reels yet — go ON AIR, then scrub the film here</div>'; return; }
+    ax.innerHTML = reels.map(function(rl, i){
+      var cur = (ER.focusSid === rl.sessionId);
+      return (i ? '<div class="er-reel-div"></div>' : '')
+        + '<div class="er-reel' + (cur ? ' er-reel-cur' : '') + '" data-sid="' + esc(rl.sessionId) + '" data-n="' + (rl.n || 0)
+        + '" data-t0="' + (rl.t0 || 0) + '" data-t1="' + (rl.t1 || rl.t0 || 0) + '" style="flex:' + Math.max(2, rl.footageN || 1)
+        + '" title="reel ' + (rl.n || '?') + ' · ' + (rl.footageN || 0) + ' frames · ' + (rl.reads || 0) + ' reads">'
+        + '<div class="er-reel-fill"></div><div class="er-reel-lab">' + (rl.footageN || 0) + '</div></div>';
+    }).join('') + '<div class="er-reel-div"></div><div class="er-now-zone' + (ER.focusTs == null ? ' er-now-cur' : '') + '" data-now="1" title="NOW — live"><span class="er-nowz-dot"></span>NOW</div>';
+    _engineRoomStallBands();
+  }
+  function _computeStalls(beats){
+    var out = [];
+    (beats || []).forEach(function(b){ if (b.completedTs && b.ts){ var lat = (b.completedTs - b.ts) / 1000; if (lat >= 8) out.push({ ts: b.ts, end: b.completedTs, lat: lat }); } });
+    return out;
+  }
+  function _engineRoomStallBands(){
+    (ER.reels || []).forEach(function(rl){
+      var beats = ER.reelCache[rl.sessionId]; if (!beats) return;
+      var seg = document.querySelector('.er-reel[data-sid="' + rl.sessionId + '"]'); if (!seg || seg.querySelector('.er-stall')) return;
+      var stalls = rl.__stalls || (rl.__stalls = _computeStalls(beats));
+      var t0 = rl.t0 || 0, t1 = rl.t1 || t0, span = Math.max(1, t1 - t0);
+      stalls.forEach(function(s){
+        var left = Math.max(0, Math.min(100, ((s.ts - t0) / span) * 100));
+        var w = Math.max(5, Math.min(100 - left, ((s.end - s.ts) / span) * 100));   // WIDE band = the in-flight stall duration
+        seg.insertAdjacentHTML('beforeend', '<div class="er-stall" style="left:' + left + '%;width:' + w + '%" title="🔴 live stalled ' + Math.round(s.lat) + 's in flight"></div>');
+      });
+    });
+  }
+  function _engineRoomLoadReel(sid, n, then){
+    if (ER.reelCache[sid]){ if (then) then(ER.reelCache[sid]); return; }
+    fetch(API + '/api/session?n=' + n).then(function(r){ return r.json(); }).then(function(j){
+      var beats = (j && j.beats) || [];
+      // sessionId is the trusted key — if n renumbered under us, the pack won't match: reload the ruler.
+      if (j.sessionId && j.sessionId !== sid){ _engineRoomLoadRuler(); if (then) then(null); return; }
+      ER.reelCache[sid] = beats;
+      _engineRoomStallBands();
+      if (then) then(beats);
+    }).catch(function(){ if (then) then(null); });
+  }
+  function _engineOrganDataRetro(b, reel){
+    b = b || {}; reel = reel || {};
+    var cap = { key:'capture', icon:'📷', title:'CAPTURE', stat:'🎞 frame', pulse:'ok', sub:'reel ' + (reel.n||'?') + ' <span class="eh-x">·</span> ' + esc(String(b.frameId||b.frame||'?')) };
+    var isRetro = !!(b.kaiMissTexts && b.kaiMissTexts.length);
+    var rdStat = isRetro ? '🧠 KAI retro' : (b.lane === 'verify' ? '🔵 second' : (((b.names||[]).length) || b.lane === 'deep') ? '🔴 live' : '—');
+    var rdSub = isRetro ? esc((b.kaiMissTexts||[]).slice(0,3).join(', ')) : ((b.names||[]).length ? esc(b.names.slice(0,3).join(', ')) : 'no read on this frame');
+    var rd = { key:'readers', icon:'👁', title:'READERS', stat: rdStat, pulse: (rdStat === '—' ? 'idle' : 'ok'), sub: rdSub };
+    var lab = b.label || (b.dossier && b.dossier.router && b.dossier.router.label) || 'gameplay';
+    var rt = { key:'router', icon:'🚦', title:'ROUTER', stat: esc(String(lab)), pulse: (b.routed ? 'ok' : 'idle'),
+      sub: ((b.routeSources||[]).length ? esc(b.routeSources.join(' ')) : (b.routeVerdict ? esc(String(b.routeVerdict)) : 'no route')) };
+    var fn;
+    if (b.gatePass === false) fn = { key:'funnels', icon:'🩹', title:'FUNNELS', stat:'🛡 held', pulse:'warn', sub: esc(_GATE_WHY[b.gateReason] || b.gateReason || 'held') };
+    else if (b.gatePass === true) fn = { key:'funnels', icon:'🩹', title:'FUNNELS', stat:'🛡 ✓ proven', pulse:'ok', sub: (b.routed ? 'fired a funnel' : 'proven') };
+    else fn = { key:'funnels', icon:'🩹', title:'FUNNELS', stat: (b.stashTab || String(lab).indexOf('stash') === 0) ? 'stash frame' : '—', pulse:'idle', sub:'no gate verdict on this frame' };
+    var ld = { key:'ledger', icon:'📒', title:'LEDGER', stat:'reel ' + (reel.n||'?'), pulse:'ok',
+      sub: (reel.footageN||0) + ' frames <span class="eh-x">·</span> ' + (reel.reads||0) + ' reads <span class="eh-x">·</span> ' + (b.ts ? new Date(b.ts).toLocaleTimeString() : '—') };
+    return [cap, rd, rt, fn, ld];
+  }
+  function _engineRoomRenderRetro(beats){
+    if (ER.focusTs == null || !beats) return;
+    var best = null, bestD = 1e15;
+    beats.forEach(function(b){ if (!b.frame) return; var d = Math.abs((b.ts||0) - ER.focusTs); if (d < bestD){ bestD = d; best = b; } });
+    if (!best) return;
+    var reel = (ER.reels||[]).filter(function(x){ return x.sessionId === ER.focusSid; })[0] || { n: ER.focusN };
+    var spine = document.getElementById('er-spine');
+    if (spine) spine.innerHTML = _engineOrganDataRetro(best, reel).map(function(o){ return _ehOrganHtml(o, true); }).join('<span class="eh-flow">→</span>');
+    var band = document.getElementById('er-spine-band');
+    if (band) band.innerHTML = 'THE ENGINE SPINE — <span style="color:#e6cf90">◀ RETRO</span> · reel ' + (reel.n||'?') + ' @ ' + (best.ts ? new Date(best.ts).toLocaleTimeString() : '?');
+    var ro = document.getElementById('er-readout');
+    if (ro) ro.innerHTML = '<span class="er-ro-tag er-ro-retro">◀ RETRO</span> reel ' + (reel.n||'?') + ' <span class="eh-x">·</span> 🖼 ' + esc(String(best.frameId||'?'))
+      + ' <span class="eh-x">·</span> ' + (best.ts ? new Date(best.ts).toLocaleTimeString() : '?') + ' <span class="eh-x">·</span> ' + (best.frame ? 'film present' : 'no film')
+      + ' <span class="eh-x">·</span> <span style="opacity:.65">drag ▶ to NOW for live</span>';
+  }
+  function _engineRoomRetro(){
+    if (ER.focusTs == null || !ER.focusSid) return;
+    _engineRoomLoadReel(ER.focusSid, ER.focusN, function(beats){ _engineRoomRenderRetro(beats); });
+  }
+  function _engineRoomReadoutLive(st){
+    var ro = document.getElementById('er-readout'); if (!ro) return;
+    st = st || {}; var on = (st.mode === 'live'); var dr = st.driver || {}, ey = st.eyes || {};
     var ageS = (st.eyeAgeMs != null && st.eyeAgeMs >= 0) ? (Math.round(st.eyeAgeMs / 100) / 10 + 's') : '—';
-    // v1: the LIVE cursor pins to the right edge and shows what the engine is doing NOW. The retro
-    // band (left) is where scrubbing into sealed reels lands in v2 — labeled honestly, never fake.
-    tl.innerHTML = '<div class="er-tl-track">'
-      + '<div class="er-tl-retro">◀ <span>sealed reels</span> — scrub here for retro (v2)</div>'
-      + '<div class="er-tl-now">'
-        + '<div class="er-now-cursor ' + (on ? 'er-now-on' : 'er-now-idle') + '"><span class="er-now-dot"></span>' + (on ? 'LIVE · NOW' : 'idle · ' + new Date().toLocaleTimeString()) + '</div>'
-        + '<div class="er-now-stat">' + (on
-            ? ('🔴 ' + (st.readCount || 0) + ' reads <span class="eh-x">·</span> last frame ' + ageS + ' <span class="eh-x">·</span> 🚦 ' + (dr.fired || 0) + ' routed <span class="eh-x">·</span> 🧠 ' + (ey.kaiMissed || 0) + ' retro')
-            : ('engine resting — press ON AIR to see it think live')) + '</div>'
-      + '</div></div>';
+    ro.innerHTML = '<span class="er-ro-tag ' + (on ? 'er-ro-live' : 'er-ro-idle') + '">' + (on ? '● LIVE · NOW' : '● idle') + '</span> '
+      + (on ? ('🔴 ' + (st.readCount||0) + ' reads <span class="eh-x">·</span> last frame ' + ageS + ' <span class="eh-x">·</span> 🚦 ' + (dr.fired||0) + ' routed <span class="eh-x">·</span> 🧠 ' + (ey.kaiMissed||0) + ' retro-caught')
+           : ('engine resting — press ON AIR to watch it think live, or drag ◀ into a sealed reel for retro'));
   }
   function _engineRoomRefresh(st){
     var ov = document.getElementById('engine-room'); if (!ov || ov.hidden) return;
     if (st) ER.lastStatus = st;
+    if (ER.focusTs != null) return;   // frozen in retro — live poll never overwrites the past
     var spine = document.getElementById('er-spine');
     if (spine) spine.innerHTML = _engineOrganData(ER.lastStatus || {}).map(function(o){ return _ehOrganHtml(o, true); }).join('<span class="eh-flow">→</span>');
-    _engineRoomTimeline(ER.lastStatus || {});
+    _engineRoomReadoutLive(ER.lastStatus || {});
+  }
+  function _engineRoomScrub(clientX){
+    var ax = document.getElementById('er-axis'); if (!ax) return;
+    var r = ax.getBoundingClientRect();
+    var el = document.elementFromPoint(Math.max(r.left + 1, Math.min(r.right - 1, clientX)), r.top + r.height / 2);
+    if (!el || !el.closest) return;
+    if (el.closest('.er-now-zone')){ window._engineRoomLive(); return; }
+    var reel = el.closest('.er-reel'); if (!reel) return;
+    var t0 = +reel.dataset.t0, t1 = +reel.dataset.t1, rr = reel.getBoundingClientRect();
+    var frac = Math.max(0, Math.min(1, (clientX - rr.left) / rr.width));
+    ER.focusSid = reel.dataset.sid; ER.focusN = +reel.dataset.n; ER.focusTs = t0 + frac * (t1 - t0);
+    var cur = document.getElementById('er-cursor'); if (cur){ cur.hidden = false; cur.style.left = (clientX - r.left) + 'px'; }
+    _engineRoomAxis();
+    _engineRoomRetro();
+  }
+  window._engineRoomLive = function(){
+    ER.focusTs = null; ER.focusSid = null; ER.focusN = null;
+    var cur = document.getElementById('er-cursor'); if (cur) cur.hidden = true;
+    var band = document.getElementById('er-spine-band'); if (band) band.textContent = 'THE ENGINE SPINE — the whole loop, this instant';
+    _engineRoomAxis();
+    _engineRoomRefresh(ER.lastStatus || {});
+  };
+  function _engineRoomWireAxis(){
+    var ax = document.getElementById('er-axis'); if (!ax || ax.__wired) return; ax.__wired = true;
+    var dragging = false;
+    ax.addEventListener('pointerdown', function(e){ dragging = true; try { ax.setPointerCapture(e.pointerId); } catch (x) {} _engineRoomScrub(e.clientX); });
+    ax.addEventListener('pointermove', function(e){ if (dragging) _engineRoomScrub(e.clientX); });
+    ax.addEventListener('pointerup', function(){ dragging = false; });
+    ax.addEventListener('pointercancel', function(){ dragging = false; });
   }
   window._engineRoomOpen = function(){
     var ov = _engineRoomEl(); ER.open = true; ov.hidden = false;
+    ER.focusTs = null; ER.focusSid = null;   // always open at NOW
+    _engineRoomWireAxis();
+    _engineRoomLoadRuler();
     _engineRoomRefresh(ER.lastStatus || {});
     fetch(API + '/api/status').then(function(r){ return r.json(); }).then(function(j){ ER.lastStatus = j; _engineRoomRefresh(j); }).catch(function(){});
   };
