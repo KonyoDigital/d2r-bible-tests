@@ -72,3 +72,9 @@ _Fable saving at ~98% context. Two agents mid-flight — gate their hand-backs w
     right now it infers ownership; the reconciler makes it definitive).
   - Then: PER-ENGINE 100+ polish arcs (PER_ENGINE_PERFECTION_ROADMAP) + the UX/TYPOGRAPHY 5-round arc.
 - All green: control 60 · routes 173 · agent 171. HEAD clean, pushed. Gate pattern above.
+
+## UPDATE @ v948.26 (Phase D DONE — reconciler surfaced to client)
+- v948.26 Phase D ✅: status.liveRing[] (now-cursor) + beat.engineFrame{owner,verdict,layers,sealed} (retro). Stamps ×3 v948.26. Floor 64+174+171 green, smoke 64.
+- 10 versions this Ninja arc (v948.17→v948.26). The full stack: hardened engine · accuracy gate · 4th super-analyze organ · Master-Brain reconciler · complete Engine Room cockpit · reconciler surfaced.
+- IN FLIGHT: polish-ui-2 UI owner/verdict SWAP (control_ui.html — use beat.engineFrame.owner/verdict authoritatively, fall back to inference when absent). Gate when it hands back (selective commit control_ui.html only, no bible → no smoke, no stamp bump).
+- THEN (no engine work pending): the UX/TYPOGRAPHY 5-round arc (UX_TYPOGRAPHY_POLISH_ARC.md) + the PER-ENGINE 100+ polish arcs (PER_ENGINE_PERFECTION_ROADMAP.md). The flagship CORE is complete; what remains is polish + per-engine perfection toward Level 2.
