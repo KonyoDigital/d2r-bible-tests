@@ -1129,5 +1129,30 @@ class TestSessionHealth(unittest.TestCase):
         self.assertEqual(h["verdict"], "idle")
 
 
+class TestStashTabIdentity(unittest.TestCase):
+    """v946.1 — gems/materials must not vanish into generic stash."""
+
+    def test_tab_from_ocr_lines(self):
+        self.assertEqual(ca._tab_from_ocr_lines(["Shared Stash", "Gems"]), "gems")
+        self.assertEqual(ca._tab_from_ocr_lines(["MATERIALS"]), "materials")
+        self.assertEqual(ca._tab_from_ocr_lines(["Runes", "El", "Eld"]), "runes")
+        self.assertEqual(ca._tab_from_ocr_lines(["Shared"]), "shared")
+        self.assertEqual(ca._tab_from_ocr_lines(["Fortune"]), "")  # no false rune in fortune
+
+    def test_frame_cls_tally_words(self):
+        self.assertEqual(ca._kai_frame_cls(["Gems", "Chipped Diamond"], []), "stash-gems")
+        self.assertEqual(ca._kai_frame_cls(["Materials", "Key"], []), "stash-materials")
+        self.assertEqual(ca._kai_frame_cls(["Runes"], []), "stash-runes")
+
+    def test_sticky_tab_holds_between_deeps(self):
+        # deep at t=1000 runes, deep at t=10000 gems — frame at 5000 inherits runes
+        times = [(1000, "runes"), (10000, "gems")]
+        self.assertEqual(ca._kai_sticky_tab(5000, times), "runes")
+        self.assertEqual(ca._kai_sticky_tab(10050, times), "gems")
+        self.assertEqual(ca._kai_sticky_tab(100, [(20000, "runes")]), None)  # far before first deep
+        # near future deep within 4s (frame before deep stamp lands)
+        self.assertEqual(ca._kai_sticky_tab(900, [(1000, "materials")]), "materials")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

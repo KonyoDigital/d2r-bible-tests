@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v946"   # Next-level console: health strip · mind story · theatre forensics · chronicle inbox · vault Stage3 · judge cap 16
+VERSION = "v946.1"   # Stash tab identity: tab-strip OCR + sticky walk (gems/materials no longer vanish into shared)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -2712,6 +2712,126 @@ def _norm_stash_tab(raw, scene=None):
             return _STASH_TAB_ALIASES.get(key, key if key in _STASH_TABS else "")
     return _STASH_TAB_ALIASES.get(lo, "") if lo in _STASH_TAB_ALIASES else ""
 
+
+# v946.1 — STASH TAB IDENTITY (live farm: gems/materials never journaled when model said only
+# "shared"/empty). Tab-strip OCR + sticky walk so tally tabs stick for driver/KAI time-map.
+_STASH_TAB_STICKY = {"open": False, "tab": "", "ts": 0}
+_TALLY_STASH_TABS = frozenset(("runes", "gems", "materials"))
+
+
+def _tab_from_ocr_lines(lines):
+    """Pure: pick active RotW left-tab from OCR lines. Longer keys first; word-ish boundaries."""
+    import re as _re
+    blob = " ".join(str(t).lower() for t in (lines or []))
+    if not blob.strip():
+        return ""
+    # materials before material; runes before rune (avoids partial noise)
+    order = (
+        ("materials", "materials"), ("material", "materials"),
+        ("runes", "runes"),
+        ("gems", "gems"),
+        ("personal", "personal"), ("shared", "shared"),
+        # single-token fallbacks (bounded)
+        ("rune", "runes"), ("gem", "gems"), ("mat", "materials"),
+    )
+    for key, canon in order:
+        if _re.search(r"(?<![a-z])" + _re.escape(key) + r"(?![a-z])", blob):
+            return canon
+    return ""
+
+
+def _crop_left_tab_strip(src_path, dest_path, frac=0.20):
+    """Crop the left ~20% (RotW tab strip) for OCR. Returns dest_path or None."""
+    try:
+        from PIL import Image  # type: ignore
+        im = Image.open(src_path)
+        w, h = im.size
+        if w < 32 or h < 32:
+            return None
+        box = (0, 0, max(8, int(w * frac)), h)
+        im.crop(box).convert("RGB").save(dest_path, format="JPEG", quality=90)
+        return dest_path
+    except Exception:
+        return None
+
+
+def _stash_tab_ocr_path(frame_path):
+    """OCR left tab strip (fallback: full frame) via the warm OCR worker. '' if unknown."""
+    if not frame_path or not os.path.isfile(frame_path):
+        return ""
+    if not _OCR.available():
+        return ""
+    try:
+        crop = os.path.join(HIST_DIR, ".tabstrip_ocr.jpg")
+        os.makedirs(HIST_DIR, exist_ok=True)
+        use = _crop_left_tab_strip(frame_path, crop) or frame_path
+        j = _OCR.read(use, timeout=1.5)
+        lines = (j or {}).get("lines") or []
+        tab = _tab_from_ocr_lines(lines)
+        if not tab and use != frame_path:
+            # strip crop empty → try full deep frame once
+            j2 = _OCR.read(frame_path, timeout=1.5)
+            tab = _tab_from_ocr_lines((j2 or {}).get("lines") or [])
+        return tab
+    except Exception:
+        return ""
+
+
+def _resolve_stash_tab(scene, model_tab, frame_path=None, ocr_rd=None, ts=None):
+    """v946.1 — final stashTab for journal/driver: model + tab-strip OCR + sticky walk.
+
+    Rules:
+      · leave stash → clear sticky
+      · tally-tab words from OCR beat a vague model 'shared'/'personal'/empty (farm proof)
+      · while still on stash with no new signal, hold last sticky tab (tab walk)
+    """
+    ts = int(ts or time.time() * 1000)
+    scene = str(scene or "")
+    if scene != "stash":
+        if scene in ("town", "loot", "gameplay", "transition"):
+            _STASH_TAB_STICKY["open"] = False
+            _STASH_TAB_STICKY["tab"] = ""
+            _STASH_TAB_STICKY["ts"] = 0
+        return ""
+
+    model = _norm_stash_tab(model_tab, "stash")
+    ocr_tab = ""
+    try:
+        lines = []
+        if isinstance(ocr_rd, dict):
+            lines = list(ocr_rd.get("raw_lines") or ocr_rd.get("lines") or [])
+        if lines:
+            ocr_tab = _tab_from_ocr_lines(lines)
+        if not ocr_tab and frame_path:
+            ocr_tab = _stash_tab_ocr_path(frame_path)
+    except Exception:
+        ocr_tab = ""
+
+    tab = model
+    # OCR tally tabs win over model vault/empty (console "saw gems" but journal said shared)
+    if ocr_tab in _TALLY_STASH_TABS and model not in _TALLY_STASH_TABS:
+        tab = ocr_tab
+    elif ocr_tab and not model:
+        tab = ocr_tab
+    elif ocr_tab and model and ocr_tab != model and ocr_tab in _TALLY_STASH_TABS:
+        tab = ocr_tab
+    elif not tab and ocr_tab:
+        tab = ocr_tab
+
+    # sticky walk: hold last tab while still on stash if nothing new
+    if not tab and _STASH_TAB_STICKY.get("open") and _STASH_TAB_STICKY.get("tab"):
+        if ts - int(_STASH_TAB_STICKY.get("ts") or 0) <= 25_000:
+            tab = _STASH_TAB_STICKY["tab"]
+
+    if tab:
+        _STASH_TAB_STICKY["open"] = True
+        _STASH_TAB_STICKY["tab"] = tab
+        _STASH_TAB_STICKY["ts"] = ts
+    else:
+        _STASH_TAB_STICKY["open"] = True  # in stash, tab still unknown
+    return tab
+
+
 def _parse_read(out):
     """extract + normalize the read JSON from model text; None if no JSON object found.
     v794 (Grok R5 #4) — first-{ to last-} dies on worker chatter/truncation around the real
@@ -4402,11 +4522,24 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
     elif lc.get("apply_held"):
         lc_note = " · hold apply (" + lc["apply_held"] + ")"
     ocr_ms = (ocr_rd or {}).get("ms")
-    stash_tab = _norm_stash_tab(rd.get("stashTab"), rd.get("scene"))
+    # v946.1 — tab-strip OCR + sticky walk so gems/materials don't vanish into shared/empty
+    _model_tab = _norm_stash_tab(rd.get("stashTab"), rd.get("scene"))
+    _fp = frame_path_for_id(frame_id) if frame_id else ""
+    _cap_for_tab = capture_ts or _capture_ts_from_frame_id(frame_id) or int(time.time() * 1000)
+    stash_tab = _resolve_stash_tab(
+        rd.get("scene"), rd.get("stashTab"),
+        frame_path=_fp if (_fp and os.path.isfile(_fp)) else None,
+        ocr_rd=ocr_rd, ts=_cap_for_tab)
+    try:
+        rd["stashTab"] = stash_tab  # lifecycle / state ring match journal
+    except Exception:
+        pass
     ocr_set = {_norm_name(x) for x in ((ocr_rd or {}).get("names") or [])}
     confirmed = [nm for nm in names if _norm_name(nm) in ocr_set]
     conf_note = ((" · ✓ocr " + ", ".join(confirmed[:3])) if confirmed else "")
     tab_note = (f" · tab:{stash_tab}" if stash_tab else "")
+    if stash_tab and stash_tab != _model_tab:
+        tab_note += "↻"  # tab identity refined (OCR/sticky) vs model alone
     line = ((("🗺 "+rd.get("area","")+" · ") if rd.get("area") else "") + tag + " " + str(rd.get("scene") or "")
             + tab_note + " — "
             + (", ".join(names[:5]) + ("…" if len(names) > 5 else "") if names else "no readable item text (honest empty)")

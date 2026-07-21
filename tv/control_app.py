@@ -1744,24 +1744,42 @@ def _kai_itemish(s):
     return any(_kai_vocab_hit(p) for p in toks)
 
 
+def _tab_from_ocr_lines(lines):
+    """v946.1 pure — RotW left-tab from OCR lines (shared with agent-side resolver)."""
+    blob = " ".join(str(t).lower() for t in (lines or []))
+    if not blob.strip():
+        return ""
+    order = (
+        ("materials", "materials"), ("material", "materials"),
+        ("runes", "runes"), ("gems", "gems"),
+        ("personal", "personal"), ("shared", "shared"),
+        ("rune", "runes"), ("gem", "gems"), ("mat", "materials"),
+    )
+    for key, canon in order:
+        if re.search(r"(?<![a-z])" + re.escape(key) + r"(?![a-z])", blob):
+            return canon
+    return ""
+
+
 def _kai_frame_cls(lines, itemish):
-    """v935.11 R5 — funnel routing metadata: what KIND of frame held the text, derived from the
-    RAW OCR lines (lowercased). The KAI-v2 funnel escalates misses differently per class (a
-    stash-panel miss = an owned-inventory reconcile; a tooltip miss = a ground/regret read).
-      stash-runes|gems|materials|stash  a stash panel is open (personal/shared or plain 'stash');
-                                        which tally tab word appears picks the sub-class.
-      inventory                         the inventory panel is open.
-      tooltip                           no panel word, but an item name floats (>=1 itemish line).
-      gameplay                          otherwise — text with no item signal.
+    """v935.11 R5 / v946.1 — funnel routing class from RAW OCR lines.
+      stash-runes|gems|materials|stash  panel open; tally word picks sub-class.
+      inventory | tooltip | gameplay
     """
     lo = [str(t).lower() for t in (lines or [])]
     blob = " ".join(lo)
+    tab = _tab_from_ocr_lines(lines)
+    # tally/vault tab words alone prove a stash panel (even if "stash" word missing — OCR-dark chrome)
+    if tab in ("runes", "gems", "materials"):
+        return "stash-" + tab
+    if tab in ("personal", "shared"):
+        return "stash"
     if "personal" in blob or "shared" in blob or "stash" in blob:
-        if "runes" in blob:
+        if "runes" in blob or re.search(r"(?<![a-z])rune(?![a-z])", blob):
             return "stash-runes"
-        if "gems" in blob:
+        if "gems" in blob or re.search(r"(?<![a-z])gem(?![a-z])", blob):
             return "stash-gems"
-        if "materials" in blob:
+        if "materials" in blob or "material" in blob:
             return "stash-materials"
         return "stash"
     if "inventory" in blob:
@@ -1769,6 +1787,62 @@ def _kai_frame_cls(lines, itemish):
     if itemish:
         return "tooltip"
     return "gameplay"
+
+
+def _kai_sticky_tab(ts, stash_times):
+    """v946.1 — journal tab for a film timestamp: last deep tab with st<=ts+1.5s,
+    held until the next deep tab (or 25s). Fixes gems/materials between sparse deeps."""
+    if not stash_times:
+        return None
+    st_sorted = sorted(stash_times, key=lambda x: int(x[0] or 0))
+    ts = int(ts or 0)
+    cand = [(int(st), tb) for st, tb in st_sorted if int(st) <= ts + 1500]
+    if not cand:
+        # frame slightly before the deep stamp lands
+        near = [(int(st), tb) for st, tb in st_sorted if abs(int(st) - ts) <= 4000]
+        return near[0][1] if near else None
+    last_st, last_tb = cand[-1]
+    # next deep tab ends this hold
+    nxt = next((int(st) for st, _tb in st_sorted if int(st) > last_st), None)
+    if nxt is not None and ts >= nxt:
+        # should have been in cand — if not, fall through
+        pass
+    if ts - last_st <= 25_000:
+        return last_tb
+    if abs(ts - last_st) <= 4000:
+        return last_tb
+    return None
+
+
+def _kai_tab_strip_refine(fp, ocr_cls, wp):
+    """v946.1 — if OCR said generic stash/gameplay, re-OCR left tab strip (full-res hist).
+    Returns refined class or original. wp = OCR worker (stdin/stdout already open)."""
+    if ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
+        return ocr_cls
+    if not fp or not os.path.isfile(fp) or wp is None:
+        return ocr_cls
+    try:
+        from PIL import Image  # type: ignore
+        crop_p = fp + ".tabstrip.jpg"
+        im = Image.open(fp)
+        w, h = im.size
+        im.crop((0, 0, max(8, int(w * 0.20)), h)).convert("RGB").save(
+            crop_p, format="JPEG", quality=90)
+        wp.stdin.write(crop_p + "\n"); wp.stdin.flush()
+        line = wp.stdout.readline()
+        j = json.loads(line) if line else {}
+        try:
+            os.remove(crop_p)
+        except Exception:
+            pass
+        tab = _tab_from_ocr_lines(j.get("lines") or [])
+        if tab in ("runes", "gems", "materials"):
+            return "stash-" + tab
+        if tab in ("personal", "shared") and (not ocr_cls or ocr_cls == "gameplay"):
+            return "stash"
+    except Exception:
+        pass
+    return ocr_cls
 
 
 # ── v943 AUTO-REGISTER stage 1 — THE REGISTER LEDGER ────────────────────────────
@@ -2275,15 +2349,21 @@ def _kai_closer_loop():
                 texts = [t for t in raw if _kai_itemish(t)]
                 # R5 — classify every frame that produced OCR lines, before the missed decision.
                 _ocr_cls = _kai_frame_cls(raw, texts) if raw else None   # v944 — OCR's own verdict
+                # v946.1 — generic stash/gameplay → left tab-strip re-OCR (full-res hist)
+                if _ocr_cls in (None, "gameplay", "stash", "tooltip"):
+                    _ocr_cls = _kai_tab_strip_refine(fp, _ocr_cls, wp) or _ocr_cls
                 cls = _ocr_cls
-                # v941.3 — journal-truth override: a frame within ±4s of a stash-tab read IS
-                # that stash screen, whatever OCR saw (or didn't).
+                # v941.3 / v946.1 — journal sticky walk (not only ±4s nearest): frames between
+                # deep stash tabs inherit the last tab so gems/materials after runes still tag.
                 _fts5 = int(it.get("ts") or 0)
-                _near = next((tb for (st5, tb) in stash_times if abs(st5 - _fts5) <= 4000), None)
+                _near = _kai_sticky_tab(_fts5, stash_times)
                 if _near:
                     _scls = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
                     class_frames[_scls] = {"f": it.get("f"), "ts": it.get("ts")}   # funnel candidate regardless
-                    if not cls or cls == "gameplay":
+                    # journal tally tab wins over vague OCR stash/gameplay; OCR tally tab wins over plain journal stash
+                    if not cls or cls in ("gameplay", "stash"):
+                        cls = _scls
+                    elif _near in ("runes", "gems", "materials") and cls == "stash":
                         cls = _scls
                 if cls:
                     classes[cls] = classes.get(cls, 0) + 1
@@ -2304,12 +2384,20 @@ def _kai_closer_loop():
                 _jlab = None
                 if _near:
                     _jlab = ("stash-" + _near) if _near in ("runes", "gems", "materials") else "stash"
+                # if OCR refined a tally tab, use that as display label when journal only said vault stash
+                _disp = cls or "gameplay"
+                if _ocr_cls in ("stash-runes", "stash-gems", "stash-materials"):
+                    _disp = _ocr_cls
+                elif _jlab and _jlab.startswith("stash-"):
+                    _disp = _jlab
+                elif _jlab:
+                    _disp = _jlab if not (cls and str(cls).startswith("stash-")) else cls
                 routing_scan.append({"f": it.get("f"), "ts": int(it.get("ts") or 0),
                                      "ocr": bool(_ocr_cls and _ocr_cls != "gameplay"),
                                      "ocrLabel": _ocr_cls if (_ocr_cls and _ocr_cls != "gameplay") else None,
                                      "journal": bool(_near),
                                      "journalLabel": _jlab,
-                                     "label": cls or "gameplay",
+                                     "label": _disp or "gameplay",
                                      "sig": _kai_frame_sig(fp)})   # v944 — dedupe fingerprint
                 time.sleep(0.12)   # peaceful — never fights a live session
             try:
@@ -2975,7 +3063,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v946",
+        "ver": "v946.1",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
