@@ -28,9 +28,15 @@ They are coupled: the Engine Room renders what the Ninja KAI reconciles. Design 
 
 ## 1. DESIGN PRINCIPLES (the ground rules — challenge these first)
 - **Film is ground truth.** Every debug view derives from the reel + the journal, never re-derives.
-- **ts == captureTs everywhere.** The single join key. Live and retro are the SAME timeline; "now" is just
-  the rightmost ts. If any layer's artifact isn't stamped to its capture ms, the cockpit can't sync it →
-  that's a bug to fix at the source, not paper over in the UI.
+- **captureTs == the frame's capture ms for every artifact; retro joins on captureTs, never ts.**
+  (Amended 2026-07-21 — the panel's Q5 finding: `ts==captureTs` was the wrong wording because it let
+  a receipt's `ts` = its own captureTs, both equal to the RECEIPT-LANDING time, which passes the check
+  numerically while still floating seconds right of the frame it describes. `ts` is legitimately
+  DIFFERENT per artifact — when it was answered/received — never the join key. Live and retro are the
+  SAME timeline; "now" is just the rightmost captureTs. If any layer's artifact isn't stamped to its
+  TRUE capture ms, the cockpit can't sync it → that's a bug to fix at the source, not paper over in the UI.
+  Fixed at the source for intake receipts in Phase A0 (`control_app.py`, `tv_diablo.py`): captureTs is
+  now derived from the receipt's `frameId`, never from the client's receipt-landing `Date.now()`.
 - **Observe, never drive.** The Engine Room reads; it never issues a game action or mutates state. (The one
   exception already exists: /api/kai_reclose as an explicit human-triggered re-run — a button, not automatic.)
 - **Additive + defensive.** New per-process fields ride existing journals/status; the cockpit lights up as
@@ -130,12 +136,20 @@ rawHead}`, **rawHead HARD-CAPPED ~160 chars**; quorum votes blank-but-present li
 scrub). Add `"liveRing"` to `status_payload()`. **Do NOT derive from `_kai_journal_rows()`** (parses the
 897KB journal per poll).
 
-**Q5 · Time-sync — ❌ CORRECTNESS BLOCKER (fix BEFORE the cockpit).** 3 of 5 layers clean (deep/kai/gate
+**Q5 · Time-sync — ✅ FIXED (Phase A0, 2026-07-21, engine agent).** 3 of 5 layers were clean (deep/kai/gate
 anchor captureTs to the frame). **Offender: INTAKE RECEIPTS** — both writers (`control_app.py:5753`,
-`tv_diablo.py:458`) stamp captureTs = the client's `Date.now()` receipt-landing time, so it floats SECONDS
-right of the frame it describes → retro scrub cannot trust it. **VERIFY rows** are `ts=now, captureTs=cap_ms`
-(retro-safe, readers prefer captureTs — leave, document). **Amend the invariant (both docs):** *"captureTs ==
-the frame's capture ms for every artifact; retro joins on captureTs, never ts."*
+`tv_diablo.py:458`) stamped captureTs = the client's `Date.now()` receipt-landing time, so it floated SECONDS
+right of the frame it describes → retro scrub could not trust it. **FIX:** both sites now derive captureTs
+from the receipt's `frameId` (`_capture_ts_from_frame_id` — reused in `tv_diablo.py`, mirrored in
+`control_app.py` since it's a separate process); `ts` stays the receipt-landing time (legitimately
+different — when it answered, not when the photo was taken). No frameId → falls back to `ts` (can't do
+better) and the row carries `"capSrc":"receipt-fallback"` so retro readers know honestly it isn't
+frame-anchored; a frame-derived row carries `"capSrc":"frame"`. Pinned in `test_routes.py`
+(`TestIntakeReceiptDedupe.test_captureTs_derived_from_frame_id_not_receipt_time` +
+`test_captureTs_falls_back_honestly_with_no_frame_id`). **VERIFY rows** are `ts=now, captureTs=cap_ms`
+(retro-safe, readers prefer captureTs — left as-is). **Invariant (amended, both docs):** *"captureTs ==
+the frame's capture ms for every artifact; retro joins on captureTs, never ts."* All 4 layers (deep/kai
+rows, gate/routing rows, and now intake receipts) hold it; VERIFY rows hold the retro-safe variant.
 
 **Q6 · MVP cockpit — SHIP READ-ONLY v1 projecting what ALREADY exists** (live now-cursor from
 `status_payload()`, retro per-frame from `kai_report.routing[]`), with super/owner/verdict STUBBED null
@@ -144,7 +158,7 @@ the frame's capture ms for every artifact; retro joins on captureTs, never ts."*
 colored by gatePass/routed/skipReason, frame-click → existing `/api/beat` drill-down. Do NOT block v1 on the
 4th organ/reconciler.
 
-**REVISED BUILD ORDER:** Phase A0 (NEW, BLOCKER) — fix intake captureTs → the frame's capture ms · Phase E-v1
-MVP cockpit (ships now, existing data) · Phase B 4th organ · Phase C reconciler · Phase D materialize
-EngineFrame + live ring · Phase E-v2/v3 super/owner/quorum fill-in. **The blocker (A0) and the MVP (E-v1) can
-start immediately; B/C/D refine what the cockpit shows.**
+**REVISED BUILD ORDER:** Phase A0 (✅ DONE, 2026-07-21) — fix intake captureTs → the frame's capture ms ·
+Phase E-v1 MVP cockpit (ships now, existing data) · Phase B 4th organ · Phase C reconciler · Phase D
+materialize EngineFrame + live ring · Phase E-v2/v3 super/owner/quorum fill-in. **The MVP (E-v1) can start
+immediately now that the blocker is cleared; B/C/D refine what the cockpit shows.**

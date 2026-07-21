@@ -146,7 +146,10 @@ Routed frames flow through the perfected readers: rune/gem/material tally (count
 Receipts flow BACK to the router (routed → fired → confirmed).
 
 ### 5. THE LEDGERS — the memory
-Reads + receipts + verdicts journal to `sessions.jsonl` (**law: ts == captureTs**). KAI compiles
+Reads + receipts + verdicts journal to `sessions.jsonl` (**law: captureTs == the frame's capture
+ms for every artifact; retro joins on captureTs, never ts** — fixed 2026-07-21, Phase A0: intake
+receipts used to stamp captureTs with the receipt-landing time instead of the frame's capture ms).
+KAI compiles
 the register; Chronicle **inbox** proposes grail write-ins (review-gated, never a silent grail write).
 
 ### 6. THE THEATRE — the mirror (where Konyo debugs the engine)
@@ -167,7 +170,11 @@ is not a viewer — it is the engine's self-portrait, the surface where every ot
 
 ## THE UNIFYING LAWS (the logic that binds every organ)
 - **Film is ground truth.** A live miss is never permanent.
-- **ts == captureTs.** Every artifact anchored to its capture millisecond.
+- **captureTs == the frame's capture ms for every artifact; retro joins on captureTs, never ts.**
+  `ts` is when the artifact was ANSWERED/RECEIVED (can legitimately differ — a deep read's `ts`
+  is the settle clock, a verify beat's `ts` is now-of-second-look, an intake receipt's `ts` is
+  when the client's fetch landed); captureTs is always the frame's own capture millisecond,
+  never a stand-in for "roughly when this happened."
 - **No pin → no eye.** Readers only run on a pinned game.
 - **Locked intakes are the hands.** The engine routes frames to them; it never becomes them.
 - **Every frame is knowable.** The theatre can always show a frame's full stamp ledger.

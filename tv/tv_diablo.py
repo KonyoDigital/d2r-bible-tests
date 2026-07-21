@@ -454,8 +454,18 @@ def bridge():
                     ln = int(self.headers.get("Content-Length") or 0)
                     body = json.loads(self.rfile.read(ln).decode("utf-8", "replace") or "{}") if ln else {}
                     now_ms = int(time.time() * 1000)
+                    _ts = int(body.get("ts") or now_ms)
+                    _fid = str(body.get("frameId") or "")[:48]
+                    # A0 fix (2026-07-21, arch panel Q5 blocker): captureTs must be the FRAME's
+                    # capture ms, not `_ts` (the receipt-landing time) — retro joins on captureTs,
+                    # never ts, so a receipt stamped with receipt time desyncs from the frame it
+                    # describes on the scrub. Only fall back to `_ts` when no frameId was sent
+                    # (can't do better); capSrc flags which happened so retro readers know honestly.
+                    _cap_from_frame = _capture_ts_from_frame_id(_fid)
+                    _cap_ts = _cap_from_frame if _cap_from_frame is not None else _ts
+                    _cap_src = "frame" if _cap_from_frame is not None else "receipt-fallback"
                     rec = {
-                        "ts": int(body.get("ts") or now_ms), "captureTs": int(body.get("ts") or now_ms),
+                        "ts": _ts, "captureTs": _cap_ts,
                         "completedTs": now_ms,
                         "n": 0, "scene": "intake", "lane": "intake", "mode": "intake",
                         "names": [], "area": "", "sessionId": SESSION_ID,
@@ -468,7 +478,8 @@ def bridge():
                             "items": (body.get("items") or [])[:60],
                             "ok": bool(body.get("ok", True)),
                         },
-                        "frameId": str(body.get("frameId") or "")[:48],
+                        "frameId": _fid,
+                        "capSrc": _cap_src,
                         "note": ("📸 intake · " + str(body.get("tab") or body.get("kind") or "shot"))[:80],
                     }
                     _journal(rec)

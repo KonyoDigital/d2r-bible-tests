@@ -329,6 +329,37 @@ class TestIntakeReceiptDedupe(unittest.TestCase):
         self._post(dict(rec))
         self.assertEqual(len(self._intake_rows()), 2)          # anonymous shots never collapse
 
+    def test_captureTs_derived_from_frame_id_not_receipt_time(self):
+        # A0 fix (2026-07-21, arch panel Q5 blocker): the client stamps `ts` with Date.now() at
+        # receipt-landing time — auto-intake (screenshot+tally) takes SECONDS, so `ts` floats
+        # seconds right of the frame it describes. captureTs must instead be the frame's own
+        # capture ms, decoded from frameId ("{n}_{captureMs}"), so the retro scrub (which joins
+        # on captureTs, never ts) lands the receipt on the photo it actually describes.
+        cap_ms = 1_753_000_000_000
+        receipt_ts = cap_ms + 4_500          # receipt lands 4.5s after the frame was captured
+        self._post({"frameId": "7_%d" % cap_ms, "tab": "runes",
+                     "counts": {"El": 2}, "ts": receipt_ts})
+        rows = self._intake_rows()
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row.get("captureTs"), cap_ms,
+                          "captureTs must be the FRAME's capture ms, not the receipt-landing ts")
+        self.assertEqual(row.get("ts"), receipt_ts,
+                          "ts stays the receipt-landing time — ts and captureTs are DIFFERENT")
+        self.assertNotEqual(row.get("captureTs"), row.get("ts"))
+        self.assertEqual(row.get("capSrc"), "frame")
+
+    def test_captureTs_falls_back_honestly_with_no_frame_id(self):
+        # No frameId → can't derive a true captureTs, so it falls back to receipt time — but
+        # capSrc must flag that honestly so retro readers know this row isn't frame-anchored.
+        receipt_ts = 1_753_000_005_000
+        self._post({"frameId": "", "tab": "runes", "counts": {"El": 9}, "ts": receipt_ts})
+        rows = self._intake_rows()
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row.get("captureTs"), receipt_ts)
+        self.assertEqual(row.get("capSrc"), "receipt-fallback")
+
 
 class TestFunnelSetWrapperMath(unittest.TestCase):
     """v937 SET wrapper: a whole-stash photo must never double-count on top of the live store. The

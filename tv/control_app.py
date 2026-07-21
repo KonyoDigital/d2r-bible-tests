@@ -365,6 +365,21 @@ def _drv_empty_refire_plan(inflight, intake, freshest_fid, max_tries=3):
     return ("giveup", None)
 
 
+def _capture_ts_from_frame_id(frame_id):
+    """Mirrors tv_diablo.py's helper (kept separate — control_app.py is a different process
+    and does not import tv_diablo). frameId = '{n}_{captureMs}' — the exact settle freeze
+    time of the archived photo. A0 fix (2026-07-21, arch panel Q5 blocker): this is the ONLY
+    honest source for an intake receipt's captureTs — the receipt's `ts` is when the client's
+    fetch landed (Date.now()), which floats SECONDS right of the frame it describes because
+    auto-intake (screenshot+tally) takes seconds to run."""
+    try:
+        if frame_id and "_" in str(frame_id):
+            return int(str(frame_id).rsplit("_", 1)[-1])
+    except Exception:
+        pass
+    return None
+
+
 # ── v945.6 INTAKE LEASE — exactly one owner fires a given tab at a time ──
 # Engine iframe + open board can both see the same stash tab. SET semantics keep
 # counts convergent, but dual-fire wastes AI calls and double-journals. Control
@@ -5719,6 +5734,14 @@ class Handler(BaseHTTPRequestHandler):
                 _ts = int(body.get("ts") or now_ms)
                 _tab = str(body.get("tab") or "")[:24]
                 _fid = str(body.get("frameId") or "")[:48]
+                # A0 fix (2026-07-21, arch panel Q5 blocker): captureTs must be the FRAME's
+                # capture ms, not `_ts` (the receipt-landing time) — retro joins on captureTs,
+                # never ts, so a receipt stamped with receipt time desyncs from the frame it
+                # describes on the scrub. Only fall back to `_ts` when no frameId was sent
+                # (can't do better); capSrc flags which happened so retro readers know honestly.
+                _cap_from_frame = _capture_ts_from_frame_id(_fid)
+                _cap_ts = _cap_from_frame if _cap_from_frame is not None else _ts
+                _cap_src = "frame" if _cap_from_frame is not None else "receipt-fallback"
                 try:
                     _rows = _kai_journal_rows()
                 except Exception:
@@ -5750,7 +5773,7 @@ class Handler(BaseHTTPRequestHandler):
                             self._json(200, {"ok": True, "dup": True})
                             return
                 rec = {
-                    "ts": _ts, "captureTs": _ts, "completedTs": now_ms,
+                    "ts": _ts, "captureTs": _cap_ts, "completedTs": now_ms,
                     "n": 0, "scene": "intake", "lane": "intake", "mode": "intake",
                     "names": [], "area": "", "sessionId": _sid,
                     "intake": {
@@ -5763,6 +5786,7 @@ class Handler(BaseHTTPRequestHandler):
                         "ok": bool(body.get("ok", True)),
                     },
                     "frameId": _fid,
+                    "capSrc": _cap_src,
                     "note": ("📸 intake · " + str(body.get("tab") or body.get("kind") or "shot"))[:80],
                 }
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:
