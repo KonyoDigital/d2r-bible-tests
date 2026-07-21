@@ -2347,22 +2347,27 @@ def _judge_already_near(rows, ts, window_ms=6000):
     return False
 
 
-def _fire_aic_judge_js(hist_path, sid, frame_id, fts, live=False):
+def _fire_aic_judge_js(hist_path, sid, frame_id, fts, live=False, tag=None):
     """Shared evaluate_js payload: aicJudge → aicJudgeApply → /kai_verdict.
-    live=True tags the body so journals/notes distinguish mid-session vs post-seal."""
+    live=True tags the body so journals/notes distinguish mid-session vs post-seal.
+    v949.x — optional `tag` (e.g. 'super') rides through to /kai_verdict as res.tag so a
+    caller (SUPER-ANALYZE KAI) can identify its OWN verdicts in the journal afterward,
+    without changing behavior for existing callers (tag=None is a no-op, omitted from
+    the POST body entirely)."""
     return (
         "(function(){try{var F=document.getElementById('tvd-eng');if(!F||!F.contentWindow)return 0;var W=F.contentWindow;"
         "if(typeof W.aicJudge!=='function')return 0;"
         "fetch(%s+'?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){"
         "return W.aicJudge(new W.File([b],'kai-judge.jpg',{type:'image/jpeg'}))}).then(function(res){"
-        "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;res.live=%s;"
+        "res=res||{};res.sid=%s;res.frameId=%s;res.fts=%s;res.live=%s;%s"
         "try{if(res.ok&&typeof W.aicJudgeApply==='function'){"
         "res.applied=W.aicJudgeApply(res,{sid:res.sid,frameId:res.frameId,fts:res.fts})||null"
         "}}catch(_ae){res.applied={ok:false,why:String(_ae&&_ae.message||_ae)}}"
         "fetch('/kai_verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)}).catch(function(){})"
         "}).catch(function(){});return 1}catch(e){return 0}})()"
     ) % (json.dumps(hist_path), json.dumps(sid or ""), json.dumps(frame_id or ""),
-         json.dumps(int(fts or 0)), "true" if live else "false")
+         json.dumps(int(fts or 0)), "true" if live else "false",
+         ("res.tag=" + json.dumps(str(tag)) + ";") if tag else "")
 
 
 # v944.7 (Fable forensic recalibration) — the KAI "missed" ledger over-counted: it flagged a
@@ -3095,6 +3100,85 @@ def _kai_build_routing(scan, sess_rows, sid, journal_rows):
     return out
 
 
+# ── v949.x 🧠🔬 SUPER-ANALYZE KAI — Phase B, THE 4TH ORGAN (ENGINE_ARCHITECTURE.md "MASTER
+# BRAIN" layer 4; ARCH_PINGPONG §Q1-hybrid). The closer's OCR sweep + gate only PROVES a frame
+# is real tooltip/item content; it never independently re-reads it. A fast-hovered item whose
+# live read AND OCR both garbled ("IA Lla") stays unread forever under the old pipeline — this
+# is the deep retro pass that closes that gap: every gate-PROVEN frame the session never named
+# a real DB item on gets ONE bounded, independent aicJudge re-read of the archived film still.
+# Pure selection (no I/O); the firing/waiting loop lives in _kai_closer_loop.
+def _kai_super_already_named(sess_rows, ts, fullnames=None, window_ms=4000):
+    """True if a nearby (±window_ms) deep read or kai-judge verdict already named a REAL
+    DB item (_kai_fullnames) around this frame's ts — i.e. this frame's content is already
+    registered and does NOT need a super-analyze re-read. Pure. Mirrors the ±4000ms window
+    _kai_build_routing already uses to associate a read/judge with a tooltip frame."""
+    fn = fullnames if fullnames is not None else _kai_fullnames()
+    try:
+        ts = int(ts or 0)
+    except Exception:
+        return False
+    w = max(0, int(window_ms or 0))
+    for r in sess_rows or []:
+        try:
+            rt = int(r.get("captureTs") or r.get("ts") or 0)
+        except Exception:
+            continue
+        if not rt or abs(rt - ts) > w:
+            continue
+        if r.get("lane") == "deep":
+            for nm in (r.get("names") or []):
+                if str(nm or "").strip().lower() in fn:
+                    return True
+        if r.get("lane") == "kai" and isinstance(r.get("kai"), dict):
+            j = r["kai"].get("judge")
+            if isinstance(j, dict) and str(j.get("tier") or "").lower() in ("grail", "keep", "border"):
+                nm = str(j.get("name") or "").strip().lower()
+                if nm and nm in fn:
+                    return True
+    return False
+
+
+def _kai_super_select(routing, sess_rows, fullnames=None, cap=None):
+    """THE SUPER-ANALYZE SELECTOR — pure. Picks which gate-proven frames earn a full,
+    independent deep re-read this pass.
+
+    Eligible: gatePass is True (the accuracy gate already weeded the garbage — LAW: never
+    re-reads a frame the gate didn't prove), label is 'tooltip' or a 'stash-*' tally panel
+    (an item/text frame — never gameplay/boot), and _kai_super_already_named says NO real
+    DB item is already registered near this frame (no wasted calls on already-solved reads).
+
+    Highest-value first: 'tooltip' frames (direct item-name text) before 'stash-*' panels,
+    then by router confidence descending (more independent brains already agreeing on SOMETHING
+    on this frame is a stronger signal there's real recoverable text), then chronological.
+
+    CAP: env TV_KAI_SUPER_MAX (default 10, the 8-12 budget) — a hard ceiling per reel so this
+    organ can never run away. Returns the capped, ordered candidate routing rows."""
+    fn = fullnames if fullnames is not None else _kai_fullnames()
+    if cap is None:
+        try:
+            cap = max(0, int(os.environ.get("TV_KAI_SUPER_MAX", "10")))
+        except Exception:
+            cap = 10
+    cands = []
+    for r in routing or []:
+        if r.get("gatePass") is not True:
+            continue
+        f = r.get("f")
+        if not f:
+            continue
+        label = str(r.get("label") or "")
+        if label != "tooltip" and not label.startswith("stash-"):
+            continue
+        ts = int(r.get("ts") or 0)
+        if _kai_super_already_named(sess_rows, ts, fn):
+            continue
+        cands.append(r)
+    cands.sort(key=lambda r: (0 if r.get("label") == "tooltip" else 1,
+                               -int(r.get("confidence") or 0),
+                               int(r.get("ts") or 0)))
+    return cands[:cap]
+
+
 # ── v948.13 🎞🔗 FILM ↔ REGISTRATION COMPLETENESS (ENGINE_ARCHITECTURE.md target #2) —
 # Konyo's law: "every item I hover should produce a read AND a reel frame — screenshots
 # are missing from the film." This is the DIAGNOSTIC: cross-reference the reel (film,
@@ -3503,6 +3587,12 @@ def _kai_closer_loop():
                 # ── v944.6/v946 Stage 3 📸/🔬/🏦 lanes OBEY the ledger ──
                 # PRE-fire plan → funnel/judge/vault fire ONLY ledger-fireable rows.
                 # After receipts land, final rebuild writes `routed` back.
+                # v949.x 🧠🔬 SUPER-ANALYZE KAI accumulators — declared BEFORE the Stage-3 try so
+                # they always exist (empty) even if the try below raises early; populated inside
+                # the try, read back by the register/routing block further down (same function
+                # scope, no closures needed).
+                _super_recovered = {}   # f -> {"reread": True, "deepNames": [...], "tier": ...}
+                _super_attempted = []
                 try:
                     _plan = _kai_build_routing(routing_scan, sess_rows, sid, sess_rows)
                     _funnel_jobs, _judge_jobs, _vault_jobs = _kai_stage3_select(_plan)
@@ -3709,6 +3799,77 @@ def _kai_closer_loop():
                             time.sleep(8.0)
                         except Exception as _ve:
                             print(f"⚠ KAI vault fire failed: {_ve}", flush=True)
+                    # ── v949.x 🧠🔬 SUPER-ANALYZE KAI — Phase B, THE 4TH ORGAN ──
+                    # (ENGINE_ARCHITECTURE.md "MASTER BRAIN" layer 4 / ARCH_PINGPONG Q1-hybrid).
+                    # Runs LAST in Stage 3, after funnel/judge/vault have had their normal shot —
+                    # so "already named" below only fires on frames genuinely nobody named yet.
+                    # Reuses the SAME aicJudge→aicJudgeApply→/kai_verdict machinery as the judge
+                    # lane (_fire_aic_judge_js) — this is a deep re-read, never a new reader.
+                    # LAW: only gate-PROVEN frames (_kai_super_select requires gatePass is True —
+                    # the gate already weeded the garbage); never gameplay/boot frames; capped by
+                    # TV_KAI_SUPER_MAX so it can never run away.
+                    try:
+                        if os.environ.get("TV_KAI_SUPER", "1") != "0":
+                            try:
+                                _super_sess_rows = [r for r in _kai_journal_rows() if r.get("sessionId") == sid]
+                            except Exception:
+                                _super_sess_rows = sess_rows
+                            _fn_super = _kai_fullnames()
+                            _super_cands = _kai_super_select(_plan, _super_sess_rows, fullnames=_fn_super)
+                            if _super_cands:
+                                print(f"🧠🔬 SUPER-ANALYZE: {len(_super_cands)} gate-proven "
+                                      f"unread frame(s) queued for a deep re-read "
+                                      f"(cap={os.environ.get('TV_KAI_SUPER_MAX', '10')})", flush=True)
+                            for _sc in _super_cands:
+                                if w2 is None:
+                                    break
+                                _fs = str(_sc.get("f") or "")
+                                if not _fs:
+                                    continue
+                                _hps = "/hist/reel_" + sid + "/" + _fs
+                                _fids = "reel_" + sid + "/" + _fs.replace(".jpg", "")
+                                _tss = int(_sc.get("ts") or 0)
+                                _t0s = int(time.time() * 1000)
+                                _super_attempted.append(_fs)
+                                _jss = _fire_aic_judge_js(_hps, sid, _fids, _tss, live=False, tag="super")
+                                try:
+                                    _ejs(w2, _jss, timeout=5.0)
+                                    print(f"🧠🔬 SUPER-ANALYZE: fired deep re-read on {_fs} "
+                                          f"(label={_sc.get('label')})", flush=True)
+                                except Exception as _sfe:
+                                    print(f"⚠ SUPER-ANALYZE fire failed ({_fs}): {_sfe}", flush=True)
+                                    continue
+                                # bounded wait for the verdict to journal — a real vision read;
+                                # never blocks forever (mirrors the funnel receipt-wait shape).
+                                _landed = None
+                                _t0w = time.time()
+                                while time.time() - _t0w < 40.0:
+                                    time.sleep(5.0)
+                                    try:
+                                        for _rw in reversed(_kai_journal_rows()[-80:]):
+                                            if (_rw.get("lane") == "kai" and _rw.get("mode") == "kai-judge"
+                                                    and _rw.get("frameId") == _fids
+                                                    and int(_rw.get("completedTs") or 0) >= _t0s):
+                                                _landed = _rw
+                                                break
+                                    except Exception:
+                                        _landed = None
+                                    if _landed:
+                                        break
+                                if _landed:
+                                    _jd = (_landed.get("kai") or {}).get("judge") or {}
+                                    _nm = str(_jd.get("name") or "").strip()
+                                    _tier = str(_jd.get("tier") or "") or None
+                                    _names = [_nm] if (_nm and _nm.lower() in _fn_super) else []
+                                    _super_recovered[_fs] = {"reread": True, "deepNames": _names, "tier": _tier}
+                                    print(f"🧠🔬 SUPER-ANALYZE recovered: {_fs} → "
+                                          f"{_nm or '(unreadable)'} [{_tier or '?'}]", flush=True)
+                                else:
+                                    _super_recovered[_fs] = {"reread": True, "deepNames": []}
+                                    print(f"🧠🔬 SUPER-ANALYZE: no verdict landed for {_fs} "
+                                          f"within budget — honest miss", flush=True)
+                    except Exception as _sae:
+                        print(f"⚠ SUPER-ANALYZE stage error: {_sae}", flush=True)
                 except Exception as _kfe:
                     print(f"⚠ KAI funnel stage error: {_kfe}", flush=True)
 
@@ -3755,12 +3916,27 @@ def _kai_closer_loop():
                     # are now in the journal, so 'routed' is truthful). Evidence only — no firing.
                     try:
                         _routing = _kai_build_routing(routing_scan, sess_rows, sid, _reg_rows)
+                        # v949.x 🧠🔬 SUPER-ANALYZE — stamp the per-frame verdict this organ
+                        # produced (Q1-hybrid materialization: EngineFrame.super, written into
+                        # kai_report via the atomic writer below). Only rows this pass actually
+                        # attempted carry the field — additive/defensive, the gate/HD-art
+                        # light-up pattern; every other row is untouched.
+                        for _rr in _routing:
+                            _sup = _super_recovered.get(str(_rr.get("f") or ""))
+                            if _sup is not None:
+                                _rr["super"] = _sup
                         report["routing"] = _routing
                         for _rr in _routing:
                             _rcounts[_rr["label"]] = _rcounts.get(_rr["label"], 0) + 1
                         _routed_n = sum(1 for _rr in _routing if _rr.get("routed"))
                     except Exception as _rte:
                         print(f"⚠ KAI routing build failed: {_rte}", flush=True)
+                    _super_recovered_names = sorted({nm for _v in _super_recovered.values()
+                                                     for nm in (_v.get("deepNames") or [])})
+                    if _super_attempted:
+                        print(f"🧠🔬 SUPER-ANALYZE: {len(_super_attempted)} deep re-read(s) "
+                              f"attempted · {len(_super_recovered_names)} real item(s) recovered "
+                              f"({', '.join(_super_recovered_names[:5])})", flush=True)
                     # v948.13 🎞🔗 — FILM ↔ REGISTRATION COMPLETENESS (target #2). _reg_rows is
                     # the freshest re-read of this session's journal, so it already carries the
                     # KAI per-item 'unread' rows appended earlier this same seal pass.
@@ -3786,11 +3962,16 @@ def _kai_closer_loop():
                                 "kai": {"register": {"count": len(_register),
                                                      "items": _register[:40]},
                                         "routing": {"counts": _rcounts, "routedCount": _routed_n},
-                                        **({"completeness": _completeness} if _completeness else {})},
+                                        **({"completeness": _completeness} if _completeness else {}),
+                                        **({"super": {"attempted": len(_super_attempted),
+                                                       "recovered": len(_super_recovered_names)}}
+                                           if _super_attempted else {})},
                                 "note": f"📖 KAI register ledger — {len(_register)} items witnessed · "
                                         f"🚦 {len(_routing)} frames routed-labelled ({_routed_n} fired)"
                                         + (f" · 🎞 {_completeness['coveragePct']}% film-complete "
-                                           f"({_completeness['dropped']} drops)" if _completeness else "")}
+                                           f"({_completeness['dropped']} drops)" if _completeness else "")
+                                        + (f" · 🧠🔬 super-analyze recovered {len(_super_recovered_names)}/"
+                                           f"{len(_super_attempted)}" if _super_attempted else "")}
                     with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as _rf3:
                         _rf3.write(json.dumps(_reg_row, ensure_ascii=False) + "\n")
                     print(f"📖 KAI register: {len(_register)} witnessed · 🚦 routing: {len(_routing)} frames, "
@@ -5682,8 +5863,13 @@ class Handler(BaseHTTPRequestHandler):
                 _app_mode = str((_applied or {}).get("mode") or "")[:16]
                 _app_acts = (_applied or {}).get("actions") if isinstance((_applied or {}).get("actions"), list) else []
                 _live = bool(body.get("live"))
-                _note = ("🔬 " + ("live-" if _live else "") + "judge " + (_vname or "a tooltip")
-                         + " — " + (_tier.upper() or "UNREADABLE"))
+                # v949.x — SUPER-ANALYZE KAI (Phase B, 4th organ) tags its own deep re-reads
+                # so the closer can identify+mark them afterward (routing row 'super' field)
+                # without a second reader/endpoint — same aicJudge/aicJudgeApply/kai_verdict
+                # machinery as the ordinary judge lane, just a provenance breadcrumb.
+                _tag = str(body.get("tag") or "")[:16] or None
+                _note = ("🔬 " + ("live-" if _live else ("super-" if _tag == "super" else ""))
+                         + "judge " + (_vname or "a tooltip") + " — " + (_tier.upper() or "UNREADABLE"))
                 if _app_mode:
                     _note += " → " + _app_mode
                 rec = {"ts": _fts, "captureTs": _fts, "completedTs": int(time.time() * 1000),
@@ -5697,6 +5883,7 @@ class Handler(BaseHTTPRequestHandler):
                                           "why": str(body.get("why") or "")[:120],
                                           "applied": _app_mode or None,
                                           "live": _live,
+                                          "tag": _tag,
                                           "actions": [str(a)[:24] for a in (_app_acts or [])[:8]]}},
                        "note": _note[:100]}
                 with open(os.path.join(HERE, "sessions.jsonl"), "a", encoding="utf-8") as f:

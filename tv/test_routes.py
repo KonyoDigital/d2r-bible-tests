@@ -1302,6 +1302,214 @@ class TestAccuracyGate(unittest.TestCase):
         self.assertEqual(funnel[0]["tab"], "materials")
 
 
+class TestSuperAnalyzeKai(unittest.TestCase):
+    """v949.x 🧠🔬 SUPER-ANALYZE KAI — Phase B, THE 4TH ORGAN (ENGINE_ARCHITECTURE.md "MASTER
+    BRAIN" layer 4 / ARCH_PINGPONG §Q1-hybrid). The closer's gate (§3.5) only PROVES a frame is
+    real content; this organ is the deep INDEPENDENT re-read for frames the gate proved but no
+    eye ever named a real item on — the fix for "film complete but only 3 registered". Pure
+    selection (ca._kai_super_already_named / ca._kai_super_select); firing lives in the closer
+    and is not unit-tested here (real vision call)."""
+
+    FN = {"windforce", "hellfire torch", "shael rune"}
+
+    # ── _kai_super_already_named ────────────────────────────────────────────────
+    def test_already_named_true_for_nearby_real_deep_read(self):
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["Windforce"]}]
+        self.assertTrue(ca._kai_super_already_named(sess, 1500, fullnames=self.FN, window_ms=4000))
+
+    def test_already_named_false_for_garbage_nearby_read(self):
+        # a deep read landed nearby but named nothing DB-real ("IA Lla" garble) — still a
+        # candidate for super-analyze.
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["IA Lla"]}]
+        self.assertFalse(ca._kai_super_already_named(sess, 1500, fullnames=self.FN, window_ms=4000))
+
+    def test_already_named_true_for_nearby_real_judge_verdict(self):
+        sess = [{"lane": "kai", "ts": 2000,
+                  "kai": {"judge": {"name": "Hellfire Torch", "tier": "grail"}}}]
+        self.assertTrue(ca._kai_super_already_named(sess, 2200, fullnames=self.FN, window_ms=4000))
+
+    def test_already_named_ignores_judge_verdict_outside_grail_keep_border(self):
+        sess = [{"lane": "kai", "ts": 2000,
+                  "kai": {"judge": {"name": "Hellfire Torch", "tier": "unreadable"}}}]
+        self.assertFalse(ca._kai_super_already_named(sess, 2200, fullnames=self.FN, window_ms=4000))
+
+    def test_already_named_false_when_out_of_window(self):
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["Windforce"]}]
+        self.assertFalse(ca._kai_super_already_named(sess, 9000, fullnames=self.FN, window_ms=4000))
+
+    def test_already_named_false_with_no_rows(self):
+        self.assertFalse(ca._kai_super_already_named([], 1000, fullnames=self.FN))
+
+    # ── _kai_super_select ───────────────────────────────────────────────────────
+    def test_select_requires_gate_pass_true(self):
+        routing = [
+            {"f": "a.jpg", "ts": 1, "label": "tooltip", "gatePass": True, "confidence": 2},
+            {"f": "b.jpg", "ts": 2, "label": "tooltip", "gatePass": False, "confidence": 2},
+            {"f": "c.jpg", "ts": 3, "label": "tooltip", "gatePass": None, "confidence": 2},
+        ]
+        cands = ca._kai_super_select(routing, [], fullnames=self.FN)
+        self.assertEqual([r["f"] for r in cands], ["a.jpg"])
+
+    def test_select_only_tooltip_or_stash_dash_labels_never_gameplay_or_plain_stash(self):
+        routing = [
+            {"f": "gp.jpg", "ts": 1, "label": "gameplay", "gatePass": True, "confidence": 2},
+            {"f": "st.jpg", "ts": 2, "label": "stash", "gatePass": True, "confidence": 2},
+            {"f": "inv.jpg", "ts": 3, "label": "inventory", "gatePass": True, "confidence": 2},
+            {"f": "tip.jpg", "ts": 4, "label": "tooltip", "gatePass": True, "confidence": 2},
+            {"f": "sr.jpg", "ts": 5, "label": "stash-runes", "gatePass": True, "confidence": 2},
+        ]
+        cands = ca._kai_super_select(routing, [], fullnames=self.FN)
+        self.assertEqual(sorted(r["f"] for r in cands), ["sr.jpg", "tip.jpg"])
+
+    def test_select_excludes_frames_already_named_a_real_item(self):
+        routing = [{"f": "tip.jpg", "ts": 1000, "label": "tooltip", "gatePass": True, "confidence": 2}]
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["Windforce"]}]
+        cands = ca._kai_super_select(routing, sess, fullnames=self.FN)
+        self.assertEqual(cands, [])
+
+    def test_select_includes_frame_whose_nearby_read_was_garbage(self):
+        # THE CORE BUG THIS ORGAN FIXES: live+OCR both garbled ("IA Lla") — still a candidate.
+        routing = [{"f": "tip.jpg", "ts": 1000, "label": "tooltip", "gatePass": True, "confidence": 2}]
+        sess = [{"lane": "deep", "captureTs": 1000, "names": ["IA Lla"]}]
+        cands = ca._kai_super_select(routing, sess, fullnames=self.FN)
+        self.assertEqual([r["f"] for r in cands], ["tip.jpg"])
+
+    def test_select_orders_tooltip_before_stash_then_confidence_then_ts(self):
+        routing = [
+            {"f": "sr1.jpg", "ts": 100, "label": "stash-runes", "gatePass": True, "confidence": 3},
+            {"f": "tip2.jpg", "ts": 300, "label": "tooltip", "gatePass": True, "confidence": 2},
+            {"f": "tip1.jpg", "ts": 200, "label": "tooltip", "gatePass": True, "confidence": 3},
+        ]
+        cands = ca._kai_super_select(routing, [], fullnames=self.FN)
+        # tooltip frames first (higher confidence first among them), stash-* last
+        self.assertEqual([r["f"] for r in cands], ["tip1.jpg", "tip2.jpg", "sr1.jpg"])
+
+    def test_select_respects_explicit_cap(self):
+        routing = [{"f": "t%d.jpg" % i, "ts": i, "label": "tooltip", "gatePass": True, "confidence": 2}
+                   for i in range(5)]
+        cands = ca._kai_super_select(routing, [], fullnames=self.FN, cap=2)
+        self.assertEqual(len(cands), 2)
+
+    def test_select_default_cap_from_env_is_8_to_12_budget(self):
+        # never a runaway — the default env cap must sit in the documented 8-12 budget.
+        old = os.environ.get("TV_KAI_SUPER_MAX")
+        try:
+            os.environ.pop("TV_KAI_SUPER_MAX", None)
+            routing = [{"f": "t%d.jpg" % i, "ts": i, "label": "tooltip", "gatePass": True, "confidence": 2}
+                       for i in range(20)]
+            cands = ca._kai_super_select(routing, [], fullnames=self.FN)
+            self.assertGreaterEqual(len(cands), 8)
+            self.assertLessEqual(len(cands), 12)
+        finally:
+            if old is None:
+                os.environ.pop("TV_KAI_SUPER_MAX", None)
+            else:
+                os.environ["TV_KAI_SUPER_MAX"] = old
+
+    def test_select_env_cap_override_respected(self):
+        old = os.environ.get("TV_KAI_SUPER_MAX")
+        try:
+            os.environ["TV_KAI_SUPER_MAX"] = "3"
+            routing = [{"f": "t%d.jpg" % i, "ts": i, "label": "tooltip", "gatePass": True, "confidence": 2}
+                       for i in range(10)]
+            cands = ca._kai_super_select(routing, [], fullnames=self.FN)
+            self.assertEqual(len(cands), 3)
+        finally:
+            if old is None:
+                os.environ.pop("TV_KAI_SUPER_MAX", None)
+            else:
+                os.environ["TV_KAI_SUPER_MAX"] = old
+
+    def test_select_never_reads_gameplay_even_with_gate_pass_somehow_true(self):
+        # LAW: only gate-proved tooltip/stash-* frames — gameplay/boot never qualifies even in
+        # a hypothetical bad-data case where gatePass got set True on a gameplay-labelled row.
+        routing = [{"f": "gp.jpg", "ts": 1, "label": "gameplay", "gatePass": True, "confidence": 3}]
+        cands = ca._kai_super_select(routing, [], fullnames=self.FN)
+        self.assertEqual(cands, [])
+
+    # ── _fire_aic_judge_js tag plumbing ─────────────────────────────────────────
+    def test_fire_aic_judge_js_embeds_tag_when_given(self):
+        js = ca._fire_aic_judge_js("/hist/x.jpg", "S", "reel_S/x", 1000, live=False, tag="super")
+        self.assertIn('res.tag="super"', js.replace("'", '"').replace(" ", ""))
+
+    def test_fire_aic_judge_js_omits_tag_field_when_absent(self):
+        js = ca._fire_aic_judge_js("/hist/x.jpg", "S", "reel_S/x", 1000, live=False)
+        self.assertNotIn("res.tag=", js)
+
+
+class TestKaiVerdictSuperTag(unittest.TestCase):
+    """v949.x — /kai_verdict journals the SUPER-ANALYZE provenance tag (kai.judge.tag) so the
+    closer can distinguish its own deep re-reads from the ordinary live/post-seal judge lane
+    without a second endpoint — same handler, one extra breadcrumb field. Driven through a REAL
+    ephemeral Handler, matching TestIntakeReceiptDedupe's harness."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), ca.Handler)
+        cls.port = cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def setUp(self):
+        self._old_here = ca.HERE
+        self.tmp = tempfile.mkdtemp(prefix="tvd-super-")
+        ca.HERE = self.tmp
+        open(os.path.join(self.tmp, "sessions.jsonl"), "w").close()
+
+    def tearDown(self):
+        ca.HERE = self._old_here
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _post(self, payload):
+        req = urllib.request.Request(
+            "http://127.0.0.1:%d/kai_verdict" % self.port,
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, json.loads(r.read())
+
+    def _judge_rows(self):
+        rows = []
+        with open(os.path.join(self.tmp, "sessions.jsonl"), encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if ln:
+                    row = json.loads(ln)
+                    if row.get("lane") == "kai" and row.get("mode") == "kai-judge":
+                        rows.append(row)
+        return rows
+
+    def test_super_tag_journaled_on_kai_judge_row(self):
+        self._post({"fts": 1000, "name": "Vex Rune", "verdict": {"tier": "keep", "score": 5},
+                    "ok": True, "sid": "S", "frameId": "reel_S/x", "tag": "super"})
+        rows = self._judge_rows()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["kai"]["judge"]["tag"], "super")
+        self.assertIn("super-judge", rows[0]["note"])
+
+    def test_no_tag_leaves_tag_field_none(self):
+        self._post({"fts": 1000, "name": "Vex Rune", "verdict": {"tier": "keep", "score": 5},
+                    "ok": True, "sid": "S", "frameId": "reel_S/y"})
+        rows = self._judge_rows()
+        self.assertEqual(len(rows), 1)
+        self.assertIsNone(rows[0]["kai"]["judge"]["tag"])
+        self.assertNotIn("super-judge", rows[0]["note"])
+
+    def test_live_tag_takes_precedence_over_super_note_wording(self):
+        # live=True always wins the note's "live-" prefix regardless of tag (mid-session live
+        # judge fires never carry tag='super' in practice, but the note wording must stay
+        # unambiguous if it ever happened).
+        self._post({"fts": 1000, "name": "Vex Rune", "verdict": {"tier": "keep", "score": 5},
+                    "ok": True, "sid": "S", "frameId": "reel_S/z", "live": True, "tag": "super"})
+        rows = self._judge_rows()
+        self.assertEqual(rows[0]["kai"]["judge"]["tag"], "super")
+        self.assertIn("live-judge", rows[0]["note"])
+        self.assertNotIn("super-judge", rows[0]["note"])
+
+
 class TestLiveJudgeQueue(unittest.TestCase):
     """v948.2 — live mid-session Item Checker gates (pure, no vision)."""
 
