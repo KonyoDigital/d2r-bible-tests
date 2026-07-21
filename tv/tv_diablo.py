@@ -34,7 +34,7 @@ import json, os, subprocess, sys, threading, time, hashlib, signal, heapq
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "v946.3"   # vault never-zero re-fire (Konyo live catch: shared errored to 0)
+VERSION = "v946.4"   # Screen Recording settings only opens when grant ACTUALLY missing (not when D2R closed)
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 STATE  = os.path.join(HERE, "state.json")
@@ -4120,14 +4120,25 @@ def main():
                     globals()["_PERM_WARN_AT"] = now
                     if not globals().get("_PERM_WARNED"):
                         globals()["_PERM_WARNED"] = True
+                        # v946.4 (Konyo: "the settings tab keeps popping up every launch though the
+                        # grant is done") — capture_mac ALSO fails when D2R simply isn't in the window
+                        # list (the 'waiting' state), not only on a missing grant. Only blame + OPEN
+                        # the Screen Recording settings when the grant is ACTUALLY missing; a closed or
+                        # unfocused D2R must never pop System Settings. screen_recording_ok() returns
+                        # True instantly (no dialog) when already granted.
+                        _sr_ok = True
                         try:
-                            screen_recording_ok()
-                            open_screen_recording_settings()
+                            _sr_ok = screen_recording_ok()
                         except Exception:
-                            pass
-                        ev("cap", "⚠ capture failed — grant Screen Recording to Python / TV DIABLO (System Settings → Privacy → Screen Recording), then RESTART")
+                            _sr_ok = True
+                        if not _sr_ok:
+                            try: open_screen_recording_settings()
+                            except Exception: pass
+                            ev("cap", "⚠ Screen Recording not granted — tick Python / TV DIABLO in System Settings → Privacy → Screen Recording, then RESTART")
+                        else:
+                            ev("cap", "waiting for the Diablo II window — Screen Recording is granted; open & focus D2R")
                     else:
-                        ev("cap", "⚠ capture still failing — Screen Recording / D2R window?")
+                        ev("cap", "⚠ capture still failing — is the Diablo II window open & focused?")
                     print("  ⚠ screencapture failed (grant Screen Recording to the TV DIABLO / Python app in System Settings → Privacy)")
                 time.sleep(0.5)
                 continue
