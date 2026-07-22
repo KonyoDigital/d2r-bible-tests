@@ -1165,6 +1165,47 @@ class TestDedupeNeverErasesARealReceipt(unittest.TestCase):
         self.assertEqual(f2["skipReason"], "dup-of:f1.jpg")
 
 
+class TestGridVoteRequiresGenuineGridSignal(unittest.TestCase):
+    """v1194 ROUTE/GATE fix — `_kai_closer_loop`'s reel-scan build used to set a scan row's
+    gridLabel (the 'layout' independent evidence class, _ROUTER_INDEP_CLASS) straight from
+    stash_eye's FUSED tab whenever that fused tab named a tally tab, with no check that grid
+    itself actually contributed to the fusion. `fuse_tab_signals` (stash_eye.py) tries OCR's
+    chrome-strip read FIRST ('1 OCR tally wins over vague vault labels') and returns before
+    grid is even consulted when OCR alone is unambiguous — its own `sources` list is the only
+    honest record of which eyes actually agreed. Crediting a purely-OCR-driven fused tab as a
+    'grid' vote let ONE real signal (chrome OCR) masquerade as TWO independent evidence
+    classes ('chrome' AND 'layout'), which alone clears `_router_conf`'s confidence>=2 gate
+    (v947/v949) on a single witness dressed up as two. `_kai_grid_vote_label` is the extracted
+    pure decision — testable in isolation from the subprocess-driven closer loop."""
+
+    def test_ocr_only_fusion_is_not_credited_as_a_grid_vote(self):
+        # fuse_tab_signals rule 1: OCR alone named the tally tab; grid never corroborated
+        # (not in the fusion's own sources list) — must NOT become a grid vote.
+        self.assertIsNone(ca._kai_grid_vote_label("runes", ["ocr"], "", "stash-runes"))
+
+    def test_grid_corroborated_fusion_still_credited(self):
+        # grid genuinely agreed (present in fuse_tab_signals' sources) — real independent
+        # evidence, must still count.
+        self.assertEqual(ca._kai_grid_vote_label("runes", ["ocr", "grid"], "", "stash-runes"),
+                          "stash-runes")
+
+    def test_grid_solo_retro_still_credited(self):
+        # v948.7 KAI retro allow_grid_solo: grid alone (no live sticky) still tags "grid"
+        # in sources — must still count.
+        self.assertEqual(ca._kai_grid_vote_label("gems", ["grid", "solo"], "", "stash-gems"),
+                          "stash-gems")
+
+    def test_raw_pixel_grid_label_still_falls_back_when_fusion_isnt_grid_backed(self):
+        # the fused tab isn't a tally tab (or was OCR-only), but the RAW pixel-only
+        # classify_stash_grid() label independently is — a genuinely independent signal,
+        # must still be honored.
+        self.assertEqual(ca._kai_grid_vote_label("", [], "stash-materials", "gameplay"),
+                          "stash-materials")
+
+    def test_no_signal_is_none(self):
+        self.assertIsNone(ca._kai_grid_vote_label("", [], "", "gameplay"))
+
+
 class TestDriverLiveHonestRejectionReceipt(unittest.TestCase):
     """v1185 — the engine-driver's OWN live fire chains (vaultcount_/vault_/tally, the same
     three sites hardened for never-zero at v1182) each ended their promise chain in a bare

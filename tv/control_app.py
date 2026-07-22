@@ -2176,6 +2176,32 @@ def _kai_frame_cls(lines, itemish):
     return "gameplay"
 
 
+def _kai_grid_vote_label(eye_tab, eye_sources, raw_grid_label, eye_cls):
+    """v1194 ROUTE/GATE fix — the routing-scan build (`_kai_closer_loop`) used to set the
+    scan row's gridLabel ('layout' independent class, _ROUTER_INDEP_CLASS) straight from the
+    FUSED tab (`stash_eye.analyze_frame`'s `out["tab"]`) whenever it named a tally tab —
+    with no check that grid itself actually contributed. `fuse_tab_signals` (stash_eye.py)
+    picks OCR's chrome-strip read FIRST when it alone is unambiguous ("1 OCR tally wins"),
+    before grid is even consulted; only the accompanying `sources` list says which eyes
+    actually agreed. Crediting a purely OCR-driven fused tab as a "grid" vote let ONE real
+    signal (chrome OCR) masquerade as TWO independent evidence classes ('chrome' AND
+    'layout') — exactly the corruption `_router_conf`'s independent-class quorum exists to
+    prevent (a tabstrip+grid pair can clear confidence>=2 on its own, per v947/v949). Now the
+    fused-tab branch only fires when 'grid' is actually in the fusion's own agreeing-sources
+    list; otherwise this falls back to the RAW pixel-only `gridLabel` (stash_eye's
+    `classify_stash_grid`, independent of OCR/journal/model) — a genuinely independent
+    signal, not a relabeled echo of one that already voted. Pure."""
+    if eye_tab in ("runes", "gems", "materials") and "grid" in (eye_sources or []):
+        return "stash-" + eye_tab
+    if raw_grid_label in ("stash-runes", "stash-gems", "stash-materials"):
+        return raw_grid_label
+    if "grid" in (eye_sources or []) and eye_cls == "stash":
+        return "stash"
+    if raw_grid_label == "stash":
+        return "stash"
+    return None
+
+
 def _kai_sticky_tab(ts, stash_times):
     """v946.1 — journal tab for a film timestamp: last deep tab with st<=ts+1.5s,
     held until the next deep tab (or 25s). Fixes gems/materials between sparse deeps."""
@@ -3855,17 +3881,12 @@ def _kai_closer_loop():
                     _jlab = "stash"
                 _ts_lab = ("stash-" + _ocr_tab) if _ocr_tab in ("runes", "gems", "materials") else (
                     "stash" if _ocr_tab in ("personal", "shared") else None)
-                _gr_lab = None
-                # grid vote from eye tab OR raw gridLabel (solo materials/gems/runes)
+                # grid vote — v1194: only from the fused tab when grid ITSELF corroborated
+                # it (else that's OCR's own chrome-strip read double-counted as a second
+                # "independent" class); else the raw pixel-only gridLabel (solo materials/
+                # gems/runes). See _kai_grid_vote_label.
                 _raw_gl = str((_eye or {}).get("gridLabel") or "")
-                if _eye_tab in ("runes", "gems", "materials"):
-                    _gr_lab = "stash-" + _eye_tab
-                elif _raw_gl in ("stash-runes", "stash-gems", "stash-materials"):
-                    _gr_lab = _raw_gl
-                elif "grid" in _eye_src and _eye_cls == "stash":
-                    _gr_lab = "stash"
-                elif _raw_gl == "stash":
-                    _gr_lab = "stash"
+                _gr_lab = _kai_grid_vote_label(_eye_tab, _eye_src, _raw_gl, _eye_cls)
                 _disp = cls or "gameplay"
                 if _eye_cls in ("stash-runes", "stash-gems", "stash-materials"):
                     _disp = _eye_cls
@@ -5032,7 +5053,7 @@ def status_payload():
         _drv = {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
     return {
         "ok": True,
-        "ver": "v1193",
+        "ver": "v1194",
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
