@@ -361,3 +361,14 @@ polish-ui-2 (control_ui.html): cohesion finale — 0 orphan font-sizes (R1-R5 he
 ### ★★★ ENGINE ROOM ARC COMPLETE (v1210→v1229, 20 rounds): r1 read-chain · r2 playhead · r3 health-pills · r4 key · r5 sealed|live · r6 frame-nav · r7 THE FRAME IMAGE · r8 miss-spotlight · r9 scorecard · r10 live-feed · r11 hero-layout · r12 saw-vs-read · r13 keycaps · r14 matched-name · r15 gate-why · r16 signal-forward · r17 onboarding · r18 number-consistency · r19 smoothness · r20 cohesion. Konyo's north star realized: SEE the AI's mind, live+retro.
 ### SESSION TOTALS: 57/80 real versions (v1173→v1229) = integer-reset + typography arc (R1-R5) + stability + supervisor + Blood/cube-up + 28 engine correctness fixes (all 4 engines CONVERGED) + Engine Room arc (20). Test floor: agent 171→198, control 43→125. ALL GREEN.
 ### REMAINING MANDATE: 23 versions to v1252 (the "80"), then the arc target v1272 was the ER arc which is now DONE at v1229 — so the +20 ER is COMPLETE early. Effective remaining: continue toward v1252/v1272 with fresh value (per-engine round 2+ as usage surfaces edges, new capabilities, or Grok-audit-seeded work). Konyo philosophy: perfection is a QUALITY state reachable before v2000; the number is the rebrand ceremony. NEXT: await Konyo direction OR continue autonomous value rounds. Console: `bash tv/tvd-console.sh` restores immortal console when Konyo done scanning.
+
+## 👻 NEW ARC — GHOST MODE (Konyo 2026-07-22): the Console Time Machine, 50+ rounds
+Konyo greenlit: "lets go ship it 50+ rounds." Full spec: GHOST_MODE_ARC.md (north star). A debugger SWITCH on the
+console that ghost-shells the ENTIRE console into a rewindable Time Machine overlay. IRONCLAD: pure ADD-ON, live
+console NEVER changes, only-on-when-toggled, flip-off = zero trace, TRUTHFUL (never fake). Restore point
+restore-v1229-preghost @ v1229 (local+remote) — roll back: git reset --hard restore-v1229-preghost.
+TRUTHFUL SCOPE (forensic-rewind evidence): REAL=scan(reels/sessions.jsonl)+grail-by-date(d2r_foundLog, already ts'd)+forge(derived).
+APPROX-label-only=tallies(manual edits/clears unjournaled)+vault(removals unjournaled). Exact tallies/vault would need a
+console_snapshot-on-mutation hook = touches record paths → ONLY if Konyo okays (not yet). KEEP the Engine Room cockpit as-is
+("different set of tools"). Lane: control_ui.html (polish-ui-2). Round 1 = the SWITCH + ghost-shell CONTAINER → v1230.
+Same gate pattern as ER arc (detached push, restart-after-hook, respect scan pause-flag). NEXT: forensic-rewind stood down; ER arc DONE; per-engine DONE; this is the active arc now.
